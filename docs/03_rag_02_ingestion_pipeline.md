@@ -103,13 +103,6 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 |---|---|
 | `CrawlPayload` | Typed dict for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
 
-**Class-level constants**
-
-| Constant | Description |
-|---|---|
-| `_USER_AGENT` | `"Mozilla/5.0 (compatible; RAG-bot/1.0; +local)"` |
-| `_HEADERS` | Shared headers dict: User-Agent, Accept-Language (`ja,en;q=0.9`), Accept-Encoding (`gzip, deflate`), Connection (`keep-alive`) |
-
 **Public methods**
 
 | Method | Signature | Description |
@@ -273,7 +266,6 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` sentinel exis
 
 `ChunkSplitter` inherits from both `ChunkEnglishMixin` and `ChunkJapaneseMixin` via multiple inheritance.
 Method resolution order: `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`.
-The `_chunk_english` method is called first in MRO for English text; Sudachi-based `_chunk_japanese` is called for Japanese text.
 
 **Public methods**
 
@@ -394,12 +386,6 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 |---|---|
 | `IngestUrlResult` | Per-URL ingestion outcome returned by `ingest_url_group()`; fields: `url`, `n_success`, `n_failed`, `skipped`, `n_embed_failed` (default 0) |
 
-**Module-level constants**
-
-| Constant | Value | Description |
-|---|---|---|
-| `_VALID_LANGS` | `frozenset({"en", "ja"})` | Accepted lang values enforced by the documents.lang CHECK constraint |
-
 **Public methods**
 
 | Method | Signature | Description |
@@ -409,27 +395,6 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group in ascending chunk_index order; moves files to registered/ after processing including on skip; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
 | `__del__` | `() -> None` | Safety cleanup: close httpx.Client if not already closed (handles missing explicit close) |
-
-**Private methods**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_get_embedding` | `(text: str) -> list[float] \| None` | Return embedding vector; validates dimension against embedding_dims config. Returns None on empty input, network failure, or dimension mismatch. Embedding is also validated as a non-empty list. |
-| `_validate_artifact` | `(payload: ChunkJsonRaw, expected_type: str, *, strict: bool = False) -> bool` | Validate artifact_type field (ingestion-only metadata); lenient mode accepts missing artifact_type; strict mode requires schema_version, artifact_type, and created_by. Returns True when validation passes, False when it fails. |
-
-| `_insert_chunk` | `(db: SQLiteHelper, doc_id: int, idx: int, content: str, normalized_content: str \| None, embedding: list[float], chunk_type: str = "", source_file: str = "") -> None` | Insert chunk and embedding vector; chunks_fts synced via trigger using COALESCE(normalized_content, content); embedding stored as float32 BLOB |
-| `_read_chunk_json` | `(path: Path) -> ChunkJsonRaw \| None` | Read and parse chunk JSON file as a raw dict; returns None on failure |
-
-| `_ingest_chunk_files` | `(doc_id: int, chunk_files: list[Path]) -> tuple[int, int, int]` | Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed) |
-| `_group_chunks_by_url` | `(chunk_files: list[Path]) -> dict[str, list[Path]]` | Group chunk files by URL read from their JSON 'url' field; skips files with missing or invalid URLs (including non-http/https/file:// schemes) |
-| `_process_url_groups` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url_groups: dict[str, list[Path]], force: bool) -> list[IngestUrlResult]` | Iterate over URL groups and ingest each; log exceptions without stopping |
-| `_move_to_registered` | `(paths: list[Path]) -> None` | Move ingested chunk files to registered/; logs errors on file move failures |
-| `_log_ingest_failure` | `(doc_id: int, path: Path, e: Exception) -> None` | Log a chunk ingestion failure with doc_id, url, source_type, stage_name structured fields |
-| `_skip_result` | `(url: str) -> IngestUrlResult` | Return a skipped result for a URL |
-| `_validation_failure_result` | `(url: str, chunk_files: list[Path]) -> IngestUrlResult` | Return a failure result when artifact validation fails |
-| `_log_ingestion_result` | `(doc_id: int, url: str, inserted: int, total: int, failed: int, embed_failed: int) -> None` | Log the chunk ingestion result with doc_id, source_type, stage_name structured fields |
-| `_validate_lang` | `(lang: str) -> bool` | Return True when lang is in _VALID_LANGS (en or ja); raises ValueError for invalid values |
-| `_handle_existing_document` | `(db: SQLiteHelper, url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None) -> bool` | **Moved to DocumentManager** — see §4.10 |
 
 ### 4.2 Behavior details
 
@@ -624,35 +589,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 **Class: `ChunkEnglishMixin`**
 
-| Method | Signature | Description |
-|---|---|---|
-| `_chunk_english` | `(text: str) -> list[str]` | Split at paragraph/sentence boundaries; merges short paragraphs, discards below min_chunk after stopword removal |
-| `_merge_paragraphs_en` | `(paragraphs: list[str]) -> list[str]` | Accumulate paragraphs into ≤max_chunk chunks; split oversized paragraphs at sentence boundaries |
-| `_split_sentences_en` | `(text: str) -> list[str]` | Split at sentence boundaries (. ! ?); oversized sentences kept as-is |
-| `_filter_stopwords_en` | `(text: str) -> str` | Remove EN stopwords (case-insensitive); return space-joined tokens |
-
-**Inherited attributes (declared here so mypy sees them; values come from `ChunkSplitter.__init__`)**
-
-| Attribute | Type | Description |
-|---|---|---|
-| `_max_chunk` | `int` | Maximum chunk size in characters |
-| `_min_chunk` | `int` | Minimum chunk size in characters |
-| `_en_stopwords` | `frozenset[str]` | English stopwords from config |
-| `_chunk_overlap` | `int` | Overlap between chunks in characters |
-
-**Private helper methods**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_flush_and_split` | `(para: str, chunks: list[str]) -> None` | Flush buffer and split oversized paragraph at sentence boundaries |
-| `_flush_and_merge` | `(buf: str, para: str, chunks: list[str]) -> None` | Flush buffer and start new buffer with overlap |
-
-**Instance attributes (set during chunking)**
-
-| Attribute | Type | Description |
-|---|---|---|
-| `_buf` | `str` | Running buffer for paragraph accumulation |
-
 ---
 
 ## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
@@ -685,36 +621,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 `chunk_japanese.py` — `ChunkJapaneseMixin`: morphological-analysis-based chunking for Japanese text using Sudachi SplitMode.C. Includes NFKC normalization, clause boundary splitting, and buffer-based accumulation with overlap. Mixed into `ChunkSplitter` via multiple inheritance.
 
 **Class: `ChunkJapaneseMixin`**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_chunk_japanese` | `(text: str) -> list[tuple[str,str]]` | Split into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis |
-| `_split_into_ja_sentences` | `(text: str) -> list[tuple[str,str]]` | Split at clause boundaries (。！？ and newlines); returns (original, normalized) pairs; empty pairs discarded |
-| `_normalize_ja_sentence` | `(text: str) -> str` | Run Sudachi SplitMode.C analysis; return space-joined normalized content words; raises `TokenizationError` on failure |
-| `_merge_ja_sentence_pairs` | `(pairs: list[tuple[str,str]]) -> list[tuple[str,str]]` | Accumulate (original, normalized) pairs into chunk pairs by original text length; applies overlap from buffer tail |
-
-**Inherited attributes (declared here so mypy sees them; values come from `ChunkSplitter.__init__`)**
-
-| Attribute | Type | Description |
-|---|---|---|
-| `_max_chunk` | `int` | Maximum chunk size in characters |
-| `_min_chunk` | `int` | Minimum chunk size in characters |
-| `_chunk_overlap` | `int` | Overlap between chunks in characters |
-| `_ja_stop_pos` | `frozenset[str]` | Japanese stop POS tags from config (excluded from normalized output) |
-| `_sd_tkn` | Any | Sudachi tokenizer instance |
-| `_split_c` | Any | Sudachi SplitMode.C |
-| `_orig_buf` | `str` | Running buffer for original text during merge |
-| `_norm_buf` | `str` | Running buffer for normalized text during merge |
-| `_result` | `list[tuple[str, str]]` | Result list during merge |
-
-**Private helper methods**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_append_to_buffer` | `(orig: str, norm: str) -> None` | Append sentence to the running buffer |
-| `_emit_and_start_new` | `(orig: str, norm: str) -> None` | Emit buffer as chunk and start new buffer with overlap |
-| `_reset_buffer` | `(orig: str, norm: str) -> None` | Discard buffer and start fresh from this sentence |
-| `_merge_tail_into_last` | `(self) -> None` | Merge short tail into the last chunk to avoid losing content |
 
 ---
 
