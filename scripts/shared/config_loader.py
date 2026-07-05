@@ -13,7 +13,12 @@ from typing import Any
 
 import orjson
 
-from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigReadError
+from shared.config_errors import (
+    ConfigMissingError,
+    ConfigParseError,
+    ConfigPermissionError,
+    ConfigReadError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +31,21 @@ _REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(("agent.toml",))
 class ConfigLoader:
     """Load and merge TOML or JSON config files from the config/ directory."""
 
+    # Set by restrict_to() at process startup; None means unrestricted.
+    _allowed_files: frozenset[str] | None = None
+
+    @classmethod
+    def restrict_to(cls, *filenames: str) -> None:
+        """Restrict this process to loading only the specified config files.
+
+        Call once at process startup (before any config is loaded). Any
+        subsequent call to load() or load_all() that touches a file not in
+        this set raises ConfigPermissionError.
+        """
+        if not filenames:
+            raise ValueError("restrict_to() requires at least one filename.")
+        cls._allowed_files = frozenset(filenames)
+
     def __init__(self, config_dir: Path | None = None) -> None:
         repo_root = Path(__file__).resolve().parent.parent.parent
         self._config_dir = config_dir or repo_root / "config"
@@ -35,6 +55,14 @@ class ConfigLoader:
     def load(self, *names: str) -> dict[str, Any]:
         """Read and merge one or more TOML or JSON config files; keys starting with '_' are excluded; raises ValueError on missing/parse error."""
         self._validate_names(names)
+        if self._allowed_files is not None:
+            for name in names:
+                _basename = Path(name).name
+                if _basename not in self._allowed_files:
+                    raise ConfigPermissionError(
+                        f"This process is not permitted to load '{_basename}'. "
+                        f"Allowed: {sorted(self._allowed_files)}"
+                    )
         merged: dict[str, Any] = {}
         for name in names:
             merged.update(self._filter_meta_keys(self._load_single(name)))
@@ -52,6 +80,13 @@ class ConfigLoader:
         config files can each contribute a [mcp_servers.<key>] section without
         overwriting entries from previously loaded files.
         """
+        if self._allowed_files is not None:
+            for name in _BASE_CONFIG_FILES:
+                if name not in self._allowed_files:
+                    raise ConfigPermissionError(
+                        f"This process is not permitted to load '{name}' via load_all(). "
+                        f"Allowed: {sorted(self._allowed_files)}"
+                    )
         merged: dict[str, Any] = {}
         for name in _BASE_CONFIG_FILES:
             try:

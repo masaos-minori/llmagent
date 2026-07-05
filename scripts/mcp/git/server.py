@@ -116,6 +116,7 @@ class GitMCPServer(MCPServer):
     server_name = "git-mcp"
     server_version = "1.0.0"
     http_port = 8014
+    own_config_file = "git_mcp_server.toml"
     app_module = "mcp.git.server:app"
     mcp_tools = TOOL_LIST
 

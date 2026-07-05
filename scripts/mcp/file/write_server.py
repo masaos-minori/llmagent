@@ -184,6 +184,7 @@ class FileWriteMCPServer(MCPServer):
     server_name = "file-write-mcp"
     server_version = "1.0.0"
     http_port = 8007
+    own_config_file = "file_write_mcp_server.toml"
     app_module = "mcp.file.write_server:app"
     mcp_tools = TOOL_LIST
 

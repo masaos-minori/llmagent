@@ -172,6 +172,7 @@ class RagPipelineMCPServer(MCPServer):
     server_name = "rag-pipeline-mcp"
     server_version = "1.0.0"
     http_port = 8010
+    own_config_file = "rag_pipeline_mcp_server.toml"
     app_module = "mcp.rag_pipeline.server:app"
     mcp_tools = TOOL_LIST
 

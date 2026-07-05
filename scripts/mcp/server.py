@@ -107,6 +107,7 @@ class MCPServer:
     http_host: str = "127.0.0.1"
     http_port: int  # e.g. 8004
     app_module: str  # uvicorn target, e.g. "WebSearchMCPServer:app"
+    own_config_file: str = ""  # e.g. "web_search_mcp_server.toml"; set by subclasses
     mcp_tools: list[
         dict[str, Any]
     ]  # tool definitions (retained for subclass reference)
@@ -192,6 +193,11 @@ class MCPServer:
     def run_http(self) -> None:
         """Launch the HTTP server via uvicorn."""
         import uvicorn
+
+        if self.own_config_file:
+            from shared.config_loader import ConfigLoader
+
+            ConfigLoader.restrict_to(self.own_config_file)
 
         uvicorn.run(
             self.app_module,

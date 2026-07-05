@@ -154,6 +154,7 @@ class ShellMCPServer(MCPServer):
     server_name = "shell-mcp"
     server_version = "1.0.0"
     http_port = 8009
+    own_config_file = "shell_mcp_server.toml"
     app_module = "mcp.shell.server:app"
     mcp_tools = TOOL_LIST
 

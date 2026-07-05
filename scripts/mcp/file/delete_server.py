@@ -146,6 +146,7 @@ class FileDeleteMCPServer(MCPServer):
     server_name = "file-delete-mcp"
     server_version = "1.0.0"
     http_port = 8008
+    own_config_file = "file_delete_mcp_server.toml"
     app_module = "mcp.file.delete_server:app"
     mcp_tools = TOOL_LIST
 

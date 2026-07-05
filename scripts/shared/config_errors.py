@@ -12,3 +12,7 @@ class ConfigParseError(ValueError):
 
 class ConfigReadError(ValueError):
     """Config file exists but cannot be read (permission, I/O)."""
+
+
+class ConfigPermissionError(RuntimeError):
+    """Process attempted to load a config file it is not permitted to access."""

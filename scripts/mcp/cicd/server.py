@@ -134,6 +134,7 @@ class CiCdMCPServer(MCPServer):
     server_name = "cicd-mcp"
     server_version = "1.0.0"
     http_port = 8012
+    own_config_file = "cicd_mcp_server.toml"
     app_module = "mcp.cicd.server:app"
     mcp_tools = TOOL_LIST
 

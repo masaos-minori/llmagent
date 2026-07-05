@@ -287,6 +287,7 @@ class MdqMCPServer(MCPServer):
     server_version = "1.0.0"
     http_host = "127.0.0.1"
     http_port = 8013
+    own_config_file = "mdq_mcp_server.toml"
     app_module = "mcp.mdq.server:app"
     mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)
     server_key = "mdq"

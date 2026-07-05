@@ -163,6 +163,7 @@ class GithubMCPServer(MCPServer):
     server_name = "github-mcp"
     server_version = "1.0.0"
     http_port = 8006
+    own_config_file = "github_mcp_server.toml"
     app_module = "mcp.github.server:app"
     mcp_tools = TOOL_LIST
 

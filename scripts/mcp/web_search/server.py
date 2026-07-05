@@ -114,6 +114,7 @@ class WebSearchMCPServer(MCPServer):
     server_name = "web-search-mcp"
     server_version = "3.0.0"
     http_port = 8004
+    own_config_file = "web_search_mcp_server.toml"
     app_module = "mcp.web_search.server:app"
     mcp_tools = TOOL_LIST
 

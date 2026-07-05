@@ -274,6 +274,7 @@ class FileReadMCPServer(MCPServer):
     server_name = "file-read-mcp"
     server_version = "1.0.0"
     http_port = 8005
+    own_config_file = "file_read_mcp_server.toml"
     app_module = "mcp.file.read_server:app"
     mcp_tools = TOOL_LIST
 
