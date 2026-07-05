@@ -36,6 +36,20 @@
 - MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/tool_executor.py` の `HttpTransport`)
 - 起動シーケンス (MCP サーバ起動・ヘルスチェック・セキュリティ監査・プロンプトセットアップ) は `agent/startup.py` の `StartupOrchestrator` に分離されており、`AgentREPL.run()` から委譲される。(根拠: `agent/startup.py`)
 
+#### 設定ファイル分離方針
+
+各プロセス (エージェント・各 MCP サーバー・crawler・ingester・chunk_splitter) は独立して動作し、**自身に対応する設定ファイル 1 つのみを読み込む**。他プロセスの設定ファイル (`agent.toml` を含む) は読み込まない。DB パス・外部サービス URL などが複数プロセスで必要な場合は共通ファイルを作らず、各プロセスの設定ファイルに個別に記述する。
+
+| プロセス | 設定ファイル |
+|---|---|
+| agent | `config/agent.toml` |
+| 各 MCP サーバー | `config/<key>_mcp_server.toml` |
+| crawler | `config/crawler.toml` |
+| ingester | `config/ingester.toml` |
+| chunk_splitter | `config/chunk_splitter.toml` |
+
+詳細 → [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-プロセス分離方針-config-isolation-policy)
+
 | サービス | ポート | モデル | 役割 |
 |---|---|---|---|
 | `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |

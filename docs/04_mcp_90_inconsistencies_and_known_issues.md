@@ -17,6 +17,12 @@ Each entry format:
 
 ## Active Issues
 
+*(現在アクティブな問題はありません)*
+
+---
+
+## Resolved Issues
+
 ---
 
 ### MCP-09: cicd workflow_allowlist policy mismatch — RuntimeError vs warning

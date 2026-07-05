@@ -11,11 +11,21 @@ health probes, audit log reading, and the new-server addition checklist.
 
 ## Configuration File Inventory
 
-### Shared / Agent-level
+### プロセス分離方針
+
+各 MCP サーバーは独立したプロセスであり、**自身の設定ファイル (`*_mcp_server.toml`) のみを読み込む**。`agent.toml` は読み込まない。DB パスや外部サービス URL など他プロセスと同じ値が必要な場合でも、共通ファイルを作らず各設定ファイルに個別に記述する。
+
+`MCPServer.run_http()` は uvicorn 起動前に `ConfigLoader.restrict_to(own_config_file)` を呼び出してこのルールをランタイムで強制する。違反時は `ConfigPermissionError` が発生する。
+
+→ 詳細: [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-プロセス分離方針-config-isolation-policy)
+
+### Agent-level (agent.toml のみが読み込む設定)
+
+`config/agent.toml` はエージェントプロセスのみが `ConfigLoader().load_all()` で読み込む。
 
 | File | Affects |
 |---|---|
-| `config/agent.toml` → `[mcp_servers.*]` | All server transport settings (`McpServerConfig`) |
+| `config/agent.toml` → `[mcp_servers.*]` | All server transport settings (`McpServerConfig`) — エージェントが MCP サーバーへの接続を管理するために使用 |
 | `config/agent.toml` → `tool_definitions` | Tool names exposed to LLM |
 | `config/agent.toml` → `tool_safety_tiers` | Per-tool risk tier (READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN) |
 | `config/agent.toml` → `mcp_watchdog_interval` | Watchdog poll interval (0 = disabled) |
@@ -679,7 +689,8 @@ Expected: all routing tests pass. If `tool_definitions_strict = true`, restart t
 When adding a server:
 
 - [ ] Create `scripts/mcp/<name>/server.py` (inherit `MCPServer`, override `dispatch()`)
-- [ ] Create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section
+- [ ] Declare `own_config_file = "<key>_mcp_server.toml"` in the `MCPServer` subclass — `run_http()` calls `ConfigLoader.restrict_to(own_config_file)` automatically
+- [ ] Create `config/<key>_mcp_server.toml` with **all settings the server needs** (DB パス・外部 URL 等を含む; `agent.toml` は参照しない)
 - [ ] Add tool definitions to `config/tools_definitions.toml`
 - [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
 - [ ] Add new files to `deploy/deploy.sh` copy list

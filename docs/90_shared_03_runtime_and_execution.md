@@ -17,6 +17,9 @@ class ConfigLoader:
     def __init__(self, config_dir: Path | None = None)
     def load(self, *filenames: str) -> dict[str, Any]
     def load_all(self) -> dict[str, Any]
+
+    @classmethod
+    def restrict_to(cls, *filenames: str) -> None
 ```
 
 **`load(*filenames)`**
@@ -24,56 +27,69 @@ class ConfigLoader:
 - Later files override earlier files
 - Keys prefixed with `_` are excluded (documentation metadata)
 - Raises `ConfigMissingError` (file not found), `ConfigParseError` (parse error), or `ConfigReadError` (I/O error) — all subclass `ValueError`
+- If `restrict_to()` has been called, raises `ConfigPermissionError` when a filename is not in the allowed set
 
 **`load_all()`**
-- Merges a hardcoded list of 12 files: `common`, `llm`, `http`, `rag`, `context`, `tools`, `memory`, `otel`, `security`, `system_prompts`, `mcp_servers`, `tools_definitions`
-- Missing files are silently skipped (catches `ValueError` and continues)
-- **`common.toml` IS included** (at index 0, providing baseline infrastructure keys) — see [Config Ownership](#config-ownership) below for full ownership table
+- Loads only `agent.toml` (`_BASE_CONFIG_FILES = ("agent.toml",)`)
+- Missing files are silently skipped (catches `ConfigMissingError` and continues)
+- If `restrict_to()` has been called, raises `ConfigPermissionError` when `agent.toml` is not in the allowed set
+
+**`restrict_to(*filenames)`** (class method)
+- Call once at process startup to declare the only config files this process is permitted to load
+- Any subsequent `load()` or `load_all()` call that touches a file outside this set raises `ConfigPermissionError`
+- Not called by the agent process (unrestricted); called by MCP servers, crawler, ingester, chunk_splitter
+- Tests do not call `restrict_to()`, so test processes are unrestricted
 
 ---
 
-## 2a. Config Ownership
+## 2a. プロセス分離方針 (Config Isolation Policy)
 
-The following table documents which config files are loaded by `load_all()`, which are loaded separately, and which layer owns each file. This is the canonical reference — do not duplicate this information elsewhere; cross-reference this section instead.
+**各プロセスは自身の設定ファイルのみを読み込む。**
 
-| File | Loaded by `load_all()`? | Loaded Separately By | Owning Layer | Notes |
-|---|---|---|---|---|
-| `llm.toml` | Yes | — | shared | LLM API settings (temperature, max_tokens, model) |
-| `http.toml` | Yes | — | shared | HTTP client settings (timeouts, proxy) |
-| `rag.toml` | Yes | — | rag | RAG pipeline settings (chunking strategy, batch size) |
-| `context.toml` | Yes | — | agent | Context window and prompt settings |
-| `tools.toml` | Yes | — | mcp | Tool configuration (tool_names per server) |
-| `memory.toml` | Yes | — | agent/memory | Memory layer settings (embedding enabled, retention) |
-| `otel.toml` | Yes | — | shared | OpenTelemetry tracing (enabled, endpoint) |
-| `security.toml` | Yes | — | shared | Security policy (tool approval, shell policy) |
-| `system_prompts.toml` | Yes | — | agent | System prompt templates |
-| `*_mcp_server.toml` (11 files) | Yes | — | mcp | MCP server definitions: app config + `[mcp_servers.<key>]` transport section per server |
-| `tools_definitions.toml` | Yes | — | mcp | Tool definition metadata |
-| `common.toml` | **Yes** | — | shared/db | DB paths, embedding URL, sqlite-vec path, busy_timeout; loaded at index 0 so downstream files can override if needed |
+エージェント / 各 MCP サーバー / crawler / ingester / chunk_splitter はそれぞれ独立したプロセスとして動作する。設定ファイルは以下のルールに従う:
 
-**Ownership rule:** The "Owning Layer" column indicates which layer is primarily responsible for reading and using the config values from each file. A file may be read by multiple layers at runtime, but only one layer owns its semantic meaning.
+- 各プロセスは起動時に自身に対応する設定ファイル 1 つだけを `ConfigLoader().load("xxx.toml")` で読み込む
+- 他プロセスの設定ファイルは読み込まない (`agent.toml` を含む)
+- DB パス・外部サービス URL など複数プロセスが必要とする値は **共通ファイルを作らず、各プロセスの設定ファイルにそれぞれ記述する**
+- `ConfigLoader.restrict_to(own_config_file)` をプロセス起動直後に呼ぶことでこのルールをランタイムでも強制する — 違反時は `ConfigPermissionError` が発生する
 
-**`common.toml` loading pattern:** `common.toml` is now part of `load_all()` (added at index 0). Callers no longer need to load it explicitly:
-```python
-ConfigLoader().load_all()   # now includes common.toml keys: rag_db_path, embed_url, etc.
-```
-Modules that also need `rag_pipeline.toml` (which is ingester-specific and NOT in `load_all()`) merge both:
-```python
-{**ConfigLoader().load_all(), **ConfigLoader().load("rag_pipeline.toml")}
-```
+| プロセス | 設定ファイル | `restrict_to()` 呼び出し箇所 |
+|---|---|---|
+| agent | `config/agent.toml` | 呼ばない (制限なし) |
+| rag-pipeline-mcp | `config/rag_pipeline_mcp_server.toml` | `MCPServer.run_http()` |
+| cicd-mcp | `config/cicd_mcp_server.toml` | `MCPServer.run_http()` |
+| file-delete-mcp | `config/file_delete_mcp_server.toml` | `MCPServer.run_http()` |
+| file-read-mcp | `config/file_read_mcp_server.toml` | `MCPServer.run_http()` |
+| file-write-mcp | `config/file_write_mcp_server.toml` | `MCPServer.run_http()` |
+| git-mcp | `config/git_mcp_server.toml` | `MCPServer.run_http()` |
+| github-mcp | `config/github_mcp_server.toml` | `MCPServer.run_http()` |
+| mdq-mcp | `config/mdq_mcp_server.toml` | `MCPServer.run_http()` |
+| shell-mcp | `config/shell_mcp_server.toml` | `MCPServer.run_http()` |
+| web-search-mcp | `config/web_search_mcp_server.toml` | `MCPServer.run_http()` |
+| crawler | `config/crawler.toml` | `if __name__ == "__main__"` |
+| ingester | `config/ingester.toml` | `if __name__ == "__main__"` |
+| chunk_splitter | `config/chunk_splitter.toml` | `if __name__ == "__main__"` |
+| eventbus | `config/eventbus.toml` | (独自ローダー) |
+
+**`MCPServer.own_config_file` クラス変数:**
+`MCPServer` サブクラスは `own_config_file = "xxx_mcp_server.toml"` を宣言する。`run_http()` がこの値を使って `ConfigLoader.restrict_to(own_config_file)` を uvicorn 起動前に呼び出す。
 
 **Config loading flow:**
 ```
 ConfigLoader().load("agent.toml")
-  → read /opt/llm/config/agent.toml (TOML or JSON)
+  → read /opt/llm/config/agent.toml (TOML)
   → remove keys prefixed with "_"
-  → return dict  (ValueError on missing or parse error)
+  → return dict  (ConfigMissingError on missing, ConfigParseError on parse error)
 
 ConfigLoader().load_all()
-  → iterate hardcoded 12-file list
+  → iterate _BASE_CONFIG_FILES = ("agent.toml",)
   → skip missing files silently
-  → merge all into single dict
-  → return dict  (common.toml IS included at index 0)
+  → merge into single dict
+  → return dict
+
+ConfigLoader.restrict_to("crawler.toml")  # called at process startup
+ConfigLoader().load("agent.toml")         # → ConfigPermissionError
+ConfigLoader().load_all()                 # → ConfigPermissionError (agent.toml not allowed)
 ```
 
 ---
