@@ -73,10 +73,23 @@ class RagPipelineMCPService:
         cfg = RagPipelineConfig.load()
 
         rag_cfg = build_rag_cfg_adapter(cfg)
+        module_cfg: dict[str, object] = {
+            "llm_url": cfg.llm_url,
+            "embed_url": cfg.embed_url,
+            "rag_db_path": cfg.rag_db_path,
+            "sqlite_vec_so": cfg.sqlite_vec_so,
+            "sqlite_timeout": cfg.sqlite_timeout,
+            "sqlite_busy_timeout_ms": cfg.sqlite_busy_timeout_ms,
+            "mqe_n_queries": cfg.mqe_n_queries,
+            "mqe_prompt_template": cfg.mqe_prompt_template,
+            "rerank_prompt_template": cfg.rerank_prompt_template,
+        }
         http_timeout = 120.0  # process-level HTTP client timeout
         self._http = httpx.AsyncClient(timeout=http_timeout)
         # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
-        self._pipeline = RagPipeline(self._http, rag_cfg)
+        # module_cfg bypasses _ModuleConfig.get() / agent.toml loading
+        self._pipeline = RagPipeline(self._http, rag_cfg, module_cfg=module_cfg)
+        self._doc_mgr = DocumentManager(rag_db_path=cfg.rag_db_path)
         logger.info("RagPipelineMCPService started")
 
     async def stop(self) -> None:

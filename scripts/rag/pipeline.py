@@ -104,6 +104,8 @@ class RagPipeline:
         self,
         http: httpx.AsyncClient,
         cfg: RagConfig,
+        *,
+        module_cfg: dict | None = None,
         on_status: Callable[[str], None] | None = None,
         on_clear: Callable[[], None] | None = None,
     ) -> None:
@@ -127,19 +129,28 @@ class RagPipeline:
             max_size=cfg.semantic_cache_max_size,
             threshold=cfg.semantic_cache_threshold,
         )
-        # Validate RAG config cross-file consistency
-        _module_cfg = _ModuleConfig.get()
+        # module_cfg: explicit override bypasses load_all() / agent.toml.
+        # When None, falls back to _ModuleConfig.get() (agent process path).
+        _resolved_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
         validator = RagConfigValidator()
-        result = validator.validate(_module_cfg)
+        result = validator.validate(_resolved_cfg)
         for warning in result.warnings:
             logger.warning("rag config warning: %s", warning)
         for error in result.errors:
             logger.error("rag config error: %s", error)
         if not result.ok:
             raise ValueError(f"RAG config validation failed: {result.errors}")
-        # Initialize stages; load url/config from class-level cache
-        self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
-        self._embed_url: str = _module_cfg.get("embed_url", "")
+        self._llm = RagLLM(
+            self._http, _resolved_cfg.get("llm_url", ""), cfg=_resolved_cfg
+        )
+        self._embed_url: str = _resolved_cfg.get("embed_url", "")
+        # DB settings stored for augment(); used when db_path is provided explicitly.
+        self._rag_db_path: str = _resolved_cfg.get("rag_db_path", "")
+        self._sqlite_vec_so: str = _resolved_cfg.get("sqlite_vec_so", "")
+        self._sqlite_timeout: int = int(_resolved_cfg.get("sqlite_timeout", 30))
+        self._sqlite_busy_timeout_ms: int = int(
+            _resolved_cfg.get("sqlite_busy_timeout_ms", 30000)
+        )
         logger.info(
             "RagPipeline init: use_rrf=%s rrf_k=%d",
             self._cfg.use_rrf,
@@ -424,7 +435,15 @@ class RagPipeline:
                 if cached is not None:
                     return cached
         try:
-            db = SQLiteHelper().open(row_factory=True)
+            if self._rag_db_path:
+                db = SQLiteHelper(
+                    db_path=self._rag_db_path,
+                    sqlite_vec_so=self._sqlite_vec_so,
+                    sqlite_timeout=self._sqlite_timeout,
+                    sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+                ).open(row_factory=True)
+            else:
+                db = SQLiteHelper().open(row_factory=True)
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         with db:

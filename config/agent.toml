@@ -23,7 +23,6 @@ eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 llm_url = "http://127.0.0.1:8002/v1/chat/completions"
 web_search_url = "http://127.0.0.1:8004"
 github_server_url = "http://127.0.0.1:8006"
-embed_dim = 384
 llm_max_retries = 3
 llm_retry_base_delay = 1.0
 
@@ -181,7 +180,6 @@ approval_github_allowed_repos = []
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
-system_prompt_rag = "あなたは有能なエンジニアアシスタントです。必ず提供されたコンテキストのみに基づいて質問に回答してください。コンテキストに答えが含まれない場合は「提供されたコンテキストに該当情報がありません」と回答してください。"
 system_prompt_tool = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
 mqe_prompt_template = "Without changing the meaning of the following question, please rephrase it in {n_queries} different ways.\nOutput the result as a JSON array. (ex: [\"Q1\", \"Q2\", \"Q3\"])\n\nQuestion: {query}\n"
 rerank_prompt_template = "Please evaluate the relevance of the following question and each context on a scale from 0 to 10.\nOutput the result as a JSON object mapping each context number to its score. (ex: {\"1\": 8, \"2\": 3})\n\nQuestion: {query}\nContext:\n{items_text}\n"

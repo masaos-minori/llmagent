@@ -30,6 +30,10 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     pipeline.last_fetch_result = None
     pipeline.semantic_cache = MagicMock()
     pipeline.last_search_diagnostics = SearchDiagnostics()
+    pipeline._rag_db_path = ""
+    pipeline._sqlite_vec_so = ""
+    pipeline._sqlite_timeout = 30
+    pipeline._sqlite_busy_timeout_ms = 30000
     return pipeline
 
 

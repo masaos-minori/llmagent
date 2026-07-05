@@ -15,6 +15,12 @@ rag_db_path = "/opt/llm/db/rag.sqlite"
 # sqlite-vec shared library path
 sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
 
+# SQLite connection timeout (seconds)
+sqlite_timeout = 30
+
+# SQLite busy timeout (milliseconds)
+sqlite_busy_timeout_ms = 30000
+
 # HTTP listen host
 host = "127.0.0.1"
 
@@ -56,6 +62,9 @@ semantic_cache_threshold  = 0.92
 refiner_max_tokens          = 512
 refiner_max_chars_per_chunk = 300
 refiner_timeout             = 30.0
+
+# Number of queries to generate for MQE
+mqe_n_queries = 3
 
 # MQE prompt template ({n_queries} and {query} are substituted)
 mqe_prompt_template = """Without changing the meaning of the following question, please rephrase it in {n_queries} different ways.

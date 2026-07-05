@@ -32,6 +32,14 @@ def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
 class DocumentManager:
     """Manages document CRUD operations for rag_pipeline MCP service."""
 
+    def __init__(self, rag_db_path: str = "") -> None:
+        self._rag_db_path = rag_db_path
+
+    def _make_helper(self) -> SQLiteHelper:
+        if self._rag_db_path:
+            return SQLiteHelper(db_path=self._rag_db_path)
+        return SQLiteHelper("rag")
+
     def list_documents(
         self, lang: str | None = None, limit: int = 20
     ) -> list[DocumentItem]:
@@ -47,7 +55,7 @@ class DocumentManager:
             params.append(lang)
         sql += " GROUP BY d.doc_id ORDER BY d.fetched_at DESC LIMIT ?"
         params.append(limit)
-        with SQLiteHelper("rag").open(row_factory=True) as db:
+        with self._make_helper().open(row_factory=True) as db:
             rows = db.fetchall(sql, tuple(params))
         return [
             {
@@ -62,7 +70,7 @@ class DocumentManager:
         ]
 
     def delete_document(self, url: str) -> bool:
-        with SQLiteHelper("rag").open(write_mode=True) as db:
+        with self._make_helper().open(write_mode=True) as db:
             row = db.execute(
                 "SELECT doc_id FROM documents WHERE url = ?", (url,)
             ).fetchone()

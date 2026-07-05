@@ -35,6 +35,15 @@ class RagPipelineServiceError(RuntimeError):
 class RagPipelineConfig:
     """Typed configuration for the RAG Pipeline MCP server."""
 
+    llm_url: str = ""
+    embed_url: str = ""
+    rag_db_path: str = ""
+    sqlite_vec_so: str = ""
+    sqlite_timeout: int = 30
+    sqlite_busy_timeout_ms: int = 30000
+    mqe_n_queries: int = 3
+    mqe_prompt_template: str = ""
+    rerank_prompt_template: str = ""
     use_mqe: bool = True
     use_rrf: bool = True
     rrf_k: int = 60
@@ -57,6 +66,15 @@ class RagPipelineConfig:
     def from_dict(cls, d: dict[str, Any]) -> RagPipelineConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
+            llm_url=str(d.get("llm_url", "")),
+            embed_url=str(d.get("embed_url", "")),
+            rag_db_path=str(d.get("rag_db_path", "")),
+            sqlite_vec_so=str(d.get("sqlite_vec_so", "")),
+            sqlite_timeout=int(d.get("sqlite_timeout", 30)),
+            sqlite_busy_timeout_ms=int(d.get("sqlite_busy_timeout_ms", 30000)),
+            mqe_n_queries=int(d.get("mqe_n_queries", 3)),
+            mqe_prompt_template=str(d.get("mqe_prompt_template", "")),
+            rerank_prompt_template=str(d.get("rerank_prompt_template", "")),
             use_mqe=bool(d.get("use_mqe", True)),
             use_rrf=bool(d.get("use_rrf", True)),
             rrf_k=int(d.get("rrf_k", 60)),

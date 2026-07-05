@@ -39,8 +39,33 @@ class SQLiteHelper:
         {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
     )
 
-    def __init__(self, target: DbTarget | str = "rag") -> None:
-        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow', 'eventbus')."""
+    def __init__(
+        self,
+        target: DbTarget | str = "rag",
+        *,
+        db_path: str | None = None,
+        sqlite_vec_so: str = "",
+        sqlite_timeout: int = 30,
+        sqlite_busy_timeout_ms: int = 30000,
+    ) -> None:
+        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow', 'eventbus').
+
+        When db_path is provided, bypasses build_db_config() and uses the supplied path and
+        connection settings directly. This allows callers (e.g. MCP servers) to self-contain
+        their DB config without loading agent.toml.
+        """
+        self.conn: sqlite3.Connection | None = None
+        self._reuse_connection: bool = False
+
+        if db_path is not None:
+            self._target = "explicit"
+            self._db_path = db_path
+            self._default_load_vec = bool(sqlite_vec_so)
+            self._vec_so = sqlite_vec_so
+            self._sqlite_timeout = sqlite_timeout
+            self._busy_timeout_ms = sqlite_busy_timeout_ms
+            return
+
         if isinstance(target, DbTarget):
             resolved = target.value
         else:
@@ -51,8 +76,6 @@ class SQLiteHelper:
             resolved = target
         self._target = resolved
         self._default_load_vec = resolved == "rag"
-        self.conn: sqlite3.Connection | None = None
-        self._reuse_connection: bool = False
         try:
             db_cfg = build_db_config()
         except ValueError as e:
