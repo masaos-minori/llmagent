@@ -55,9 +55,9 @@ cp -n "${REPO_ROOT}/plugins/"*.py /opt/llm/plugins/ 2>/dev/null || true
 
 # ── 設定ファイル ──────────────────────────────────────────────────────────────
 echo "--- config/*.toml → ${DEPLOY_CONFIG}/ ---"
-cp "${REPO_ROOT}/config/common.toml"                    "${DEPLOY_CONFIG}/"
+# Agent
 cp "${REPO_ROOT}/config/agent.toml"                     "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/rag_pipeline.toml"              "${DEPLOY_CONFIG}/"
+# MCP サーバー (各サーバー専用設定; agent.toml は読み込まない)
 cp "${REPO_ROOT}/config/web_search_mcp_server.toml"     "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/github_mcp_server.toml"         "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/file_read_mcp_server.toml"      "${DEPLOY_CONFIG}/"
@@ -65,11 +65,15 @@ cp "${REPO_ROOT}/config/file_write_mcp_server.toml"     "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/file_delete_mcp_server.toml"    "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/shell_mcp_server.toml"          "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/rag_pipeline_mcp_server.toml"   "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/sqlite_mcp_server.toml"         "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/cicd_mcp_server.toml"          "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/mdq_mcp_server.toml"           "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/git_mcp_server.toml"           "${DEPLOY_CONFIG}/"
-cp "${REPO_ROOT}/config/eventbus.toml"                 "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/cicd_mcp_server.toml"           "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/mdq_mcp_server.toml"            "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/git_mcp_server.toml"            "${DEPLOY_CONFIG}/"
+# 取込パイプライン (各スクリプト専用設定; agent.toml は読み込まない)
+cp "${REPO_ROOT}/config/crawler.toml"                   "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/chunk_splitter.toml"            "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/ingester.toml"                  "${DEPLOY_CONFIG}/"
+# Event Bus
+cp "${REPO_ROOT}/config/eventbus.toml"                  "${DEPLOY_CONFIG}/"
 
 # ── Event Bus スキーマ配置 ────────────────────────────────────────────────────
 echo "--- schemas/ → /opt/llm/schemas/ ---"
