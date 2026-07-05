@@ -20,7 +20,7 @@ eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
-llm_url = "http://127.0.0.1:8002/v1/chat/completions"
+llm_url = "http://192.168.11.197:8080/v1/chat/completions"
 web_search_url = "http://127.0.0.1:8004"
 github_server_url = "http://127.0.0.1:8006"
 llm_max_retries = 3
