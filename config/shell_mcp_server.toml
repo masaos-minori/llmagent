@@ -50,12 +50,3 @@ kill_policy = "sigterm_then_sigkill"
 # kill_grace_sec: seconds to wait after SIGTERM before escalating to SIGKILL
 # Ignored when kill_policy = "sigkill_only".
 kill_grace_sec = 2.0
-
-[mcp_servers.shell]
-transport        = "http"
-url              = "http://127.0.0.1:8009"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "execute"
-tool_names       = ["shell_run"]

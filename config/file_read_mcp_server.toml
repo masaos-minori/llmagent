@@ -11,12 +11,3 @@ max_tree_depth = 5
 
 # max_search_results: maximum number of results returned by search_files
 max_search_results = 200
-
-[mcp_servers.file_read]
-transport        = "http"
-url              = "http://127.0.0.1:8005"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "file_read"
-tool_names       = ["read_text_file", "list_directory", "directory_tree", "search_files", "grep_files"]

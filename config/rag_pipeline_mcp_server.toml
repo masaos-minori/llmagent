@@ -1,5 +1,5 @@
 # rag-pipeline-mcp server standalone configuration
-# This file is loaded by rag_pipeline_mcp_service.py instead of agent.toml / common.toml.
+# This file is loaded by rag_pipeline_mcp_service.py instead of agent.toml.
 # It overrides module-level _cfg caches in agent_rag, rag_llm, and sqlite_helper
 # so that RAG pipeline runs independently of the main agent process.
 
@@ -43,10 +43,10 @@ top_k_rerank = 15
 rag_top_k = 5
 
 # Minimum rerank score threshold (0.0 = no filtering)
-rag_min_score = 0.0
+rag_min_score = 2.0
 
 # Maximum chunks selected from the same document
-max_chunks_per_doc = 2
+max_chunks_per_doc = 3
 
 # Semantic cache settings
 semantic_cache_max_size   = 100
@@ -72,12 +72,3 @@ Question: {query}
 Context:
 {items_text}
 """
-
-[mcp_servers.rag_pipeline]
-transport        = "http"
-url              = "http://127.0.0.1:8010"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "query"
-tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]

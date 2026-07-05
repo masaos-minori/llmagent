@@ -17,15 +17,3 @@ auth_token = ""
 
 # audit_log_path: path for operation audit log.
 audit_log_path = "/opt/llm/logs/git-mcp.log"
-
-[mcp_servers.git]
-transport        = "http"
-url              = "http://127.0.0.1:8014"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "file_write"
-tool_names       = [
-  "git_status", "git_log", "git_diff", "git_branch", "git_show",
-  "git_add", "git_commit", "git_checkout", "git_pull", "git_push",
-]

@@ -1,6 +1,5 @@
 # Markdown Context Compression Engine MCP Server Configuration
 
-[mdq_mcp_server]
 status = "production"
 
 # Directories that mdq-mcp is allowed to read from.
@@ -70,15 +69,3 @@ use_embedding = false
 embedding_dims = 384
 vector_table = "chunks_vec"
 embedding_model = "default"
-
-[mcp_servers.mdq]
-transport        = "http"
-url              = "http://127.0.0.1:8013"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "query"
-tool_names       = [
-  "search_docs", "get_chunk", "outline", "index_paths", "refresh_index",
-  "stats", "grep_docs", "fts_consistency_check", "fts_rebuild",
-]

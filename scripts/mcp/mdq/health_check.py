@@ -51,12 +51,7 @@ def check_health() -> JSONResponse:
     details: dict[str, object] = {"service": "mdq-mcp"}
 
     try:
-        cfg = ConfigLoader().load("mdq_mcp_server.toml")
-        mdq_cfg = (
-            cfg.get("mdq_mcp_server", {})
-            if isinstance(cfg.get("mdq_mcp_server"), dict)
-            else {}
-        )
+        mdq_cfg = ConfigLoader().load("mdq_mcp_server.toml")
         db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
         details["database"] = db_path
 

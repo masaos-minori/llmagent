@@ -25,12 +25,3 @@ auth_token = ""
 # github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
 # Prefer setting GITHUB_TOKEN via environment variable or config file
 github_token = ""
-
-[mcp_servers.cicd]
-transport        = "http"
-url              = "http://127.0.0.1:8012"
-startup_mode     = "persistent"
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "query"
-tool_names       = ["trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"]

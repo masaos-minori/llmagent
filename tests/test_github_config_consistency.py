@@ -75,22 +75,22 @@ class TestGitHubConfigConsistency:
         )
 
     def test_github_mcp_server_exists(self) -> None:
-        """[mcp_servers.github] exists in config/github_mcp_server.toml."""
-        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
+        """[mcp_servers.github] exists in config/agent.toml."""
+        with open("config/agent.toml", encoding="utf-8") as f:
             content = f.read()
 
         assert "[mcp_servers.github]" in content, (
-            "[mcp_servers.github] not found in github_mcp_server.toml"
+            "[mcp_servers.github] not found in agent.toml"
         )
 
     def test_github_tool_names_match_tools_definitions(self) -> None:
-        """tool_names in [mcp_servers.github] match tools_definitions.toml exactly."""
+        """tool_names in [mcp_servers.github] (agent.toml) match registry exactly."""
         from shared.tool_registry import get_registry
 
         registry = get_registry()
         github_tools = set(registry.get_tool_names("github"))
 
-        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
+        with open("config/agent.toml", encoding="utf-8") as f:
             content = f.read()
 
         config_tools = _parse_mcp_server_tool_names(content, "github")
@@ -102,12 +102,12 @@ class TestGitHubConfigConsistency:
         )
 
     def test_github_tool_names_match_tool_list(self) -> None:
-        """tool_names in [mcp_servers.github] match TOOL_LIST exactly."""
+        """tool_names in [mcp_servers.github] (agent.toml) match TOOL_LIST exactly."""
         from mcp.github.tools import TOOL_LIST
 
         tool_list_names = {tool["name"] for tool in TOOL_LIST}
 
-        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
+        with open("config/agent.toml", encoding="utf-8") as f:
             content = f.read()
 
         config_tools = _parse_mcp_server_tool_names(content, "github")

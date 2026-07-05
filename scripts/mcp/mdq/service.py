@@ -48,12 +48,7 @@ class MdqService:
         try:
             from shared.config_loader import ConfigLoader
 
-            cfg = ConfigLoader().load("mdq_mcp_server.toml")
-            mdq_cfg = (
-                cfg.get("mdq_mcp_server", {})
-                if isinstance(cfg.get("mdq_mcp_server"), dict)
-                else {}
-            )
+            mdq_cfg = ConfigLoader().load("mdq_mcp_server.toml")
         except (FileNotFoundError, KeyError, TypeError):
             mdq_cfg = {}
 
