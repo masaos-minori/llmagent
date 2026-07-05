@@ -76,7 +76,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | call_timeout_sec | 60.0 sec | `McpServerConfig.call_timeout_sec` |
 | Tool cache TTL | 300 sec | `config/tools.toml::tool_cache_ttl` |
 | Tool cache max size | 200 entries | `config/tools.toml::tool_cache_max_size` |
-| Watchdog interval | 0 (disabled) | `config/agent.toml::mcp_watchdog_interval` |
+| Watchdog interval | `0` (disabled, LOCAL default; PRODUCTION default is `30.0`) | `config/agent.toml::mcp_watchdog_interval` |
 | Health registry threshold | 3 failures | hardcoded in `shared/mcp_config.py` |
 | startup_timeout_sec | 30 sec | `McpServerConfig.startup_timeout_sec` |
 | github default_per_page | 10 | `config/github_mcp_server.toml` |

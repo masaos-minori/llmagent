@@ -150,7 +150,7 @@ All MCP server `/health` endpoints follow consistent semantics for the response 
 
 **`ready`**: `true` when no dependency failures, `false` when any dependency failure.
 
-**`liveness`**: Always `true` — signals that the server process is alive and can accept requests.
+**`liveness`**: `true` by default (base class); subclasses may override to signal fatal internal state where the process cannot accept requests.
 
 **`restart_recommended`**: `true` signals the watchdog that restarting the process may resolve the failure. `false` means restart will not help (e.g. missing credentials require operator action).
 

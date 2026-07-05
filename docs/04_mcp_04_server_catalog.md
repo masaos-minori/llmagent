@@ -290,9 +290,9 @@ All tools do not require config (`requires_config: false`).
 **Tools (9):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`, `fts_consistency_check`, `fts_rebuild`
 **Tool status:** 7 tools are `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`), 2 tools (`fts_consistency_check`, `fts_rebuild`) are `admin`.
 
-**Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `vector_table`, `embedding_model`
+**Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `vector_table`, `embedding_model`, `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}`
+**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_configuration_and_operations.md#health-probes))
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
