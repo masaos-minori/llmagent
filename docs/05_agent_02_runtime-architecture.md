@@ -29,7 +29,7 @@ agent/__main__.py
        │         ├─ LLMClient            — SSE streaming, retry
        │         ├─ ToolExecutor         — MCP routing, TTL cache
        │         ├─ HistoryManager       — char counting, LLM compression
-       │         ├─ _ServerLifecycleRouter — HTTP subprocess + stdio lifecycle
+       │         ├─ ServerLifecycleRouter — HTTP subprocess + stdio lifecycle
        │         ├─ audit_logger         — JSON-lines audit.log writer
        │         └─ MemoryServices?      — optional semantic memory layer
        ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
@@ -47,7 +47,7 @@ agent/__main__.py
 
 - Owns the input/dispatch loop: read line → command or LLM turn
 - Delegates entire startup sequence to `StartupOrchestrator`
-- Owns graceful shutdown (SIGTERM → `SystemExit(0)` conversion, `_close_resources()`)
+- Owns graceful shutdown (SIGTERM → `SystemExit(0)` conversion)
 - No business logic; contains only UI loop, command dispatch, and output display
 
 **Startup sequence (delegated to `StartupOrchestrator.run()`):**
@@ -129,6 +129,7 @@ all services. Sub-structures:
 - Triggers LLM-based summarization when threshold exceeded
 - `HistorySelectionPolicy`: selects which turns to compress (importance scoring + categories)
 - Protects most recent `history_protect_turns` turn pairs from compression
+- `compress_turns` property: number of oldest turn pairs selected for compression
 
 ### CommandRegistry (`agent/commands/registry.py`)
 
@@ -136,23 +137,39 @@ all services. Sub-structures:
 
 | Mixin | Commands |
 |---|---|
-| `_SessionMixin` | `/session` |
-| `_McpMixin` | `/mcp` |
-| `_ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
-| `_ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
-| `_DbMixin` | `/db` |
-| `_ToolingMixin` | `/tool`, `/plan` |
-| `_DebugMixin` | `/debug` |
-| `_AuditMixin` | `/audit` |
-| `_RagExportMixin` | `/rag`, `/export`, `/compact` |
-| `_MemoryMixin` | `/memory` |
-| `_WorkflowMixin` | `/approve`, `/reject` |
+| `SessionMixin` | `/session` |
+| `McpMixin` | `/mcp` |
+| `ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
+| `ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
+| `DbMixin` | `/db` |
+| `ToolingMixin` | `/tool`, `/plan` |
+| `DebugMixin` | `/debug` |
+| `AuditMixin` | `/audit` |
+| `RagExportMixin` | `/rag`, `/export`, `/compact` |
+| `MemoryMixin` | `/memory` |
+| `WorkflowMixin` | `/approve`, `/reject` |
 
 ### CLIView (`agent/cli_view.py`)
 
 - Presentation layer only; no business logic
 - Provides `Writer` and `Reader` protocols for testability
 - Callbacks injected into `Orchestrator`, `HistoryManager`, `LLMClient`
+
+### LifecycleState (`agent/lifecycle.py`)
+
+Transport state enum shared by lifecycle managers:
+
+| Value | Description |
+|---|---|
+| `STARTING` | Server starting up |
+| `RUNNING` | Server is operational |
+| `STOPPED` | Server has been stopped |
+| `FAILED` | Server encountered an error |
+| `UNKNOWN` | Initial/unknown state |
+
+Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
+
+`assert_valid_transition(from_state, to_state)` raises `ValueError` when the transition is illegal.
 
 ### AgentSession (`agent/session.py`)
 
@@ -177,5 +194,5 @@ Accessed via `ctx.services.memory`.
 ## Architecture Notes (Resolved)
 
 - `agent/repl_tool_exec.py` — deleted; tool execution moved to `shared/tool_executor.py`. Use `ToolExecutor.execute()`.
-- `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`) and `StdioServerLifecycleManager` (`agent/stdio_lifecycle.py`), composed via `_ServerLifecycleRouter` in `agent/factory.py`.
+- `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`) and `StdioServerLifecycleManager` (`agent/stdio_lifecycle.py`), composed via `ServerLifecycleRouter` in `agent/factory.py`.
 

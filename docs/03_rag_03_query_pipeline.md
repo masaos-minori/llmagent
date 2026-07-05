@@ -391,13 +391,6 @@ Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapse
 | `_MAX_FTS_TOKENS` | 20 | Maximum tokens in an FTS5 query |
 | `_FTS_KEEP_POS` | `{"名詞", "動詞", "形容詞"}` | Sudachi POS categories retained for Japanese tokens |
 
-**Private functions:**
-
-| Function | Description |
-|---|---|
-| `_build_fts_tokens_ja(text)` | Extract normalized_form() of nouns/verbs/adjectives from Japanese text via Sudachi; propagates ImportError if Sudachi not installed; raises RuntimeError on tokenization failure |
-| `_build_fts_query(text)` | Convert text to FTS5 query; Japanese uses Sudachi POS filter with quoted tokens, English uses alphanumeric regex |
-
 **Lazy Sudachi loading:**
 
 `_SudachiTokenizer` loads Sudachi on first use. Dictionary: `core`, SplitMode: `C`.

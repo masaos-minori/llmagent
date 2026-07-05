@@ -76,7 +76,6 @@ as the primary reference. Legacy source files have been deleted (git history pre
 
 | Issue | Location |
 |---|---|
-| HealthRegistry record_success/failure not called (BUG) | RESOLVED 2026-06-18 — now properly called in `04_mcp_03` |
 | mdq-mcp is production-ready (FTS5 search and indexing implemented) | [04_mcp_04 §mdq-mcp](04_mcp_04_server_catalog.md) |
 | cicd workflow_allowlist RuntimeError claim mismatch | [MCP-09](04_mcp_90_inconsistencies_and_known_issues.md#mcp-09-cicd-workflow_allowlist-policy-mismatch--runtimeerror-vs-warning) |
 

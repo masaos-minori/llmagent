@@ -34,12 +34,10 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 
 | Condition | Execution |
 |---|---|
-| `use_tool_dag=True` and `serial_tool_calls=False` | DAG scheduling (`_execute_with_dag`) |
+| `use_tool_dag=True` and `serial_tool_calls=False` | DAG scheduling |
 | `serial_tool_calls=True` | Sequential (all tools) |
-| `use_tool_dag=False`, any tool in `_SIDE_EFFECT_TOOLS` | Sequential (serialized for safety) |
+| `use_tool_dag=False`, any side-effect tool | Sequential (serialized for safety) |
 | `use_tool_dag=False`, no side-effect tools | Parallel (`asyncio.gather()`) |
-
-`_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})`
 
 ---
 
@@ -70,6 +68,30 @@ one concurrent batch with three groups, all running simultaneously.
 
 `"dag_concurrent"` — at least one batch had multiple groups running concurrently.
 `"dag_sequential"` — all batches ran with a single group (no intra-batch concurrency).
+
+### `execute_one_tool_call(ctx, tc, turn)`
+
+Parses, executes, and optionally summarizes one tool_call dict. Returns `(tc_id, name, args, full_text, is_error, llm_text)`.
+
+- Parses `arguments` JSON; raises `ToolArgumentsDecodeError` on malformed JSON
+- Raises `ToolExecutorUnavailableError` when `ctx.services_required.tools` is None
+- If transport error: saves failure to `ctx.diagnostics`
+- If summarization enabled and result > threshold: calls `summarize_tool_result()` → `llm_text`
+- Otherwise: truncates to `tool_result_max_llm_chars` + "\n... (truncated)"
+
+### Serialization statistics
+
+`_serialization_stats` tracks serialization impact across rounds:
+
+| Counter | Description |
+|---|---|
+| `total_events` | Cumulative serialization events across all rounds |
+| `total_tools_affected` | Cumulative tools affected by serialization |
+| `tools_affected_last_round` | Tools affected in the most recent round (reset to 0 when no serialization) |
+
+### `_TOOL_RESULT_MAX_CHARS`
+
+Display threshold: results longer than 500 chars are shown as line/char counts instead of full text in logs.
 
 ---
 
@@ -108,9 +130,44 @@ grep round_exec /path/to/audit.log
 2. **`allowed_root` root jail:** if path arg is outside `cfg.allowed_root` → denied
 3. **GitHub repo allowlist:** if write op on repo not in `approval_github_allowed_repos` → denied (fail-closed)
 
+#### `check_allowed_root(cfg, tool_name, args)`
+
+Returns `False` when any path argument is outside `cfg.approval.allowed_root`. Returns `True` when:
+- `allowed_root` is not set (no restriction)
+- All path arguments resolve to paths within the allowed root
+
+#### `check_allowed_repo(cfg, tool_name, args)`
+
+Returns `False` when a GitHub write tool targets a repo not in the allowlist. Only applies to `_API_WRITE_TOOLS` (github_* tools). Returns:
+- `True` for non-GitHub write tools
+- `False` when `allowed_repos` is empty (fail-closed)
+- Result of `"owner/repo" in allowed_repos` check
+
+### Operation type classification
+
+`classify_operation_type(tool_name)` returns one of: `READ`, `WRITE`, `DELETE`, `EXECUTE`, `API_WRITE`.
+
+Classification priority (first match wins):
+1. `WRITE_TOOLS` → `OperationType.WRITE`
+2. `DELETE_TOOLS` → `OperationType.DELETE`
+3. `_EXEC_TOOLS` (`shell_run`) → `OperationType.EXECUTE`
+4. `_API_WRITE_TOOLS` (github_* tools) → `OperationType.API_WRITE`
+5. Default → `OperationType.READ`
+
 ### Risk classification
 
-Priority: `approval_risk_rules` table → `tool_safety_tiers` → `_TIER_TO_RISK` mapping
+Priority: `approval_risk_rules` table → `tool_safety_tiers` mapping
+
+#### Tier-to-risk mapping
+
+| Tier | Risk level |
+|---|---|
+| `READ_ONLY` | `none` |
+| `WRITE_SAFE` | `none` |
+| `WRITE_DANGEROUS` | `medium` |
+| `ADMIN` | `high` |
+
+Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 
 | Risk level | Behavior |
 |---|---|
@@ -124,6 +181,22 @@ Priority: `approval_risk_rules` table → `tool_safety_tiers` → `_TIER_TO_RISK
 - GitHub branch in `approval_high_risk_branches` (default: main, master) → escalate to `high`
 - `gitops_force_push_blocked=True` and `force=True` arg → deny
 - `gitops_push_blocked=True` → deny all GitHub write ops
+
+#### `_GITHUB_WRITE_TOOLS`
+
+Internal constant: `frozenset` of 7 GitHub write tools used for `gitops_push_blocked` check:
+
+| Tool | Purpose |
+|---|---|
+| `github_push_files` | Push multiple files |
+| `github_create_or_update_file` | Create or update a single file |
+| `github_delete_file` | Delete a file |
+| `github_merge_pull_request` | Merge a PR |
+| `github_create_pull_request` | Create a PR |
+| `github_update_pull_request` | Update a PR |
+| `github_create_branch` | Create a branch |
+
+When `gitops_push_blocked=True`, any of these tools are denied without prompt.
 
 ### Dry-run preview
 
@@ -156,13 +229,47 @@ When `use_tool_summarize=True` and result length > `tool_summarize_threshold` (d
 3. Full result is stored in `ctx.tool_result_store`
 4. Accessible via `/tool list` / `/tool show <id>`
 
+### `is_summarized(cfg, text, llm_text, is_error)`
+
+Returns `True` when `llm_text` represents a summarized (not truncated) form of `text`.
+
+Conditions for returning `False`:
+- `use_tool_summarize` is disabled or `is_error` is True
+- `text` length ≤ `tool_summarize_threshold`
+- `llm_text == text` (identical — means truncation, not summarization)
+
+Returns `True` when all above conditions are False and `llm_text != truncated_version`.
+
+### `build_preview(tool_name, args)`
+
+Builds a human-readable operation preview shown before approval prompts.
+
+| Tool category | Preview format |
+|---|---|
+| `write_file`, `edit_file` | `{path}\n    content: {content[:200]}` |
+| `delete_file`, `delete_directory`, `create_directory` | `{path or directory_path}` |
+| `move_file` | `{source} → {destination}` |
+| `shell_run` | `{command}` |
+| `github_*` | `{owner}/{repo} {extra args JSON[:200]}` |
+| Other tools | `json.dumps(args)[:300]` |
+
+### `TURN_LIMIT_HINT`
+
+Hint appended to history when a tool result is dropped due to the per-turn limit. Format:
+
+```
+[Result omitted: per-turn tool result limit reached. Use /tool show <id> to retrieve the full output.]
+```
+
+Applied by `_apply_turn_char_limit()` when `turn_chars + len(llm_text) > tool_results_turn_max_chars`.
+
 ---
 
 ## Tool Result Cache
 
 `ToolExecutor` maintains a TTL + LRU cache:
 
-- Cache key: `f"{tool_name}:{_json_dumps(args)}"` (plain string, no MD5; `_json_dumps` = orjson with OPT_SORT_KEYS)
+- Cache key: JSON-serialized tool name + args (plain string, no MD5)
 - Only successful results (`is_error=False`) are cached
 - TTL: `tool_cache_ttl` seconds (default 300)
 - LRU eviction when `tool_cache_max_size > 0` (default 200)

@@ -93,13 +93,7 @@ All known issues, spec conflicts, and open questions are consolidated in
 
 | Issue | ID |
 |---|---|
-| `repl_tool_exec.py` deletion — stale references removed | DOC-01 ✓ |
-| `ServerLifecycleManager` deletion — stale references removed | DOC-02 ✓ |
-| `MCPConfig.github_server_url` field aligned to TOML key | DOC-03 ✓ |
-| stale `05_ref-agent-context.md` reference removed | DOC-04 ✓ |
-| `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 ✓ |
-| Workflow engine fallback conditions — explicit workflow_mode added | OQ-02 ✓ |
-| Memory layer API — now in `05_agent_12_memory.md` | UNDOC-01 ✓ |
+
 
 ---
 

@@ -759,8 +759,7 @@ to `chunks_fts`. English and code chunks have `normalized_content = NULL`, so FT
 
 ### FTS5 query tokenization
 
-`scripts/rag/repository.py` `_build_fts_query()` processes Japanese queries via `_build_fts_tokens_ja()`:
-extracts `normalized_form()` for nouns, verbs, and adjectives only (excludes particles, auxiliaries).
+Japanese queries use Sudachi tokenizer to extract `normalized_form()` for nouns, verbs, and adjectives only (excludes particles, auxiliaries).
 English queries use regex `[a-zA-Z0-9]+` tokenization. Sudachi tokenizer is lazily initialized in
 `_SudachiTokenizer` class (zero import-time side effects).
 

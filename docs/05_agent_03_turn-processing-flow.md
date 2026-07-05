@@ -96,6 +96,15 @@ User input (line)
    - Repeat up to `max_tool_turns` times
 5. If `finish_reason == "stop"` or `max_tool_turns` exceeded: return final answer
 
+### LLMTurnRunner Internal Methods
+
+| Method | Responsibility |
+|---|---|
+| `_stream_llm(llm_url, turn)` | Stream one LLM response; raise on first-turn failure, inject on mid-turn |
+| `_handle_llm_error(e, turn)` | Store mid-turn LLM error in diagnostic channel and return a fail TurnResult |
+| `_span_ctx(name, task_id, session_id, model_url)` | Return a real OTel span or a no-op context manager when no tracer |
+| `_finalize_answer_text(message)` | Append the done-turn message to history and return the answer text |
+
 `ToolLoopGuard` guards during each tool loop iteration:
 - **Dedup:** same `(name, args)` seen ≥ `tool_dedup_max_repeats` times → terminate loop;
   user sees `"Repeated tool call detected."`; hint stored in `session_diagnostics`
@@ -108,7 +117,33 @@ User input (line)
   user sees `"Repeated failed tool call detected."`;
   hint stored in `session_diagnostics` (`kind='guard_hint'`, `guard_type='retry'`).
 - **Consecutive error:** all tools in a round errored `tool_error_max_consecutive` times
-  → terminate loop; user sees `"Too many consecutive tool errors."`.
+   → terminate loop; user sees `"Too many consecutive tool errors."`.
+
+### TurnLoopState dataclass
+
+Holds per-turn loop state:
+
+| Field | Type | Description |
+|---|---|---|
+| `seen_calls` | `set[str]` | Tool call fingerprints seen in current turn |
+| `failed_calls` | `set[str]` | Failed tool call fingerprints |
+| `consecutive_errors` | `int` | Count of consecutive rounds where all tools failed |
+| `round_fingerprints` | `list[str]` | Fingerprints from last N rounds (cycle detection window) |
+
+### Guard methods
+
+| Method | Responsibility |
+|---|---|
+| `check_all(seen_calls, round_fingerprints, failed_calls, message)` | Run dedup, cycle, and retry checks; return hint if any guard triggers |
+| `check_error_limit(consecutive_errors)` | Check consecutive error limit; return message if exceeded |
+
+### Guard constants
+
+| Constant | Value | Purpose |
+|---|---|---|
+| `DEDUP_HINT` | `"Repeated tool call detected. Use /context to see conversation."` | Dedup guard hit message |
+| `CYCLE_HINT` | `"Cyclic tool call pattern detected."` | Cycle detection guard hit message |
+| `RETRY_HINT` | `"Repeated failed tool call detected."` | Retry guard hit message |
 
 > **Note:** Guard hints (`DEDUP_HINT`, `CYCLE_HINT`, `RETRY_HINT`) are stored in
 > `session_diagnostics` under `kind='guard_hint'` for offline diagnostics only.
@@ -240,10 +275,16 @@ completes and before the verify stage runs:
 1. Engine calls `store.request_approval(task_id)` → `ApprovalRecord` with `status=pending`
 2. Task status → `pending_approval`
 3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
-4. User runs `/approve [reason]` or `/reject [reason]`
-5. On next workflow run with the same task, engine checks approval status:
-    - `approved` → continue to verify stage
-    - `rejected` → `WorkflowHaltError` raised; task halted
+
+When the user runs `/approve [reason]` or `/reject [reason]`, the approval record is updated
+in the DB. On the next workflow run with the same task, `_gate_approval()` checks the existing
+approval record:
+
+- `status=approved` → passes through to verify stage
+- `status=rejected` → `WorkflowHaltError` raised; task halted
+- `status=pending` → `WorkflowPendingApprovalError` re-raised (user has not yet responded)
+
+If no existing approval record is found, a new one is created and the workflow is suspended.
 
 ### Workflow Exceptions
 
@@ -258,8 +299,8 @@ completes and before the verify stage runs:
 
 When a stage is `retryable: true`, the engine uses the retry policy to determine retry behavior:
 - `max_attempts`: Maximum number of attempts (default 3)
-- `backoff`: Retry strategy — "fixed" or "exponential"
-- `backoff_sec`: Delay between retries in seconds (default 1 for fixed; multiplied by attempt number for exponential)
+- `backoff`: Retry strategy — "fixed" or "exponential" (both use the same delay logic)
+- `backoff_sec`: Delay between retries in seconds (default 1; always used as-is regardless of backoff type — both "fixed" and "exponential" apply the same constant delay)
 
 ### Workflow Loader Validation Rules
 

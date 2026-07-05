@@ -249,31 +249,6 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 ---
 
-## _ServerLifecycleRouter (`factory.py`)
-
-Manages HTTP subprocess server lifecycle. Implements `LifecycleProtocol`.
-
-```python
-class _ServerLifecycleRouter:
-    async def ensure_ready(server_key: str) -> None
-    async def shutdown_all() -> None
-    async def shutdown_idle() -> None
-    def restart(server_key: str) -> None  # for watchdog
-```
-
-### startup_mode behavior
-
-> **Production transport guidance:**
-> For production deployments, use `transport = "http"` with `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only).
-> HTTP transports support watchdog, health checks, and remote monitoring.
-
-| startup_mode | When | Action |
-|---|---|---|
-| `subprocess` (http) | Agent launch | `start_http_subprocess()` — spawn uvicorn, poll `/health` up to `startup_timeout_sec` |
-| `persistent` (http) | Pre-existing | Agent connects to existing HTTP endpoint; no lifecycle action needed |
-
----
-
 ## End-to-End Tool Call Tracing
 
 ### Correlation Keys
@@ -388,9 +363,7 @@ At startup, the agent logs one of:
   - `reachable=False` (no HTTP response): attempt restart for subprocess-mode servers if under `mcp_watchdog_max_restarts`
   - `reachable=True` and `restart_recommended=true`: attempt restart as above
   - `reachable=True` and `restart_recommended=false`: no restart; if `operator_action_required=true`, log WARNING (missing credentials, missing binary, etc.)
-- On restart: calls `_ServerLifecycleRouter.restart(server_key)` for subprocess-mode servers
-  1. `proc.terminate()` → wait 3s → `proc.kill()` if needed
-  2. `start_http_subprocess()` — respawn + poll `/health`
+- On restart: terminates the subprocess (`proc.terminate()`), waits 3s, kills if needed; then starts a new HTTP subprocess and polls `/health`
 - Externally-managed servers (non-subprocess): logs warning only, no restart
 - Max restarts: `mcp_watchdog_max_restarts` (default 3)
 

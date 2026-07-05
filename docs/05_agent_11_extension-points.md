@@ -65,8 +65,7 @@ handler(ctx: AgentContext, args: str) -> None  # sync or async
 - Access: `plugin_registry.get_command(name)` → `(handler, is_prefix) | None`
 
 **Built-in vs plugin priority:**
-Built-in commands in `_COMMANDS` list are matched first. If no built-in matches,
-`_dispatch_plugin()` is called. Plugin commands that share a name with a built-in
+Built-in commands are matched first. If no built-in matches, plugin commands are tried. Plugin commands that share a name with a built-in
 command are **rejected at load time** (removed from the plugin command registry).
 They will not appear in `iter_commands()` and cannot be dispatched. This is a
 startup-time enforcement, not a dispatch-time priority.

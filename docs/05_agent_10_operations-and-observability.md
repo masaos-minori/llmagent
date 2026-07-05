@@ -165,7 +165,17 @@ Schema details for all three: `90_shared_04_db_architecture_and_schema.md`.
 
 Error message format: `Startup readiness check failed (required services unavailable): <label>: <detail>; ...`
 
-`/mcp` command probes all MCP HTTP servers at `/health` endpoint (5 second timeout).
+**Return type:** `HealthCheckResult` with `warnings`/`errors` lists of `ServiceWarning`. The `has_issues` property returns `True` if either list is non-empty. `warning_messages()` / `error_messages()` return flat string lists.
+
+`/mcp` command probes all MCP HTTP servers at `/health` endpoint (5 second timeout). Returns `bool` via `probe_mcp_health()`, or structured `McpHealthProbeResult` via `_probe_mcp_health_detail()`.
+
+### Shared health models (`agent/shared/health_models.py`)
+
+| Class | Fields |
+|---|---|
+| `ServiceWarning` | `label: str`, `url: str`, `message: str` — frozen dataclass |
+| `HealthCheckResult` | `warnings: list[ServiceWarning]`, `errors: list[ServiceWarning]`; `has_issues` (property), `warning_messages()`, `error_messages()` — frozen dataclass |
+| `McpHealthProbeResult` | `reachable: bool`, `status_code: int \| None`, `restart_recommended: bool`, `operator_action_required: bool`, `body: dict[str, object]` — frozen dataclass; body is empty dict if parse failed or unreachable |
 
 ---
 
@@ -217,6 +227,29 @@ tail -f /opt/llm/logs/audit.log \
 ```
 
 Via REPL: `/audit [tail N | turn <id> | tool <name>]`
+
+### Audit event DTOs (`agent/shared/models.py`)
+
+Three structured audit event dataclasses are used for workflow-specific log entries. All are frozen dataclasses with `ts: float` timestamps and optional `workflow_id: str = ""`, `session_id: str = ""` fields.
+
+| Class | Required fields |
+|---|---|
+| `ToolApprovalEvent` | `event: Literal["tool_approval"]`, `task_id: str`, `tool: str`, `operation_type: str`, `resource_scope: dict[str, str]`, `risk: str`, `decision: str`, `args_preview: dict[str, object]` |
+| `ApprovalDecisionEvent` | `event: Literal["approval_decision"]`, `task_id: str`, `tool: str`, `risk_level: str`, `decision: str`, `escalation_reason: str` |
+| `ToolExecEvent` | `event: Literal["tool_exec"]`, `task_id: str`, `tool: str`, `operation_type: str`, `resource_scope: dict[str, str]`, `mcp_request_id: str`, `is_error: bool`, `args_preview: dict[str, object]` |
+
+| Class | Optional fields |
+|---|---|
+| `ToolApprovalEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
+| `ApprovalDecisionEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
+| `ToolExecEvent` | `source: str = "agent"`, `error_type: str = ""`, `workflow_id: str = ""`, `session_id: str = ""`, `artifact_uri: str \| None = None` |
+
+### Audit writers (`agent/tool_audit.py`)
+
+| Function | Responsibility |
+|---|---|
+| `log_approval_decision(ctx, outcome)` | Write a structured approval_decision event to the audit log |
+| `write_round_exec(ctx, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode)` | Log a round-wide execution event, capturing serialization impact |
 
 ---
 

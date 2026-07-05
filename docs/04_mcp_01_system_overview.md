@@ -84,7 +84,6 @@ Servers run as persistent HTTP processes on loopback.
 | `McpServerConfig` | `shared/mcp_config.py` | Per-server transport configuration |
 | `McpServerHealthRegistry` | `shared/mcp_config.py` | Per-server HEALTHY/DEGRADED/UNAVAILABLE state |
 | `HttpTransport` | `shared/tool_executor.py` | HTTP POST to MCP server |
-| `_ServerLifecycleRouter` | `factory.py` | HTTP subprocess lifecycle management |
 
 ---
 

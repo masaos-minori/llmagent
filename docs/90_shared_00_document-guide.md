@@ -64,9 +64,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | Issue | Location |
 |---|---|
 | `90_shared.md` references non-existent `06_ref-sqlite.md` | [90_shared_90 DOCREF-01](90_shared_90_inconsistencies_and_known_issues.md) |
-| `McpServerConfig.transport` not typed as `Literal` | Resolved — documented in [90_shared_03](90_shared_03_runtime_and_execution.md) |
 | `ArtifactEvent` has no event bus | Out of scope — data definition only, no runtime integration planned |
-| `workflow.sqlite` absent from `07_spec_db.md` | Resolved — documented in [90_shared_04](90_shared_04_db_architecture_and_schema.md) |
 | `LLMMessage` field count discrepancy (5 vs 7) | [90_shared_90 DOCFIELD-01](90_shared_90_inconsistencies_and_known_issues.md) |
 
 ---

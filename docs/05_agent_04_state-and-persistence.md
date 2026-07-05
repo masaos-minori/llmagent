@@ -71,7 +71,7 @@ Session-cumulative counters and latency samples.
 | `stat_semantic_cache_hits` | `int` | Semantic cache hits |
 | `stat_input_tokens` | `int\|None` | LLM input tokens (`None` if endpoint omits `usage`) |
 | `stat_output_tokens` | `int\|None` | LLM output tokens (`None` if endpoint omits `usage`) |
-| `stat_serialization_events` | `list[dict]` | Per-round serialization events recorded by the DAG tool scheduler (`_execute_with_dag`) and standard runner (`_execute_standard`). Accumulated across all turns. Initial: `[]`. Surfaced by the `/mcp` command. |
+| `stat_serialization_events` | `list[dict]` | Per-round serialization events recorded by the DAG tool scheduler and standard runner. Accumulated across all turns. Initial: `[]`. Surfaced by the `/mcp` command. |
 | `stat_serialization_total_overhead_ms` | `float` | Total serialization overhead in milliseconds, accumulated across all turns. Initial: `0.0`. |
 | `stat_memory_consistency_failures` | `int` | Count of `/memory check-consistency` failures this session. Incremented by `cmd_memory.py`. Initial: `0`. |
 | `stat_memory_circuit_open` | `bool` | `True` when the memory embedding circuit breaker is open. Read at display time from `MemoryServices` via `cmd_config_stats._get_mem_circuit_open()` — **not written to `ctx.stats`** during normal operation. Initial: `False`. |
@@ -124,7 +124,8 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - Missing `session_id` is logged as a warning and counted (`stat_skipped_no_session`)
 - When `strict_mode=True`, both conditions raise `RuntimeError` instead of skipping
 - Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
-- `save_many()` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
+- `save_many(messages)` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
+- `replace_messages(messages)` persists compressed history snapshot back to DB; skips silently if session_id is None
 - Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table. For the partial-completion persistence model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
 - `AgentContext.diagnostics` is wired to `Orchestrator._diagnostic_store` on init; `None` before any `Orchestrator` is constructed
@@ -260,6 +261,73 @@ DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path`
 | `rag.sqlite` | `scripts/mcp/rag_pipeline/` | RAG MCP server |
 
 > **Note:** The `/db session` scope covers session.sqlite maintenance. `/db` does not expose workflow.sqlite for direct maintenance — workflow state is managed exclusively by `StateStore` via `WorkflowEngine`.
+
+### StateStore methods (`agent/workflow/state_store.py`)
+
+| Method | Description |
+|---|---|
+| `create_task(session_id, turn_number, workflow_version, workflow_id)` | Create a new task record; returns `TaskRecord` |
+| `update_task_status(task_id, status)` | Update task status (pending/running/pending_approval/completed/failed/halted) |
+| `get_task_by_id(task_id)` | Return the task record for the given task_id, or None if absent |
+| `get_task_by_idempotency_key(key)` | Return the task record for the given idempotency key, or None |
+| `get_task_by_session(session_id)` | Return all tasks for a session ordered by created_at ascending |
+| `get_latest_task(session_id)` | Return the most recently created task for a session |
+| `list_tasks(limit=50)` | Return up to `limit` tasks ordered by created_at descending |
+| `start_attempt(task_id, stage_id)` | Start a new attempt record; returns `AttemptRecord` |
+| `finish_attempt(attempt_id, status, error_msg)` | Complete an attempt with status and optional error message |
+| `count_attempts(task_id, stage_id)` | Return count of attempts for a task+stage combination |
+
+### Task CRUD operations (`agent/workflow/task_ops.py`)
+
+| Function | Description |
+|---|---|
+| `create_task(db, session_id, turn_number, workflow_version, workflow_id)` | Create a new task record; returns `TaskRecord` |
+| `update_task_status(db, task_id, status)` | Update task status (pending/running/pending_approval/completed/failed/halted) |
+| `get_task_by_id(db, task_id)` | Return the task record for the given task_id, or None if absent |
+| `get_task_by_idempotency_key(db, key)` | Return the task record for the given idempotency key, or None |
+| `get_task_by_session(db, session_id)` | Return all tasks for a session ordered by created_at ascending |
+| `get_latest_task(db, session_id)` | Return the most recently created task for a session |
+| `list_tasks(db, limit=50)` | Return up to `limit` tasks ordered by created_at descending |
+
+### Attempt operations (`agent/workflow/attempt_ops.py`)
+
+| Function | Description |
+|---|---|
+| `start_attempt(db, task_id, stage_id)` | Start a new attempt record; returns `AttemptRecord` |
+| `finish_attempt(db, attempt_id, status, error_msg)` | Complete an attempt with status and optional error message |
+| `count_attempts(db, task_id, stage_id)` | Return count of attempts for a task+stage combination |
+
+### Approval operations (`agent/workflow/approval_ops.py`)
+
+| Function | Description |
+|---|---|
+| `request_approval(db, task_id, stage_id)` | Insert a pending approval gate for a task (or specific stage); returns `ApprovalRecord` |
+| `resolve_approval(db, approval_id, status, reason)` | Set approval status to 'approved' or 'rejected' |
+| `get_pending_approval(db, task_id)` | Return the most recent approval record for a task, or None if absent |
+| `find_pending_approval_by_session(db, session_id)` | Return (task_id, approval) for the most recent pending-approval task in this session, or None |
+| `find_latest_pending_approval(db)` | Return (task_id, approval) for the most recent globally pending approval, or None |
+
+### Artifact operations (`agent/workflow/artifact_ops.py`)
+
+| Function | Description |
+|---|---|
+| `record_artifact(db, task_id, stage_id, uri)` | Record an artifact reference; returns `ArtifactRef` |
+
+### Idempotency operations (`agent/workflow/idempotency_ops.py`)
+
+| Function | Description |
+|---|---|
+| `is_event_processed(db, event_id)` | Check if an event has already been processed (idempotency guard) |
+| `begin_stage_if_new(db, event_id, task_id, stage_id)` | Atomically check event_id and start attempt if new; returns `AttemptRecord` if the stage should run, None if already processed |
+
+### WorkflowLoader constants (`agent/workflow/workflow_loader.py`)
+
+| Constant | Value |
+|---|---|
+| `_REQUIRED_STAGE_KEYS` | `{"id", "description", "timeout_sec", "retryable"}` — required keys per stage definition |
+| `_REQUIRED_POLICY_KEYS` | `{"max_attempts", "backoff", "backoff_sec"}` — required keys per retry policy |
+| `_REQUIRED_STAGES` | `{"plan", "execute", "verify"}` — required stages in the workflow |
+| `_SUPPORTED_BACKOFF` | `{"fixed", "exponential"}` — supported backoff strategies |
 
 ---
 

@@ -183,7 +183,7 @@ Handled by `Orchestrator._handle_llm_transport_error()`:
 | Heartbeat timeout | `cfg.llm.sse_heartbeat_timeout` | `/reload` |
 | Reconnect max | `cfg.llm.sse_reconnect_max` | `/reload` |
 
-Compression uses fixed constants: `_COMPRESS_TEMPERATURE=0.3`, `_COMPRESS_MAX_TOKENS=300`
+Compression uses fixed constants: `COMPRESS_TEMPERATURE=0.3`, `COMPRESS_MAX_TOKENS=300`
 (defined in `factory.py`; not hot-reloadable).
 
 ### Per-Use-Case LLM Generation Constants
@@ -191,11 +191,11 @@ Compression uses fixed constants: `_COMPRESS_TEMPERATURE=0.3`, `_COMPRESS_MAX_TO
 | Use case | Location | Temperature | Max tokens |
 |---|---|---|---|
 | Normal LLM call | `cfg.llm.llm_temperature` / `cfg.llm.llm_max_tokens` | 0.2 (default) | 1024 (default) |
-| History compression | `factory.py: _COMPRESS_TEMPERATURE` / `_COMPRESS_MAX_TOKENS` | 0.3 | 300 |
+| History compression | `factory.py: COMPRESS_TEMPERATURE` / `COMPRESS_MAX_TOKENS` | 0.3 | 300 |
 | Session title generation | `cfg.llm.title_llm_temperature` / `cfg.llm.title_llm_max_tokens` | 0.1 | 20 |
-| MQE query expansion | `scripts/rag/pipeline.py: _MQE_TEMPERATURE` / `_MQE_MAX_TOKENS` | 0.6 | 300 |
-| Cross-encoder rerank | `scripts/rag/pipeline.py: _RERANK_TEMPERATURE` / `_RERANK_MAX_TOKENS` | 0.0 | 256 |
-| Tool result summarization | `scripts/rag/pipeline.py: _SUMMARIZE_TEMPERATURE` / `_SUMMARIZE_MAX_TOKENS` | 0.2 | 256 |
+| MQE query expansion | `scripts/rag/pipeline.py: MQE_TEMPERATURE` / `MQE_MAX_TOKENS` | 0.6 | 300 |
+| Cross-encoder rerank | `scripts/rag/pipeline.py: RERANK_TEMPERATURE` / `RERANK_MAX_TOKENS` | 0.0 | 256 |
+| Tool result summarization | `scripts/rag/pipeline.py: SUMMARIZE_TEMPERATURE` / `SUMMARIZE_MAX_TOKENS` | 0.2 | 256 |
 
 Normal call parameters are hot-reloadable via `/set temperature` or `/reload`.
 All other constants are compile-time fixed.

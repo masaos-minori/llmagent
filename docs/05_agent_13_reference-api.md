@@ -157,22 +157,6 @@ Full details: [05_agent_08_configuration.md](05_agent_08_configuration.md)
 
 ---
 
-## _ServerLifecycleRouter (`factory.py`)
-
-- **Role:** HTTP subprocess + stdio server lifecycle management
-- **Primary API:** `ensure_ready(server_key)`, `shutdown_all()`, `restart(server_key)`
-- **Callers:** MCP server startup, tool execution layer, watchdog loop
-- **Callees:** `StdioTransport`, `HttpTransport`, uvicorn subprocess
-- **Config:** `cfg.mcp.mcp_servers`, `cfg.mcp.mcp_watchdog_interval`
-- **Failure:** `RuntimeError` on subprocess startup timeout
-
-**Note:** `ServerLifecycleManager` was deleted. Only `restart_stdio()` remains in
-`agent/lifecycle.py`. All other lifecycle functions are in `_ServerLifecycleRouter`.
-
-Full details: [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
-
----
-
 ## MemoryServices (`agent/memory/`)
 
 - **Role:** Optional persistent semantic memory subsystem

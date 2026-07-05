@@ -70,7 +70,7 @@
   │   │   ├─ error_injection_service.py       # エラー注入サービス
   │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
   │   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
-  │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
+  │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数
   │   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理
   │   │   ├─ stdio_lifecycle.py               # Stdio ライフサイクル管理
   │   │   ├─ repl_health.py                   # ヘルスチェックサテライト
@@ -133,8 +133,14 @@
   │   │   ├─ shared/                          # agent パッケージ内共有型 (agent 層専用)
    │   │   │    ├─ enums.py                    # 空ファイル: カナonicalな列挙型は agent.memory.enums / agent.tool_enums
    │   │   │    ├─ exceptions.py               # 空ファイル: カナonicalな例外は agent.commands/agent.services/agent.memory/agent.tool_exceptions
-   │   │   │    ├─ health_models.py            # ヘルスチェックモデル (ServiceWarning, HealthCheckResult, McpHealthProbeResult)
-   │   │   │    └─ models.py                   # エージェント共通データモデル (ToolApprovalEvent, ApprovalDecisionEvent, ToolExecEvent)
+   │   │   │    ├─ health_models.py            # ヘルスチェックモデル
+   │   │   │    │    ├─ ServiceWarning: label, url, message
+   │   │   │    │    ├─ HealthCheckResult: warnings, errors; has_issues (prop), warning_messages(), error_messages()
+   │   │   │    │    └─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
+   │   │   │    └─ models.py                   # エージェント共通データモデル
+   │   │   │       ├─ ToolApprovalEvent: event, task_id, tool, operation_type, resource_scope, risk, decision, args_preview, ts, workflow_id, session_id
+   │   │   │       ├─ ApprovalDecisionEvent: event, task_id, tool, risk_level, decision, escalation_reason, ts, workflow_id, session_id
+   │   │   │       └─ ToolExecEvent: event, task_id, tool, operation_type, resource_scope, mcp_request_id, is_error, args_preview, ts, source, error_type, workflow_id, session_id, artifact_uri
   │   │   └─ workflow/                        # ワークフローエンジン
   │   │       ├─ models.py                    # ワークフローデータモデル
   │   │       ├─ state_store.py               # ワークフロー状態ストア
