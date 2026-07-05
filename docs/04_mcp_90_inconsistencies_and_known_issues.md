@@ -21,6 +21,8 @@ Each entry format:
 
 ### MCP-09: cicd workflow_allowlist policy mismatch — RuntimeError vs warning
 
+**Status:** Resolved — `04_mcp_04` updated to reflect warning-only behavior (commit 56535502)
+
 **Type:** Document inconsistency
 **Impact scope:** `04_mcp_04`, `scripts/mcp/cicd/service_guards.py`
 
