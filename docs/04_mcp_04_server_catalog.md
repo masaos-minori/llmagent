@@ -268,8 +268,8 @@ All tools do not require config (`requires_config: false`).
 | `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
 
 **Security:**
-- `repo_allowlist`: fail-closed (empty = deny all); raises `CicdAuthorizationError` when empty
-- `workflow_allowlist`: fail-closed (empty = deny all); raises `CicdAuthorizationError` when empty
+- `repo_allowlist`: fail-closed (empty = deny all; warning logged at startup)
+- `workflow_allowlist`: fail-closed (empty = deny all; warning logged at startup)
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
 **Config fields:** `repo_allowlist`, `workflow_allowlist`, `max_log_size_kb` (default: 256 KB), `auth_token`, `github_token`
