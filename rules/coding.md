@@ -11,7 +11,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |
 | Module addition | update copy list in `deploy/deploy.sh` |
-| MCP server addition | add entry to `config/mcp_servers.toml [mcp_servers]` |
+| MCP server addition | create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section |
 
 ## Tool configuration (pyproject.toml)
 

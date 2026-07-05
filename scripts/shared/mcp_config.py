@@ -95,12 +95,12 @@ class McpServerConfig:
 
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
-    """Build per-server transport config from mcp_servers.toml [mcp_servers] section."""
+    """Build per-server transport config from [mcp_servers.<key>] sections in *_mcp_server.toml files."""
     raw = cfg.get("mcp_servers")
     if not isinstance(raw, dict) or not raw:
         raise ValueError(
             "mcp_servers config section is missing or empty. "
-            "Add [mcp_servers] to config/mcp_servers.toml."
+            "Add [mcp_servers.<key>] to the server's config/*_mcp_server.toml."
         )
     return {key: _build_single_server(key, v) for key, v in raw.items()}
 

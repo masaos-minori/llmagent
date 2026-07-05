@@ -29,7 +29,7 @@ the `AgentConfig` dataclass.
 | `config/otel.toml` | ObservabilityConfig |
 | `config/security.toml` | ApprovalConfig |
 | `config/system_prompts.toml` | ToolConfig (system_prompts) |
-| `config/mcp_servers.toml` | MCPConfig |
+| `config/*_mcp_server.toml` | MCPConfig (transport via `[mcp_servers.<key>]`) |
 | `config/tools_definitions.toml` | ToolConfig (tool_definitions) |
 
 For the canonical config ownership table (owning layer per file), see
@@ -69,7 +69,7 @@ provides project-wide defaults.
 | `config/otel.toml` | Observability / tracing | Hot-reloadable |
 | `config/security.toml` | Approval and security defaults | Hot-reloadable (most); `auth_token`, `startup_mode` per server are deferred |
 | `config/system_prompts.toml` | System prompt presets | Hot-reloadable |
-| `config/mcp_servers.toml` | MCP server transport/URL config | HTTP URL: hot-reloadable; `auth_token`, `startup_mode`: deferred; new servers / transport change: restart-required |
+| `config/*_mcp_server.toml` | MCP server transport/URL config (via `[mcp_servers.<key>]`) | HTTP URL: hot-reloadable; `auth_token`, `startup_mode`: deferred; new servers / transport change: restart-required |
 | `config/tools_definitions.toml` | MCP tool name definitions | Hot-reloadable |
 
 **Classification definitions:**
@@ -90,7 +90,7 @@ provides project-wide defaults.
 
 **Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
 - MCP server transport type changes (`stdio` ↔ `http`)
-- New MCP servers added to `mcp_servers.toml`
+- New MCP servers added to `*_mcp_server.toml`
 
 **Startup-only settings** (not touched by `apply_config_dict()`):
 - `use_memory_layer` — enables/disables the memory subsystem at boot
@@ -306,7 +306,7 @@ Source: `config/memory.toml`
 
 ## MCPConfig (`cfg.mcp.*`)
 
-Source: `config/mcp_servers.toml`
+Source: `config/*_mcp_server.toml` (each file's `[mcp_servers.<key>]` section)
 
 | Field | Default | Description |
 |---|---|---|

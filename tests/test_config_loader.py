@@ -192,8 +192,8 @@ class TestLoadAllStrictMode:
     def test_strict_true_allows_missing_optional_file(
         self, tmp_cfg: ConfigLoader, tmp_path: Path
     ) -> None:
-        """strict=True allows missing mdq_mcp_server.toml (optional)."""
-        # Create all required files except mdq_mcp_server.toml
+        """strict=True allows missing *_mcp_server.toml files (all optional)."""
+        # Create all required files; no *_mcp_server.toml files
         for name in [
             "common.toml",
             "llm.toml",
@@ -205,11 +205,10 @@ class TestLoadAllStrictMode:
             "otel.toml",
             "security.toml",
             "system_prompts.toml",
-            "mcp_servers.toml",
             "tools_definitions.toml",
         ]:
             (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
-        # mdq_mcp_server.toml is NOT created — should not raise
+        # *_mcp_server.toml files are NOT created — should not raise
         result = tmp_cfg.load_all(strict=True)
         assert isinstance(result, dict)
 
@@ -228,7 +227,6 @@ class TestLoadAllStrictMode:
             "otel.toml",
             "security.toml",
             "system_prompts.toml",
-            "mcp_servers.toml",
             "tools_definitions.toml",
         ]:
             (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
@@ -251,7 +249,6 @@ class TestLoadAllStrictMode:
             "otel.toml",
             "security.toml",
             "system_prompts.toml",
-            "mcp_servers.toml",
             "mdq_mcp_server.toml",
             "tools_definitions.toml",
         ]:

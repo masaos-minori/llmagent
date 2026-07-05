@@ -47,7 +47,7 @@ The following table documents which config files are loaded by `load_all()`, whi
 | `otel.toml` | Yes | — | shared | OpenTelemetry tracing (enabled, endpoint) |
 | `security.toml` | Yes | — | shared | Security policy (tool approval, shell policy) |
 | `system_prompts.toml` | Yes | — | agent | System prompt templates |
-| `mcp_servers.toml` | Yes | — | mcp | MCP server definitions (transport, cmd, url) |
+| `*_mcp_server.toml` (11 files) | Yes | — | mcp | MCP server definitions: app config + `[mcp_servers.<key>]` transport section per server |
 | `tools_definitions.toml` | Yes | — | mcp | Tool definition metadata |
 | `common.toml` | **Yes** | — | shared/db | DB paths, embedding URL, sqlite-vec path, busy_timeout; loaded at index 0 so downstream files can override if needed |
 

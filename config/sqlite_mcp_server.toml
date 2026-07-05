@@ -3,11 +3,6 @@
 # db_allowlist: permitted DB names (must be keys of db_paths)
 db_allowlist = ["rag", "session"]
 
-# db_paths: map from DB name to absolute path on disk
-[db_paths]
-rag     = "/opt/llm/db/rag.sqlite"
-session = "/opt/llm/db/session.sqlite"
-
 # max_rows: maximum rows returned per query (prevents large data dumps)
 max_rows = 100
 
@@ -16,3 +11,17 @@ audit_log_path = "/opt/llm/logs/sqlite-mcp.log"
 
 # auth_token: Bearer token; empty string = auth disabled (Phase 1 default)
 auth_token = ""
+
+# db_paths: map from DB name to absolute path on disk
+[db_paths]
+rag     = "/opt/llm/db/rag.sqlite"
+session = "/opt/llm/db/session.sqlite"
+
+[mcp_servers.sqlite]
+transport        = "http"
+url              = "http://127.0.0.1:8011"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = ["query_sqlite"]

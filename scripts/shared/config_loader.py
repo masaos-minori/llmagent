@@ -29,8 +29,18 @@ _BASE_CONFIG_FILES: tuple[str, ...] = (
     "otel.toml",
     "security.toml",
     "system_prompts.toml",
-    "mcp_servers.toml",
-    "mdq_mcp_server.toml",  # optional; MCP server config, may not exist in all deployments
+    # MCP server configs (all optional; each provides [mcp_servers.<key>] transport entry)
+    "web_search_mcp_server.toml",
+    "file_read_mcp_server.toml",
+    "file_write_mcp_server.toml",
+    "file_delete_mcp_server.toml",
+    "shell_mcp_server.toml",
+    "git_mcp_server.toml",
+    "github_mcp_server.toml",
+    "cicd_mcp_server.toml",
+    "sqlite_mcp_server.toml",
+    "rag_pipeline_mcp_server.toml",
+    "mdq_mcp_server.toml",
     "tools_definitions.toml",
 )
 
@@ -46,7 +56,6 @@ _REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(
         "otel.toml",
         "security.toml",
         "system_prompts.toml",
-        "mcp_servers.toml",
         "tools_definitions.toml",
     )
 )
@@ -74,14 +83,22 @@ class ConfigLoader:
 
         Args:
             strict: If True, raise ConfigMissingError for any missing required
-                config file. Required files are all _BASE_CONFIG_FILES except
-                mdq_mcp_server.toml. If False (default), missing files are skipped
-                with a debug log.
+                config file. Required files are defined in _REQUIRED_CONFIG_FILES.
+                If False (default), missing files are skipped with a debug log.
+
+        Dict-valued keys are merged one level deep so that multiple MCP server
+        config files can each contribute a [mcp_servers.<key>] section without
+        overwriting entries from previously loaded files.
         """
         merged: dict[str, Any] = {}
         for name in _BASE_CONFIG_FILES:
             try:
-                merged.update(self._filter_meta_keys(self._load_single(name)))
+                data = self._filter_meta_keys(self._load_single(name))
+                for key, val in data.items():
+                    if isinstance(val, dict) and isinstance(merged.get(key), dict):
+                        merged[key] = {**merged[key], **val}
+                    else:
+                        merged[key] = val
             except ConfigMissingError:
                 if strict and name in _REQUIRED_CONFIG_FILES:
                     raise
