@@ -51,7 +51,7 @@ class TestGitHubConfigConsistency:
     """Ensure GitHub TOOL_LIST, ToolRegistry, tools_definitions.toml, and github_mcp_server.toml are consistent."""
 
     def test_github_tools_in_tools_definitions(self) -> None:
-        """All 21 GitHub tools exist in config/tools_definitions.toml."""
+        """All 21 GitHub tools exist in config/agent.toml [tool_definitions]."""
         from shared.tool_registry import get_registry
 
         registry = get_registry()
@@ -60,7 +60,7 @@ class TestGitHubConfigConsistency:
             f"Expected 21 GitHub tools in registry, got {len(github_tools)}"
         )
 
-        with open("config/tools_definitions.toml", encoding="utf-8") as f:
+        with open("config/agent.toml", encoding="utf-8") as f:
             content = f.read()
 
         defined_names = [
@@ -71,7 +71,7 @@ class TestGitHubConfigConsistency:
 
         missing = set(github_tools) - set(defined_names)
         assert not missing, (
-            f"GitHub tools missing from tools_definitions.toml: {sorted(missing)}"
+            f"GitHub tools missing from agent.toml [tool_definitions]: {sorted(missing)}"
         )
 
     def test_github_mcp_server_exists(self) -> None:

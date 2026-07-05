@@ -19,7 +19,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        cfg = ConfigLoader().load("common.toml")
+        cfg = ConfigLoader().load("agent.toml")
         raw_archive_dir: str | None = cfg.get("sqlite_archive_dir")
         if raw_archive_dir is None or not isinstance(raw_archive_dir, str):
             raw_archive_dir = "/opt/llm/db/archive"

@@ -18,46 +18,9 @@ from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigRea
 logger = logging.getLogger(__name__)
 
 
-_BASE_CONFIG_FILES: tuple[str, ...] = (
-    "common.toml",  # base defaults; http settings here are lowest precedence
-    "llm.toml",  # LLM-specific; may override http keys from common
-    "http.toml",  # HTTP-specific; takes precedence over common and llm for http keys
-    "rag.toml",
-    "context.toml",
-    "tools.toml",
-    "memory.toml",
-    "otel.toml",
-    "security.toml",
-    "system_prompts.toml",
-    # MCP server configs (all optional; each provides [mcp_servers.<key>] transport entry)
-    "web_search_mcp_server.toml",
-    "file_read_mcp_server.toml",
-    "file_write_mcp_server.toml",
-    "file_delete_mcp_server.toml",
-    "shell_mcp_server.toml",
-    "git_mcp_server.toml",
-    "github_mcp_server.toml",
-    "cicd_mcp_server.toml",
-    "rag_pipeline_mcp_server.toml",
-    "mdq_mcp_server.toml",
-    "tools_definitions.toml",
-)
+_BASE_CONFIG_FILES: tuple[str, ...] = ("agent.toml",)
 
-_REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(
-    (
-        "common.toml",
-        "llm.toml",
-        "http.toml",
-        "rag.toml",
-        "context.toml",
-        "tools.toml",
-        "memory.toml",
-        "otel.toml",
-        "security.toml",
-        "system_prompts.toml",
-        "tools_definitions.toml",
-    )
-)
+_REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(("agent.toml",))
 
 
 class ConfigLoader:

@@ -1,6 +1,384 @@
-# ---- tool_definitions ----
-# List of tool definitions provided to the LLM (OpenAI function calling format);
-# the LLM selects and calls tools from this list.
+# agent.toml — agent process configuration
+# Previously split across: common, llm, http, rag, context, tools, memory, otel,
+# security, system_prompts, tools_definitions, and *_mcp_server transport sections.
+
+# ── Infrastructure (common) ───────────────────────────────────────────────────
+
+rag_db_path = "/opt/llm/db/rag.sqlite"
+session_db_path = "/opt/llm/db/session.sqlite"
+sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
+embed_url = "http://127.0.0.1:8003/embedding"
+sqlite_timeout = 30
+sqlite_busy_timeout_ms = 30000
+sqlite_wal_checkpoint_mode = "TRUNCATE"
+sqlite_retention_max_sessions = 100
+sqlite_retention_max_age_days = 30
+sqlite_archive_dir = "/opt/llm/db/archive"
+embedding_dims = 384
+workflow_mode = "auto"
+eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
+
+# ── LLM endpoints ─────────────────────────────────────────────────────────────
+
+llm_url = "http://127.0.0.1:8002/v1/chat/completions"
+web_search_url = "http://127.0.0.1:8004"
+github_server_url = "http://127.0.0.1:8006"
+embed_dim = 384
+llm_max_retries = 3
+llm_retry_base_delay = 1.0
+
+# ── HTTP ──────────────────────────────────────────────────────────────────────
+
+http_timeout = 120.0
+web_search_max_results = 5
+
+# ── RAG pipeline ──────────────────────────────────────────────────────────────
+
+top_k_search = 20
+top_k_rerank = 15
+mqe_n_queries = 3
+rrf_k = 60
+max_tool_turns = 5
+use_mqe = true
+use_search = true
+use_rrf = true
+use_rerank = true
+rag_top_k = 5
+rag_min_score = 2.0
+max_chunks_per_doc = 3
+use_two_stage_fetch = false
+two_stage_max_docs = 2
+rag_service_url = "http://127.0.0.1:8010"
+use_semantic_cache = false
+semantic_cache_threshold = 0.92
+semantic_cache_max_size = 100
+
+# ── Context ───────────────────────────────────────────────────────────────────
+
+use_refiner = false
+refiner_max_tokens = 512
+refiner_timeout = 30.0
+refiner_max_chars_per_chunk = 300
+tool_definitions_strict = false
+context_char_limit = 8000
+context_compress_turns = 4
+
+# ── Tools ─────────────────────────────────────────────────────────────────────
+
+tool_cache_ttl = 300
+serial_tool_calls = false
+use_tool_dag = true
+use_tool_summarize = false
+tool_summarize_threshold = 3000
+tool_dedup_max_repeats = 3
+tool_cycle_detect_window = 2
+tool_error_max_consecutive = 3
+tool_cache_max_size = 200
+tool_error_retry_max = 1
+tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, sqlite = 4, cicd = 2}
+tool_result_max_llm_chars = 8000
+tool_results_turn_max_chars = 50000
+context_token_limit = 4000
+tokenize_url = ""
+history_protect_turns = 3
+llm_max_tokens = 4096
+llm_temperature = 0.2
+mcp_watchdog_interval = 60
+mcp_watchdog_max_restarts = 3
+sse_heartbeat_timeout = 60.0
+sse_malformed_retry = 2
+sse_reconnect_max = 3
+llm_stream_retry_on_heartbeat_timeout = true
+llm_stream_retry_on_malformed_chunk = false
+plugin_tool_override = false
+plugin_strict = false
+
+# ── Memory ────────────────────────────────────────────────────────────────────
+
+use_memory_layer = false
+memory_jsonl_dir = "/opt/llm/memory"
+memory_max_inject_semantic = 5
+memory_max_inject_episodic = 3
+memory_min_importance = 0.5
+memory_embed_enabled = false
+memory_embed_dim = 384
+memory_dedup_threshold = 0.3
+memory_local_only = true
+memory_embed_timeout_sec = 5.0
+memory_max_content_chars = 500
+memory_retention_days = 90
+
+# ── Observability ─────────────────────────────────────────────────────────────
+
+otel_enabled = false
+otel_endpoint = ""
+otel_service_name = "llm-agent"
+
+# ── Security ──────────────────────────────────────────────────────────────────
+
+security_profile = "local"
+masked_fields = ["file_content"]
+plan_blocked_tools = [
+  "write_file",
+  "create_directory",
+  "delete_file",
+  "delete_directory",
+  "shell_run",
+]
+approval_protected_paths = [
+  "/opt/",
+  "/etc/",
+  "/boot/",
+  "/usr/",
+  "/bin/",
+  "/sbin/",
+]
+approval_high_risk_branches = [
+  "main",
+  "master",
+  "release",
+]
+approval_shell_safe_prefixes = [
+  "ls",
+  "cat",
+  "echo",
+  "git log",
+  "git status",
+  "git diff",
+  "git show",
+  "git branch",
+  "pwd",
+  "find",
+  "grep",
+  "uv run",
+  "python",
+  "pytest",
+]
+allowed_tools = []
+approval_dry_run_tools = [
+  "write_file",
+  "edit_file",
+  "create_directory",
+  "delete_file",
+  "delete_directory",
+  "move_file",
+  "git_checkout",
+  "git_push",
+  "github_create_branch",
+  "github_create_or_update_file",
+  "github_push_files",
+  "github_delete_file",
+  "github_create_issue",
+  "github_add_issue_comment",
+  "github_create_pull_request",
+  "github_update_pull_request",
+  "github_merge_pull_request",
+  "trigger_workflow",
+  "shell_run",
+]
+allowed_root = "/opt/llm"
+approval_github_allowed_repos = []
+
+# ── System prompts ────────────────────────────────────────────────────────────
+
+system_prompt_rag = "あなたは有能なエンジニアアシスタントです。必ず提供されたコンテキストのみに基づいて質問に回答してください。コンテキストに答えが含まれない場合は「提供されたコンテキストに該当情報がありません」と回答してください。"
+system_prompt_tool = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
+mqe_prompt_template = "Without changing the meaning of the following question, please rephrase it in {n_queries} different ways.\nOutput the result as a JSON array. (ex: [\"Q1\", \"Q2\", \"Q3\"])\n\nQuestion: {query}\n"
+rerank_prompt_template = "Please evaluate the relevance of the following question and each context on a scale from 0 to 10.\nOutput the result as a JSON object mapping each context number to its score. (ex: {\"1\": 8, \"2\": 3})\n\nQuestion: {query}\nContext:\n{items_text}\n"
+
+[system_prompts]
+default  = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
+strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"
+creative = "あなたは創造的なエンジニアアシスタントです。複数のアプローチや代替案を提案し、自由な発想で問題解決を支援してください。"
+
+[approval_risk_rules]
+write_file = "medium"
+edit_file = "medium"
+create_directory = "medium"
+move_file = "medium"
+delete_file = "high"
+delete_directory = "high"
+shell_run = "high"
+github_push_files = "high"
+github_create_or_update_file = "high"
+github_delete_file = "high"
+github_merge_pull_request = "high"
+github_create_branch = "medium"
+github_create_pull_request = "medium"
+github_update_pull_request = "medium"
+github_create_issue = "medium"
+github_add_issue_comment = "medium"
+
+[approval_resource_keys]
+path_keys = [
+  "path",
+  "file_path",
+  "directory_path",
+  "source",
+  "destination",
+]
+branch_keys = [
+  "branch",
+  "base",
+  "head",
+]
+
+[tool_safety_tiers]
+read_text_file           = "READ_ONLY"
+list_directory           = "READ_ONLY"
+directory_tree           = "READ_ONLY"
+search_files             = "READ_ONLY"
+grep_files               = "READ_ONLY"
+write_file               = "WRITE_SAFE"
+edit_file                = "WRITE_SAFE"
+create_directory         = "WRITE_SAFE"
+move_file                = "WRITE_SAFE"
+delete_file              = "WRITE_DANGEROUS"
+delete_directory         = "WRITE_DANGEROUS"
+shell_run                = "ADMIN"
+search_web               = "READ_ONLY"
+github_search_repositories   = "READ_ONLY"
+github_search_code           = "READ_ONLY"
+github_get_file_contents     = "READ_ONLY"
+github_list_issues           = "READ_ONLY"
+github_list_branches         = "READ_ONLY"
+github_create_branch         = "WRITE_SAFE"
+github_create_issue          = "WRITE_SAFE"
+github_add_issue_comment     = "WRITE_SAFE"
+github_push_files            = "WRITE_DANGEROUS"
+github_create_or_update_file = "WRITE_DANGEROUS"
+github_delete_file           = "WRITE_DANGEROUS"
+github_create_pull_request   = "WRITE_DANGEROUS"
+github_update_pull_request   = "WRITE_DANGEROUS"
+github_merge_pull_request    = "WRITE_DANGEROUS"
+mdq                      = "WRITE_DANGEROUS"
+rag_run_pipeline         = "READ_ONLY"
+rag_debug_pipeline       = "READ_ONLY"
+rag_list_documents       = "READ_ONLY"
+rag_delete_document      = "WRITE_DANGEROUS"
+query_sqlite             = "READ_ONLY"
+get_workflow_runs        = "READ_ONLY"
+get_workflow_status      = "READ_ONLY"
+get_workflow_logs        = "READ_ONLY"
+trigger_workflow         = "WRITE_DANGEROUS"
+git_status               = "READ_ONLY"
+git_log                  = "READ_ONLY"
+git_diff                 = "READ_ONLY"
+git_branch               = "READ_ONLY"
+git_show                 = "READ_ONLY"
+git_add                  = "WRITE_SAFE"
+git_commit               = "WRITE_SAFE"
+git_checkout             = "WRITE_DANGEROUS"
+git_pull                 = "WRITE_DANGEROUS"
+git_push                 = "WRITE_DANGEROUS"
+
+# ── MCP server transport entries ──────────────────────────────────────────────
+
+[mcp_servers.shell]
+transport        = "http"
+url              = "http://127.0.0.1:8009"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "execute"
+tool_names       = ["shell_run"]
+
+[mcp_servers.git]
+transport        = "http"
+url              = "http://127.0.0.1:8014"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_write"
+tool_names       = [
+  "git_status", "git_log", "git_diff", "git_branch", "git_show",
+  "git_add", "git_commit", "git_checkout", "git_pull", "git_push",
+]
+
+[mcp_servers.web_search]
+transport        = "http"
+url              = "http://127.0.0.1:8004"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "search"
+tool_names       = ["search_web"]
+
+[mcp_servers.file_delete]
+transport        = "http"
+url              = "http://127.0.0.1:8008"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_delete"
+tool_names       = ["delete_file", "delete_directory"]
+
+[mcp_servers.file_write]
+transport        = "http"
+url              = "http://127.0.0.1:8007"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_write"
+tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]
+
+[mcp_servers.file_read]
+transport        = "http"
+url              = "http://127.0.0.1:8005"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_read"
+tool_names       = ["read_text_file", "list_directory", "directory_tree", "search_files", "grep_files"]
+
+[mcp_servers.github]
+transport        = "http"
+url              = "http://127.0.0.1:8006"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "search"
+tool_names       = [
+  "github_search_repositories", "github_get_file_contents", "github_list_issues",
+  "github_search_code", "github_list_branches", "github_create_branch",
+  "github_list_commits", "github_get_commit", "github_create_or_update_file",
+  "github_push_files", "github_delete_file", "github_get_issue",
+  "github_create_issue", "github_search_issues", "github_add_issue_comment",
+  "github_list_pull_requests", "github_get_pull_request", "github_create_pull_request",
+  "github_search_pull_requests", "github_update_pull_request", "github_merge_pull_request",
+]
+
+[mcp_servers.cicd]
+transport        = "http"
+url              = "http://127.0.0.1:8012"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = ["trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"]
+
+[mcp_servers.rag_pipeline]
+transport        = "http"
+url              = "http://127.0.0.1:8010"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]
+
+[mcp_servers.mdq]
+transport        = "http"
+url              = "http://127.0.0.1:8013"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = [
+  "search_docs", "get_chunk", "outline", "index_paths", "refresh_index",
+  "stats", "grep_docs", "fts_consistency_check", "fts_rebuild",
+]
+
+# ── Tool definitions ──────────────────────────────────────────────────────────
 
 [[tool_definitions]]
 type = "function"
