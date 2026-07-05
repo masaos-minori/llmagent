@@ -14,7 +14,11 @@ import sys
 import tomllib
 from pathlib import Path
 
-CONFIG_PATH = Path("config/rag_pipeline.toml")
+CONFIG_PATHS = [
+    Path("config/crawler.toml"),
+    Path("config/chunk_splitter.toml"),
+    Path("config/ingester.toml"),
+]
 OPS_DOC = Path("docs/03_rag_05_configuration_and_operations.md")
 GUARD_START = "<!-- AUTO-GENERATED: gen_rag_reference.py config -->"
 GUARD_END = "<!-- END AUTO-GENERATED -->"
@@ -27,15 +31,16 @@ CLI_TOOLS = [
 
 
 def generate_config_table() -> str:
-    with open(CONFIG_PATH, "rb") as f:
-        cfg = tomllib.load(f)
     lines = ["| Key | Default | Description |", "|---|---|---|"]
-    for section, values in cfg.items():
-        if isinstance(values, dict):
-            for key, val in values.items():
-                lines.append(f"| `{section}.{key}` | `{val}` | — |")
-        else:
-            lines.append(f"| `{section}` | `{values}` | — |")
+    for config_path in CONFIG_PATHS:
+        with open(config_path, "rb") as f:
+            cfg = tomllib.load(f)
+        for section, values in cfg.items():
+            if isinstance(values, dict):
+                for key, val in values.items():
+                    lines.append(f"| `{section}.{key}` | `{val}` | — |")
+            else:
+                lines.append(f"| `{section}` | `{values}` | — |")
     return "\n".join(lines)
 
 

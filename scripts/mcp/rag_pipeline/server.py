@@ -4,7 +4,7 @@ RAG Pipeline MCP server (port 8010).
 
 Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) as an
 HTTP MCP server.  Replaces the in-process augment() call when rag_service_url
-is configured in agent.toml.
+is configured in rag.toml (rag_service_url).
 
 Provided endpoints:
   POST /v1/call_tool        MCP tool dispatch
@@ -118,9 +118,8 @@ async def health() -> JSONResponse:
     try:
         from shared.config_loader import ConfigLoader
 
-        cfg = ConfigLoader().load_all()
-        common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
-        embed_url = common.get("embed_url")
+        cfg = ConfigLoader().load("rag_pipeline_mcp_server.toml")
+        embed_url = cfg.get("embed_url")
         if not embed_url or not isinstance(embed_url, str):
             deps["embed_url"] = "not configured"
     except Exception:

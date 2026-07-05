@@ -5,3 +5,12 @@ allowed_dirs = ["/opt/llm/workspace"]
 
 # max_write_bytes: maximum bytes written per file
 max_write_bytes = 1000000
+
+[mcp_servers.file_write]
+transport        = "http"
+url              = "http://127.0.0.1:8007"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_write"
+tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]

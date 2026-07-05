@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from db.models import RagConsistencyReport
-from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
+from db.models import (
+    PurgeCounts,
+    RagConsistencyReport,
+    ToolResultRow,
+    WalCheckpointCounts,
+)
 
 from agent.services.enums import (
     ConversationActionType,

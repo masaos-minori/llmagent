@@ -48,11 +48,10 @@ def _parse_mcp_server_tool_names(content: str, server_name: str) -> set[str]:
 
 
 class TestGitHubConfigConsistency:
-    """Ensure GitHub TOOL_LIST, ToolRegistry, tools_definitions.toml, and mcp_servers.toml are consistent."""
+    """Ensure GitHub TOOL_LIST, ToolRegistry, tools_definitions.toml, and github_mcp_server.toml are consistent."""
 
     def test_github_tools_in_tools_definitions(self) -> None:
-        """All 21 GitHub tools exist in config/tools_definitions.toml."""
-        from mcp.github.tools import TOOL_LIST
+        """All 21 GitHub tools exist in config/agent.toml [tool_definitions]."""
         from shared.tool_registry import get_registry
 
         registry = get_registry()
@@ -61,7 +60,7 @@ class TestGitHubConfigConsistency:
             f"Expected 21 GitHub tools in registry, got {len(github_tools)}"
         )
 
-        with open("config/tools_definitions.toml", encoding="utf-8") as f:
+        with open("config/agent.toml", encoding="utf-8") as f:
             content = f.read()
 
         defined_names = [
@@ -72,16 +71,16 @@ class TestGitHubConfigConsistency:
 
         missing = set(github_tools) - set(defined_names)
         assert not missing, (
-            f"GitHub tools missing from tools_definitions.toml: {sorted(missing)}"
+            f"GitHub tools missing from agent.toml [tool_definitions]: {sorted(missing)}"
         )
 
     def test_github_mcp_server_exists(self) -> None:
-        """[mcp_servers.github] exists in config/mcp_servers.toml."""
-        with open("config/mcp_servers.toml", encoding="utf-8") as f:
+        """[mcp_servers.github] exists in config/github_mcp_server.toml."""
+        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
             content = f.read()
 
         assert "[mcp_servers.github]" in content, (
-            "[mcp_servers.github] not found in mcp_servers.toml"
+            "[mcp_servers.github] not found in github_mcp_server.toml"
         )
 
     def test_github_tool_names_match_tools_definitions(self) -> None:
@@ -91,7 +90,7 @@ class TestGitHubConfigConsistency:
         registry = get_registry()
         github_tools = set(registry.get_tool_names("github"))
 
-        with open("config/mcp_servers.toml", encoding="utf-8") as f:
+        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
             content = f.read()
 
         config_tools = _parse_mcp_server_tool_names(content, "github")
@@ -108,7 +107,7 @@ class TestGitHubConfigConsistency:
 
         tool_list_names = {tool["name"] for tool in TOOL_LIST}
 
-        with open("config/mcp_servers.toml", encoding="utf-8") as f:
+        with open("config/github_mcp_server.toml", encoding="utf-8") as f:
             content = f.read()
 
         config_tools = _parse_mcp_server_tool_names(content, "github")

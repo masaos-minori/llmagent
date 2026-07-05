@@ -9,8 +9,6 @@ Import from here:  from mcp.mdq.audit_target import extract_audit_target
 
 from __future__ import annotations
 
-from __future__ import annotations
-
 from typing import Any
 
 

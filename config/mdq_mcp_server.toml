@@ -1,5 +1,6 @@
 # Markdown Context Compression Engine MCP Server Configuration
 
+[mdq_mcp_server]
 status = "production"
 
 # Directories that mdq-mcp is allowed to read from.
@@ -30,23 +31,18 @@ max_file_chars = 100000
 # Per-request overrides are bounded above by these config values.
 
 # Maximum number of search results returned per query (default: 100).
-# Production recommendation: 20-50 depending on typical query specificity.
 max_results_limit = 100
 
 # Maximum characters per chunk returned by get_chunk (default: 10000).
-# Production recommendation: 8192 for full section content, 2048 for snippets.
 max_chars_per_chunk = 10000
 
 # Maximum total characters across all search results (default: 100000).
-# Production recommendation: 65536 for broad queries, 16384 for targeted queries.
 max_total_result_chars = 100000
 
 # Maximum outline items returned by the outline tool (default: 500).
-# Production recommendation: 200-300 for reasonable response sizes.
 max_outline_items = 500
 
 # Maximum grep match results returned by grep_docs (default: 200).
-# Production recommendation: 100-200 to prevent large response payloads.
 max_grep_matches = 200
 
 # Maximum number of seconds to wait for a search operation
@@ -71,5 +67,18 @@ summary_model = "default"
 
 # Embedding/hybrid search mode (disabled by default — FTS5-only is production baseline)
 use_embedding = false
+embedding_dims = 384
 vector_table = "chunks_vec"
 embedding_model = "default"
+
+[mcp_servers.mdq]
+transport        = "http"
+url              = "http://127.0.0.1:8013"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = [
+  "search_docs", "get_chunk", "outline", "index_paths", "refresh_index",
+  "stats", "grep_docs", "fts_consistency_check", "fts_rebuild",
+]

@@ -5,3 +5,12 @@ default_max_results = 5
 
 # max_results_limit: server-side cap on result count
 max_results_limit = 20
+
+[mcp_servers.web_search]
+transport        = "http"
+url              = "http://127.0.0.1:8004"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "search"
+tool_names       = ["search_web"]

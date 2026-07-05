@@ -258,8 +258,8 @@ Log format: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <messa
 1. Subclass `MCPServer` in `scripts/mcp/<name>/server.py`; override `dispatch()`
 2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
 3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
-4. Add tool definitions to `config/agent.toml` → `tool_definitions`
-5. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` with `tool_names`
+4. Add tool definitions to `config/tools_definitions.toml`
+5. Create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section
 6. Add new files to `deploy/deploy.sh` copy list
 7. Add startup step to `deploy/setup_services.sh`
 

@@ -218,8 +218,9 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
         self._out.write("Config files:")
-        self._out.write(f"  {_CONFIG_DIR / 'common.toml'}")
-        self._out.write(f"  {_CONFIG_DIR / 'agent.toml'}")
+        self._out.write(
+            f"  {_CONFIG_DIR} (common.toml, llm.toml, rag.toml, security.toml, tools.toml, ...)"
+        )
         self._out.write("")
         self._print_config_values()
         self._out.write("")

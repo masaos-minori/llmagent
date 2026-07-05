@@ -13,7 +13,6 @@ import git
 
 from mcp.git.models import (
     GitAddRequest,
-    GitBranchRequest,
     GitCheckoutRequest,
     GitCommitRequest,
     GitDiffRequest,
@@ -88,9 +87,7 @@ def format_show(repo: git.Repo, req: GitShowRequest) -> str:
 def format_add(repo: git.Repo, req: GitAddRequest) -> str:
     if req.dry_run:
         untracked = {p for p in repo.untracked_files if p in req.paths}
-        modified = {
-            i.a_path for i in repo.index.diff(None) if i.a_path in req.paths
-        }
+        modified = {i.a_path for i in repo.index.diff(None) if i.a_path in req.paths}
         to_stage = untracked | modified
         return f"[DRY RUN] Would stage: {sorted(to_stage)}"
     repo.index.add(req.paths)
@@ -103,6 +100,7 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
         return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
     if not staged:
         from mcp.git.models import GitServiceError
+
         raise GitServiceError("nothing staged to commit")
     commit = repo.index.commit(req.message)
     return f"Committed: {commit.hexsha[:8]} {req.message!r}"
@@ -127,7 +125,9 @@ def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
 def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
     if req.dry_run:
         fetch_info = repo.git.fetch("--dry-run", req.remote)
-        return f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to fetch)'}"
+        return (
+            f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to fetch)'}"
+        )
     pull_args = [req.remote]
     if req.branch:
         pull_args.append(req.branch)

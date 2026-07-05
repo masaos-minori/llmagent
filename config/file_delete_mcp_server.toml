@@ -5,3 +5,12 @@ allowed_dirs = ["/opt/llm/workspace"]
 
 # audit_log_path: path for delete operation audit log; records all delete_file / delete_directory calls
 audit_log_path = "/opt/llm/logs/delete_audit.log"
+
+[mcp_servers.file_delete]
+transport        = "http"
+url              = "http://127.0.0.1:8008"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "file_delete"
+tool_names       = ["delete_file", "delete_directory"]

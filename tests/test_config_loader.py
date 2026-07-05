@@ -189,50 +189,22 @@ class TestLoadAllStrictMode:
         with pytest.raises(ConfigMissingError, match="Config file not found"):
             tmp_cfg.load_all(strict=True)
 
-    def test_strict_true_allows_missing_optional_file(
+    def test_strict_true_passes_when_agent_toml_exists(
         self, tmp_cfg: ConfigLoader, tmp_path: Path
     ) -> None:
-        """strict=True allows missing mdq_mcp_server.toml (optional)."""
-        # Create all required files except mdq_mcp_server.toml
-        for name in [
-            "common.toml",
-            "llm.toml",
-            "http.toml",
-            "rag.toml",
-            "context.toml",
-            "tools.toml",
-            "memory.toml",
-            "otel.toml",
-            "security.toml",
-            "system_prompts.toml",
-            "mcp_servers.toml",
-            "tools_definitions.toml",
-        ]:
-            (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
-        # mdq_mcp_server.toml is NOT created — should not raise
+        """strict=True succeeds when agent.toml (the only required file) exists."""
+        (tmp_path / "agent.toml").write_text(
+            "llm_url = 'http://localhost'\n", encoding="utf-8"
+        )
         result = tmp_cfg.load_all(strict=True)
         assert isinstance(result, dict)
+        assert result.get("llm_url") == "http://localhost"
 
-    def test_strict_true_raises_on_missing_any_required(
+    def test_strict_true_raises_on_missing_agent_toml(
         self, tmp_cfg: ConfigLoader, tmp_path: Path
     ) -> None:
-        """strict=True raises if any single required file is missing."""
-        # Create all required files except http.toml
-        for name in [
-            "common.toml",
-            "llm.toml",
-            "rag.toml",
-            "context.toml",
-            "tools.toml",
-            "memory.toml",
-            "otel.toml",
-            "security.toml",
-            "system_prompts.toml",
-            "mcp_servers.toml",
-            "tools_definitions.toml",
-        ]:
-            (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
-        # http.toml is missing — should raise
+        """strict=True raises ConfigMissingError when agent.toml is absent."""
+        # agent.toml is not created
         with pytest.raises(ConfigMissingError, match="Config file not found"):
             tmp_cfg.load_all(strict=True)
 
@@ -240,26 +212,12 @@ class TestLoadAllStrictMode:
         self, tmp_cfg: ConfigLoader, tmp_path: Path
     ) -> None:
         """Meta keys starting with _ are still filtered in load_all()."""
-        for name in [
-            "common.toml",
-            "llm.toml",
-            "http.toml",
-            "rag.toml",
-            "context.toml",
-            "tools.toml",
-            "memory.toml",
-            "otel.toml",
-            "security.toml",
-            "system_prompts.toml",
-            "mcp_servers.toml",
-            "mdq_mcp_server.toml",
-            "tools_definitions.toml",
-        ]:
-            (tmp_path / name).write_text(
-                f'_doc = "desc"\n{name} = true\n', encoding="utf-8"
-            )
+        (tmp_path / "agent.toml").write_text(
+            '_doc = "desc"\nagent_loaded = true\n', encoding="utf-8"
+        )
         result = tmp_cfg.load_all(strict=True)
         assert "_doc" not in result
+        assert result.get("agent_loaded") is True
 
     def test_load_all_existing_behavior_unchanged(
         self, tmp_cfg: ConfigLoader, tmp_path: Path

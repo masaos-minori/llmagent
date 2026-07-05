@@ -12,11 +12,9 @@ from __future__ import annotations
 import time
 from typing import Any, cast
 
-from fastapi.responses import JSONResponse
 from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 from mcp.dispatch import DispatchResult, dispatch_tool
-from mcp.models import CallToolRequest, CallToolResponse
 from mcp.web_search.models import (
     SearchRequest,
     SearchResponse,
@@ -53,11 +51,13 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
 
     if not results:
         from mcp.web_search.models import WebSearchUpstreamError
+
         raise WebSearchUpstreamError("No results returned from DuckDuckGo")
 
     ms = (time.perf_counter() - t0) * 1000
     from shared.formatters import fmt_kvlog
     from shared.logger import Logger
+
     logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
     logger.info(
         fmt_kvlog(

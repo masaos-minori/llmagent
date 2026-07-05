@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from shared.tool_constants import MDQ_TOOLS
 
 
@@ -113,8 +112,6 @@ class TestMdqSafetyTiers:
         import tomllib
 
         agent_toml_path = Path(__file__).parent.parent / "config" / "agent.toml"
-        if not agent_toml_path.exists():
-            pytest.skip("agent.toml not found")
         with open(agent_toml_path, "rb") as f:
             agent_config = tomllib.load(f)
 

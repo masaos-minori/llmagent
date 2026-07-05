@@ -657,8 +657,8 @@ When adding a new tool to an **existing** MCP server:
 | 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
 | 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables startup drift validation; no effect on routing |
 | 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
-| 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
-| 7 | Add tool name to `tool_names` in server config (`config/mcp_servers.toml`) | **[Optional]** — enables startup drift validation only; routing does not require it |
+| 6 | Add `tool_safety_tiers` entry in `config/security.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
+| 7 | Add tool name to `tool_names` in `config/<key>_mcp_server.toml` `[mcp_servers.<key>]` section | **[Optional]** — enables startup drift validation only; routing does not require it |
 
 **Note**: All tools must be explicitly registered in ToolRegistry. No prefix-based routing exists.
 
@@ -679,13 +679,12 @@ Expected: all routing tests pass. If `tool_definitions_strict = true`, restart t
 When adding a server:
 
 - [ ] Create `scripts/mcp/<name>/server.py` (inherit `MCPServer`, override `dispatch()`)
-- [ ] Create `config/<name>_mcp_server.toml`
-- [ ] Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` (transport, url, etc.)
+- [ ] Create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section
 - [ ] Add tool definitions to `config/tools_definitions.toml`
 - [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
 - [ ] Add new files to `deploy/deploy.sh` copy list
 - [ ] Add startup step to `deploy/setup_services.sh`
-- [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools
+- [ ] Add `tool_safety_tiers` entries to `config/security.toml` for all new tools
 - [ ] Update `routing.md` if new documentation is needed
 
 ---

@@ -11,7 +11,6 @@ from shared.llm_exceptions import LLMTransportError
 from shared.llm_payload import LlmPayloadHandler
 from shared.llm_sse_helpers import LlmSseHelpers
 from shared.llm_sse_stream import LlmSseStreamHandler
-
 from shared.llm_types import LLMResponse
 from shared.types import AccumulatedToolCall, LLMMessage
 
@@ -61,7 +60,12 @@ class LlmReconnectHandler:
         parse_errors = 0
         for attempt in range(reconnect_max + 1):
             try:
-                finish_reason, content_parts, tool_calls_map, attempt_parse_errors = await LlmSseStreamHandler.stream_once(
+                (
+                    finish_reason,
+                    content_parts,
+                    tool_calls_map,
+                    attempt_parse_errors,
+                ) = await LlmSseStreamHandler.stream_once(
                     http,
                     url,
                     history,
@@ -77,7 +81,9 @@ class LlmReconnectHandler:
                 parse_errors += attempt_parse_errors
                 break  # success
             except LLMTransportError as e:
-                has_partial = bool(content_parts) or bool(tool_calls_map) or bool(e.partial_text)
+                has_partial = (
+                    bool(content_parts) or bool(tool_calls_map) or bool(e.partial_text)
+                )
                 effective_retryable = LlmReconnectHandler.resolve_retryable(
                     e,
                     llm_stream_retry_on_heartbeat_timeout,
@@ -105,8 +111,16 @@ class LlmReconnectHandler:
 
         if content_parts and on_token:
             on_token("\n")
-        raw = LlmSseHelpers.build_stream_response(content_parts, tool_calls_map, finish_reason)
+        raw = LlmSseHelpers.build_stream_response(
+            content_parts, tool_calls_map, finish_reason
+        )
         llm_response = LlmPayloadHandler.parse_response(raw, on_usage)
         # Track partial completions when we had output but had to reconnect
         partial_completions = reconnect_count if content_parts else 0
-        return llm_response, reconnect_count, heartbeat_timeout_count, parse_errors, partial_completions
+        return (
+            llm_response,
+            reconnect_count,
+            heartbeat_timeout_count,
+            parse_errors,
+            partial_completions,
+        )

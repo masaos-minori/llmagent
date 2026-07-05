@@ -24,7 +24,6 @@ class GitHubActionsCompositeBackend(CiBackend):
         max_log_size_kb: int = 256,
     ) -> None:
         from .service_github_actions import GitHubActionsBackend  # noqa: PLC0415
-
         from .service_github_actions_job import (  # noqa: PLC0415
             GitHubActionsJobBackend,
         )
@@ -54,9 +53,7 @@ class GitHubActionsCompositeBackend(CiBackend):
         ref: str,
         inputs: dict[str, str],
     ) -> str:
-        return await self._workflow.trigger_workflow(
-            owner, repo, workflow, ref, inputs
-        )
+        return await self._workflow.trigger_workflow(owner, repo, workflow, ref, inputs)
 
     async def get_workflow_runs(
         self,

@@ -22,6 +22,8 @@ from shared.logger import Logger
 
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
+from mcp.mdq.audit_target import extract_audit_target
+from mcp.mdq.health_check import check_health
 from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -38,8 +40,6 @@ from mcp.mdq.models import (
     SearchDocsRequest,
     StatsRequest,
 )
-from mcp.mdq.audit_target import extract_audit_target
-from mcp.mdq.health_check import check_health
 from mcp.mdq.service import MdqService
 from mcp.mdq.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse

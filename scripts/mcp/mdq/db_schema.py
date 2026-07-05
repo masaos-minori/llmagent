@@ -15,9 +15,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from mcp.mdq.auth import authorize_path
 from mcp.mdq.indexer import generate_chunk_id
-from mcp.mdq.models import MdqAuthorizationError, MdqConsistencyError
 
 logger = logging.getLogger(__name__)
 

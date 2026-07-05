@@ -23,7 +23,7 @@ from mcp.mdq.service import MdqService
 
 @pytest.fixture()
 def service(tmp_path: Path) -> MdqService:
-    db = tmp_path / "mdq.db"
+    db = tmp_path / "mdq.sqlite"
     svc = MdqService(db_path=str(db))
     svc._allowed_dirs = [str(tmp_path)]
     return svc
@@ -103,7 +103,7 @@ class TestDatabaseError:
         self, service: MdqService
     ) -> None:
         # Set db_path to a non-existent directory to trigger a DB error
-        service.db_path = "/nonexistent/path/mdq.db"
+        service.db_path = "/nonexistent/path/mdq.sqlite"
         req = GrepDocsRequest(pattern="test")
         with pytest.raises(MdqDatabaseError):
             asyncio.run(service.grep_docs(req))

@@ -25,7 +25,7 @@ class TestIncrementalRefresh:
 
     @pytest.fixture()
     def service(self, tmp_path: Path) -> MdqService:
-        db = tmp_path / "mdq.db"
+        db = tmp_path / "mdq.sqlite"
         svc = MdqService(db_path=str(db))
         svc._allowed_dirs = [str(tmp_path)]
         return svc

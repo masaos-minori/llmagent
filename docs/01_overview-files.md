@@ -25,19 +25,18 @@
   │   └─ requirements.txt              # Python 依存パッケージ一覧
   ├─ config/
   │   ├─ common.toml                          # 共通設定 (DB パス・埋込 URL)
-  │   ├─ agent.toml                           # エージェント設定 (URL・検索パラメータ・システムプロンプト・ツール定義)
   │   ├─ rag_pipeline.toml                    # クロール・チャンク設定 (対象 URL・チャンクサイズ・ストップワード)
+  │   ├─ web_search_mcp_server.toml           # Web 検索 MCP サーバ設定 (:8004)
+  │   ├─ file_read_mcp_server.toml            # ファイル読込 MCP サーバ設定 (:8005, 許可ディレクトリ)
+  │   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (:8006)
+  │   ├─ file_write_mcp_server.toml           # ファイル書込 MCP サーバ設定 (:8007)
+  │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (:8008)
+  │   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (:8009, 許可コマンド)
   │   ├─ rag_pipeline_mcp_server.toml         # RAG パイプライン MCP サーバ設定 (:8010)
-  │   ├─ web_search_mcp_server.toml           # Web 検索サーバ設定 (DuckDuckGoのみ)
-  │   ├─ file_read_mcp_server.toml            # ファイル読込 MCP サーバ設定 (許可ディレクトリ)
-  │   ├─ file_write_mcp_server.toml           # ファイル書込 MCP サーバ設定 (許可ディレクトリ・サイズ上限)
-  │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (許可ディレクトリ)
-  │   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (取得件数上限)
-  │   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (許可コマンド・タイムアウト)
-  │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (repo_allowlist / workflow_allowlist)
+  │   ├─ sqlite_mcp_server.toml               # SQLite MCP サーバ設定 (:8011)
+  │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (:8012)
   │   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
-  │   ├─ mcp_servers.toml                     # MCP サーバ一覧設定 (transport / url / tool_names)
-  │   └─ git_mcp_server.toml                  # ローカル git MCP サーバ設定 (:8014)
+  │   └─ git_mcp_server.toml                  # Git MCP サーバ設定 (:8014)
   ├─ scripts/
   │   ├─ agent.py                             # CLI エントリポイント (AgentREPL を起動)
   │   ├─ agent/                               # エージェント REPL パッケージ

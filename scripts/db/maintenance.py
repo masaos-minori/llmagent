@@ -65,7 +65,7 @@ class RetentionConfig:
     @classmethod
     def from_config(cls) -> "RetentionConfig":
         """Construct from common.toml values; raises on config load failure."""
-        cfg = ConfigLoader().load("common.toml")
+        cfg = ConfigLoader().load("agent.toml")
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
             max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
@@ -78,7 +78,7 @@ class RetentionConfig:
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
-        cfg = ConfigLoader().load("common.toml")
+        cfg = ConfigLoader().load("agent.toml")
         raw_mode: str | None = cfg.get("sqlite_wal_checkpoint_mode")
         if raw_mode is None or not isinstance(raw_mode, str):
             raw_mode = "TRUNCATE"
@@ -203,5 +203,3 @@ def prune_old_memories(
         return MaintenanceResult(
             success=False, action="prune_failed", mode=mode, detail=str(e)
         )
-
-

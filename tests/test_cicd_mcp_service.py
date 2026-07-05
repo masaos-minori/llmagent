@@ -13,7 +13,6 @@ from mcp.cicd.models import (
     CicdAuthorizationError,
     CicdConfig,
     CicdNotFoundError,
-    CicdUpstreamError,
     CicdValidationError,
 )
 from mcp.cicd.service import CiCdService, GitHubActionsBackend

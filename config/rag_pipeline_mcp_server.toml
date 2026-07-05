@@ -72,3 +72,12 @@ Question: {query}
 Context:
 {items_text}
 """
+
+[mcp_servers.rag_pipeline]
+transport        = "http"
+url              = "http://127.0.0.1:8010"
+startup_mode     = "persistent"
+healthcheck_mode = "http"
+auth_token       = ""
+role             = "query"
+tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]

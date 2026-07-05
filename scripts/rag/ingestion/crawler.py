@@ -72,7 +72,7 @@ class WebCrawler:
     }
 
     def __init__(self, config: dict | None = None) -> None:
-        cfg: dict = config or ConfigLoader().load("rag_pipeline.toml")
+        cfg: dict = config or ConfigLoader().load("crawler.toml")
         self._rag_src_dir: Path = Path(cfg["rag_src_dir"])
         self._crawl_delay: float = float(cfg["crawl_delay"])
         self._max_depth: int = int(cfg["max_depth"])
@@ -139,7 +139,7 @@ class WebCrawler:
             logger.info("=== start: %s (lang=%s) ===", url, lang)
             try:
                 if url.startswith("file://"):
-                    self.crawl_file(Path(url[len("file://"):]), lang)
+                    self.crawl_file(Path(url[len("file://") :]), lang)
                 else:
                     await self.crawl_site(url, lang)
             except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:

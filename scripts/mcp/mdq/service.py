@@ -14,10 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.db_fts import fts_consistency_check, fts_rebuild
-from mcp.mdq.db_grep import find_grep_match, grep_docs
+from mcp.mdq.db_grep import grep_docs
 from mcp.mdq.db_schema import create_production_tables
-from mcp.mdq.models import GrepDocMatch, MdqConsistencyError
-from mcp.mdq.indexer import generate_chunk_id
 from mcp.mdq.indexer import index_paths as _index_paths
 from mcp.mdq.indexer import refresh_paths as _refresh_paths
 from mcp.mdq.models import (
@@ -47,11 +45,10 @@ class MdqService:
     """Main service class for Mdq functionality."""
 
     def __init__(self, db_path: str | None = None):
-        # Load config from ConfigLoader (auto-loads mdq_mcp_server.toml)
         try:
             from shared.config_loader import ConfigLoader
 
-            cfg = ConfigLoader().load_all()
+            cfg = ConfigLoader().load("mdq_mcp_server.toml")
             mdq_cfg = (
                 cfg.get("mdq_mcp_server", {})
                 if isinstance(cfg.get("mdq_mcp_server"), dict)
@@ -98,12 +95,7 @@ class MdqService:
         self.use_embedding: bool = mdq_cfg.get("use_embedding", False)
         self.vector_table: str = mdq_cfg.get("vector_table", "chunks_vec")
         self.embedding_model: str = mdq_cfg.get("embedding_model", "default")
-        # Embedding dimension from common.toml (required for vec0 table creation)
-        try:
-            common_cfg = ConfigLoader().load("common.toml")
-            self.embedding_dims: int = common_cfg.get("embedding_dims", 384)
-        except (FileNotFoundError, KeyError):
-            self.embedding_dims = 384
+        self.embedding_dims: int = mdq_cfg.get("embedding_dims", 384)
 
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
@@ -427,7 +419,13 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             return grep_docs(
-                conn, compiled, req.paths or [], max_matches, max_chars, ctx_before, ctx_after
+                conn,
+                compiled,
+                req.paths or [],
+                max_matches,
+                max_chars,
+                ctx_before,
+                ctx_after,
             )
         finally:
             conn.close()
