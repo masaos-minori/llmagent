@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 
 
 async def _init_state(cfg: Any) -> None:
@@ -39,9 +40,6 @@ async def _do_cleanup() -> None:
         eb_app.app.state.broker.shutdown()
     if eb_app.app.state.db:
         eb_app.app.state.db.close()
-
-
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture

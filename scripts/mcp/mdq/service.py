@@ -14,10 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.db_fts import fts_consistency_check, fts_rebuild
-from mcp.mdq.db_grep import find_grep_match, grep_docs
+from mcp.mdq.db_grep import grep_docs
 from mcp.mdq.db_schema import create_production_tables
-from mcp.mdq.models import GrepDocMatch, MdqConsistencyError
-from mcp.mdq.indexer import generate_chunk_id
 from mcp.mdq.indexer import index_paths as _index_paths
 from mcp.mdq.indexer import refresh_paths as _refresh_paths
 from mcp.mdq.models import (
@@ -427,7 +425,13 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             return grep_docs(
-                conn, compiled, req.paths or [], max_matches, max_chars, ctx_before, ctx_after
+                conn,
+                compiled,
+                req.paths or [],
+                max_matches,
+                max_chars,
+                ctx_before,
+                ctx_after,
             )
         finally:
             conn.close()

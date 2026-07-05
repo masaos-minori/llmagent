@@ -233,7 +233,7 @@ class TestBuildJsonlStore:
         ctx = _make_ctx()
         ctx.cfg.memory.memory_jsonl_dir = "/tmp/test_memories"
 
-        result = _build_jsonl_store(ctx, jsonl_cls_mock)
+        _build_jsonl_store(ctx, jsonl_cls_mock)
 
         # Verify the path does not start with "/memories.jsonl" (no hardcoded root)
         call_arg = jsonl_cls_mock.call_args[0][0]
@@ -249,7 +249,7 @@ class TestBuildJsonlStore:
         ctx = _make_ctx()
         ctx.cfg.memory.memory_jsonl_dir = "/opt/llm/memory/"
 
-        result = _build_jsonl_store(ctx, jsonl_cls_mock)
+        _build_jsonl_store(ctx, jsonl_cls_mock)
 
         # Path / handles trailing slashes correctly
         expected_path = Path("/opt/llm/memory") / "memories.jsonl"

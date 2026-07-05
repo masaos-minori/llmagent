@@ -25,7 +25,6 @@ class TestCommandDocsSync:
             return set()
 
         content = filepath.read_text(encoding="utf-8")
-        registered = self.get_registered_commands()
 
         found: list[str] = []
         for line in content.splitlines():

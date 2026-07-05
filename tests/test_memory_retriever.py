@@ -17,7 +17,8 @@ import pytest
 from agent.memory.fts_query import build_fts_query
 from agent.memory.retriever import HybridRetriever
 from agent.memory.rrf import rrf_merge
-from agent.memory.scoring import recency_boost as _recency_boost, score as _score
+from agent.memory.scoring import recency_boost as _recency_boost
+from agent.memory.scoring import score as _score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 # Alias kept for test readability

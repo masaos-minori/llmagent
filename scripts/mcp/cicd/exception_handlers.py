@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from mcp.cicd.models import (
@@ -26,7 +25,9 @@ def setup_exception_handlers(app: object) -> None:
     """Register domain exception handlers on the FastAPI app."""
 
     @app.exception_handler(CicdAuthorizationError)  # type: ignore[attr-defined]
-    async def _on_cicd_auth_error(_req: Any, exc: CicdAuthorizationError) -> JSONResponse:
+    async def _on_cicd_auth_error(
+        _req: Any, exc: CicdAuthorizationError
+    ) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=403)
 
     @app.exception_handler(CicdNotFoundError)  # type: ignore[attr-defined]
@@ -40,5 +41,7 @@ def setup_exception_handlers(app: object) -> None:
         return JSONResponse({"detail": str(exc)}, status_code=422)
 
     @app.exception_handler(CicdUpstreamError)  # type: ignore[attr-defined]
-    async def _on_cicd_upstream_error(_req: Any, exc: CicdUpstreamError) -> JSONResponse:
+    async def _on_cicd_upstream_error(
+        _req: Any, exc: CicdUpstreamError
+    ) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=502)

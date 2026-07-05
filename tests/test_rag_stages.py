@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from rag.models_result import SearchDiagnostics
 from rag.stage import PipelineContext
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
@@ -286,8 +287,6 @@ class TestSearchStage:
 
 
 # ── SearchDiagnostics ─────────────────────────────────────────────────────────
-
-from rag.models_result import SearchDiagnostics
 
 
 class TestSearchDiagnostics:

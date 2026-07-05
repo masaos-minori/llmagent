@@ -2,10 +2,8 @@
 Consistency tests for RAG MCP tools across schema, discovery, and registry.
 """
 
-import pytest
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_constants import RAG_TOOLS
-from shared.tool_registry import ToolRegistry
 
 
 class TestRagToolsInRegistry:
@@ -56,7 +54,7 @@ class TestRagToolsInRegistry:
 
     def test_rag_tools_not_in_other_set(self) -> None:
         """RAG tools must not be in READ_TOOLS, WRITE_TOOLS, or DELETE_TOOLS."""
-        from shared.tool_constants import READ_TOOLS, WRITE_TOOLS, DELETE_TOOLS
+        from shared.tool_constants import DELETE_TOOLS, READ_TOOLS, WRITE_TOOLS
 
         for tool_name in RAG_TOOLS:
             assert tool_name not in READ_TOOLS, (

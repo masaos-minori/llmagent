@@ -46,7 +46,9 @@ def _make_cmd(
             audit_logger=MagicMock(),
         ),
     )
-    ctx.services_required = ctx.services  # alias for AgentContext.services_required property
+    ctx.services_required = (
+        ctx.services
+    )  # alias for AgentContext.services_required property
     cmd = object.__new__(_SessionMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
     from agent.commands.session_title import SessionTitleGen
@@ -188,7 +190,7 @@ class TestCmdSessionUsage:
 class TestGenerateSessionTitle:
     @pytest.mark.asyncio
     async def test_fallback_empty_input_sets_new_session_title(self) -> None:
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         cmd = _make_cmd()
         from agent.services.exceptions import SessionTitleGenerationError
@@ -205,7 +207,7 @@ class TestGenerateSessionTitle:
 
     @pytest.mark.asyncio
     async def test_fallback_long_input_truncates_with_ellipsis(self) -> None:
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         cmd = _make_cmd()
         from agent.services.exceptions import SessionTitleGenerationError
@@ -225,7 +227,7 @@ class TestGenerateSessionTitle:
 
     @pytest.mark.asyncio
     async def test_fallback_short_input_uses_as_is(self) -> None:
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         cmd = _make_cmd()
         from agent.services.exceptions import SessionTitleGenerationError
@@ -242,7 +244,7 @@ class TestGenerateSessionTitle:
 
     @pytest.mark.asyncio
     async def test_pending_state_cleared_on_success(self) -> None:
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         cmd = _make_cmd()
         with patch(
@@ -256,7 +258,7 @@ class TestGenerateSessionTitle:
 
     @pytest.mark.asyncio
     async def test_pending_state_cleared_on_failure(self) -> None:
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         cmd = _make_cmd()
         from agent.services.exceptions import SessionTitleGenerationError
@@ -277,7 +279,7 @@ class TestGenerateSessionTitleVisibility:
 
     @pytest.mark.asyncio
     async def test_audit_logger_warning_called_on_failure(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock, patch
+        from unittest.mock import MagicMock, patch
 
         from agent.services.exceptions import SessionTitleGenerationError
 
@@ -305,7 +307,7 @@ class TestGenerateSessionTitleVisibility:
     async def test_fallback_set_title_db_error_does_not_propagate(self) -> None:
         """If fallback set_title() raises, the exception is logged but not re-raised."""
         import sqlite3
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         from agent.services.exceptions import SessionTitleGenerationError
 

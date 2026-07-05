@@ -13,8 +13,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from mcp.file.common import (
-    FileAuthorizationError,
-    FileValidationError,
     check_size_limit,
     require_dir,
     require_file,

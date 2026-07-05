@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from http import HTTPStatus
-from typing import cast
 
 import httpx
 import orjson

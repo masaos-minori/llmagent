@@ -10,7 +10,6 @@ Import from here:  from mcp.web_search.search_provider import search_duckduckgo
 from __future__ import annotations
 
 import asyncio
-from typing import cast
 
 from duckduckgo_search import DDGS
 

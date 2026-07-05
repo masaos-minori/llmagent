@@ -10,6 +10,7 @@ Import from here:  from mcp.cicd.service_github_actions_job import GitHubActions
 from __future__ import annotations
 
 import logging
+
 import httpx
 import orjson
 
@@ -168,6 +169,7 @@ class GitHubActionsJobBackend:
                 f"GitHub API error (status={jobs_resp.status_code}): get_workflow_logs jobs {owner}/{repo} run={run_id}"
             )
         import typing as _typing
+
         return _typing.cast(dict, orjson.loads(jobs_resp.content))
 
     async def _append_job_output(

@@ -10,7 +10,7 @@ Import from here:  from mcp.rag_pipeline.document_manager import DocumentManager
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, cast
+from typing import Any
 
 from db.helper import SQLiteHelper
 from rag.types import RagHit
