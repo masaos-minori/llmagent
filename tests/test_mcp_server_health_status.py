@@ -226,7 +226,7 @@ class TestRagPipelineServerHealth:
         from mcp.rag_pipeline.server import app as rag_app  # noqa: PLC0415
 
         cfg: dict = {}
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
+        with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):
             client = TestClient(rag_app, raise_server_exceptions=False)
             response = client.get("/health")
         assert response.status_code == 503
@@ -241,8 +241,8 @@ class TestRagPipelineServerHealth:
         """rag-pipeline-mcp returns 200 when embed_url is present in config."""
         from mcp.rag_pipeline.server import app as rag_app  # noqa: PLC0415
 
-        cfg = {"common": {"embed_url": "http://localhost:11434/api/embeddings"}}
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
+        cfg = {"embed_url": "http://localhost:11434/api/embeddings"}
+        with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):
             client = TestClient(rag_app, raise_server_exceptions=False)
             response = client.get("/health")
         assert response.status_code == 200

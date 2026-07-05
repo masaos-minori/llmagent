@@ -67,6 +67,7 @@ summary_model = "default"
 
 # Embedding/hybrid search mode (disabled by default — FTS5-only is production baseline)
 use_embedding = false
+embedding_dims = 384
 vector_table = "chunks_vec"
 embedding_model = "default"
 

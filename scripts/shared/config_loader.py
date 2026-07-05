@@ -38,7 +38,6 @@ _BASE_CONFIG_FILES: tuple[str, ...] = (
     "git_mcp_server.toml",
     "github_mcp_server.toml",
     "cicd_mcp_server.toml",
-    "sqlite_mcp_server.toml",
     "rag_pipeline_mcp_server.toml",
     "mdq_mcp_server.toml",
     "tools_definitions.toml",
