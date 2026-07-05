@@ -83,7 +83,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "2 (from config/agent.toml)" in out
+        assert "2 (from config/tools_definitions.toml)" in out
         assert "OK" in out
         assert "svc" in out
 

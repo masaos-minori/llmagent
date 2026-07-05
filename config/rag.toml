@@ -42,3 +42,12 @@ two_stage_max_docs = 2
 
 # Base URL of the external RAG HTTP service (e.g. http://127.0.0.1:8010); when set, augment() makes HTTP calls instead of in-process execution; empty string for in-process mode (default: "")
 rag_service_url = "http://127.0.0.1:8010"
+
+# When true, enables semantic (embedding-based) query cache to skip RAG for near-duplicate queries
+use_semantic_cache = false
+
+# Cosine similarity threshold for semantic cache hits (0.0-1.0); queries above this score reuse cached results
+semantic_cache_threshold = 0.92
+
+# Maximum number of entries in the semantic cache; evicted by LRU
+semantic_cache_max_size = 100

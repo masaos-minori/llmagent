@@ -155,7 +155,7 @@ class _ContextMixin(MixinBase, TokenDisplay):
             self._out.write(f"[{msg['role']}] {preview}")
 
     def _cmd_system(self, args: str) -> None:
-        """Switch the active system prompt to a named preset defined in agent.toml."""
+        """Switch the active system prompt to a named preset defined in system_prompts.toml."""
         ctx = self._ctx
         name = args.strip()
         if not name:

@@ -480,7 +480,6 @@ in the allowed-paths table above. Changes to `ALLOWED` require a design review c
 ### Known Issues
 
 - MDQ-02: Hybrid search embedding integration (`mode=hybrid`) not yet implemented — only BM25 and vector modes are available.
-- **DB path alignment (resolved):** All config files now use `mdq.sqlite`. If an existing deployment has a `mdq.db` file on disk, rename it to `mdq.sqlite` before restarting the service.
 
 ---
 

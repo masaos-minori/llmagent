@@ -4,7 +4,7 @@ RAG Pipeline MCP server (port 8010).
 
 Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) as an
 HTTP MCP server.  Replaces the in-process augment() call when rag_service_url
-is configured in agent.toml.
+is configured in rag.toml (rag_service_url).
 
 Provided endpoints:
   POST /v1/call_tool        MCP tool dispatch

@@ -221,7 +221,7 @@ async def _check_tool_definitions(
     Scenarios and expected log output:
       - Partial unreachable (some servers respond):
           WARNING per unreachable server (from _collect_server_tool_names)
-          WARNING "Tools in agent.toml but not on any server: [...]" (if mismatch)
+          WARNING "Tools in tools_definitions.toml but not on any server: [...]" (if mismatch)
           returns HealthCheckResult(warnings=[...]) or HealthCheckResult()
       - All servers unreachable, strict=True:
           ERROR "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]."
@@ -230,7 +230,7 @@ async def _check_tool_definitions(
           INFO "All MCP servers unreachable; skipping tool definition check. Unreachable: [...]"
           returns HealthCheckResult() — no warnings
       - Tool mismatch, strict=False:
-          WARNING "Tools in agent.toml but not on any server: [...]"
+          WARNING "Tools in tools_definitions.toml but not on any server: [...]"
           returns HealthCheckResult(warnings=[ServiceWarning(...)])
       - Tool mismatch, strict=True:
           ERROR "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."
@@ -261,11 +261,11 @@ async def _check_tool_definitions(
     missing_in_cfg = server_names - cfg_names
     warnings: list[ServiceWarning] = []
     if missing_in_server:
-        msg = f"Tools in agent.toml but not on any server: {sorted(missing_in_server)}"
+        msg = f"Tools in tools_definitions.toml but not on any server: {sorted(missing_in_server)}"
         logger.warning(msg)
         warnings.append(ServiceWarning(label="tool_definitions", url="", message=msg))
     if missing_in_cfg:
-        msg = f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}"
+        msg = f"Tools on servers but not in tools_definitions.toml: {sorted(missing_in_cfg)}"
         logger.warning(msg)
     if (missing_in_server or missing_in_cfg) and strict:
         mismatch_parts: list[str] = []

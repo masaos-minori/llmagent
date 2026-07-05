@@ -10,3 +10,9 @@ github_server_url = "http://127.0.0.1:8006"
 
 # Dimensionality of embedding vectors; multilingual-E5-small uses 384 dimensions
 embed_dim = 384
+
+# Maximum retry count on LLM request failure; uses exponential backoff for HTTP 503 / connection errors
+llm_max_retries = 3
+
+# Base delay in seconds for exponential backoff on LLM request retries
+llm_retry_base_delay = 1.0

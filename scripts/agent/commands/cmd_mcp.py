@@ -57,7 +57,7 @@ class _McpMixin(MixinBase):
         ctx = self._ctx
         svc = McpStatusService(ctx)
         self._out.write(
-            f"  Tools       {len(ctx.cfg.tool.tool_definitions)} (from config/agent.toml)"
+            f"  Tools       {len(ctx.cfg.tool.tool_definitions)} (from config/tools_definitions.toml)"
         )
         self._out.write("")
         rows = await svc.probe_all()

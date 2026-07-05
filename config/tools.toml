@@ -74,3 +74,9 @@ llm_stream_retry_on_heartbeat_timeout = true
 
 # When True, MALFORMED_SSE_FRAME (after budget exhausted) triggers a reconnect
 llm_stream_retry_on_malformed_chunk = false
+
+# When true, allow plugin tools to override built-in MCP tools with same name (default: false)
+plugin_tool_override = false
+
+# When true, fail on plugin validation errors; defaults to true in CI (os.getenv("CI"))
+plugin_strict = false

@@ -95,7 +95,7 @@ class AgentREPL:
 
     @property
     def _n_tools(self) -> int:
-        """Number of tools available (from config/agent.toml tool_definitions)."""
+        """Number of tools available (from config/tools_definitions.toml)."""
         return len(self._ctx.cfg.tool.tool_definitions)
 
     def _get_chunk_count(self) -> str:

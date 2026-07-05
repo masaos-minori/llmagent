@@ -13,7 +13,7 @@ from mcp.mdq.service import MdqService
 
 @pytest.fixture()
 def service(tmp_path: Path) -> MdqService:
-    db = tmp_path / "mdq.db"
+    db = tmp_path / "mdq.sqlite"
     svc = MdqService(db_path=str(db))
     svc._allowed_dirs = [str(tmp_path)]
     return svc
@@ -38,7 +38,7 @@ class TestSummaryCacheEnabled:
     def test_summary_cache_table_created_when_enabled(self, tmp_path: Path) -> None:
         from mcp.mdq.service import MdqService
 
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc._allowed_dirs = [str(tmp_path)]
         svc.summary_cache_enabled = True
 
@@ -103,7 +103,7 @@ class TestSummaryCacheWithLargeChunk:
 
     def test_cached_summary_returned_when_available(self, tmp_path: Path) -> None:
 
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc._allowed_dirs = [str(tmp_path)]
         svc.summary_cache_enabled = True
 
@@ -158,7 +158,7 @@ class TestSummaryCacheWithLargeChunk:
     def test_raw_content_returned_when_no_cached_summary(self, tmp_path: Path) -> None:
         """When use_summary=True but no cached summary exists, raw content is returned."""
 
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc._allowed_dirs = [str(tmp_path)]
         svc.summary_cache_enabled = True
 
@@ -206,7 +206,7 @@ class TestSummaryCacheWithLargeChunk:
     ) -> None:
         """When content hash changes, cached summary is not used."""
 
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc._allowed_dirs = [str(tmp_path)]
         svc.summary_cache_enabled = True
 

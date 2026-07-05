@@ -15,15 +15,15 @@ class TestHybridSearchConfig:
     """Verify hybrid search config fields are loaded correctly."""
 
     def test_use_embedding_disabled_by_default(self, tmp_path: Path) -> None:
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         assert svc.use_embedding is False
 
     def test_vector_table_default_value(self, tmp_path: Path) -> None:
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         assert svc.vector_table == "chunks_vec"
 
     def test_embedding_model_default_value(self, tmp_path: Path) -> None:
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         assert svc.embedding_model == "default"
 
 
@@ -31,7 +31,7 @@ class TestHybridSearchVectorTable:
     """Verify vector table is created only when use_embedding=True."""
 
     def test_vector_table_not_created_when_disabled(self, tmp_path: Path) -> None:
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         conn = svc._get_db_connection()
         try:
             tables = conn.execute(
@@ -45,7 +45,7 @@ class TestHybridSearchVectorTable:
             conn.close()
 
     def test_vector_table_created_when_enabled(self, tmp_path: Path) -> None:
-        svc = MdqService(db_path=str(tmp_path / "mdq.db"))
+        svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc.use_embedding = True
         # Re-initialize DB to trigger vector table creation
         try:

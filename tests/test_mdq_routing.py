@@ -109,17 +109,17 @@ class TestMdqSafetyTiers:
         assert not overlap, f"Read-only tools found in _WRITE_TOOLS: {overlap}"
 
     def test_mdq_safety_tiers_from_config(self) -> None:
-        """Verify agent.toml has mdq entry in tool_safety_tiers."""
+        """Verify security.toml has mdq entry in tool_safety_tiers."""
         import tomllib
 
-        agent_toml_path = Path(__file__).parent.parent / "config" / "agent.toml"
-        if not agent_toml_path.exists():
-            pytest.skip("agent.toml not found")
-        with open(agent_toml_path, "rb") as f:
-            agent_config = tomllib.load(f)
+        security_toml_path = Path(__file__).parent.parent / "config" / "security.toml"
+        if not security_toml_path.exists():
+            pytest.skip("security.toml not found")
+        with open(security_toml_path, "rb") as f:
+            security_config = tomllib.load(f)
 
-        safety_tiers = agent_config.get("tool_safety_tiers", {})
-        assert "mdq" in safety_tiers, "mdq not in agent.toml [tool_safety_tiers]"
+        safety_tiers = security_config.get("tool_safety_tiers", {})
+        assert "mdq" in safety_tiers, "mdq not in security.toml [tool_safety_tiers]"
         assert safety_tiers["mdq"] == "WRITE_DANGEROUS", (
             f"mdq should be WRITE_DANGEROUS, got {safety_tiers['mdq']}"
         )

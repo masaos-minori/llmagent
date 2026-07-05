@@ -24,3 +24,12 @@ memory_dedup_threshold = 0.3
 
 # When true, reject non-local embed_url — local-only safety mode
 memory_local_only = true
+
+# Timeout in seconds for memory embedding API calls
+memory_embed_timeout_sec = 5.0
+
+# Maximum content characters stored per memory entry
+memory_max_content_chars = 500
+
+# Number of days to retain memory entries; 0 = unlimited
+memory_retention_days = 90
