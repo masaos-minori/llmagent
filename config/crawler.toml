@@ -2,6 +2,15 @@
 
 rag_src_dir = "/opt/llm/rag-src"
 
+# RAG SQLite database path (for conditional-header ETag/Last-Modified lookups)
+rag_db_path = "/opt/llm/db/rag.sqlite"
+
+# SQLite connection timeout (seconds)
+sqlite_timeout = 30
+
+# SQLite busy timeout (milliseconds)
+sqlite_busy_timeout_ms = 30000
+
 crawl_delay = 1.5
 max_depth = 3
 min_chunk = 40

@@ -66,6 +66,13 @@ class RagIngester:
         self._strict_artifact_validation: bool = bool(
             cfg.get("strict_artifact_validation", False)
         )
+        # DB settings stored explicitly to bypass build_db_config() / agent.toml
+        self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
+        self._sqlite_vec_so: str = str(cfg.get("sqlite_vec_so", ""))
+        self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
+        self._sqlite_busy_timeout_ms: int = int(
+            cfg.get("sqlite_busy_timeout_ms", 30000)
+        )
         self._client = httpx.Client(timeout=60)
 
     def close(self) -> None:
@@ -97,7 +104,12 @@ class RagIngester:
             logger.info("No chunk files to process")
             return None
         url_groups = self._group_chunks_by_url(chunk_files)
-        with SQLiteHelper().open(write_mode=True) as db:
+        with SQLiteHelper(
+            db_path=self._rag_db_path,
+            sqlite_vec_so=self._sqlite_vec_so,
+            sqlite_timeout=self._sqlite_timeout,
+            sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+        ).open(write_mode=True) as db:
             doc_mgr = DocumentManager(db)
             results = self._process_url_groups(doc_mgr, db, url_groups, force)
         total_success = sum(r.n_success for r in results)
@@ -444,7 +456,12 @@ class RagIngester:
                 },
             )
             return False, False
-        with SQLiteHelper().open(write_mode=True) as db:
+        with SQLiteHelper(
+            db_path=self._rag_db_path,
+            sqlite_vec_so=self._sqlite_vec_so,
+            sqlite_timeout=self._sqlite_timeout,
+            sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+        ).open(write_mode=True) as db:
             self._insert_chunk(
                 db,
                 doc_id,

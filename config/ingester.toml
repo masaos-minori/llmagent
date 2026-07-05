@@ -2,6 +2,18 @@
 
 rag_src_dir = "/opt/llm/rag-src"
 
+# RAG SQLite database path
+rag_db_path = "/opt/llm/db/rag.sqlite"
+
+# sqlite-vec shared library path (required for vector embedding storage)
+sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
+
+# SQLite connection timeout (seconds)
+sqlite_timeout = 30
+
+# SQLite busy timeout (milliseconds)
+sqlite_busy_timeout_ms = 30000
+
 embed_url = "http://127.0.0.1:8003/embedding"
 embedding_dims = 384
 

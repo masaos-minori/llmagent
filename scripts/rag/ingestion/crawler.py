@@ -86,6 +86,12 @@ class WebCrawler:
         self._skip_nofollow: bool = bool(cfg.get("skip_nofollow", False))
         # Skip cross-origin links when True (default: True = same-origin only)
         self._skip_external: bool = bool(cfg.get("skip_external", True))
+        # DB settings for conditional-header cache lookups (bypasses build_db_config)
+        self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
+        self._sqlite_timeout: int = int(cfg.get("sqlite_timeout", 30))
+        self._sqlite_busy_timeout_ms: int = int(
+            cfg.get("sqlite_busy_timeout_ms", 30000)
+        )
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -225,7 +231,11 @@ class WebCrawler:
     def _get_conditional_headers(self, url: str) -> dict[str, str]:
         """Return If-None-Match/If-Modified-Since headers from the cached document."""
         try:
-            with SQLiteHelper().open(row_factory=True) as db:
+            with SQLiteHelper(
+                db_path=self._rag_db_path,
+                sqlite_timeout=self._sqlite_timeout,
+                sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
+            ).open(row_factory=True) as db:
                 rows = db.fetchall(
                     "SELECT etag, last_modified FROM documents WHERE url = ?",
                     (url,),
