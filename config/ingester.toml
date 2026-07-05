@@ -1,0 +1,11 @@
+# ingester.py configuration
+
+rag_src_dir = "/opt/llm/rag-src"
+
+embed_url = "http://127.0.0.1:8003/embedding"
+embedding_dims = 384
+
+embed_retry = 3
+embed_workers = 4
+
+strict_artifact_validation = true

@@ -1,0 +1,31 @@
+# chunk_splitter.py configuration
+
+rag_src_dir = "/opt/llm/rag-src"
+
+min_chunk = 40
+max_chunk = 500
+chunk_overlap = 50
+
+md_index_enable = false
+md_snippet_max_chars = 600
+
+en_stopwords = [
+    "a","an","the","and","or","but","if","in","on","at","to","for","of",
+    "with","by","from","is","are","was","were","be","been","being","have",
+    "has","had","do","does","did","will","would","could","should","may",
+    "might","shall","can","this","that","these","those","it","its","i",
+    "you","he","she","we","they","them","their","our","your","my","his",
+    "her","not","no","nor","so","yet","both","either","each","other",
+    "such","into","through","about","than","then","when","where","who",
+    "which","what","how","all","any","more","most","also","up","out","as",
+    "just","over","after","before","while","since","because","although",
+    "however","therefore","thus","hence","whether","once","only","even",
+    "still","now","here","there","very","too","much","many","some","few",
+    "must","let","get","got","make","made","use","used","using","one",
+    "two","three","four","five","six","seven","eight","nine","ten",
+    "new","old","first","last","long","great","little","own","right",
+    "big","high","small","large","next","early","young","important",
+    "public","private","real","best","free","same","different",
+]
+
+ja_stop_pos = ["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]

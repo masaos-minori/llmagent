@@ -1,0 +1,25 @@
+# crawler.py configuration
+
+rag_src_dir = "/opt/llm/rag-src"
+
+crawl_delay = 1.5
+max_depth = 3
+min_chunk = 40
+fetch_retry = 3
+fetch_timeout = 15
+crawl_concurrency = 3
+max_pages = 200
+
+skip_nofollow = true
+skip_external = true
+
+# target_urls: list of [url, lang] pairs to crawl; lang is "ja" / "en" / "auto"
+target_urls = [
+    ["https://ziglang.org/documentation/master/",               "en"],
+    ["https://zig.guide/",                                       "en"],
+    ["https://www.ruby-lang.org/en/documentation/quickstart/",  "en"],
+    ["https://www.ruby-lang.org/ja/documentation/quickstart/",  "ja"],
+    ["https://docs.ruby-lang.org/en/3.4/doc/",                  "en"],
+    ["https://docs.ruby-lang.org/ja/3.4/doc/",                  "ja"],
+    ["https://www.gnu.org/software/emacs/manual/html_node/elisp/", "en"],
+]

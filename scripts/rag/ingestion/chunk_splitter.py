@@ -90,7 +90,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     """Splits crawl output (rag-src/*.json JSON) into text and code chunks and writes them to rag-src/chunk/ for ingestion."""
 
     def __init__(self, config: dict | None = None) -> None:
-        cfg: dict = config or ConfigLoader().load("rag_pipeline.toml")
+        cfg: dict = config or ConfigLoader().load("chunk_splitter.toml")
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
         self._min_chunk: int = int(cfg["min_chunk"])
