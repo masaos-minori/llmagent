@@ -208,10 +208,29 @@ Workflow stages (defined in `default.json`):
 - `verify` — LLM verifies execution results; required
 - `retry` — optional transport error retry gate after `execute`; `retryable: false`; presence not required for `WorkflowEngine` operation
 
+Each stage has a `StageDefinition`:
+- `id` — unique stage identifier (e.g., "plan", "execute")
+- `description` — human-readable description
+- `timeout_sec` — maximum execution time in seconds
+- `retryable` — whether the stage can be retried on failure
+
+`WorkflowDef.get_stage(stage_id)` — returns the `StageDefinition` for the given id, or `None`.
+
 Fallback: if `config/workflows/default.json` is missing or workflow DB is unavailable,
 the traditional direct-execution flow is used.
 
 Workflow package: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine).
+
+Default retry policy (applied when no `retry_policy` defined in `default.json`):
+- `max_attempts`: 3
+- `backoff`: "fixed"
+- `backoff_sec`: 1
+
+### Workflow Status
+
+`Orchestrator.workflow_status()` returns a dict with two keys:
+- `mode`: "auto" | "required" | "disabled" — from `_policy.mode`
+- `tracking`: "enabled" | "not_loaded" — "enabled" if `_workflow_def` is set, "not_loaded" otherwise
 
 ### Approval Gate
 
@@ -223,8 +242,36 @@ completes and before the verify stage runs:
 3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
 4. User runs `/approve [reason]` or `/reject [reason]`
 5. On next workflow run with the same task, engine checks approval status:
-   - `approved` → continue to verify stage
-   - `rejected` → `WorkflowHaltError` raised; task halted
+    - `approved` → continue to verify stage
+    - `rejected` → `WorkflowHaltError` raised; task halted
+
+### Workflow Exceptions
+
+| Exception | When Raised |
+|---|---|
+| `WorkflowTimeoutError` | Stage execution exceeds `timeout_sec` |
+| `WorkflowHaltError` | Task is halted (e.g., via `/halt` or after rejection) |
+| `WorkflowPendingApprovalError` | Approval gate requires user action before proceeding |
+| `WorkflowLoadError` | Workflow definition fails validation or loading |
+
+### Retry Mechanism
+
+When a stage is `retryable: true`, the engine uses the retry policy to determine retry behavior:
+- `max_attempts`: Maximum number of attempts (default 3)
+- `backoff`: Retry strategy — "fixed" or "exponential"
+- `backoff_sec`: Delay between retries in seconds (default 1 for fixed; multiplied by attempt number for exponential)
+
+### Workflow Loader Validation Rules
+
+When loading a workflow definition from `config/workflows/*.json`:
+- Required top-level keys: `name`, `version`, `stages`, `retry_policy`
+- `stages` must be a non-empty list
+- No duplicate stage IDs allowed
+- Required stages: `plan`, `execute`, `verify` (must all be present)
+- Each stage must have: `id`, `description`, `timeout_sec`, `retryable`
+- `retry_policy.max_attempts` must be >= 1
+- `retry_policy.backoff` must be "fixed" or "exponential"
+- `retry_policy.backoff_sec` must be >= 0
 
 ---
 

@@ -58,8 +58,8 @@ Tests can inject alternative implementations instead of the real CLIView.
 All slash commands dispatched by `CommandRegistry.dispatch(line)`.
 
 Lookup order:
-1. Exact match or prefix match in `_COMMANDS` list (built-in)
-2. Plugin commands via `_dispatch_plugin()` (lower priority)
+1. Exact match or prefix match in the built-in command list
+2. Plugin commands registered via `@register_command` decorator (lower priority)
 
 Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 

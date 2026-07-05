@@ -21,6 +21,8 @@ For each relevant design document:
 - Add clarification; avoid unnecessary rewrites.
 - Do not remove content unless it is clearly wrong and contradicted by implementation.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
+- プライベートメソッドおよびプライベート関数は記載しない。
+- `__pycache__` フォルダ以下のファイルは作業対象外とする。
 - If docs and code disagree:
   - document the current implemented behavior,
   - note the mismatch if needed,

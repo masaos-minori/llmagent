@@ -17,6 +17,7 @@ Do not edit code unless explicitly asked.
 - Context Optimization: Load only task-specific information to prevent context bloat.
 - Write all documents in Japanese.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
+- `__pycache__` フォルダ以下のファイルは作業対象外とする。
 
 ### Output Language
 

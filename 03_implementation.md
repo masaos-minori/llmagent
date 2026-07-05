@@ -4,6 +4,7 @@ Read the target plan file, then implement the feature according to the rules and
 
 Do not modify files outside the scope specified in the plan.
 Do not edit documentation unless step 6 is reached.
+`__pycache__` フォルダ以下のファイルは作業対象外とする。
 
 ### Output Language
 

@@ -22,6 +22,7 @@ Refactor the target files passed as arguments.
 - Do not change external behavior, public APIs, or visible output.
 - If a change may alter behavior, do not implement it. Record it as a proposal instead.
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
+- `__pycache__` フォルダ以下のファイルは作業対象外とする。
 
 ### Refactoring Rules
 

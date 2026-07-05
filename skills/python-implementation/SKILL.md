@@ -71,6 +71,7 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
 - Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished
+- Files under the `__pycache__` directory are out of scope for work.
 
 ### Pythonic Code Quality & Safety Constraints
 - **Never use mutable objects (`list`, `dict`, etc.) as default arguments** in functions or methods. Use `None` and initialize inside the function instead.

@@ -77,6 +77,8 @@ Label every claim: `Confirmed` (directly verified), `Inferred` (strongly support
 - Do not infer runtime behavior from `requirements.txt` alone.
 - Do not trust README claims without verification.
 - Do not document private methods or private functions (names starting with `_`).
+- プライベートメソッドおよびプライベート関数は記載しない。
+- Files under the `__pycache__` directory are out of scope for work.
 
 ### 7. Track Evidence
 During analysis, track for each item: path, kind, why_it_matters, confirmed_facts, open_questions.

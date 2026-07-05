@@ -132,10 +132,10 @@
   │   │   │   ├─ session_title.py             # セッションタイトル生成
   │   │   │   └─ undo_service.py              # アンドゥサービス
   │   │   ├─ shared/                          # agent パッケージ内共有型 (agent 層専用)
-  │   │   │    ├─ enums.py                    # エージェント列挙型
-  │   │   │    ├─ exceptions.py               # エージェント例外定義
-  │   │   │    ├─ health_models.py            # ヘルスチェックモデル
-  │   │   │    └─ models.py                   # エージェント共通データモデル
+   │   │   │    ├─ enums.py                    # 空ファイル: カナonicalな列挙型は agent.memory.enums / agent.tool_enums
+   │   │   │    ├─ exceptions.py               # 空ファイル: カナonicalな例外は agent.commands/agent.services/agent.memory/agent.tool_exceptions
+   │   │   │    ├─ health_models.py            # ヘルスチェックモデル (ServiceWarning, HealthCheckResult, McpHealthProbeResult)
+   │   │   │    └─ models.py                   # エージェント共通データモデル (ToolApprovalEvent, ApprovalDecisionEvent, ToolExecEvent)
   │   │   └─ workflow/                        # ワークフローエンジン
   │   │       ├─ models.py                    # ワークフローデータモデル
   │   │       ├─ state_store.py               # ワークフロー状態ストア
@@ -201,29 +201,52 @@
   │   │   ├─ rotation.py                      # データベースローテーション
   │   │   └─ recovery.py                      # コーrupted DB リカバリ
   │   └─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
-  │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
-  │       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)
-  │       ├─ llm_exceptions.py                # LLMTransportError: LLM HTTP/SSE 失敗の構造化例外 (LLMErrorKind / phase / retryable)
-  │       ├─ sse_parser.py                    # RobustSSEParser: 増分 UTF-8 デコード + ハートビート監視 + 不正フレーム予算
-  │       ├─ tool_executor.py                 # ToolExecutor: MCP サーバルーティング・TTL キャッシュ
-  │       ├─ tool_registry.py                 # ToolRegistry: ツール定義の単一ソース (frozenset から登録、ドリフト検出)
-  │       ├─ tool_spec.py                     # ToolSpec: ツール呼び出し実行メタデータ (resource_scope / requires_serial 等)
-  │       ├─ tool_cache.py                    # CacheEntry: ToolExecutor の LRU キャッシュエントリ
-  │       ├─ types.py                         # 共通型定義 (LLMMessage 等)
-  │       ├─ mcp_config.py                    # McpServerConfig データクラス
-  │       ├─ config_loader.py                 # TOML/JSON 共通設定ローダー
-  │       ├─ config_validator.py              # RagConfigValidator: 起動時 RAG 設定クロスファイル整合性チェック
-  │       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
-  │       ├─ tool_constants.py                # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
-  │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
-  │       ├─ action_result.py                 # ActionResult: 機械判定パス向け汎用アクション/結果スキーマ (ActionType literal)
-  │       ├─ events.py                        # ArtifactEvent / RetryEvent: ライフサイクル/成果物通知の型定義 (配送機構なし)
-  │       ├─ formatters.py                    # MCP 全サーバ共通出力フォーマッタ (truncate / fmt_size / fmt_kvlog 等)
-  │       ├─ git_helper.py                    # get_repo_info(): GitPython でブランチ・コミット情報取得 (/context 表示用)
-  │       ├─ json_utils.py                    # orjson ラッパー: dumps() が bytes でなく str を返す
-  │       ├─ logger.py                        # Logger: エントリポイント用ファイルロガー (構造化ログ JSON-lines 対応)
-  │       ├─ otel_tracer.py                   # OpenTelemetry トレーサ設定
-  │       └─ protocols/                       # 共有プロトコル定義 (shell.py)
+   │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
+   │       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)
+   │       ├─ llm_exceptions.py                # LLMTransportError: LLM HTTP/SSE 失敗の構造化例外 (LLMErrorKind / phase / retryable)
+   │       ├─ llm_transport_errors.py          # LLMTransportError: LLM HTTP/SSE 失敗の構造化例外
+   │       ├─ llm_sse_stream.py                # SSE ストリーミングヘルパー
+   │       ├─ llm_sse_helpers.py               # SSE ヘルパー関数
+   │       ├─ llm_reconnect.py                 # LLM再接続ロジック
+   │       ├─ llm_hot_config.py                # LLMホット構成
+   │       ├─ llm_retry.py                     # LLMリトライロジック
+   │       ├─ llm_payload.py                   # LLMペイロードヘルパー
+   │       ├─ sse_parser.py                    # RobustSSEParser: 増分 UTF-8 デコード + ハートビート監視 + 不正フレーム予算
+   │       ├─ tool_executor.py                 # ToolExecutor: MCP サーバルーティング・TTL キャッシュ
+   │       ├─ tool_executor_helpers.py         # ToolExecutor ヘルパー関数
+   │       ├─ tool_transport_invoker.py        # ツールトランスポート呼び出し
+   │       ├─ tool_registry.py                 # ToolRegistry: ツール定義の単一ソース (frozenset から登録、ドリフト検出)
+   │       ├─ tool_spec.py                     # ToolSpec: ツール呼び出し実行メタデータ (resource_scope / requires_serial 等)
+   │       ├─ tool_cache.py                    # CacheEntry: ToolExecutor の LRU キャッシュエントリ
+   │       ├─ tool_lifecycle.py                # ツールライフサイクルヘルパー
+   │       ├─ tool_routing_validation.py       # ツールルーティングバリデーション
+   │       ├─ tool_constants.py                # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
+   │       ├─ types.py                         # 共通型定義 (LLMMessage 等)
+   │       ├─ mcp_config.py                    # McpServerConfig データクラス
+   │       ├─ mcp_health.py                    # MCPヘルスチェック
+   │       ├─ config_loader.py                 # TOML/JSON 共通設定ローダー
+   │       ├─ config_errors.py                 # 設定エラー定義
+   │       ├─ config_validator.py              # RagConfigValidator: 起動時 RAG 設定クロスファイル整合性チェック
+   │       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
+   │       ├─ plugin_registries.py             # プラグインレジストリ一覧
+   │       ├─ plugin_tool_invoker.py           # プラグインツール呼び出し
+   │       ├─ plugin_auto_discover.py          # プラグイン自動発見
+   │       ├─ plugin_conflicts.py              # プラグイン競合検出
+   │       ├─ plugin_result.py                 # プラグイン結果型
+   │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
+   │       ├─ action_result.py                 # ActionResult: 機械判定パス向け汎用アクション/結果スキーマ (ActionType literal)
+   │       ├─ events.py                        # ArtifactEvent / RetryEvent: ライフサイクル/成果物通知の型定義 (配送機構なし)
+   │       ├─ transport_dto.py                 # トランスポートDTO
+   │       ├─ formatters.py                    # MCP 全サーバ共通出力フォーマッタ (truncate / fmt_size / fmt_kvlog 等)
+   │       ├─ git_helper.py                    # get_repo_info(): GitPython でブランチ・コミット情報取得 (/context 表示用)
+   │       ├─ json_utils.py                    # orjson ラッパー: dumps() が bytes でなく str を返す
+   │       ├─ logger.py                        # Logger: エントリポイント用ファイルロガー (構造化ログ JSON-lines 対応)
+   │       ├─ otel_tracer.py                   # OpenTelemetry トレーサ設定
+   │       ├─ otel_noop.py                     # OpenTelemetry ノーオップ実装
+   │       ├─ token_counter.py                 # トークンカウンター
+   │       ├─ token_estimation.py              # トークン推定
+   │       ├─ http_transport.py                # HTTPトランスポート
+   │       └─ protocols/                       # 共有プロトコル定義 (shell.py)
   └─ logs/                                    # 各サービスのログファイル出力先
 /etc/conf.d/
    └─ github-mcp                         # GITHUB_TOKEN (Personal Access Token) 設定
