@@ -5,6 +5,7 @@ DTOs for service health check results.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -49,3 +50,55 @@ class McpHealthProbeResult:
     restart_recommended: bool
     operator_action_required: bool
     body: dict[str, object]
+
+
+class StartupCheckStatus(StrEnum):
+    OK = "ok"
+    WARNING = "warning"
+    FATAL = "fatal"
+    SKIPPED = "skipped"
+
+
+@dataclass(frozen=True)
+class StartupCheckOutcome:
+    source: str
+    status: StartupCheckStatus
+    message: str = ""
+    remediation: str = ""
+
+
+@dataclass
+class StartupValidationResult:
+    outcomes: list[StartupCheckOutcome] = field(default_factory=list)
+
+    def add_fatal(self, source: str, message: str, remediation: str = "") -> None:
+        self.outcomes.append(
+            StartupCheckOutcome(source, StartupCheckStatus.FATAL, message, remediation)
+        )
+
+    def add_warning(self, source: str, message: str) -> None:
+        self.outcomes.append(
+            StartupCheckOutcome(source, StartupCheckStatus.WARNING, message)
+        )
+
+    def add_ok(self, source: str) -> None:
+        self.outcomes.append(StartupCheckOutcome(source, StartupCheckStatus.OK))
+
+    def add_skipped(self, source: str, message: str = "") -> None:
+        self.outcomes.append(
+            StartupCheckOutcome(source, StartupCheckStatus.SKIPPED, message)
+        )
+
+    @property
+    def has_fatal(self) -> bool:
+        return any(o.status == StartupCheckStatus.FATAL for o in self.outcomes)
+
+    def fatal_messages(self) -> list[str]:
+        return [
+            o.message for o in self.outcomes if o.status == StartupCheckStatus.FATAL
+        ]
+
+    def warning_messages(self) -> list[str]:
+        return [
+            o.message for o in self.outcomes if o.status == StartupCheckStatus.WARNING
+        ]

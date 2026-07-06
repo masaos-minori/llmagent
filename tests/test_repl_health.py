@@ -20,6 +20,12 @@ from agent.repl_health import (
     check_workflow_definition,
     probe_mcp_health,
 )
+from agent.security_audit_config import (
+    CicdAuditConfig,
+    GitAuditConfig,
+    GitHubAuditConfig,
+    ShellAuditConfig,
+)
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -119,7 +125,6 @@ class TestProbeMcpHealthDetail:
         assert result.restart_recommended is False
         assert result.operator_action_required is False
         assert result.body == {}
-
 
 
 # ── _check_tool_definitions() ──────────────────────────────────────────────────
@@ -411,7 +416,6 @@ class TestAuditSecurityDefaults:
 
     def test_production_mode_all_authed_no_error(self) -> None:
         """Production mode with all HTTP servers having auth_token → no error."""
-        from mcp.shell.models import ShellConfig as ShellCfg
         from shared.mcp_config import SecurityProfile
 
         ctx = self._make_ctx(
@@ -422,56 +426,65 @@ class TestAuditSecurityDefaults:
             security_profile="production",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
-        cicd_cfg = MagicMock(workflow_allowlist=["test"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("mcp.cicd.models.CicdConfig.load", return_value=cicd_cfg):
-                with patch("shutil.which", return_value="/usr/bin/firejail"):
-                    warnings = audit_security_defaults(ctx, production_mode=True)
+        shell_cfg = ShellAuditConfig(
+            sandbox_backend="firejail", command_allowlist=["ls"]
+        )
+        cicd_cfg = CicdAuditConfig(workflow_allowlist=["test"])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
+                with patch(
+                    "agent.repl_health.load_github_audit_config", return_value=None
+                ):
+                    with patch(
+                        "agent.repl_health.load_cicd_audit_config",
+                        return_value=cicd_cfg,
+                    ):
+                        with patch("shutil.which", return_value="/usr/bin/firejail"):
+                            warnings = audit_security_defaults(
+                                ctx, production_mode=True
+                            )
         auth_warnings = [w for w in warnings if "auth_token" in w]
         assert len(auth_warnings) == 0
 
-
-    def test_shell_config_load_failure_is_silenced(self) -> None:
-        """ShellConfig.load() raising an exception does not propagate."""
+    def test_shell_config_load_failure_returns_warning_in_local_mode(self) -> None:
+        """load_shell_audit_config() raising RuntimeError in local mode → warning returned, no raise."""
         ctx = self._make_ctx()
         with patch(
-            "agent.repl_health.ShellConfig.load", side_effect=OSError("no file")
+            "agent.repl_health.load_shell_audit_config",
+            side_effect=RuntimeError(
+                "Security audit: failed to load shell config: no file"
+            ),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
-        shell_warnings = [w for w in warnings if "shell" in w.lower()]
-        assert shell_warnings == []
+        shell_warnings = [w for w in warnings if "shell config" in w.lower()]
+        assert len(shell_warnings) == 1
 
     def test_git_config_empty_allowed_repo_paths_warns(self) -> None:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
-        from mcp.git.models import GitConfig
-
         ctx = self._make_ctx()
-        empty_cfg = GitConfig(allowed_repo_paths=[])
-        with patch("agent.repl_health.GitConfig.load", return_value=empty_cfg):
-            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
+        empty_git = GitAuditConfig(allowed_repo_paths=[])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=None):
+            with patch(
+                "agent.repl_health.load_git_audit_config", return_value=empty_git
+            ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("git.allowed_repo_paths" in w for w in warnings)
 
     def test_shell_sandbox_none_warns(self) -> None:
         """shell_sandbox_backend=none triggers a warning."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-
         ctx = self._make_ctx()
-        cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+        shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("shell_sandbox_backend=none" in w for w in warnings)
 
     def test_shell_sandbox_none_raises_in_production(self) -> None:
         """shell_sandbox_backend=none raises RuntimeError in production mode."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-
         ctx = self._make_ctx()
-        cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+        shell_cfg = ShellAuditConfig(sandbox_backend="none", command_allowlist=["ls"])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
                 with pytest.raises(
                     RuntimeError, match="Production mode requires shell sandbox"
                 ):
@@ -479,47 +492,45 @@ class TestAuditSecurityDefaults:
 
     def test_shell_sandbox_non_firejail_warns(self) -> None:
         """shell_sandbox_backend not 'firejail' and not 'none' → warning about firejail."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-
         ctx = self._make_ctx()
-        cfg = ShellCfg(shell_sandbox_backend="docker", command_allowlist=["ls"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+        shell_cfg = ShellAuditConfig(sandbox_backend="docker", command_allowlist=["ls"])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("firejail" in w for w in warnings)
 
     def test_firejail_binary_missing_raises(self) -> None:
         """shell_sandbox_backend=firejail but firejail not in PATH → RuntimeError."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-
         ctx = self._make_ctx()
-        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+        shell_cfg = ShellAuditConfig(
+            sandbox_backend="firejail", command_allowlist=["ls"]
+        )
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
                 with patch("shutil.which", return_value=None):
                     with pytest.raises(RuntimeError, match="firejail binary not found"):
                         audit_security_defaults(ctx, production_mode=False)
 
     def test_firejail_binary_present_no_error(self) -> None:
         """shell_sandbox_backend=firejail and firejail found → no sandbox error."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-
         ctx = self._make_ctx()
-        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+        shell_cfg = ShellAuditConfig(
+            sandbox_backend="firejail", command_allowlist=["ls"]
+        )
+        with patch("agent.repl_health.load_shell_audit_config", return_value=shell_cfg):
+            with patch("agent.repl_health.load_git_audit_config", return_value=None):
                 with patch("shutil.which", return_value="/usr/bin/firejail"):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         assert not any("firejail binary not found" in w for w in warnings)
 
     def test_security_posture_summary_included(self) -> None:
         """Summary line appended when any fail-closed or fail-open setting is empty."""
-        from mcp.git.models import GitConfig
-
         ctx = self._make_ctx()
-        empty_git = GitConfig(allowed_repo_paths=[])
-        with patch("agent.repl_health.GitConfig.load", return_value=empty_git):
-            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
+        empty_git = GitAuditConfig(allowed_repo_paths=[])
+        with patch("agent.repl_health.load_shell_audit_config", return_value=None):
+            with patch(
+                "agent.repl_health.load_git_audit_config", return_value=empty_git
+            ):
                 warnings = audit_security_defaults(ctx, production_mode=False)
         summary_lines = [w for w in warnings if "Security posture summary" in w]
         assert len(summary_lines) == 1
@@ -527,14 +538,13 @@ class TestAuditSecurityDefaults:
 
     def test_cicd_empty_workflow_allowlist_warns(self) -> None:
         """cicd.workflow_allowlist empty → DENY-ALL warning (fail-closed; both dev and production)."""
-        from mcp.cicd.models import CicdConfig as CiCd
-
         ctx = self._make_ctx()
-        empty_cicd = CiCd(workflow_allowlist=[])
+        empty_cicd = CicdAuditConfig(workflow_allowlist=[])
         with (
-            patch("mcp.cicd.models.CicdConfig.load", return_value=empty_cicd),
-            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=empty_cicd),
         ):
             warnings_dev = audit_security_defaults(ctx, production_mode=False)
         assert any("cicd.workflow_allowlist" in w for w in warnings_dev)
@@ -542,28 +552,32 @@ class TestAuditSecurityDefaults:
 
     def test_github_allow_force_push_warns(self) -> None:
         """github.allow_force_push=True surfaces a security warning."""
-        from mcp.github.models_config import GitHubConfig
-
         ctx = self._make_ctx()
-        cfg = GitHubConfig(allow_force_push=True, require_pr_review=True)
+        gh_cfg = GitHubAuditConfig(
+            allowed_repos=["owner/repo"], allow_force_push=True, require_pr_review=True
+        )
         with (
-            patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
-            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("allow_force_push=true" in w for w in warnings)
 
     def test_github_require_pr_review_false_warns(self) -> None:
         """github.require_pr_review=False surfaces a security warning."""
-        from mcp.github.models_config import GitHubConfig
-
         ctx = self._make_ctx()
-        cfg = GitHubConfig(allow_force_push=False, require_pr_review=False)
+        gh_cfg = GitHubAuditConfig(
+            allowed_repos=["owner/repo"],
+            allow_force_push=False,
+            require_pr_review=False,
+        )
         with (
-            patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
-            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("require_pr_review=false" in w for w in warnings)

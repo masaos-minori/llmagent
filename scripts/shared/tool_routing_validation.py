@@ -81,3 +81,27 @@ def validate_all_routing(
             result[server_key] = messages
 
     return result
+
+
+def check_tool_safety_tiers(
+    registry: "ToolRegistry | None" = None,
+    tool_safety_tiers: dict[str, str] | None = None,
+) -> list[str]:
+    """Return warning messages for registered tools missing a safety tier declaration.
+
+    Only checks when tool_safety_tiers is non-empty (i.e., tier declarations are in use).
+    Returns empty list when tool_safety_tiers is not configured.
+    """
+    if not tool_safety_tiers:
+        return []
+    if registry is None:
+        from shared.tool_registry import get_registry
+
+        registry = get_registry()
+    missing = [
+        t for t in sorted(registry.get_all_tool_names()) if t not in tool_safety_tiers
+    ]
+    return [
+        f"Tool {t!r} registered in ToolRegistry but missing from tool_safety_tiers"
+        for t in missing
+    ]

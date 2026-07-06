@@ -10,6 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+from urllib.parse import urlparse
 
 from shared.mcp_health import (  # noqa: F401
     McpServerHealthRegistry,
@@ -64,6 +65,9 @@ class McpServerConfig:
         default_factory=list
     )  # launch command for startup_mode=subprocess
     env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
+    key: str = field(
+        default="", compare=False, repr=False
+    )  # server key from config; compare=False keeps equality unaffected
 
     def __post_init__(self) -> None:
         self._validate_enum_types()
@@ -84,14 +88,52 @@ class McpServerConfig:
             )
 
     def _validate_cross_fields(self) -> None:
+        key_prefix = f"McpServerConfig[{self.key!r}]" if self.key else "McpServerConfig"
+
         if self.transport == TransportType.HTTP and not self.url:
             raise ValueError(
-                "McpServerConfig: url must not be empty when transport='http'"
+                f"{key_prefix}: url must not be empty when transport='http'"
             )
         if self.startup_mode == StartupMode.SUBPROCESS and not self.cmd:
             raise ValueError(
-                "McpServerConfig: cmd must not be empty when startup_mode='subprocess'"
+                f"{key_prefix}: cmd must not be empty when startup_mode='subprocess'"
             )
+
+        if self.call_timeout_sec < 0:
+            raise ValueError(
+                f"{key_prefix}: call_timeout_sec must be >= 0, got {self.call_timeout_sec}"
+            )
+        if self.startup_timeout_sec < 0:
+            raise ValueError(
+                f"{key_prefix}: startup_timeout_sec must be >= 0, got {self.startup_timeout_sec}"
+            )
+
+        for i, name in enumerate(self.tool_names):
+            if not isinstance(name, str) or not name:
+                raise ValueError(
+                    f"{key_prefix}: tool_names[{i}] must be a non-empty string, got {name!r}"
+                )
+        if len(self.tool_names) != len(set(self.tool_names)):
+            dupes = sorted({n for n in self.tool_names if self.tool_names.count(n) > 1})
+            raise ValueError(f"{key_prefix}: duplicate tool_names: {dupes}")
+
+        if not isinstance(self.auth_token, str):
+            raise ValueError(
+                f"{key_prefix}: auth_token must be str, got {type(self.auth_token).__name__}"
+            )
+
+        for k, v in self.env.items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                raise ValueError(
+                    f"{key_prefix}: env must be dict[str, str]; got key={k!r} value={v!r}"
+                )
+
+        if self.transport == TransportType.HTTP and self.url:
+            parsed = urlparse(self.url)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                raise ValueError(
+                    f"{key_prefix}: url must be a valid HTTP/HTTPS URL, got {self.url!r}"
+                )
 
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
@@ -142,4 +184,5 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         role=v.get("role", ""),
         cmd=cmd,
         env=env,
+        key=key,
     )

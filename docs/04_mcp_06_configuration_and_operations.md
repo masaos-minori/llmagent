@@ -73,8 +73,13 @@ health probes, audit log reading, and the new-server addition checklist.
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
 **Validation rules:**
-- `transport="http"` → `url` must be non-empty
+- `transport="http"` → `url` must be non-empty and a valid HTTP/HTTPS URL
 - `startup_mode="subprocess"` → `cmd` must be non-empty
+- `call_timeout_sec` must be `>= 0` (0 = no timeout)
+- `startup_timeout_sec` must be `>= 0` (0 = skip health polling)
+- `tool_names` items must be non-empty strings with no duplicates
+- `auth_token` must be a string
+- `env` keys and values must all be strings
 
 ---
 

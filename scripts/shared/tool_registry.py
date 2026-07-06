@@ -145,8 +145,8 @@ def get_registry() -> ToolRegistry:
     return _registry
 
 
-def reset_registry() -> None:
-    """Reset the global registry (for testing)."""
+def _reset_registry_for_testing() -> None:
+    """Reset the global ToolRegistry singleton. FOR TESTING ONLY."""
     global _registry
     _registry = None
 

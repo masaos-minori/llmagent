@@ -174,6 +174,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         use_tool_summarize=bool(cfg.get("use_tool_summarize", False)),
         tool_summarize_threshold=int(cfg.get("tool_summarize_threshold", 3000)),
         tool_definitions_strict=bool(cfg.get("tool_definitions_strict", False)),
+        routing_drift_strict=bool(cfg.get("routing_drift_strict", False)),
         tool_dedup_max_repeats=int(cfg.get("tool_dedup_max_repeats", 3)),
         tool_cycle_detect_window=int(cfg.get("tool_cycle_detect_window", 2)),
         tool_error_max_consecutive=int(cfg.get("tool_error_max_consecutive", 3)),

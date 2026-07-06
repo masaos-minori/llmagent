@@ -352,11 +352,13 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 [05_agent_08_configuration.md](05_agent_08_configuration.md).
 
 **Summary:**
-- `McpServerConfig`: per-server transport settings (transport, url, cmd, startup_mode, tool_names, auth_token, etc.)
+- `McpServerConfig`: per-server transport settings (transport, url, cmd, startup_mode, tool_names, auth_token, etc.) — validated by `__post_init__` (URL scheme, timeout ranges, tool_names uniqueness, env types). The `key` field is set by `_build_single_server()` from the TOML section name and is excluded from `==` comparison.
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
-- `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch
+- `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track reachable-but-degraded servers without incrementing failure count
 
 > **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`).
+
+`build_discovery_map(server_tool_lists)` in `shared/route_resolver.py` now returns `tuple[dict[str, str], dict[str, list[str]]]`: `(route_map, duplicates)` where `duplicates` maps each tool name claimed by more than one server to the full list of claiming server keys.
 
 ---
 

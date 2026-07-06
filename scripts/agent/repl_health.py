@@ -14,11 +14,15 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
-from mcp.git.models import GitConfig
-from mcp.shell.models import ShellConfig
 from shared.logger import Logger
 
 from agent.context import AgentContext
+from agent.security_audit_config import (
+    load_cicd_audit_config,
+    load_git_audit_config,
+    load_github_audit_config,
+    load_shell_audit_config,
+)
 from agent.shared.health_models import (
     HealthCheckResult,
     McpHealthProbeResult,
@@ -130,6 +134,37 @@ async def check_readiness(
     return result
 
 
+def _validate_tools_response(
+    server_key: str, body: object
+) -> tuple[list[str], str | None]:
+    """Validate /v1/tools response body. Returns (tool_names, error_msg).
+
+    error_msg is None on success; a descriptive string if the response is malformed.
+    """
+    if not isinstance(body, dict):
+        return (
+            [],
+            f"{server_key}: /v1/tools response is not a JSON object (got {type(body).__name__})",
+        )
+    tools = body.get("tools")
+    if tools is None:
+        return [], f"{server_key}: /v1/tools response missing 'tools' field"
+    if not isinstance(tools, list):
+        return (
+            [],
+            f"{server_key}: /v1/tools 'tools' must be a list (got {type(tools).__name__})",
+        )
+    names: list[str] = []
+    for i, entry in enumerate(tools):
+        if not isinstance(entry, dict):
+            return [], f"{server_key}: /v1/tools tools[{i}] is not an object"
+        name = entry.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return [], f"{server_key}: /v1/tools tools[{i}] has invalid name {name!r}"
+        names.append(name)
+    return names, None
+
+
 async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[str]]:
     """Probe all configured MCP servers and return (tool_names, unreachable_keys).
 
@@ -160,7 +195,19 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
                     timeout=5.0,
                 )
                 if resp.status_code == HTTPStatus.OK:
-                    server_names.update(t["name"] for t in resp.json().get("tools", []))
+                    try:
+                        body_data: object = resp.json()
+                    except ValueError as e:
+                        msg = f"{key}: /v1/tools response is not valid JSON: {e}"
+                        logger.warning("Malformed /v1/tools: %s", msg)
+                        unreachable.append(key)
+                        continue
+                    names, err_msg = _validate_tools_response(key, body_data)
+                    if err_msg:
+                        logger.warning("Malformed /v1/tools: %s", err_msg)
+                        unreachable.append(key)
+                    else:
+                        server_names.update(names)
                 else:
                     msg = f"{key} /v1/tools returned HTTP {resp.status_code}"
                     logger.warning(msg)
@@ -195,7 +242,19 @@ async def _collect_server_tool_names_per_server(
                     timeout=5.0,
                 )
                 if resp.status_code == HTTPStatus.OK:
-                    per_server[key] = [t["name"] for t in resp.json().get("tools", [])]
+                    try:
+                        body_data_ps: object = resp.json()
+                    except ValueError as e:
+                        msg = f"{key}: /v1/tools response is not valid JSON: {e}"
+                        logger.warning("Malformed /v1/tools: %s", msg)
+                        unreachable.append(key)
+                        continue
+                    names_ps, err_msg_ps = _validate_tools_response(key, body_data_ps)
+                    if err_msg_ps:
+                        logger.warning("Malformed /v1/tools: %s", err_msg_ps)
+                        unreachable.append(key)
+                    else:
+                        per_server[key] = names_ps
                 else:
                     msg = f"{key} /v1/tools returned HTTP {resp.status_code}"
                     logger.warning(msg)
@@ -314,6 +373,7 @@ async def check_routing_drift_vs_live(
     All servers unreachable: skip validation with INFO log (same as _check_tool_definitions).
     """
     from shared.route_resolver import build_discovery_map  # noqa: PLC0415
+    from shared.tool_registry import get_registry  # noqa: PLC0415
     from shared.tool_routing_validation import (
         validate_routing_against_live,  # noqa: PLC0415
     )
@@ -335,14 +395,29 @@ async def check_routing_drift_vs_live(
             logger.info(msg)
         return HealthCheckResult()
 
-    # Detect duplicate live tool ownership (logs warnings internally).
-    build_discovery_map(
+    _route_map, duplicates = build_discovery_map(
         {k: [{"name": n} for n in names] for k, names in per_server.items()}
     )
 
     drift = validate_routing_against_live(live_tool_lists=per_server)
 
     warnings: list[ServiceWarning] = []
+    for tool_name, server_keys in duplicates.items():
+        registry_owner = get_registry().get_server_for_tool(tool_name)
+        dup_msg = (
+            f"Duplicate live tool ownership: {tool_name!r} claimed by {sorted(server_keys)}; "
+            f"registry owner={registry_owner!r}"
+        )
+        logger.warning(dup_msg)
+        warnings.append(
+            ServiceWarning(label="duplicate_ownership", url="", message=dup_msg)
+        )
+
+    if duplicates and strict:
+        raise RuntimeError(
+            f"Strict mode: duplicate live tool ownership detected: {sorted(duplicates)}"
+        )
+
     for server_key, messages in drift.items():
         for msg in messages:
             full_msg = f"Live routing drift [{server_key}]: {msg}"
@@ -408,8 +483,11 @@ def check_workflow_definition(
     return []
 
 
-def check_routing_drift(ctx: AgentContext) -> list[str]:
-    """Check config tool_names against ToolRegistry at startup. Returns warning messages."""
+def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]:
+    """Check config tool_names against ToolRegistry at startup. Returns warning messages.
+
+    When strict=True, raises RuntimeError if any drift is detected.
+    """
     from shared.tool_routing_validation import (
         validate_routing_against_config,  # noqa: PLC0415
     )
@@ -423,10 +501,25 @@ def check_routing_drift(ctx: AgentContext) -> list[str]:
                 full_msg = f"Routing drift [{server_key}]: {msg}"
                 logger.warning(full_msg)
                 warnings.append(full_msg)
+        if drift and strict:
+            drift_str = "; ".join(f"{sk}: {msgs}" for sk, msgs in drift.items())
+            msg = f"Strict mode: routing drift detected. Drift: {drift_str}."
+            logger.error(msg)
+            raise RuntimeError(msg)
         return warnings
+    except RuntimeError:
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning("Routing drift check failed: %s", exc)
         return []
+
+
+def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
+    """Check that all registered tools have a declared safety tier. Returns warning messages."""
+    from shared.tool_routing_validation import check_tool_safety_tiers  # noqa: PLC0415
+
+    tool_safety_tiers = getattr(ctx.cfg.approval, "tool_safety_tiers", {})
+    return check_tool_safety_tiers(tool_safety_tiers=tool_safety_tiers)
 
 
 async def _watchdog_check_http(
@@ -466,9 +559,15 @@ async def _watchdog_check_http(
         restart_counts[key] = 0
         if probe.operator_action_required:
             logger.warning(
-                "Watchdog: %r requires operator action — not restarting (operator_action_required=True)",
+                "Watchdog: %r requires operator action: %s",
                 key,
+                probe.body,
             )
+        if ctx.services_required.health_registry is not None:
+            body: dict = probe.body or {}
+            reason_raw = body.get("reason") or body.get("message")
+            reason = str(reason_raw) if reason_raw is not None else None
+            ctx.services_required.health_registry.record_degraded(key, reason=reason)
         return
 
     # Either unreachable (probe.reachable=False) or restart_recommended=True
@@ -597,26 +696,34 @@ def audit_security_defaults(
 
     # Check shell sandbox and command_allowlist
     try:
+        shell_cfg = load_shell_audit_config()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+        shell_cfg = None
+
+    if shell_cfg is not None:
         import shutil as _shutil
 
-        shell_cfg = ShellConfig.load()
-        if shell_cfg.shell_sandbox_backend == "none":
+        if shell_cfg.sandbox_backend == "none":
             msg = "shell_sandbox_backend=none is not permitted in production mode"
             if production_mode:
                 raise RuntimeError(f"Production mode requires shell sandbox. {msg}")
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
-        elif shell_cfg.shell_sandbox_backend != "firejail":
+        elif shell_cfg.sandbox_backend != "firejail":
             msg = (
-                f"shell_sandbox_backend={shell_cfg.shell_sandbox_backend!r}; "
+                f"shell_sandbox_backend={shell_cfg.sandbox_backend!r}; "
                 "production default is 'firejail'. "
                 "Update config/shell_mcp_server.toml."
             )
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
-        if shell_cfg.shell_sandbox_backend == "firejail" and not _shutil.which(
-            "firejail"
-        ):
+        if shell_cfg.sandbox_backend == "firejail" and not _shutil.which("firejail"):
             msg = (
                 "shell_sandbox_backend=firejail but firejail binary not found in PATH. "
                 "Install firejail or change shell_sandbox_backend in shell_mcp_server.toml."
@@ -631,47 +738,50 @@ def audit_security_defaults(
             )
             logger.warning(msg)
             warnings.append(msg)
-    except Exception:
-        import sys as _sys
-
-        exc = _sys.exc_info()[1]
-        if isinstance(exc, RuntimeError):
-            raise
-        pass
 
     # Check git allowed_repo_paths
     try:
-        git_cfg = GitConfig.load()
-        if not git_cfg.allowed_repo_paths and not lockdown:
-            fail_closed_empty.append("git.allowed_repo_paths")
-            msg = (
-                "DENY-ALL detected: git.allowed_repo_paths is empty. "
-                "git-mcp will reject ALL repository operations. "
-                "Verify this is intentional or add allowed paths to git_mcp_server.toml."
-            )
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+        git_cfg = load_git_audit_config()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+        git_cfg = None
+
+    if git_cfg is not None and not git_cfg.allowed_repo_paths and not lockdown:
+        fail_closed_empty.append("git.allowed_repo_paths")
+        msg = (
+            "DENY-ALL detected: git.allowed_repo_paths is empty. "
+            "git-mcp will reject ALL repository operations. "
+            "Verify this is intentional or add allowed paths to git_mcp_server.toml."
+        )
+        logger.warning(msg)
+        warnings.append(msg)
 
     # Check github allowed_repos (fail-closed — empty = deny all repo access)
     try:
-        from mcp.github.models_config import (
-            GitHubConfig,  # noqa: PLC0415 — lazy import; github-mcp optional
-        )
+        github_cfg = load_github_audit_config()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+        github_cfg = None
 
-        github_mcp_cfg = GitHubConfig.load()
-        if not github_mcp_cfg.allowed_repos and not lockdown:
-            fail_closed_empty.append("github.allowed_repos")
-            msg = (
-                "DENY-ALL detected: github.allowed_repos is empty. "
-                "github-mcp will reject ALL repo access requests. "
-                "Verify this is intentional or add allowed repos to github_mcp_server.toml."
-            )
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+    if github_cfg is not None and not github_cfg.allowed_repos and not lockdown:
+        fail_closed_empty.append("github.allowed_repos")
+        msg = (
+            "DENY-ALL detected: github.allowed_repos is empty. "
+            "github-mcp will reject ALL repo access requests. "
+            "Verify this is intentional or add allowed repos to github_mcp_server.toml."
+        )
+        logger.warning(msg)
+        warnings.append(msg)
 
     # Check allowed_tools (fail-open: empty = allow all tools)
     tool_cfg = getattr(ctx.cfg, "tool", None)
@@ -685,30 +795,34 @@ def audit_security_defaults(
 
     # Check cicd workflow_allowlist (fail-closed — empty = deny all workflow triggers)
     try:
-        from mcp.cicd.models import (
-            CicdConfig,  # noqa: PLC0415 — lazy import; cicd-mcp optional
-        )
+        cicd_cfg = load_cicd_audit_config()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+        cicd_cfg = None
 
-        cicd_cfg = CicdConfig.load()
-        if not cicd_cfg.workflow_allowlist and not lockdown:
-            fail_closed_empty.append("cicd.workflow_allowlist")
-            msg = (
-                "DENY-ALL detected: cicd.workflow_allowlist is empty. "
-                "cicd-mcp will reject ALL workflow trigger requests. "
-                "Verify this is intentional or add allowed workflows to cicd_mcp_server.toml."
-            )
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+    if cicd_cfg is not None and not cicd_cfg.workflow_allowlist and not lockdown:
+        fail_closed_empty.append("cicd.workflow_allowlist")
+        msg = (
+            "DENY-ALL detected: cicd.workflow_allowlist is empty. "
+            "cicd-mcp will reject ALL workflow trigger requests. "
+            "Verify this is intentional or add allowed workflows to cicd_mcp_server.toml."
+        )
+        logger.warning(msg)
+        warnings.append(msg)
 
     # Surface GitHub write settings (warning only — not a production-mode hard error)
     try:
-        from mcp.github.models_config import (
-            GitHubConfig as _GitHubConfig,  # noqa: PLC0415 — lazy import; github-mcp optional
-        )
+        gh_write_cfg = load_github_audit_config()
+    except RuntimeError as exc:
+        logger.debug("Security audit: skipped GitHub write settings check: %s", exc)
+        gh_write_cfg = None
 
-        gh_write_cfg = _GitHubConfig.load()
+    if gh_write_cfg is not None:
         if gh_write_cfg.allow_force_push:
             msg = "github.allow_force_push=true (force push and rebase merge permitted)"
             logger.warning("Security: %s", msg)
@@ -717,8 +831,6 @@ def audit_security_defaults(
             msg = "github.require_pr_review=false (PR merge without review permitted)"
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
-    except Exception:
-        pass
 
     # Security posture summary
     if fail_closed_empty or fail_open_empty:

@@ -174,27 +174,28 @@ class TestBuildDiscoveryMap:
     """Tests for build_discovery_map() function."""
 
     def test_normal_path(self) -> None:
-        """Two servers, each with valid tool dicts including server_key."""
-        result = build_discovery_map(
+        """Two servers, each with valid tool dicts."""
+        route_map, duplicates = build_discovery_map(
             {
                 "file_read": [{"name": "read_file", "server_key": "file_read"}],
                 "shell": [{"name": "shell_run", "server_key": "shell"}],
             }
         )
-        assert result == {"read_file": "file_read", "shell_run": "shell"}
+        assert route_map == {"read_file": "file_read", "shell_run": "shell"}
+        assert duplicates == {}
 
-    def test_missing_server_key_falls_back_to_outer_key(self) -> None:
-        """Tool dict has no server_key field; mapping uses outer loop's server key."""
-        result = build_discovery_map(
+    def test_outer_key_used_for_routing(self) -> None:
+        """Outer server key is used for routing; inner server_key field is ignored."""
+        route_map, _ = build_discovery_map(
             {
                 "file_read": [{"name": "read_file"}],
             }
         )
-        assert result == {"read_file": "file_read"}
+        assert route_map == {"read_file": "file_read"}
 
     def test_empty_tool_name_skipped(self) -> None:
         """Tool dict with empty or None name is skipped."""
-        result = build_discovery_map(
+        route_map, duplicates = build_discovery_map(
             {
                 "file_read": [
                     {"name": "", "server_key": "file_read"},
@@ -202,30 +203,30 @@ class TestBuildDiscoveryMap:
                 ],
             }
         )
-        assert result == {}
+        assert route_map == {}
+        assert duplicates == {}
 
     def test_duplicate_tool_first_wins(self) -> None:
-        """Same tool name in two servers with different server keys; first occurrence wins."""
-        result = build_discovery_map(
+        """Same tool name in two servers; first occurrence wins."""
+        route_map, duplicates = build_discovery_map(
             {
                 "server_a": [{"name": "read_file", "server_key": "server_a"}],
                 "server_b": [{"name": "read_file", "server_key": "server_b"}],
             }
         )
-        assert result == {"read_file": "server_a"}
+        assert route_map == {"read_file": "server_a"}
+        assert duplicates == {"read_file": ["server_a", "server_b"]}
 
-    def test_duplicate_tool_same_key_no_warning(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Same tool name in two servers with identical server keys; no warning logged."""
+    def test_single_server_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Single server with one tool; no duplicate warning logged."""
         with caplog.at_level(logging.WARNING):
-            result = build_discovery_map(
+            route_map, duplicates = build_discovery_map(
                 {
-                    "server_a": [{"name": "read_file", "server_key": "server_a"}],
-                    "server_b": [{"name": "read_file", "server_key": "server_a"}],
+                    "server_a": [{"name": "read_file"}],
                 }
             )
-        assert result == {"read_file": "server_a"}
+        assert route_map == {"read_file": "server_a"}
+        assert duplicates == {}
         assert not caplog.records
 
     def test_duplicate_tool_different_key_logs_warning(
@@ -233,13 +234,14 @@ class TestBuildDiscoveryMap:
     ) -> None:
         """Same tool name, different server keys; warning is logged."""
         with caplog.at_level(logging.WARNING):
-            result = build_discovery_map(
+            route_map, duplicates = build_discovery_map(
                 {
                     "server_a": [{"name": "read_file", "server_key": "server_a"}],
                     "server_b": [{"name": "read_file", "server_key": "server_b"}],
                 }
             )
-        assert result == {"read_file": "server_a"}
+        assert route_map == {"read_file": "server_a"}
+        assert duplicates == {"read_file": ["server_a", "server_b"]}
         assert any(
             "read_file" in r.message
             for r in caplog.records

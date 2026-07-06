@@ -194,6 +194,8 @@ class ToolConfig:
     tool_summarize_threshold: int = 3000
     # Compare tool_definitions against /v1/tools at startup
     tool_definitions_strict: bool = False
+    # Treat config/registry routing drift as fatal at startup; False = warn only
+    routing_drift_strict: bool = False
     tool_dedup_max_repeats: int = 3
     # Window size for cyclic planning detection; 0 disables
     tool_cycle_detect_window: int = 2

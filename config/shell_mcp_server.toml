@@ -13,10 +13,10 @@ max_output_kb = 4096
 max_memory_mb = 512
 
 # shell_cwd_allowed_dirs: directories permitted as cwd
-shell_cwd_allowed_dirs = ["/opt/llm/workspace"]
+shell_cwd_allowed_dirs = ["/opt/llm/storage"]
 
 # default_cwd: working directory when cwd is not specified in request
-default_cwd = "/opt/llm/workspace"
+default_cwd = "/opt/llm/storage"
 
 # shell_path: PATH environment variable for child processes
 shell_path = "/opt/llm/venv/bin:/usr/bin:/bin"

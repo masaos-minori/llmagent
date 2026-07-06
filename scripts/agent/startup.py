@@ -20,10 +20,12 @@ from agent.repl_health import (
     check_readiness,
     check_routing_drift,
     check_routing_drift_vs_live,
+    check_routing_safety_tiers,
     check_tool_definitions_startup,
     check_workflow_definition,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_latest_pending_approval
 from agent.workflow.state_store import StateStore
 from agent.workflow_execution_policy import WorkflowExecutionPolicy
@@ -156,31 +158,111 @@ class StartupOrchestrator:
         """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
         ctx = self._ctx
         production_mode = ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
-        audit_security_defaults(ctx, production_mode=production_mode)
-        self._check_embedding_dimensions()
-        result = await check_readiness(ctx, production_mode=production_mode)
-        for msg in result.warning_messages():
-            self._view.write_warning(msg)
-        tool_result = await check_tool_definitions_startup(ctx)
-        for msg in tool_result.warning_messages():
-            self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
-        for msg in check_routing_drift(ctx):
-            self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
-        strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
-        drift_result = await check_routing_drift_vs_live(ctx, strict=strict)
-        for msg in drift_result.warning_messages():
-            self._view.write_warning(f"[non-fatal] {msg}")
+        pipeline = StartupValidationResult()
+
+        # 1. Security audit
+        try:
+            warnings = audit_security_defaults(ctx, production_mode=production_mode)
+            for msg in warnings:
+                pipeline.add_warning("security_audit", msg)
+            pipeline.add_ok("security_audit")
+        except RuntimeError as exc:
+            pipeline.add_fatal(
+                "security_audit",
+                str(exc),
+                remediation="Fix MCP server auth_token or sandbox config.",
+            )
+
+        # 2. Embedding dimensions
+        try:
+            self._check_embedding_dimensions()
+            pipeline.add_ok("embedding_dimensions")
+        except RuntimeError as exc:
+            pipeline.add_fatal("embedding_dimensions", str(exc))
+
+        # 3. Service readiness
+        try:
+            result = await check_readiness(ctx, production_mode=production_mode)
+            for msg in result.warning_messages():
+                pipeline.add_warning("readiness", msg)
+            for msg in result.error_messages():
+                pipeline.add_fatal("readiness", msg)
+            if not result.has_issues:
+                pipeline.add_ok("readiness")
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
+
+        # 4. Tool definitions
+        try:
+            tool_result = await check_tool_definitions_startup(ctx)
+            for msg in tool_result.warning_messages():
+                pipeline.add_warning("tool_definitions", msg)
+            if not tool_result.has_issues:
+                pipeline.add_ok("tool_definitions")
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_warning(
+                "tool_definitions", f"Tool definition check failed: {exc}"
+            )
+
+        # 5. Routing drift (static)
+        try:
+            for msg in check_routing_drift(ctx):
+                pipeline.add_warning("routing_drift", msg)
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
+
+        # 5b. Routing safety tiers
+        try:
+            for msg in check_routing_safety_tiers(ctx):
+                pipeline.add_warning("routing_safety_tiers", msg)
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_warning(
+                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
+            )
+
+        # 6. Routing drift vs live
+        try:
+            strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
+            drift_result = await check_routing_drift_vs_live(ctx, strict=strict)
+            for msg in drift_result.warning_messages():
+                if strict:
+                    pipeline.add_fatal("routing_drift_live", msg)
+                else:
+                    pipeline.add_warning("routing_drift_live", msg)
+            if not drift_result.has_issues:
+                pipeline.add_ok("routing_drift_live")
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_skipped(
+                "routing_drift_live", f"Live routing check skipped: {exc}"
+            )
+
+        # 7. RAG consistency
         try:
             rag_check = RagMaintenanceService().consistency()
             if rag_check.is_consistent:
-                logger.info("RAG consistency: OK")
+                pipeline.add_ok("rag_consistency")
             else:
                 for issue in rag_check.issues:
-                    self._view.write_warning(
-                        f"[non-fatal] [RAG] Consistency issue: {issue}"
-                    )  # non-fatal in local profile
-        except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
-            logger.debug("RAG consistency check skipped: %s", e)
+                    pipeline.add_warning(
+                        "rag_consistency", f"[RAG] Consistency issue: {issue}"
+                    )
+        except Exception:  # noqa: BLE001
+            pipeline.add_skipped("rag_consistency", "RAG consistency check skipped")
+
+        self._display_pipeline_results(pipeline)
+
+        if pipeline.has_fatal:
+            fatal_str = "; ".join(pipeline.fatal_messages())
+            raise RuntimeError(f"Startup validation failed: {fatal_str}")
+
+    def _display_pipeline_results(self, pipeline: StartupValidationResult) -> None:
+        for outcome in pipeline.outcomes:
+            if outcome.status == StartupCheckStatus.WARNING:
+                self._view.write_warning(f"[non-fatal] {outcome.message}")
+            elif outcome.status == StartupCheckStatus.FATAL:
+                self._view.write_warning(f"[FATAL] {outcome.message}")
+                if outcome.remediation:
+                    self._view.write_warning(f"  Remediation: {outcome.remediation}")
 
     async def _recover_pending_approvals(self) -> None:
         """Restore workflow approval-pending state from a previous session."""

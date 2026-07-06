@@ -240,7 +240,9 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | Method | Description |
 |---|---|
 | `record_failure(server_key)` | Increment failure count; `HALF_OPEN → UNAVAILABLE` (cooldown reset); threshold reached → `UNAVAILABLE` |
-| `record_success(server_key)` | Reset failure count and `_unavailable_since`; `HALF_OPEN → HEALTHY` |
+| `record_degraded(server_key, reason)` | Explicitly set state to `DEGRADED` with an optional reason string; called by watchdog for reachable-but-non-restartable servers |
+| `get_degraded_reason(server_key)` | Return the last recorded degraded reason string, or `None` if none set |
+| `record_success(server_key)` | Reset failure count, `_unavailable_since`, and `_degraded_reasons`; `HALF_OPEN → HEALTHY` |
 | `get_state(server_key)` | Current state; returns `HEALTHY` for unknown key |
 | `is_unavailable(server_key)` | `True` if `UNAVAILABLE` and cooldown not yet elapsed; side effect: transitions to `HALF_OPEN` when cooldown elapses |
 

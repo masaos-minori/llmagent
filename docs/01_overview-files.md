@@ -136,7 +136,10 @@
    │   │   │    ├─ health_models.py            # ヘルスチェックモデル
    │   │   │    │    ├─ ServiceWarning: label, url, message
    │   │   │    │    ├─ HealthCheckResult: warnings, errors; has_issues (prop), warning_messages(), error_messages()
-   │   │   │    │    └─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
+   │   │   │    │    ├─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
+   │   │   │    │    ├─ StartupCheckStatus: StrEnum OK/WARNING/FATAL/SKIPPED
+   │   │   │    │    ├─ StartupCheckOutcome: source, status, message, remediation (frozen)
+   │   │   │    │    └─ StartupValidationResult: mutable; add_fatal/warning/ok/skipped(), has_fatal, fatal_messages(), warning_messages()
    │   │   │    └─ models.py                   # エージェント共通データモデル
    │   │   │       ├─ ToolApprovalEvent: event, task_id, tool, operation_type, resource_scope, risk, decision, args_preview, ts, workflow_id, session_id
    │   │   │       ├─ ApprovalDecisionEvent: event, task_id, tool, risk_level, decision, escalation_reason, ts, workflow_id, session_id

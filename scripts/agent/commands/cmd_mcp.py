@@ -10,6 +10,8 @@ Formatting (table, next-steps) is handled in this module — not in the services
 
 import logging
 
+from shared.mcp_health import McpServerHealthState
+
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.services.enums import McpAvailability
@@ -73,6 +75,20 @@ class _McpMixin(MixinBase):
             f"\n  Servers     {len(rows)} configured"
             f" ({ok_count} ok, {unreachable_count} unreachable)"
         )
+        registry = ctx.services_required.health_registry
+        degraded_keys = [
+            key
+            for key in ctx.cfg.mcp.mcp_servers
+            if registry is not None
+            and registry.get_state(key) == McpServerHealthState.DEGRADED
+        ]
+        if degraded_keys:
+            self._out.write("")
+            self._out.write("  Degraded servers:")
+            for key in degraded_keys:
+                reason = registry.get_degraded_reason(key) if registry else None
+                reason_str = f": {reason}" if reason else ""
+                self._out.write(f"    [DEGRADED] {key}{reason_str}")
         wd_interval = ctx.cfg.mcp.mcp_watchdog_interval
         wd_max = ctx.cfg.mcp.mcp_watchdog_max_restarts
         if wd_interval > 0:

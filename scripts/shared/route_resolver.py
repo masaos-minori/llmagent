@@ -22,40 +22,34 @@ logger = logging.getLogger(__name__)
 
 def build_discovery_map(
     server_tool_lists: dict[str, list[dict[str, object]]],
-) -> dict[str, str]:
-    """Build a routing map from live-discovered tool metadata.
+) -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Build routing map from per-server tool lists and detect duplicate ownership.
 
-    Each server's tool list should include a 'server_key' field per tool.
-    Returns {tool_name: server_key} mapping. Duplicate tool names across servers
-    log a warning and use the first occurrence.
-
-    Example:
-        >>> build_discovery_map({
-        ...     "file_read": [{"name": "read_file", "server_key": "file_read"}],
-        ...     "shell": [{"name": "shell_run", "server_key": "shell"}],
-        ... })
-        {'read_file': 'file_read', 'shell_run': 'shell'}
+    Returns:
+        route_map: {tool_name: first_claiming_server_key}
+        duplicates: {tool_name: [server_key_1, server_key_2, ...]} — only tools with >1 owner
     """
     route_map: dict[str, str] = {}
+    all_claims: dict[str, list[str]] = {}
+
     for server_key, tools in server_tool_lists.items():
         for tool in tools:
-            name_raw = tool.get("name")
-            name = name_raw if isinstance(name_raw, str) and name_raw else ""
-            tk_raw = tool.get("server_key")
-            tk = tk_raw if isinstance(tk_raw, str) and tk_raw else server_key
-            if not name:
+            name = tool.get("name")
+            if not isinstance(name, str) or not name:
                 continue
-            if name in route_map and route_map[name] != tk:
+            all_claims.setdefault(name, []).append(server_key)
+            if name not in route_map:
+                route_map[name] = server_key
+            else:
                 logger.warning(
-                    "Tool %r claimed by both %r and %r; using %r first",
+                    "Duplicate tool ownership: %r claimed by %r and %r",
                     name,
                     route_map[name],
-                    tk,
-                    route_map[name],
+                    server_key,
                 )
-            else:
-                route_map[name] = tk
-    return route_map
+
+    duplicates = {n: keys for n, keys in all_claims.items() if len(keys) > 1}
+    return route_map, duplicates
 
 
 class ToolRouteResolver:

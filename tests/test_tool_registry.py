@@ -14,8 +14,8 @@ from shared.route_resolver import build_discovery_map
 from shared.tool_registry import (
     ToolDefinition,
     ToolRegistry,
+    _reset_registry_for_testing,
     get_registry,
-    reset_registry,
 )
 from shared.tool_routing_validation import (
     validate_all_routing,
@@ -98,7 +98,7 @@ class TestValidateRoutingAgainstLive:
 
     def test_tool_in_live_not_in_registry(self) -> None:
         """Tool in live response but not in registry → mismatch."""
-        reset_registry()
+        _reset_registry_for_testing()
         registry = get_registry()
         drift = validate_routing_against_live(
             registry, {"rag_pipeline": ["nonexistent_tool"]}
@@ -111,7 +111,7 @@ class TestValidateRoutingAgainstLive:
 
     def test_tool_in_registry_not_in_live(self) -> None:
         """Tool in registry but not in live → mismatch for all rag_pipeline tools."""
-        reset_registry()
+        _reset_registry_for_testing()
         registry = get_registry()
         drift = validate_routing_against_live(registry, {"rag_pipeline": []})
         assert "rag_pipeline" in drift
@@ -130,7 +130,7 @@ class TestValidateAllRouting:
 
     def test_merges_config_and_live_results(self) -> None:
         """Both config and live have drift for same server key → merged."""
-        reset_registry()
+        _reset_registry_for_testing()
         cfg = MagicMock(spec=McpServerConfig)
         cfg.tool_names = ["existing_tool"]  # drift: not in registry
         server_configs = {"rag_pipeline": cfg}
@@ -214,14 +214,15 @@ class TestStartupValidationStrictMode:
         build_discovery_map() must log a WARNING about the duplicate.
         """
         with caplog.at_level(logging.WARNING):
-            result = build_discovery_map(
+            route_map, duplicates = build_discovery_map(
                 {
                     "server_a": [{"name": "shared_tool", "server_key": "server_a"}],
                     "server_b": [{"name": "shared_tool", "server_key": "server_b"}],
                 }
             )
         # First occurrence wins
-        assert result == {"shared_tool": "server_a"}
+        assert route_map == {"shared_tool": "server_a"}
+        assert duplicates == {"shared_tool": ["server_a", "server_b"]}
         # Warning must have been logged
         assert any(
             "shared_tool" in r.message

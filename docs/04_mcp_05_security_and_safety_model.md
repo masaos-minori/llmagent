@@ -187,6 +187,8 @@ Stdio servers are always exempt from this check regardless of profile.
 
 **Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns on `shell_sandbox_backend == "none"` and empty `tool.allowed_tools`.
 
+**Audit API isolation:** `agent/security_audit_config.py` is the single authorised point in the agent layer for importing MCP server config models (`mcp.shell.models`, `mcp.git.models`, `mcp.github.models_config`, `mcp.cicd.models`). It exposes four narrow DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and four loader functions that handle optional dependencies (`ImportError` → `None`) and config load failures (`Exception` → `RuntimeError`).
+
 ---
 
 ## Output and Resource Limits

@@ -30,6 +30,7 @@ class McpServerHealthRegistry:
         self._failure_threshold = failure_threshold
         self._half_open_cooldown_sec = half_open_cooldown_sec
         self._unavailable_since: dict[str, float] = {}
+        self._degraded_reasons: dict[str, str] = {}
 
     def record_failure(self, server_key: str) -> McpServerHealthState:
         was_half_open = self.get_state(server_key) == McpServerHealthState.HALF_OPEN
@@ -47,11 +48,25 @@ class McpServerHealthRegistry:
         self._states[server_key] = McpServerHealthState.DEGRADED
         return McpServerHealthState.DEGRADED
 
+    def record_degraded(self, server_key: str, reason: str | None = None) -> None:
+        """Record a reachable-but-degraded server without triggering UNAVAILABLE."""
+        self._states[server_key] = McpServerHealthState.DEGRADED
+        if reason is not None:
+            self._degraded_reasons[server_key] = reason
+        logger.warning(
+            "Health: %r is DEGRADED (reason=%s)", server_key, reason or "unknown"
+        )
+
+    def get_degraded_reason(self, server_key: str) -> str | None:
+        """Return the last recorded degraded reason for a server, or None."""
+        return self._degraded_reasons.get(server_key)
+
     def record_success(self, server_key: str) -> None:
         prev = self.get_state(server_key)
         self._states[server_key] = McpServerHealthState.HEALTHY
         self._failure_counts[server_key] = 0
         self._unavailable_since.pop(server_key, None)
+        self._degraded_reasons.pop(server_key, None)
         if prev == McpServerHealthState.HALF_OPEN:
             logger.info("Health: %r trial probe succeeded → HEALTHY", server_key)
 

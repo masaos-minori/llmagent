@@ -1,7 +1,7 @@
 # file-read-mcp server configuration
 
 # allowed_dirs: list of directories permitted for access (boundary checked after symlink resolution)
-allowed_dirs = ["/opt/llm", "/workspace"]
+allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 
 # max_read_bytes: maximum bytes read per file
 max_read_bytes = 1000000

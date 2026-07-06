@@ -176,6 +176,9 @@ Error message format: `Startup readiness check failed (required services unavail
 | `ServiceWarning` | `label: str`, `url: str`, `message: str` — frozen dataclass |
 | `HealthCheckResult` | `warnings: list[ServiceWarning]`, `errors: list[ServiceWarning]`; `has_issues` (property), `warning_messages()`, `error_messages()` — frozen dataclass |
 | `McpHealthProbeResult` | `reachable: bool`, `status_code: int \| None`, `restart_recommended: bool`, `operator_action_required: bool`, `body: dict[str, object]` — frozen dataclass; body is empty dict if parse failed or unreachable |
+| `StartupCheckStatus` | `StrEnum`: `OK`, `WARNING`, `FATAL`, `SKIPPED` |
+| `StartupCheckOutcome` | `source: str`, `status: StartupCheckStatus`, `message: str`, `remediation: str` — frozen dataclass |
+| `StartupValidationResult` | mutable; `add_fatal/add_warning/add_ok/add_skipped()`, `has_fatal` (property), `fatal_messages()`, `warning_messages()` — collects all startup check outcomes before raising |
 
 ---
 

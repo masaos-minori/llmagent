@@ -1,7 +1,7 @@
 # file-delete-mcp server configuration
 
 # allowed_dirs: directories permitted for delete operations (narrowest scope, least privilege)
-allowed_dirs = ["/opt/llm/workspace"]
+allowed_dirs = ["/opt/llm/storage"]
 
 # audit_log_path: path for delete operation audit log; records all delete_file / delete_directory calls
 audit_log_path = "/opt/llm/logs/delete_audit.log"

@@ -60,10 +60,16 @@ StartupOrchestrator.run()
     → _init_command_registry()
     → _init_orchestrator()
   _start_servers()                     [persistent stdio + HTTP subprocess MCP servers]
-  _check_services()
+  _check_services()                    [pipeline: collects all outcomes before raising]
     → audit_security_defaults()      [repl_health.py]
-    → check_readiness()              [repl_health.py — warns in local, raises in production]
-    → check_tool_definitions_runtime()
+    → _check_embedding_dimensions()
+    → check_readiness()              [repl_health.py — warns in local, fatal in production]
+    → check_tool_definitions_startup()
+    → check_routing_drift()
+    → check_routing_safety_tiers()
+    → check_routing_drift_vs_live()
+    → RagMaintenanceService().consistency()
+    → _display_pipeline_results()    [single display pass; raises on any fatal outcome]
   _setup_prompt()
     → system prompt init
     → memory.on_session_start()
