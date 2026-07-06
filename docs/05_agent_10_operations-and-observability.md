@@ -292,9 +292,6 @@ Expected spans:
 | Span name | Emitted by | Attributes |
 |---|---|---|
 | `workflow.run` | `WorkflowEngine.run()` | `workflow.task_id`, `workflow.version`, `workflow.workflow_id`, `workflow.session_id` |
-| `workflow.stage` | `WorkflowEngine._run_stage()` | `workflow.stage_id`, `workflow.attempt`, `workflow.workflow_id` |
-| `workflow.retry` | `WorkflowEngine._run_execute_with_retry()` | `workflow.workflow_id`, `workflow.task_id`, `retry.attempt`, `retry.max_attempts`, `retry.error_type` |
-| `workflow.approval` | `WorkflowEngine._gate_approval()` | `workflow.workflow_id`, `workflow.approval_id`, `workflow.approval_status` |
 
 The tracer is propagated from `Orchestrator` → `WorkflowEngine` so all workflow spans share the same trace context as the enclosing `llm` span.
 

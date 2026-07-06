@@ -69,7 +69,7 @@ Full details: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.m
 - **Role:** MCP tool routing with TTL cache, side-effect classification, concurrency limits
 - **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
 - **Callers:** `LLMTurnRunner` (via `execute_all_tool_calls`)
-- **Callees:** `ToolRouteResolver`, `HttpTransport`, `StdioTransport`, `McpServerHealthRegistry`
+- **Callees:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`
 - **Config:** `cfg.tool.*`, `cfg.mcp.*`
 - **Failure:** returns `ToolCallResult(is_error=True)` on transport failure
 

@@ -20,7 +20,3 @@ Each entry format:
 *(現在アクティブな問題はありません)*
 
 ---
-
-## Resolved Issues
-
----

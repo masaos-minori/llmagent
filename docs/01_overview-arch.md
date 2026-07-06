@@ -26,14 +26,14 @@
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (stdio または http)
+:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (http)
 (RAG 検索時)                       11 サーバ (:8004〜:8014)
 ```
 
 #### 実装上の補足
 
 - エントリポイントは `scripts/agent/__main__.py` であり、`python -m agent` で起動する。図中の `agent.py` はこのモジュールエントリを指す。(根拠: `__main__.py` の docstring)
-- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/tool_executor.py` の `HttpTransport`)
+- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/tool_executor.py` の `HttpTransport`, stdio トランスポートは削除済み)
 - 起動シーケンス (MCP サーバ起動・ヘルスチェック・セキュリティ監査・プロンプトセットアップ) は `agent/startup.py` の `StartupOrchestrator` に分離されており、`AgentREPL.run()` から委譲される。(根拠: `agent/startup.py`)
 
 #### 設定ファイル分離方針
@@ -133,7 +133,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 | 機能 | 実装場所 |
 |---|---|
 | RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/pipeline.py` |
-| MCP ツールコーリング (HTTP/stdio, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
+| MCP ツールコーリング (HTTP, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
 | メモリレイヤー (semantic/episodic) | `agent/memory/` |
 | セッション永続化・復元 | `agent/session.py`, `db/` |
 | コンテキスト圧縮 (LLM 要約) | `agent/history.py` |

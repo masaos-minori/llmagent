@@ -83,7 +83,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 
 ## Canonical Source Rules
 
-- `06_ref-mcp.md` was canonical for `ToolExecutor`, `HttpTransport`, `StdioTransport`, routing. Content now in `04_mcp_03`.
+- `06_ref-mcp.md` was canonical for `ToolExecutor`, `HttpTransport`, routing. Content now in `04_mcp_03`.
 - `04_spec_mcp.md` was canonical for system overview, server table, McpServerConfig. Content now in `04_mcp_01`, `04_mcp_03`, `04_mcp_06`.
 - `04_mcp-protocol.md` was canonical for watchdog, startup modes, new server procedure. Content now in `04_mcp_03`.
 - Per-server `04_mcp-*.md` files are canonical for server-specific specs. Content now in `04_mcp_04`.
@@ -97,7 +97,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 |---|---|
 | [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | Purpose, 11-server catalog with ports, transport types, startup modes, major constraints |
 | [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | `/v1/call_tool` format, Pydantic models, MCPServer base, HTTP format, auth, audit log |
-| [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ToolRouteResolver, ToolExecutor, HttpTransport, StdioTransport, startup modes, watchdog, new server |
+| [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ToolRouteResolver, ToolExecutor, HttpTransport, startup modes, watchdog, new server |
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes; MDQ vs RAG boundary |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |

@@ -29,7 +29,7 @@ agent/__main__.py
        │         ├─ LLMClient            — SSE streaming, retry
        │         ├─ ToolExecutor         — MCP routing, TTL cache
        │         ├─ HistoryManager       — char counting, LLM compression
-       │         ├─ ServerLifecycleRouter — HTTP subprocess + stdio lifecycle
+       │         ├─ ServerLifecycleRouter — HTTP subprocess lifecycle
        │         ├─ audit_logger         — JSON-lines audit.log writer
        │         └─ MemoryServices?      — optional semantic memory layer
        ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
@@ -59,17 +59,7 @@ StartupOrchestrator.run()
     → build_agent_context(ctx, view)   [factory.py]
     → _init_command_registry()
     → _init_orchestrator()
-  _start_servers()                     [persistent stdio + HTTP subprocess MCP servers]
-  _check_services()                    [pipeline: collects all outcomes before raising]
-    → audit_security_defaults()      [repl_health.py]
-    → _check_embedding_dimensions()
-    → check_readiness()              [repl_health.py — warns in local, fatal in production]
-    → check_tool_definitions_startup()
-    → check_routing_drift()
-    → check_routing_safety_tiers()
-    → check_routing_drift_vs_live()
-    → RagMaintenanceService().consistency()
-    → _display_pipeline_results()    [single display pass; raises on any fatal outcome]
+  _start_servers()                     [HTTP subprocess MCP servers]
   _setup_prompt()
     → system prompt init
     → memory.on_session_start()
@@ -200,5 +190,5 @@ Accessed via `ctx.services.memory`.
 ## Architecture Notes (Resolved)
 
 - `agent/repl_tool_exec.py` — deleted; tool execution moved to `shared/tool_executor.py`. Use `ToolExecutor.execute()`.
-- `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`) and `StdioServerLifecycleManager` (`agent/stdio_lifecycle.py`), composed via `ServerLifecycleRouter` in `agent/factory.py`.
+- `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`), composed via `ServerLifecycleRouter` in `agent/factory.py`.
 

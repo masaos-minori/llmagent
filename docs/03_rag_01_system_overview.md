@@ -14,7 +14,7 @@ LLM turn.
 
 **In scope:**
 - Ingestion pipeline: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
-- Query pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm.py`, `scripts/rag/stages/`
+- Query pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
 - Utility: `scripts/rag/utils.py`
 - MCP wrapper: `scripts/mcp/rag_pipeline/server.py` (port 8010)
 

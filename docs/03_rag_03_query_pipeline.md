@@ -78,13 +78,6 @@ RagPipeline(
 | `search_queries` | `async (queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search |
 | `rerank_candidates` | `async (query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or RRF fallback + dedup |
 
-### Private methods
-
-| Method | Description |
-|---|---|
-| `_format_chunks(reranked) -> str` (static) | Format as `[Source: title \| url]\n{sanitize_document(content)}` blocks with `[RAG_CONTEXT_START]`/`[RAG_CONTEXT_END]` markers; empty reranked returns `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]` |
-| `_get_stage_status(stage, ctx) -> tuple[str, str \| None]` | Determine status (`"success"`/`"fallback"`/`"failure"`) and reason for each stage (used internally by `run()`) |
-
 ### HTTP Mode (`rag_service_url`)
 
 When `rag_service_url` is non-empty, `augment()` delegates to the external RAG service via

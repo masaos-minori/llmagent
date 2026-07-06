@@ -21,7 +21,7 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
      → ToolRouteResolver.resolve()     — tool_name → server_key (routing authority; see 04_mcp_03 §Routing Source of Truth)
      → McpServerHealthRegistry check  — skip UNAVAILABLE servers
      → LifecycleProtocol.ensure_ready() — start ondemand servers if needed
-     → HttpTransport or StdioTransport — send to MCP server
+     → HttpTransport — send to MCP server
 ```
 
 `ToolCallResult` is a frozen dataclass: `(output: str, is_error: bool, request_id: str, server_key: str)`
@@ -389,7 +389,7 @@ reference and startup-only classification.
 When `require_approval=True`:
 
 1. During execute stage: `run_approval_checks` fires per tool call (MEDIUM/HIGH risk tools only).
-2. After execute stage: `_gate_approval()` suspends the workflow; user runs `/approve` or `/reject`.
+2. After execute stage: the approval gate suspends the workflow; user runs `/approve` or `/reject`.
 3. Both fire independently. This is intentional: they operate at different granularities.
 
 ### Architecture Diagram
@@ -401,7 +401,7 @@ User prompt
               └─► repository_gateway.py (tool-call batch)
                     └─► run_approval_checks (per-tool, MEDIUM/HIGH risk)
                           └─► stdin prompt → approved/denied
-              └─► _gate_approval() [when require_approval=True]
+              └─► Approval gate [when require_approval=True]
                     └─► WorkflowPendingApprovalError
                           └─► /approve or /reject command
 ```

@@ -294,13 +294,6 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 | `vacuum_db(db, mode=STRICT)` | `-> MaintenanceResult` | Delegates to `db.vacuum()`; call outside transaction |
 | `purge_old_sessions(db, cfg=None, mode=STRICT)` | `-> MaintenanceResult` | Age-based + count-based session purge; commits internally |
 | `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | Delete old memories via `SQLiteMemoryDeleteStore` |
-| `rotate_rag_db(archive_dir=None)` | `-> Path` | Archive `rag.sqlite` with timestamp suffix via SQLite online backup API |
-| `rotate_session_db(archive_dir=None)` | `-> Path` | Archive `session.sqlite` |
-| `rotate_workflow_db(archive_dir=None)` | `-> Path` | Archive `workflow.sqlite` |
-| `rotate_all_dbs(archive_dir=None)` | `-> tuple[Path, Path, Path]` | Archive all three DBs; returns `(rag_dest, session_dest, workflow_dest)` |
-| `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both rag and session DBs; returns `(rag_dest, session_dest)` |
-| `recover_corruption(backup_path=None, *, target="rag", dry_run=False)` | `-> RecoveryResult` | Integrity check + VACUUM or restore from backup |
-| `check_rag_consistency(db)` | `-> RagConsistencyReport` | Read-only: chunks/FTS/vec row counts + orphan detection |
 
 ### `MaintenanceMode` and `MaintenanceResult`
 
@@ -365,7 +358,91 @@ class RetentionConfig:
 
 ---
 
-## 8. Corruption Recovery
+## 7a. DB Rotation (`db/rotation.py`)
+
+```python
+from db.rotation import rotate_session_db, rotate_workflow_db, rotate_all_dbs, rotate_db
+
+# Archive only session DB
+session_dest = rotate_session_db()
+
+# Archive rag + session DBs
+rag_dest, session_dest = rotate_db()
+
+# Archive all three DBs
+rag_dest, session_dest, workflow_dest = rotate_all_dbs()
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `rotate_session_db(archive_dir=None)` | `-> Path` | Archive `session.sqlite` with timestamp suffix via SQLite online backup API |
+| `rotate_workflow_db(archive_dir=None)` | `-> Path` | Archive `workflow.sqlite` with timestamp suffix |
+| `rotate_all_dbs(archive_dir=None)` | `-> tuple[Path, Path, Path]` | Archive all three DBs; returns `(rag_dest, session_dest, workflow_dest)` |
+| `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both rag and session DBs; returns `(rag_dest, session_dest)` |
+
+Archive directory defaults to `/opt/llm/db/archive` (from `agent.toml::sqlite_archive_dir`).
+
+---
+
+## 7b. RAG Consistency Checks (`db/rag_consistency.py`)
+
+```python
+from db.rag_consistency import RagConsistencyReport, check_rag_consistency, is_consistent, summarize_issues
+
+with SQLiteHelper("rag").open() as db:
+    report: RagConsistencyReport = check_rag_consistency(db)
+    if not is_consistent(report):
+        for issue in summarize_issues(report):
+            print(issue)
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `check_rag_consistency(db)` | `-> RagConsistencyReport` | Read-only: chunks/FTS/vec row counts + orphan detection |
+| `is_consistent(report)` | `-> bool` | True if no orphans and FTS gap = 0 |
+| `summarize_issues(report)` | `-> list[str]` | Human-readable issue descriptions |
+
+### `RagConsistencyReport`
+
+```python
+@dataclass(frozen=True)
+class RagConsistencyReport:
+    chunks: int
+    fts: int
+    vec: int
+    orphan_vec_count: int
+    fts_gap: int              # chunks - fts; positive = missing FTS entries
+    fts_orphan_count: int     # fts - chunks; positive = extra FTS entries (data loss risk)
+```
+
+**Usage:**
+
+```python
+from db.rag_consistency import RagConsistencyReport, check_rag_consistency, is_consistent, summarize_issues
+
+report: RagConsistencyReport = check_rag_consistency(db)
+if not is_consistent(report):
+    for issue in summarize_issues(report):
+        print(issue)
+```
+
+- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rag rebuild-fts`
+- `orphan_vec_count > 0` → vec trigger failed; fix: re-ingest affected URLs
+- Read-only; does not repair inconsistencies.
+
+**Recovery flow:**
+1. `PRAGMA integrity_check` on `target` DB
+2. `dry_run=True` → return result without modifying DB
+3. Result `"ok"` → run VACUUM; return `action="vacuum"` (or `"vacuum_failed"`)
+4. Result not `"ok"` → archive corrupt file as `{stem}_corrupt_{timestamp}{suffix}`; copy `backup_path`; return `action="restored"` (or `"no_backup"` / `"error"`)
+
+**Rotate archive format:** `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in `archive_dir`
+(default: `common.toml::sqlite_archive_dir` → `/opt/llm/db/archive`).
+Uses SQLite online backup API to preserve WAL integrity.
+
+---
+
+## 9. Corruption Recovery
 
 ```python
 from db.recovery import recover_corruption
@@ -389,47 +466,9 @@ class RecoveryResult:
     dry_run: bool = False
 ```
 
-### `RagConsistencyReport`
-
-```python
-@dataclass(frozen=True)
-class RagConsistencyReport:
-    chunks: int
-    fts: int
-    vec: int
-    orphan_vec_count: int
-    fts_gap: int              # chunks - fts; positive = missing FTS entries
-    fts_orphan_count: int     # fts - chunks; positive = extra FTS entries (data loss risk)
-```
-
-**Usage:**
-
-```python
-from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
-
-report = check_rag_consistency(db)
-if not is_consistent(report):
-    for issue in summarize_issues(report):
-        print(issue)
-```
-
-- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rag rebuild-fts`
-- `orphan_vec_count > 0` → vec trigger failed; fix: re-ingest affected URLs
-- Read-only; does not repair inconsistencies.
-
-**Recovery flow:**
-1. `PRAGMA integrity_check` on `target` DB
-2. `dry_run=True` → return result without modifying DB
-3. Result `"ok"` → run VACUUM; return `action="vacuum"` (or `"vacuum_failed"`)
-4. Result not `"ok"` → archive corrupt file as `{stem}_corrupt_{timestamp}{suffix}`; copy `backup_path`; return `action="restored"` (or `"no_backup"` / `"error"`)
-
-**Rotate archive format:** `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in `archive_dir`
-(default: `common.toml::sqlite_archive_dir` → `/opt/llm/db/archive`).
-Uses SQLite online backup API to preserve WAL integrity.
-
 ---
 
-## 9. Error Handling
+## 10. Error Handling
 
 | Error | Behavior |
 |---|---|
@@ -444,14 +483,14 @@ Uses SQLite online backup API to preserve WAL integrity.
 
 ---
 
-## 10. DB Recreation Procedure
+## 11. DB Recreation Procedure
 
 Schema changes require DB recreation — no migration support exists.
 
 **Step 1: Archive** — run `rotate_all_dbs()` to archive all three production DBs:
 
 ```bash
-uv run python -c "from db.maintenance import rotate_all_dbs; rotate_all_dbs()"
+uv run python -c "from db.rotation import rotate_all_dbs; rotate_all_dbs()"
 ```
 
 **Step 2: Delete** — manually remove the DB files:
@@ -475,7 +514,7 @@ uv run python -c "from db.create_schema import create_schema; create_schema()"
 
 ---
 
-## 11. Verification Plan
+## 12. Verification Plan
 
 ```bash
 # Schema initialization
@@ -498,7 +537,7 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 
 ---
 
-## 12. AI Reference Guide
+## 13. AI Reference Guide
 
 | Question | Answer |
 |---|---|

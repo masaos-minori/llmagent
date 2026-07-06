@@ -89,7 +89,6 @@ provides project-wide defaults.
 - `startup_mode` per MCP server (stored in cfg; takes effect on next subprocess start)
 
 **Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
-- MCP server transport type changes (`stdio` ↔ `http`)
 - New MCP servers added to `*_mcp_server.toml`
 
 **Startup-only settings** (not touched by `apply_config_dict()`):

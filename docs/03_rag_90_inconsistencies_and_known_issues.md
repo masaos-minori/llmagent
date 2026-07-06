@@ -57,10 +57,10 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 | COALESCE fallback for NULL `normalized_content` | `tests/test_fts_fallback.py` | ✓ English/code chunks indexed on `content` when `normalized_content` is NULL |
 | Mixed-language document indexing | `tests/test_fts_fallback.py` | ✓ Japanese chunk uses `normalized_content`; English chunk uses `content` |
 | Empty string vs NULL `normalized_content` | `tests/test_fts_fallback.py` | ✓ `""` ≠ NULL (COALESCE semantics) |
-| TEST-DESIGN2-01: `RagPipeline._format_chunks` outputs `content` only | `tests/test_rag_pipeline.py::TestFormatChunksDesign2` | ✓ `test_content_appears_in_output`, `test_normalized_content_does_not_appear` |
+| TEST-DESIGN2-01: Chunks output contains only `content` field | `tests/test_rag_pipeline.py::TestFormatChunksDesign2` | ✓ `test_content_appears_in_output`, `test_normalized_content_does_not_appear` |
 | TEST-DESIGN2-02: Japanese FTS search returns original `content` | `tests/test_fts_fallback.py` | ✓ Covered by `test_code_search_returns_original_content` and `test_mixed_japanese_english_document` |
 | TEST-DESIGN2-03: LLM context does not contain `normalized_content` when it differs from `content` | `tests/test_rag_pipeline.py::TestFormatChunksDesign2`, `tests/test_rag_pipeline_stage.py::TestAugmentStage` | ✓ `test_normalized_differs_from_content_not_in_output`, `test_augment_stage_normalized_does_not_leak` |
-| TEST-DESIGN2-01 (AugmentStage path): `AugmentStage` outputs `content` only | `tests/test_rag_pipeline_stage.py::TestAugmentStage` | ✓ `test_augment_stage_content_only_invariant`, `test_augment_stage_normalized_does_not_leak` |
+| TEST-DESIGN2-01 (AugmentStage path): AugmentStage outputs `content` only | `tests/test_rag_pipeline_stage.py::TestAugmentStage` | ✓ `test_augment_stage_content_only_invariant`, `test_augment_stage_normalized_does_not_leak` |
 
 **Missing tests:**
 

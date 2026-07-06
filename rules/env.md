@@ -56,7 +56,7 @@ In production: `/opt/llm/scripts/../config/` → `/opt/llm/config/`
 | `agent_config.py` | `AgentConfig` dataclass + `build_agent_config()`. Also defines `McpServerConfig` and `_build_mcp_servers()`. |
 | `agent_session.py` | DB operations on `sessions`, `messages`, `notes`. |
 | `llm_client.py` | SSE streaming, exponential-backoff retries. |
-| `tool_executor.py` | Routes tools to MCP servers. `HttpTransport` and `StdioTransport`. TTL cache. |
+| `tool_executor.py` | Routes tools to MCP servers. `HttpTransport`. TTL cache. |
 | `history_manager.py` | Conversation history tracking and LLM-based compression. |
 | `cli_view.py` | Readline setup, RAG progress display, multiline input. |
 | `web_crawler.py` | Parallel BFS crawl with 304/ETag/language detection. |

@@ -277,7 +277,7 @@ completes and before the verify stage runs:
 3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
 
 When the user runs `/approve [reason]` or `/reject [reason]`, the approval record is updated
-in the DB. On the next workflow run with the same task, `_gate_approval()` checks the existing
+in the DB. On the next workflow run with the same task, the gate checks the existing
 approval record:
 
 - `status=approved` → passes through to verify stage

@@ -13,7 +13,7 @@ servers, maintain multi-turn conversation history, and deliver answers to the te
 
 **In scope:**
 - CLI REPL (`python -m agent`, entry: `scripts/agent/__main__.py`)
-- MCP tool server communication (HTTP and stdio)
+- MCP tool server communication (HTTP)
 - Multi-turn conversation via SQLite session persistence
 - Slash command interface
 - SSE streaming LLM responses
@@ -52,7 +52,7 @@ python -m agent   (scripts/agent/__main__.py)
 [6] Final answer displayed; conversation history carried to next turn
 ```
 
-MCP servers are called via HTTP POST `/v1/call_tool` or stdio JSON-RPC.
+MCP servers are called via HTTP POST `/v1/call_tool`.
 
 ---
 

@@ -175,11 +175,11 @@ Use `check_rag_consistency(db)` to detect trigger-based sync failures and orphan
 Run after large ingestion, after force-reinsertion, or during diagnostics.
 
 ```python
-from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
+from db.rag_consistency import RagConsistencyReport, check_rag_consistency, is_consistent, summarize_issues
 from db.helper import SQLiteHelper
 
 with SQLiteHelper("rag").open() as db:
-    report = check_rag_consistency(db)
+    report: RagConsistencyReport = check_rag_consistency(db)
     if not is_consistent(report):
         for issue in summarize_issues(report):
             print(issue)
@@ -260,7 +260,7 @@ with SQLiteHelper("rag").open() as db:
 | DB open error | Raise `RagPipelineError` (not return `""`) |
 | `use_search=False` | Return `""` immediately |
 | `rag_service_url` set + failure | Fall back to in-process pipeline |
-| Cross-encoder failure | `RagRerankError` propagates from `RerankStage.run()` to `_run_stage()`, which catches it as `RuntimeError`, records `StageResult.status="failure"`, and logs a warning. The pipeline continues with `ctx.reranked=[]` (no RRF fallback). `use_rerank=False` uses RRF order + dedup instead. |
+| Cross-encoder failure | `RagRerankError` is caught as `RuntimeError`, records `StageResult.status="failure"`, and logs a warning. The pipeline continues with `ctx.reranked=[]` (no RRF fallback). `use_rerank=False` uses RRF order + dedup instead. |
 
 ---
 
@@ -342,7 +342,7 @@ The RAG index requires three tables to remain synchronized:
 
 ### Startup warning
 
-On every agent startup, `_check_services()` runs `check_rag_consistency()` (3 COUNT queries,
+On every agent startup, the RAG consistency check runs `check_rag_consistency()` (3 COUNT queries,
 read-only, fast). If any inconsistency is detected, a warning is emitted to the console:
 
 ```

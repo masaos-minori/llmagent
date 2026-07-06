@@ -53,7 +53,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | What are the store protocols? | `90_shared_05` §3 |
 | Where are DB store module boundaries and import rules? | `90_shared_05` §1a |
 | How to delete old memories? | `90_shared_05` §7 (`prune_old_memories`) |
-| How to recover from DB corruption? | `90_shared_05` §8 |
+| How to recover from DB corruption? | `90_shared_05` §9 |
 | What is broken or undocumented? | `90_shared_90` |
 | Does `LLMClient` have docs? | **Yes** — see `90_shared_03` §10 + `05_agent_05` |
 

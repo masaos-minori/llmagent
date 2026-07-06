@@ -30,6 +30,13 @@ across `agent/`, `mcp/`, `rag/`, and `db/` layers.
 | `DbConfig` | dataclass | `db/config.py` | `db/`, `agent/` |
 | `CallToolRequest` / `CallToolResponse` | Pydantic models | `mcp/models.py` | `mcp/` only |
 | Tool frozensets | `frozenset[str]` | `shared/tool_constants.py` | `shared/`, `agent/`, `mcp/` |
+| `ToolCallResult` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `mcp/`, `shared/` |
+| `TransportErrorInfo` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `shared/` (audit logs) |
+| `ToolSpec` | frozen dataclass | `shared/tool_spec.py` | `agent/` (DAG mode) |
+| `CacheEntry` | frozen dataclass | `shared/tool_cache.py` | `shared/` (ToolExecutor cache) |
+| `PluginFailure` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
+| `PluginLoadResult` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
+| `ToolDefinition` | frozen dataclass | `shared/tool_registry.py` | `shared/`, `mcp/` |
 
 ---
 
@@ -145,6 +152,32 @@ class LLMResponse:
 
 ---
 
+## 6a. `ToolCallResult` / `TransportErrorInfo` (`shared/transport_dto.py`)
+
+```python
+@dataclass(frozen=True)
+class ToolCallResult:
+    output: str            # Tool output string (truncated if > MCP_MAX_RESPONSE_BYTES)
+    is_error: bool         # True if the tool call failed
+    request_id: str        # x-request-id from HTTP transport; "" for plugin/cache
+    server_key: str        # server key that handled the call; "" for plugin tools
+    error_type: str = ""   # "transport" | "tool" | "" (empty on success)
+
+    @classmethod
+    def from_transport(cls, output: str, is_error: bool, request_id: str = "") -> "ToolCallResult"
+
+@dataclass(frozen=True)
+class TransportErrorInfo:
+    summary: str           # Human-readable error summary
+    detail: str            # JSON-encoded dict for audit log
+```
+
+- `ToolCallResult` is the canonical result contract for all tool call executions (transport, plugin, cache)
+- `TransportErrorInfo` is used for structured error info in audit logs
+- Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
+
+---
+
 ## 7. `ActionResult` (`shared/action_result.py`)
 
 ```python
@@ -165,18 +198,120 @@ class ActionResult:
 
 ---
 
-## 8. `ArtifactEvent` (`shared/events.py`)
+## 7a. `ToolSpec` (`shared/tool_spec.py`)
+
+```python
+@dataclass(frozen=True)
+class ToolSpec:
+    """Execution metadata for a single approved tool call."""
+    call_id: str           # LLM-assigned tool call id (from tool_calls[].id)
+    name: str              # Tool function name
+    args: dict[str, object] = field(default_factory=dict)
+    resource_scope: str = ""   # Resource path/branch string for conflict detection
+    requires_serial: bool = False  # True when the tool must not run concurrently
+    is_write: bool = False       # True when the tool has write/delete side effects
+```
+
+- Used in DAG mode (`use_tool_dag = true`) — `_execute_with_dag()` constructs ToolSpec for each tool call
+- Import: `from shared.tool_spec import ToolSpec`
+
+---
+
+## 7b. `CacheEntry` / `ToolResultCache` (`shared/tool_cache.py`)
+
+```python
+@dataclass(frozen=True)
+class CacheEntry:
+    """LRU cache entry storing a successful tool call result."""
+    output: str
+    is_error: bool
+    cached_at: float
+
+class ToolResultCache:
+    def __init__(self, ttl: float, max_size: int = 0)
+    def make_key(self, tool_name: str, args: dict[str, Any]) -> str
+    def get_result(self, key: str) -> ToolCallResult | None
+    def store_if_success(self, key: str, result: ToolCallResult) -> None
+    def clear(self) -> None
+```
+
+- LRU cache for tool call results with TTL expiry and optional max-size eviction
+- Only `is_error=False` results are cached
+- Cache key: `(tool_name, serialized_args via json_utils.dumps)`
+- Import: `from shared.tool_cache import ToolResultCache`
+
+---
+
+## 7c. `PluginFailure` / `PluginLoadResult` (`shared/plugin_result.py`)
+
+```python
+@dataclass(frozen=True)
+class PluginFailure:
+    path: str          # plugin .py filename
+    error: str         # exception message
+
+@dataclass(frozen=True)
+class PluginLoadResult:
+    loaded_count: int
+    failed: tuple[PluginFailure, ...]
+    tool_conflicts_shadowed: int
+    tool_conflicts_allowed: int
+    command_shadows_rejected: int
+
+class PluginLoadError(RuntimeError):
+    pass
+```
+
+- `PluginFailure` — individual plugin load failure detail
+- `PluginLoadResult` — aggregated result from `load_plugins()` call
+- `PluginLoadError` — raised only when `strict_mode=True` and there are failures or MCP conflicts
+- Import: `from shared.plugin_result import PluginFailure, PluginLoadResult, PluginLoadError`
+
+---
+
+## 7d. `ToolDefinition` (`shared/tool_registry.py`)
+
+```python
+@dataclass(frozen=True)
+class ToolDefinition:
+    """Immutable tool definition owned by a single server."""
+    name: str
+    server_key: str
+    description: str = ""
+    input_schema: dict[str, object] = field(default_factory=dict)
+```
+
+- Immutable tool definition — one tool belongs to exactly one MCP server
+- Populated at import time from `tool_constants.py` frozensets via `_populate_default_registry()`
+- Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
+
+---
+
+## 8. `ArtifactEvent` / `RetryEvent` (`shared/events.py`)
 
 ```python
 class ArtifactEvent(TypedDict, total=False):
-    event_type: str   # "artifact.updated" | "artifact.created" | "artifact.deleted"
-    repo: str         # "owner/repo"
-    branch: str
-    commit: str       # commit SHA or empty string
-    path: str         # file path or empty string
-    pr_number: int    # PR number or 0
-    session_id: int
-    timestamp: str    # ISO-8601 UTC
+    """Emitted when a repo artifact is created or updated."""
+    event_type: str  # "artifact.updated" | "artifact.created" | "artifact.deleted"
+    repo: str        # "owner/repo"
+    branch: str      # branch name
+    commit: str      # commit SHA or empty
+    path: str        # file path or empty (for whole-branch events)
+    pr_number: int   # PR number or 0
+    session_id: int  # agent session that triggered the event
+    timestamp: str   # ISO-8601 UTC
+
+class RetryEvent(TypedDict):
+    """Emitted when a workflow stage retry is triggered."""
+    event_type: str
+    workflow_id: str
+    task_id: str
+    attempt_number: int
+    max_attempts: int
+    error_type: str
+    backoff_sec: float
+    session_id: str
+    timestamp: str   # ISO-8601 UTC
 ```
 
 > **Note:** `ArtifactEvent` is a data definition only. No event bus is implemented.

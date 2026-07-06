@@ -739,7 +739,6 @@ def check_transport_error_is_error(docs_dir: Path, files: list[DocFile]) -> list
 
 _STDIO_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|[^a-zA-Z])stdio(?:[^a-zA-Z]|$)"), "stdio"),
-    (re.compile(r"StdioTransport"), "StdioTransport"),
 ]
 
 

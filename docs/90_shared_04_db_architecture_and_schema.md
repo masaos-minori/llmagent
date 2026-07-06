@@ -320,7 +320,7 @@ create_schema()
 ```
 
 - All DDL uses `IF NOT EXISTS` — idempotent; safe to run multiple times
-- **Compatible migration is unsupported.** Schema changes require DB recreation: archive → delete → recreate via `create_schema()`. See [90_shared_05 §10](90_shared_05_db_api_and_operations.md#10-db-recreation-procedure) for the full procedure.
+- **Compatible migration is unsupported.** Schema changes require DB recreation: archive → delete → recreate via `create_schema()`. See [90_shared_05 §11](90_shared_05_db_api_and_operations.md#11-db-recreation-procedure) for the full procedure.
 - `embedding_dims` is substituted dynamically in `_build_rag_schema_sql(dims)` and `_build_session_schema_sql(dims)`
 
 ---

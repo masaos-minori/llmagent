@@ -349,5 +349,5 @@ never through the session object.
 
 Verified boundaries:
 - `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.session_message_repo`
-- `db/maintenance.py` contains RAG-file utility functions (`rotate_rag_db`, `vacuum_db`) but has zero `rag/` module imports
+- `db/maintenance.py` contains maintenance functions (`vacuum_db`, `checkpoint_wal`, etc.) but has zero `rag/` module imports; DB rotation is in `db/rotation.py`
 - `/db` command routes subcommands by scope: `/db rag <subcmd>` targets `RagMaintenanceService`; `/db session <subcmd>` targets `DbMaintenanceService`
