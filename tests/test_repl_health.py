@@ -121,38 +121,6 @@ class TestProbeMcpHealthDetail:
         assert result.body == {}
 
 
-# ── _fetch_stdio_tools() ───────────────────────────────────────────────────────
-
-
-class TestFetchStdioTools:
-    @pytest.mark.asyncio
-    async def test_returns_empty_when_not_stdio_transport(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_returns_empty_when_transport_not_alive(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_returns_empty_when_isinstance_fails(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_returns_tool_names(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_returns_empty_on_rpc_error(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_returns_empty_on_exception(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
-    @pytest.mark.asyncio
-    async def test_converts_tool_names_to_strings(self) -> None:
-        pytest.skip("_fetch_stdio_tools removed")
-
 
 # ── _check_tool_definitions() ──────────────────────────────────────────────────
 
@@ -463,13 +431,6 @@ class TestAuditSecurityDefaults:
         auth_warnings = [w for w in warnings if "auth_token" in w]
         assert len(auth_warnings) == 0
 
-    def test_stdio_servers_ignored_in_production(self) -> None:
-        """stdio transport was removed from TransportType; skip this test."""
-        pytest.skip("stdio TransportType removed")
-
-    def test_production_mode_mixed_http_stdio(self) -> None:
-        """stdio transport was removed from TransportType; skip this test."""
-        pytest.skip("stdio TransportType removed")
 
     def test_shell_config_load_failure_is_silenced(self) -> None:
         """ShellConfig.load() raising an exception does not propagate."""

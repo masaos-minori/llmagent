@@ -66,21 +66,6 @@ class TestStartupOrchestratorStartServers:
         # Must not raise; failure is logged and printed as warning
         await startup._start_servers()
 
-    @pytest.mark.asyncio
-    async def test_persistent_stdio_registers_transport(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_persistent_stdio_failure_is_swallowed(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_stdio_server_skipped(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_multiple_servers_all_processed(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
 
 
 # ── StartupOrchestrator._recover_pending_approvals ─────────────────────────────

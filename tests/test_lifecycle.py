@@ -13,17 +13,6 @@ from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import HttpStartupError, StartupFailure
 from agent.lifecycle import LifecycleState
 
-try:
-    from agent.stdio_lifecycle import TransportHandle
-except ImportError:
-
-    class _TransportHandleStub:
-        def __init__(self, transport=None, state=None, last_error=None):
-            self.transport = transport
-            self.state = state
-            self.last_error = last_error
-
-    TransportHandle = _TransportHandleStub
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 _TEST_HTTP_URL = "http://127.0.0.1:9999"
@@ -66,28 +55,6 @@ def _http_subprocess_cfg(
     )
 
 
-def _stdio_persistent() -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.STDIO, url="", auth_token="")
-
-
-def _stdio_ondemand(cmd: list[str] | None = None) -> McpServerConfig:
-    return McpServerConfig(
-        transport=TransportType.STDIO,
-        url="",
-        auth_token="",
-        startup_mode=StartupMode.ONDEMAND,
-    )
-
-
-def _stdio_ondemand_idle(
-    idle_sec: int, cmd: list[str] | None = None
-) -> McpServerConfig:
-    return McpServerConfig(
-        transport=TransportType.STDIO,
-        url="",
-        auth_token="",
-        startup_mode=StartupMode.ONDEMAND,
-    )
 
 
 def _mock_tool_executor() -> MagicMock:
@@ -107,26 +74,6 @@ class TestEnsureReady:
         ex.set_transport.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_persistent_stdio_noop(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_already_alive_noop(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_starts_when_not_alive(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_start_failure_logs_error(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_no_cmd_raises_lifecycle_error(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
     async def test_unknown_server_key_noop(self) -> None:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
@@ -134,105 +81,7 @@ class TestEnsureReady:
         await mgr.ensure_ready("nonexistent")
         ex.set_transport.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_concurrent_ondemand_starts_only_once(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
 
-
-class TestShutdownIdle:
-    @pytest.mark.asyncio
-    async def test_stops_idle_ondemand_server(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_skips_server_within_timeout(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_skips_idle_timeout_disabled(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_skips_persistent_server(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_skips_already_dead_server(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_tolerates_stop_error(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-
-class _TestShutdownIdleOld:
-    @pytest.mark.asyncio
-    async def test_stops_idle_ondemand_server(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=True)  # is_alive is sync
-        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        # Backdate _last_called to simulate 60s of inactivity
-        mgr._last_called["od"] = mgr._last_called["od"] - 60
-        await mgr.shutdown_idle()
-        transport.stop.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_skips_server_within_timeout(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=True)
-        configs = {"od": _stdio_ondemand_idle(idle_sec=300)}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        # _last_called initialized to now(); 300s has not elapsed
-        await mgr.shutdown_idle()
-        transport.stop.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_skips_idle_timeout_disabled(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=True)
-        configs = {"od": _stdio_ondemand_idle(idle_sec=0)}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._last_called["od"] = 0.0  # simulate very old last call
-        await mgr.shutdown_idle()
-        transport.stop.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_skips_persistent_server(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=True)
-        configs = {"p": _stdio_persistent()}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._last_called["p"] = 0.0  # simulate very old last call
-        await mgr.shutdown_idle()
-        transport.stop.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_skips_already_dead_server(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=False)
-        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._last_called["od"] = 0.0
-        await mgr.shutdown_idle()
-        transport.stop.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_tolerates_stop_error(self) -> None:
-        transport = AsyncMock()
-        transport.is_alive = MagicMock(return_value=True)
-        transport.stop.side_effect = OSError("crash")
-        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
-        ex = _mock_tool_executor()
-        mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._last_called["od"] = 0.0
-        # Must not propagate
-        await mgr.shutdown_idle()
 
 
 class TestEnsureReadySubprocess:
@@ -448,10 +297,6 @@ class TestRestart:
 
 class TestShutdownAll:
     @pytest.mark.asyncio
-    async def test_stops_all_running_transports(self) -> None:
-        pytest.skip("stdio transports removed")
-
-    @pytest.mark.asyncio
     async def test_shutdown_terminates_http_procs(self) -> None:
         proc = MagicMock()
         proc.poll.return_value = None  # running
@@ -518,34 +363,6 @@ def _ondemand_echo_cfg(working_dir: str = "") -> McpServerConfig:
     )
 
 
-class TestEnsureReadyIntegration:
-    """Integration tests: _ServerLifecycleRouter with real echo subprocess."""
-
-    @pytest.mark.asyncio
-    async def test_ondemand_start_on_first_call(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_no_double_start(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_ondemand_working_dir_passed(self, tmp_path: Path) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-
-class TestShutdownIdleIntegration:
-    """Idle-timeout integration test against real echo subprocess."""
-
-    @pytest.mark.asyncio
-    async def test_idle_stop_after_timeout(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-    @pytest.mark.asyncio
-    async def test_non_ondemand_not_idle_stopped(self) -> None:
-        pytest.skip("stdio_lifecycle module removed")
-
-
 # ── LifecycleState / HttpStartupError / TransportHandle ──────────────────────
 
 
@@ -588,17 +405,3 @@ class TestHttpStartupError:
             raise HttpStartupError(failure)
 
 
-class TestTransportHandle:
-    def test_default_last_error_is_none(self) -> None:
-        pytest.skip("StdioTransport removed")
-
-    def test_stores_state_and_transport(self) -> None:
-        handle = TransportHandle(transport=None, state=LifecycleState.STOPPED)
-        assert handle.state == LifecycleState.STOPPED
-        assert handle.transport is None
-
-    def test_last_error_can_be_set(self) -> None:
-        handle = TransportHandle(
-            transport=None, state=LifecycleState.FAILED, last_error="timeout"
-        )
-        assert handle.last_error == "timeout"
