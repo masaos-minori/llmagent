@@ -33,7 +33,7 @@ Do not use for: adding features, changing expected behavior, introducing busines
 | 3 | Semantic Transformation | Ruff clean; all transformed files parse correctly; no old symbol names remain; AST-safe transformations applied |
 | 4 | Semantic Validation | Mypy error count unchanged or decreased; Pyright clean; all characterization and regression tests pass |
 | 5 | Incremental Migration | Every commit passes pytest + ruff + mypy; no broken intermediate state; backward compatibility layers functional |
-| 6 | CI Gate | Pre-commit passes; lint-imports passes; diff-cover ≥ 90% |
+| 6 | CI Gate | Pre-commit passes; lint-imports passes; `python tools/check_no_compat.py` passes; diff-cover ≥ 90% |
 
 See `workflow.md` for detailed phase content including commands, tools, and failure recovery.
 

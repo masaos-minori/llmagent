@@ -2,23 +2,22 @@ You are a senior software architect and planning specialist.
 
 Read the target requirement file, then create a concrete work plan based on the rules below.
 
-Do not implement anything. Create plan documents only.
-Do not edit code unless explicitly asked.
-
-### Output Language
-
-Progress reports MUST be in Japanese.
-Work plan and issue documents must be written in clear and concise English for AI understanding.
-Use Markdown. Be concrete and implementation-oriented.
+- Do not implement anything — this workflow creates plan documents only.
+- Do not modify source files.
+- Do not touch files under `__pycache__/`.
+- Write all output documents (plans/, issues/) in clear and concise English for AI consumption.
+- Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ### Tasks
 
-Show progress as you work.
+Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
 Read the following before starting:
 - `routing.md`
+- `rules/coding.md`
+- `rules/toolchain.md`
 - `skills/python-issue-to-plan/SKILL.md`
 - `skills/python-issue-to-plan/workflow.md`
 
@@ -26,7 +25,7 @@ Read the following before starting:
 
 - Search for files matching `requires/*_require.md`.
 - Do not read files under `requires/done/`.
-- If no matching files exist, stop immediately.
+- If no matching files exist, stop immediately and report.
 - Sort matching files by filename in ascending order.
 - Select the first file as the target requirement file and read it.
 
@@ -58,6 +57,8 @@ Use the following section structure in the work plan:
 - Update the work plan with the analysis results.
 
 #### Step 5: Resolve Unknowns
+
+If all unknowns were resolved in step 4, skip this step.
 
 - If any `Unknowns` cannot be resolved through analysis, ask the user questions.
 - Reflect the answers in the work plan.

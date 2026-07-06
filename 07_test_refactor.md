@@ -8,14 +8,16 @@ Your task is to:
 5. detect gaps in coverage and validation,
 6. produce a concrete implementation work plan for test improvement.
 
-Do NOT stop after the first failure.
-Do NOT assume test coverage from file names alone.
-Do NOT edit production code unless explicitly requested later.
+- Do NOT stop after the first failure.
+- Do NOT assume test coverage from file names alone.
+- Do NOT edit production code unless explicitly requested.
+- Use Markdown for all progress reports and the final report. Be concrete and implementation-oriented.
 
 ### Primary Goal
-You must review the current quality of the repository's test suite by actually running the tests and analyzing what is missing, inconsistent, outdated, or weak.
 
-Your output must be practical enough to use directly as:
+Review the current quality of the repository's test suite by actually running the tests and analyzing what is missing, inconsistent, outdated, or weak.
+
+The output must be practical enough to use directly as:
 - a QA review memo,
 - a test debt report,
 - a refactoring / stabilization work plan,
@@ -23,7 +25,17 @@ Your output must be practical enough to use directly as:
 
 ### Required Workflow
 
+Report progress at the start and end of each step.
+
+#### Step 0: Load required files
+
+Read the following before starting:
+- `routing.md`
+- `rules/toolchain.md`
+- `rules/env.md`
+
 #### Step 1: Discover the test execution model
+
 Inspect the repository and identify:
 - test framework(s)
 - test commands
@@ -34,9 +46,7 @@ Inspect the repository and identify:
 - lint / typecheck / import-lint / schema-check commands
 - unit / integration / e2e / smoke test structure
 
-Read `rules/toolchain.md` for the canonical validation sequence before inspecting other files.
-
-You must also inspect files such as:
+Inspect files such as:
 - README / docs
 - pyproject.toml / package.json / Makefile / justfile / tox.ini / noxfile / setup.cfg
 - CI workflow files
@@ -46,6 +56,7 @@ You must also inspect files such as:
 If multiple test entrypoints exist, identify all of them.
 
 #### Step 2: Execute all existing tests
+
 Run all test and validation commands that are part of normal repository validation.
 
 This includes, if present:
@@ -68,6 +79,7 @@ Important:
 - If some tests cannot run because of missing environment/services, record that explicitly.
 
 #### Step 3: Record real execution results
+
 For each executed command, record:
 - exact command
 - purpose
@@ -83,9 +95,10 @@ For each executed command, record:
   - test code bug
   - environment/setup issue
   - unclear / needs confirmation
-- if blocked by environment: list the required env vars or services (see `rules/env.md` for this repository's environment spec)
+- if blocked by environment: list the required env vars or services (refer to `rules/env.md` for this repository's environment spec)
 
 #### Step 4: Detect missing or weak tests
+
 After executing the tests, inspect source code and docs to find coverage gaps.
 
 Look for:
@@ -103,6 +116,7 @@ Look for:
 - tests with weak assertions (e.g. only checking non-empty output)
 
 #### Step 5: Detect inconsistent or outdated tests
+
 Find tests that are:
 - inconsistent with current implementation
 - inconsistent with current documentation
@@ -113,7 +127,8 @@ Find tests that are:
 - missing regression coverage for known bugs
 
 #### Step 6: Produce a concrete work plan
-Create a Japanese Markdown report with:
+
+Create a Markdown report with:
 1. overall findings,
 2. executed test/validation commands and results,
 3. existing test failures,
@@ -123,6 +138,7 @@ Create a Japanese Markdown report with:
 7. explicit instructions for new or updated test cases.
 
 ### Required Classification
+
 Classify findings into:
 - Existing test failure
 - Flaky test risk
@@ -138,9 +154,8 @@ Classify findings into:
 - Missing regression test
 
 ### Required Output Format
-Output MUST be in Japanese.
-Use Markdown.
-Be concrete and implementation-oriented.
+
+Use Markdown. Be concrete and implementation-oriented.
 
 Produce the following sections exactly:
 
@@ -181,7 +196,7 @@ For each issue:
 - evidence from code / docs / current tests
 - whether it is confirmed or Needs confirmation
 
-# 5. 日本語の実装修正タスクリスト（High/Medium/Low）
+# 5. 実装修正タスクリスト（High/Medium/Low）
 Priority criteria:
 - High: existing test failures, or production code paths with no test coverage at all
 - Medium: missing coverage for complex branches, config/reload behavior, persistence, or CLI commands
@@ -217,6 +232,7 @@ Order the tasks and explain why.
 List anything that still requires human confirmation.
 
 ### Important Rules
+
 Follow these rules strictly:
 
 1. You must distinguish:
@@ -235,11 +251,13 @@ Follow these rules strictly:
 9. Every proposed test addition or update must be actionable.
 
 ### Final Quality Standard
+
 Do not stop at high-level commentary.
 Run the tests, analyze the real results, detect missing or inconsistent tests, and produce a concrete, execution-ready test improvement plan.
 
 ### Optional Extra Output
-After the Japanese report, also generate:
+
+After the main report, also generate:
 
 # 9. GitHub Issue Drafts (English, AI-oriented)
 - 1 issue = 1 task

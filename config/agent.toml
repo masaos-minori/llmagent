@@ -275,7 +275,7 @@ git_push                 = "WRITE_DANGEROUS"
 [mcp_servers.shell]
 transport        = "http"
 url              = "http://127.0.0.1:8009"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "execute"
@@ -284,7 +284,7 @@ tool_names       = ["shell_run"]
 [mcp_servers.git]
 transport        = "http"
 url              = "http://127.0.0.1:8014"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_write"
@@ -296,7 +296,7 @@ tool_names       = [
 [mcp_servers.web_search]
 transport        = "http"
 url              = "http://127.0.0.1:8004"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "search"
@@ -305,7 +305,7 @@ tool_names       = ["search_web"]
 [mcp_servers.file_delete]
 transport        = "http"
 url              = "http://127.0.0.1:8008"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_delete"
@@ -314,7 +314,7 @@ tool_names       = ["delete_file", "delete_directory"]
 [mcp_servers.file_write]
 transport        = "http"
 url              = "http://127.0.0.1:8007"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_write"
@@ -323,7 +323,7 @@ tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]
 [mcp_servers.file_read]
 transport        = "http"
 url              = "http://127.0.0.1:8005"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_read"
@@ -332,7 +332,7 @@ tool_names       = ["read_text_file", "list_directory", "directory_tree", "searc
 [mcp_servers.github]
 transport        = "http"
 url              = "http://127.0.0.1:8006"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "search"
@@ -349,7 +349,7 @@ tool_names       = [
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -358,7 +358,7 @@ tool_names       = ["trigger_workflow", "get_workflow_runs", "get_workflow_statu
 [mcp_servers.rag_pipeline]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -367,7 +367,7 @@ tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_document
 [mcp_servers.mdq]
 transport        = "http"
 url              = "http://127.0.0.1:8013"
-startup_mode     = "persistent"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"

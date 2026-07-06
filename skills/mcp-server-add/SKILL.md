@@ -54,6 +54,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 - service running and reachable (verify port health)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation
+- MCP doc consistency check passes: `python tools/check_mcp_docs_consistency.py`
 
 ## Composes with
 

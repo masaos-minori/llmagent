@@ -44,7 +44,7 @@ Before running the full sequence, look at the error log and check if the failure
 |---|---|---|
 | 1 | Identify failure source | Run validation tools or inspect logs to pinpoint which check is failing. |
 | 2 | Repository convention enforcement | Run `ruff format` first (formatting), then `ruff check` (lint). Use `ast-grep` for structural pattern checks if available. |
-| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`). Layer contract: `shared → db → rag/mcp → agent`; violations must be fixed structurally, not suppressed. |
+| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`). Layer contract: `shared → db → rag/mcp → agent`; violations must be fixed structurally, not suppressed. Also run `python tools/check_no_compat.py` to detect backward compatibility leftovers in source and docs. |
 | 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you must provide a rigorous, comments-based justification directly above the line. |
 | 5 | Semantic refactor safety | Use `LibCST` or structural modifiers when performing comment/formatting-preserving transformations. |
 | 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. |

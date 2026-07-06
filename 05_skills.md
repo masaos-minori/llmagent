@@ -2,12 +2,14 @@ You are a senior software architect and skills organizer.
 
 Read the existing skill files and routing configuration, then restructure them based on the Context Loader Pattern below.
 
-Do not rewrite files from scratch without reading them first.
-Do not edit code unless explicitly asked.
+- Do not rewrite files from scratch without reading them first.
+- Do not modify source code files (scripts/, tests/) — this workflow targets skill and config files only.
+- Do not touch files under `__pycache__/`.
+- Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
-### Prerequisites
+### Architectural Principles
 
-Strictly follow these principles throughout all tasks:
+Strictly follow these throughout all steps:
 
 - **routing**: All task-to-skill mappings must go through `routing.md`; never bypass it by loading skills or docs directly.
 - **dependency direction**: Files may only reference layers below them (`shared` → `db` → `rag`/`mcp` → `agent`); no upward references allowed.
@@ -28,16 +30,19 @@ Shared Rules
 Execution
 ```
 
-### Output Language
-
-Progress reports MUST be in Japanese.
-Use Markdown. Be concrete and implementation-oriented.
-
 ### Tasks
 
-Show progress as you work.
+Report progress at the start and end of each step.
 
-#### Task 1: Remove duplicated content
+#### Step 0: Load required files
+
+Read the following before starting:
+- `routing.md`
+- `AGENTS.md`
+- `skills/DESIGN.md`
+- All files matching `skills/*/SKILL.md`
+
+#### Step 1: Remove duplicated content
 
 Remove duplicated content across `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md`.
 
@@ -46,9 +51,9 @@ Acceptance criteria:
 - Each piece of content has exactly one canonical location.
 - All references to moved content point to the correct canonical location.
 
-#### Task 2: Reorganize files based on the Context Loader Pattern
+#### Step 2: Reorganize files based on the Context Loader Pattern
 
-Perform after Task 1 is complete.
+Perform after step 1 is complete.
 
 Apply the following structure:
 - Put task routing rules in `AGENTS.md`.
@@ -62,4 +67,11 @@ Acceptance criteria:
 - `AGENTS.md` contains routing rules only; no task-specific procedures.
 - `skills/DESIGN.md` contains shared design/architectural rules only; no task-specific procedures.
 - Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
-- Default context load (AGENTS.md + routing.md) does not pull in task-specific skill files.
+- Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific skill files.
+
+### Required Output
+
+After completing all steps, report:
+- which files were modified and what changed
+- which content was moved and where it now lives
+- any proposals deferred because the change was ambiguous or risky

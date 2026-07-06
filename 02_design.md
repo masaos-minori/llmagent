@@ -2,23 +2,22 @@ You are a senior software architect and implementation planner.
 
 Read the target plan file, then produce file-level implementation procedure documents based on the rules below.
 
-Do not implement anything. Create documents only.
-Do not edit code unless explicitly asked.
-
-### Output Language
-
-Progress reports MUST be in Japanese.
-Implementation procedure documents must be written in clear and concise English for AI understanding.
-Use Markdown. Be concrete and implementation-oriented.
+- Do not implement anything — this workflow creates documents only.
+- Do not modify source files.
+- Do not touch files under `__pycache__/`.
+- Write all output documents (implementations/) in clear and concise English for AI consumption.
+- Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ### Tasks
 
-Show progress as you work.
+Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
 Read the following before starting:
 - `routing.md`
+- `rules/coding.md`
+- `rules/toolchain.md`
 - `skills/python-design/SKILL.md`
 - `skills/python-design/workflow.md`
 
@@ -26,14 +25,15 @@ Read the following before starting:
 
 - Search for files matching `plans/*_plan.md`.
 - Do not read files under `plans/done/`.
-- If no matching files exist, stop immediately.
+- If no matching files exist, stop immediately and report.
 - Sort matching files by filename in ascending order.
 - Select the first file as the target plan file.
 
 #### Step 2: Read the target plan file
 
-- Read the target plan file.
+- Read the target plan file in full.
 - Identify the target feature and the related source files to modify.
+- If the plan is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
 
 #### Step 3: Create implementation procedure documents
 

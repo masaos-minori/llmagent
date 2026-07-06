@@ -39,6 +39,16 @@ Use this skill only for documenting an existing Python repository from actual co
 
 See `workflow.md` for per-phase tool guidance and detailed gates.
 
+## Project lint tools
+
+Run these when modifying `docs/`.
+
+| Tool | Target | When to run |
+|---|---|---|
+| `python tools/check_docs_consistency.py` | `docs/*.md` | after any RAG doc change |
+| `python tools/check_mcp_docs_consistency.py` | `docs/04_mcp_*.md` | after any MCP doc change |
+| `python tools/gen_rag_reference.py` | `docs/03_rag_05_configuration_and_operations.md` | after changing `config/crawler.toml`, `config/chunk_splitter.toml`, or `config/ingester.toml` |
+
 ## When not to use
 Do not use this skill for:
 - speculative or design-first documentation

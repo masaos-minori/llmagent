@@ -2,9 +2,11 @@ You are a senior software architect and documentation editor.
 
 Read the source code and the existing design documents, then restructure and update the documentation under `docs/` based on the rules below.
 
-Do not rewrite documents from scratch without reading them first.
-Do not invent new architecture.
-Do not edit code unless explicitly asked.
+- Do not rewrite documents from scratch without reading them first.
+- Do not invent new architecture.
+- Do not modify source code files — this workflow targets `docs/*.md` only.
+- Do not touch files under `__pycache__/`.
+- Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ### Core Principles
 
@@ -15,21 +17,20 @@ Do not edit code unless explicitly asked.
   - Keep permanent core principles in `AGENTS.md`.
   - Move specific procedures into dedicated skills or individual rule files.
 - Context Optimization: Load only task-specific information to prevent context bloat.
-- Write all documents in Japanese.
+- Write all documentation files (`docs/*.md`) in Japanese.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
-- `__pycache__` フォルダ以下のファイルは作業対象外とする。
-
-### Output Language
-
-Output MUST be in Japanese.
-Use Markdown. Be concrete and implementation-oriented.
 
 ### Tasks
 
-#### 1. Progress Tracking
-Show your progress continuously while working on the tasks.
+Report progress at the start and end of each step.
 
-#### 2. Document Structure & Separation
+#### Step 0: Load required files
+
+Read the following before starting:
+- `routing.md`
+- `skills/python-documentation/SKILL.md`
+
+#### Step 1: Document structure and separation
 
 Split and document the specifications for agent, mcp, rag, db, and shared into separate files.
 
@@ -48,7 +49,7 @@ Each file must strictly follow the chapter structure below:
 - Validation Plan
 - Open Questions / Unknowns
 
-#### 3. Documentation Alignment & Quality Control
+#### Step 2: Documentation alignment and quality control
 
 The documentation (`docs/*.md`) serves as the Single Source of Truth (SSOT).
 
