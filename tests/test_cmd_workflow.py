@@ -47,9 +47,13 @@ def _make_mixin(workflow_db: str):
     from agent.commands.cmd_workflow import _WorkflowMixin
 
     # Minimal ctx stubs
-    turn = SimpleNamespace(pending_approval_id=None)
+    turn = SimpleNamespace(pending_approval_id=None, pending_approval_task_id=None)
     workflow = SimpleNamespace(approval_pending=False)
-    ctx = SimpleNamespace(turn=turn, workflow=workflow)
+    session = SimpleNamespace(session_id="test-session")
+    services = SimpleNamespace(audit_logger=None)
+    ctx = SimpleNamespace(
+        turn=turn, workflow=workflow, session=session, services_required=services
+    )
 
     # Capture output calls
     messages: list[str] = []

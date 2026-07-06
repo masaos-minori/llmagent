@@ -169,28 +169,33 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 
 CREATE TABLE IF NOT EXISTS attempts (
-    attempt_id  TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT NOT NULL,
-    status      TEXT NOT NULL DEFAULT 'running',
-    started_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    ended_at    TEXT,
-    error_msg   TEXT
+    attempt_id   TEXT PRIMARY KEY,
+    task_id      TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id     TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'running',
+    started_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    ended_at     TEXT,
+    error_msg    TEXT,
+    error_kind   TEXT,
+    error_detail TEXT
 );
 
 CREATE TABLE IF NOT EXISTS processed_events (
     event_id    TEXT PRIMARY KEY,
     task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id    TEXT NOT NULL,
-    recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    workflow_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS artifacts (
-    artifact_id TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT NOT NULL,
-    uri         TEXT NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    artifact_id    TEXT PRIMARY KEY,
+    task_id        TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id       TEXT NOT NULL,
+    uri            TEXT NOT NULL,
+    created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    workflow_id    TEXT,
+    attempt_number INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS approvals (
@@ -234,6 +239,15 @@ CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
 def build_eventbus_schema_sql() -> str:
     """Return DDL for eventbus.sqlite (event bus message queue)."""
     return _EVENTBUS_SCHEMA
+
+
+_WORKFLOW_MIGRATIONS: list[str] = [
+    "ALTER TABLE attempts ADD COLUMN error_kind TEXT",
+    "ALTER TABLE attempts ADD COLUMN error_detail TEXT",
+    "ALTER TABLE artifacts ADD COLUMN workflow_id TEXT",
+    "ALTER TABLE artifacts ADD COLUMN attempt_number INTEGER",
+    "ALTER TABLE processed_events ADD COLUMN workflow_id TEXT",
+]
 
 
 def build_workflow_schema_sql() -> str:

@@ -23,6 +23,9 @@ from agent.workflow.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
+_ERROR_KIND_TIMEOUT = "timeout"
+_ERROR_KIND_EXCEPTION = "exception"
+
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
 
 
@@ -222,7 +225,11 @@ class WorkflowEngine:
             event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
             attempt_rec = begin_stage_if_new(
-                self._store._db, event_id, task.task_id, stage_id
+                self._store._db,
+                event_id,
+                task.task_id,
+                stage_id,
+                workflow_id=task.workflow_id,
             )
             if attempt_rec is None:
                 logger.info(
@@ -234,16 +241,33 @@ class WorkflowEngine:
                 artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
             except TimeoutError as exc:
                 self._store.finish_attempt(
-                    attempt_rec.attempt_id, "failed", f"timeout after {timeout}s"
+                    attempt_rec.attempt_id,
+                    "failed",
+                    error_msg=f"timeout after {timeout}s",
+                    error_kind=_ERROR_KIND_TIMEOUT,
+                    error_detail=str(exc),
                 )
                 raise WorkflowTimeoutError(
                     f"stage {stage_id!r} timed out after {timeout}s"
                 ) from exc
             except Exception as exc:  # noqa: BLE001 — catch-all to persist failure state before re-raising
-                self._store.finish_attempt(attempt_rec.attempt_id, "failed", str(exc))
+                self._store.finish_attempt(
+                    attempt_rec.attempt_id,
+                    "failed",
+                    error_msg=str(exc),
+                    error_kind=_ERROR_KIND_EXCEPTION,
+                    error_detail=repr(exc),
+                )
                 raise
 
             self._store.finish_attempt(attempt_rec.attempt_id, "completed")
             if artifact_uri:
-                record_artifact(self._store._db, task.task_id, stage_id, artifact_uri)
+                record_artifact(
+                    self._store._db,
+                    task.task_id,
+                    stage_id,
+                    artifact_uri,
+                    workflow_id=task.workflow_id,
+                    attempt_number=attempt,
+                )
             logger.info("Stage %s completed: task=%s", stage_id, task.task_id)

@@ -33,10 +33,17 @@ def start_attempt(db: SQLiteHelper, task_id: str, stage_id: str) -> AttemptRecor
     )
 
 
-def finish_attempt(db: SQLiteHelper, attempt_id: str, status: str, error_msg: str | None = None) -> None:
+def finish_attempt(
+    db: SQLiteHelper,
+    attempt_id: str,
+    status: str,
+    error_msg: str | None = None,
+    error_kind: str | None = None,
+    error_detail: str | None = None,
+) -> None:
     db.execute(
-        "UPDATE attempts SET status=?, ended_at=?, error_msg=? WHERE attempt_id=?",
-        (status, _now(), error_msg, attempt_id),
+        "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
+        (status, _now(), error_msg, error_kind, error_detail, attempt_id),
     )
     db.commit()
 

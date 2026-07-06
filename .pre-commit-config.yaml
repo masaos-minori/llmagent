@@ -26,13 +26,13 @@ repos:
     hooks:
       - id: docs-consistency
         name: Check RAG documentation consistency
-        entry: python -m scripts.checks.check_docs_consistency
+        entry: python -m tools.check_docs_consistency
         language: system
         pass_filenames: false
         types_or: [markdown]
       - id: no-compat-stubs
         name: Check for compatibility stubs and shims
-        entry: python -m scripts.checks.check_no_compat
+        entry: python -m tools.check_no_compat
         language: system
         pass_filenames: false
         types_or: [python, markdown]

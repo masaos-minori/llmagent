@@ -42,22 +42,33 @@ class PluginToolInvoker:
                 server_key="",
                 error_type="tool",
             )
-        if (
-            not isinstance(result_raw, tuple)
-            or len(result_raw) != _PLUGIN_RESULT_TUPLE_LENGTH
-        ):
-            raise ValueError(
-                f"Plugin tool {tool_name!r} must return exactly tuple[str, bool]"
-                f" (2 elements), got {type(result_raw).__name__}"
-                f" with len={len(result_raw) if isinstance(result_raw, tuple) else 'N/A'}"
+        try:
+            if (
+                not isinstance(result_raw, tuple)
+                or len(result_raw) != _PLUGIN_RESULT_TUPLE_LENGTH
+            ):
+                raise ValueError(
+                    f"Plugin tool {tool_name!r} must return exactly tuple[str, bool]"
+                    f" (2 elements), got {type(result_raw).__name__}"
+                    f" with len={len(result_raw) if isinstance(result_raw, tuple) else 'N/A'}"
+                )
+            output, is_error = result_raw[0], result_raw[1]
+            if not isinstance(output, str):
+                raise TypeError(
+                    f"Plugin {tool_name!r}: output must be str, got {type(output).__name__}"
+                )
+            if not isinstance(is_error, bool):
+                raise TypeError(f"Plugin {tool_name!r}: is_error must be bool")
+        except (ValueError, TypeError) as contract_err:
+            msg = f"[plugin contract violation] {tool_name}: {contract_err}"
+            logger.error(msg)
+            return ToolCallResult(
+                output=msg,
+                is_error=True,
+                request_id="",
+                server_key="",
+                error_type="plugin_contract",
             )
-        output, is_error = result_raw[0], result_raw[1]
-        if not isinstance(output, str):
-            raise TypeError(
-                f"Plugin {tool_name!r}: output must be str, got {type(output).__name__}"
-            )
-        if not isinstance(is_error, bool):
-            raise TypeError(f"Plugin {tool_name!r}: is_error must be bool")
         return ToolCallResult(
             output=output,
             is_error=is_error,

@@ -315,26 +315,28 @@ class TestPluginReturnValidation:
         return executor
 
     @pytest.mark.asyncio
-    async def test_non_tuple_return_raises(self) -> None:
-        """Plugin returns str -> ValueError."""
+    async def test_non_tuple_return_returns_error_result(self) -> None:
+        """Plugin returns str -> ToolCallResult(is_error=True)."""
 
         async def _fn(args: dict) -> Any:
             return "not_a_tuple"
 
         plugin_registry._tools["test_tool"] = (_fn, "test")
-        with pytest.raises(ValueError, match="must return exactly"):
-            await self._make_executor().execute("test_tool", {})
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
-    async def test_one_element_tuple_raises(self) -> None:
-        """Plugin returns ('ok',) -> ValueError."""
+    async def test_one_element_tuple_returns_error_result(self) -> None:
+        """Plugin returns ('ok',) -> ToolCallResult(is_error=True)."""
 
         async def _fn(args: dict) -> Any:
             return ("ok",)
 
         plugin_registry._tools["test_tool"] = (_fn, "test")
-        with pytest.raises(ValueError, match="must return exactly"):
-            await self._make_executor().execute("test_tool", {})
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
     async def test_valid_two_element_tuple(self) -> None:
@@ -349,37 +351,40 @@ class TestPluginReturnValidation:
         assert result.is_error is False
 
     @pytest.mark.asyncio
-    async def test_three_element_tuple_raises(self) -> None:
-        """Plugin returns ('ok', False, 'extra') -> ValueError (strict behavior)."""
+    async def test_three_element_tuple_returns_error_result(self) -> None:
+        """Plugin returns ('ok', False, 'extra') -> ToolCallResult(is_error=True)."""
 
         async def _fn(args: dict) -> Any:
             return ("ok", False, "extra")
 
         plugin_registry._tools["test_tool"] = (_fn, "test")
-        with pytest.raises(ValueError, match="must return exactly"):
-            await self._make_executor().execute("test_tool", {})
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
-    async def test_wrong_output_type_raises(self) -> None:
-        """Plugin returns (123, False) -> TypeError."""
+    async def test_wrong_output_type_returns_error_result(self) -> None:
+        """Plugin returns (123, False) -> ToolCallResult(is_error=True)."""
 
         async def _fn(args: dict) -> Any:
             return (123, False)
 
         plugin_registry._tools["test_tool"] = (_fn, "test")
-        with pytest.raises(TypeError, match="output must be str"):
-            await self._make_executor().execute("test_tool", {})
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
-    async def test_wrong_is_error_type_raises(self) -> None:
-        """Plugin returns ('ok', 'no') -> TypeError."""
+    async def test_wrong_is_error_type_returns_error_result(self) -> None:
+        """Plugin returns ('ok', 'no') -> ToolCallResult(is_error=True)."""
 
         async def _fn(args: dict) -> Any:
             return ("ok", "no")
 
         plugin_registry._tools["test_tool"] = (_fn, "test")
-        with pytest.raises(TypeError, match="is_error must be bool"):
-            await self._make_executor().execute("test_tool", {})
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "plugin_contract"
 
 
 class TestToolExecutorErrorBoundary:

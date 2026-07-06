@@ -160,11 +160,16 @@ class StateStore:
         )
 
     def finish_attempt(
-        self, attempt_id: str, status: str, error_msg: str | None = None
+        self,
+        attempt_id: str,
+        status: str,
+        error_msg: str | None = None,
+        error_kind: str | None = None,
+        error_detail: str | None = None,
     ) -> None:
         self._db.execute(
-            "UPDATE attempts SET status=?, ended_at=?, error_msg=? WHERE attempt_id=?",
-            (status, _now(), error_msg, attempt_id),
+            "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
+            (status, _now(), error_msg, error_kind, error_detail, attempt_id),
         )
         self._db.commit()
 
@@ -174,5 +179,3 @@ class StateStore:
             (task_id, stage_id),
         )
         return int(rows[0][0])
-
-

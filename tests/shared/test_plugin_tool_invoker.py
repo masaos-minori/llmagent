@@ -51,31 +51,40 @@ class TestPluginToolInvoker:
         assert "boom" in result.output
 
     @pytest.mark.asyncio
-    async def test_invalid_tuple_length_raises_value_error(self) -> None:
+    async def test_invalid_tuple_length_returns_error_result(self) -> None:
         async def _fn(args: dict) -> Any:
             return ("ok",)
 
         plugin_registry._tools["bad_len"] = (_fn, "bad_len")
         invoker = PluginToolInvoker()
-        with pytest.raises(ValueError, match="must return exactly"):
-            await invoker.try_execute("bad_len", {})
+        result = await invoker.try_execute("bad_len", {})
+        assert result is not None
+        assert result.is_error is True
+        assert "tuple" in result.output.lower()
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
-    async def test_wrong_output_type_raises_type_error(self) -> None:
+    async def test_wrong_output_type_returns_error_result(self) -> None:
         async def _fn(args: dict) -> Any:
             return (123, False)
 
         plugin_registry._tools["bad_output"] = (_fn, "bad_output")
         invoker = PluginToolInvoker()
-        with pytest.raises(TypeError, match="output must be str"):
-            await invoker.try_execute("bad_output", {})
+        result = await invoker.try_execute("bad_output", {})
+        assert result is not None
+        assert result.is_error is True
+        assert "str" in result.output.lower()
+        assert result.error_type == "plugin_contract"
 
     @pytest.mark.asyncio
-    async def test_wrong_is_error_type_raises_type_error(self) -> None:
+    async def test_wrong_is_error_type_returns_error_result(self) -> None:
         async def _fn(args: dict) -> Any:
             return ("ok", "no")
 
         plugin_registry._tools["bad_bool"] = (_fn, "bad_bool")
         invoker = PluginToolInvoker()
-        with pytest.raises(TypeError, match="is_error must be bool"):
-            await invoker.try_execute("bad_bool", {})
+        result = await invoker.try_execute("bad_bool", {})
+        assert result is not None
+        assert result.is_error is True
+        assert "bool" in result.output.lower()
+        assert result.error_type == "plugin_contract"

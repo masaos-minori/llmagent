@@ -20,6 +20,7 @@ import sys
 
 from db.helper import SQLiteHelper
 from db.schema_sql import (
+    _WORKFLOW_MIGRATIONS,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
@@ -62,6 +63,12 @@ def create_workflow_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute workflow schema DDL: %s", e)
             raise
+        for stmt in _WORKFLOW_MIGRATIONS:
+            try:
+                db.execute(stmt)
+            except sqlite3.OperationalError:
+                pass  # column already exists
+        db.commit()
     logger.info("Workflow schema created successfully.")
 
 

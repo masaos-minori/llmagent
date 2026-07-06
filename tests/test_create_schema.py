@@ -542,7 +542,7 @@ class TestCreateWorkflowSchema:
             ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
         )
         conn.execute(
-            "INSERT INTO attempts VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, ended_at, error_msg) VALUES (?,?,?,?,?,?,?)",
             ("a1", "t1", "plan", "running", now, None, None),
         )
         conn.commit()

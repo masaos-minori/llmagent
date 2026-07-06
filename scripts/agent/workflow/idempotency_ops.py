@@ -14,13 +14,17 @@ def _now() -> str:
 
 
 def is_event_processed(db: SQLiteHelper, event_id: str) -> bool:
-    rows = db.fetchall(
-        "SELECT 1 FROM processed_events WHERE event_id=?", (event_id,)
-    )
+    rows = db.fetchall("SELECT 1 FROM processed_events WHERE event_id=?", (event_id,))
     return len(rows) > 0
 
 
-def begin_stage_if_new(db: SQLiteHelper, event_id: str, task_id: str, stage_id: str) -> AttemptRecord | None:
+def begin_stage_if_new(
+    db: SQLiteHelper,
+    event_id: str,
+    task_id: str,
+    stage_id: str,
+    workflow_id: str | None = None,
+) -> AttemptRecord | None:
     """Atomically check event_id and start attempt if new.
 
     Uses begin_immediate to hold the write lock across the check-then-insert.
@@ -41,10 +45,10 @@ def begin_stage_if_new(db: SQLiteHelper, event_id: str, task_id: str, stage_id: 
         )
         db.execute(
             """
-            INSERT INTO processed_events (event_id, task_id, stage_id, recorded_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO processed_events (event_id, task_id, stage_id, recorded_at, workflow_id)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (event_id, task_id, stage_id, now),
+            (event_id, task_id, stage_id, now, workflow_id),
         )
     return AttemptRecord(
         attempt_id=attempt_id,

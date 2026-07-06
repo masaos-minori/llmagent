@@ -113,6 +113,11 @@ def register_tool(name: str) -> Callable[[_F], _F]:
     """Register a local async function as a tool handler; bypasses MCP entirely."""
 
     def decorator(fn: _F) -> _F:
+        if not inspect.iscoroutinefunction(fn):
+            raise ValueError(
+                f"[plugin] tool contract violation: '{name}' handler must be "
+                f"an async function (defined with 'async def')"
+            )
         hints = typing.get_type_hints(fn)
         return_hint = hints.get("return")
         if return_hint is None:
