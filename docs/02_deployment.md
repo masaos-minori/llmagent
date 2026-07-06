@@ -86,20 +86,20 @@ cmake --build build --config Release -j$(nproc)
 ```bash
 mkdir -p /opt/llm/models
 
-# 埋込用: multilingual-E5-small (384 次元)
-# E5 モデルのプレフィックス: 取込時 "passage: "、クエリ時 "query: "
+# Embedding: multilingual-E5-small (384 dim)
+# E5 model prefix: "passage: " for ingestion, "query: " for queries
 uv run --with huggingface-hub huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
     multilingual-e5-small-Q8_0.gguf \
     --local-dir /opt/llm/models/
 mv /opt/llm/models/multilingual-e5-small-Q8_0.gguf \
    /opt/llm/models/multilingual-E5-small.gguf
 
-# チャット用: gemma-4-e4b (Gemma 4 4B パラメータ instruction-tuned)
+# LLM: gemma-4-e4b (Gemma 4 4B parameter instruction-tuned)
 uv run --with huggingface-hub huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
     gemma-4-e4b-it-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
 
-# コード生成用: Qwen2.5-Coder-7B
+# LLM: Qwen2.5-Coder-7B
 uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
     Qwen3.6-Instruct-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
@@ -111,47 +111,47 @@ ls -lh /opt/llm/models/
 
 ## 2. サービス設定
 
-### 2.1 sqlite-vec のビルド (初回のみ)
+### 2.1 Building sqlite-vec (first time only)
 
-SQLite のベクトル近傍探索 (KNN: K-Nearest Neighbor) 拡張。`vec0` 仮想テーブルを通じてベクトル埋込の保存と類似度検索を提供。
+SQLite vector approximate nearest neighbor (KNN: K-Nearest Neighbor) extension. Provides vector embedding storage and similarity search via the `vec0` virtual table.
 
 ```bash
 bash deploy/build_sqlite_vec.sh
 ```
 
-インストール先: `/opt/llm/sqlite-vec/vec0.so` (`common.toml` の `sqlite_vec_so` と一致)
+Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `common.toml`)
 
-### 2.2 スクリプトのデプロイ
+### 2.2 Deploying scripts
 
-`deploy/deploy.sh` がスクリプト・設定ファイル・SQL ファイルの一括コピーを実行。
+`deploy/deploy.sh` performs bulk copying of scripts, config files, and SQL files.
 
 ```bash
-# リポジトリのルートから実行する
+# Execute from the repository root
 bash deploy/deploy.sh
 ```
 
-deploy.sh が行う処理:
-- `/opt/llm/scripts/` に Python スクリプトをコピー (`eventbus/` パッケージを含む)
-- `/opt/llm/config/` に設定ファイルをコピー (`eventbus.toml` を含む)
-- `/opt/llm/schemas/` に JSON Schema をコピー (`event_envelope.json` を含む)
-- `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
-- `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` を作成 (Event Bus 用)
+deploy.sh does:
+- Copies Python scripts to `/opt/llm/scripts/` (includes `eventbus/` package)
+- Copies config files to `/opt/llm/config/` (includes `eventbus.toml`)
+- Copies JSON Schema to `/opt/llm/schemas/` (includes `event_envelope.json`)
+- Creates `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/`
+- Creates `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` (Event Bus)
 
-### 2.3 LLM サービス登録・起動
+### 2.3 Registering and starting LLM services
 
-`deploy/setup_services.sh` が LLM サービスの初期化を実行。
+`deploy/setup_services.sh` initializes the LLM services.
 
-MCP サーバ (ports 8004-8014) はエージェント起動時に agent-managed subprocess として自動起動する。
+MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent startup.
 
 ```bash
 # deploy.sh 実行後に実行する
 bash deploy/setup_services.sh
 
-# ヘルスチェック (各 LLM サービスがモデルロードを完了するまで待機)
+# Health check (wait for each LLM service to complete model loading)
 curl -s http://127.0.0.1:8003/health   # embed-llm
 curl -s http://127.0.0.1:8001/health   # agent-llm
 
-# LLM サービスのモデルロード完了後にエージェントを起動する
+# Start the agent after LLM services complete model loading
 /opt/llm/scripts/agent.py
 ```
 
@@ -167,25 +167,25 @@ MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設
 
 ## 3. DB 初期化
 
-### 3.0 プラットフォーム DB 概要
+### 3.0 Platform DB overview
 
-エージェントは 3 つの SQLite データベースを使用する。すべてのパスは `common.toml` で設定する。
+The agent uses three SQLite databases. All paths are configured in `common.toml`.
 
-| DB | デフォルトパス | 設定キー | 用途 |
-|---|---|---|---|
-| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | RAG ドキュメント・チャンク・埋込 |
-| `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | エージェントセッション・メッセージ |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | タスク追跡・イベント処理 |
+| DB | Default path | Config key | Purpose |
 
-スキーマ詳細: `90_shared_04_db_architecture_and_schema.md`
+| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | RAG documents, chunks, embeddings |
+| `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Agent sessions, messages |
+| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
 
-### 3.1 スキーマ適用
+Schema details: `90_shared_04_db_architecture_and_schema.md`
+
+### 3.1 Applying schema
 
 ```bash
-# deploy/deploy.sh 実行済みであること (スクリプトと設定ファイルが配置されていること)
+# Ensure deploy/deploy.sh has been run (scripts and config files are in place)
 bash deploy/init_db.sh
-# 出力: Schema created successfully.
-# テーブル確認 (chunks  chunks_fts  chunks_vec  documents)
+# Output: Schema created successfully.
+# Verify tables (chunks  chunks_fts  chunks_vec  documents)
 ```
 
 
