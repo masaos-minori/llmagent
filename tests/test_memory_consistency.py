@@ -366,28 +366,34 @@ class TestCmdMemoryRebuild:
         mixin = _make_mixin()
         mem = MagicMock()
         mem.ingestion._jsonl = MagicMock()
+        mem.ingestion._jsonl.count_all.return_value = 5
 
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
         ):
             mixin.rebuild(mem, ["--dry-run"])
 
-        mixin._out.write.assert_called_once()
-        msg = mixin._out.write.call_args[0][0]
-        assert "dry-run" in msg
-        assert "5" in msg
+        all_messages = [c[0][0] for c in mixin._out.write.call_args_list]
+        assert any("dry-run" in msg for msg in all_messages)
+        assert any("5" in msg for msg in all_messages)
 
     def test_rebuild_writes_success(self) -> None:
         from unittest.mock import patch
 
+        from agent.memory.models import ConsistencyReport
+
         mixin = _make_mixin()
         mem = MagicMock()
         mem.ingestion._jsonl = MagicMock()
+        mem.ingestion._jsonl.count_all.return_value = 4
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=4, fts=4, vec=0
+        )
 
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
         ):
-            mixin.rebuild(mem, [])
+            mixin.rebuild(mem, ["--confirm"])
 
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]

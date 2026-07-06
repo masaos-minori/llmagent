@@ -132,9 +132,10 @@ def _make_memory_store():
         return (5, 5)
 
     store.import_from_jsonl = _import
+    store.check_consistency = lambda: SimpleNamespace(memories=3, fts=3, vec=0)
 
     # Mock the JSONL ingestion layer
-    jsonl = SimpleNamespace()
+    jsonl = SimpleNamespace(count_all=lambda: 5)
     ingestion = SimpleNamespace(_jsonl=jsonl)
 
     mem = SimpleNamespace(
@@ -194,7 +195,7 @@ class TestMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
         ):
-            mixin._cmd_memory("rebuild")
+            mixin._cmd_memory("rebuild --confirm")
 
         assert any("archive" in msg.lower() for msg in messages), (
             f"Rebuild output should mention 'archive', got: {messages}"
@@ -209,7 +210,7 @@ class TestMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
         ):
-            mixin._cmd_memory("rebuild")
+            mixin._cmd_memory("rebuild --confirm")
 
         assert any(
             "NOT replayed" in msg or "not replayed" in msg for msg in messages
@@ -226,9 +227,9 @@ class TestMemoryImportJsonlAlias:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
         ):
-            mixin._cmd_memory("import-jsonl")
+            mixin._cmd_memory("import-jsonl --confirm")
 
-        # Should produce the same output as /memory rebuild
+        # Should produce the same output as /memory rebuild --confirm
         assert any("Imported" in msg for msg in messages), (
             f"import-jsonl should produce import confirmation, got: {messages}"
         )

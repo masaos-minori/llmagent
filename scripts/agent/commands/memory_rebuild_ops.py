@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from agent.context import AgentContext
@@ -15,6 +16,15 @@ if TYPE_CHECKING:
 from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
 
 
+@dataclass
+class RebuildResult:
+    dry_run: bool
+    jsonl_count: int
+    sqlite_before: int
+    inserted: int | None = None
+    sqlite_after: int | None = None
+
+
 class MemoryRebuildOps:
     """Handles memory rebuild operations (rebuild, rebuild-fts, rebuild-vec, check-consistency)."""
 
@@ -22,37 +32,64 @@ class MemoryRebuildOps:
         self._ctx = ctx
         self._out = out
 
-    def rebuild(self, mem: MemoryServices, args: list[str]) -> None:
-        """Rebuild memories from JSONL archive."""
-        dry_run = "--dry-run" in args
+    def rebuild(self, mem: MemoryServices, args: list[str]) -> RebuildResult:
+        """Rebuild memories from JSONL archive.
+
+        Default is dry-run. Pass --confirm to perform the actual rebuild.
+        """
+        dry_run = "--confirm" not in args
+
         jsonl_store = mem.ingestion._jsonl
-        embed_dim = self._ctx.cfg.memory.memory_embed_dim
-        jsonl_count, inserted = import_from_jsonl(jsonl_store, dry_run=dry_run, embed_dim=embed_dim)
+        jsonl_count = jsonl_store.count_all()
+        consistency = mem.store.check_consistency()
+        sqlite_before = consistency.memories
+
+        self._out.write(f"  JSONL archive records:   {jsonl_count}")
+        self._out.write(f"  Current SQLite memories: {sqlite_before}")
+        self._out.write(f"  Expected after rebuild:  {jsonl_count}")
+        self._out.write("  WARNING: delete/pin/unpin operations are NOT replayed.")
+        self._out.write("           Deleted entries may be re-inserted from JSONL.")
+
         if dry_run:
-            self._out.write(
-                f"  [memory] (dry-run) would import from {jsonl_count} JSONL archive records"
+            self._out.write("  [dry-run] No changes made. Add --confirm to proceed.")
+            _emit_memory_audit(
+                self._ctx,
+                MemoryOpResult(
+                    ok=True,
+                    memory_id="",
+                    action="rebuild",
+                    dry_run=True,
+                    count=jsonl_count,
+                ),
             )
-        else:
-            self._out.write_success(
-                f"Imported {inserted} entries from {jsonl_count} JSONL archive records. "
-                "Note: deletions and pin state are NOT replayed. "
-                "Deleted entries may have been re-inserted."
+            return RebuildResult(
+                dry_run=True, jsonl_count=jsonl_count, sqlite_before=sqlite_before
             )
-            embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
-            if embed_enabled:
-                self._out.write(
-                    "  Note: memories_vec cleared -- embeddings not re-indexed."
-                    " Run /memory rebuild again after re-embedding or disable use to silence."
-                )
+
+        _, inserted = import_from_jsonl(jsonl_store, dry_run=False)
+        self._out.write_success(
+            f"Imported {inserted} entries from {jsonl_count} JSONL archive records."
+        )
         _emit_memory_audit(
             self._ctx,
             MemoryOpResult(
                 ok=True,
                 memory_id="",
                 action="rebuild",
-                dry_run=dry_run,
+                dry_run=False,
                 count=jsonl_count,
             ),
+        )
+
+        self.check_consistency(mem)
+
+        after_consistency = mem.store.check_consistency()
+        return RebuildResult(
+            dry_run=False,
+            jsonl_count=jsonl_count,
+            sqlite_before=sqlite_before,
+            inserted=inserted,
+            sqlite_after=after_consistency.memories,
         )
 
     def rebuild_fts(self, mem: MemoryServices) -> None:

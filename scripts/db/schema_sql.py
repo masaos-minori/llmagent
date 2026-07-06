@@ -11,7 +11,10 @@ Functions:
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
   build_eventbus_schema_sql() — return DDL for eventbus.sqlite (event bus message queue)
+  apply_workflow_migrations(conn) — apply incremental schema migrations to an existing workflow DB
 """
+
+import sqlite3
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -253,3 +256,13 @@ _WORKFLOW_MIGRATIONS: list[str] = [
 def build_workflow_schema_sql() -> str:
     """Return DDL for workflow.sqlite (metadata DB)."""
     return _WORKFLOW_SCHEMA
+
+
+def apply_workflow_migrations(conn: sqlite3.Connection) -> None:
+    """Apply incremental migrations to an existing workflow.sqlite; idempotent."""
+    for stmt in _WORKFLOW_MIGRATIONS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    conn.commit()
