@@ -23,6 +23,19 @@ class _SerializationEvent:
     trigger_tool: str
     reason: str
     tools_count: int
+    resource_scope: str = ""
+    is_write: bool = False
+    requires_serial: bool = False
+    scheduling_decision: str = ""
+
+
+@dataclass
+class ScheduledBatch:
+    """One concurrent execution unit: groups run concurrently; within each group,
+    execution is sequential when serialize_flags[i] is True, gathered when False."""
+
+    groups: list[list[dict]]
+    serialize_flags: list[bool]  # parallel to groups
 
 
 @dataclass
@@ -31,8 +44,8 @@ class _GroupMetadata:
     total_groups: int
     serialization_events: list[_SerializationEvent] = field(default_factory=list)
     # Each element is a batch of groups that can run concurrently.
-    # Groups within a batch are safe to gather(); batches run sequentially.
-    concurrent_groups: list[list[list[dict]]] = field(default_factory=list)
+    # Groups within a batch run concurrently; batches run sequentially.
+    concurrent_groups: list[ScheduledBatch] = field(default_factory=list)
 
 
 def build_execution_groups(
@@ -81,20 +94,25 @@ def build_execution_groups(
     # Build concurrent_groups: which batches of groups can run in parallel.
     # serial_barrier tools each get their own sequential batch.
     # write_first gets its own sequential batch (no scope — conservative).
-    # All resource-scope groups + parallel group share one concurrent batch.
-    concurrent_batch: list[list[dict]] = []
-    for scope_tcs in resource_groups.values():
-        concurrent_batch.append(scope_tcs)
-    if parallel:
-        concurrent_batch.append(parallel)
-
-    cgr: list[list[list[dict]]] = []
+    # All resource-scope groups + parallel group share one concurrent batch;
+    # serialize_flags=True for same-scope write groups, False for reads.
+    cgr: list[ScheduledBatch] = []
     for tc in serial_barrier:
-        cgr.append([[tc]])
+        cgr.append(ScheduledBatch(groups=[[tc]], serialize_flags=[False]))
     if write_first:
-        cgr.append([write_first])
-    if concurrent_batch:
-        cgr.append(concurrent_batch)
+        cgr.append(ScheduledBatch(groups=[write_first], serialize_flags=[False]))
+
+    has_concurrent = bool(resource_groups) or bool(parallel)
+    if has_concurrent:
+        batch_groups: list[list[dict]] = []
+        batch_flags: list[bool] = []
+        for scope_tcs in resource_groups.values():
+            batch_groups.append(scope_tcs)
+            batch_flags.append(True)  # same-scope writes run sequentially within group
+        if parallel:
+            batch_groups.append(parallel)
+            batch_flags.append(False)  # reads gathered concurrently
+        cgr.append(ScheduledBatch(groups=batch_groups, serialize_flags=batch_flags))
 
     metadata = _GroupMetadata(
         total_tools=len(tool_calls),
@@ -109,6 +127,9 @@ def build_execution_groups(
                 trigger_tool=name,
                 reason="requires_serial",
                 tools_count=1,
+                requires_serial=True,
+                is_write=True,
+                scheduling_decision="serial_barrier",
             )
         )
 
@@ -119,6 +140,9 @@ def build_execution_groups(
                 trigger_tool=trigger,
                 reason="resource_scope_conflict",
                 tools_count=len(scope_tcs),
+                resource_scope=scope,
+                is_write=True,
+                scheduling_decision="resource_scope",
             )
         )
 
@@ -129,6 +153,8 @@ def build_execution_groups(
                 trigger_tool=trigger,
                 reason="is_write_overlap",
                 tools_count=len(write_first),
+                is_write=True,
+                scheduling_decision="write_first",
             )
         )
 

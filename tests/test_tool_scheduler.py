@@ -246,8 +246,8 @@ class TestConcurrentGroups:
             },
         )
         # Both the scope group and parallel group should be in one concurrent batch
-        concurrent_batch = metadata.concurrent_groups[-1]
-        assert len(concurrent_batch) == 2
+        last_batch = metadata.concurrent_groups[-1]
+        assert len(last_batch.groups) == 2
 
     def test_two_scope_groups_share_one_concurrent_batch(self) -> None:
         tc_file = _tc("write_file")
@@ -259,8 +259,8 @@ class TestConcurrentGroups:
                 "github_push_files": _meta(resource_scope="github", is_write=True),
             },
         )
-        concurrent_batch = metadata.concurrent_groups[-1]
-        assert len(concurrent_batch) == 2
+        last_batch = metadata.concurrent_groups[-1]
+        assert len(last_batch.groups) == 2
 
     def test_serial_barrier_gets_own_batch(self) -> None:
         tc_serial = _tc("shell_run")
@@ -273,7 +273,7 @@ class TestConcurrentGroups:
             },
         )
         # First batch must contain only the serial barrier
-        assert metadata.concurrent_groups[0] == [[tc_serial]]
+        assert metadata.concurrent_groups[0].groups == [[tc_serial]]
 
     def test_write_first_gets_own_sequential_batch(self) -> None:
         tc_write = _tc("write_file")
@@ -287,7 +287,7 @@ class TestConcurrentGroups:
         )
         # write_first and parallel must be in separate batches
         assert len(metadata.concurrent_groups) == 2
-        assert metadata.concurrent_groups[0] == [[tc_write]]
+        assert metadata.concurrent_groups[0].groups == [[tc_write]]
 
     def test_empty_calls_empty_concurrent_groups(self) -> None:
         _groups, metadata = build_execution_groups([], {})
@@ -353,4 +353,4 @@ class TestToolRunnerDefaultSpec:
         # write_first must be empty: both groups end up in the same concurrent batch
         assert len(metadata.concurrent_groups) == 1
         # one group for write_file scope, one for the parallel read
-        assert len(metadata.concurrent_groups[0]) == 2
+        assert len(metadata.concurrent_groups[0].groups) == 2

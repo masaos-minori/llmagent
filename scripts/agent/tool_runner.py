@@ -88,6 +88,23 @@ logger = logging.getLogger(__name__)
 _TOOL_RESULT_MAX_CHARS = 500
 
 
+async def _run_group_calls(
+    group: list[dict],
+    serialize: bool,
+    ctx: AgentContext,
+    turn: int,
+) -> list[Any]:
+    """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise."""
+    if serialize:
+        results: list[Any] = []
+        for tc in group:
+            results.append(await execute_one_tool_call(ctx, tc, turn))
+        return results
+    return list(
+        await asyncio.gather(*(execute_one_tool_call(ctx, tc, turn) for tc in group))
+    )
+
+
 async def execute_one_tool_call(
     ctx: AgentContext,
     tc: dict,
@@ -294,17 +311,17 @@ async def _execute_with_dag(
 
     call_order = {tc["id"]: i for i, tc in enumerate(approved_calls)}
     results: list[Any] = []
-    for concurrent_batch in metadata.concurrent_groups:
-        is_concurrent = len(concurrent_batch) > 1
+    for batch in metadata.concurrent_groups:
+        is_concurrent = len(batch.groups) > 1
         logger.debug(
             "ROUND_EXEC: running %d group(s) %s",
-            len(concurrent_batch),
+            len(batch.groups),
             "concurrently" if is_concurrent else "sequentially",
         )
         batch_results = await asyncio.gather(
             *(
-                asyncio.gather(*(execute_one_tool_call(ctx, tc, turn) for tc in group))
-                for group in concurrent_batch
+                _run_group_calls(group, serialize, ctx, turn)
+                for group, serialize in zip(batch.groups, batch.serialize_flags)
             )
         )
         results.extend(r for group_res in batch_results for r in group_res)
@@ -318,6 +335,10 @@ async def _execute_with_dag(
             "affected_count": se.tools_count,
             "mode": "serial",
             "serial_reason": se.reason,
+            "resource_scope": se.resource_scope,
+            "is_write": se.is_write,
+            "requires_serial": se.requires_serial,
+            "scheduling_decision": se.scheduling_decision,
             "elapsed_ms": round(elapsed_ms, 1),
             "timestamp": ts,
         }
@@ -333,7 +354,9 @@ async def _execute_with_dag(
                 elapsed_ms=elapsed_ms,
                 reason=se.reason,
             )
-    is_concurrent_round = any(len(batch) > 1 for batch in metadata.concurrent_groups)
+    is_concurrent_round = any(
+        len(batch.groups) > 1 for batch in metadata.concurrent_groups
+    )
     scheduling_mode = "dag_concurrent" if is_concurrent_round else "dag_sequential"
     write_round_exec(
         ctx,
