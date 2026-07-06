@@ -141,13 +141,13 @@ When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_
 
 ---
 
-## MCP サーバー責務分割
+## MCP Server Responsibility Split
 
-| ファイル | 責務 |
+| File | Responsibility |
 |---|---|
-| `scripts/mcp/rag_pipeline/server.py` | HTTP エントリポイント + ルート定義 |
-| `scripts/mcp/rag_pipeline/service.py` | パイプラインアダプタ (ライフサイクル + レスポンスフォーマット) |
-| `scripts/rag/pipeline.py` | コア RAG ロジック |
+| `scripts/mcp/rag_pipeline/server.py` | HTTP entry point + route definitions |
+| `scripts/mcp/rag_pipeline/service.py` | Pipeline adapter (lifecycle + response formatting) |
+| `scripts/rag/pipeline.py` | Core RAG logic |
 
 ## Related Chapters
 

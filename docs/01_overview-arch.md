@@ -1,186 +1,186 @@
-# 概要・アーキテクチャ
+# Overview & Architecture
 
-ファイル構成 → [`01_overview-files.md`](01_overview-files.md)
+File structure → [`01_overview-files.md`](01_overview-files.md)
 
-## 1. 概要・目的
+## 1. Overview & Purpose
 
-エージェント + MCP サーバによるマルチエージェントオーケストレーションシステムの構築
-- llama.cpp を用いた LLM サーバ群
-- 単一責務ツール実行 MCP サーバ群
-- 日本語・英語双方に対応した LLM エージェント
-- SQLite ベースのベクトル DB による RAG 環境
-- 対象 OS は Gentoo Linux or Ubuntu Linux
-- 用途はプログラム開発
+Build a multi-agent orchestration system with agents + MCP servers
+- LLM server cluster using llama.cpp
+- Single-responsibility tool-execution MCP server cluster
+- LLM agent supporting both Japanese and English
+- RAG environment with SQLite-based vector DB
+- Target OS: Gentoo Linux or Ubuntu Linux
+- Use case: program development
 
-## 2. アーキテクチャ
+## 2. Architecture
 
-### 2.1 プロセス構成
+### 2.1 Process Configuration
 
 ```
-ユーザー
-    │ 対話入力 (agent[chat]> / agent[code]> プロンプト)
+User
+    │ Interactive input (agent[chat]> / agent[code]> prompt)
     ▼
 ┌──────────────────────────────────────────────────────┐
-│  agent.py (CLI REPL ツール)                           │
-│  入力 → RAG 検索 → LLM 呼出 → MCP ツール実行 → 回答  │
+│  agent.py (CLI REPL tool)                            │
+│  Input → RAG search → LLM call → MCP tool execution → Answer │
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (http)
-(RAG 検索時)                       11 サーバ (:8004〜:8014)
+:8003 embed-LLM  :8001 agent-LLM   MCP server cluster (http)
+(RAG search time)                   10 servers (:8004~:8010, :8012~:8014)
 ```
 
-#### 実装上の補足
+#### Implementation Notes
 
-- エントリポイントは `scripts/agent/__main__.py` であり、`python -m agent` で起動する。図中の `agent.py` はこのモジュールエントリを指す。(根拠: `__main__.py` の docstring)
-- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/tool_executor.py` の `HttpTransport`, stdio トランスポートは削除済み)
-- 起動シーケンス (MCP サーバ起動・ヘルスチェック・セキュリティ監査・プロンプトセットアップ) は `agent/startup.py` の `StartupOrchestrator` に分離されており、`AgentREPL.run()` から委譲される。(根拠: `agent/startup.py`)
+- The entry point is `scripts/agent/__main__.py`, started via `python -m agent`. The `agent.py` in the diagram refers to this module entry. (Evidence: docstring of `__main__.py`)
+- MCP server transports can be configured as both `http` / `stdio`, but the current implementation uses HTTP POST `/v1/call_tool` by `ToolExecutor`. (Evidence: `HttpTransport` in `shared/tool_executor.py`, stdio transport removed)
+- The startup sequence (MCP server startup, health check, security audit, prompt setup) is separated into `StartupOrchestrator` in `agent/startup.py`, delegated from `AgentREPL.run()`. (Evidence: `agent/startup.py`)
 
-#### 設定ファイル分離方針
+#### Configuration File Separation Policy
 
-各プロセス (エージェント・各 MCP サーバー・crawler・ingester・chunk_splitter) は独立して動作し、**自身に対応する設定ファイル 1 つのみを読み込む**。他プロセスの設定ファイル (`agent.toml` を含む) は読み込まない。DB パス・外部サービス URL などが複数プロセスで必要な場合は共通ファイルを作らず、各プロセスの設定ファイルに個別に記述する。
+Each process (agent, each MCP server, crawler, ingester, chunk_splitter) operates independently and **reads only its corresponding configuration file**. It does not read other processes' config files (including `agent.toml`). If DB paths or external service URLs are needed by multiple processes, do not create a common file — write them individually in each process's config file.
 
-| プロセス | 設定ファイル |
+| Process | Config file |
 |---|---|
 | agent | `config/agent.toml` |
-| 各 MCP サーバー | `config/<key>_mcp_server.toml` |
+| Each MCP server | `config/<key>_mcp_server.toml` |
 | crawler | `config/crawler.toml` |
 | ingester | `config/ingester.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-詳細 → [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-プロセス分離方針-config-isolation-policy)
+Details → [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-process-separation-policy-config-isolation-policy)
 
-| サービス | ポート | モデル | 役割 |
+| Service | Port | Model | Role |
 |---|---|---|---|
-| `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
-| `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
-| `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (DuckDuckGo) |
-| `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
-| `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
-| `file-write-mcp` | 8007 | — | ファイル書き込み MCP サーバ |
-| `file-delete-mcp` | 8008 | — | ファイル削除 MCP サーバ |
-| `shell-mcp` | 8009 | — | シェルコマンド実行 MCP サーバ |
-| `rag-pipeline-mcp` | 8010 | — | RAG パイプライン MCP サーバ |
-| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP サーバ |
-| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP サーバ |
-| `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |
+| `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | LLM (MQE and reranking) |
+| `embed-llm` | 8003 | multilingual-E5-small | Text → 384-dim vector conversion |
+| `web-search-mcp` | 8004 | — | Web search MCP server (DuckDuckGo) |
+| `file-read-mcp` | 8005 | — | File read MCP server |
+| `github-mcp` | 8006 | — | GitHub operations MCP server |
+| `file-write-mcp` | 8007 | — | File write MCP server |
+| `file-delete-mcp` | 8008 | — | File delete MCP server |
+| `shell-mcp` | 8009 | — | Shell command execution MCP server |
+| `rag-pipeline-mcp` | 8010 | — | RAG pipeline MCP server |
+| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP server |
+| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP server |
+| `git-mcp` | 8014 | — | Local git operations MCP server |
 
-### 2.2 取込パイプライン
+### 2.2 Ingestion Pipeline
 
-詳細 → [`03_rag_02_ingestion_pipeline.md`](03_rag_02_ingestion_pipeline.md)
-
-```
-target_urls → crawler.py (BFS クロール) → rag-src/*.json
-           → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.json
-           → ingester.py (embed → SQLite INSERT) → rag-src/registered/
-```
-
-### 2.3 クエリパイプライン
-
-詳細 → [`03_rag_03_query_pipeline.md`](03_rag_03_query_pipeline.md)
+Details → [`03_rag_02_ingestion_pipeline.md`](03_rag_02_ingestion_pipeline.md)
 
 ```
-ユーザー入力
-  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
-  → LLM (:8001) → tool_calls → MCP サーバ群 (:8004〜:8014)
-  → 最終回答 (SSE ストリーミング)
+target_urls → crawler.py (BFS crawl) → rag-src/*.json
+            → chunk_splitter.py (JA/EN/code splitting) → rag-src/chunk/*.json
+            → ingester.py (embed → SQLite INSERT) → rag-src/registered/
 ```
 
-#### 実装上の補足
+### 2.3 Query Pipeline
 
-- ターン処理は 4 層に分離されている: `AgentREPL`(REPL ループ) → `Orchestrator`(ターン制御・ワークフロー管理) → `LLMTurnRunner`(LLM ストリーミング + 内部ツールループ) → `agent/tool_runner.py`(ツール実行)。各層の責務は `agent/repl.py` の docstring で宣言されている。
-- MDQ/RAG ツール選択: `agent/mdq_rag_classifier.py` がクエリ文字列を解析し、Markdown 構造系キーワードを含む場合は MDQ ツール、それ以外は RAG ツールを優先するよう `system` ロールのエフェメラルメッセージとして hint をhistory に注入する。設定で固定も可能。(根拠: `agent/orchestrator.py` `_classify_and_inject_mode`)
-- ツールループガード: 同一ターン内で重複ツール呼び出し (`dedup`)・失敗済み呼び出しの再試行 (`retry`)・ラウンド指紋の繰り返し (`cycle`)・連続エラー上限 (`consecutive_errors`) の 4 種の異常を検出して LLM に停止ヒントを返す。(根拠: `agent/tool_loop_guard.py`)
-- ワークフローエンジン: `agent/workflow/workflow_engine.py` が plan → execute → [approval gate] → verify のステージ遷移を管理する。`/approve` / `/reject` スラッシュコマンドで人間承認ゲートを通過させる。ターン開始時に承認待ち状態であれば LLM 処理はブロックされる。(根拠: `agent/orchestrator.py` `handle_turn`, `_handle_workflow_engine`)
+Details → [`03_rag_03_query_pipeline.md`](03_rag_03_query_pipeline.md)
 
-**ターン内の処理順序**
+```
+User input
+  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → Context injection
+  → LLM (:8001) → tool_calls → MCP server cluster (:8004~:8010, :8012~:8014)
+  → Final answer (SSE streaming)
+```
 
-`Orchestrator._process_turn()` の実行順序はコードで確定している (`orchestrator.py`):
+#### Implementation Notes
 
-1. メモリ注入 (`_handle_memory_injection`) — セマンティックメモリを `_memory_injected` フラグ付きのシステムメッセージとして追加
-2. MDQ/RAG ヒント注入 (`_classify_and_inject_mode`) — `_ephemeral` フラグ付きシステムメッセージとして追加
-3. ユーザメッセージ追加 (`_append_user_message`) — システムプロンプト同期後に `history` へ追加し `session.sqlite` へ保存
-4. 履歴圧縮 (`_handle_history_compression`) — 文字数/トークン超過時のみ LLM 要約を実行
-5. LLM 呼び出し (`_handle_llm_turn`) — LLMTurnRunner によるストリーミング + ツールループ
+- Turn processing is separated into 4 layers: `AgentREPL` (REPL loop) → `Orchestrator` (turn control, workflow management) → `LLMTurnRunner` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (tool execution). The responsibilities of each layer are declared in the docstring of `agent/repl.py`.
+- MDQ/RAG tool selection: `agent/mdq_rag_classifier.py` parses the query string and injects a hint into history as an ephemeral message for the `system` role, prioritizing MDQ tools when Markdown structural keywords are present, otherwise RAG tools. Can also be fixed via config. (Evidence: `agent/orchestrator.py` `_classify_and_inject_mode`)
+- Tool loop guard: Detects 4 types of anomalies within the same turn — duplicate tool calls (`dedup`), retry of failed calls (`retry`), round fingerprint repetition (`cycle`), and consecutive error limit (`consecutive_errors`) — and returns a stop hint to the LLM. (Evidence: `agent/tool_loop_guard.py`)
+- Workflow engine: `agent/workflow/workflow_engine.py` manages stage transitions for plan → execute → [approval gate] → verify. Pass human approval gates via `/approve` / `/reject` slash commands. If approval is pending, LLM processing is blocked at turn start. (Evidence: `agent/orchestrator.py` `handle_turn`, `_handle_workflow_engine`)
 
-`_memory_injected` および `_ephemeral` フラグを持つメッセージは、各ターン開始時の `_sync_system_prompt()` で除去される。永続セッション履歴には保存されない。
+**Processing Order Within a Turn**
 
-**workflow_mode の3種**
+The execution order of `Orchestrator._process_turn()` is fixed in code (`orchestrator.py`):
 
-| workflow_mode | 動作 | 失敗時挙動 |
+1. Memory injection (`_handle_memory_injection`) — adds semantic memory as a system message with `_memory_injected` flag
+2. MDQ/RAG hint injection (`_classify_and_inject_mode`) — adds as a system message with `_ephemeral` flag
+3. User message addition (`_append_user_message`) — adds to `history` after syncing the system prompt, then persists to `session.sqlite`
+4. History compression (`_handle_history_compression`) — runs LLM summarization only when character/token limits are exceeded
+5. LLM call (`_handle_llm_turn`) — streaming + tool loop via LLMTurnRunner
+
+Messages with `_memory_injected` and `_ephemeral` flags are removed in `_sync_system_prompt()` at the start of each turn. They are not saved to persistent session history.
+
+**Three workflow_mode Types**
+
+| workflow_mode | Behavior | Failure behavior |
 |---|---|---|
-| `auto` (デフォルト) | ワークフロー定義が存在すれば有効化 | ロード失敗は警告ログで継続 |
-| `required` | ワークフロー定義が必須 | ロード失敗は `RuntimeError` で起動中断 |
-| `disabled` | 常にダイレクト実行 | ワークフローを完全バイパス |
+| `auto` (default) | Activates if a workflow definition exists | Continues with warning log on load failure |
+| `required` | Workflow definition is mandatory | Aborts startup with `RuntimeError` on load failure |
+| `disabled` | Always direct execution | Completely bypasses workflow |
 
-`workflow_require_approval=True` で execute → verify 間に人間承認ゲートを挿入できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も `StartupOrchestrator._recover_pending_approvals()` が復元する。(根拠: `agent/config_dataclasses.py`, `agent/orchestrator.py`, `agent/startup.py`)
+With `workflow_require_approval=True`, a human approval gate can be inserted between execute → verify. Pending approval state is persisted in `workflow.sqlite` and restored after restart by `StartupOrchestrator._recover_pending_approvals()`. (Evidence: `agent/config_dataclasses.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
-**MCP サーバの startup_mode**
+**MCP Server startup_mode**
 
-`McpServerConfig.startup_mode` で2種類:
+Two types via `McpServerConfig.startup_mode`:
 
-- `persistent` (デフォルト): 外部で常時起動済みのサーバに接続する
-- `subprocess`: `StartupOrchestrator._start_servers()` がエージェント起動時にサブプロセスとして起動し、`/health` ポーリングで準備完了を確認する。起動失敗は `RuntimeError` ではなく警告ログに留め、REPL 起動を継続する (fail-open)。
+- `persistent` (default): Connects to servers already running externally
+- `subprocess`: `StartupOrchestrator._start_servers()` launches the server as a subprocess at agent startup and confirms readiness via `/health` polling. Startup failure is logged as a warning rather than raising `RuntimeError`, allowing REPL startup to continue (fail-open).
 
-(根拠: `shared/mcp_config.py` `StartupMode`, `agent/startup.py` `_start_servers`)
+(Evidence: `shared/mcp_config.py` `StartupMode`, `agent/startup.py` `_start_servers`)
 
-### 2.4 エージェント機能・コマンド一覧
+### 2.4 Agent Features & Command List
 
-詳細 → [`05_agent_07_cli-and-commands.md`](05_agent_07_cli-and-commands.md)
+Details → [`05_agent_07_cli-and-commands.md`](05_agent_07_cli-and-commands.md)
 
-### 2.5 実装済み機能サマリ
+### 2.5 Implemented Features Summary
 
-| 機能 | 実装場所 |
+| Feature | Implementation Location |
 |---|---|
-| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/pipeline.py` |
-| MCP ツールコーリング (HTTP, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
-| メモリレイヤー (semantic/episodic) | `agent/memory/` |
-| セッション永続化・復元 | `agent/session.py`, `db/` |
-| コンテキスト圧縮 (LLM 要約) | `agent/history.py` |
-| ツール結果 TTL キャッシュ | `shared/tool_cache.py`, `shared/tool_executor.py` |
-| SSE ストリーミング | `shared/llm_client.py` |
-| スラッシュコマンド群 | `agent/commands/` |
-| ツールループガード (dedup/cycle/retry/error 上限) | `agent/tool_loop_guard.py` |
-| ワークフローエンジン (plan/execute/approval/verify) | `agent/workflow/` |
-| MDQ/RAG クエリルーティング | `agent/mdq_rag_classifier.py` |
-| 依存性注入ハブ (AgentContext) | `agent/context.py` |
-| 診断ストア (ターン/セッション統計) | `agent/diagnostic_store.py` |
+| RAG search (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/pipeline.py` |
+| MCP tool calling (HTTP, 10 servers) | `agent/tool_runner.py`, `shared/tool_executor.py` |
+| Memory layer (semantic/episodic) | `agent/memory/` |
+| Session persistence & restore | `agent/session.py`, `db/` |
+| Context compression (LLM summarization) | `agent/history.py` |
+| Tool result TTL cache | `shared/tool_cache.py`, `shared/tool_executor.py` |
+| SSE streaming | `shared/llm_client.py` |
+| Slash commands | `agent/commands/` |
+| Tool loop guard (dedup/cycle/retry/error limits) | `agent/tool_loop_guard.py` |
+| Workflow engine (plan/execute/approval/verify) | `agent/workflow/` |
+| MDQ/RAG query routing | `agent/mdq_rag_classifier.py` |
+| Dependency injection hub (AgentContext) | `agent/context.py` |
+| Diagnostic store (turn/session stats) | `agent/diagnostic_store.py` |
 
-#### 実装上の補足
+#### Implementation Notes
 
-**共有状態と依存性注入**
+**Shared State and Dependency Injection**
 
-`AgentContext` (`agent/context.py`) が全サービスの依存性注入ハブとして機能する。`ConversationState`・`TurnState`・`RuntimeStats`・`WorkflowState`・`AppServices` を合成し、`AgentREPL`・`Orchestrator`・各コマンドハンドラが同一インスタンスを参照する。(根拠: `agent/context.py`)
+`AgentContext` (`agent/context.py`) serves as the DI hub for all services. It composes `ConversationState`, `TurnState`, `RuntimeStats`, `WorkflowState`, and `AppServices`, with `AgentREPL`, `Orchestrator`, and each command handler referencing the same instance. (Evidence: `agent/context.py`)
 
-**メモリレイヤーの動作モード**
+**Memory Layer Activation Modes**
 
-`MemoryServices.get_activation_mode()` が起動時の状態に応じて 4 種のモードを返す: `disabled` (設定で無効)・`fts-only` (embed サーバ不在)・`degraded` (embed サーキットブレーカー開放)・`hybrid` (正常動作)。セマンティック検索が使えない場合は FTS のみにフォールバックし、エラーとして扱わない設計。(根拠: `agent/memory/services.py`)
+`MemoryServices.get_activation_mode()` returns one of 4 modes depending on startup state: `disabled` (disabled by config), `fts-only` (embed server unavailable), `degraded` (embed circuit breaker open), `hybrid` (normal operation). If semantic search is unavailable, it falls back to FTS only without treating it as an error. (Evidence: `agent/memory/services.py`)
 
-**ツールルーティング**
+**Tool Routing**
 
-`shared/route_resolver.py` がツール名をサーバキーに解決する。ルーティング優先順位は (1) 起動時の `/v1/tools` live discovery マップ、(2) `shared/tool_registry.py` の静的レジストリ。設定 `tool_names` はルーティングには使用せず、ドリフト検証用のメタデータのみ。(根拠: `shared/route_resolver.py`)
+`shared/route_resolver.py` resolves tool names to server keys. Routing priority: (1) `/v1/tools` live discovery map at startup, (2) static registry in `shared/tool_registry.py`. The `tool_names` config is not used for routing — only as metadata for drift validation. (Evidence: `shared/route_resolver.py`)
 
-**プラグインシステム**
+**Plugin System**
 
-`factory.build_agent_context()` の末尾で `_init_plugin_registry()` が呼ばれ、`plugins/` ディレクトリからツールおよびスラッシュコマンドを動的ロードする。設定による動作制御:
+At the end of `factory.build_agent_context()`, `_init_plugin_registry()` is called to dynamically load tools and slash commands from the `plugins/` directory. Config-driven behavior control:
 
-- `plugin_tool_override=False` (デフォルト): 既存 MCP ツール名と衝突するプラグインは拒否
-- `plugin_strict=False` (デフォルト): ロード失敗は警告ログに留め、エージェント起動は継続 (fail-open)
+- `plugin_tool_override=False` (default): Plugins conflicting with existing MCP tool names are rejected
+- `plugin_strict=False` (default): Load failures are logged as warnings, agent startup continues (fail-open)
 
-(根拠: `agent/factory.py` `_init_plugin_registry`)
+(Evidence: `agent/factory.py` `_init_plugin_registry`)
 
-**sqlite-vec 拡張の適用範囲**
+**Scope of sqlite-vec Extension Application**
 
-`db/helper.py` の `SQLiteHelper` は `target="rag"` 時のみ sqlite-vec 拡張 (`vec0.so`) をロードする。`session`・`workflow`・`eventbus` DB には適用しない。ベクトル演算を RAG DB に限定する意図的な分離。(根拠: `db/helper.py` `_default_load_vec = resolved == "rag"`)
+The `SQLiteHelper` in `db/helper.py` loads the sqlite-vec extension (`vec0.so`) only when `target="rag"`. It is not applied to `session`, `workflow`, or `eventbus` DBs. Intentional separation limiting vector operations to the RAG DB. (Evidence: `db/helper.py` `_default_load_vec = resolved == "rag"`)
 
-**セッション終了時の診断保存**
+**Diagnostic Save on Session End**
 
-`AgentREPL._run_repl_loop()` の `finally` ブロックで以下を実行する:
+In the `finally` block of `AgentREPL._run_repl_loop()`, the following are executed:
 
-1. `_persist_session_diagnostics()` — ターン数・ツール呼出数・レイテンシ・ワークフロー統計を `DiagnosticStore` に保存
-2. `_persist_session_memories()` — セッション履歴からルールベースでメモリを抽出・永続化
-3. `session.sqlite` に対して WAL TRUNCATE チェックポイントを実行してからコネクションをクローズ
+1. `_persist_session_diagnostics()` — saves turn count, tool call count, latency, and workflow stats to `DiagnosticStore`
+2. `_persist_session_memories()` — extracts and persists memory from session history via rule-based extraction
+3. Executes WAL TRUNCATE checkpoint on `session.sqlite` before closing the connection
 
-診断情報は `/db` コマンドまたは `tool_results` テーブルへのクエリで参照できる。(根拠: `agent/repl.py` `_run_repl_loop`, `_persist_session_diagnostics`, `_close_resources`)
+Diagnostic info can be referenced via the `/db` command or querying the `tool_results` table. (Evidence: `agent/repl.py` `_run_repl_loop`, `_persist_session_diagnostics`, `_close_resources`)
 
 ---

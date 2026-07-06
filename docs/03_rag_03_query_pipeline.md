@@ -29,11 +29,11 @@ RagPipeline.augment(query)
 **Caller:** `scripts/mcp/rag_pipeline/service.py` (`RagPipelineMCPService`). Agent REPL does not
 call `RagPipeline` directly.
 
-### MCP サーバー呼び出しパス
+### MCP Server Call Path
 
 ```
-MCP クライアント
-  → scripts/mcp/rag_pipeline/server.py (HTTP ルート)
+MCP Client
+  → scripts/mcp/rag_pipeline/server.py (HTTP route)
     → RagPipelineMCPService.run_pipeline() (service.py)
       → RagPipeline.run() (scripts/rag/pipeline.py)
 ```
@@ -382,7 +382,7 @@ Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapse
 | Constant | Value | Description |
 |---|---|---|
 | `_MAX_FTS_TOKENS` | 20 | Maximum tokens in an FTS5 query |
-| `_FTS_KEEP_POS` | `{"名詞", "動詞", "形容詞"}` | Sudachi POS categories retained for Japanese tokens |
+| `_FTS_KEEP_POS` | `{"noun", "verb", "adjective"}` | Sudachi POS categories retained for Japanese tokens |
 
 **Lazy Sudachi loading:**
 
