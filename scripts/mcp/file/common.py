@@ -10,6 +10,9 @@ import os
 import stat as _stat
 from pathlib import Path
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 
 class FileAuthorizationError(RuntimeError):
     """Raised when a path/permission policy check fails (HTTP 403)."""
@@ -83,3 +86,35 @@ def _build_health_deps() -> dict[str, str]:
     except OSError as e:
         deps["filesystem"] = f"check failed: {e}"
     return deps
+
+
+# ── Common exception handlers and health endpoint ─────────────────────────────
+
+
+async def _on_auth_error(_req: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+async def _on_not_found(_req: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+async def _on_validation_error(_req: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
+
+
+async def _health() -> JSONResponse:
+    deps = _build_health_deps()
+    ready = len(deps) == 0
+    return JSONResponse(
+        {
+            "status": "ok" if ready else "degraded",
+            "ready": ready,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": not ready,
+            "dependencies": deps,
+            "details": {},
+        },
+        status_code=200 if ready else 503,
+    )

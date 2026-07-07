@@ -15,22 +15,13 @@ import sqlite3
 from fastapi.responses import JSONResponse
 from shared.config_loader import ConfigLoader
 
+from mcp.health_response import make_health_response
+
 
 def _degraded_response(
     deps: dict[str, str], details: dict[str, object]
 ) -> JSONResponse:
-    return JSONResponse(
-        {
-            "status": "degraded",
-            "ready": False,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": True,
-            "dependencies": deps,
-            "details": details,
-        },
-        status_code=503,
-    )
+    return make_health_response(deps, details)
 
 
 def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
@@ -119,16 +110,4 @@ def check_health() -> JSONResponse:
     except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
         deps["config"] = f"check failed: {e}"
 
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": details,
-        },
-        status_code=200 if ready else 503,
-    )
+    return make_health_response(deps, details)

@@ -260,7 +260,7 @@ class WriteFileService:
 
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")
 
-  # ── Dispatch handlers: format service results as plain text for the LLM ──
+    # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_write_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(

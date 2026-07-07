@@ -30,6 +30,14 @@ def _log_retry(rag_url: str, attempt: int, error: Exception) -> None:
     )
 
 
+def _set_fallback_reason(
+    set_fallback_reason: Callable[[str], None] | None, reason: str
+) -> None:
+    """Call the fallback reason callback if provided."""
+    if set_fallback_reason is not None:
+        set_fallback_reason(reason)
+
+
 async def call_rag_service(
     http: httpx.AsyncClient,
     rag_url: str,
@@ -133,8 +141,9 @@ async def call_rag_service(
                     rag_url,
                     e,
                 )
-                if set_fallback_reason is not None:
-                    set_fallback_reason(f"http_client_error: {e.response.status_code}")
+                _set_fallback_reason(
+                    set_fallback_reason, f"http_client_error: {e.response.status_code}"
+                )
                 return None, e.response.status_code, 0.0
             _log_retry(rag_url, attempt, e)
         except httpx.TransportError as e:
@@ -145,8 +154,7 @@ async def call_rag_service(
                 rag_url,
                 e,
             )
-            if set_fallback_reason is not None:
-                set_fallback_reason(f"http_parse_error: {e}")
+            _set_fallback_reason(set_fallback_reason, f"http_parse_error: {e}")
             return None, None, 0.0
         if attempt < _MAX_ATTEMPTS - 1:
             await asyncio.sleep(min(2**attempt, 5))
@@ -156,6 +164,7 @@ async def call_rag_service(
         rag_url,
         _MAX_ATTEMPTS,
     )
-    if set_fallback_reason is not None:
-        set_fallback_reason(f"http_max_retries: {_MAX_ATTEMPTS} attempts failed")
+    _set_fallback_reason(
+        set_fallback_reason, f"http_max_retries: {_MAX_ATTEMPTS} attempts failed"
+    )
     return None, None, 0.0

@@ -127,6 +127,7 @@ class GitService(GitSecurityGuards):
 
    # ── Read-only tools ───────────────────────────────────────────────────────
 
+
     async def git_status(self, args: ToolArgs) -> str:
 
         req = GitStatusRequest(**args)

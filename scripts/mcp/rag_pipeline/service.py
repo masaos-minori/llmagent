@@ -126,6 +126,11 @@ class RagPipelineMCPService:
 
         return _fn, cast(PipelineCapture, captured)
 
+    def _build_selected_hits(self, last_fetch_result: RagPipelineLike | None) -> list[dict[str, Any]]:
+        """Build selected_hits list from pipeline fetch result."""
+        _fetch = last_fetch_result
+        return [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
+
     async def run_pipeline(self, req: RagRunRequest) -> RagRunResponse:
         """Execute MQE→Search→RRF→Rerank→Dedup→Augment and return formatted result."""
         pipeline = self._pipeline_or_raise()
@@ -136,10 +141,7 @@ class RagPipelineMCPService:
             debug_fn=capture_fn if req.debug else None,
             history_context=history_str,
         )
-        _fetch = pipeline.last_fetch_result
-        selected_hits: list[dict[str, Any]] = (
-            [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
-        )
+        selected_hits = self._build_selected_hits(pipeline.last_fetch_result)
         return RagRunResponse(
             query=req.query,
             augmented_text=augmented_text,
@@ -156,10 +158,7 @@ class RagPipelineMCPService:
             debug_fn=capture_fn,
             history_context=history_str,
         )
-        _fetch = pipeline.last_fetch_result
-        selected_hits: list[dict[str, Any]] = (
-            [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
-        )
+        selected_hits = self._build_selected_hits(pipeline.last_fetch_result)
 
         return RagDebugResponse(
             query=req.query,

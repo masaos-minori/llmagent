@@ -56,7 +56,10 @@ def parse_targets_file(path: Path) -> list[tuple[str, str]]:
     target_raw: list[list[str]] = data.get("target_urls", [])
     result: list[tuple[str, str]] = []
     for i, entry in enumerate(target_raw):
-        if not isinstance(entry, list | tuple) or len(entry) != _TARGET_URL_ENTRY_LENGTH:
+        if (
+            not isinstance(entry, list | tuple)
+            or len(entry) != _TARGET_URL_ENTRY_LENGTH
+        ):
             raise ValueError(
                 f"targets-file entry [{i}] must be a 2-element list [url, lang]"
             )
@@ -73,6 +76,7 @@ def parse_targets_file(path: Path) -> list[tuple[str, str]]:
             )
         result.append((url, lang))
     return result
+
 
 # Unicode code point ranges for CJK character detection in detect_lang()
 _HIRAGANA_KATAKANA_START = "぀"

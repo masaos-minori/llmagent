@@ -36,10 +36,11 @@ Available endpoints:
   GET  /health                 Health check
 """
 
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
-from shared.logger import Logger
+from fastapi.responses import JSONResponse
 
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
@@ -54,11 +55,12 @@ from mcp.github.server_repository import router as repo_router
 from mcp.github.service_dispatch import GitHubService
 from mcp.github.service_init import _GITHUB_TOKEN, build_service
 from mcp.github.tools import TOOL_LIST
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
-logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
+logger = logging.getLogger(__name__)
 
 _cfg = GitHubConfig.load()  # noqa: F821
 _service: GitHubService = build_service(_cfg)
@@ -87,21 +89,13 @@ app.include_router(pr_router)
 
 
 @app.get("/health")
-async def health() -> dict[str, Any]:
+async def health() -> JSONResponse:
     """Health check endpoint. Returns GitHub token availability."""
     deps: dict[str, str] = {}
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
-    ready = len(deps) == 0
-    return {
-        "status": "ok" if ready else "degraded",
-        "ready": ready,
-        "liveness": True,
-        "restart_recommended": False,
-        "operator_action_required": not ready,
-        "dependencies": deps,
-        "details": {},
-    }
+    details: dict[str, object] = {"service": "github-mcp"}
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

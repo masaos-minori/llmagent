@@ -26,10 +26,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
+from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.git.models import GitConfig, GitServiceError
 from mcp.git.service import build_service
 from mcp.git.tools import TOOL_LIST
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 
@@ -74,11 +76,24 @@ async def list_tools() -> dict[str, list[dict[str, object]]]:
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     t0 = time.perf_counter()
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     r = await _dispatch_git_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=req.args.get("repo", ""),
+        outcome="error" if r.is_error else "ok",
+        server_key="git",
+    )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
@@ -90,19 +105,8 @@ async def health() -> JSONResponse:
             deps["git"] = "git not found in PATH"
     except OSError:
         deps["git"] = "check failed"
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    details: dict[str, object] = {"service": "git-mcp"}
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
