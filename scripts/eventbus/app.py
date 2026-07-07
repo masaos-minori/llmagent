@@ -113,7 +113,9 @@ async def replay(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
-    return await replay_route(request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset)
+    return await replay_route(
+        request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset
+    )
 
 
 @app.get("/subscribe")
@@ -123,7 +125,9 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
-    return await subscribe_route(request, topic=topic, since_seq=since_seq, consumer_id=consumer_id)
+    return await subscribe_route(
+        request, topic=topic, since_seq=since_seq, consumer_id=consumer_id
+    )
 
 
 @app.get("/dlq")
@@ -164,9 +168,6 @@ async def nack(
     event_id: str = Query(default=""),
 ) -> dict[str, Any]:
     return await nack_route(request, event_id=event_id)
-
-
-
 
 
 def _main() -> None:

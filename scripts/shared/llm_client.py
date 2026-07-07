@@ -116,7 +116,11 @@ class LLMClient:
         """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
         try:
             return await LlmRetryHandler.request_with_retry(
-                self._http, url, payload, self._max_retries, self._retry_base_delay,
+                self._http,
+                url,
+                payload,
+                self._max_retries,
+                self._retry_base_delay,
             )
         except (httpx.HTTPStatusError, httpx.RequestError):
             self.stat_retries += 1
@@ -168,7 +172,13 @@ class LLMClient:
     ) -> LLMResponse:
         """Stream a chat completion via SSE; returns LLMResponse; raises LLMTransportError with partial_text on failure."""
         try:
-            llm_response, reconnect_count, heartbeat_timeouts, parse_errors, partial_completions = await LlmReconnectHandler.stream(
+            (
+                llm_response,
+                reconnect_count,
+                heartbeat_timeouts,
+                parse_errors,
+                partial_completions,
+            ) = await LlmReconnectHandler.stream(
                 self._http,
                 url,
                 history,

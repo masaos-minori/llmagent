@@ -34,7 +34,9 @@ def recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> float
         ) from e
 
 
-def context_boost(entry: MemoryEntry, project: str, repo: str, branch: str = "") -> float:
+def context_boost(
+    entry: MemoryEntry, project: str, repo: str, branch: str = ""
+) -> float:
     """Return a context match boost based on branch, project, or repo match."""
     if branch and entry.branch == branch:
         return _CONTEXT_MATCH_BOOST + 0.05

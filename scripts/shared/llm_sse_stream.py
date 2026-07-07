@@ -70,13 +70,22 @@ class LlmSseStreamHandler:
         finish_reason: str | None = None
 
         try:
-            async with http.stream("POST", url, json=LlmSseStreamHandler._build_payload(history, tool_defs, temperature, max_tokens, stream=True)) as resp:
+            async with http.stream(
+                "POST",
+                url,
+                json=LlmSseStreamHandler._build_payload(
+                    history, tool_defs, temperature, max_tokens, stream=True
+                ),
+            ) as resp:
                 await LlmSseStreamHandler._handle_status(resp, url)
 
                 byte_iter = resp.aiter_bytes().__aiter__()
                 while True:
                     raw_chunk, exhausted = await LlmSseStreamHandler.read_next_chunk(
-                        byte_iter, heartbeat_timeout, url, llm_stream_retry_on_heartbeat_timeout
+                        byte_iter,
+                        heartbeat_timeout,
+                        url,
+                        llm_stream_retry_on_heartbeat_timeout,
                     )
                     if exhausted:
                         break

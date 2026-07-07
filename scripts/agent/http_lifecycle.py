@@ -10,10 +10,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+import signal
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from dataclasses import dataclass
 from http import HTTPStatus
+from pathlib import Path
+from typing import IO
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -39,10 +43,44 @@ class HttpStartupError(RuntimeError):
 
 
 class HttpServerLifecycleManager:
-    """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown."""
+    """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown.
+
+    When stderr log redirect is active (H-1), each subprocess writes stderr to a
+    per-server log file at /opt/llm/logs/mcp/{server_key}.stderr.log instead of a pipe.
+
+    When process group shutdown is active (H-8), subprocesses are started with
+    start_new_session=True and terminated via os.killpg() to include child processes.
+    """
+
+    _STDERR_TAIL_BYTES = 64 * 1024
 
     def __init__(self) -> None:
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
+        self._http_pgids: dict[str, int] = {}
+        self._stderr_files: dict[str, IO[bytes]] = {}
+        self._stderr_log_paths: dict[str, str] = {}
+
+    def _open_stderr_log(self, server_key: str) -> IO[bytes]:
+        safe_key = re.sub(r"[^A-Za-z0-9_-]", "_", server_key)
+        log_dir = Path("/opt/llm/logs/mcp")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{safe_key}.stderr.log"
+        fh = log_path.open("ab")
+        self._stderr_log_paths[server_key] = str(log_path)
+        return fh
+
+    def _read_stderr_tail(self, server_key: str) -> str:
+        log_path = self._stderr_log_paths.get(server_key)
+        if not log_path:
+            return ""
+        try:
+            with open(log_path, "rb") as f:  # noqa: PTH123
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - self._STDERR_TAIL_BYTES))
+                return f.read().decode(errors="replace")
+        except OSError:
+            return ""
 
     async def _terminate_with_timeout(
         self,
@@ -51,7 +89,11 @@ class HttpServerLifecycleManager:
         timeout: float = 3.0,
     ) -> None:
         """Terminate proc; escalate to kill if terminate times out."""
-        proc.terminate()
+        pgid = self._http_pgids.get(server_key, proc.pid)
+        try:
+            os.killpg(pgid, signal.SIGTERM)  # nosec B603
+        except (ProcessLookupError, OSError):
+            proc.terminate()
         try:
             await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
         except TimeoutError:
@@ -59,7 +101,11 @@ class HttpServerLifecycleManager:
                 "Lifecycle: force-killing %r (terminate timed out)",
                 server_key,
             )
-            proc.kill()
+            pgid = self._http_pgids.get(server_key, proc.pid)
+            try:
+                os.killpg(pgid, signal.SIGKILL)  # nosec B603
+            except (ProcessLookupError, OSError):
+                proc.kill()
             try:
                 await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
             except TimeoutError:
@@ -69,10 +115,7 @@ class HttpServerLifecycleManager:
                 )
 
     def verify_running(self, server_key: str) -> bool:
-        """Check if an HTTP subprocess server is running and optionally restart it.
-
-        Returns True if running, False if not running (and restart was attempted).
-        """
+        """Return True if the HTTP subprocess server is running, False if missing or exited."""
         proc = self._http_procs.get(server_key)
         if proc is None or proc.poll() is not None:
             logger.warning(
@@ -110,12 +153,25 @@ class HttpServerLifecycleManager:
         env = None
         if cfg.env:
             env = {**os.environ, **cfg.env}
-        proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
-            cfg.cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
+        stderr_fh = self._open_stderr_log(server_key)
+        self._stderr_files[server_key] = stderr_fh
+        try:
+            proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
+                cfg.cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=stderr_fh,
+                env=env,
+                start_new_session=True,
+            )
+        except Exception:
+            stderr_fh.close()
+            self._stderr_files.pop(server_key, None)
+            self._stderr_log_paths.pop(server_key, None)
+            raise
+        try:
+            self._http_pgids[server_key] = os.getpgid(proc.pid)
+        except OSError:
+            self._http_pgids[server_key] = proc.pid
         self._http_procs[server_key] = proc
 
         health_url = cfg.url.rstrip("/") + "/health"
@@ -123,11 +179,11 @@ class HttpServerLifecycleManager:
         async with httpx.AsyncClient(timeout=2.0) as client:
             while time.monotonic() < deadline:
                 if proc.poll() is not None:
-                    stderr_full = (
-                        proc.stderr.read().decode(errors="replace")
-                        if proc.stderr
-                        else ""
-                    )
+                    stderr_full = self._read_stderr_tail(server_key)
+                    fh = self._stderr_files.pop(server_key, None)
+                    if fh is not None:
+                        fh.close()
+                    self._stderr_log_paths.pop(server_key, None)
                     failure = StartupFailure(
                         server_key=server_key,
                         reason="exited early",
@@ -152,8 +208,11 @@ class HttpServerLifecycleManager:
                     logger.debug("Lifecycle: health-check poll %r: %s", server_key, e)
                 await asyncio.sleep(0.5)
 
-        # Handle timeout case with stderr collection
-        stderr_full = proc.stderr.read().decode(errors="replace") if proc.stderr else ""
+        stderr_full = self._read_stderr_tail(server_key)
+        fh = self._stderr_files.pop(server_key, None)
+        if fh is not None:
+            fh.close()
+        self._stderr_log_paths.pop(server_key, None)
         await self._terminate_with_timeout(proc, server_key)
         timeout_failure = StartupFailure(
             server_key=server_key,
@@ -164,6 +223,14 @@ class HttpServerLifecycleManager:
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
         """Terminate and restart an HTTP subprocess server."""
+        stderr_fh = self._stderr_files.pop(server_key, None)
+        if stderr_fh is not None:
+            try:
+                stderr_fh.close()
+            except OSError:
+                pass
+        self._stderr_log_paths.pop(server_key, None)
+        self._http_pgids.pop(server_key, None)
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
@@ -171,14 +238,28 @@ class HttpServerLifecycleManager:
         await self.start(server_key, cfg)
 
     async def shutdown_all(self) -> None:
-        """Terminate all HTTP subprocess servers."""
-        for key, proc in list(self._http_procs.items()):
-            if proc.poll() is None:
+        """Terminate all HTTP subprocess servers and clear internal state."""
+        keys = list(self._http_procs.keys())
+        for key in keys:
+            proc = self._http_procs.pop(key, None)
+            if proc is None:
+                continue
+            if proc.poll() is not None:
+                logger.debug("Lifecycle: %r already exited; removing entry", key)
+            else:
                 try:
                     await self._terminate_with_timeout(proc, key, timeout=5.0)
                 except (OSError, TimeoutError) as e:
                     logger.warning(
-                        "Lifecycle: error stopping HTTP subprocess %r: %s",
-                        key,
-                        e,
+                        "Lifecycle: error stopping HTTP subprocess %r: %s", key, e
                     )
+            self._http_pgids.pop(key, None)
+            stderr_fh = self._stderr_files.pop(key, None)
+            if stderr_fh is not None:
+                try:
+                    stderr_fh.close()
+                except OSError as close_err:
+                    logger.warning(
+                        "Lifecycle: error closing stderr log for %r: %s", key, close_err
+                    )
+        self._stderr_log_paths.clear()

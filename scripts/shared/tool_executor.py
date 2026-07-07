@@ -254,7 +254,14 @@ class ToolExecutor:
 
         # Lifecycle ensure_ready
         if self._lifecycle is not None:
-            await self._lifecycle.ensure_ready(server_key)
+            try:
+                await self._lifecycle.ensure_ready(server_key)
+            except (OSError, RuntimeError) as e:
+                msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
+                logger.error(msg)
+                if self._health_registry is not None:
+                    self._health_registry.record_failure(server_key)
+                return self._error_result(server_key, msg, error_type="transport")
 
         # Transport resolution
         transport = self._transports.get(server_key)

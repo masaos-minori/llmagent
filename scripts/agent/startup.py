@@ -52,10 +52,22 @@ class StartupOrchestrator:
     async def run(self) -> tuple[CommandRegistry, Orchestrator]:
         """Execute full startup sequence; return (cmds, orchestrator)."""
         self._initialize()
-        await self._start_servers()
-        await self._check_services()
-        await self._recover_pending_approvals()
-        await self._setup_prompt()
+        _servers_started = False
+        try:
+            await self._start_servers()
+            _servers_started = True
+            await self._check_services()
+            await self._recover_pending_approvals()
+            await self._setup_prompt()
+        except Exception:
+            if _servers_started:
+                try:
+                    await self._ctx.services_required.lifecycle.shutdown_all()
+                except Exception as shutdown_err:
+                    logger.warning(
+                        "Startup rollback: shutdown_all() failed: %s", shutdown_err
+                    )
+            raise
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"

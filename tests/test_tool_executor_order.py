@@ -145,16 +145,17 @@ async def test_unavailable_server_skips_lifecycle():
 
 
 @pytest.mark.asyncio
-async def test_lifecycle_error_propagates():
+async def test_lifecycle_error_returns_transport_error_result():
     executor, mocks = _make_executor()
     mocks["resolver"].resolve.return_value = "srv1"
     mocks["lifecycle"].ensure_ready = AsyncMock(
         side_effect=RuntimeError("lifecycle failed")
     )
 
-    with pytest.raises(RuntimeError, match="lifecycle failed"):
-        await executor.execute("tool_a", {})
+    result = await executor.execute("tool_a", {})
 
+    assert result.is_error is True
+    assert result.error_type == "transport"
     mocks["transport"].call.assert_not_called()
 
 

@@ -53,9 +53,7 @@ class DocumentManager:
         if force:
             return False
         if is_file_url(url):
-            return self._handle_existing_file(
-                url, existing_doc_id, etag, last_modified
-            )
+            return self._handle_existing_file(url, existing_doc_id, etag, last_modified)
         self._update_etag(etag, last_modified, fetched_at)
         return True
 
@@ -73,7 +71,9 @@ class DocumentManager:
         ).fetchone()
         if stored is None:
             return False
-        if self._is_file_unchanged(stored["etag"], stored["last_modified"], etag, last_modified):
+        if self._is_file_unchanged(
+            stored["etag"], stored["last_modified"], etag, last_modified
+        ):
             logger.info(
                 "file:// unchanged (sha256 match): %s",
                 url,

@@ -180,7 +180,7 @@ class DeleteFileService:
         self._write_audit_log("delete_directory", str(target))
         return DeleteDirectoryResponse(path=str(target), deleted=True, dir_info="")
 
-   # ── Dispatch handlers: format service results as plain text for the LLM ──
+    # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(

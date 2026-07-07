@@ -209,7 +209,10 @@ class ShellService:
         Returns (process, stdout, stderr, timed_out).
         """
         return await self._subprocess_runner.run_subprocess(
-            argv, cwd, env, timeout_sec,
+            argv,
+            cwd,
+            env,
+            timeout_sec,
             self._policy.kill_policy,
             self._policy.kill_grace_sec,
         )

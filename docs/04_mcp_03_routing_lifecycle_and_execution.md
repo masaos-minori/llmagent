@@ -216,7 +216,10 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 ## McpServerHealthRegistry (`shared/mcp_config.py`)
 
-Per-server failure tracker injected into `ToolExecutor`.
+Per-server failure tracker created in `_build_tool_executor()` (factory.py) and shared
+between `ToolExecutor` (via `set_health_registry()`) and `AppServices.health_registry`.
+Both hold the same object; health state recorded by `ToolExecutor` is immediately visible
+via `AppServices.health_registry`.
 
 **State transitions:**
 
@@ -379,11 +382,23 @@ At startup, the agent logs one of:
 AgentREPL.run()
   → MCP server startup
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
+            stderr → /opt/llm/logs/mcp/{server_key}.stderr.log (append mode)
        → startup_mode="persistent" (http): no lifecycle action needed
    → [REPL loop]
+        → tool call → ToolExecutor._raw_execute()
+             → ensure_ready(server_key):
+                  if _shutting_down: return immediately (shutdown guard)
+                  if subprocess-mode and not running: start() [auto-restart on demand]
         → watchdog task: health check + restart on failure
-   → finally: lifecycle.shutdown_all() + AsyncClient.close()
+   → finally: lifecycle.shutdown_all()
+                  sets _shutting_down=True (blocks further start/restart calls)
+                + close stderr log file handles
+                + AsyncClient.close()
 ```
+
+`_ServerLifecycleRouter._shutting_down` guards `ensure_ready()`, `start_http_subprocess()`,
+`restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, these methods return
+immediately with a log line and do not delegate to `HttpServerLifecycleManager`.
 
 ---
 

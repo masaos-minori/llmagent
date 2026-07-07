@@ -689,3 +689,85 @@ class TestToolExecutorErrorClassification:
         assert result.request_id == ""
         assert ex.stat_cache_hits == 1
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+
+# ── H-5: ensure_ready failure → ToolCallResult error ─────────────────────────
+
+
+def _make_executor_with_mock_lifecycle(
+    ensure_ready_side_effect: BaseException | None = None,
+) -> tuple[ToolExecutor, AsyncMock, MagicMock, AsyncMock]:
+    http_mock = AsyncMock()
+    executor = ToolExecutor(
+        http_mock,
+        cache_ttl=0,
+        server_configs={},
+        cache_max_size=0,
+        concurrency_limits={},
+    )
+    mock_lifecycle = AsyncMock()
+    if ensure_ready_side_effect is not None:
+        mock_lifecycle.ensure_ready.side_effect = ensure_ready_side_effect
+    executor.set_lifecycle(mock_lifecycle)
+
+    mock_registry = MagicMock()
+    mock_registry.get_state.return_value = McpServerHealthState.HEALTHY
+    mock_registry.is_unavailable.return_value = False
+    executor.set_health_registry(mock_registry)
+
+    mock_transport = AsyncMock()
+    executor._transports["test_server"] = mock_transport
+    executor._resolver.resolve = MagicMock(return_value="test_server")
+
+    return executor, mock_lifecycle, mock_registry, mock_transport
+
+
+class TestEnsureReadyFailureHandling:
+    @pytest.mark.asyncio
+    async def test_runtime_error_returns_transport_error(self) -> None:
+        executor, _, _, mock_transport = _make_executor_with_mock_lifecycle(
+            ensure_ready_side_effect=RuntimeError("startup failed")
+        )
+        result = await executor._raw_execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        assert "ensure_ready failed" in result.output
+        mock_transport.call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_os_error_returns_transport_error(self) -> None:
+        executor, _, _, mock_transport = _make_executor_with_mock_lifecycle(
+            ensure_ready_side_effect=OSError("command not found")
+        )
+        result = await executor._raw_execute("test_tool", {})
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        mock_transport.call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_error_calls_record_failure(self) -> None:
+        executor, _, mock_registry, _ = _make_executor_with_mock_lifecycle(
+            ensure_ready_side_effect=RuntimeError("startup failed")
+        )
+        await executor._raw_execute("test_tool", {})
+        mock_registry.record_failure.assert_called_once_with("test_server")
+
+    @pytest.mark.asyncio
+    async def test_transport_not_called_after_lifecycle_error(self) -> None:
+        executor, _, _, mock_transport = _make_executor_with_mock_lifecycle(
+            ensure_ready_side_effect=RuntimeError("startup failed")
+        )
+        await executor._raw_execute("test_tool", {})
+        mock_transport.call.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_successful_lifecycle_calls_transport(self) -> None:
+        executor, _, _, mock_transport = _make_executor_with_mock_lifecycle(
+            ensure_ready_side_effect=None
+        )
+        mock_transport.call.return_value = ToolCallResult(
+            output="ok", is_error=False, request_id="", server_key="test_server"
+        )
+        result = await executor._raw_execute("test_tool", {})
+        assert result.is_error is False
+        mock_transport.call.assert_awaited_once()

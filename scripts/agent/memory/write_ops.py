@@ -38,13 +38,14 @@ def _build_row_params(entry: MemoryEntry) -> tuple[object, ...]:
 def _write_fts(db: SQLiteHelper, entry: MemoryEntry) -> None:
     """Sync one row into memories_fts; caller must be inside a transaction."""
     db.execute(
-        "INSERT INTO memories_fts(memory_id, content, summary, tags)"
-        " VALUES (?,?,?,?)",
+        "INSERT INTO memories_fts(memory_id, content, summary, tags) VALUES (?,?,?,?)",
         (entry.memory_id, entry.content, entry.summary, " ".join(entry.tags)),
     )
 
 
-def _write_vec(db: SQLiteHelper, memory_id: str, embedding: list[float], embed_dim: int | None) -> None:
+def _write_vec(
+    db: SQLiteHelper, memory_id: str, embedding: list[float], embed_dim: int | None
+) -> None:
     """Upsert one embedding into memories_vec; raises on failure."""
     db.execute(
         "INSERT OR REPLACE INTO memories_vec(memory_id, embedding) VALUES (?,?)",
@@ -52,7 +53,11 @@ def _write_vec(db: SQLiteHelper, memory_id: str, embedding: list[float], embed_d
     )
 
 
-def add(entry: MemoryEntry, embedding: list[float] | None = None, embed_dim: int | None = None) -> None:
+def add(
+    entry: MemoryEntry,
+    embedding: list[float] | None = None,
+    embed_dim: int | None = None,
+) -> None:
     """Insert a new MemoryEntry; sets created_at/updated_at if empty.
 
     When embedding is provided, also writes to memories_vec for KNN search.
@@ -69,7 +74,11 @@ def add(entry: MemoryEntry, embedding: list[float] | None = None, embed_dim: int
     logger.debug("MemoryStore.add memory_id=%r", entry.memory_id)
 
 
-def upsert(entry: MemoryEntry, embedding: list[float] | None = None, embed_dim: int | None = None) -> None:
+def upsert(
+    entry: MemoryEntry,
+    embedding: list[float] | None = None,
+    embed_dim: int | None = None,
+) -> None:
     """Insert or replace a MemoryEntry; updates updated_at.
 
     When embedding is provided, also upserts memories_vec.

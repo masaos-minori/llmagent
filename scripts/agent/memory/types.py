@@ -40,6 +40,7 @@ def _coerce_str_enum_or_none(
         return None
     return _coerce_str_enum(value, enum_cls)
 
+
 _ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
@@ -100,9 +101,13 @@ class MemoryEntry:
     updated_at: str = ""
 
     def __post_init__(self) -> None:
-        coerced_memory_type = cast(MemoryType, _coerce_str_enum(self.memory_type, MemoryType))
+        coerced_memory_type = cast(
+            MemoryType, _coerce_str_enum(self.memory_type, MemoryType)
+        )
         object.__setattr__(self, "memory_type", coerced_memory_type)
-        coerced_source_type = cast(SourceType, _coerce_str_enum(self.source_type, SourceType))
+        coerced_source_type = cast(
+            SourceType, _coerce_str_enum(self.source_type, SourceType)
+        )
         object.__setattr__(self, "source_type", coerced_source_type)
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")

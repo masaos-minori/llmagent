@@ -301,3 +301,84 @@ class TestStartupWorkflowPreflight:
                 startup._check_workflow_definition()
         assert "workflow_mode" not in str(exc_info.value)
         assert "disabled" not in str(exc_info.value)
+
+
+# ── StartupOrchestrator.run() rollback tests ─────────────────────────────────
+
+
+def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
+    """Return (orchestrator, mock_lifecycle) with _initialize patched to a no-op."""
+    ctx = MagicMock()
+    mock_lifecycle = AsyncMock()
+    ctx.services_required.lifecycle = mock_lifecycle
+    view = MagicMock()
+    orch = StartupOrchestrator(ctx, view)
+    orch._initialize = MagicMock()
+    return orch, mock_lifecycle
+
+
+class TestStartupRollback:
+    """run() calls lifecycle.shutdown_all() iff _start_servers() succeeded before failure."""
+
+    @pytest.mark.asyncio
+    async def test_rollback_on_check_services_failure(self) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock(
+            side_effect=RuntimeError("health check failed")
+        )
+        orch._recover_pending_approvals = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="health check failed"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_rollback_on_recover_pending_failure(self) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock()
+        orch._recover_pending_approvals = AsyncMock(
+            side_effect=RuntimeError("approval recovery failed")
+        )
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="approval recovery failed"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_rollback_shutdown_failure_preserves_original_error(self) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock(side_effect=RuntimeError("original error"))
+        orch._recover_pending_approvals = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+        mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")
+
+        with pytest.raises(RuntimeError, match="original error"):
+            await orch.run()
+
+    @pytest.mark.asyncio
+    async def test_no_rollback_on_initialize_failure(self) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._initialize = MagicMock(side_effect=RuntimeError("init failed"))
+
+        with pytest.raises(RuntimeError, match="init failed"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_no_rollback_on_start_servers_failure(self) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock(side_effect=RuntimeError("server start failed"))
+        orch._check_services = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="server start failed"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_not_awaited()

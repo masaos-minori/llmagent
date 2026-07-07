@@ -17,7 +17,8 @@ from shared import plugin_registry
 from shared.git_helper import get_repo_info
 from shared.llm_client import LLMClient
 from shared.logger import Logger
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry
 from shared.otel_tracer import build_tracer
 from shared.tool_executor import ToolExecutor
 
@@ -25,7 +26,7 @@ from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
 from agent.history import HistoryManager
 from agent.http_lifecycle import HttpServerLifecycleManager
-from agent.lifecycle import LifecycleState
+from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.repository_gateway import RepositoryGateway
 
@@ -52,40 +53,102 @@ class _ServerLifecycleRouter:
     ) -> None:
         self._server_configs = server_configs
         self._http_mgr = HttpServerLifecycleManager()
+        self._shutting_down: bool = False
+        self._states: dict[str, LifecycleState] = {}
+
+    def _set_state(self, server_key: str, new_state: LifecycleState) -> None:
+        current = self._states.get(server_key, LifecycleState.UNKNOWN)
+        try:
+            assert_valid_transition(current, new_state)
+        except ValueError:
+            _logger.warning(
+                "Lifecycle: invalid state transition %r -> %r for %r",
+                current,
+                new_state,
+                server_key,
+            )
+        self._states[server_key] = new_state
 
     async def ensure_ready(self, server_key: str) -> None:
+        if self._shutting_down:
+            _logger.debug(
+                "Lifecycle: ensure_ready(%r) ignored — shutting down", server_key
+            )
+            return
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
-        if cfg.transport == "http" and cfg.startup_mode == "subprocess":
-            self._http_mgr.verify_running(server_key)
+        if (
+            cfg.transport != TransportType.HTTP
+            or cfg.startup_mode != StartupMode.SUBPROCESS
+        ):
+            return
+        if not self._http_mgr.verify_running(server_key):
+            _logger.info(
+                "Lifecycle: %r not running; starting via ensure_ready", server_key
+            )
+            self._set_state(server_key, LifecycleState.STARTING)
+            try:
+                await self._http_mgr.start(server_key, cfg)
+                self._set_state(server_key, LifecycleState.RUNNING)
+            except Exception:
+                self._set_state(server_key, LifecycleState.FAILED)
+                raise
 
     async def shutdown_all(self) -> None:
+        self._shutting_down = True
         await self._http_mgr.shutdown_all()
+        for key in self._server_configs:
+            self._set_state(key, LifecycleState.STOPPED)
 
     async def start_http_subprocess(
         self,
         server_key: str,
         cfg: McpServerConfig,
     ) -> None:
-        await self._http_mgr.start(server_key, cfg)
+        if self._shutting_down:
+            _logger.debug(
+                "Lifecycle: start_http_subprocess(%r) ignored — shutting down",
+                server_key,
+            )
+            return
+        self._set_state(server_key, LifecycleState.STARTING)
+        try:
+            await self._http_mgr.start(server_key, cfg)
+            self._set_state(server_key, LifecycleState.RUNNING)
+        except Exception:
+            self._set_state(server_key, LifecycleState.FAILED)
+            raise
 
     async def restart(self, server_key: str) -> None:
+        if self._shutting_down:
+            _logger.warning(
+                "Lifecycle: restart(%r) ignored — shutting down", server_key
+            )
+            return
         cfg = self._server_configs.get(server_key)
-        if cfg is None or cfg.startup_mode != "subprocess":
+        if cfg is None or cfg.startup_mode != StartupMode.SUBPROCESS:
             _logger.warning(
                 "Lifecycle: restart %r: not a subprocess-mode server;"
                 " manual restart required",
                 server_key,
             )
             return
-        await self._http_mgr.restart(server_key, cfg)
+        self._set_state(server_key, LifecycleState.STARTING)
+        try:
+            await self._http_mgr.restart(server_key, cfg)
+            self._set_state(server_key, LifecycleState.RUNNING)
+        except Exception:
+            self._set_state(server_key, LifecycleState.FAILED)
+            raise
 
     async def shutdown_idle(self) -> None:
-        pass
+        if self._shutting_down:
+            _logger.debug("Lifecycle: shutdown_idle ignored — shutting down")
+            return
 
     def get_transport_state(self, server_key: str) -> LifecycleState:
-        return LifecycleState.UNKNOWN
+        return self._states.get(server_key, LifecycleState.UNKNOWN)
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -130,8 +193,8 @@ def _build_llm_client(
 def _build_tool_executor(
     ctx: AgentContext,
     http: httpx.AsyncClient,
-) -> tuple[ToolExecutor, LifecycleManagerProtocol]:
-    """Build ToolExecutor and lifecycle manager; return both."""
+) -> tuple[ToolExecutor, LifecycleManagerProtocol, McpServerHealthRegistry]:
+    """Build ToolExecutor, lifecycle manager, and health registry; return all three."""
     tools = ToolExecutor(
         http,
         cache_ttl=ctx.cfg.tool.tool_cache_ttl,
@@ -139,12 +202,14 @@ def _build_tool_executor(
         cache_max_size=ctx.cfg.tool.tool_cache_max_size,
         concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
     )
+    registry = McpServerHealthRegistry()
+    tools.set_health_registry(registry)
     lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
         ctx.cfg.mcp.mcp_servers,
         tools,
     )
     tools.set_lifecycle(lifecycle)
-    return tools, lifecycle
+    return tools, lifecycle, registry
 
 
 def _build_history_manager(
@@ -393,7 +458,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     """
     audit_logger = _build_audit_logger(ctx)
     http, llm = _build_llm_client(ctx, view)
-    tools, lifecycle = _build_tool_executor(ctx, http)
+    tools, lifecycle, health_registry = _build_tool_executor(ctx, http)
     hist_mgr = _build_history_manager(ctx, view, http)
     memory = _build_memory_services(ctx, http)
     gateway = RepositoryGateway(executor=tools, cfg=ctx.cfg, audit_logger=audit_logger)
@@ -407,6 +472,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         audit_logger=audit_logger,
         memory=memory,
         gateway=gateway,
+        health_registry=health_registry,
     )
 
     _init_plugin_registry(ctx, audit_logger)

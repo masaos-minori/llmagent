@@ -125,7 +125,7 @@ class GitService(GitSecurityGuards):
             logger.error("%s error: %s", tool_name, e)
             raise GitServiceError(f"{tool_name} failed: {e}") from e
 
-   # ── Read-only tools ───────────────────────────────────────────────────────
+    # ── Read-only tools ───────────────────────────────────────────────────────
 
     async def git_status(self, args: ToolArgs) -> str:
 
@@ -143,7 +143,9 @@ class GitService(GitSecurityGuards):
         if result.error_message:
             return result.error_message
         repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_log", lambda: format_log(repo, req, self._max_log_entries))
+        return self._wrap_git_op(
+            "git_log", lambda: format_log(repo, req, self._max_log_entries)
+        )
 
     async def git_diff(self, args: ToolArgs) -> str:
 
@@ -199,9 +201,7 @@ class GitService(GitSecurityGuards):
         if result.error_message:
             return result.error_message
         repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op(
-            "git_checkout", lambda: format_checkout(repo, req)
-        )
+        return self._wrap_git_op("git_checkout", lambda: format_checkout(repo, req))
 
     async def git_pull(self, args: ToolArgs) -> str:
 

@@ -32,9 +32,7 @@ def import_from_jsonl(
     from agent.memory.jsonl_store import JsonlMemoryStore as _JsonlMemoryStore
 
     if not isinstance(jsonl_store, _JsonlMemoryStore):
-        raise TypeError(
-            f"Expected JsonlMemoryStore, got {type(jsonl_store).__name__}"
-        )
+        raise TypeError(f"Expected JsonlMemoryStore, got {type(jsonl_store).__name__}")
     entries = jsonl_store.read_all()
     jsonl_count = len(entries)
     if dry_run:

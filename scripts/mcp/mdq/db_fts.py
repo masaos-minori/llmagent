@@ -17,12 +17,12 @@ from mcp.mdq.models import MdqConsistencyError
 def fts_consistency_check(conn: sqlite3.Connection) -> str:
     """Check FTS5 consistency between chunks and chunks_fts tables."""
     try:
-        chunks_count = conn.execute(
-            "SELECT COUNT(*) as cnt FROM chunks"
-        ).fetchone()["cnt"]
-        fts_count = conn.execute(
-            "SELECT COUNT(*) as cnt FROM chunks_fts"
-        ).fetchone()["cnt"]
+        chunks_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()[
+            "cnt"
+        ]
+        fts_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks_fts").fetchone()[
+            "cnt"
+        ]
         integrity_rows = conn.execute("PRAGMA integrity_check").fetchall()
         integrity_ok = all(row[0] == "ok" for row in integrity_rows)
         consistent = chunks_count == fts_count

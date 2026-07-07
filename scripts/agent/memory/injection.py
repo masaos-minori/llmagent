@@ -78,9 +78,7 @@ class MemoryInjectionService:
         """Build MemorySnippet list from ranked entries."""
         snippets: list[MemorySnippet] = []
         for entry in entries:
-            snippet_text = (
-                entry.summary if entry.summary else entry.content[:100]
-            )
+            snippet_text = entry.summary if entry.summary else entry.content[:100]
             snippets.append(
                 MemorySnippet(
                     text=f"{prefix} {snippet_text}",

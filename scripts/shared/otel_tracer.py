@@ -157,6 +157,3 @@ class _ConsoleProcessor:
     def force_flush(self, *args: Any, **kwargs: Any) -> bool:
         result = self._processor.force_flush(*args, **kwargs)
         return bool(result)
-
-
-
