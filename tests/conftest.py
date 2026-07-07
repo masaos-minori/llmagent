@@ -6,8 +6,9 @@ Adds scripts/ to sys.path so all project modules are importable without installa
 import sys
 from pathlib import Path
 
-# scripts/ is not an installed package; add it to sys.path for all tests
+# scripts/ and tools/ are not installed packages; add them to sys.path for all tests
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 # tests/ helpers are importable as plain modules
 sys.path.insert(0, str(Path(__file__).parent))
 
