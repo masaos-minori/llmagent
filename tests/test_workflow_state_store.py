@@ -70,7 +70,7 @@ def store(workflow_db: Path):
 
 class TestCreateTask:
     def test_create_returns_task_record(self, store) -> None:
-        task = create_task(store._db, "sess1", 1, "1.0.0")
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         assert task.session_id == "sess1"
         assert task.turn_number == 1
         assert task.workflow_version == "1.0.0"
@@ -78,12 +78,12 @@ class TestCreateTask:
         assert task.idempotency_key == "sess1:1"
 
     def test_idempotency_key_unique(self, store) -> None:
-        create_task(store._db, "sess1", 1, "1.0.0")
+        create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         with pytest.raises(sqlite3.IntegrityError):
-            create_task(store._db, "sess1", 1, "1.0.0")
+            create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
 
     def test_get_by_idempotency_key(self, store) -> None:
-        original = create_task(store._db, "sess2", 5, "1.0.0")
+        original = create_task(store._db, "sess2", 5, "1.0.0", "wf-test")
         found = get_task_by_idempotency_key(store._db, "sess2:5")
         assert found is not None
         assert found.task_id == original.task_id
@@ -94,7 +94,7 @@ class TestCreateTask:
 
 class TestUpdateTaskStatus:
     def test_update_status(self, store) -> None:
-        task = create_task(store._db, "sess1", 1, "1.0.0")
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "running")
         found = get_task_by_idempotency_key(store._db, "sess1:1")
         assert found is not None
@@ -103,20 +103,20 @@ class TestUpdateTaskStatus:
 
 class TestAttempts:
     def test_start_attempt_returns_record(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         attempt = start_attempt(store._db, task.task_id, "plan")
         assert attempt.task_id == task.task_id
         assert attempt.stage_id == "plan"
         assert attempt.status == "running"
 
     def test_count_attempts(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         start_attempt(store._db, task.task_id, "execute")
         start_attempt(store._db, task.task_id, "execute")
         assert count_attempts(store._db, task.task_id, "execute") == 2
 
     def test_finish_attempt_completed(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         attempt = start_attempt(store._db, task.task_id, "plan")
         finish_attempt(store._db, attempt.attempt_id, "completed")
         rows = store._db.fetchall(
@@ -125,7 +125,7 @@ class TestAttempts:
         assert rows[0][0] == "completed"
 
     def test_finish_attempt_with_error(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         attempt = start_attempt(store._db, task.task_id, "execute")
         finish_attempt(store._db, attempt.attempt_id, "failed", "timeout")
         rows = store._db.fetchall(
@@ -141,34 +141,36 @@ class TestIdempotency:
         assert is_event_processed(store._db, "evt-1") is False
 
     def test_begin_stage_if_new_returns_attempt(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
         assert result is not None
         assert result.stage_id == "plan"
 
     def test_begin_stage_if_new_skips_duplicate(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
         result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
         assert result is None
 
     def test_event_processed_after_begin(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         begin_stage_if_new(store._db, "evt-2", task.task_id, "execute")
         assert is_event_processed(store._db, "evt-2") is True
 
 
 class TestArtifacts:
     def test_record_artifact(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
-        ref = record_artifact(store._db, task.task_id, "execute", "file:///tmp/result.json")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        ref = record_artifact(
+            store._db, task.task_id, "execute", "file:///tmp/result.json"
+        )
         assert ref.task_id == task.task_id
         assert ref.uri == "file:///tmp/result.json"
 
 
 class TestApprovals:
     def test_request_approval_returns_pending_record(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id)
         assert approval.task_id == task.task_id
         assert approval.status == "pending"
@@ -176,23 +178,23 @@ class TestApprovals:
         assert approval.resolved_at is None
 
     def test_request_approval_with_stage(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id, stage_id="execute")
         assert approval.stage_id == "execute"
 
     def test_get_pending_approval_returns_latest(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         request_approval(store._db, task.task_id)
         found = get_pending_approval(store._db, task.task_id)
         assert found is not None
         assert found.status == "pending"
 
     def test_get_pending_approval_returns_none_when_absent(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         assert get_pending_approval(store._db, task.task_id) is None
 
     def test_resolve_approval_approved(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id)
         resolve_approval(store._db, approval.approval_id, "approved", "looks good")
         found = get_pending_approval(store._db, task.task_id)
@@ -202,7 +204,7 @@ class TestApprovals:
         assert found.resolved_at is not None
 
     def test_resolve_approval_rejected(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0")
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id)
         resolve_approval(store._db, approval.approval_id, "rejected", "too risky")
         found = get_pending_approval(store._db, task.task_id)
@@ -211,7 +213,7 @@ class TestApprovals:
         assert found.reason == "too risky"
 
     def test_create_task_without_session_id(self, store) -> None:
-        task = create_task(store._db, None, None, "1.0.0")
+        task = create_task(store._db, None, None, "1.0.0", "wf-test")
         assert task.session_id is None
         assert task.turn_number is None
         assert task.status == "pending"
@@ -226,7 +228,7 @@ class TestFindPendingApprovalBySession:
     def test_returns_approval_for_matching_session(self, store) -> None:
         """Returns (task_id, ApprovalRecord) when a pending approval exists for the session."""
         session_id = "session-find-test"
-        task = create_task(store._db, session_id, 1, "1.0.0")
+        task = create_task(store._db, session_id, 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task.task_id, stage_id="stage-1")
 
@@ -240,7 +242,7 @@ class TestFindPendingApprovalBySession:
 
     def test_returns_none_for_different_session(self, store) -> None:
         """Does not return an approval belonging to a different session."""
-        task = create_task(store._db, "session-other", 1, "1.0.0")
+        task = create_task(store._db, "session-other", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         request_approval(store._db, task_id=task.task_id, stage_id="s1")
 
@@ -250,11 +252,11 @@ class TestFindPendingApprovalBySession:
     def test_returns_most_recent_when_multiple(self, store) -> None:
         """Returns the most recently created approval when multiple pending exist."""
         session_id = "session-multi"
-        task1 = create_task(store._db, session_id, 1, "1.0.0")
+        task1 = create_task(store._db, session_id, 1, "1.0.0", "wf-test")
         update_task_status(store._db, task1.task_id, "pending_approval")
         request_approval(store._db, task_id=task1.task_id, stage_id="s1")
 
-        task2 = create_task(store._db, session_id, 2, "1.0.0")
+        task2 = create_task(store._db, session_id, 2, "1.0.0", "wf-test")
         update_task_status(store._db, task2.task_id, "pending_approval")
         latest = request_approval(store._db, task_id=task2.task_id, stage_id="s2")
 
@@ -272,11 +274,11 @@ class TestFindLatestPendingApproval:
 
     def test_returns_most_recent_globally(self, store) -> None:
         """Returns the most recently created pending approval, regardless of session."""
-        task1 = create_task(store._db, "session-a", 1, "1.0.0")
+        task1 = create_task(store._db, "session-a", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task1.task_id, "pending_approval")
         request_approval(store._db, task_id=task1.task_id, stage_id="s1")
 
-        task2 = create_task(store._db, "session-b", 1, "1.0.0")
+        task2 = create_task(store._db, "session-b", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task2.task_id, "pending_approval")
         latest = request_approval(store._db, task_id=task2.task_id, stage_id="s2")
 
@@ -290,7 +292,7 @@ class TestFindLatestPendingApproval:
     def test_cross_session_recovery(self, store) -> None:
         """Returns approval for a task created in a different session (simulates restart)."""
         old_session_id = "session-old"
-        task = create_task(store._db, old_session_id, 1, "1.0.0")
+        task = create_task(store._db, old_session_id, 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task_id=task.task_id, stage_id="plan")
 

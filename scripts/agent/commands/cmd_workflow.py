@@ -11,15 +11,14 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.workflow.approval_ops import (
     count_pending_approvals,
     find_approval_by_id,
-    find_latest_pending_approval,
     resolve_approval,
 )
+from agent.workflow.models import ApprovalRecord
 from agent.workflow.task_ops import update_task_status
 
 logger = logging.getLogger(__name__)
@@ -53,23 +52,20 @@ class _WorkflowMixin(MixinBase):
 
     def _emit_approval_audit(
         self,
-        store: Any,
-        approval_id: str,
-        task_id: str,
+        approval: ApprovalRecord,
         decision: str,
         reason: str | None,
     ) -> None:
         audit_logger = self._ctx.services_required.audit_logger
         if audit_logger is None:
             return
-        task = store.get_task_by_id(task_id)
         audit_logger.info(
             json.dumps(
                 {
                     "event_type": "workflow_approval",
-                    "approval_id": approval_id,
-                    "task_id": task_id,
-                    "workflow_id": task.workflow_id if task else None,
+                    "approval_id": approval.approval_id,
+                    "task_id": approval.task_id,
+                    "workflow_id": approval.workflow_id,
                     "session_id": self._ctx.session.session_id,
                     "decision": decision,
                     "reason": reason,
@@ -90,35 +86,29 @@ class _WorkflowMixin(MixinBase):
         store = StateStore()
         try:
             explicit_id, reason = _parse_approval_arg(arg)
-            count = count_pending_approvals(store._db)
 
+            if explicit_id is None:
+                self._out.write_validation_error(
+                    "Approval ID required. Use: /approve <approval_id> [reason]\n"
+                    "Use '/workflow status' to list pending approval IDs."
+                )
+                return
+
+            count = count_pending_approvals(store._db)
             if count == 0:
                 self._out.write_validation_error("No pending approval.")
                 return
 
-            if count > 1 and explicit_id is None:
+            approval = find_approval_by_id(store._db, explicit_id)
+            if approval is None or approval.status != "pending":
                 self._out.write_validation_error(
-                    f"{count} pending approvals exist. Use: /approve <approval_id> [reason]"
+                    f"Approval {explicit_id!r} not found or not pending."
                 )
                 return
-
-            if explicit_id is not None:
-                approval = find_approval_by_id(store._db, explicit_id)
-                if approval is None or approval.status != "pending":
-                    self._out.write_validation_error(
-                        f"Approval {explicit_id!r} not found or not pending."
-                    )
-                    return
-                task_id = approval.task_id
-            else:
-                result = find_latest_pending_approval(store._db)
-                assert result is not None  # count == 1
-                task_id, approval = result
+            task_id = approval.task_id
 
             resolve_approval(store._db, approval.approval_id, "approved", reason)
-            self._emit_approval_audit(
-                store, approval.approval_id, task_id, "approved", reason
-            )
+            self._emit_approval_audit(approval, "approved", reason)
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
@@ -145,36 +135,30 @@ class _WorkflowMixin(MixinBase):
         store = StateStore()
         try:
             explicit_id, reason = _parse_approval_arg(arg)
-            count = count_pending_approvals(store._db)
 
+            if explicit_id is None:
+                self._out.write_validation_error(
+                    "Approval ID required. Use: /reject <approval_id> [reason]\n"
+                    "Use '/workflow status' to list pending approval IDs."
+                )
+                return
+
+            count = count_pending_approvals(store._db)
             if count == 0:
                 self._out.write_validation_error("No pending approval.")
                 return
 
-            if count > 1 and explicit_id is None:
+            approval = find_approval_by_id(store._db, explicit_id)
+            if approval is None or approval.status != "pending":
                 self._out.write_validation_error(
-                    f"{count} pending approvals exist. Use: /reject <approval_id> [reason]"
+                    f"Approval {explicit_id!r} not found or not pending."
                 )
                 return
-
-            if explicit_id is not None:
-                approval = find_approval_by_id(store._db, explicit_id)
-                if approval is None or approval.status != "pending":
-                    self._out.write_validation_error(
-                        f"Approval {explicit_id!r} not found or not pending."
-                    )
-                    return
-                task_id = approval.task_id
-            else:
-                result = find_latest_pending_approval(store._db)
-                assert result is not None  # count == 1
-                task_id, approval = result
+            task_id = approval.task_id
 
             resolve_approval(store._db, approval.approval_id, "rejected", reason)
             update_task_status(store._db, task_id, "halted")
-            self._emit_approval_audit(
-                store, approval.approval_id, task_id, "rejected", reason
-            )
+            self._emit_approval_audit(approval, "rejected", reason)
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return

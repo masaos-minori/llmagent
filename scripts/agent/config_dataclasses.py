@@ -512,9 +512,6 @@ class AgentConfig:
 
     Composes 7 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
-    workflow_mode: "auto" (fallback with warning), "required" (hard error), "disabled" (always direct).
-        Production default: config/common.toml sets workflow_mode = "required".
-        Dataclass default "auto" applies only when no config file is present (local/test).
     security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
 
@@ -525,20 +522,10 @@ class AgentConfig:
     mcp: MCPConfig = field(default_factory=MCPConfig)
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
-    workflow_mode: str = "auto"
     security_lockdown_enabled: bool = False
-    workflow_require_approval: bool = False
 
     def __post_init__(self) -> None:
-        self._validate_workflow_mode()
         self._validate_cross_field()
-
-    def _validate_workflow_mode(self) -> None:
-        valid = {"auto", "required", "disabled"}
-        if self.workflow_mode not in valid:
-            raise ValueError(
-                f"workflow_mode must be one of {valid}, got {self.workflow_mode!r}"
-            )
 
     def _validate_cross_field(self) -> None:
         """Validate interdependent settings that span sub-config boundaries."""

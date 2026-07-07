@@ -256,11 +256,16 @@ class TestFormatMemoryStatus:
         mem = MagicMock()
         mem.store.count_vec.return_value = 5
         ctx.services_required.memory = mem
-        with patch("agent.memory.count_ops.count_by_type", return_value={"semantic": 3, "episodic": 7}), \
-            patch("agent.memory.count_ops.count_entries", return_value=10):
-                result = _format_memory_status(ctx)
-                assert "enabled" in result
-                assert "entries=10" in result
+        with (
+            patch(
+                "agent.memory.count_ops.count_by_type",
+                return_value={"semantic": 3, "episodic": 7},
+            ),
+            patch("agent.memory.count_ops.count_entries", return_value=10),
+        ):
+            result = _format_memory_status(ctx)
+            assert "enabled" in result
+            assert "entries=10" in result
 
 
 # ── _token_source_label ───────────────────────────────────────────────────────
@@ -394,10 +399,12 @@ class TestCollectContextState:
         mem = MagicMock()
         mem.store.count_vec.return_value = 5
         ctx.services_required.memory = mem
-        with patch("agent.memory.count_ops.count_by_type", return_value={"semantic": 3}), \
-            patch("agent.memory.count_ops.count_entries", return_value=10):
-                result = collect_context_state(ctx)
-                assert "enabled" in result.mem_status
+        with (
+            patch("agent.memory.count_ops.count_by_type", return_value={"semantic": 3}),
+            patch("agent.memory.count_ops.count_entries", return_value=10),
+        ):
+            result = collect_context_state(ctx)
+            assert "enabled" in result.mem_status
 
 
 # ── _cmd_context ──────────────────────────────────────────────────────────────
@@ -449,21 +456,8 @@ class TestCmdContext:
         out = capsys.readouterr().out
         assert "Token limit" in out
 
-    def test_cmd_context_shows_workflow_mode(self, capsys: Any) -> None:
-        ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "auto"
-        ctx.turn.pending_approval_id = None
-        ctx.conv.history = [_system_msg("sys")]
-        self._add_hist_mgr(ctx)
-        cmd = _FakeCmd(ctx)
-        cmd._cmd_context()
-        out = capsys.readouterr().out
-        assert "Workflow mode" in out
-        assert "auto" in out
-
     def test_cmd_context_shows_approval_pending(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "required"
         ctx.turn.pending_approval_id = "approval-123"
         ctx.conv.history = [_system_msg("sys")]
         self._add_hist_mgr(ctx)
@@ -475,27 +469,10 @@ class TestCmdContext:
 
 
 class TestCollectContextStateWorkflow:
-    def test_collect_context_state_workflow_mode(self) -> None:
-        from agent.services.context_view import collect_context_state
-
-        ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "disabled"
-        ctx.turn.pending_approval_id = None
-        hist_mgr = MagicMock()
-        hist_mgr.count_chars.return_value = 0
-        hist_mgr.stat_compress_count = 0
-        hist_mgr.stat_fallback_truncate_count = 0
-        hist_mgr.count_tokens.return_value = None
-        ctx.services_required.hist_mgr = hist_mgr
-        result = collect_context_state(ctx)
-        assert result.workflow_mode == "disabled"
-        assert result.approval_pending is False
-
     def test_collect_context_state_approval_pending(self) -> None:
         from agent.services.context_view import collect_context_state
 
         ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "auto"
         ctx.turn.pending_approval_id = "wf-approval-abc"
         hist_mgr = MagicMock()
         hist_mgr.count_chars.return_value = 0

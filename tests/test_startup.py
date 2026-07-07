@@ -67,7 +67,6 @@ class TestStartupOrchestratorStartServers:
         await startup._start_servers()
 
 
-
 # ── StartupOrchestrator._recover_pending_approvals ─────────────────────────────
 
 
@@ -242,3 +241,63 @@ class TestStartupOrchestratorSetupPrompt:
 
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[0] == {"role": "system", "content": "Initial prompt"}
+
+
+# ── Workflow preflight abort tests ───────────────────────────────────────────
+
+
+class TestStartupWorkflowPreflight:
+    """Startup aborts (raises RuntimeError) on workflow preflight failures."""
+
+    def _make_startup(self) -> StartupOrchestrator:
+        ctx = MagicMock()
+        view = MagicMock()
+        return StartupOrchestrator(ctx, view)
+
+    def test_aborts_on_missing_workflow_definition(self) -> None:
+        startup = self._make_startup()
+        with patch(
+            "agent.startup.check_workflow_definition",
+            side_effect=RuntimeError("missing workflow.json"),
+        ):
+            with pytest.raises(RuntimeError, match="missing workflow.json"):
+                startup._check_workflow_definition()
+
+    def test_aborts_on_invalid_workflow_json(self) -> None:
+        startup = self._make_startup()
+        with patch(
+            "agent.startup.check_workflow_definition",
+            side_effect=RuntimeError("invalid JSON"),
+        ):
+            with pytest.raises(RuntimeError, match="invalid JSON"):
+                startup._check_workflow_definition()
+
+    def test_aborts_on_missing_workflow_schema(self) -> None:
+        startup = self._make_startup()
+        with patch(
+            "agent.repl_health.check_workflow_schema",
+            side_effect=RuntimeError("missing table: tasks"),
+        ):
+            with pytest.raises(RuntimeError, match="missing table"):
+                startup._check_workflow_schema()
+
+    def test_definition_check_passes_when_no_error(self) -> None:
+        startup = self._make_startup()
+        with patch("agent.startup.check_workflow_definition"):
+            startup._check_workflow_definition()  # must not raise
+
+    def test_schema_check_passes_when_no_error(self) -> None:
+        startup = self._make_startup()
+        with patch("agent.repl_health.check_workflow_schema"):
+            startup._check_workflow_schema()  # must not raise
+
+    def test_error_message_has_no_workflow_mode_suggestion(self) -> None:
+        startup = self._make_startup()
+        with patch(
+            "agent.startup.check_workflow_definition",
+            side_effect=RuntimeError("definition missing"),
+        ):
+            with pytest.raises(RuntimeError) as exc_info:
+                startup._check_workflow_definition()
+        assert "workflow_mode" not in str(exc_info.value)
+        assert "disabled" not in str(exc_info.value)

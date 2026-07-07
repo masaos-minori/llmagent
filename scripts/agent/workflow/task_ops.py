@@ -19,7 +19,7 @@ def create_task(
     session_id: str | None,
     turn_number: int | None,
     workflow_version: str,
-    workflow_id: str | None = None,
+    workflow_id: str,
 ) -> TaskRecord:
     """Create a new task record."""
     if session_id is not None and turn_number is not None:
@@ -79,7 +79,7 @@ def _row_to_task(r: Any) -> TaskRecord:
         idempotency_key=row["idempotency_key"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
-        workflow_id=row.get("workflow_id"),
+        workflow_id=row.get("workflow_id") or "",
     )
 
 

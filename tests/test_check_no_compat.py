@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.checks.check_no_compat import (
+from tools.check_no_compat import (
     COMPAT_PATTERNS,
     check_compat_patterns,
 )
@@ -48,3 +48,90 @@ class TestPatternDetection:
         dirty.write_text("# re-export stub for compatibility\n")
         issues = check_compat_patterns(dirty.read_text(), dirty, {dirty})
         assert issues == []
+
+
+def _check(content: str) -> list[str]:
+    return check_compat_patterns(content, Path("scripts/test.py"), set())
+
+
+class TestWorkflowEnforcementPatterns:
+    """Each workflow enforcement pattern is detected in synthetic input."""
+
+    def test_detects_workflow_mode_field_reference(self) -> None:
+        assert any(
+            "workflow_mode field reference" in i
+            for i in _check("workflow_mode: str = 'auto'")
+        )
+
+    def test_detects_allow_startup_fallback(self) -> None:
+        assert any(
+            "allow_startup_fallback" in i
+            for i in _check("if self.allow_startup_fallback():")
+        )
+
+    def test_detects_is_workflow_enabled(self) -> None:
+        assert any(
+            "is_workflow_enabled" in i
+            for i in _check("if not policy.is_workflow_enabled():")
+        )
+
+    def test_detects_requires_startup_definition(self) -> None:
+        assert any(
+            "requires_startup_definition" in i
+            for i in _check("policy.requires_startup_definition()")
+        )
+
+    def test_detects_allow_turn_fallback(self) -> None:
+        assert any(
+            "allow_turn_fallback" in i
+            for i in _check("if policy.allow_turn_fallback():")
+        )
+
+    def test_detects_workflow_mode_disabled_string(self) -> None:
+        assert any(
+            "workflow_mode=disabled" in i for i in _check('workflow_mode="disabled"')
+        )
+
+    def test_detects_workflow_mode_auto_string(self) -> None:
+        assert any("workflow_mode=auto" in i for i in _check('workflow_mode="auto"'))
+
+    def test_detects_workflow_mode_disabled_log(self) -> None:
+        assert any(
+            "Workflow mode=disabled" in i
+            for i in _check('logger.info("Workflow mode=disabled")')
+        )
+
+    def test_detects_direct_llm_path_phrase(self) -> None:
+        assert any("direct LLM path" in i for i in _check("# direct LLM path fallback"))
+
+    def test_detects_direct_execution_fallback_phrase(self) -> None:
+        assert any(
+            "direct-execution fallback" in i
+            for i in _check("# direct-execution fallback")
+        )
+
+    def test_detects_workflow_execution_policy_import(self) -> None:
+        assert any(
+            "WorkflowExecutionPolicy import" in i
+            for i in _check(
+                "from agent.workflow_execution_policy import WorkflowExecutionPolicy"
+            )
+        )
+
+    def test_detects_workflow_execution_policy_module_import(self) -> None:
+        assert any(
+            "workflow_execution_policy module import" in i
+            for i in _check("import workflow_execution_policy")
+        )
+
+    def test_allowlisted_file_not_flagged(self) -> None:
+        issues = check_compat_patterns(
+            "workflow_mode: str = 'auto'",
+            Path("scripts/test.py"),
+            {Path("scripts/test.py")},
+        )
+        assert issues == []
+
+    def test_unrelated_mode_assignment_not_flagged(self) -> None:
+        issues = _check('display_mode = "compact"')
+        assert not any("workflow_mode field reference" in i for i in issues)

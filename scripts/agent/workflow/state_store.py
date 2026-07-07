@@ -38,7 +38,7 @@ class StateStore:
         session_id: str | None,
         turn_number: int | None,
         workflow_version: str,
-        workflow_id: str | None = None,
+        workflow_id: str,
     ) -> TaskRecord:
         """Create a new task record."""
         if session_id is not None and turn_number is not None:
@@ -96,7 +96,7 @@ class StateStore:
             idempotency_key=row["idempotency_key"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            workflow_id=row.get("workflow_id"),
+            workflow_id=row.get("workflow_id") or "",
         )
 
     def get_task_by_id(self, task_id: str) -> TaskRecord | None:

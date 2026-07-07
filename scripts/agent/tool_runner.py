@@ -504,12 +504,7 @@ async def _run_approval_gate(
     """
     from agent.tool_approval import run_approval_checks  # noqa: PLC0415
 
-    return await run_approval_checks(
-        ctx,
-        tool_calls,
-        skip_in_workflow_mode=ctx.cfg.workflow_require_approval
-        and not getattr(ctx.workflow, "approval_pending", False),
-    )
+    return await run_approval_checks(ctx, tool_calls)
 
 
 def _build_denied_messages(

@@ -32,7 +32,6 @@ from agent.shared.health_models import (
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
 
-    from agent.workflow_execution_policy import WorkflowExecutionPolicy
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -438,49 +437,60 @@ async def check_routing_drift_vs_live(
     return HealthCheckResult(warnings=warnings)
 
 
-def check_workflow_definition(
-    workflow_mode: str | WorkflowExecutionPolicy,
-    workflows_dir: Path | None = None,
-) -> list[str]:
-    """Check whether the workflow definition file exists for the given mode.
-
-    Returns a warning list when the file is missing and mode != disabled.
-    Raises RuntimeError when workflow_mode='required' and the file is missing.
-
-    Args:
-        workflow_mode: "auto", "required", "disabled", or a WorkflowExecutionPolicy instance.
-        workflows_dir: Override for the default WORKFLOWS_DIR (used in tests).
-
-    Returns:
-        A list of warning strings (empty if no issues).
-
-    Raises:
-        RuntimeError: When workflow_mode='required' and the definition file is missing.
-    """
+def check_workflow_definition(workflows_dir: Path | None = None) -> None:
+    """Raise RuntimeError if the workflow definition file is missing."""
     from agent.workflow.workflow_loader import (  # noqa: PLC0415 — lazy to avoid circular import
         WORKFLOWS_DIR,
     )
 
-    mode = workflow_mode.mode if hasattr(workflow_mode, "mode") else workflow_mode
-
-    if mode == "disabled":
-        return []
-
     target_dir = workflows_dir if workflows_dir is not None else WORKFLOWS_DIR
     workflow_file = target_dir / "default.json"
-
     if not workflow_file.exists():
-        msg = (
+        raise RuntimeError(
             f"Workflow definition file not found: {workflow_file}. "
-            f"Current mode={mode!r}. "
-            "Deploy config/workflows/default.json or set workflow_mode=disabled in config."
+            "Deploy config/workflows/default.json to fix this."
         )
-        if mode == "required":
-            logger.error(msg)
-            raise RuntimeError(msg)
-        return [msg]
 
-    return []
+
+REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
+    "tasks": ["task_id", "session_id", "workflow_id", "status", "created_at"],
+    "attempts": ["attempt_id", "task_id", "stage_id", "status"],
+    "processed_events": ["event_id", "task_id"],
+    "artifacts": ["artifact_id", "task_id"],
+    "approvals": ["approval_id", "task_id", "status"],
+}
+
+
+def check_workflow_schema(db_path: str | None = None) -> None:
+    """Raise RuntimeError if the workflow DB is missing required tables or columns."""
+    from db.helper import SQLiteHelper  # noqa: PLC0415
+
+    db = SQLiteHelper(target="workflow", db_path=db_path)
+    db.open(write_mode=False, row_factory=False)
+    try:
+        tables = {
+            row[0]
+            for row in db.fetchall(
+                "SELECT name FROM sqlite_master WHERE type='table'", ()
+            )
+        }
+        for table, required_cols in REQUIRED_WORKFLOW_TABLES.items():
+            if table not in tables:
+                raise RuntimeError(
+                    f"Workflow schema missing table {table!r}. "
+                    "Run create_workflow_schema() to initialize."
+                )
+            existing = {
+                row[1] for row in db.fetchall(f"PRAGMA table_info({table})", ())
+            }
+            for col in required_cols:
+                if col not in existing:
+                    raise RuntimeError(
+                        f"Workflow schema missing column {table}.{col}. "
+                        "Reinitialize the workflow database."
+                    )
+    finally:
+        db.close()
 
 
 def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]:

@@ -208,7 +208,8 @@ CREATE TABLE IF NOT EXISTS approvals (
     status      TEXT NOT NULL DEFAULT 'pending',
     reason      TEXT,
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    resolved_at TEXT
+    resolved_at TEXT,
+    workflow_id TEXT NOT NULL DEFAULT ''
 );
 """
 

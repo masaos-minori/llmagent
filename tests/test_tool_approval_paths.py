@@ -101,7 +101,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _make_cfg()
     ctx.turn.current_turn_id = "test-turn-id"
-    ctx.workflow.workflow_id = None
+    ctx.workflow.workflow_id = "wf-test-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
@@ -165,8 +165,7 @@ class TestRunApprovalChecksSkipInWorkflowMode:
         """run_approval_checks returns all calls as approved when skip_in_workflow_mode=True."""
         from agent.tool_approval import run_approval_checks
 
-        cfg = _make_cfg(workflow_require_approval=True)
-        ctx = _make_ctx(cfg=cfg)
+        ctx = _make_ctx()
         tool_calls = [
             {"id": "tc1", "function": {"name": "write_file", "arguments": "{}"}},
             {"id": "tc2", "function": {"name": "shell_run", "arguments": "{}"}},
@@ -184,8 +183,7 @@ class TestRunApprovalChecksSkipInWorkflowMode:
         """run_approval_checks does not skip when skip_in_workflow_mode=False."""
         from agent.tool_approval import run_approval_checks
 
-        cfg = _make_cfg(workflow_require_approval=True)
-        ctx = _make_ctx(cfg=cfg)
+        ctx = _make_ctx()
         tool_calls = [
             {"id": "tc1", "function": {"name": "write_file", "arguments": "{}"}},
         ]

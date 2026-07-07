@@ -192,16 +192,13 @@ class TestApprovalConfigValidation:
 class TestAgentConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = AgentConfig()
-        assert cfg.workflow_mode == "auto"
+        assert isinstance(cfg, AgentConfig)
 
-    def test_invalid_workflow_mode_raises(self) -> None:
-        with pytest.raises(ValueError, match="workflow_mode"):
-            AgentConfig(workflow_mode="unknown")
+    def test_agent_config_has_no_workflow_mode_field(self) -> None:
+        assert not hasattr(AgentConfig(), "workflow_mode")
 
-    def test_all_valid_workflow_modes(self) -> None:
-        for mode in ("auto", "required", "disabled"):
-            cfg = AgentConfig(workflow_mode=mode)
-            assert cfg.workflow_mode == mode
+    def test_agent_config_has_no_workflow_require_approval_field(self) -> None:
+        assert not hasattr(AgentConfig(), "workflow_require_approval")
 
     def test_semantic_cache_without_embed_url_raises(self) -> None:
         rag = RAGConfig(use_semantic_cache=True, embed_url="")

@@ -73,11 +73,13 @@ def _make_mixin(workflow_db: str, audit_logger=None):
     return mixin, ctx, messages, errors
 
 
-def _create_pending(db, workflow_id: str | None = None):
+def _create_pending(db, workflow_id: str = "wf-test"):
     """Create a task + pending approval; return (task, approval)."""
-    task = create_task(db, None, None, "1.0.0", workflow_id=workflow_id)
+    task = create_task(db, None, None, "1.0.0", workflow_id or "wf-test")
     update_task_status(db, task.task_id, "pending_approval")
-    approval = request_approval(db, task_id=task.task_id)
+    approval = request_approval(
+        db, task_id=task.task_id, workflow_id=workflow_id or "wf-test"
+    )
     return task, approval
 
 
@@ -114,8 +116,9 @@ def test_parse_approval_arg_empty() -> None:
 
 def test_approve_no_pending(workflow_db: str) -> None:
     mixin, _ctx, _messages, errors = _make_mixin(workflow_db)
+    fake_id = "00000000-0000-0000-0000-000000000000"
     with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-        mixin._cmd_approve("")
+        mixin._cmd_approve(fake_id)
     assert errors
     assert "No pending approval" in errors[0]
 
@@ -123,13 +126,13 @@ def test_approve_no_pending(workflow_db: str) -> None:
 # ── approve: one pending, no ID ───────────────────────────────────────────────
 
 
-def test_approve_single_pending_no_id(store, workflow_db: str) -> None:
+def test_approve_single_pending_with_id(store, workflow_db: str) -> None:
     _task, approval = _create_pending(store._db)
     store.close()
 
     mixin, ctx, messages, errors = _make_mixin(workflow_db)
     with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-        mixin._cmd_approve("")
+        mixin._cmd_approve(approval.approval_id)
 
     assert not errors
     assert any(approval.approval_id in m for m in messages)
@@ -145,6 +148,18 @@ def test_approve_single_pending_no_id(store, workflow_db: str) -> None:
     assert row.status == "approved"
 
 
+def test_approve_single_pending_no_id_requires_id(store, workflow_db: str) -> None:
+    _task, _approval = _create_pending(store._db)
+    store.close()
+
+    mixin, _ctx, _messages, errors = _make_mixin(workflow_db)
+    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+        mixin._cmd_approve("")
+
+    assert errors
+    assert "Approval ID required" in errors[0]
+
+
 # ── approve: multiple pending, no ID → fail closed ───────────────────────────
 
 
@@ -158,7 +173,7 @@ def test_approve_multiple_pending_no_id(store, workflow_db: str) -> None:
         mixin._cmd_approve("")
 
     assert errors
-    assert "2 pending approvals" in errors[0]
+    assert "Approval ID required" in errors[0]
 
 
 # ── approve: multiple pending, explicit ID ────────────────────────────────────
@@ -196,7 +211,7 @@ def test_reject_halts_task(store, workflow_db: str) -> None:
 
     mixin, ctx, messages, errors = _make_mixin(workflow_db)
     with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-        mixin._cmd_reject("")
+        mixin._cmd_reject(approval.approval_id)
 
     assert not errors
     assert any(approval.approval_id in m for m in messages)
@@ -226,7 +241,7 @@ def test_reject_multiple_pending_no_id(store, workflow_db: str) -> None:
         mixin._cmd_reject("")
 
     assert errors
-    assert "2 pending approvals" in errors[0]
+    assert "Approval ID required" in errors[0]
 
 
 # ── audit event ───────────────────────────────────────────────────────────────
@@ -245,7 +260,7 @@ def test_approve_emits_audit_event(store, workflow_db: str) -> None:
     mock_audit = _MockAudit()
     mixin, _ctx, _messages, errors = _make_mixin(workflow_db, audit_logger=mock_audit)
     with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-        mixin._cmd_approve("approved for testing")
+        mixin._cmd_approve(f"{approval.approval_id} approved for testing")
 
     assert not errors
     evt = mock_audit.last_event

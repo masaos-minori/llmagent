@@ -88,7 +88,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.conv.history = []
     ctx.session = MagicMock()
     ctx.session.session_id = None
-    ctx.workflow.workflow_id = None
+    ctx.workflow.workflow_id = "wf-test-id"
     return ctx
 
 

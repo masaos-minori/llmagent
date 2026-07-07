@@ -101,7 +101,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _make_cfg()
     ctx.turn.current_turn_id = "test-turn-id"
-    ctx.workflow.workflow_id = None
+    ctx.workflow.workflow_id = "wf-test-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
@@ -113,9 +113,9 @@ class TestMakeCtxDefaults:
         ctx = _make_ctx()
         assert ctx.turn.current_turn_id == "test-turn-id"
 
-    def test_ctx_workflow_id_default_none(self) -> None:
+    def test_ctx_workflow_id_default(self) -> None:
         ctx = _make_ctx()
-        assert ctx.workflow.workflow_id is None
+        assert ctx.workflow.workflow_id == "wf-test-id"
 
     def test_ctx_audit_logger_default_none(self) -> None:
         ctx = _make_ctx()

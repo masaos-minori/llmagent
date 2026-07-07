@@ -55,8 +55,22 @@ class LLMTurnRunner:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    async def run(self, llm_url: str) -> TurnResult:
+    async def run(
+        self,
+        llm_url: str,
+        *,
+        workflow_id: str,
+        task_id: str,
+        stage_id: str,
+        attempt_id: str,
+    ) -> TurnResult:
         """Send ctx.conv.history to LLM, execute tool calls, return TurnResult."""
+        if not (workflow_id and task_id and stage_id and attempt_id):
+            raise RuntimeError(
+                "LLMTurnRunner.run() requires non-empty workflow context: "
+                f"workflow_id={workflow_id!r}, task_id={task_id!r}, "
+                f"stage_id={stage_id!r}, attempt_id={attempt_id!r}"
+            )
         ctx = self._ctx
         state = TurnLoopState()
 
@@ -64,7 +78,9 @@ class LLMTurnRunner:
             try:
                 response = await self._stream_llm(llm_url, turn)
             except LLMTransportError as e:
-                return await self._handle_llm_error(e, turn)
+                return await self._handle_llm_error(
+                    e, turn, workflow_id=workflow_id, task_id=task_id
+                )
 
             message, finish_reason = response.message, response.finish_reason
 
@@ -111,7 +127,13 @@ class LLMTurnRunner:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    async def _handle_llm_error(self, e: LLMTransportError, turn: int) -> TurnResult:
+    async def _handle_llm_error(
+        self,
+        e: LLMTransportError,
+        turn: int,
+        workflow_id: str = "",
+        task_id: str = "",
+    ) -> TurnResult:
         """Store mid-turn LLM error in diagnostic channel and return a fail TurnResult."""
         ctx = self._ctx
         summary = e.detail or str(e)
@@ -127,6 +149,8 @@ class LLMTurnRunner:
                         "timestamp": datetime.now(UTC).isoformat(),
                     }
                 ).decode(),
+                workflow_id=workflow_id,
+                task_id=task_id,
             )
         logger.warning(
             "LLM transport error during tool continuation (turn=%s): %s",
@@ -147,6 +171,9 @@ class LLMTurnRunner:
         task_id: str = "",
         session_id: str = "",
         model_url: str = "",
+        workflow_id: str = "",
+        stage_id: str = "",
+        attempt_id: str = "",
     ) -> Any:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
@@ -157,6 +184,12 @@ class LLMTurnRunner:
                 attrs["workflow.session_id"] = session_id
             if model_url:
                 attrs["llm.model_url"] = model_url
+            if workflow_id:
+                attrs["workflow.workflow_id"] = workflow_id
+            if stage_id:
+                attrs["workflow.stage_id"] = stage_id
+            if attempt_id:
+                attrs["workflow.attempt_id"] = attempt_id
             return self._tracer.start_as_current_span(name, attributes=attrs or None)
         return nullcontext(_NoOpSpan())
 
