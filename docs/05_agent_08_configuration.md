@@ -164,14 +164,14 @@ verify stage. Default is `False` (no approval gate). **Startup-only** — not ha
 **Production default:** `config/common.toml` sets `workflow_mode = "required"`. Any environment
 that copies `common.toml` (see `deploy.sh:58`) must have a valid workflow definition file
 deployed, or the agent will fail at startup with an actionable error message. The preflight
-check (`_check_workflow_definition()` in `startup.py`) runs before `Orchestrator.__init__()` and
+check runs before `Orchestrator.__init__()` and
 reports the expected path (`config/workflows/default.json`). For local/dev environments without
 `common.toml` in the config search path, the dataclass default `"auto"` applies (warns and falls
 back). **Note:** `workflow_mode` is startup-only — it cannot be changed via `/reload`.
 
 > **Current behavior:** `workflow_mode = "required"` raises `RuntimeError` at `Orchestrator.__init__()` when `WorkflowLoader` fails to load a workflow definition. This is NOT caught by `StartupOrchestrator.run()` — it propagates to the REPL and aborts startup. The failure occurs during agent boot, not at the first turn.
 
-Cross-field validation in `_validate_cross_field()`:
+Cross-field validation:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty
 - `memory.use_memory_layer=True` → `memory.memory_jsonl_dir` must be non-empty
 - `memory.memory_embed_enabled=True` → `rag.embed_url` must be non-empty
@@ -255,7 +255,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 
 **`use_tool_dag` resource_scope 規約:**
 
-DAG モード (`use_tool_dag = true`) では、`_execute_with_dag()` がツールごとに `ToolSpec` を構築する際に以下のデフォルト値を適用する。
+DAG モード (`use_tool_dag = true`) では、ツールごとに `ToolSpec` を構築する際に以下のデフォルト値を適用する。
 
 | Tool type | `resource_scope` default | `requires_serial` default | Scheduling bucket |
 |---|---|---|---|

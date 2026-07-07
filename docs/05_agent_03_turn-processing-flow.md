@@ -19,25 +19,25 @@ User input (line)
   │
   └─ Orchestrator.handle_turn(line)
        │
-       ① _handle_turn_start(line)
+       ① Turn start handling
        │    → generate UUID4 current_turn_id
        │    → emit audit log: turn_start
        │
-       ② _handle_memory_injection(line)        [if use_memory_layer=True]
+       ② Memory injection                       [if use_memory_layer=True]
        │    → MemoryInjectionService.on_user_prompt(query, session_id)
        │    → inject memory snippets as "system" role messages
-       │    → set _memory_injected=True
+       │          → sets memory_injected flag
        │
-       ③ _append_user_message()
-       │    → append user message to ctx.conv.history
-       │    → AgentSession.save("user", content)
-       │    → (first turn only) asyncio.create_task(_generate_session_title)
-       │
-       ④ _handle_history_compression()
+       ③ Append user message
+        │    → append user message to ctx.conv.history
+        │    → AgentSession.save("user", content)
+        │    → (first turn only) asyncio.create_task for session title generation
+        │
+        ④ Handle history compression
        │    → HistoryManager.compress(history)
        │    → replaces oldest turns with LLM summary if over char/token limit
        │
-       ⑤ _handle_llm_turn(llm_url)
+       ⑤ LLM turn handling
        │    → LLMTurnRunner.run(llm_url)
        │         ├─ LLMClient.stream(url, history, tool_defs)
        │         │    → SSE streaming → on_token callbacks → CLIView.write_token()
@@ -51,7 +51,7 @@ User input (line)
        │              → re-send history to LLM
        │              → ToolLoopGuard: dedup / cycle / retry / consecutive-error guards
        │
-       ⑥ _handle_turn_end(line, answer, turn_started_at, error_kind)
+       ⑥ Turn end handling
             → emit audit log: turn_end (elapsed_ms, token counts, reconnect count, etc.)
             → ctx.turn.current_turn_id = None
 ```
@@ -78,7 +78,7 @@ User input (line)
   - `history` (user/assistant text) → normal priority
 - Most recent `history_protect_turns` (default 2) turn pairs are always protected
 - On success: `CLIView.write_compress_notice(n)` displays compression notice
-- On LLM failure while over char limit: `_fallback_truncate()` drops lowest-importance messages
+- On LLM failure while over char limit: drops lowest-importance messages
   (tool-role first, then sorted by `classify_importance` ascending) until under limit
 - Fallback count tracked in `stat_fallback_truncate_count`; visible via `/context` as "Fallback trunc"
 
@@ -96,14 +96,7 @@ User input (line)
    - Repeat up to `max_tool_turns` times
 5. If `finish_reason == "stop"` or `max_tool_turns` exceeded: return final answer
 
-### LLMTurnRunner Internal Methods
 
-| Method | Responsibility |
-|---|---|
-| `_stream_llm(llm_url, turn)` | Stream one LLM response; raise on first-turn failure, inject on mid-turn |
-| `_handle_llm_error(e, turn)` | Store mid-turn LLM error in diagnostic channel and return a fail TurnResult |
-| `_span_ctx(name, task_id, session_id, model_url)` | Return a real OTel span or a no-op context manager when no tracer |
-| `_finalize_answer_text(message)` | Append the done-turn message to history and return the answer text |
 
 `ToolLoopGuard` guards during each tool loop iteration:
 - **Dedup:** same `(name, args)` seen ≥ `tool_dedup_max_repeats` times → terminate loop;
@@ -174,7 +167,7 @@ Action:
 
 Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `session_diagnostics` table.
 
-After each turn, `AgentREPL._dispatch_line()` compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
+After each turn, the REPL line dispatcher compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
 
 ```
 [warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
@@ -212,7 +205,7 @@ A partial completion occurs when the LLM response stream is interrupted before a
 
 **Key invariant:** partial content is NEVER added to `ctx.conv.history`. It is isolated in the diagnostic channel so it cannot pollute future LLM context.
 
-After each turn, `AgentREPL._dispatch_line()` checks if `stat_partial_completions` increased. If so:
+After each turn, the REPL line dispatcher checks if `stat_partial_completions` increased. If so:
 
 ```
 [warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
@@ -264,8 +257,8 @@ Default retry policy (applied when no `retry_policy` defined in `default.json`):
 ### Workflow Status
 
 `Orchestrator.workflow_status()` returns a dict with two keys:
-- `mode`: "auto" | "required" | "disabled" — from `_policy.mode`
-- `tracking`: "enabled" | "not_loaded" — "enabled" if `_workflow_def` is set, "not_loaded" otherwise
+- `mode`: "auto" | "required" | "disabled" — from workflow policy
+- `tracking`: "enabled" | "not_loaded" — "enabled" if workflow definition is set, "not_loaded" otherwise
 
 ### Approval Gate
 

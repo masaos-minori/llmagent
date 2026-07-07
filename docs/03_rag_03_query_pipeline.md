@@ -148,7 +148,7 @@ The classification is visible in:
 |---|---|
 | Endpoint | `{rag_url}/v1/call_tool` |
 | Request body | `{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [history_context]}}` (empty list when history_context is empty) |
-| `_MAX_ATTEMPTS` | 3 total attempts (initial + 2 retries) |
+| Maximum attempts | 3 total attempts (initial + 2 retries) |
 | Retry backoff | Exponential: `min(2**attempt, 5)` seconds |
 
 ---
@@ -255,7 +255,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 - `rrf_k` default: 60; configurable via `cfg.rrf_k` (RagConfig Protocol includes `rrf_k` field)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
-> `use_rrf=False` activates a dedup-only fallback (all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
+> `use_rrf=False` activates a dedup-only fallback (all `rrf_score=0.0`). `pipeline.py:184` passes the RRF configuration flag to `FusionStage`.
 
 #### Retrieval-quality tradeoff: `use_rrf=False` vs `use_rrf=True`
 
@@ -381,12 +381,12 @@ Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapse
 
 | Constant | Value | Description |
 |---|---|---|
-| `_MAX_FTS_TOKENS` | 20 | Maximum tokens in an FTS5 query |
-| `_FTS_KEEP_POS` | `{"名詞", "動詞", "形容詞"}` | Sudachi POS categories retained for Japanese tokens |
+| Maximum tokens in an FTS5 query | 20 | |
+| Sudachi POS categories retained for Japanese tokens | `{"名詞", "動詞", "形容詞"}` | |
 
 **Lazy Sudachi loading:**
 
-`_SudachiTokenizer` loads Sudachi on first use. Dictionary: `core`, SplitMode: `C`.
+Sudachi is loaded on first use. Dictionary: `core`, SplitMode: `C`.
 
 | Method | Signature | Description |
 |---|---|---|

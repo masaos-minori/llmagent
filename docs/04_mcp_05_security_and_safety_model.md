@@ -287,7 +287,7 @@ Tools that support `dry_run=True` (pre-execution preview without side effects):
 | git-mcp | `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
 | cicd-mcp | `trigger_workflow` |
 
-**cicd-mcp note:** Allowlist checks (`_assert_allowed_repo`, `_assert_allowed_workflow`) execute before the `dry_run` bypass in `handle_trigger_workflow`. A denied request is always rejected even with `dry_run=True`.
+**cicd-mcp note:** Allowlist checks for repo and workflow execute before the `dry_run` bypass in `handle_trigger_workflow`. A denied request is always rejected even with `dry_run=True`.
 
 Agent-level: `approval_dry_run_tools` in `config/security.toml` lists tools for which
 the approval flow auto-executes `dry_run=True` before showing the confirmation prompt.

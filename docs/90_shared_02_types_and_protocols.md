@@ -212,7 +212,7 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG mode (`use_tool_dag = true`) — `_execute_with_dag()` constructs ToolSpec for each tool call
+- Used in DAG mode (`use_tool_dag = true`) — ToolSpec is constructed for each tool call
 - Import: `from shared.tool_spec import ToolSpec`
 
 ---
@@ -282,7 +282,7 @@ class ToolDefinition:
 ```
 
 - Immutable tool definition — one tool belongs to exactly one MCP server
-- Populated at import time from `tool_constants.py` frozensets via `_populate_default_registry()`
+- Populated at import time from `tool_constants.py` frozensets
 - Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
 
 ---
@@ -380,7 +380,6 @@ All constants are `frozenset[str]`. Used by `ToolRegistry` for seed data and by 
 | `SHELL_TOOLS` | `shell_run` |
 | `WEB_SEARCH_TOOLS` | `search_web` |
 
-Used by `ToolRegistry._populate_default_registry()` in `shared/tool_registry.py`.
 Referenced also by `shared/tool_executor.py` and `agent/tool_runner.py`.
 
 ---

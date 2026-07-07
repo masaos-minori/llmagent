@@ -167,7 +167,7 @@ Error message format: `Startup readiness check failed (required services unavail
 
 **Return type:** `HealthCheckResult` with `warnings`/`errors` lists of `ServiceWarning`. The `has_issues` property returns `True` if either list is non-empty. `warning_messages()` / `error_messages()` return flat string lists.
 
-`/mcp` command probes all MCP HTTP servers at `/health` endpoint (5 second timeout). Returns `bool` via `probe_mcp_health()`, or structured `McpHealthProbeResult` via `_probe_mcp_health_detail()`.
+`/mcp` command probes all MCP HTTP servers at `/health` endpoint (5 second timeout). Returns `bool` via `probe_mcp_health()`, or structured `McpHealthProbeResult`.
 
 ### Shared health models (`agent/shared/health_models.py`)
 
@@ -397,7 +397,7 @@ definition file exists before initializing the orchestrator. If the file is miss
 - Set `workflow_mode = "disabled"` in config (not recommended for production)
 - Set `workflow_mode = "auto"` for degraded operation (warns and falls back to direct LLM)
 
-The preflight check (`_check_workflow_definition()` in `startup.py`) runs before
+The preflight check runs before
 `Orchestrator.__init__()` and produces a clear error message rather than a cryptic
 `WorkflowLoadError` that may not include the expected file path.
 
@@ -676,9 +676,9 @@ Embed skip count        8
 ## Graceful Shutdown
 
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
-- `_shutdown_requested` flag set → REPL loop exits after current input wait
-- `finally` block in `_run_repl_loop()`:
-  - `_persist_session_diagnostics()` → write runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
+- Shutdown flag set → REPL loop exits after current input wait
+- `finally` block:
+  - Session diagnostics persistence → write runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
   - `memory.on_session_stop()` → extract + persist memories
   - `watchdog_task.cancel()`
-  - `_close_resources()` → readline history save, `lifecycle.shutdown_all()`, HTTP client close
+  - Resource cleanup → readline history save, `lifecycle.shutdown_all()`, HTTP client close

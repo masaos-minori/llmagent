@@ -54,17 +54,17 @@ agent/__main__.py
 
 ```
 StartupOrchestrator.run()
-  _initialize()
-    → _view.setup_readline()
+  Initialization phase:
+    → Readline setup
     → build_agent_context(ctx, view)   [factory.py]
-    → _init_command_registry()
-    → _init_orchestrator()
-  _start_servers()                     [HTTP subprocess MCP servers]
-  _setup_prompt()
+    → Command registry initialization
+    → Orchestrator initialization
+  MCP server startup                 [HTTP subprocess MCP servers]
+  Prompt setup
     → system prompt init
     → memory.on_session_start()
 → returns (CommandRegistry, Orchestrator)
-_run_repl_loop()
+REPL loop
 ```
 
 ### StartupOrchestrator (`agent/startup.py`)
@@ -83,11 +83,6 @@ _run_repl_loop()
 | Method | Responsibility |
 |---|---|
 | `handle_turn(line)` | Top-level turn handler |
-| `_handle_turn_start(line)` | Generate turn UUID, emit `turn_start` audit event |
-| `_handle_memory_injection(line)` | Inject relevant memories as system messages |
-| `_handle_history_compression()` | Compress history if over limit |
-| `_handle_llm_turn(llm_url)` | Delegate to `LLMTurnRunner.run()`; handle `LLMTransportError` |
-| `_handle_turn_end(...)` | Emit `turn_end` audit event (elapsed_ms, token counts) |
 
 ### AgentContext (`agent/context.py`)
 
@@ -114,7 +109,7 @@ all services. Sub-structures:
 
 ### ToolExecutor (`shared/tool_executor.py`)
 
-- Plugin tool lookup → TTL cache check → `_raw_execute()` (MCP routing)
+- Plugin tool lookup → TTL cache check → MCP routing
 - Side-effect detection: serializes parallel tool calls when write/delete/shell_run present
 - `ToolRouteResolver`: resolves tool name → server key (live `/v1/tools` discovery → ToolRegistry)
 - `McpServerHealthRegistry`: tracks per-server health state (HEALTHY/DEGRADED/UNAVAILABLE)

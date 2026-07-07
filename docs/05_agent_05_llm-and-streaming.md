@@ -41,7 +41,6 @@ LLMClient(
 | `async request_with_retry(url, payload)` | POST with exponential backoff retry (HTTP 429/503 + RequestError only) |
 | `async call(url, history, tool_defs)` | Non-streaming LLM call (used for compression, title generation) |
 | `async stream(url, history, tool_defs)` | SSE streaming with reconnect support; raises `LLMTransportError` on failure |
-| `_parse_response(raw: dict[str, Any])` | Validate and parse raw LLM JSON into `LLMResponse` DTO; raises `ValueError` on schema mismatch |
 
 ### Statistics attributes
 
@@ -96,7 +95,7 @@ Per-connection parser (1 instance per connection attempt).
 | `check_heartbeat(url: str) -> None` | Raise `HEARTBEAT_TIMEOUT` if idle too long |
 
 Parser behavior:
-- Blank lines and SSE comments (`:`) update `_last_event_at` (keepalive)
+- Blank lines and SSE comments (`:`) update last event timestamp (keepalive)
 - Malformed JSON increments `stat_parse_errors`; exceeding `sse_malformed_retry` raises `MALFORMED_SSE_FRAME`
 - `[DONE]` sets `is_done=True`
 
@@ -152,7 +151,7 @@ class LLMTransportError(Exception):
 ## Usage Collection
 
 When the LLM endpoint returns a chunk with `usage` field:
-- `_emit_usage(data)` extracts `prompt_tokens` and `completion_tokens`
+- Usage data extracted from `prompt_tokens` and `completion_tokens` fields
 - Calls `on_usage(prompt_tokens, completion_tokens)` callback
 - Callback updates `ctx.stats.stat_input_tokens` and `ctx.stats.stat_output_tokens`
 - Displayed in `/stats` output
@@ -163,7 +162,7 @@ If endpoint omits `usage`: stats remain `None`; `/context` shows `chars // 4` es
 
 ## Partial Completion Persistence
 
-Handled by `Orchestrator._handle_llm_transport_error()`:
+Handled by orchestrator transport error handler:
 
 | Case | Action |
 |---|---|

@@ -142,7 +142,7 @@ plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="rejec
   → import each file
   → @register_* decorators run at import time
   → errors: logged as WARNING, plugin skipped (fail-open); strict_mode=True raises on first error
-  → after all loaded: _validate_tool_conflicts() removes conflicting tools from known MCP set
+  → after all loaded: tool conflict validation removes conflicting tools from known MCP set
   → missing dir: returns 0 (no error)
 ```
 
@@ -175,7 +175,7 @@ def get_last_load_result() -> PluginLoadResult | None
 - `PluginLoadError` is raised only when `strict_mode=True` and there are failures or MCP conflicts.
 - `PluginFailure.error` contains the full exception message from the failed plugin.
 
-**Test isolation:** `_reset_for_testing()` clears all registries and must be called
+**Test isolation:** A reset function clears all registries and must be called
 in a `pytest.fixture(autouse=True)` in any test file that registers commands, tools,
 or pipeline stages. Non-test code must never call this function.
 
@@ -196,9 +196,9 @@ async def get_token_count(
 1. `POST {tokenize_url}/tokenize` → exact count (`is_exact=True`)
 2. Category-aware character-to-token estimate (text: 4.0, tool_calls: 2.5, system: 3.5) → estimate (`is_exact=False`)
 
-- Connection errors fall back silently; `_WarnOnce` instance (`_warned_unavailable`) suppresses repeated warnings per process lifetime
+- Connection errors fall back silently; a `_WarnOnce` instance suppresses repeated warnings per process lifetime
 - Category-aware estimation replaces the legacy `chars // 4` heuristic for better accuracy with multilingual text and structured tool payloads
-- `_estimate_tokens()` returns `(total_tokens, breakdown: dict[str, int])` with per-category counts
+- Token estimation returns `(total_tokens, breakdown: dict[str, int])` with per-category counts
 
 ---
 
@@ -270,7 +270,7 @@ ToolExecutor.execute(tool_name, args) -> ToolCallResult
   2. ToolRouteResolver.resolve(tool_name) → server_key
   3. McpServerHealthRegistry.is_unavailable(server_key) → block if UNAVAILABLE
   4. TTL + LRU cache check (is_error=False results only)
-  5. _raw_execute(tool_name, args)
+  5. Execute tool call (tool_name, args)
        → Semaphore acquire (if concurrency_limits set for server_key)
        → HttpTransport.call()
   6. Cache store (is_error=False only; TTL from config)
@@ -290,7 +290,7 @@ ToolExecutor.execute(tool_name, args) -> ToolCallResult
 
 **Concurrency behavior:**
 - `concurrency_limits` dict maps server_key → max concurrent calls
-- Semaphore-based throttling in `_raw_execute()`
+- Semaphore-based throttling in the tool execution layer
 - When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round are serialized
 
 **Side-effect detection:**
@@ -372,7 +372,7 @@ build_agent_config()
 
 **Plugin loading:**
 ```
-AgentREPL._init_plugin_registry()
+Plugin registry initialization
   → plugin_registry.load_plugins(plugin_dir)
   → imports plugins/*.py alphabetically
   → @register_* decorators populate global registry
@@ -457,7 +457,7 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG mode (`use_tool_dag = true`) — `_execute_with_dag()` constructs ToolSpec for each tool call
+- Used in DAG mode (`use_tool_dag = true`) — the DAG execution layer constructs ToolSpec for each tool call
 - `resource_scope` enables conflict detection between parallel tool calls on the same resource
 - `requires_serial` forces serialization even in parallel execution mode
 - `is_write` is used by `is_side_effect()` to classify write/delete tools

@@ -141,12 +141,12 @@ The memory layer has a 3-layer activation gate that controls when memory operati
 
 **Layer 1: Config bypass**
 - `use_memory_layer` config flag (default: `False`)
-- When `False`, `factory._build_memory_services()` returns `None`; `ctx.services.memory` is `None`
+- When `False`, memory services are not built; `ctx.services.memory` is `None`
 - All callers guard with `if ctx.services.memory is None: return`
 - Bypasses injection, ingestion, and retrieval entirely
 
 **Layer 2: Embedding client enabled**
-- `EmbeddingClient._enabled` gates HTTP and embedding calls
+- Embedding client enabled flag gates HTTP and embedding calls
 - When `False`: `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately
 - `HybridRetriever.search()` falls back to FTS5-only when embedding is unavailable
 
@@ -273,12 +273,12 @@ Re-exports all public symbols from sub-modules. Key categories:
 - **Store:** `MemoryStore`
 - **JSONL:** `JsonlMemoryStore`
 - **Retriever:** `FtsRetriever`, `HybridRetriever`, `VectorRetriever`
-- **Mapper:** `_floats_to_blob`, `_now_iso`, `row_to_entry`, `_stamp_entry`
+- **Mapper:** internal conversion functions for float-to-BLOB and timestamp stamping
 - **Extract:** `ExtractionPolicy`, `extract_memories`
 - **Embedding:** `EmbeddingClient`, `EmbeddingClientConfig`
 - **Injection:** `InjectionPolicy`
 
-Notable: internal mapper utils (`_floats_to_blob`, `_stamp_entry`) are exported in `__all__`.
+Notable: internal mapper utilities are exported in `__all__` for use by other modules.
 
 ### 2. `types.py` — Core runtime types
 
@@ -368,7 +368,7 @@ Class `MemoryStore(embed_dim=None)`: when `embed_dim` is None, defaults to 384.
 | Method / Attribute | Returns | Description |
 |---|---|---|
 | `search(query: MemoryQuery, project="", repo="", branch="")` | `list[MemoryHit]` | FTS5 BM25 search with rescoring. Returns [] on error or empty query. |
-| `candidate_limit` | `int` | Maximum candidate results from FTS query (alias for `_fts_limit`) |
+| `candidate_limit` | `int` | Maximum candidate results from FTS query |
 
 **`VectorRetriever` methods:**
 
@@ -398,7 +398,7 @@ AND (? = '' OR m.branch = '' OR m.branch = ?)
 - Branch is resolved once at startup via `shared.git_helper.get_repo_info()` in `factory.py`.
 - Entries with `branch=""` (global memories) are always included regardless of current branch.
 - When `get_repo_info()` fails or HEAD is detached, branch defaults to `""` — no filter is applied (safe degraded behavior).
-- The injection service passes `branch=self._branch` to all `retriever.search()` calls.
+- The injection service passes the resolved branch value to all `retriever.search()` calls.
 - Dedup KNN in ingestion uses `branch=""` (global scope) to ensure cross-branch duplicate detection.
 
 ### 8. `injection.py` — Lifecycle injection service
@@ -512,7 +512,7 @@ Class `MemoryServices(injection, ingestion, store, retriever, embedding_client=N
 |---|---|---|
 | `row_to_entry(dict)` | `MemoryEntry` | SQLite row to MemoryEntry |
 
-Internal helper functions: `_floats_to_blob` (converts float list to SQLite BLOB), `_stamp_entry` (fills created_at/updated_at), `_now_iso` (returns current ISO 8601 timestamp).
+Internal helper functions for float-to-BLOB conversion, timestamp stamping, and ISO 8601 timestamp generation.
 
 ### 15. `write_ops.py` — Write operations
 

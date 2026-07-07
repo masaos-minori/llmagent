@@ -4,7 +4,7 @@
 
 The primary store for all events. Opened once at startup as a shared connection (`check_same_thread=False`). WAL mode is enabled to allow concurrent reads while a write is in progress.
 
-**Why `check_same_thread=False` is safe**: DB operations execute in a thread pool via `asyncio.to_thread()`, serialized by `db._db_lock` (module-level `threading.Lock`). WAL mode additionally serializes concurrent writers at the SQLite level.
+**Why `check_same_thread=False` is safe**: DB operations execute in a thread pool via `asyncio.to_thread()`, serialized by a module-level `threading.Lock`. WAL mode additionally serializes concurrent writers at the SQLite level.
 
 ## Schema
 

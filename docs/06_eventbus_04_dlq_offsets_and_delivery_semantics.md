@@ -8,7 +8,7 @@ When a consumer calls `POST /nack?event_id=...`, the server increments `delivery
 
 ### Safety sweep: background DLQ loop
 
-The background DLQ loop (`_dlq_loop`) runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. This catches events that reached the retry threshold but were not promoted inline (e.g., due to a race condition between nack and the loop).
+The background DLQ loop runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. This catches events that reached the retry threshold but were not promoted inline (e.g., due to a race condition between nack and the loop).
 
 The loop uses an optimistic lock: it only counts events where `dlq_at` is still NULL, preventing double-promotion when both paths race. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
 

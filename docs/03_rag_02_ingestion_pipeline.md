@@ -391,7 +391,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `_process_url_groups` for each. Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check); also returns None when no chunk files exist |
+| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; process each group. Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check); also returns None when no chunk files exist |
 | `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group in ascending chunk_index order; moves files to registered/ after processing including on skip; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
 | `__del__` | `() -> None` | Safety cleanup: close httpx.Client if not already closed (handles missing explicit close) |
@@ -478,20 +478,14 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 ### 4.8 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
 
 `ETagManager` — Manages ETag/Last-Modified updates for existing documents. Provides stale guard: if new_fetched_at < stored fetched_at, the incoming data is older and the existing DB values are kept. Two update modes:
-- `_update_with_freshness`: Overwrite ETag/Last-Modified when freshness is proven (uses COALESCE for fetched_at)
-- `_update_null_fill`: Fill NULL only; never overwrite existing values (uses COALESCE for both etag and last_modified)
+- Freshness mode: Overwrite ETag/Last-Modified when freshness is proven (uses COALESCE for fetched_at)
+- Null-fill mode: Fill NULL only; never overwrite existing values (uses COALESCE for both etag and last_modified)
 
 **Public methods**
 
 | Method | Signature | Description |
 |---|---|---|
 | `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | Refresh ETag/Last-Modified for an existing document; returns early if both etag and last_modified are None |
-
-**Private methods**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_is_stale_update` | `(new_fetched_at: str \| None) -> bool` | Return True when the incoming data is older than stored fetched_at; returns False when new_fetched_at is None (no freshness signal means no stale check) |
 
 ### 4.9 Configuration (`config/rag_pipeline.toml`)
 
@@ -545,19 +539,15 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Constant | Value | Description |
 |---|---|---|
-| `_SUPPORTED_LANGS` | `{"en", "ja"}` | Output language codes |
-| `_VALID_HINT_LANGS` | `{"en", "ja", "auto"}` | Valid hint language values |
-| `_CJK_RATIO_THRESHOLD` | `0.1` | CJK character ratio threshold for Japanese classification |
-| `_TARGET_URL_ENTRY_LENGTH` | `2` | Expected element count for target_urls entries |
 | `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` (from `rag.utils`) | Minimum text length for language detection |
 
 **Unicode code point ranges for CJK detection**
 
 | Constant | Range | Description |
 |---|---|---|
-| `_HIRAGANA_KATAKANA_START/END` | "぀"–"ヿ" | Hiragana + Katakana |
-| `_CJK_UNIFIED_START/END` | "一"–"鿿" | CJK Unified Ideographs |
-| `_CJK_EXT_A_START/END` | "㐀"–"䶿" | CJK Extension A |
+| Hiragana + Katakana | "぀"–"ヿ" | |
+| CJK Unified Ideographs | "一"–"鿿" | |
+| CJK Extension A | "㐀"–"䶿" | |
 
 **Public functions**
 
@@ -570,13 +560,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
 | `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
 | `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | Parse a TOML file containing target_urls = [[url, lang], ...] pairs; raises FileNotFoundError if file not found, ValueError on parse error |
-
-**Private functions**
-
-| Function | Signature | Description |
-|---|---|---|
-| `_validate_target_url` | `(url: str) -> bool` | Return True when url has an accepted scheme (http, https, or file); unlike `rag.utils.validate_url`, this also accepts file:// URIs |
-| `_is_cjk_char` | `(c: str) -> bool` | Check if a character is CJK (Hiragana, Katakana, or CJK Unified Ideograph) using Unicode code point ranges |
 
 ---
 
@@ -641,17 +624,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 |---|---|
 | `ChunkJsonRaw` | Raw chunk JSON payload fields; required: `url`, `content`; optional: `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`, `chunking_strategy`, `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `artifact_type`, `schema_version`, `created_by` |
 
-**Private functions**
-
-| Function | Signature | Description |
-|---|---|---|
-| `_read_chunk_json_raw` | `(path: Path) -> ChunkJsonRaw \| None` | Read and parse chunk JSON as raw dict; returns None on any failure (OSError, JSONDecodeError, missing url/content, or empty url/content values) |
-| `_get_str` | `(data: ChunkJsonRaw, key: str) -> str \| None` | Get a string value from data; returns None if not a string |
-| `_get_list` | `(data: ChunkJsonRaw, key: str) -> list[str] \| None` | Get a list value from data; returns None if not a list |
-| `_get_str_or_none` | `(data: ChunkJsonRaw, key: str) -> str \| None` | Get a string value from data; returns the value if it's a string, otherwise None (same behavior as `_get_str`) |
-| `_get_str_with_default` | `(data: ChunkJsonRaw, key: str, default: str) -> str` | Get a string value with default fallback; returns default if the key is missing or not a string |
-| `_get_int_with_default` | `(data: ChunkJsonRaw, key: str, default: int) -> int` | Get an integer value with default fallback; handles None values and non-integer values (ValueError/TypeError) |
-
 **Public functions**
 
 | Function | Signature | Description |
@@ -712,7 +684,7 @@ from rag.utils import (
 | `LOG_KEY_SOURCE_TYPE` | `"source_type"` | Structured log field key for source type (http/file) |
 | `LOG_KEY_STAGE_NAME` | `"stage_name"` | Structured log field key for stage name |
 
-**Prompt injection patterns (`_INJECTION_PATTERNS`):**
+**Prompt injection patterns:**
 
 | Pattern | Regex | Description |
 |---|---|---|
@@ -759,12 +731,11 @@ to `chunks_fts`. English and code chunks have `normalized_content = NULL`, so FT
 ### FTS5 query tokenization
 
 Japanese queries use Sudachi tokenizer to extract `normalized_form()` for nouns, verbs, and adjectives only (excludes particles, auxiliaries).
-English queries use regex `[a-zA-Z0-9]+` tokenization. Sudachi tokenizer is lazily initialized in
-`_SudachiTokenizer` class (zero import-time side effects).
+English queries use regex `[a-zA-Z0-9]+` tokenization. Sudachi tokenizer is lazily initialized with zero import-time side effects.
 
 ### FTS5 query token limit
 
-Maximum tokens in an FTS5 query: `_MAX_FTS_TOKENS = 20` (`repository.py:29`).
+Maximum tokens in an FTS5 query: 20 (`repository.py:29`).
 Excess tokens are silently truncated to prevent query explosion. Double-quotes (FTS5 metachar)
 and whitespace are stripped from each token; empty tokens are dropped. If no valid tokens remain,
 returns `'""'` (empty FTS5 query).

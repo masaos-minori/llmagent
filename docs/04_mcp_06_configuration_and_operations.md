@@ -488,12 +488,12 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 
 ## Startup Validation Behavior (`tool_definitions_strict`)
 
-> **Canonical specification.** This section describes `_check_tool_definitions` in `repl_health.py`.
+> **Canonical specification.** This section describes the tool definitions check in `repl_health.py`.
 > For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see
 > [04_mcp_03 §Drift validation](04_mcp_03_routing_lifecycle_and_execution.md#drift-validation).
 > These are different functions — see also `04_mcp_90 §SPEC-01`.
 
-`_check_tool_definitions` runs at agent startup and compares `tool_definitions` from `config/agent.toml` against live `/v1/tools` responses. Behavior depends on server reachability and `tool_definitions_strict`:
+The tool definitions check runs at agent startup and compares `tool_definitions` from `config/agent.toml` against live `/v1/tools` responses. Behavior depends on server reachability and `tool_definitions_strict`:
 
 | Scenario | `strict = false` | `strict = true` |
 |---|---|---|
@@ -513,7 +513,7 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 The watchdog loop (`watchdog_loop()` in `agent/repl_health.py`) periodically probes all MCP
 servers and attempts to restart them when they fail. It runs as a background asyncio task.
 
-**Note:** The watchdog's periodic `record_success()`/`record_failure()` calls supplement (but do not replace) the per-call HealthRegistry updates from `ToolExecutor._raw_execute()`. Each tool call increments its own failure count independently of the watchdog.
+**Note:** The watchdog's periodic `record_success()`/`record_failure()` calls supplement (but do not replace) the per-call HealthRegistry updates from the tool execution layer. Each tool call increments its own failure count independently of the watchdog.
 
 ### Configuration
 
@@ -567,7 +567,7 @@ Tool errors do not — the server is functioning, but the specific tool call fai
 (e.g., invalid arguments, upstream API error).
 
 Transport errors are raised by `HttpTransport` as `TransportError` and caught by
-`ToolExecutor._record_transport_error()`, which increments `stat_transport_errors`
+the transport error handler, which increments `stat_transport_errors`
 and calls `HealthRegistry.record_failure()`.
 
 #### Per-server tool error counters
@@ -617,7 +617,7 @@ but certain conditions force serial execution within a round:
 | Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
 | Multiple write tools share a `resource_scope` | Two+ write tools with same scope | `resource_scope_conflict` |
 | Write tools without a `resource_scope` | Any write tool lacking scope metadata | `is_write_overlap` |
-| Side-effect tool in round (`_execute_standard` path) | Any side-effect tool | logged as "Side-effect tool detected" |
+| Side-effect tool in round (standard execution path) | Any side-effect tool | logged as "Side-effect tool detected" |
 
 Serialization is intentional safety behavior — it prevents concurrent writes from corrupting
 shared resources. It does not indicate a configuration error.

@@ -170,7 +170,7 @@ DLQ files are created immediately during inline promotion (on `/nack` call) at `
 
 ### Background DLQ loop role
 
-The background DLQ loop (`_dlq_loop`) runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. It uses an optimistic lock: only counts events where `dlq_at` is still NULL, preventing double-promotion. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
+The background DLQ loop runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. It uses an optimistic lock: only counts events where `dlq_at` is still NULL, preventing double-promotion. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
 
 ### DLQ requeue behavior
 

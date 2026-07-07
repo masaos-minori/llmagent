@@ -19,7 +19,7 @@ LLM returns tool_call
    → ToolExecutor.execute(tool_name, args)
         1. Plugin tool check (@register_tool)   — bypasses cache and MCP
         2. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
-        3. _raw_execute()
+        3. MCP server dispatch via internal method
              → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
              → LifecycleProtocol.ensure_ready(server_key)
              → concurrency semaphore acquire (if configured)
@@ -36,7 +36,7 @@ Resolves `tool_name → server_key` using `ToolRegistry` as the **sole routing a
 Live `/v1/tools` discovery is used only for startup drift validation, not for routing.
 
 1. **Tool registry (sole routing authority):** `ToolRegistry` singleton from `shared/tool_registry.py`.
-    Maps each tool name to exactly one server key. Populated at import time from `tool_constants.py` frozensets via `_populate_default_registry()`.
+    Maps each tool name to exactly one server key. Populated at import time from `tool_constants.py` frozensets via internal registry population function.
 
 2. **Unknown tools fail immediately:** When a tool name is not found in the registry, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered in `tool_constants.py`.
 
@@ -112,7 +112,7 @@ Three comparison functions detect configuration drift:
 
 > **Startup validation semantics** — The `validate_routing_against_live()` and
 > `validate_all_routing()` functions above compare live `/v1/tools` against the
-> internal routing registry. These are distinct from `_check_tool_definitions` in
+> internal routing registry. These are distinct from the tool definitions check in
 > `repl_health.py`, which compares configured `tool_definitions` (from `agent.toml`)
 > against live `/v1/tools`. For `tool_definitions_strict` startup-failure behavior,
 > see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration_and_operations.md#startup-validation-behavior-tool_definitions_strict).
@@ -175,7 +175,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ### Cache behavior
 
 - Only caches `is_error=False` results
-- Cache key: `f"{tool_name}:{_json_dumps(args)}"` (plain string; NOT MD5)
+- Cache key: `"tool_name:args_json"` (plain string; NOT MD5)
 - Entries expire after `cache_ttl` seconds
 - LRU eviction when `cache_max_size > 0` (`0` = unlimited)
 - Cache hit: `request_id=""` (no live request made)
@@ -207,7 +207,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
 - Raises `TransportError` on all transport-level failures (timeout, HTTP non-2xx, malformed response, retry exhausted); does NOT return `is_error=True` directly
-- `ToolExecutor._record_transport_error()` catches `TransportError` and converts it to `ToolCallResult(error_type="transport")`
+- Transport error handler catches `TransportError` and converts it to `ToolCallResult(error_type="transport")`
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
 - **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with decreasing delay: attempt 0 waits 4s, attempt 1 waits 2s, attempt 2 waits 1s before the final exhaustion error. Formula: 2^(RETRY_MAX - attempt - 1). This is NOT exponential backoff (delays decrease with each attempt). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
 - **Non-retryable errors:** HTTP timeout (`httpx.TimeoutException`) and HTTPStatusError for non-429/502/503/504 status codes are immediately propagated without retry.
@@ -242,7 +242,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | `record_failure(server_key)` | Increment failure count; `HALF_OPEN → UNAVAILABLE` (cooldown reset); threshold reached → `UNAVAILABLE` |
 | `record_degraded(server_key, reason)` | Explicitly set state to `DEGRADED` with an optional reason string; called by watchdog for reachable-but-non-restartable servers |
 | `get_degraded_reason(server_key)` | Return the last recorded degraded reason string, or `None` if none set |
-| `record_success(server_key)` | Reset failure count, `_unavailable_since`, and `_degraded_reasons`; `HALF_OPEN → HEALTHY` |
+| `record_success(server_key)` | Reset failure count, unavailable timestamp, and degraded reasons; `HALF_OPEN → HEALTHY` |
 | `get_state(server_key)` | Current state; returns `HEALTHY` for unknown key |
 | `is_unavailable(server_key)` | `True` if `UNAVAILABLE` and cooldown not yet elapsed; side effect: transitions to `HALF_OPEN` when cooldown elapses |
 
@@ -303,7 +303,7 @@ To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-
    HttpTransport raises TransportError.
 
 4. Agent:
-   ToolExecutor._record_transport_error("file_read", error)
+   Transport error handler records the error for "file_read"
    → stat_transport_errors["file_read"] += 1
    → HealthRegistry.record_failure("file_read") → state: HEALTHY → DEGRADED
 
@@ -340,7 +340,7 @@ See [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_configuration_and_opera
 
 ---
 
-## Watchdog (`_watchdog_loop`)
+## Watchdog
 
 MCP 障害の診断手順については `04_mcp_06` §MCP Failure Diagnosis を参照。
 
@@ -377,7 +377,7 @@ At startup, the agent logs one of:
 
 ```
 AgentREPL.run()
-  → _start_mcp_servers()
+  → MCP server startup
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
        → startup_mode="persistent" (http): no lifecycle action needed
    → [REPL loop]
@@ -394,7 +394,7 @@ AgentREPL.run()
 When adding a new tool, follow the canonical 7-step procedure from the [Adding a new tool](#adding-a-new-tool) section above.
 
 Key points:
-1. **Add the tool name to `shared/tool_constants.py` frozenset** [Required] — `_populate_default_registry()` reads these frozensets at import time and builds the routing registry automatically. No manual registry edit is needed.
+1. **Add the tool name to `shared/tool_constants.py` frozenset** [Required] — Internal registry population function reads these frozensets at import time and builds the routing registry automatically. No manual registry edit is needed.
 2. **Add `GET /v1/tools` endpoint** [Recommended] — enables startup drift validation via `check_routing_drift_vs_live()`; does not affect routing.
 3. **Add `tool_names` to server config** [Optional] — drift validation hint only; routing does not require it.
 4. **Add LLM schema to `config/tools_definitions.toml`** [Required if tool visible to LLM]
@@ -411,7 +411,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 | Layer | Role | Routing? |
 |---|---|---|
-| `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | **Sole routing authority**; populated by `_populate_default_registry()` | Yes |
+| `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | **Sole routing authority**; populated by internal registry population function | Yes |
 | Live `/v1/tools` discovery | **Validation source only**; used by `check_routing_drift_vs_live()` at startup to detect drift | No |
 
 **Key rules:**

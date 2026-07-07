@@ -84,7 +84,7 @@ Shared across all MCP servers. Ensures consistent request/response structure.
 {"tools": [{"name": "read_text_file", "description": "..."}]}
 ```
 
-Called by `AgentREPL._check_tool_definitions()` at startup to validate that configured
+Called at startup to validate that configured
 tool names match live server tools. Mismatch → warning log; if `tool_definitions_strict=True` → `RuntimeError`.
 
 ---
@@ -97,7 +97,7 @@ All MCP servers inherit from `MCPServer`.
 
 | Class | Fields | Purpose |
 |---|---|---|
-| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int`, `actual_visible_bytes: int` | Return value of `_truncate_with_meta()` |
+| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int`, `actual_visible_bytes: int` | Return value of truncation with metadata method |
 
 ### Class attributes (declared by subclasses)
 
@@ -222,7 +222,7 @@ When result exceeds 512 KB:
 
 - `total_bytes` = original byte count (before truncation)
 - `actual_visible_bytes` = actual visible byte count (may be less than 512 KB if multi-byte UTF-8 characters fall at the truncation boundary)
-- Implemented by `_truncate_with_meta()` in `mcp/server.py`
+- Implemented by truncation with metadata method in `mcp/server.py`
 
 **Note:** The suffix shows the actual visible byte count (`actual_visible_bytes`), not the configured limit. For ASCII text, this equals 512 KB (524,288 bytes). For UTF-8 text with multi-byte characters at the boundary, it may be slightly less.
 
@@ -267,7 +267,7 @@ Every `POST /v1/call_tool` emits one JSON-lines audit record:
 
 **Note:** Per-server audit logs (shell-mcp, file-delete-mcp, github-mcp) use a different format — ISO8601 timestamp + `op=<operation>` + path/repo/command. These do NOT carry X-Session-Id or X-Request-Id correlation fields; cross-log correlation must use the agent-side audit log as the reference point.
 
-Implemented via `mcp.audit._audit_log()` called from each server's dispatch handler.
+Implemented via an audit logging function called from each server's dispatch handler.
 
 ---
 
@@ -282,11 +282,11 @@ Implemented via `mcp.audit._audit_log()` called from each server's dispatch hand
 | Response truncated | 200 | `false` (content provided) |
 
 HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which raises a
-`TransportError` exception. `ToolExecutor._record_transport_error()` converts this to
+`TransportError` exception. The transport error handler converts this to
 `ToolCallResult(output=str(e), is_error=True, error_type="transport")`.
 
 > **Note:** `HttpTransport.call()` never returns `is_error=True` for transport failures.
-> It raises `TransportError`. `ToolExecutor._record_transport_error()` catches this and
+> It raises `TransportError`. The transport error handler catches this and
 > returns `ToolCallResult(error_type="transport")`. See [04_mcp_03 §HttpTransport](04_mcp_03_routing_lifecycle_and_execution.md#httptransport).
 
 ### HealthRegistry updates

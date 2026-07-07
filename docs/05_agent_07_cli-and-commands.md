@@ -104,7 +104,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 |---|---|---|
 | `/config` | None | Display config file paths + values |
 | `/stats` | None | Display session metrics |
-| `/set temperature <f>` | Updates `ctx.cfg.llm.llm_temperature` + `ctx.services.llm._temperature` | Immediate LLM effect |
+| `/set temperature <f>` | Updates `ctx.cfg.llm.llm_temperature` + the LLM service's internal temperature field | Immediate LLM effect |
 | `/set max_tokens <n>` | Updates `ctx.cfg.llm.llm_max_tokens` | Immediate LLM effect |
 | `/reload` | Reloads all config files | Updates `ctx.cfg` and syncs services |
 

@@ -74,8 +74,8 @@ Session-cumulative counters and latency samples.
 | `stat_serialization_events` | `list[dict]` | Per-round serialization events recorded by the DAG tool scheduler and standard runner. Accumulated across all turns. Initial: `[]`. Surfaced by the `/mcp` command. |
 | `stat_serialization_total_overhead_ms` | `float` | Total serialization overhead in milliseconds, accumulated across all turns. Initial: `0.0`. |
 | `stat_memory_consistency_failures` | `int` | Count of `/memory check-consistency` failures this session. Incremented by `cmd_memory.py`. Initial: `0`. |
-| `stat_memory_circuit_open` | `bool` | `True` when the memory embedding circuit breaker is open. Read at display time from `MemoryServices` via `cmd_config_stats._get_mem_circuit_open()` — **not written to `ctx.stats`** during normal operation. Initial: `False`. |
-| `stat_memory_fts_fallback_count` | `int` | Count of FTS fallbacks this session (triggered when embedding is unavailable). Mirrors `MemoryServices.retriever.fts_fallback_count` — read at display time via `cmd_config_stats._get_mem_fts_fallback()`, not independently tracked in `ctx.stats`. Initial: `0`. |
+| `stat_memory_circuit_open` | `bool` | `True` when the memory embedding circuit breaker is open. Read at display time from `MemoryServices` — **not written to `ctx.stats`** during normal operation. Initial: `False`. |
+| `stat_memory_fts_fallback_count` | `int` | Count of FTS fallbacks this session (triggered when embedding is unavailable). Mirrors `MemoryServices.retriever.fts_fallback_count` — read at display time, not independently tracked in `ctx.stats`. Initial: `0`. |
 
 ---
 
@@ -102,7 +102,7 @@ AgentREPL.run()
 
 ### Session title generation
 
-On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as an asyncio background task (fire-and-forget via `asyncio.create_task()`).
+On the first user turn, session title generation in `cmd_session.py` calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as an asyncio background task (fire-and-forget via `asyncio.create_task()`).
 
 ### Session Title Generation Failure Behavior
 
@@ -128,7 +128,7 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - `replace_messages(messages)` persists compressed history snapshot back to DB; skips silently if session_id is None
 - Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table. For the partial-completion persistence model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
-- `AgentContext.diagnostics` is wired to `Orchestrator._diagnostic_store` on init; `None` before any `Orchestrator` is constructed
+- `AgentContext.diagnostics` is wired to the orchestrator's diagnostic store on init; `None` before any `Orchestrator` is constructed
 - Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)
 - Guard hints and mid-turn errors are stored only in diagnostics — they do NOT appear in `ctx.conv.history`
 - Diagnostic data is stored in the `session_diagnostics` table via `DiagnosticStore`; it is never present in `messages` and therefore never returned by `fetch_messages()`
@@ -159,7 +159,7 @@ AgentSession (session.sqlite: sessions + messages)
 
 ### Compression trigger
 
-Triggered in `_handle_history_compression()` each turn if either:
+Triggered each turn if either:
 - `len(history_chars) > context_char_limit` (default 8000)
 - `token_count > context_token_limit` (if > 0)
 
@@ -320,14 +320,7 @@ DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path`
 | `is_event_processed(db, event_id)` | Check if an event has already been processed (idempotency guard) |
 | `begin_stage_if_new(db, event_id, task_id, stage_id)` | Atomically check event_id and start attempt if new; returns `AttemptRecord` if the stage should run, None if already processed |
 
-### WorkflowLoader constants (`agent/workflow/workflow_loader.py`)
 
-| Constant | Value |
-|---|---|
-| `_REQUIRED_STAGE_KEYS` | `{"id", "description", "timeout_sec", "retryable"}` — required keys per stage definition |
-| `_REQUIRED_POLICY_KEYS` | `{"max_attempts", "backoff", "backoff_sec"}` — required keys per retry policy |
-| `_REQUIRED_STAGES` | `{"plan", "execute", "verify"}` — required stages in the workflow |
-| `_SUPPORTED_BACKOFF` | `{"fixed", "exponential"}` — supported backoff strategies |
 
 ---
 

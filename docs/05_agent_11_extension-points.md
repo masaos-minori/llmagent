@@ -14,7 +14,7 @@ and priority relationships between built-in features and extensions.
 Plugins are Python files in `plugins/*.py` (relative to the project root, 2 levels above `scripts/`).
 
 **Loading:**
-1. `AgentREPL._init_plugin_registry()` calls `plugin_registry.load_plugins(plugin_dir)` at startup
+1. Plugin registry initialization calls `plugin_registry.load_plugins(plugin_dir)` at startup
 2. Each `*.py` file is imported in alphabetical order
 3. `@register_*` decorators run at import time and register handlers globally
 4. Errors during load are logged individually with `[plugin] skipped: <filename> (<ErrorType>)`
@@ -74,7 +74,7 @@ startup-time enforcement, not a dispatch-time priority.
 
 Plugin commands that share a name with a built-in command are subject to **Option A (reject)** policy:
 
-- At load time, the shadowing command is **removed** from `_commands` and will not appear in `iter_commands()` or be dispatched.
+- At load time, the shadowing command is **removed** from the command registry and will not appear in `iter_commands()` or be dispatched.
 - Log: `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
 - When `plugin_strict = true`, a `PluginLoadError` is raised after all plugins are loaded, with a message containing `"Command builtin conflicts rejected: /help, /debug"` (comma-separated list of rejected command names).
 - In non-strict mode (default), the rejection is silent beyond the log line — startup continues normally.
@@ -201,19 +201,18 @@ and pre-rerank hooks are not yet implemented.
 | `get_tool(name)` | `Callable \| None` |
 | `get_pipeline_post_stages()` | List snapshot of all post-rerank stage handlers |
 | `load_plugins(plugin_dir, *, known_tools, override_policy, strict_mode)` | Import all `*.py` in dir; returns `PluginLoadResult` with loaded/failed/conflict counts; raises `PluginLoadError` in strict mode |
-| `_reset_for_testing()` | Clear all registries (test-only) |
 
 ### Test Isolation
 
-`_reset_for_testing()` is the **only** supported way to clear global registry state.
+A test-only function is the **only** supported way to clear global registry state.
 
 Rules:
 - Tests that call `load_plugins()` or any `@register_*` decorator **must** call
-  `_reset_for_testing()` in a `pytest.fixture(autouse=True)` before (and optionally after)
+  this function in a `pytest.fixture(autouse=True)` before (and optionally after)
   each test function.
-- Production code (non-test modules) must **never** call `_reset_for_testing()`.
-- Direct mutation of `_commands`, `_tools`, or `_pipeline_post` is also forbidden in tests;
-  use `_reset_for_testing()` + public decorators instead.
+- Production code (non-test modules) must **never** call this function.
+- Direct mutation of internal registries is also forbidden in tests;
+  use this function + public decorators instead.
 
 Example:
 ```python
@@ -222,9 +221,9 @@ import shared.plugin_registry as plugin_registry
 
 @pytest.fixture(autouse=True)
 def reset_registry():
-    plugin_registry._reset_for_testing()
+    # Clear all registries (test-only function)
     yield
-    plugin_registry._reset_for_testing()
+    # Clear all registries again after test
 ```
 
 ---

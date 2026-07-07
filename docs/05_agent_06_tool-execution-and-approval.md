@@ -17,7 +17,7 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 ```
 1. Plugin tool (@register_tool)        — local Python function, bypasses MCP
 2. TTL cache                           — returns cached result if not expired
-3. _raw_execute()                      — MCP server dispatch
+3. MCP server dispatch via internal method
      → ToolRouteResolver.resolve()     — tool_name → server_key (routing authority; see 04_mcp_03 §Routing Source of Truth)
      → McpServerHealthRegistry check  — skip UNAVAILABLE servers
      → LifecycleProtocol.ensure_ready() — start ondemand servers if needed
@@ -81,7 +81,7 @@ Parses, executes, and optionally summarizes one tool_call dict. Returns `(tc_id,
 
 ### Serialization statistics
 
-`_serialization_stats` tracks serialization impact across rounds:
+Serialization stats track serialization impact across rounds:
 
 | Counter | Description |
 |---|---|
@@ -89,9 +89,9 @@ Parses, executes, and optionally summarizes one tool_call dict. Returns `(tc_id,
 | `total_tools_affected` | Cumulative tools affected by serialization |
 | `tools_affected_last_round` | Tools affected in the most recent round (reset to 0 when no serialization) |
 
-### `_TOOL_RESULT_MAX_CHARS`
+### Display threshold
 
-Display threshold: results longer than 500 chars are shown as line/char counts instead of full text in logs.
+Results longer than 500 chars are shown as line/char counts instead of full text in logs.
 
 ---
 
@@ -138,7 +138,7 @@ Returns `False` when any path argument is outside `cfg.approval.allowed_root`. R
 
 #### `check_allowed_repo(cfg, tool_name, args)`
 
-Returns `False` when a GitHub write tool targets a repo not in the allowlist. Only applies to `_API_WRITE_TOOLS` (github_* tools). Returns:
+Returns `False` when a GitHub write tool targets a repo not in the allowlist. Only applies to GitHub write tools. Returns:
 - `True` for non-GitHub write tools
 - `False` when `allowed_repos` is empty (fail-closed)
 - Result of `"owner/repo" in allowed_repos` check
@@ -150,8 +150,8 @@ Returns `False` when a GitHub write tool targets a repo not in the allowlist. On
 Classification priority (first match wins):
 1. `WRITE_TOOLS` → `OperationType.WRITE`
 2. `DELETE_TOOLS` → `OperationType.DELETE`
-3. `_EXEC_TOOLS` (`shell_run`) → `OperationType.EXECUTE`
-4. `_API_WRITE_TOOLS` (github_* tools) → `OperationType.API_WRITE`
+3. Exec tools (`shell_run`) → `OperationType.EXECUTE`
+4. API write tools (github_* tools) → `OperationType.API_WRITE`
 5. Default → `OperationType.READ`
 
 ### Risk classification
@@ -182,9 +182,9 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 - `gitops_force_push_blocked=True` and `force=True` arg → deny
 - `gitops_push_blocked=True` → deny all GitHub write ops
 
-#### `_GITHUB_WRITE_TOOLS`
+#### GitHub write tools
 
-Internal constant: `frozenset` of 7 GitHub write tools used for `gitops_push_blocked` check:
+7 GitHub write tools used for `gitops_push_blocked` check:
 
 | Tool | Purpose |
 |---|---|
@@ -261,7 +261,7 @@ Hint appended to history when a tool result is dropped due to the per-turn limit
 [Result omitted: per-turn tool result limit reached. Use /tool show <id> to retrieve the full output.]
 ```
 
-Applied by `_apply_turn_char_limit()` when `turn_chars + len(llm_text) > tool_results_turn_max_chars`.
+Applied when `turn_chars + len(llm_text) > tool_results_turn_max_chars`.
 
 ---
 
@@ -313,7 +313,7 @@ Controls the inner tool loop in `LLMTurnRunner`:
 ## Concurrency Limits
 
 `tool_concurrency_limits: dict[str, int]` (in `ToolConfig`) maps server key to max
-concurrent calls. Implemented as `asyncio.Semaphore` lazily created in `_raw_execute()`.
+concurrent calls. Implemented as `asyncio.Semaphore` lazily created during tool execution.
 
 If a server key appears in the limit dict, calls are bounded. Missing keys: no limit.
 Unknown server key warning logged but does not error.
@@ -343,7 +343,7 @@ Workflow-level approval state is persisted in the `approvals` table of `workflow
 When a workflow task is suspended for approval (user must run `/approve` or `/reject`),
 the approval record survives agent restart:
 
-- **Startup recovery:** On startup, `_recover_pending_approvals()` queries the `approvals` table
+- **Startup recovery:** On startup, queries the `approvals` table
   for any pending approval. If found, it sets `ctx.workflow.approval_pending = True` and
   `ctx.turn.pending_approval_id`, then displays a warning with task ID and approval ID.
 

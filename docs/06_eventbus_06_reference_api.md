@@ -2,23 +2,15 @@
 
 ## scripts/eventbus/app.py
 
-Module-level variables:
-
-| Variable | Type | Description |
-|---|---|---|
-| `_ENVELOPE_SCHEMA_PATH` | `Path` | Path to JSON Schema; set from `get_schema_path()` at import time |
-| `_cfg` | `EventBusConfig \| None` | Loaded config; set in lifespan |
-| `_db` | `sqlite3.Connection \| None` | Shared SQLite connection; set in lifespan |
-| `_envelope_schema` | `dict \| None` | Loaded JSON Schema; set in lifespan |
-| `_dlq_task` | `asyncio.Task \| None` | DLQ background task; set in lifespan |
+Module-level variables are set in lifespan.
 
 Internal functions:
 
 | Function | Signature | Description |
 |---|---|---|
-| `_row_to_dict` | `(row: sqlite3.Row) -> dict` | Convert SQLite row to serializable dict |
-| `_get_seq` | `(event_id: str) -> int` | Fetch seq for existing event_id |
-| `_append_jsonl` | `(body: dict, seq: int) -> None` | Append event to JSONL archive; raises OSError on failure |
+| Convert SQLite row to serializable dict | `(row: sqlite3.Row) -> dict` |
+| Fetch seq for existing event_id | `(event_id: str) -> int` |
+| Append event to JSONL archive; raises OSError on failure | `(body: dict, seq: int) -> None` |
 
 ---
 
@@ -53,7 +45,7 @@ class EventBusConfig:
 
 | Function | Signature | Description |
 |---|---|---|
-| `_is_public_host` | `(host: str) -> bool` | Returns True if host is a wildcard (`0.0.0.0`, `::`) or cannot be parsed as an IP address (hostname); raises no exception |
+| `is_public_host` | `(host: str) -> bool` | Returns True if host is a wildcard (`0.0.0.0`, `::`) or cannot be parsed as an IP address (hostname); raises no exception |
 
 ---
 
@@ -90,7 +82,7 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 | Function | Signature | Description |
 |---|---|---|
 | `promote_to_dlq` | `(db, deadletter_dir, max_retry) -> int` | Promote eligible events to DLQ; returns count promoted |
-| `_atomic_write` | `(deadletter_dir, event_id, record) -> None` | Atomic JSON write via tempfile + os.replace |
+| `atomic_write` | `(deadletter_dir, event_id, record) -> None` | Atomic JSON write via tempfile + os.replace |
 
 ---
 
@@ -152,7 +144,7 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `_do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic shared by /ack and /events/{event_id}/ack; writes offset file on newly acked events |
+| `do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic shared by /ack and /events/{event_id}/ack; writes offset file on newly acked events |
 
 ---
 
@@ -199,8 +191,8 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `_row_to_dict` | `(row: Any) -> dict[str, Any]` | Convert SQLite row to serializable dict |
-| `_count_events_since` | `(conn: Any, since_seq: int) -> int` | Count events with seq > since_seq |
+| `row_to_dict` | `(row: Any) -> dict[str, Any]` | Convert SQLite row to serializable dict |
+| `count_events_since` | `(conn: Any, since_seq: int) -> int` | Count events with seq > since_seq |
 
 ---
 
@@ -214,9 +206,9 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `_get_config` | `(request: Request) -> EventBusConfig` | Extract config from request state |
-| `_get_broker` | `(request: Request) -> EventBroker` | Extract EventBroker from request state |
-| `_row_to_dict` | `(row: Any) -> dict[str, Any]` | Convert SQLite row to serializable dict |
+| `get_config` | `(request: Request) -> EventBusConfig` | Extract config from request state |
+| `get_broker` | `(request: Request) -> EventBroker` | Extract EventBroker from request state |
+| `row_to_dict` | `(row: Any) -> dict[str, Any]` | Convert SQLite row to serializable dict |
 
 ---
 
@@ -230,8 +222,8 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `_get_broker` | `(request: Request) -> EventBroker` | Extract EventBroker from request state |
-| `_get_config` | `(request: Request) -> EventBusConfig` | Extract config from request state |
+| `get_broker` | `(request: Request) -> EventBroker` | Extract EventBroker from request state |
+| `get_config` | `(request: Request) -> EventBusConfig` | Extract config from request state |
 
 ---
 

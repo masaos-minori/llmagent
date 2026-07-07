@@ -80,7 +80,7 @@ SQLiteHelper(target: DbTarget | str = "rag")
 **Note:** Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is out of scope for this cleanup. Future Event Bus writers must use ISO-8601 UTC Z suffix timestamps.
 
 **Connection setup (every `open()` call):**
-1. Load sqlite-vec extension from `_vec_so` (rag target only); then `enable_load_extension(False)`
+1. Load sqlite-vec extension (rag target only); then `enable_load_extension(False)`
 2. `PRAGMA journal_mode=WAL`
 3. `PRAGMA synchronous=NORMAL`
 4. `PRAGMA busy_timeout=30000` (from `common.toml::sqlite_busy_timeout_ms`)
@@ -149,7 +149,7 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 -- DIMS replaced at runtime from embedding_dims config (default 384)
 ```
 
-Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_rag_schema_sql(dims)`.
+Stores float32 little-endian BLOB. `DIMS` is substituted dynamically at runtime from embedding_dims config (default 384).
 
 ---
 
@@ -321,7 +321,7 @@ create_schema()
 
 - All DDL uses `IF NOT EXISTS` — idempotent; safe to run multiple times
 - **Compatible migration is unsupported.** Schema changes require DB recreation: archive → delete → recreate via `create_schema()`. See [90_shared_05 §11](90_shared_05_db_api_and_operations.md#11-db-recreation-procedure) for the full procedure.
-- `embedding_dims` is substituted dynamically in `_build_rag_schema_sql(dims)` and `_build_session_schema_sql(dims)`
+- `embedding_dims` is substituted dynamically at runtime from config (default 384)
 
 ---
 
