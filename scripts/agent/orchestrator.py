@@ -44,12 +44,6 @@ from agent.workflow import (
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
-from agent.workflow_execution_policy import WorkflowExecutionPolicy
-
-
-class WorkflowCreationError(RuntimeError):
-    """Raised when the orchestrator cannot create a workflow and direct-execution fallback is disabled."""
-
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -109,7 +103,6 @@ class Orchestrator:
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
         tracer: Any = None,
-        workflow_mode: str = "auto",
     ) -> None:
         self._ctx = ctx
         self._allowed_tools: list[str] | None = allowed_tools
@@ -118,7 +111,6 @@ class Orchestrator:
         self._on_turn_end = on_turn_end
         self._on_error = on_error
         self._tracer = tracer
-        self._policy = WorkflowExecutionPolicy(workflow_mode)
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
@@ -128,47 +120,22 @@ class Orchestrator:
             self._guard,
             tracer=tracer,
         )
-        self._workflow_def: WorkflowDef | None = None
-        if self._policy.is_workflow_enabled():
-            try:
-                self._workflow_def = WorkflowLoader().load()
-            except (WorkflowLoadError, Exception) as exc:
-                if self._policy.requires_startup_definition():
-                    raise RuntimeError(
-                        f"[workflow] mode={self._policy.mode!r} but WorkflowLoader failed: {exc}. "
-                        f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
-                        "Fix the workflow definition file or set workflow_mode=disabled in config."
-                    ) from exc
-                logger.warning("WorkflowLoader failed — workflow tracking disabled")
+        try:
+            self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
+        except (WorkflowLoadError, Exception) as exc:
+            raise RuntimeError(
+                f"[workflow] WorkflowLoader failed: {exc}. "
+                f"Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
+            ) from exc
 
     # ── Public entry point ────────────────────────────────────────────────────
 
     def _log_fallback(self, reason: str) -> None:
-        """Raise WorkflowCreationError; direct-execution fallback is removed (fail-closed)."""
-        if (
-            self._policy.fail_closed_on_creation_error()
-            and self._policy.requires_startup_definition()
-        ):
-            raise RuntimeError(
-                f"[workflow] mode={self._policy.mode!r} but workflow unavailable: {reason}. "
-                f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
-                "Fix the workflow definition or set workflow_mode=disabled in config."
-            )
-        raise WorkflowCreationError(
-            f"[workflow] mode={self._policy.mode!r} — workflow unavailable ({reason}). "
-            "Direct-execution fallback is disabled. "
-            "Fix the workflow definition or set workflow_mode=disabled in config."
-        )
+        raise RuntimeError(f"[workflow] Workflow unavailable: {reason}.")
 
     def workflow_status(self) -> dict[str, str]:
-        """Return public workflow status for display purposes.
-
-        Keys:
-          mode: "auto" | "required" | "disabled"
-          tracking: "enabled" | "not_loaded"
-        """
+        """Return public workflow status for display purposes."""
         return {
-            "mode": self._policy.mode,
             "tracking": "enabled" if self._workflow_def is not None else "not_loaded",
         }
 
@@ -191,21 +158,9 @@ class Orchestrator:
 
         await self._handle_turn_start(line)
 
-        # Direct execution path (disabled mode or no workflow definition)
-        if not self._policy.is_workflow_enabled():
-            logger.info("Workflow mode=disabled — direct execution")
-        elif self._workflow_def is None:
+        if self._workflow_def is None:
             self._log_fallback("workflow definition not loaded")
-        else:
-            await self._handle_workflow_engine(line, ctx, turn_started_at)
-            return
-
-        answer, error_kind, is_partial = await self._process_turn(
-            line, ctx, turn_started_at
-        )
-        await self._handle_turn_end(
-            line, answer, turn_started_at, error_kind, is_partial
-        )
+        await self._handle_workflow_engine(line, ctx, turn_started_at)
 
     async def _handle_workflow_engine(
         self, line: str, ctx: AgentContext, turn_started_at: float
@@ -230,7 +185,6 @@ class Orchestrator:
             engine = WorkflowEngine(
                 self._workflow_def,
                 store,
-                require_approval=self._ctx.cfg.workflow_require_approval,
                 tracer=self._tracer,
             )
 
@@ -422,7 +376,13 @@ class Orchestrator:
                 self._on_turn_start()
             with self._llm_runner._span_ctx("llm") as llm_span:
                 llm_span.set_attribute("model_url", llm_url)
-                result = await self._llm_runner.run(llm_url)
+                result = await self._llm_runner.run(
+                    llm_url,
+                    workflow_id=ctx.workflow.workflow_id or "",
+                    task_id=ctx.workflow.current_task_id or "",
+                    stage_id="execute",
+                    attempt_id=ctx.turn.current_turn_id or "",
+                )
                 logger.info("LLM response: %s", result.answer)
                 if result.persist_as_assistant:
                     ctx.session.save("assistant", result.answer)

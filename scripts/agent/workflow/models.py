@@ -18,7 +18,7 @@ class TaskRecord:
     idempotency_key: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
-    workflow_id: str | None = None
+    workflow_id: str = ""
 
 
 @dataclass
@@ -30,6 +30,7 @@ class ApprovalRecord:
     reason: str | None
     created_at: str  # ISO-8601
     resolved_at: str | None
+    workflow_id: str = ""
 
 
 @dataclass

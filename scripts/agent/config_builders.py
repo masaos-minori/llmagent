@@ -259,6 +259,13 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     Otherwise configuration is loaded from files via load_config().
     """
     cfg = cfg_override if cfg_override is not None else load_config()
+    _FORBIDDEN_KEYS = {"workflow_mode", "workflow_require_approval"}
+    found = _FORBIDDEN_KEYS & set(cfg.keys())
+    if found:
+        raise ConfigLoadError(
+            f"Config contains removed keys: {sorted(found)}. "
+            "Remove them from your config file."
+        )
     system_prompt_tool = cfg.get("system_prompt_tool", "")
     security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))
     watchdog_interval_default = (
@@ -287,5 +294,4 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
             structured_log=bool(cfg.get("structured_log", False)),
         ),
-        workflow_mode=cfg.get("workflow_mode", "auto"),
     )

@@ -177,6 +177,5 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         if (repo_result.success and repo_result.data)
         else None,
         breakdown=_build_budget(history, token_is_exact),
-        workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
         approval_pending=ctx.turn.pending_approval_id is not None,
     )

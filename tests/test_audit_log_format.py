@@ -243,7 +243,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-abc"
-        ctx.workflow.workflow_id = ""
+        ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -264,7 +264,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-def"
-        ctx.workflow.workflow_id = ""
+        ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
         audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-11")
@@ -305,7 +305,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-jkl"
-        ctx.workflow.workflow_id = ""
+        ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -325,7 +325,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-mno"
-        ctx.workflow.workflow_id = ""
+        ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
         audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-13")

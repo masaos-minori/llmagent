@@ -67,6 +67,19 @@ COMPAT_PATTERNS = {
     "from agent.config import": r"from\s+agent\.config\s+import",
     "from mcp.github.service import": r"from\s+mcp\.github\.service\s+import",
     "from mcp.github import GitHubService": r"from\s+mcp\.github\s+import\s+GitHubService",
+    # Workflow enforcement cleanup (plans 20260707-01 through 20260707-14)
+    "workflow_mode field reference": r"workflow_mode\s*[=:]",
+    "allow_startup_fallback call": r"\ballow_startup_fallback\b",
+    "is_workflow_enabled call": r"\bis_workflow_enabled\b",
+    "requires_startup_definition call": r"\brequires_startup_definition\b",
+    "allow_turn_fallback call": r"\ballow_turn_fallback\b",
+    "workflow_mode=disabled string": r'workflow_mode\s*=\s*["\']disabled["\']',
+    "workflow_mode=auto string": r'workflow_mode\s*=\s*["\']auto["\']',
+    "Workflow mode=disabled log": r"Workflow\s+mode=disabled",
+    "direct LLM path phrase": r"direct\s+LLM\s+path",
+    "direct-execution fallback phrase": r"direct.execution\s+fallback",
+    "WorkflowExecutionPolicy import": r"from\s+agent\.workflow_execution_policy\s+import",
+    "workflow_execution_policy module import": r"\bimport\s+workflow_execution_policy\b",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -108,6 +121,8 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "test_rag_get_cfg.py",
     # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
     ROOT_DIR / "tests" / "test_check_no_compat.py",
+    # The checker itself (self-reference for new location)
+    ROOT_DIR / "tools" / "check_no_compat.py",
     # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
     ROOT_DIR / "tests" / "test_mcp_tool_schema_exports.py",
     # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy

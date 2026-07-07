@@ -34,7 +34,6 @@ def _make_ctx() -> MagicMock:
     ctx.conv.plan_mode = False
     ctx.conv.history = []
     ctx.session.session_id = "test-session"
-    ctx.cfg.workflow_mode = ""
     ctx.services_required.tools = None
     ctx.services_required.rag = None
     ctx.services_required.hist_mgr = None

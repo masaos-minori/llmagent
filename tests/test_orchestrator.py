@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.history import CompressResult
-from agent.orchestrator import Orchestrator, WorkflowCreationError
+from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from shared.llm_client import LLMErrorKind, LLMTransportError
@@ -44,6 +44,7 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
+    ctx.turn.pending_approval_task_id = None
     ctx.session.session_id = "test-session"
     ctx.workflow.workflow_id = None
     ctx.workflow.approval_pending = False
@@ -70,13 +71,38 @@ def _make_ctx() -> MagicMock:
     return ctx
 
 
+@pytest.fixture(autouse=True)
+def _patch_workflow_loader():
+    """Patch workflow infrastructure so Orchestrator works without filesystem access."""
+    mock_task = MagicMock()
+    mock_task.task_id = "test-task-id"
+    mock_task.workflow_id = "test-workflow-id"
+
+    async def _engine_run(task, plan_fn, execute_fn, verify_fn):
+        await plan_fn()
+        await execute_fn()
+        await verify_fn()
+
+    mock_engine_instance = MagicMock()
+    mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
+
+    with (
+        patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+        patch("agent.orchestrator.StateStore"),
+        patch("agent.orchestrator.create_task", return_value=mock_task),
+        patch("agent.orchestrator.audit_workflow_start"),
+        patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine_instance),
+    ):
+        mock_loader.return_value.load.return_value = MagicMock(version="test-v1")
+        yield mock_loader
+
+
 def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
     on_first_turn = AsyncMock()
     orch = Orchestrator(
         ctx,
         on_error=on_error,
         on_first_turn=on_first_turn,
-        workflow_mode="disabled",
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
@@ -455,7 +481,13 @@ class TestRunTurnLLMTransportError:
         ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
-            result = await orch._llm_runner.run("http://llm-test")
+            result = await orch._llm_runner.run(
+                "http://llm-test",
+                workflow_id="wf-test",
+                task_id="task-test",
+                stage_id="execute",
+                attempt_id="att-test",
+            )
 
         assert "CONNECT_ERROR" in result.answer
         synthetic = [
@@ -476,7 +508,13 @@ class TestRunTurnLLMTransportError:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run("http://llm-test")
+        result = await orch._llm_runner.run(
+            "http://llm-test",
+            workflow_id="wf-test",
+            task_id="task-test",
+            stage_id="execute",
+            attempt_id="att-test",
+        )
         assert "CONNECT_ERROR" in result.answer
         synthetic = [
             m for m in ctx.conv.history if m.get("name") == "llm_transport_error"
@@ -514,7 +552,13 @@ class TestRunTurnLLMTransportError:
         ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
-            result = await orch._llm_runner.run("http://llm-test")
+            result = await orch._llm_runner.run(
+                "http://llm-test",
+                workflow_id="wf-test",
+                task_id="task-test",
+                stage_id="execute",
+                attempt_id="att-test",
+            )
 
         assert result.action == "fail"
         assert "HEARTBEAT_TIMEOUT" in result.answer
@@ -531,7 +575,13 @@ class TestRunTurnLLMTransportError:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run("http://llm-test")
+        result = await orch._llm_runner.run(
+            "http://llm-test",
+            workflow_id="wf-test",
+            task_id="task-test",
+            stage_id="execute",
+            attempt_id="att-test",
+        )
         assert "READ_TIMEOUT" in result.answer
         ctx.diagnostics.save.assert_called_once()
 
@@ -560,7 +610,13 @@ class TestRunTurnNormalCompletion:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run("http://llm-test")
+        result = await orch._llm_runner.run(
+            "http://llm-test",
+            workflow_id="wf-test",
+            task_id="task-test",
+            stage_id="execute",
+            attempt_id="att-test",
+        )
 
         assert result.answer == "hello world"
         assistant_msgs = [m for m in ctx.conv.history if m.get("role") == "assistant"]
@@ -586,7 +642,13 @@ class TestRunTurnNormalCompletion:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        result = await orch._llm_runner.run("http://llm-test")
+        result = await orch._llm_runner.run(
+            "http://llm-test",
+            workflow_id="wf-test",
+            task_id="task-test",
+            stage_id="execute",
+            attempt_id="att-test",
+        )
 
         assert result.answer == ""
 
@@ -777,7 +839,7 @@ class TestAllowedToolsOverride:
         async def _capture_allowed(*_: object, **__: object) -> None:
             captured.append(list(ctx.cfg.tool.allowed_tools))
 
-        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
         with patch.object(
             orch, "_handle_memory_injection", side_effect=_capture_allowed
         ):
@@ -795,7 +857,7 @@ class TestAllowedToolsOverride:
         """ctx.cfg.tool.allowed_tools is restored to its original value after the turn."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = ["write_file"]
-        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
         with patch.object(orch, "_handle_memory_injection", AsyncMock()):
             with patch.object(
                 orch._llm_runner,
@@ -825,7 +887,7 @@ class TestAllowedToolsOverride:
         """ctx.cfg.tool.allowed_tools is restored even when an exception propagates."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = []
-        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
         orch._diagnostic_store = MagicMock()
 
         async def _raise(*_: object, **__: object) -> None:
@@ -836,237 +898,6 @@ class TestAllowedToolsOverride:
                 await orch.handle_turn("test")
 
         assert ctx.cfg.tool.allowed_tools == []
-
-
-# ── workflow_mode ─────────────────────────────────────────────────────────────
-
-
-class TestWorkflowMode:
-    """Tests for explicit workflow_mode parameter on Orchestrator and AgentConfig."""
-
-    def _ok_run(self) -> AsyncMock:
-        return AsyncMock(return_value=TurnResult(action="continue", answer="ok"))
-
-    # -- disabled mode -------------------------------------------------------
-
-    def test_disabled_mode_does_not_load_workflow(self) -> None:
-        ctx = _make_ctx()
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            Orchestrator(ctx, workflow_mode="disabled")
-        mock_loader.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_disabled_mode_handle_turn_skips_state_store(self) -> None:
-        ctx = _make_ctx()
-        orch = Orchestrator(ctx, workflow_mode="disabled")
-        with (
-            patch("agent.orchestrator.StateStore") as mock_store,
-            patch.object(orch._llm_runner, "run", self._ok_run()),
-        ):
-            await orch.handle_turn("hello")
-        mock_store.assert_not_called()
-
-    # -- auto mode (no workflow def) -----------------------------------------
-
-    @pytest.mark.asyncio
-    async def test_auto_mode_no_workflow_def_raises(self) -> None:
-        ctx = _make_ctx()
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            mock_loader.return_value.load.side_effect = Exception("not found")
-            orch = Orchestrator(ctx, workflow_mode="auto")
-        assert orch._workflow_def is None
-        with pytest.raises(
-            WorkflowCreationError, match="Direct-execution fallback is disabled"
-        ):
-            await orch.handle_turn("hello")
-
-    @pytest.mark.asyncio
-    async def test_auto_mode_state_store_failure_raises(self) -> None:
-        ctx = _make_ctx()
-        mock_wf = MagicMock()
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            mock_loader.return_value.load.return_value = mock_wf
-            orch = Orchestrator(ctx, workflow_mode="auto")
-        assert orch._workflow_def is mock_wf
-        with (
-            patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
-            pytest.raises(RuntimeError, match="db gone"),
-        ):
-            await orch.handle_turn("hello")
-
-    # -- required mode -------------------------------------------------------
-
-    def test_required_mode_raises_at_construction_when_loader_fails(self) -> None:
-        ctx = _make_ctx()
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError, match="required"),
-        ):
-            mock_loader.return_value.load.side_effect = Exception("not found")
-            Orchestrator(ctx, workflow_mode="required")
-
-    def test_required_mode_raises_on_workflow_load_error(self) -> None:
-        from agent.workflow.workflow_loader import WorkflowLoadError
-
-        ctx = _make_ctx()
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError, match="required"),
-        ):
-            mock_loader.return_value.load.side_effect = WorkflowLoadError("bad yaml")
-            Orchestrator(ctx, workflow_mode="required")
-
-    @pytest.mark.asyncio
-    async def test_required_mode_state_store_failure_raises(self) -> None:
-        ctx = _make_ctx()
-        mock_wf = MagicMock()
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            mock_loader.return_value.load.return_value = mock_wf
-            orch = Orchestrator(ctx, workflow_mode="required")
-        assert orch._workflow_def is mock_wf
-        with (
-            patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
-            pytest.raises(RuntimeError, match="db gone"),
-        ):
-            await orch.handle_turn("hello")
-
-    # -- enriched error messages ---------------------------------------------
-
-    def test_required_mode_error_includes_file_path(self) -> None:
-        """Orchestrator.__init__ required-mode error includes expected file path."""
-        ctx = _make_ctx()
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError) as exc_info,
-        ):
-            mock_loader.return_value.load.side_effect = Exception("not found")
-            Orchestrator(ctx, workflow_mode="required")
-        msg = str(exc_info.value)
-        assert "default.json" in msg
-
-    def test_required_mode_error_includes_mode_string(self) -> None:
-        """Orchestrator.__init__ required-mode error message includes mode value."""
-        ctx = _make_ctx()
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError) as exc_info,
-        ):
-            mock_loader.return_value.load.side_effect = Exception("not found")
-            Orchestrator(ctx, workflow_mode="required")
-        msg = str(exc_info.value)
-        assert "required" in msg
-
-    # -- AgentConfig validation ----------------------------------------------
-
-    def test_agent_config_accepts_valid_modes(self) -> None:
-        from agent.config_dataclasses import AgentConfig
-
-        for mode in ("auto", "required", "disabled"):
-            cfg = AgentConfig(workflow_mode=mode)
-            assert cfg.workflow_mode == mode
-
-    def test_agent_config_rejects_invalid_mode(self) -> None:
-        from agent.config_dataclasses import AgentConfig
-
-        with pytest.raises(ValueError, match="workflow_mode must be one of"):
-            AgentConfig(workflow_mode="on")
-
-    @pytest.mark.asyncio
-    async def test_workflow_engine_receives_require_approval_from_config(self) -> None:
-        """WorkflowEngine receives require_approval=True when AgentConfig.workflow_require_approval=True."""
-
-        ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "auto"
-        ctx.cfg.workflow_require_approval = True
-        mock_task = MagicMock(task_id="t1", workflow_id="w1")
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            patch.object(
-                Orchestrator,
-                "_process_turn",
-                new=AsyncMock(return_value=("ok", None, False)),
-            ),
-            patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.create_task", return_value=mock_task),
-            patch("agent.orchestrator.get_task_by_id", return_value=mock_task),
-            patch("agent.orchestrator.audit_workflow_start"),
-        ):
-            mock_loader.return_value.load.return_value = MagicMock()
-            orch = Orchestrator(ctx, workflow_mode="auto")
-
-            with patch("agent.orchestrator.WorkflowEngine") as mock_engine_cls:
-                mock_engine_cls.return_value.run = AsyncMock()
-                await orch.handle_turn("hello")
-                init_kwargs = mock_engine_cls.call_args.kwargs
-                assert init_kwargs["require_approval"] is True
-
-    @pytest.mark.asyncio
-    async def test_workflow_engine_require_approval_false_by_default(self) -> None:
-        """WorkflowEngine receives require_approval=False when AgentConfig.workflow_require_approval is not set."""
-
-        ctx = _make_ctx()
-        ctx.cfg.workflow_mode = "auto"
-        ctx.cfg.workflow_require_approval = False
-        mock_task = MagicMock(task_id="t1", workflow_id="w1")
-        with (
-            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            patch.object(
-                Orchestrator,
-                "_process_turn",
-                new=AsyncMock(return_value=("ok", None, False)),
-            ),
-            patch("agent.orchestrator.StateStore"),
-            patch("agent.orchestrator.create_task", return_value=mock_task),
-            patch("agent.orchestrator.get_task_by_id", return_value=mock_task),
-            patch("agent.orchestrator.audit_workflow_start"),
-        ):
-            mock_loader.return_value.load.return_value = MagicMock()
-            orch = Orchestrator(ctx, workflow_mode="auto")
-
-            with patch("agent.orchestrator.WorkflowEngine") as mock_engine_cls:
-                mock_engine_cls.return_value.run = AsyncMock()
-                await orch.handle_turn("hello")
-                init_kwargs = mock_engine_cls.call_args.kwargs
-                assert init_kwargs["require_approval"] is False
-
-    def test_init_workflow_task_new_task_closes_store_on_success(self) -> None:
-        """StateStore.close() is called after successful create_task in new-task branch."""
-        ctx = _make_ctx()
-        mock_wf = MagicMock(version="v1")
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            mock_loader.return_value.load.return_value = mock_wf
-            orch = Orchestrator(ctx, workflow_mode="auto")
-
-        mock_store_instance = MagicMock()
-        mock_task = MagicMock(task_id="t1", workflow_id="w1")
-        with (
-            patch("agent.orchestrator.StateStore", return_value=mock_store_instance),
-            patch("agent.orchestrator.create_task", return_value=mock_task),
-            patch("agent.orchestrator.audit_workflow_start"),
-        ):
-            orch._init_workflow_task(ctx, "session-1", existing_task_id=None)
-
-        mock_store_instance.close.assert_called_once()
-
-    def test_init_workflow_task_new_task_closes_store_on_exception(self) -> None:
-        """StateStore.close() is called even when create_task raises an exception."""
-        ctx = _make_ctx()
-        mock_wf = MagicMock(version="v1")
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
-            mock_loader.return_value.load.return_value = mock_wf
-            orch = Orchestrator(ctx, workflow_mode="auto")
-
-        mock_store_instance = MagicMock()
-        with (
-            patch("agent.orchestrator.StateStore", return_value=mock_store_instance),
-            patch(
-                "agent.orchestrator.create_task", side_effect=RuntimeError("db error")
-            ),
-            pytest.raises(RuntimeError, match="db error"),
-        ):
-            orch._init_workflow_task(ctx, "session-1", existing_task_id=None)
-
-        mock_store_instance.close.assert_called_once()
 
 
 class TestHandleHistoryCompressionPersist:

@@ -77,7 +77,7 @@ class TestApprove:
         self, store, workflow_db
     ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
-        task = create_task(store._db, "session-old", 1, "1.0.0")
+        task = create_task(store._db, "session-old", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task_id=task.task_id, stage_id="plan")
         store.close()
@@ -86,7 +86,7 @@ class TestApprove:
         assert ctx.turn.pending_approval_id is None
 
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-            mixin._cmd_approve("")
+            mixin._cmd_approve(approval.approval_id)
 
         assert not errors
         assert any(approval.approval_id in m for m in messages)
@@ -96,9 +96,10 @@ class TestApprove:
     def test_approve_writes_error_when_no_pending(self, workflow_db) -> None:
         """No pending approval in DB — write_validation_error is called."""
         mixin, _ctx, _messages, errors, _ = _make_mixin(workflow_db)
+        fake_id = "00000000-0000-0000-0000-000000000000"
 
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-            mixin._cmd_approve("")
+            mixin._cmd_approve(fake_id)
 
         assert errors
         assert "No pending approval" in errors[0]
@@ -109,7 +110,7 @@ class TestReject:
         self, store, workflow_db
     ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
-        task = create_task(store._db, "session-old", 2, "1.0.0")
+        task = create_task(store._db, "session-old", 2, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
@@ -117,7 +118,7 @@ class TestReject:
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
 
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-            mixin._cmd_reject("too risky")
+            mixin._cmd_reject(f"{approval.approval_id} too risky")
 
         assert not errors
         assert any(approval.approval_id in m for m in messages)
@@ -125,15 +126,15 @@ class TestReject:
 
     def test_reject_marks_task_as_halted(self, store, workflow_db) -> None:
         """Reject immediately marks the task as halted."""
-        task = create_task(store._db, "session-old", 3, "1.0.0")
+        task = create_task(store._db, "session-old", 3, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
-        request_approval(store._db, task_id=task.task_id, stage_id="execute")
+        approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
 
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-            mixin._cmd_reject("too risky")
+            mixin._cmd_reject(f"{approval.approval_id} too risky")
 
         assert not errors
         # Verify task is halted in DB
@@ -147,15 +148,15 @@ class TestReject:
 
     def test_approve_sets_pending_approval_task_id(self, store, workflow_db) -> None:
         """Approve sets pending_approval_task_id for auto-resume."""
-        task = create_task(store._db, "session-old", 4, "1.0.0")
+        task = create_task(store._db, "session-old", 4, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
-        request_approval(store._db, task_id=task.task_id, stage_id="execute")
+        approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
 
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
-            mixin._cmd_approve("")
+            mixin._cmd_approve(approval.approval_id)
 
         assert not errors
         assert ctx.turn.pending_approval_task_id == task.task_id

@@ -99,6 +99,14 @@ class TestHandleLlmError:
         runner._ctx.diagnostics.save.assert_called_once()
 
 
+WF_CTX = dict(
+    workflow_id="wf-test-1",
+    task_id="task-test-1",
+    stage_id="execute",
+    attempt_id="att-test-1",
+)
+
+
 class TestRun:
     async def test_returns_answer_on_stop(self, runner: LLMTurnRunner) -> None:
         stop_response = LLMResponse(
@@ -106,7 +114,7 @@ class TestRun:
             finish_reason="stop",
         )
         with patch.object(runner, "_stream_llm", AsyncMock(return_value=stop_response)):
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert result.answer == "Hello"
 
@@ -133,7 +141,7 @@ class TestRun:
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ) as mock_exec,
         ):
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert result.answer == "Done"
         mock_exec.assert_awaited_once()
@@ -144,7 +152,7 @@ class TestRun:
         """LLMTransportError during run() returns fail TurnResult with error detail."""
         err = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
         with patch.object(runner, "_stream_llm", AsyncMock(side_effect=err)):
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert "CONNECT_ERROR" in result.answer
         assert result.action == "fail"
@@ -170,7 +178,7 @@ class TestRun:
         ):
             runner._ctx.cfg.tool.max_tool_turns = 2
 
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert "Maximum tool turns reached" in result.answer
 
@@ -184,7 +192,7 @@ class TestRun:
         with patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)):
             runner._guard.check_all.return_value = "Blocked by guard"
 
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert "Blocked by guard" in result.answer
 
@@ -204,7 +212,7 @@ class TestRun:
             runner._guard.check_all.return_value = None
             runner._guard.check_error_limit.return_value = "Error limit reached"
 
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert "Error limit reached" in result.answer
 
@@ -231,8 +239,21 @@ class TestRun:
             ),
             patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()),
         ):
-            result = await runner.run("http://llm")
+            result = await runner.run("http://llm", **WF_CTX)
 
         assert result.action == "fail"
         assert result.persist_as_assistant is False
         runner._ctx.diagnostics.save.assert_called_once()
+
+    async def test_run_raises_without_workflow_context(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """run() must raise RuntimeError when workflow context params are empty."""
+        with pytest.raises(RuntimeError, match="requires non-empty workflow context"):
+            await runner.run(
+                "http://llm",
+                workflow_id="",
+                task_id="task-test-1",
+                stage_id="execute",
+                attempt_id="att-test-1",
+            )

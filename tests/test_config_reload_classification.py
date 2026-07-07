@@ -16,8 +16,6 @@ def _make_ctx() -> MagicMock:
     ctx = MagicMock()
     ctx.cfg.memory.use_memory_layer = False
     ctx.cfg.tool.plugin_strict = False
-    ctx.cfg.workflow_mode = "auto"
-    ctx.cfg.workflow_require_approval = False
     ctx.cfg.llm.llm_temperature = 0.7
     ctx.cfg.llm.llm_max_tokens = 4096
     ctx.cfg.llm.context_char_limit = 100_000
@@ -49,8 +47,6 @@ def svc(ctx: MagicMock) -> ConfigReloadService:
     [
         ("use_memory_layer", True),
         ("plugin_strict", True),
-        ("workflow_mode", "required"),
-        ("workflow_require_approval", True),
     ],
 )
 def test_detect_startup_only_changed_field(
@@ -65,8 +61,6 @@ def test_detect_startup_only_changed_field(
     [
         ("use_memory_layer", False),
         ("plugin_strict", False),
-        ("workflow_mode", "auto"),
-        ("workflow_require_approval", False),
     ],
 )
 def test_detect_startup_only_unchanged_not_reported(
@@ -81,56 +75,12 @@ def test_detect_startup_only_empty_dict(svc: ConfigReloadService) -> None:
     assert result == []
 
 
-def test_detect_startup_only_multiple_changed(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.workflow_mode = "auto"
-    ctx.cfg.workflow_require_approval = False
-    result = svc._detect_startup_only(
-        {
-            "workflow_mode": "required",
-            "workflow_require_approval": True,
-        }
-    )
-    assert "workflow_mode" in result
-    assert "workflow_require_approval" in result
-
-
 def test_detect_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
     result = svc._detect_startup_only({"llm_temperature": 0.3, "llm_max_tokens": 8192})
     assert result == []
 
 
-# --- Integration: apply_config_dict correctly classifies workflow fields ---
-
-
-def test_apply_config_dict_workflow_mode_in_startup_only(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.workflow_mode = "auto"
-    with patch.object(svc, "_apply_mcp_url_reload", return_value=ConfigReloadOutcome()):
-        outcome = svc.apply_config_dict({"workflow_mode": "required"})
-    assert "workflow_mode" in outcome.startup_only
-    assert "workflow_mode" not in outcome.applied
-
-
-def test_apply_config_dict_workflow_require_approval_in_startup_only(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.workflow_require_approval = False
-    with patch.object(svc, "_apply_mcp_url_reload", return_value=ConfigReloadOutcome()):
-        outcome = svc.apply_config_dict({"workflow_require_approval": True})
-    assert "workflow_require_approval" in outcome.startup_only
-    assert "workflow_require_approval" not in outcome.applied
-
-
-def test_apply_config_dict_unchanged_workflow_mode_not_in_startup_only(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.workflow_mode = "auto"
-    with patch.object(svc, "_apply_mcp_url_reload", return_value=ConfigReloadOutcome()):
-        outcome = svc.apply_config_dict({"workflow_mode": "auto"})
-    assert "workflow_mode" not in outcome.startup_only
+# --- Integration: apply_config_dict correctly classifies fields ---
 
 
 def test_apply_config_dict_use_memory_layer_in_startup_only(

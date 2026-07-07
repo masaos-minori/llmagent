@@ -433,12 +433,6 @@ class ConfigReloadService:
         v = _get_bool(new_cfg, "routing_drift_strict")
         if v is not None and v != ctx.cfg.tool.routing_drift_strict:
             changed.append("routing_drift_strict")
-        vs = _get_str(new_cfg, "workflow_mode")
-        if vs is not None and vs != ctx.cfg.workflow_mode:
-            changed.append("workflow_mode")
-        vb = _get_bool(new_cfg, "workflow_require_approval")
-        if vb is not None and vb != ctx.cfg.workflow_require_approval:
-            changed.append("workflow_require_approval")
         return changed
 
     def _reload_approval_settings(

@@ -39,6 +39,9 @@ def audit_approval(
     """Write a structured tool_approval event to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
+    assert ctx.workflow.workflow_id, (
+        "workflow_id required: audit_approval called outside workflow context"
+    )
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
     evt = ToolApprovalEvent(
@@ -51,7 +54,7 @@ def audit_approval(
         decision=str(decision),
         args_preview=masked,
         ts=time.time(),
-        workflow_id=ctx.workflow.workflow_id or "",
+        workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
@@ -61,6 +64,9 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
     """Write a structured approval_decision event to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
+    assert ctx.workflow.workflow_id, (
+        "workflow_id required: log_approval_decision called outside workflow context"
+    )
     evt = ApprovalDecisionEvent(
         event="approval_decision",
         task_id=ctx.turn.current_turn_id or "",
@@ -69,7 +75,7 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
         decision=str(outcome.decision),
         escalation_reason=outcome.escalation_reason,
         ts=time.time(),
-        workflow_id=ctx.workflow.workflow_id or "",
+        workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
@@ -163,6 +169,9 @@ def audit_tool_exec(
         return
     if not mcp_request_id:
         return
+    assert ctx.workflow.workflow_id, (
+        "workflow_id required: audit_tool_exec called outside workflow context"
+    )
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
     evt = ToolExecEvent(
@@ -176,7 +185,7 @@ def audit_tool_exec(
         args_preview=masked,
         ts=time.time(),
         error_type=error_type,
-        workflow_id=ctx.workflow.workflow_id or "",
+        workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         artifact_uri=artifact_uri,
     )

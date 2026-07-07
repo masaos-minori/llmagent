@@ -80,7 +80,6 @@ class _ContextMixin(MixinBase, TokenDisplay):
             [
                 ("Memory layer    ", state.mem_status),
                 ("Git             ", git_str),
-                ("Workflow mode   ", state.workflow_mode or "(not set)"),
                 ("Approval pending", approval_str),
             ]
         )

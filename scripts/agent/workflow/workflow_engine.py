@@ -96,12 +96,10 @@ class WorkflowEngine:
         self,
         workflow_def: WorkflowDef,
         store: StateStore,
-        require_approval: bool = False,  # When True, insert a human approval gate between execute and verify stages. Disabled by default. Enable via AgentConfig.workflow_require_approval. Does not affect per-tool approval (tool_approval.run_approval_checks).
         tracer: _Span | None = None,
     ) -> None:
         self._wdef = workflow_def
         self._store = store
-        self._require_approval = require_approval
         self._tracer = tracer
 
     def _span_ctx(self, name: str) -> _Span | nullcontext[_NoOpSpan]:
@@ -126,8 +124,7 @@ class WorkflowEngine:
             try:
                 await self._run_stage(task, "plan", plan_fn)
                 await self._run_execute_with_retry(task, execute_fn)
-                if self._require_approval:
-                    await self._gate_approval(task)
+                await self._gate_approval(task)
                 await self._run_stage(task, "verify", verify_fn)
             except WorkflowPendingApprovalError:
                 raise
@@ -145,7 +142,9 @@ class WorkflowEngine:
         with self._span_ctx("workflow.approval") as approval_span:
             approval_span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             if existing is None:
-                approval = request_approval(self._store._db, task.task_id)
+                approval = request_approval(
+                    self._store._db, task.task_id, task.workflow_id
+                )
                 self._store.update_task_status(task.task_id, "pending_approval")
                 approval_span.set_attribute(
                     "workflow.approval_id", approval.approval_id

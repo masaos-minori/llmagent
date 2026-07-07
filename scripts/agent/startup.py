@@ -28,7 +28,6 @@ from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_latest_pending_approval
 from agent.workflow.state_store import StateStore
-from agent.workflow_execution_policy import WorkflowExecutionPolicy
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -71,6 +70,7 @@ class StartupOrchestrator:
         ctx.conv.llm_url = ctx.cfg.llm.llm_url
         self._init_command_registry()
         self._check_workflow_definition()
+        self._check_workflow_schema()
         self._init_orchestrator()
 
     def _init_command_registry(self) -> None:
@@ -91,7 +91,6 @@ class StartupOrchestrator:
             on_error=self._view.write_llm_error,
             on_first_turn=self._cmds._generate_session_title,
             tracer=tracer,
-            workflow_mode=self._ctx.cfg.workflow_mode,
         )
 
     async def _start_servers(self) -> None:
@@ -124,15 +123,20 @@ class StartupOrchestrator:
 
     def _check_workflow_definition(self) -> None:
         """Preflight check for workflow definition file before Orchestrator.__init__()."""
-        ctx = self._ctx
         try:
-            warnings = check_workflow_definition(
-                WorkflowExecutionPolicy(ctx.cfg.workflow_mode)
-            )
-            for msg in warnings:
-                self._view.write_warning(msg)
+            check_workflow_definition()
         except RuntimeError as e:
             logger.error("Workflow preflight check failed: %s", e)
+            raise
+
+    def _check_workflow_schema(self) -> None:
+        """Preflight check for workflow DB schema before Orchestrator.__init__()."""
+        from agent.repl_health import check_workflow_schema  # noqa: PLC0415
+
+        try:
+            check_workflow_schema()
+        except RuntimeError as e:
+            logger.error("Workflow schema preflight failed: %s", e)
             raise
 
     def _check_embedding_dimensions(self) -> None:

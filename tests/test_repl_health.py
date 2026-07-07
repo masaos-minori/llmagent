@@ -7,6 +7,7 @@ httpx.AsyncClient and AgentContext are mocked.
 
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,6 +19,7 @@ from agent.repl_health import (
     audit_security_defaults,
     check_readiness,
     check_workflow_definition,
+    check_workflow_schema,
     probe_mcp_health,
 )
 from agent.security_audit_config import (
@@ -656,44 +658,96 @@ class TestCheckReadiness:
 class TestCheckWorkflowDefinition:
     """Tests for check_workflow_definition() preflight helper."""
 
-    def test_disabled_mode_returns_empty(self, tmp_path) -> None:
-        """workflow_mode=disabled returns no warnings regardless of file existence."""
-        warnings = check_workflow_definition("disabled", workflows_dir=tmp_path)
-        assert warnings == []
-
-    def test_auto_mode_missing_file_returns_warning(self, tmp_path) -> None:
-        """workflow_mode=auto with missing file returns warning (does not raise)."""
-        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
-        assert len(warnings) == 1
-        assert "not found" in warnings[0]
-
-    def test_required_mode_missing_file_raises(self, tmp_path) -> None:
-        """workflow_mode=required with missing file raises RuntimeError."""
+    def test_missing_file_raises(self, tmp_path) -> None:
+        """Missing default.json raises RuntimeError."""
         with pytest.raises(RuntimeError) as exc_info:
-            check_workflow_definition("required", workflows_dir=tmp_path)
+            check_workflow_definition(workflows_dir=tmp_path)
         assert "not found" in str(exc_info.value)
+        assert "default.json" in str(exc_info.value)
 
-    def test_required_mode_file_present_returns_empty(self, tmp_path) -> None:
-        """workflow_mode=required with present file returns no warnings."""
+    def test_present_file_passes(self, tmp_path) -> None:
+        """Existing default.json raises no exception."""
         (tmp_path / "default.json").write_text("{}")
-        warnings = check_workflow_definition("required", workflows_dir=tmp_path)
-        assert warnings == []
+        check_workflow_definition(workflows_dir=tmp_path)  # must not raise
 
-    def test_auto_mode_file_present_returns_empty(self, tmp_path) -> None:
-        """workflow_mode=auto with present file returns no warnings."""
-        (tmp_path / "default.json").write_text("{}")
-        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
-        assert warnings == []
-
-    def test_error_message_includes_mode_and_path(self, tmp_path) -> None:
-        """RuntimeError message includes current mode and expected path."""
+    def test_error_message_includes_remediation(self, tmp_path) -> None:
+        """RuntimeError message includes expected remediation hint."""
         with pytest.raises(RuntimeError) as exc_info:
-            check_workflow_definition("required", workflows_dir=tmp_path)
-        msg = str(exc_info.value)
-        assert "required" in msg
-        assert "default.json" in msg
+            check_workflow_definition(workflows_dir=tmp_path)
+        assert "default.json" in str(exc_info.value)
 
-    def test_auto_mode_warning_includes_remediation(self, tmp_path) -> None:
-        """Warning includes remediation hint for operator action."""
-        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
-        assert "workflow_mode=disabled" in warnings[0]
+
+def _create_workflow_db(
+    tmp_path: Any,
+    *,
+    exclude_table: str | None = None,
+    missing_column: tuple[str, str] | None = None,
+) -> str:
+    """Create a minimal workflow SQLite DB for testing check_workflow_schema()."""
+    db_path = str(tmp_path / "workflow.sqlite")
+    conn = sqlite3.connect(db_path)
+    schemas = {
+        "tasks": (
+            "CREATE TABLE tasks "
+            "(task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
+        ),
+        "attempts": (
+            "CREATE TABLE attempts "
+            "(attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT)"
+        ),
+        "processed_events": (
+            "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
+        ),
+        "artifacts": "CREATE TABLE artifacts (artifact_id TEXT, task_id TEXT)",
+        "approvals": (
+            "CREATE TABLE approvals (approval_id TEXT, task_id TEXT, status TEXT)"
+        ),
+    }
+    for table, ddl in schemas.items():
+        if table == exclude_table:
+            continue
+        if missing_column and missing_column[0] == table:
+            col = missing_column[1]
+            ddl = ddl.replace(f", {col} TEXT", "").replace(f"{col} TEXT, ", "")
+        conn.execute(ddl)
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+class TestCheckWorkflowSchema:
+    """Tests for check_workflow_schema() preflight helper."""
+
+    def test_valid_schema_passes(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path)
+        check_workflow_schema(db_path=db_path)  # must not raise
+
+    def test_missing_tasks_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="tasks")
+        with pytest.raises(RuntimeError, match="tasks"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_attempts_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="attempts")
+        with pytest.raises(RuntimeError, match="attempts"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_processed_events_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="processed_events")
+        with pytest.raises(RuntimeError, match="processed_events"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_artifacts_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="artifacts")
+        with pytest.raises(RuntimeError, match="artifacts"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_approvals_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="approvals")
+        with pytest.raises(RuntimeError, match="approvals"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_required_column_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, missing_column=("tasks", "workflow_id"))
+        with pytest.raises(RuntimeError, match="workflow_id"):
+            check_workflow_schema(db_path=db_path)

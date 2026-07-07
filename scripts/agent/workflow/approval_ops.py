@@ -14,17 +14,17 @@ def _now() -> str:
 
 
 def request_approval(
-    db: SQLiteHelper, task_id: str, stage_id: str | None = None
+    db: SQLiteHelper, task_id: str, workflow_id: str = "", stage_id: str | None = None
 ) -> ApprovalRecord:
     """Insert a pending approval gate for a task (or specific stage)."""
     approval_id = str(uuid.uuid4())
     now = _now()
     db.execute(
         """
-        INSERT INTO approvals (approval_id, task_id, stage_id, status, created_at)
-        VALUES (?, ?, ?, 'pending', ?)
+        INSERT INTO approvals (approval_id, task_id, workflow_id, stage_id, status, created_at)
+        VALUES (?, ?, ?, ?, 'pending', ?)
         """,
-        (approval_id, task_id, stage_id, now),
+        (approval_id, task_id, workflow_id, stage_id, now),
     )
     db.commit()
     return ApprovalRecord(
@@ -35,6 +35,7 @@ def request_approval(
         reason=None,
         created_at=now,
         resolved_at=None,
+        workflow_id=workflow_id,
     )
 
 
@@ -66,6 +67,7 @@ def get_pending_approval(db: SQLiteHelper, task_id: str) -> ApprovalRecord | Non
         reason=r["reason"],
         created_at=r["created_at"],
         resolved_at=r["resolved_at"],
+        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
     )
 
 
@@ -75,7 +77,7 @@ def find_pending_approval_by_session(
     """Return (task_id, approval) for the most recent pending-approval task in this session, or None."""
     rows = db.fetchall(
         """
-        SELECT t.task_id, a.approval_id, a.stage_id, a.reason, a.created_at, a.resolved_at
+        SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id
         WHERE t.session_id = ?
@@ -97,6 +99,7 @@ def find_pending_approval_by_session(
         reason=r["reason"],
         created_at=r["created_at"],
         resolved_at=r["resolved_at"],
+        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
     )
 
 
@@ -132,6 +135,7 @@ def find_approval_by_id(db: SQLiteHelper, approval_id: str) -> ApprovalRecord | 
         reason=r["reason"],
         created_at=r["created_at"],
         resolved_at=r["resolved_at"],
+        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
     )
 
 
@@ -139,7 +143,7 @@ def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord]
     """Return (task_id, approval) for the most recent globally pending approval, or None."""
     rows = db.fetchall(
         """
-        SELECT t.task_id, a.approval_id, a.stage_id, a.reason, a.created_at, a.resolved_at
+        SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id
         WHERE t.status = 'pending_approval'
@@ -160,4 +164,5 @@ def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord]
         reason=r["reason"],
         created_at=r["created_at"],
         resolved_at=r["resolved_at"],
+        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
     )

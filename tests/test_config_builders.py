@@ -156,6 +156,14 @@ class TestBuildAgentConfig:
             cfg = build_agent_config(None)
         assert isinstance(cfg, AgentConfig)
 
+    def test_config_with_workflow_mode_key_raises(self) -> None:
+        with pytest.raises(ConfigLoadError, match="workflow_mode"):
+            build_agent_config({**_MIN_CFG, "workflow_mode": "auto"})
+
+    def test_config_with_workflow_require_approval_key_raises(self) -> None:
+        with pytest.raises(ConfigLoadError, match="workflow_require_approval"):
+            build_agent_config({**_MIN_CFG, "workflow_require_approval": False})
+
 
 # ── load_config ───────────────────────────────────────────────────────────────
 
