@@ -41,9 +41,13 @@ _logger = logging.getLogger(__name__)
 
 
 class _ServerLifecycleRouter:
-    """Routes lifecycle calls to the HTTP lifecycle manager.
+    """Production implementation of LifecycleManagerProtocol for HTTP MCP servers.
 
-    Implements LifecycleManagerProtocol for HTTP-only MCP servers.
+    Delegates subprocess management to HttpServerLifecycleManager (_http_mgr) while
+    adding:
+    - Shutdown guard (_shutting_down): prevents start/restart after shutdown begins.
+    - LifecycleState tracking (_states): provides get_transport_state() with real values.
+    - Process snapshot API: get_process_info() and list_processes() for observability.
     """
 
     def __init__(
@@ -149,6 +153,18 @@ class _ServerLifecycleRouter:
 
     def get_transport_state(self, server_key: str) -> LifecycleState:
         return self._states.get(server_key, LifecycleState.UNKNOWN)
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return process snapshot dict for a managed subprocess server, or None."""
+        return self._http_mgr.get_process_snapshot(server_key)
+
+    def get_process_info(self, server_key: str):
+        """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
+        return self._http_mgr.get_process_info(server_key)
+
+    def list_processes(self):
+        """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
+        return self._http_mgr.list_processes()
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:

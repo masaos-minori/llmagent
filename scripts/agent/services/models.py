@@ -26,6 +26,19 @@ from agent.services.enums import (
 
 
 @dataclass(frozen=True)
+class ProcessInfoSnapshot:
+    """Read-only snapshot of an HTTP MCP subprocess's runtime state."""
+
+    server_key: str
+    managed: bool
+    pid: int | None
+    pgid: int | None
+    running: bool
+    last_exit_code: int | None
+    stderr_log: str
+
+
+@dataclass(frozen=True)
 class SessionTitleResult:
     title: str
 
@@ -42,6 +55,17 @@ class McpProbeResult:
     health: str
     endpoint: str
     sandbox_backend: str = ""
+    managed: bool = False
+    pid: int | None = None
+    pgid: int | None = None
+    running: bool | None = None
+    lifecycle_state: str = ""
+    last_exit_code: int | None = None
+    last_shutdown_result: str = ""
+    restart_recommended: bool = False
+    operator_action_required: bool = False
+    health_reason: str = ""
+    stderr_log: str = ""
 
 
 @dataclass(frozen=True)

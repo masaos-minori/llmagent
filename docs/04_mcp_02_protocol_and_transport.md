@@ -235,14 +235,15 @@ When result exceeds 512 KB:
 | Server | `/health` overrides |
 |---|---|
 | web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
-| github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
+| github-mcp | `dependencies.github_token` (`"not_set"`) |
 | mdq-mcp | `details.service: "mdq-mcp"`, `details.document_count`, `details.chunk_count`, `details.fts_row_count`, `details.last_indexed`, `details.stale_document_count`; checks `documents`, `chunks`, `chunks_fts` tables and triggers `chunks_ai/ad/au`; stale detection via `documents.mtime_ns` (nanoseconds) |
 | shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |
-| file-read-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
-| file-write-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
-| file-delete-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
-| rag-pipeline-mcp | `dependencies.embed_url` (`"not configured"`/`"check failed"`) |
+| file-read-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
+| file-write-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
+| file-delete-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
+| rag-pipeline-mcp | `dependencies` (`embed_url: "not configured"` / `config: "check failed"`) |
 | git-mcp | `dependencies.git` (`"git not found in PATH"`/`"check failed"`) |
+| cicd-mcp | `dependencies` (`github_token: "not_set"` / `config: "check failed"`) |
 
 ---
 

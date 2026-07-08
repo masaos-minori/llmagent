@@ -673,6 +673,7 @@ class TestProcessGroupShutdown:
         import scripts.agent.http_lifecycle as mod
 
         monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
+        monkeypatch.setattr(mod.os, "killpg", MagicMock())
         _patch_open_to_tmp(monkeypatch, tmp_path)
 
         mgr = HttpServerLifecycleManager()

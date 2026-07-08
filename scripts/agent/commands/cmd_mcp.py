@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 
 def _format_mcp_table(rows: list[McpProbeResult]) -> str:
     """Format MCP server status rows as a fixed-width table string."""
-    col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {}"
+    col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {:<8} {:>5} {}"
     lines = [
         col.format(
-            "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE", "STATUS", "ENDPOINT/CMD"
+            "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE", "STATUS", "LIFECYCLE", "PID", "ENDPOINT/CMD"
         ),
-        "-" * 99,
+        "-" * 110,
     ]
     for r in rows:
         role_display = (
@@ -36,6 +36,8 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
             if r.sandbox_backend
             else r.role
         )
+        lifecycle_display = r.lifecycle_state or "-"
+        pid_display = str(r.pid) if r.pid is not None else "-"
         lines.append(
             col.format(
                 r.key,
@@ -45,7 +47,8 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
                 TIER_LABELS.get(r.tier, r.tier.value),
                 role_display,
                 f"{r.availability.value}/{r.health}",
-                r.endpoint,
+                lifecycle_display,
+                pid_display,
             )
         )
     return "\n".join(lines)

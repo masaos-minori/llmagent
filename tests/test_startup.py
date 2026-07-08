@@ -11,14 +11,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.startup import StartupOrchestrator
-from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_config import (
+    McpServerConfig,
+    SecurityProfile,
+    StartupMode,
+    TransportType,
+)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _make_startup(mcp_servers: dict[str, McpServerConfig]) -> StartupOrchestrator:
+def _make_startup(
+    mcp_servers: dict[str, McpServerConfig],
+    security_profile: SecurityProfile = SecurityProfile.LOCAL,
+) -> StartupOrchestrator:
     """Return a StartupOrchestrator with mocked ctx/view for _start_servers() tests."""
     ctx = MagicMock()
+    ctx.cfg.mcp.security_profile = security_profile
     ctx.cfg.mcp.mcp_servers = mcp_servers
     ctx.services_required.tools = MagicMock()
     ctx.services_required.tools.set_transport = MagicMock()
@@ -47,7 +56,7 @@ class TestStartupOrchestratorStartServers:
     @pytest.mark.asyncio
     async def test_http_subprocess_calls_lifecycle(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg})
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
 
         await startup._start_servers()
 
@@ -58,13 +67,41 @@ class TestStartupOrchestratorStartServers:
     @pytest.mark.asyncio
     async def test_http_subprocess_failure_is_swallowed(self) -> None:
         cfg = _http_subprocess_cfg()
-        startup = _make_startup({"web": cfg})
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
         startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
             RuntimeError("port busy")
         )
 
         # Must not raise; failure is logged and printed as warning
         await startup._start_servers()
+
+    @pytest.mark.asyncio
+    async def test_production_profile_raises_on_start_failure(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
+        startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
+            RuntimeError("port busy")
+        )
+
+        with pytest.raises(RuntimeError, match="FATAL"):
+            await startup._start_servers()
+
+    @pytest.mark.asyncio
+    async def test_production_failure_message_contains_server_key(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
+        startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
+            OSError("no such file")
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await startup._start_servers()
+
+        assert "web" in str(exc_info.value)
 
 
 # ── StartupOrchestrator._recover_pending_approvals ─────────────────────────────

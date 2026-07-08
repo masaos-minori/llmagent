@@ -16,6 +16,7 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from dataclasses import dataclass
 from http import HTTPStatus
+from typing import Any
 from pathlib import Path
 from typing import IO
 
@@ -125,6 +126,49 @@ class HttpServerLifecycleManager:
             )
             return False
         return True
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return {pid, pgid, running, last_exit_code} for a managed subprocess server, or None if unknown."""
+        proc = self._http_procs.get(server_key)
+        if proc is None:
+            return None
+        running = proc.poll() is None
+        pgid = getattr(self, "_http_pgids", {}).get(server_key)
+        return {
+            "pid": proc.pid,
+            "pgid": pgid,
+            "running": running,
+            "last_exit_code": proc.poll(),
+        }
+
+    def get_process_info(self, server_key: str) -> Any | None:
+        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+        from agent.services.models import ProcessInfoSnapshot
+
+        proc = self._http_procs.get(server_key)
+        if proc is None:
+            return None
+        running = proc.poll() is None
+        last_exit_code = proc.poll() if not running else None
+        pgid = getattr(self, "_http_pgids", {}).get(server_key)
+        stderr_log = getattr(self, "_stderr_log_paths", {}).get(server_key, "")
+        return ProcessInfoSnapshot(
+            server_key=server_key,
+            managed=True,
+            pid=proc.pid,
+            pgid=pgid,
+            running=running,
+            last_exit_code=last_exit_code,
+            stderr_log=stderr_log,
+        )
+
+    def list_processes(self) -> list[Any]:
+        """Return snapshots for all currently managed subprocess servers."""
+        return [
+            snap
+            for key in list(self._http_procs.keys())
+            if (snap := self.get_process_info(key)) is not None
+        ]
 
     async def start(
         self,

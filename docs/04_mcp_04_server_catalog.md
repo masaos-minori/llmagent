@@ -32,7 +32,7 @@ config, startup, security, logs, operational notes, and known limitations.
 | `default_max_results` | `5` | Default result count |
 | `max_results_limit` | `20` | Server-side cap |
 
-**Health:** `{"status":"ok","ready":true}`
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` — HTTP 200 when ready, 503 when degraded.
 **Log:** `/opt/llm/logs/web-search-mcp.log`
 **When to use:** Real-time information not in RAG index; latest releases; news.
 
@@ -63,9 +63,9 @@ All tools do not require config (`requires_config: false`).
 | `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
 | `get_file_info` | `{path}` |
 
-**Config fields:** `allowed_dirs`, `max_read_bytes` (default: 1,000,000), `max_tree_depth` (default: 5), `max_search_results` (default: 100)
+**Config fields:** `allowed_dirs`, `max_read_bytes` (default: 1,000,000), `max_tree_depth` (default: 5), `max_search_results` (default: 200)
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
+**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
 **Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-read-mcp.log`
 **Additional endpoint:** `GET /list_allowed_directories` (not a MCP tool)
@@ -104,7 +104,7 @@ All tools require config (`requires_config: true`).
 **Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"github_token":"set"/"not_set"},"details":{}}`
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` when token is set; `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}` when not set — HTTP 200 when ready, 503 when degraded.
 **Log:** `/opt/llm/logs/github-mcp.log`
 **Audit log:** `config/github_mcp_server.toml::audit_log_path`
 
@@ -129,7 +129,7 @@ All tools do not require config (`requires_config: false`).
 | `create_directory` | `{path, dry_run?}` | Returns directory info (exists/would create); no create |
 | `move_file` | `{source, destination, dry_run?}` | Returns move feasibility |
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
+**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)
 **Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-write-mcp.log`
@@ -146,12 +146,14 @@ All tools do not require config (`requires_config: false`).
 
 All tools do not require config (`requires_config: false`).
 
+**Config fields:** `allowed_dirs`, `audit_log_path`
+
 | Tool | Input | dry_run behavior |
 |---|---|---|
 | `delete_file` | `{path, dry_run?}` | Returns file info; no delete |
 | `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete |
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
+**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
 **Delete audit log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
 **Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-delete-mcp.log`
@@ -183,8 +185,15 @@ All tools do not require config (`requires_config: false`).
 | `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
 | `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
 | `audit_log_path` | `""` | Audit log (set in config for production) |
+| `default_cwd` | `"/opt/llm/storage"` | Working directory when cwd not specified in request |
+| `shell_path` | `"/opt/llm/venv/bin:/usr/bin:/bin"` | PATH environment variable for child processes |
+| `env_allowlist` | `[]` | Permitted env var keys in req.env (empty = use env_denylist) |
+| `env_denylist` | `["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]` | Glob patterns for env keys removed from req.env |
+| `execution_user` | `""` | OS user to run commands as via setuid (requires CAP_SETUID) |
+| `kill_policy` | `"sigterm_then_sigkill"` | SIGTERM+SIGKILL or `"sigkill_only"` for timed-out processes |
+| `kill_grace_sec` | `2.0` | Seconds to wait after SIGTERM before escalating to SIGKILL |
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"shell":"sh not found in PATH"/"check failed"},"details":{"sandbox_backend":"firejail"/"none"}}`
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"sandbox_backend":"firejail"/"none"}}` when sh is found; `"status":"degraded","ready":false,"dependencies":{"shell":"sh not found in PATH"/"check failed"}}` when not — HTTP 200 when ready, 503 when degraded.
 **Log:** `/opt/llm/logs/shell-mcp.log`
 
 | sandbox_backend | Meaning | Use case |
@@ -230,19 +239,17 @@ All tools do not require config (`requires_config: false`).
 | `top_k_search` | `20` | KNN/BM25 top-k per query |
 | `top_k_rerank` | `15` | Cross-encoder top-k |
 | `rag_top_k` | `5` | Final result count |
-| `rag_min_score` | `0.0` | Minimum rerank score threshold |
-| `max_chunks_per_doc` | `2` | Max chunks per document in final result |
+| `rag_min_score` | `2.0` | Minimum rerank score threshold |
+| `max_chunks_per_doc` | `3` | Max chunks per document in final result |
 | `semantic_cache_max_size` | `100` | Semantic cache entry limit |
 | `semantic_cache_threshold` | `0.92` | Semantic cache cosine similarity threshold |
-| `use_semantic_cache` | `false` | Enable semantic cache |
 | `refiner_max_tokens` | `512` | Context refinement max tokens |
 | `refiner_max_chars_per_chunk` | `300` | Context refinement chars per chunk |
 | `refiner_timeout` | `30.0` | Context refinement timeout (seconds) |
-| `rag_auth_token` | `""` | Authentication token for RAG service |
 
-**Config fields (standalone):** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `host`, `port`, `http_timeout`, `mqe_prompt_template`, `rerank_prompt_template`
+**Config fields (standalone):** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `host`, `port`, `http_timeout`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `semantic_cache_max_size`, `semantic_cache_threshold`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"embed_url":"not configured"/"check failed"},"details":{}}`
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` when embed_url is configured; `"status":"degraded","ready":false,"dependencies":{"embed_url":"not configured"}}` or `"dependencies":{"config":"check failed"}}` when not — HTTP 200 when ready, 503 when degraded.
 **Design note:** `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()` to prevent HTTP loops.
 **Log:** `/opt/llm/logs/rag-mcp.log`
 **When to use:** All RAG retrieval; `/rag search` command goes through this server.
@@ -274,7 +281,7 @@ All tools do not require config (`requires_config: false`).
 
 **Config fields:** `repo_allowlist`, `workflow_allowlist`, `max_log_size_kb` (default: 256 KB), `auth_token`, `github_token`
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{} / {"github_token":"not_set"},"details":{}}` — empty deps when token is set, `"github_token":"not_set"` when not set
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` when token is set; `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}}` or `"dependencies":{"config":"check failed"}}` when not — HTTP 200 when ready, 503 when degraded.
 **Log limits:** max 5 jobs, configurable via `max_log_size_kb` (default: 256 KB total)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
 **Note:** `CiBackend` Protocol allows future GitLab CI / Jenkins backends.
@@ -290,7 +297,7 @@ All tools do not require config (`requires_config: false`).
 **Tools (9):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`, `fts_consistency_check`, `fts_rebuild`
 **Tool status:** 7 tools are `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`), 2 tools (`fts_consistency_check`, `fts_rebuild`) are `admin`.
 
-**Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `vector_table`, `embedding_model`, `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
+**Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `embedding_dims` (default 384), `vector_table`, `embedding_model`, `max_chars_per_match` (default 500), `context_before` (default 2), `context_after` (default 2), `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
 
 **Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_configuration_and_operations.md#health-probes))
 
@@ -379,7 +386,7 @@ All tools require config (`requires_config: true`).
 | `git_pull` | WRITE_DANGEROUS | blocked | yes | yes |
 | `git_push` | WRITE_DANGEROUS | blocked | yes | yes |
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"git":"git not found in PATH"/"check failed"},"details":{}}`
+**Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` when git is found; `"status":"degraded","ready":false,"dependencies":{"git":"git not found in PATH"/"check failed"}}` when not — HTTP 200 when ready, 503 when degraded.
 **Config:**
 
 | Key | Default | Note |
@@ -388,5 +395,6 @@ All tools require config (`requires_config: true`).
 | `read_only` | `true` | All write tools return `[DENIED]` unless explicitly `false` |
 | `max_log_entries` | `50` | `git_log` entry cap |
 | `audit_log_path` | `""` | Operations log (unused in current implementation) |
+| `auth_token` | `""` | Bearer token for MCP server call authentication |
 
 **Note:** `git_show` truncates at 8000 chars. `git_log` inputSchema defaults to `max_entries=20`; config cap `max_log_entries` defaults to `50`.

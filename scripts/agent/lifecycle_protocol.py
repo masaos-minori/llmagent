@@ -19,7 +19,8 @@ from agent.lifecycle import LifecycleState
 class LifecycleManagerProtocol(Protocol):
     """Protocol for MCP server lifecycle managers.
 
-    HttpServerLifecycleManager satisfies this protocol structurally.
+    _ServerLifecycleRouter in factory.py is the production implementation.
+    HttpServerLifecycleManager is the low-level subprocess manager it delegates to.
     """
 
     async def ensure_ready(self, server_key: str) -> None: ...
@@ -30,3 +31,4 @@ class LifecycleManagerProtocol(Protocol):
     async def start_http_subprocess(
         self, server_key: str, cfg: McpServerConfig
     ) -> None: ...
+    def get_process_snapshot(self, server_key: str) -> dict | None: ...

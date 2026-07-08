@@ -15,6 +15,7 @@ class McpServerHealthState(Enum):
     DEGRADED = "degraded"  # failing but not yet unavailable
     UNAVAILABLE = "unavailable"
     HALF_OPEN = "half_open"
+    UNKNOWN = "unknown"
 
 
 class McpServerHealthRegistry:

@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from shared.logger import Logger
-from shared.mcp_config import SecurityProfile
+from shared.mcp_config import SecurityProfile, StartupMode, TransportType
 
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
@@ -110,7 +110,9 @@ class StartupOrchestrator:
 
         Handles:
         - http  + startup_mode='subprocess': start HTTP server subprocess, poll /health
-        Ondemand servers are excluded; they start on first tool call via ensure_ready().
+        - Persistent-mode servers: externally managed, excluded here.
+        - Subprocess-mode servers with startup_mode='subprocess': started at agent init.
+        - Other subprocess-mode servers: start on first tool call via ensure_ready().
         """
         ctx = self._ctx
         if ctx.services_required.tools is None:
@@ -118,12 +120,19 @@ class StartupOrchestrator:
         if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-            if cfg.startup_mode == "subprocess" and cfg.transport == "http":
+            if (
+                cfg.startup_mode == StartupMode.SUBPROCESS
+                and cfg.transport == TransportType.HTTP
+            ):
                 try:
                     await ctx.services_required.lifecycle.start_http_subprocess(
                         key, cfg
                     )
                 except (OSError, RuntimeError) as e:
+                    if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
+                        msg = f"[FATAL] MCP subprocess {key!r} failed to start: {e}"
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     logger.error(
                         "Failed to start HTTP subprocess MCP server %r: %s",
                         key,

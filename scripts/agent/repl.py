@@ -353,11 +353,50 @@ class AgentREPL:
 
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
         """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
-        try:
-            raw = await loop.run_in_executor(None, lambda: input(self._prompt))
-        except (EOFError, KeyboardInterrupt):
-            self._view.write_turn_end()
-            return None
+        shutdown_event = self._shutdown_event
+        if shutdown_event is not None:
+
+            async def _input_task() -> str:
+                return await loop.run_in_executor(None, lambda: input(self._prompt))
+
+            input_coro = asyncio.ensure_future(_input_task())
+            shutdown_done = False
+
+            async def _shutdown_watcher() -> None:
+                nonlocal shutdown_done
+                await shutdown_event.wait()
+                shutdown_done = True
+
+            shutdown_coro = asyncio.ensure_future(_shutdown_watcher())
+            try:
+                done, pending = await asyncio.wait(
+                    {input_coro, shutdown_coro},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            except Exception:
+                input_coro.cancel()
+                shutdown_coro.cancel()
+                raise
+            for t in pending:
+                if t is not shutdown_coro:
+                    t.cancel()
+            if shutdown_done or shutdown_coro in done:
+                self._view.write_turn_end()
+                return None
+            try:
+                raw = input_coro.result()
+            except EOFError:
+                self._view.write_turn_end()
+                return None
+            except KeyboardInterrupt:
+                self._view.write_turn_end()
+                return None
+        else:
+            try:
+                raw = await loop.run_in_executor(None, lambda: input(self._prompt))
+            except (EOFError, KeyboardInterrupt):
+                self._view.write_turn_end()
+                return None
         line = raw.strip()
         if line.endswith("\\"):
             line = await self._view.read_multiline(loop, line)

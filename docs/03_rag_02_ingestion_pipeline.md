@@ -107,7 +107,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 
 | Method | Signature | Description |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init httpx.AsyncClient |
+| `__init__` | `(config: dict \| None = None)` | Load `crawler.toml`; AsyncClient created in `crawl_site()` method |
 | `crawl` | `async (targets: list[tuple[str, str]] \| None = None) -> None` | Crawl all given targets, or config target_urls when targets is None |
 | `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop |
 | `crawl_file` | `(path: Path, lang: str) -> int` | Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure |
@@ -125,7 +125,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 | Parameter | Default | Description |
 |---|---|---|
 | `crawl_delay` | 1.5 | Request interval during BFS crawl in seconds; minimum 1.0 recommended |
-| `max_depth` | 6 | Maximum BFS crawl depth (URL hops from seed URL) |
+| `max_depth` | 3 | Maximum BFS crawl depth (URL hops from seed URL); code reads directly from config with no fallback |
 | `min_chunk` | 40 | Minimum chunk character count; chunks below this are discarded as noise |
 | `fetch_retry` | 3 | Retry limit for HTTP fetch failures (exponential backoff) |
 | `fetch_timeout` | 15 | HTTP request timeout in seconds |
@@ -271,7 +271,7 @@ Method resolution order: `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseM
 
 | Method | Signature | Description |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None) -> None` | Load `rag_pipeline.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
+| `__init__` | `(config: dict \| None = None) -> None` | Load `chunk_splitter.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
 | `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all *.json files in rag-src/ (or a single target); returns total chunks written |
 | `process_file` | `(src_path: Path, force: bool = False) -> int` | Read a crawler JSON file, split into chunks, and write to chunk_dir; returns chunk count; skips already-chunked files when force=False |
 
@@ -390,7 +390,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 
 | Method | Signature | Description |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
+| `__init__` | `(config: dict \| None = None)` | Load `ingester.toml`; init `httpx.Client` |
 | `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; process each group. Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check); also returns None when no chunk files exist |
 | `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group in ascending chunk_index order; moves files to registered/ after processing including on skip; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
@@ -539,6 +539,10 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Constant | Value | Description |
 |---|---|---|
+| `_SUPPORTED_LANGS` | `frozenset({"en", "ja"})` | Supported language codes for resolved (output) lang values |
+| `_VALID_HINT_LANGS` | `frozenset({"en", "ja", "auto"})` | Valid hint lang values including "auto" for per-page CJK-ratio detection |
+| `_CJK_RATIO_THRESHOLD` | `0.1` | CJK character ratio threshold above which text is classified as Japanese |
+| `_TARGET_URL_ENTRY_LENGTH` | `2` | Expected element count for target_urls entries: [url, lang] |
 | `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` (from `rag.utils`) | Minimum text length for language detection |
 
 **Unicode code point ranges for CJK detection**
@@ -571,7 +575,12 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 **Class: `ChunkEnglishMixin`**
 
----
+| Method | Signature | Description |
+|---|---|---|
+| `_chunk_english` | `(text: str) -> list[str]` | Split English text into chunks at paragraph/sentence boundaries; merges short paragraphs and discards chunks below min_chunk after stopword removal |
+| `_merge_paragraphs_en` | `(paragraphs: list[str]) -> list[str]` | Accumulate paragraphs into <=max_chunk chunks; split oversized paragraphs |
+| `_split_sentences_en` | `(text: str) -> list[str]` | Split at sentence boundaries (. ! ?). Oversized sentences are kept as-is |
+| `_filter_stopwords_en` | `(text: str) -> str` | Remove EN stopwords (case-insensitive) and return space-joined tokens |
 
 ## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
@@ -604,7 +613,12 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 **Class: `ChunkJapaneseMixin`**
 
----
+| Method | Signature | Description |
+|---|---|---|
+| `_chunk_japanese` | `(text: str) -> list[tuple[str, str]]` | Split Japanese text into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis |
+| `_split_into_ja_sentences` | `(text: str) -> list[tuple[str, str]]` | Split Japanese text at clause boundaries (。！？ and newlines); returns (original, normalized) pairs with empty pairs discarded |
+| `_normalize_ja_sentence` | `(text: str) -> str` | Run Sudachi SplitMode.C morphological analysis; return space-joined normalized content words (normalized_form() unifies inflected forms) |
+| `_merge_ja_sentence_pairs` | `(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]` | Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured |
 
 ## 9. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
 

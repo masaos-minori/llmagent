@@ -48,10 +48,20 @@ from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get
 
 ### Constructor
 
+| Parameter | Type | Description |
+|---|---|---|
+| `http` | `httpx.AsyncClient` | HTTP client for LLM/embedding calls |
+| `cfg` | `RagConfig` | RAG configuration from agent.toml |
+| `module_cfg` | `dict \| None` | Optional config override; bypasses load_all() / agent.toml (agent process path); when None, falls back to `_ModuleConfig.get()` |
+| `on_status` | `Callable[[str], None] \| None` | Progress callback; defaults to no-op |
+| `on_clear` | `Callable[[], None] \| None` | Cleanup callback; always called in `finally` block of `run()`/`augment()` |
+
 ```python
 RagPipeline(
     http: httpx.AsyncClient,
     cfg: RagConfig,
+    *,
+    module_cfg: dict | None = None,
     on_status: Callable[[str], None] | None = None,
     on_clear: Callable[[], None] | None = None,
 )
@@ -73,10 +83,11 @@ RagPipeline(
 
 | Method | Signature | Description |
 |---|---|---|
-| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | Execute MQE→search→RRF→rerank+PluginHooks; return `PipelineRunResult` (queries, search_results, merged, reranked, stage_results, diagnostics); `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
+| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | Execute MQE→search→RRF→rerank+PluginHooks; return `PipelineRunResult` (queries, search_results, merged, reranked, stage_results, diagnostics); **does NOT set `result_source`** — always `None` in local mode; `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
 | `augment` | `async (query, debug_fn=None, history_context="") -> str` | Full pipeline + Augment stage; returns context block string or `""`; raises `RagPipelineError` on DB failure |
-| `search_queries` | `async (queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search |
-| `rerank_candidates` | `async (query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or RRF fallback + dedup |
+| `search_queries` | `async (queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search; **does NOT record diagnostics** — unlike SearchStage which populates `SearchDiagnostics` |
+| `rerank_candidates` | `async (query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or slice+dedup fallback + dedup |
+| `get_diagnostics` | `() -> dict` | Return structured diagnostics for the last pipeline execution; safe to call before `run()`/`augment()` — returns empty/zero values |
 
 ### HTTP Mode (`rag_service_url`)
 
@@ -184,7 +195,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — created empty, populated with embed_ok/embed_failed/fts_errors during search; also populated by HTTP mode with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — replaced entirely with a new `SearchDiagnostics` object populated with embed_ok/embed_failed/fts_errors during search; in HTTP mode, `RagPipeline._run_http_augment()` replaces it via `dataclasses.replace()` with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms` |
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
@@ -203,7 +214,31 @@ from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 | `remote_latency_ms` | float \| None | None | Latency in milliseconds for remote call (HTTP mode only) |
 | `fallback_reason` | str \| None | None | Reason for fallback when HTTP mode fails (HTTP mode only) |
 
-### 4.1 StageResult TypedDict (`scripts/rag/stage.py`)
+### 4.3 get_diagnostics() Return Value (`scripts/rag/pipeline.py:562`)
+
+```python
+pipeline.get_diagnostics() -> dict
+```
+
+Returns structured diagnostics with the following keys:
+
+| Key | Type | Description |
+|---|---|---|
+| `stage_results` | `list[dict]` | Per-stage outcomes (same as `last_stage_results`) |
+| `timings` | `dict[str, float]` | Wall-clock seconds per stage (same as `last_timings`) |
+| `fetch_result` | `dict \| None` | Fetch result: `{hits: int, min_score_applied: float}` or `None` |
+| `fusion_mode` | `str` | `"rrf"` or `"dedup_only"` |
+| `http_result_kind` | `str \| None` | HTTP mode classification (same as `_http_result_kind`) |
+| `fallback_count` | `int` | Number of fallback stages |
+| `fallback_reasons` | `list[str]` | Fallback reason strings from all stages |
+| `refiner_fallback_count` | `int` | Number of refiner fallbacks |
+| `refiner_returned_empty` | `int` | Count of refiner returns with empty content |
+| `refiner_exception_count` | `int` | Count of refiner exceptions |
+| `refiner_exception` | `bool` | True if any refiner exception occurred |
+| `hit_counts` | `dict[str, int]` | `{merged: int}` — count of merged hits |
+| `search_diagnostics` | `dict` | `{embed_ok, embed_failed, fts_errors, degraded}` |
+
+**Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize with `orjson.dumps(pipeline.get_diagnostics())`.
 
 ```
 StageResult = TypedDict with keys:
@@ -291,11 +326,13 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 - `use_rerank=False`: return top `rag_top_k` by RRF order (slice) + `deduplicate_chunks`
 - `use_rerank=True`: `RagLLM.cross_encoder_rerank(query, candidates, top_k, rag_min_score)`; raises `RagRerankError` on LLM failure
 - Filters by `rag_min_score`; no fallback on cross-encoder failure (exception propagates)
-- Post-rerank dedup: `deduplicate_chunks(hits, max_chunks_per_doc)` — caps same-URL hits; input must be descending-sorted; applied AFTER reranking (not before)
+- Deduplication: `deduplicate_chunks(hits, max_chunks_per_doc)` — caps same-URL hits; input must be descending-sorted; applied after reranking (not before)
 
 ### 5.5 AugmentStage
 
 No constructor (inherits from `PipelineStage`).
+
+**Note:** `_format_chunks()` is duplicated between `scripts/rag/pipeline.py:368` (static method) and `scripts/rag/stages/augment.py:11` (module function). They produce identical output but are separate copies. AugmentStage uses the augment.py version; `RagPipeline.augment()` uses the pipeline.py version for raw-chunk fallback (line 474).
 
 - Formats `ctx.reranked` as `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` blocks; when title is empty, uses URL as fallback
 - Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
@@ -424,6 +461,8 @@ from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completions")
 ```
 
+**Note:** `scripts/rag/llm_client.py:48-50` has a duplicate `logger = logging.getLogger(__name__)` line — the second assignment overwrites the first. Only one is needed.
+
 | Method | Signature | Description |
 |---|---|---|
 | `expand_queries` | `async (query: str, context: str = "") -> list[str]` | MQE; raises `RagExpansionError` on HTTP failure, connection error, or parse failure |
@@ -452,7 +491,7 @@ class PipelineRunResult:
     result_source: str | None = None
 ```
 
-Returned by `RagPipeline.run()`. The `result_source` field is a `ResultSource` enum value: `REMOTE` for HTTP mode, `LOCAL` for in-process, or `FALLBACK` for in-process fallback from HTTP failure.
+Returned by `RagPipeline.run()`. **`result_source` is always `None`** — `run()` never sets it. The field exists only for HTTP mode where `_run_http_augment()` may set it via `dataclasses.replace()`.
 
 ---
 

@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 import httpx
 from shared.logger import Logger
+from shared.mcp_config import StartupMode, TransportType
 
 from agent.context import AgentContext
 from agent.security_audit_config import (
@@ -185,7 +186,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
     server_names: set[str] = set()
     unreachable: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-        if srv_cfg.transport == "http":
+        if srv_cfg.transport == TransportType.HTTP:
             if not srv_cfg.url:
                 continue
             try:
@@ -232,7 +233,7 @@ async def _collect_server_tool_names_per_server(
     per_server: dict[str, list[str]] = {}
     unreachable: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-        if srv_cfg.transport == "http":
+        if srv_cfg.transport == TransportType.HTTP:
             if not srv_cfg.url:
                 continue
             try:
@@ -597,7 +598,7 @@ async def _watchdog_check_http(
     )
     # Delegate restart to lifecycle manager
     if (
-        srv_cfg.startup_mode == "subprocess"
+        srv_cfg.startup_mode == StartupMode.SUBPROCESS
         and ctx.services_required.lifecycle is not None
     ):
         try:
@@ -639,7 +640,7 @@ async def watchdog_loop(ctx: AgentContext) -> None:
     while True:
         await asyncio.sleep(interval)
         for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-            if srv_cfg.transport == "http":
+            if srv_cfg.transport == TransportType.HTTP:
                 await _watchdog_check_http(
                     ctx,
                     key,
@@ -679,7 +680,7 @@ def audit_security_defaults(
     # Check auth_token settings
     violations: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-        if not srv_cfg.auth_token and srv_cfg.transport == "http" and srv_cfg.url:
+        if not srv_cfg.auth_token and srv_cfg.transport == TransportType.HTTP and srv_cfg.url:
             msg = f"{key}: no auth_token configured (auth disabled)"
             violations.append(msg)
 
