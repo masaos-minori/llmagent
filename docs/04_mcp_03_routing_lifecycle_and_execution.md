@@ -50,7 +50,7 @@ Live `/v1/tools` discovery is used only for startup drift validation, not for ro
 | `GITHUB_TOOLS` (github_search_repositories, github_get_file_contents) | `github` |
 | `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
-| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
+| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild) | `mdq` |
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
 | `SQLITE_TOOLS` (query_sqlite) | `sqlite` |
 | No match | `ValueError` |
