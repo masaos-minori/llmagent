@@ -66,8 +66,11 @@ Servers run as persistent HTTP processes on loopback.
 
 | `startup_mode` | `transport` | Behavior |
 |---|---|---|
-| `persistent` (default) | `http` | Externally managed server; agent connects to existing HTTP endpoint |
+| `none` | N/A | Disabled mode — no subprocess spawn, no lifecycle action |
+| `persistent` | `http` | Externally managed server; agent connects to existing HTTP endpoint |
 | `subprocess` | `http` | Agent starts uvicorn subprocess at launch; polls `/health` |
+
+**Default value:** Omitting `startup_mode` in config defaults to `"none"` — the server must opt into `"persistent"` or `"subprocess"` to be usable.
 
 ---
 

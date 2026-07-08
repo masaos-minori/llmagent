@@ -469,7 +469,29 @@ Use this flow to trace a failed or unexpected MCP tool call:
 
 For correlation across agent, transport, and server logs, see §End-to-End Tool Call Tracing.
 
-**Restart-worthy:** health transition to `failed` + repeated transport errors within threshold.
+#### Ensure ready behavior during tool dispatch
+
+When a tool call arrives via `_raw_execute()` path:
+
+```python
+# In shared/tool_executor.py ensure_ready():
+if _shutting_down: return immediately          # shutdown guard
+cfg.transport != HTTP or cfg.startup_mode != SUBPROCESS: return immediately  # non-subprocess servers skip this check
+not http_mgr.verify_running(server_key):      # subprocess-mode, not running -> start!
+    set_state(LifecycleState.STARTING)         # optimistic state before starting
+    await http_mgr.start(server_key, cfg)       # spawn subprocess, poll /health
+    set_state(LifecycleState.RUNNING)           # success
+except Exception:                               # any startup failure
+    set_state(LifecycleState.FAILED)           # mark as failed for subsequent attempts
+    raise                                       # propagate up so caller sees the failure
+```
+
+This means that even when the watchdog has given up on auto-restart (after exceeding max_restarts), individual tool calls can still attempt recovery through `ensure_ready()`, provided they haven't triggered their own circuit-break thresholds yet.
+
+---
+
+**Restart-worthy:** health transition to `FAILED` + repeated transport errors within threshold OR successful `ensure_ready()` after sub-process crash.
+
 **Not restart-worthy:** single tool error, one-time timeout, or serialization delay.
 
 ---
@@ -518,6 +540,27 @@ servers and attempts to restart them when they fail. It runs as a background asy
 
 **Note:** The watchdog's periodic `record_success()`/`record_failure()` calls supplement (but do not replace) the per-call HealthRegistry updates from the tool execution layer. Each tool call increments its own failure count independently of the watchdog.
 
+#### Process snapshot integration in status display
+
+When `_probe_single_server()` executes via McpStatusService.probe_all(), it integrates lifecycle introspection data into each row:
+
+```python
+snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
+snapshot = snapshot_fn(key) if snapshot_fn else None
+
+# PID column shows actual process ID if managed by this agent
+pid_display = str(snapshot.get("pid")) if snapshot else "-"
+
+# LIFECYCLE column combines two sources:
+lifecycle_state = lifecycle.get_transport_state(key).value   # RUNNING/STARTING/etc.
+restart_rec_http = probe_result.restart_recommended          # HTTP endpoint flag
+restart_recommended = (lifecycle_state == FAILED.value) or restart_rec_http
+operator_action_required = op_action_http                    # Only from HTTP endpoint
+health_reason = body_reason                                   # Priority-derived reason string
+```
+
+This means that even without calling the `/health` endpoint directly, you can determine whether a subprocess-mode server has been marked as FAILED due to prior transport failures during tool dispatch—visible both through the LIFECYCLE state and the derived `restart_recommended` field.
+
 ### Configuration
 
 | Setting | LOCAL default | PRODUCTION default | Effect |
@@ -553,6 +596,68 @@ Two places show the current watchdog state:
    ```
    Watchdog    disabled (interval=0) — no auto-restart
    ```
+
+### Health reason priority order
+
+When probing an HTTP MCP server via `/health`, the probe returns structured fields that determine both LIFECYCLE actions and display reasons:
+
+```python
+# From McpProbeResult model
+restart_recommended: bool       # True if health endpoint says so OR lifecycle_state == FAILED
+operator_action_required: bool  # True only if health endpoint sets this flag
+health_reason: str              # Derived priority: operator_action > restart_recommended
+```
+
+Priority order for `health_reason` derivation:
+
+| Condition | Result |
+|-----------|--------|
+| `operator_action_required=true` AND reachable+HTTP_OK | `"operator_action_required"` |
+| `restart_recommended=true` AND reachable+HTTP_OK | `"restart_recommended"` |
+| Server unreachable/failing | Body-provided reason string (from `details.reason` or fallback `message`) |
+| All other cases | Empty string |
+
+The `restart_recommended` field has two sources with different semantics:
+
+1. **From `/health` endpoint**: Indicates proactive recommendation by the server itself
+2. **From LifecycleProtocol.ensure_ready()**: Set when `lifecycle_state == FAILED` — indicates reactive detection based on transport-level failures
+
+Both are treated equivalently at the display level.
+
+#### Body reason tracking through probe chain
+
+When probing an HTTP MCP server's `/health`, the body field propagates as follows:
+
+```python
+# Step 1: Probe returns raw body
+probe_result.body["reason"] or probe_result.body["message"]
+
+# Step 2: Resolved to endpoint string  
+_resolve_endpoint() returns tuple including body_reason
+
+# Step 3: HealthRegistry receives it via record_failure(record_success())
+registry.record_failure(reason=str(body_reason))
+
+# Step 4: Displayed at two levels
+# - Per-server degraded reason: registry.get_degraded_reason(key)
+# - Global table column: McpProbeResult.health_reason derived below
+```
+
+#### Watchdog logging behavior
+
+When the watchdog detects issues via `_watchdog_check_http()`:
+
+```python
+# In _probe_mcp_health_detail():
+if not probe.reachable or probe.status_code != HTTPStatus.OK:
+    # Unreachable/degraded: no restart attempt; log WARNING with details
+elif probe.restart_recommended:
+    # Proactive restart recommended: proceed with subprocess shutdown/startup
+else:
+    # No issue detected: normal operation continues
+```
+
+For servers where `reachable=True` but `status_code=503` (degraded), the watchdog does NOT automatically restart because `restart_recommended=false`. Instead, it logs a warning containing the body-reason from `probe.body["reason"]` or `probe.body["message"]`. If `operator_action_required=true`, the same logic applies—no automatic restart, just a WARNING about what requires manual attention.
 
 ---
 

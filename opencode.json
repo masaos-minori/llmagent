@@ -23,11 +23,11 @@
     "agent": {
         "build": {
             "model": "llama-cpp/local-model",
-            "temperature": 0.6
+            "temperature": 0.3
         },
         "plan": {
             "model": "llama-cpp/local-model",
-            "temperature": 0.3
+            "temperature": 0.4
         }
     },
     "compaction": {
