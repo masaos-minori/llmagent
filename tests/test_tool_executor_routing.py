@@ -16,6 +16,7 @@ from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
     McpServerHealthState,
+    StartupMode,
     TransportType,
 )
 from shared.tool_executor import (
@@ -28,7 +29,9 @@ from shared.transport_dto import ToolCallResult
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url)
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, startup_mode=StartupMode.PERSISTENT
+    )
 
 
 def _make_executor(
@@ -549,6 +552,56 @@ class TestMcpServerHealthRegistry:
         r.record_failure("srv")
         assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
         assert r.is_unavailable("srv")
+
+
+# ── ToolExecutor startup_mode gate ──────────────────────────────────────────────
+
+
+class TestToolExecutorStartupModeGate:
+    @pytest.mark.asyncio
+    async def test_none_mode_server_returns_error_without_transport_call(self) -> None:
+        """startup_mode=none short-circuits _raw_execute before health check or transport."""
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8012",
+            startup_mode=StartupMode.NONE,
+        )
+        ex = _make_executor(configs={"cicd": cfg})
+
+        with patch.object(ex, "_transports", {}):
+            res = await ex._raw_execute("trigger_workflow", {})
+
+        assert res.is_error
+        assert "disabled" in res.output.lower()
+        assert "cicd" in res.output
+
+    @pytest.mark.asyncio
+    async def test_subprocess_mode_server_proceeds_past_gate(self) -> None:
+        """startup_mode=subprocess is not blocked by the startup_mode gate."""
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            startup_mode=StartupMode.SUBPROCESS,
+            cmd=["true"],
+        )
+        ex = _make_executor(configs={"file_read": cfg})
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+        ex._transports = {"file_read": mock_transport}
+
+        res = await ex._raw_execute("read_text_file", {})
+
+        mock_transport.call.assert_called_once()
+        assert not res.is_error
+
+    def test_unknown_server_key_does_not_raise(self) -> None:
+        """_check_startup_mode returns None (no gate) when server_key is unconfigured."""
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        assert ex._check_startup_mode("nonexistent") is None
 
 
 # ── ToolExecutor health gate ──────────────────────────────────────────────────

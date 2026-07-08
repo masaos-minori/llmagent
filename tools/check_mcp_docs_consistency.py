@@ -37,7 +37,7 @@ from pathlib import Path
 # Constants — mirror the canonical definitions in scripts/shared/mcp_config.py
 # ---------------------------------------------------------------------------
 
-VALID_STARTUP_MODES: set[str] = {"persistent", "subprocess"}
+VALID_STARTUP_MODES: set[str] = {"none", "persistent", "subprocess"}
 
 MCP_KNOWN_ISSUES_FILE = "04_mcp_90_inconsistencies_and_known_issues.md"
 

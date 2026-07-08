@@ -17,6 +17,7 @@ from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
     McpServerHealthState,
+    StartupMode,
     TransportType,
 )
 from shared.plugin_tool_invoker import PluginToolInvoker
@@ -391,7 +392,11 @@ class TestToolExecutorErrorBoundary:
     _SK = "test"
 
     def _make_ex(self, fake_client: Any) -> ToolExecutor:
-        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:9999")
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:9999",
+            startup_mode=StartupMode.PERSISTENT,
+        )
         ex = ToolExecutor(
             http=fake_client,  # type: ignore[arg-type]  -- duck-typed fake for test
             cache_ttl=60.0,
@@ -510,7 +515,9 @@ class TestToolExecutorErrorBoundary:
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url)
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, startup_mode=StartupMode.PERSISTENT
+    )
 
 
 def _make_executor(

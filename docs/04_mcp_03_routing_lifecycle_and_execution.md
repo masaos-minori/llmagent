@@ -381,8 +381,11 @@ AgentREPL.run()
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
             stderr → /opt/llm/logs/mcp/{server_key}.stderr.log (append mode)
        → startup_mode="persistent" (http): no lifecycle action needed
+       → startup_mode="none": no subprocess spawn, no health check — server is disabled
    → [REPL loop]
         → tool call → ToolExecutor._raw_execute()
+             → _check_startup_mode(server_key): startup_mode="none" rejects immediately
+                  with a "disabled" tool error, before health check or transport
              → ensure_ready(server_key):
                   if _shutting_down: return immediately (shutdown guard)
                   if subprocess-mode and not running: start() [auto-restart on demand]

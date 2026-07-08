@@ -355,10 +355,11 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
-# Temporarily out of dev scope: startup_mode set to "persistent" so the agent does
-# not auto-spawn this subprocess at startup (GITHUB_TOKEN unset -> /health always 503,
-# which previously stalled agent startup for the full startup_timeout_sec).
-startup_mode     = "persistent"
+# Temporarily out of dev scope: startup_mode="none" disables subprocess spawn and
+# health check entirely; tool calls are rejected with a clear "disabled" error
+# (GITHUB_TOKEN unset -> /health always 503, which previously stalled agent startup
+# for the full startup_timeout_sec).
+startup_mode     = "none"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -368,9 +369,9 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.rag_pipeline]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
-# Temporarily out of dev scope: startup_mode set to "persistent" so the agent does
-# not auto-spawn this subprocess at startup.
-startup_mode     = "persistent"
+# Temporarily out of dev scope: startup_mode="none" disables subprocess spawn and
+# health check entirely; tool calls are rejected with a clear "disabled" error.
+startup_mode     = "none"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"

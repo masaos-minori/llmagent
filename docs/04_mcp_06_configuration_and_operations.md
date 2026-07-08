@@ -61,7 +61,7 @@ health probes, audit log reading, and the new-server addition checklist.
 |---|---|---|---|
 | `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader, not at runtime |
 | `url` | `str` | required | HTTP server base URL |
-| `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"subprocess"` |
+| `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
 | `cmd` | `list[str]` | `[]` | Launch command for `startup_mode=subprocess`; must be non-empty when subprocess mode is used |
 | `env` | `dict[str, str]` | `{}` | Extra environment variables passed to the subprocess |
 | `healthcheck_mode` | `str` | `""` | `"http"` (auto-inferred if empty) |
@@ -71,6 +71,12 @@ health probes, audit log reading, and the new-server addition checklist.
 | `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. See [Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth). |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
+
+**`startup_mode="none"`:** the server is neither spawned as a subprocess nor health-checked
+at startup. Every tool call routed to it is rejected immediately by
+`ToolExecutor._check_startup_mode()` with a `"disabled (startup_mode=none)"` error, before
+any network attempt. This is the default when `startup_mode` is omitted from config —
+a server must opt in to `"persistent"` or `"subprocess"` to be usable.
 
 **Validation rules:**
 - `transport="http"` → `url` must be non-empty and a valid HTTP/HTTPS URL
