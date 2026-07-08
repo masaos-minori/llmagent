@@ -29,26 +29,6 @@ class PurgeCounts:
 
 
 @dataclass(frozen=True)
-class ToolResultRow:
-    """One row from the tool_results table.
-
-    Full schema for get(); partial for list_recent (session_id/turn/args_masked/
-    full_text/created_at default to None/0/"").
-    """
-
-    id: int
-    tool_name: str
-    is_error: bool
-    summary: str | None = None
-    session_id: int | None = None
-    turn: int = 0
-    args_masked: str = ""
-    full_text: str = ""
-    created_at: str = ""
-    undone: bool = False
-
-
-@dataclass(frozen=True)
 class DbHealthMetrics:
     """DB health metrics returned by SQLiteHelper.health_check()."""
 

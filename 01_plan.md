@@ -14,7 +14,7 @@ Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
-Read the following before starting:
+まだ読み込んでいないなら、Read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`

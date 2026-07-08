@@ -220,26 +220,6 @@ tool role message, so conversation continues naturally).
 
 ---
 
-## Tool Result Summarization
-
-When `use_tool_summarize=True` and result length > `tool_summarize_threshold` (default 3000 chars):
-
-1. `summarize_tool_result(text, tool_name, args)` calls the LLM with a summarization prompt
-2. Summarized result is stored in `ctx.conv.history` (LLM context)
-3. Full result is stored in `ctx.tool_result_store`
-4. Accessible via `/tool list` / `/tool show <id>`
-
-### `is_summarized(cfg, text, llm_text, is_error)`
-
-Returns `True` when `llm_text` represents a summarized (not truncated) form of `text`.
-
-Conditions for returning `False`:
-- `use_tool_summarize` is disabled or `is_error` is True
-- `text` length ≤ `tool_summarize_threshold`
-- `llm_text == text` (identical — means truncation, not summarization)
-
-Returns `True` when all above conditions are False and `llm_text != truncated_version`.
-
 ### `build_preview(tool_name, args)`
 
 Builds a human-readable operation preview shown before approval prompts.
@@ -258,10 +238,8 @@ Builds a human-readable operation preview shown before approval prompts.
 Hint appended to history when a tool result is dropped due to the per-turn limit. Format:
 
 ```
-[Result omitted: per-turn tool result limit reached. Use /tool show <id> to retrieve the full output.]
+[Result omitted: per-turn tool result limit reached.]
 ```
-
-Applied when `turn_chars + len(llm_text) > tool_results_turn_max_chars`.
 
 ---
 

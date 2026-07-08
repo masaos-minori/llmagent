@@ -12,7 +12,7 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_config.py     — _ConfigMixin:     /config, /stats, /set, /reload
   cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
   cmd_db.py         — _DbMixin:         /db
-  cmd_tooling.py    — _ToolingMixin:    /tool, /plan
+  cmd_tooling.py    — _ToolingMixin:    /plan
   cmd_debug.py      — _DebugMixin:      /debug
   cmd_audit.py      — _AuditMixin:      /audit
   cmd_rag_export.py — _RagExportMixin:  /export, /compact, /rag

@@ -653,38 +653,6 @@ class TestRunTurnNormalCompletion:
         assert result.answer == ""
 
 
-# ── handle_turn: tool_result_store ───────────────────────────────────────────
-
-
-class TestHandleTurnToolResultStore:
-    @pytest.mark.asyncio
-    async def test_partial_completion_saves_to_tool_result_store(self) -> None:
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-        err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
-
-        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
-            await orch.handle_turn("hello")
-
-        ctx.tool_result_store.store.assert_called_once()
-        call_kwargs = ctx.tool_result_store.store.call_args.kwargs
-        assert call_kwargs["tool_name"] == "llm_partial_completion"
-        assert call_kwargs["is_error"] is True
-        assert "INCOMPLETE" in call_kwargs["summary"]
-
-    @pytest.mark.asyncio
-    async def test_prestream_error_does_not_save_to_tool_result_store(self) -> None:
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-        err = _make_err(kind="CONNECT_ERROR", partial_text="")
-
-        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
-            await orch.handle_turn("hello")
-
-        # Pre-stream fail: no partial output, so tool_result_store should NOT be called
-        ctx.tool_result_store.store.assert_not_called()
-
-
 # ── Orchestrator helper unit tests ────────────────────────────────────────────
 
 

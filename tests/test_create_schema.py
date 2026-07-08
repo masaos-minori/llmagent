@@ -64,21 +64,7 @@ _SESSION_SCHEMA_NO_VEC0 = """
   tool_call_id TEXT,
         created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      );
-     CREATE TABLE IF NOT EXISTS tool_results (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        turn       INTEGER NOT NULL,
-        tool_name  TEXT    NOT NULL,
-        args_masked  TEXT,
-        full_text  TEXT    NOT NULL,
-        summary    TEXT,
-     is_error   INTEGER NOT NULL DEFAULT 0,
-        undone     INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-     );
-     CREATE INDEX IF NOT EXISTS idx_tool_results_session
-        ON tool_results(session_id);
-    CREATE TABLE IF NOT EXISTS memories (
+   CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,
         memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
         source_type TEXT NOT NULL DEFAULT 'conversation',
@@ -262,7 +248,6 @@ class TestCreateRagSchema:
         table_names = _table_names(rag_tmp_db)
         assert "sessions" not in table_names
         assert "messages" not in table_names
-        assert "tool_results" not in table_names
         assert "workflow_tasks" not in table_names
 
 
@@ -272,11 +257,6 @@ class TestCreateSessionSchema:
 
     def test_creates_messages_table(self, session_tmp_db: sqlite3.Connection) -> None:
         assert "messages" in _table_names(session_tmp_db)
-
-    def test_creates_tool_results_table(
-        self, session_tmp_db: sqlite3.Connection
-    ) -> None:
-        assert "tool_results" in _table_names(session_tmp_db)
 
     def test_no_schema_version_table(self, session_tmp_db: sqlite3.Connection) -> None:
         assert "schema_version" not in _table_names(session_tmp_db)
@@ -300,13 +280,6 @@ class TestCreateSessionSchema:
     ) -> None:
         cols = {row[1] for row in session_tmp_db.execute("PRAGMA table_info(messages)")}
         assert "tool_call_id" in cols
-
-    def test_tool_results_has_undone(self, session_tmp_db: sqlite3.Connection) -> None:
-        """tool_results table has the undone column."""
-        cols = {
-            row[1] for row in session_tmp_db.execute("PRAGMA table_info(tool_results)")
-        }
-        assert "undone" in cols
 
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "session2.sqlite"
@@ -588,7 +561,6 @@ class TestTimestampDefaults:
         for table in (
             "sessions",
             "messages",
-            "tool_results",
             "memories",
             "session_diagnostics",
         ):

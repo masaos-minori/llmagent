@@ -14,10 +14,7 @@ if TYPE_CHECKING:
     from agent.config_dataclasses import AgentConfig
 
 # Hint appended to history when a tool result is dropped due to the per-turn limit
-TURN_LIMIT_HINT = (
-    "[Result omitted: per-turn tool result limit reached."
-    " Use /tool show <id> to retrieve the full output.]"
-)
+TURN_LIMIT_HINT = "[Result omitted: per-turn tool result limit reached.]"
 
 
 def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:

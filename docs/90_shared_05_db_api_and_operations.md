@@ -5,7 +5,7 @@
 ## 1. Purpose
 
 Documents the `SQLiteHelper` API, `db/store.py` protocol groups and implementations,
-`ToolResultStore`, memory-related table operations, maintenance functions, corruption
+memory-related table operations, maintenance functions, corruption
 recovery, error handling, and the operational verification plan.
 
 ---
@@ -16,7 +16,7 @@ The DB store layer is split into three modules with clear import boundaries:
 
 | Module | Role | Import boundary |
 |---|---|---|
-| `db/store.py` | **Public API surface** — re-exports protocols, embedding helpers, and `ToolResultStore` | Callers should import from here. Stable contract. |
+| `db/store.py` | **Public API surface** — re-exports protocols and embedding helpers | Callers should import from here. Stable contract. |
 | `db/store_protocols.py` | **Extension point** — Protocol definitions for storage contracts | Implementations import this; callers rarely need to. |
 | `db/store_impl.py` | **SQLite implementation layer** — concrete implementations of protocols | Never import directly unless intentionally bypassing the protocol abstraction. |
 
@@ -215,51 +215,7 @@ result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
 
 ---
 
-## 5. `ToolResultStore` (`db/tool_results.py`)
 
-```python
-class ToolResultStore:
-    def store(
-        self,
-        session_id: int | None,
-        turn: int,
-        tool_name: str,
-        args_masked: str,
-        full_text: str,
-        summary: str | None,
-        is_error: bool,
-    ) -> int | None   # new row id; raises on DB error
-
-    def get(self, result_id: int) -> ToolResultRow | None
-
-    def list_recent(
-        self,
-        session_id: int | None,
-        n: int = 20,
-    ) -> list[ToolResultRow]   # oldest-first; empty if session_id is None
-
-    def mark_turn_undone(self, session_id: int | None, turn: int) -> int
-    # Mark all rows for session+turn as undone=1. Returns count of rows marked.
-    # No-op when session_id is None or turn <= 0.
-```
-
-**Purpose:** Stores full tool result text separately from LLM message history.
-LLM context holds only summary/truncated version; full text is retrievable via `/tool show <id>`.
-
-**`undone` field semantics:** `undone = 0` (default) indicates an active result.
-`undone = 1` is a logical flag meaning the result belongs to a turn that has been undone;
-the row is never physically deleted — full text is retained for audit. Callers may inspect
-`ToolResultRow.undone` to filter or label results.
-
-**REPL display of undone results:**
-- `/tool list`: appends `[undone]` suffix to the entry line when `undone=True`.
-- `/tool show <id>`: prints `[undone turn — artifact retained for audit]` before the full text when `undone=True`.
-
-See [90_shared_90 DESIGN-02](90_shared_90_inconsistencies_and_known_issues.md) for
-responsibility boundary between `ToolResultStore` and `messages` table.
-
-**Implementation detail:** `list_recent` internally fetches `ORDER BY id DESC LIMIT n`,
-then reverses to return oldest-first.
 
 ---
 
@@ -523,9 +479,6 @@ uv run pytest tests/test_create_schema.py
 # DB maintenance
 uv run pytest tests/test_db_maintenance.py
 
-# Tool results
-uv run pytest tests/test_tool_result_store.py
-
 # Type check
 uv run mypy scripts/db/
 
@@ -547,7 +500,6 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 | How to validate embedding BLOB | `validate_embedding_blob(blob)` from `db.store` |
 | How to purge old sessions | `purge_old_sessions(db, RetentionConfig(...))` — returns `MaintenanceResult`; check `.success` |
 | How to recover from corruption | `recover_corruption(backup_path=..., target="rag")` |
-| Where does `ToolResultStore` save data | `tool_results` table in `session.sqlite` |
 | Does `prune_old_memories` catch exceptions? | **STRICT** (default): propagates; **BEST_EFFORT**: caught and returned in `MaintenanceResult` |
 | How to use BEST_EFFORT mode | Pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, or `prune_old_memories` |
 | How to check RAG consistency | `check_rag_consistency(db)` → `is_consistent(report)` + `summarize_issues(report)` |

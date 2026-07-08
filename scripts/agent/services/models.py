@@ -2,7 +2,7 @@
 Immutable DTO models for the agent/services subsystem.
 
 Imports only from agent.services.enums to avoid circular dependencies.
-db-layer DTOs (WalCheckpointCounts, PurgeCounts, ToolResultRow) are defined in
+db-layer DTOs (WalCheckpointCounts, PurgeCounts) are defined in
 db.models and re-exported here for agent-layer callers.
 """
 
@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from db.models import (
     PurgeCounts,
     RagConsistencyReport,
-    ToolResultRow,
     WalCheckpointCounts,
 )
 
@@ -77,7 +76,6 @@ class SessionRestoreResult:
 @dataclass(frozen=True)
 class UndoResult:
     n_removed: int
-    n_artifacts_marked: int = 0
 
 
 @dataclass(frozen=True)
@@ -170,7 +168,6 @@ class ConfigReloadRequest:
 
 __all__ = [
     "PurgeCounts",
-    "ToolResultRow",
     "WalCheckpointCounts",
 ]
 

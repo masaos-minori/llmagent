@@ -162,18 +162,17 @@ Condition: `LLMTransportError` with non-empty `partial_text`.
 
 Action:
 - **Diagnostic channel only**: persist `[INCOMPLETE: {kind}]` prefixed message via `ctx.session.save_diagnostic()` — NOT added to `ctx.conv.history` (stored in `session_diagnostics` table via `DiagnosticStore`)
-- Save failure detail to `ctx.tool_result_store` (accessible via `/tool show llm_partial_completion`)
 - `stat_partial_completions += 1`
 
-Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `session_diagnostics` table.
+Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through DB queries on the `session_diagnostics` table.
 
 After each turn, the REPL line dispatcher compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
 
 ```
-[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+[warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
 ```
 
-`/stats` also shows the artifact location hint when count > 0: `Partial compl : N  (stored as tool_result, tool_name='llm_partial_completion')`.
+`/stats` also shows the count when > 0: `Partial compl : N  (stored in session_diagnostics)`.
 
 ### Tool Continuation Failure (turn > 0)
 
@@ -181,7 +180,7 @@ Condition: LLM transport error occurs during a tool continuation turn.
 
 Action:
 - Add synthetic `tool` role error message (`name="llm_transport_error"`) to history
-- Store failure in `tool_result_store`
+- Store failure in `session_diagnostics`
 - Conversation continues (LLM sees the error as a tool result)
 
 ### Consecutive Tool Errors
@@ -200,7 +199,7 @@ A partial completion occurs when the LLM response stream is interrupted before a
 
 | Trigger | Stored where | Visible via | `stat_partial_completions` |
 |---|---|---|---|
-| `LLMTransportError` with non-empty `partial_text` | `tool_result_store` (`tool_name="llm_partial_completion"`) + `session_diagnostics` table | `/tool show llm_partial_completion`, `/stats` | +1 |
+| `LLMTransportError` with non-empty `partial_text` | `session_diagnostics` table | `/stats` | +1 |
 | `LLMTransportError` with empty `partial_text` (pre-stream) | Not stored (user message popped from history) | User-visible error message | no change |
 
 **Key invariant:** partial content is NEVER added to `ctx.conv.history`. It is isolated in the diagnostic channel so it cannot pollute future LLM context.
@@ -208,7 +207,7 @@ A partial completion occurs when the LLM response stream is interrupted before a
 After each turn, the REPL line dispatcher checks if `stat_partial_completions` increased. If so:
 
 ```
-[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+[warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
 ```
 
 See §LLM Transport Error (partial completion) above for implementation details.
@@ -328,5 +327,5 @@ When loading a workflow definition from `config/workflows/*.json`:
 | `ctx.turn.current_turn_id` | TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for per-turn correlation |
 | `ctx.turn.pending_approval_id` | Workflow approval gate suspension | No — in-memory; approval persisted in `workflow.sqlite` | Reset to None on next turn |
 | `ctx.stats.stat_turns` | After each user message appended | No — in-memory (reported via `/stats`) | Reset on session restart |
-| `ctx.stats.stat_partial_completions` | When LLM stream interrupted | No — in-memory; partial content in `tool_result_store` | Reset on session restart |
+| `ctx.stats.stat_partial_completions` | When LLM stream interrupted | No — in-memory; partial content in `session_diagnostics` | Reset on session restart |
 | `session.title` | First turn (async background task) | Yes — SQLite `sessions.title` | Non-blocking; fallback to truncated first input on LLM failure |

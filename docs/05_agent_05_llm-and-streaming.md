@@ -166,7 +166,7 @@ Handled by orchestrator transport error handler:
 
 | Case | Action |
 |---|---|
-| `partial_text` non-empty (in-stream fail) | Save `[INCOMPLETE: {kind}]` assistant message; store detail in `tool_result_store` |
+| `partial_text` non-empty (in-stream fail) | Save `[INCOMPLETE: {kind}]` assistant message to `session_diagnostics` only |
 | `partial_text` empty (pre-stream fail) | Pop last user message from history; no assistant message saved |
 | Tool continuation fail | Add synthetic `tool` error message; conversation continues |
 
@@ -194,7 +194,6 @@ Compression uses fixed constants: `COMPRESS_TEMPERATURE=0.3`, `COMPRESS_MAX_TOKE
 | Session title generation | `cfg.llm.title_llm_temperature` / `cfg.llm.title_llm_max_tokens` | 0.1 | 20 |
 | MQE query expansion | `scripts/rag/pipeline.py: MQE_TEMPERATURE` / `MQE_MAX_TOKENS` | 0.6 | 300 |
 | Cross-encoder rerank | `scripts/rag/pipeline.py: RERANK_TEMPERATURE` / `RERANK_MAX_TOKENS` | 0.0 | 256 |
-| Tool result summarization | `scripts/rag/pipeline.py: SUMMARIZE_TEMPERATURE` / `SUMMARIZE_MAX_TOKENS` | 0.2 | 256 |
 
 Normal call parameters are hot-reloadable via `/set temperature` or `/reload`.
 All other constants are compile-time fixed.

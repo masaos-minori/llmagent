@@ -68,7 +68,7 @@ class _ContextMixin(MixinBase, TokenDisplay):
                 [
                     (
                         "Partial compl   ",
-                        f"{state.partial_completions} stored as tool_result(tool_name='llm_partial_completion')",
+                        f"{state.partial_completions} (stored in session_diagnostics)",
                     ),
                 ]
             )

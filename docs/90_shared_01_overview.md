@@ -19,7 +19,7 @@ picture of persistent data.
 
 **In scope:**
 - All modules under `shared/`: `config_loader`, `config_errors`, `config_validator`, `logger`, `types`, `llm_types`, `transport_dto`, `action_result`, `events`, `protocols/shell`, `tool_constants`, `route_resolver`, `mcp_config`, `mcp_health`, `tool_executor`, `http_transport`, `plugin_registry`, `plugin_auto_discover`, `plugin_result`, `otel_tracer`, `otel_noop`, `token_counter`, `token_estimation`, `git_helper`, `formatters`, `json_utils`, `llm_exceptions`, `llm_transport_errors`, `llm_sse_stream`, `llm_sse_helpers`, `llm_reconnect`, `llm_retry`, `llm_payload`, `llm_hot_config`, `sse_parser`, `tool_registry`, `tool_routing_validation`, `tool_transport_invoker`, `tool_lifecycle`, `tool_executor_helpers`, `tool_spec`, `tool_cache`, `plugin_tool_invoker`
-- All modules under `db/`: `config.py`, `helper.py`, `create_schema.py`, `models.py`, `schema_sql.py`, `store.py`, `store_impl.py`, `store_protocols.py`, `maintenance.py`, `rotation.py`, `recovery.py`, `rag_consistency.py`, `tool_results.py`
+- All modules under `db/`: `config.py`, `helper.py`, `create_schema.py`, `models.py`, `schema_sql.py`, `store.py`, `store_impl.py`, `store_protocols.py`, `maintenance.py`, `rotation.py`, `recovery.py`, `rag_consistency.py`
 - DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`
 
 **Out of scope:**
@@ -113,7 +113,7 @@ Import direction is enforced by `.importlinter`. Violations fail `lint-imports`.
 | `config.py` | `DbConfig` dataclass, `build_db_config()` — DB path resolution from config |
 | `helper.py` | `SQLiteHelper` — connection lifecycle, WAL/PRAGMA, vec extension |
 | `create_schema.py` | Schema DDL creation (idempotent via `IF NOT EXISTS`) |
-| `models.py` | DTO dataclasses: `DocumentRow`, `MessageRow`, `SessionRow`, `ToolResultRow`, `DbHealthMetrics`, `PurgeCounts`, `RecoveryResult`, `WalCheckpointCounts` |
+| `models.py` | DTO dataclasses: `DocumentRow`, `MessageRow`, `SessionRow`, `DbHealthMetrics`, `PurgeCounts`, `RecoveryResult`, `WalCheckpointCounts` |
 | `schema_sql.py` | DDL template strings (separation of SQL text from execution) |
 | `store.py` | Re-export stub — delegates to `store_protocols.py` + `store_impl.py` |
 | `store_protocols.py` | `VectorStore`, `DocumentStore`, `SessionStore`, `MemoryDeleteStore` Protocols + embedding helpers |
@@ -122,7 +122,6 @@ Import direction is enforced by `.importlinter`. Violations fail `lint-imports`.
 | `rotation.py` | DB rotation (archive current DB, create new one) — `rotate_all_dbs()` function |
 | `recovery.py` | Corruption recovery (integrity check + VACUUM or restore from backup) |
 | `rag_consistency.py` | Read-only RAG consistency checks (chunks/FTS/vec row counts + orphan detection) — `check_rag_consistency()`, `is_consistent()`, `summarize_issues()` |
-| `tool_results.py` | `ToolResultStore` — full tool result text storage |
 
 ---
 
@@ -143,7 +142,7 @@ Key constraint: `orjson.dumps()` returns `bytes`, not `str`. Always call `.decod
 | DB File | Tables | Purpose |
 |---|---|---|
 | `rag.sqlite` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` | RAG document index + vector + FTS search |
-| `session.sqlite` | `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links` | Agent conversation state + memory layer |
+| `session.sqlite` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links` | Agent conversation state + memory layer |
 | `workflow.sqlite` | `tasks`, `attempts`, `processed_events`, `approvals`, `artifacts` | Workflow engine task tracking |
 
 All three DBs use WAL mode and `busy_timeout`. sqlite-vec is loaded only for `rag.sqlite` (target=`"rag"`).

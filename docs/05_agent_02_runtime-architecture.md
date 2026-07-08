@@ -98,8 +98,6 @@ all services. Sub-structures:
 | `ctx.cfg` | hot-reload | `AgentConfig` (7 sub-configs) |
 | `ctx.session` | session | `AgentSession` (SQLite) |
 | `ctx.services` | injected | All service instances (LLMClient, ToolExecutor, etc.) |
-| `ctx.tool_result_store` | session | Full tool results (accessible via `/tool show`) |
-
 ### LLMClient (`shared/llm_client.py`)
 
 - Builds request payload (messages + tool_defs + temperature + max_tokens)
@@ -133,7 +131,7 @@ all services. Sub-structures:
 | `ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
 | `ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
 | `DbMixin` | `/db` |
-| `ToolingMixin` | `/tool`, `/plan` |
+| `ToolingMixin` | `/plan` |
 | `DebugMixin` | `/debug` |
 | `AuditMixin` | `/audit` |
 | `RagExportMixin` | `/rag`, `/export`, `/compact` |

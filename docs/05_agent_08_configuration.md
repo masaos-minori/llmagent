@@ -235,8 +235,6 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `tool_cache_ttl` | `300.0` | Tool result cache TTL (seconds) |
 | `tool_cache_max_size` | `200` | LRU cache size (0 = unlimited) |
 | `serial_tool_calls` | `False` | Force sequential tool execution |
- | `use_tool_summarize` | `False` | Summarize long tool results via LLM |
-| `tool_summarize_threshold` | `3000` | Min chars to trigger summarization |
 | `tool_definitions_strict` | `False` | `true`: schema mismatch in reachable servers → `RuntimeError` at startup. `false`: mismatch → WARNING only. When ALL servers are unreachable, strict mode skips validation (no abort). See [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration_and_operations.md) for full behavior table. |
 | `routing_drift_strict` | `False` | `true`: config/registry routing drift detected at startup → `RuntimeError` (startup aborted). `false`: drift → `[non-fatal]` WARNING only. Startup-only field; requires restart to take effect. |
 | `tool_dedup_max_repeats` | `3` | Same (name,args) repeat limit |
@@ -248,7 +246,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `plan_blocked_tools` | `[write_file, create_directory, ...]` | Auto-blocked in plan mode |
 | `max_tool_turns` | `5` | Max tool call turns per message |
 | `tool_result_max_llm_chars` | `8000` | Max tool result chars added to LLM context |
-| `tool_results_turn_max_chars` | `50000` | Max total tool result chars per turn |
+| `tool_results_turn_max_chars` | `50000` | Deprecated — `tool_results` table removed; no longer enforced |
 | `use_tool_dag` | `True` | Dependency-aware scheduling: independent reads run concurrently; writes serialized per resource scope. Disable for strict round-wide serialization legacy behavior. |
 | `plugin_strict` | `False` | Raise on first plugin import error (fail-fast for CI/CD) |
 | `plugin_tool_override` | `False` | Allow plugin tools to shadow MCP tools when names conflict |

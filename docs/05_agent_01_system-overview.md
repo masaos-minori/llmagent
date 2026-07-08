@@ -99,7 +99,7 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Config / stats | `/config`, `/stats`, `/set`, `/reload` |
 | Context | `/context`, `/compact`, `/system` |
 | DB | `/db rag stats\|urls\|clean\|rebuild-fts\|vec-rebuild\|reconcile-url\|recover\|consistency; session stats\|health\|checkpoint\|vacuum\|purge\|recover` |
-| Tool / plan | `/tool list\|show`, `/plan` |
+| Plan | `/plan` |
 | Workflow | `/approve [reason]`, `/reject [reason]` |
 | Debug / audit | `/debug`, `/audit` |
 | RAG / Export | `/rag search`, `/export`, `/compact` |

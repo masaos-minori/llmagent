@@ -13,7 +13,6 @@ from agent.error_injection_service import ErrorInjectionService
 def _make_context() -> MagicMock:
     ctx = MagicMock()
     ctx.conv.history = []
-    ctx.tool_result_store = MagicMock()
     ctx.session.session_id = 1
     return ctx
 
@@ -43,18 +42,16 @@ class TestInjectMidTurnError:
         call_args = ctx.diagnostics.save.call_args
         assert call_args[0][1] == "mid_turn_error"
 
-    def test_stores_in_tool_result_store(self) -> None:
+    def test_does_not_store_in_tool_result_store(self) -> None:
+        """H-7: mid-turn error persistence is limited to the diagnostic channel;
+        ctx no longer has tool_result_store."""
         ctx = _make_context()
         svc = ErrorInjectionService(ctx)
         e = _make_error()
 
         svc.inject_mid_turn_error(e, turn=3)
 
-        ctx.tool_result_store.store.assert_called_once()
-        call_kwargs = ctx.tool_result_store.store.call_args[1]
-        assert call_kwargs["turn"] == 3
-        assert call_kwargs["tool_name"] == "llm_transport_error"
-        assert call_kwargs["is_error"] is True
+        assert not hasattr(ctx, "tool_result_store")
         ctx.diagnostics.save.assert_called_once()
 
     def test_returns_summary_string(self) -> None:

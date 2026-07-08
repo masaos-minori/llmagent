@@ -575,13 +575,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 **Class: `ChunkEnglishMixin`**
 
-| Method | Signature | Description |
-|---|---|---|
-| `_chunk_english` | `(text: str) -> list[str]` | Split English text into chunks at paragraph/sentence boundaries; merges short paragraphs and discards chunks below min_chunk after stopword removal |
-| `_merge_paragraphs_en` | `(paragraphs: list[str]) -> list[str]` | Accumulate paragraphs into <=max_chunk chunks; split oversized paragraphs |
-| `_split_sentences_en` | `(text: str) -> list[str]` | Split at sentence boundaries (. ! ?). Oversized sentences are kept as-is |
-| `_filter_stopwords_en` | `(text: str) -> str` | Remove EN stopwords (case-insensitive) and return space-joined tokens |
-
 ## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
 ### 7.1 Module overview

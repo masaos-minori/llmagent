@@ -124,13 +124,6 @@ _COMMANDS: list[CommandDef] = [
         "rag stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url|recover|consistency; session stats|health|checkpoint|vacuum|purge|recover",
     ),
     CommandDef(
-        "/tool",
-        True,
-        False,
-        "_cmd_tool",
-        "list | show <idx>  Inspect stored tool results",
-    ),
-    CommandDef(
         "/set",
         True,
         False,

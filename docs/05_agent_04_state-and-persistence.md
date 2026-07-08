@@ -235,7 +235,6 @@ Key behaviors:
 | `ctx.stats.*` | session | in-memory | — (reported via `/stats`) | `/clear` |
 | `sessions` table | persistent | SQLite | On session create; title async on first turn | `/session delete` |
 | `messages` table | persistent | SQLite | Per `AgentSession.save()` call | `/session delete` or `/undo` |
-| `ctx.tool_result_store` | session | in-memory + SQLite | Each tool call result stored immediately | session end |
 | Memory JSONL / `memories` table | persistent | JSONL + SQLite | On memory extraction (async) | `/memory delete` or `/memory prune` |
 
 ---

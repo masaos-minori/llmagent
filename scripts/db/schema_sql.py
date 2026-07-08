@@ -85,20 +85,6 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         tool_call_id TEXT,
         created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
-    CREATE TABLE IF NOT EXISTS tool_results (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
-        turn       INTEGER NOT NULL,
-        tool_name  TEXT    NOT NULL,
-        args_masked  TEXT,
-        full_text  TEXT    NOT NULL,
-        summary    TEXT,
-        is_error   INTEGER NOT NULL DEFAULT 0,
-        undone     INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_tool_results_session
-        ON tool_results(session_id);
     CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,
         memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),

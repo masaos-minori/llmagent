@@ -21,7 +21,6 @@ db/
 ├── store_impl.py      SQLite implementations of store protocols
 ├── store.py           Re-export stub — public API surface for db.store imports
 ├── maintenance.py     WAL checkpoint, VACUUM, purge, rotate, recover
-├── tool_results.py    ToolResultStore — full tool result storage
 └── create_schema.py DDL creation (rag + session + workflow + eventbus schemas; idempotent)
 ```
 
@@ -30,7 +29,7 @@ Four DB files:
 | DB | Default path | Tables |
 |---|---|---|
 | `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
-| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
+| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
 | `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
 | `eventbus.sqlite` | `common.toml::eventbus_db_path` | `events` |
 
@@ -175,25 +174,6 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically at runtime 
 | `tool_call_id` | TEXT | Tool call correlation ID (for tool role messages). Persisted/restored by `SessionMessageRepository`. NULL for non-tool messages. |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 
-### `tool_results` table
-
-| Column | Type | Constraint |
-|---|---|---|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `session_id` | INTEGER | (NULL allowed) |
-| `turn` | INTEGER | NOT NULL |
-| `tool_name` | TEXT | NOT NULL |
-| `args_masked` | TEXT | |
-| `full_text` | TEXT | NOT NULL |
-| `summary` | TEXT | |
-| `is_error` | INTEGER | NOT NULL DEFAULT 0 |
-| `undone` | INTEGER | NOT NULL DEFAULT 0 |
-| `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
-
-`undone = 0`: active result. `undone = 1`: result belongs to a turn that has been undone; full text is physically retained for audit.
-
-Index: `idx_tool_results_session ON tool_results(session_id)`
-
 ### `memories` table
 
 | Column | Type | Constraint |
@@ -303,7 +283,7 @@ All SQLite schema DEFAULT timestamps use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`
 
 Tables using this format:
 
-- `tool_results.created_at`, `session_diagnostics.created_at` (Z suffix)
+- `session_diagnostics.created_at` (Z suffix)
 - `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at` (Z suffix)
 - Event Bus: `events.published_at` (Z suffix)
 

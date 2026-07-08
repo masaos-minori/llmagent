@@ -46,12 +46,3 @@ class StatsViewModel:
     latency: LatencySnapshot | None = None
     approval_pending: bool = False
     rag_db_configured: bool = False
-
-
-@dataclass(frozen=True)
-class ToolResultView:
-    result_id: int
-    tool_name: str
-    summary: str | None
-    args_masked: MaskedArgs
-    is_error: bool

@@ -144,15 +144,10 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 > **Note:** `/db rag urls` and `/db rag clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. RAG maintenance commands use `RagMaintenanceService`; session maintenance commands use `DbMaintenanceService`. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
 
-### Tool / plan category
+### Plan category
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/tool list` | None | Display saved tool result list (undone turns annotated `[undone]`) |
-| `/tool show <id>` | None | Display full tool result (undone artifacts show a retention notice) |
-
-> **注意**: `/tool show <id>` は `ToolResultStore` から取得する。`messages` テーブルは参照しない。
-> undone ターンのアーティファクトは削除されず `undone = 1` フラグが立てられる (`[undone turn — artifact retained for audit]`)。
 | `/plan` | None | Toggle `ctx.conv.plan_mode` |
 
 ### Workflow category

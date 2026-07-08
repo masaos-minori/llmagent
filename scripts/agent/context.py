@@ -25,7 +25,6 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from db.tool_results import ToolResultStore
 from shared.mcp_config import McpServerHealthRegistry
 from shared.types import LLMMessage
 
@@ -176,8 +175,7 @@ class AgentContext:
         self.workflow = WorkflowState()
         self.cfg = build_agent_config()
         self.session = AgentSession()
-        # Persistent store for full tool results; /tool show <id> retrieves them
-        self.tool_result_store = ToolResultStore()
+
         # Wired by Orchestrator.__init__() to its DiagnosticStore instance.
         # None until an Orchestrator is constructed with this context.
         self.diagnostics: DiagnosticStore | None = None

@@ -158,7 +158,6 @@ class AgentREPL:
             stats = ctx.stats
             llm = ctx.services.llm if ctx.services is not None else None
             hist_mgr = ctx.services.hist_mgr if ctx.services is not None else None
-            tool_results = ctx.tool_result_store
             session_id = ctx.session.session_id
 
             latency_summary = {}
@@ -170,23 +169,9 @@ class AgentREPL:
                         "max_ms": round(max(samples) * 1000, 2),
                     }
 
+            # tool_results table removed (H-9); kept as an empty placeholder so the
+            # session_diagnostics JSON payload shape is unchanged for existing consumers.
             tool_result_summary: dict[str, int] = {}
-            if session_id is not None and tool_results is not None:
-                try:
-                    with SQLiteHelper("session").open(row_factory=True) as db:
-                        rows = db.fetchall(
-                            "SELECT COUNT(*) as cnt, SUM(is_error) as errs"
-                            " FROM tool_results WHERE session_id = ?",
-                            (session_id,),
-                        )
-                        if rows:
-                            row = rows[0]
-                            tool_result_summary = {
-                                "total": row["cnt"],
-                                "errors": row["errs"] or 0,
-                            }
-                except sqlite3.Error:
-                    pass
 
             workflow_count = 0
             task_count = 0
@@ -429,9 +414,7 @@ class AgentREPL:
             await self._orchestrator.handle_turn(line)
             if llm is not None and llm.stat_partial_completions > _prev_partial:
                 self._view.write_warning(
-                    "Partial LLM completion stored."
-                    " Use /stats to see count or query tool_results"
-                    " (tool_name='llm_partial_completion')."
+                    "Partial LLM completion stored. Use /stats to see count."
                 )
 
     def _get_workflow_status(self) -> str:

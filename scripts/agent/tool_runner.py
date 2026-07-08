@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import orjson
-from rag.llm_client import summarize_tool_result
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 from shared.tool_executor_helpers import is_side_effect, tool_hash_key
@@ -27,7 +26,6 @@ from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavaila
 from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_result_formatter import (
     TURN_LIMIT_HINT,
-    is_summarized,
     mask_args,
 )
 from agent.tool_scheduler import build_execution_groups
@@ -110,7 +108,7 @@ async def execute_one_tool_call(
     tc: dict,
     turn: int,
 ) -> tuple[str, str, dict, str, bool, str]:
-    """Parse, execute, and optionally summarize one tool_call dict.
+    """Parse, execute, and truncate one tool_call dict.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
     Raises ToolExecutorUnavailableError when ctx.services_required.tools is None.
@@ -149,27 +147,11 @@ async def execute_one_tool_call(
             error_msg=result.output[:500],
         )
 
-    if (
-        ctx.cfg.tool.use_tool_summarize
-        and not is_error
-        and len(text) > ctx.cfg.tool.tool_summarize_threshold
-        and ctx.services_required.http is not None
-    ):
-        llm_text = await summarize_tool_result(
-            text, name, args, ctx.services_required.http
-        )
-        logger.info(
-            "Tool result %s summarized: %s → %s chars",
-            name,
-            len(text),
-            len(llm_text),
-        )
-    else:
-        llm_text = (
-            text[: ctx.cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
-            if len(text) > ctx.cfg.tool.tool_result_max_llm_chars
-            else text
-        )
+    llm_text = (
+        text[: ctx.cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
+        if len(text) > ctx.cfg.tool.tool_result_max_llm_chars
+        else text
+    )
 
     return tc["id"], name, args, text, is_error, llm_text
 
@@ -192,21 +174,11 @@ def _collect_tool_result_msgs(
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         _log_and_emit_tool_call(turn + 1, name, masked)
         _emit_tool_result(text, name)
-        summarized = is_summarized(ctx.cfg, text, llm_text, is_error)
-        result_id = ctx.tool_result_store.store(
-            session_id=ctx.session.session_id,
-            turn=turn,
-            tool_name=name,
-            args_masked=_json_dumps(masked),
-            full_text=text,
-            summary=llm_text if summarized else None,
-            is_error=is_error,
-        )
+
         llm_text = _apply_turn_char_limit(
             llm_text,
             turn_chars,
             limit=ctx.cfg.tool.tool_results_turn_max_chars,
-            result_id=result_id,
         )
         turn_chars += len(llm_text)
         ctx.conv.history.append(
@@ -251,19 +223,15 @@ def _apply_turn_char_limit(
     llm_text: str,
     turn_chars: int,
     limit: int,
-    result_id: int,
 ) -> str:
     """Apply per-turn char limit; return hint if exceeded."""
     if limit > 0 and (turn_chars + len(llm_text)) > limit:
-        id_hint = f" (id={result_id})"
         logger.info(
-            "Per-turn tool result limit reached: %s chars > %s;"
-            " result replaced with hint (id=%s)",
+            "Per-turn tool result limit reached: %s chars > %s; result replaced with hint",
             turn_chars + len(llm_text),
             limit,
-            result_id,
         )
-        return TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
+        return TURN_LIMIT_HINT
     return llm_text
 
 

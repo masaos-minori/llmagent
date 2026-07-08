@@ -340,7 +340,6 @@ def _make_ctx_for_dag(
     ctx.services_required.gateway = None
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()
-    ctx.tool_result_store = MagicMock()
     return ctx
 
 

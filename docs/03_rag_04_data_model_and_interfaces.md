@@ -90,7 +90,7 @@ Created by `ChunkSplitter`. JSON format.
 
 **RAG-owned tables:** `documents`, `chunks`, `chunks_fts`, `chunks_vec` — all in `rag.sqlite`.
 
-Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
+Agent session tables (`sessions`, `messages`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
 
 **Classification: canonical vs derived indexes**
 

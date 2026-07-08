@@ -87,7 +87,7 @@ print("session schema OK")
 PY
 ```
 
-Creates tables: `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `session_diagnostics`.
+Creates tables: `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `session_diagnostics`.
 
 #### Initialize workflow.sqlite
 
@@ -107,7 +107,7 @@ Creates tables: `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite  ".tables"
-# Expected: memories  memories_fts  memories_vec  messages  session_diagnostics  sessions  tool_results
+# Expected: memories  memories_fts  memories_vec  messages  session_diagnostics  sessions
 
 sqlite3 /opt/llm/db/workflow.sqlite ".tables"
 # Expected: approvals  artifacts  attempts  processed_events  tasks
@@ -422,8 +422,7 @@ Context state:
   Memory layer    : disabled
 Budget breakdown:
   system        :    1,234 chars ( 38%)
-  history       :    1,987 chars ( 61%)
-  tool_results  :      100 chars (  3%)
+   history       :    1,987 chars ( 62%)
 ```
 
 - **Remaining:** distance from `context_char_limit` → compression trigger
@@ -443,9 +442,9 @@ Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
-- **Partial completions:** LLM responses interrupted mid-stream; stored in `tool_result_store` (accessible via `/tool show llm_partial_completion`). For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
+- **Partial completions:** LLM responses interrupted mid-stream are recorded; check `session_diagnostics` (`kind=partial_completion`) for details. For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - **HB timeouts:** SSE heartbeat timeouts (possible LLM overload)
-- **Cache hits:** tool result cache hits (check `/tool list` for cached content)
+- **Cache hits:** tool result cache hits
 - **Approval pending:** `Approval: PENDING — use /approve or /reject` line appears only when `ctx.workflow.approval_pending=True`. Shown when a workflow task is waiting for `/approve` or `/reject`.
 
 ---
@@ -454,7 +453,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 
 | Condition | How to detect | Action |
 |---|---|---|
-| LLM stream interrupted (partial completion) | `/stats` shows `partials > 0`; agent log: `WARNING Partial LLM completion saved: {kind}` | `/tool show llm_partial_completion` to view content; check LLM endpoint stability |
+| LLM stream interrupted (partial completion) | `/stats` shows `partials > 0`; agent log: `WARNING Partial LLM completion saved: {kind}` | Check `session_diagnostics` (`kind=partial_completion`) for details; check LLM endpoint stability |
 | Context compression (HistoryManager) | `/stats` shows `Compress: N > 0`; agent log: `INFO Compressed history` | Increase `compression_char_threshold` or reduce context size |
 | Max tool turns hit | Agent log: `WARNING max_tool_turns=N reached` | Increase `max_tool_turns` in `config/tools.toml` |
 
@@ -518,7 +517,6 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 | `output_tokens` | Total output tokens (if available) |
 | `compress_count` | History compression operations |
 | `latency_summary` | Per-step mean/max latency in ms |
-| `tool_result_summary` | `{total: N, errors: M}` from tool_results table |
 
 **Reading diagnostics:**
 

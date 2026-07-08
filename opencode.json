@@ -13,7 +13,7 @@
                 "local-model": {
                     "name": "Qwen3.6 (llama.cpp)",
                     "limit": {
-                        "context": 65536,
+                        "context": 131072,
                         "output": 8192
                     }
                 }
@@ -23,11 +23,11 @@
     "agent": {
         "build": {
             "model": "llama-cpp/local-model",
-            "temperature": 0.3
+            "temperature": 0.35
         },
         "plan": {
             "model": "llama-cpp/local-model",
-            "temperature": 0.4
+            "temperature": 0.45
         }
     },
     "compaction": {

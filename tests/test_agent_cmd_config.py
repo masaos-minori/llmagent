@@ -104,7 +104,7 @@ class TestCmdStats:
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
-        assert "llm_partial_completion" in out
+        assert "session_diagnostics" in out
 
     def test_partial_completion_no_hint_when_zero(self, capsys: Any) -> None:
         ctx = _make_ctx()

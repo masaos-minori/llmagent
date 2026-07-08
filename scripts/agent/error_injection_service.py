@@ -1,6 +1,6 @@
 """agent/error_injection_service.py
-Stores mid-turn LLMTransportError diagnostics in the diagnostic channel
-and tool-result store; does not modify conversation history.
+Stores mid-turn LLMTransportError diagnostics in the diagnostic channel only;
+does not write to any store and does not modify conversation history.
 
 This is a production path called by llm_turn_runner.py, not a test utility.
 Do not add test-specific error injection to this class.
@@ -30,7 +30,7 @@ class ErrorInjectionService:
         self._ctx = ctx
 
     def inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:
-        """Store mid-turn LLM error in diagnostic and tool-result channels; return summary."""
+        """Store mid-turn LLM error in the diagnostic channel; return summary."""
         ctx = self._ctx
         err = format_transport_error(
             source="llm",
@@ -54,15 +54,6 @@ class ErrorInjectionService:
                     }
                 ).decode(),
             )
-        ctx.tool_result_store.store(
-            session_id=ctx.session.session_id,
-            turn=turn,
-            tool_name="llm_transport_error",
-            args_masked="{}",
-            full_text=err.detail,
-            summary=err.summary,
-            is_error=True,
-        )
         logger.warning(
             "LLM transport error during tool continuation (turn=%s): %s",
             turn,

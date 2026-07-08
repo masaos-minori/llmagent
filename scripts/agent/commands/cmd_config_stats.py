@@ -116,7 +116,7 @@ class _ConfigStatsMixin(MixinBase):
         if stats.llm_partial_completions > 0:
             self._out.write(
                 f"  Partial compl : {stats.llm_partial_completions}"
-                "  (stored as tool_result, tool_name='llm_partial_completion')"
+                "  (stored in session_diagnostics)"
             )
         else:
             self._out.write("  Partial compl : 0")

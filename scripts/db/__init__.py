@@ -8,7 +8,6 @@ Public API (import from db.* submodules directly for clarity):
   - db.store:      Protocols + SQLite impls (protocol re-exports)
   - db.store_protocols: Protocol definitions + embedding helpers
   - db.store_impl:  SQLite-backed implementations
-  - db.tool_results: ToolResultStore
   - db.maintenance: WAL checkpoint, vacuum, purge, rotation, recovery
   - db.schema_sql:  DDL templates for schema creation
 """
@@ -30,7 +29,6 @@ from db.models import (
     RagConsistencyReport,
     RecoveryResult,
     SessionRow,
-    ToolResultRow,
     WalCheckpointCounts,
 )
 from db.rag_consistency import (
@@ -56,7 +54,6 @@ from db.store_protocols import (
     get_embedding_dims,
     validate_embedding_blob,
 )
-from db.tool_results import ToolResultStore
 
 __all__ = [
     "DbConfig",
@@ -77,8 +74,6 @@ __all__ = [
     "SQLiteSessionStore",
     "SQLiteVectorStore",
     "SessionStore",
-    "ToolResultRow",
-    "ToolResultStore",
     "VectorStore",
     "WalCheckpointCounts",
     "build_db_config",

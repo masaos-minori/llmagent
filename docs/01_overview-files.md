@@ -343,11 +343,10 @@
 │   │   ├─ helper.py                        # 接続管理 (WAL / busy_timeout)
 │   │   ├─ maintenance.py                   # 運用ポリシー
 │   │   ├─ config.py                        # DbConfig データクラス・SQLite パスビルダ
-│   │   ├─ models.py                        # WalCheckpointCounts / PurgeCounts / ToolResultRow / DbHealthMetrics / DocumentRow / SessionRow / MessageRow
+│   │   ├─ models.py                        # WalCheckpointCounts / PurgeCounts / DbHealthMetrics / DocumentRow / SessionRow / MessageRow
 │   │   ├─ store.py                         # Protocol 抽象レイヤー
 │   │   ├─ store_protocols.py               # VectorStore / DocumentStore / SessionStore Protocol 定義
 │   │   ├─ store_impl.py                    # SQLiteVectorStore / SQLiteDocumentStore / SQLiteSessionStore 実装
-│   │   ├─ tool_results.py                  # ツール結果永続化
 │   │   ├─ rag_consistency.py               # RAG インデックス整合性チェック
 │   │   ├─ rotation.py                      # データベースローテーション
 │   │   └─ recovery.py                      # コーrupted DB リカバリ

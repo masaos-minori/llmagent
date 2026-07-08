@@ -8,7 +8,7 @@ SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
-  create_session_schema()    — session.sqlite: sessions, messages, tool_results, memory
+  create_session_schema()    — session.sqlite: sessions, messages, memory
   create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, approvals
   create_eventbus_schema()   — eventbus.sqlite: events
   create_schema()            — convenience wrapper calling all four
@@ -44,7 +44,7 @@ def create_rag_schema() -> None:
 
 
 def create_session_schema() -> None:
-    """Create session.sqlite tables for conversations, tool results, and memory."""
+    """Create session.sqlite tables for conversations and memory."""
     dims = get_embedding_dims()
     with SQLiteHelper("session").open(write_mode=True, load_vec=True) as db:
         try:

@@ -86,7 +86,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | [90_shared_02_types_and_protocols.md](90_shared_02_types_and_protocols.md) | All type definitions: LLMMessage, RagConfig, RagHit, LLMUsage/LLMResponse, ActionResult, ArtifactEvent, ShellPolicy, tool constants |
 | [90_shared_03_runtime_and_execution.md](90_shared_03_runtime_and_execution.md) | ConfigLoader, Logger, plugin_registry, token_counter, OTel, git_helper, formatters, ToolExecutor flow, McpServerConfig |
 | [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md) | DB file structure, DbConfig, all table schemas (rag/session/workflow), FTS5/vec, schema init |
-| [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) | SQLiteHelper full API, store protocols, SQLite implementations, ToolResultStore, memory ops, maintenance, corruption recovery |
+| [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) | SQLiteHelper full API, store protocols, SQLite implementations, memory ops, maintenance, corruption recovery |
 | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | 13 cataloged issues: DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-04, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01 |
 
 ---

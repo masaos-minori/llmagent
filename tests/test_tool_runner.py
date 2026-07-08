@@ -16,6 +16,7 @@ from agent.tool_runner import (
     _estimate_parallel_time,
     _execute_with_dag,
     execute_all_tool_calls,
+    execute_one_tool_call,
 )
 from shared.transport_dto import ToolCallResult
 
@@ -82,8 +83,6 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.stats = MagicMock()
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
-    ctx.tool_result_store = MagicMock()
-    ctx.tool_result_store.store = MagicMock(return_value=1)
     ctx.conv = MagicMock()
     ctx.conv.history = []
     ctx.session = MagicMock()
@@ -274,6 +273,81 @@ class TestExecuteWithDag:
         assert results[0][0] == "call_read_text_file"
         assert results[1][0] == "call_write_file"
 
+    @pytest.mark.asyncio
+    async def test_long_output_truncated_without_summarize(self) -> None:
+        long_text = "x" * 5000
+        cfg = _cfg(tool_result_max_llm_chars=100)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=long_text, is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        with patch("rag.llm_client.summarize_tool_result") as mock_summarize:
+            result = await execute_one_tool_call(ctx, _tc("shell_run"), 0)
+            assert mock_summarize.call_count == 0
+            _, _, _, _, _, llm_text = result
+            assert len(llm_text) <= 100 + len("\n... (truncated)")
+
+    @pytest.mark.asyncio
+    async def test_short_output_passes_through_unchanged(self) -> None:
+        short_text = "hello world"
+        cfg = _cfg(tool_result_max_llm_chars=4000)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=short_text, is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        result = await execute_one_tool_call(ctx, _tc("shell_run"), 0)
+        _, _, _, _, _, llm_text = result
+        assert llm_text == short_text
+
+    @pytest.mark.asyncio
+    async def test_error_output_truncated_only_no_summarize(self) -> None:
+        cfg = _cfg(tool_result_max_llm_chars=10, use_tool_summarize=True)
+        ctx = _make_ctx(cfg)
+        long_error_text = "e" * 50
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=long_error_text, is_error=True, request_id="req-1", server_key=""
+            )
+        )
+
+        _tc_id, _name, _args, _text, is_error, llm_text = await execute_one_tool_call(
+            ctx, _tc("read_text_file"), 0
+        )
+
+        assert is_error
+        assert llm_text == long_error_text[:10] + "\n... (truncated)"
+
+    @pytest.mark.asyncio
+    async def test_summarize_tool_result_never_called_even_when_enabled(self) -> None:
+        """use_tool_summarize=True must have no effect — the summarize path is removed."""
+        cfg = _cfg(
+            use_tool_summarize=True,
+            tool_summarize_threshold=1,
+            tool_result_max_llm_chars=4000,
+        )
+        ctx = _make_ctx(cfg)
+        text_over_old_threshold = "y" * 100
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=text_over_old_threshold,
+                is_error=False,
+                request_id="req-1",
+                server_key="",
+            )
+        )
+
+        _tc_id, _name, _args, _text, _is_error, llm_text = await execute_one_tool_call(
+            ctx, _tc("read_text_file"), 0
+        )
+
+        assert llm_text == text_over_old_threshold
+
 
 class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
@@ -286,7 +360,6 @@ class TestExecuteAllToolCalls:
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
         )
-        ctx.tool_result_store.store = MagicMock(return_value=1)
 
         with patch(
             "agent.tool_approval.run_approval_checks",
@@ -300,7 +373,6 @@ class TestExecuteAllToolCalls:
         ctx.services_required.tools.execute.assert_awaited_once_with(
             "read_text_file", {"path": "/tmp/f"}
         )
-        ctx.tool_result_store.store.assert_called_once()
         ctx.session.save_many.assert_called_once()
 
     @pytest.mark.asyncio

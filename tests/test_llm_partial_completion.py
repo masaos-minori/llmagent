@@ -30,16 +30,12 @@ def _make_ctx(history: list | None = None):
     session = SimpleNamespace(session_id="test-sess-1")
     stats = SimpleNamespace(stat_turns=1)
 
-    tool_result_store = MagicMock()
-    tool_result_store.store = MagicMock()
-
     conv = SimpleNamespace(history=history)
 
     return SimpleNamespace(
         session=session,
         stats=stats,
         services_required=services,
-        tool_result_store=tool_result_store,
         conv=conv,
     )
 
@@ -96,21 +92,6 @@ def test_partial_completion_calls_save_partial_completion() -> None:
     e = _make_transport_error(partial_text="partial output")
     handle_partial_completion(e, ctx, ds)
     ds.save_partial_completion.assert_called_once()
-
-
-# ── tool_result_store ─────────────────────────────────────────────────────────
-
-
-def test_partial_completion_writes_tool_result_store() -> None:
-    from agent.llm_transport_errors import handle_partial_completion
-
-    ctx = _make_ctx()
-    e = _make_transport_error(partial_text="partial output")
-    handle_partial_completion(e, ctx, _make_diagnostic_store())
-    ctx.tool_result_store.store.assert_called_once()
-    kwargs = ctx.tool_result_store.store.call_args[1]
-    assert kwargs.get("tool_name") == "llm_partial_completion"
-    assert kwargs.get("is_error") is True
 
 
 # ── stat counter ──────────────────────────────────────────────────────────────

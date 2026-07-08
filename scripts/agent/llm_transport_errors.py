@@ -32,7 +32,7 @@ def handle_partial_completion(
     ctx: AgentContext,
     diagnostic_store: DiagnosticStore,
 ) -> None:
-    """Save partial text to diagnostic channel and tool_result_store."""
+    """Save partial text to diagnostic channel only."""
     incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
     diagnostic_store.save(ctx.session.session_id, "llm_transport_error", incomplete_msg)
     diagnostic_store.save_partial_completion(
@@ -41,21 +41,6 @@ def handle_partial_completion(
         reason=e.kind,
         content_length=len(e.partial_text),
     )
-    try:
-        ctx.tool_result_store.store(
-            session_id=ctx.session.session_id,
-            turn=ctx.stats.stat_turns,
-            tool_name="llm_partial_completion",
-            args_masked="{}",
-            full_text=e.detail or f"partial={len(e.partial_text)} chars",
-            summary=f"[INCOMPLETE: {e.kind}]",
-            is_error=True,
-        )
-    except (RuntimeError, OSError) as store_err:
-        logger.warning(
-            "ToolResultStore.store failed for partial completion: %s",
-            store_err,
-        )
     ctx.services_required.llm.stat_partial_completions += 1
     logger.warning("Partial LLM completion saved: %s", e.kind)
 
