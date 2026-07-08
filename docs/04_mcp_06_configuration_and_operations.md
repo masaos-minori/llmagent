@@ -94,7 +94,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | Watchdog interval | `0` (disabled, LOCAL default; PRODUCTION default is `30.0`) | `config/agent.toml::mcp_watchdog_interval` |
 | Health registry threshold | 3 failures | hardcoded in `shared/mcp_config.py` |
 | startup_timeout_sec | 30 sec | `McpServerConfig.startup_timeout_sec` |
-| github default_per_page | 10 | `config/github_mcp_server.toml` |
+| github default_per_page | 20 | `config/github_mcp_server.toml` |
 | github max_per_page | 100 | `config/github_mcp_server.toml` |
 | shell max_timeout_sec | 300 sec | `config/shell_mcp_server.toml` |
 | shell sandbox_backend | `"none"` (local) / `"firejail"` (prod) | `config/shell_mcp_server.toml` |

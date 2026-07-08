@@ -13,9 +13,9 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 
 | Server | Control mechanism | Default policy |
 |---|---|---|
-| file-read-mcp | `allowed_dirs` | `["/opt/llm"]` — path jail |
-| file-write-mcp | `allowed_dirs` (write) | `["/opt/llm"]` — path jail |
-| file-delete-mcp | `allowed_dirs` | `["/opt/llm"]` — path jail |
+| file-read-mcp | `allowed_dirs` | `["/opt/llm", "/opt/llm/storage"]` — path jail |
+| file-write-mcp | `allowed_dirs` (write) | `["/opt/llm/storage"]` — path jail |
+| file-delete-mcp | `allowed_dirs` | `["/opt/llm/storage"]` — path jail |
 | github-mcp | `allowed_repos` + `allowed_repos_mode` | fail-closed (empty = deny all writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | deny all (both empty by default) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | both: fail-closed |
@@ -30,7 +30,7 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 
 ```toml
 # config/file_read_mcp_server.toml
-allowed_dirs = ["/opt/llm"]
+allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 ```
 
 - All paths are resolved via `Path.resolve()` before comparison (eliminates `../` and symlinks)
