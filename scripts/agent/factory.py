@@ -29,6 +29,7 @@ from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.repository_gateway import RepositoryGateway
+from agent.services.models import ProcessInfoSnapshot
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -158,11 +159,11 @@ class _ServerLifecycleRouter:
         """Return process snapshot dict for a managed subprocess server, or None."""
         return self._http_mgr.get_process_snapshot(server_key)
 
-    def get_process_info(self, server_key: str):
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
         return self._http_mgr.get_process_info(server_key)
 
-    def list_processes(self):
+    def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
         return self._http_mgr.list_processes()
 

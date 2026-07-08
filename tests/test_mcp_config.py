@@ -17,7 +17,7 @@ class TestMcpServerConfigValidation:
     def test_valid_http_config(self) -> None:
         cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
         assert cfg.transport == TransportType.HTTP
-        assert cfg.startup_mode == StartupMode.PERSISTENT
+        assert cfg.startup_mode == StartupMode.NONE
         assert cfg.healthcheck_mode == HealthcheckMode.HTTP
 
     def test_http_transport_requires_url(self) -> None:
@@ -167,7 +167,7 @@ class TestBuildMcpServers:
         result = _build_mcp_servers(cfg)
         s = result["minimal"]
         assert s.transport == TransportType.HTTP
-        assert s.startup_mode == StartupMode.PERSISTENT
+        assert s.startup_mode == StartupMode.NONE
         assert s.healthcheck_mode == HealthcheckMode.HTTP
         assert s.call_timeout_sec == 60.0
         assert s.startup_timeout_sec == 30

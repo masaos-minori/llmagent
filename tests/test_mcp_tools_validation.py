@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -26,12 +27,13 @@ import pytest
 _SCRIPTS = Path(__file__).parent.parent / "scripts"
 _PYTHON = sys.executable
 
-# (module_path, port, expected_tool_names)
-_MCP_SERVERS: list[tuple[str, int, list[str]]] = [
-    ("mcp.shell.server", 8009, ["shell_run"]),
+# (module_path, expected_tool_names) — port is allocated dynamically per test
+# run (see _find_free_port) to avoid colliding with a real MCP server that
+# happens to already be listening on a hardcoded port.
+_MCP_SERVERS: list[tuple[str, list[str]]] = [
+    ("mcp.shell.server", ["shell_run"]),
     (
         "mcp.cicd.server",
-        8012,
         [
             "trigger_workflow",
             "get_workflow_runs",
@@ -41,7 +43,6 @@ _MCP_SERVERS: list[tuple[str, int, list[str]]] = [
     ),
     (
         "mcp.mdq.server",
-        8013,
         [
             "search_docs",
             "get_chunk",
@@ -53,6 +54,13 @@ _MCP_SERVERS: list[tuple[str, int, list[str]]] = [
         ],
     ),
 ]
+
+
+def _find_free_port() -> int:
+    """Bind to port 0 to let the OS assign a free ephemeral port, then release it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
@@ -69,6 +77,17 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
     return False
 
 
+def _process_group_gone(pgid: int) -> bool:
+    """Return True if no process in pgid is alive (signal 0 probe)."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    return False
+
+
 def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
     """Send SIGTERM to proc's process group; escalate to SIGKILL if it doesn't exit in time.
 
@@ -76,7 +95,14 @@ def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
     launched with start_new_session=True, so killing its process group also
     reaps any child processes it spawned, instead of orphaning them.
     Falls back to PID-level terminate()/kill() if the process group is gone.
+
+    Bails out before touching os.getpgid() if proc has already exited — calling
+    getpgid() on a reaped pid risks resolving to an unrelated process that has
+    since reused the same pid, and killpg-ing that pid's group would be wrong.
     """
+    if proc.poll() is not None:
+        return
+
     try:
         pgid = os.getpgid(proc.pid)
     except OSError:
@@ -92,28 +118,31 @@ def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
 
     try:
         proc.wait(timeout=timeout)
-        return
     except subprocess.TimeoutExpired:
-        pass
-
-    try:
         if pgid is not None:
-            os.killpg(pgid, signal.SIGKILL)
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                proc.kill()
         else:
             proc.kill()
-    except (ProcessLookupError, OSError):
-        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
 
-    try:
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        pass
+    if pgid is not None:
+        assert _process_group_gone(pgid), (
+            f"process group {pgid} still has live members after "
+            f"terminate+kill — MCP server subprocess tree was not fully reaped"
+        )
 
 
 @pytest.fixture()
 def mcp_server(request: pytest.FixtureRequest) -> Any:
     """Fixture: start an MCP server subprocess, yield (port, expected_tools), then stop it."""
-    module, port, tools = request.param
+    module, tools = request.param
+    port = _find_free_port()
     env_override = {"PYTHONPATH": str(_SCRIPTS)}
     cmd = [
         _PYTHON,
@@ -173,7 +202,7 @@ def test_read_tools_schema_matches_hand_written() -> None:
     "mcp_server",
     _MCP_SERVERS,
     indirect=True,
-    ids=[f"{m.split('.')[-2]}-{port}" for m, port, _ in _MCP_SERVERS],
+    ids=[f"{m.split('.')[-2]}" for m, _ in _MCP_SERVERS],
 )
 def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     """GET /v1/tools must return all expected tool names."""
@@ -194,7 +223,7 @@ def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     "mcp_server",
     _MCP_SERVERS,
     indirect=True,
-    ids=[f"{m.split('.')[-2]}-{port}" for m, port, _ in _MCP_SERVERS],
+    ids=[f"{m.split('.')[-2]}" for m, _ in _MCP_SERVERS],
 )
 def test_v1_tools_each_has_name_and_description(mcp_server: Any) -> None:
     """Each tool entry in /v1/tools must have non-empty name and description."""

@@ -376,7 +376,6 @@ All constants are `frozenset[str]`. Used by `ToolRegistry` for seed data and by 
 | `CICD_TOOLS` | `trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs` |
 | `MDQ_TOOLS` | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`, `fts_consistency_check`, `fts_rebuild` (9 tools) |
 | `GIT_TOOLS` | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
-| `SQLITE_TOOLS` | `query_sqlite` |
 | `SHELL_TOOLS` | `shell_run` |
 | `WEB_SEARCH_TOOLS` | `search_web` |
 

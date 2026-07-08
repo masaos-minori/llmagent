@@ -16,7 +16,6 @@ from pathlib import Path
 import pytest
 
 # When adding a new MCP server with tools.py, add its import path here.
-# sqlite server (scripts/mcp/sqlite/) has no tools.py and is excluded.
 # github/tools.py is the aggregator; sub-files are tested indirectly.
 _TOOL_MODULES: list[tuple[str, str]] = [
     ("mcp.shell.tools", "TOOL_LIST"),
@@ -49,24 +48,22 @@ def test_tool_list_export(module_path: str, attr_name: str) -> None:
     assert len(tool_list) > 0, f"{module_path}.{attr_name} must not be empty"
 
     for i, tool in enumerate(tool_list):
-        assert isinstance(
-            tool, dict
-        ), f"{module_path}.{attr_name}[{i}] must be a dict, got {type(tool).__name__}"
-        assert (
-            "name" in tool
-        ), f"{module_path}.{attr_name}[{i}] must have a 'name' key"
-        assert isinstance(
-            tool["name"], str
-        ), f"{module_path}.{attr_name}[{i}]['name'] must be a string"
-        assert (
-            len(tool["name"]) > 0
-        ), f"{module_path}.{attr_name}[{i}]['name'] must not be empty"
+        assert isinstance(tool, dict), (
+            f"{module_path}.{attr_name}[{i}] must be a dict, got {type(tool).__name__}"
+        )
+        assert "name" in tool, f"{module_path}.{attr_name}[{i}] must have a 'name' key"
+        assert isinstance(tool["name"], str), (
+            f"{module_path}.{attr_name}[{i}]['name'] must be a string"
+        )
+        assert len(tool["name"]) > 0, (
+            f"{module_path}.{attr_name}[{i}]['name'] must not be empty"
+        )
 
 
 def test_no_legacy_mcp_tools_export() -> None:
     """Assert no module exports the legacy _MCP_TOOLS name."""
     for module_path, _ in _TOOL_MODULES:
         mod = importlib.import_module(module_path)
-        assert not hasattr(
-            mod, "_MCP_TOOLS"
-        ), f"{module_path} must not export _MCP_TOOLS (use TOOL_LIST)"
+        assert not hasattr(mod, "_MCP_TOOLS"), (
+            f"{module_path} must not export _MCP_TOOLS (use TOOL_LIST)"
+        )

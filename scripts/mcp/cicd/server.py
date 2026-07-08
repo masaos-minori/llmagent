@@ -35,6 +35,7 @@ from mcp.cicd.models import (
 from mcp.cicd.service import CiCdService, build_service
 from mcp.cicd.tools import TOOL_LIST
 from mcp.dispatch import DispatchResult, ToolArgs, dispatch_tool
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import (
     MCPServer,
@@ -108,19 +109,8 @@ async def health() -> JSONResponse:
             deps["github_token"] = "not_set"
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    details: dict[str, object] = {"service": "cicd-mcp"}
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

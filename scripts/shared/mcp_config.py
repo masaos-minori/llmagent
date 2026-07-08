@@ -29,6 +29,7 @@ class TransportType(StrEnum):
 class StartupMode(StrEnum):
     """MCP server startup lifecycle mode."""
 
+    NONE = "none"  # no subprocess spawn, no health check; server is unusable
     PERSISTENT = "persistent"
     SUBPROCESS = "subprocess"
 
@@ -52,7 +53,7 @@ class McpServerConfig:
 
     transport: TransportType
     url: str  # base URL (transport=HTTP)
-    startup_mode: StartupMode = StartupMode.PERSISTENT
+    startup_mode: StartupMode = StartupMode.NONE
     healthcheck_mode: HealthcheckMode = (
         HealthcheckMode.HTTP
     )  # resolved in __post_init__
@@ -175,7 +176,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
-        startup_mode=StartupMode(v.get("startup_mode", "persistent")),
+        startup_mode=StartupMode(v.get("startup_mode", "none")),
         healthcheck_mode=healthcheck_mode,
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
         tool_names=list(v.get("tool_names", [])),

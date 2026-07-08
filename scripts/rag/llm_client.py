@@ -47,8 +47,6 @@ from rag.types import (
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 # Module-level cached llm_url; loaded once and reused across calls.
 _llm_url_cache: str | None = None
 
@@ -62,6 +60,7 @@ def _get_cached_llm_url() -> str:
             _llm_url_cache = cfg.get("llm_url", "")
         except (FileNotFoundError, ValueError):
             _llm_url_cache = ""
+    assert _llm_url_cache is not None
     return _llm_url_cache
 
 

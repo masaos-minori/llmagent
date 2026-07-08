@@ -8,29 +8,29 @@ Search provider: DuckDuckGo (no API key required).
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.logger import Logger
 
+from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer
-from mcp.web_search.formatters import dispatch_web_tool, search_web
+from mcp.web_search.formatters import dispatch_web_tool
 from mcp.web_search.models import (
-    SearchRequest,
-    SearchResponse,
     WebSearchConfig,
     WebSearchUpstreamError,
 )
 from mcp.web_search.tools import TOOL_LIST
 
+logger = logging.getLogger(__name__)
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object (module-level singleton)
 # ──────────────────────────────────────────────────────────────────────────────
-logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
-
 _cfg: WebSearchConfig = WebSearchConfig.load()
 
 app = FastAPI(title="web-search-mcp", version="3.0.0")
@@ -49,29 +49,12 @@ async def _handle_web_search_error(
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoint definitions
 # ──────────────────────────────────────────────────────────────────────────────
-@app.post("/search", response_model=SearchResponse)
-async def search(req: SearchRequest) -> SearchResponse:
-    """Execute a web search using DuckDuckGo."""
-    return await search_web({"query": req.query, "max_results": req.max_results})
-
-
 @app.get("/health")
 async def health() -> JSONResponse:
     """Health check endpoint."""
     deps: dict[str, str] = {}
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": False,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    details: dict[str, object] = {"service": "web-search-mcp"}
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -99,9 +82,22 @@ async def list_tools() -> dict[str, Any]:
 # Unified tool call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Execute a web search tool by name and return the formatted text result."""
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     r = await _dispatch_web_tool(req.name, req.args)
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=req.args.get("query", ""),
+        outcome="error" if r.is_error else "ok",
+        server_key="web_search",
+    )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 
 

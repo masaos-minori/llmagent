@@ -86,7 +86,7 @@ Created by `ChunkSplitter`. JSON format.
 
 ## 2. SQLite Schema (`rag.sqlite`)
 
-### 2.0 テーブル一覧 (RAG-owned tables only)
+### 2.0 Table List (RAG-owned tables only)
 
 **RAG-owned tables:** `documents`, `chunks`, `chunks_fts`, `chunks_vec` — all in `rag.sqlite`.
 
@@ -94,17 +94,17 @@ Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) 
 
 **Classification: canonical vs derived indexes**
 
-| テーブル | 種別 | 分類 | 主な列 | 用途 |
+| Table | Type | Classification | Key Columns | Purpose |
 |---|---|---|---|---|
-| `documents` | 通常 | **Canonical** | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
-| `chunks` | 通常 | **Canonical** | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
-| `chunks_fts` | FTS5 仮想 | **Derived index** | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
-| `chunks_vec` | vec0 仮想 | **Derived index** | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
+| `documents` | Regular | **Canonical** | `doc_id` PK, `url` UNIQUE, `lang` | URL-based document management |
+| `chunks` | Regular | **Canonical** | `chunk_id` PK, `doc_id` FK, `content` | Chunk text content |
+| `chunks_fts` | FTS5 virtual | **Derived index** | `content`, `content_rowid='chunk_id'` | BM25 full-text search |
+| `chunks_vec` | vec0 virtual | **Derived index** | `chunk_id` PK, `embedding float[384]` | KNN vector search |
 
 - **Canonical tables:** `documents`, `chunks` — application code mutates these directly
 - **Derived indexes:** `chunks_fts`, `chunks_vec` — maintained by triggers or ingestion logic; never mutated directly by application code
 
-FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
+FTS5 automatically syncs via triggers on INSERT/UPDATE/DELETE of the `chunks` table (`chunks_ai` / `chunks_au` / `chunks_ad`).
 
 ### 2.1 `documents` table
 

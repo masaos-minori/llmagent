@@ -676,7 +676,11 @@ Embed skip count        8
 ## Graceful Shutdown
 
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
-- Shutdown flag set → REPL loop exits after current input wait
+- Shutdown flag set → `AgentREPL._read_input()` races the blocking `input()` call
+  against `_shutdown_event.wait()` (`asyncio.wait(FIRST_COMPLETED)`); if the shutdown
+  event wins, `_read_input()` returns `None` immediately without waiting for the next
+  keystroke. The orphaned `input()` executor thread is not interrupted — it terminates
+  when the process exits.
 - `finally` block:
   - Session diagnostics persistence → write runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
   - `memory.on_session_stop()` → extract + persist memories

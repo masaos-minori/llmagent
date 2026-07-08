@@ -24,6 +24,7 @@ from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
     McpServerHealthState,
+    StartupMode,
 )
 from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.route_resolver import ToolRouteResolver
@@ -206,6 +207,18 @@ class ToolExecutor:
             error_type="transport",
         )
 
+    def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
+        """Return an error result if the server is disabled (startup_mode=none); None otherwise."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is not None and cfg.startup_mode == StartupMode.NONE:
+            msg = (
+                f"MCP server {server_key!r} is disabled (startup_mode=none) "
+                "and cannot be used"
+            )
+            logger.warning(msg)
+            return self._error_result(server_key, msg, error_type="tool")
+        return None
+
     def _check_health(self, server_key: str) -> ToolCallResult | None:
         """Return an error result if the server is unavailable; None if healthy."""
         if self._health_registry is None:
@@ -247,6 +260,10 @@ class ToolExecutor:
     ) -> ToolCallResult:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
+
+        # Startup mode gate (startup_mode=none is disabled by design)
+        if err := self._check_startup_mode(server_key):
+            return err
 
         # Health check
         if err := self._check_health(server_key):

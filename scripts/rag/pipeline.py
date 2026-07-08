@@ -48,6 +48,7 @@ from rag.repository import (
 )
 from rag.stage import PipelineContext, PipelineStage, StageResult
 from rag.stages.augment import AugmentStage
+from rag.stages.augment import _format_chunks as _augment_format_chunks
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
@@ -56,7 +57,6 @@ from rag.types import (
     PipelineRunResult,
     RagHit,  # noqa: F401 — re-exported via __all__
 )
-from rag.utils import sanitize_document
 
 # Re-export symbols that external callers import from this module
 __all__ = [
@@ -67,9 +67,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-_RAG_BLOCK_START = "[RAG_CONTEXT_START]"
-_RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 
 class _ModuleConfig:
@@ -364,16 +361,6 @@ class RagPipeline:
         finally:
             self._on_clear()
 
-    @staticmethod
-    def _format_chunks(reranked: list[RagHit]) -> str:
-        """Format reranked hits with sanitization and boundary markers."""
-        blocks = [
-            f"[Source: {c.title if c.title else c.url} | {c.url}]\n{sanitize_document(c.content)}"
-            for c in reranked
-        ]
-        content = "\n\n---\n\n".join(blocks)
-        return f"{_RAG_BLOCK_START}\n{content}\n{_RAG_BLOCK_END}"
-
     async def augment(
         self,
         query: str,
@@ -471,7 +458,7 @@ class RagPipeline:
             refined = await self._run_refiner(pipeline_result.reranked, query)
             if refined.text is not None:
                 return refined.text
-        context_block = self._format_chunks(pipeline_result.reranked)
+        context_block = _augment_format_chunks(pipeline_result.reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
         return context_block
@@ -495,30 +482,24 @@ class RagPipeline:
         if result.http_result_kind is not None:
             self._http_result_kind = result.http_result_kind
         # Update diagnostics based on result
-        if result.result is not None:
-            from rag.models_result import HttpResultKind, ResultSource
+        from rag.models_result import HttpResultKind, ResultSource
 
-            self.last_search_diagnostics = dataclasses.replace(
-                self.last_search_diagnostics,
-                result_source=ResultSource.REMOTE,
-                http_result_kind=(
-                    HttpResultKind.EMPTY
-                    if result.result == ""
-                    else HttpResultKind.SUCCESS
-                ),
-                remote_status_code=result.status_code,
-                remote_latency_ms=result.latency_ms,
+        if result.result is not None:
+            result_source = ResultSource.REMOTE
+            http_result_kind = (
+                HttpResultKind.EMPTY if result.result == "" else HttpResultKind.SUCCESS
             )
         else:
-            from rag.models_result import HttpResultKind, ResultSource
+            result_source = ResultSource.FALLBACK
+            http_result_kind = HttpResultKind.ERROR
 
-            self.last_search_diagnostics = dataclasses.replace(
-                self.last_search_diagnostics,
-                result_source=ResultSource.FALLBACK,
-                http_result_kind=HttpResultKind.ERROR,
-                remote_status_code=result.status_code,
-                remote_latency_ms=result.latency_ms,
-            )
+        self.last_search_diagnostics = dataclasses.replace(
+            self.last_search_diagnostics,
+            result_source=result_source,
+            http_result_kind=http_result_kind,
+            remote_status_code=result.status_code,
+            remote_latency_ms=result.latency_ms,
+        )
         # Apply stage result from HttpAugment
         if http_aug.stage_result is not None:
             self.last_stage_results.append(http_aug.stage_result)

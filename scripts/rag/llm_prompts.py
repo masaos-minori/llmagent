@@ -40,8 +40,6 @@ from rag.types import (
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 
 class _ChatCompletionChoice(TypedDict):
     """Typed dict for a single choice in a chat completion response."""

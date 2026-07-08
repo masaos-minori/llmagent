@@ -52,10 +52,7 @@ Live `/v1/tools` discovery is used only for startup drift validation, not for ro
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild) | `mdq` |
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
-| `SQLITE_TOOLS` (query_sqlite) | `sqlite` |
 | No match | `ValueError` |
-
-**Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
 
 **Important:** Unknown tools fail immediately with a `ValueError`. New tools must always be registered via `ToolRegistry` (via `tool_constants.py` frozensets).
 
@@ -384,8 +381,11 @@ AgentREPL.run()
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
             stderr → /opt/llm/logs/mcp/{server_key}.stderr.log (append mode)
        → startup_mode="persistent" (http): no lifecycle action needed
+       → startup_mode="none": no subprocess spawn, no health check — server is disabled
    → [REPL loop]
         → tool call → ToolExecutor._raw_execute()
+             → _check_startup_mode(server_key): startup_mode="none" rejects immediately
+                  with a "disabled" tool error, before health check or transport
              → ensure_ready(server_key):
                   if _shutting_down: return immediately (shutdown guard)
                   if subprocess-mode and not running: start() [auto-restart on demand]
@@ -399,6 +399,27 @@ AgentREPL.run()
 `_ServerLifecycleRouter._shutting_down` guards `ensure_ready()`, `start_http_subprocess()`,
 `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, these methods return
 immediately with a log line and do not delegate to `HttpServerLifecycleManager`.
+
+### Process Introspection
+
+`HttpServerLifecycleManager` exposes read-only snapshots of managed subprocesses for
+diagnostics (e.g. `/mcp status` command, `mcp_status.py`):
+
+- `get_process_snapshot(server_key) -> dict | None` — `{pid, pgid, running, last_exit_code}`
+  for a known `server_key`, or `None` if unknown. `pgid` is looked up from `_http_pgids`
+  (populated at `start()` via `os.getpgid()`, H-8 process-group shutdown).
+- `get_process_info(server_key) -> ProcessInfoSnapshot | None` — same fields plus
+  `managed` and `stderr_log`, as a typed dataclass.
+- `list_processes() -> list[ProcessInfoSnapshot]` — snapshots for all currently managed
+  subprocess servers.
+
+These methods only read `proc.poll()` / cached state; they never terminate or restart
+a process.
+
+`_ServerLifecycleRouter` (the facade in `factory.py`) exposes all three as thin
+delegations to `HttpServerLifecycleManager`, so callers such as `McpStatusService`
+access them via `getattr(lifecycle, "get_process_snapshot", None)` duck-typing
+without reaching into `_http_mgr` internals.
 
 ---
 

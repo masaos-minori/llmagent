@@ -14,9 +14,6 @@ if TYPE_CHECKING:
     from rag.models_data import TwoStageFetchResult  # noqa: TCH004
 from rag.stage import StageResult
 
-_HTTP_BLOCK_START = "[RAG_CONTEXT_START]"
-_HTTP_BLOCK_END = "[RAG_CONTEXT_END]"
-
 
 class HttpAugmentResult:
     """Result of an HTTP augment attempt."""
@@ -83,7 +80,7 @@ class HttpAugment:
             elapsed_seconds=elapsed,
             fallback_reason=(http_fallback_reason if result is None else None),
         )
-        http_result_kind: Literal[
+        self._http_result_kind: Literal[
             "remote_nonempty", "remote_empty", "in_process_fallback"
         ] = (
             "remote_nonempty"
@@ -96,7 +93,7 @@ class HttpAugment:
             result=result,
             status_code=status_code,
             latency_ms=latency_ms,
-            http_result_kind=http_result_kind,
+            http_result_kind=self._http_result_kind,
         )
 
     @property

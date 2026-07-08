@@ -162,7 +162,6 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
         RAG_TOOLS,
         READ_TOOLS,
         SHELL_TOOLS,
-        SQLITE_TOOLS,
         WEB_SEARCH_TOOLS,
         WRITE_TOOLS,
     )
@@ -175,7 +174,6 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     _register_set(registry, CICD_TOOLS, "cicd")
     _register_set(registry, MDQ_TOOLS, "mdq")
     _register_set(registry, GIT_TOOLS, "git")
-    _register_set(registry, SQLITE_TOOLS, "sqlite")
     _register_set(registry, SHELL_TOOLS, "shell")
     _register_set(registry, GITHUB_TOOLS, "github")
     _register_set(registry, WEB_SEARCH_TOOLS, "web_search")

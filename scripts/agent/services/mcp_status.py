@@ -74,19 +74,26 @@ class McpStatusService:
         """Probe a single MCP server and return its status result."""
         auth = bool(cfg.auth_token)
         tier = _tier_for_server(cfg.tool_names, tiers)
-        availability, endpoint, sandbox_backend, restart_rec_http, op_action_http = await self._resolve_endpoint(
-            probe, ctx, key, cfg
-        )
+        (
+            availability,
+            endpoint,
+            sandbox_backend,
+            restart_rec_http,
+            op_action_http,
+            body_reason,
+        ) = await self._resolve_endpoint(probe, ctx, key, cfg)
         health = _resolve_health_state(ctx, key).value.upper()
         lifecycle = ctx.services_required.lifecycle
         lifecycle_state = lifecycle.get_transport_state(key).value
         snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
         snapshot = snapshot_fn(key) if snapshot_fn is not None else None
-        restart_recommended = (lifecycle_state == LifecycleState.FAILED.value) or restart_rec_http
-        health_reason = ""
-        if op_action_http:
+        restart_recommended = (
+            lifecycle_state == LifecycleState.FAILED.value
+        ) or restart_rec_http
+        health_reason = body_reason
+        if not health_reason and op_action_http:
             health_reason = "operator_action_required"
-        elif restart_rec_http:
+        elif not health_reason and restart_rec_http:
             health_reason = "restart_recommended"
         return McpProbeResult(
             key=key,
@@ -116,31 +123,62 @@ class McpStatusService:
         ctx: AgentContext,
         key: str,
         cfg: Any,
-    ) -> tuple[McpAvailability, str, str, bool, bool]:
-        """Resolve availability, endpoint string, sandbox_backend, restart_recommended, and operator_action_required for a single server."""
+    ) -> tuple[McpAvailability, str, str, bool, bool, str]:
+        """Resolve availability, endpoint string, sandbox_backend, restart_recommended, operator_action_required, and body reason for a single server."""
         if cfg.transport == TransportType.HTTP:
-            availability, sandbox_backend, restart_rec, op_action = await self._get_http_status(probe, cfg.url)
-            return availability, cfg.url, sandbox_backend, restart_rec, op_action
-        return McpAvailability.UNKNOWN, "", "", False, False
+            (
+                availability,
+                sandbox_backend,
+                restart_rec,
+                op_action,
+                body_reason,
+            ) = await self._get_http_status(probe, cfg.url)
+            return (
+                availability,
+                cfg.url,
+                sandbox_backend,
+                restart_rec,
+                op_action,
+                body_reason,
+            )
+        return McpAvailability.UNKNOWN, "", "", False, False, ""
 
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str
-    ) -> tuple[McpAvailability, str, bool, bool]:
+    ) -> tuple[McpAvailability, str, bool, bool, str]:
         if not url:
-            return McpAvailability.NO_URL, "", False, False
+            return McpAvailability.NO_URL, "", False, False, ""
         probe_result = await _probe_mcp_health_detail(probe, url)
         sandbox = ""
+        reason = ""
         if probe_result.body and isinstance(probe_result.body, dict):
             details = probe_result.body.get("details", {})
             if isinstance(details, dict):
                 sb = details.get("sandbox_backend", "")
                 if sb:
                     sandbox = str(sb)
+            reason_raw = probe_result.body.get("reason") or probe_result.body.get(
+                "message"
+            )
+            if reason_raw is not None:
+                reason = str(reason_raw)
         if not probe_result.reachable or probe_result.status_code is None:
-            return McpAvailability.FAIL, sandbox, False, False
+            return McpAvailability.FAIL, sandbox, False, False, reason
         if probe_result.status_code == HTTPStatus.OK:
-            return McpAvailability.OK, sandbox, probe_result.restart_recommended, probe_result.operator_action_required
-        return McpAvailability.HTTP_ERROR, sandbox, probe_result.restart_recommended, probe_result.operator_action_required
+            return (
+                McpAvailability.OK,
+                sandbox,
+                probe_result.restart_recommended,
+                probe_result.operator_action_required,
+                reason,
+            )
+        return (
+            McpAvailability.HTTP_ERROR,
+            sandbox,
+            probe_result.restart_recommended,
+            probe_result.operator_action_required,
+            reason,
+        )
 
 
 def _tier_for_server(tool_names: list[str], tiers: dict[str, str]) -> McpTier:

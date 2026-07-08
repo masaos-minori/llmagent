@@ -141,7 +141,7 @@ class TestDeferredReload:
         assert any("startup_mode" in item for item in result.deferred)
 
     def test_no_credential_change_no_deferred(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
+        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
         svc, _ = self._make_svc(old_auth="same_token")
         new_srv = McpServerConfig(
@@ -149,6 +149,7 @@ class TestDeferredReload:
             url="http://localhost:8080",
             cmd=[],
             auth_token="same_token",
+            startup_mode=StartupMode.PERSISTENT,
         )
         result = self._run(svc, {"svc": new_srv})
         assert result.deferred == []

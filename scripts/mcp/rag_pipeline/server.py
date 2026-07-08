@@ -18,6 +18,7 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -26,9 +27,9 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
-from shared.logger import Logger
 
 from mcp.dispatch import DispatchResult, dispatch_tool
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
@@ -40,7 +41,7 @@ from mcp.rag_pipeline.service import RagPipelineMCPService, _service
 from mcp.rag_pipeline.tools import TOOL_LIST
 from mcp.server import MCPServer, ToolArgs
 
-logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
+logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -124,19 +125,8 @@ async def health() -> JSONResponse:
             deps["embed_url"] = "not configured"
     except Exception:
         deps["config"] = "check failed"  # noqa: BLE001 — health check must not fail on config errors
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    details: dict[str, object] = {"service": "rag-pipeline-mcp"}
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

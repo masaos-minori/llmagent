@@ -61,7 +61,7 @@ health probes, audit log reading, and the new-server addition checklist.
 |---|---|---|---|
 | `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader, not at runtime |
 | `url` | `str` | required | HTTP server base URL |
-| `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"subprocess"` |
+| `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
 | `cmd` | `list[str]` | `[]` | Launch command for `startup_mode=subprocess`; must be non-empty when subprocess mode is used |
 | `env` | `dict[str, str]` | `{}` | Extra environment variables passed to the subprocess |
 | `healthcheck_mode` | `str` | `""` | `"http"` (auto-inferred if empty) |
@@ -71,6 +71,12 @@ health probes, audit log reading, and the new-server addition checklist.
 | `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. See [Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth). |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
+
+**`startup_mode="none"`:** the server is neither spawned as a subprocess nor health-checked
+at startup. Every tool call routed to it is rejected immediately by
+`ToolExecutor._check_startup_mode()` with a `"disabled (startup_mode=none)"` error, before
+any network attempt. This is the default when `startup_mode` is omitted from config —
+a server must opt in to `"persistent"` or `"subprocess"` to be usable.
 
 **Validation rules:**
 - `transport="http"` → `url` must be non-empty and a valid HTTP/HTTPS URL
@@ -125,7 +131,6 @@ curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_u
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
 curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
-# sqlite-mcp (port 8011) — SELECT-only; health check via curl http://127.0.0.1:8011/health
 
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
@@ -289,7 +294,7 @@ grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 grep "op=" /opt/llm/logs/mdq_audit.log
 ```
 
-> **Note:** cicd-mcp, git-mcp, and sqlite-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
+> **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
 
 ### Per-server log files
 
@@ -305,7 +310,6 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
 | cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
 | git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
-| sqlite-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` (SELECT-only, port 8011) |
 
 ### Per-server audit log files
 
@@ -321,7 +325,6 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | git-mcp | Config key exists but no write code | `audit_log_path = "/opt/llm/logs/git-mcp.log"` in TOML — no audit write code in service.py; reserved for future implementation |
-| sqlite-mcp | Config key not parsed | `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` in TOML — key is present for future use but not read by `SqliteConfig.from_dict`; no audit log written |
 
 ### Agent-side audit log (structured events)
 
