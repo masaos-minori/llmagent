@@ -46,7 +46,7 @@ def create_rag_schema() -> None:
 def create_session_schema() -> None:
     """Create session.sqlite tables for conversations, tool results, and memory."""
     dims = get_embedding_dims()
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session").open(write_mode=True, load_vec=True) as db:
         try:
             db.executescript(build_session_schema_sql(dims))
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:

@@ -25,7 +25,7 @@ mkdir -p "${DEPLOY_DB}"
 
 # ── スキーマ初期化（rag + session + workflow + eventbus）──────────────────────
 echo "--- スキーマ初期化（rag + session + workflow + eventbus）---"
-(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python "${DEPLOY_SCRIPTS}/db/create_schema.py")
+(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_NATIVE_TLS=true uv run python "${DEPLOY_SCRIPTS}/db/create_schema.py")
 
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
 echo "--- テーブル確認 ---"
