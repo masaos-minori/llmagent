@@ -251,15 +251,15 @@ LLM context holds only summary/truncated version; full text is retrievable via `
 the row is never physically deleted — full text is retained for audit. Callers may inspect
 `ToolResultRow.undone` to filter or label results.
 
-**Implementation detail:** `list_recent` internally fetches `ORDER BY id DESC LIMIT n`,
-then reverses to return oldest-first.
-
 **REPL display of undone results:**
 - `/tool list`: appends `[undone]` suffix to the entry line when `undone=True`.
 - `/tool show <id>`: prints `[undone turn — artifact retained for audit]` before the full text when `undone=True`.
 
 See [90_shared_90 DESIGN-02](90_shared_90_inconsistencies_and_known_issues.md) for
 responsibility boundary between `ToolResultStore` and `messages` table.
+
+**Implementation detail:** `list_recent` internally fetches `ORDER BY id DESC LIMIT n`,
+then reverses to return oldest-first.
 
 ---
 

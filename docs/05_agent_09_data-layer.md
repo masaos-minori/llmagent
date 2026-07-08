@@ -255,3 +255,5 @@ Using `messages` and `tool_results` for the same purpose is prohibited.
 
 `undone INTEGER NOT NULL DEFAULT 0` — set to `1` by `mark_turn_undone(session_id, turn)` when `/undo` is called.
 Artifacts are **never deleted**. `/tool list` shows a `[undone]` annotation; `/tool show <id>` displays `[undone turn — artifact retained for audit]`.
+
+---
