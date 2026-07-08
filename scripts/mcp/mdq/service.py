@@ -10,7 +10,7 @@ import logging
 import re
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.db_fts import fts_consistency_check, fts_rebuild
@@ -34,9 +34,6 @@ from mcp.mdq.models import (
     StatsRequest,
 )
 from mcp.mdq.search import search_docs
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

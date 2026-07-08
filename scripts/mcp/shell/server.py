@@ -15,16 +15,17 @@ Provided endpoints:
   GET  /health      Health check
 """
 
+import logging
 import time
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
-from shared.logger import Logger
 
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
+from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 from mcp.shell.models import (
@@ -37,7 +38,7 @@ from mcp.shell.models import (
 from mcp.shell.service import ShellService, build_service
 from mcp.shell.tools import TOOL_LIST
 
-logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
+logger = logging.getLogger(__name__)
 
 _service: ShellService = build_service(load_shell_policy())
 
@@ -93,19 +94,11 @@ async def health() -> JSONResponse:
             deps["shell"] = "sh not found in PATH"
     except (ImportError, OSError):
         deps["shell"] = "check failed"
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {"sandbox_backend": _service.sandbox_backend},
-        },
-        status_code=200 if ready else 503,
-    )
+    details: dict[str, object] = {
+        "service": "shell-mcp",
+        "sandbox_backend": _service.sandbox_backend,
+    }
+    return make_health_response(deps, details)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -129,7 +129,7 @@ class TestFileServerHealth:
         """file-read-mcp returns 200 when workspace dependency is healthy."""
         from mcp.file.read_server import app as read_app  # noqa: PLC0415
 
-        with patch("mcp.file.read_server._build_health_deps", return_value={}):
+        with patch("mcp.file.common._build_health_deps", return_value={}):
             client = TestClient(read_app, raise_server_exceptions=False)
             response = client.get("/health")
         assert response.status_code == 200
@@ -145,7 +145,7 @@ class TestFileServerHealth:
         from mcp.file.read_server import app as read_app  # noqa: PLC0415
 
         with patch(
-            "mcp.file.read_server._build_health_deps",
+            "mcp.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
             client = TestClient(read_app, raise_server_exceptions=False)
@@ -161,7 +161,7 @@ class TestFileServerHealth:
         """file-write-mcp returns 200 when workspace dependency is healthy."""
         from mcp.file.write_server import app as write_app  # noqa: PLC0415
 
-        with patch("mcp.file.write_server._build_health_deps", return_value={}):
+        with patch("mcp.file.common._build_health_deps", return_value={}):
             client = TestClient(write_app, raise_server_exceptions=False)
             response = client.get("/health")
         assert response.status_code == 200
@@ -176,7 +176,7 @@ class TestFileServerHealth:
         from mcp.file.write_server import app as write_app  # noqa: PLC0415
 
         with patch(
-            "mcp.file.write_server._build_health_deps",
+            "mcp.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
             client = TestClient(write_app, raise_server_exceptions=False)
@@ -191,7 +191,7 @@ class TestFileServerHealth:
         """file-delete-mcp returns 200 when workspace dependency is healthy."""
         from mcp.file.delete_server import app as delete_app  # noqa: PLC0415
 
-        with patch("mcp.file.delete_server._build_health_deps", return_value={}):
+        with patch("mcp.file.common._build_health_deps", return_value={}):
             client = TestClient(delete_app, raise_server_exceptions=False)
             response = client.get("/health")
         assert response.status_code == 200
@@ -206,7 +206,7 @@ class TestFileServerHealth:
         from mcp.file.delete_server import app as delete_app  # noqa: PLC0415
 
         with patch(
-            "mcp.file.delete_server._build_health_deps",
+            "mcp.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
             client = TestClient(delete_app, raise_server_exceptions=False)

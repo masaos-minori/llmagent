@@ -125,7 +125,6 @@ curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_u
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
 curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
-# sqlite-mcp (port 8011) — SELECT-only; health check via curl http://127.0.0.1:8011/health
 
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
@@ -289,7 +288,7 @@ grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 grep "op=" /opt/llm/logs/mdq_audit.log
 ```
 
-> **Note:** cicd-mcp, git-mcp, and sqlite-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
+> **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
 
 ### Per-server log files
 
@@ -305,7 +304,6 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
 | cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
 | git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
-| sqlite-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` (SELECT-only, port 8011) |
 
 ### Per-server audit log files
 
@@ -321,7 +319,6 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | git-mcp | Config key exists but no write code | `audit_log_path = "/opt/llm/logs/git-mcp.log"` in TOML — no audit write code in service.py; reserved for future implementation |
-| sqlite-mcp | Config key not parsed | `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` in TOML — key is present for future use but not read by `SqliteConfig.from_dict`; no audit log written |
 
 ### Agent-side audit log (structured events)
 

@@ -7,9 +7,9 @@
 
 ## 1. Configuration Reference
 
-crawler / chunk_splitter / ingester / rag-pipeline-mcp はそれぞれ独立したプロセスであり、自身の設定ファイルのみを読み込む。共通設定ファイルは存在しない。DB パスや外部サービス URL が複数プロセスで必要な場合は各設定ファイルに個別に記述する。
+crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes that read only their own config file. There is no shared config file. If DB path or external service URL is needed across multiple processes, each config file must specify it individually.
 
-→ プロセス分離方針の詳細: [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-プロセス分離方針-config-isolation-policy)
+→ Process separation policy details: [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-process-separation-policy-config-isolation-policy)
 
 ### 1.1 `config/crawler.toml`
 
@@ -34,7 +34,7 @@ Used by: `crawler.py` のみ
 
 ### 1.2 `config/chunk_splitter.toml`
 
-Used by: `chunk_splitter.py` のみ
+Used by: `chunk_splitter.py` only
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -45,11 +45,11 @@ Used by: `chunk_splitter.py` のみ
 | `md_index_enable` | `false` | Enable Markdown heading-boundary splitting for non-`.md` content with ≥2 heading lines. `.md`/`.markdown`/`.mdx` URLs always use heading split regardless |
 | `md_snippet_max_chars` | `600` | Max chars per Markdown heading section; fallback to text split if exceeded |
 | `en_stopwords` | (see config) | English stopwords excluded from FTS5 indexing and chunking |
-| `ja_stop_pos` | `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]` | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
+| `ja_stop_pos` | `["particle", "auxiliary verb", "supplementary symbol", "blank", "interjection", "conjunction"]` | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
 
 ### 1.3 `config/ingester.toml`
 
-Used by: `ingester.py` のみ
+Used by: `ingester.py` only
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -66,7 +66,7 @@ Used by: `ingester.py` のみ
 
 ### 1.4 `config/rag_pipeline_mcp_server.toml`
 
-Used by: `rag-pipeline-mcp` のみ (rag-pipeline MCP サーバープロセス)
+Used by: `rag-pipeline-mcp` only (rag-pipeline MCP server process)
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -82,7 +82,7 @@ Used by: `rag-pipeline-mcp` のみ (rag-pipeline MCP サーバープロセス)
 
 ### 1.5 `config/agent.toml`
 
-Used by: エージェントプロセスのみ。`AgentConfig` を構築するために `ConfigLoader().load_all()` から読み込まれる。
+Used by: Agent process only. Loaded from `ConfigLoader().load_all()` to build `AgentConfig`.
 
 **RagConfig Protocol fields** (injected via `AgentConfig`):
 
@@ -434,7 +434,7 @@ Run `/db rag rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
 | `skip_external` | `True` | — |
 | `target_urls` | `[['https://ziglang.org/documentation/master/', 'en'], ['https://zig.guide/', 'en'], ['https://www.ruby-lang.org/en/documentation/quickstart/', 'en'], ['https://www.ruby-lang.org/ja/documentation/quickstart/', 'ja'], ['https://docs.ruby-lang.org/en/3.4/doc/', 'en'], ['https://docs.ruby-lang.org/ja/3.4/doc/', 'ja'], ['https://www.gnu.org/software/emacs/manual/html_node/elisp/', 'en']]` | — |
 | `en_stopwords` | `['a', 'an', 'the', 'and', 'or', 'but', 'if', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'this', 'that', 'these', 'those', 'it', 'its', 'i', 'you', 'he', 'she', 'we', 'they', 'them', 'their', 'our', 'your', 'my', 'his', 'her', 'not', 'no', 'nor', 'so', 'yet', 'both', 'either', 'each', 'other', 'such', 'into', 'through', 'about', 'than', 'then', 'when', 'where', 'who', 'which', 'what', 'how', 'all', 'any', 'more', 'most', 'also', 'up', 'out', 'as', 'just', 'over', 'after', 'before', 'while', 'since', 'because', 'although', 'however', 'therefore', 'thus', 'hence', 'whether', 'once', 'only', 'even', 'still', 'now', 'here', 'there', 'very', 'too', 'much', 'many', 'some', 'few', 'must', 'let', 'get', 'got', 'make', 'made', 'use', 'used', 'using', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'new', 'old', 'first', 'last', 'long', 'great', 'little', 'own', 'right', 'big', 'high', 'small', 'large', 'next', 'early', 'young', 'important', 'public', 'private', 'real', 'best', 'free', 'same', 'different']` | — |
-| `ja_stop_pos` | `['助詞', '助動詞', '補助記号', '空白', '感動詞', '接続詞']` | — |
+| `ja_stop_pos` | `['particle', 'auxiliary verb', 'supplementary symbol', 'blank', 'interjection', 'conjunction']` | — |
 
 ---
 

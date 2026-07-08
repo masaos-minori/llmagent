@@ -118,19 +118,28 @@ class DocumentManager:
         """Run post-ingestion consistency check and callback."""
         try:
             report = check_rag_consistency(self._db, embed_failed=embed_failed)
-            if not is_consistent(report):
-                for issue in report.issues:
-                    logger.warning(
-                        "Post-ingest consistency: %s",
-                        issue,
-                        extra={"stage_name": "ingester"},
-                    )
-            if on_ingest_complete is not None:
-                try:
-                    on_ingest_complete()
-                except (TypeError, ValueError):
-                    logger.exception("on_ingest_complete callback failed")
-            return report
         except (sqlite3.OperationalError, sqlite3.DatabaseError, ValueError):
             logger.exception("Post-ingest consistency check failed")
             return None
+        self._log_consistency_issues(report)
+        self._invoke_callback(on_ingest_complete)
+        return report
+
+    def _log_consistency_issues(self, report: RagConsistencyReport) -> None:
+        """Log each issue when the report indicates inconsistency."""
+        if not is_consistent(report):
+            for issue in report.issues:
+                logger.warning(
+                    "Post-ingest consistency: %s",
+                    issue,
+                    extra={"stage_name": "ingester"},
+                )
+
+    @staticmethod
+    def _invoke_callback(callback: Callable[[], None] | None) -> None:
+        """Invoke the callback, logging any exception without re-raising."""
+        if callback is not None:
+            try:
+                callback()
+            except (TypeError, ValueError):
+                logger.exception("on_ingest_complete callback failed")

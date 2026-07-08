@@ -14,6 +14,7 @@ Extracted from rag/pipeline.py.  Contains:
 import logging
 import re
 import time
+from typing import Any
 
 from db.helper import SQLiteHelper
 
@@ -126,17 +127,27 @@ class RagRepository:
     def __init__(self, db: SQLiteHelper) -> None:
         self._db = db
 
+    @staticmethod
+    def _execute_with_timing(
+        sql: str, params: tuple[object, ...], db: SQLiteHelper
+    ) -> tuple[list[dict[str, Any]], float]:
+        """Execute a SQL query and return (rows, elapsed_ms)."""
+        t0 = time.perf_counter()
+        rows = db.fetchall(sql, params)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        return rows, elapsed_ms
+
     def vector_search(self, embedding: list[float], top_k: int) -> list[RagHit]:
         """Retrieve top_k chunks by L2-distance KNN (smaller distance = higher similarity)."""
-        t0 = time.perf_counter()
-        rows = self._db.fetchall(self._SQL_VEC, (floats_to_blob(embedding), top_k))
-        elapsed_ms = (time.perf_counter() - t0) * 1000
+        rows, elapsed_ms = self._execute_with_timing(
+            self._SQL_VEC, (floats_to_blob(embedding), top_k), self._db
+        )
         results: list[RagHit] = [
             RawHit(
-                chunk_id=r["chunk_id"],
-                content=r["content"],
-                url=r["url"] or "",
-                title=r["title"] or "",
+                chunk_id=int(r["chunk_id"]),
+                content=str(r["content"]),
+                url=str(r["url"]) if r["url"] else "",
+                title=str(r["title"]) if r["title"] else "",
                 distance=float(r["distance"] or 0.0),
             )
             for r in rows
@@ -155,9 +166,9 @@ class RagRepository:
         Raises sqlite3.OperationalError on FTS syntax errors — callers must handle.
         """
         fts_query = _build_fts_query(query)
-        t0 = time.perf_counter()
-        rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
-        elapsed_ms = (time.perf_counter() - t0) * 1000
+        rows, elapsed_ms = self._execute_with_timing(
+            self._SQL_FTS, (fts_query, top_k), self._db
+        )
         results: list[RagHit] = [
             RawHit(
                 chunk_id=r["chunk_id"],

@@ -22,7 +22,7 @@ Provided endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
@@ -31,7 +31,10 @@ from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.file.common import (
     FileAuthorizationError,
     FileValidationError,
-    _build_health_deps,
+    _health,
+    _on_auth_error,
+    _on_not_found,
+    _on_validation_error,
 )
 from mcp.file.read_models import (
     DirectoryTreeRequest,
@@ -68,20 +71,9 @@ app = FastAPI(
     description="MCP server for read-only filesystem operations",
 )
 
-
-@app.exception_handler(FileAuthorizationError)
-async def _on_auth_error(_req: Request, exc: FileAuthorizationError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=403)
-
-
-@app.exception_handler(FileNotFoundError)
-async def _on_not_found(_req: Request, exc: FileNotFoundError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=404)
-
-
-@app.exception_handler(FileValidationError)
-async def _on_validation_error(_req: Request, exc: FileValidationError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=422)
+app.add_exception_handler(FileAuthorizationError, _on_auth_error)
+app.add_exception_handler(FileNotFoundError, _on_not_found)
+app.add_exception_handler(FileValidationError, _on_validation_error)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -225,20 +217,7 @@ async def list_allowed_directories() -> dict[str, list[str]]:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    deps = _build_health_deps()
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    return await _health()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

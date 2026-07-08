@@ -274,6 +274,26 @@ class RagIngester:
             extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
         )
 
+    @staticmethod
+    def _normalize_chunk_index(
+        doc_id: int, path_name: str, idx_raw: int | str
+    ) -> int:
+        """Convert chunk_index to int, falling back to 0 on failure."""
+        try:
+            return int(idx_raw)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Invalid chunk_index in %s: %s, using 0",
+                path_name,
+                idx_raw,
+                extra={
+                    "doc_id": doc_id,
+                    "source_type": "file",
+                    "stage_name": "ingester",
+                },
+            )
+            return 0
+
     # ── Document helpers ──────────────────────────────────────────────────────
 
     @staticmethod
@@ -353,21 +373,36 @@ class RagIngester:
             ):
                 return None
             doc_mgr.delete_existing_document(existing_doc_id)
+        cur = self._insert_document(
+            db, url, title, lang, etag, last_modified, chunking_strategy, fetched_at
+        )
+        return cur.lastrowid
+
+    def _insert_document(
+        self,
+        db: SQLiteHelper,
+        url: str,
+        title: str,
+        lang: str,
+        etag: str | None,
+        last_modified: str | None,
+        chunking_strategy: str,
+        fetched_at: str | None,
+    ) -> sqlite3.Cursor:
+        """Insert a document row and return the cursor."""
         if fetched_at is not None:
-            cur = db.execute(
+            return db.execute(
                 "INSERT INTO documents"
                 " (url, title, lang, etag, last_modified, chunking_strategy, fetched_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (url, title, lang, etag, last_modified, chunking_strategy, fetched_at),
             )
-        else:
-            cur = db.execute(
-                "INSERT INTO documents"
-                " (url, title, lang, etag, last_modified, chunking_strategy)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
-                (url, title, lang, etag, last_modified, chunking_strategy),
-            )
-        return cur.lastrowid
+        return db.execute(
+            "INSERT INTO documents"
+            " (url, title, lang, etag, last_modified, chunking_strategy)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (url, title, lang, etag, last_modified, chunking_strategy),
+        )
 
     def _insert_chunk(
         self,
@@ -423,20 +458,7 @@ class RagIngester:
             nc_raw if isinstance(nc_raw, str) and nc_raw else None
         )
         idx_raw = data.get("chunk_index", 0)
-        try:
-            idx = int(idx_raw)
-        except (ValueError, TypeError) as e:
-            logger.warning(
-                "Invalid chunk_index in %s: %s, using 0",
-                path.name,
-                e,
-                extra={
-                    "doc_id": doc_id,
-                    "source_type": "file",
-                    "stage_name": "ingester",
-                },
-            )
-            idx = 0
+        idx = self._normalize_chunk_index(doc_id, path.name, idx_raw)
         chunk_type: str = data.get("chunk_type", "") or ""
         source_file: str = data.get("source_file", "") or ""
         # Embed original content; E5 understands raw Japanese.
