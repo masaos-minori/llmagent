@@ -378,8 +378,7 @@ class AgentREPL:
                 shutdown_coro.cancel()
                 raise
             for t in pending:
-                if t is not shutdown_coro:
-                    t.cancel()
+                t.cancel()
             if shutdown_done or shutdown_coro in done:
                 self._view.write_turn_end()
                 return None

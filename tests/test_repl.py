@@ -8,6 +8,8 @@ StartupOrchestrator._start_servers().
 
 from __future__ import annotations
 
+import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,6 +32,7 @@ def _make_bare_repl() -> AgentREPL:
     repl._cmds.dispatch = AsyncMock(return_value=True)
     repl._orchestrator = AsyncMock()
     repl._orchestrator.handle_turn = AsyncMock()
+    repl._shutdown_event = None
     return repl
 
 
@@ -252,8 +255,6 @@ class TestPersistSessionDiagnostics:
 
 # ── _read_input SIGTERM race (M-7) ─────────────────────────────────────────────
 
-import asyncio
-
 
 def _make_repl_for_shutdown() -> AgentREPL:
     """Return an AgentREPL instance with a shutdown event for _read_input tests."""
@@ -269,7 +270,6 @@ def _make_repl_for_shutdown() -> AgentREPL:
     repl._cmds.dispatch = AsyncMock(return_value=True)
     repl._orchestrator = AsyncMock()
     repl._orchestrator.handle_turn = AsyncMock()
-    repl._prompt = "> "
     repl._shutdown_event = asyncio.Event()
     return repl
 
@@ -293,7 +293,7 @@ class TestReadInputShutdownRace:
             repl._shutdown_event.set()
 
         asyncio.ensure_future(set_event_soon())
-        with patch("builtins.input", side_effect=lambda p: (asyncio.sleep(5), "never")[1]):
+        with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
             result = await asyncio.wait_for(repl._read_input(loop), timeout=1.0)
         assert result is None
 
@@ -309,7 +309,9 @@ class TestReadInputShutdownRace:
     @pytest.mark.asyncio
     async def test_eof_returns_none(self, monkeypatch):
         repl = _make_repl_for_shutdown()
-        monkeypatch.setattr("builtins.input", lambda p: (_ for _ in ()).throw(EOFError()))
+        monkeypatch.setattr(
+            "builtins.input", lambda p: (_ for _ in ()).throw(EOFError())
+        )
         loop = asyncio.get_event_loop()
         result = await repl._read_input(loop)
         assert result is None

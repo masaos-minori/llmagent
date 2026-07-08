@@ -26,7 +26,16 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
     col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {:<8} {:>5} {}"
     lines = [
         col.format(
-            "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE", "STATUS", "LIFECYCLE", "PID", "ENDPOINT/CMD"
+            "SERVER",
+            "TRANS",
+            "MODE",
+            "AUTH",
+            "WRITE",
+            "ROLE",
+            "STATUS",
+            "LIFECYCLE",
+            "PID",
+            "ENDPOINT/CMD",
         ),
         "-" * 110,
     ]
@@ -36,7 +45,7 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
             if r.sandbox_backend
             else r.role
         )
-        lifecycle_display = r.lifecycle_state or "-"
+        lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
         pid_display = str(r.pid) if r.pid is not None else "-"
         lines.append(
             col.format(
@@ -49,6 +58,7 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
                 f"{r.availability.value}/{r.health}",
                 lifecycle_display,
                 pid_display,
+                r.endpoint,
             )
         )
     return "\n".join(lines)

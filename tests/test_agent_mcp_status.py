@@ -91,12 +91,16 @@ class TestGetHttpStatusSandboxBackend:
                 }
 
         class _FakeClient:
-            async def get(self, url: str):
+            async def get(self, url: str, timeout: float = 5.0):
                 return _FakeResponse()
 
-        avail, sandbox = await service._get_http_status(
-            _FakeClient(), "http://localhost:8009"
-        )
+        (
+            avail,
+            sandbox,
+            _restart_rec,
+            _op_action,
+            _reason,
+        ) = await service._get_http_status(_FakeClient(), "http://localhost:8009")
         assert avail == McpAvailability.OK
         assert sandbox == "firejail"
 
@@ -118,11 +122,15 @@ class TestGetHttpStatusSandboxBackend:
                 }
 
         class _FakeClient:
-            async def get(self, url: str):
+            async def get(self, url: str, timeout: float = 5.0):
                 return _FakeResponse()
 
-        avail, sandbox = await service._get_http_status(
-            _FakeClient(), "http://localhost:8009"
-        )
+        (
+            avail,
+            sandbox,
+            _restart_rec,
+            _op_action,
+            _reason,
+        ) = await service._get_http_status(_FakeClient(), "http://localhost:8009")
         assert avail == McpAvailability.OK
         assert sandbox == ""

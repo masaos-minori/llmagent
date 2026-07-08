@@ -10,6 +10,7 @@ import httpx
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.exceptions import UnknownSubcommandError
+from agent.lifecycle import LifecycleState
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -36,6 +37,11 @@ class _Ctx:
         self.services_required = MagicMock()
         self.services_required.health_registry = None
         self.services_required.audit_logger = None
+        self.services_required.lifecycle = MagicMock()
+        self.services_required.lifecycle.get_transport_state.return_value = (
+            LifecycleState.UNKNOWN
+        )
+        self.services_required.lifecycle.get_process_snapshot.return_value = None
         self.stats = MagicMock()
         self.stats.stat_serialization_events = []
 
@@ -62,9 +68,21 @@ def _stdio(
 
 
 def _mock_client() -> AsyncMock:
-    mc = AsyncMock()
+    """Build an AsyncClient stub whose default /health response stays synchronous.
+
+    httpx.Response.json() is not a coroutine; an un-spec'd AsyncMock makes every
+    attribute async, including json(), which then returns a coroutine instead of a
+    dict to callers (_probe_mcp_health_detail) that call it without await. The
+    default response's status_code is deliberately left unconfigured (not 200) so
+    existing callers that rely on "unset client → non-OK → http_error" keep working;
+    override `mc.get` with an explicit resp when a specific status/body is needed.
+    """
+    mc = AsyncMock(spec=httpx.AsyncClient)
     mc.__aenter__ = AsyncMock(return_value=mc)
     mc.__aexit__ = AsyncMock(return_value=False)
+    resp = MagicMock()
+    resp.json.return_value = {}
+    mc.get = AsyncMock(return_value=resp)
     return mc
 
 

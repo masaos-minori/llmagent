@@ -400,6 +400,27 @@ AgentREPL.run()
 `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, these methods return
 immediately with a log line and do not delegate to `HttpServerLifecycleManager`.
 
+### Process Introspection
+
+`HttpServerLifecycleManager` exposes read-only snapshots of managed subprocesses for
+diagnostics (e.g. `/mcp status` command, `mcp_status.py`):
+
+- `get_process_snapshot(server_key) -> dict | None` — `{pid, pgid, running, last_exit_code}`
+  for a known `server_key`, or `None` if unknown. `pgid` is looked up from `_http_pgids`
+  (populated at `start()` via `os.getpgid()`, H-8 process-group shutdown).
+- `get_process_info(server_key) -> ProcessInfoSnapshot | None` — same fields plus
+  `managed` and `stderr_log`, as a typed dataclass.
+- `list_processes() -> list[ProcessInfoSnapshot]` — snapshots for all currently managed
+  subprocess servers.
+
+These methods only read `proc.poll()` / cached state; they never terminate or restart
+a process.
+
+`_ServerLifecycleRouter` (the facade in `factory.py`) exposes all three as thin
+delegations to `HttpServerLifecycleManager`, so callers such as `McpStatusService`
+access them via `getattr(lifecycle, "get_process_snapshot", None)` duck-typing
+without reaching into `_http_mgr` internals.
+
 ---
 
 ## Adding a New MCP Server

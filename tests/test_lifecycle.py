@@ -323,6 +323,46 @@ class TestRestart:
         pytest.skip("source code cfg.cmd removed; skip until source fix")
 
 
+class TestHttpManagerRestart:
+    """HttpServerLifecycleManager.restart() must keep the pgid available to
+    _terminate_with_timeout — popping it first would force a proc.pid fallback
+    even when the recorded pgid differs (e.g. start_new_session failed)."""
+
+    @pytest.mark.asyncio
+    async def test_restart_pgid_still_present_during_terminate(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import scripts.agent.http_lifecycle as mod
+
+        _patch_open_to_tmp(monkeypatch, tmp_path)
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
+        monkeypatch.setattr(mod.os, "killpg", MagicMock())
+
+        mgr = HttpServerLifecycleManager()
+        proc = _make_running_proc(pid=42)
+        mgr._http_procs["srv"] = proc
+        mgr._http_pgids["srv"] = 7777  # deliberately different from proc.pid
+
+        seen_pgid: dict[str, int] = {}
+        orig_get = mgr._http_pgids.get
+
+        async def fake_terminate(p: object, key: str, timeout: float = 3.0) -> None:
+            seen_pgid[key] = orig_get(key, -1)
+
+        monkeypatch.setattr(mgr, "_terminate_with_timeout", fake_terminate)
+
+        cfg = _make_test_cfg(
+            cmd=["python", "-c", "import time; time.sleep(60)"],
+            startup_timeout_sec=1,
+        )
+        monkeypatch.setattr(mgr, "start", AsyncMock())
+
+        await mgr.restart("srv", cfg)
+
+        assert seen_pgid["srv"] == 7777
+        assert "srv" not in mgr._http_pgids  # popped only after terminate completes
+
+
 class TestShutdownAll:
     @pytest.mark.asyncio
     async def test_shutdown_terminates_http_procs(self) -> None:
@@ -667,22 +707,62 @@ class TestProcessGroupShutdown:
         assert any(sig == _signal.SIGKILL for _, sig in killed)
 
     @pytest.mark.asyncio
+    async def test_terminate_skips_killpg_when_already_exited(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Guard against resolving a reaped pid to an unrelated process's pgid.
+
+        If proc has already exited, killpg must not be attempted at all —
+        os.getpgid(proc.pid) on a reaped pid can resolve to a completely
+        different process that has since reused the same pid.
+        """
+        import scripts.agent.http_lifecycle as mod
+
+        killed: list[tuple[int, int]] = []
+        monkeypatch.setattr(
+            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
+        )
+
+        mgr = HttpServerLifecycleManager()
+        proc = _make_mock_proc(exit_code=0)  # already exited
+        mgr._http_pgids["srv"] = 42
+
+        await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
+
+        assert killed == []
+        proc.terminate.assert_not_called()
+        proc.wait.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_start_populates_http_pgids(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """start() must record the pgid before the health poll begins.
+
+        subprocess.Popen is mocked (not spawned for real): the health poll always
+        times out here (no real server), and with os.killpg mocked to a no-op, a
+        real subprocess would never actually be terminated — leaking a background
+        thread blocked in proc.wait() that Python's ThreadPoolExecutor atexit hook
+        then waits on, hanging the whole test process for up to the process's
+        lifetime instead of just this test's timeout.
+        """
         import scripts.agent.http_lifecycle as mod
 
         monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
         monkeypatch.setattr(mod.os, "killpg", MagicMock())
         _patch_open_to_tmp(monkeypatch, tmp_path)
 
+        mock_proc = _make_mock_proc(exit_code=None)
+        mock_proc.pid = 12345
         mgr = HttpServerLifecycleManager()
-        cfg = _make_test_cfg(
-            cmd=["python", "-c", "import time; time.sleep(60)"],
-            startup_timeout_sec=1,
-        )
+        cfg = _make_test_cfg(cmd=["true"], startup_timeout_sec=1)
 
-        with pytest.raises(HttpStartupError):
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            pytest.raises(HttpStartupError),
+        ):
             await mgr.start("srv", cfg)
+
+        assert mgr._http_pgids["srv"] == 9999
 
         assert mgr._http_pgids.get("srv") == 9999

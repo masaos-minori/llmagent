@@ -16,12 +16,13 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any
 from pathlib import Path
 from typing import IO
 
 import httpx
 from shared.mcp_config import McpServerConfig
+
+from agent.services.models import ProcessInfoSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,8 @@ class HttpServerLifecycleManager:
         timeout: float = 3.0,
     ) -> None:
         """Terminate proc; escalate to kill if terminate times out."""
+        if proc.poll() is not None:
+            return
         pgid = self._http_pgids.get(server_key, proc.pid)
         try:
             os.killpg(pgid, signal.SIGTERM)  # nosec B603
@@ -141,10 +144,8 @@ class HttpServerLifecycleManager:
             "last_exit_code": proc.poll(),
         }
 
-    def get_process_info(self, server_key: str) -> Any | None:
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return a read-only snapshot for a managed subprocess, or None if unknown."""
-        from agent.services.models import ProcessInfoSnapshot
-
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
@@ -162,7 +163,7 @@ class HttpServerLifecycleManager:
             stderr_log=stderr_log,
         )
 
-    def list_processes(self) -> list[Any]:
+    def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return snapshots for all currently managed subprocess servers."""
         return [
             snap
@@ -274,11 +275,11 @@ class HttpServerLifecycleManager:
             except OSError:
                 pass
         self._stderr_log_paths.pop(server_key, None)
-        self._http_pgids.pop(server_key, None)
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
             await self._terminate_with_timeout(proc, server_key)
+        self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
     async def shutdown_all(self) -> None:
