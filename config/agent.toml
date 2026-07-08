@@ -74,7 +74,7 @@ tool_cycle_detect_window = 2
 tool_error_max_consecutive = 3
 tool_cache_max_size = 200
 tool_error_retry_max = 1
-tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, sqlite = 4, cicd = 2}
+tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, cicd = 2}
 tool_result_max_llm_chars = 8000
 tool_results_turn_max_chars = 50000
 context_token_limit = 4000
@@ -254,7 +254,6 @@ rag_run_pipeline         = "READ_ONLY"
 rag_debug_pipeline       = "READ_ONLY"
 rag_list_documents       = "READ_ONLY"
 rag_delete_document      = "WRITE_DANGEROUS"
-query_sqlite             = "READ_ONLY"
 get_workflow_runs        = "READ_ONLY"
 get_workflow_status      = "READ_ONLY"
 get_workflow_logs        = "READ_ONLY"
@@ -356,7 +355,10 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
-startup_mode     = "subprocess"
+# Temporarily out of dev scope: startup_mode set to "persistent" so the agent does
+# not auto-spawn this subprocess at startup (GITHUB_TOKEN unset -> /health always 503,
+# which previously stalled agent startup for the full startup_timeout_sec).
+startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -366,7 +368,9 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.rag_pipeline]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
-startup_mode     = "subprocess"
+# Temporarily out of dev scope: startup_mode set to "persistent" so the agent does
+# not auto-spawn this subprocess at startup.
+startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -1273,25 +1277,6 @@ description = "追加環境変数 (既存の環境変数にマージされる)"
 [tool_definitions.function.parameters.properties.max_output_kb]
 type        = "integer"
 description = "stdout+stderr の合計出力上限 KB (デフォルト: 512)"
-
-[[tool_definitions]]
-type = "function"
-
-[tool_definitions.function]
-name        = "query_sqlite"
-description = "ローカル SQLite データベースに対して読み取り専用クエリ（SELECT のみ）を実行する。rag.sqlite または session.sqlite に対するデータ確認・デバッグに使う。"
-
-[tool_definitions.function.parameters]
-type     = "object"
-required = ["db", "sql"]
-
-[tool_definitions.function.parameters.properties.db]
-type        = "string"
-description = "データベース名（\"rag\" または \"session\"）"
-
-[tool_definitions.function.parameters.properties.sql]
-type        = "string"
-description = "SELECT クエリ文字列（SELECT 以外は拒否される）"
 
 [[tool_definitions]]
 type = "function"

@@ -33,7 +33,6 @@
 │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (:8008)
 │   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (:8009, 許可コマンド)
 │   ├─ rag_pipeline_mcp_server.toml         # RAG パイプライン MCP サーバ設定 (:8010)
-│   ├─ sqlite_mcp_server.toml               # SQLite MCP サーバ設定 (:8011)
 │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (:8012)
 │   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
 │   └─ git_mcp_server.toml                  # Git MCP サーバ設定 (:8014)

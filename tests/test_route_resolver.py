@@ -26,7 +26,6 @@ class TestRegistryRouting:
             "github": _http("github"),
             "rag_pipeline": _http("rag_pipeline"),
             "cicd": _http("cicd"),
-            "sqlite": _http("sqlite"),
         }
         self.resolver = ToolRouteResolver(configs)
 
@@ -75,13 +74,14 @@ class TestRegistryRouting:
         ]:
             assert self.resolver.resolve(name) == "cicd", name
 
-    def test_sqlite_tools(self) -> None:
-        for name in ["query_sqlite"]:
-            assert self.resolver.resolve(name) == "sqlite", name
-
     def test_unknown_tool_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown tool"):
             self.resolver.resolve("totally_unknown")
+
+    def test_query_sqlite_no_longer_routable(self) -> None:
+        """sqlite-mcp was removed; query_sqlite must not resolve to any server."""
+        with pytest.raises(ValueError, match="Unknown tool"):
+            self.resolver.resolve("query_sqlite")
 
 
 class TestConfigDrivenRouting:
@@ -139,7 +139,6 @@ class TestRegistryWithoutConfig:
             "github": _http("github"),
             "rag_pipeline": _http("rag_pipeline"),
             "cicd": _http("cicd"),
-            "sqlite": _http("sqlite"),
             "mdq": _http("mdq"),
             "git": _http("git"),
         }

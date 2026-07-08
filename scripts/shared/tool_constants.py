@@ -100,13 +100,6 @@ GIT_WRITE_TOOLS: frozenset[str] = frozenset(
 
 GIT_TOOLS: frozenset[str] = GIT_READ_TOOLS | GIT_WRITE_TOOLS
 
-# SQLite query tools (sqlite-mcp, port 8011)
-SQLITE_TOOLS: frozenset[str] = frozenset(
-    {
-        "query_sqlite",
-    },
-)
-
 # Shell execution tools (shell-mcp)
 SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 
@@ -169,7 +162,6 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | CICD_TOOLS
         | MDQ_TOOLS
         | GIT_TOOLS
-        | SQLITE_TOOLS
         | SHELL_TOOLS
         | WEB_SEARCH_TOOLS
         | GITHUB_TOOLS,

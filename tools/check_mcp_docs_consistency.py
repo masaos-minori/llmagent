@@ -440,7 +440,6 @@ _SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
             "git_push",
         }
     ),
-    "sqlite-mcp": frozenset({"query_sqlite"}),
     "cicd-mcp": frozenset(
         {
             "trigger_workflow",

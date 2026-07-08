@@ -52,10 +52,7 @@ Live `/v1/tools` discovery is used only for startup drift validation, not for ro
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild) | `mdq` |
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
-| `SQLITE_TOOLS` (query_sqlite) | `sqlite` |
 | No match | `ValueError` |
-
-**Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
 
 **Important:** Unknown tools fail immediately with a `ValueError`. New tools must always be registered via `ToolRegistry` (via `tool_constants.py` frozensets).
 

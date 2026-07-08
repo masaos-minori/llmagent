@@ -89,7 +89,6 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 | TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/04_mcp_06_configuration_and_operations.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `docs/04_mcp_05_security_and_safety_model.md` |
 | Any MCP server (catalog only) | `docs/04_mcp_04_server_catalog.md` |
-| sqlite-mcp specifics | `docs/04_mcp_04_server_catalog.md` + `docs/90_shared_05_db_api_and_operations.md` |
 | mdq-mcp specifics | `docs/04_mcp_04_server_catalog.md` + `docs/04_mcp_90_inconsistencies_and_known_issues.md` |
 | MCP known bugs / inconsistencies | `docs/04_mcp_90_inconsistencies_and_known_issues.md` |
 

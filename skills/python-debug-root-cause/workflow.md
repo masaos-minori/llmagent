@@ -151,7 +151,6 @@ curl -s http://127.0.0.1:8007/health   # file-write-mcp
 curl -s http://127.0.0.1:8008/health   # file-delete-mcp
 curl -s http://127.0.0.1:8009/health   # shell-mcp
 curl -s http://127.0.0.1:8010/health   # rag-pipeline-mcp
-curl -s http://127.0.0.1:8011/health   # sqlite-mcp
 curl -s http://127.0.0.1:8012/health   # cicd-mcp
 curl -s http://127.0.0.1:8013/health   # mdq-mcp
 curl -s http://127.0.0.1:8014/health   # git-mcp
