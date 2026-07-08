@@ -184,7 +184,7 @@ All tools do not require config (`requires_config: false`).
 | `max_output_kb` | `4096` | Output cap |
 | `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
 | `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
-| `audit_log_path` | `""` | Audit log (set in config for production) |
+| `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
 | `default_cwd` | `"/opt/llm/storage"` | Working directory when cwd not specified in request |
 | `shell_path` | `"/opt/llm/venv/bin:/usr/bin:/bin"` | PATH environment variable for child processes |
 | `env_allowlist` | `[]` | Permitted env var keys in req.env (empty = use env_denylist) |
@@ -394,7 +394,7 @@ All tools require config (`requires_config: true`).
 | `allowed_repo_paths` | `[]` | fail-closed; empty = deny all; paths resolved via `Path.resolve()` |
 | `read_only` | `true` | All write tools return `[DENIED]` unless explicitly `false` |
 | `max_log_entries` | `50` | `git_log` entry cap |
-| `audit_log_path` | `""` | Operations log (unused in current implementation) |
+| `audit_log_path` | `"/opt/llm/logs/git-mcp.log"` | Operations log |
 | `auth_token` | `""` | Bearer token for MCP server call authentication |
 
 **Note:** `git_show` truncates at 8000 chars. `git_log` inputSchema defaults to `max_entries=20`; config cap `max_log_entries` defaults to `50`.
