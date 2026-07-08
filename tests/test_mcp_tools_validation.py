@@ -12,6 +12,8 @@ Marked with @pytest.mark.integration so they can be skipped in fast unit-test ru
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 import sys
 import time
@@ -67,6 +69,47 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
     return False
 
 
+def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
+    """Send SIGTERM to proc's process group; escalate to SIGKILL if it doesn't exit in time.
+
+    Mirrors agent.http_lifecycle._terminate_with_timeout (H-8): the server is
+    launched with start_new_session=True, so killing its process group also
+    reaps any child processes it spawned, instead of orphaning them.
+    Falls back to PID-level terminate()/kill() if the process group is gone.
+    """
+    try:
+        pgid = os.getpgid(proc.pid)
+    except OSError:
+        pgid = None
+
+    try:
+        if pgid is not None:
+            os.killpg(pgid, signal.SIGTERM)
+        else:
+            proc.terminate()
+    except (ProcessLookupError, OSError):
+        proc.terminate()
+
+    try:
+        proc.wait(timeout=timeout)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+
+    try:
+        if pgid is not None:
+            os.killpg(pgid, signal.SIGKILL)
+        else:
+            proc.kill()
+    except (ProcessLookupError, OSError):
+        proc.kill()
+
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 @pytest.fixture()
 def mcp_server(request: pytest.FixtureRequest) -> Any:
     """Fixture: start an MCP server subprocess, yield (port, expected_tools), then stop it."""
@@ -81,8 +124,6 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
         "--port",
         str(port),
     ]
-    import os
-
     env = {**os.environ, **env_override}
     proc = subprocess.Popen(
         cmd,
@@ -90,26 +131,19 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        start_new_session=True,
     )
     health_url = f"http://127.0.0.1:{port}/health"
     healthy = _wait_for_health(health_url, timeout=15.0)
     if not healthy:
-        proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        _terminate_process_group(proc, timeout=3)
         pytest.skip(
             f"Server {module}:{port} did not become healthy — possibly missing deps"
         )
 
     yield port, tools
 
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+    _terminate_process_group(proc, timeout=5)
 
 
 def test_read_tools_schema_matches_hand_written() -> None:
