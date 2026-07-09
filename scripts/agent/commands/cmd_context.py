@@ -127,6 +127,8 @@ class _ContextMixin(MixinBase, TokenDisplay):
             self._out.write_success(
                 f"Last turn undone. ({result.n_removed} messages removed)"
             )
+            if result.warning:
+                self._out.write_no_data(f"[warn] {result.warning}")
         except NothingToUndoError as e:
             self._out.write_no_data(str(e))
 

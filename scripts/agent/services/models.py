@@ -75,6 +75,7 @@ class SessionRestoreResult:
 @dataclass(frozen=True)
 class UndoResult:
     n_removed: int
+    warning: str | None = None
 
 
 @dataclass(frozen=True)

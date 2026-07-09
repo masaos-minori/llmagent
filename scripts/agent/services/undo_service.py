@@ -41,8 +41,16 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
     while cut_idx > 0 and ctx.conv.history[cut_idx - 1].get("_memory_injected"):
         cut_idx -= 1
     removed = len(ctx.conv.history) - cut_idx
+    removed_messages = ctx.conv.history[cut_idx:]
     ctx.conv.history = ctx.conv.history[:cut_idx]
     ctx.stats.stat_turns = max(0, ctx.stats.stat_turns - 1)
     ctx.session.undo_last_turn()
     logger.info("Undo: removed %s messages from history", removed)
-    return UndoResult(n_removed=removed)
+    warning: str | None = None
+    if any(
+        m.get("content", "").startswith("[Conversation summary]")
+        for m in removed_messages
+    ):
+        warning = "/undo is targeting a compressed session summary; previous messages may not be recoverable."
+        logger.warning(warning)
+    return UndoResult(n_removed=removed, warning=warning)
