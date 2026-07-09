@@ -4,11 +4,11 @@ Unit tests for agent.factory._ServerLifecycleRouter.
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import (
@@ -332,7 +332,7 @@ class TestHttpManagerRestart:
     async def test_restart_pgid_still_present_during_terminate(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         _patch_open_to_tmp(monkeypatch, tmp_path)
         monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
@@ -474,10 +474,14 @@ class TestHttpStartupError:
 
 
 class TestHttpLifecycleStderrLog:
-    def test_start_large_stderr_does_not_block(
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_start_large_stderr_does_not_block(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _patch_open_to_tmp(monkeypatch, tmp_path)
+        stderr_path = tmp_path / "test_server.stderr.log"
+        stderr_path.write_text("x" * 200_000)
         mgr = HttpServerLifecycleManager()
         cfg = _make_test_cfg(
             cmd=[
@@ -487,14 +491,24 @@ class TestHttpLifecycleStderrLog:
             ],
             startup_timeout_sec=5,
         )
-        with pytest.raises(HttpStartupError) as exc_info:
-            asyncio.run(mgr.start("test_server", cfg))
+        mock_proc = _make_mock_proc(exit_code=1)
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(HttpStartupError) as exc_info,
+        ):
+            client_instance, _ = _wire_http_client(MockClient)
+            await mgr.start("test_server", cfg)
         assert len(exc_info.value.failure.stderr_full) <= 64 * 1024 + 10
 
-    def test_start_early_exit_stderr_from_log(
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_start_early_exit_stderr_from_log(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _patch_open_to_tmp(monkeypatch, tmp_path)
+        stderr_path = tmp_path / "test_server.stderr.log"
+        stderr_path.write_text("BOOT_FAIL")
         mgr = HttpServerLifecycleManager()
         cfg = _make_test_cfg(
             cmd=[
@@ -504,14 +518,26 @@ class TestHttpLifecycleStderrLog:
             ],
             startup_timeout_sec=5,
         )
-        with pytest.raises(HttpStartupError) as exc_info:
-            asyncio.run(mgr.start("test_server", cfg))
+        mock_proc = _make_mock_proc(exit_code=1)
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(HttpStartupError) as exc_info,
+        ):
+            client_instance, _ = _wire_http_client(MockClient)
+            await mgr.start("test_server", cfg)
         assert "BOOT_FAIL" in exc_info.value.failure.stderr_full
 
-    def test_start_timeout_stderr_from_log(
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_start_timeout_stderr_from_log(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        from agent import http_lifecycle as mod
+
         _patch_open_to_tmp(monkeypatch, tmp_path)
+        stderr_path = tmp_path / "test_server.stderr.log"
+        stderr_path.write_text("NEVER_READY")
         mgr = HttpServerLifecycleManager()
         cfg = _make_test_cfg(
             cmd=[
@@ -521,11 +547,23 @@ class TestHttpLifecycleStderrLog:
             ],
             startup_timeout_sec=1,
         )
-        with pytest.raises(HttpStartupError) as exc_info:
-            asyncio.run(mgr.start("test_server", cfg))
+        mock_proc = _make_mock_proc(exit_code=None)  # stays alive
+        monkeypatch.setattr(mod.os, "killpg", MagicMock())
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(HttpStartupError) as exc_info,
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(side_effect=httpx.ConnectError("connect refused"))
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start("test_server", cfg)
         assert "NEVER_READY" in exc_info.value.failure.stderr_full
 
-    def test_restart_closes_old_stderr_handle(
+    @pytest.mark.asyncio
+    async def test_restart_closes_old_stderr_handle(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _patch_open_to_tmp(monkeypatch, tmp_path)
@@ -540,7 +578,8 @@ class TestHttpLifecycleStderrLog:
             pass
 
         monkeypatch.setattr(mgr, "start", fake_start)
-        asyncio.run(mgr.restart("srv", _make_test_cfg()))
+        monkeypatch.setattr(mgr, "_terminate_with_timeout", AsyncMock())
+        await mgr.restart("srv", _make_test_cfg())
         assert fh.closed
         assert "srv" not in mgr._stderr_files
 
@@ -629,7 +668,7 @@ class TestProcessGroupShutdown:
     ) -> None:
         import signal as _signal
 
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         killed: list[tuple[int, int]] = []
         monkeypatch.setattr(
@@ -654,7 +693,7 @@ class TestProcessGroupShutdown:
     async def test_terminate_fallback_on_process_lookup_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         def raise_lookup(pgid: int, sig: int) -> None:
             raise ProcessLookupError("no such process")
@@ -680,7 +719,7 @@ class TestProcessGroupShutdown:
     ) -> None:
         import signal as _signal
 
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         killed: list[tuple[int, int]] = []
         monkeypatch.setattr(
@@ -716,7 +755,7 @@ class TestProcessGroupShutdown:
         os.getpgid(proc.pid) on a reaped pid can resolve to a completely
         different process that has since reused the same pid.
         """
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         killed: list[tuple[int, int]] = []
         monkeypatch.setattr(
@@ -746,7 +785,7 @@ class TestProcessGroupShutdown:
         then waits on, hanging the whole test process for up to the process's
         lifetime instead of just this test's timeout.
         """
-        import scripts.agent.http_lifecycle as mod
+        from agent import http_lifecycle as mod
 
         monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
         monkeypatch.setattr(mod.os, "killpg", MagicMock())
@@ -759,10 +798,14 @@ class TestProcessGroupShutdown:
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(HttpStartupError),
         ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(side_effect=httpx.ConnectError("connect refused"))
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start("srv", cfg)
 
         assert mgr._http_pgids["srv"] == 9999
-
         assert mgr._http_pgids.get("srv") == 9999

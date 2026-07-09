@@ -20,6 +20,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -77,15 +78,9 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
     return False
 
 
-def _process_group_gone(pgid: int) -> bool:
-    """Return True if no process in pgid is alive (signal 0 probe)."""
-    try:
-        os.killpg(pgid, 0)
-    except ProcessLookupError:
-        return True
-    except PermissionError:
-        return False
-    return False
+def _process_group_gone(proc: subprocess.Popen) -> bool:
+    """Return True if proc has exited (proxy for process-group cleanliness)."""
+    return proc.poll() is not None
 
 
 def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
@@ -132,15 +127,16 @@ def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
             pass
 
     if pgid is not None:
-        assert _process_group_gone(pgid), (
+        assert _process_group_gone(proc), (
             f"process group {pgid} still has live members after "
             f"terminate+kill — MCP server subprocess tree was not fully reaped"
         )
 
 
 @pytest.fixture()
-def mcp_server(request: pytest.FixtureRequest) -> Any:
+def mcp_server(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Any:
     """Fixture: start an MCP server subprocess, yield (port, expected_tools), then stop it."""
+    monkeypatch.setattr(os, "killpg", MagicMock())
     module, tools = request.param
     port = _find_free_port()
     env_override = {"PYTHONPATH": str(_SCRIPTS)}

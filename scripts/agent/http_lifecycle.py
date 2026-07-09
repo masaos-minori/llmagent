@@ -20,9 +20,8 @@ from pathlib import Path
 from typing import IO
 
 import httpx
-from shared.mcp_config import McpServerConfig
-
 from agent.services.models import ProcessInfoSnapshot
+from shared.mcp_config import McpServerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +92,13 @@ class HttpServerLifecycleManager:
         """Terminate proc; escalate to kill if terminate times out."""
         if proc.poll() is not None:
             return
-        pgid = self._http_pgids.get(server_key, proc.pid)
-        try:
-            os.killpg(pgid, signal.SIGTERM)  # nosec B603
-        except (ProcessLookupError, OSError):
+        pgid = self._http_pgids.get(server_key)
+        if pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGTERM)  # nosec B603
+            except (ProcessLookupError, OSError):
+                proc.terminate()
+        else:
             proc.terminate()
         try:
             await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
@@ -105,10 +107,13 @@ class HttpServerLifecycleManager:
                 "Lifecycle: force-killing %r (terminate timed out)",
                 server_key,
             )
-            pgid = self._http_pgids.get(server_key, proc.pid)
-            try:
-                os.killpg(pgid, signal.SIGKILL)  # nosec B603
-            except (ProcessLookupError, OSError):
+            pgid = self._http_pgids.get(server_key)
+            if pgid is not None:
+                try:
+                    os.killpg(pgid, signal.SIGKILL)  # nosec B603
+                except (ProcessLookupError, OSError):
+                    proc.kill()
+            else:
                 proc.kill()
             try:
                 await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
@@ -216,7 +221,7 @@ class HttpServerLifecycleManager:
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
         except OSError:
-            self._http_pgids[server_key] = proc.pid
+            pass
         self._http_procs[server_key] = proc
 
         health_url = cfg.url.rstrip("/") + "/health"
