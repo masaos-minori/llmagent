@@ -52,7 +52,7 @@ from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get
 |---|---|---|
 | `http` | `httpx.AsyncClient` | HTTP client for LLM/embedding calls |
 | `cfg` | `RagConfig` | RAG configuration from agent.toml |
-| `module_cfg` | `dict \| None` | Optional config override; bypasses load_all() / agent.toml (agent process path); when None, falls back to `_ModuleConfig.get()` |
+| `module_cfg` | `dict \| None` | Optional config override; bypasses load_all() / agent.toml (agent process path); when None, falls back to internal module config retrieval |
 | `on_status` | `Callable[[str], None] \| None` | Progress callback; defaults to no-op |
 | `on_clear` | `Callable[[], None] \| None` | Cleanup callback; always called in `finally` block of `run()`/`augment()` |
 
@@ -195,7 +195,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — replaced entirely with a new `SearchDiagnostics` object populated with embed_ok/embed_failed/fts_errors during search; in HTTP mode, `RagPipeline._run_http_augment()` replaces it via `dataclasses.replace()` with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms` |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — replaced entirely with a new `SearchDiagnostics` object populated with embed_ok/embed_failed/fts_errors during search; in HTTP mode, HTTP augment handler replaces it via `dataclasses.replace()` with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms` |
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
@@ -332,7 +332,7 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 
 No constructor (inherits from `PipelineStage`).
 
-**Note:** `_format_chunks()` is duplicated between `scripts/rag/pipeline.py:368` (static method) and `scripts/rag/stages/augment.py:11` (module function). They produce identical output but are separate copies. AugmentStage uses the augment.py version; `RagPipeline.augment()` uses the pipeline.py version for raw-chunk fallback (line 474).
+**Note:** Chunk formatting function is duplicated between `scripts/rag/pipeline.py:368` (static method) and `scripts/rag/stages/augment.py:11` (module function). They produce identical output but are separate copies. AugmentStage uses the augment.py version; `RagPipeline.augment()` uses the pipeline.py version for raw-chunk fallback (line 474).
 
 - Formats `ctx.reranked` as `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` blocks; when title is empty, uses URL as fallback
 - Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
@@ -491,7 +491,7 @@ class PipelineRunResult:
     result_source: str | None = None
 ```
 
-Returned by `RagPipeline.run()`. **`result_source` is always `None`** — `run()` never sets it. The field exists only for HTTP mode where `_run_http_augment()` may set it via `dataclasses.replace()`.
+Returned by `RagPipeline.run()`. **`result_source` is always `None`** — `run()` never sets it. The field exists only for HTTP mode where HTTP augment handler may set it via `dataclasses.replace()`.
 
 ---
 

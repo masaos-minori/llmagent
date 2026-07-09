@@ -573,8 +573,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 `chunk_english.py` — `ChunkEnglishMixin`: paragraph/sentence-level chunking for English text with stopword filtering and sentence boundary splitting. Mixed into `ChunkSplitter` via multiple inheritance.
 
-**Class: `ChunkEnglishMixin`**
-
 ## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
 ### 7.1 Module overview
@@ -605,13 +603,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 `chunk_japanese.py` — `ChunkJapaneseMixin`: morphological-analysis-based chunking for Japanese text using Sudachi SplitMode.C. Includes NFKC normalization, clause boundary splitting, and buffer-based accumulation with overlap. Mixed into `ChunkSplitter` via multiple inheritance.
 
 **Class: `ChunkJapaneseMixin`**
-
-| Method | Signature | Description |
-|---|---|---|
-| `_chunk_japanese` | `(text: str) -> list[tuple[str, str]]` | Split Japanese text into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis |
-| `_split_into_ja_sentences` | `(text: str) -> list[tuple[str, str]]` | Split Japanese text at clause boundaries (。！？ and newlines); returns (original, normalized) pairs with empty pairs discarded |
-| `_normalize_ja_sentence` | `(text: str) -> str` | Run Sudachi SplitMode.C morphological analysis; return space-joined normalized content words (normalized_form() unifies inflected forms) |
-| `_merge_ja_sentence_pairs` | `(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]` | Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured |
 
 ## 9. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
 
