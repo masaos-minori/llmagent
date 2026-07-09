@@ -87,8 +87,6 @@ provides project-wide defaults.
 **Deferred settings** (`deferred` in `ConfigReloadOutcome`):
 - None currently. (No field is deferred as of this writing — see
   [MCP known issues: BUG-01](04_mcp_90_inconsistencies_and_known_issues.md)
-  history for the restart-required migration that removed the last two
-  deferred fields, `auth_token` and `startup_mode`.)
 
 **Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
 - Any `McpServerConfig` field change, new servers, removed servers, and
@@ -323,16 +321,12 @@ Source: `config/*_mcp_server.toml` (each file's `[mcp_servers.<key>]` section)
 | `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | Watchdog poll interval (seconds; 0=disabled); profile-aware default |
 | `mcp_watchdog_max_restarts` | `3` | Max watchdog restart attempts |
 
+<<<<<<< HEAD
 The GitHub MCP endpoint is configured only through `mcp_servers.github.url`
 (a `McpServerConfig` entry) — the legacy top-level `github_server_url` key
 has been removed and is now rejected by `build_agent_config()` with
 `ConfigLoadError` if present.
-
-See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for `McpServerConfig` fields.
-
----
-
-## ApprovalConfig (`cfg.approval.*`)
+=======
 
 Source: `config/security.toml`
 

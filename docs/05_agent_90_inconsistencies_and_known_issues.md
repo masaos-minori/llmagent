@@ -81,4 +81,21 @@ documented; the gap this entry tracked no longer exists.)*
   load. The only way to avoid the startup `RuntimeError` is to provide a valid workflow
   definition at `WORKFLOWS_DIR / "default.json"`.
 
+### DISC-05: MCP reload/config docs describe soon-to-be-removed hot-reload and deferred behavior
+
+- **Type:** Document inconsistency
+- **Impact scope:** `05_agent_08_configuration.md`, `05_agent_07_cli-and-commands.md` (MCP reload classification wording)
+- **Statement A:** These docs currently describe MCP HTTP URL as
+  hot-reloadable and `auth_token`/`startup_mode` as deferred.
+- **Statement B:** Requirements H-1 through L-2
+  (`requires/done/20260708_23_require.md` through
+  `requires/done/20260708_40_require.md`) have approved plans to make all
+  MCP server definition changes restart-required and remove
+  `github_server_url`; see
+  [MCP known issues: BUG-01](04_mcp_90_inconsistencies_and_known_issues.md)
+  for the implementation-side tracking entry.
+- **Current safe interpretation:** Treat the docs as describing the
+  pre-change behavior until the linked plans are implemented and these docs
+  are updated per their Design sections.
+
 ---

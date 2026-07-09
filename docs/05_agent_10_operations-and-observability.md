@@ -426,6 +426,18 @@ config — this is health-driven recovery, not config reload, and does not
 apply pending MCP server definition changes either. Only a full agent
 restart applies a changed MCP server definition.
 
+**Note:** MCP server definitions (`transport`, `url`, `startup_mode`,
+`healthcheck_mode`, `call_timeout_sec`, `startup_timeout_sec`, `tool_names`,
+`auth_token`, `role`, `cmd`, `env`) are restart-time snapshots. `/reload`
+detects changes to `[mcp_servers.*]` and reports them as restart-required
+(`[RESTART] - mcp/<server>.<field>`), but never applies them to the running
+process. `/mcp` / `/mcp status` always reflects the running (pre-restart)
+server config, not pending `/reload` changes. Watchdog-triggered restarts
+(`watchdog_loop()`) restart a failed subprocess using its *current* startup
+config — this is health-driven recovery, not config reload, and does not
+apply pending MCP server definition changes either. Only a full agent
+restart applies a changed MCP server definition.
+
 ---
 
 ## Interpreting `/context`
