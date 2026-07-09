@@ -321,12 +321,16 @@ Source: `config/*_mcp_server.toml` (each file's `[mcp_servers.<key>]` section)
 | `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | Watchdog poll interval (seconds; 0=disabled); profile-aware default |
 | `mcp_watchdog_max_restarts` | `3` | Max watchdog restart attempts |
 
-<<<<<<< HEAD
 The GitHub MCP endpoint is configured only through `mcp_servers.github.url`
 (a `McpServerConfig` entry) — the legacy top-level `github_server_url` key
 has been removed and is now rejected by `build_agent_config()` with
 `ConfigLoadError` if present.
-=======
+
+See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for `McpServerConfig` fields.
+
+---
+
+## ApprovalConfig (`cfg.approval.*`)
 
 Source: `config/security.toml`
 

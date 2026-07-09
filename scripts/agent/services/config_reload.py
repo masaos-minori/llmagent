@@ -19,8 +19,6 @@ from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
 if TYPE_CHECKING:
-    from shared.mcp_config import McpServerConfig
-
     from agent.context import AgentContext
 
 from agent.services.typed_validators import (
@@ -81,34 +79,6 @@ class ConfigReloadOutcome:
     source_files: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
     startup_only: list[str] = field(default_factory=list)
-
-
-_MCP_SERVER_FIELDS = (
-    "transport",
-    "url",
-    "startup_mode",
-    "healthcheck_mode",
-    "call_timeout_sec",
-    "startup_timeout_sec",
-    "tool_names",
-    "auth_token",
-    "role",
-    "cmd",
-    "env",
-)
-
-
-def _diff_mcp_server_config(old: McpServerConfig, new: McpServerConfig) -> list[str]:
-    """Return names of McpServerConfig fields that differ between old and new.
-
-    Pure comparison — never mutates either argument. Field order follows
-    _MCP_SERVER_FIELDS, so output is deterministic for a given pair of inputs.
-    """
-    return [
-        field_name
-        for field_name in _MCP_SERVER_FIELDS
-        if getattr(old, field_name) != getattr(new, field_name)
-    ]
 
 
 class ConfigReloadService:
