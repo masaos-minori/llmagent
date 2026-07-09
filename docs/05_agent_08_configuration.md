@@ -75,18 +75,11 @@ provides project-wide defaults.
 **Classification definitions:**
 
 - **Hot-reloadable** — applied immediately to the running agent; no restart needed.
-- **Deferred** — stored in `ctx.cfg` on `/reload`, but takes effect only on the
-  next connection or subprocess restart. The running MCP connector won't see the
-  new value until it reconnects. `/reload` output shows these as `[DEFER]`.
 - **Restart-required** — the subsystem must be restarted for the change to apply.
   `/reload` output shows these as `[RESTART]`.
 - **Startup-only** — read once at agent start; never touched by `/reload`.
   `/reload` emits `[STARTUP-ONLY]` only when the field value differs from the
   running config.
-
-**Deferred settings** (`deferred` in `ConfigReloadOutcome`):
-- None currently. (No field is deferred as of this writing — see
-  [MCP known issues: BUG-01](04_mcp_90_inconsistencies_and_known_issues.md)
 
 **Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
 - Any `McpServerConfig` field change, new servers, removed servers, and
@@ -129,7 +122,6 @@ config to live service instances:
 |---|---|---|
 | `applied` | `list[str]` | Changes applied at runtime (hot-reloaded) |
 | `needs_restart` | `list[str]` | Changes that require a full agent restart |
-| `deferred` | `list[str]` | Changes stored in cfg but effective only on next connection |
 | `skipped` | `list[str]` | Changes intentionally ignored, not MCP server definitions — see `needs_restart` |
 | `source_files` | `list[str]` | Config files that were reloaded |
 | `startup_only` | `list[str]` | Startup-only fields that differ from running config |
@@ -256,7 +248,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `max_tool_turns` | `5` | Max tool call turns per message |
 | `tool_result_max_llm_chars` | `8000` | Max tool result chars added to LLM context |
 | `tool_results_turn_max_chars` | `50000` | Deprecated — `tool_results` table removed; no longer enforced |
-| `use_tool_dag` | `True` | Dependency-aware scheduling: independent reads run concurrently; writes serialized per resource scope. Disable for strict round-wide serialization legacy behavior. |
+| `use_tool_dag` | `True` | Dependency-aware scheduling: independent reads run concurrently; writes serialized per resource scope. Setting to `false` is legacy (non-production) behavior: all WRITE_TOOLS run before READ_TOOLS within a round, without resource-scoped parallelism. |
 | `plugin_strict` | `False` | Raise on first plugin import error (fail-fast for CI/CD) |
 | `plugin_tool_override` | `False` | Allow plugin tools to shadow MCP tools when names conflict |
 
@@ -343,6 +335,8 @@ Source: `config/security.toml`
 | `approval_resource_keys` | `{path_keys: [...], branch_keys: [...]}` | Arg keys for resource identification |
 | `approval_dry_run_tools` | `[write_file, edit_file, delete_file, delete_directory, move_file]` | Pre-execute with dry_run=True |
 | `tool_safety_tiers` | `{}` | tool → READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN |
+
+`tool_safety_tiers` keys must be actual registered tool names, not server keys. Unknown keys are detected at startup: a warning in local/development, a fatal `RuntimeError` in production (via `ProductionConfigValidator.validate_unknown_tool_safety_tiers()`).
 | `allowed_root` | `""` | File path jail (empty = disabled) |
 | `approval_github_allowed_repos` | `[]` | GitHub write allowlist (empty = deny all) |
 | `gitops_push_blocked` | `False` | Block all GitHub writes globally |

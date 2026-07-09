@@ -74,12 +74,22 @@ for the full explanation.
 | `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
 | `cmd` | `list[str]` | `[]` | Launch command for `startup_mode=subprocess`; must be non-empty when subprocess mode is used |
 | `env` | `dict[str, str]` | `{}` | Extra environment variables passed to the subprocess |
-| `healthcheck_mode` | `str` | `""` | `"http"` (auto-inferred if empty) |
+| `healthcheck_mode` | `str` | *(derived)* | `"http"` — the only current transport/healthcheck mode; derived automatically when the key is omitted. If present, the value must be exactly `"http"`. |
 | `idle_timeout_sec` | `int` | `0` | subprocess auto-stop delay (0 = disabled) |
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
 | `call_timeout_sec` | `float` | `60.0` | per-call timeout for HttpTransport; 0 = no timeout |
 | `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. See [Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth). |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
+
+> `auth_token=""` (no Bearer auth) is allowed only in
+> `security_profile="local"`; it is rejected at startup in
+> `security_profile="production"`. See
+> [04_mcp_05 §Authentication](04_mcp_05_security_and_safety_model.md#authentication-auth_token)
+> and [§Security Profile](04_mcp_05_security_and_safety_model.md#security-profile-security_profile)
+> for the full local/production distinction and enforcement point.
+
+**Deprecation note:** Earlier versions accepted `healthcheck_mode=""` as an explicit request for auto-inference (compatibility with configs predating this field). That empty-string sentinel has been removed — omit the key entirely to get the derived value, or set it to the exact string `"http"`. An explicit empty string is now rejected as an invalid value, the same as any other unrecognized string.
+
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
 **`startup_mode="none"`:** the server is neither spawned as a subprocess nor health-checked
@@ -727,7 +737,7 @@ grep "error_type=transport" agent.log
 
 ### Tool scheduling and serialization
 
-The agent executes tool calls in resource-scoped groups. Most tools run in parallel,
+The agent executes tool calls in resource-scoped groups (DAG scheduling, active when `use_tool_dag=true`). Setting `use_tool_dag=false` reverts to the legacy non-production mode (all WRITE_TOOLS before READ_TOOLS within a round, without resource-scoped parallelism). Most tools run in parallel,
 but certain conditions force serial execution within a round:
 
 | Condition | Trigger | Log reason |
@@ -837,6 +847,7 @@ Before deploying to production, verify:
 - [ ] API keys (`github_token`, `auth_token`) set via environment variables, not hardcoded in config
 - [ ] `repo_allowlist` non-empty in `cicd_mcp_server.toml` (empty = deny all repos)
 - [ ] `allowed_repos` non-empty in `github_mcp_server.toml` (empty = deny all GitHub write ops)
+- [ ] `allowed_repos_mode = "fail_closed"` in `github_mcp_server.toml` (`"fail_open"` is rejected at production startup)
 
 ### Installing firejail
 

@@ -14,9 +14,6 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
-from shared.logger import Logger
-from shared.mcp_config import StartupMode, TransportType
-
 from agent.context import AgentContext
 from agent.security_audit_config import (
     load_cicd_audit_config,
@@ -29,6 +26,9 @@ from agent.shared.health_models import (
     McpHealthProbeResult,
     ServiceWarning,
 )
+from shared.logger import Logger
+from shared.mcp_config import StartupMode, TransportType
+from shared.production_config_validator import ProductionConfigValidator
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -759,6 +759,39 @@ def audit_security_defaults(
             logger.warning(msg)
             warnings.append(msg)
 
+    # Check production config strict flags
+    result = ProductionConfigValidator().validate({
+        "plugin_strict": ctx.cfg.tool.plugin_strict,
+        "tool_definitions_strict": ctx.cfg.tool.tool_definitions_strict,
+        "routing_drift_strict": ctx.cfg.tool.routing_drift_strict,
+        "use_tool_dag": ctx.cfg.tool.use_tool_dag,
+    })
+    if result.errors:
+        for msg in result.errors:
+            if production_mode:
+                raise RuntimeError(msg)
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
+
+    # Check unknown tool_safety_tiers keys
+    from shared.tool_routing_validation import check_unknown_tool_safety_tiers
+
+    unknown_tiers = check_unknown_tool_safety_tiers(
+        tool_safety_tiers=getattr(ctx.cfg.approval, "tool_safety_tiers", {})
+    )
+    if unknown_tiers:
+        unknown_result = ProductionConfigValidator().validate_unknown_tool_safety_tiers(
+            unknown_tiers
+        )
+        if production_mode:
+            raise RuntimeError(
+                "Production config validation failed: "
+                + "; ".join(unknown_result.errors)
+            )
+        for err in unknown_result.errors:
+            logger.warning("Security: %s", err)
+            warnings.append(f"Security: {err}")
+
     # Check git allowed_repo_paths
     try:
         git_cfg = load_git_audit_config()
@@ -863,5 +896,15 @@ def audit_security_defaults(
         )
         logger.warning(summary)
         warnings.append(summary)
+
+    if github_cfg is not None and github_cfg.allowed_repos_mode == "fail_open":
+        msg = (
+            "github.allowed_repos_mode='fail_open' is not permitted in production mode. "
+            "Set allowed_repos_mode='fail_closed' in github_mcp_server.toml."
+        )
+        if production_mode:
+            raise RuntimeError(msg)
+        logger.warning("Security: %s", msg)
+        warnings.append(f"Security: {msg}")
 
     return warnings

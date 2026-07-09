@@ -389,6 +389,8 @@ class TestAuditSecurityDefaults:
         ctx.cfg.github = None
         ctx.cfg.tool = MagicMock()
         ctx.cfg.tool.allowed_tools = []
+        ctx.cfg.approval = MagicMock()
+        ctx.cfg.approval.tool_safety_tiers = {}
         return ctx
 
     def test_local_mode_no_auth_returns_warnings(self) -> None:
@@ -556,7 +558,7 @@ class TestAuditSecurityDefaults:
         """github.allow_force_push=True surfaces a security warning."""
         ctx = self._make_ctx()
         gh_cfg = GitHubAuditConfig(
-            allowed_repos=["owner/repo"], allow_force_push=True, require_pr_review=True
+            allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed", allow_force_push=True, require_pr_review=True
         )
         with (
             patch("agent.repl_health.load_shell_audit_config", return_value=None),
@@ -572,6 +574,7 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         gh_cfg = GitHubAuditConfig(
             allowed_repos=["owner/repo"],
+            allowed_repos_mode="fail_closed",
             allow_force_push=False,
             require_pr_review=False,
         )
@@ -583,6 +586,195 @@ class TestAuditSecurityDefaults:
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("require_pr_review=false" in w for w in warnings)
+
+    def test_github_fail_open_raises_in_production(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        gh_cfg = GitHubAuditConfig(
+            allowed_repos=[], allowed_repos_mode="fail_open",
+            allow_force_push=False, require_pr_review=True,
+        )
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="fail_open"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_github_fail_open_warns_in_local(self) -> None:
+        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
+        gh_cfg = GitHubAuditConfig(
+            allowed_repos=[], allowed_repos_mode="fail_open",
+            allow_force_push=False, require_pr_review=True,
+        )
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("fail_open" in w for w in warnings)
+
+    def test_github_fail_closed_no_error_in_production(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        gh_cfg = GitHubAuditConfig(
+            allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed",
+            allow_force_push=False, require_pr_review=True,
+        )
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            audit_security_defaults(ctx, production_mode=True)  # must not raise
+
+    def test_production_config_plugin_strict_false_raises(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.tool.plugin_strict = False
+        ctx.cfg.tool.tool_definitions_strict = True
+        ctx.cfg.tool.routing_drift_strict = True
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="plugin_strict"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_production_config_tool_definitions_strict_false_raises(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.tool.plugin_strict = True
+        ctx.cfg.tool.tool_definitions_strict = False
+        ctx.cfg.tool.routing_drift_strict = True
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="tool_definitions_strict"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_production_config_routing_drift_strict_false_raises(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.tool.plugin_strict = True
+        ctx.cfg.tool.tool_definitions_strict = True
+        ctx.cfg.tool.routing_drift_strict = False
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="routing_drift_strict"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_production_config_false_warns_in_local(self) -> None:
+        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
+        ctx.cfg.tool.plugin_strict = False
+        ctx.cfg.tool.tool_definitions_strict = False
+        ctx.cfg.tool.routing_drift_strict = False
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("plugin_strict" in w for w in warnings)
+
+    def test_production_config_all_true_no_error(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.tool.plugin_strict = True
+        ctx.cfg.tool.tool_definitions_strict = True
+        ctx.cfg.tool.routing_drift_strict = True
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            audit_security_defaults(ctx, production_mode=True)  # must not raise
+
+    def test_unknown_tool_safety_tiers_local_warns(self) -> None:
+        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
+        ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("nonexistent_tool" in w for w in warnings)
+
+    def test_unknown_tool_safety_tiers_production_raises(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.approval.tool_safety_tiers = {"nonexistent_tool": "READ_ONLY"}
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="nonexistent_tool"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_unknown_tool_safety_tiers_known_keys_no_error(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            audit_security_defaults(ctx, production_mode=True)  # must not raise
+
+    def test_use_tool_dag_false_raises_in_production(self) -> None:
+        ctx = self._make_ctx(
+            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
+        )
+        ctx.cfg.tool.use_tool_dag = False
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            with pytest.raises(RuntimeError, match="use_tool_dag"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_use_tool_dag_false_warns_in_local(self) -> None:
+        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
+        ctx.cfg.tool.use_tool_dag = False
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch("agent.repl_health.load_git_audit_config", return_value=None),
+            patch("agent.repl_health.load_github_audit_config", return_value=None),
+            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("use_tool_dag" in w for w in warnings)
 
 
 # ── check_readiness() — production vs development mode ───────────────────────

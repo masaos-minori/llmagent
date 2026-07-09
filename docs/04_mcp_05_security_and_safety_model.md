@@ -63,6 +63,11 @@ allowed_repos_mode = "fail_closed"   # default
 | `fail_closed` (default) | All writes denied | Only listed repos allowed |
 | `fail_open` | All repos allowed | Only listed repos allowed |
 
+`allowed_repos_mode="fail_open"` is prohibited in production
+(`security_profile="production"`) — startup raises `RuntimeError`. It
+remains available in local/development mode for backward compatibility
+(startup emits a warning instead).
+
 Applies to 9 write operations: `github_create_branch`, `github_create_or_update_file`, `github_push_files`,
 `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`,
 `github_update_pull_request`, `github_merge_pull_request`.
@@ -166,6 +171,12 @@ auth_token = ""   # empty = no auth
 When non-empty: server requires `Authorization: Bearer <token>` header.
 Missing or mismatched → HTTP 401.
 Applies to: all servers (configured per-server via `McpServerConfig.auth_token`).
+
+**Local/development compatibility:** `auth_token=""` (no Bearer
+authentication) is intentional local/development compatibility behavior,
+not an oversight. **Empty `auth_token` must not be used in production** —
+see [Security Profile](#security-profile-security_profile) below for the
+startup-time enforcement that rejects it.
 
 ---
 
@@ -313,6 +324,8 @@ Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
 | `ADMIN` | (custom; none by default) | `yes` required |
 
 Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
+
+`tool_safety_tiers` entries must be actual registered tool names (not server keys). Unknown keys are rejected at startup — a `RuntimeError` in production, a warning otherwise — via `ProductionConfigValidator.validate_unknown_tool_safety_tiers()`.
 
 ---
 

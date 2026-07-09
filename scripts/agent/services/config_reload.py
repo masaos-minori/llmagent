@@ -13,10 +13,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from shared.mcp_config import McpServerConfig
-
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
+from shared.mcp_config import McpServerConfig
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -77,7 +76,6 @@ class ConfigReloadOutcome:
     required (e.g. unrecognized keys). MCP server definition changes are never
     reported here — see needs_restart instead."""
     source_files: list[str] = field(default_factory=list)
-    deferred: list[str] = field(default_factory=list)
     startup_only: list[str] = field(default_factory=list)
 
 

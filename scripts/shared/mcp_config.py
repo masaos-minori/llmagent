@@ -148,6 +148,16 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     return {key: _build_single_server(key, v) for key, v in raw.items()}
 
 
+def _derive_healthcheck_mode(transport: TransportType) -> HealthcheckMode:
+    """Derive the healthcheck mode from transport type.
+
+    HTTP is currently the only supported transport, so this always
+    returns HealthcheckMode.HTTP. Kept as its own function (rather than a
+    literal) so a future second transport has one place to add a mapping.
+    """
+    return HealthcheckMode.HTTP
+
+
 def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     """Construct McpServerConfig from a raw dict, applying defaults.
 
@@ -161,15 +171,17 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         raise ValueError(
             f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
         )
-    # Resolve healthcheck_mode with auto-inference from transport.
-    raw_hc = v.get("healthcheck_mode", "")
-    if not isinstance(raw_hc, str):
-        raise ValueError(
-            f"mcp_servers[{key!r}].healthcheck_mode must be str, got {type(raw_hc).__name__}"
-        )
-    if not raw_hc:
-        healthcheck_mode = HealthcheckMode.HTTP
+    # healthcheck_mode: derive from transport when the key is absent.
+    # An explicitly-present value (including "") is parsed strictly — the
+    # historical empty-string auto-inference sentinel is removed.
+    if "healthcheck_mode" not in v:
+        healthcheck_mode = _derive_healthcheck_mode(TransportType(transport))
     else:
+        raw_hc = v["healthcheck_mode"]
+        if not isinstance(raw_hc, str):
+            raise ValueError(
+                f"mcp_servers[{key!r}].healthcheck_mode must be str, got {type(raw_hc).__name__}"
+            )
         healthcheck_mode = HealthcheckMode(raw_hc)
     cmd = list(v.get("cmd", []))
     env = dict(v.get("env", {}))

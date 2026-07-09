@@ -282,3 +282,18 @@ def test_valid_string_transport_rejected() -> None:
     """'http' is a valid transport string value but not a TransportType instance — must be rejected."""
     with pytest.raises(ValueError):
         McpServerConfig("http", "http://127.0.0.1:8000")
+
+
+def test_explicit_empty_healthcheck_mode_now_raises() -> None:
+    """Explicit healthcheck_mode="" is no longer a valid auto-infer sentinel."""
+    cfg = {
+        "mcp_servers": {
+            "svc": {
+                "transport": "http",
+                "url": "http://127.0.0.1:8000",
+                "healthcheck_mode": "",
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
+        _build_mcp_servers(cfg)

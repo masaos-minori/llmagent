@@ -12,7 +12,8 @@ max_per_page = 100
 allowed_repos = []
 
 # allowed_repos_mode: behaviour when allowed_repos is empty
-# "fail_open" = allow all (backward compat default); "fail_closed" = deny all (recommended for production)
+# "fail_open" = allow all when allowed_repos is empty; retained for backward compatibility.
+# "fail_closed" = deny all when allowed_repos is empty; default and recommended.
 allowed_repos_mode = "fail_closed"
 
 # protected_branches: branch name glob patterns for which write operations are prohibited

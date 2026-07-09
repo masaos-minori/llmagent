@@ -105,3 +105,23 @@ def check_tool_safety_tiers(
         f"Tool {t!r} registered in ToolRegistry but missing from tool_safety_tiers"
         for t in missing
     ]
+
+
+def check_unknown_tool_safety_tiers(
+    registry: "ToolRegistry | None" = None,
+    tool_safety_tiers: dict[str, str] | None = None,
+) -> list[str]:
+    """Return the tool_safety_tiers keys that are not registered tool names.
+
+    Detects stale or misconfigured entries (e.g. a server key like "mdq"
+    used instead of its individual tool names). Returns empty list when
+    tool_safety_tiers is not configured.
+    """
+    if not tool_safety_tiers:
+        return []
+    if registry is None:
+        from shared.tool_registry import get_registry
+
+        registry = get_registry()
+    known = registry.get_all_tool_names()
+    return sorted(set(tool_safety_tiers) - known)
