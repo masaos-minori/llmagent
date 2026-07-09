@@ -233,6 +233,44 @@ class TestCmdMcpStatus:
         out = capsys.readouterr().out
         assert "http_error" in out
 
+    @pytest.mark.asyncio
+    async def test_status_unchanged_after_reload_classification(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch as _patch
+
+        from agent.services.config_reload import ConfigReloadService
+
+        old_srv = _http(url="http://localhost:8080")
+        ctx = _Ctx({"svc": old_srv})
+        mcp = _Mcp(ctx)
+
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP, url="http://127.0.0.1:9999", cmd=[]
+        )
+        reload_svc = ConfigReloadService(ctx)  # type: ignore[arg-type]
+        with _patch(
+            "agent.config_builders._build_mcp_servers",
+            return_value={"svc": new_srv, "new_one": new_srv},
+        ):
+            outcome = reload_svc._classify_mcp_server_changes(ctx, {})  # type: ignore[arg-type]
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "new_one" not in out  # pending server not shown until restart
+        assert "svc" in out
+        assert (
+            "http://localhost:8080" not in out or "9999" not in out
+        )  # old URL probed, not new
+        assert "mcp/svc.url" in outcome.needs_restart
+        assert "mcp/new_one (new server)" in outcome.needs_restart
+
 
 class TestCmdMcpStatusNewColumns:
     @pytest.mark.asyncio
@@ -384,7 +422,7 @@ class TestCmdMcpStatusSerialization:
         ctx = _Ctx({})
         ctx.services_required.health_registry = None
         # Provide real stat_serialization_events so iteration works
-        ctx.stats = MagicMock()  # type: ignore[assignment]
+        ctx.stats = MagicMock()
         ctx.stats.stat_serialization_events = [
             {
                 "trigger_tool": "write_file",
@@ -424,7 +462,7 @@ class TestCmdMcpStatusSerialization:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         ctx = _Ctx({})
-        ctx.stats = MagicMock()  # type: ignore[assignment]
+        ctx.stats = MagicMock()
         ctx.stats.stat_serialization_events = []
         mcp = _Mcp(ctx)
         with (

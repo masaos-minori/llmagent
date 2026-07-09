@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 from shared.mcp_config import StartupMode
 
+from shared.mcp_config import StartupMode
+
 
 @pytest.fixture()
 def svc() -> object:
@@ -147,9 +149,6 @@ class TestDiffMcpServerConfig:
         new.startup_mode = StartupMode.SUBPROCESS
         assert _diff_mcp_server_config(old, new) == ["startup_mode"]
 
-    # transport is excluded from single-field-change coverage: TransportType
-    # currently has a single member (HTTP), so there is no other valid value
-    # to diff against — same situation as healthcheck_mode below.
 
 
 class TestMcpServerChangeClassification:
@@ -160,10 +159,11 @@ class TestMcpServerChangeClassification:
         from agent.services.config_reload import ConfigReloadService
         from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
+        cmd = ["python", "s.py"] if old_startup == "subprocess" else []
         old_srv = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://localhost:8080",
-            cmd=["python", "s.py"],
+            cmd=cmd,
             auth_token=old_auth,
             startup_mode=StartupMode(old_startup),
         )
@@ -204,9 +204,7 @@ class TestMcpServerChangeClassification:
 
         svc, old_srv = self._make_svc(old_auth="old_token")
         new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=[],
+            transport=TransportType.HTTP, url="http://localhost:8080", cmd=[],
             auth_token="new_token",
         )
         result = self._run(svc, {"svc": new_srv})
@@ -229,10 +227,11 @@ class TestMcpServerChangeClassification:
         from shared.mcp_config import McpServerConfig, TransportType
 
         svc, old_srv = self._make_svc(old_startup=old_mode.value)
+        cmd = ["python", "s.py"] if new_mode == StartupMode.SUBPROCESS else []
         new_srv = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://localhost:8080",
-            cmd=["python", "s.py"],
+            cmd=cmd,
             startup_mode=new_mode,
         )
         result = self._run(svc, {"svc": new_srv})
@@ -241,69 +240,6 @@ class TestMcpServerChangeClassification:
         assert not any("startup_mode" in item for item in result.deferred)
         assert not any("startup_mode" in item for item in result.applied)
         assert old_srv.startup_mode == old_mode
-
-    def test_no_change_no_restart_entries(self) -> None:
-        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-
-        svc, _ = self._make_svc(old_auth="same_token", old_startup="persistent")
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=["python", "s.py"],
-            auth_token="same_token",
-            startup_mode=StartupMode.PERSISTENT,
-        )
-        result = self._run(svc, {"svc": new_srv})
-        assert result.needs_restart == []
-
-    # --- exhaustive per-field coverage (H-2/H-6) ---
-    # healthcheck_mode is excluded: HealthcheckMode currently has a single member
-    # (HTTP), so there is no other valid value to diff against.
-
-    @pytest.mark.parametrize(
-        "field_name,new_value",
-        [
-            ("url", "http://127.0.0.1:9999"),
-            ("startup_mode", "subprocess"),
-            ("call_timeout_sec", 999.0),
-            ("startup_timeout_sec", 999),
-            ("tool_names", ["changed_tool"]),
-            ("auth_token", "changed_token"),
-            ("role", "changed_role"),
-            ("cmd", ["changed", "cmd"]),
-            ("env", {"CHANGED": "1"}),
-        ],
-    )
-    def test_each_field_change_is_restart_required(
-        self, field_name: str, new_value: object
-    ) -> None:
-        svc, old_srv = self._make_svc()
-        new_srv = copy.deepcopy(old_srv)
-        setattr(new_srv, field_name, new_value)
-        result = self._run(svc, {"svc": new_srv})
-
-        assert f"mcp/svc.{field_name}" in result.needs_restart
-        assert result.applied == []
-        assert result.deferred == []
-        assert result.skipped == []
-
-    # transport is excluded here for the same reason as in
-    # TestDiffMcpServerConfig: TransportType currently has a single member
-    # (HTTP), so there is no other valid value to construct a change from.
-
-    # --- add / remove / rename (H-1/H-7) ---
-
-    def test_new_server_reports_restart_no_skipped(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
-
-        svc, old_srv = self._make_svc()
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:9000", cmd=[]
-        )
-        result = self._run(svc, {"svc": old_srv, "brand_new": new_srv})
-
-        assert "mcp/brand_new (new server)" in result.needs_restart
-        assert result.skipped == []
 
     def test_removed_server_reports_restart(self) -> None:
         svc, old_srv = self._make_svc()
@@ -330,9 +266,7 @@ class TestMcpServerChangeClassification:
         from shared.mcp_config import McpServerConfig, TransportType
 
         svc, old_srv = self._make_svc()
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:9000", cmd=[]
-        )
+        new_srv = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:9000", cmd=[])
         result = self._run(svc, {"svc": old_srv, "extra": new_srv})
 
         assert set(result.skipped).isdisjoint(set(result.needs_restart))

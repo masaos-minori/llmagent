@@ -274,7 +274,6 @@ If the file cannot be read: `Reload failed (I/O error): <message>`
 | Category | `/reload` output tag | Description |
 |---|---|---|
 | Hot-reloadable | `[OK]` | Applied immediately to the running process |
-| Deferred | `[DEFER]` | Stored in cfg; effective on next connection/subprocess start |
 | Restart-required | `[RESTART]` | Requires full agent restart |
 | Startup-only | `[STARTUP-ONLY]` | Read once at boot; ignored by `/reload` even if changed |
 | Skipped | `[SKIP]` | Changes intentionally ignored, not MCP server definitions — see Restart-required |
