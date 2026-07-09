@@ -185,6 +185,13 @@ Controls whether Bearer-token authentication is required for HTTP MCP servers:
 
 **Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns on `shell_sandbox_backend == "none"` and empty `tool.allowed_tools`.
 
+**Reload boundary:** `/reload` never re-runs this check and never applies
+`auth_token` changes to a running MCP server — token changes are always
+reported as restart-required (see
+[Configuration: Hot-reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility)).
+Production auth validation only ever runs at startup; there is no runtime
+path that can weaken or bypass it.
+
 **Audit API isolation:** `agent/security_audit_config.py` is the single authorised point in the agent layer for importing MCP server config models (`mcp.shell.models`, `mcp.git.models`, `mcp.github.models_config`, `mcp.cicd.models`). It exposes four narrow DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and four loader functions that handle optional dependencies (`ImportError` → `None`) and config load failures (`Exception` → `RuntimeError`).
 
 ---

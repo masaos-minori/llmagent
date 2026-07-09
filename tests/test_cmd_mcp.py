@@ -136,6 +136,41 @@ class TestCmdMcpStatus:
         assert "fail" in out
 
     @pytest.mark.asyncio
+    async def test_status_unchanged_after_reload_classification(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Reload classification must not change what /mcp status shows (M-5)."""
+        from agent.services.config_reload import ConfigReloadService
+
+        old_srv = _http(url="http://localhost:8080")
+        ctx = _Ctx({"svc": old_srv})
+        mcp = _Mcp(ctx)
+
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP, url="http://127.0.0.1:9999", cmd=[]
+        )
+        reload_svc = ConfigReloadService(ctx)  # type: ignore[arg-type]
+        with patch(
+            "agent.config_builders._build_mcp_servers",
+            return_value={"svc": new_srv, "new_one": new_srv},
+        ):
+            outcome = reload_svc._classify_mcp_server_changes(ctx, {})  # type: ignore[arg-type]
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "new_one" not in out  # pending server not shown until restart
+        assert "http://localhost:8080" in out  # old URL still probed
+        assert "9999" not in out  # new URL never probed
+        assert "mcp/svc.url" in outcome.needs_restart
+        assert "mcp/new_one (new server)" in outcome.needs_restart
+
+    @pytest.mark.asyncio
     async def test_stdio_running(self, capsys: pytest.CaptureFixture) -> None:
         transport = MagicMock()
         transport.is_alive.return_value = True

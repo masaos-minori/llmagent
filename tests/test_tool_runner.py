@@ -57,7 +57,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "use_tool_dag": True,
         "tool_results_turn_max_chars": 0,
         "web_search_url": "http://127.0.0.1:8004",
-        "github_server_url": "http://127.0.0.1:8006",
         "mcp_servers": {
             "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
         },

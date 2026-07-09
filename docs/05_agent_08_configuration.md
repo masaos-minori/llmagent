@@ -67,9 +67,9 @@ provides project-wide defaults.
 | `config/tools.toml` | Tool execution, system prompt name | Hot-reloadable (most); `plugin_strict`, `plugin_dir` are startup-only |
 | `config/memory.toml` | Memory layer settings | Hot-reloadable (most); `use_memory_layer` is startup-only |
 | `config/otel.toml` | Observability / tracing | Hot-reloadable |
-| `config/security.toml` | Approval and security defaults | Hot-reloadable (most); `auth_token`, `startup_mode` per server are deferred |
+| `config/security.toml` | Approval and security defaults | Hot-reloadable (most); `auth_token`, `startup_mode` per server are restart-required |
 | `config/system_prompts.toml` | System prompt presets | Hot-reloadable |
-| `config/*_mcp_server.toml` | MCP server transport/URL config (via `[mcp_servers.<key>]`) | HTTP URL: hot-reloadable; `auth_token`, `startup_mode`: deferred; new servers / transport change: restart-required |
+| `config/*_mcp_server.toml` | MCP server transport/URL config (via `[mcp_servers.<key>]`) | Restart-required: every field (`transport`, `url`, `startup_mode`, `healthcheck_mode`, `call_timeout_sec`, `startup_timeout_sec`, `tool_names`, `auth_token`, `role`, `cmd`, `env`), plus server add/remove/rename |
 | `config/tools_definitions.toml` | MCP tool name definitions | Hot-reloadable |
 
 **Classification definitions:**
@@ -85,16 +85,25 @@ provides project-wide defaults.
   running config.
 
 **Deferred settings** (`deferred` in `ConfigReloadOutcome`):
-- `auth_token` per MCP server (stored in cfg; takes effect on next connection)
-- `startup_mode` per MCP server (stored in cfg; takes effect on next subprocess start)
+- None currently. (No field is deferred as of this writing — see
+  [MCP known issues: BUG-01](04_mcp_90_inconsistencies_and_known_issues.md)
+  history for the restart-required migration that removed the last two
+  deferred fields, `auth_token` and `startup_mode`.)
 
 **Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
-- New MCP servers added to `*_mcp_server.toml`
+- Any `McpServerConfig` field change, new servers, removed servers, and
+  renames (remove-old + add-new). Example entries:
+  `mcp/<server>.url`, `mcp/<server>.auth_token`, `mcp/<server>.startup_mode`,
+  `mcp/<server>.cmd`, `mcp/<server>.env`.
 
 **Startup-only settings** (not touched by `apply_config_dict()`):
 - `use_memory_layer` — enables/disables the memory subsystem at boot
 - `plugin_strict` — enables fail-fast on plugin import errors at boot
-- `workflow_mode` — read once at agent start; never touched by `/reload`. Changes require a full restart.
+
+**Removed keys** (rejected at config load, `ConfigLoadError`; verified 2026-07-09 — see
+`build_agent_config()`'s `_FORBIDDEN_KEYS`): `workflow_mode`, `workflow_require_approval`,
+`use_tool_summarize`, `tool_summarize_threshold`. These are no longer valid config keys at
+all — not startup-only settings that merely can't be hot-reloaded.
 
 ### Role of `common.toml`
 
@@ -123,7 +132,7 @@ config to live service instances:
 | `applied` | `list[str]` | Changes applied at runtime (hot-reloaded) |
 | `needs_restart` | `list[str]` | Changes that require a full agent restart |
 | `deferred` | `list[str]` | Changes stored in cfg but effective only on next connection |
-| `skipped` | `list[str]` | Changes skipped (e.g. new MCP server added) |
+| `skipped` | `list[str]` | Changes intentionally ignored, not MCP server definitions — see `needs_restart` |
 | `source_files` | `list[str]` | Config files that were reloaded |
 | `startup_only` | `list[str]` | Startup-only fields that differ from running config |
 
@@ -146,30 +155,32 @@ class AgentConfig:
     mcp:      MCPConfig
     approval: ApprovalConfig
     obs:      ObservabilityConfig
-    workflow_mode:              str  = "auto"   # "auto" | "required" | "disabled"
-    workflow_require_approval:  bool = False
     security_lockdown_enabled:  bool = False
 ```
 
-`workflow_mode` controls workflow invocation behaviour: `"auto"` falls back with a warning when
-workflow execution fails, `"required"` raises a hard error, `"disabled"` always uses the direct
-LLM path. `security_lockdown_enabled` suppresses DENY-ALL approval warnings for intentional
+`security_lockdown_enabled` suppresses DENY-ALL approval warnings for intentional
 lockdown deployments.
 
-`workflow_require_approval` enables the execute→verify approval gate in `WorkflowEngine`: when
-`True`, the agent pauses after each execute stage and waits for user approval before running the
-verify stage. Default is `False` (no approval gate). **Startup-only** — not handled by
-`config_reload.py`; changes require a full agent restart.
+**`workflow_mode` and `workflow_require_approval` no longer exist** (verified 2026-07-09
+against `scripts/agent/config_dataclasses.py::AgentConfig` — neither field is present).
+Both keys are now rejected at config load: `build_agent_config()` raises `ConfigLoadError`
+if either appears anywhere in the merged config
+(`_FORBIDDEN_KEYS = {"workflow_mode", "workflow_require_approval", "use_tool_summarize",
+"tool_summarize_threshold"}`). There is no "auto" / "disabled" degraded mode and no
+workflow-level approval-gate toggle — see the next section.
 
-**Production default:** `config/common.toml` sets `workflow_mode = "required"`. Any environment
-that copies `common.toml` (see `deploy.sh:58`) must have a valid workflow definition file
-deployed, or the agent will fail at startup with an actionable error message. The preflight
-check runs before `Orchestrator.__init__()` and
-reports the expected path (`config/workflows/default.json`). For local/dev environments without
-`common.toml` in the config search path, the dataclass default `"auto"` applies (warns and falls
-back). **Note:** `workflow_mode` is startup-only — it cannot be changed via `/reload`.
-
-> **Current behavior:** `workflow_mode = "required"` raises `RuntimeError` at `Orchestrator.__init__()` when `WorkflowLoader` fails to load a workflow definition. This is NOT caught by `StartupOrchestrator.run()` — it propagates to the REPL and aborts startup. The failure occurs during agent boot, not at the first turn.
+**Current behavior:** the agent unconditionally requires a valid workflow definition.
+`StartupOrchestrator._initialize()` calls `_check_workflow_definition()`
+(`agent/startup.py:84`, wrapping `check_workflow_definition()` in `agent/repl_health.py`)
+as a preflight check **before** `Orchestrator.__init__()`; if
+`config/workflows/default.json` is missing, this raises `RuntimeError` with an actionable
+message naming the expected path. `Orchestrator.__init__()` itself
+(`agent/orchestrator.py:123-129`) then unconditionally calls `WorkflowLoader().load()` and
+raises `RuntimeError` on any failure (`WorkflowLoadError` or otherwise) — there is no mode
+that skips or degrades this. Neither check is caught by `StartupOrchestrator.run()`; the
+failure propagates to the REPL and aborts startup. The failure occurs during agent boot,
+not at the first turn. This is startup-only in the sense that it always runs once at boot —
+not because it is a config toggle that merely can't be hot-reloaded.
 
 Cross-field validation:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty
@@ -311,7 +322,11 @@ Source: `config/*_mcp_server.toml` (each file's `[mcp_servers.<key>]` section)
 | `mcp_servers` | `{}` | Dict of `McpServerConfig` by server key |
 | `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | Watchdog poll interval (seconds; 0=disabled); profile-aware default |
 | `mcp_watchdog_max_restarts` | `3` | Max watchdog restart attempts |
-| `github_server_url` | `http://127.0.0.1:8006` | GitHub MCP server URL |
+
+The GitHub MCP endpoint is configured only through `mcp_servers.github.url`
+(a `McpServerConfig` entry) — the legacy top-level `github_server_url` key
+has been removed and is now rejected by `build_agent_config()` with
+`ConfigLoadError` if present.
 
 See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for `McpServerConfig` fields.
 

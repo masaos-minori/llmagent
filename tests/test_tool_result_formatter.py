@@ -47,7 +47,6 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "",
         "web_search_url": "http://127.0.0.1:8004",
-        "github_server_url": "http://127.0.0.1:8006",
         "mcp_servers": {"_test": {"transport": "http", "url": "http://localhost:8000"}},
     }
     defaults.update(overrides)

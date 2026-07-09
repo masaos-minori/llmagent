@@ -150,7 +150,6 @@ class TestPrintConfigValues:
         ctx = _make_ctx()
         ctx.cfg.llm.llm_url = "http://llm"
         ctx.cfg.rag.web_search_url = "http://ws"
-        ctx.cfg.mcp.github_server_url = "http://gh"
         ctx.cfg.tool.max_tool_turns = 5
         ctx.cfg.llm.http_timeout = 30.0
         ctx.cfg.rag.web_search_max_results = 10
@@ -442,6 +441,40 @@ class TestCmdReload:
         assert "WARNING: Some settings require restart to take effect." in out
         assert "Restart required: [1 items]" in out
         assert "  [RESTART] - server1" in out
+
+    def test_reload_mcp_auth_token_change_prints_restart_not_defer(
+        self, capsys: Any
+    ) -> None:
+        from unittest.mock import patch
+
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        old_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token="old",
+        )
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
+        cmd = _FakeCmd(ctx)
+
+        new_cfg = {
+            "mcp_servers": {
+                "svc": {
+                    "transport": "http",
+                    "url": "http://localhost:8080",
+                    "auth_token": "new",
+                }
+            }
+        }
+        with patch("shared.config_loader.ConfigLoader.load_all", return_value=new_cfg):
+            cmd._cmd_reload()
+
+        out = capsys.readouterr().out
+        assert "[RESTART] - mcp/svc.auth_token" in out
+        assert "[DEFER]" not in out
 
     def test_reload_shows_skipped_items(self, capsys: Any) -> None:
         from unittest.mock import patch

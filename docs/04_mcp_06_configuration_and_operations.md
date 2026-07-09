@@ -31,6 +31,16 @@ health probes, audit log reading, and the new-server addition checklist.
 | `config/agent.toml` → `mcp_watchdog_interval` | Watchdog poll interval (0 = disabled) |
 | `config/agent.toml` → `mcp_watchdog_max_restarts` | Watchdog max restart count |
 
+**Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
+runtime — MCP server definition changes (URL, auth token, startup mode,
+transport, command, environment) are always reported as restart-required
+and require a full agent restart to take effect. The watchdog
+(`mcp_watchdog_interval`, `mcp_watchdog_max_restarts` above) restarts a
+*failed* subprocess using its existing startup config; it does not read or
+apply any pending `/reload` config change. See
+[Agent Operations: MCP restart requirement](05_agent_10_operations-and-observability.md)
+for the full explanation.
+
 ### Per-server config files
 
 | Server | Config file |

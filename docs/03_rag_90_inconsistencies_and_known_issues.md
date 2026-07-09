@@ -54,14 +54,16 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### OPEN-01: CLI ingestion does not invalidate the semantic cache
 
-**Status:** Open design question
-**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()` at line 661
+**Status:** Open design question (verified against implementation 2026-07-09)
+**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()` calls
+`ingester.ingest_all(args.force)` at line 620
 **Impact:** After a CLI `rag-ingest` run, any running `RagPipeline` instance (e.g. inside
 the MCP server) retains stale semantic cache entries. Subsequent queries may return cached
 results that no longer reflect the updated document corpus.
 **Root cause:** `main()` calls `ingester.ingest_all(args.force)` without passing an
-`on_ingest_complete` callback. The callback is the only mechanism for post-ingestion cache
-invalidation.
+`on_ingest_complete` callback. `RagIngester.ingest_all()` accepts
+`on_ingest_complete: Callable[[], None] | None = None` (line 95) and forwards it (line 132);
+this callback is the only mechanism for post-ingestion cache invalidation.
 **Recommended action:** Pass `pipeline.semantic_cache.invalidate` as `on_ingest_complete`
 in callers that require fresh results immediately after ingestion.
 
@@ -69,15 +71,25 @@ in callers that require fresh results immediately after ingestion.
 
 ### OPEN-02: `delete_document()` does not invalidate the semantic cache
 
-**Status:** Open design question
-**Affected code:** `scripts/mcp/rag_pipeline/service.py` — `delete_document()`
+**Status:** Open design question (verified against implementation 2026-07-09 — affected
+code path updated, root cause unchanged)
+**Affected code:** The deletion logic moved out of `service.py` since this entry was
+written. Actual chain: `scripts/mcp/rag_pipeline/service.py::RagPipelineMCPService.fmt_delete_document()`
+(the `rag_delete_document` MCP tool handler, line 197) calls
+`scripts/mcp/rag_pipeline/document_manager.py::DocumentManager.delete_document()` (line 72),
+which deletes `chunks_vec` and `documents` rows directly via SQL.
 **Impact:** After a document is deleted via `rag_delete_document` MCP tool, cached semantic
 search results that referenced the deleted document remain in `SemanticCache` until the
 next `invalidate()` call or process restart.
-**Root cause:** `delete_document()` removes DB rows but does not call
-`pipeline.semantic_cache.invalidate()`. No other invalidation path exists in the MCP service.
-**Recommended action:** Call `self.pipeline.semantic_cache.invalidate()` at the end of
-`delete_document()`, or document that callers must trigger cache invalidation separately.
+**Root cause:** Neither `fmt_delete_document()` nor `DocumentManager.delete_document()` calls
+`semantic_cache.invalidate()`. `DocumentManager` holds no reference to the pipeline or its
+cache, so it cannot invalidate directly; only `RagPipelineMCPService` (which holds
+`self._pipeline: RagPipelineLike`, and `RagPipeline.semantic_cache` — see
+`scripts/rag/pipeline.py:125`) can. No other invalidation path exists in the MCP service.
+**Recommended action:** In `fmt_delete_document()`, after `self._doc_mgr.delete_document(url)`
+returns `True`, call `self._pipeline.semantic_cache.invalidate()` (guard for
+`self._pipeline is None`, matching `_pipeline_or_raise()`'s existing pattern), or document
+that callers must trigger cache invalidation separately.
 
 ---
 

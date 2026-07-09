@@ -158,7 +158,7 @@ class TestCmdReloadDeferred:
 
         ctx = _make_ctx()
         cmd = _Config(ctx)
-        outcome = ConfigReloadOutcome(deferred=["mcp/svc.auth_token"])
+        outcome = ConfigReloadOutcome(deferred=["example_field"])
 
         with (
             patch(
@@ -177,5 +177,5 @@ class TestCmdReloadDeferred:
 
         out = capsys.readouterr().out
         assert "[DEFER]" in out
-        assert "mcp/svc.auth_token" in out
+        assert "example_field" in out
         assert "Deferred (next connection)" in out

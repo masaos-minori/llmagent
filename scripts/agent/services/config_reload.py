@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from shared.mcp_config import McpServerConfig
+
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
@@ -44,9 +46,40 @@ class ConfigReloadOutcome:
     applied: list[str] = field(default_factory=list)
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    """Fields intentionally ignored by /reload for reasons other than restart-
+    required (e.g. unrecognized keys). MCP server definition changes are never
+    reported here — see needs_restart instead."""
     source_files: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
     startup_only: list[str] = field(default_factory=list)
+
+
+_MCP_SERVER_FIELDS = (
+    "transport",
+    "url",
+    "startup_mode",
+    "healthcheck_mode",
+    "call_timeout_sec",
+    "startup_timeout_sec",
+    "tool_names",
+    "auth_token",
+    "role",
+    "cmd",
+    "env",
+)
+
+
+def _diff_mcp_server_config(old: McpServerConfig, new: McpServerConfig) -> list[str]:
+    """Return names of McpServerConfig fields that differ between old and new.
+
+    Pure comparison — never mutates either argument. Field order follows
+    _MCP_SERVER_FIELDS, so output is deterministic for a given pair of inputs.
+    """
+    return [
+        field_name
+        for field_name in _MCP_SERVER_FIELDS
+        if getattr(old, field_name) != getattr(new, field_name)
+    ]
 
 
 class ConfigReloadService:
@@ -84,7 +117,7 @@ class ConfigReloadService:
         self._reload_approval_settings(ctx, new_cfg)
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
-        result = self._apply_mcp_url_reload(ctx, new_cfg)
+        result = self._classify_mcp_server_changes(ctx, new_cfg)
         self._apply_llm_prompt_params(ctx, new_cfg)
         self._apply_sse_reload_params(ctx, new_cfg)
         service_result = self._sync_services(new_cfg)
@@ -271,38 +304,35 @@ class ConfigReloadService:
             lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v),
         )
 
-    def _apply_mcp_url_reload(
+    def _classify_mcp_server_changes(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> ConfigReloadOutcome:
-        """Update MCP server config; classify transport changes as needs_restart, auth/startup as deferred."""
+        """Classify MCP server definition changes as restart-required, field by field.
+
+        MCP server definitions are restart-time snapshots: ToolExecutor and
+        HttpTransport are built from them at startup, so mutating
+        `ctx.cfg.mcp.mcp_servers` here would desync already-running instances
+        from the reported config. This method only compares; it never writes.
+        """
         from agent.config_builders import (
             _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
 
         result = ConfigReloadOutcome()
         new_mcp = _build_mcp_servers(new_cfg)
+        old_mcp = ctx.cfg.mcp.mcp_servers
         for key, new_srv in new_mcp.items():
-            old_srv = ctx.cfg.mcp.mcp_servers.get(key)
+            old_srv = old_mcp.get(key)
             if old_srv is None:
-                result.skipped.append(f"mcp/{key} (new server — restart required)")
-                result.needs_restart.append(key)
-            elif old_srv.transport != new_srv.transport:
-                # Transport type change cannot be applied at runtime
-                result.needs_restart.append(key)
-            else:
-                if old_srv.transport == "http":
-                    old_srv.url = new_srv.url
-                    result.applied.append(f"mcp/{key}")
-                # auth_token and startup_mode are stored in cfg but take effect
-                # only on the next connection, not the currently running process.
-                if old_srv.auth_token != new_srv.auth_token:
-                    old_srv.auth_token = new_srv.auth_token
-                    result.deferred.append(f"mcp/{key}.auth_token")
-                if old_srv.startup_mode != new_srv.startup_mode:
-                    old_srv.startup_mode = new_srv.startup_mode
-                    result.deferred.append(f"mcp/{key}.startup_mode")
+                result.needs_restart.append(f"mcp/{key} (new server)")
+                continue
+            for field_name in _diff_mcp_server_config(old_srv, new_srv):
+                result.needs_restart.append(f"mcp/{key}.{field_name}")
+        for key in old_mcp:
+            if key not in new_mcp:
+                result.needs_restart.append(f"mcp/{key} (removed server)")
         return result
 
     def _apply_llm_prompt_params(
@@ -319,11 +349,6 @@ class ConfigReloadService:
             new_cfg, "llm_max_tokens", lambda v: setattr(cfg.llm, "llm_max_tokens", v)
         )
         _apply_str(new_cfg, "llm_url", lambda v: setattr(cfg.llm, "llm_url", v))
-        _apply_str(
-            new_cfg,
-            "github_server_url",
-            lambda v: setattr(cfg.mcp, "github_server_url", v),
-        )
         _apply_str(
             new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v)
         )

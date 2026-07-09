@@ -46,7 +46,6 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "",
         "web_search_url": "http://127.0.0.1:8004",
-        "github_server_url": "http://127.0.0.1:8006",
         "tool_dedup_max_repeats": 3,
         "tool_cycle_detect_window": 2,
         "tool_error_retry_max": 1,

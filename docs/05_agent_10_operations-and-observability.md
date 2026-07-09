@@ -386,23 +386,45 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT DISTINCT kind FROM session_diagnostic
 
 ## Workflow Startup Validation
 
-When `workflow_mode = "required"` (production default), the agent validates the workflow
-definition file exists before initializing the orchestrator. If the file is missing, a
-`RuntimeError` is raised with actionable guidance.
+The agent unconditionally validates that a workflow definition file exists before
+initializing the orchestrator — there is no config setting to disable or degrade this
+(verified 2026-07-09: `workflow_mode` is not a valid config key — see
+[Configuration: AgentConfig Structure](05_agent_08_configuration.md#agentconfig-structure)).
+If the file is missing, a `RuntimeError` is raised with actionable guidance.
 
 **Expected path:** `config/workflows/default.json`
 
-**Remediation options:**
-- Deploy the workflow definition to the expected path
-- Set `workflow_mode = "disabled"` in config (not recommended for production)
-- Set `workflow_mode = "auto"` for degraded operation (warns and falls back to direct LLM)
+**Remediation:** Deploy the workflow definition to the expected path. There is no config
+toggle to skip this check — a config file that previously set `workflow_mode = "disabled"`
+or `"auto"` will now fail to load entirely (`ConfigLoadError`, since `workflow_mode` is a
+rejected key), rather than reaching the workflow check at all.
 
-The preflight check runs before
-`Orchestrator.__init__()` and produces a clear error message rather than a cryptic
-`WorkflowLoadError` that may not include the expected file path.
+The preflight check (`StartupOrchestrator._check_workflow_definition()` in
+`agent/startup.py`, wrapping `check_workflow_definition()` in `agent/repl_health.py`) runs
+before `Orchestrator.__init__()` and produces a clear error message rather than a cryptic
+`WorkflowLoadError` that may not include the expected file path. `Orchestrator.__init__()`
+itself also unconditionally raises `RuntimeError` if `WorkflowLoader().load()` fails for any
+other reason once past the preflight check.
 
-**Note:** `workflow_mode` is a startup-only setting — it cannot be changed via `/reload`.
-Any change requires a full agent restart.
+**Note:** This validation always runs once at agent boot — it is not a config setting and
+cannot be changed via `/reload`. Any fix requires deploying the workflow definition file and
+restarting the agent.
+
+---
+
+## MCP Server Reload and Restart Semantics
+
+**Note:** MCP server definitions (`transport`, `url`, `startup_mode`,
+`healthcheck_mode`, `call_timeout_sec`, `startup_timeout_sec`, `tool_names`,
+`auth_token`, `role`, `cmd`, `env`) are restart-time snapshots. `/reload`
+detects changes to `[mcp_servers.*]` and reports them as restart-required
+(`[RESTART] - mcp/<server>.<field>`), but never applies them to the running
+process. `/mcp` / `/mcp status` always reflects the running (pre-restart)
+server config, not pending `/reload` changes. Watchdog-triggered restarts
+(`watchdog_loop()`) restart a failed subprocess using its *current* startup
+config — this is health-driven recovery, not config reload, and does not
+apply pending MCP server definition changes either. Only a full agent
+restart applies a changed MCP server definition.
 
 ---
 
@@ -473,7 +495,7 @@ For the canonical partial-completion model → [05_agent_03 §Partial-Completion
 | `Sudachi tokenize error` frequent | sudachidict-core not installed | `pip install sudachidict-core` |
 | llama-server won't start | Model file path or permissions | `ls -lh /opt/llm/models/` |
 | Very high latency | Multiple models loaded, RAM exhausted | Adjust `--threads`; keep total ≤ 4 |
-| `/mcp` shows UNAVAILABLE server | Health registry marked server unavailable | Restart the MCP server; `/reload` |
+| `/mcp` shows UNAVAILABLE server | Health registry marked server unavailable | Check watchdog logs for auto-restart attempts; if the server *definition* (URL, auth, transport, etc.) changed, a full agent restart is required — `/reload` does not apply MCP config changes |
 
 ---
 

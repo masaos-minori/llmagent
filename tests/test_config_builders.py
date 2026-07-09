@@ -164,6 +164,16 @@ class TestBuildAgentConfig:
         with pytest.raises(ConfigLoadError, match="workflow_require_approval"):
             build_agent_config({**_MIN_CFG, "workflow_require_approval": False})
 
+    def test_config_with_github_server_url_key_raises(self) -> None:
+        with pytest.raises(ConfigLoadError, match="github_server_url"):
+            build_agent_config({**_MIN_CFG, "github_server_url": "http://old"})
+
+    def test_config_with_github_server_url_key_message_mentions_replacement(
+        self,
+    ) -> None:
+        with pytest.raises(ConfigLoadError, match="mcp_servers.github"):
+            build_agent_config({**_MIN_CFG, "github_server_url": "http://old"})
+
 
 # ── load_config ───────────────────────────────────────────────────────────────
 

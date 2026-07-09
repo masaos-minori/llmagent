@@ -350,7 +350,6 @@ class MCPConfig:
     # Probe interval in seconds; 0 disables watchdog. Default 30s for production self-healing.
     mcp_watchdog_interval: float = 30.0
     mcp_watchdog_max_restarts: int = 3
-    github_server_url: str = "http://127.0.0.1:8006"
     # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
     security_profile: SecurityProfile = SecurityProfile.LOCAL
     # Set to True to suppress deny-all startup warnings when deny-all is intentional.

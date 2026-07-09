@@ -87,7 +87,9 @@ def test_apply_config_dict_use_memory_layer_in_startup_only(
     svc: ConfigReloadService, ctx: MagicMock
 ) -> None:
     ctx.cfg.memory.use_memory_layer = False
-    with patch.object(svc, "_apply_mcp_url_reload", return_value=ConfigReloadOutcome()):
+    with patch.object(
+        svc, "_classify_mcp_server_changes", return_value=ConfigReloadOutcome()
+    ):
         outcome = svc.apply_config_dict({"use_memory_layer": True})
     assert "use_memory_layer" in outcome.startup_only
 
@@ -96,6 +98,8 @@ def test_apply_config_dict_plugin_strict_in_startup_only(
     svc: ConfigReloadService, ctx: MagicMock
 ) -> None:
     ctx.cfg.tool.plugin_strict = False
-    with patch.object(svc, "_apply_mcp_url_reload", return_value=ConfigReloadOutcome()):
+    with patch.object(
+        svc, "_classify_mcp_server_changes", return_value=ConfigReloadOutcome()
+    ):
         outcome = svc.apply_config_dict({"plugin_strict": True})
     assert "plugin_strict" in outcome.startup_only

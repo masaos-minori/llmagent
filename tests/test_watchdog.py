@@ -38,6 +38,44 @@ def _make_srv_cfg(
     return srv_cfg
 
 
+# ── reload classification isolation ──────────────────────────────────────────
+
+
+def test_watchdog_sees_unchanged_config_after_reload_classification() -> None:
+    """Reload classification must not alter the dict watchdog_loop reads from."""
+    from agent.services.config_reload import ConfigReloadService
+    from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+    old_srv = McpServerConfig(
+        transport=TransportType.HTTP,
+        url="http://localhost:8080",
+        cmd=["python", "s.py"],
+        startup_mode=StartupMode.SUBPROCESS,
+    )
+    ctx = _make_ctx()
+    ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
+
+    new_srv = McpServerConfig(
+        transport=TransportType.HTTP,
+        url="http://127.0.0.1:9999",
+        cmd=[],
+        startup_mode=StartupMode.PERSISTENT,
+    )
+    svc = ConfigReloadService(ctx)
+    with patch(
+        "agent.config_builders._build_mcp_servers", return_value={"svc": new_srv}
+    ):
+        outcome = svc._classify_mcp_server_changes(ctx, {})
+
+    # What watchdog_loop() would read is exactly this object, unchanged:
+    watchdog_visible = ctx.cfg.mcp.mcp_servers["svc"]
+    assert watchdog_visible is old_srv
+    assert watchdog_visible.url == "http://localhost:8080"
+    assert watchdog_visible.startup_mode == StartupMode.SUBPROCESS
+    assert "mcp/svc.url" in outcome.needs_restart
+    assert "mcp/svc.startup_mode" in outcome.needs_restart
+
+
 # ── _watchdog_check_http() ────────────────────────────────────────────────────
 
 

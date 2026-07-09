@@ -121,7 +121,15 @@ class ToolExecutor:
         self._plugin_invoker = PluginToolInvoker()
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
-        """Update hot-reloadable configuration fields without recreating the instance."""
+        """Update hot-reloadable configuration fields without recreating the instance.
+
+        Only `cache_ttl` is hot-reloadable here. The following are restart-required
+        and are never touched by this method: server configs (`_server_configs`),
+        HTTP transports (`_transports`), the route resolver (`_resolver`), server
+        add/remove, and concurrency limits/semaphores (`_concurrency_limits`,
+        `_semaphores`). MCP server definitions are restart-time snapshots — see
+        `ConfigReloadService._classify_mcp_server_changes()`.
+        """
         if cache_ttl is not None:
             self._cache_ttl = cache_ttl
 

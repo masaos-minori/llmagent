@@ -131,7 +131,6 @@ class TestPrintConfigValues:
         expected_snippets = [
             "Settings:",
             "  llm_url             : ",
-            "  github_server_url   : http://127.0.0.1:8006",
             "  max_tool_turns      : 5",
             "  http_timeout        : 30.0s",
             "  context_char_limit  : 8000",

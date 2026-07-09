@@ -95,8 +95,14 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/mcp` | HTTP probe to all MCP servers | Displays health table |
-| `/mcp status` | HTTP probe to all MCP servers | Displays health table |
+| `/mcp` | HTTP probe to all MCP servers | Displays health table (running config only) |
+| `/mcp status` | HTTP probe to all MCP servers | Displays health table (running config only) |
+
+`/mcp` / `/mcp status` is a health view of the **currently running** MCP
+server configuration — it is not a preview of pending `/reload` changes.
+After `/reload` reports `[RESTART]` items, `/mcp` continues to show the
+pre-reload servers, URLs, and auth state until the agent is actually
+restarted.
 
 ### Config / stats category
 
@@ -246,14 +252,15 @@ set for auto-resume — no re-execution of prior steps is needed.
 ```
 Config reloaded — some changes require restart
 WARNING: Some settings require restart to take effect.
-Restart required: [1 items]
+Restart required: [4 items]
   [RESTART] - server1
+  [RESTART] - mcp/server.url
+  [RESTART] - mcp/server.startup_mode
+  [RESTART] - mcp/server2.auth_token
 Applied (runtime): [3 items]
   [OK] - llm
   [OK] - hist_mgr
   [OK] - tools
-Deferred (next connection): [1 items]
-  [DEFER] - mcp/server2.auth_token
 Startup-only (ignored): [1 items]
   [STARTUP-ONLY] - use_memory_layer
 ```
@@ -270,7 +277,7 @@ If the file cannot be read: `Reload failed (I/O error): <message>`
 | Deferred | `[DEFER]` | Stored in cfg; effective on next connection/subprocess start |
 | Restart-required | `[RESTART]` | Requires full agent restart |
 | Startup-only | `[STARTUP-ONLY]` | Read once at boot; ignored by `/reload` even if changed |
-| Skipped | `[SKIP]` | New MCP server — restart required |
+| Skipped | `[SKIP]` | Changes intentionally ignored, not MCP server definitions — see Restart-required |
 
 See [Configuration: Config file reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
 

@@ -622,6 +622,11 @@ async def watchdog_loop(ctx: AgentContext) -> None:
     Runs until cancelled (e.g. when the REPL exits).
     Restart attempts per server are capped at mcp_watchdog_max_restarts to
     prevent infinite restart loops.
+
+    Reads `ctx.cfg.mcp.mcp_servers` directly on every iteration. MCP server
+    definitions are restart-time snapshots (see ConfigReloadService); `/reload`
+    never mutates this dict, so the watchdog always observes the startup-time
+    URL and startup_mode, never a pending-restart value.
     """
     interval = ctx.cfg.mcp.mcp_watchdog_interval
     max_restarts = ctx.cfg.mcp.mcp_watchdog_max_restarts
@@ -680,7 +685,11 @@ def audit_security_defaults(
     # Check auth_token settings
     violations: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-        if not srv_cfg.auth_token and srv_cfg.transport == TransportType.HTTP and srv_cfg.url:
+        if (
+            not srv_cfg.auth_token
+            and srv_cfg.transport == TransportType.HTTP
+            and srv_cfg.url
+        ):
             msg = f"{key}: no auth_token configured (auth disabled)"
             violations.append(msg)
 
