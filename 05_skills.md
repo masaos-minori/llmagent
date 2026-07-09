@@ -53,7 +53,7 @@ Acceptance criteria:
 
 #### Step 2: Reorganize files based on the Context Loader Pattern
 
-Perform after step 1 is complete.
+Perform after Step 1 is complete.
 
 Apply the following structure:
 - Put task routing rules in `AGENTS.md`.
@@ -69,9 +69,9 @@ Acceptance criteria:
 - Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
 - Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific skill files.
 
-### Required Output
+#### Step 3: Report results
 
-After completing all steps, report:
-- which files were modified and what changed
-- which content was moved and where it now lives
-- any proposals deferred because the change was ambiguous or risky
+After completing Step 1 and Step 2, report:
+- which files were modified and what changed,
+- which content was moved and where it now lives,
+- any proposals deferred because the change was ambiguous or risky.

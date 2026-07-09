@@ -29,6 +29,7 @@ Report progress at the start and end of each step.
 まだ読み込んでいないなら、Read the following before starting:
 - `routing.md`
 - `skills/python-documentation/SKILL.md`
+- `skills/python-documentation/workflow.md`
 
 #### Step 1: Document structure and separation
 
@@ -56,14 +57,9 @@ The documentation (`docs/*.md`) serves as the Single Source of Truth (SSOT).
 - Code vs. Doc Alignment: If docs and code disagree, update `docs/*.md` to reflect the actual implemented behavior. Code is the authority.
 - Internal Consistency: Review and correct any inconsistent terminology, structural contradictions, or factual errors within `docs/*.md`.
 
-### Evidence Standard
+#### Step 3: Classify evidence
 
 For every meaningful addition or correction:
-- identify the code evidence,
-- classify it as:
-  - Explicit in code
-  - Strongly implied by code
-  - Needs confirmation
-
-If something is only implied, phrase it carefully.
-Do not present uncertain intent as confirmed fact.
+- Identify the code evidence.
+- Classify it as: Explicit in code / Strongly implied by code / Needs confirmation.
+- If something is only implied, phrase it carefully. Do not present uncertain intent as confirmed fact.

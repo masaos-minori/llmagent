@@ -8,112 +8,111 @@ Read the source code and the existing design documents, then update the design d
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
-### Rules
-
-- Prefer code over docs when they disagree.
-- Do not invent intent that is not supported by code, naming, flow, comments, tests, or usage.
-- If intent is uncertain, mark it as: **Needs confirmation**
-- Preserve the existing document structure as much as possible.
-- Add clarification; avoid unnecessary rewrites.
-- Do not remove content unless it is clearly wrong and contradicted by implementation.
-- Do not document private methods, private attributes, or private functions (names starting with `_`).
-- If docs and code disagree:
-  - document the current implemented behavior,
-  - note the mismatch if needed,
-  - do not silently hide the inconsistency.
-- Focus on documenting intent such as:
-  - why a component exists,
-  - what boundary it enforces,
-  - why a fallback exists,
-  - why ordering or lifecycle behavior exists,
-  - why storage/config/schema separation exists,
-  - why failure is handled as warning vs hard failure,
-  - what is intentional vs incidental.
-
-### Scope of Analysis
-
-When updating a document, inspect:
-- the document itself,
-- the source files it describes,
-- closely related callers and callees,
-- config files if behavior depends on configuration,
-- tests if they clarify intent.
-
-Read enough context to infer intent, but do not drift into unrelated subsystems unless necessary.
-
-### What to Add
-
-Add short, implementation-backed sections such as:
-- Implementation note
-- Current behavior
-- Intent inferred from code
-- Failure behavior
-- Boundary and ownership
-- Operational rationale
-- Why this exists
-- What this component intentionally does NOT do
-
-### What NOT to Add
-
-Do not add:
-- generic textbook explanations,
-- ungrounded speculation,
-- future roadmap ideas unless already implied in code or docs,
-- implementation details with no design relevance,
-- broad refactoring proposals inside the document body,
-- private methods, private attributes, or private functions (e.g. `_method`, `__method`) — document only the public API surface; internal implementation details are not part of the design contract.
-
-### Evidence Standard
-
-For every meaningful addition:
-- identify the code evidence,
-- classify it as:
-  - Explicit in code
-  - Strongly implied by code
-  - Needs confirmation
-
-If something is only implied, phrase it carefully.
-Do not present uncertain intent as confirmed fact.
-
-### Writing Style
-
-- Write in Japanese unless the target document is clearly English-only.
-- Use concise, professional Markdown.
-- Do not bloat the documents.
-- Prefer short, high-value paragraphs or bullet points.
-
-### Edit Strategy
-
-- Keep existing headings where possible.
-- Add small subsections such as:
-  - 実装意図
-  - 実装上の補足
-  - 現在の実装挙動
-  - 境界条件
-  - 失敗時の意図
-- If a section already exists, extend it instead of duplicating it.
-
 ### Tasks
 
 Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
-Read the following before starting:
+まだ読み込んでいないなら、Read the following before starting:
 - `routing.md`
 - `skills/python-documentation/SKILL.md`
+- `skills/python-documentation/workflow.md`
 
-#### Step 1: Update each design document
+#### Step 1: Identify target design documents
 
-For each relevant design document:
-1. Read the document.
-2. Read the related source code.
-3. Find implementation intent that is missing or unclear in the document.
-4. Add that intent in a clean, reviewable way.
+- Objective: synchronize the design documents under `docs/` with the implementation under `script/`. Treat the Python implementation as the single source of truth.
+- Work document-by-document. Do not read the entire repository, all documentation files, or all source files at once.
+- Use a search-first workflow: search → identify → inspect → update.
 
-### Required Output
+#### Step 2: Read the document and related source code
 
-For each updated file, report:
-- what was added or changed
-- evidence classification (Explicit in code / Strongly implied / Needs confirmation)
-- any mismatches noted between docs and code
+For each target design document:
+- Read the document.
+- Identify related implementation files:
+  - the source files it describes,
+  - closely related callers/callees,
+  - config files, if behavior depends on configuration,
+  - tests, if they clarify intent.
+- Read only the files directly relevant to the current document. Reuse previously collected information instead of re-reading files.
+
+#### Step 3: Compare documentation with implementation
+
+Check the document against the implementation for mismatches in:
+- APIs, classes, functions,
+- configuration, CLI options, environment variables,
+- runtime behavior, startup flow, error handling,
+- architecture descriptions, usage examples.
+
+Rules for this comparison:
+- Prefer code over docs when they disagree.
+- Do not invent intent that is not supported by code, naming, flow, comments, tests, or usage.
+- If intent is uncertain, mark it as: **Needs confirmation**
+- If docs and code disagree, document the current implemented behavior, note the mismatch, and do not silently hide the inconsistency.
+- Do not document private methods, private attributes, or private functions (names starting with `_`).
+
+When documenting intent, focus on:
+- why a component exists,
+- what boundary it enforces,
+- why a fallback exists,
+- why ordering or lifecycle behavior exists,
+- why storage/config/schema separation exists,
+- why failure is handled as warning vs hard failure,
+- what is intentional vs incidental.
+
+#### Step 4: Update the document
+
+Structure:
+- Preserve the existing document structure as much as possible. Add clarification instead of rewriting.
+- Do not remove content unless it is clearly wrong and contradicted by implementation.
+- Keep existing headings where possible. If a section already exists, extend it instead of duplicating it.
+
+Content to add, as short implementation-backed subsections:
+- 実装意図 (Implementation note)
+- 実装上の補足 (Current behavior)
+- 現在の実装挙動 (Intent inferred from code)
+- 境界条件 (Boundary and ownership)
+- 失敗時の意図 (Failure behavior)
+- Operational rationale
+- Why this exists
+- What this component intentionally does NOT do
+
+Content to avoid:
+- generic textbook explanations,
+- ungrounded speculation,
+- future roadmap ideas, unless already implied in code or docs,
+- implementation details with no design relevance,
+- broad refactoring proposals inside the document body.
+
+Format:
+- Preserve or add YAML front matter.
+- Add a Related Documents section with relative links.
+- Add Keywords.
+- Structure content for LLM/RAG/coding-agent consumption.
+- Preserve existing navigation and cross-references.
+
+Style:
+- Write in Japanese, unless the target document is clearly English-only.
+- Use concise, professional Markdown. Do not bloat the documents.
+
+#### Step 5: Classify evidence
+
+For every meaningful addition:
+- Identify the code evidence.
+- Classify it as: Explicit in code / Strongly implied by code / Needs confirmation.
+- If something is only implied, phrase it carefully. Do not present uncertain intent as confirmed fact.
+
+#### Step 6: Report results
+
+Per-file report, for each updated file:
+- what was added or changed,
+- evidence classification (Explicit in code / Strongly implied by code / Needs confirmation),
+- any mismatches noted between docs and code.
+
+Run summary: create or update `docs/99_documentation_sync_report.md` covering the whole run:
+- updated files,
+- major discrepancies found,
+- removed outdated content,
+- newly documented behavior,
+- Needs Confirmation items,
+- areas requiring human review.

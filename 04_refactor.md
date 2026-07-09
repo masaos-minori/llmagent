@@ -8,19 +8,6 @@ Read the target source files passed as arguments, then refactor them based on th
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports and per-file results. Be concrete and implementation-oriented.
 
-### Tasks
-
-Report progress at the start and end of each step.
-Refactor the target files passed as arguments. If no arguments are given, stop and ask which files to refactor.
-
-#### Step 0: Load required files
-
-まだ読み込んでいないなら、Read the following before starting:
-- `routing.md`
-- `rules/coding.md`
-- `rules/toolchain.md`
-- `skills/python-refactoring/SKILL.md`
-
 ### Core Rules
 
 - Change only one feature or one responsibility at a time.
@@ -46,18 +33,33 @@ Refactor the target files passed as arguments. If no arguments are given, stop a
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 
-### Procedure
+### Tasks
 
-#### 1. Preparation
+Report progress at the start and end of each step.
+
+#### Step 0: Load required files
+
+まだ読み込んでいないなら、Read the following before starting:
+- `routing.md`
+- `rules/coding.md`
+- `rules/toolchain.md`
+- `skills/python-refactoring/SKILL.md`
+
+#### Step 1: Identify target files
+
+- Refactor the target files passed as arguments.
+- If no arguments are given, stop and ask which files to refactor.
+
+#### Step 2: Preparation
 
 - Use `pydeps` to inspect the import graph.
 - Use `rg` to find symbol usages.
 - Use `import-linter` to verify module boundaries.
 - Use `ast-grep` for structural usage search.
-- Identify files affected by `deploy.sh`.
+- Check whether the target files are referenced in `deploy.sh`.
 - Record the impact scope in a table.
 
-#### 2. Behavior Lock
+#### Step 3: Behavior lock
 
 - Record baseline coverage with `pytest-cov`.
 - If coverage is below 80%, add characterization tests.
@@ -65,52 +67,48 @@ Refactor the target files passed as arguments. If no arguments are given, stop a
 - Run `mutmut`.
 - Ensure there are no surviving mutations in the refactored paths.
 
-#### 3. Transformation
+#### Step 4: Transformation
 
 - Use `libcst` for symbol-level refactoring when needed.
 - Run `ruff` after each transformation.
 - Ensure no legacy symbol names remain.
 
-#### 4. Validation
+#### Step 5: Validation
 
 Refer to `rules/toolchain.md` for the canonical validation sequence. At minimum:
-
 - Run `mypy`.
 - Cross-check with `pyright`.
 - Run `ruff`.
 - Run characterization tests.
 
-#### 5. Incremental Migration
+#### Step 6: Incremental migration
 
 - Commit each logical unit separately.
 - Ensure every commit is rollback-safe.
 - Stage changes per hunk with `git add -p` (or `lazygit` as an optional alternative).
 - Run tests, `ruff`, and `mypy` at each step.
 
-#### 6. CI Gate
+#### Step 7: CI gate
 
 Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
-
 - Run `pre-commit run --all-files`.
 - Run `lint-imports`.
 - Run `diff-cover`.
 - Review changes with `git log` and `git diff`.
 - Ensure no legacy symbol names remain.
 
-### Required Output
+#### Step 8: Report results
 
-For each file, report:
-- what changed
-- why it changed
-- whether behavior was preserved
-- proposals not implemented because they may affect behavior
-
-Keep diffs minimal.
+Keep diffs minimal. For each file, report:
+- what changed,
+- why it changed,
+- whether behavior was preserved,
+- proposals not implemented because they may affect behavior.
 
 ### Special Cases
 
 - If refactoring `tool_executor.py` or `route_resolver.py`, perform extra verification for MCP routing.
-- Update `config/agent.toml` if required.
+- If required, update `config/agent.toml`.
 - If modules are added or removed, update:
   - `deploy.sh`
   - `routing.md`

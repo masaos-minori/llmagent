@@ -51,27 +51,28 @@ Use the following section structure in the work plan:
 - Identify the source files relevant to the work plan from the `Affected areas` and `Design` sections of the plan, and from related documentation.
 - Read those files.
 
-#### Step 4: Analyze Unknowns
+#### Step 4: Analyze unknowns
 
 - Analyze the `Unknowns` section in the work plan.
 - Update the work plan with the analysis results.
 
-#### Step 5: Resolve Unknowns
+#### Step 5: Resolve unknowns
 
-If all unknowns were resolved in step 4, skip this step.
+If all unknowns were resolved in Step 4, skip this step.
 
-- If any `Unknowns` cannot be resolved through analysis, ask the user questions.
-- Reflect the answers in the work plan.
-- If any issues remain unresolved, output them as a GitHub Issue Markdown template file.
-  - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Filename: `issues/{timestamp}_unknowns.md`
-  - 1 issue = 1 section
+- If any `Unknowns` cannot be resolved through analysis:
+  - Ask the user questions.
+  - Reflect the answers in the work plan.
+  - If any unknowns still remain unresolved, output them as a GitHub Issue Markdown template file:
+    - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
+    - Filename: `issues/{timestamp}_unknowns.md`
+    - 1 issue = 1 section
 
-#### Step 6: Analyze Risks
+#### Step 6: Analyze risks
 
 - Analyze the `Risks` section in the work plan.
 - Add any necessary mitigation steps to the work plan.
-- If any issues remain unresolved, output them as a GitHub Issue Markdown template file.
+- If any risks remain unmitigated, output them as a GitHub Issue Markdown template file:
   - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
   - Filename: `issues/{timestamp}_risks.md`
   - 1 issue = 1 section

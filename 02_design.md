@@ -39,13 +39,13 @@ Report progress at the start and end of each step.
 
 For each item in `Implementation steps`:
 
-- Check whether it has already been implemented.
-  - An item is considered already implemented if a corresponding file exists under `implementations/` or `implementations/done/`.
-- If not yet implemented, create a file-level implementation and test procedure document.
-- `target_file_name` is the name of the file to implement and test.
-- Create the document only. Do not implement anything.
-- Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-- Save the document as `implementations/{timestamp}_{target_file_name}.md`.
+- `target_file_name` is the name of the file that item implements and tests.
+- Check whether the item has already been implemented: it is considered already implemented if a corresponding file exists under `implementations/` or `implementations/done/`.
+- If already implemented, skip this item.
+- If not yet implemented, create the document only (do not implement anything):
+  - Create a file-level implementation and test procedure document.
+  - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
+  - Save the document as `implementations/{timestamp}_{target_file_name}.md`.
 
 Use this section structure:
 - Goal
