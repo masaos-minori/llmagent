@@ -14,8 +14,6 @@ from typing import Any, Protocol, cast
 
 import httpx
 import orjson
-from rag.types import RagHit
-
 from mcp.rag_pipeline.document_manager import DocumentManager
 from mcp.rag_pipeline.models import (
     PipelineCapture,
@@ -26,6 +24,7 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
+from rag.types import RagHit
 
 logger = logging.getLogger(__name__)
 

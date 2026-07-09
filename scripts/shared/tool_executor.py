@@ -17,7 +17,6 @@ from collections import OrderedDict
 from typing import Any, Protocol
 
 import httpx
-
 from shared.http_transport import HttpTransport, TransportError
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
@@ -121,9 +120,7 @@ class ToolExecutor:
         self._plugin_invoker = PluginToolInvoker()
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
-        """Update hot-reloadable configuration fields without recreating the instance.
-
-        """
+        """Update hot-reloadable configuration fields without recreating the instance."""
         if cache_ttl is not None:
             self._cache_ttl = cache_ttl
 

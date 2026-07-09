@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 import httpx
 import orjson
-
 from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
 
 logger = logging.getLogger(__name__)

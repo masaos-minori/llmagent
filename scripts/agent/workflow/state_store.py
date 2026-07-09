@@ -10,9 +10,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from db.helper import SQLiteHelper
-
 from agent.workflow.models import AttemptRecord, TaskRecord
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 

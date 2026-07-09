@@ -15,9 +15,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rag.stage import StageResult
 
-from shared.types import MergedHit, RagHit, RankedHit, RawHit
-
 from rag.models_result import SearchDiagnostics
+from shared.types import MergedHit, RagHit, RankedHit, RawHit
 
 __all__ = [
     "MergedHit",

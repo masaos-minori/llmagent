@@ -6,7 +6,6 @@ import logging
 from collections.abc import AsyncIterator, Callable
 
 import httpx
-
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_sse_helpers import LlmSseHelpers
 from shared.llm_transport_errors import LlmTransportErrorHandler

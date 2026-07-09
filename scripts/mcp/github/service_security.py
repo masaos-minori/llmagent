@@ -19,7 +19,6 @@ from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
-
 from mcp.github.mapper import issue_to_info, pr_to_info
 from mcp.github.models_config import GitHubConfig
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from agent.services.models import DbRecoverResult, RagConsistencyResult
 from db.helper import SQLiteHelper
 from db.rag_consistency import (
     check_rag_consistency,
@@ -14,8 +15,6 @@ from db.rag_consistency import (
     summarize_issues,
 )
 from db.recovery import recover_corruption
-
-from agent.services.models import DbRecoverResult, RagConsistencyResult
 
 
 class RagMaintenanceService:

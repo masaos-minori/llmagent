@@ -10,10 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
-
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
+from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 
 if TYPE_CHECKING:
     from agent.config_dataclasses import AgentConfig

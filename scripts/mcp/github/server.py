@@ -41,7 +41,6 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.github.exception_handlers import setup_exception_handlers

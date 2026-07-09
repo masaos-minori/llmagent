@@ -14,7 +14,6 @@ from http import HTTPStatus
 
 import httpx
 import orjson
-
 from mcp.cicd.models import (
     CicdAuthorizationError,
     CicdNotFoundError,

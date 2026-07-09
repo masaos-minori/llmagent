@@ -6,19 +6,17 @@ import asyncio
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
-from shared.types import RagConfig
-
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
+from shared.types import RagConfig
 
 if TYPE_CHECKING:
     import httpx
     from db.helper import SQLiteHelper
 
-from shared.logger import Logger
-
 from rag.models_result import SearchDiagnostics
 from rag.types import RawHit
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/search.log")
 
@@ -32,7 +30,6 @@ async def _search_all_queries(
 ) -> tuple[list[list[RawHit]], SearchDiagnostics]:
     """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
     import httpx as _httpx  # noqa: PLC0415 — lazy: avoids circular import at module level
-
     from rag.llm_client import (
         get_embedding,  # noqa: PLC0415 — lazy: avoids circular import at module level
     )

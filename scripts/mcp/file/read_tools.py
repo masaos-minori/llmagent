@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
-
 from mcp.file.read_models import (
     DirectoryTreeRequest,
     GetFileInfoRequest,
@@ -24,6 +22,7 @@ from mcp.file.read_models import (
     ReadTextFileRequest,
     SearchFilesRequest,
 )
+from pydantic import BaseModel
 
 
 def _input_schema(model: type[BaseModel]) -> dict[str, Any]:

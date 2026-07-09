@@ -9,6 +9,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from agent.services.models import (
+    DbCheckpointResult,
+    DbHealth,
+    DbPurgeResult,
+    DbRecoverResult,
+    DbStats,
+)
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
@@ -17,14 +24,6 @@ from db.maintenance import (
     vacuum_db,
 )
 from db.recovery import recover_corruption
-
-from agent.services.models import (
-    DbCheckpointResult,
-    DbHealth,
-    DbPurgeResult,
-    DbRecoverResult,
-    DbStats,
-)
 
 
 class DbMaintenanceService:

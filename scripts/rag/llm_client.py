@@ -17,10 +17,6 @@ from collections.abc import Mapping
 
 import httpx
 import orjson
-from shared.config_loader import ConfigLoader
-from shared.json_utils import dumps as _json_dumps
-from shared.types import LLMMessage
-
 from rag.llm_prompts import (
     _MQE_MAX_TOKENS,
     _MQE_TEMPERATURE,
@@ -44,6 +40,9 @@ from rag.llm_prompts import (
 from rag.types import (
     RagHit,  # noqa: F401 — imported for use in this module
 )
+from shared.config_loader import ConfigLoader
+from shared.json_utils import dumps as _json_dumps
+from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 

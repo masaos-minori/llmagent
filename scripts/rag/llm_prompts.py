@@ -32,7 +32,6 @@ from dataclasses import dataclass
 from typing import NotRequired, TypedDict, cast
 
 import orjson
-
 from rag.types import (
     RagHit,  # noqa: F401 — imported for use in this module
     RankedHit,

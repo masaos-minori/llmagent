@@ -6,12 +6,11 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
-
 from eventbus.db import ack_event as _ack_event
 from eventbus.db import get_db_lock
 from eventbus.db import nack_event as _nack_event
 from eventbus.offsets import write_offset
+from fastapi import HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
 

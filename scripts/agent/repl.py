@@ -28,9 +28,6 @@ import sqlite3
 import time
 from typing import TYPE_CHECKING
 
-from db.helper import SQLiteHelper
-from shared.logger import Logger
-
 from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
@@ -38,6 +35,8 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
 from agent.repl_health import watchdog_loop
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from db.helper import SQLiteHelper
+from shared.logger import Logger
 
 if TYPE_CHECKING:
     from agent.orchestrator import Orchestrator
@@ -237,9 +236,7 @@ class AgentREPL:
                 "turns": stats.stat_turns,
                 "tool_calls": stats.stat_tool_calls,
                 "tool_errors": stats.stat_tool_errors,
-                "partial_completions": (
-                    llm.stat_partial_completions if llm is not None else 0
-                ),
+                "partial_completions": stats.stat_partial_completions,
                 "parse_errors": llm.stat_parse_errors if llm is not None else 0,
                 "heartbeat_timeouts": (
                     llm.stat_heartbeat_timeouts if llm is not None else 0
@@ -404,10 +401,9 @@ class AgentREPL:
                     f"Unknown command: {line}  (type /help for commands)"
                 )
         else:
-            llm = ctx.services_required.llm
-            _prev_partial = llm.stat_partial_completions if llm is not None else 0
+            _prev_partial = ctx.stats.stat_partial_completions
             await self._orchestrator.handle_turn(line)
-            if llm is not None and llm.stat_partial_completions > _prev_partial:
+            if ctx.stats.stat_partial_completions > _prev_partial:
                 self._view.write_warning(
                     "Partial LLM completion stored. Use /stats to see count."
                 )

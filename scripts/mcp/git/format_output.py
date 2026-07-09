@@ -10,7 +10,6 @@ Import from here:  from mcp.git.format_output import format_status, format_log, 
 from __future__ import annotations
 
 import git
-
 from mcp.git.models import (
     GitAddRequest,
     GitCheckoutRequest,

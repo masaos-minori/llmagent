@@ -12,7 +12,6 @@ from collections.abc import Callable
 
 import httpx
 import orjson
-
 from rag.models_data import TwoStageFetchResult
 
 logger = logging.getLogger(__name__)

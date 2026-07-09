@@ -17,9 +17,6 @@ from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
-from shared.logger import Logger
-
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.mdq.audit_target import extract_audit_target
@@ -44,6 +41,8 @@ from mcp.mdq.service import MdqService
 from mcp.mdq.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, _FastAPIApp, attach_auth_middleware
+from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
 

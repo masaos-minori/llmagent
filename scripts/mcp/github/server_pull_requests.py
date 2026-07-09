@@ -9,7 +9,6 @@ Endpoints: list_pull_requests, get_pull_request, create_pull_request, search_pul
 import time
 
 from fastapi import APIRouter, Depends
-
 from mcp.github.models import (
     CreatePullRequestRequest,
     CreatePullRequestResponse,

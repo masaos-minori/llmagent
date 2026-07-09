@@ -3,9 +3,8 @@
 
 import sqlite3
 
-from db.helper import SQLiteHelper
-
 from agent.memory.exceptions import MemoryConsistencyError
+from db.helper import SQLiteHelper
 
 
 def _count_fts(db: SQLiteHelper) -> int:

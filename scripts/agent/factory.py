@@ -13,15 +13,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
-from shared import plugin_registry
-from shared.git_helper import get_repo_info
-from shared.llm_client import LLMClient
-from shared.logger import Logger
-from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-from shared.mcp_health import McpServerHealthRegistry
-from shared.otel_tracer import build_tracer
-from shared.tool_executor import ToolExecutor
-
 from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
 from agent.history import HistoryManager
@@ -30,6 +21,14 @@ from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.repository_gateway import RepositoryGateway
 from agent.services.models import ProcessInfoSnapshot
+from shared import plugin_registry
+from shared.git_helper import get_repo_info
+from shared.llm_client import LLMClient
+from shared.logger import Logger
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry
+from shared.otel_tracer import build_tracer
+from shared.tool_executor import ToolExecutor
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices

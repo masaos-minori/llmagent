@@ -25,23 +25,21 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from agent.config_builders import build_agent_config
+from agent.session import AgentSession
 from shared.mcp_config import McpServerHealthRegistry
 from shared.types import LLMMessage
 
-from agent.config_builders import build_agent_config
-from agent.session import AgentSession
-
 if TYPE_CHECKING:
     import httpx
-    from shared.llm_client import LLMClient
-    from shared.logger import Logger
-    from shared.tool_executor import ToolExecutor
-
     from agent.diagnostic_store import DiagnosticStore
     from agent.history import HistoryManager
     from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.services import MemoryServices
     from agent.repository_gateway import RepositoryGateway
+    from shared.llm_client import LLMClient
+    from shared.logger import Logger
+    from shared.tool_executor import ToolExecutor
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +100,7 @@ class RuntimeStats:
     stat_memory_consistency_failures: int = 0
     stat_memory_circuit_open: bool = False
     stat_memory_fts_fallback_count: int = 0
+    stat_partial_completions: int = 0
 
 
 @dataclass

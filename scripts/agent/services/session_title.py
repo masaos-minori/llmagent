@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 import orjson
-
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.models import SessionTitleResult
 

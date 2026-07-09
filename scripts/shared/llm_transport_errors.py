@@ -2,7 +2,6 @@
 """shared/llm_transport_errors.py — LLM transport error handling helpers."""
 
 import httpx
-
 from shared.llm_exceptions import LLMTransportError
 
 

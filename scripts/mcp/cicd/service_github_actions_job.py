@@ -13,7 +13,6 @@ import logging
 
 import httpx
 import orjson
-
 from mcp.cicd.models import CicdUpstreamError
 
 from .service_defs import _GH_API_VERSION, _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS

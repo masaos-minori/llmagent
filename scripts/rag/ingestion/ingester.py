@@ -275,9 +275,7 @@ class RagIngester:
         )
 
     @staticmethod
-    def _normalize_chunk_index(
-        doc_id: int, path_name: str, idx_raw: int | str
-    ) -> int:
+    def _normalize_chunk_index(doc_id: int, path_name: str, idx_raw: int | str) -> int:
         """Convert chunk_index to int, falling back to 0 on failure."""
         try:
             return int(idx_raw)

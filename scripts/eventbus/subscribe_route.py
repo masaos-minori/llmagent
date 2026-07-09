@@ -6,10 +6,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
+from eventbus.broker import EventBroker
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
-
-from eventbus.broker import EventBroker
 
 if TYPE_CHECKING:
     from eventbus.config import EventBusConfig  # noqa: F401

@@ -13,9 +13,8 @@ import os as _os
 import sqlite3
 
 from fastapi.responses import JSONResponse
-from shared.config_loader import ConfigLoader
-
 from mcp.health_response import make_health_response
+from shared.config_loader import ConfigLoader
 
 
 def _degraded_response(

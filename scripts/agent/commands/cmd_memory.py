@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import orjson
-
 from agent.commands.enums import MemoryAction
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.memory_status import build_memory_status, build_status_table

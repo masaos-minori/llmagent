@@ -11,13 +11,12 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from shared.mcp_config import McpServerHealthState, TransportType
-
 from agent.lifecycle import LifecycleState
 from agent.repl_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
 from agent.services.models import McpProbeResult
+from shared.mcp_config import McpServerHealthState, TransportType
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

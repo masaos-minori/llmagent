@@ -1,10 +1,9 @@
 """MQE stage for RAG pipeline."""
 
-from shared.types import RagConfig
-
 from rag.llm_client import RagLLM  # noqa: F401 — re-exported for callers
 from rag.llm_prompts import RagExpansionError  # noqa: F401 — re-exported for callers
 from rag.stage import PipelineContext, PipelineStage
+from shared.types import RagConfig
 
 
 async def _run_mqe(query: str, cfg: RagConfig, llm: RagLLM) -> list[str]:

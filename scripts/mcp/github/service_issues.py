@@ -11,7 +11,6 @@ import itertools
 from typing import Any
 
 from github import Github
-
 from mcp.github.models_issues import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,

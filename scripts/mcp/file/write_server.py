@@ -19,9 +19,6 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
-from shared.logger import Logger
-
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.file.common import (
     FileAuthorizationError,
@@ -46,6 +43,8 @@ from mcp.file.write_service import WriteFileService, build_service
 from mcp.file.write_tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
+from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/file-write-mcp.log")
 

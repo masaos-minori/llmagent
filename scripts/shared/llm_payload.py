@@ -4,7 +4,6 @@
 from typing import Any
 
 import orjson
-
 from shared.llm_sse_helpers import LlmSseHelpers
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage

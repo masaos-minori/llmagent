@@ -4,11 +4,10 @@
 import logging
 
 import orjson
-from db.helper import SQLiteHelper
-
 from agent.memory.mapper import _floats_to_blob, _now_iso, _stamp_entry
 from agent.memory.sql_constants import _INSERT_SQL, _UPSERT_SQL
 from agent.memory.types import MemoryEntry
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 

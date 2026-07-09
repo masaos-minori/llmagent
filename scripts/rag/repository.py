@@ -17,7 +17,6 @@ import time
 from typing import Any
 
 from db.helper import SQLiteHelper
-
 from rag.types import (
     MergedHit,
     RagHit,  # noqa: F401 — imported for use in this module

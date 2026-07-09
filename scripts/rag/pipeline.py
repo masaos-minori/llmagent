@@ -27,14 +27,6 @@ from typing import Literal
 
 import httpx
 from db.helper import SQLiteHelper
-from shared.config_loader import ConfigLoader
-from shared.config_validator import RagConfigValidator
-from shared.plugin_registry import (
-    get_pipeline_post_stages,
-    run_pipeline_stages,
-)
-from shared.types import RagConfig
-
 from rag.cache import SemanticCache
 from rag.http_augment import HttpAugment
 from rag.llm_client import RagLLM, get_embedding
@@ -57,6 +49,13 @@ from rag.types import (
     PipelineRunResult,
     RagHit,  # noqa: F401 — re-exported via __all__
 )
+from shared.config_loader import ConfigLoader
+from shared.config_validator import RagConfigValidator
+from shared.plugin_registry import (
+    get_pipeline_post_stages,
+    run_pipeline_stages,
+)
+from shared.types import RagConfig
 
 # Re-export symbols that external callers import from this module
 __all__ = [

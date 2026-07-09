@@ -16,9 +16,8 @@ import orjson
 from shared.tool_executor_helpers import format_transport_error
 
 if TYPE_CHECKING:
-    from shared.llm_client import LLMTransportError
-
     from agent.context import AgentContext
+    from shared.llm_client import LLMTransportError
 
 logger = logging.getLogger(__name__)
 

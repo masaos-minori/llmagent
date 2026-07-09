@@ -13,11 +13,10 @@ import dataclasses
 from typing import Any
 
 from db.helper import SQLiteHelper
-from rag.types import RagHit
-
 from mcp.rag_pipeline.models import (
     DocumentItem,
 )
+from rag.types import RagHit
 
 
 def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:

@@ -73,7 +73,7 @@ class _ConfigStatsMixin(MixinBase):
             llm_retries=_safe(llm, "stat_retries", 0),
             llm_reconnects=_safe(llm, "stat_reconnects", 0),
             llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
-            llm_partial_completions=_safe(llm, "stat_partial_completions", 0),
+            llm_partial_completions=ctx.stats.stat_partial_completions,
             llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
             cache_hits=_safe(ctx.services_required.tools, "stat_cache_hits", 0),
             compress_count=_safe(

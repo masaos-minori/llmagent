@@ -16,7 +16,6 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
-
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_hot_config import LlmHotConfigHandler
 from shared.llm_payload import LlmPayloadHandler
@@ -76,7 +75,7 @@ class LLMClient:
         self.stat_reconnects: int = 0
         self.stat_heartbeat_timeouts: int = 0
         self._heartbeat_timeout_counter: int = 0
-        self.stat_partial_completions: int = 0
+
         self.stat_parse_errors: int = 0
 
     def apply_config(
@@ -197,7 +196,6 @@ class LLMClient:
             self.stat_reconnects += reconnect_count
             self.stat_heartbeat_timeouts += heartbeat_timeouts
             self.stat_parse_errors += parse_errors
-            self.stat_partial_completions += partial_completions
             return llm_response
         except LLMTransportError as exc:
             if hasattr(exc, "stat_heartbeat_timeouts"):

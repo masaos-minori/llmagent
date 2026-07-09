@@ -5,7 +5,6 @@ import logging
 from typing import cast
 
 import orjson
-
 from shared.types import LLMMessage, ToolCallDict
 
 logger = logging.getLogger(__name__)

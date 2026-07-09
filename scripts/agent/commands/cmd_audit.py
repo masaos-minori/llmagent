@@ -15,9 +15,8 @@ from collections.abc import Iterator
 from typing import Any
 
 import orjson
-from shared.json_utils import dumps as _json_dumps
-
 from agent.commands.mixin_base import MixinBase
+from shared.json_utils import dumps as _json_dumps
 
 _AUDIT_TAIL_LINES = 20
 _AUDIT_TOOL_SCAN_LINES = 1000

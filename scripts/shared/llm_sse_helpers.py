@@ -5,7 +5,6 @@ from collections.abc import Callable
 from typing import Any
 
 import orjson
-
 from shared.llm_types import LLMUsage
 from shared.sse_parser import RobustSSEParser
 from shared.types import AccumulatedToolCall, ToolCallDelta

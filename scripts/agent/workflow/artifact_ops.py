@@ -4,9 +4,8 @@
 import uuid
 from datetime import UTC, datetime
 
-from db.helper import SQLiteHelper
-
 from agent.workflow.models import ArtifactRef
+from db.helper import SQLiteHelper
 
 
 def _now() -> str:

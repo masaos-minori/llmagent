@@ -5,11 +5,10 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import Request
-from fastapi.responses import JSONResponse
-
 from eventbus.broker import EventBroker
 from eventbus.db import check_db, get_db_lock
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 if TYPE_CHECKING:
     from eventbus.config import EventBusConfig

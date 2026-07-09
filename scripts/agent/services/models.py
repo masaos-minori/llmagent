@@ -10,17 +10,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from db.models import (
-    PurgeCounts,
-    RagConsistencyReport,
-    WalCheckpointCounts,
-)
-
 from agent.services.enums import (
     ConversationActionType,
     ExportFormat,
     McpAvailability,
     McpTier,
+)
+from db.models import (
+    PurgeCounts,
+    RagConsistencyReport,
+    WalCheckpointCounts,
 )
 
 

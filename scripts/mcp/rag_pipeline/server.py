@@ -26,8 +26,6 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
-
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.health_response import make_health_response
 from mcp.models import CallToolRequest, CallToolResponse
@@ -40,6 +38,7 @@ from mcp.rag_pipeline.models import (
 from mcp.rag_pipeline.service import RagPipelineMCPService, _service
 from mcp.rag_pipeline.tools import TOOL_LIST
 from mcp.server import MCPServer, ToolArgs
+from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 

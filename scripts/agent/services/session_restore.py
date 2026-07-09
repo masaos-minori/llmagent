@@ -15,9 +15,8 @@ from agent.services.exceptions import SessionNotFoundError
 from agent.services.models import SessionRestoreResult
 
 if TYPE_CHECKING:
-    from shared.types import LLMMessage
-
     from agent.context import AgentContext
+    from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 

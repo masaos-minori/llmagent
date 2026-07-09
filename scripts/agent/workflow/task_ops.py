@@ -5,9 +5,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from db.helper import SQLiteHelper
-
 from agent.workflow.models import TaskRecord
+from db.helper import SQLiteHelper
 
 
 def _now() -> str:

@@ -25,8 +25,6 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
-
 from mcp.audit import _audit_log
 from mcp.cicd.exception_handlers import setup_exception_handlers
 from mcp.cicd.models import (
@@ -41,6 +39,7 @@ from mcp.server import (
     MCPServer,
     attach_auth_middleware,
 )
+from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 

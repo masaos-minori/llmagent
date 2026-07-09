@@ -7,7 +7,6 @@ from typing import Any
 
 import httpx
 import orjson
-
 from shared.mcp_config import McpServerConfig
 from shared.transport_dto import ToolCallResult
 

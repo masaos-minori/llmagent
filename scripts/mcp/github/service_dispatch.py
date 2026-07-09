@@ -13,9 +13,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 
-from shared.formatters import fmt_md_link
-from shared.json_utils import dumps as _json_dumps
-
 from mcp.github.models import (
     AddIssueCommentRequest,
     CreateBranchRequest,
@@ -28,6 +25,8 @@ from mcp.github.models import (
     UpdatePullRequestRequest,
 )
 from mcp.github.service_business import GitHubService as _GitHubServiceCore
+from shared.formatters import fmt_md_link
+from shared.json_utils import dumps as _json_dumps
 
 logger = logging.getLogger(__name__)
 

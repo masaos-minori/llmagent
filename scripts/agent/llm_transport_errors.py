@@ -5,11 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import orjson
-from shared.llm_client import LLMTransportError
-from shared.logger import Logger
-
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
+from shared.llm_client import LLMTransportError
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -41,7 +40,7 @@ def handle_partial_completion(
         reason=e.kind,
         content_length=len(e.partial_text),
     )
-    ctx.services_required.llm.stat_partial_completions += 1
+    ctx.stats.stat_partial_completions += 1
     logger.warning("Partial LLM completion saved: %s", e.kind)
 
 

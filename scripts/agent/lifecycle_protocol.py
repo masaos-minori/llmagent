@@ -10,9 +10,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from shared.mcp_config import McpServerConfig
-
 from agent.lifecycle import LifecycleState
+from shared.mcp_config import McpServerConfig
 
 
 @runtime_checkable

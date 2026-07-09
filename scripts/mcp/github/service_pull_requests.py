@@ -11,7 +11,6 @@ import itertools
 from typing import Any
 
 from github import Github
-
 from mcp.github.models_config import GitHubAuthorizationError
 from mcp.github.models_pull_requests import (
     CreatePullRequestRequest,

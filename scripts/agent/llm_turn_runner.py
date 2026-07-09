@@ -12,12 +12,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from shared.llm_client import LLMTransportError
-from shared.types import LLMMessage
-
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
 from agent.turn_result import TurnResult
+from shared.llm_client import LLMTransportError
+from shared.types import LLMMessage
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

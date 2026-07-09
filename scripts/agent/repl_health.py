@@ -760,12 +760,14 @@ def audit_security_defaults(
             warnings.append(msg)
 
     # Check production config strict flags
-    result = ProductionConfigValidator().validate({
-        "plugin_strict": ctx.cfg.tool.plugin_strict,
-        "tool_definitions_strict": ctx.cfg.tool.tool_definitions_strict,
-        "routing_drift_strict": ctx.cfg.tool.routing_drift_strict,
-        "use_tool_dag": ctx.cfg.tool.use_tool_dag,
-    })
+    result = ProductionConfigValidator().validate(
+        {
+            "plugin_strict": ctx.cfg.tool.plugin_strict,
+            "tool_definitions_strict": ctx.cfg.tool.tool_definitions_strict,
+            "routing_drift_strict": ctx.cfg.tool.routing_drift_strict,
+            "use_tool_dag": ctx.cfg.tool.use_tool_dag,
+        }
+    )
     if result.errors:
         for msg in result.errors:
             if production_mode:

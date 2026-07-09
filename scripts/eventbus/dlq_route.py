@@ -5,9 +5,8 @@ import asyncio
 import logging
 from typing import Any
 
-from fastapi import HTTPException, Query, Request
-
 from eventbus.db import count_dlq, fetch_dlq, get_db_lock, requeue_event
+from fastapi import HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
 

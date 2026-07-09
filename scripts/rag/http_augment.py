@@ -10,7 +10,6 @@ from rag.pipeline_service import call_rag_service
 
 if TYPE_CHECKING:
     import httpx
-
     from rag.models_data import TwoStageFetchResult  # noqa: TCH004
 from rag.stage import StageResult
 

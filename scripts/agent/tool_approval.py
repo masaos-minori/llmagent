@@ -12,8 +12,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from shared.json_utils import dumps as _json_dumps
-
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
@@ -28,6 +26,7 @@ from agent.tool_output import (
 )
 from agent.tool_policy import check_preflight, classify_risk
 from agent.tool_result_formatter import build_preview, mask_args
+from shared.json_utils import dumps as _json_dumps
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

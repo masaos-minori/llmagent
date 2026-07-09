@@ -9,9 +9,8 @@ from typing import Any
 
 import jsonschema
 import orjson
-from fastapi import HTTPException, Request
-
 from eventbus.db import get_db_lock, insert_event
+from fastapi import HTTPException, Request
 
 logger = logging.getLogger(__name__)
 

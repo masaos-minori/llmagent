@@ -14,7 +14,6 @@ import time
 from collections.abc import AsyncIterator
 
 import orjson
-
 from shared.llm_exceptions import LLMTransportError
 
 

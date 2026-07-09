@@ -16,11 +16,6 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import orjson
-from shared.json_utils import dumps as _json_dumps
-from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
-from shared.tool_executor_helpers import is_side_effect, tool_hash_key
-from shared.tool_spec import ToolSpec
-
 from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
@@ -29,6 +24,10 @@ from agent.tool_result_formatter import (
     mask_args,
 )
 from agent.tool_scheduler import build_execution_groups
+from shared.json_utils import dumps as _json_dumps
+from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
+from shared.tool_executor_helpers import is_side_effect, tool_hash_key
+from shared.tool_spec import ToolSpec
 
 _serialization_stats: dict[str, int] = {
     "total_events": 0,

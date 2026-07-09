@@ -22,9 +22,6 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from shared.json_utils import dumps as _json_dumps
-from shared.protocols.shell import ShellPolicy
-
 from mcp.server import ToolArgs
 from mcp.shell.models import (
     ShellAuthorizationError,
@@ -32,6 +29,8 @@ from mcp.shell.models import (
     ShellRunResponse,
     ShellValidationError,
 )
+from shared.json_utils import dumps as _json_dumps
+from shared.protocols.shell import ShellPolicy
 
 from .service_static_helpers import (
     init_sandbox,

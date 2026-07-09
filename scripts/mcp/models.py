@@ -6,9 +6,8 @@ Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
-
 from mcp.tool_validators import validate_tool_args
+from pydantic import BaseModel, Field, field_validator
 
 
 class CallToolRequest(BaseModel):

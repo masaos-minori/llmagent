@@ -12,8 +12,6 @@ from __future__ import annotations
 import time
 from typing import Any, cast
 
-from shared.formatters import MAX_SNIPPET_CHARS, truncate
-
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.web_search.models import (
     SearchRequest,
@@ -21,6 +19,7 @@ from mcp.web_search.models import (
     SearchResult,
 )
 from mcp.web_search.search_provider import search_duckduckgo
+from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 
 def fmt_search_result(i: int, r: SearchResult) -> str:

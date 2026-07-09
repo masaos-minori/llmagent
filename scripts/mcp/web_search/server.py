@@ -13,7 +13,6 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult
 from mcp.health_response import make_health_response

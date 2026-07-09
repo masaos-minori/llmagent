@@ -13,7 +13,6 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 import orjson
-
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.types import MemoryEntry, SourceType

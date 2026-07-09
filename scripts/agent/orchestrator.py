@@ -16,10 +16,6 @@ from collections.abc import Callable
 from typing import Any
 
 import orjson
-from shared.json_utils import dumps as _json_dumps
-from shared.llm_client import LLMTransportError
-from shared.logger import Logger
-
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_transport_errors import handle_llm_transport_error
@@ -44,6 +40,9 @@ from agent.workflow import (
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
+from shared.json_utils import dumps as _json_dumps
+from shared.llm_client import LLMTransportError
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 

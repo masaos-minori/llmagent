@@ -6,10 +6,9 @@ import logging
 from typing import Any
 
 import orjson
+from eventbus.db import fetch_events_since, get_db_lock
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
-
-from eventbus.db import fetch_events_since, get_db_lock
 
 logger = logging.getLogger(__name__)
 

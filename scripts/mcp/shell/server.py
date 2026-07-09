@@ -21,8 +21,6 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
-
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.health_response import make_health_response
@@ -37,6 +35,7 @@ from mcp.shell.models import (
 )
 from mcp.shell.service import ShellService, build_service
 from mcp.shell.tools import TOOL_LIST
+from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 

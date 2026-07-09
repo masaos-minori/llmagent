@@ -9,7 +9,6 @@ Endpoints: list_issues, get_issue, create_issue, search_issues, add_issue_commen
 import time
 
 from fastapi import APIRouter, Depends
-
 from mcp.github.models import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
