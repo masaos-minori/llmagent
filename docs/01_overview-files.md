@@ -27,7 +27,11 @@
 │   ├─ workflows/                           # ワークフロー定義ファイル群
 │   │   └─ default.json                     # デフォルトワークフロー定義
 │   ├─ common.toml                          # 共通設定 (DB パス・埋込 URL)
-│   ├─ rag_pipeline.toml                    # クロール・チャンク設定 (対象 URL・チャンクサイズ・ストップワード)
+│   ├─ agent.toml                           # エージェント全体設定
+│   ├─ rag_pipeline.toml                    # 取込パイプライン全体設定 (対象 URL・チャンクサイズ・ストップワード)
+│   ├─ crawler.toml                         # クローラ設定
+│   ├─ chunk_splitter.toml                  # チャンク分割設定
+│   ├─ ingester.toml                        # インジェスター設定
 │   ├─ web_search_mcp_server.toml           # Web 検索 MCP サーバ設定 (:8004)
 │   ├─ file_read_mcp_server.toml            # ファイル読込 MCP サーバ設定 (:8005, 許可ディレクトリ)
 │   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (:8006)

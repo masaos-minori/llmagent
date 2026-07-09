@@ -14,15 +14,3 @@ Each entry format:
 ---
 
 
-
-## Active Issues
-
-
-
----
-
-## Resolved Issues
-
-
-
----
