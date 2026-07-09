@@ -162,11 +162,15 @@ def audit_tool_exec(
     mcp_request_id: str,
     error_type: str = "",
     artifact_uri: str | None = None,
+    source: str = "",
 ) -> None:
-    """Write a tool_exec event with mcp_request_id to the audit log."""
+    """Write a tool_exec event with mcp_request_id to the audit log.
+
+    Plugin tools bypass the mcp_request_id guard when source="plugin".
+    """
     if ctx.services_required.audit_logger is None:
         return
-    if not mcp_request_id:
+    if not mcp_request_id and not source:
         return
     assert ctx.workflow.workflow_id, (
         "workflow_id required: audit_tool_exec called outside workflow context"
@@ -183,6 +187,7 @@ def audit_tool_exec(
         is_error=is_error,
         args_preview=masked,
         ts=time.time(),
+        source=source if source else "agent",
         error_type=error_type,
         workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",

@@ -42,7 +42,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | What is `RagConfig`? | `90_shared_02` §4 |
 | What tool frozensets exist? | `90_shared_02` §10 |
 | How does `ConfigLoader.load_all()` work? | `90_shared_03` §2 |
-| Does `load_all()` include `common.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES`; see `90_shared_03` §2a Config Ownership |
+| Does `load_all()` include `agent.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES`; see `90_shared_03` §2a Config Ownership |
 | How do plugins load? | `90_shared_03` §4 |
 | How does `ToolExecutor.execute()` work? | `90_shared_03` §9 |
 | What SQLite DBs exist? | `90_shared_04` §2 |
@@ -93,7 +93,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 
 ## Guidance for Safe AI Use
 
-1. **`load_all()` now includes `common.toml`** (DB paths, embedding URL, sqlite-vec path) at index 0. See [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table. Only `rag_pipeline.toml` still requires explicit loading.
+1. **`load_all()` now includes `agent.toml`** (DB paths, embedding URL, sqlite-vec path) at index 0. See [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table. Only `rag_pipeline.toml` still requires explicit loading.
 2. **`orjson.dumps()` returns `bytes`.** Call `.decode()` before using as string.
 3. **`ArtifactEvent` is data only.** No event bus exists.
 4. **`LLMMessage` has 7 fields** including `importance` and `pinned` (not 5 as in the old `90_shared.md`).

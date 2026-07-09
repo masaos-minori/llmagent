@@ -34,7 +34,7 @@ class Writer(Protocol):
         chunk_count: str,
         n_tools: int,
         workflow_status: str = "",
-        memory_enabled: bool | None = None,
+        memory_mode: str | None = None,
     ) -> None: ...
 
 
@@ -129,12 +129,12 @@ class CLIView:
         chunk_count: str,
         n_tools: int,
         workflow_status: str = "",
-        memory_enabled: bool | None = None,
+        memory_mode: str | None = None,
     ) -> None:
         """Print the agent startup line for display purposes."""
         print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
-        if memory_enabled is not None:
-            print(f"Memory: {'enabled' if memory_enabled else 'disabled'}")
+        if memory_mode is not None:
+            print(f"Memory: {memory_mode}")
         if workflow_status:
             print(f"Workflow: {workflow_status}")
         print("Type /help for commands, /exit to quit.")

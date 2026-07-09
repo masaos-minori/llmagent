@@ -179,3 +179,60 @@ def test_non_strict_mode_continues_after_invalid(tmp_path) -> None:  # type: ign
     assert len(result.failed) == 1
     assert get_tool("good") is not None
     assert get_tool("bad") is None
+
+
+# ── Plugin audit source field tests ─────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_plugin_result_has_source_plugin_on_success() -> None:
+    from shared.plugin_registry import _reset_for_testing, register_tool
+    from shared.plugin_tool_invoker import PluginToolInvoker
+
+    _reset_for_testing()
+
+    @register_tool("src_test_ok")
+    async def ok_rt(args: dict) -> tuple[str, bool]:
+        return "ok", False
+
+    result = await PluginToolInvoker().try_execute("src_test_ok", {})
+    assert result is not None
+    assert result.source == "plugin"
+    assert result.is_error is False
+    assert result.output == "ok"
+
+
+@pytest.mark.asyncio
+async def test_plugin_result_has_source_plugin_on_error() -> None:
+    from shared.plugin_registry import _reset_for_testing, register_tool
+    from shared.plugin_tool_invoker import PluginToolInvoker
+
+    _reset_for_testing()
+
+    @register_tool("src_test_err")
+    async def err_rt(args: dict) -> tuple[str, bool]:
+        raise RuntimeError("boom")
+
+    result = await PluginToolInvoker().try_execute("src_test_err", {})
+    assert result is not None
+    assert result.source == "plugin"
+    assert result.is_error is True
+    assert "[plugin error]" in result.output
+
+
+@pytest.mark.asyncio
+async def test_plugin_result_has_source_plugin_on_contract_violation() -> None:
+    from shared.plugin_registry import _reset_for_testing, register_tool
+    from shared.plugin_tool_invoker import PluginToolInvoker
+
+    _reset_for_testing()
+
+    @register_tool("src_test_contract")
+    async def bad_rt(args: dict) -> tuple[str, bool]:  # type: ignore[return]
+        return ("a", False, "extra")  # type: ignore[return-value]
+
+    result = await PluginToolInvoker().try_execute("src_test_contract", {})
+    assert result is not None
+    assert result.source == "plugin"
+    assert result.is_error is True
+    assert "contract violation" in result.output.lower()

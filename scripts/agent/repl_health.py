@@ -759,14 +759,53 @@ def audit_security_defaults(
             logger.warning(msg)
             warnings.append(msg)
 
-    # Check production config strict flags
+    # Check production config strict flags and safety tiers
+    tool_cfg = getattr(ctx.cfg, "tool", None)
+    approval_cfg = getattr(ctx.cfg, "approval", None)
+    tool_safety_tiers = (
+        getattr(approval_cfg, "tool_safety_tiers", {}) if approval_cfg else {}
+    )
+    allowed_tools = getattr(tool_cfg, "allowed_tools", None) if tool_cfg else None
+
+    known_tools: set[str] | None = None
+    if tool_safety_tiers:
+        try:
+            from shared.tool_registry import get_registry
+
+            known_tools = set(get_registry().get_all_tool_names())
+        except Exception:
+            known_tools = None
+
+    # Load GitHub config early for allowed_repos_mode check
+    github_cfg = None
+    try:
+        github_cfg = load_github_audit_config()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+
+    allowed_repos_mode: str | None = None
+    if github_cfg is not None:
+        allowed_repos_mode = github_cfg.allowed_repos_mode
+
     result = ProductionConfigValidator().validate(
         {
-            "plugin_strict": ctx.cfg.tool.plugin_strict,
-            "tool_definitions_strict": ctx.cfg.tool.tool_definitions_strict,
-            "routing_drift_strict": ctx.cfg.tool.routing_drift_strict,
-            "use_tool_dag": ctx.cfg.tool.use_tool_dag,
-        }
+            "plugin_strict": getattr(tool_cfg, "plugin_strict", False),
+            "tool_definitions_strict": getattr(
+                tool_cfg, "tool_definitions_strict", False
+            ),
+            "routing_drift_strict": getattr(tool_cfg, "routing_drift_strict", False),
+            "use_tool_dag": getattr(tool_cfg, "use_tool_dag", True),
+            "tool_safety_tiers": tool_safety_tiers,
+            "allowed_tools": allowed_tools,
+        },
+        security_profile="production" if production_mode else "local",
+        known_tools=known_tools,
+        allowed_repos_mode=allowed_repos_mode,
     )
     if result.errors:
         for msg in result.errors:
@@ -774,25 +813,9 @@ def audit_security_defaults(
                 raise RuntimeError(msg)
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
-
-    # Check unknown tool_safety_tiers keys
-    from shared.tool_routing_validation import check_unknown_tool_safety_tiers
-
-    unknown_tiers = check_unknown_tool_safety_tiers(
-        tool_safety_tiers=getattr(ctx.cfg.approval, "tool_safety_tiers", {})
-    )
-    if unknown_tiers:
-        unknown_result = ProductionConfigValidator().validate_unknown_tool_safety_tiers(
-            unknown_tiers
-        )
-        if production_mode:
-            raise RuntimeError(
-                "Production config validation failed: "
-                + "; ".join(unknown_result.errors)
-            )
-        for err in unknown_result.errors:
-            logger.warning("Security: %s", err)
-            warnings.append(f"Security: {err}")
+    for warning in result.warnings:
+        logger.warning("Security: %s", warning)
+        warnings.append(warning)
 
     # Check git allowed_repo_paths
     try:
@@ -817,17 +840,6 @@ def audit_security_defaults(
         warnings.append(msg)
 
     # Check github allowed_repos (fail-closed — empty = deny all repo access)
-    try:
-        github_cfg = load_github_audit_config()
-    except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
-        github_cfg = None
-
     if github_cfg is not None and not github_cfg.allowed_repos and not lockdown:
         fail_closed_empty.append("github.allowed_repos")
         msg = (
@@ -837,16 +849,6 @@ def audit_security_defaults(
         )
         logger.warning(msg)
         warnings.append(msg)
-
-    # Check allowed_tools (fail-open: empty = allow all tools)
-    tool_cfg = getattr(ctx.cfg, "tool", None)
-    if tool_cfg is not None:
-        allowed_tools = getattr(tool_cfg, "allowed_tools", None)
-        if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
-            fail_open_empty.append("tool.allowed_tools")
-            msg = "Security: tool.allowed_tools is empty (all tools allowed; use allowlist to restrict)"
-            logger.warning(msg)
-            warnings.append(msg)
 
     # Check cicd workflow_allowlist (fail-closed — empty = deny all workflow triggers)
     try:
@@ -898,15 +900,5 @@ def audit_security_defaults(
         )
         logger.warning(summary)
         warnings.append(summary)
-
-    if github_cfg is not None and github_cfg.allowed_repos_mode == "fail_open":
-        msg = (
-            "github.allowed_repos_mode='fail_open' is not permitted in production mode. "
-            "Set allowed_repos_mode='fail_closed' in github_mcp_server.toml."
-        )
-        if production_mode:
-            raise RuntimeError(msg)
-        logger.warning("Security: %s", msg)
-        warnings.append(f"Security: {msg}")
 
     return warnings

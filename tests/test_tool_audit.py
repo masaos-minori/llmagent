@@ -128,13 +128,35 @@ class TestAuditToolExec:
         # No error raised even though logger is None
         audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
 
-    def test_skips_event_when_mcp_request_id_is_empty(self) -> None:
+    def test_skips_event_when_mcp_request_id_is_empty_and_source_is_empty(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
-        audit_tool_exec(ctx, "read_text_file", {}, False, "")
+        audit_tool_exec(ctx, "read_text_file", {}, False, "", source="")
         ctx.services_required.audit_logger.info.assert_not_called()
+
+    def test_emits_event_when_mcp_request_id_empty_but_source_set(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
+        audit_tool_exec(ctx, "my_plugin_tool", {}, False, "", source="plugin")
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        assert "tool_exec" in logged
+        assert '"source":"plugin"' in logged or '"source": "plugin"' in logged
+        assert "my_plugin_tool" in logged
+
+    def test_source_default_agent_in_audit_event(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
+        audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        assert '"source":"agent"' in logged or '"source": "agent"' in logged
 
 
 class TestWriteRoundExec:

@@ -131,8 +131,12 @@ class TestSQLiteDocumentStore:
     def test_chunk_insert_stores_chunk_type_and_source_file(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
         doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
-        chunk_id = store.chunk_insert(doc_id, 0, "content", None, chunk_type="code", source_file="foo.py")
-        row = store._db.execute("SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)).fetchone()
+        chunk_id = store.chunk_insert(
+            doc_id, 0, "content", None, chunk_type="code", source_file="foo.py"
+        )
+        row = store._db.execute(
+            "SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)
+        ).fetchone()
         assert row is not None
         assert row[0] == "code"
         assert row[1] == "foo.py"
@@ -141,7 +145,9 @@ class TestSQLiteDocumentStore:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
         doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
         chunk_id = store.chunk_insert(doc_id, 0, "content")
-        row = store._db.execute("SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)).fetchone()
+        row = store._db.execute(
+            "SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)
+        ).fetchone()
         assert row is not None
         assert row[0] == ""
         assert row[1] == ""

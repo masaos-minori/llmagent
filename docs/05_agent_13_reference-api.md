@@ -137,7 +137,7 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 - **Strict mode:** `AgentSession(strict_mode=True)` raises `RuntimeError` on first skipped save instead of warning
 - **Callers:** `Orchestrator`, `CommandRegistry` (`/session` commands; `/db` commands delegate to rag-pipeline-mcp)
 - **Callees:** `SQLiteHelper`
-- **Config:** DB path from `config/common.toml`
+- **Config:** DB path from `config/agent.toml`
 - **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
 
 Full details: [05_agent_09_data-layer.md](05_agent_09_data-layer.md)

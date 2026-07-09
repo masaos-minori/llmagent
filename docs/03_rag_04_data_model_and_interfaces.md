@@ -149,7 +149,7 @@ FTS5 automatically syncs via triggers on INSERT/UPDATE/DELETE of the `chunks` ta
 
 - Stores embedding vectors as little-endian float32 BLOB
 - `embedding` column: `float[DIMS]` (DIMS substituted at runtime by schema builder); `struct.pack("<{N}f", *values)` format
-- Production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`); no dataclass default exists
+- Production value set via `config/agent.toml::embedding_dims` (default 384 — **Confirmed** from `agent.toml:43`); no dataclass default exists
 - No foreign key constraint (sqlite-vec virtual table); `chunks_vec` must be deleted
   **before** `chunks` when force-reinserting to avoid orphaned records
 

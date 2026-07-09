@@ -428,7 +428,9 @@ class TestRagPipelineRunStage:
 
         # Construct a RerankStage whose run() raises RagRerankError
         llm = MagicMock()
-        llm.cross_encoder_rerank = AsyncMock(side_effect=RagRerankError("rerank failed"))
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
         stage = RerankStage(_make_rag_cfg(use_rerank=True), llm)
 
         ctx = PipelineContext(query="q")

@@ -1,6 +1,6 @@
 # ファイル構成
 
-アーキテクチャ概要 → [`01_overview-arch.md`](01_overview-arch.md)
+アーキテクチャ概要 → [`01_overview-arch-process.md`](01_overview-arch-process.md), [`01_overview-arch-pipelines.md`](01_overview-arch-pipelines.md), [`01_overview-arch-features.md`](01_overview-arch-features.md)
 
 ## 3. ファイル構成
 
@@ -26,7 +26,7 @@
 ├─ config/
 │   ├─ workflows/                           # ワークフロー定義ファイル群
 │   │   └─ default.json                     # デフォルトワークフロー定義
-│   ├─ common.toml                          # 共通設定 (DB パス・埋込 URL)
+│   ├─ agent.toml                          # 共通設定 (DB パス・埋込 URL)
 │   ├─ agent.toml                           # エージェント全体設定
 │   ├─ rag_pipeline.toml                    # 取込パイプライン全体設定 (対象 URL・チャンクサイズ・ストップワード)
 │   ├─ crawler.toml                         # クローラ設定

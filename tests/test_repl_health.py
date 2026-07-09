@@ -558,7 +558,10 @@ class TestAuditSecurityDefaults:
         """github.allow_force_push=True surfaces a security warning."""
         ctx = self._make_ctx()
         gh_cfg = GitHubAuditConfig(
-            allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed", allow_force_push=True, require_pr_review=True
+            allowed_repos=["owner/repo"],
+            allowed_repos_mode="fail_closed",
+            allow_force_push=True,
+            require_pr_review=True,
         )
         with (
             patch("agent.repl_health.load_shell_audit_config", return_value=None),
@@ -592,8 +595,10 @@ class TestAuditSecurityDefaults:
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
         gh_cfg = GitHubAuditConfig(
-            allowed_repos=[], allowed_repos_mode="fail_open",
-            allow_force_push=False, require_pr_review=True,
+            allowed_repos=[],
+            allowed_repos_mode="fail_open",
+            allow_force_push=False,
+            require_pr_review=True,
         )
         with (
             patch("agent.repl_health.load_shell_audit_config", return_value=None),
@@ -607,8 +612,10 @@ class TestAuditSecurityDefaults:
     def test_github_fail_open_warns_in_local(self) -> None:
         ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
         gh_cfg = GitHubAuditConfig(
-            allowed_repos=[], allowed_repos_mode="fail_open",
-            allow_force_push=False, require_pr_review=True,
+            allowed_repos=[],
+            allowed_repos_mode="fail_open",
+            allow_force_push=False,
+            require_pr_review=True,
         )
         with (
             patch("agent.repl_health.load_shell_audit_config", return_value=None),
@@ -624,8 +631,10 @@ class TestAuditSecurityDefaults:
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
         gh_cfg = GitHubAuditConfig(
-            allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed",
-            allow_force_push=False, require_pr_review=True,
+            allowed_repos=["owner/repo"],
+            allowed_repos_mode="fail_closed",
+            allow_force_push=False,
+            require_pr_review=True,
         )
         with (
             patch("agent.repl_health.load_shell_audit_config", return_value=None),

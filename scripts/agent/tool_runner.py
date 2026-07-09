@@ -132,7 +132,9 @@ async def execute_one_tool_call(
     else:
         result = await ctx.services_required.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
-    audit_tool_exec(ctx, name, args, is_error, x_request_id, result.error_type)
+    audit_tool_exec(
+        ctx, name, args, is_error, x_request_id, result.error_type, source=result.source
+    )
 
     if (
         result.is_error

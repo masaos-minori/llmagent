@@ -159,8 +159,8 @@ All three DBs use WAL mode and `busy_timeout`. sqlite-vec is loaded only for `ra
 | Config format | TOML / JSON in `/opt/llm/config/`; `_`-prefixed keys are excluded |
 | Log messages | English only (no Japanese in code comments or logs) |
 | SQLite WAL | All connections use `PRAGMA journal_mode=WAL` |
-| `common.toml` | See [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for full ownership table |
-| Embedding dimension | `embedding_dims` in `common.toml` (default 384) |
+| `agent.toml` | See [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for full ownership table |
+| Embedding dimension | `embedding_dims` in `agent.toml` (default 384) |
 
 ---
 

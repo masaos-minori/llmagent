@@ -367,7 +367,7 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 **Config loading:**
 ```
 build_agent_config()
-  → ConfigLoader().load_all()     [12 files incl. common.toml — see §2a Config Ownership for full table]
+  → ConfigLoader().load_all()     [12 files incl. agent.toml — see §2a Config Ownership for full table]
 ```
 
 **Plugin loading:**
@@ -543,7 +543,7 @@ class LlmHotConfigHandler:
 |---|---|
 | How to load config files | `ConfigLoader().load("filename.toml")` or `load_all()` |
 | Config ownership table | **See §2a Config Ownership** — canonical reference for all 12 TOML files |
-| Does `load_all()` include `common.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES` (see §2a Config Ownership) |
+| Does `load_all()` include `agent.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES` (see §2a Config Ownership) |
 | How to register a plugin tool | `@register_tool("name")` decorator in `plugins/*.py` |
 | When does ToolExecutor use cache? | `is_error=False` results only; TTL + LRU |
 | Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; check `.success` and `.failure_reason` (FailureReason enum) |

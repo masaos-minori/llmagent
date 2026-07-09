@@ -358,7 +358,7 @@ class DbConfig:
 ```
 
 - Validated in `__post_init__`: parent directories must exist; timeout/embedding_dims >= 1
-- Built by `build_db_config()` which reads `common.toml` via `ConfigLoader().load("common.toml")`
+- Built by `build_db_config()` which reads `agent.toml` via `ConfigLoader().load("agent.toml")`
 - Used by `SQLiteHelper`, `maintenance.py`, and session factory code
 
 ---

@@ -12,6 +12,9 @@ class ToolCallResult:
     is_error: bool
     request_id: str  # x-request-id from HTTP transport; "" for plugin/cache
     server_key: str  # server key that handled the call; "" for plugin tools
+    source: str = (
+        ""  # "mcp" for MCP tools, "plugin" for plugin tools, "" for cache/error paths
+    )
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 
     @classmethod
@@ -24,6 +27,7 @@ class ToolCallResult:
             is_error=is_error,
             request_id=request_id,
             server_key="",
+            source="mcp",
             error_type="tool" if is_error else "",
         )
 

@@ -151,6 +151,10 @@ plugin_strict = false         # or true to fail startup on first plugin import e
 
 When `plugin_strict = true`, all plugin files are attempted first. After the full load loop, if any failures occurred, a single `PluginLoadError` (subclass of `RuntimeError`) is raised with all failure details aggregated in the message.
 
+#### Safety Tier Enforcement
+
+In production mode, all registered tools must have a declared safety tier entry in `tool_safety_tiers`. Missing tiers produce a fatal `RuntimeError` at startup via `ProductionConfigValidator.validate()`. This ensures no tool can operate without a defined risk classification. Unknown tier keys (keys not matching any registered tool name) also produce a fatal error in production.
+
 **CI auto-detect:** If `plugin_strict` is absent from config and the `CI` environment variable is set (GitHub Actions, CircleCI, etc.), `plugin_strict` defaults to `True` automatically. Explicit `plugin_strict = false` in config always overrides this.
 
 Default is `false` (fail-open): failures are logged as `[plugin] skipped: <filename> (<ErrorType>)` and loading continues.
@@ -171,6 +175,15 @@ To avoid confusion, give plugin tools names that do not overlap with existing MC
 
 **Priority vs MCP:** plugin tools are checked first. A plugin tool with the same name as
 an MCP tool will shadow the MCP tool for all calls in that session (unless conflict detection rejects it).
+
+#### Observability Limitations
+
+Plugin tools emit `tool_exec` audit events via `audit_tool_exec()` with `source="plugin"` and empty `mcp_request_id`. However, unlike MCP tool events, plugin audit events lack:
+
+- **No `X-Request-Id`**: Plugin tools do not go through the HTTP transport layer, so there is no `request_id` to correlate with server-side logs.
+- **No `server_key`**: The `server_key` field is always empty for plugin tools.
+
+This means plugin tool audit events cannot be correlated with MCP server access logs. See [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md#plugin-tool-audit-events) for details.
 
 ---
 

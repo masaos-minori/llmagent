@@ -200,3 +200,58 @@ class TestDisplayHelpers:
         assert "MQE queries" in captured.out
         assert "RRF merge" in captured.out
         assert "reranked" in captured.out
+
+
+# ── write_startup_banner ───────────────────────────────────────────────────────
+
+
+class TestWriteStartupBanner:
+    def test_basic_banner(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_startup_banner("12345", 10)
+        captured = capsys.readouterr()
+        assert "DB: 12345 chunks | Tools: 10" in captured.out
+        assert "Memory:" not in captured.out
+        assert "Workflow:" not in captured.out
+        assert "/help" in captured.out
+
+    def test_with_workflow_status(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_startup_banner("12345", 10, workflow_status="running")
+        captured = capsys.readouterr()
+        assert "Workflow: running" in captured.out
+
+    def test_with_memory_mode_enabled(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_startup_banner("12345", 10, memory_mode="enabled")
+        captured = capsys.readouterr()
+        assert "Memory: enabled" in captured.out
+
+    def test_with_memory_mode_disabled(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_startup_banner("12345", 10, memory_mode="disabled")
+        captured = capsys.readouterr()
+        assert "Memory: disabled" in captured.out
+
+    def test_with_custom_memory_mode(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_startup_banner(
+            "12345", 10, memory_mode="Hybrid mode (semantic + FTS)"
+        )
+        captured = capsys.readouterr()
+        assert "Memory: Hybrid mode (semantic + FTS)" in captured.out
+
+    def test_all_fields_together(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_startup_banner(
+            "12345", 10, workflow_status="running", memory_mode="enabled"
+        )
+        captured = capsys.readouterr()
+        assert "DB: 12345 chunks | Tools: 10" in captured.out
+        assert "Memory: enabled" in captured.out
+        assert "Workflow: running" in captured.out
+        assert "/help" in captured.out

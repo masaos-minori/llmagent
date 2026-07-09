@@ -147,7 +147,6 @@ class TestDiffMcpServerConfig:
         assert _diff_mcp_server_config(old, new) == ["startup_mode"]
 
 
-
 class TestMcpServerChangeClassification:
     """_classify_mcp_server_changes reports every MCP definition change as
     restart-required and never mutates ctx.cfg.mcp.mcp_servers (H-1/H-3/H-4/H-5/H-7)."""
@@ -200,7 +199,9 @@ class TestMcpServerChangeClassification:
 
         svc, old_srv = self._make_svc(old_auth="old_token")
         new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:8080", cmd=[],
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
             auth_token="new_token",
         )
         result = self._run(svc, {"svc": new_srv})
@@ -260,7 +261,9 @@ class TestMcpServerChangeClassification:
         from shared.mcp_config import McpServerConfig, TransportType
 
         svc, old_srv = self._make_svc()
-        new_srv = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:9000", cmd=[])
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP, url="http://localhost:9000", cmd=[]
+        )
         result = self._run(svc, {"svc": old_srv, "extra": new_srv})
 
         assert set(result.skipped).isdisjoint(set(result.needs_restart))

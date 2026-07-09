@@ -10,7 +10,9 @@ Import from here:  from agent.config_builders import (
 
 from __future__ import annotations
 
+import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,7 @@ from shared.mcp_config import (
     SecurityProfile,  # noqa: F401 — used by build_agent_config
     _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
 )
+from shared.production_config_validator import ProductionConfigValidator
 
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
@@ -278,6 +281,22 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     watchdog_interval_default = (
         30.0 if security_profile_val == SecurityProfile.PRODUCTION else 0.0
     )
+    # Production config validation (before REPL becomes available)
+    results = ProductionConfigValidator().validate(
+        cfg,
+        security_profile=security_profile_val,
+    )
+
+    _logger = logging.getLogger(__name__)
+    if results.errors:
+        _logger.error("Production config validation failed:")
+        for err in results.errors:
+            _logger.error(f"  - {err}")
+        sys.exit(1)
+
+    for warning in results.warnings:
+        _logger.warning(warning)
+
     return AgentConfig(
         llm=_build_llm_config(cfg),
         rag=_build_rag_config(cfg),

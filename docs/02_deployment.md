@@ -119,7 +119,7 @@ SQLite vector approximate nearest neighbor (KNN: K-Nearest Neighbor) extension. 
 bash deploy/build_sqlite_vec.sh
 ```
 
-Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `common.toml`)
+Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agent.toml`)
 
 ### 2.2 Deploying scripts
 
@@ -169,7 +169,7 @@ MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設
 
 ### 3.0 Platform DB overview
 
-The agent uses three SQLite databases. All paths are configured in `common.toml`.
+The agent uses three SQLite databases. All paths are configured in `agent.toml`.
 
 | DB | Default path | Config key | Purpose |
 

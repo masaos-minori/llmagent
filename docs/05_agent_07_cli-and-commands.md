@@ -211,7 +211,7 @@ set for auto-resume — no re-execution of prior steps is needed.
 | `/memory unpin <id>` | UPDATE pinned flag | Remove session-start injection |
 | `/memory delete <id>` | DELETE entry | Immediate |
 | `/memory prune [days]` | DELETE entries older than N days | Uses `memory_retention_days` default |
-| `/memory status` | None | Embedding enabled, circuit state, retrieval mode; works when memory disabled |
+| `/memory status` | None | Memory mode label (e.g., Hybrid mode / Degraded mode / Memory layer disabled), embedding status, circuit state, retrieval mode; works when memory disabled |
 | `/memory check-consistency` | None | Compare JSONL, SQLite, FTS5, and vec row counts |
 | `/memory rebuild [--dry-run]` | DELETE + INSERT all memories from JSONL | JSONL is canonical source; clears and re-inserts SQLite |
 

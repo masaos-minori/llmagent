@@ -40,7 +40,18 @@ def build_status_table(status: MemoryStatus) -> list[list[str]]:
         mode_display = "fts_only  [DEGRADED — embedding unavailable]"
 
     rows: list[list[str]] = []
-    rows.append(["Mode", status.mode])
+
+    # Compute mode label based on field combinations
+    if not status.memory_layer_enabled:
+        mode_label = "Memory layer disabled"
+    elif status.circuit_open:
+        mode_label = "Degraded mode (circuit open, FTS fallback)"
+    elif status.embedding_enabled:
+        mode_label = "Hybrid mode (semantic + FTS)"
+    else:
+        mode_label = "Memory enabled, embedding disabled (FTS-only)"
+
+    rows.append(["Mode", mode_label])
     rows.append(
         ["Memory layer", "enabled" if status.memory_layer_enabled else "disabled"]
     )
@@ -68,7 +79,23 @@ def build_memory_status(
 
     embed_client = mem.retriever.embed_client
     if embed_client is None:
-        return None
+        stats = mem.get_stats()
+        return MemoryStatus(
+            mode=mem.get_activation_mode(),
+            memory_layer_enabled=True,
+            embedding_enabled=False,
+            local_only=False,
+            circuit_open=False,
+            circuit_detail="",
+            consecutive_failures=0,
+            fts_fallback_count=mem.retriever.fts_fallback_count,
+            last_retrieval_mode=mem.retriever.last_retrieval_mode,
+            total_entries=stats["total"],
+            semantic_entries=stats["semantic"],
+            episodic_entries=stats["episodic"],
+            embed_skip_count=0,
+            by_source=stats.get("by_source", {}),
+        )
 
     status_info = embed_client.get_status()
     circuit_detail = ""

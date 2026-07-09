@@ -23,7 +23,10 @@ def _make_ctx(lockdown=False):
 _SHELL_OK = ShellAuditConfig(sandbox_backend="firejail", command_allowlist=["ls"])
 _GIT_OK = GitAuditConfig(allowed_repo_paths=["/home"])
 _GITHUB_OK = GitHubAuditConfig(
-    allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed", allow_force_push=False, require_pr_review=True
+    allowed_repos=["owner/repo"],
+    allowed_repos_mode="fail_closed",
+    allow_force_push=False,
+    require_pr_review=True,
 )
 
 

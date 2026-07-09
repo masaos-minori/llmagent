@@ -141,7 +141,10 @@ def test_load_github_audit_config_success() -> None:
 
         result = load_github_audit_config()
     assert result == GitHubAuditConfig(
-        allowed_repos=["owner/repo"], allowed_repos_mode="fail_closed", allow_force_push=True, require_pr_review=False
+        allowed_repos=["owner/repo"],
+        allowed_repos_mode="fail_closed",
+        allow_force_push=True,
+        require_pr_review=False,
     )
 
 

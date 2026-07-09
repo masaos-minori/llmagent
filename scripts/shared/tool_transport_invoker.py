@@ -109,6 +109,7 @@ class ToolTransportInvoker:
             is_error=True,
             request_id="",
             server_key=server_key,
+            source="mcp",
             error_type=error_type,
         )
 
@@ -149,6 +150,7 @@ class ToolTransportInvoker:
             is_error=True,
             request_id="",
             server_key=server_key,
+            source="mcp",
             error_type="transport",
         )
 

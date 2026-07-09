@@ -85,6 +85,7 @@ repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
 ### `protected_branches`
 
 ```toml
+# config/github_mcp_server.toml
 protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
 ```
 
@@ -92,14 +93,81 @@ protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
 - Empty list (default): all branches allowed
 - `branch=""` (omitted): resolves default branch via API before checking
 
+**Production example:**
+
+```toml
+# Protect mainline branches and release branches
+protected_branches = [
+    "main",
+    "master",
+    "release/*",
+    "develop",
+]
+```
+
+With this configuration, any write operation targeting `main`, `master`, `release/v1.0`, or `develop` will be blocked unless explicitly overridden by approval.
+
 ### `path_denylist`
 
 ```toml
+# config/github_mcp_server.toml
 path_denylist = [".github/**", "Dockerfile*"]   # fnmatch glob patterns
 ```
 
 - Applies to `create_or_update_file`, `push_files`, `github_delete_file`
 - Empty list (default): all paths allowed
+
+**Production example:**
+
+```toml
+# Prevent modifications to CI/CD configs and container definitions
+path_denylist = [
+    ".github/**",           # block changes to GitHub Actions/workflows
+    "Dockerfile*",          # block changes to Docker files
+    "docker-compose*.yml",  # block changes to docker compose configs
+]
+```
+
+With this configuration, attempts to modify GitHub Actions workflow files or Docker-related files will be blocked regardless of approval status.
+
+### `allow_force_push`
+
+```toml
+# config/github_mcp_server.toml
+allow_force_push = false   # default: force push disabled
+```
+
+- Controls whether `force-push` operations are allowed on protected branches
+- **Recommendation: keep `false` in production.** Force pushes rewrite history and can destroy team collaboration.
+- When `true`, force push bypasses `protected_branches` protection.
+
+**Production example:**
+
+```toml
+# NEVER enable force push in production
+allow_force_push = false
+```
+
+If a legitimate force push is required (e.g., squashing commits after rebase), use GitHub's UI directly with appropriate permissions rather than enabling this setting.
+
+### `require_pr_review`
+
+```toml
+# config/github_mcp_server.toml
+require_pr_review = true   # default: PR review required
+```
+
+- When `true`, write operations to protected branches require a pull request (not direct commit)
+- When `false`, direct commits to protected branches are allowed (subject to other protections)
+
+**Production example:**
+
+```toml
+# Require PR review for all protected branch writes
+require_pr_review = true
+```
+
+This ensures that changes to `main`, `master`, and `release/*` branches go through the standard code review process via pull requests.
 
 ---
 
@@ -307,7 +375,7 @@ Tools that support `dry_run=True` (pre-execution preview without side effects):
 
 **cicd-mcp note:** Allowlist checks for repo and workflow execute before the `dry_run` bypass in `handle_trigger_workflow`. A denied request is always rejected even with `dry_run=True`.
 
-Agent-level: `approval_dry_run_tools` in `config/security.toml` lists tools for which
+Agent-level: `approval_dry_run_tools` in `config/agent.toml` lists tools for which
 the approval flow auto-executes `dry_run=True` before showing the confirmation prompt.
 
 ---
@@ -325,7 +393,12 @@ Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
 
 Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 
-`tool_safety_tiers` entries must be actual registered tool names (not server keys). Unknown keys are rejected at startup — a `RuntimeError` in production, a warning otherwise — via `ProductionConfigValidator.validate_unknown_tool_safety_tiers()`.
+`tool_safety_tiers` entries must be actual registered tool names (not server keys). Bidirectional validation runs at startup:
+
+- **Missing tiers:** Any registered tool not listed in `tool_safety_tiers` produces an error in production (fatal `RuntimeError`), a warning in local/development.
+- **Unknown keys:** Keys in `tool_safety_tiers` that are not registered tool names produce an error in production (fatal `RuntimeError`), a warning in local/development.
+
+Both checks are performed via `ProductionConfigValidator.validate()` which consolidates all strict-key, safety-tier, and allowed-tools validations into a single pass.
 
 ---
 

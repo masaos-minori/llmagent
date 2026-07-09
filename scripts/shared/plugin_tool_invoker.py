@@ -40,6 +40,7 @@ class PluginToolInvoker:
                 is_error=True,
                 request_id="",
                 server_key="",
+                source="plugin",
                 error_type="tool",
             )
         try:
@@ -67,6 +68,7 @@ class PluginToolInvoker:
                 is_error=True,
                 request_id="",
                 server_key="",
+                source="plugin",
                 error_type="plugin_contract",
             )
         return ToolCallResult(
@@ -74,5 +76,6 @@ class PluginToolInvoker:
             is_error=is_error,
             request_id="",
             server_key="",
+            source="plugin",
             error_type="tool" if is_error else "",
         )

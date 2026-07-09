@@ -440,7 +440,7 @@ chunks_vec (first) → chunks → documents
 ```
 POST http://127.0.0.1:8003/embedding
 Request:  {"content": "passage: {text}"}
-Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config/common.toml::embedding_dims)
+Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config/agent.toml::embedding_dims)
 ```
 
 ### 4.5 DB tables updated

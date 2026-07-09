@@ -112,6 +112,7 @@ class HttpTransport:
                     is_error=result.is_error,
                     request_id=result.request_id,
                     server_key=self._server_key,
+                    source="mcp",
                     error_type=result.error_type,
                 )
             except httpx.TimeoutException as e:

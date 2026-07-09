@@ -123,7 +123,7 @@ All protocols are `@runtime_checkable` — `isinstance()` check works.
 ```python
 from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob
 
-dims = get_embedding_dims()      # reads common.toml::embedding_dims; default 384
+dims = get_embedding_dims()      # reads agent.toml::embedding_dims; default 384
 nbytes = get_embedding_bytes()   # dims * 4 (float32)
 validate_embedding_blob(blob)    # TypeError if not bytes; ValueError if wrong size
 ```
@@ -246,7 +246,7 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 
 | Function | Signature | Description |
 |---|---|---|
-| `checkpoint_wal(db, mode=None)` | `-> WalCheckpointCounts` | WAL flush; default mode from `common.toml::sqlite_wal_checkpoint_mode` (default `TRUNCATE`) |
+| `checkpoint_wal(db, mode=None)` | `-> WalCheckpointCounts` | WAL flush; default mode from `agent.toml::sqlite_wal_checkpoint_mode` (default `TRUNCATE`) |
 | `vacuum_db(db, mode=STRICT)` | `-> MaintenanceResult` | Delegates to `db.vacuum()`; call outside transaction |
 | `purge_old_sessions(db, cfg=None, mode=STRICT)` | `-> MaintenanceResult` | Age-based + count-based session purge; commits internally |
 | `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | Delete old memories via `SQLiteMemoryDeleteStore` |
@@ -293,7 +293,7 @@ class RetentionConfig:
     max_age_days: int = 90    # purge sessions older than N days (0 = disabled)
 ```
 
-`RetentionConfig.from_config()` reads `common.toml::sqlite_retention_max_sessions` /
+`RetentionConfig.from_config()` reads `agent.toml::sqlite_retention_max_sessions` /
 `sqlite_retention_max_age_days`.
 
 ### `purge_old_sessions` behavior
@@ -393,7 +393,7 @@ if not is_consistent(report):
 4. Result not `"ok"` → archive corrupt file as `{stem}_corrupt_{timestamp}{suffix}`; copy `backup_path`; return `action="restored"` (or `"no_backup"` / `"error"`)
 
 **Rotate archive format:** `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in `archive_dir`
-(default: `common.toml::sqlite_archive_dir` → `/opt/llm/db/archive`).
+(default: `agent.toml::sqlite_archive_dir` → `/opt/llm/db/archive`).
 Uses SQLite online backup API to preserve WAL integrity.
 
 ---
@@ -455,7 +455,7 @@ uv run python -c "from db.rotation import rotate_all_dbs; rotate_all_dbs()"
 rm /opt/llm/db/rag.sqlite /opt/llm/db/session.sqlite /opt/llm/db/workflow.sqlite
 ```
 
-DB paths are resolved from `common.toml` keys `rag_db_path`, `session_db_path`, `workflow_db_path`.
+DB paths are resolved from `agent.toml` keys `rag_db_path`, `session_db_path`, `workflow_db_path`.
 
 **Step 3: Recreate** — run `create_schema()` to initialize empty DBs:
 

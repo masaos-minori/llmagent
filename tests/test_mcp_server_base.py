@@ -5,12 +5,10 @@ __list_tools__ introspection protocol, and attach_auth_middleware.
 
 from __future__ import annotations
 
-import asyncio
 import importlib.util
 import re
 from pathlib import Path
 
-import orjson
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

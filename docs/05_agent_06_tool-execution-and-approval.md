@@ -39,6 +39,8 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 | `use_tool_dag=False`, any side-effect tool | Sequential (serialized for safety) |
 | `use_tool_dag=False`, no side-effect tools | Parallel (`asyncio.gather()`) |
 
+**Production note:** Setting `use_tool_dag=false` is considered legacy (non-production) behavior. In production mode, this setting is flagged as an error during startup validation via `ProductionConfigValidator.validate()`. The DAG scheduler provides resource-scoped parallelism for independent reads while serializing writes per resource scope.
+
 ---
 
 ## DAG Tool Scheduler (`agent/tool_scheduler.py`)
@@ -241,6 +243,8 @@ Hint appended to history when a tool result is dropped due to the per-turn limit
 [Result omitted: per-turn tool result limit reached.]
 ```
 
+This hint is appended when `tool_results_turn_max_chars` (see [05_agent_08_configuration.md](05_agent_08_configuration.md)) is exceeded.
+
 ---
 
 ## Tool Result Cache
@@ -261,7 +265,7 @@ Hint appended to history when a tool result is dropped due to the per-turn limit
 
 | Control | Config field | Behavior |
 |---|---|---|
-| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; empty = allow all |
+| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; empty = allow all. In production, `allowed_tools=[]` is treated as a configuration error (all tools allowed without restriction). Set explicitly to restrict to specific tools. |
 | `allowed_root` | `cfg.approval.allowed_root` | Path jail; empty = disabled |
 | `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; empty = deny all (fail-closed) |
 | `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Auto-deny in plan mode |

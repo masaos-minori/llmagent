@@ -1,4 +1,5 @@
 """Tests for --targets-file feature: parse_targets_file(), crawl() file:// dispatch, and CLI argument handling."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +17,9 @@ from rag.ingestion.crawler_utils import parse_targets_file
 def test_parse_targets_file_http(tmp_path: Path) -> None:
     """A valid TOML file with an http:// URL is parsed correctly."""
     targets_file = tmp_path / "targets.toml"
-    targets_file.write_text('target_urls = [["https://example.com/", "en"]]', encoding="utf-8")
+    targets_file.write_text(
+        'target_urls = [["https://example.com/", "en"]]', encoding="utf-8"
+    )
     result = parse_targets_file(targets_file)
     assert result == [("https://example.com/", "en")]
 
@@ -24,7 +27,9 @@ def test_parse_targets_file_http(tmp_path: Path) -> None:
 def test_parse_targets_file_file_url(tmp_path: Path) -> None:
     """A file:// URL is accepted and parsed."""
     targets_file = tmp_path / "targets.toml"
-    targets_file.write_text('target_urls = [["file:///path/to/file.py", "en"]]', encoding="utf-8")
+    targets_file.write_text(
+        'target_urls = [["file:///path/to/file.py", "en"]]', encoding="utf-8"
+    )
     result = parse_targets_file(targets_file)
     assert result == [("file:///path/to/file.py", "en")]
 
@@ -32,7 +37,9 @@ def test_parse_targets_file_file_url(tmp_path: Path) -> None:
 def test_parse_targets_file_invalid_scheme(tmp_path: Path) -> None:
     """An unsupported URL scheme raises ValueError."""
     targets_file = tmp_path / "targets.toml"
-    targets_file.write_text('target_urls = [["ftp://example.com/file.txt", "en"]]', encoding="utf-8")
+    targets_file.write_text(
+        'target_urls = [["ftp://example.com/file.txt", "en"]]', encoding="utf-8"
+    )
     with pytest.raises(ValueError, match="unsupported URL scheme"):
         parse_targets_file(targets_file)
 
@@ -40,7 +47,9 @@ def test_parse_targets_file_invalid_scheme(tmp_path: Path) -> None:
 def test_parse_targets_file_invalid_lang(tmp_path: Path) -> None:
     """An unsupported lang value raises ValueError."""
     targets_file = tmp_path / "targets.toml"
-    targets_file.write_text('target_urls = [["https://example.com/", "zh"]]', encoding="utf-8")
+    targets_file.write_text(
+        'target_urls = [["https://example.com/", "zh"]]', encoding="utf-8"
+    )
     with pytest.raises(ValueError, match="unsupported lang"):
         parse_targets_file(targets_file)
 
@@ -60,11 +69,19 @@ def test_main_url_and_targets_file_conflict(
 ) -> None:
     """Passing both --url and --targets-file causes SystemExit(2)."""
     targets_file = tmp_path / "targets.toml"
-    targets_file.write_text('target_urls = [["https://example.com/", "en"]]', encoding="utf-8")
+    targets_file.write_text(
+        'target_urls = [["https://example.com/", "en"]]', encoding="utf-8"
+    )
     monkeypatch.setattr(
         sys,
         "argv",
-        ["crawler.py", "--url", "https://example.com/", "--targets-file", str(targets_file)],
+        [
+            "crawler.py",
+            "--url",
+            "https://example.com/",
+            "--targets-file",
+            str(targets_file),
+        ],
     )
     with pytest.raises(SystemExit) as exc_info:
         main()

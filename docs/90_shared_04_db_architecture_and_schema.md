@@ -28,10 +28,10 @@ Four DB files:
 
 | DB | Default path | Tables |
 |---|---|---|
-| `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
-| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
-| `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
-| `eventbus.sqlite` | `common.toml::eventbus_db_path` | `events` |
+| `rag.sqlite` | `agent.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
+| `session.sqlite` | `agent.toml::session_db_path` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
+| `workflow.sqlite` | `agent.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
+| `eventbus.sqlite` | `agent.toml::eventbus_db_path` | `events` |
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns.
 `rag.sqlite` is write-heavy during ingestion, read-heavy during queries.
@@ -59,7 +59,7 @@ class DbConfig:
 - `__post_init__` validates that parent directories exist
 - `embed_url` field does NOT exist in `DbConfig`
 - Constructed by `build_db_config()` in `db/config.py`
-- `common.toml` is loaded via `ConfigLoader().load_all()` (included at index 0 of `_BASE_CONFIG_FILES`) — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table
+- `agent.toml` is loaded via `ConfigLoader().load_all()` (included at index 0 of `_BASE_CONFIG_FILES`) — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table
 
 ---
 
@@ -82,7 +82,7 @@ SQLiteHelper(target: DbTarget | str = "rag")
 1. Load sqlite-vec extension (rag target only); then `enable_load_extension(False)`
 2. `PRAGMA journal_mode=WAL`
 3. `PRAGMA synchronous=NORMAL`
-4. `PRAGMA busy_timeout=30000` (from `common.toml::sqlite_busy_timeout_ms`)
+4. `PRAGMA busy_timeout=30000` (from `agent.toml::sqlite_busy_timeout_ms`)
 5. `PRAGMA foreign_keys=ON` (when `write_mode=True`)
 
 sqlite-vec is loaded only for `target="rag"`. Session and workflow targets do not load vec.
@@ -310,13 +310,13 @@ create_schema()
 | Constraint | Value |
 |---|---|
 | SQLite version | 3.35+ required |
-| sqlite-vec path | `/opt/llm/sqlite-vec/vec0.so` (from `common.toml::sqlite_vec_so`) |
+| sqlite-vec path | `/opt/llm/sqlite-vec/vec0.so` (from `agent.toml::sqlite_vec_so`) |
 | WAL mode | All connections; `PRAGMA journal_mode=WAL` |
-| busy_timeout | 30,000 ms default (`common.toml::sqlite_busy_timeout_ms`) |
-| Embedding dimension | 384 default (`common.toml::embedding_dims`) |
+| busy_timeout | 30,000 ms default (`agent.toml::sqlite_busy_timeout_ms`) |
+| Embedding dimension | 384 default (`agent.toml::embedding_dims`) |
 | Float format | float32 little-endian BLOB |
 | Single-node only | No distributed/replica support |
-| `common.toml` loading | Included in `ConfigLoader().load_all()` at index 0 — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for ownership table |
+| `agent.toml` loading | Included in `ConfigLoader().load_all()` at index 0 — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for ownership table |
 
 ---
 
@@ -327,7 +327,7 @@ create_schema()
 | Where is rag.sqlite schema? | This document §5 |
 | Where is session.sqlite schema? | This document §6 |
 | Does `SQLiteHelper` support workflow.sqlite? | Yes — `target="workflow"` (undocumented in spec, see §4) |
-| How is embedding dimension set? | `common.toml::embedding_dims` (default 384) |
+| How is embedding dimension set? | `agent.toml::embedding_dims` (default 384) |
 | What initializes schemas? | `create_schema()` — idempotent DDL-only initialization; no migration |
 | Are DB triggers documented? | Yes — chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6) |
 

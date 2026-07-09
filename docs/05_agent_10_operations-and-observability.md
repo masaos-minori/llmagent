@@ -245,7 +245,7 @@ Three structured audit event dataclasses are used for workflow-specific log entr
 |---|---|
 | `ToolApprovalEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
 | `ApprovalDecisionEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
-| `ToolExecEvent` | `source: str = "agent"`, `error_type: str = ""`, `workflow_id: str = ""`, `session_id: str = ""`, `artifact_uri: str \| None = None` |
+| `ToolExecEvent` | `source: str = "agent"` (tool source: `"agent"` for MCP tools, `"plugin"` for plugin tools), `error_type: str = ""`, `workflow_id: str = ""`, `session_id: str = ""`, `artifact_uri: str \| None = None` |
 
 ### Audit writers (`agent/tool_audit.py`)
 
@@ -253,12 +253,22 @@ Three structured audit event dataclasses are used for workflow-specific log entr
 |---|---|
 | `log_approval_decision(ctx, outcome)` | Write a structured approval_decision event to the audit log |
 | `write_round_exec(ctx, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode)` | Log a round-wide execution event, capturing serialization impact |
+| `audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri=None, source="")` | Write a tool_exec event to the audit log. Plugin tools pass `source="plugin"` which bypasses the `mcp_request_id` guard that suppresses events without a request ID. |
+
+### Plugin tool audit events
+
+Plugin tools emit `tool_exec` events with `source="plugin"`, `mcp_request_id=""`, and empty `server_key`. Unlike MCP tool events, plugin events lack an `X-Request-Id` correlation because they do not go through the HTTP transport layer. This means plugin tool audit events cannot be correlated with MCP server access logs.
+
+Example plugin tool audit event:
+```json
+{"event":"tool_exec","task_id":"...","tool":"my_plugin_tool","operation_type":"","resource_scope":{},"mcp_request_id":"","is_error":false,"args_preview":{},"ts":1718600000.1,"source":"plugin","error_type":"","workflow_id":"","session_id":""}
+```
 
 ---
 
 ## OpenTelemetry (OTel)
 
-Configure in `config/otel.toml`:
+Configure in `config/agent.toml`:
 
 ```toml
 otel_enabled = true
@@ -489,7 +499,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 |---|---|---|
 | LLM stream interrupted (partial completion) | `/stats` shows `partials > 0`; agent log: `WARNING Partial LLM completion saved: {kind}` | Check `session_diagnostics` (`kind=partial_completion`) for details; check LLM endpoint stability |
 | Context compression (HistoryManager) | `/stats` shows `Compress: N > 0`; agent log: `INFO Compressed history` | Increase `compression_char_threshold` or reduce context size |
-| Max tool turns hit | Agent log: `WARNING max_tool_turns=N reached` | Increase `max_tool_turns` in `config/tools.toml` |
+| Max tool turns hit | Agent log: `WARNING max_tool_turns=N reached` | Increase `max_tool_turns` in `config/agent.toml` |
 
 For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md).
 
@@ -680,7 +690,7 @@ Example output:
 ```
 Field                   Value
 ----------------------  --------------------------------------------------
-Mode                    hybrid
+Mode                    Hybrid mode (semantic + FTS)
 Memory layer            enabled
 Embedding enabled       Yes
 Local-only              enabled
@@ -698,8 +708,8 @@ Embed skip count        8
   source:CONVERSATION   71
 ```
 
-- **Mode**: `hybrid` | `fts-only` | `degraded` | `disabled`
-- **Local-only**: `enabled` when `memory_local_only = true` in `memory.toml`
+- **Mode** labels: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
+- **Local-only**: `enabled` when `memory_local_only = true` in `config/agent.toml`
 - **FTS fallback count**: sessions where embedding was unavailable and FTS-only was used
 - **Embed skip count**: entries stored without embedding (circuit open or embed disabled)
 

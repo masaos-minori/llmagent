@@ -556,7 +556,9 @@ class TestHttpLifecycleStderrLog:
             pytest.raises(HttpStartupError) as exc_info,
         ):
             client_instance = AsyncMock()
-            client_instance.get = AsyncMock(side_effect=httpx.ConnectError("connect refused"))
+            client_instance.get = AsyncMock(
+                side_effect=httpx.ConnectError("connect refused")
+            )
             MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start("test_server", cfg)
@@ -802,7 +804,9 @@ class TestProcessGroupShutdown:
             pytest.raises(HttpStartupError),
         ):
             client_instance = AsyncMock()
-            client_instance.get = AsyncMock(side_effect=httpx.ConnectError("connect refused"))
+            client_instance.get = AsyncMock(
+                side_effect=httpx.ConnectError("connect refused")
+            )
             MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start("srv", cfg)

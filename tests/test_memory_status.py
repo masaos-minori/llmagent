@@ -172,3 +172,57 @@ class TestCmdMemoryStatus:
         rows = args[1]
         mode_row = next(r for r in rows if r[0] == "Last retrieval mode")
         assert mode_row[1] == "hybrid"
+
+
+# ── build_status_table mode labels ─────────────────────────────────────────────
+
+
+class TestBuildStatusTableModeLabels:
+    def test_memory_layer_disabled_label(self) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        status = MemoryStatus(memory_layer_enabled=False)
+        rows = build_status_table(status)
+        mode_row = next(r for r in rows if r[0] == "Mode")
+        assert mode_row[1] == "Memory layer disabled"
+
+    def test_hybrid_mode_label(self, config: EmbeddingClientConfig) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        ec = EmbeddingClient(config, enabled=True)
+        status = MemoryStatus(
+            memory_layer_enabled=True,
+            embedding_enabled=True,
+            circuit_open=False,
+        )
+        rows = build_status_table(status)
+        mode_row = next(r for r in rows if r[0] == "Mode")
+        assert mode_row[1] == "Hybrid mode (semantic + FTS)"
+
+    def test_degraded_mode_label(self, config: EmbeddingClientConfig) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        ec = EmbeddingClient(config, enabled=True)
+        ec._fail_count = config.circuit_open_after
+        ec._circuit_opened_at = time.monotonic()
+        status = MemoryStatus(
+            memory_layer_enabled=True,
+            embedding_enabled=True,
+            circuit_open=True,
+        )
+        rows = build_status_table(status)
+        mode_row = next(r for r in rows if r[0] == "Mode")
+        assert mode_row[1] == "Degraded mode (circuit open, FTS fallback)"
+
+    def test_fts_only_label(self, config: EmbeddingClientConfig) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        ec = EmbeddingClient(config, enabled=True)
+        status = MemoryStatus(
+            memory_layer_enabled=True,
+            embedding_enabled=False,
+            circuit_open=False,
+        )
+        rows = build_status_table(status)
+        mode_row = next(r for r in rows if r[0] == "Mode")
+        assert mode_row[1] == "Memory enabled, embedding disabled (FTS-only)"

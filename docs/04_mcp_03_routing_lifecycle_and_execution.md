@@ -129,7 +129,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
 | 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables startup drift detection via `check_routing_drift_vs_live()` |
 | 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
-| 6 | Add `tool_safety_tiers` entry in `config/security.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
+| 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/<key>_mcp_server.toml` `[mcp_servers.<key>]` section | **[Optional]** — enables startup drift validation only; routing does not require it |
 
 **Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is NOT a routing input; it is drift validation metadata only. Unknown tools fail immediately — no fallback exists. Exposing the tool in `/v1/tools` enables startup drift detection via `check_routing_drift_vs_live()`; it does not affect routing.
@@ -461,7 +461,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 |---|---|---|
 | `shared/tool_constants.py` — add tool to frozenset | **Required** | Registry reads frozensets at import |
 | `config/tools_definitions.toml` — add LLM schema | **Required** (if tool visible to LLM) | OpenAI function-calling format; required for the LLM to call the tool |
-| `config/security.toml` — add `tool_safety_tiers` entries | **Required** | All tools must have a declared safety tier |
+| `config/agent.toml` — add `tool_safety_tiers` entries | **Required** | All tools must have a declared safety tier |
 | `config/<key>_mcp_server.toml` — server config file | **Required** | Server app config + `[mcp_servers.<key>]` transport section |
 | `deploy/deploy.sh` — add install/copy step | **Required** (new server) | Deployment must include the new server |
 | Update `routing.md` | **Required** | Document guide must reference the new server |
@@ -472,7 +472,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
 3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
 4. Add LLM schemas to `config/tools_definitions.toml` (OpenAI function-calling format)
-5. Add `tool_safety_tiers` entries to `config/security.toml` for each tool
+5. Add `tool_safety_tiers` entries to `config/agent.toml` for each tool
 6. Create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section
 7. Add new files to `deploy/deploy.sh` copy list
 8. Add startup step to `deploy/setup_services.sh`

@@ -142,13 +142,12 @@ class _MemoryMixin(MixinBase):
                 "  [memory] Memory layer: disabled (use_memory_layer=false)"
             )
             return
-        embed_client = mem.retriever.embed_client
-        if embed_client is None:
-            self._out.write("  [memory] embed_client not available")
-            return
+
+        assert mem is not None
 
         status = build_memory_status(mem)
-        if status is None:
+        assert status is not None
+        if not status.embedding_enabled:
             self._out.write("  [memory] embed_client not available")
             return
 

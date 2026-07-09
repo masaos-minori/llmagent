@@ -115,8 +115,8 @@ a server must opt in to `"persistent"` or `"subprocess"` to be usable.
 |---|---|---|
 | Max response bytes | 512 KB | hardcoded in `mcp/server.py` |
 | call_timeout_sec | 60.0 sec | `McpServerConfig.call_timeout_sec` |
-| Tool cache TTL | 300 sec | `config/tools.toml::tool_cache_ttl` |
-| Tool cache max size | 200 entries | `config/tools.toml::tool_cache_max_size` |
+| Tool cache TTL | 300 sec | `config/agent.toml::tool_cache_ttl` |
+| Tool cache max size | 200 entries | `config/agent.toml::tool_cache_max_size` |
 | Watchdog interval | `0` (disabled, LOCAL default; PRODUCTION default is `30.0`) | `config/agent.toml::mcp_watchdog_interval` |
 | Health registry threshold | 3 failures | hardcoded in `shared/mcp_config.py` |
 | startup_timeout_sec | 30 sec | `McpServerConfig.startup_timeout_sec` |
@@ -595,6 +595,25 @@ When `mcp_watchdog_interval = 0`:
 - Crashed HTTP servers will remain unreachable until the agent process is restarted manually
 - Crashed subprocess servers (shell-mcp) will not be restarted automatically
 
+### Recommended values and operational impact
+
+| Profile | `mcp_watchdog_interval` | Rationale |
+|---|---|---|
+| LOCAL development | `0` (disabled) | Manual restart is acceptable during development; avoids unnecessary log noise |
+| PRODUCTION | `30.0` | Balances detection speed against probe overhead; frequent enough to catch crashes within 30s |
+
+**Setting `mcp_watchdog_interval` too low (< 10s):**
+- Increased probe overhead across all MCP servers
+- More frequent log entries for transient failures
+- May cause rapid restart loops for servers with slow recovery
+
+**Setting `mcp_watchdog_interval` too high (> 120s):**
+- Delayed detection of server failures
+- Longer periods of degraded service before auto-restart
+- Extended downtime for critical MCP servers between crash and recovery
+
+**General guidance:** Keep `mcp_watchdog_interval` between 15–60 seconds for production. Values outside this range should only be used with explicit justification.
+
 ### Verifying watchdog state
 
 Two places show the current watchdog state:
@@ -800,7 +819,7 @@ When adding a new tool to an **existing** MCP server:
 | 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
 | 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables startup drift validation; no effect on routing |
 | 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
-| 6 | Add `tool_safety_tiers` entry in `config/security.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
+| 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/<key>_mcp_server.toml` `[mcp_servers.<key>]` section | **[Optional]** — enables startup drift validation only; routing does not require it |
 
 **Note**: All tools must be explicitly registered in ToolRegistry. No prefix-based routing exists.
@@ -828,7 +847,7 @@ When adding a server:
 - [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
 - [ ] Add new files to `deploy/deploy.sh` copy list
 - [ ] Add startup step to `deploy/setup_services.sh`
-- [ ] Add `tool_safety_tiers` entries to `config/security.toml` for all new tools
+- [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools
 - [ ] Update `routing.md` if new documentation is needed
 
 ---
@@ -838,6 +857,12 @@ When adding a server:
 Before deploying to production, verify:
 
 - [ ] `tool_definitions_strict = true` (fatal on schema mismatch)
+- [ ] `routing_drift_strict = true` (fatal on routing drift)
+- [ ] `plugin_strict = true` (fail-fast on plugin errors)
+- [ ] `use_tool_dag = true` (DAG scheduling; `false` is legacy non-production behavior)
+- [ ] `allowed_tools` explicitly set (empty = allow all tools; should be a whitelist)
+- [ ] All registered tools have entries in `tool_safety_tiers` (missing tiers → fatal in production)
+- [ ] No unknown keys in `tool_safety_tiers` (unknown keys → fatal in production)
 - [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`) and firejail binary installed
 - [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (empty = fail-closed: deny all)
 - [ ] `security_profile = "production"` in `config/agent.toml` (enables startup enforcement)
@@ -869,3 +894,65 @@ shell_sandbox_backend = "firejail"
 ```
 
 See `04_mcp_05_security_and_safety_model.md` for the full fail-open/closed policy table.
+
+---
+
+## Local to Production Auth Migration
+
+When migrating from local development to production, authentication configuration must change. Follow these steps carefully.
+
+### Migration Steps
+
+1. Switch `security_profile` from `local` to `production` in `config/agent.toml`
+   - This enables startup enforcement of auth requirements
+   - In `security_profile="local"`, empty `auth_token=""` is allowed; in `security_profile="production"`, it is rejected at startup
+
+2. Set non-empty `auth_token` for all HTTP MCP servers
+   - Each `[mcp_servers.*]` entry in `config/agent.toml` that uses `transport="http"` must have a non-empty `auth_token`
+   - Use environment variable injection or secret management (e.g., `/etc/conf.d/` files), never hardcode secrets in config files
+
+3. Restart the agent process (do NOT use `/reload`)
+   - `/reload` does not modify `[mcp_servers.*]` at runtime — MCP server definition changes require a full agent restart
+   - The watchdog (`mcp_watchdog_interval`, `mcp_watchdog_max_restarts`) does not apply pending `/reload` config changes either
+
+4. Verify with `/mcp status`
+   - Confirm all servers show `OK` status
+   - Check that no servers report authentication-related failures
+
+5. Inspect startup logs for missing/mismatched auth tokens
+   - Look for errors mentioning auth failures during startup
+   - Check `/opt/llm/logs/agent.log` for transport-level errors on newly authenticated servers
+
+### Troubleshooting
+
+#### Empty `auth_token`
+
+Symptom: Agent fails to start with auth error when `security_profile="production"`.
+
+Cause: At least one HTTP MCP server has `auth_token=""` while `security_profile="production"`.
+
+Fix: Set a valid `auth_token` for each affected server in `config/agent.toml`.
+
+#### Missing env secret
+
+Symptom: Server starts but health checks fail with dependency failure.
+
+Cause: Environment variable referenced by `env` field or config key is not set.
+
+Fix: Ensure the required secret is available in the agent process environment before starting.
+
+#### Mismatched Bearer token
+
+Symptom: Tool calls return authentication errors despite having an `auth_token` set.
+
+Cause: The Bearer token value does not match what the MCP server expects.
+
+Fix: Verify the token value against the MCP server's expected credentials. Tokens are passed as `Authorization: Bearer <token>` headers.
+
+#### `/reload` vs full restart
+
+Symptom: After changing `auth_token` in config, `/reload` reports no effect.
+
+Cause: `/reload` never modifies `[mcp_servers.*]` at runtime. Changes to MCP server definitions (URL, auth token, startup mode, transport, command, environment) always require a full agent restart.
+
+Fix: Stop the agent process and restart it to pick up the new auth configuration.
