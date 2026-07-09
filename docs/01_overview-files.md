@@ -24,6 +24,8 @@
 ├─ venv/                              # Python 仮想環境
 │   └─ requirements.txt              # Python 依存パッケージ一覧
 ├─ config/
+│   ├─ workflows/                           # ワークフロー定義ファイル群
+│   │   └─ default.json                     # デフォルトワークフロー定義
 │   ├─ common.toml                          # 共通設定 (DB パス・埋込 URL)
 │   ├─ rag_pipeline.toml                    # クロール・チャンク設定 (対象 URL・チャンクサイズ・ストップワード)
 │   ├─ web_search_mcp_server.toml           # Web 検索 MCP サーバ設定 (:8004)
@@ -35,7 +37,8 @@
 │   ├─ rag_pipeline_mcp_server.toml         # RAG パイプライン MCP サーバ設定 (:8010)
 │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (:8012)
 │   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
-│   └─ git_mcp_server.toml                  # Git MCP サーバ設定 (:8014)
+│   ├─ git_mcp_server.toml                  # Git MCP サーバ設定 (:8014)
+│   └─ eventbus.toml                        # Event Bus サーバ設定 (:8015)
 ├─ scripts/
 │   ├─ agent.py                             # CLI エントリポイント (AgentREPL を起動)
 │   ├─ agent/                               # エージェント REPL パッケージ
@@ -413,6 +416,7 @@
 │   │   ├─ dlq_route.py                     # DLQ エンドポイント
 │   │   ├─ replay_route.py                  # リプレイエンドポイント
 │   │   ├─ health_route.py                  # ヘルスチェックエントポイント
+│   │   ├─ schema.sql                       # イベントバスDBスキーマ
 │   │   └─ __init__.py                      # イベントバスパッケージ初期化
    └─ logs/                                    # 各サービスのログファイル出力先
 /etc/conf.d/
