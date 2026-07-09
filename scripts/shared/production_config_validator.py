@@ -33,7 +33,7 @@ class ProductionConfigValidator:
             f"tool_safety_tiers contains unknown key {k!r} (not a registered tool name)"
             for k in unknown_keys
         ]
-        return ConfigValidationResult(errors=errors, warnings=[])
+        return ConfigValidationResult(errors=errors)
 
 
 __all__ = ["ConfigValidationResult", "ProductionConfigValidator"]
