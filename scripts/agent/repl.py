@@ -169,10 +169,6 @@ class AgentREPL:
                         "max_ms": round(max(samples) * 1000, 2),
                     }
 
-            # tool_results table removed (H-9); kept as an empty placeholder so the
-            # session_diagnostics JSON payload shape is unchanged for existing consumers.
-            tool_result_summary: dict[str, int] = {}
-
             workflow_count = 0
             task_count = 0
             approval_events = 0
@@ -259,7 +255,6 @@ class AgentREPL:
                     hist_mgr.stat_fallback_truncate_count if hist_mgr is not None else 0
                 ),
                 "latency_summary": latency_summary,
-                "tool_result_summary": tool_result_summary,
                 "workflow_count": workflow_count,
                 "task_count": task_count,
                 "approval_events": approval_events,

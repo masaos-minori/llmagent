@@ -189,9 +189,6 @@ class ToolConfig:
     tool_cache_max_size: int = 200
     # When True, tool calls execute one by one instead of asyncio.gather()
     serial_tool_calls: bool = False
-    # Replace truncation with LLM summary above threshold
-    use_tool_summarize: bool = False
-    tool_summarize_threshold: int = 3000
     # Compare tool_definitions against /v1/tools at startup
     tool_definitions_strict: bool = False
     # Treat config/registry routing drift as fatal at startup; False = warn only

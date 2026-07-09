@@ -6,12 +6,9 @@ mask_args was moved here from agent/commands/registry.py (re-export removed).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
-
-if TYPE_CHECKING:
-    from agent.config_dataclasses import AgentConfig
 
 # Hint appended to history when a tool result is dropped due to the per-turn limit
 TURN_LIMIT_HINT = "[Result omitted: per-turn tool result limit reached.]"
@@ -23,23 +20,6 @@ def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
     Used before logging to prevent sensitive data leakage.
     """
     return {k: ("***" if k in masked_fields else v) for k, v in args.items()}
-
-
-def is_summarized(
-    cfg: AgentConfig,
-    text: str,
-    llm_text: str,
-    is_error: bool,
-) -> bool:
-    """Return True when llm_text represents a summarized (not truncated) form of text."""
-    if not cfg.tool.use_tool_summarize or is_error:
-        return False
-    if len(text) <= cfg.tool.tool_summarize_threshold:
-        return False
-    if llm_text == text:
-        return False
-    truncated = text[: cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
-    return llm_text != truncated
 
 
 def build_github_preview(args: dict[str, Any]) -> str:

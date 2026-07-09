@@ -39,9 +39,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "max_chunks_per_doc": 2,
         "use_two_stage_fetch": False,
         "two_stage_max_docs": 2,
-        "serial_tool_calls": False,
-        "use_tool_summarize": False,
-        "tool_summarize_threshold": 3000,
+        "  serial_tool_calls": False,
         "use_semantic_cache": False,
         "semantic_cache_threshold": 0.92,
         "tool_result_max_llm_chars": 4000,
@@ -307,7 +305,7 @@ class TestExecuteWithDag:
 
     @pytest.mark.asyncio
     async def test_error_output_truncated_only_no_summarize(self) -> None:
-        cfg = _cfg(tool_result_max_llm_chars=10, use_tool_summarize=True)
+        cfg = _cfg(tool_result_max_llm_chars=10)
         ctx = _make_ctx(cfg)
         long_error_text = "e" * 50
         ctx.services_required.tools.execute = AsyncMock(
@@ -325,10 +323,8 @@ class TestExecuteWithDag:
 
     @pytest.mark.asyncio
     async def test_summarize_tool_result_never_called_even_when_enabled(self) -> None:
-        """use_tool_summarize=True must have no effect — the summarize path is removed."""
+        """The summarize path was removed; these config keys no longer exist."""
         cfg = _cfg(
-            use_tool_summarize=True,
-            tool_summarize_threshold=1,
             tool_result_max_llm_chars=4000,
         )
         ctx = _make_ctx(cfg)

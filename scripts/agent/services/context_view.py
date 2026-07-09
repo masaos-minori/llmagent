@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 
 def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
-    """Compute per-category character counts (system / history / tool_results)."""
+    """Compute per-category character counts (system / history / tool_messages)."""
     system = 0
     history = 0
-    tool_results = 0
+    tool_messages = 0
     for m in messages:
         role = m.get("role", "")
         content_raw = m.get("content")
@@ -33,14 +33,14 @@ def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
         if role == "system":
             system += len(text)
         elif role == "tool":
-            tool_results += len(text)
+            tool_messages += len(text)
         elif role == "assistant":
             history += len(text)
             if tool_calls:
-                tool_results += len(orjson.dumps(tool_calls))
+                tool_messages += len(orjson.dumps(tool_calls))
         else:
             history += len(text)
-    return ContextBudget(system=system, history=history, tool_results=tool_results)
+    return ContextBudget(system=system, history=history, tool_messages=tool_messages)
 
 
 def _build_budget(messages: list[LLMMessage], token_is_exact: bool) -> ContextBudget:
@@ -57,10 +57,10 @@ def _build_budget(messages: list[LLMMessage], token_is_exact: bool) -> ContextBu
     return ContextBudget(
         system=char_budget.system,
         history=char_budget.history,
-        tool_results=char_budget.tool_results,
+        tool_messages=char_budget.tool_messages,
         token_system=ts,
         token_history=th,
-        token_tool_results=tt,
+        token_tool_messages=tt,
     )
 
 
@@ -69,15 +69,15 @@ def _token_breakdown(
 ) -> tuple[int | None, int | None, int | None]:
     """Estimate per-category token counts using category-aware ratios.
 
-    Returns ``(token_system, token_history, token_tool_results)`` or
+    Returns ``(token_system, token_history, token_tool_messages)`` or
     ``(None, None, None)`` when there is no content to estimate.
 
     Maps the internal token estimator categories (text, tool_calls, system)
-    to budget display categories (system, history, tool_results):
+    to budget display categories (system, history, tool_messages):
 
     - system → system
-    - text from user/assistant/tool → history or tool_results by role
-    - tool_calls JSON → tool_results
+    - text from user/assistant/tool → history or tool_messages by role
+    - tool_calls JSON → tool_messages
     """
     _RATIO_TEXT: float = 4.0
     _RATIO_TOOL_CALL: float = 2.5

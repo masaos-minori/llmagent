@@ -193,16 +193,6 @@ class ConfigReloadService:
         )
         _apply_bool(
             new_cfg,
-            "use_tool_summarize",
-            lambda v: setattr(cfg.tool, "use_tool_summarize", v),
-        )
-        _apply_int(
-            new_cfg,
-            "tool_summarize_threshold",
-            lambda v: setattr(cfg.tool, "tool_summarize_threshold", v),
-        )
-        _apply_bool(
-            new_cfg,
             "tool_definitions_strict",
             lambda v: setattr(cfg.tool, "tool_definitions_strict", v),
         )

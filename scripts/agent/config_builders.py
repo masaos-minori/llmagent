@@ -171,8 +171,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         tool_cache_ttl=float(cfg.get("tool_cache_ttl", 300)),
         tool_cache_max_size=int(cfg.get("tool_cache_max_size", 200)),
         serial_tool_calls=bool(cfg.get("serial_tool_calls", False)),
-        use_tool_summarize=bool(cfg.get("use_tool_summarize", False)),
-        tool_summarize_threshold=int(cfg.get("tool_summarize_threshold", 3000)),
         tool_definitions_strict=bool(cfg.get("tool_definitions_strict", False)),
         routing_drift_strict=bool(cfg.get("routing_drift_strict", False)),
         tool_dedup_max_repeats=int(cfg.get("tool_dedup_max_repeats", 3)),
@@ -259,7 +257,12 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     Otherwise configuration is loaded from files via load_config().
     """
     cfg = cfg_override if cfg_override is not None else load_config()
-    _FORBIDDEN_KEYS = {"workflow_mode", "workflow_require_approval"}
+    _FORBIDDEN_KEYS = {
+        "workflow_mode",
+        "workflow_require_approval",
+        "use_tool_summarize",
+        "tool_summarize_threshold",
+    }
     found = _FORBIDDEN_KEYS & set(cfg.keys())
     if found:
         raise ConfigLoadError(

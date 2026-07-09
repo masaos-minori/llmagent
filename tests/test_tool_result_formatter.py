@@ -1,5 +1,5 @@
 """tests/test_tool_result_formatter.py
-Unit tests for agent/tool_result_formatter.py — mask_args, is_summarized, build_preview.
+Unit tests for agent/tool_result_formatter.py — mask_args, build_preview.
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from agent.config_dataclasses import AgentConfig
 from agent.tool_result_formatter import (
     build_github_preview,
     build_preview,
-    is_summarized,
     mask_args,
 )
 
@@ -33,8 +32,6 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "use_two_stage_fetch": False,
         "two_stage_max_docs": 2,
         "serial_tool_calls": False,
-        "use_tool_summarize": False,
-        "tool_summarize_threshold": 3000,
         "use_semantic_cache": False,
         "semantic_cache_threshold": 0.92,
         "tool_result_max_llm_chars": 4000,
@@ -81,42 +78,6 @@ class TestMaskArgs:
     def test_non_string_values_preserved(self) -> None:
         result = mask_args({"path": "/tmp/f", "count": 42, "flag": True}, ["secret"])
         assert result == {"path": "/tmp/f", "count": 42, "flag": True}
-
-
-class TestIsSummarized:
-    def test_summarize_disabled_returns_false(self) -> None:
-        cfg = _cfg(use_tool_summarize=False)
-        assert not is_summarized(cfg, "long text", "summary", False)
-
-    def test_error_result_returns_false(self) -> None:
-        cfg = _cfg(use_tool_summarize=True)
-        assert not is_summarized(cfg, "long text", "summary", True)
-
-    def test_short_text_below_threshold_returns_false(self) -> None:
-        cfg = _cfg(use_tool_summarize=True, tool_summarize_threshold=5000)
-        assert not is_summarized(cfg, "short", "short", False)
-
-    def test_llm_text_equals_text_returns_false(self) -> None:
-        cfg = _cfg(use_tool_summarize=True, tool_summarize_threshold=10)
-        assert not is_summarized(cfg, "long text here", "long text here", False)
-
-    def test_llm_text_equals_truncated_returns_false(self) -> None:
-        cfg = _cfg(
-            use_tool_summarize=True,
-            tool_summarize_threshold=10,
-            tool_result_max_llm_chars=20,
-        )
-        long_text = "x" * 50
-        truncated = long_text[:20] + "\n... (truncated)"
-        assert not is_summarized(cfg, long_text, truncated, False)
-
-    def test_genuine_summary_returns_true(self) -> None:
-        cfg = _cfg(
-            use_tool_summarize=True,
-            tool_summarize_threshold=10,
-            tool_result_max_llm_chars=4000,
-        )
-        assert is_summarized(cfg, "x" * 100, "short summary", False)
 
 
 class TestBuildPreview:

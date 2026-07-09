@@ -143,7 +143,6 @@ class TestPrintConfigValues:
             "  sse_malformed_retry                : 2",
             "Execution settings:",
             "  serial_tool_calls   : False",
-            "  use_tool_summarize  : False",
             "Semantic cache:",
             "  use_semantic_cache  : False",
             "  sem_cache_threshold : 0.92",

@@ -51,7 +51,6 @@ class TestInjectMidTurnError:
 
         svc.inject_mid_turn_error(e, turn=3)
 
-        assert not hasattr(ctx, "tool_result_store")
         ctx.diagnostics.save.assert_called_once()
 
     def test_returns_summary_string(self) -> None:

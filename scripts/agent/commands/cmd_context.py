@@ -42,7 +42,7 @@ class _ContextMixin(MixinBase, TokenDisplay):
             self._out.write_no_data(str(e))
             return
         breakdown = state.breakdown
-        total_bd = (breakdown.system + breakdown.history + breakdown.tool_results) or 1
+        total_bd = (breakdown.system + breakdown.history + breakdown.tool_messages) or 1
         git_str = (
             f"{state.git_branch} @ {state.git_commit}"
             if state.git_branch and state.git_commit
@@ -87,21 +87,21 @@ class _ContextMixin(MixinBase, TokenDisplay):
         for cat, n in [
             ("system", breakdown.system),
             ("history", breakdown.history),
-            ("tool_results", breakdown.tool_results),
+            ("tool_messages", breakdown.tool_messages),
         ]:
             pct = n * 100 // total_bd
             self._out.write(f"  {cat:<14}: {n:>8,} chars ({pct:>3}%)")
         if not state.token_is_exact:
             ts = breakdown.token_system
             th = breakdown.token_history
-            tt = breakdown.token_tool_results
+            tt = breakdown.token_tool_messages
             if ts is not None and th is not None and tt is not None:
                 total_tokens = ts + th + tt
                 self._out.write("Token estimate:")
                 for cat, n in [
                     ("system", ts),
                     ("history", th),
-                    ("tool_results", tt),
+                    ("tool_messages", tt),
                 ]:
                     pct = n * 100 // total_tokens if total_tokens > 0 else 0
                     self._out.write(f"  {cat:<14}: {n:>8,} tokens ({pct:>3}%)")

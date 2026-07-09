@@ -46,9 +46,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "max_chunks_per_doc": 2,
             "use_two_stage_fetch": False,
             "two_stage_max_docs": 2,
-            "serial_tool_calls": False,
-            "use_tool_summarize": False,
-            "tool_summarize_threshold": 3000,
+            "  serial_tool_calls": False,
             "use_semantic_cache": False,
             "semantic_cache_threshold": 0.92,
             "semantic_cache_max_size": 100,
@@ -531,7 +529,6 @@ class TestExecuteOneToolCall:
             )
         )
         ctx.services_required.audit_logger = None
-        ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
 
@@ -567,7 +564,6 @@ class TestExecuteOneToolCall:
             )
         )
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-x"

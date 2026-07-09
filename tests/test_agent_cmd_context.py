@@ -223,7 +223,7 @@ class TestBudgetBreakdown:
     def test_budget_breakdown_counts_tool(self) -> None:
         messages = [{"role": "tool", "content": "result"}]
         result = _budget_breakdown(messages)
-        assert result.tool_results == 6
+        assert result.tool_messages == 6
 
     def test_budget_breakdown_counts_assistant(self) -> None:
         messages = [{"role": "assistant", "content": "answer"}]
@@ -233,7 +233,7 @@ class TestBudgetBreakdown:
     def test_budget_breakdown_counts_tool_calls(self) -> None:
         messages = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t1"}]}]
         result = _budget_breakdown(messages)
-        assert result.tool_results > 0
+        assert result.tool_messages > 0
 
     def test_budget_breakdown_counts_user_as_history(self) -> None:
         messages = [{"role": "user", "content": "question"}]

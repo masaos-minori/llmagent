@@ -73,10 +73,6 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_execution_settings(self, ctx: AgentContext) -> None:
         self._out.write("Execution settings:")
         self._out.write(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
-        self._out.write(f"  use_tool_summarize  : {ctx.cfg.tool.use_tool_summarize}")
-        self._out.write(
-            f"  tool_summarize_thr  : {ctx.cfg.tool.tool_summarize_threshold}"
-        )
 
     def _print_semantic_cache_settings(self, ctx: AgentContext) -> None:
         self._out.write("Semantic cache:")

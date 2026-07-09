@@ -114,7 +114,7 @@ class TestCmdStats:
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
-        assert "llm_partial_completion" not in out
+        assert "session_diagnostics" not in out
         assert "Partial compl : 0" in out
 
     def test_cmd_stats_shows_fallback_truncation(self, capsys: Any) -> None:
@@ -167,8 +167,6 @@ class TestPrintConfigValues:
         ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = True
         ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = False
         ctx.cfg.tool.serial_tool_calls = False
-        ctx.cfg.tool.use_tool_summarize = False
-        ctx.cfg.tool.tool_summarize_threshold = 3000
         ctx.cfg.rag.use_semantic_cache = False
         ctx.cfg.rag.semantic_cache_threshold = 0.92
         ctx.cfg.rag.semantic_cache_max_size = 100

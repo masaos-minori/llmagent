@@ -39,8 +39,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "use_two_stage_fetch": False,
             "two_stage_max_docs": 2,
             "serial_tool_calls": False,
-            "use_tool_summarize": False,
-            "tool_summarize_threshold": 3000,
             "use_semantic_cache": False,
             "semantic_cache_threshold": 0.92,
             "semantic_cache_max_size": 100,

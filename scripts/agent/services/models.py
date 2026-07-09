@@ -189,7 +189,7 @@ class SessionRow:
 class ContextBudget:
     """Per-category character and token counts for /context budget breakdown.
 
-    Character counts (*system*, *history*, *tool_results*) are always present.
+    Character counts (*system*, *history*, *tool_messages*) are always present.
     Token estimates are ``None`` when the source is exact (LLM usage or
     /tokenize endpoint); they are populated only when a category-aware fallback
     estimate is used.
@@ -197,7 +197,7 @@ class ContextBudget:
 
     system: int
     history: int
-    tool_results: int
+    tool_messages: int
     token_system: int | None = None
     token_history: int | None = None
-    token_tool_results: int | None = None
+    token_tool_messages: int | None = None
