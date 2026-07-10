@@ -20,7 +20,6 @@ from agent.repl_health import (
     check_readiness,
     check_workflow_definition,
     check_workflow_schema,
-    probe_mcp_health,
 )
 from agent.security_audit_config import (
     CicdAuditConfig,
@@ -35,40 +34,6 @@ def _async_result(value: object) -> AsyncMock:
     m = AsyncMock()
     m.return_value = value
     return m
-
-
-# ── probe_mcp_health() ────────────────────────────────────────────────────────
-
-
-class TestProbeMcpHealth:
-    @pytest.mark.asyncio
-    async def test_returns_true_on_200(self) -> None:
-        http = AsyncMock(spec=httpx.AsyncClient)
-        resp = MagicMock()
-        resp.status_code = 200
-        http.get = _async_result(resp)
-
-        result = await probe_mcp_health(http, "http://localhost:8000")
-        assert result is True
-        http.get.assert_called_once_with("http://localhost:8000/health", timeout=5.0)
-
-    @pytest.mark.asyncio
-    async def test_returns_false_on_non_200(self) -> None:
-        http = AsyncMock(spec=httpx.AsyncClient)
-        resp = MagicMock()
-        resp.status_code = 503
-        http.get = _async_result(resp)
-
-        result = await probe_mcp_health(http, "http://localhost:8000")
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_returns_false_on_exception(self) -> None:
-        http = AsyncMock(spec=httpx.AsyncClient)
-        http.get.side_effect = httpx.ConnectError("fail")
-
-        result = await probe_mcp_health(http, "http://localhost:8000")
-        assert result is False
 
 
 # ── _probe_mcp_health_detail() ────────────────────────────────────────────────
@@ -90,6 +55,7 @@ class TestProbeMcpHealthDetail:
         assert result.status_code == 200
         assert result.restart_recommended is False
         assert result.operator_action_required is False
+        http.get.assert_called_once_with("http://localhost:8000/health", timeout=5.0)
 
     @pytest.mark.asyncio
     async def test_reachable_true_restart_true_when_503_and_restart_recommended(
@@ -758,32 +724,6 @@ class TestAuditSecurityDefaults:
             patch("agent.repl_health.load_cicd_audit_config", return_value=None),
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
-
-    def test_use_tool_dag_false_raises_in_production(self) -> None:
-        ctx = self._make_ctx(
-            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
-        )
-        ctx.cfg.tool.use_tool_dag = False
-        with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
-        ):
-            with pytest.raises(RuntimeError, match="use_tool_dag"):
-                audit_security_defaults(ctx, production_mode=True)
-
-    def test_use_tool_dag_false_warns_in_local(self) -> None:
-        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
-        ctx.cfg.tool.use_tool_dag = False
-        with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
-        ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("use_tool_dag" in w for w in warnings)
 
 
 # ── check_readiness() — production vs development mode ───────────────────────

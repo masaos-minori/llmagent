@@ -83,14 +83,6 @@ class TestBuildToolConfig:
         cfg = _build_tool_config({}, system_prompt_tool="You are an assistant.")
         assert cfg.system_prompt_tool == "You are an assistant."
 
-    def test_use_tool_dag_defaults_to_true(self) -> None:
-        """use_tool_dag must default to True in config_builders to enable DAG scheduling."""
-        cfg = _build_tool_config({}, system_prompt_tool="")
-        assert cfg.use_tool_dag is True, (
-            "DAG scheduling must be enabled by default; "
-            "set use_tool_dag=false in tools.toml to revert"
-        )
-
 
 # ── _build_memory_config ──────────────────────────────────────────────────────
 

@@ -213,20 +213,3 @@ def check_preflight(
             "denied_repo_allowlist",
             f"  [DENIED] {tool_name}: repo not in approval_github_allowed_repos",
         )
-
-
-def preflight_deny_reason(
-    cfg: AgentConfig,
-    tool_name: str,
-    args: dict[str, Any],
-) -> tuple[str, str] | None:
-    """Deprecated: use check_preflight() instead.
-
-    Returns (audit_decision, message) when a pre-flight check denies the call,
-    or None when all checks pass.
-    """
-    try:
-        check_preflight(cfg, tool_name, args)
-        return None
-    except PolicyViolationError as e:
-        return (e.audit_decision, str(e))

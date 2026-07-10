@@ -52,18 +52,6 @@ async def _do_ack(
     raise HTTPException(status_code=404, detail="event not found")
 
 
-async def ack(
-    request: Request,
-    event_id: str = Query(default=""),
-    consumer_id: str = Query(default=""),
-) -> dict[str, Any]:
-    db = request.app.state.db
-    assert db is not None
-    cfg = request.app.state.config
-    assert cfg is not None
-    return await _do_ack(db, cfg, event_id, consumer_id)
-
-
 async def ack_event(
     request: Request,
     event_id: str,

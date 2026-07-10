@@ -48,7 +48,6 @@ source:
 
 | Function | Signature | Description |
 |---|---|---|
-| `ack` | `(request: Request, event_id: str = Query(default=""), consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /ack handler (legacy alias) |
 | `ack_event` | `(request: Request, event_id: str, consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /events/{event_id}/ack handler (canonical path) |
 | `nack` | `(request: Request, event_id: str = Query(default="")) -> dict[str, Any]` | POST /nack handler; increments failure count, promotes to DLQ if >= max_retry |
 
@@ -80,7 +79,7 @@ source:
 
 | Function | Signature | Description |
 |---|---|---|
-| `do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic shared by /ack and /events/{event_id}/ack; writes offset file on newly acked events |
+| `do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic for /events/{event_id}/ack; writes offset file on newly acked events |
 
 ---
 
@@ -178,13 +177,7 @@ source:
 | `/events/{event_id}/ack` | POST | Acknowledge an event (canonical ack path) |
 | `/nack` | POST | Negative acknowledge an event |
 
-### Deprecated endpoints
-
-> **Deprecated**: The following endpoint is a compatibility alias and may be removed in a future version. Use the canonical endpoint instead.
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/ack` | POST | Legacy alias for `POST /events/{event_id}/ack` (uses query params instead of path param) |
+**Note (2026-07-10):** `POST /ack` (the query-parameter compatibility alias) was removed.
 
 ## Related Documents
 

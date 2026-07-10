@@ -57,7 +57,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Add new columns and indexes if they don't already exist.
+    """Add new columns and indexes if they don't already exist; drop removed columns.
 
     SQLite doesn't support ALTER TABLE ADD COLUMN IF NOT EXISTS, so we
     catch the duplicate column error and ignore it. Indexes are created
@@ -74,6 +74,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 pass  # column already exists
             else:
                 raise
+
+    try:
+        conn.execute("ALTER TABLE events DROP COLUMN retry_count")
+        logger.info("migrated: dropped column retry_count from events")
+    except sqlite3.OperationalError as exc:
+        if exc.args and "no such column" in exc.args[0].lower():
+            pass  # already dropped, or table created fresh without it
+        else:
+            raise
 
     for idx in (
         "idx_events_dlq_at ON events(dlq_at)",

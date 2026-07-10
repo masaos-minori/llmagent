@@ -3,7 +3,7 @@
 
 Document management for rag_pipeline MCP service.
 
-Dependency direction: mcp.rag_pipeline.document_manager → db.helper, rag.types
+Dependency direction: mcp.rag_pipeline.document_manager → db.helper, shared.types
 Import from here:  from mcp.rag_pipeline.document_manager import DocumentManager
 """
 
@@ -16,7 +16,7 @@ from db.helper import SQLiteHelper
 from mcp.rag_pipeline.models import (
     DocumentItem,
 )
-from rag.types import RagHit
+from shared.types import RagHit
 
 
 def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:

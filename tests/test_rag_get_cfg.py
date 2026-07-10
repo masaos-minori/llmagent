@@ -71,7 +71,7 @@ class TestRagLlmExceptions:
     ) -> None:
         from rag.llm_client import RagLLM
         from rag.llm_prompts import RagRerankError
-        from rag.types import MergedHit
+        from shared.types import MergedHit
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()

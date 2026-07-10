@@ -88,7 +88,6 @@ DDL is defined in `scripts/eventbus/schema.sql`. The `events` table has the foll
 | `producer` | TEXT | NOT NULL | Producer identifier string (1–255 characters) |
 | `published_at` | TEXT | NOT NULL | ISO-8601 timestamp when event was published |
 | `acked_at` | TEXT | — | Set during ack (idempotent) |
-| `retry_count` | INTEGER | NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count |
 | `delivery_failure_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
 | `dlq_requeue_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on DLQ requeue |
 | `dlq_at` | TEXT | — | Set when event is promoted to DLQ |

@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from eventbus.ack_route import ack as ack_route
 from eventbus.ack_route import ack_event as ack_event_route
 from eventbus.ack_route import nack as nack_route
 from eventbus.broker import EventBroker
@@ -141,15 +140,6 @@ async def dlq_list(
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
     return await dlq_requeue_route(request, event_id)
-
-
-@app.post("/ack")
-async def ack(
-    request: Request,
-    event_id: str = Query(default=""),
-    consumer_id: str = Query(default=""),
-) -> dict[str, Any]:
-    return await ack_route(request, event_id=event_id, consumer_id=consumer_id)
 
 
 @app.post("/events/{event_id}/ack")

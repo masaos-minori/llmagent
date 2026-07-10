@@ -324,11 +324,9 @@ def _make_tool_call(name: str, call_id: str = "id1") -> dict:
 
 def _make_ctx_for_dag(
     *,
-    use_tool_dag: bool,
     serial_tool_calls: bool = False,
 ) -> MagicMock:
     ctx = MagicMock()
-    ctx.cfg.tool.use_tool_dag = use_tool_dag
     ctx.cfg.tool.serial_tool_calls = serial_tool_calls
     ctx.cfg.tool.tool_result_max_llm_chars = 8000
     ctx.cfg.tools_results_turn_max_chars = 50000
@@ -343,7 +341,7 @@ def _make_ctx_for_dag(
 
 @pytest.mark.asyncio
 async def test_dag_write_executed_before_read() -> None:
-    """use_tool_dag=True のとき WRITE_TOOLS が READ/other より先に実行されること。"""
+    """DAG スケジューリング(既定・常時有効)で WRITE_TOOLS が READ/other より先に実行されること。"""
     from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
@@ -363,7 +361,7 @@ async def test_dag_write_executed_before_read() -> None:
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag(use_tool_dag=True)
+    ctx = _make_ctx_for_dag()
 
     with (
         patch(
@@ -383,50 +381,8 @@ async def test_dag_write_executed_before_read() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dag_disabled_does_not_reorder() -> None:
-    """use_tool_dag=False のとき side-effect があれば直列実行になること。"""
-    from unittest.mock import AsyncMock, patch
-
-    from agent.tool_runner import execute_all_tool_calls
-
-    execution_order: list[str] = []
-
-    write_call = _make_tool_call("write_file", "w1")
-    read_call = _make_tool_call("read_file", "r1")
-
-    async def fake_execute_one(ctx, tc, turn):
-        name = tc["function"]["name"]
-        execution_order.append(name)
-        return MagicMock(
-            tool_call_id=tc["id"],
-            content="ok",
-            is_error=False,
-            tool_name=name,
-        )
-
-    ctx = _make_ctx_for_dag(use_tool_dag=False)
-
-    with (
-        patch(
-            "agent.tool_runner.execute_one_tool_call",
-            side_effect=fake_execute_one,
-        ),
-        patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
-        patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            return_value=([write_call, read_call], []),
-        ),
-    ):
-        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
-
-    # use_tool_dag=False + side_effect → serial: LLM 指定順 (write → read) で実行される
-    assert execution_order == ["write_file", "read_file"]
-
-
-@pytest.mark.asyncio
 async def test_dag_serial_tool_calls_overrides_dag() -> None:
-    """serial_tool_calls=True のとき use_tool_dag=True でも直列実行になること。"""
+    """serial_tool_calls=True のとき DAG スケジューリングより優先して直列実行になること。"""
     from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
@@ -446,7 +402,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag(use_tool_dag=True, serial_tool_calls=True)
+    ctx = _make_ctx_for_dag(serial_tool_calls=True)
 
     with (
         patch(
@@ -467,8 +423,8 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
 
 
 @pytest.mark.asyncio
-async def test_parallel_execution_without_dag_or_side_effects() -> None:
-    """use_tool_dag=False かつ副作用なしのとき asyncio.gather() 並列実行になること。"""
+async def test_parallel_execution_without_side_effects() -> None:
+    """副作用のない read ツールのみのとき、DAG スケジューリングで両方が実行されること。"""
     from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
@@ -489,7 +445,7 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag(use_tool_dag=False)
+    ctx = _make_ctx_for_dag()
 
     with (
         patch(

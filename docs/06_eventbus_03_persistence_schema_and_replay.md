@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS events (
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL,
     acked_at               TEXT,               -- set during ack (idempotent)
-    retry_count            INTEGER NOT NULL DEFAULT 0,   -- deprecated; use delivery_failure_count
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT                -- set when event is promoted to DLQ
@@ -55,10 +54,11 @@ CREATE TABLE IF NOT EXISTS events (
 | `producer` | Producer identifier string (1–255 characters) |
 | `published_at` | ISO-8601 timestamp when event was published |
 | `acked_at` | Set during ack (idempotent — will not overwrite existing value) |
-| `retry_count` | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is incremented on DLQ requeue only (see `dlq_requeue_count`). |
 | `delivery_failure_count` | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
 | `dlq_requeue_count` | Incremented on DLQ requeue; does not reset `delivery_failure_count` |
 | `dlq_at` | ISO-8601 timestamp set when promoted to DLQ; NULL for live events |
+
+**Note (2026-07-10):** `retry_count` was removed (it was never updated by any code path — a schema artifact only). `_migrate()` in `scripts/eventbus/db.py` drops the column idempotently on existing databases via `ALTER TABLE events DROP COLUMN retry_count`; no data migration is required since the field held no meaningful data.
 
 ### Indexes
 

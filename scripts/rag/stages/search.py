@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from db.helper import SQLiteHelper
 
 from rag.models_result import SearchDiagnostics
-from rag.types import RawHit
 from shared.logger import Logger
+from shared.types import RawHit
 
 logger = Logger(__name__, "/opt/llm/logs/search.log")
 

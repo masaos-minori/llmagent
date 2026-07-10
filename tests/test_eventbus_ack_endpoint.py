@@ -1,8 +1,7 @@
 """tests/test_eventbus_ack_endpoint.py
 HTTP-level tests for POST /events/{event_id}/ack endpoint.
 
-Tests ack endpoint behavior: path parameter vs query parameter, offset update,
-404 cases, and the deprecated POST /ack alias.
+Tests ack endpoint behavior: offset update, 404 cases, already-acked handling.
 """
 
 from __future__ import annotations
@@ -120,29 +119,6 @@ class TestAckEndpoint:
         data = resp.json()
         assert data["acked"] is True
         assert data["seq"] is None
-
-
-class TestLegacyAckEndpoint:
-    """Tests for legacy POST /ack alias."""
-
-    def test_legacy_ack_with_consumer_id(self, client: TestClient) -> None:
-        """POST /ack with consumer_id updates offset (legacy alias)."""
-        body = _event()
-        resp = client.post("/publish", json=body)
-        assert resp.status_code == 200
-
-        resp = client.post(
-            "/ack", params={"event_id": body["event_id"], "consumer_id": "consumer-B"}
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["acked"] is True
-        assert data["seq"] is not None
-
-    def test_legacy_ack_without_event_id(self, client: TestClient) -> None:
-        """POST /ack without event_id returns 400."""
-        resp = client.post("/ack")
-        assert resp.status_code == 400
 
 
 class TestAckMonotonicOffset:

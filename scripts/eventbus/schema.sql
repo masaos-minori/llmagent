@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS events (
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL,
     acked_at               TEXT,
-    retry_count            INTEGER NOT NULL DEFAULT 0, -- deprecated; use delivery_failure_count
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT

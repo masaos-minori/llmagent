@@ -69,8 +69,8 @@ class TestCrashBeforeAck:
 
         # Ack only the first event
         client.post(
-            "/ack",
-            params={"event_id": body1["event_id"], "consumer_id": "consumer-B"},
+            f"/events/{body1['event_id']}/ack",
+            params={"consumer_id": "consumer-B"},
         )
 
         offset = read_offset(eb_app.app.state.config.offsets_dir, "consumer-B")

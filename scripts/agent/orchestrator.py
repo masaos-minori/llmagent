@@ -429,7 +429,7 @@ class Orchestrator:
 
             result = await self._handle_llm_turn(ctx.conv.llm_url)
             answer = result.answer
-            if not result.success:
+            if result.action != "continue":
                 error_kind = result.error_kind
                 if (
                     isinstance(result.exception, LLMTransportError)

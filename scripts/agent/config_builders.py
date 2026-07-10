@@ -187,7 +187,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         max_tool_turns=int(cfg.get("max_tool_turns", 5)),
         tool_result_max_llm_chars=int(cfg.get("tool_result_max_llm_chars", 8000)),
         tool_results_turn_max_chars=int(cfg.get("tool_results_turn_max_chars", 50000)),
-        use_tool_dag=bool(cfg.get("use_tool_dag", True)),
         tool_definitions=list(cfg.get("tool_definitions", [])),
         system_prompts=dict(
             cfg.get("system_prompts", {"default": system_prompt_tool}),

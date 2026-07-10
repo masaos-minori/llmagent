@@ -110,7 +110,7 @@ class TestSearchStage:
         ctx.queries = ["q"]
         mock_db = MagicMock()
 
-        from rag.types import RawHit
+        from shared.types import RawHit
 
         with patch(
             "rag.stages.search._search_all_queries", new_callable=AsyncMock
@@ -143,7 +143,7 @@ class TestFusionStage:
 
     @pytest.mark.asyncio
     async def test_fusion_combines_multiple_result_lists(self) -> None:
-        from rag.types import RawHit
+        from shared.types import RawHit
 
         stage = FusionStage(rrf_k=60)
         ctx = PipelineContext(query="q")
@@ -172,7 +172,7 @@ class TestRerankStage:
             rag_min_score=0.0,
         )
         stage = RerankStage(cfg, llm)
-        from rag.types import MergedHit
+        from shared.types import MergedHit
 
         hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(5)]
         ctx = PipelineContext(query="q")
@@ -183,7 +183,7 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_rerank_enabled_calls_cross_encoder(self) -> None:
         llm = MagicMock()
-        from rag.types import MergedHit, RankedHit
+        from shared.types import MergedHit, RankedHit
 
         expected_merged = [MergedHit(chunk_id=1, content="a", url="u")]
         expected_ranked = [
@@ -220,7 +220,7 @@ class TestRerankStage:
             rag_min_score=0.0,
         )
         stage = RerankStage(cfg, llm)
-        from rag.types import MergedHit
+        from shared.types import MergedHit
 
         hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(3)]
         ctx = PipelineContext(query="q")
@@ -246,7 +246,7 @@ class TestAugmentStage:
 
     @pytest.mark.asyncio
     async def test_augment_formats_hits_into_block(self) -> None:
-        from rag.types import RankedHit
+        from shared.types import RankedHit
 
         stage = AugmentStage()
         ctx = PipelineContext(query="q")
@@ -266,7 +266,7 @@ class TestAugmentStage:
         normalized_content would be 'にほんご テキスト'. Because RagHit carries
         only content, the forbidden string must never appear in augment_result.
         """
-        from rag.types import RankedHit
+        from shared.types import RankedHit
 
         stage = AugmentStage()
         ctx = PipelineContext(query="q")
@@ -289,7 +289,7 @@ class TestAugmentStage:
 
         content='検索結果', simulated normalized_content='けんさく けっか'.
         """
-        from rag.types import RankedHit
+        from shared.types import RankedHit
 
         stage = AugmentStage()
         ctx = PipelineContext(query="q")

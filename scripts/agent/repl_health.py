@@ -70,16 +70,6 @@ async def _probe_mcp_health_detail(
     )
 
 
-async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
-    """Return True if the MCP server at base_url responds to /health with HTTP 200.
-
-    Backward-compatible bool wrapper around _probe_mcp_health_detail().
-    Callers that need structured probe results should use _probe_mcp_health_detail() directly.
-    """
-    result = await _probe_mcp_health_detail(http, base_url)
-    return result.reachable and result.status_code == HTTPStatus.OK
-
-
 async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     """Probe LLM and Embed service health at startup; return warning strings on failure.
 
@@ -799,7 +789,6 @@ def audit_security_defaults(
                 tool_cfg, "tool_definitions_strict", False
             ),
             "routing_drift_strict": getattr(tool_cfg, "routing_drift_strict", False),
-            "use_tool_dag": getattr(tool_cfg, "use_tool_dag", True),
             "tool_safety_tiers": tool_safety_tiers,
             "allowed_tools": allowed_tools,
         },

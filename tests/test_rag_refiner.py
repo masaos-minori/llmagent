@@ -14,7 +14,8 @@ import pytest
 from rag.models_result import SearchDiagnostics
 from rag.pipeline import RagPipeline
 from rag.pipeline_refiner import RefineResult, refine_context
-from rag.types import PipelineRunResult, RawHit
+from rag.types import PipelineRunResult
+from shared.types import RawHit
 
 
 def _make_pipeline() -> RagPipeline:

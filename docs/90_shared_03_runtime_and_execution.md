@@ -457,7 +457,7 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG mode (`use_tool_dag = true`) — the DAG execution layer constructs ToolSpec for each tool call
+- Used in DAG scheduling (unconditional) — the DAG execution layer constructs ToolSpec for each tool call
 - `resource_scope` enables conflict detection between parallel tool calls on the same resource
 - `requires_serial` forces serialization even in parallel execution mode
 - `is_write` is used by `is_side_effect()` to classify write/delete tools

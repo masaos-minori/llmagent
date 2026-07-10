@@ -435,8 +435,8 @@ async def execute_all_tool_calls(
 ) -> None:
     """Execute all tool calls then append results in original order.
 
-    Parallel by default; downgrades to serial on side-effect detection.
-    DAG mode (write-before-read) activated by ctx.cfg.tool.use_tool_dag.
+    DAG-scheduled (resource-scoped parallelism) by default; downgrades to
+    fully serial execution when ctx.cfg.tool.serial_tool_calls is set.
     Approval checks are enforced before execution — denied tool calls are
     returned as tool messages with a denial reason.
     """
@@ -448,7 +448,7 @@ async def execute_all_tool_calls(
     approved_calls, denied_ids = await _run_approval_gate(ctx, tool_calls)
 
     if approved_calls:
-        if ctx.cfg.tool.use_tool_dag and not ctx.cfg.tool.serial_tool_calls:
+        if not ctx.cfg.tool.serial_tool_calls:
             results = await _execute_with_dag(ctx, approved_calls, turn)
         else:
             results = await _execute_standard(ctx, approved_calls, turn)

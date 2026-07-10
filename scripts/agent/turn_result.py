@@ -26,8 +26,3 @@ class TurnResult:
     # When False, the answer should NOT be persisted as a normal assistant message.
     # Used for LLM transport errors to avoid polluting conversation history.
     persist_as_assistant: bool = True
-
-    @property
-    def success(self) -> bool:
-        """Backward-compatible: True when action == 'continue'."""
-        return self.action == "continue"

@@ -12,7 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rag.models_result import SearchDiagnostics
 from rag.pipeline import RagPipeline
-from rag.types import MergedHit, PipelineRunResult, RawHit
+from rag.types import PipelineRunResult
+from shared.types import MergedHit, RawHit
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

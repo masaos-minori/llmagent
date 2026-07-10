@@ -18,7 +18,7 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage, _run_mqe
 from rag.stages.rerank import RerankStage, _rerank
 from rag.stages.search import SearchStage
-from rag.types import MergedHit, RawHit
+from shared.types import MergedHit, RawHit
 
 
 @pytest.fixture

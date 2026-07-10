@@ -20,8 +20,8 @@ from rag.repository import (
     _dedup_hits,
     deduplicate_chunks,
 )
-from rag.types import RawHit as _RawHit
 from rag.utils import cosine_sim
+from shared.types import RawHit as _RawHit
 
 # ── FTS5 fallback to content when normalized_content IS NULL ──────────────────
 

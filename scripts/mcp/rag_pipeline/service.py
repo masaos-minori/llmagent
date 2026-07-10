@@ -24,7 +24,7 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
-from rag.types import RagHit
+from shared.types import RagHit
 
 logger = logging.getLogger(__name__)
 

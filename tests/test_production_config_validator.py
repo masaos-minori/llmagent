@@ -15,7 +15,7 @@ class TestProductionConfigValidatorStrictKeys:
     def test_strict_key_false_produces_error_in_production(
         self, strict_key: str
     ) -> None:
-        config = {strict_key: False, "use_tool_dag": True}
+        config = {strict_key: False}
         result = ProductionConfigValidator().validate(
             config, security_profile="production"
         )
@@ -26,7 +26,7 @@ class TestProductionConfigValidatorStrictKeys:
         ["plugin_strict", "tool_definitions_strict", "routing_drift_strict"],
     )
     def test_strict_key_false_produces_warning_in_local(self, strict_key: str) -> None:
-        config = {strict_key: False, "use_tool_dag": True}
+        config = {strict_key: False}
         result = ProductionConfigValidator().validate(config, security_profile="local")
         assert any(strict_key in warn for warn in result.warnings)
 
@@ -35,7 +35,7 @@ class TestProductionConfigValidatorStrictKeys:
         ["plugin_strict", "tool_definitions_strict", "routing_drift_strict"],
     )
     def test_strict_key_true_no_error_in_production(self, strict_key: str) -> None:
-        config = {strict_key: True, "use_tool_dag": True}
+        config = {strict_key: True}
         result = ProductionConfigValidator().validate(
             config, security_profile="production"
         )
@@ -46,7 +46,6 @@ class TestProductionConfigValidatorStrictKeys:
             "plugin_strict": True,
             "tool_definitions_strict": True,
             "routing_drift_strict": True,
-            "use_tool_dag": True,
         }
         result = ProductionConfigValidator().validate(
             config, security_profile="production"
@@ -65,42 +64,6 @@ class TestProductionConfigValidatorStrictKeys:
         result = ProductionConfigValidator().validate(config, security_profile="local")
         assert len(result.warnings) == 3
         assert result.errors == []
-
-
-class TestProductionConfigValidatorUseToolDag:
-    """Tests for use_tool_dag validation."""
-
-    def test_use_tool_dag_false_produces_error_in_production(self) -> None:
-        config = {"use_tool_dag": False}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert any("use_tool_dag" in err for err in result.errors)
-
-    def test_use_tool_dag_false_produces_warning_in_local(self) -> None:
-        config = {"use_tool_dag": False}
-        result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert any("use_tool_dag" in warn for warn in result.warnings)
-
-    def test_use_tool_dag_true_no_error_in_production(self) -> None:
-        config = {"use_tool_dag": True}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert not any("use_tool_dag" in err for err in result.errors)
-
-    def test_use_tool_dag_absent_no_error_in_production(self) -> None:
-        config: dict[str, bool] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        # use_tool_dag absent is acceptable (defaults to true)
-        assert not any("use_tool_dag" in err for err in result.errors)
-
-    def test_use_tool_dag_absent_no_warning_in_local(self) -> None:
-        config: dict[str, bool] = {}
-        result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert not any("use_tool_dag" in warn for warn in result.warnings)
 
 
 class TestProductionConfigValidatorSafetyTiers:

@@ -41,8 +41,6 @@ logger = logging.getLogger(__name__)
 WORKFLOWS_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent / "config" / "workflows"
 )
-_WORKFLOWS_DIR = WORKFLOWS_DIR  # internal alias kept for backward compat
-
 _REQUIRED_STAGE_KEYS = {"id", "description", "timeout_sec", "retryable"}
 _REQUIRED_POLICY_KEYS = {"max_attempts", "backoff", "backoff_sec"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}
@@ -98,7 +96,7 @@ class WorkflowLoader:
     """Loads a WorkflowDef from a JSON file in config/workflows/."""
 
     def __init__(self, workflows_dir: Path | None = None) -> None:
-        self._dir = workflows_dir or _WORKFLOWS_DIR
+        self._dir = workflows_dir or WORKFLOWS_DIR
 
     def load(self, name: str = "default") -> WorkflowDef:
         """Load and return the named workflow definition."""
