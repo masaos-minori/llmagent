@@ -126,8 +126,8 @@ RagHit = RawHit | MergedHit | RankedHit
 ```
 
 - Canonically defined in `shared/types.py`; fields are added incrementally by pipeline stages
-- **Canonical import:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
-- **Compatibility import (backward-compat only):** `from rag.types import RagHit` — re-exported by `scripts/rag/types.py`; prefer `shared.types` for new code
+- **Import:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
+- `scripts/rag/types.py` no longer re-exports these names — the backward-compat re-export was removed; import directly from `shared.types`
 - Used by `rag/`, `agent/`, and `shared/plugin_registry.py`
 
 ---
@@ -212,7 +212,7 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG mode (`use_tool_dag = true`) — ToolSpec is constructed for each tool call
+- Used in DAG scheduling (unconditional) — ToolSpec is constructed for each tool call
 - Import: `from shared.tool_spec import ToolSpec`
 
 ---

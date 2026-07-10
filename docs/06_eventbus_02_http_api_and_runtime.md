@@ -118,23 +118,7 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 
 ---
 
-### POST /ack [deprecated]
-
-> **Deprecated**: This endpoint is a compatibility alias for `POST /events/{event_id}/ack`. Use the canonical path instead. This endpoint may be removed in a future version.
->
-> **Migration**: New clients must use `POST /events/{event_id}/ack`. This endpoint may be removed in a future version — do not rely on its availability.
-
-Same behavior as `POST /events/{event_id}/ack` but uses query parameters instead of a path parameter.
-
-**Query parameters:**
-- `event_id` (str, required): event ID to acknowledge
-- `consumer_id` (str, optional): consumer identifier; if present and event is newly acked, writes the event's `seq` as the consumer offset
-
-**Response 200 (newly acked):** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
-**Response 200 (already acked):** `{"event_id": "...", "acked": true, "already_acked": true}` — no `seq` field
-**Response 404:** event not found.
-
-**Monotonic offset note**: Offset advancement is NOT monotonically enforced. Acknowledging an older event (with a smaller `seq`) will move the consumer offset backward to that `seq`.
+**Note (2026-07-10):** `POST /ack` (the query-parameter compatibility alias) was removed. Use `POST /events/{event_id}/ack` exclusively.
 
 ---
 

@@ -71,7 +71,7 @@ class TestConcurrentAck:
 
         async def _ack_one() -> None:
             resp = client.post(
-                "/ack", params={"event_id": event_id, "consumer_id": "consumer-1"}
+                f"/events/{event_id}/ack", params={"consumer_id": "consumer-1"}
             )
             results.append(resp.json())
 

@@ -7,13 +7,15 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
     check_allowed_repo,
     check_allowed_root,
+    check_preflight,
     classify_risk,
-    preflight_deny_reason,
 )
 
 
@@ -199,41 +201,38 @@ class TestCheckAllowedRepo:
         )
 
 
-class TestPreflightDenyReason:
+class TestCheckPreflight:
     def test_passes_when_all_checks_pass(self) -> None:
         cfg = _cfg(allowed_root="", approval_github_allowed_repos=[])
-        assert preflight_deny_reason(cfg, "read_text_file", {"path": "/tmp/f"}) is None
+        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})  # does not raise
 
     def test_denied_by_allowed_tools(self) -> None:
         cfg = _cfg(allowed_tools=["read_text_file"])
-        result = preflight_deny_reason(cfg, "write_file", {})
-        assert result is not None
-        reason_code, msg = result
-        assert reason_code == "denied_allowed_tools"
-        assert "write_file" in msg
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "write_file", {})
+        assert exc_info.value.audit_decision == "denied_allowed_tools"
+        assert "write_file" in str(exc_info.value)
 
     def test_allowed_tools_none_does_not_block(self) -> None:
         cfg = _cfg(allowed_tools=[])
-        assert preflight_deny_reason(cfg, "any_tool", {}) is None
+        check_preflight(cfg, "any_tool", {})  # does not raise
 
     def test_denied_by_root_jail(self) -> None:
         cfg = _cfg(
             allowed_root="/home",
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
         )
-        result = preflight_deny_reason(cfg, "write_file", {"path": "/tmp/foo"})
-        assert result is not None
-        reason_code, msg = result
-        assert reason_code == "denied_root_jail"
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "write_file", {"path": "/tmp/foo"})
+        assert exc_info.value.audit_decision == "denied_root_jail"
 
     def test_denied_by_repo_allowlist(self) -> None:
         cfg = _cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
-        result = preflight_deny_reason(
-            cfg, "github_push_files", {"owner": "myorg", "repo": "other-repo"}
-        )
-        assert result is not None
-        reason_code, msg = result
-        assert reason_code == "denied_repo_allowlist"
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(
+                cfg, "github_push_files", {"owner": "myorg", "repo": "other-repo"}
+            )
+        assert exc_info.value.audit_decision == "denied_repo_allowlist"
 
 
 class TestEscalateForPath:

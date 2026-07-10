@@ -21,7 +21,7 @@ _REQUIRED_STRICT_KEYS = (
 )
 
 # Keys where explicit false is an error in production (absent is acceptable)
-_REQUIRED_NOT_FALSE_KEYS = ("use_tool_dag",)
+_REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
 
 
 def _check_missing_tool_safety_tiers(

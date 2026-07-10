@@ -68,7 +68,6 @@ DDL is defined in `scripts/eventbus/schema.sql`. The `events` table has the foll
 | `producer` | TEXT | NOT NULL | Producer identifier string (1–255 characters) |
 | `published_at` | TEXT | NOT NULL | ISO-8601 timestamp when event was published |
 | `acked_at` | TEXT | — | Set during ack (idempotent) |
-| `retry_count` | INTEGER | NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count |
 | `delivery_failure_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
 | `dlq_requeue_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on DLQ requeue |
 | `dlq_at` | TEXT | — | Set when event is promoted to DLQ |
@@ -112,7 +111,6 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `ack` | `(request: Request, event_id: str = Query(default=""), consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /ack handler (legacy alias) |
 | `ack_event` | `(request: Request, event_id: str, consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /events/{event_id}/ack handler (canonical path) |
 | `nack` | `(request: Request, event_id: str = Query(default="")) -> dict[str, Any]` | POST /nack handler; increments failure count, promotes to DLQ if >= max_retry |
 
@@ -144,7 +142,7 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 
 | Function | Signature | Description |
 |---|---|---|
-| `do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic shared by /ack and /events/{event_id}/ack; writes offset file on newly acked events |
+| `do_ack` | `(db, cfg, event_id, consumer_id) -> dict[str, Any]` | Common ack logic for /events/{event_id}/ack; writes offset file on newly acked events |
 
 ---
 
@@ -242,13 +240,7 @@ Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at`
 | `/events/{event_id}/ack` | POST | Acknowledge an event (canonical ack path) |
 | `/nack` | POST | Negative acknowledge an event |
 
-### Deprecated endpoints
-
-> **Deprecated**: The following endpoint is a compatibility alias and may be removed in a future version. Use the canonical endpoint instead.
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/ack` | POST | Legacy alias for `POST /events/{event_id}/ack` (uses query params instead of path param) |
+**Note (2026-07-10):** `POST /ack` (the query-parameter compatibility alias) was removed.
 
 ---
 

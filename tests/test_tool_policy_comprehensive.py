@@ -6,16 +6,18 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
     _escalate_for_github_branch,
     _escalate_for_path,
     _special_case_risk,
     check_allowed_root,
+    check_preflight,
     classify_operation_type,
     classify_risk,
-    preflight_deny_reason,
 )
 
 
@@ -211,18 +213,19 @@ class TestCheckAllowedRootEdgeCases:
         assert not check_allowed_root(cfg, "write_file", {"path": "../../etc/passwd"})
 
 
-class TestPreflightDenyReasonEdgeCases:
+class TestCheckPreflightEdgeCases:
     def test_empty_allowed_tools_list(self) -> None:
         cfg = _cfg(allowed_tools=[])
-        result = preflight_deny_reason(cfg, "any_tool", {})
-        assert result is None  # Should not deny when allowed_tools is empty
+        check_preflight(
+            cfg, "any_tool", {}
+        )  # Should not deny when allowed_tools is empty
 
     def test_none_values_in_args(self) -> None:
         cfg = _cfg(allowed_root="/tmp")
-        # Test with None values in args
-        result = preflight_deny_reason(cfg, "write_file", {"path": None})
-        # This should not fail because the path check doesn't trigger on None
-        assert result is None  # Should not deny when path is None
+        # Test with None values in args — should not fail because the path check doesn't trigger on None
+        check_preflight(
+            cfg, "write_file", {"path": None}
+        )  # Should not deny when path is None
 
     def test_path_with_special_characters(self) -> None:
         cfg = _cfg(
@@ -234,10 +237,8 @@ class TestPreflightDenyReasonEdgeCases:
 
     def test_empty_repo_in_allowlist(self) -> None:
         cfg = _cfg(approval_github_allowed_repos=[])
-        result = preflight_deny_reason(
-            cfg, "github_push_files", {"owner": "org", "repo": "repo"}
-        )
-        assert result is not None  # Should deny due to empty allowlist
+        with pytest.raises(PolicyViolationError):  # Should deny due to empty allowlist
+            check_preflight(cfg, "github_push_files", {"owner": "org", "repo": "repo"})
 
     def test_missing_required_keys(self) -> None:
         cfg = _cfg(

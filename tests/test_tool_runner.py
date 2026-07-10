@@ -54,7 +54,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "",
-        "use_tool_dag": True,
         "tool_results_turn_max_chars": 0,
         "web_search_url": "http://127.0.0.1:8004",
         "mcp_servers": {
@@ -347,7 +346,7 @@ class TestExecuteWithDag:
 class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_approved_calls_executed_and_collected(self) -> None:
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -373,7 +372,7 @@ class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_all_calls_execute_without_gateway(self) -> None:
         """Without gateway, all tool calls execute directly (no batch approval denial)."""
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -401,7 +400,7 @@ class TestExecuteAllToolCalls:
 
     @pytest.mark.asyncio
     async def test_no_tool_calls_does_nothing(self) -> None:
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
 
@@ -413,7 +412,7 @@ class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_write_tool_requires_approval_without_gateway(self) -> None:
         """Write tool without gateway should require approval before execution."""
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -443,7 +442,7 @@ class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_denied_tool_call_is_returned_as_tool_message(self) -> None:
         """Denied tool calls are returned to the LLM as tool messages."""
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -476,7 +475,7 @@ class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_plan_mode_blocked_tool_is_not_executed(self) -> None:
         """Plan-mode blocked tools are not executed."""
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -503,7 +502,7 @@ class TestExecuteAllToolCalls:
     @pytest.mark.asyncio
     async def test_execute_all_tool_calls_does_not_bypass_approval(self) -> None:
         """Direct calls to execute_all_tool_calls cannot bypass approval."""
-        cfg = _cfg(use_tool_dag=True)
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -546,10 +545,13 @@ class TestSerializationHelpers:
 
 
 class TestExecuteStandardSerialization:
+    # serial_tool_calls=True routes execute_all_tool_calls() to _execute_standard()
+    # directly; _execute_with_dag() records serialization events via its own
+    # resource-scope mechanism and is covered separately.
     @pytest.mark.asyncio
     async def test_side_effect_tool_records_serialization_event(self) -> None:
         """When a side-effect tool triggers serial execution, a serialization event is stored."""
-        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []
@@ -577,7 +579,7 @@ class TestExecuteStandardSerialization:
     @pytest.mark.asyncio
     async def test_no_side_effect_no_serialization_event(self) -> None:
         """When no side-effect tool is present, no serialization event is recorded."""
-        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []
@@ -595,7 +597,7 @@ class TestExecuteStandardSerialization:
     @pytest.mark.asyncio
     async def test_side_effect_calls_diagnostic_save(self) -> None:
         """When diagnostics are wired, save_serialization_event is called."""
-        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []

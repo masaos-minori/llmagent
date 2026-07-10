@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """rag/types.py
-Shared type definitions for the RAG pipeline.
+RAG-pipeline-specific type definitions.
 
-RawHit / MergedHit / RankedHit model the three search pipeline stages.
-The hit dataclasses and RagHit alias are defined in shared/types.py and
-re-exported here for backward compatibility.
+RawHit / MergedHit / RankedHit / RagHit are canonically defined in
+shared/types.py; import them from there directly. This module only
+defines types specific to the RAG pipeline's own run/query lifecycle.
 """
 
 from __future__ import annotations
@@ -16,15 +16,11 @@ if TYPE_CHECKING:
     from rag.stage import StageResult
 
 from rag.models_result import SearchDiagnostics
-from shared.types import MergedHit, RagHit, RankedHit, RawHit
+from shared.types import RagHit, RawHit
 
 __all__ = [
-    "MergedHit",
     "PipelineRunResult",
-    "RagHit",
     "RagQuery",
-    "RankedHit",
-    "RawHit",
     "SearchDiagnostics",
 ]
 

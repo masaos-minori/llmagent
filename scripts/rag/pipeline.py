@@ -45,17 +45,17 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
-from rag.types import (
-    PipelineRunResult,
-    RagHit,  # noqa: F401 — re-exported via __all__
-)
+from rag.types import PipelineRunResult
 from shared.config_loader import ConfigLoader
 from shared.config_validator import RagConfigValidator
 from shared.plugin_registry import (
     get_pipeline_post_stages,
     run_pipeline_stages,
 )
-from shared.types import RagConfig
+from shared.types import (
+    RagConfig,
+    RagHit,  # noqa: F401 — re-exported via __all__
+)
 
 # Re-export symbols that external callers import from this module
 __all__ = [

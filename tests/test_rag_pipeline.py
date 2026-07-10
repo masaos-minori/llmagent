@@ -17,8 +17,8 @@ from rag.stages.augment import (
 from rag.stages.augment import (
     _format_chunks as _augment_format_chunks,
 )
-from rag.types import MergedHit, RankedHit, RawHit
 from rag.utils import sanitize_document
+from shared.types import MergedHit, RankedHit, RawHit
 
 RagHit = RawHit | MergedHit | RankedHit
 

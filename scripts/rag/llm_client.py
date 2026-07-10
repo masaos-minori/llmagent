@@ -37,12 +37,12 @@ from rag.llm_prompts import (
     _mqe_prompt,
     _parse_mqe_response,
 )
-from rag.types import (
-    RagHit,  # noqa: F401 — imported for use in this module
-)
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps as _json_dumps
-from shared.types import LLMMessage
+from shared.types import (
+    LLMMessage,
+    RagHit,  # noqa: F401 — imported for use in this module
+)
 
 logger = logging.getLogger(__name__)
 
