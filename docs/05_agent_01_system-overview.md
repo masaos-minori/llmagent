@@ -1,3 +1,16 @@
+---
+title: "Agent System Overview"
+category: agent
+tags:
+  - agent
+  - agent
+  - system
+  - overview
+  - architecture
+related:
+  - 05_agent_00_document-guide.md
+---
+
 # Agent System Overview
 
 - Document guide → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
@@ -135,3 +148,16 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Operations and observability | [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md) |
 | Extension points | [05_agent_11_extension-points.md](05_agent_11_extension-points.md) |
 | API reference | [05_agent_12_reference-api.md](05_agent_12_reference-api.md) |
+
+## Related Documents
+
+- `agent`
+- `system`
+- `overview`
+
+## Keywords
+
+agent
+system
+overview
+architecture
