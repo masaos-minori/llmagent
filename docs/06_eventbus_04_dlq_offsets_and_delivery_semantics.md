@@ -12,8 +12,8 @@ tags:
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_nack-health-dlq.md
-  - 06_eventbus_02_dlq-background-loop.md
+  - 06_eventbus_02_03_nack-health-dlq.md
+  - 06_eventbus_02_04_dlq-background-loop.md
   - 06_eventbus_03_persistence_schema_and_replay.md
 source:
   - index.md
@@ -91,8 +91,8 @@ Example reconnect flow:
 
 - `06_eventbus_00_document-guide.md`
 - `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_nack-health-dlq.md`
-- `06_eventbus_02_dlq-background-loop.md`
+- `06_eventbus_02_03_nack-health-dlq.md`
+- `06_eventbus_02_04_dlq-background-loop.md`
 - `06_eventbus_03_persistence_schema_and_replay.md`
 
 ## Keywords

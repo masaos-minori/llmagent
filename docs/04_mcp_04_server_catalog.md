@@ -2,11 +2,11 @@
 
 - System overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
 - Security model → [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md)
-- Configuration → [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
+- Configuration → [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
 
 ## Purpose
 
-Per-server specification for all 11 MCP servers: purpose, port, tools, input/output,
+Per-server specification for all 10 MCP servers: purpose, port, tools, input/output,
 config, startup, security, logs, operational notes, and known limitations.
 
 > **Note:** This document is the authoritative server catalog. For the system-level server list with ports and transport types, see [04_mcp_01_system_overview.md §Server Catalog](04_mcp_01_system_overview.md).
@@ -101,7 +101,7 @@ All tools require config (`requires_config: true`).
 - `allow_force_push` (default `false`; set `true` to permit force-push and rebase merge)
 - `require_pr_review` (default `true`; set `false` to allow merge without review)
 
-**Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
+**Domain exceptions** (defined in `scripts/mcp_servers/github/models_config.py`, re-exported by `models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
 **Health:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` when token is set; `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}` when not set — HTTP 200 when ready, 503 when degraded.
@@ -299,7 +299,7 @@ All tools do not require config (`requires_config: false`).
 
 **Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `embedding_dims` (default 384), `vector_table`, `embedding_model`, `max_chars_per_match` (default 500), `context_before` (default 2), `context_after` (default 2), `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
 
-**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_verification-methods.md#health-probes))
+**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_06_verification-methods.md#health-probes))
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`

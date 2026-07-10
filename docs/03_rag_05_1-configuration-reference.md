@@ -17,7 +17,7 @@ source:
 
 crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes that read only their own config file. There is no shared config file. If DB path or external service URL is needed across multiple processes, each config file must specify it individually.
 
-→ Process separation policy details: [90_shared_03 §2a](90_shared_03_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ Process separation policy details: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ### 1.1 `config/crawler.toml`
 
@@ -53,7 +53,7 @@ Used by: `chunk_splitter.py` only
 | `md_index_enable` | `false` | Enable Markdown heading-boundary splitting for non-`.md` content with ≥2 heading lines. `.md`/`.markdown`/`.mdx` URLs always use heading split regardless |
 | `md_snippet_max_chars` | `600` | Max chars per Markdown heading section; fallback to text split if exceeded |
 | `en_stopwords` | (see config) | English stopwords excluded from FTS5 indexing and chunking |
-| `ja_stop_pos` | `["particle", "auxiliary verb", "supplementary symbol", "blank", "interjection", "conjunction"]` | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
+| `ja_stop_pos` | `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]` (particle, auxiliary verb, supplementary symbol, blank, interjection, conjunction) | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
 
 ### 1.3 `config/ingester.toml`
 

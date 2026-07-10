@@ -47,7 +47,7 @@ Full details: [05_agent_02_runtime-architecture.md §AgentREPL](05_agent_02_runt
 - **Config:** `cfg.llm.*`, `cfg.tool.*`, `cfg.memory.*`
 - **Failure:** `LLMTransportError` caught internally; REPL continues
 
-Full details: [05_agent_03_turn-processing-flow-overview.md](05_agent_03_turn-processing-flow-overview.md)
+Full details: [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 
 ---
 
@@ -60,7 +60,7 @@ Full details: [05_agent_03_turn-processing-flow-overview.md](05_agent_03_turn-pr
 - **Config:** `AgentConfig` stored as `ctx.cfg`
 - **Failure:** N/A
 
-Full details: [05_agent_04_state-and-persistence-state-model.md](05_agent_04_state-and-persistence-state-model.md)
+Full details: [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
@@ -86,7 +86,7 @@ Full details: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.m
 - **Config:** `cfg.tool.*`, `cfg.mcp.*`
 - **Failure:** returns `ToolCallResult(is_error=True)` on transport failure
 
-Full details: [05_agent_06_tool-execution-and-approval-execution.md](05_agent_06_tool-execution-and-approval-execution.md)
+Full details: [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
 
 ---
 
@@ -112,7 +112,7 @@ Full details: [04_mcp_03 §Routing Source of Truth](04_mcp_03_routing_lifecycle_
 - **Config:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
 - **Failure:** LLM summarization failure → returns unmodified history (no compression)
 
-Full details: [05_agent_04_state-and-persistence-state-model.md §HistoryManager](05_agent_04_state-and-persistence-state-model.md)
+Full details: [05_agent_04_01_state-and-persistence-state-model.md §HistoryManager](05_agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
@@ -125,7 +125,7 @@ Full details: [05_agent_04_state-and-persistence-state-model.md §HistoryManager
 - **Config:** various `cfg.*` fields per command
 - **Failure:** command errors displayed to user; REPL continues
 
-Full details: [05_agent_07_cli-and-commands-cli-reference.md](05_agent_07_cli-and-commands-cli-reference.md)
+Full details: [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md)
 
 ---
 
@@ -138,7 +138,7 @@ Full details: [05_agent_07_cli-and-commands-cli-reference.md](05_agent_07_cli-an
 - **Config:** none directly; callbacks wired at construction
 - **Failure:** I/O errors propagate to caller
 
-Full details: [05_agent_07_cli-and-commands-cli-reference.md §CLIView](05_agent_07_cli-and-commands-cli-reference.md)
+Full details: [05_agent_07_01_cli-and-commands-cli-reference.md §CLIView](05_agent_07_01_cli-and-commands-cli-reference.md)
 
 ---
 
@@ -153,7 +153,7 @@ Full details: [05_agent_07_cli-and-commands-cli-reference.md §CLIView](05_agent
 - **Config:** DB path from `config/agent.toml`
 - **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
 
-Full details: [05_agent_09_data-layer-session-db.md](05_agent_09_data-layer-session-db.md)
+Full details: [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
 ---
 
@@ -166,7 +166,7 @@ Full details: [05_agent_09_data-layer-session-db.md](05_agent_09_data-layer-sess
 - **Config:** all TOML files in `config/`
 - **Failure:** `ConfigLoadError` on file read/parse failure
 
-Full details: [05_agent_08_configuration-loading-agent-config.md](05_agent_08_configuration-loading-agent-config.md)
+Full details: [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md)
 
 ---
 

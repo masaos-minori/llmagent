@@ -40,7 +40,7 @@ Each entry format:
 
 *(No undocumented areas currently tracked. UNDOC-02 "Plugin tool return
 value convention not enforced at registration time" was removed
-2026-07-09 — `05_agent_11_extension-points-plugin-command.md` §`@register_tool` now
+2026-07-09 — `05_agent_11_01_extension-points-plugin-command.md` §`@register_tool` now
 documents fail-fast return-annotation validation at registration time
 (`ValueError` if missing/wrong, verified against
 `shared/plugin_registry.py::register_tool()`), in addition to the runtime

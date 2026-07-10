@@ -11,8 +11,8 @@ tags:
 related:
   - 03_rag_00_document-guide.md
   - 03_rag_00_document-guide.md
-  - 03_rag_02_ingestion_pipeline-overview.md
-  - 03_rag_03_query_pipeline.md
+  - 03_rag_02_01_ingestion_pipeline-overview.md
+  - 03_rag_03_01_query_pipeline-overview.md
 ---
 
 # RAG System Overview
@@ -170,17 +170,17 @@ When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_
 
 | Topic | File |
 |---|---|
-| Ingestion scripts (API, CLI, config) | [03_rag_02_ingestion_pipeline-overview.md](03_rag_02_ingestion_pipeline-overview.md) |
-| Query pipeline (API, stage details) | [03_rag_03_query_pipeline.md](03_rag_03_query_pipeline.md) |
-| DB schema, type definitions | [03_rag_04_dto-types.md](03_rag_04_dto-models_data.md) |
+| Ingestion scripts (API, CLI, config) | [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) |
+| Query pipeline (API, stage details) | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
+| DB schema, type definitions | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
 | Configuration, run commands, logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
 | Known bugs and inconsistencies | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
 
 - `03_rag_00_document-guide.md`
-- `03_rag_02_ingestion_pipeline-overview.md`
-- `03_rag_03_query_pipeline.md`
+- `03_rag_02_01_ingestion_pipeline-overview.md`
+- `03_rag_03_01_query_pipeline-overview.md`
 
 ## Keywords
 

@@ -103,7 +103,7 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 
 ## Slash Command Categories (Summary)
 
-> **Keeping this list current:** When a new command is added, update both this summary AND the full reference table in [05_agent_07 §Slash Command Reference](05_agent_07_cli-and-commands-cli-reference.md). See [05_agent_07 §Maintaining the Command List](05_agent_07_cli-and-commands-cli-reference.md) for the complete procedure.
+> **Keeping this list current:** When a new command is added, update both this summary AND the full reference table in [05_agent_07 §Slash Command Reference](05_agent_07_01_cli-and-commands-cli-reference.md). See [05_agent_07 §Maintaining the Command List](05_agent_07_01_cli-and-commands-cli-reference.md) for the complete procedure.
 
 | Category | Commands |
 |---|---|
@@ -138,15 +138,15 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Topic | File |
 |---|---|
 | Runtime component architecture | [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md) |
-| Turn processing flow | [05_agent_03_turn-processing-flow-overview.md](05_agent_03_turn-processing-flow-overview.md) |
-| State and persistence | [05_agent_04_state-and-persistence-state-model.md](05_agent_04_state-and-persistence-state-model.md) |
+| Turn processing flow | [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) |
+| State and persistence | [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md) |
 | LLM and streaming | [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) |
-| Tool execution and approval | [05_agent_06_tool-execution-and-approval-execution.md](05_agent_06_tool-execution-and-approval-execution.md) |
-| CLI and commands | [05_agent_07_cli-and-commands-cli-reference.md](05_agent_07_cli-and-commands-cli-reference.md) |
-| Configuration | [05_agent_08_configuration-loading-agent-config.md](05_agent_08_configuration-loading-agent-config.md) |
-| Data layer | [05_agent_09_data-layer-session-db.md](05_agent_09_data-layer-session-db.md) |
-| Operations and observability | [05_agent_10_operations-and-observability-startup-and-health.md](05_agent_10_operations-and-observability-startup-and-health.md) |
-| Extension points | [05_agent_11_extension-points-plugin-command.md](05_agent_11_extension-points-plugin-command.md) |
+| Tool execution and approval | [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) |
+| CLI and commands | [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md) |
+| Configuration | [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md) |
+| Data layer | [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) |
+| Operations and observability | [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) |
+| Extension points | [05_agent_11_01_extension-points-plugin-command.md](05_agent_11_01_extension-points-plugin-command.md) |
 | API reference | [05_agent_13_reference-api.md](05_agent_13_reference-api.md) |
 
 ## Related Documents

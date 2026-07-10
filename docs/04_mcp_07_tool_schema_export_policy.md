@@ -26,15 +26,15 @@ All MCP server tool schema modules (`mcp/<name>/tools.py`) must export the canon
 
 All MCP servers have been migrated to `TOOL_LIST`. The migration was completed in the following order:
 
-1. **git** — `scripts/mcp/git/tools.py`, `scripts/mcp/git/server.py`
-2. **mdq** — `scripts/mcp/mdq/tools.py`, `scripts/mcp/mdq/server.py`
-3. **rag_pipeline** — `scripts/mcp/rag_pipeline/tools.py`, `scripts/mcp/rag_pipeline/server.py`
-4. **shell** — `scripts/mcp/shell/tools.py`, `scripts/mcp/shell/server.py`
-5. **cicd** — `scripts/mcp/cicd/tools.py`, `scripts/mcp/cicd/server.py`
-6. **web_search** — `scripts/mcp/web_search/tools.py`, `scripts/mcp/web_search/server.py`
-7. **file_read** — `scripts/mcp/file/read_tools.py`, `scripts/mcp/file/read_server.py`
-8. **file_write** — `scripts/mcp/file/write_tools.py`, `scripts/mcp/file/write_server.py`
-9. **file_delete** — `scripts/mcp/file/delete_tools.py`, `scripts/mcp/file/delete_server.py`
+1. **git** — `scripts/mcp_servers/git/tools.py`, `scripts/mcp_servers/git/server.py`
+2. **mdq** — `scripts/mcp_servers/mdq/tools.py`, `scripts/mcp_servers/mdq/server.py`
+3. **rag_pipeline** — `scripts/mcp_servers/rag_pipeline/tools.py`, `scripts/mcp_servers/rag_pipeline/server.py`
+4. **shell** — `scripts/mcp_servers/shell/tools.py`, `scripts/mcp_servers/shell/server.py`
+5. **cicd** — `scripts/mcp_servers/cicd/tools.py`, `scripts/mcp_servers/cicd/server.py`
+6. **web_search** — `scripts/mcp_servers/web_search/tools.py`, `scripts/mcp_servers/web_search/server.py`
+7. **file_read** — `scripts/mcp_servers/file/read_tools.py`, `scripts/mcp_servers/file/read_server.py`
+8. **file_write** — `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/write_server.py`
+9. **file_delete** — `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/file/delete_server.py`
 
 ### Validation
 

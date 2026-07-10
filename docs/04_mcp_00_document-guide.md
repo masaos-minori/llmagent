@@ -13,7 +13,7 @@ related:
   - 04_mcp_03_routing_lifecycle_and_execution.md
   - 04_mcp_04_server_catalog.md
   - 04_mcp_05_security_and_safety_model.md
-  - 04_mcp_06_configuration-file-inventory.md
+  - 04_mcp_06_02_configuration-file-inventory.md
   - 04_mcp_07_tool_schema_export_policy.md
   - 04_mcp_90_inconsistencies_and_known_issues.md
 ---
@@ -99,23 +99,23 @@ Read this file first to choose which chapter to open.
 | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | Routing and lifecycle |
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Server catalog |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Security model |
-| [04_mcp_06_purpose.md](04_mcp_06_purpose.md) | Config purpose |
-| [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md) | Config inventory |
-| [04_mcp_06_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig fields |
-| [04_mcp_06_major-default-values.md](04_mcp_06_major-default-values.md) | Default values |
-| [04_mcp_06_long-running-http-operation-startup_modesubprocess.md](04_mcp_06_long-running-http-operation-startup_modesubprocess.md) | Long-running ops |
-| [04_mcp_06_verification-methods.md](04_mcp_06_verification-methods.md) | Verification |
-| [04_mcp_06_reading-audit-logs.md](04_mcp_06_reading-audit-logs.md) | Audit logs |
-| [04_mcp_06_end-to-end-tool-call-tracing.md](04_mcp_06_end-to-end-tool-call-tracing.md) | Tracing |
-| [04_mcp_06_mcp-failure-diagnosis.md](04_mcp_06_mcp-failure-diagnosis.md) | Failure diagnosis |
-| [04_mcp_06_settings-with-high-operational-impact.md](04_mcp_06_settings-with-high-operational-impact.md) | High-impact settings |
-| [04_mcp_06_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_startup-validation-behavior-tool_definitions_strict.md) | Startup validation |
-| [04_mcp_06_watchdog-configuration-monitoring.md](04_mcp_06_watchdog-configuration-monitoring.md) | Watchdog config |
-| [04_mcp_06_watchdog-health-reasons-scheduling.md](04_mcp_06_watchdog-health-reasons-scheduling.md) | Watchdog health |
-| [04_mcp_06_new-tool-registration-procedure.md](04_mcp_06_new-tool-registration-procedure.md) | New tool reg |
-| [04_mcp_06_new-mcp-server-addition-checklist.md](04_mcp_06_new-mcp-server-addition-checklist.md) | New server checklist |
-| [04_mcp_06_pre-production-fail-open-checklist.md](04_mcp_06_pre-production-fail-open-checklist.md) | Pre-prod checklist |
-| [04_mcp_06_local-to-production-auth-migration.md](04_mcp_06_local-to-production-auth-migration.md) | Auth migration |
+| [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | Config purpose |
+| [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) | Config inventory |
+| [04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig fields |
+| [04_mcp_06_04_major-default-values.md](04_mcp_06_04_major-default-values.md) | Default values |
+| [04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md](04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md) | Long-running ops |
+| [04_mcp_06_06_verification-methods.md](04_mcp_06_06_verification-methods.md) | Verification |
+| [04_mcp_06_07_reading-audit-logs.md](04_mcp_06_07_reading-audit-logs.md) | Audit logs |
+| [04_mcp_06_08_end-to-end-tool-call-tracing.md](04_mcp_06_08_end-to-end-tool-call-tracing.md) | Tracing |
+| [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md) | Failure diagnosis |
+| [04_mcp_06_10_settings-with-high-operational-impact.md](04_mcp_06_10_settings-with-high-operational-impact.md) | High-impact settings |
+| [04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | Startup validation |
+| [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | Watchdog config |
+| [04_mcp_06_13_watchdog-health-reasons-scheduling.md](04_mcp_06_13_watchdog-health-reasons-scheduling.md) | Watchdog health |
+| [04_mcp_06_14_new-tool-registration-procedure.md](04_mcp_06_14_new-tool-registration-procedure.md) | New tool reg |
+| [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | New server checklist |
+| [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | Pre-prod checklist |
+| [04_mcp_06_17_local-to-production-auth-migration.md](04_mcp_06_17_local-to-production-auth-migration.md) | Auth migration |
 | [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Schema export |
 | ~~04_mcp_07_mdq_rag_boundary.md~~ | Removed |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | Known issues |
@@ -166,7 +166,7 @@ If recovery is needed, use `git log --all -- docs/<filename>`.
 - `04_mcp_03_routing_lifecycle_and_execution.md`
 - `04_mcp_04_server_catalog.md`
 - `04_mcp_05_security_and_safety_model.md`
-- `04_mcp_06_configuration-file-inventory.md`
+- `04_mcp_06_02_configuration-file-inventory.md`
 - `04_mcp_07_tool_schema_export_policy.md`
 - `04_mcp_90_inconsistencies_and_known_issues.md`
 

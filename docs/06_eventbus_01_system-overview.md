@@ -11,9 +11,9 @@ tags:
   - authentication
 related:
   - 06_eventbus_00_document-guide.md
-  - 06_eventbus_02_publish-replay.md
-  - 06_eventbus_02_subscribe-ack.md
-  - 06_eventbus_05_bind-address-and-start.md
+  - 06_eventbus_02_01_publish-replay.md
+  - 06_eventbus_02_02_subscribe-ack.md
+  - 06_eventbus_05_02_bind-address-and-start.md
 source:
   - index.md
 ---
@@ -75,9 +75,9 @@ These items are also documented as Deferred Items in `docs/06_eventbus_90_incons
 ## Related Documents
 
 - `06_eventbus_00_document-guide.md`
-- `06_eventbus_02_publish-replay.md`
-- `06_eventbus_02_subscribe-ack.md`
-- `06_eventbus_05_bind-address-and-start.md`
+- `06_eventbus_02_01_publish-replay.md`
+- `06_eventbus_02_02_subscribe-ack.md`
+- `06_eventbus_05_02_bind-address-and-start.md`
 
 ## Keywords
 

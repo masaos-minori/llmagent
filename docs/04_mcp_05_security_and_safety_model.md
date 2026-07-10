@@ -259,7 +259,7 @@ Controls whether Bearer-token authentication is required for HTTP MCP servers:
 **Reload boundary:** `/reload` never re-runs this check and never applies
 `auth_token` changes to a running MCP server — token changes are always
 reported as restart-required (see
-[Configuration: Hot-reload eligibility](05_agent_08_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)).
+[Configuration: Hot-reload eligibility](05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)).
 Production auth validation only ever runs at startup; there is no runtime
 path that can weaken or bypass it.
 
@@ -466,7 +466,7 @@ RAG is the primary document retrieval system for the agent layer. It supports ge
 | System | Database | Owned by | Managed by |
 |---|---|---|---|
 | MDQ | `mdq.sqlite` | MCP layer (`mcp/mdq/`) | mdq-mcp server (port 8013) |
-| RAG | `rag.sqlite` | MCP layer (`scripts/mcp/rag_pipeline/`) | rag-pipeline-mcp server |
+| RAG | `rag.sqlite` | MCP layer (`scripts/mcp_servers/rag_pipeline/`) | rag-pipeline-mcp server |
 
 Neither system accesses the other's database directly. Each maintains its own schema, indexing, and search logic.
 
@@ -541,7 +541,7 @@ and disallowed direct SQLite access in the agent layer.
 | Layer | DB | Mechanism | Context |
 |---|---|---|---|
 | `mcp/mdq/` | `mdq.sqlite` | Own service | Normal operation |
-| `scripts/mcp/rag_pipeline/` | `rag.sqlite` | Own service | Normal operation |
+| `scripts/mcp_servers/rag_pipeline/` | `rag.sqlite` | Own service | Normal operation |
 | Agent layer | `session.sqlite` | `SQLiteHelper("session")` | Normal operation |
 | Agent layer | `workflow.sqlite` | `SQLiteHelper("workflow")` | Normal operation |
 | Agent layer | `rag.sqlite` | `SQLiteHelper("rag")` via `RagMaintenanceService` | Admin-only `/db` commands |
@@ -551,7 +551,7 @@ and disallowed direct SQLite access in the agent layer.
 | Layer | DB | Reason |
 |---|---|---|
 | `mcp/mdq/` | `rag.sqlite` | Cross-DB dependency |
-| `scripts/mcp/rag_pipeline/` | `mdq.sqlite` | Cross-DB dependency |
+| `scripts/mcp_servers/rag_pipeline/` | `mdq.sqlite` | Cross-DB dependency |
 | Agent layer (normal) | `mdq.sqlite` or `rag.sqlite` | Use MCP tools, not direct DB access |
 
 #### Handling false positives

@@ -28,7 +28,7 @@ a set of independent server processes.
 **In scope:**
 - `mcp/` server implementations
 - `shared/tool_executor.py`, `shared/route_resolver.py`, `shared/mcp_config.py`
-- 11 MCP servers, totaling 66 tools (all tracked in `tool_constants.py` frozensets; registered via `ToolRegistry`)
+- 10 MCP servers, totaling 66 tools (all tracked in `tool_constants.py` frozensets; registered via `ToolRegistry`)
 
 **Out of scope:**
 - Agent REPL internal implementation
@@ -139,7 +139,7 @@ MCP server processes (mcp/<name>/server.py)
 | Routing, lifecycle, ToolExecutor | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) |
 | Per-server specifications | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) |
 | Security and safety model | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) |
-| Configuration and operations | [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md) |
+| Configuration and operations | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
 | Known bugs and inconsistencies | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents

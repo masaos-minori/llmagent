@@ -112,7 +112,7 @@ Three comparison functions detect configuration drift:
 > internal routing registry. These are distinct from the tool definitions check in
 > `repl_health.py`, which compares configured `tool_definitions` (from `agent.toml`)
 > against live `/v1/tools`. For `tool_definitions_strict` startup-failure behavior,
-> see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
+> see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
 Drift warnings appear at agent startup:
 
@@ -336,7 +336,7 @@ To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-
 A tool error means the server processed the request but returned an error.
 A transport error means the agent never received a response from the server.
 
-See [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing) for the operational tracing procedure.
+See [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing) for the operational tracing procedure.
 
 ---
 
