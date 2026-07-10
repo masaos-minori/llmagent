@@ -12,8 +12,8 @@ related:
   - 03_rag_03_query_pipeline.md
   - 03_rag_03_query_pipeline-context-and-diagnostics.md
   - 03_rag_03_query_pipeline-stages.md
-  - 03_rag_04_data_model_and_interfaces.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_04_dto-types.md
+  - 03_rag_05_1-configuration-reference.md
 source:
   - 03_rag_03_query_pipeline.md
 ---
@@ -21,8 +21,8 @@ source:
 # RAG Query Pipeline
 
 - System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_data_model_and_interfaces.md](03_rag_04_dto-models_data.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- Type definitions → [03_rag_04_dto-types.md](03_rag_04_dto-models_data.md)
 
 ---
 
@@ -149,8 +149,8 @@ Returned by `RagPipeline.run()`. **`result_source` is always `None`** — `run()
 - `03_rag_03_query_pipeline.md`
 - `03_rag_03_query_pipeline-context-and-diagnostics.md`
 - `03_rag_03_query_pipeline-stages.md`
-- `03_rag_04_data_model_and_interfaces.md`
-- `03_rag_05_configuration_and_operations.md`
+- `03_rag_04_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
 
 ## Keywords
 

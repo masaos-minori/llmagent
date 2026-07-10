@@ -1,19 +1,25 @@
 ---
-title: "Agent Extension Points"
+title: "Agent Extension Points - Registry API and Rules"
 category: agent
 tags:
   - agent
-  - agent
-  - extension
-  - plugin
-  - register
+  - extension-points
+  - plugin-registry
+  - extension-rules
+  - mcp-server
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_11_extension-points-plugin-command.md
+  - 05_agent_11_extension-points-tool-registration.md
+source:
+  - 05_agent_11_extension-points-plugin-command.md
 ---
 
 # Agent Extension Points
 
-plugin_registry.py`)
+- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+
+## Registry API (`shared/plugin_registry.py`)
 
 | Function | Description |
 |---|---|
@@ -51,9 +57,7 @@ def reset_registry():
 
 ## Extension Rules
 
-1. Pl
-
-ugin tools cannot be cached by `ToolExecutor` (only MCP tool results are cached)
+1. Plugin tools cannot be cached by `ToolExecutor` (only MCP tool results are cached)
 2. Plugin commands that share a name with a built-in command are **rejected** at
    load time and removed from the registry. A `PluginLoadError` is raised in strict mode.
 3. Plugin files that raise exceptions during import are skipped silently — always test plugins before deployment
@@ -74,9 +78,7 @@ Log format: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <messa
 
 ---
 
-## Adding a New MCP Serve
-
-r
+## Adding a New MCP Server
 
 1. Subclass `MCPServer` in `scripts/mcp/<name>/server.py`; override `dispatch()`
 2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
@@ -91,13 +93,14 @@ for full MCP server addition procedure.
 
 ## Related Documents
 
-- `agent`
-- `extension`
-- `plugin`
+- `05_agent_00_document-guide.md`
+- `05_agent_11_extension-points-plugin-command.md`
+- `05_agent_11_extension-points-tool-registration.md`
 
 ## Keywords
 
-agent
-extension
-plugin
-register
+Registry API
+test isolation
+extension rules
+hook failure behavior
+adding a new MCP server

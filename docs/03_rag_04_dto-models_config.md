@@ -7,9 +7,9 @@ tags:
   - data-model
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_04_data_model_and_interfaces.md
+  - 03_rag_04_dto-types.md
 source:
-  - 03_rag_04_data_model_and_interfaces.md
+  - 03_rag_04_dto-types.md
 ---
 
 # 6.5 models_config.py (`scripts/rag/models_config.py`)
@@ -79,7 +79,7 @@ source:
 
 ## Related Documents
 
-- [03_rag_04_data_model_and_interfaces.md](03_rag_04_dto-models_data.md)
+- [03_rag_04_dto-types.md](03_rag_04_dto-models_data.md)
 
 ## Keywords
 

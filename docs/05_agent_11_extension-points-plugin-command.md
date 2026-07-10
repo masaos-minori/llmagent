@@ -1,19 +1,33 @@
 ---
-title: "Agent Extension Points"
+title: "Agent Extension Points - Plugin Architecture and Commands"
 category: agent
 tags:
   - agent
-  - agent
-  - extension
-  - plugin
-  - register
+  - extension-points
+  - plugin-architecture
+  - register-command
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_11_extension-points-tool-registration.md
+  - 05_agent_11_extension-points-registry-rules.md
+source:
+  - 05_agent_11_extension-points-plugin-command.md
 ---
 
 # Agent Extension Points
 
-lugins are Python files in `plugins/*.py` (relative to the project root, 2 levels above `scripts/`).
+- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+
+## Purpose
+
+Document the plugin architecture, all `@register_*` decorators, extension rules,
+and priority relationships between built-in features and extensions.
+
+---
+
+## Plugin Architecture
+
+Plugins are Python files in `plugins/*.py` (relative to the project root, 2 levels above `scripts/`).
 
 **Loading:**
 1. Plugin registry initialization calls `plugin_registry.load_plugins(plugin_dir)` at startup
@@ -55,9 +69,7 @@ def post_rerank(hits, query):
 
 ## `@register_command`
 
-`
-
-``python
+```python
 @register_command(name: str, *, prefix: bool = False)
 handler(ctx: AgentContext, args: str) -> None  # sync or async
 ```
@@ -86,19 +98,14 @@ Plugin commands that share a name with a built-in command are subject to **Optio
 
 ---
 
-## `@register_tool`
-
-```p
-
 ## Related Documents
 
-- `agent`
-- `extension`
-- `plugin`
+- `05_agent_00_document-guide.md`
+- `05_agent_11_extension-points-tool-registration.md`
+- `05_agent_11_extension-points-registry-rules.md`
 
 ## Keywords
 
-agent
-extension
-plugin
-register
+plugin architecture
+@register_command
+command shadow policy

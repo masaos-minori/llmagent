@@ -1,20 +1,32 @@
 ---
-title: "Memory Layer — Module Reference"
+title: "Memory Layer - Activation Gate, Data Model, and Search"
 category: agent
 tags:
   - agent
-  - agent
   - memory
-  - semantic
-  - episodic
-  - embedding
+  - activation-gate
+  - data-model
+  - search-strategies
+  - disabled-behavior
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_12_memory-overview-and-modes.md
+  - 05_agent_12_memory-module-ref-core-and-store.md
+  - 05_agent_12_memory-module-ref-retrieval-and-injection.md
+  - 05_agent_12_memory-module-ref-extraction-and-facade.md
+  - 05_agent_12_memory-module-ref-ops-and-scoring.md
+source:
+  - 05_agent_12_memory.md
 ---
 
 # Memory Layer — Module Reference
 
-er has a 3-layer activation gate that controls when memory operations execute.
+- Operations and observability → [05_agent_10_operations-and-observability-startup-and-health.md](05_agent_10_operations-and-observability-startup-and-health.md)
+- Configuration → [05_agent_08_configuration-tools-memory.md](05_agent_08_configuration-tools-memory.md)
+
+## Activation Gate
+
+The memory layer has a 3-layer activation gate that controls when memory operations execute.
 
 **Layer 1: Config bypass**
 - `use_memory_layer` config flag (default: `False`)
@@ -53,9 +65,7 @@ er has a 3-layer activation gate that controls when memory operations execute.
 
 ## Data Model
 
-### MemoryEntry (st
-
-ored in JSONL + SQLite)
+### MemoryEntry (stored in JSONL + SQLite)
 
 | Field | Type | Description |
 |---|---|---|
@@ -96,9 +106,7 @@ ored in JSONL + SQLite)
 
 ## JSONL Format
 
-Each line in the 
-
-JSONL store is a single JSON object serializing all `MemoryEntry` fields:
+Each line in the JSONL store is a single JSON object serializing all `MemoryEntry` fields:
 
 ```json
 {"memory_id": "uuid-here", "memory_type": "semantic", "source_type": "RULE", "session_id": 1, "turn_id": null, "project": "myproj", "repo": "myrepo", "branch": "main", "content": "Use orjson for JSON.", "summary": "orjson preference", "tags": [], "importance": 0.7, "pinned": false, "created_at": "2026-06-19T23:00:00Z", "updated_at": "2026-06-19T23:00:00Z"}
@@ -114,9 +122,7 @@ JSONL store is a single JSON object serializing all `MemoryEntry` fields:
 
 ## Search Strategies
 
-### FTS5 (Fu
-
-ll-Text Search)
+### FTS5 (Full-Text Search)
 
 - **Engine:** SQLite FTS5 with BM25 ranking
 - **Index:** Tokenized `content` column in `memories_fts`
@@ -142,20 +148,34 @@ ll-Text Search)
 
 ---
 
-## Module Reference
+## Disabled Behavior
 
-### 1. `__ini
+See the [Activation Gate](#activation-gate) section and [Disabled Behavior by Module](#disabled-behavior-by-module) table above for the full per-module breakdown.
+
+Summary:
+- `use_memory_layer=False` → `ctx.services.memory` is `None`; all memory operations are skipped
+- `EmbeddingClient.enabled=False` → `fetch()` returns `DISABLED` error; retrieval falls back to FTS5-only
+- `cli_view.py` reflects memory layer status at startup banner
+
+---
 
 ## Related Documents
 
-- `agent`
-- `memory`
-- `semantic`
+- `05_agent_00_document-guide.md`
+- `05_agent_12_memory-overview-and-modes.md`
+- `05_agent_12_memory-module-ref-core-and-store.md`
+- `05_agent_12_memory-module-ref-retrieval-and-injection.md`
+- `05_agent_12_memory-module-ref-extraction-and-facade.md`
+- `05_agent_12_memory-module-ref-ops-and-scoring.md`
 
 ## Keywords
 
-agent
-memory
-semantic
-episodic
-embedding
+activation gate
+disabled behavior by module
+MemoryEntry
+MemorySnippet
+JSONL format
+FTS5
+KNN
+hybrid RRF
+disabled behavior

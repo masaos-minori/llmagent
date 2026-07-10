@@ -17,7 +17,7 @@ related:
   - 06_eventbus_02_subscribe-ack.md
   - 06_eventbus_02_dlq-background-loop.md
 source:
-  - 06_eventbus_02_http_api_and_runtime.md
+  - 06_eventbus_02_publish-replay.md
 ---
 
 # Event Bus: Nack, Health, and DLQ Endpoints

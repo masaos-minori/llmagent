@@ -13,7 +13,7 @@ related:
   - 06_eventbus_05_health-endpoint-semantics.md
   - 06_eventbus_05_delivery-operations.md
 source:
-  - 06_eventbus_05_configuration_deploy_and_operations.md
+  - 06_eventbus_05_config-env-and-fields.md
 ---
 
 # Event Bus: Consumer ID Stability

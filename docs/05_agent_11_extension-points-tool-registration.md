@@ -1,19 +1,26 @@
 ---
-title: "Agent Extension Points"
+title: "Agent Extension Points - Tool Registration"
 category: agent
 tags:
   - agent
-  - agent
-  - extension
-  - plugin
-  - register
+  - extension-points
+  - register-tool
+  - pipeline-stage
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_11_extension-points-plugin-command.md
+  - 05_agent_11_extension-points-registry-rules.md
+source:
+  - 05_agent_11_extension-points-plugin-command.md
 ---
 
 # Agent Extension Points
 
-ython
+- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+
+## `@register_tool`
+
+```python
 @register_tool(name: str, *, known_tools: frozenset[str] = frozenset(), override_policy: str = "reject")
 async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 ```
@@ -112,13 +119,11 @@ Plugin tools emit `tool_exec` audit events via `audit_tool_exec()` with `source=
 - **No `X-Request-Id`**: Plugin tools do not go through the HTTP transport layer, so there is no `request_id` to correlate with server-side logs.
 - **No `server_key`**: The `server_key` field is always empty for plugin tools.
 
-This means plugin tool audit events cannot be correlated with MCP server access logs. See [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md#plugin-tool-audit-events) for details.
+This means plugin tool audit events cannot be correlated with MCP server access logs. See [05_agent_10_operations-and-observability-startup-and-health.md](05_agent_10_operations-and-observability-startup-and-health.md#plugin-tool-audit-events) for details.
 
 ---
 
-## `@register_pipeline_st
-
-age`
+## `@register_pipeline_stage`
 
 ```python
 @register_pipeline_stage(when: str = "post")
@@ -136,17 +141,16 @@ and pre-rerank hooks are not yet implemented.
 
 ---
 
-## Registry API (`shared/
-
 ## Related Documents
 
-- `agent`
-- `extension`
-- `plugin`
+- `05_agent_00_document-guide.md`
+- `05_agent_11_extension-points-plugin-command.md`
+- `05_agent_11_extension-points-registry-rules.md`
 
 ## Keywords
 
-agent
-extension
-plugin
-register
+@register_tool
+plugin tool precedence
+conflict detection
+safety tier enforcement
+@register_pipeline_stage

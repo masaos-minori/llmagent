@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 ---
 
 # 5. Constraints Reference
@@ -30,7 +30,7 @@ source:
 
 ## Related Documents
 
-- [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
+- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ## Keywords
 

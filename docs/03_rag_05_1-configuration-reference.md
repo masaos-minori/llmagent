@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 ---
 
 # 1. Configuration Reference
@@ -17,7 +17,7 @@ source:
 
 crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes that read only their own config file. There is no shared config file. If DB path or external service URL is needed across multiple processes, each config file must specify it individually.
 
-→ Process separation policy details: [90_shared_03 §2a](90_shared_03_runtime_and_execution_infra.md#2a-process-separation-policy-config-isolation-policy)
+→ Process separation policy details: [90_shared_03 §2a](90_shared_03_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ### 1.1 `config/crawler.toml`
 
@@ -118,7 +118,7 @@ Used by: Agent process only. Loaded from `ConfigLoader().load_all()` to build `A
 
 ## Related Documents
 
-- [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
+- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ## Keywords
 

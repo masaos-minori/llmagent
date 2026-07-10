@@ -25,7 +25,7 @@ source:
 
 ### 2.2 取込パイプライン
 
-詳細 → [`03_rag_02_ingestion_pipeline.md`](03_rag_02_ingestion_pipeline.md)
+詳細 → [`03_rag_02_ingestion_pipeline-overview.md`](03_rag_02_ingestion_pipeline-overview.md)
 
 ```
 target_urls → crawler.py (BFS クロール) → rag-src/*.json

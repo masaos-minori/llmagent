@@ -15,15 +15,15 @@ related:
   - 03_rag_02_ingestion_pipeline-chunksplitter.md
   - 03_rag_02_ingestion_pipeline-ingester.md
   - 03_rag_02_ingestion_pipeline-utils.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_02_ingestion_pipeline.md
+  - 03_rag_02_ingestion_pipeline-overview.md
 ---
 
 # RAG Ingestion Pipeline
 
 - System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
@@ -174,7 +174,7 @@ Python files (.py) store their content in `code_blocks` with empty `content`; ot
 
 ### 2.7 Configuration (`config/rag_pipeline.toml`)
 
-See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_1-configuration-reference.md).
+See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
 
 ---
 
@@ -186,7 +186,7 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_1-configuration-
 - `03_rag_02_ingestion_pipeline-chunksplitter.md`
 - `03_rag_02_ingestion_pipeline-ingester.md`
 - `03_rag_02_ingestion_pipeline-utils.md`
-- `03_rag_05_configuration_and_operations.md`
+- `03_rag_05_1-configuration-reference.md`
 
 ## Keywords
 

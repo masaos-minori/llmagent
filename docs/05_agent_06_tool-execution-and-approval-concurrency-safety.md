@@ -54,7 +54,7 @@ workflow-level approval checks, when no workflow plan was available.
 (missing plan, invalid config) and retry.
 
 This is a fail-closed policy: safety is preferred over availability.
-See [Agent Startup and Recovery](05_agent_07_cli-and-commands.md#startup-recovery) for the startup recovery model.
+See [Agent Startup and Recovery](05_agent_07_cli-and-commands-cli-reference.md#startup-recovery) for the startup recovery model.
 
 ---
 

@@ -129,7 +129,7 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
 - `save_many(messages)` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
 - `replace_messages(messages)` persists compressed history snapshot back to DB; skips silently if session_id is None
-- Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table. For the partial-completion persistence model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
+- Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table. For the partial-completion persistence model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow-overview.md)
 - `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
 - `AgentContext.diagnostics` is wired to the orchestrator's diagnostic store on init; `None` before any `Orchestrator` is constructed
 - Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)

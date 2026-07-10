@@ -1,19 +1,32 @@
 ---
-title: "Agent Data Layer"
+title: "Agent Data Layer - Session DB"
 category: agent
 tags:
   - agent
-  - agent
   - data-layer
-  - database
-  - sqlite
+  - session-sqlite
+  - rag-sqlite
+  - sqlite-databases
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_09_data-layer-access-patterns.md
+  - 05_agent_09_data-layer-indexing-boundaries.md
+source:
+  - 05_agent_09_data-layer-session-db.md
 ---
 
 # Agent Data Layer
 
+- State and persistence → [05_agent_04_state-and-persistence-state-model.md](05_agent_04_state-and-persistence-state-model.md)
 
+## Purpose
+
+Document SQLite table structures used by the agent layer, data ownership boundaries,
+and the responsibility boundary between the agent layer and the RAG layer.
+
+---
+
+## SQLite Databases
 
 | Database | Path | Owner | Purpose |
 |---|---|---|---|
@@ -24,9 +37,7 @@ related:
 
 ---
 
-## session.sqlite T
-
-ables
+## session.sqlite Tables
 
 | Table | Purpose |
 |---|---|
@@ -95,21 +106,20 @@ Stores diagnostic events (LLM transport errors, guard hints, partial completions
 
 **Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
 
-See [90_shared_05_db_module_boundaries_and_sqlitehelper.md](90_shared_05_db_module_boundaries_and_sqlitehelper.md) for the shared-layer responsibility boundary view.
+See [90_shared_05_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_db_api_and_operations-module-boundaries-and-helper.md) for the shared-layer responsibility boundary view.
 
 ---
 
-## rag.sqlite Table
-
 ## Related Documents
 
-- `agent`
-- `data-layer`
-- `database`
+- `05_agent_00_document-guide.md`
+- `05_agent_09_data-layer-access-patterns.md`
+- `05_agent_09_data-layer-indexing-boundaries.md`
 
 ## Keywords
 
-agent
-data-layer
-database
-sqlite
+session.sqlite
+sessions table
+messages table
+session_diagnostics
+rag.sqlite

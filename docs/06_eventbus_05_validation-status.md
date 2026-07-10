@@ -13,7 +13,7 @@ related:
   - 06_eventbus_01_system-overview.md
   - 06_eventbus_05_bind-address-and-start.md
 source:
-  - 06_eventbus_05_configuration_deploy_and_operations.md
+  - 06_eventbus_05_config-env-and-fields.md
 ---
 
 # Event Bus: Validation Status

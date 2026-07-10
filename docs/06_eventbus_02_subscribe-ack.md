@@ -17,7 +17,7 @@ related:
   - 06_eventbus_02_publish-replay.md
   - 06_eventbus_02_nack-health-dlq.md
 source:
-  - 06_eventbus_02_http_api_and_runtime.md
+  - 06_eventbus_02_publish-replay.md
 ---
 
 # Event Bus: Subscribe and Ack Endpoints

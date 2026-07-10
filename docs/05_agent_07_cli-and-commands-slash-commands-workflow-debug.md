@@ -23,7 +23,7 @@ related:
 
 > **Scope:** `/approve` and `/reject` resolve **workflow-level approval gates only** (the `approvals` DB record).
 > They do not affect per-tool interactive approval prompts (`tool_approval.run_approval_checks`).
-> See [Tool Execution and Approval](05_agent_06_tool-execution-and-approval.md) for the canonical approval model.
+> See [Tool Execution and Approval](05_agent_06_tool-execution-and-approval-execution.md) for the canonical approval model.
 
 #### Startup Recovery
 

@@ -15,7 +15,7 @@ related:
   - 06_eventbus_05_config-env-and-fields.md
   - 06_eventbus_05_validation-status.md
 source:
-  - 06_eventbus_05_configuration_deploy_and_operations.md
+  - 06_eventbus_05_config-env-and-fields.md
 ---
 
 # Event Bus: Bind Address and Start Command

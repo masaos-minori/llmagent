@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 04_mcp_00_document-guide.md
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 source:
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 ---
 
 # Major Default Values
@@ -35,7 +35,7 @@ source:
 
 ## Related Documents
 
-- [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Keywords
 

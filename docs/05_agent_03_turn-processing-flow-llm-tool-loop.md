@@ -80,8 +80,8 @@ After each turn, the REPL line dispatcher checks if `stat_partial_completions` i
 ```
 
 See §LLM Transport Error (partial completion) above for implementation details.
-For persistence behavior → [05_agent_04 §Message save rules](05_agent_04_state-and-persistence.md).
-For operator monitoring → [05_agent_10 §Interpreting /stats](05_agent_10_operations-and-observability.md).
+For persistence behavior → [05_agent_04 §Message save rules](05_agent_04_state-and-persistence-state-model.md).
+For operator monitoring → [05_agent_10 §Interpreting /stats](05_agent_10_operations-and-observability-startup-and-health.md).
 
 ---
 

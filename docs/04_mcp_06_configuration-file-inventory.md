@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 04_mcp_00_document-guide.md
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 source:
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 ---
 
 # Configuration File Inventory
@@ -21,7 +21,7 @@ source:
 
 `MCPServer.run_http()` は uvicorn 起動前に `ConfigLoader.restrict_to(own_config_file)` を呼び出してこのルールをランタイムで強制する。違反時は `ConfigPermissionError` が発生する。
 
-→ 詳細: [90_shared_03 §2a](90_shared_03_runtime_and_execution_infra.md#2a-プロセス分離方針-config-isolation-policy)
+→ 詳細: [90_shared_03 §2a](90_shared_03_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
 
 ### Agent-level (agent.toml のみが読み込む設定)
 
@@ -42,7 +42,7 @@ and require a full agent restart to take effect. The watchdog
 (`mcp_watchdog_interval`, `mcp_watchdog_max_restarts` above) restarts a
 *failed* subprocess using its existing startup config; it does not read or
 apply any pending `/reload` config change. See
-[Agent Operations: MCP restart requirement](05_agent_10_operations-and-observability.md)
+[Agent Operations: MCP restart requirement](05_agent_10_operations-and-observability-startup-and-health.md)
 for the full explanation.
 
 ### Per-server config files
@@ -72,7 +72,7 @@ for the full explanation.
 
 ## Related Documents
 
-- [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Keywords
 

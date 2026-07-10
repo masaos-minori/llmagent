@@ -11,8 +11,8 @@ related:
   - 03_rag_01_system_overview.md
   - 03_rag_02_ingestion_pipeline-overview.md
   - 03_rag_03_query_pipeline.md
-  - 03_rag_04_data_model_and_interfaces.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_04_dto-types.md
+  - 03_rag_05_1-configuration-reference.md
   - 03_rag_90_inconsistencies_and_known_issues.md
   - 03_rag_91_design_notes-part1.md
   - 03_rag_91_design_notes-part2.md
@@ -130,8 +130,8 @@ The checker runs 10 checks: broken headings, malformed tables, unclosed inline c
 - `03_rag_01_system_overview.md`
 - `03_rag_02_ingestion_pipeline-overview.md`
 - `03_rag_03_query_pipeline.md`
-- `03_rag_04_data_model_and_interfaces.md`
-- `03_rag_05_configuration_and_operations.md`
+- `03_rag_04_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
 - `03_rag_90_inconsistencies_and_known_issues.md`
 - `03_rag_91_design_notes-part1.md`
 - `03_rag_91_design_notes-part2.md`

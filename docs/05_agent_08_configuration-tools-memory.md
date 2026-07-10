@@ -22,7 +22,7 @@ Source: `config/agent.toml`
 | `tool_cache_ttl` | `300.0` | `300.0` | Tool result cache TTL (seconds) |
 | `tool_cache_max_size` | `200` | `200` | LRU cache size (0 = unlimited) |
 | `serial_tool_calls` | `False` | `False` | Force sequential tool execution |
-| `tool_definitions_strict` | `False` | `True` | `true`: schema mismatch in reachable servers → `RuntimeError` at startup. `false`: mismatch → WARNING only. When ALL servers are unreachable, strict mode skips validation (no abort). See [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration_and_operations.md) for full behavior table. |
+| `tool_definitions_strict` | `False` | `True` | `true`: schema mismatch in reachable servers → `RuntimeError` at startup. `false`: mismatch → WARNING only. When ALL servers are unreachable, strict mode skips validation (no abort). See [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration-file-inventory.md) for full behavior table. |
 | `routing_drift_strict` | `False` | `True` | `true`: config/registry routing drift detected at startup → `RuntimeError` (startup aborted). `false`: drift → `[non-fatal]` WARNING only. Startup-only field; requires restart to take effect. |
 | `tool_dedup_max_repeats` | `3` | `3` | Same (name,args) repeat limit |
 | `tool_cycle_detect_window` | `2` | `2` | Cycle detection window (rounds; 0=disabled) |

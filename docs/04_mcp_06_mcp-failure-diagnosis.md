@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 04_mcp_00_document-guide.md
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 source:
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 ---
 
 # MCP Failure Diagnosis
@@ -67,7 +67,7 @@ This means that even when the watchdog has given up on auto-restart (after excee
 
 ## Related Documents
 
-- [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Keywords
 

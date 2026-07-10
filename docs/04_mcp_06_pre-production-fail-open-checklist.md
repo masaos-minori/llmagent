@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 04_mcp_00_document-guide.md
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 source:
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 ---
 
 # Pre-Production Fail-Open Checklist
@@ -60,7 +60,7 @@ See `04_mcp_05_security_and_safety_model.md` for the full fail-open/closed polic
 
 ## Related Documents
 
-- [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Keywords
 

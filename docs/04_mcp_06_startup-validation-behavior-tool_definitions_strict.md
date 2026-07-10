@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 04_mcp_00_document-guide.md
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 source:
-  - 04_mcp_06_configuration_and_operations.md
+  - 04_mcp_06_configuration-file-inventory.md
 ---
 
 # Startup Validation Behavior (`tool_definitions_strict`)
@@ -38,7 +38,7 @@ The tool definitions check runs at agent startup and compares `tool_definitions`
 
 ## Related Documents
 
-- [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Keywords
 

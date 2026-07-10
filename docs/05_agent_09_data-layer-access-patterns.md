@@ -1,19 +1,25 @@
 ---
-title: "Agent Data Layer"
+title: "Agent Data Layer - Access Patterns"
 category: agent
 tags:
   - agent
-  - agent
   - data-layer
-  - database
-  - sqlite
+  - rag-mcp
+  - document-access
+  - memory-tables
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_09_data-layer-session-db.md
+  - 05_agent_09_data-layer-indexing-boundaries.md
+source:
+  - 05_agent_09_data-layer-session-db.md
 ---
 
 # Agent Data Layer
 
-s (Agent-facing)
+- State and persistence → [05_agent_04_state-and-persistence-state-model.md](05_agent_04_state-and-persistence-state-model.md)
+
+## rag.sqlite Tables (Agent-facing)
 
 The agent layer does NOT own rag.sqlite. These tables are owned by the RAG layer.
 The agent accesses document-level data through `rag-pipeline-mcp` (for `/db rag urls` and `/db rag clean`),
@@ -32,9 +38,7 @@ document access for listing or deletion.
 
 ---
 
-## RAG MCP Internal
-
- Path
+## RAG MCP Internal Path
 
 `RagPipelineMCPService` directly accesses `rag.sqlite` through `SQLiteHelper("rag")` for
 `list_documents()` and `delete_document()`. This is an internal operation of the RAG MCP
@@ -72,9 +76,7 @@ where applicable.
 
 ---
 
-## Agent-Side Docum
-
-ent Access Patterns
+## Agent-Side Document Access Patterns
 
 The agent accesses document data through three paths:
 
@@ -88,9 +90,7 @@ MCP tools are the preferred and supported path. Direct `sqlite3` imports against
 
 - **MDQ**: Markdown query server. Access via `mdq-mcp` tools only. FTS5 search and indexing implemented. See [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for the RAG/MDQ boundary.
 
-## Memory Tables (o
-
-ptional)
+## Memory Tables (optional)
 
 When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
@@ -110,17 +110,15 @@ All memory SQLite tables (`memories`, `memories_fts`, `memory_links`, `memories_
 
 ---
 
-## Context Manager 
-
 ## Related Documents
 
-- `agent`
-- `data-layer`
-- `database`
+- `05_agent_00_document-guide.md`
+- `05_agent_09_data-layer-session-db.md`
+- `05_agent_09_data-layer-indexing-boundaries.md`
 
 ## Keywords
 
-agent
-data-layer
-database
-sqlite
+RAG MCP internal path
+document access patterns
+memory tables
+context manager pattern

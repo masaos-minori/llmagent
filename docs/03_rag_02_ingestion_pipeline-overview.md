@@ -12,15 +12,15 @@ related:
   - 03_rag_00_document-guide.md
   - 03_rag_01_system_overview.md
   - 03_rag_03_query_pipeline.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_02_ingestion_pipeline.md
+  - 03_rag_02_ingestion_pipeline-overview.md
 ---
 
 # RAG Ingestion Pipeline
 
 - System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
@@ -119,7 +119,7 @@ Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-sr
 - `03_rag_02_ingestion_pipeline-shared.md`
 - `03_rag_02_ingestion_pipeline-ft5.md`
 - `03_rag_03_query_pipeline.md`
-- `03_rag_05_configuration_and_operations.md`
+- `03_rag_05_1-configuration-reference.md`
 
 ## Keywords
 

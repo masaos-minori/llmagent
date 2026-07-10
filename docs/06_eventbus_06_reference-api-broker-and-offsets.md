@@ -14,7 +14,7 @@ related:
   - 06_eventbus_06_reference-api-core-modules.md
   - 06_eventbus_06_reference-api-route-handlers.md
 source:
-  - 06_eventbus_06_reference_api.md
+  - 06_eventbus_06_reference-api-core-modules.md
 ---
 
 # Event Bus: Reference API — Broker and Offsets

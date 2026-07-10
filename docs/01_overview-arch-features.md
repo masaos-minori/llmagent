@@ -24,7 +24,7 @@ source:
 
 ## 2.4 エージェント機能・コマンド一覧
 
-詳細 → [`05_agent_07_cli-and-commands.md`](05_agent_07_cli-and-commands.md)
+詳細 → [`05_agent_07_cli-and-commands-cli-reference.md`](05_agent_07_cli-and-commands-cli-reference.md)
 
 ## 2.5 実装済み機能サマリ
 

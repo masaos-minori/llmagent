@@ -1,19 +1,25 @@
 ---
-title: "Agent Data Layer"
+title: "Agent Data Layer - Indexing and Boundaries"
 category: agent
 tags:
   - agent
-  - agent
   - data-layer
-  - database
-  - sqlite
+  - fts5
+  - workflow-sqlite
+  - persistence-boundaries
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_09_data-layer-session-db.md
+  - 05_agent_09_data-layer-access-patterns.md
+source:
+  - 05_agent_09_data-layer-session-db.md
 ---
 
 # Agent Data Layer
 
-Pattern for DB Access
+- State and persistence → [05_agent_04_state-and-persistence-state-model.md](05_agent_04_state-and-persistence-state-model.md)
+
+## Context Manager Pattern for DB Access
 
 `SQLiteHelper` (used everywhere in agent/RAG layers):
 
@@ -28,9 +34,7 @@ with SQLiteHelper().open(write_mode=True, row_factory=True) as db:
 
 ---
 
-## FTS5 Index (`chu
-
-nks_fts`)
+## FTS5 Index (`chunks_fts`)
 
 The `chunks_fts` FTS5 virtual table in `rag.sqlite` is synchronized by triggers:
 - `chunks_ai` (after INSERT): insert into `chunks_fts(COALESCE(normalized_content, content))`
@@ -42,9 +46,7 @@ Use when `SELECT COUNT(*) FROM chunks_fts` ≠ `SELECT COUNT(*) FROM chunks`.
 
 ---
 
-## Workflow SQLite 
-
-(`workflow.sqlite`)
+## Workflow SQLite (`workflow.sqlite`)
 
 Managed by `agent/workflow/state_store.py`.
 
@@ -60,16 +62,14 @@ Used when `config/workflows/default.json` exists. Falls back to direct execution
 
 ---
 
-## Non-Message Pers
-
-istence Boundaries
+## Non-Message Persistence Boundaries
 
 | Store | Role | Visible to LLM | Contents |
 |---|---|---|---|
 | `messages` | Conversation flow history (authoritative) | yes | Message sequence passed to LLM; large outputs stored as summaries only |
 | `session_diagnostics` | Diagnostic-only events | no | LLM transport errors, guard hints; written by `DiagnosticStore.save()` |
 | `workflow.artifacts` | Workflow artifact references | no | URIs produced by workflow stage callbacks; stored in `workflow.sqlite` |
-| `audit.log` | Operational trace | no | JSON-lines audit events (`turn_start`, `turn_end`, MCP calls); see [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) |
+| `audit.log` | Operational trace | no | JSON-lines audit events (`turn_start`, `turn_end`, MCP calls); see [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md) |
 
 Using `messages` for anything other than LLM-visible conversation flow is prohibited — diagnostic,
 artifact, and audit data belong in the non-message stores above.
@@ -78,13 +78,13 @@ artifact, and audit data belong in the non-message stores above.
 
 ## Related Documents
 
-- `agent`
-- `data-layer`
-- `database`
+- `05_agent_00_document-guide.md`
+- `05_agent_09_data-layer-session-db.md`
+- `05_agent_09_data-layer-access-patterns.md`
 
 ## Keywords
 
-agent
-data-layer
-database
-sqlite
+FTS5 index
+chunks_fts
+workflow.sqlite
+non-message persistence boundaries

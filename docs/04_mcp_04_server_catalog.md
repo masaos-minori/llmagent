@@ -2,7 +2,7 @@
 
 - System overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
 - Security model → [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md)
-- Configuration → [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
+- Configuration → [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Purpose
 

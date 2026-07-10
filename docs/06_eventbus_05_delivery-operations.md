@@ -15,7 +15,7 @@ related:
   - 06_eventbus_05_consumer-id-stability.md
   - 06_eventbus_05_dlq-operations.md
 source:
-  - 06_eventbus_05_configuration_deploy_and_operations.md
+  - 06_eventbus_05_config-env-and-fields.md
 ---
 
 # Event Bus: Delivery Operations

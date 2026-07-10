@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 source:
-  - 03_rag_05_configuration_and_operations.md
+  - 03_rag_05_1-configuration-reference.md
 ---
 
 # 6. Local file re-ingestion
@@ -71,7 +71,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ## Related Documents
 
-- [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
+- [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ## Keywords
 

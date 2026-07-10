@@ -170,10 +170,10 @@ When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_
 
 | Topic | File |
 |---|---|
-| Ingestion scripts (API, CLI, config) | [03_rag_02_ingestion_pipeline.md](03_rag_02_ingestion_pipeline-overview.md) |
+| Ingestion scripts (API, CLI, config) | [03_rag_02_ingestion_pipeline-overview.md](03_rag_02_ingestion_pipeline-overview.md) |
 | Query pipeline (API, stage details) | [03_rag_03_query_pipeline.md](03_rag_03_query_pipeline.md) |
-| DB schema, type definitions | [03_rag_04_data_model_and_interfaces.md](03_rag_04_dto-models_data.md) |
-| Configuration, run commands, logs | [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md) |
+| DB schema, type definitions | [03_rag_04_dto-types.md](03_rag_04_dto-models_data.md) |
+| Configuration, run commands, logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
 | Known bugs and inconsistencies | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
