@@ -50,7 +50,9 @@ def check_h1_count(path: Path, body: str) -> list[str]:
     return []
 
 
-def check_front_matter(path: Path, content: str, expected_category: str | None) -> list[str]:
+def check_front_matter(
+    path: Path, content: str, expected_category: str | None
+) -> list[str]:
     issues = []
     if not content.startswith("---"):
         return [f"{path.name}: missing Front Matter (does not start with '---')"]
@@ -107,9 +109,17 @@ def validate_file(path: Path, expected_category: str | None) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate docs/ structural conventions")
-    parser.add_argument("globs", nargs="*", help="Glob patterns relative to repo root (default: docs/*.md)")
-    parser.add_argument("--category", default=None, help="Expected Front Matter category value")
+    parser = argparse.ArgumentParser(
+        description="Validate docs/ structural conventions"
+    )
+    parser.add_argument(
+        "globs",
+        nargs="*",
+        help="Glob patterns relative to repo root (default: docs/*.md)",
+    )
+    parser.add_argument(
+        "--category", default=None, help="Expected Front Matter category value"
+    )
     args = parser.parse_args()
 
     patterns = args.globs or ["docs/*.md"]
