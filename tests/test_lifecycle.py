@@ -33,10 +33,15 @@ def _wire_http_client(MockClient, status_code: int = 200):
     return client_instance, mock_resp
 
 
-def _make_mock_proc(exit_code: int | None = None) -> MagicMock:
-    """Create a mock subprocess with configurable poll() return value."""
+def _make_mock_proc(exit_code: int | None = None, pid: int = 999999) -> MagicMock:
+    """Create a mock subprocess with configurable poll() return value.
+
+    pid defaults to an unlikely real PID so that os.getpgid() raises OSError
+    (no such process) unless explicitly overridden by the caller.
+    """
     mock_proc = MagicMock()
     mock_proc.poll.return_value = exit_code
+    mock_proc.pid = pid
     mock_proc.stderr = None
     return mock_proc
 
@@ -148,6 +153,8 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
         ):
             _wire_http_client(MockClient, status_code=200)
             await mgr.start_http_subprocess("s", cfg)
@@ -178,6 +185,8 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(RuntimeError, match="exited early"),
         ):
             _wire_http_client(MockClient, status_code=503)
@@ -194,6 +203,8 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, mock_resp = _wire_http_client(MockClient)
@@ -211,6 +222,8 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             patch.object(mgr._http_mgr, "_terminate_with_timeout"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -235,6 +248,8 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
             client_instance.get = AsyncMock(side_effect=[fail_resp, ok_resp])
@@ -261,6 +276,8 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
             patch("agent.http_lifecycle.time.monotonic", side_effect=monotonic_values),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             patch.object(mgr._http_mgr, "_terminate_with_timeout"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
@@ -285,6 +302,8 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.subprocess.Popen", return_value=mock_proc
             ) as mock_popen,
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
         ):
             client_instance, mock_resp = _wire_http_client(MockClient, status_code=200)
             client_instance.get = AsyncMock(return_value=mock_resp)
@@ -371,9 +390,10 @@ class TestShutdownAll:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
         mgr._http_mgr._http_procs["srv"] = proc
+        mgr._http_mgr._terminate_with_timeout = AsyncMock()
         await mgr.shutdown_all()
-        proc.terminate.assert_called_once()
-        proc.wait.assert_called_once()
+        proc.terminate.assert_not_called()
+        proc.wait.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_shutdown_skips_already_dead_http_proc(self) -> None:
@@ -468,8 +488,9 @@ class TestHttpStartupError:
 
     def test_caught_by_runtime_error(self) -> None:
         failure = StartupFailure(server_key="svc", reason="x", stderr_full="")
-        with pytest.raises(RuntimeError):
+        with pytest.raises(HttpStartupError) as exc_info:
             raise HttpStartupError(failure)
+        assert exc_info.value.failure is failure
 
 
 class TestHttpLifecycleStderrLog:
@@ -494,6 +515,8 @@ class TestHttpLifecycleStderrLog:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -521,6 +544,8 @@ class TestHttpLifecycleStderrLog:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", side_effect=OSError("no such process")),
+            patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
         ):
             client_instance, _ = _wire_http_client(MockClient)

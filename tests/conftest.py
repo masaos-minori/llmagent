@@ -14,3 +14,31 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # True when the sqlite-vec .so is present; used to skipif vec0 tests.
 _VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
+
+# ── Test case logging: track which test was running when SSH disconnects ──
+
+import datetime
+
+_LOG_PATH = Path("/tmp/test_lifecycle_crash.log")
+
+
+def _ts() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def pytest_runtest_setup(item):
+    """Log before each test starts."""
+    with open(_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"[{_ts()}] SETUP START {item.nodeid}\n")
+
+
+def pytest_runtest_teardown(item, nextitem):
+    """Log after each test finishes."""
+    with open(_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"[{_ts()}] TEARDOWN OK   {item.nodeid}\n")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Log session end status."""
+    with open(_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"[{_ts()}] SESSION END   exit={exitstatus} ({session.testscollected} tests)\n")

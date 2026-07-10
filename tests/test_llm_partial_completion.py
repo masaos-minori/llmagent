@@ -28,7 +28,7 @@ def _make_ctx(history: list | None = None):
     llm = SimpleNamespace(stat_partial_completions=0)
     services = SimpleNamespace(llm=llm)
     session = SimpleNamespace(session_id="test-sess-1")
-    stats = SimpleNamespace(stat_turns=1)
+    stats = SimpleNamespace(stat_turns=1, stat_partial_completions=0)
 
     conv = SimpleNamespace(history=history)
 

@@ -40,7 +40,7 @@ def handle_partial_completion(
         reason=e.kind,
         content_length=len(e.partial_text),
     )
-    ctx.stats.stat_partial_completions += 1
+    ctx.services_required.llm.stat_partial_completions += 1
     logger.warning("Partial LLM completion saved: %s", e.kind)
 
 

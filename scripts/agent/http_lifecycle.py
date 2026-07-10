@@ -239,51 +239,57 @@ class HttpServerLifecycleManager:
         self._http_procs[server_key] = proc
 
         health_url = cfg.url.rstrip("/") + "/health"
-        deadline = time.monotonic() + cfg.startup_timeout_sec
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            while time.monotonic() < deadline:
-                if proc.poll() is not None:
-                    stderr_full = self._read_stderr_tail(server_key)
-                    fh = self._stderr_files.pop(server_key, None)
-                    if fh is not None:
-                        fh.close()
-                    self._stderr_log_paths.pop(server_key, None)
-                    failure = StartupFailure(
-                        server_key=server_key,
-                        reason="exited early",
-                        stderr_full=stderr_full,
-                    )
-                    logger.error(
-                        "Lifecycle: %r exited early; stderr (%s chars): %s",
-                        server_key,
-                        len(stderr_full),
-                        stderr_full[:500],
-                    )
-                    raise HttpStartupError(failure)
-                try:
-                    resp = await client.get(health_url)
-                    if resp.status_code == HTTPStatus.OK:
-                        logger.info(
-                            "Lifecycle: HTTP subprocess %r ready",
-                            server_key,
+        if cfg.startup_timeout_sec > 0:
+            deadline = time.monotonic() + cfg.startup_timeout_sec
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                while time.monotonic() < deadline:
+                    if proc.poll() is not None:
+                        stderr_full = self._read_stderr_tail(server_key)
+                        fh = self._stderr_files.pop(server_key, None)
+                        if fh is not None:
+                            fh.close()
+                        self._stderr_log_paths.pop(server_key, None)
+                        failure = StartupFailure(
+                            server_key=server_key,
+                            reason="exited early",
+                            stderr_full=stderr_full,
                         )
-                        return
-                except (httpx.HTTPError, OSError) as e:
-                    logger.debug("Lifecycle: health-check poll %r: %s", server_key, e)
-                await asyncio.sleep(0.5)
+                        logger.error(
+                            "Lifecycle: %r exited early; stderr (%s chars): %s",
+                            server_key,
+                            len(stderr_full),
+                            stderr_full[:500],
+                        )
+                        raise HttpStartupError(failure)
+                    try:
+                        resp = await client.get(health_url)
+                        if resp.status_code == HTTPStatus.OK:
+                            logger.info(
+                                "Lifecycle: HTTP subprocess %r ready",
+                                server_key,
+                            )
+                            return
+                    except (httpx.HTTPError, OSError) as e:
+                        logger.debug("Lifecycle: health-check poll %r: %s", server_key, e)
+                    await asyncio.sleep(0.5)
 
-        stderr_full = self._read_stderr_tail(server_key)
-        fh = self._stderr_files.pop(server_key, None)
-        if fh is not None:
-            fh.close()
-        self._stderr_log_paths.pop(server_key, None)
-        await self._terminate_with_timeout(proc, server_key)
-        timeout_failure = StartupFailure(
-            server_key=server_key,
-            reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
-            stderr_full=stderr_full,
-        )
-        raise HttpStartupError(timeout_failure)
+            stderr_full = self._read_stderr_tail(server_key)
+            fh = self._stderr_files.pop(server_key, None)
+            if fh is not None:
+                fh.close()
+            self._stderr_log_paths.pop(server_key, None)
+            await self._terminate_with_timeout(proc, server_key)
+            timeout_failure = StartupFailure(
+                server_key=server_key,
+                reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
+                stderr_full=stderr_full,
+            )
+            raise HttpStartupError(timeout_failure)
+        else:
+            logger.info(
+                "Lifecycle: skipping health check for %r (timeout=0)",
+                server_key,
+            )
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
         """Terminate and restart an HTTP subprocess server."""
