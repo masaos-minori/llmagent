@@ -22,7 +22,7 @@ Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
-まだ読み込んでいないなら、Read the following before starting:
+If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/toolchain.md`
 - `rules/env.md`
@@ -148,19 +148,19 @@ Use Markdown. Be concrete and implementation-oriented.
 
 Produce the following sections exactly:
 
-# 1. 全体所見
-- 3〜10 bullet points
+# 1. Overall Findings
+- 3-10 bullet points
 - Summarize the overall health of the current test suite
 - Mention the strongest and weakest areas
 
-# 2. 実行したテスト / 検証コマンド
+# 2. Executed Tests / Validation Commands
 For each command, record as bullet points:
 - **command**: exact command
 - **purpose**: what it validates
 - **result**: pass / fail / partial / not runnable
 - **notes**: relevant details
 
-# 3. 既存テストの失敗一覧
+# 3. Existing Test Failures
 For each failure:
 - ID
 - test name / file
@@ -171,7 +171,7 @@ For each failure:
 - root cause: production code bug / test code bug / environment or setup issue / needs confirmation
 - evidence summary
 
-# 4. テストケースの不足・不整合
+# 4. Missing or Inconsistent Test Cases
 For each issue:
 - ID
 - category (choose from Finding Categories)
@@ -181,7 +181,7 @@ For each issue:
 - evidence from code / docs / current tests
 - whether it is confirmed or Needs confirmation
 
-# 5. 実装修正タスクリスト（High/Medium/Low）
+# 5. Implementation Task List (High/Medium/Low)
 Priority criteria:
 - High: existing test failures, or production code paths with no test coverage at all
 - Medium: missing coverage for complex branches, config/reload behavior, persistence, or CLI commands
@@ -195,7 +195,7 @@ For each task:
 - Main affected files/components
 - Dependencies on other tasks if any
 
-# 6. 追加・更新すべきテストケース指示
+# 6. Test Cases to Add or Update
 For each proposed test:
 - Test ID
 - target module / feature
@@ -210,10 +210,10 @@ For each proposed test:
   - e2e
   - regression
 
-# 7. 推奨実施順
+# 7. Recommended Execution Order
 Order the tasks and explain why.
 
-# 8. 追加で必要な確認事項
+# 8. Additional Confirmation Items Needed
 List anything that still requires human confirmation.
 
 ### Important Rules

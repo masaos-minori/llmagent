@@ -36,7 +36,7 @@ Report progress at the start and end of each step.
 
 #### Step 0: Load required files
 
-まだ読み込んでいないなら、Read the following before starting:
+If not already loaded, read the following before starting:
 - `routing.md`
 - `AGENTS.md`
 - `skills/DESIGN.md`
