@@ -1,3 +1,24 @@
+---
+title: "Event Bus: DLQ, Offsets, and Delivery Semantics"
+category: eventbus
+tags:
+  - event-bus
+  - dlq
+  - dead-letter-queue
+  - consumer-offset
+  - delivery-semantics
+  - at-least-once
+  - idempotent
+related:
+  - 06_eventbus_00_document-guide.md
+  - 06_eventbus_01_system-overview.md
+  - 06_eventbus_02_nack-health-dlq.md
+  - 06_eventbus_02_dlq-background-loop.md
+  - 06_eventbus_03_persistence_schema_and_replay.md
+source:
+  - index.md
+---
+
 # Event Bus: DLQ, Offsets, and Delivery Semantics
 
 ## Dead Letter Queue (DLQ)
@@ -65,3 +86,21 @@ Example reconnect flow:
 - SQLite is the only durable store; if the DB file is lost, all events are lost
 - JSONL archive is supplementary and may diverge from SQLite if append fails
 - The DLQ loop runs every 60 seconds; there is a window where events with `delivery_failure_count >= max_retry` remain visible as live events
+
+## Related Documents
+
+- `06_eventbus_00_document-guide.md`
+- `06_eventbus_01_system-overview.md`
+- `06_eventbus_02_nack-health-dlq.md`
+- `06_eventbus_02_dlq-background-loop.md`
+- `06_eventbus_03_persistence_schema_and_replay.md`
+
+## Keywords
+
+event-bus
+dlq
+dead-letter-queue
+consumer-offset
+delivery-semantics
+at-least-once
+idempotent
