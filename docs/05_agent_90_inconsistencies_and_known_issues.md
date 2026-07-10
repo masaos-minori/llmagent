@@ -1,3 +1,16 @@
+---
+title: "Agent Inconsistencies and Known Issues"
+category: agent
+tags:
+  - agent
+  - agent
+  - inconsistencies
+  - known-issues
+  - bugs
+related:
+  - 05_agent_00_document-guide.md
+---
+
 # Agent Inconsistencies and Known Issues
 
 This file catalogs known bugs, spec conflicts, document inconsistencies, unimplemented
@@ -36,4 +49,15 @@ documented; the gap this entry tracked no longer exists.)*
 
 ---
 
+## Related Documents
 
+- `agent`
+- `inconsistencies`
+- `known-issues`
+
+## Keywords
+
+agent
+inconsistencies
+known-issues
+bugs

@@ -1,3 +1,16 @@
+---
+title: "Agent Reference API"
+category: agent
+tags:
+  - agent
+  - agent
+  - reference
+  - api
+  - types
+related:
+  - 05_agent_00_document-guide.md
+---
+
 # Agent Reference API
 
 - Document guide → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
@@ -168,3 +181,16 @@ Full details: [05_agent_08_configuration.md](05_agent_08_configuration.md)
 
 **Activation:** `ctx.services.memory` is `None` when `use_memory_layer=False` (default).
 Always null-check before accessing memory services.
+
+## Related Documents
+
+- `agent`
+- `reference`
+- `api`
+
+## Keywords
+
+agent
+reference
+api
+types

@@ -1,3 +1,16 @@
+---
+title: "Agent LLM and Streaming"
+category: agent
+tags:
+  - agent
+  - agent
+  - llm
+  - streaming
+  - response
+related:
+  - 05_agent_00_document-guide.md
+---
+
 # Agent LLM and Streaming
 
 - Turn flow → [05_agent_03_turn-processing-flow.md](05_agent_03_turn-processing-flow.md)
@@ -197,3 +210,16 @@ Compression uses fixed constants: `COMPRESS_TEMPERATURE=0.3`, `COMPRESS_MAX_TOKE
 
 Normal call parameters are hot-reloadable via `/set temperature` or `/reload`.
 All other constants are compile-time fixed.
+
+## Related Documents
+
+- `agent`
+- `llm`
+- `streaming`
+
+## Keywords
+
+agent
+llm
+streaming
+response

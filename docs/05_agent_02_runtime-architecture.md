@@ -1,3 +1,16 @@
+---
+title: "Agent Runtime Architecture"
+category: agent
+tags:
+  - agent
+  - agent
+  - runtime
+  - architecture
+  - lifecycle
+related:
+  - 05_agent_00_document-guide.md
+---
+
 # Agent Runtime Architecture
 
 - System overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
@@ -180,3 +193,15 @@ Accessed via `ctx.services.memory`.
 
 ---
 
+## Related Documents
+
+- `agent`
+- `runtime`
+- `architecture`
+
+## Keywords
+
+agent
+runtime
+architecture
+lifecycle
