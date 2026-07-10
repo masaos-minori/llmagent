@@ -186,38 +186,6 @@ class TestProductionConfigValidatorAllowedTools:
         assert not any("allowed_tools" in err for err in result.errors)
 
 
-class TestProductionConfigValidatorGitHubFailOpen:
-    """Tests for GitHub allowed_repos_mode='fail_open' check."""
-
-    def test_fail_open_produces_error_in_production(self) -> None:
-        config = {"allowed_repos_mode": "fail_open"}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", allowed_repos_mode="fail_open"
-        )
-        assert any("fail_open" in err for err in result.errors)
-
-    def test_fail_open_produces_warning_in_local(self) -> None:
-        config = {"allowed_repos_mode": "fail_open"}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="local", allowed_repos_mode="fail_open"
-        )
-        assert any("fail_open" in warn for warn in result.warnings)
-
-    def test_fail_closed_no_issue(self) -> None:
-        config = {"allowed_repos_mode": "fail_closed"}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production", allowed_repos_mode="fail_closed"
-        )
-        assert not any("fail_open" in err for err in result.errors)
-
-    def test_no_fail_open_param_no_issue(self) -> None:
-        config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(
-            config, security_profile="production"
-        )
-        assert not any("fail_open" in err for err in result.errors)
-
-
 class TestProductionConfigValidatorSecurityProfileEnum:
     """Tests using SecurityProfile enum values."""
 
@@ -234,28 +202,6 @@ class TestProductionConfigValidatorSecurityProfileEnum:
             config, security_profile=SecurityProfile.LOCAL
         )
         assert any("plugin_strict" in warn for warn in result.warnings)
-
-
-class TestProductionConfigValidatorValidateGithubFailOpen:
-    """Tests for standalone validate_github_fail_open method."""
-
-    def test_fail_open_produces_error_in_production(self) -> None:
-        result = ProductionConfigValidator().validate_github_fail_open(
-            "fail_open", security_profile="production"
-        )
-        assert any("fail_open" in err for err in result.errors)
-
-    def test_fail_open_produces_warning_in_local(self) -> None:
-        result = ProductionConfigValidator().validate_github_fail_open(
-            "fail_open", security_profile="local"
-        )
-        assert any("fail_open" in warn for warn in result.warnings)
-
-    def test_fail_closed_no_issue(self) -> None:
-        result = ProductionConfigValidator().validate_github_fail_open(
-            "fail_closed", security_profile="production"
-        )
-        assert result.errors == []
 
 
 class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:

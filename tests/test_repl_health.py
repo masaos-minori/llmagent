@@ -525,7 +525,6 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         gh_cfg = GitHubAuditConfig(
             allowed_repos=["owner/repo"],
-            allowed_repos_mode="fail_closed",
             allow_force_push=True,
             require_pr_review=True,
         )
@@ -543,7 +542,6 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         gh_cfg = GitHubAuditConfig(
             allowed_repos=["owner/repo"],
-            allowed_repos_mode="fail_closed",
             allow_force_push=False,
             require_pr_review=False,
         )
@@ -556,49 +554,12 @@ class TestAuditSecurityDefaults:
             warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("require_pr_review=false" in w for w in warnings)
 
-    def test_github_fail_open_raises_in_production(self) -> None:
-        ctx = self._make_ctx(
-            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
-        )
-        gh_cfg = GitHubAuditConfig(
-            allowed_repos=[],
-            allowed_repos_mode="fail_open",
-            allow_force_push=False,
-            require_pr_review=True,
-        )
-        with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
-        ):
-            with pytest.raises(RuntimeError, match="fail_open"):
-                audit_security_defaults(ctx, production_mode=True)
-
-    def test_github_fail_open_warns_in_local(self) -> None:
-        ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
-        gh_cfg = GitHubAuditConfig(
-            allowed_repos=[],
-            allowed_repos_mode="fail_open",
-            allow_force_push=False,
-            require_pr_review=True,
-        )
-        with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=gh_cfg),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
-        ):
-            warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("fail_open" in w for w in warnings)
-
     def test_github_fail_closed_no_error_in_production(self) -> None:
         ctx = self._make_ctx(
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
         gh_cfg = GitHubAuditConfig(
             allowed_repos=["owner/repo"],
-            allowed_repos_mode="fail_closed",
             allow_force_push=False,
             require_pr_review=True,
         )

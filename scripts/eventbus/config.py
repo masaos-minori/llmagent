@@ -3,7 +3,6 @@ from __future__ import annotations
 import ipaddress
 import os
 import tomllib
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,49 +42,33 @@ class EventBusConfig:
     max_retry: int
     host: str = "127.0.0.1"
     allow_public_bind: bool = False
-    poll_interval_ms: int = (
-        500  # deprecated: no longer used; push-mode delivery via EventBroker
-    )
-    offset_checkpoint_interval: int = (
-        10  # deprecated: offset checkpointing removed; ack-only model
-    )
 
     def __post_init__(self) -> None:
         if not 1024 <= self.port <= 65535:
             raise ValueError(f"port must be 1024-65535, got {self.port}")
         if self.max_retry < 1:
             raise ValueError(f"max_retry must be >= 1, got {self.max_retry}")
-        if self.poll_interval_ms < 1:
-            raise ValueError(
-                f"poll_interval_ms must be >= 1, got {self.poll_interval_ms}"
-            )
-        if self.offset_checkpoint_interval < 1:
-            raise ValueError(
-                f"offset_checkpoint_interval must be >= 1, got {self.offset_checkpoint_interval}"
-            )
         if _is_public_host(self.host) and not self.allow_public_bind:
             raise ValueError(
                 f"Event Bus bound to public address {self.host} without allow_public_bind=true. "
                 "The API has no authentication — this is a security risk."
             )
-        if self.poll_interval_ms != 500:
-            warnings.warn(
-                "poll_interval_ms is deprecated and has no effect; push-mode delivery via EventBroker",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if self.offset_checkpoint_interval != 10:
-            warnings.warn(
-                "offset_checkpoint_interval is deprecated and has no effect; ack-only model in place",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+
+
+_REMOVED_CONFIG_KEYS = ("poll_interval_ms", "offset_checkpoint_interval")
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
     p = path or _DEFAULT_CONFIG_PATH
     with p.open("rb") as f:
         data = tomllib.load(f)
+    stale_keys = [k for k in _REMOVED_CONFIG_KEYS if k in data]
+    if stale_keys:
+        raise ValueError(
+            f"eventbus config contains removed key(s): {', '.join(stale_keys)}. "
+            "These fields were deprecated no-ops and have been removed; "
+            f"delete them from {p}."
+        )
     return EventBusConfig(
         port=data["port"],
         db_path=data["db_path"],
@@ -95,6 +78,4 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         max_retry=data["max_retry"],
         host=data.get("host", "127.0.0.1"),
         allow_public_bind=data.get("allow_public_bind", False),
-        poll_interval_ms=data.get("poll_interval_ms", 500),
-        offset_checkpoint_interval=data.get("offset_checkpoint_interval", 10),
     )

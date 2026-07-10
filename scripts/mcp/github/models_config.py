@@ -37,7 +37,6 @@ class GitHubConfig:
     """Typed configuration for the GitHub MCP server."""
 
     allowed_repos: list[str] = dataclasses.field(default_factory=list)
-    allowed_repos_mode: str = "fail_closed"
     path_denylist: list[str] = dataclasses.field(default_factory=list)
     protected_branches: list[str] = dataclasses.field(default_factory=list)
     max_file_size_kb: int = 0
@@ -53,7 +52,6 @@ class GitHubConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
             allowed_repos=list(d.get("allowed_repos", [])),
-            allowed_repos_mode=_get_str(d, "allowed_repos_mode", "fail_closed"),
             path_denylist=list(d.get("path_denylist", [])),
             protected_branches=list(d.get("protected_branches", [])),
             max_file_size_kb=int(d.get("max_file_size_kb", 0)),

@@ -33,7 +33,6 @@ Before deploying to production, verify:
 - [ ] API keys (`github_token`, `auth_token`) set via environment variables, not hardcoded in config
 - [ ] `repo_allowlist` non-empty in `cicd_mcp_server.toml` (empty = deny all repos)
 - [ ] `allowed_repos` non-empty in `github_mcp_server.toml` (empty = deny all GitHub write ops)
-- [ ] `allowed_repos_mode = "fail_closed"` in `github_mcp_server.toml` (`"fail_open"` is rejected at production startup)
 
 ### Installing firejail
 

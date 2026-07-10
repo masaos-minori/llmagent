@@ -48,12 +48,7 @@ class EventBusConfig:
     allow_public_bind: bool = False  # Override: allow binding to public/wildcard addresses
 ```
 
-#### Deprecated fields (no-op, will be removed)
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_ms` | int | 500 | No-op; push-mode delivery via EventBroker |
-| `offset_checkpoint_interval` | int | 10 | No-op; ack-only model in place |
+**Note (2026-07-10)**: `poll_interval_ms` and `offset_checkpoint_interval` were removed. `load_config()` raises `ValueError` if either key is present in the TOML file.
 
 | Function | Signature | Description |
 |---|---|---|

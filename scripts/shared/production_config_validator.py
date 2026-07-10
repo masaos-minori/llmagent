@@ -62,7 +62,6 @@ class ProductionConfigValidator:
         config: Any,
         security_profile: SecurityProfile | str = "local",
         known_tools: set[str] | None = None,
-        allowed_repos_mode: str | None = None,
     ) -> ConfigValidationResult:
         errors: list[str] = []
         warnings: list[str] = []
@@ -114,41 +113,10 @@ class ProductionConfigValidator:
                         f"[local/development] Unknown safety tier keys: {tier_msg}"
                     )
 
-        # GitHub allowed_repos_mode check
-        if allowed_repos_mode == "fail_open":
-            msg = (
-                "github.allowed_repos_mode='fail_open' is not permitted in production mode. "
-                "Set allowed_repos_mode='fail_closed' in github_mcp_server.toml."
-            )
-            if is_production:
-                errors.append(msg)
-            else:
-                warnings.append(f"[local/development] {msg}")
-
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
             msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
-            if is_production:
-                errors.append(msg)
-            else:
-                warnings.append(f"[local/development] {msg}")
-
-        return ConfigValidationResult(errors=errors, warnings=warnings)
-
-    def validate_github_fail_open(
-        self, allowed_repos_mode: str, security_profile: SecurityProfile | str = "local"
-    ) -> ConfigValidationResult:
-        errors: list[str] = []
-        warnings: list[str] = []
-
-        is_production = security_profile == "production"
-
-        if allowed_repos_mode == "fail_open":
-            msg = (
-                "github.allowed_repos_mode='fail_open' is not permitted in production mode. "
-                "Set allowed_repos_mode='fail_closed' in github_mcp_server.toml."
-            )
             if is_production:
                 errors.append(msg)
             else:

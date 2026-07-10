@@ -16,7 +16,7 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 | file-read-mcp | `allowed_dirs` | `["/opt/llm", "/opt/llm/storage"]` — path jail |
 | file-write-mcp | `allowed_dirs` (write) | `["/opt/llm/storage"]` — path jail |
 | file-delete-mcp | `allowed_dirs` | `["/opt/llm/storage"]` — path jail |
-| github-mcp | `allowed_repos` + `allowed_repos_mode` | fail-closed (empty = deny all writes) |
+| github-mcp | `allowed_repos` | fail-closed (empty = deny all writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | deny all (both empty by default) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | both: fail-closed |
 | git-mcp | `allowed_repo_paths` + `read_only` | fail-closed (empty paths = deny all); read_only=true |
@@ -51,22 +51,14 @@ allowed_repo_paths = ["/opt/llm/myrepo"]
 
 ## Repository Controls
 
-### `allowed_repos` / `allowed_repos_mode` (github-mcp)
+### `allowed_repos` (github-mcp)
 
 ```toml
 allowed_repos = ["org/myrepo", "org/otherrepo"]
-allowed_repos_mode = "fail_closed"   # default
 ```
 
-| Mode | Empty list | Non-empty list |
-|---|---|---|
-| `fail_closed` (default) | All writes denied | Only listed repos allowed |
-| `fail_open` | All repos allowed | Only listed repos allowed |
-
-`allowed_repos_mode="fail_open"` is prohibited in production
-(`security_profile="production"`) — startup raises `RuntimeError`. It
-remains available in local/development mode for backward compatibility
-(startup emits a warning instead).
+- Empty → all repo access denied (fail-closed)
+- Non-empty → only listed repos allowed
 
 Applies to 9 write operations: `github_create_branch`, `github_create_or_update_file`, `github_push_files`,
 `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`,

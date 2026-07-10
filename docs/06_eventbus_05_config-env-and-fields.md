@@ -45,16 +45,9 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 | `host` | str | `127.0.0.1` | HTTP listen address (see Bind Address section below) |
 | `allow_public_bind` | bool | `false` | Override: allow binding to public/wildcard addresses (security risk, no authentication) |
 
-#### Deprecated config fields
+#### Removed config fields
 
-> **Deprecated**: The following fields are no-op compatibility fields. Setting them to non-default values emits a `DeprecationWarning`. These fields will be removed in a future version.
->
-> **Do not include these fields in TOML configuration.** They have no effect and will be removed. If you need to suppress the warning, set them to their default values (500, 10) or remove them entirely.
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_ms` | int | 500 | No-op. Subscribe polling was replaced with push-mode delivery via EventBroker. Non-default values emit DeprecationWarning; values <1 raise ValueError. |
-| `offset_checkpoint_interval` | int | 10 | No-op. Offset checkpointing was replaced with ack-only model. Non-default values emit DeprecationWarning; values <1 raise ValueError. |
+> **Note (2026-07-10)**: `poll_interval_ms` and `offset_checkpoint_interval` have been removed (both were no-op fields). If either key is present in `eventbus.toml`, `load_config()` raises `ValueError` at startup — delete these keys from the config file.
 
 ## Related Documents
 

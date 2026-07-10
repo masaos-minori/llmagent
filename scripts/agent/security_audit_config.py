@@ -24,7 +24,6 @@ class GitAuditConfig:
 @dataclass(frozen=True)
 class GitHubAuditConfig:
     allowed_repos: list[str]
-    allowed_repos_mode: str
     allow_force_push: bool
     require_pr_review: bool
 
@@ -75,7 +74,6 @@ def load_github_audit_config() -> GitHubAuditConfig | None:
         cfg = GitHubConfig.load()
         return GitHubAuditConfig(
             allowed_repos=list(cfg.allowed_repos),
-            allowed_repos_mode=cfg.allowed_repos_mode,
             allow_force_push=cfg.allow_force_push,
             require_pr_review=cfg.require_pr_review,
         )

@@ -766,7 +766,6 @@ def audit_security_defaults(
         except Exception:
             known_tools = None
 
-    # Load GitHub config early for allowed_repos_mode check
     github_cfg = None
     try:
         github_cfg = load_github_audit_config()
@@ -777,10 +776,6 @@ def audit_security_defaults(
             raise
         logger.warning(msg)
         warnings.append(msg)
-
-    allowed_repos_mode: str | None = None
-    if github_cfg is not None:
-        allowed_repos_mode = github_cfg.allowed_repos_mode
 
     result = ProductionConfigValidator().validate(
         {
@@ -794,7 +789,6 @@ def audit_security_defaults(
         },
         security_profile="production" if production_mode else "local",
         known_tools=known_tools,
-        allowed_repos_mode=allowed_repos_mode,
     )
     if result.errors:
         for msg in result.errors:

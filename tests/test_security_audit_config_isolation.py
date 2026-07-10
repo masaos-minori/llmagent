@@ -131,7 +131,6 @@ def test_load_github_audit_config_success() -> None:
 
     mock_cfg = MagicMock()
     mock_cfg.allowed_repos = ["owner/repo"]
-    mock_cfg.allowed_repos_mode = "fail_closed"
     mock_cfg.allow_force_push = True
     mock_cfg.require_pr_review = False
     mock_cls = MagicMock()
@@ -142,7 +141,6 @@ def test_load_github_audit_config_success() -> None:
         result = load_github_audit_config()
     assert result == GitHubAuditConfig(
         allowed_repos=["owner/repo"],
-        allowed_repos_mode="fail_closed",
         allow_force_push=True,
         require_pr_review=False,
     )

@@ -78,7 +78,7 @@ source:
 │       ├─ config_loader.py                 # TOML/JSON 共通設定ローダー
 │       ├─ config_errors.py                 # ConfigMissingError / ConfigParseError / ConfigReadError / ConfigPermissionError エラー型
 │       ├─ config_validator.py              # RagConfigValidator: embedding_dim/vec_dim 整合性チェック、use_rrf 警告、semantic_cache_threshold 健全性チェック
-│       ├─ production_config_validator.py   # ProductionConfigValidator: 本番環境固有の設定検証 (allowed_repos_mode fail-fast 等)
+│       ├─ production_config_validator.py   # ProductionConfigValidator: 本番環境固有の設定検証
 │       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
 │       ├─ plugin_registries.py             # プラグインレジストリ一覧
 │       ├─ plugin_tool_invoker.py           # PluginToolInvoker: プラグインツール呼び出し (防御的タプル検証)

@@ -1,7 +1,7 @@
 """
 tests/test_github_mcp_service.py
 Unit tests for GitHubService guard methods:
-  - _assert_allowed_repo: fail_open / fail_closed modes
+  - _assert_allowed_repo: fail-closed allowlist enforcement
   - _assert_allowed_path: path_denylist glob matching
   - _assert_max_file_size: per-file size limit
   - _write_github_audit_log: audit record format and OSError suppression
@@ -32,7 +32,7 @@ from mcp.github.service_dispatch import GitHubService
 
 def _make_service(cfg: dict | None = None) -> GitHubService:
     """Minimal GitHubService instance; GitHub API is never called in these tests."""
-    raw = cfg or {"allowed_repos_mode": "fail_open"}
+    raw = cfg or {"allowed_repos": ["org/repo"]}
     return GitHubService(gh=MagicMock(), cfg=GitHubConfig.from_dict(raw))
 
 
@@ -51,73 +51,53 @@ def _svc_with_cfg(cfg: dict) -> GitHubService:
 
 
 class TestAssertAllowedRepo:
-    def test_fail_open_empty_list_allows_all(self) -> None:
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
-        svc._assert_allowed_repo("org", "repo")  # must not raise
-
     def test_fail_closed_is_default_when_mode_absent(self) -> None:
-        # Default changed from fail_open to fail_closed; empty list now denies all.
+        # Fail-closed is unconditional; empty list denies all.
         cfg: dict[str, Any] = {"allowed_repos": []}
         with _patch_cfg(cfg) as svc:
             with pytest.raises(GitHubAuthorizationError):
                 svc._assert_allowed_repo("org", "repo")
 
     def test_fail_closed_empty_list_denies_all(self) -> None:
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_closed"})
+        svc = _make_service({"allowed_repos": []})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("org", "repo")
 
     def test_repo_in_allowlist_passes(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         svc._assert_allowed_repo("myorg", "myrepo")  # must not raise
 
     def test_repo_not_in_allowlist_denied(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("myorg", "other")
 
     def test_fail_closed_nonempty_list_allows_listed_repo(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/safe"], "allowed_repos_mode": "fail_closed"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/safe"]})
         svc._assert_allowed_repo("myorg", "safe")  # must not raise
 
     def test_fail_closed_nonempty_list_denies_unlisted_repo(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/safe"], "allowed_repos_mode": "fail_closed"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/safe"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("myorg", "other")
 
     def test_empty_owner_is_denied(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("", "myrepo")
 
     def test_empty_repo_is_denied(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("myorg", "")
 
     def test_slash_only_slug_is_denied(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("", "")
 
     def test_owner_with_slash_multiple_parts_is_denied(self) -> None:
-        svc = _make_service(
-            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
-        )
+        svc = _make_service({"allowed_repos": ["myorg/myrepo"]})
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("org/sub", "repo")
 
@@ -235,8 +215,7 @@ class TestWriteGithubAuditLog:
 @pytest.mark.asyncio
 async def test_create_or_update_file_denies_path_in_denylist() -> None:
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": [],
         "path_denylist": [".github/**"],
         "max_file_size_kb": 0,
@@ -258,8 +237,7 @@ async def test_create_or_update_file_denies_path_in_denylist() -> None:
 @pytest.mark.asyncio
 async def test_create_or_update_file_denies_oversized_content() -> None:
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": [],
         "path_denylist": [],
         "max_file_size_kb": 1,
@@ -281,8 +259,7 @@ async def test_create_or_update_file_denies_oversized_content() -> None:
 @pytest.mark.asyncio
 async def test_push_files_denies_file_with_denied_path() -> None:
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": [],
         "path_denylist": ["Dockerfile*"],
         "max_file_size_kb": 0,
@@ -302,8 +279,7 @@ async def test_push_files_denies_file_with_denied_path() -> None:
 @pytest.mark.asyncio
 async def test_delete_repo_file_denies_protected_path() -> None:
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": [],
         "path_denylist": [".github/**"],
         "max_file_size_kb": 0,
@@ -388,8 +364,7 @@ class TestResolveAndCheckBranch:
 async def test_create_or_update_file_empty_branch_protected_raises() -> None:
     """branch="" (省略) のとき default_branch が protected_branches にあれば 403 を返す。"""
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": ["main"],
         "path_denylist": [],
         "max_file_size_kb": 0,
@@ -414,8 +389,7 @@ async def test_create_or_update_file_empty_branch_protected_raises() -> None:
 async def test_delete_repo_file_empty_branch_protected_raises() -> None:
     """branch="" (省略) のとき default_branch が protected_branches にあれば 403 を返す。"""
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": ["main"],
         "path_denylist": [],
         "max_file_size_kb": 0,
@@ -438,8 +412,7 @@ async def test_delete_repo_file_empty_branch_protected_raises() -> None:
 async def test_push_files_writes_audit_log_on_success(tmp_path: Path) -> None:
     log_file = tmp_path / "audit.log"
     cfg = {
-        "allowed_repos": [],
-        "allowed_repos_mode": "fail_open",
+        "allowed_repos": ["a/b"],
         "protected_branches": [],
         "path_denylist": [],
         "max_file_size_kb": 0,
@@ -474,7 +447,7 @@ class TestGitHubDryRun:
     async def test_create_branch_dry_run_returns_preview(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_branch(
             {
                 "owner": "org",
@@ -490,7 +463,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_create_branch_dry_run_does_not_call_github_api(self) -> None:
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         with patch.object(
             svc,
             "create_branch",
@@ -510,7 +483,7 @@ class TestGitHubDryRun:
     async def test_create_branch_dry_run_shows_from_branch(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_branch(
             {
                 "owner": "org",
@@ -527,7 +500,7 @@ class TestGitHubDryRun:
     async def test_create_branch_dry_run_default_branch_label(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_branch(
             {
                 "owner": "org",
@@ -541,7 +514,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_fail_closed_empty_allowlist_denies_dry_run(self) -> None:
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_closed"})
+        svc = _make_service({"allowed_repos": []})
         with pytest.raises(GitHubAuthorizationError):
             await svc.fmt_create_branch(
                 {
@@ -554,7 +527,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_create_branch_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_result = MagicMock()
         mock_result.branch_name = "feature/x"
         mock_result.sha = "abc1234567890"
@@ -571,7 +544,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_create_issue_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_issue = MagicMock()
         mock_issue.number = 42
         mock_issue.title = "Bug fix"
@@ -592,7 +565,7 @@ class TestGitHubDryRun:
     async def test_create_pull_request_dry_run_all_fields(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_pull_request(
             {
                 "owner": "org",
@@ -612,7 +585,7 @@ class TestGitHubDryRun:
     async def test_merge_pull_request_dry_run(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_merge_pull_request(
             {"owner": "org", "repo": "repo", "pr_number": 7, "dry_run": True}
         )
@@ -624,7 +597,7 @@ class TestGitHubDryRun:
     async def test_create_or_update_file_dry_run_create_op(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_or_update_file(
             {
                 "owner": "org",
@@ -643,7 +616,7 @@ class TestGitHubDryRun:
     async def test_create_or_update_file_dry_run_update_op(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_or_update_file(
             {
                 "owner": "org",
@@ -662,7 +635,7 @@ class TestGitHubDryRun:
     async def test_push_files_dry_run(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_push_files(
             {
                 "owner": "org",
@@ -681,7 +654,7 @@ class TestGitHubDryRun:
     async def test_delete_file_dry_run(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_delete_file(
             {
                 "owner": "org",
@@ -700,7 +673,7 @@ class TestGitHubDryRun:
     async def test_add_issue_comment_dry_run(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_add_issue_comment(
             {
                 "owner": "org",
@@ -718,7 +691,7 @@ class TestGitHubDryRun:
     async def test_update_pull_request_dry_run(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_update_pull_request(
             {
                 "owner": "org",
@@ -737,7 +710,7 @@ class TestGitHubDryRun:
     async def test_create_issue_dry_run_with_labels(self) -> None:
         import orjson
 
-        svc = _make_service({"allowed_repos": [], "allowed_repos_mode": "fail_open"})
+        svc = _make_service({"allowed_repos": ["org/repo"]})
         result = await svc.fmt_create_issue(
             {
                 "owner": "org",
@@ -753,7 +726,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_add_issue_comment_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_result = MagicMock()
         mock_result.issue_number = 3
         mock_result.comment_url = "https://github.com/org/repo/issues/3#comment-1"
@@ -769,7 +742,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_create_pull_request_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_pr = MagicMock()
         mock_pr.number = 10
         mock_pr.title = "My PR"
@@ -796,7 +769,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_update_pull_request_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_pr = MagicMock()
         mock_pr.number = 5
         mock_pr.state = "open"
@@ -821,7 +794,7 @@ class TestGitHubDryRun:
 
     @pytest.mark.asyncio
     async def test_merge_pull_request_non_dry_run_calls_service(self) -> None:
-        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        cfg = {"allowed_repos": ["org/repo"]}
         mock_result = MagicMock()
         mock_result.pr_number = 7
         mock_result.merged = True
@@ -886,12 +859,10 @@ class TestGitHubDomainExceptions:
         cfg = GitHubConfig.from_dict(
             {
                 "allowed_repos": ["org/repo"],
-                "allowed_repos_mode": "fail_open",
                 "max_per_page": 50,
             }
         )
         assert cfg.allowed_repos == ["org/repo"]
-        assert cfg.allowed_repos_mode == "fail_open"
         assert cfg.max_per_page == 50
         assert cfg.protected_branches == []
 
@@ -899,6 +870,6 @@ class TestGitHubDomainExceptions:
         from mcp.github.models import GitHubConfig
 
         cfg = GitHubConfig.from_dict({})
-        assert cfg.allowed_repos_mode == "fail_closed"
+        assert cfg.allowed_repos == []
         assert cfg.max_per_page == 100
         assert cfg.audit_log_path == ""

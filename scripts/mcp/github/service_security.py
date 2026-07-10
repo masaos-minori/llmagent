@@ -43,24 +43,18 @@ class GitHubSecurityGuards:
     def _assert_allowed_repo(self, owner: str, repo: str) -> None:
         """Raise GitHubAuthorizationError if owner/repo is not permitted.
 
-        Behavior when allowed_repos is empty depends on allowed_repos_mode:
-          fail_open:    empty list = allow all repositories
-          fail_closed:  empty list = deny all repositories
+        Empty allowed_repos denies all repositories (fail-closed).
         """
         from mcp.github.models_config import (  # noqa: PLC0415
             GitHubAuthorizationError,
         )
 
         allowed = self._cfg.allowed_repos
-        mode = self._cfg.allowed_repos_mode
         slug = f"{owner}/{repo}"
         if not allowed:
-            if mode == "fail_closed":
-                raise GitHubAuthorizationError(
-                    f"Repository '{slug}' is denied:"
-                    " allowed_repos is empty (fail_closed mode)"
-                )
-            return  # fail_open: empty list = allow all
+            raise GitHubAuthorizationError(
+                f"Repository '{slug}' is denied: allowed_repos is empty"
+            )
         if slug not in allowed:
             raise GitHubAuthorizationError(f"Repository not in allowed_repos: {slug}")
 
