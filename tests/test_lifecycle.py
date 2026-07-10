@@ -677,13 +677,12 @@ class TestProcessGroupShutdown:
             mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
         )
 
-        async def fast_wait_for(coro: object, timeout: float) -> object:
-            return await coro  # type: ignore[misc]
-
-        monkeypatch.setattr(mod.asyncio, "wait_for", fast_wait_for)
-
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
+        # Still running until SIGTERM has been sent, then reports exited — this
+        # lets _wait_exited's first poll (right after SIGTERM) return True
+        # immediately, without waiting out the real timeout.
+        proc.poll = MagicMock(side_effect=lambda: 0 if killed else None)
         mgr._http_pgids["srv"] = 42
 
         await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
@@ -702,13 +701,11 @@ class TestProcessGroupShutdown:
 
         monkeypatch.setattr(mod.os, "killpg", raise_lookup)
 
-        async def fast_wait_for(coro: object, timeout: float) -> object:
-            return await coro  # type: ignore[misc]
-
-        monkeypatch.setattr(mod.asyncio, "wait_for", fast_wait_for)
-
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
+        # Still running until proc.terminate() (the killpg fallback) has been
+        # called, then reports exited — same rationale as the test above.
+        proc.poll = MagicMock(side_effect=lambda: 0 if proc.terminate.called else None)
         mgr._http_pgids["srv"] = 42
 
         await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
@@ -728,24 +725,55 @@ class TestProcessGroupShutdown:
             mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
         )
 
-        call_count = 0
-
-        async def timeout_first_then_ok(coro: object, timeout: float) -> object:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise TimeoutError()
-            return await coro  # type: ignore[misc]
-
-        monkeypatch.setattr(mod.asyncio, "wait_for", timeout_first_then_ok)
-
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=55)
+        # Stays "running" through the first _wait_exited call (forcing SIGTERM's
+        # wait to time out and escalate to SIGKILL), then reports exited as soon
+        # as SIGKILL has actually been sent — a small real timeout means the
+        # forced elapse of the first deadline costs only tens of milliseconds.
+        proc.poll = MagicMock(
+            side_effect=lambda: (
+                0 if any(sig == _signal.SIGKILL for _, sig in killed) else None
+            )
+        )
         mgr._http_pgids["srv"] = 55
 
-        await mgr._terminate_with_timeout(proc, "srv", timeout=1.0)
+        await mgr._terminate_with_timeout(proc, "srv", timeout=0.05)
 
         assert any(sig == _signal.SIGKILL for _, sig in killed)
+
+    @pytest.mark.asyncio
+    async def test_terminate_never_uses_thread_even_when_process_never_exits(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression test for issue 1-b: _terminate_with_timeout must not leak a
+        non-daemon ThreadPoolExecutor worker via asyncio.to_thread, even when the
+        target process never exits (simulating an uninterruptible/D-state process).
+        """
+        import signal as _signal
+
+        from agent import http_lifecycle as mod
+
+        killed: list[tuple[int, int]] = []
+        monkeypatch.setattr(
+            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
+        )
+        monkeypatch.setattr(
+            mod.asyncio,
+            "to_thread",
+            MagicMock(side_effect=AssertionError("to_thread must not be used")),
+        )
+
+        mgr = HttpServerLifecycleManager()
+        proc = _make_running_proc(pid=77)
+        proc.poll = MagicMock(return_value=None)  # never exits
+        mgr._http_pgids["srv"] = 77
+
+        # Small real timeouts so this test costs ~tens of ms, not the 3.0s production default.
+        await mgr._terminate_with_timeout(proc, "srv", timeout=0.02)
+
+        assert (77, _signal.SIGTERM) in killed
+        assert (77, _signal.SIGKILL) in killed
 
     @pytest.mark.asyncio
     async def test_terminate_skips_killpg_when_already_exited(
@@ -789,12 +817,19 @@ class TestProcessGroupShutdown:
         """
         from agent import http_lifecycle as mod
 
+        killpg_mock = MagicMock()
         monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
-        monkeypatch.setattr(mod.os, "killpg", MagicMock())
+        monkeypatch.setattr(mod.os, "killpg", killpg_mock)
         _patch_open_to_tmp(monkeypatch, tmp_path)
 
         mock_proc = _make_mock_proc(exit_code=None)
         mock_proc.pid = 12345
+        # Still running until killpg has been invoked (start()'s cleanup path),
+        # then reports exited — avoids _wait_exited genuinely waiting out the
+        # full 3.0s default timeout twice (SIGTERM + SIGKILL) in this test.
+        mock_proc.poll = MagicMock(
+            side_effect=lambda: 0 if killpg_mock.called else None
+        )
         mgr = HttpServerLifecycleManager()
         cfg = _make_test_cfg(cmd=["true"], startup_timeout_sec=1)
 

@@ -54,6 +54,7 @@ class HttpServerLifecycleManager:
     """
 
     _STDERR_TAIL_BYTES = 64 * 1024
+    _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
 
     def __init__(self) -> None:
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
@@ -83,6 +84,22 @@ class HttpServerLifecycleManager:
         except OSError:
             return ""
 
+    async def _wait_exited(self, proc: subprocess.Popen[bytes], timeout: float) -> bool:
+        """Poll proc.poll() (non-blocking) until it exits or timeout elapses.
+
+        Deliberately avoids asyncio.to_thread: wrapping a blocking proc.wait() in a
+        thread cannot be cancelled once asyncio.wait_for's timeout fires, so a
+        process stuck in an uninterruptible (D) state leaves a live, non-daemon
+        ThreadPoolExecutor worker that CPython's interpreter-shutdown atexit hook
+        (concurrent.futures.thread._python_exit) then blocks on indefinitely.
+        """
+        deadline = time.monotonic() + timeout
+        while proc.poll() is None:
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(self._TERMINATE_POLL_INTERVAL_SEC)
+        return True
+
     async def _terminate_with_timeout(
         self,
         proc: subprocess.Popen[bytes],
@@ -100,28 +117,25 @@ class HttpServerLifecycleManager:
                 proc.terminate()
         else:
             proc.terminate()
-        try:
-            await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
-        except TimeoutError:
+        if await self._wait_exited(proc, timeout):
+            return
+        logger.warning(
+            "Lifecycle: force-killing %r (terminate timed out)",
+            server_key,
+        )
+        pgid = self._http_pgids.get(server_key)
+        if pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGKILL)  # nosec B603
+            except (ProcessLookupError, OSError):
+                proc.kill()
+        else:
+            proc.kill()
+        if not await self._wait_exited(proc, timeout):
             logger.warning(
-                "Lifecycle: force-killing %r (terminate timed out)",
+                "Lifecycle: %r still not terminated after kill",
                 server_key,
             )
-            pgid = self._http_pgids.get(server_key)
-            if pgid is not None:
-                try:
-                    os.killpg(pgid, signal.SIGKILL)  # nosec B603
-                except (ProcessLookupError, OSError):
-                    proc.kill()
-            else:
-                proc.kill()
-            try:
-                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
-            except TimeoutError:
-                logger.warning(
-                    "Lifecycle: %r still not terminated after kill",
-                    server_key,
-                )
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""

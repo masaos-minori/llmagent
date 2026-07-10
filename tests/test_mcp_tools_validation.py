@@ -13,14 +13,12 @@ Marked with @pytest.mark.integration so they can be skipped in fast unit-test ru
 from __future__ import annotations
 
 import os
-import signal
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -28,11 +26,11 @@ import pytest
 _SCRIPTS = Path(__file__).parent.parent / "scripts"
 _PYTHON = sys.executable
 
-# (module_path, expected_tool_names) — port is allocated dynamically per test
-# run (see _find_free_port) to avoid colliding with a real MCP server that
-# happens to already be listening on a hardcoded port.
-_MCP_SERVERS: list[tuple[str, list[str]]] = [
-    ("mcp.shell.server", ["shell_run"]),
+# (module_path, expected_tool_names, fixed_port) — each server always binds its own
+# hardcoded http_port (none of these servers parse --host/--port CLI args), so the
+# port here must match scripts/mcp/<name>/server.py's http_port class attribute.
+_MCP_SERVERS: list[tuple[str, list[str], int]] = [
+    ("mcp.shell.server", ["shell_run"], 8009),
     (
         "mcp.cicd.server",
         [
@@ -41,6 +39,7 @@ _MCP_SERVERS: list[tuple[str, list[str]]] = [
             "get_workflow_status",
             "get_workflow_logs",
         ],
+        8012,
     ),
     (
         "mcp.mdq.server",
@@ -53,15 +52,19 @@ _MCP_SERVERS: list[tuple[str, list[str]]] = [
             "stats",
             "grep_docs",
         ],
+        8013,
     ),
 ]
 
 
-def _find_free_port() -> int:
-    """Bind to port 0 to let the OS assign a free ephemeral port, then release it."""
+def _port_is_free(port: int) -> bool:
+    """Return True if a socket can bind to 127.0.0.1:port (i.e. nothing is listening there)."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+        return True
 
 
 def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
@@ -78,77 +81,47 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
     return False
 
 
-def _process_group_gone(proc: subprocess.Popen) -> bool:
-    """Return True if proc has exited (proxy for process-group cleanliness)."""
-    return proc.poll() is not None
+def _terminate_process(proc: subprocess.Popen, timeout: float) -> None:
+    """Send SIGTERM to proc; escalate to SIGKILL if it doesn't exit in time.
 
-
-def _terminate_process_group(proc: subprocess.Popen, timeout: float) -> None:
-    """Send SIGTERM to proc's process group; escalate to SIGKILL if it doesn't exit in time.
-
-    Mirrors agent.http_lifecycle._terminate_with_timeout (H-8): the server is
-    launched with start_new_session=True, so killing its process group also
-    reaps any child processes it spawned, instead of orphaning them.
-    Falls back to PID-level terminate()/kill() if the process group is gone.
-
-    Bails out before touching os.getpgid() if proc has already exited — calling
-    getpgid() on a reaped pid risks resolving to an unrelated process that has
-    since reused the same pid, and killpg-ing that pid's group would be wrong.
+    Signals the specific PID only — never os.killpg()/a process group. These
+    tests only ever hit /health and /v1/tools, never /v1/call_tool, so the
+    spawned MCP server never forks a child of its own that would need
+    group-wide reaping. Using os.killpg() here previously risked signaling a
+    process group broader than intended (observed to disrupt the surrounding
+    shell/CLI session in some environments); a single Popen.terminate()/kill()
+    call is scoped strictly to this one PID and cannot have that effect.
     """
     if proc.poll() is not None:
         return
 
-    try:
-        pgid = os.getpgid(proc.pid)
-    except OSError:
-        pgid = None
-
-    try:
-        if pgid is not None:
-            os.killpg(pgid, signal.SIGTERM)
-        else:
-            proc.terminate()
-    except (ProcessLookupError, OSError):
-        proc.terminate()
-
+    proc.terminate()
     try:
         proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
-        if pgid is not None:
-            try:
-                os.killpg(pgid, signal.SIGKILL)
-            except (ProcessLookupError, OSError):
-                proc.kill()
-        else:
-            proc.kill()
+        proc.kill()
         try:
             proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             pass
 
-    if pgid is not None:
-        assert _process_group_gone(proc), (
-            f"process group {pgid} still has live members after "
-            f"terminate+kill — MCP server subprocess tree was not fully reaped"
-        )
+    assert proc.poll() is not None, (
+        f"pid {proc.pid} still alive after terminate+kill — "
+        f"MCP server subprocess was not reaped"
+    )
 
 
 @pytest.fixture()
-def mcp_server(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Any:
+def mcp_server(request: pytest.FixtureRequest) -> Any:
     """Fixture: start an MCP server subprocess, yield (port, expected_tools), then stop it."""
-    monkeypatch.setattr(os, "killpg", MagicMock())
-    module, tools = request.param
-    port = _find_free_port()
+    module, tools, port = request.param
+    if not _port_is_free(port):
+        pytest.skip(
+            f"port {port} already in use — likely a running production instance of {module}"
+        )
+
     env_override = {"PYTHONPATH": str(_SCRIPTS)}
-    cmd = [
-        _PYTHON,
-        "-m",
-        module,
-        "--host",
-        "127.0.0.1",
-        "--port",
-        str(port),
-    ]
+    cmd = [_PYTHON, "-m", module]
     env = {**os.environ, **env_override}
     proc = subprocess.Popen(
         cmd,
@@ -161,14 +134,14 @@ def mcp_server(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) 
     health_url = f"http://127.0.0.1:{port}/health"
     healthy = _wait_for_health(health_url, timeout=15.0)
     if not healthy:
-        _terminate_process_group(proc, timeout=3)
+        _terminate_process(proc, timeout=3)
         pytest.skip(
             f"Server {module}:{port} did not become healthy — possibly missing deps"
         )
 
     yield port, tools
 
-    _terminate_process_group(proc, timeout=5)
+    _terminate_process(proc, timeout=5)
 
 
 def test_read_tools_schema_matches_hand_written() -> None:
@@ -198,7 +171,7 @@ def test_read_tools_schema_matches_hand_written() -> None:
     "mcp_server",
     _MCP_SERVERS,
     indirect=True,
-    ids=[f"{m.split('.')[-2]}" for m, _ in _MCP_SERVERS],
+    ids=[f"{m.split('.')[-2]}" for m, _, _ in _MCP_SERVERS],
 )
 def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     """GET /v1/tools must return all expected tool names."""
@@ -219,7 +192,7 @@ def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     "mcp_server",
     _MCP_SERVERS,
     indirect=True,
-    ids=[f"{m.split('.')[-2]}" for m, _ in _MCP_SERVERS],
+    ids=[f"{m.split('.')[-2]}" for m, _, _ in _MCP_SERVERS],
 )
 def test_v1_tools_each_has_name_and_description(mcp_server: Any) -> None:
     """Each tool entry in /v1/tools must have non-empty name and description."""
