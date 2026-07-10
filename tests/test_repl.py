@@ -24,6 +24,7 @@ def _make_bare_repl() -> AgentREPL:
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
     ctx.services_required.llm.stat_partial_completions = 0
+    ctx.stats.stat_partial_completions = 0
     repl._ctx = ctx
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
@@ -165,9 +166,10 @@ class TestReplLoop:
         """write_warning is called when stat_partial_completions increases after handle_turn."""
         repl = _make_bare_repl()
         repl._ctx.services_required.llm.stat_partial_completions = 0
+        repl._ctx.stats.stat_partial_completions = 0
 
         def _increment_partial(*_args, **_kwargs):
-            repl._ctx.services_required.llm.stat_partial_completions += 1
+            repl._ctx.stats.stat_partial_completions += 1
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
         with patch("builtins.input", side_effect=["hello", "/exit"]):
@@ -181,6 +183,7 @@ class TestReplLoop:
         """write_warning is NOT called for partial completions when stat unchanged."""
         repl = _make_bare_repl()
         repl._ctx.services_required.llm.stat_partial_completions = 0
+        repl._ctx.stats.stat_partial_completions = 0
         with patch("builtins.input", side_effect=["hello", "/exit"]):
             await repl._repl_loop()
         write_warning_calls = repl._view.write_warning.call_args_list
@@ -217,6 +220,7 @@ class TestPersistSessionDiagnostics:
         ctx.stats.stat_semantic_cache_hits = 3
         ctx.stats.stat_input_tokens = 1000
         ctx.stats.stat_output_tokens = 500
+        ctx.stats.stat_partial_completions = 1
         ctx.session.session_id = 42
         ctx.services = MagicMock()
         ctx.services_required.llm.stat_partial_completions = 1

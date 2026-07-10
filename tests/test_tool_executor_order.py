@@ -37,15 +37,16 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
     executor._lifecycle = mock_lifecycle
     executor._health_registry = mock_health
     executor._transports = {"srv1": mock_transport}
-    executor._cache: OrderedDict[str, CacheEntry] = OrderedDict()
+    executor._cache = OrderedDict()
     executor._cache_ttl = 300.0
     executor._cache_max_size = 0
-    executor._inflight: dict[str, object] = {}
+    executor._inflight = {}
     executor._semaphores = None
     executor._concurrency_limits = {}
+    executor._server_configs = {}
     executor.stat_cache_hits = 0
-    executor.stat_tool_errors: dict[str, int] = {}
-    executor.stat_transport_errors: dict[str, int] = {}
+    executor.stat_tool_errors = {}
+    executor.stat_transport_errors = {}
     executor._tool_error_threshold = 3
 
     return executor, {

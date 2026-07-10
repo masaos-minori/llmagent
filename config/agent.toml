@@ -271,6 +271,7 @@ git_commit               = "WRITE_SAFE"
 git_checkout             = "WRITE_DANGEROUS"
 git_pull                 = "WRITE_DANGEROUS"
 git_push                 = "WRITE_DANGEROUS"
+mdq                      = "WRITE_DANGEROUS"
 
 # ── MCP server transport entries ──────────────────────────────────────────────
 

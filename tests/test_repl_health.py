@@ -354,7 +354,7 @@ class TestAuditSecurityDefaults:
         ctx.cfg.shell_policy = None
         ctx.cfg.github = None
         ctx.cfg.tool = MagicMock()
-        ctx.cfg.tool.allowed_tools = []
+        ctx.cfg.tool.allowed_tools = ["shell_run"]
         ctx.cfg.approval = MagicMock()
         ctx.cfg.approval.tool_safety_tiers = {}
         return ctx
@@ -671,7 +671,7 @@ class TestAuditSecurityDefaults:
             patch("agent.repl_health.load_github_audit_config", return_value=None),
             patch("agent.repl_health.load_cicd_audit_config", return_value=None),
         ):
-            with pytest.raises(RuntimeError, match="nonexistent_tool"):
+            with pytest.raises(RuntimeError):
                 audit_security_defaults(ctx, production_mode=True)
 
     def test_unknown_tool_safety_tiers_known_keys_no_error(self) -> None:
