@@ -1,3 +1,24 @@
+---
+title: "Event Bus: Known Inconsistencies and Issues"
+category: eventbus
+tags:
+  - event-bus
+  - known-issues
+  - inconsistencies
+  - spec-conflicts
+  - deferred-items
+  - ack-offset
+  - monotonicity
+related:
+  - 06_eventbus_00_document-guide.md
+  - 06_eventbus_01_system-overview.md
+  - 06_eventbus_02_subscribe-ack.md
+  - 06_eventbus_02_dlq-background-loop.md
+  - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
+source:
+  - index.md
+---
+
 # Event Bus: Known Inconsistencies and Issues
 
 ## Active Items
@@ -44,3 +65,21 @@ Agent runtime integration with Event Bus is intentionally not implemented at thi
 | `delivery_failure_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` | Used — see `db.py::nack_event()` |
 | `dlq_requeue_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on DLQ requeue; does not reset `delivery_failure_count` | Used — see `db.py::requeue_event()` |
 | `dlq_at` | TEXT | Set when event is promoted to DLQ (inline or background sweep) | Used — set during DLQ promotion |
+
+## Related Documents
+
+- `06_eventbus_00_document-guide.md`
+- `06_eventbus_01_system-overview.md`
+- `06_eventbus_02_subscribe-ack.md`
+- `06_eventbus_02_dlq-background-loop.md`
+- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+
+## Keywords
+
+event-bus
+known-issues
+inconsistencies
+spec-conflicts
+deferred-items
+ack-offset
+monotonicity

@@ -1,3 +1,23 @@
+---
+title: "Event Bus: Persistence, Schema, and Replay"
+category: eventbus
+tags:
+  - event-bus
+  - sqlite
+  - schema
+  - wal
+  - jsonl-archive
+  - replay
+  - consumer-offset
+related:
+  - 06_eventbus_00_document-guide.md
+  - 06_eventbus_01_system-overview.md
+  - 06_eventbus_02_publish-replay.md
+  - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
+source:
+  - index.md
+---
+
 # Event Bus: Persistence, Schema, and Replay
 
 ## SQLite database
@@ -66,3 +86,20 @@ If two consumers use the same consumer_id, the last write wins for the offset fi
 `GET /replay?since_seq=N` returns all events where `seq > N` in ascending order. The SSE format streams one `data: {...}\n\n` frame per event. The JSON format returns a list directly.
 
 Replay reads from SQLite, not from JSONL.
+
+## Related Documents
+
+- `06_eventbus_00_document-guide.md`
+- `06_eventbus_01_system-overview.md`
+- `06_eventbus_02_publish-replay.md`
+- `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
+
+## Keywords
+
+event-bus
+sqlite
+schema
+wal
+jsonl-archive
+replay
+consumer-offset

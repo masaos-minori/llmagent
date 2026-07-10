@@ -1,3 +1,23 @@
+---
+title: "Event Bus: System Overview"
+category: eventbus
+tags:
+  - event-bus
+  - system-overview
+  - architecture
+  - pub-sub
+  - sse
+  - security-model
+  - authentication
+related:
+  - 06_eventbus_00_document-guide.md
+  - 06_eventbus_02_publish-replay.md
+  - 06_eventbus_02_subscribe-ack.md
+  - 06_eventbus_05_bind-address-and-start.md
+source:
+  - index.md
+---
+
 # Event Bus: System Overview
 
 ## Purpose
@@ -51,3 +71,20 @@ The following Agent-side integrations are intentionally not implemented at this 
 - **Agent event topics**: No Agent-defined topics exist today. Topic conventions for Agent lifecycle events will be defined when Agent integration is implemented.
 
 These items are also documented as Deferred Items in `docs/06_eventbus_90_inconsistencies_and_known_issues.md`.
+
+## Related Documents
+
+- `06_eventbus_00_document-guide.md`
+- `06_eventbus_02_publish-replay.md`
+- `06_eventbus_02_subscribe-ack.md`
+- `06_eventbus_05_bind-address-and-start.md`
+
+## Keywords
+
+event-bus
+system-overview
+architecture
+pub-sub
+sse
+security-model
+authentication
