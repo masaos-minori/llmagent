@@ -1,5 +1,5 @@
 """tests/test_file_common.py
-Unit tests for mcp.file.common — shared security helpers for file-read/write/delete MCP servers.
+Unit tests for mcp_servers.file.common — shared security helpers for file-read/write/delete MCP servers.
 """
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from mcp.file.common import (
+from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
     check_size_limit,

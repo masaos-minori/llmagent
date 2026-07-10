@@ -7,8 +7,8 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from mcp.mdq.search import _RRF_K, _merge_hybrid
-from mcp.mdq.service import MdqService
+from mcp_servers.mdq.search import _RRF_K, _merge_hybrid
+from mcp_servers.mdq.service import MdqService
 
 
 class TestHybridSearchConfig:
@@ -79,7 +79,7 @@ class TestHybridSearchMerge:
         assert result == []
 
     def test_only_fts_results(self) -> None:
-        from mcp.mdq.models import SearchResultItem
+        from mcp_servers.mdq.models import SearchResultItem
 
         fts = [
             SearchResultItem(
@@ -112,7 +112,7 @@ class TestHybridSearchMerge:
         assert result[0].chunk_id == "a"
 
     def test_rrf_merge_scores(self) -> None:
-        from mcp.mdq.models import SearchResultItem
+        from mcp_servers.mdq.models import SearchResultItem
 
         fts = [
             SearchResultItem(
@@ -165,7 +165,7 @@ class TestHybridSearchMerge:
         assert abs(result[1].score - y_score) < 0.0001
 
     def test_rrf_cross_list_ranking(self) -> None:
-        from mcp.mdq.models import SearchResultItem
+        from mcp_servers.mdq.models import SearchResultItem
 
         # FTS has a at rank 1, vec has b at rank 1, a at rank 2
         # a should be ranked higher because it appears in both lists

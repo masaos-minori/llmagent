@@ -11,13 +11,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from mcp.file.common import FileAuthorizationError, FileValidationError
+from mcp_servers.file.common import FileAuthorizationError, FileValidationError
 
 
 @pytest.fixture()
 def service(tmp_path: Path) -> tuple:
     """Create a DeleteFileService with allowed_dirs pointing to tmp_path."""
-    from mcp.file.delete_service import DeleteFileService
+    from mcp_servers.file.delete_service import DeleteFileService
 
     svc = DeleteFileService(
         allowed_dirs=[tmp_path],

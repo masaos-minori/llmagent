@@ -7,8 +7,8 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from mcp.mdq.models import GetChunkRequest
-from mcp.mdq.service import MdqService
+from mcp_servers.mdq.models import GetChunkRequest
+from mcp_servers.mdq.service import MdqService
 
 
 @pytest.fixture()
@@ -36,7 +36,7 @@ class TestSummaryCacheEnabled:
     """Verify summary cache works when enabled."""
 
     def test_summary_cache_table_created_when_enabled(self, tmp_path: Path) -> None:
-        from mcp.mdq.service import MdqService
+        from mcp_servers.mdq.service import MdqService
 
         svc = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
         svc._allowed_dirs = [str(tmp_path)]

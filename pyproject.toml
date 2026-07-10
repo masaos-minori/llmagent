@@ -115,13 +115,13 @@ omit = [
     "scripts/db/create_schema.py",
     "scripts/db/migrate.py",
     # FastAPI server entry points — start HTTP servers; not unit-testable
-    "scripts/mcp/file/*_server.py",
-    "scripts/mcp/github/server.py",
-    "scripts/mcp/shell/server.py",
-    "scripts/mcp/web_search/server.py",
-    "scripts/mcp/rag_pipeline/server.py",
+    "scripts/mcp_servers/file/*_server.py",
+    "scripts/mcp_servers/github/server.py",
+    "scripts/mcp_servers/shell/server.py",
+    "scripts/mcp_servers/web_search/server.py",
+    "scripts/mcp_servers/rag_pipeline/server.py",
     # MCP installer — scaffolding tool, not production logic
-    "scripts/mcp/installer.py",
+    "scripts/mcp_servers/installer.py",
     # REPL entry points — interactive CLI; no unit tests by design (documented in CLAUDE.md)
     "scripts/agent.py",
     "scripts/agent/repl.py",

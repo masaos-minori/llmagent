@@ -11,7 +11,7 @@ class TestGitHubToolListConsistency:
 
     def test_tool_list_has_21_tools(self) -> None:
         """TOOL_LIST has exactly 21 GitHub tools."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
 
         assert len(TOOL_LIST) == 21, (
             f"Expected 21 tools in TOOL_LIST, got {len(TOOL_LIST)}"
@@ -19,7 +19,7 @@ class TestGitHubToolListConsistency:
 
     def test_tool_list_names_match_registry(self) -> None:
         """Every TOOL_LIST tool name is registered in ToolRegistry."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
         from shared.tool_registry import get_registry
 
         registry = get_registry()
@@ -31,7 +31,7 @@ class TestGitHubToolListConsistency:
 
     def test_tool_list_all_map_to_github_server_key(self) -> None:
         """Every GitHub tool maps to server_key='github'."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
         from shared.tool_registry import get_registry
 
         registry = get_registry()
@@ -42,7 +42,7 @@ class TestGitHubToolListConsistency:
 
     def test_github_tools_match_tool_list_names(self) -> None:
         """ToolRegistry GitHub tools match TOOL_LIST names exactly."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
         from shared.tool_registry import get_registry
 
         registry = get_registry()
@@ -57,14 +57,14 @@ class TestGitHubToolListConsistency:
 
     def test_tool_list_schema_has_name_field(self) -> None:
         """Every TOOL_LIST entry has a 'name' field."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
 
         for tool in TOOL_LIST:
             assert "name" in tool, f"TOOL_LIST entry missing 'name': {tool}"
 
     def test_tool_list_no_duplicated_names(self) -> None:
         """TOOL_LIST has no duplicate tool names."""
-        from mcp.github.tools import TOOL_LIST
+        from mcp_servers.github.tools import TOOL_LIST
 
         names = [tool["name"] for tool in TOOL_LIST]
         assert len(names) == len(set(names)), (

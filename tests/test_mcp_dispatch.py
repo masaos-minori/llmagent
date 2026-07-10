@@ -5,7 +5,7 @@ Unit tests for mcp/dispatch.py — dispatch_tool.
 from __future__ import annotations
 
 import pytest
-from mcp.dispatch import dispatch_tool
+from mcp_servers.dispatch import dispatch_tool
 
 
 class TestDispatchTool:

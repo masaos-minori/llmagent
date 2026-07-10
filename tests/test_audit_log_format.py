@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
-from mcp.audit import _audit_log as _mcp_audit_log
+from mcp_servers.audit import _audit_log as _mcp_audit_log
 
 # ---------------------------------------------------------------------------
 # MCP server audit log — JSON-lines format

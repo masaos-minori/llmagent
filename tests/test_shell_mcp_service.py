@@ -12,14 +12,14 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.shell.models import (
+from mcp_servers.shell.models import (
     ShellAuthorizationError,
     ShellRunRequest,
     ShellValidationError,
     load_shell_policy,
 )
-from mcp.shell.service import ShellService, _init_sandbox
-from mcp.shell.service_static_helpers import make_preexec as _make_preexec
+from mcp_servers.shell.service import ShellService, _init_sandbox
+from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
 from shared.protocols.shell import ShellPolicy
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -194,13 +194,15 @@ class TestInitSandbox:
 
     def test_firejail_found_returns_firejail(self) -> None:
         with patch(
-            "mcp.shell.service_static_helpers.shutil.which",
+            "mcp_servers.shell.service_static_helpers.shutil.which",
             return_value="/usr/bin/firejail",
         ):
             assert _init_sandbox("firejail") == "firejail"
 
     def test_firejail_not_found_raises_runtime_error(self) -> None:
-        with patch("mcp.shell.service_static_helpers.shutil.which", return_value=None):
+        with patch(
+            "mcp_servers.shell.service_static_helpers.shutil.which", return_value=None
+        ):
             with pytest.raises(RuntimeError, match="firejail is not found in PATH"):
                 _init_sandbox("firejail")
 
@@ -309,7 +311,7 @@ class TestOutputTruncation:
 
 class TestLoadShellPolicy:
     def test_builds_policy_from_cfg(self, tmp_path: Path) -> None:
-        from mcp.shell.models import ShellConfig
+        from mcp_servers.shell.models import ShellConfig
 
         fake_cfg = ShellConfig(
             command_allowlist=["pytest", "git"],
@@ -364,7 +366,7 @@ class TestExecutionUser:
         )
         import logging
 
-        with caplog.at_level(logging.WARNING, logger="mcp.shell.service"):
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.shell.service"):
             ShellService(policy2)
         # Either "requires CAP_SETUID" (non-root) or "not found in /etc/passwd" (root)
         assert any(
@@ -380,7 +382,7 @@ class TestMakePreexec:
     def test_preexec_calls_resource_limits_when_no_uid_gid(self) -> None:
         preexec = _make_preexec(max_memory_mb=128, timeout_sec=10, uid=None, gid=None)
         with patch(
-            "mcp.shell.service_static_helpers.set_resource_limits"
+            "mcp_servers.shell.service_static_helpers.set_resource_limits"
         ) as mock_limits:
             preexec()
         mock_limits.assert_called_once_with(128, 10)
@@ -471,7 +473,7 @@ class TestLazyShellService:
     ) -> None:
         import logging
 
-        from mcp.shell.service import build_service
+        from mcp_servers.shell.service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(["echo"]),
@@ -489,7 +491,7 @@ class TestLazyShellService:
             env_allowlist=(),
             env_denylist=(),
         )
-        with caplog.at_level(logging.WARNING, logger="mcp.shell.service"):
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.shell.service"):
             build_service(policy)
         assert any("cwd" in r.message for r in caplog.records)
 
@@ -498,7 +500,7 @@ class TestLazyShellService:
     ) -> None:
         import logging
 
-        from mcp.shell.service import build_service
+        from mcp_servers.shell.service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(),  # empty
@@ -516,7 +518,7 @@ class TestLazyShellService:
             env_allowlist=(),
             env_denylist=(),
         )
-        with caplog.at_level(logging.WARNING, logger="mcp.shell.service"):
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.shell.service"):
             build_service(policy)
         assert any("command_allowlist" in r.message for r in caplog.records)
 
@@ -567,7 +569,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_formats_success_result(self, tmp_path: Path) -> None:
-        from mcp.shell.models import ShellRunResponse
+        from mcp_servers.shell.models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(
@@ -585,7 +587,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_timed_out_flag(self, tmp_path: Path) -> None:
-        from mcp.shell.models import ShellRunResponse
+        from mcp_servers.shell.models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(
@@ -602,7 +604,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_truncated_flag(self, tmp_path: Path) -> None:
-        from mcp.shell.models import ShellRunResponse
+        from mcp_servers.shell.models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(
@@ -623,7 +625,7 @@ class TestHealthResponse:
         self, monkeypatch
     ) -> None:
         from fastapi.testclient import TestClient
-        from mcp.shell import server as shell_server
+        from mcp_servers.shell import server as shell_server
 
         class _FakeService:
             sandbox_backend = "none"

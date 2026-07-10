@@ -9,13 +9,13 @@ from pathlib import Path
 from tempfile import mkstemp
 
 import pytest
-from mcp.mdq.indexer import (
+from mcp_servers.mdq.indexer import (
     _index_directory,
     _index_single_file,
     generate_chunk_id,
     index_paths,
 )
-from mcp.mdq.models import (
+from mcp_servers.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
@@ -26,9 +26,9 @@ from mcp.mdq.models import (
     SearchDocsRequest,
     StatsRequest,
 )
-from mcp.mdq.parser import parse_markdown
-from mcp.mdq.search import search_docs
-from mcp.mdq.service import MdqService
+from mcp_servers.mdq.parser import parse_markdown
+from mcp_servers.mdq.search import search_docs
+from mcp_servers.mdq.service import MdqService
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -280,7 +280,7 @@ class TestIndexer:
         import logging
 
         req = IndexPathsRequest(paths=[str(tmp_path / "ghost.md")])
-        with caplog.at_level(logging.WARNING, logger="mcp.mdq.indexer"):
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
             result = asyncio.run(index_paths(service, req))
         assert result == "Indexing complete"
         assert "does not exist" in caplog.text
@@ -293,7 +293,7 @@ class TestIndexer:
         txt = tmp_path / "file.txt"
         txt.write_text("hello")
         req = IndexPathsRequest(paths=[str(txt)])
-        with caplog.at_level(logging.WARNING, logger="mcp.mdq.indexer"):
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
             result = asyncio.run(index_paths(service, req))
         assert result == "Indexing complete"
         assert "Skipping" in caplog.text
@@ -337,7 +337,7 @@ class TestSearchDocs:
         import logging
 
         req = SearchDocsRequest(query="foo bar")
-        with caplog.at_level(logging.INFO, logger="mcp.mdq.search"):
+        with caplog.at_level(logging.INFO, logger="mcp_servers.mdq.search"):
             asyncio.run(search_docs(service, req))
         assert "foo bar" in caplog.text
 
@@ -633,7 +633,7 @@ class TestEnableGrepConfig:
 
     def test_grep_docs_disabled_by_config(self, service: MdqService) -> None:
         """When enable_grep=False, grep_docs raises MdqValidationError."""
-        from mcp.mdq.models import MdqValidationError
+        from mcp_servers.mdq.models import MdqValidationError
 
         service.enable_grep = False
         with pytest.raises(MdqValidationError, match="disabled by configuration"):

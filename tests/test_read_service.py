@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Unit tests for mcp.file.read_service.ReadFileService."""
+"""Unit tests for mcp_servers.file.read_service.ReadFileService."""
 
 import base64
 from pathlib import Path
 
 import pytest
-from mcp.file.common import FileAuthorizationError, FileValidationError
-from mcp.file.read_models import FileEntry, TreeNode
-from mcp.file.read_service import ReadFileService
+from mcp_servers.file.common import FileAuthorizationError, FileValidationError
+from mcp_servers.file.read_models import FileEntry, TreeNode
+from mcp_servers.file.read_service import ReadFileService
 
 
 @pytest.fixture()
@@ -289,7 +289,7 @@ class TestStaticHelpers:
 class TestListDirEntries:
     def test_list_dir_returns_entries(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ListDirectoryRequest
+        from mcp_servers.file.read_models import ListDirectoryRequest
 
         result = svc.list_dir_entries(
             ListDirectoryRequest(path=str(tmp_workspace)),
@@ -301,7 +301,7 @@ class TestListDirEntries:
 
     def test_list_dir_excludes_dir_sizes(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ListDirectoryRequest
+        from mcp_servers.file.read_models import ListDirectoryRequest
 
         result = svc.list_dir_entries(
             ListDirectoryRequest(path=str(tmp_workspace)),
@@ -312,7 +312,7 @@ class TestListDirEntries:
 
     def test_list_dir_with_sizes_includes_dir_st_size(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ListDirectoryRequest
+        from mcp_servers.file.read_models import ListDirectoryRequest
 
         result = svc.list_dir_entries(
             ListDirectoryRequest(path=str(tmp_workspace)),
@@ -323,7 +323,7 @@ class TestListDirEntries:
 
     def test_list_dir_path_not_allowed(self, service):
         svc, _ = service
-        from mcp.file.read_models import ListDirectoryRequest
+        from mcp_servers.file.read_models import ListDirectoryRequest
 
         with pytest.raises(FileAuthorizationError):
             svc.list_dir_entries(
@@ -333,7 +333,7 @@ class TestListDirEntries:
 
     def test_list_dir_path_is_file_raises(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ListDirectoryRequest
+        from mcp_servers.file.read_models import ListDirectoryRequest
 
         with pytest.raises(FileValidationError):
             svc.list_dir_entries(
@@ -348,7 +348,7 @@ class TestListDirEntries:
 class TestBuildDirectoryTree:
     def test_build_tree_root_contains_all_files(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import DirectoryTreeRequest
+        from mcp_servers.file.read_models import DirectoryTreeRequest
 
         result = svc.build_directory_tree(
             DirectoryTreeRequest(path=str(tmp_workspace), depth=3)
@@ -360,7 +360,7 @@ class TestBuildDirectoryTree:
 
     def test_build_tree_depth_one(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import DirectoryTreeRequest
+        from mcp_servers.file.read_models import DirectoryTreeRequest
 
         result = svc.build_directory_tree(
             DirectoryTreeRequest(path=str(tmp_workspace), depth=1)
@@ -371,7 +371,7 @@ class TestBuildDirectoryTree:
 
     def test_build_tree_response_has_root(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import DirectoryTreeRequest
+        from mcp_servers.file.read_models import DirectoryTreeRequest
 
         result = svc.build_directory_tree(
             DirectoryTreeRequest(path=str(tmp_workspace), depth=3)
@@ -386,7 +386,7 @@ class TestBuildDirectoryTree:
 class TestReadTextFile:
     def test_read_text_returns_content(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         result = svc.read_text_file(
             ReadTextFileRequest(path=str(tmp_workspace / "file_a.py"))
@@ -396,7 +396,7 @@ class TestReadTextFile:
 
     def test_read_text_with_head(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         result = svc.read_text_file(
             ReadTextFileRequest(path=str(tmp_workspace / "file_b.log"), head=1)
@@ -406,7 +406,7 @@ class TestReadTextFile:
 
     def test_read_text_with_tail(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         result = svc.read_text_file(
             ReadTextFileRequest(path=str(tmp_workspace / "file_b.log"), tail=1)
@@ -416,7 +416,7 @@ class TestReadTextFile:
 
     def test_read_text_unicode_decode_error(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         with pytest.raises(FileValidationError):
             svc.read_text_file(
@@ -425,7 +425,7 @@ class TestReadTextFile:
 
     def test_read_text_size_limit_exceeded(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         with pytest.raises(FileValidationError):
             svc.read_text_file(
@@ -434,14 +434,14 @@ class TestReadTextFile:
 
     def test_read_text_nonexistent_path(self, service):
         svc, _ = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         with pytest.raises(FileAuthorizationError):
             svc.read_text_file(ReadTextFileRequest(path="/nonexistent/file.txt"))
 
     def test_read_text_response_fields(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         result = svc.read_text_file(
             ReadTextFileRequest(path=str(tmp_workspace / "file_a.py"))
@@ -452,7 +452,7 @@ class TestReadTextFile:
     def test_read_text_permission_error_raises_file_authorization_error(self, service):
         import os
 
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         svc, tmp_workspace = service
         no_perm = tmp_workspace / "no_perm.txt"
@@ -471,7 +471,7 @@ class TestReadTextFile:
     def test_read_text_file_not_found_in_allowed_dir_raises_file_not_found_error(
         self, service
     ):
-        from mcp.file.read_models import ReadTextFileRequest
+        from mcp_servers.file.read_models import ReadTextFileRequest
 
         svc, tmp_workspace = service
         with pytest.raises(FileNotFoundError):
@@ -486,7 +486,7 @@ class TestReadTextFile:
 class TestReadMediaFile:
     def test_read_media_returns_base64(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMediaFileRequest
+        from mcp_servers.file.read_models import ReadMediaFileRequest
 
         result = svc.read_media_file(
             ReadMediaFileRequest(path=str(tmp_workspace / "binary.bin"))
@@ -496,7 +496,7 @@ class TestReadMediaFile:
 
     def test_read_media_mime_type(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMediaFileRequest
+        from mcp_servers.file.read_models import ReadMediaFileRequest
 
         result = svc.read_media_file(
             ReadMediaFileRequest(path=str(tmp_workspace / "binary.bin"))
@@ -506,7 +506,7 @@ class TestReadMediaFile:
 
     def test_read_media_size(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMediaFileRequest
+        from mcp_servers.file.read_models import ReadMediaFileRequest
 
         result = svc.read_media_file(
             ReadMediaFileRequest(path=str(tmp_workspace / "binary.bin"))
@@ -515,7 +515,7 @@ class TestReadMediaFile:
 
     def test_read_media_file_too_large(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMediaFileRequest
+        from mcp_servers.file.read_models import ReadMediaFileRequest
 
         with pytest.raises(FileValidationError):
             svc.read_media_file(
@@ -529,7 +529,7 @@ class TestReadMediaFile:
 class TestReadMultipleFiles:
     def test_read_multiple_success(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMultipleFilesRequest
+        from mcp_servers.file.read_models import ReadMultipleFilesRequest
 
         result = svc.read_multiple_files(
             ReadMultipleFilesRequest(
@@ -544,7 +544,7 @@ class TestReadMultipleFiles:
 
     def test_read_multiple_with_errors(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import ReadMultipleFilesRequest
+        from mcp_servers.file.read_models import ReadMultipleFilesRequest
 
         result = svc.read_multiple_files(
             ReadMultipleFilesRequest(
@@ -560,7 +560,7 @@ class TestReadMultipleFiles:
 
     def test_read_multiple_empty_paths(self, service):
         svc, _ = service
-        from mcp.file.read_models import ReadMultipleFilesRequest
+        from mcp_servers.file.read_models import ReadMultipleFilesRequest
 
         # Empty paths returns empty results (no error raised)
         result = svc.read_multiple_files(ReadMultipleFilesRequest(paths=[]))
@@ -568,7 +568,7 @@ class TestReadMultipleFiles:
 
     def test_read_multiple_outside_allowed_dirs(self, service):
         svc, _ = service
-        from mcp.file.read_models import ReadMultipleFilesRequest
+        from mcp_servers.file.read_models import ReadMultipleFilesRequest
 
         result = svc.read_multiple_files(
             ReadMultipleFilesRequest(paths=["/etc/passwd"])
@@ -583,7 +583,7 @@ class TestReadMultipleFiles:
 class TestSearchFiles:
     def test_search_files_matches(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import SearchFilesRequest
+        from mcp_servers.file.read_models import SearchFilesRequest
 
         result = svc.search_files(
             SearchFilesRequest(path=str(tmp_workspace), pattern="*.py")
@@ -593,7 +593,7 @@ class TestSearchFiles:
 
     def test_search_files_no_match(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import SearchFilesRequest
+        from mcp_servers.file.read_models import SearchFilesRequest
 
         result = svc.search_files(
             SearchFilesRequest(path=str(tmp_workspace), pattern="*.xyz")
@@ -602,8 +602,8 @@ class TestSearchFiles:
 
     def test_search_files_respects_max_results(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import SearchFilesRequest
-        from mcp.file.read_service import ReadFileService
+        from mcp_servers.file.read_models import SearchFilesRequest
+        from mcp_servers.file.read_service import ReadFileService
 
         test_svc = ReadFileService(
             allowed_dirs=[tmp_workspace],
@@ -618,7 +618,7 @@ class TestSearchFiles:
 
     def test_search_files_outside_allowed(self, service):
         svc, _ = service
-        from mcp.file.read_models import SearchFilesRequest
+        from mcp_servers.file.read_models import SearchFilesRequest
 
         with pytest.raises(FileAuthorizationError):
             svc.search_files(SearchFilesRequest(path="/etc", pattern="*"))
@@ -630,7 +630,7 @@ class TestSearchFiles:
 class TestGrepFiles:
     def test_grep_files_finds_matches(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GrepFilesRequest
+        from mcp_servers.file.read_models import GrepFilesRequest
 
         result = svc.grep_files(
             GrepFilesRequest(
@@ -645,7 +645,7 @@ class TestGrepFiles:
 
     def test_grep_files_no_match(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GrepFilesRequest
+        from mcp_servers.file.read_models import GrepFilesRequest
 
         result = svc.grep_files(
             GrepFilesRequest(
@@ -660,7 +660,7 @@ class TestGrepFiles:
 
     def test_grep_files_invalid_regex(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GrepFilesRequest
+        from mcp_servers.file.read_models import GrepFilesRequest
 
         with pytest.raises(FileValidationError):
             svc.grep_files(
@@ -674,7 +674,7 @@ class TestGrepFiles:
 
     def test_grep_files_truncated(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GrepFilesRequest
+        from mcp_servers.file.read_models import GrepFilesRequest
 
         result = svc.grep_files(
             GrepFilesRequest(
@@ -693,7 +693,7 @@ class TestGrepFiles:
 class TestGetFileInfo:
     def test_get_file_info_returns_metadata(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GetFileInfoRequest
+        from mcp_servers.file.read_models import GetFileInfoRequest
 
         result = svc.get_file_info(
             GetFileInfoRequest(path=str(tmp_workspace / "file_a.py"))
@@ -705,7 +705,7 @@ class TestGetFileInfo:
 
     def test_get_file_info_directory(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GetFileInfoRequest
+        from mcp_servers.file.read_models import GetFileInfoRequest
 
         result = svc.get_file_info(
             GetFileInfoRequest(path=str(tmp_workspace / "subdir"))
@@ -714,7 +714,7 @@ class TestGetFileInfo:
 
     def test_get_file_info_not_found(self, service):
         svc, tmp_workspace = service
-        from mcp.file.read_models import GetFileInfoRequest
+        from mcp_servers.file.read_models import GetFileInfoRequest
 
         with pytest.raises(FileNotFoundError):
             svc.get_file_info(
@@ -723,7 +723,7 @@ class TestGetFileInfo:
 
     def test_get_file_info_path_outside_allowed(self, service):
         svc, _ = service
-        from mcp.file.read_models import GetFileInfoRequest
+        from mcp_servers.file.read_models import GetFileInfoRequest
 
         with pytest.raises(FileAuthorizationError):
             svc.get_file_info(GetFileInfoRequest(path="/etc/passwd"))
@@ -850,7 +850,7 @@ class TestErrorPaths:
     def test_check_size_limit_raises_file_validation_error(
         self, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileValidationError, check_size_limit
+        from mcp_servers.file.common import FileValidationError, check_size_limit
 
         f = tmp_path / "big.txt"
         f.write_text("x" * 200, encoding="utf-8")
@@ -860,8 +860,8 @@ class TestErrorPaths:
     def test_grep_files_invalid_regex_raises_file_validation_error(
         self, service
     ) -> None:
-        from mcp.file.common import FileValidationError
-        from mcp.file.read_models import GrepFilesRequest
+        from mcp_servers.file.common import FileValidationError
+        from mcp_servers.file.read_models import GrepFilesRequest
 
         svc, root = service
         req = GrepFilesRequest(path=str(root), pattern="[invalid(regex")

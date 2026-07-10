@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import orjson
 import pytest
-from mcp.cicd.models import (
+from mcp_servers.cicd.models import (
     CicdAuthorizationError,
     CicdConfig,
     CicdNotFoundError,
     CicdValidationError,
 )
-from mcp.cicd.service import CiCdService, GitHubActionsBackend
-from mcp.cicd.service_github_actions_job import GitHubActionsJobBackend
+from mcp_servers.cicd.service import CiCdService, GitHubActionsBackend
+from mcp_servers.cicd.service_github_actions_job import GitHubActionsJobBackend
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -574,7 +574,7 @@ class TestTriggerWorkflowDryRun:
 
 class TestCicdToolSchema:
     def test_trigger_workflow_schema_declares_dry_run(self) -> None:
-        from mcp.cicd.tools import TOOL_LIST
+        from mcp_servers.cicd.tools import TOOL_LIST
 
         trigger = next(t for t in TOOL_LIST if t["name"] == "trigger_workflow")
         props = trigger["inputSchema"]["properties"]
@@ -582,7 +582,7 @@ class TestCicdToolSchema:
         assert props["dry_run"]["type"] == "boolean"
 
     def test_trigger_workflow_dry_run_not_required(self) -> None:
-        from mcp.cicd.tools import TOOL_LIST
+        from mcp_servers.cicd.tools import TOOL_LIST
 
         trigger = next(t for t in TOOL_LIST if t["name"] == "trigger_workflow")
         assert "dry_run" not in trigger["inputSchema"].get("required", [])

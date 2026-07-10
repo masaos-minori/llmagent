@@ -14,7 +14,7 @@ import orjson
 from agent.commands.mixin_base import MixinBase
 from agent.history import HistoryCompressionError
 from agent.services.export_formatter import render_export, write_export
-from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
+from mcp_servers.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 logger = logging.getLogger(__name__)
 

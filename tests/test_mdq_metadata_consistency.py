@@ -18,13 +18,13 @@ class TestMdqToolMetadataConsistency:
 
     def test_total_tool_count(self) -> None:
         """mdq-mcp has exactly 9 tools."""
-        from mcp.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.tools import TOOL_LIST
 
         assert len(TOOL_LIST) == 9
 
     def test_no_stub_keys_in_tools(self) -> None:
         """No mdq-mcp tool entry contains a `stub` key."""
-        from mcp.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.tools import TOOL_LIST
 
         for tool in TOOL_LIST:
             assert "stub" not in tool, (
@@ -33,7 +33,7 @@ class TestMdqToolMetadataConsistency:
 
     def test_production_tool_statuses(self) -> None:
         """7 non-admin mdq-mcp tools have status='production'."""
-        from mcp.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.tools import TOOL_LIST
 
         production_tools = {
             "search_docs",
@@ -52,7 +52,7 @@ class TestMdqToolMetadataConsistency:
 
     def test_admin_tool_statuses(self) -> None:
         """2 admin mdq-mcp tools (fts_consistency_check, fts_rebuild) have status='admin'."""
-        from mcp.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.tools import TOOL_LIST
 
         admin_tools = {"fts_consistency_check", "fts_rebuild"}
         for tool in TOOL_LIST:
@@ -63,7 +63,7 @@ class TestMdqToolMetadataConsistency:
 
     def test_all_tools_have_status_field(self) -> None:
         """All 9 mdq-mcp tools have a 'status' field."""
-        from mcp.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.tools import TOOL_LIST
 
         for tool in TOOL_LIST:
             assert "status" in tool, f"Tool '{tool['name']}' is missing 'status' field"

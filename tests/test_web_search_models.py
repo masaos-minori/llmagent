@@ -6,7 +6,7 @@ Unit tests for mcp/web_search/models.py.
 from __future__ import annotations
 
 import pytest
-from mcp.web_search.models import (
+from mcp_servers.web_search.models import (
     DEFAULT_MAX_RESULTS,
     MAX_RESULTS_LIMIT,
     SearchRequest,

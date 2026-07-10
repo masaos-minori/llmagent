@@ -51,6 +51,9 @@ Restart **only** the services whose code or config changed.
 Restart `llama-agent` ONLY if changes are in:
 - `agent/repl.py`, `agent/context.py`, `agent/config.py`, or any file under `agent/commands/`
 - `config/agent.toml` with a new `mcp_servers` entry (requires full restart)
+- `config/agent.toml` with an existing `[mcp_servers.*]` entry's `cmd`/`url`/`transport`/
+  `startup_mode`/`env` value changed (e.g. package rename affecting launch paths) —
+  `/reload` does not apply these fields; see the MCP configuration doc's Reload vs. restart section
 
 Do NOT restart `llama-agent` if:
 - Only MCP server files changed → restart the MCP server instead
@@ -75,6 +78,9 @@ Check status after restart:
 
 ```bash
 curl -s http://127.0.0.1:<PORT>/health
+
+# For deploys that changed cmd paths (e.g. package rename):
+# /mcp status must show every MCP server's PID updated to the post-restart value
 ```
 
 ### Failure recovery (service fails to start)

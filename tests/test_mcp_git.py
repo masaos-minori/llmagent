@@ -7,7 +7,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp.git.service import GitService
+from mcp_servers.git.service import GitService
 
 
 def _svc(

@@ -18,16 +18,16 @@ import pytest
 # When adding a new MCP server with tools.py, add its import path here.
 # github/tools.py is the aggregator; sub-files are tested indirectly.
 _TOOL_MODULES: list[tuple[str, str]] = [
-    ("mcp.shell.tools", "TOOL_LIST"),
-    ("mcp.cicd.tools", "TOOL_LIST"),
-    ("mcp.git.tools", "TOOL_LIST"),
-    ("mcp.rag_pipeline.tools", "TOOL_LIST"),
-    ("mcp.web_search.tools", "TOOL_LIST"),
-    ("mcp.mdq.tools", "TOOL_LIST"),
-    ("mcp.github.tools", "TOOL_LIST"),
-    ("mcp.file.read_tools", "TOOL_LIST"),
-    ("mcp.file.write_tools", "TOOL_LIST"),
-    ("mcp.file.delete_tools", "TOOL_LIST"),
+    ("mcp_servers.shell.tools", "TOOL_LIST"),
+    ("mcp_servers.cicd.tools", "TOOL_LIST"),
+    ("mcp_servers.git.tools", "TOOL_LIST"),
+    ("mcp_servers.rag_pipeline.tools", "TOOL_LIST"),
+    ("mcp_servers.web_search.tools", "TOOL_LIST"),
+    ("mcp_servers.mdq.tools", "TOOL_LIST"),
+    ("mcp_servers.github.tools", "TOOL_LIST"),
+    ("mcp_servers.file.read_tools", "TOOL_LIST"),
+    ("mcp_servers.file.write_tools", "TOOL_LIST"),
+    ("mcp_servers.file.delete_tools", "TOOL_LIST"),
 ]
 
 # Ensure scripts/ is on the path (same pattern as conftest.py).

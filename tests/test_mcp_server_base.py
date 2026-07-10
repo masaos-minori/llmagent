@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from mcp.dispatch import DispatchResult
-from mcp.server import MCPServer, attach_auth_middleware
+from mcp_servers.dispatch import DispatchResult
+from mcp_servers.server import MCPServer, attach_auth_middleware
 
 
 class _SimpleServer(MCPServer):
@@ -153,7 +153,7 @@ class TestAttachAuthMiddleware:
 
 class TestTruncateWithMeta:
     def test_short_text_returned_unchanged(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "hello world"
         r = _truncate_with_meta(text, max_bytes=100)
@@ -161,7 +161,7 @@ class TestTruncateWithMeta:
         assert not r.truncated
 
     def test_text_exactly_at_limit_returned_unchanged(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "a" * 10
         r = _truncate_with_meta(text, max_bytes=10)
@@ -169,7 +169,7 @@ class TestTruncateWithMeta:
         assert not r.truncated
 
     def test_long_text_is_truncated_and_notice_appended(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "a" * 200
         r = _truncate_with_meta(text, max_bytes=100)
@@ -178,7 +178,7 @@ class TestTruncateWithMeta:
         assert "bytes total" in r.text
 
     def test_truncated_output_starts_with_original_prefix(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "x" * 1000
         r = _truncate_with_meta(text, max_bytes=50)
@@ -186,7 +186,7 @@ class TestTruncateWithMeta:
         assert r.text.startswith("x" * 50)
 
     def test_multibyte_unicode_truncated_cleanly(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # "あ" is 3 bytes in UTF-8; 10 bytes fits 3 full chars (9 bytes)
         text = "あ" * 10
@@ -197,7 +197,7 @@ class TestTruncateWithMeta:
         assert "あ" in r.text
 
     def test_under_limit_no_truncation(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "hello world"
         r = _truncate_with_meta(text, max_bytes=100)
@@ -207,7 +207,7 @@ class TestTruncateWithMeta:
         assert r.text == text
 
     def test_over_limit_ascii_visible_equals_max_bytes(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # ASCII text: each char = 1 byte, so actual_visible == max_bytes
         text = "a" * 200
@@ -217,7 +217,7 @@ class TestTruncateWithMeta:
         assert r.actual_visible_bytes == 100
 
     def test_over_limit_utf8_visible_less_than_max_bytes(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # "あ" is 3 bytes in UTF-8; 34 chars = 102 bytes total, truncation at 100 bytes
         # drops the last partial character (bytes 97-100 = 4 bytes, but only 2 chars fit)
@@ -230,7 +230,7 @@ class TestTruncateWithMeta:
         assert r.actual_visible_bytes < 100
 
     def test_truncated_utf8_no_corrupted_characters(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # Mix of ASCII and multi-byte UTF-8 at the truncation boundary
         text = "Hello" + "あいうえお" * 20 + "World"  # 5 + 90 + 5 = 100 bytes
@@ -243,7 +243,7 @@ class TestTruncateWithMeta:
             pytest.fail(f"Truncated text contains corrupted UTF-8: {r.text!r}")
 
     def test_truncated_text_valid_utf8_after_boundary(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # Ensure the shown portion is valid UTF-8 even when boundary falls
         # in the middle of a multi-byte character
@@ -255,7 +255,7 @@ class TestTruncateWithMeta:
         shown_portion.encode("utf-8")  # raises if corrupted
 
     def test_truncation_notice_contains_correct_byte_counts(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         text = "a" * 200
         r = _truncate_with_meta(text, max_bytes=100)
@@ -264,7 +264,7 @@ class TestTruncateWithMeta:
         assert "100 bytes" in r.text
 
     def test_truncation_notice_for_utf8_contains_actual_visible(self) -> None:
-        from mcp.server import _truncate_with_meta
+        from mcp_servers.server import _truncate_with_meta
 
         # "あ" is 3 bytes; 34 chars = 102 bytes total, truncation at 100 bytes
         text = "あ" * 34
@@ -280,7 +280,7 @@ class TestAuditLog:
         import json
         import logging
 
-        from mcp.audit import _audit_log
+        from mcp_servers.audit import _audit_log
 
         logger = logging.getLogger("test.audit")
         with caplog.at_level(logging.INFO, logger="test.audit"):
@@ -302,7 +302,7 @@ class TestAuditLog:
         import json
         import logging
 
-        from mcp.audit import _audit_log
+        from mcp_servers.audit import _audit_log
 
         logger = logging.getLogger("test.audit2")
         with caplog.at_level(logging.INFO, logger="test.audit2"):
@@ -323,8 +323,8 @@ class TestAuditLog:
 class TestAppModuleImportability:
     def test_all_server_app_modules_are_importable(self) -> None:
         scripts_dir = Path(__file__).parent.parent / "scripts"
-        server_files = list(scripts_dir.glob("mcp/**/*server.py"))
-        assert server_files, "No server.py files found under scripts/mcp/"
+        server_files = list(scripts_dir.glob("mcp_servers/**/*server.py"))
+        assert server_files, "No server.py files found under scripts/mcp_servers/"
 
         pattern = re.compile(r'app_module\s*=\s*"([^"]+)"')
         missing: list[str] = []

@@ -8,14 +8,14 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from mcp.rag_pipeline.models import (
+from mcp_servers.rag_pipeline.models import (
     RagDebugResponse,
     RagPipelineConfig,
     RagRunRequest,
     RagRunResponse,
     build_rag_cfg_adapter,
 )
-from mcp.rag_pipeline.service import RagPipelineMCPService, _hit_to_dict
+from mcp_servers.rag_pipeline.service import RagPipelineMCPService, _hit_to_dict
 from rag.models_data import TwoStageFetchResult
 from shared.types import MergedHit, RankedHit, RawHit
 
@@ -493,7 +493,7 @@ class TestServiceStart:
     ) -> None:
         """start() must not write to rag.pipeline._cfg."""
 
-        import mcp.rag_pipeline.models as models_module
+        import mcp_servers.rag_pipeline.models as models_module
         import rag.pipeline as agent_rag
 
         fake_cfg = models_module.RagPipelineConfig(
@@ -517,7 +517,7 @@ class TestServiceStart:
     ) -> None:
         """start() builds httpx.AsyncClient and RagPipeline from config."""
 
-        import mcp.rag_pipeline.models as models_module
+        import mcp_servers.rag_pipeline.models as models_module
 
         fake_cfg = models_module.RagPipelineConfig(
             use_mqe=True,

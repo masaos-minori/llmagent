@@ -1,11 +1,11 @@
 """tests/test_file_read_mcp_models.py
-Minimal coverage tests for mcp.file.read_models.
+Minimal coverage tests for mcp_servers.file.read_models.
 """
 
 import dataclasses
 
 import pytest
-from mcp.file.read_models import (
+from mcp_servers.file.read_models import (
     FileReadConfig,
     ListDirectoryRequest,
     ReadTextFileRequest,

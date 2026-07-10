@@ -8,15 +8,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from mcp.file.common import FileAuthorizationError
-from mcp.file.write_models import (
+from mcp_servers.file.common import FileAuthorizationError
+from mcp_servers.file.write_models import (
     CreateDirectoryRequest,
     EditFileRequest,
     EditOperation,
     MoveFileRequest,
     WriteFileRequest,
 )
-from mcp.file.write_service import WriteFileService
+from mcp_servers.file.write_service import WriteFileService
 
 
 @pytest.fixture()
@@ -75,7 +75,7 @@ class TestWriteFileDryRun:
         """PermissionError when reading existing file for dry-run diff must raise FileAuthorizationError."""
         from pathlib import Path as _Path
 
-        from mcp.file.common import FileAuthorizationError
+        from mcp_servers.file.common import FileAuthorizationError
 
         target = tmp_path / "locked.txt"
         target.write_text("old", encoding="utf-8")
@@ -319,7 +319,7 @@ class TestWriteServiceErrorPaths:
     def test_content_exceeds_limit_raises_validation_error(
         self, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileValidationError
+        from mcp_servers.file.common import FileValidationError
 
         svc = WriteFileService(allowed_dirs=[tmp_path], max_write_bytes=10)
         req = WriteFileRequest(path=str(tmp_path / "out.txt"), content="x" * 100)
@@ -329,7 +329,7 @@ class TestWriteServiceErrorPaths:
     def test_dry_run_non_utf8_existing_file_raises_validation_error(
         self, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileValidationError
+        from mcp_servers.file.common import FileValidationError
 
         svc = WriteFileService(allowed_dirs=[tmp_path], max_write_bytes=1024 * 1024)
         target = tmp_path / "binary.bin"

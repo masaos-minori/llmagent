@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 _FORBIDDEN_SECURITY_IMPORTS = [
-    "from mcp.shell.models",
-    "from mcp.git.models",
-    "from mcp.github.models_config",
-    "from mcp.cicd.models",
+    "from mcp_servers.shell.models",
+    "from mcp_servers.git.models",
+    "from mcp_servers.github.models_config",
+    "from mcp_servers.cicd.models",
 ]
 _AUDIT_MODULE = "security_audit_config.py"
 _AGENT_DIR = pathlib.Path("scripts/agent")
@@ -36,7 +36,7 @@ def test_only_audit_module_imports_security_server_config() -> None:
 
 
 def test_load_shell_audit_config_returns_none_on_import_error() -> None:
-    with patch.dict("sys.modules", {"mcp.shell.models": None}):
+    with patch.dict("sys.modules", {"mcp_servers.shell.models": None}):
         from agent.security_audit_config import load_shell_audit_config
 
         result = load_shell_audit_config()
@@ -46,7 +46,7 @@ def test_load_shell_audit_config_returns_none_on_import_error() -> None:
 def test_load_shell_audit_config_raises_on_load_failure() -> None:
     mock_cls = MagicMock()
     mock_cls.load.side_effect = ValueError("bad config")
-    with patch("mcp.shell.models.ShellConfig", mock_cls):
+    with patch("mcp_servers.shell.models.ShellConfig", mock_cls):
         from agent.security_audit_config import load_shell_audit_config
 
         with pytest.raises(RuntimeError, match="shell config"):
@@ -61,7 +61,7 @@ def test_load_shell_audit_config_success() -> None:
     mock_cfg.command_allowlist = ["git", "ls"]
     mock_cls = MagicMock()
     mock_cls.load.return_value = mock_cfg
-    with patch("mcp.shell.models.ShellConfig", mock_cls):
+    with patch("mcp_servers.shell.models.ShellConfig", mock_cls):
         from agent.security_audit_config import load_shell_audit_config
 
         result = load_shell_audit_config()
@@ -74,7 +74,7 @@ def test_load_shell_audit_config_success() -> None:
 
 
 def test_load_git_audit_config_returns_none_on_import_error() -> None:
-    with patch.dict("sys.modules", {"mcp.git.models": None}):
+    with patch.dict("sys.modules", {"mcp_servers.git.models": None}):
         from agent.security_audit_config import load_git_audit_config
 
         result = load_git_audit_config()
@@ -84,7 +84,7 @@ def test_load_git_audit_config_returns_none_on_import_error() -> None:
 def test_load_git_audit_config_raises_on_load_failure() -> None:
     mock_cls = MagicMock()
     mock_cls.load.side_effect = FileNotFoundError("missing")
-    with patch("mcp.git.models.GitConfig", mock_cls):
+    with patch("mcp_servers.git.models.GitConfig", mock_cls):
         from agent.security_audit_config import load_git_audit_config
 
         with pytest.raises(RuntimeError, match="git config"):
@@ -98,7 +98,7 @@ def test_load_git_audit_config_success() -> None:
     mock_cfg.allowed_repo_paths = ["/home/user/repo"]
     mock_cls = MagicMock()
     mock_cls.load.return_value = mock_cfg
-    with patch("mcp.git.models.GitConfig", mock_cls):
+    with patch("mcp_servers.git.models.GitConfig", mock_cls):
         from agent.security_audit_config import load_git_audit_config
 
         result = load_git_audit_config()
@@ -109,7 +109,7 @@ def test_load_git_audit_config_success() -> None:
 
 
 def test_load_github_audit_config_returns_none_on_import_error() -> None:
-    with patch.dict("sys.modules", {"mcp.github.models_config": None}):
+    with patch.dict("sys.modules", {"mcp_servers.github.models_config": None}):
         from agent.security_audit_config import load_github_audit_config
 
         result = load_github_audit_config()
@@ -119,7 +119,7 @@ def test_load_github_audit_config_returns_none_on_import_error() -> None:
 def test_load_github_audit_config_raises_on_load_failure() -> None:
     mock_cls = MagicMock()
     mock_cls.load.side_effect = OSError("io error")
-    with patch("mcp.github.models_config.GitHubConfig", mock_cls):
+    with patch("mcp_servers.github.models_config.GitHubConfig", mock_cls):
         from agent.security_audit_config import load_github_audit_config
 
         with pytest.raises(RuntimeError, match="GitHub config"):
@@ -135,7 +135,7 @@ def test_load_github_audit_config_success() -> None:
     mock_cfg.require_pr_review = False
     mock_cls = MagicMock()
     mock_cls.load.return_value = mock_cfg
-    with patch("mcp.github.models_config.GitHubConfig", mock_cls):
+    with patch("mcp_servers.github.models_config.GitHubConfig", mock_cls):
         from agent.security_audit_config import load_github_audit_config
 
         result = load_github_audit_config()
@@ -150,7 +150,7 @@ def test_load_github_audit_config_success() -> None:
 
 
 def test_load_cicd_audit_config_returns_none_on_import_error() -> None:
-    with patch.dict("sys.modules", {"mcp.cicd.models": None}):
+    with patch.dict("sys.modules", {"mcp_servers.cicd.models": None}):
         from agent.security_audit_config import load_cicd_audit_config
 
         result = load_cicd_audit_config()
@@ -160,7 +160,7 @@ def test_load_cicd_audit_config_returns_none_on_import_error() -> None:
 def test_load_cicd_audit_config_raises_on_load_failure() -> None:
     mock_cls = MagicMock()
     mock_cls.load.side_effect = ValueError("schema error")
-    with patch("mcp.cicd.models.CicdConfig", mock_cls):
+    with patch("mcp_servers.cicd.models.CicdConfig", mock_cls):
         from agent.security_audit_config import load_cicd_audit_config
 
         with pytest.raises(RuntimeError, match="CI/CD config"):
@@ -174,7 +174,7 @@ def test_load_cicd_audit_config_success() -> None:
     mock_cfg.workflow_allowlist = ["deploy", "test"]
     mock_cls = MagicMock()
     mock_cls.load.return_value = mock_cfg
-    with patch("mcp.cicd.models.CicdConfig", mock_cls):
+    with patch("mcp_servers.cicd.models.CicdConfig", mock_cls):
         from agent.security_audit_config import load_cicd_audit_config
 
         result = load_cicd_audit_config()

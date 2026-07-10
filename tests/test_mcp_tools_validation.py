@@ -28,11 +28,11 @@ _PYTHON = sys.executable
 
 # (module_path, expected_tool_names, fixed_port) — each server always binds its own
 # hardcoded http_port (none of these servers parse --host/--port CLI args), so the
-# port here must match scripts/mcp/<name>/server.py's http_port class attribute.
+# port here must match scripts/mcp_servers/<name>/server.py's http_port class attribute.
 _MCP_SERVERS: list[tuple[str, list[str], int]] = [
-    ("mcp.shell.server", ["shell_run"], 8009),
+    ("mcp_servers.shell.server", ["shell_run"], 8009),
     (
-        "mcp.cicd.server",
+        "mcp_servers.cicd.server",
         [
             "trigger_workflow",
             "get_workflow_runs",
@@ -42,7 +42,7 @@ _MCP_SERVERS: list[tuple[str, list[str], int]] = [
         8012,
     ),
     (
-        "mcp.mdq.server",
+        "mcp_servers.mdq.server",
         [
             "search_docs",
             "get_chunk",
@@ -146,7 +146,7 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
 
 def test_read_tools_schema_matches_hand_written() -> None:
     """Generated schema must have the expected tool names and valid inputSchema structure."""
-    from mcp.file.read_tools import TOOL_LIST
+    from mcp_servers.file.read_tools import TOOL_LIST
 
     names = [t["name"] for t in TOOL_LIST]
     assert names == [

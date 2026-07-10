@@ -100,7 +100,7 @@ class TestAgentConfigGetCfg:
 class TestDeleteModelsGetCfg:
     def test_get_cfg_error_path(self) -> None:
         """FileDeleteConfig.load() raises ValueError when ConfigLoader raises."""
-        from mcp.file.delete_models import FileDeleteConfig
+        from mcp_servers.file.delete_models import FileDeleteConfig
 
         with patch.object(ConfigLoader, "load", side_effect=ValueError("not found")):
             with pytest.raises(ValueError, match="not found"):

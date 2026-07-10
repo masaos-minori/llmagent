@@ -36,7 +36,7 @@ class CicdAuditConfig:
 def load_shell_audit_config() -> ShellAuditConfig | None:
     """Load shell config for audit. Returns None if not installed."""
     try:
-        from mcp.shell.models import ShellConfig
+        from mcp_servers.shell.models import ShellConfig
     except ImportError:
         return None
     try:
@@ -54,7 +54,7 @@ def load_shell_audit_config() -> ShellAuditConfig | None:
 def load_git_audit_config() -> GitAuditConfig | None:
     """Load git config for audit. Returns None if not installed."""
     try:
-        from mcp.git.models import GitConfig
+        from mcp_servers.git.models import GitConfig
     except ImportError:
         return None
     try:
@@ -67,7 +67,7 @@ def load_git_audit_config() -> GitAuditConfig | None:
 def load_github_audit_config() -> GitHubAuditConfig | None:
     """Load GitHub config for audit. Returns None if not installed."""
     try:
-        from mcp.github.models_config import GitHubConfig
+        from mcp_servers.github.models_config import GitHubConfig
     except ImportError:
         return None
     try:
@@ -86,7 +86,7 @@ def load_github_audit_config() -> GitHubAuditConfig | None:
 def load_cicd_audit_config() -> CicdAuditConfig | None:
     """Load CI/CD config for audit. Returns None if not installed."""
     try:
-        from mcp.cicd.models import CicdConfig
+        from mcp_servers.cicd.models import CicdConfig
     except ImportError:
         return None
     try:

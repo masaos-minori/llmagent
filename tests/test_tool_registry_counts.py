@@ -68,8 +68,8 @@ class TestRegistryTotalCounts:
         )
 
     def test_mcp_tools_module_count(self) -> None:
-        """TOOL_LIST list in mcp.rag_pipeline.tools has exactly 4 tools."""
-        from mcp.rag_pipeline.tools import TOOL_LIST
+        """TOOL_LIST list in mcp_servers.rag_pipeline.tools has exactly 4 tools."""
+        from mcp_servers.rag_pipeline.tools import TOOL_LIST
 
         assert len(TOOL_LIST) == 4, (
             f"Expected 4 TOOL_LIST entries, got {len(TOOL_LIST)}"

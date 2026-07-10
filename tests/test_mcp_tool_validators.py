@@ -5,8 +5,12 @@ Unit tests for mcp/tool_validators.py and CallToolRequest.validate_args().
 from __future__ import annotations
 
 import pytest
-from mcp.models import CallToolRequest
-from mcp.tool_validators import _VALIDATORS, register_validator, validate_tool_args
+from mcp_servers.models import CallToolRequest
+from mcp_servers.tool_validators import (
+    _VALIDATORS,
+    register_validator,
+    validate_tool_args,
+)
 
 
 class TestRegisterValidator:

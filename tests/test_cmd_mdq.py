@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.commands.cmd_mdq import _MdqMixin
-from mcp.dispatch import DispatchResult
+from mcp_servers.dispatch import DispatchResult
 
 
 class _Ctx:

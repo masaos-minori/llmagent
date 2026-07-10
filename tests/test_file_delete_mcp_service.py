@@ -8,11 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from mcp.file.delete_models import (
+from mcp_servers.file.delete_models import (
     DeleteDirectoryRequest,
     DeleteFileRequest,
 )
-from mcp.file.delete_service import DeleteFileService
+from mcp_servers.file.delete_service import DeleteFileService
 
 
 @pytest.fixture()
@@ -139,7 +139,7 @@ class TestDeleteDirectoryDryRun:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        import mcp.file.delete_service as svc_module
+        import mcp_servers.file.delete_service as svc_module
 
         monkeypatch.setattr(svc_module, "_DRY_RUN_MAX_FILES", 2)
         d = tmp_path / "many"
@@ -160,7 +160,7 @@ class TestDeleteDirectoryDryRun:
         """OSError from individual file stat() in walk must be skipped gracefully."""
         from pathlib import Path as _Path
 
-        import mcp.file.delete_service as svc_module
+        import mcp_servers.file.delete_service as svc_module
 
         d = tmp_path / "walkdir"
         d.mkdir()
@@ -212,7 +212,7 @@ class TestPathAllowlist:
     def test_delete_outside_allowed_dir_raises_403(
         self, service: DeleteFileService, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileAuthorizationError
+        from mcp_servers.file.common import FileAuthorizationError
 
         target = tmp_path / "f.txt"
         target.write_text("x")
@@ -234,7 +234,7 @@ class TestDeleteDirectoryRecursiveSafety:
     def test_recursive_delete_of_allowed_root_raises_auth_error(
         self, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileAuthorizationError
+        from mcp_servers.file.common import FileAuthorizationError
 
         svc = DeleteFileService(
             allowed_dirs=[tmp_path],
@@ -259,7 +259,7 @@ class TestDeleteDirectoryRecursiveSafety:
     def test_non_recursive_root_directory_not_blocked_by_guard(
         self, tmp_path: Path
     ) -> None:
-        from mcp.file.common import FileValidationError
+        from mcp_servers.file.common import FileValidationError
 
         svc = DeleteFileService(
             allowed_dirs=[tmp_path],

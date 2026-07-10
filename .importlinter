@@ -2,7 +2,7 @@
 root_packages =
     agent
     db
-    mcp
+    mcp_servers
     rag
     shared
     eventbus
@@ -10,58 +10,58 @@ root_packages =
 include_external_packages = True
 
 # Dependency hierarchy:
-#   agent → rag, db, shared, mcp (installer only)
-#   mcp   → db, shared
+#   agent → rag, db, shared, mcp_servers (installer only)
+#   mcp_servers   → db, shared
 #   rag   → db, shared
 #   db    → shared
 #   shared → (external only)
 
 [importlinter:contract:shared-is-leaf]
-name = shared must not import from agent, mcp, rag, or db
+name = shared must not import from agent, mcp_servers, rag, or db
 type = forbidden
 source_modules =
     shared
 forbidden_modules =
     agent
-    mcp
+    mcp_servers
     rag
     db
 
 [importlinter:contract:db-only-uses-shared]
-name = db must not import from agent, mcp, or rag
+name = db must not import from agent, mcp_servers, or rag
 type = forbidden
 source_modules =
     db
 forbidden_modules =
     agent
-    mcp
+    mcp_servers
     rag
 
-[importlinter:contract:rag-no-agent-or-mcp]
-name = rag must not import from agent or mcp
+[importlinter:contract:rag-no-agent-or-mcp_servers]
+name = rag must not import from agent or mcp_servers
 type = forbidden
 source_modules =
     rag
 forbidden_modules =
     agent
-    mcp
+    mcp_servers
 
-[importlinter:contract:mcp-no-agent]
-name = mcp must not import from agent
+[importlinter:contract:mcp_servers-no-agent]
+name = mcp_servers must not import from agent
 type = forbidden
 source_modules =
-    mcp
+    mcp_servers
 forbidden_modules =
     agent
 
 [importlinter:contract:eventbus-is-isolated]
-name = eventbus must not import from agent, mcp, rag, db, or shared
+name = eventbus must not import from agent, mcp_servers, rag, db, or shared
 type = forbidden
 source_modules =
     eventbus
 forbidden_modules =
     agent
-    mcp
+    mcp_servers
     rag
     db
     shared
