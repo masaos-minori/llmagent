@@ -95,7 +95,7 @@ Stores diagnostic events (LLM transport errors, guard hints, partial completions
 
 **Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
 
-See [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) for the shared-layer responsibility boundary view.
+See [90_shared_05_db_module_boundaries_and_sqlitehelper.md](90_shared_05_db_module_boundaries_and_sqlitehelper.md) for the shared-layer responsibility boundary view.
 
 ---
 

@@ -190,7 +190,7 @@ The agent uses three SQLite databases. All paths are configured in `agent.toml`.
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Agent sessions, messages |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
 
-Schema details: `90_shared_04_db_architecture_and_schema.md`
+Schema details: `90_shared_04_db_overview_and_config.md`
 
 ### 3.1 Applying schema
 

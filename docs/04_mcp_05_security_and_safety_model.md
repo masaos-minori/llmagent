@@ -267,7 +267,7 @@ Controls whether Bearer-token authentication is required for HTTP MCP servers:
 **Reload boundary:** `/reload` never re-runs this check and never applies
 `auth_token` changes to a running MCP server — token changes are always
 reported as restart-required (see
-[Configuration: Hot-reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility)).
+[Configuration: Hot-reload eligibility](05_agent_08_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)).
 Production auth validation only ever runs at startup; there is no runtime
 path that can weaken or bypass it.
 

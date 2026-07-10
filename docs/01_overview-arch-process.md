@@ -67,7 +67,7 @@ source:
 | ingester | `config/ingester.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-詳細 → [90_shared_03 §2a](90_shared_03_runtime_and_execution.md#2a-プロセス分離方針-config-isolation-policy)
+詳細 → [90_shared_03 §2a](90_shared_03_runtime_and_execution_infra.md#2a-プロセス分離方針-config-isolation-policy)
 
 | サービス | ポート | モデル | 役割 |
 |---|---|---|---|

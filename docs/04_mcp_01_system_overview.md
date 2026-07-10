@@ -1,3 +1,16 @@
+---
+title: "MCP System Overview"
+category: mcp
+tags:
+  - mcp
+  - mcp
+  - system
+  - overview
+  - architecture
+related:
+  - 04_mcp_00_document-guide.md
+---
+
 # MCP System Overview
 
 - Document guide → [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
@@ -126,5 +139,18 @@ MCP server processes (mcp/<name>/server.py)
 | Routing, lifecycle, ToolExecutor | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) |
 | Per-server specifications | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) |
 | Security and safety model | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) |
-| Configuration and operations | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) |
+| Configuration and operations | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md) |
 | Known bugs and inconsistencies | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
+
+## Related Documents
+
+- `mcp`
+- `system`
+- `overview`
+
+## Keywords
+
+mcp
+system
+overview
+architecture

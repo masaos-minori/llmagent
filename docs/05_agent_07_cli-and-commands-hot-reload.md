@@ -16,7 +16,7 @@ related:
 
 load`)
 
-`/reload` loads all 12 base config files (see [Configuration doc](05_agent_08_configuration.md)) and applies changes where possible. Startup-only settings are detected but not applied.
+`/reload` loads all 12 base config files (see [Configuration doc](05_agent_08_configuration-loading-agent-config.md)) and applies changes where possible. Startup-only settings are detected but not applied.
 
 ### Output format
 
@@ -49,7 +49,7 @@ If the file cannot be read: `Reload failed (I/O error): <message>`
 | Startup-only | `[STARTUP-ONLY]` | Read once at boot; ignored by `/reload` even if changed |
 | Skipped | `[SKIP]` | Changes intentionally ignored, not MCP server definitions — see Restart-required |
 
-See [Configuration: Config file reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
+See [Configuration: Config file reload eligibility](05_agent_08_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
 
 ---
 

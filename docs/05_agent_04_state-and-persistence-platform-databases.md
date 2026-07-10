@@ -22,7 +22,7 @@ nt layer operates across three SQLite databases:
 | `rag.sqlite` | RAG documents, chunks, embeddings | `90_shared_04` §3-§6 |
 | `workflow.sqlite` | Task tracking, event processing | `90_shared_04` §7 |
 
-DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `agent.toml`. Full schema details: `90_shared_04_db_architecture_and_schema.md`.
+DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `agent.toml`. Full schema details: `90_shared_04_db_overview_and_config.md`.
 
 **DB ownership:**
 

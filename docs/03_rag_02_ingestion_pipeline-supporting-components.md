@@ -22,7 +22,7 @@ source:
 # RAG Ingestion Pipeline
 
 - System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_configuration_and_operations.md)
+- Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
@@ -48,7 +48,7 @@ source:
 | `embedding_dims` | 384 | Expected embedding vector dimension; validated against API response |
 | `strict_artifact_validation` | False | Require `schema_version`, `artifact_type`, `created_by` in chunk JSON payloads |
 
-See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_and_operations.md).
+See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_1-configuration-reference.md).
 
 ---
 

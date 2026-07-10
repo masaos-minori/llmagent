@@ -39,7 +39,7 @@ Both layers are canonical; boundaries and responsibilities are explicit, not exc
 
 The workflow-level approval gate is controlled by `AgentConfig.workflow_require_approval`
 (default `False`). Set `workflow_require_approval = true` in the agent config to enable it.
-See [AgentConfig Structure](05_agent_08_configuration.md#agentconfig-structure) for the field
+See [AgentConfig Structure](05_agent_08_configuration-loading-agent-config.md#agentconfig-structure) for the field
 reference and startup-only classification.
 
 ### Coexistence Rules

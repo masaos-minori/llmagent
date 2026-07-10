@@ -2,7 +2,7 @@
 
 - System overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
 - Security model → [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md)
-- Configuration → [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md)
+- Configuration → [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration-file-inventory.md)
 
 ## Purpose
 
@@ -299,7 +299,7 @@ All tools do not require config (`requires_config: false`).
 
 **Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `embedding_dims` (default 384), `vector_table`, `embedding_model`, `max_chars_per_match` (default 500), `context_before` (default 2), `context_after` (default 2), `max_outline_depth` (default 6), `sqlite_busy_timeout` (default 5000)
 
-**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_configuration_and_operations.md#health-probes))
+**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns richer fields than base response (see [04_mcp_06 §Health probes](04_mcp_06_verification-methods.md#health-probes))
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`

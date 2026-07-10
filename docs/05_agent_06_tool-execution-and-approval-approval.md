@@ -135,7 +135,7 @@ Hint appended to history when a tool result is dropped due to the per-turn limit
 [Result omitted: per-turn tool result limit reached.]
 ```
 
-This hint is appended when `tool_results_turn_max_chars` (see [05_agent_08_configuration.md](05_agent_08_configuration.md)) is exceeded.
+This hint is appended when `tool_results_turn_max_chars` (see [05_agent_08_configuration-loading-agent-config.md](05_agent_08_configuration-loading-agent-config.md)) is exceeded.
 
 ---
 

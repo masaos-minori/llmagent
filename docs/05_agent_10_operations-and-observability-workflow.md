@@ -148,7 +148,7 @@ The a
 gent unconditionally validates that a workflow definition file exists before
 initializing the orchestrator — there is no config setting to disable or degrade this
 (verified 2026-07-09: `workflow_mode` is not a valid config key — see
-[Configuration: AgentConfig Structure](05_agent_08_configuration.md#agentconfig-structure)).
+[Configuration: AgentConfig Structure](05_agent_08_configuration-loading-agent-config.md#agentconfig-structure)).
 If the file is missing, a `RuntimeError` is raised with actionable guidance.
 
 **Expected path:** `config/workflows/default.json`

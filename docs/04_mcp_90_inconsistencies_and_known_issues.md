@@ -1,3 +1,16 @@
+---
+title: "MCP Inconsistencies and Known Issues"
+category: mcp
+tags:
+  - mcp
+  - mcp
+  - inconsistencies
+  - known-issues
+  - bugs
+related:
+  - 04_mcp_00_document-guide.md
+---
+
 # MCP Inconsistencies and Known Issues
 
 This file catalogs bugs, unimplemented features, spec conflicts, and undefined behavior
@@ -13,4 +26,15 @@ Each entry format:
 
 ---
 
+## Related Documents
 
+- `mcp`
+- `inconsistencies`
+- `known-issues`
+
+## Keywords
+
+mcp
+inconsistencies
+known-issues
+bugs

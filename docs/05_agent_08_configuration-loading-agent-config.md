@@ -28,7 +28,7 @@ the `AgentConfig` dataclass.
 Historical note: Earlier versions loaded 12 separate files (`common.toml`, `llm.toml`, `http.toml`, `context.toml`, `rag.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `tools_definitions.toml`, plus per-server `*_mcp_server.toml`). These were consolidated into `agent.toml`; the split files no longer exist.
 
 For the canonical config ownership table (owning layer per file), see
-[90_shared_03 §2a Config Ownership](90_shared_03_runtime_and_execution.md#2a-config-ownership).
+[90_shared_03 §2a Config Ownership](90_shared_03_runtime_and_execution_infra.md#2a-config-ownership).
 
 `ctx.cfg` holds the config. `/reload` calls `ConfigLoader().load_all()` to
 re-read all base config files, then passes the merged dict to

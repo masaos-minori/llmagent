@@ -1,3 +1,16 @@
+---
+title: "MCP Tool Schema Export Policy"
+category: mcp
+tags:
+  - mcp
+  - mcp
+  - tool-schema
+  - export
+  - policy
+related:
+  - 04_mcp_00_document-guide.md
+---
+
 # MCP Tool Schema Export Naming Policy
 
 ## Canonical Export: `TOOL_LIST`
@@ -28,3 +41,16 @@ All MCP servers have been migrated to `TOOL_LIST`. The migration was completed i
 After all migrations:
 - Run: `pytest tests/test_<name>_mcp_service.py -v`
 - Run: `pytest tests/test_mcp_tool_schema_exports.py -v` — asserts every active MCP tool schema module exports TOOL_LIST as a non-empty list of dicts with "name" key, and no module uses the legacy _MCP_TOOLS name.
+
+## Related Documents
+
+- `mcp`
+- `tool-schema`
+- `export`
+
+## Keywords
+
+mcp
+tool-schema
+export
+policy

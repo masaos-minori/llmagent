@@ -1,3 +1,23 @@
+---
+title: "MCP Documentation Guide"
+category: mcp
+tags:
+  - mcp
+  - documentation
+  - guide
+  - routing
+  - file-index
+related:
+  - 04_mcp_01_system_overview.md
+  - 04_mcp_02_protocol_and_transport.md
+  - 04_mcp_03_routing_lifecycle_and_execution.md
+  - 04_mcp_04_server_catalog.md
+  - 04_mcp_05_security_and_safety_model.md
+  - 04_mcp_06_configuration-file-inventory.md
+  - 04_mcp_07_tool_schema_export_policy.md
+  - 04_mcp_90_inconsistencies_and_known_issues.md
+---
+
 # MCP Documentation Guide
 
 Entry point for the restructured MCP documentation set.
@@ -5,32 +25,10 @@ Read this file first to choose which chapter to open.
 
 ---
 
-## Purpose of This Document Set
-
-These 8 files document the MCP (Model Context Protocol) layer: 11 tool servers that give
-the agent safe, controlled access to external resources.
-
-They replace the original source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`)
-as the primary reference. Legacy source files have been deleted (git history preserves all content).
-
----
-
-## Recommended Reading Order (Human)
+## Reading Order
 
 ```
-01 System Overview               — start here; server list, ports, transport types
-    ↓
-02 Protocol and Transport        — HTTP format, auth, audit log, truncation
-    ↓
-03 Routing, Lifecycle, Execution — ToolExecutor, routing, startup modes, watchdog
-    ↓
-04 Server Catalog                — per-server specs (all 11 servers)
-    ↓
-05 Security and Safety Model     — allowlists, denylist, fail-open/closed, risk tiers
-    ↓
-    06 Configuration and Operations  — config files, health probes, new server checklist
-    ↓
-    90 Inconsistencies and Issues    — bugs, placeholders, spec conflicts
+01 → 02 → 03 → 04 → 05 → 06 → 90
 ```
 
 ---
@@ -95,15 +93,32 @@ as the primary reference. Legacy source files have been deleted (git history pre
 
 | File | Description |
 |---|---|
-| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | Purpose, 11-server catalog with ports, transport types, startup modes, major constraints |
-| [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | `/v1/call_tool` format, Pydantic models, MCPServer base, HTTP format, auth, audit log |
-| [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ToolRouteResolver, ToolExecutor, HttpTransport, startup modes, watchdog, new server |
-| [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
-| [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes; MDQ vs RAG boundary |
-| [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |
-| [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Canonical TOOL_LIST export naming policy for all MCP server tools.py modules; migration history |
-| ~~04_mcp_07_mdq_rag_boundary.md~~ | **Removed.** Content now in [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) |
-| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MCP-01 through MCP-09 active issues with AI safety guidance; MCP-05 resolved 2026-06-18 |
+| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | Entry point |
+| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | System overview |
+| [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | Protocol and transport |
+| [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | Routing and lifecycle |
+| [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Server catalog |
+| [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Security model |
+| [04_mcp_06_purpose.md](04_mcp_06_purpose.md) | Config purpose |
+| [04_mcp_06_configuration-file-inventory.md](04_mcp_06_configuration-file-inventory.md) | Config inventory |
+| [04_mcp_06_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig fields |
+| [04_mcp_06_major-default-values.md](04_mcp_06_major-default-values.md) | Default values |
+| [04_mcp_06_long-running-http-operation-startup_modesubprocess.md](04_mcp_06_long-running-http-operation-startup_modesubprocess.md) | Long-running ops |
+| [04_mcp_06_verification-methods.md](04_mcp_06_verification-methods.md) | Verification |
+| [04_mcp_06_reading-audit-logs.md](04_mcp_06_reading-audit-logs.md) | Audit logs |
+| [04_mcp_06_end-to-end-tool-call-tracing.md](04_mcp_06_end-to-end-tool-call-tracing.md) | Tracing |
+| [04_mcp_06_mcp-failure-diagnosis.md](04_mcp_06_mcp-failure-diagnosis.md) | Failure diagnosis |
+| [04_mcp_06_settings-with-high-operational-impact.md](04_mcp_06_settings-with-high-operational-impact.md) | High-impact settings |
+| [04_mcp_06_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_startup-validation-behavior-tool_definitions_strict.md) | Startup validation |
+| [04_mcp_06_watchdog-configuration-monitoring.md](04_mcp_06_watchdog-configuration-monitoring.md) | Watchdog config |
+| [04_mcp_06_watchdog-health-reasons-scheduling.md](04_mcp_06_watchdog-health-reasons-scheduling.md) | Watchdog health |
+| [04_mcp_06_new-tool-registration-procedure.md](04_mcp_06_new-tool-registration-procedure.md) | New tool reg |
+| [04_mcp_06_new-mcp-server-addition-checklist.md](04_mcp_06_new-mcp-server-addition-checklist.md) | New server checklist |
+| [04_mcp_06_pre-production-fail-open-checklist.md](04_mcp_06_pre-production-fail-open-checklist.md) | Pre-prod checklist |
+| [04_mcp_06_local-to-production-auth-migration.md](04_mcp_06_local-to-production-auth-migration.md) | Auth migration |
+| [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Schema export |
+| ~~04_mcp_07_mdq_rag_boundary.md~~ | Removed |
+| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | Known issues |
 
 ---
 
@@ -143,3 +158,22 @@ If recovery is needed, use `git log --all -- docs/<filename>`.
 ## Known Limitations
 
 - `04_spec_mcp.md` §13 known issues are fully transcribed into `04_mcp_90`.
+
+## Related Documents
+
+- `04_mcp_01_system_overview.md`
+- `04_mcp_02_protocol_and_transport.md`
+- `04_mcp_03_routing_lifecycle_and_execution.md`
+- `04_mcp_04_server_catalog.md`
+- `04_mcp_05_security_and_safety_model.md`
+- `04_mcp_06_configuration-file-inventory.md`
+- `04_mcp_07_tool_schema_export_policy.md`
+- `04_mcp_90_inconsistencies_and_known_issues.md`
+
+## Keywords
+
+mcp
+documentation
+guide
+routing
+file-index

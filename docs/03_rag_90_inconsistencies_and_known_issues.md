@@ -1,3 +1,20 @@
+---
+title: "RAG Inconsistencies and Known Issues"
+category: rag
+tags:
+  - rag
+  - rag
+  - inconsistencies
+  - known-issues
+  - bugs
+  - open-questions
+related:
+  - 03_rag_00_document-guide.md
+  - 03_rag_00_document-guide.md
+  - 03_rag_91_design_notes-part1.md
+  - 03_rag_91_design_notes-part2.md
+---
+
 # RAG Inconsistencies and Known Issues
 
 This file catalogs known bugs, spec conflicts, document inconsistencies, and open questions
@@ -97,5 +114,16 @@ that callers must trigger cache invalidation separately.
 
 ---
 
+## Related Documents
 
+- `03_rag_00_document-guide.md`
+- `03_rag_91_design_notes-part1.md`
+- `03_rag_91_design_notes-part2.md`
 
+## Keywords
+
+rag
+inconsistencies
+known-issues
+bugs
+open-questions
