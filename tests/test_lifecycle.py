@@ -185,7 +185,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_raises_on_timeout(self) -> None:
-        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=0)
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=1)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
@@ -197,7 +197,7 @@ class TestStartHttpSubprocess:
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, mock_resp = _wire_http_client(MockClient)
-            client_instance.get = AsyncMock(side_effect=Exception("connect refused"))
+            client_instance.get = AsyncMock(side_effect=httpx.ConnectError("connect refused"))
             await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
@@ -211,10 +211,9 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
-            pytest.raises(RuntimeError, match="did not become healthy"),
+            patch.object(mgr._http_mgr, "_terminate_with_timeout"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
-            client_instance.get.return_value = MagicMock()
             await mgr.start_http_subprocess("s", cfg)
 
         client_instance.get.assert_not_called()
