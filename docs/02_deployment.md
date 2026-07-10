@@ -1,3 +1,16 @@
+---
+title: "Deployment Guide"
+category: deployment
+tags:
+  - deployment
+  - environment
+  - setup
+related:
+  - 01_overview.md
+source:
+  - 02_deployment.md
+---
+
 # 導入手順・デプロイ
 
 ## 1. 事前準備
@@ -188,4 +201,17 @@ bash deploy/init_db.sh
 # Verify tables (chunks  chunks_fts  chunks_vec  documents)
 ```
 
+## Related Documents
+
+- `01_overview.md`
+
+## Keywords
+
+deployment
+environment
+setup
+installation
+llama-cpp
+sqlite-vec
+db-initialization
 

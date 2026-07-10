@@ -1,15 +1,25 @@
 ---
-title: "概要・アーキテクチャ（プロセス構成）"
+title: "Process Architecture"
 category: overview
 tags:
-  - overview
+  - process-architecture
+  - system-overview
   - architecture
+  - process-model
+  - agent
+  - mcp-server
+  - llm-service
 related:
+  - 01_overview-arch-pipelines.md
+  - 01_overview-arch-features.md
   - 01_overview.md
-  - 01_overview-files.md
 source:
   - 01_overview-arch.md
 ---
+
+# 概要・アーキテクチャ
+
+ファイル構成 → [`01_overview-files-build.md`](01_overview-files-build.md), [`01_overview-files-rag.md`](01_overview-files-rag.md), [`01_overview-files-scripts.md`](01_overview-files-scripts.md), [`01_overview-files-shared.md`](01_overview-files-shared.md), [`01_overview-files-config.md`](01_overview-files-config.md), [`01_overview-files-misc.md`](01_overview-files-misc.md)
 
 ## 1. 概要・目的
 
@@ -21,6 +31,7 @@ source:
 - 対象 OS は Gentoo Linux or Ubuntu Linux
 - 用途はプログラム開発
 
+## 2. アーキテクチャ
 
 ### 2.1 プロセス構成
 
@@ -72,15 +83,12 @@ source:
 | `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP サーバ |
 | `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP サーバ |
 | `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |
-## Related Documents
-
-- `01_overview.md`
-- `01_overview-files.md`
 
 ## Keywords
 
-architecture
-process
-pipeline
-feature
-implementation
+process-architecture
+system-overview
+agent
+mcp-server
+llm-service
+configuration-isolation

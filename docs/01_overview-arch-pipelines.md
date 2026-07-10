@@ -1,15 +1,27 @@
 ---
-title: "概要・アーキテクチャ（パイプライン）"
+title: "Pipeline Architecture"
 category: overview
 tags:
-  - overview
+  - pipeline-architecture
+  - ingestion-pipeline
+  - query-pipeline
+  - rag
   - architecture
+  - embedding
+  - search
 related:
+  - 01_overview-arch-process.md
+  - 01_overview-arch-features.md
   - 01_overview.md
-  - 01_overview-files.md
 source:
   - 01_overview-arch.md
 ---
+
+# 概要・アーキテクチャ
+
+ファイル構成 → [`01_overview-files-build.md`](01_overview-files-build.md), [`01_overview-files-rag.md`](01_overview-files-rag.md), [`01_overview-files-scripts.md`](01_overview-files-scripts.md), [`01_overview-files-shared.md`](01_overview-files-shared.md), [`01_overview-files-config.md`](01_overview-files-config.md), [`01_overview-files-misc.md`](01_overview-files-misc.md)
+
+## 2. アーキテクチャ
 
 ### 2.2 取込パイプライン
 
@@ -20,7 +32,6 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
            → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.json
            → ingester.py (embed → SQLite INSERT) → rag-src/registered/
 ```
-
 
 ### 2.3 クエリパイプライン
 
@@ -70,15 +81,13 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 - `subprocess`: エージェント起動時にサブプロセスとして起動し、`/health` ポーリングで準備完了を確認する。起動失敗は `RuntimeError` ではなく警告ログに留め、REPL 起動を継続する (fail-open)。
 
 (根拠: `shared/mcp_config.py`, `agent/startup.py`)
-## Related Documents
-
-- `01_overview.md`
-- `01_overview-files.md`
 
 ## Keywords
 
-architecture
-process
-pipeline
-feature
-implementation
+pipeline-architecture
+ingestion-pipeline
+query-pipeline
+rag
+turn-processing
+workflow-mode
+startup-mode

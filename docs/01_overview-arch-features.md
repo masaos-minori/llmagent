@@ -1,22 +1,32 @@
 ---
-title: "概要・アーキテクチャ（機能・実装）"
+title: "Feature Architecture"
 category: overview
 tags:
-  - overview
-  - architecture
+  - feature-architecture
+  - implemented-features
+  - agent-context
+  - memory-layer
+  - tool-routing
+  - plugin-system
+  - sqlite-vec
+  - diagnostic-store
 related:
+  - 01_overview-arch-process.md
+  - 01_overview-arch-pipelines.md
   - 01_overview.md
-  - 01_overview-files.md
 source:
   - 01_overview-arch.md
 ---
 
-### 2.4 エージェント機能・コマンド一覧
+# 概要・アーキテクチャ
+
+ファイル構成 → [`01_overview-files-build.md`](01_overview-files-build.md), [`01_overview-files-rag.md`](01_overview-files-rag.md), [`01_overview-files-scripts.md`](01_overview-files-scripts.md), [`01_overview-files-shared.md`](01_overview-files-shared.md), [`01_overview-files-config.md`](01_overview-files-config.md), [`01_overview-files-misc.md`](01_overview-files-misc.md)
+
+## 2.4 エージェント機能・コマンド一覧
 
 詳細 → [`05_agent_07_cli-and-commands.md`](05_agent_07_cli-and-commands.md)
 
-
-### 2.5 実装済み機能サマリ
+## 2.5 実装済み機能サマリ
 
 | 機能 | 実装場所 |
 |---|---|
@@ -72,15 +82,20 @@ REPLループの `finally` ブロックで以下を実行する:
 診断情報は `/db` コマンドで参照できる。(根拠: `agent/repl.py`)
 
 ---
+
 ## Related Documents
 
+- `01_overview-arch-process.md`
+- `01_overview-arch-pipelines.md`
 - `01_overview.md`
-- `01_overview-files.md`
 
 ## Keywords
 
-architecture
-process
-pipeline
-feature
-implementation
+feature-architecture
+implemented-features
+agent-context
+memory-layer
+tool-routing
+plugin-system
+sqlite-vec
+diagnostic-store

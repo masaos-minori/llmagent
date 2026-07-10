@@ -1,16 +1,34 @@
 ---
-title: "ファイル構成（スクリプト・パッケージ）"
+title: "Scripts File Structure"
 category: overview
 tags:
-  - overview
+  - scripts
+  - agent
+  - mcp-server
+  - rag-pipeline
   - file-structure
+  - source-code
 related:
+  - 01_overview-files-build.md
+  - 01_overview-files-rag.md
+  - 01_overview-files-shared.md
+  - 01_overview-files-config.md
+  - 01_overview-files-misc.md
   - 01_overview.md
-  - 01_overview-arch-process.md
 source:
   - 01_overview-files.md
 ---
 
+# ファイル構成
+
+アーキテクチャ概要 → [`01_overview-arch-process.md`](01_overview-arch-process.md), [`01_overview-arch-pipelines.md`](01_overview-arch-pipelines.md), [`01_overview-arch-features.md`](01_overview-arch-features.md)
+
+## 3. ファイル構成
+
+デプロイ先のディレクトリ構成:
+
+```
+/opt/llm/
 ├─ scripts/
 │   ├─ agent.py                             # CLI エントリポイント (AgentREPL を起動)
 │   ├─ agent/                               # エージェント REPL パッケージ
@@ -134,9 +152,9 @@ source:
 │   │   │    ├─ enums.py                    # 空ファイル: カナonicalな列挙型は agent.memory.enums / agent.tool_enums
 │   │   │    ├─ exceptions.py               # 空ファイル: カナonicalな例外は agent.commands/agent.services/agent.memory/agent.tool_exceptions
 │   │   │    ├─ health_models.py            # ヘルスチェックモデル
-│   │   │    │    ├─ ServiceWarning: label, url, message
-│   │   │    │    ├─ HealthCheckResult: warnings, errors; has_issues (prop), warning_messages(), error_messages()
-│   │   │    │    └─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
+│   │   │   │    ├─ ServiceWarning: label, url, message
+│   │   │   │    ├─ HealthCheckResult: warnings, errors; has_issues (prop), warning_messages(), error_messages()
+│   │   │   │    └─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
 │   │   │    └─ models.py                   # エージェント共通データモデル
 │   │   │       ├─ ToolApprovalEvent: event, task_id, tool, operation_type, resource_scope, risk, decision, args_preview, ts, workflow_id, session_id
 │   │   │       ├─ ApprovalDecisionEvent: event, task_id, tool, risk_level, decision, escalation_reason, ts, workflow_id, session_id
@@ -271,139 +289,21 @@ source:
 │   │       ├─ git_security.py              # Git セキュリティ
 │   │       ├─ format_output.py             # Git 出力フォーマット
 │   │       └─ __init__.py                  # Git MCP パッケージ初期化
-│   ├─ rag/                                 # RAG パイプラインパッケージ
-│   │   ├─ __init__.py                      # RAG パッケージ初期化
-│   │   ├─ pipeline.py                      # RagPipeline: MQE → ベクトル/FTS5 → RRF → 再ランク
-│   │   ├─ pipeline_refiner.py              # refine_context(): reranked hits → LLM によるキーポイント圧縮
-│   │   ├─ pipeline_service.py              # call_rag_service(): RAG サービス HTTP 呼び出し (指数バックオフリトライ)
-│   │   ├─ http_augment.py                  # HTTP RAG エージェント外部サービスに委譲
-│   │   ├─ repository.py                    # chunks_vec / chunks_fts アクセス層
-│   │   ├─ cache.py                         # SemanticCache: 埋め込みベース LRU セマンティックキャッシュ
-│   │   ├─ stage.py                         # PipelineStage Protocol / PipelineContext データクラス
-│   │   ├─ maintenance.py                   # RagDbMaintenanceService: FTS5 再構築・WAL チェックポイント・VACUUM
-│   │   ├─ llm_client.py                    # RagLLM: RAG 専用 LLM クライアント (MQE・再ランク用)
-│   │   ├─ llm_prompts.py                   # RAG パイプライン LLM プロンプトテンプレート
-│   │   ├─ enums.py                         # RAG 列挙型
-│   │   ├─ exceptions.py                    # RAG 例外定義
-│   │   ├─ types.py                         # RawHit / MergedHit / RankedHit 等の型定義
-│   │   ├─ utils.py                         # RAG ユーティリティ
-│   │   ├─ models_audit.py                  # RAG 監査データモデル
-│   │   ├─ models_config.py                 # RAG 設定データモデル
-│   │   ├─ models_data.py                   # RAG データモデル
-│   │   ├─ models_result.py                 # RAG 結果データモデル
-│   │   ├─ mcp/                             # RAG MCP サーバモジュール
-│   │   │   └─ __init__.py                  # RAG MCP パッケージ初期化
-│   │   ├─ ingestion/                       # クロール・チャンク分割・DB 投入
-│   │   │   ├─ document_manager.py          # ドキュメントライフサイクル管理 (RagIngester)
-│   │   │   ├─ crawler.py                   # クローラー
-│   │   │   ├─ crawler_utils.py             # クローラーユーティリティ
-│   │   │   ├─ etag_manager.py              # ETag キャッシュ管理 (クロール差分検出)
-│   │   │   ├─ chunk_splitter.py            # チャンク分割エントリポイント
-│   │   │   ├─ chunk_japanese.py            # 日本語チャンク分割
-│   │   │   ├─ chunk_english.py             # 英語チャンク分割
-│   │   │   ├─ chunk_utils.py               # チャンク分割ユーティリティ
-│   │   │   ├─ pipeline_utils.py            # パイプラインユーティリティ
-│   │   │   └─ ingester.py                  # DB 投入 (registered/ へ移動)
-│   │   └─ stages/                          # search / fusion / mqe / augment / rerank
-│   │       ├─ __init__.py                  # stages パッケージ初期化
-│   │       ├─ augment.py                   # 文脈拡張ステージ
-│   │       ├─ fusion.py                    # RRF マージステージ
-│   │       ├─ mqe.py                       # メタクエリ生成ステージ
-│   │       ├─ rerank.py                    # リランクステージ
-│   │       └─ search.py                    # ベクトル/FTS5 検索ステージ
-│   ├─ db/                                  # DB 層パッケージ
-│   │   ├─ __init__.py                      # モジュール初期化
-│   │   ├─ create_schema.py                 # SQLite スキーマ初期化
-│   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
-│   │   ├─ helper.py                        # 接続管理 (WAL / busy_timeout)
-│   │   ├─ maintenance.py                   # 運用ポリシー
-│   │   ├─ config.py                        # DbConfig データクラス・SQLite パスビルダ
-│   │   ├─ models.py                        # WalCheckpointCounts / PurgeCounts / DbHealthMetrics / DocumentRow / SessionRow / MessageRow
-│   │   ├─ store.py                         # Protocol 抽象レイヤー
-│   │   ├─ store_protocols.py               # VectorStore / DocumentStore / SessionStore Protocol 定義
-│   │   ├─ store_impl.py                    # SQLiteVectorStore / SQLiteDocumentStore / SQLiteSessionStore 実装
-│   │   ├─ rag_consistency.py               # RAG インデックス整合性チェック
-│   │   ├─ rotation.py                      # データベースローテーション
-│   │   └─ recovery.py                      # コーrupted DB リカバリ
-│   └─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
-│       ├─ __init__.py                      # shared パッケージ初期化
-│       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
-│       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)
-│       ├─ llm_exceptions.py                # LLMErrorKind リテラル、LLMTransportError エラー型 (kind/phase/url/status_code/retryable/partial_text/detail)
-│       ├─ llm_transport_errors.py          # LlmTransportErrorHandler: raise_http_status_error / translate_stream_error
-│       ├─ llm_sse_stream.py                # LlmSseStreamHandler: read_next_chunk / stream_once
-│       ├─ llm_sse_helpers.py               # LlmSseHelpers: merge_tool_call_delta / build_stream_response
-│       ├─ llm_reconnect.py                 # LlmReconnectHandler: resolve_retryable / stream
-│       ├─ llm_hot_config.py                # LlmHotConfigHandler: ホットリロード設定フィールド
-│       ├─ llm_retry.py                     # LlmRetryHandler: 指数バックオフ LLM HTTP リクエストリトライ
-│       ├─ llm_payload.py                   # LlmPayloadHandler: build_payload / parse_response
-│       ├─ sse_parser.py                    # RobustSSEParser: 状態管理 SSE パーサ (UTF-8 増分デコード + ハートビート追跡 + 不正フレーム予算)
-│       ├─ tool_executor.py                 # ToolExecutor: MCP サーバルーティング・TTL キャッシュ
-│       ├─ tool_executor_helpers.py         # is_side_effect() / format_transport_error() / tool_hash_key(): ツール実行ヘルパー関数
-│       ├─ tool_transport_invoker.py        # ToolTransportInvoker: トランスポート層 MCP 呼び出し (ヘルス/ライフサイクル/セマフォ/呼び出し記録)
-│       ├─ tool_registry.py                 # ToolDefinition データクラス、ToolRegistry クラス — MCP ツールレジストリとドリフト検証
-│       ├─ tool_spec.py                     # ToolSpec: ツール呼び出し実行メタデータ (call_id / name / args / resource_scope / requires_serial / is_write)
-│       ├─ tool_cache.py                    # CacheEntry データクラス、ToolResultCache — LRU キャッシュ + TTL
-│       ├─ tool_lifecycle.py                # LifecycleProtocol: MCP サーバライフサイクルプロトコル
-│       ├─ tool_routing_validation.py       # validate_routing_against_config() / validate_routing_against_live() / validate_all_routing(): ドリフト検証関数
-│       ├─ tool_constants.py                # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
-│       ├─ types.py                         # 共通型定義 (LLMMessage, RagConfig, RagHit/RawHit/MergedHit/RankedHit, LLMUsage, LLMResponse, ActionResult, ArtifactEvent, ShellPolicy, ツール frozenset)
-│       ├─ mcp_config.py                    # McpServerConfig データクラス、McpServerHealthState / McpServerHealthRegistry を再エクスポート
-│       ├─ mcp_health.py                    # McpServerHealthState (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN) 列挙型、McpServerHealthRegistry — ディスパッチゲート用ヘルス追跡
-│       ├─ config_loader.py                 # TOML/JSON 共通設定ローダー
-│       ├─ config_errors.py                 # ConfigMissingError / ConfigParseError / ConfigReadError / ConfigPermissionError エラー型
-│       ├─ config_validator.py              # RagConfigValidator: embedding_dim/vec_dim 整合性チェック、use_rrf 警告、semantic_cache_threshold 健全性チェック
-│       ├─ production_config_validator.py   # ProductionConfigValidator: 本番環境固有の設定検証 (allowed_repos_mode fail-fast 等)
-│       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
-│       ├─ plugin_registries.py             # プラグインレジストリ一覧
-│       ├─ plugin_tool_invoker.py           # PluginToolInvoker: プラグインツール呼び出し (防御的タプル検証)
-│       ├─ plugin_auto_discover.py          # load_plugins(): *.py からプラグイン自動発見 + 競合検証
-│       ├─ plugin_conflicts.py              # プラグイン競合検出
-│       ├─ plugin_result.py                 # PluginFailure / PluginLoadResult データクラス、PluginLoadError 例外
-│       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
-│       ├─ action_result.py                 # ActionResult データクラス (ActionType リテラル) — 機械判定パス向け汎用アクション/結果スキーマ
-│       ├─ events.py                        # ArtifactEvent / RetryEvent TypedDict — ライフサイクル/成果物通知の型定義 (配送機構なし)
-│       ├─ transport_dto.py                 # ToolCallResult / TransportErrorInfo データクラス — MCP ツール実行結果とトランスポート失敗情報
-│       ├─ formatters.py                    # MCP 全サーバ共通出力フォーマッタ (truncate / fmt_size / fmt_md_link / fmt_kvlog 等)
-│       ├─ git_helper.py                    # get_repo_info(): GitPython でブランチ・コミット情報取得 (/context 表示用)
-│       ├─ http_transport.py                # HTTP トランスポート層
-│       ├─ json_utils.py                    # JSON ユーティリティ
-│       ├─ logger.py                        # ロギング設定
-│       ├─ otel_noop.py                     # OpenTelemetry ノップ実装
-│       ├─ otel_tracer.py                   # OpenTelemetry トレース
-│       ├─ token_counter.py                 # トークンカウンター
-│       └─ token_estimation.py              # トークン推定
-│       ├─ protocols/                       # 共有プロトコル定義
-│       │   ├─ __init__.py                  # プロトコルパッケージ初期化
-│       │   └─ shell.py                     # ShellPolicy プロトコル
-│   ├─ eventbus/                            # イベントバスパッケージ
-│   │   ├─ app.py                           # FastAPI アプリケーション
-│   │   ├─ broker.py                        # メッセージブローカー
-│   │   ├─ config.py                        # イベントバス設定
-│   │   ├─ db.py                            # データベースアクセス層
-│   │   ├─ offsets.py                       # オフセット管理
-│   │   ├─ dlq.py                           # DLQ (Dead Letter Queue)
-│   │   ├─ publish_route.py                 # publish エンドポイント
-│   │   ├─ subscribe_route.py               # subscribe エンドポイント
-│   │   ├─ ack_route.py                     # ack エンドポイント
-│   │   ├─ dlq_route.py                     # DLQ エンドポイント
-│   │   ├─ replay_route.py                  # リプレイエンドポイント
-│   │   ├─ health_route.py                  # ヘルスチェックエントポイント
-│   │   ├─ schema.sql                       # イベントバスDBスキーマ
-│   │   └─ __init__.py                      # イベントバスパッケージ初期化
-   └─ logs/                                    # 各サービスのログファイル出力先
+```
+
 ## Related Documents
 
-- `01_overview.md`
-- `01_overview-arch-process.md`
+- `01_overview-files-build.md`
+- `01_overview-files-rag.md`
+- `01_overview-files-shared.md`
+- `01_overview-files-config.md`
+- `01_overview-files-misc.md`
 
 ## Keywords
 
-file-structure
-directory
-layout
-configuration
 scripts
-shared
-database
-event-bus
+agent
+mcp-server
+rag-pipeline
+file-structure
+source-code

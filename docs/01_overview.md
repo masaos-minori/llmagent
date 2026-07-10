@@ -1,22 +1,59 @@
+---
+title: "System Overview Index"
+category: overview
+tags:
+  - system-overview
+  - architecture
+  - introduction
+  - index
+related:
+  - 01_overview-arch-process.md
+  - 01_overview-arch-pipelines.md
+  - 01_overview-arch-features.md
+  - 01_overview-files-build.md
+  - 01_overview-files-rag.md
+  - 01_overview-files-scripts.md
+  - 01_overview-files-shared.md
+  - 01_overview-files-config.md
+  - 01_overview-files-misc.md
+source:
+  - 01_overview.md
+---
+
 # Overview & Architecture & File Structure (Index)
 
 | File | Content |
 |---|---|
-| [01_overview-arch.md](01_overview-arch.md) | Overview, purpose, architecture (process config, ingestion pipeline, query pipeline, turn processing order, MCP server list, implemented features, implementation notes) |
-| [01_overview-files.md](01_overview-files.md) | File structure (deploy destination `/opt/llm/` directory layout, source module list) |
+| [01_overview-arch-process.md](01_overview-arch-process.md) | Process architecture (LLM services, MCP servers, configuration isolation) |
+| [01_overview-arch-pipelines.md](01_overview-arch-pipelines.md) | Pipeline architecture (ingestion/query pipelines, turn processing order, workflow modes) |
+| [01_overview-arch-features.md](01_overview-arch-features.md) | Feature architecture (implemented features, implementation notes) |
+| [01_overview-files-build.md](01_overview-files-build.md) | Build and models file structure |
+| [01_overview-files-rag.md](01_overview-files-rag.md) | RAG files file structure |
+| [01_overview-files-scripts.md](01_overview-files-scripts.md) | Scripts file structure |
+| [01_overview-files-shared.md](01_overview-files-shared.md) | Shared infrastructure file structure |
+| [01_overview-files-config.md](01_overview-files-config.md) | Configuration file structure |
+| [01_overview-files-misc.md](01_overview-files-misc.md) | Miscellaneous file structure |
 
 ## Implementation Intent
 
-- Reason for splitting `01_overview-arch.md` and `01_overview-files.md`: arch describes design, operation, lifecycle; files describes physical layout under `/opt/llm/` and mapping to source modules. Intentional separation addressing two distinct reference needs. (Evidence: cross-links at the top of each file confirm this is a deliberate split)
-- `01_overview-arch.md` contains not just a simple architecture diagram but also sections on turn processing order, three `workflow_mode` types, `startup_mode`, plugin system, DI hub role of `AgentContext`, memory fallback, and other implementation notes. These are directly supported by source code such as `orchestrator.py`, `startup.py`, `factory.py`, and `context.py`.
+- Split `01_overview-arch.md` into 3 files at H2 boundaries: process, pipelines, features
+- Split `01_overview-files.md` into 6 files at directory-based logical boundaries: build, rag, scripts, shared, config, misc
+- Each file has YAML Front Matter with title, category, tags, related documents, and keywords
 - This file is the system-wide overview index. For detailed document sets, see the catalog below.
 
 ## Implementation References
 
 | File | Content |
 |---|---|
-| [01_overview-arch.md](01_overview-arch.md) | System-wide architecture |
-| [01_overview-files.md](01_overview-files.md) | File/module structure |
+| [01_overview-arch-process.md](01_overview-arch-process.md) | System-wide architecture |
+| [01_overview-arch-pipelines.md](01_overview-arch-pipelines.md) | System-wide architecture |
+| [01_overview-arch-features.md](01_overview-arch-features.md) | System-wide architecture |
+| [01_overview-files-build.md](01_overview-files-build.md) | File/module structure |
+| [01_overview-files-rag.md](01_overview-files-rag.md) | File/module structure |
+| [01_overview-files-scripts.md](01_overview-files-scripts.md) | File/module structure |
+| [01_overview-files-shared.md](01_overview-files-shared.md) | File/module structure |
+| [01_overview-files-config.md](01_overview-files-config.md) | File/module structure |
+| [01_overview-files-misc.md](01_overview-files-misc.md) | File/module structure |
 | [02_deployment.md](02_deployment.md) | Installation steps, deployment |
 | [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAG document set guide |
 | [03_rag_01_system_overview.md](03_rag_01_system_overview.md) | RAG system overview |
@@ -53,3 +90,29 @@
 | [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md) | DB structure & schema |
 | [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) | DB API & maintenance operations |
 | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | shared/DB known issues & inconsistencies |
+
+## Related Documents
+
+- `01_overview-arch-process.md`
+- `01_overview-arch-pipelines.md`
+- `01_overview-arch-features.md`
+- `01_overview-files-build.md`
+- `01_overview-files-rag.md`
+- `01_overview-files-scripts.md`
+- `01_overview-files-shared.md`
+- `01_overview-files-config.md`
+- `01_overview-files-misc.md`
+- `02_deployment.md`
+
+## Keywords
+
+system-overview
+architecture
+introduction
+index
+overview
+deployment
+rag
+mcp
+agent
+shared
