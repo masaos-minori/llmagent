@@ -16,7 +16,10 @@ def _make_ctx(lockdown=False):
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = {}
     ctx.cfg.mcp.security_lockdown_enabled = lockdown
-    ctx.cfg.tool.allowed_tools = []
+    ctx.cfg.tool.allowed_tools = None
+    # Explicitly set approval to empty dict so getattr returns {} not MagicMock
+    ctx.cfg.approval = MagicMock()
+    ctx.cfg.approval.tool_safety_tiers = {}
     return ctx
 
 

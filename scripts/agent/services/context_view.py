@@ -19,6 +19,22 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 
+def _int_safe(obj: object | None, attr: str, default: int = 0) -> int:
+    """Return int(getattr(obj, attr)) if obj is not None, else default.
+
+    Handles MagicMock and other non-numeric types gracefully.
+    """
+    if obj is None:
+        return default
+    val = getattr(obj, attr, None)
+    if val is None:
+        return default
+    # Only accept actual int values; reject MagicMock, float, etc.
+    if not isinstance(val, int):
+        return default
+    return val
+
+
 def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
     """Compute per-category character counts (system / history / tool_messages)."""
     system = 0
@@ -161,7 +177,7 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         sys_preview=_extract_sys_preview(history),
         compress_count=compress_count,
         fallback_truncate_count=fallback_truncate_count,
-        partial_completions=ctx.stats.stat_partial_completions,
+        partial_completions=_int_safe(ctx.stats, "stat_partial_completions", 0),
         token_is_exact=token_is_exact,
         token_estimate=token_estimate,
         token_limit=ctx.cfg.llm.context_token_limit,

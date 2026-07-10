@@ -74,6 +74,7 @@ class TestCmdStats:
     def test_cmd_stats_with_llm_service_shows_correct_values(self, capsys: Any) -> None:
         ctx = _make_ctx()
         ctx.services_required.llm = _make_llm_svc()
+        ctx.stats.stat_partial_completions = 4
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -99,7 +100,7 @@ class TestCmdStats:
     ) -> None:
         ctx = _make_ctx()
         llm = _make_llm_svc()
-        llm.stat_partial_completions = 2
+        ctx.stats.stat_partial_completions = 2
         ctx.services_required.llm = llm
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()

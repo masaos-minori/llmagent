@@ -25,6 +25,22 @@ def _safe[T](obj: object | None, attr: str, default: T) -> T:
     return getattr(obj, attr) if obj is not None else default
 
 
+def _int_safe(obj: object | None, attr: str, default: int = 0) -> int:
+    """Return int(getattr(obj, attr)) if obj is not None, else default.
+
+    Handles MagicMock and other non-numeric types gracefully.
+    """
+    if obj is None:
+        return default
+    val = getattr(obj, attr, None)
+    if val is None:
+        return default
+    # Only accept actual int values; reject MagicMock, float, etc.
+    if not isinstance(val, int):
+        return default
+    return val
+
+
 def _get_mem_circuit_open(ctx) -> bool:
     """Return True if the memory embedding circuit breaker is open."""
     mem = ctx.services_required.memory
@@ -73,7 +89,7 @@ class _ConfigStatsMixin(MixinBase):
             llm_retries=_safe(llm, "stat_retries", 0),
             llm_reconnects=_safe(llm, "stat_reconnects", 0),
             llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
-            llm_partial_completions=ctx.stats.stat_partial_completions,
+            llm_partial_completions=_int_safe(ctx.stats, "stat_partial_completions", 0),
             llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
             cache_hits=_safe(ctx.services_required.tools, "stat_cache_hits", 0),
             compress_count=_safe(

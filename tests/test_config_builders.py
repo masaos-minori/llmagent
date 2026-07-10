@@ -28,6 +28,14 @@ _MIN_CFG: dict = {
     }
 }
 
+_PROD_CFG: dict = {
+    **_MIN_CFG,
+    "security_profile": "production",
+    "plugin_strict": True,
+    "tool_definitions_strict": True,
+    "routing_drift_strict": True,
+}
+
 
 # ── _build_llm_config ─────────────────────────────────────────────────────────
 
@@ -125,7 +133,7 @@ class TestBuildAgentConfig:
         assert cfg.rag.top_k_search == 20
 
     def test_security_profile_production_sets_watchdog(self) -> None:
-        cfg = build_agent_config({**_MIN_CFG, "security_profile": "production"})
+        cfg = build_agent_config(_PROD_CFG)
         assert cfg.mcp.mcp_watchdog_interval == 30.0
 
     def test_security_profile_local_disables_watchdog(self) -> None:
@@ -135,8 +143,7 @@ class TestBuildAgentConfig:
     def test_mcp_watchdog_interval_override_respected(self) -> None:
         cfg = build_agent_config(
             {
-                **_MIN_CFG,
-                "security_profile": "production",
+                **_PROD_CFG,
                 "mcp_watchdog_interval": 60.0,
             }
         )
