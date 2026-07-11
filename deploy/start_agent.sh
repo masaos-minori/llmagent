@@ -15,7 +15,12 @@ echo "=== start_agent.sh: AgentREPL 起動 ==="
 echo "リポジトリ: ${REPO_ROOT}"
 
 # ── 環境変数設定 ──────────────────────────────────────────────────────────────
-export PYTHONPATH="${REPO_ROOT}/scripts"
+# production: /opt/llm/pyproject.toml から PYTHONPATH を自動検出
+if [[ -f "/opt/llm/pyproject.toml" ]]; then
+    export PYTHONPATH="/opt/llm/scripts"
+else
+    export PYTHONPATH="${REPO_ROOT}/scripts"
+fi
 
 # ── 依存チェック ──────────────────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
@@ -23,8 +28,8 @@ if ! command -v uv &>/dev/null; then
     exit 1
 fi
 
-if [[ ! -d "${REPO_ROOT}/.venv" ]]; then
-    echo "[FATAL] .venv not found. Run 'uv sync --dev --system-certs' first." >&2
+if [[ ! -f "${REPO_ROOT}/pyproject.toml" ]]; then
+    echo "[FATAL] pyproject.toml not found. Ensure the project is installed via uv." >&2
     exit 1
 fi
 
@@ -58,7 +63,7 @@ if [[ ! -f "${WORKFLOW_JSON}" ]]; then
     exit 1
 fi
 
-if ! PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH="${PYTHONPATH}" uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
     echo "[FATAL] Workflow definition validation failed." >&2
     exit 1
 fi
@@ -89,4 +94,4 @@ echo "=== AgentREPL 起動中 ==="
 echo "Ctrl+C で停止"
 echo ""
 
-PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python -m agent.repl
+PYTHONPATH="${PYTHONPATH}" uv run python -m agent.repl
