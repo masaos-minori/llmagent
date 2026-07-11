@@ -51,12 +51,14 @@ class _TrackingSQLiteHelper(_FakeSQLiteHelper):
 
 def _make_db() -> _FakeSQLiteHelper:
     conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_SCHEMA_SQL)
     return _FakeSQLiteHelper(conn)
 
 
 def _make_tracking_db() -> _TrackingSQLiteHelper:
     conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_SCHEMA_SQL)
     return _TrackingSQLiteHelper(conn)
 
@@ -96,7 +98,9 @@ class TestDeleteDocumentChain:
         assert db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
 
-    def test_delete_chunks_vec_before_chunks_before_documents(self) -> None:
+    def test_delete_chunks_vec_before_documents(self) -> None:
+        """chunks_vec is deleted explicitly first; chunks is removed via
+        ON DELETE CASCADE from the documents delete, not by an explicit statement."""
         db = _make_tracking_db()
         doc_id = _insert_doc(db)
         chunk_id = _insert_chunk(db, doc_id)
@@ -106,8 +110,7 @@ class TestDeleteDocumentChain:
 
         delete_stmts = [s for s in db.sql_log if s.startswith("DELETE FROM")]
         tables = [s.split()[2] for s in delete_stmts]
-        assert tables.index("chunks_vec") < tables.index("chunks")
-        assert tables.index("chunks") < tables.index("documents")
+        assert tables == ["chunks_vec", "documents"]
 
     def test_delete_idempotent(self) -> None:
         db = _make_db()

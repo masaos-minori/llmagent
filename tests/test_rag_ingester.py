@@ -138,6 +138,7 @@ class _FakeSQLiteHelper:
 
 def _make_db() -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
     conn = sqlite3.connect(":memory:", check_same_thread=False)
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_SCHEMA_SQL)
     conn.commit()
     return conn, _FakeSQLiteHelper(conn)
