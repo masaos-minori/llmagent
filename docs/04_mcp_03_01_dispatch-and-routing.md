@@ -94,6 +94,8 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 - ライブの `/v1/tools` は起動時のドリフト検証にのみ使用され、レジストリのルーティングを上書きすることはない。
 - config の `tool_names` はルーティングの入力ではない; あくまでドリフト検証用のメタデータである。
 - 未知のツールは `ValueError` で即時失敗する — フォールバックは存在しない。
+- config の `tool_names` 省略 / 空リスト / 設定済み の3つの状態のTOML例は [`docs/04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md`](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) を参照。
+- 同じツール名が複数のサーバーの `/v1/tools` レスポンスで報告される重複所有権は、`shared/route_resolver.py::build_discovery_map()` で検出され、`agent/repl_health.py::check_routing_drift_vs_live()` が `ServiceWarning` として表示する — レジストリの自身によるサーバー間検証ではない。
 
 ---
 
