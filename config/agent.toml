@@ -335,7 +335,7 @@ startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_read"
-tool_names       = ["read_text_file", "list_directory", "directory_tree", "search_files", "grep_files"]
+tool_names       = ["read_text_file", "list_directory", "directory_tree", "search_files", "grep_files", "list_directory_with_sizes", "read_media_file", "read_multiple_files", "get_file_info"]
 cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/file/read_server.py"]
 
 [mcp_servers.github]
@@ -359,11 +359,7 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
-# Temporarily out of dev scope: startup_mode="none" disables subprocess spawn and
-# health check entirely; tool calls are rejected with a clear "disabled" error
-# (GITHUB_TOKEN unset -> /health always 503, which previously stalled agent startup
-# for the full startup_timeout_sec).
-startup_mode     = "none"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -373,9 +369,7 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 [mcp_servers.rag_pipeline]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
-# Temporarily out of dev scope: startup_mode="none" disables subprocess spawn and
-# health check entirely; tool calls are rejected with a clear "disabled" error.
-startup_mode     = "none"
+startup_mode     = "subprocess"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
@@ -1162,6 +1156,69 @@ description = "検索パターン (Python 正規表現。例: 'def \\w+', 'ERROR
 [tool_definitions.function.parameters.properties.file_pattern]
 type        = "string"
 description = "検索対象ファイルの glob パターン (省略時: * = 全ファイル。例: *.py, *.log)"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "list_directory_with_sizes"
+description = "ローカルディレクトリのファイル一覧を取得する。各エントリにファイルサイズを含む。アクセス可能なパスは /opt/llm 配下のみ。"
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["path"]
+
+[tool_definitions.function.parameters.properties.path]
+type        = "string"
+description = "一覧表示するディレクトリの絶対パス"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "read_media_file"
+description = "メディアファイル（画像・音声など）をバイナリとして読み込む。base64エンコードされたコンテンツとMIMEタイプを返す。アクセス可能なパスは /opt/llm 配下のみ。"
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["path"]
+
+[tool_definitions.function.parameters.properties.path]
+type        = "string"
+description = "読み込むメディアファイルの絶対パス"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "read_multiple_files"
+description = "複数のファイルを一度に読み込む。各ファイルの結果は個別に返される（エラー含む）。アクセス可能なパスは /opt/llm 配下のみ。"
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["paths"]
+
+[tool_definitions.function.parameters.properties.paths]
+type        = "array"
+description = "読み込むファイルの絶対パスのリスト"
+
+[tool_definitions.function.parameters.properties.paths.items]
+type = "string"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "get_file_info"
+description = "ファイルまたはディレクトリのメタデータ（サイズ、作成日時、変更日時、権限）を取得する。アクセス可能なパスは /opt/llm 配下のみ。"
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["path"]
+
+[tool_definitions.function.parameters.properties.path]
+type        = "string"
+description = "情報を取得するファイルまたはディレクトリの絶対パス"
 
 [[tool_definitions]]
 type = "function"

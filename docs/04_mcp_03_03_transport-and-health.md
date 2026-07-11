@@ -30,6 +30,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する
 - **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。
 - **リトライ不可のエラー:** HTTP タイムアウト（`httpx.TimeoutException`）と、429/502/503/504 以外のステータスコードによる HTTPStatusError は、リトライなしで即時に伝播する。
+- **ツールレベルエラー vs トランスポートレベルエラー:** ツールレベルのエラー（`error_type == "tool"`）はトランスポート呼び出しの成功として扱われ、`record_success()` と `stat_tool_errors` カウンターのインクリメントをトリガーする。トランスポートレベルのエラーは `record_failure()` と `stat_transport_errors` カウンターのインクリメントをトリガーする。両カウンターは独立して追跡される。
 
 ---
 

@@ -30,7 +30,7 @@ source:
 | `/v1/tools` | GET | List available tools and descriptions |
 | `/health` | GET | Health check |
 
-全11サーバーがこれらのエンドポイントを公開する。`/health` のレスポンスはサーバーごとに異なる（§Server-specific health を参照）。
+全10サーバーがこれらのエンドポイントを公開する。`/health` のレスポンスはサーバーごとに異なる（§Server-specific health を参照）。
 
 ---
 

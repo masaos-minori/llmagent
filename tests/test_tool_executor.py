@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from shared import plugin_registry
+from shared.http_transport import HttpTransport
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -23,7 +24,6 @@ from shared.mcp_config import (
 from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.tool_cache import CacheEntry
 from shared.tool_executor import (
-    HttpTransport,
     ToolExecutor,
     TransportError,
 )
@@ -88,6 +88,71 @@ class TestCacheStampede:
         await executor._execute_with_cache("write_file", {"path": "a"})
         assert call_count == 1
         assert "write_file:" not in executor._inflight
+
+    @pytest.mark.asyncio
+    async def test_raw_execute_exception_releases_concurrent_waiter(self) -> None:
+        """A second caller awaiting the same inflight future must see the exception, not hang."""
+        ready_event = asyncio.Event()
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            # Wait until the second caller has retrieved the inflight future
+            await ready_event.wait()
+            raise RuntimeError("raw execute failed")
+
+        executor = ToolExecutor.__new__(ToolExecutor)
+        executor._cache = {}
+        executor._cache_ttl = 60.0
+        executor._cache_max_size = 100
+        executor._inflight = {}
+        executor.stat_cache_hits = 0
+        executor._raw_execute = _fake_raw_execute
+
+        async def _caller(key: str) -> ToolCallResult:
+            return await executor._execute_with_cache(key, {})
+
+        async def _start_first_caller():
+            task = asyncio.create_task(_caller("test_tool"))
+            # Give the second caller time to retrieve the inflight future
+            await asyncio.sleep(0.05)
+            ready_event.set()
+            return await task
+
+        async def _second_caller():
+            return await _caller("test_tool")
+
+        results = await asyncio.gather(
+            _start_first_caller(),
+            _second_caller(),
+            return_exceptions=True,
+        )
+        assert all(isinstance(r, RuntimeError) for r in results), (
+            "Both callers should receive the RuntimeError, not hang"
+        )
+
+    @pytest.mark.asyncio
+    async def test_inflight_cleaned_up_after_exception(self) -> None:
+        """cache_key must be removed from self._inflight even when _raw_execute raises."""
+        executor = ToolExecutor.__new__(ToolExecutor)
+        executor._cache = {}
+        executor._cache_ttl = 60.0
+        executor._cache_max_size = 100
+        executor._inflight = {}
+        executor.stat_cache_hits = 0
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            raise RuntimeError("raw execute failed")
+
+        executor._raw_execute = _fake_raw_execute
+
+        with pytest.raises(RuntimeError):
+            await executor._execute_with_stampede_protection(
+                "test_tool", "test_tool", {}
+            )
+        assert "test_tool:" not in executor._inflight
 
 
 class TestHttpTransportRetry:
@@ -694,6 +759,7 @@ class TestToolExecutorErrorClassification:
         result = await ex._execute_with_cache("read_text_file", {})
 
         assert result.request_id == ""
+        assert result.source == ""
         assert ex.stat_cache_hits == 1
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
 
@@ -727,6 +793,14 @@ def _make_executor_with_mock_lifecycle(
     executor._resolver.resolve = MagicMock(return_value="test_server")
 
     return executor, mock_lifecycle, mock_registry, mock_transport
+
+
+class TestUnknownToolError:
+    @pytest.mark.asyncio
+    async def test_unknown_tool_raises_value_error(self) -> None:
+        ex = _make_executor()
+        with pytest.raises(ValueError, match=r"Unknown tool"):
+            await ex._raw_execute("totally_unknown_tool", {})
 
 
 class TestEnsureReadyFailureHandling:

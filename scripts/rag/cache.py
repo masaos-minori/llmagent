@@ -90,14 +90,20 @@ class SemanticCache:
             self.prune()
 
     def prune(self) -> None:
-        """Remove oldest entries (FIFO) when len(self._entries) > max_size."""
+        """Remove oldest entries (FIFO) when len(self._entries) > max_size.
+
+        When max_size <= 0, the cache holds zero entries (capacity zero).
+        """
         with self._lock:
-            if len(self._entries) > self._max_size:
+            if self._max_size <= 0:
+                self._entries = []
+            elif len(self._entries) > self._max_size:
                 self._entries = self._entries[-self._max_size :]
 
     @property
     def size(self) -> int:
-        return len(self._entries)
+        with self._lock:
+            return len(self._entries)
 
     def invalidate(self) -> None:
         """Bump generation; clear all cached entries atomically."""
@@ -107,4 +113,5 @@ class SemanticCache:
 
     @property
     def generation(self) -> int:
-        return self._generation
+        with self._lock:
+            return self._generation

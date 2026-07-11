@@ -41,7 +41,7 @@ source:
   - `chunks_fts`と`chunks_vec`は**派生インデックス**であり、アプリケーションコードはこれらを読み取り専用として扱う必要がある。
   - `chunks_fts`の同期: トリガーベース (`chunks_ai`/`chunks_au`/`chunks_ad`) で行われ、直接のINSERT/UPDATEは行わない。`chunks_fts`への手動編集は禁止されており、代わりに`/db rag rebuild-fts`を使用する。
   - `chunks_vec`の同期: 取り込み時のINSERTと明示的なDELETEによって行われる。外部キー制約はない (sqlite-vecの制約による)。
-  - 強制再挿入時の削除順序: `chunks_vec`が最初 → `chunks` → `documents` (孤立したベクトルレコードを避けるために必須)。
+  - 強制再挿入時の削除順序: `chunks_vec` を明示的に削除した後、`documents` を削除する（`ON DELETE CASCADE` により `chunks` が削除される）。`write_mode=True` の接続でのみ有効（`PRAGMA foreign_keys=ON` を有効化するため）。なお、`chunks_vec_ad` トリガーは `chunks` への直接削除に対する防御的なバックストップであり、上記の主経路ではない。
   - RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。
 - **Description:**
   - `documents`: 正規のURL/ドキュメントメタデータ (url、title、lang、fetched_at、etag、last_modified、chunking_strategy)。URLごとに1行。

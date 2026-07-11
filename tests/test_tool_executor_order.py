@@ -47,7 +47,6 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
     executor.stat_cache_hits = 0
     executor.stat_tool_errors = {}
     executor.stat_transport_errors = {}
-    executor._tool_error_threshold = 3
 
     return executor, {
         "plugin": mock_plugin,

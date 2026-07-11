@@ -84,7 +84,7 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 |---|---|
 | `request_approval(db, task_id, stage_id)` | タスク (または特定のステージ) に対する承認待ちゲートを挿入; `ApprovalRecord`を返す |
 | `resolve_approval(db, approval_id, status, reason)` | 承認ステータスを'approved'または'rejected'に設定する |
-| `get_pending_approval(db, task_id)` | タスクの最新の承認レコードを返す。存在しなければNone |
+| `get_latest_approval(db, task_id)` | タスクの最新の承認レコードを返す。存在しなければNone |
 | `find_pending_approval_by_session(db, session_id)` | このセッション内で最も新しい承認待ちタスクの(task_id, approval)を返す。なければNone |
 | `find_latest_pending_approval(db)` | グローバルで最も新しい承認待ちの(task_id, approval)を返す。なければNone |
 

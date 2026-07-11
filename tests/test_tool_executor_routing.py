@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 import shared.plugin_registry as plugin_registry
+from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -19,12 +20,7 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
-from shared.tool_executor import (
-    HttpTransport,
-    LifecycleProtocol,
-    ToolExecutor,
-    TransportError,
-)
+from shared.tool_executor import LifecycleProtocol, ToolExecutor
 from shared.transport_dto import ToolCallResult
 
 
@@ -81,6 +77,7 @@ class TestResolverIntegration:
                 concurrency_limits={"totally_unknown": 2},
             )
         assert "unknown server key" in caplog.text.lower()
+        assert "for these server keys" in caplog.text.lower()
 
     def test_concurrency_limits_known_key_no_warning(self, caplog: Any) -> None:
         import logging
@@ -91,6 +88,14 @@ class TestResolverIntegration:
                 concurrency_limits={"file_read": 2},
             )
         assert "unknown server key" not in caplog.text.lower()
+
+
+class TestLifecycleProtocolIdentity:
+    def test_lifecycle_protocol_is_canonical_reexport(self) -> None:
+        from shared.tool_executor import LifecycleProtocol as ExecutorLP
+        from shared.tool_lifecycle import LifecycleProtocol as CanonicalLP
+
+        assert ExecutorLP is CanonicalLP
 
 
 class TestSetLifecycle:

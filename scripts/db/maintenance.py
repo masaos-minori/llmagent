@@ -63,7 +63,7 @@ class RetentionConfig:
 
     @classmethod
     def from_config(cls) -> "RetentionConfig":
-        """Construct from common.toml values; raises on config load failure."""
+        """Construct from agent.toml values; raises on config load failure."""
         cfg = ConfigLoader().load("agent.toml")
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),

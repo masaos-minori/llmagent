@@ -108,7 +108,9 @@ class SQLiteHelper:
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
         if not self._db_path:
-            raise ValueError(f"{self._target}_db_path is not configured in common.toml")
+            raise ValueError(
+                f"{self._target}_db_path is not configured in agent.toml or DB config"
+            )
         try:
             return sqlite3.connect(self._db_path, timeout=self._sqlite_timeout)
         except sqlite3.OperationalError as e:

@@ -378,3 +378,21 @@ class TestRoutingSourceIsolation:
         resolver = ToolRouteResolver({})
         with pytest.raises(ValueError, match="[Uu]nknown tool"):
             resolver.resolve("nonexistent_tool_xyz")
+
+
+class TestDuplicateToolRegistration:
+    """Tests confirming ToolRegistry.register() rejects duplicate registrations."""
+
+    def test_duplicate_registration_raises_value_error(self) -> None:
+        """Registering the same tool name to two different servers raises ValueError."""
+        from shared.tool_registry import ToolDefinition, ToolRegistry
+
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="read_text_file", server_key="server_a"))
+        with pytest.raises(
+            ValueError,
+            match=r"already registered to server 'server_a'; cannot reassign to 'server_b'",
+        ):
+            registry.register(
+                ToolDefinition(name="read_text_file", server_key="server_b")
+            )

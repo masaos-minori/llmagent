@@ -6,6 +6,13 @@ from __future__ import annotations
 
 
 class TestRegistryRagPipelineCounts:
+    """Intentional drift guard: asserts the fixed tool count for the rag_pipeline server.
+
+    A failing test here means a tool was added to or removed from this server's
+    registration — review the change and update the expected count deliberately;
+    do not treat this as incidental test flakiness.
+    """
+
     def test_registry_rag_pipeline_tool_count(self) -> None:
         """rag_pipeline server has exactly 4 tools registered."""
         from shared.tool_registry import _reset_registry_for_testing, get_registry
@@ -46,6 +53,13 @@ class TestRegistryRagPipelineCounts:
 
 
 class TestRegistryTotalCounts:
+    """Intentional drift guard: asserts the fixed global tool counts.
+
+    A failing test here means a tool was added to or removed from the registry —
+    review the change and update the expected count deliberately;
+    do not treat this as incidental test flakiness.
+    """
+
     def test_registry_total_tool_count(self) -> None:
         """Registry has exactly 65 tools (all GitHub MCP tools registered explicitly)."""
         from shared.tool_registry import _reset_registry_for_testing, get_registry

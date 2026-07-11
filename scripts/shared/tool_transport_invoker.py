@@ -43,7 +43,7 @@ class ToolTransportInvoker:
         if unknown_keys:
             logger.warning(
                 "tool_concurrency_limits: unknown server key(s) %r;"
-                " Semaphore will not be applied for these tools.",
+                " Semaphore will not be applied for these server keys.",
                 sorted(unknown_keys),
             )
 

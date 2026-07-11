@@ -54,7 +54,7 @@ plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="rejec
   → ディレクトリが存在しない場合: 0を返す(エラーにしない)
 ```
 
-**優先順位:** `@register_tool` ハンドラは `ToolExecutor.execute()` によってキャッシュ・MCPルーティングより**先に**チェックされる。
+**優先順位:** `@register_tool` handlers are checked by `ToolExecutor.execute()` **before** `ToolRegistry` route resolution, the tool-result cache, the health gate, lifecycle `ensure_ready()`, and `HttpTransport` — a plugin tool never reaches any of these MCP-routing mechanisms.
 `@register_command` ハンドラは `CommandRegistry` によって組み込みコマンドの**後に**ディスパッチされる。
 
 **戻り値の型:**
@@ -71,7 +71,7 @@ class PluginLoadResult:
     failed: tuple[PluginFailure, ...]
     tool_conflicts_shadowed: int
     tool_conflicts_allowed: int
-    command_shadows: int
+    command_shadows_rejected: int  # commands rejected due to strict-mode conflict with a builtin
 
 class PluginLoadError(RuntimeError):
     pass
@@ -80,7 +80,7 @@ def get_last_load_result() -> PluginLoadResult | None
 ```
 
 - `get_last_load_result()` は直近の `PluginLoadResult` を返す。初回ロード前は `None`。
-- `PluginLoadError` は `strict_mode=True` かつ失敗またはMCP競合がある場合のみ発生する。
+- `PluginLoadError` は `strict_mode=True` かつ失敗またはMCP競合がある場合のみ発生する。In `strict_mode=True`, **all** plugins are attempted first; a single aggregated `PluginLoadError` (naming every load failure, tool-conflict rejection, and command-conflict rejection together) is raised only after every plugin has had a chance to load — not on the first failure.
 - `PluginFailure.error` には失敗したプラグインの例外メッセージ全文が入る。
 
 **テスト分離:** リセット関数は全レジストリをクリアするもので、コマンド・ツール・パイプラインステージを登録するテストファイルでは

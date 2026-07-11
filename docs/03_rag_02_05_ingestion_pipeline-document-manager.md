@@ -41,7 +41,7 @@ source:
 | `__init__` | `(db: SQLiteHelper) -> None` | DB接続の参照を保持する |
 | `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | 既存ドキュメントを処理する；呼び出し元が挿入をスキップすべき場合にTrueを返す。force=False → ETagManagerでetagを更新；SHA-256が変化していないfile:// URL → スキップ；force=True → ドキュメントチェーンを削除しFalseを返して再挿入を許可 |
 | `delete_existing_document` | `(doc_id: int) -> None` | ドキュメントとそのチャンクを削除する；chunks_vecはchunksへのFK制約がないため最初に削除される |
-| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | インジェクション後の整合性チェックとコールバックを実行する；レポートを返すか、チェックが失敗した場合（チェック中のDBエラー）はNoneを返す |
+| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | インジェクション後の整合性チェックとコールバックを実行する；レポートを返すか、チェックが失敗した場合（チェック中のDBエラー）はNoneを返す。整合性チェックが正常終了した場合（レポートに問題が含まれていても）、`on_ingest_complete` コールバックが呼び出される。整合性チェック自体が例外を投げた場合は、コールバックは呼び出されない |
 
 **コードから推測される意図:**
 - `handle_existing_document` は `url.startswith("file://")` を直接チェックするのではなく `is_file_url` をcallableとして受け取る。これによりモック実装でのテスト容易性を確保している

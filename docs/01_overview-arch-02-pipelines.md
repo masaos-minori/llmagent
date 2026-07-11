@@ -69,7 +69,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 詳細: [02_deployment-part1.md §Workflow deployment checklist](02_deployment-part1.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook)
 
-`workflow_require_approval=True` で execute → verify 間に人間承認ゲートを挿入できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/config_dataclasses.py`, `agent/orchestrator.py`, `agent/startup.py`)
+    ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に人間承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
 **MCP サーバの startup_mode**
 

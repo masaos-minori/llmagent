@@ -63,7 +63,7 @@ agent[:#1]>
 - **タイミング:** 起動時、`ctx.workflow is not None` の場合
 - **復元される内容:** `StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から取得される最新のグローバルな保留中承認
 - **複数セッション時の動作:** 保留中の承認は同時に1件のみ追跡される。全セッションを通じた最新のレコードが復元される(セッション固有ではない)
-- **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve [reason] or /reject [reason].`
+- **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`
 - **確認方法:** `sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 1;"`
 
 ---

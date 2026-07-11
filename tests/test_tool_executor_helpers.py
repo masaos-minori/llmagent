@@ -5,7 +5,11 @@ This file contains tests for:
 - is_side_effect: identifies tools with side effects
 """
 
-from shared.tool_executor_helpers import is_side_effect, tool_hash_key
+from shared.tool_executor_helpers import (
+    format_transport_error,
+    is_side_effect,
+    tool_hash_key,
+)
 
 
 def test_tool_hash_key_consistency() -> None:
@@ -72,6 +76,74 @@ def test_is_side_effect_unknown_tool() -> None:
     """Test that unknown tools default to non-side-effect."""
     # Unknown tools should return False
     assert is_side_effect("unknown_tool") is False
+
+
+def test_is_side_effect_git_write_tools() -> None:
+    """Test that Git write tools are correctly identified as side effect tools."""
+    from shared.tool_constants import GIT_WRITE_TOOLS
+
+    for tool_name in GIT_WRITE_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_github_write_tools() -> None:
+    """Test that GitHub write tools are correctly identified as side effect tools."""
+    from shared.tool_constants import GITHUB_WRITE_TOOLS
+
+    for tool_name in GITHUB_WRITE_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_github_dangerous_tools() -> None:
+    """Test that GitHub dangerous tools are correctly identified as side effect tools."""
+    from shared.tool_constants import GITHUB_DANGEROUS_TOOLS
+
+    for tool_name in GITHUB_DANGEROUS_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_format_transport_error_summary_includes_all_fields() -> None:
+    """Test that TransportErrorInfo.summary includes status_code and partial fields."""
+    info = format_transport_error(
+        source="mcp",
+        phase="call_tool",
+        kind="http_error",
+        url="http://x",
+        status_code=503,
+        retryable=True,
+        partial=False,
+    )
+    assert "MCP" in info.summary
+    assert "http_error" in info.summary
+    assert "call_tool" in info.summary
+    assert "503" in info.summary
+    assert "retryable=True" in info.summary
+    assert "partial=False" in info.summary
+
+
+def test_format_transport_error_detail_is_valid_json() -> None:
+    """Test that TransportErrorInfo.detail is valid JSON with all expected fields."""
+    import json
+
+    info = format_transport_error(
+        source="mcp",
+        phase="call_tool",
+        kind="timeout",
+        url="http://x",
+        status_code=None,
+        retryable=False,
+        partial=True,
+    )
+    parsed = json.loads(info.detail)
+    assert parsed == {
+        "source": "mcp",
+        "phase": "call_tool",
+        "kind": "timeout",
+        "status_code": None,
+        "url": "http://x",
+        "retryable": False,
+        "partial": True,
+    }
 
 
 def test_tool_hash_key_with_complex_args() -> None:

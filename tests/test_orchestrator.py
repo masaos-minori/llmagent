@@ -751,6 +751,7 @@ class TestApprovalPendingGuard:
         on_error = MagicMock()
         ctx = _make_ctx()
         ctx.workflow.approval_pending = True
+        ctx.turn.pending_approval_id = "approval-123"
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         await orch.handle_turn("do something")
@@ -758,7 +759,7 @@ class TestApprovalPendingGuard:
         on_error.assert_called_once()
         err = on_error.call_args[0][0]
         assert isinstance(err, RuntimeError)
-        assert "/approve" in str(err) or "/reject" in str(err)
+        assert "approval-123" in str(err)
         # LLM must not be called
         ctx.services_required.llm.assert_not_called()
 
@@ -945,3 +946,56 @@ class TestHandleHistoryCompressionPersist:
         await orch._handle_history_compression()
         saved = ctx.session.replace_messages.call_args[0][0]
         assert saved == [kept]
+
+
+class TestInitWorkflowTaskResumeReuse:
+    """Tests for Orchestrator._init_workflow_task() resume/reuse behavior."""
+
+    def test_resume_reuses_existing_task_not_creates_duplicate(self) -> None:
+        """Resuming a workflow task must call get_task_by_id(), not create_task()."""
+        from unittest.mock import MagicMock, patch
+
+        existing_task = MagicMock()
+        existing_task.task_id = "existing-task-id"
+        existing_task.workflow_id = "existing-wf-id"
+
+        ctx = _make_ctx()
+        ctx.turn.pending_approval_task_id = "existing-task-id"
+
+        with (
+            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
+            patch("agent.orchestrator.create_task") as mock_create,
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+            workflow_id, task = orch._init_workflow_task(
+                ctx, "test-session", existing_task_id="existing-task-id"
+            )
+            assert workflow_id == "existing-wf-id"
+            assert task.task_id == "existing-task-id"
+            mock_create.assert_not_called()
+
+    def test_resume_does_not_call_audit_workflow_start_for_existing_task(self) -> None:
+        """When resuming an existing task, audit_workflow_start should NOT be called again."""
+        from unittest.mock import MagicMock, patch
+
+        existing_task = MagicMock()
+        existing_task.task_id = "existing-task-id"
+        existing_task.workflow_id = "existing-wf-id"
+
+        ctx = _make_ctx()
+
+        with (
+            patch("agent.orchestrator.get_task_by_id", return_value=existing_task),
+            patch("agent.orchestrator.create_task"),
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.audit_workflow_start") as mock_audit,
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+            orch._init_workflow_task(
+                ctx, "test-session", existing_task_id="existing-task-id"
+            )
+            mock_audit.assert_not_called()

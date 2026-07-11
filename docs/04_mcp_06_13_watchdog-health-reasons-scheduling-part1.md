@@ -77,6 +77,18 @@ else:
 
 `reachable=True`だが`status_code=503`(degraded)のサーバーの場合、`restart_recommended=false`であるため、watchdogは自動的に再起動しない。代わりに`probe.body["reason"]`または`probe.body["message"]`のボディ理由を含む警告をログに記録する。`operator_action_required=true`の場合も同様のロジックが適用される — 自動再起動はせず、手動対応が必要な旨のWARNINGのみを出す。
 
+#### degraded の理由一覧
+
+`McpServerHealthRegistry.get_degraded_reason()` が返す値:
+
+| 理由 | 設定元 | 発生条件 |
+|------|--------|----------|
+| ボディ理由 (`details.reason` / `message`) | `record_failure()` / `record_degraded()` | `/health` レスポンスのボディから抽出 |
+| `restart_limit_reached` | `record_restart_exhausted()` | ウォッチドッグの再起動試行回数が `max_restarts` に到達（`startup_mode=subprocess` のみ） |
+
+- `restart_limit_reached` は状態を変更しない — サーバーは既に `UNAVAILABLE` であり、この理由は単に「まだ循環中」から「ウォッチドッグが中断; 手動介入が必要」を区別するためにつけられる。
+- すべての degraded 理由は、`record_success()` によってクリアされる。
+
 ---
 
 ## Related Documents

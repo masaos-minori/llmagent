@@ -193,6 +193,18 @@ class TestWorkflowLoaderLoad:
         with pytest.raises(WorkflowLoadError, match="backoff must be one of"):
             loader.load()
 
+    def test_exponential_backoff_rejected(self, tmp_path: Path) -> None:
+        data = dict(_VALID)
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff": "exponential",
+            "backoff_sec": 1,
+        }
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="backoff must be one of: fixed"):
+            loader.load()
+
     def test_negative_backoff_sec_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
         data["retry_policy"] = {
@@ -204,3 +216,12 @@ class TestWorkflowLoaderLoad:
         loader = WorkflowLoader(workflows_dir=tmp_path)
         with pytest.raises(WorkflowLoadError, match="backoff_sec must be >= 0"):
             loader.load()
+
+    def test_default_json_has_no_retry_stage(self) -> None:
+        """Real config/workflows/default.json has exactly plan/execute/verify stages."""
+        import pathlib
+
+        workflows_dir = pathlib.Path(__file__).parent.parent / "config" / "workflows"
+        loader = WorkflowLoader(workflows_dir=workflows_dir)
+        wdef = loader.load()
+        assert {s.id for s in wdef.stages} == {"plan", "execute", "verify"}

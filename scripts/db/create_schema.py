@@ -9,7 +9,7 @@ SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
   create_session_schema()    — session.sqlite: sessions, messages, memory
-  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, approvals
+  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, approvals, workflow_schema_version
   create_eventbus_schema()   — eventbus.sqlite: events
   create_schema()            — convenience wrapper calling all four
 """
@@ -20,8 +20,8 @@ import sys
 
 from db.helper import SQLiteHelper
 from db.schema_sql import (
-    _WORKFLOW_MIGRATIONS,
     WORKFLOW_SCHEMA_VERSION,
+    apply_workflow_migrations,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
@@ -77,11 +77,10 @@ def create_workflow_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute workflow schema DDL: %s", e)
             raise
-        for stmt in _WORKFLOW_MIGRATIONS:
-            try:
-                db.execute(stmt)
-            except sqlite3.OperationalError:
-                pass  # column already exists
+        assert db.conn is not None, (
+            "Workflow DB connection must be open when applying migrations"
+        )
+        apply_workflow_migrations(db.conn)
         _record_workflow_schema_version(db)
         db.commit()
     logger.info("Workflow schema created successfully.")

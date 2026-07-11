@@ -67,6 +67,10 @@ AFTER UPDATE ON chunks BEGIN
     INSERT INTO chunks_fts (rowid, content)
     VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
 END;
+CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
+AFTER DELETE ON chunks BEGIN
+    DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
+END;
 """
 
 
@@ -102,6 +106,7 @@ class _FakeSQLiteHelper:
 @pytest.fixture
 def db() -> Generator[_FakeSQLiteHelper]:
     conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA_SQL)
     conn.commit()
@@ -190,7 +195,7 @@ def test_chunks_fts_is_trigger_synced(db: _FakeSQLiteHelper) -> None:
 
 
 def test_delete_document_chain_no_orphan_vec(db: _FakeSQLiteHelper) -> None:
-    """delete_document_chain() must not leave orphan chunks_vec rows."""
+    """Delete chunks_vec, then documents (CASCADE removes chunks)."""
     conn = db._conn
     doc_id = _insert_doc(conn, url="http://orphan.example.com")
     chunk_id = _insert_chunk(conn, doc_id, "orphan test text", None)
@@ -211,12 +216,22 @@ def test_delete_document_chain_no_orphan_vec(db: _FakeSQLiteHelper) -> None:
     ).fetchone()[0]
     assert orphan_count == 0
 
+    # CASCADE must have removed chunks rows
+    assert (
+        db.execute(
+            "SELECT COUNT(*) FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchone()[0]
+        == 0
+    )
 
-# ── TEST-DESIGN3-04: deletion order invariant ─────────────────────────────────
+
+# ── TEST-DESIGN3-04: canonical deletion leaves no orphans and cascades chunks ─────────────────────────────────
 
 
-def test_deletion_order_no_orphan_vec(db: _FakeSQLiteHelper) -> None:
-    """Deletion order (chunks_vec -> chunks -> documents) must not leave orphans."""
+def test_canonical_deletion_leaves_no_orphans_and_cascades_chunks(
+    db: _FakeSQLiteHelper,
+) -> None:
+    """Delete chunks_vec, then documents (CASCADE removes chunks)."""
     conn = db._conn
     doc_id = _insert_doc(conn, url="http://order.example.com")
     chunk_id1 = _insert_chunk(conn, doc_id, "first chunk text", None)
@@ -240,6 +255,41 @@ def test_deletion_order_no_orphan_vec(db: _FakeSQLiteHelper) -> None:
         "(SELECT chunk_id FROM chunks)"
     ).fetchone()[0]
     assert orphan_count == 0
+
+    # CASCADE must have removed chunks rows
+    assert (
+        db.execute(
+            "SELECT COUNT(*) FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchone()[0]
+        == 0
+    )
+
+
+# ── TEST-DESIGN3-04: chunks_vec_ad trigger cleans up direct chunks delete ─────────────────────────────────
+
+
+def test_chunks_vec_ad_trigger_cleans_up_direct_chunks_delete(
+    db: _FakeSQLiteHelper,
+) -> None:
+    """chunks_vec_ad must clean up chunks_vec when chunks is deleted directly (bypassing
+    delete_document_chain()), proving the defensive-backstop claim."""
+    conn = db._conn
+    doc_id = _insert_doc(conn, url="http://direct-delete.example.com")
+    chunk_id = _insert_chunk(conn, doc_id, "direct delete test", None)
+    conn.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+    conn.commit()
+
+    # Bypass delete_document_chain(): delete chunks directly
+    conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,))
+    conn.commit()
+
+    # chunks_vec_ad trigger should have removed the orphaned vec row
+    assert (
+        db.execute(
+            "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id = ?", (chunk_id,)
+        ).fetchone()[0]
+        == 0
+    )
 
 
 # ── TEST-DESIGN3-05: consistency check detects FTS gap ────────────────────────

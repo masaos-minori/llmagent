@@ -464,6 +464,36 @@ class TestCreateWorkflowSchema:
         assert workflow_id_count == 1
         conn.close()
 
+    def test_non_duplicate_column_error_propagates(self, tmp_path: Path) -> None:
+        """Non-'duplicate column name' OperationalErrors must propagate from apply_workflow_migrations()."""
+        import db.schema_sql as schema_sql_mod
+
+        original = schema_sql_mod._WORKFLOW_MIGRATIONS
+        try:
+            schema_sql_mod._WORKFLOW_MIGRATIONS = list(original) + [
+                ("bad_migration", "ALTER TABLE nonexistent_table ADD COLUMN x TEXT"),
+            ]
+            db_file = tmp_path / "workflow_bad_migration.sqlite"
+            cfg = DbConfig(
+                rag_db_path="/tmp/rag.sqlite",
+                session_db_path="/tmp/session.sqlite",
+                workflow_db_path=str(db_file),
+            )
+            with (
+                patch("db.helper.build_db_config", return_value=cfg),
+                patch("db.store_protocols.build_db_config", return_value=cfg),
+                patch(
+                    "db.create_schema.build_workflow_schema_sql",
+                    return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+                ),
+            ):
+                with pytest.raises(
+                    sqlite3.OperationalError, match="no such table: nonexistent_table"
+                ):
+                    cs.create_workflow_schema()
+        finally:
+            schema_sql_mod._WORKFLOW_MIGRATIONS = original
+
     def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow3.sqlite"
         cfg = DbConfig(

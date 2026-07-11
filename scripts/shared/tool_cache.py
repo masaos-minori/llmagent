@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """shared/tool_cache.py
-Cache entry dataclass and ToolResultCache for ToolExecutor's LRU result cache.
+Cache entry dataclass and ToolResultCache for a standalone tool-result cache.
+
+Status: ToolResultCache is NOT currently used by ToolExecutor -- ToolExecutor
+maintains its own internal OrderedDict-based cache (see _execute_with_cache(),
+_store_and_evict() in shared/tool_executor.py), tightly integrated with its
+stampede-protection (_inflight future sharing) mechanism, which this class has
+no equivalent of. ToolResultCache remains available as a standalone, simpler
+utility for a future caller that needs LRU+TTL caching without stampede
+protection -- it is not deprecated, but it is also not the canonical cache.
 """
 
 from __future__ import annotations

@@ -48,7 +48,6 @@ class ToolExecutor(ToolTransportInvoker):
         cache_max_size: int = 0,
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
-        repeated_tool_error_threshold: int = 3,
         discovery_map: dict[str, str] | None = None,
     ) -> None:
         super().__init__(http, server_configs, concurrency_limits, lifecycle)
@@ -57,7 +56,6 @@ class ToolExecutor(ToolTransportInvoker):
         self._server_configs = server_configs
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.stat_cache_hits: int = 0
-        self._tool_error_threshold = repeated_tool_error_threshold
         self._inflight: dict[str, asyncio.Future[ToolCallResult]] = {}
 
         self._resolver = ToolRouteResolver(
@@ -160,7 +158,12 @@ class ToolExecutor(ToolTransportInvoker):
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Share inflight future among concurrent callers to prevent stampede."""
+        """Share inflight future among concurrent callers to prevent stampede.
+
+        If _raw_execute() raises, the exception is propagated to every concurrent
+        waiter via inflight.set_exception() -- not just the caller that triggered
+        execution -- so no waiter hangs indefinitely on a failed shared future.
+        """
         inflight = self._inflight.get(cache_key)
         if inflight is not None and not inflight.done():
             return await inflight
@@ -171,6 +174,11 @@ class ToolExecutor(ToolTransportInvoker):
         self._inflight[cache_key] = inflight
         try:
             result = await self._raw_execute(tool_name, args)
+        except Exception as exc:  # noqa: BLE001 -- must release all inflight waiters regardless of exception type
+            if not inflight.done():
+                inflight.set_exception(exc)
+            raise
+        else:
             if not inflight.done():
                 inflight.set_result(result)
             return result

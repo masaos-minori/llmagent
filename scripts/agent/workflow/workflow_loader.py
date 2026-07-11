@@ -45,7 +45,7 @@ WORKFLOWS_DIR = (
 _REQUIRED_STAGE_KEYS = {"id", "description", "timeout_sec", "retryable"}
 _REQUIRED_POLICY_KEYS = {"max_attempts", "backoff", "backoff_sec"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}
-_SUPPORTED_BACKOFF = {"fixed", "exponential"}
+_SUPPORTED_BACKOFF = {"fixed"}
 
 
 class WorkflowLoadError(Exception):

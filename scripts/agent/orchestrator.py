@@ -149,12 +149,15 @@ class Orchestrator:
         # Guard: block LLM processing while a workflow approval is pending
         if ctx.workflow.approval_pending:
             logger.warning(
-                "Turn blocked: workflow pending approval. Use /approve or /reject."
+                "Turn blocked: workflow pending approval. Use /approve %s or /reject %s.",
+                ctx.turn.pending_approval_id,
+                ctx.turn.pending_approval_id,
             )
             if self._on_error:
                 self._on_error(
                     RuntimeError(
-                        "[workflow] Approval is pending — use /approve [reason] or /reject [reason]."
+                        f"[workflow] Approval is pending — use /approve {ctx.turn.pending_approval_id} [reason] "
+                        f"or /reject {ctx.turn.pending_approval_id} [reason]."
                     )
                 )
             return
@@ -303,7 +306,9 @@ class Orchestrator:
             task_id=exc.task_id or "unknown",
         )
         logger.warning(
-            "[workflow] Approval required. Use /approve [reason] or /reject [reason]."
+            "[workflow] Approval required. Use /approve %s [reason] or /reject %s [reason].",
+            exc.approval_id,
+            exc.approval_id,
         )
 
     def _handle_workflow_halt(self, exc: WorkflowHaltError) -> None:

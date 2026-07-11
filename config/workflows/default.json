@@ -4,13 +4,13 @@
   "stages": [
     {
       "id": "plan",
-      "description": "Prepare RAG context and memory injection",
+      "description": "Idempotency/bookkeeping stage only; no LLM call. Turn-start audit logging happens before the engine runs; memory injection and mode classification happen in the execute stage.",
       "timeout_sec": 30,
       "retryable": false
     },
     {
       "id": "execute",
-      "description": "LLM call and tool execution loop",
+      "description": "Memory injection, mode classification, LLM call, and tool execution loop",
       "timeout_sec": 120,
       "retryable": true
     },
@@ -18,12 +18,6 @@
       "id": "verify",
       "description": "Result validation and loop guard check",
       "timeout_sec": 10,
-      "retryable": false
-    },
-    {
-      "id": "retry",
-      "description": "Transport error retry gate",
-      "timeout_sec": 5,
       "retryable": false
     }
   ],

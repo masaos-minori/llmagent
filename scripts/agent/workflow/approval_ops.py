@@ -49,8 +49,14 @@ def resolve_approval(
     db.commit()
 
 
-def get_pending_approval(db: SQLiteHelper, task_id: str) -> ApprovalRecord | None:
-    """Return the most recent approval record for a task, or None if absent."""
+def get_latest_approval(db: SQLiteHelper, task_id: str) -> ApprovalRecord | None:
+    """Return the most recent approval record for a task, regardless of status.
+
+    Not filtered to status='pending' — callers that need only pending records
+    should filter on the returned record's .status, or use
+    find_pending_approval_by_session() / find_latest_pending_approval() /
+    find_approval_by_id() for status-scoped lookups.
+    """
     rows = db.fetchall(
         "SELECT * FROM approvals WHERE task_id=? ORDER BY created_at DESC LIMIT 1",
         (task_id,),

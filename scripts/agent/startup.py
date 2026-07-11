@@ -305,6 +305,7 @@ class StartupOrchestrator:
         task_id, approval = result
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
+        ctx.turn.pending_approval_task_id = task_id
         logger.warning(
             "Recovered pending approval: task=%s approval=%s reason=%s",
             task_id,
@@ -314,7 +315,7 @@ class StartupOrchestrator:
         self._view.write_warning(
             f"[workflow] Pending approval from previous session — "
             f"task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
-            f"Use /approve [reason] or /reject [reason]."
+            f"Use /approve {approval.approval_id} [reason] or /reject {approval.approval_id} [reason]."
         )
 
     async def _setup_prompt(self) -> None:

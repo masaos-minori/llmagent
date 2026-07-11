@@ -56,7 +56,7 @@ class DbConfig:
 
 
 def build_db_config() -> DbConfig:
-    """Construct DbConfig from common.toml; raises ValueError if common.toml is missing or malformed."""
+    """Construct DbConfig from agent.toml; raises ValueError if agent.toml is missing or malformed."""
     cfg = ConfigLoader().load("agent.toml")
     return DbConfig(
         rag_db_path=cfg.get("rag_db_path", ""),

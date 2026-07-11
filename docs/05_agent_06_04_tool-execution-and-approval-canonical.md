@@ -44,10 +44,10 @@ source:
 | Resolution | 標準入力による対話 | `/approve` / `/reject` |
 | Currently active | 常に有効 | 無効 (`require_approval=False`) |
 
-ワークフローレベルの承認ゲートは`AgentConfig.workflow_require_approval`
-(デフォルト`False`) によって制御される。有効にするにはエージェント設定で
-`workflow_require_approval = true`を設定する。フィールドリファレンスと起動時のみの分類については
-[AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config-part1.md#agentconfig-structure)を参照。
+  ワークフローレベルの承認ゲートはワークフロー定義ファイル（`config/workflows/*.json`）の
+`require_approval` フィールド（デフォルト`false`）によって制御される。有効にするにはワークフロー定義で
+`"require_approval": true`を設定する。フィールドリファレンスについては
+[Workflow Definition Schema](05_agent_08_01_configuration-loading-agent-config-part1.md#workflow-definition-schema)を参照。
 
 ### 共存ルール
 

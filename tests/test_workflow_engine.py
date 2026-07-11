@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from agent.workflow.approval_ops import (
-    get_pending_approval,
+    get_latest_approval,
     request_approval,
     resolve_approval,
 )
@@ -255,7 +255,7 @@ class TestWorkflowEngineApprovalGate:
         engine = WorkflowEngine(wdef, store)
         with pytest.raises(WorkflowPendingApprovalError):
             await engine.run(task, _noop, _noop, _noop)
-        approval = get_pending_approval(store._db, task.task_id)
+        approval = get_latest_approval(store._db, task.task_id)
         assert approval is not None
         resolve_approval(store._db, approval.approval_id, "rejected", "not safe")
         with pytest.raises(WorkflowHaltError, match="approval rejected"):
@@ -273,7 +273,7 @@ class TestWorkflowEngineApprovalGate:
             await engine.run(task, _noop, _noop, _noop)
 
         # Approve the task
-        approval = get_pending_approval(store._db, task.task_id)
+        approval = get_latest_approval(store._db, task.task_id)
         assert approval is not None
         resolve_approval(store._db, approval.approval_id, "approved")
 
@@ -328,3 +328,47 @@ class TestWorkflowEngineApprovalGate:
         found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_verify_not_called_before_approval_resolution(self, store) -> None:
+        """verify callback must not be invoked until the approval gate is resolved."""
+        wdef = _make_wdef(require_approval=True)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        verify_called = False
+
+        async def verify_fn() -> str | None:
+            nonlocal verify_called
+            verify_called = True
+            return None
+
+        with pytest.raises(WorkflowPendingApprovalError):
+            await engine.run(task, _noop, _noop, verify_fn)
+
+        assert verify_called is False, (
+            "verify must not be called when approval gate blocks execution"
+        )
+
+
+class TestWorkflowEngineRetryStageRegression:
+    @pytest.mark.asyncio
+    async def test_run_never_invokes_retry_stage(self, store) -> None:
+        """Regression guard: WorkflowEngine.run() must never invoke a retry-labeled stage."""
+        wdef = _make_wdef()
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        with patch.object(
+            engine, "_run_stage", wraps=engine._run_stage
+        ) as mock_run_stage:
+            await engine.run(task, _noop, _noop, _noop)
+            for call_args in mock_run_stage.call_args_list:
+                stage_id = (
+                    call_args[0][1]
+                    if len(call_args[0]) > 1
+                    else call_args[1].get("stage_id")
+                )
+                assert stage_id != "retry", (
+                    "_run_stage was called with stage_id='retry' which should never happen"
+                )

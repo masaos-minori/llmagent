@@ -80,6 +80,7 @@ COMPAT_PATTERNS = {
     "direct-execution fallback phrase": r"direct.execution\s+fallback",
     "WorkflowExecutionPolicy import": r"from\s+agent\.workflow_execution_policy\s+import",
     "workflow_execution_policy module import": r"\bimport\s+workflow_execution_policy\b",
+    "_reset_registry_for_testing": r"_reset_registry_for_testing",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -127,6 +128,8 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "test_mcp_tool_schema_exports.py",
     # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy
     ROOT_DIR / "docs" / "04_mcp_07_tool_schema_export_policy.md",
+    # Definition site of test-only reset helper (not a misuse)
+    ROOT_DIR / "scripts" / "shared" / "tool_registry.py",
 }
 
 
@@ -189,7 +192,12 @@ def main() -> int:
 
     # Determine files to check
     if not args.files:
-        dirs_to_scan = [ROOT_DIR / "scripts", ROOT_DIR / "docs", ROOT_DIR / "tests"]
+        dirs_to_scan = [
+            ROOT_DIR / "scripts",
+            ROOT_DIR / "docs",
+            ROOT_DIR / "tests",
+            ROOT_DIR / "tools",
+        ]
         files: list[Path] = []
         for d in dirs_to_scan:
             if d.exists():

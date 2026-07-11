@@ -36,6 +36,7 @@ class TestPluginToolInvoker:
         assert result.output == "ok"
         assert result.is_error is False
         assert result.error_type == ""
+        assert result.source == "plugin"
 
     @pytest.mark.asyncio
     async def test_plugin_exception_returns_error_result(self) -> None:
@@ -49,6 +50,7 @@ class TestPluginToolInvoker:
         assert result.is_error is True
         assert result.error_type == "tool"
         assert "boom" in result.output
+        assert result.source == "plugin"
 
     @pytest.mark.asyncio
     async def test_invalid_tuple_length_returns_error_result(self) -> None:
@@ -62,6 +64,7 @@ class TestPluginToolInvoker:
         assert result.is_error is True
         assert "tuple" in result.output.lower()
         assert result.error_type == "plugin_contract"
+        assert result.source == "plugin"
 
     @pytest.mark.asyncio
     async def test_wrong_output_type_returns_error_result(self) -> None:
@@ -75,6 +78,7 @@ class TestPluginToolInvoker:
         assert result.is_error is True
         assert "str" in result.output.lower()
         assert result.error_type == "plugin_contract"
+        assert result.source == "plugin"
 
     @pytest.mark.asyncio
     async def test_wrong_is_error_type_returns_error_result(self) -> None:
@@ -88,3 +92,4 @@ class TestPluginToolInvoker:
         assert result.is_error is True
         assert "bool" in result.output.lower()
         assert result.error_type == "plugin_contract"
+        assert result.source == "plugin"

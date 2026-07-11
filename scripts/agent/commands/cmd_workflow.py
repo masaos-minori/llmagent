@@ -2,8 +2,8 @@
 Workflow approval mixin for CommandRegistry.
 
 Provides _WorkflowMixin with:
-  _cmd_approve  — /approve [approval_id] [reason]  Approve a suspended workflow task
-  _cmd_reject   — /reject [approval_id] [reason]   Reject a suspended workflow task
+  _cmd_approve  — /approve <approval_id> [reason]  Approve a suspended workflow task
+  _cmd_reject   — /reject <approval_id> [reason]   Reject a suspended workflow task
 """
 
 from __future__ import annotations
@@ -89,8 +89,7 @@ class _WorkflowMixin(MixinBase):
 
             if explicit_id is None:
                 self._out.write_validation_error(
-                    "Approval ID required. Use: /approve <approval_id> [reason]\n"
-                    "Use '/workflow status' to list pending approval IDs."
+                    "Approval ID required. Use: /approve <approval_id> [reason]"
                 )
                 return
 
@@ -126,7 +125,9 @@ class _WorkflowMixin(MixinBase):
         """Reject the pending workflow-level approval gate (approvals table only).
 
         Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
-        Immediately marks the task as halted.
+        Immediately marks the task as halted. WorkflowEngine._gate_approval() also
+        halts on a rejected-status approval record as a defensive fallback for
+        resume paths that don't go through this command.
         """
         from agent.workflow import (
             StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
@@ -138,8 +139,7 @@ class _WorkflowMixin(MixinBase):
 
             if explicit_id is None:
                 self._out.write_validation_error(
-                    "Approval ID required. Use: /reject <approval_id> [reason]\n"
-                    "Use '/workflow status' to list pending approval IDs."
+                    "Approval ID required. Use: /reject <approval_id> [reason]"
                 )
                 return
 

@@ -40,13 +40,22 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 |---|---|---|
 | `lookup` | `(embedding, history_context="") -> str \| None` | 一致する `history_context` エントリの中でコサイン類似度がしきい値以上のものがあればキャッシュ結果を返す；埋め込み次元の不一致時は `ValueError` を発生させる；それ以外は `None` |
 | `put` | `(embedding, history_context, context_str) -> None` | エントリを保存する；`history_context` はキャッシュキーの一部；埋め込み次元の不一致時は `ValueError` を発生させる；その後 `prune()` を呼び出す |
-| `prune` | `() -> None` | `len ≤ max_size` になるまで最古のエントリを削除する（FIFO） |
+| `prune` | `() -> None` | `max_size <= 0` の場合は全エントリを即時空にする；`len > max_size` の場合は FIFO で `max_size` 件まで削除 |
 | `size` | プロパティ `int` | 現在のエントリ数 |
 | `invalidate` | `() -> None` | 世代カウンタをインクリメントし、キャッシュ済みエントリをすべてアトミックにクリアする |
-| `generation` | プロパティ `int` | 現在のキャッシュ無効化世代カウント |
+| `generation` | プロパティ `int` | キャッシュ無効化世代カウント（観測用のみ；エントリの鮮度フィルタには使用されない） |
 
-キャッシュは `RagPipeline.__init__` で `cfg.semantic_cache_max_size` と
-`cfg.semantic_cache_threshold` を用いて初期化される。
+### RagPipeline.invalidate_cache()
+
+```python
+RagPipeline.invalidate_cache(self) -> None
+```
+
+`self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
+
+### CLI インジェスト後のキャッシュ鮮度
+
+MCP `rag_delete_document` は呼び出し元のMCPプロセス内の `RagPipeline.semantic_cache` を `invalidate_cache()` 経由で無効化する — これは**1つのプロセス内のみ**をクリアする。CLIインジェスト（`uv run python -m rag.ingestion.ingester`）は**別のプロセス**で実行され、MCPサービスのメモリ内キャッシュにはアクセスできない。**CLIインジェスト後に即座のクエリ鮮度を必要とする場合は、rag-pipeline-mcpサービス（またはエージェントプロセス、サブプロセスモードのMCPサーバーを再起動する）を再起動する必要がある** — これはオペレーショナルな手順であり、CLIインジェストが自動で行うものではない。再起動がない場合、インジェスト前に作成されたキャッシュエントリは、キャッシュ自体のEviction/TTL（[cache configuration]参照）が自然に期限切れになるまでの制限付きウィンドウの間、古いコンテキストを返す可能性がある。
 
 ---
 

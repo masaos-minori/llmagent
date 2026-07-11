@@ -112,7 +112,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | コンテキスト | `/context`, `/compact`, `/system` |
 | DB | `/db rag stats\|urls\|clean\|rebuild-fts\|vec-rebuild\|reconcile-url\|recover\|consistency; session stats\|health\|checkpoint\|vacuum\|purge\|recover` |
 | プラン | `/plan` |
-| ワークフロー | `/approve [reason]`, `/reject [reason]` |
+| ワークフロー | `/approve <approval_id> [reason]`, `/reject <approval_id> [reason]` |
 | デバッグ/監査 | `/debug`, `/audit` |
 | RAG/エクスポート | `/rag search`, `/export`, `/compact` |
 | メモリ | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |

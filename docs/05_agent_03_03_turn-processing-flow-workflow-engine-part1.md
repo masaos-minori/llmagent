@@ -56,10 +56,9 @@ source:
 - `artifacts` — ステージコールバックが生成するURI
 
 ワークフローステージ (`default.json`で定義):
-- `plan` — LLMが初期計画を生成; 必須
-- `execute` — LLMが計画を実行; 必須
+- `plan` — 実行前のアイデンポテンシー/ブックキーピングのみ; LLM呼び出しなし; 必須
+- `execute` — メモリ注入、モード分類、LLM呼び出し、ツール実行ループ; 必須
 - `verify` — LLMが実行結果を検証; 必須
-- `retry` — `execute`後のオプションのトランスポートエラーリトライゲート; `retryable: false`; `WorkflowEngine`の動作に存在は必須ではない
 
 各ステージは`StageDefinition`を持つ:
 - `id` — 一意のステージ識別子 (例: "plan", "execute")
@@ -92,13 +91,13 @@ verifyステージ実行前に一時停止する:
 
 1. エンジンが`store.request_approval(task_id)`を呼び出す → `status=pending`の`ApprovalRecord`
 2. タスクステータス → `pending_approval`
-3. `WorkflowPendingApprovalError`が発生 → orchestratorが`approval_id`を`ctx.turn.pending_approval_id`に格納; WARNINGをログ出力: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
+3. `WorkflowPendingApprovalError`が発生 → orchestratorが`approval_id`を`ctx.turn.pending_approval_id`に格納; WARNINGをログ出力: `[workflow] Approval required. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`
 
-ユーザーが`/approve [reason]`または`/reject [reason]`を実行すると、承認レコードがDB内で更新される。
+ユーザーが`/approve <approval_id> [reason]`または`/reject <approval_id> [reason]`を実行すると、承認レコードがDB内で更新される。
 同一タスクでの次回のワークフロー実行時、ゲートは既存の承認レコードをチェックする:
 
 - `status=approved` → verifyステージへ通過
-- `status=rejected` → `WorkflowHaltError`が発生; タスクは停止
+- `status=rejected` → `WorkflowHaltError`が発生; タスクは停止（`/reject` コマンドは拒否操作の直後にタスクを即座に halted 状態にする。このチェックは、その halt が別経路で適用される前にエンジンが再評価した場合に備えた防御的フォールバック）
 - `status=pending` → `WorkflowPendingApprovalError`が再度発生 (ユーザーがまだ応答していない)
 
 既存の承認レコードが見つからない場合、新規レコードが作成されワークフローは一時停止する。
@@ -116,8 +115,8 @@ verifyステージ実行前に一時停止する:
 
 ステージが`retryable: true`の場合、エンジンはリトライポリシーを使用してリトライ挙動を決定する:
 - `max_attempts`: 最大試行回数 (デフォルト3)
-- `backoff`: リトライ戦略 — "fixed"または"exponential" (両者とも同じ遅延ロジックを使用)
-- `backoff_sec`: リトライ間の遅延秒数 (デフォルト1; backoffの種類にかかわらず常にそのまま使用される — "fixed"と"exponential"はいずれも同じ一定の遅延を適用する)
+- `backoff`: リトライ戦略 — "fixed"のみサポート
+- `backoff_sec`: リトライ間の遅延秒数 (デフォルト1; fixedバックオフではこの値がそのまま適用される)
 
 ### ワークフローローダーの検証ルール
 
@@ -128,7 +127,7 @@ verifyステージ実行前に一時停止する:
 - 必須ステージ: `plan`, `execute`, `verify` (すべて存在する必要がある)
 - 各ステージは以下を持つ必要がある: `id`, `description`, `timeout_sec`, `retryable`
 - `retry_policy.max_attempts`は1以上である必要がある
-- `retry_policy.backoff`は"fixed"または"exponential"である必要がある
+- `retry_policy.backoff`は"fixed"である必要がある
 - `retry_policy.backoff_sec`は0以上である必要がある
 
 See also: [02_deployment-part1.md](02_deployment-part1.md) for deploy-time validation of these same rules,

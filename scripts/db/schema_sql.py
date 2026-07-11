@@ -14,7 +14,10 @@ Functions:
   apply_workflow_migrations(conn) — apply incremental schema migrations to an existing workflow DB
 """
 
+import logging
 import sqlite3
+
+logger = logging.getLogger(__name__)
 
 # Bump this constant whenever a new entry is added to _WORKFLOW_MIGRATIONS.
 WORKFLOW_SCHEMA_VERSION = "1.0.0"
@@ -238,12 +241,24 @@ def build_eventbus_schema_sql() -> str:
     return _EVENTBUS_SCHEMA
 
 
-_WORKFLOW_MIGRATIONS: list[str] = [
-    "ALTER TABLE attempts ADD COLUMN error_kind TEXT",
-    "ALTER TABLE attempts ADD COLUMN error_detail TEXT",
-    "ALTER TABLE artifacts ADD COLUMN workflow_id TEXT",
-    "ALTER TABLE artifacts ADD COLUMN attempt_number INTEGER",
-    "ALTER TABLE processed_events ADD COLUMN workflow_id TEXT",
+_WORKFLOW_MIGRATIONS: list[tuple[str, str]] = [
+    ("2026_add_attempts_error_kind", "ALTER TABLE attempts ADD COLUMN error_kind TEXT"),
+    (
+        "2026_add_attempts_error_detail",
+        "ALTER TABLE attempts ADD COLUMN error_detail TEXT",
+    ),
+    (
+        "2026_add_artifacts_workflow_id",
+        "ALTER TABLE artifacts ADD COLUMN workflow_id TEXT",
+    ),
+    (
+        "2026_add_artifacts_attempt_number",
+        "ALTER TABLE artifacts ADD COLUMN attempt_number INTEGER",
+    ),
+    (
+        "2026_add_processed_events_workflow_id",
+        "ALTER TABLE processed_events ADD COLUMN workflow_id TEXT",
+    ),
 ]
 
 
@@ -253,10 +268,19 @@ def build_workflow_schema_sql() -> str:
 
 
 def apply_workflow_migrations(conn: sqlite3.Connection) -> None:
-    """Apply incremental migrations to an existing workflow.sqlite; idempotent."""
-    for stmt in _WORKFLOW_MIGRATIONS:
+    """Apply incremental migrations to an existing workflow.sqlite; idempotent.
+
+    Only swallows OperationalError for duplicate-column scenarios
+    (e.g. ALTER TABLE ... ADD COLUMN when the column already exists);
+    all other OperationalErrors are re-raised so broken migration SQL
+    is never silently ignored.
+    """
+    for migration_id, stmt in _WORKFLOW_MIGRATIONS:
         try:
             conn.execute(stmt)
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" in str(exc):
+                logger.debug("Migration %s already applied: %s", migration_id, exc)
+            else:
+                raise
     conn.commit()

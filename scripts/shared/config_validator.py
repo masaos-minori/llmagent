@@ -21,7 +21,9 @@ class RagConfigValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
-        rag = cfg.get("rag", {})
+        rag = (
+            cfg["rag"] if "rag" in cfg else cfg
+        )  # Normalize: nested {"rag": {...}} (agent.toml) and flat {...} (MCP module_cfg) both supported
 
         # Embedding dimension consistency
         embed_dim = rag.get("embedding_dim")
@@ -39,5 +41,12 @@ class RagConfigValidator:
         threshold = rag.get("semantic_cache_threshold", 0.92)
         if threshold < 0.5:
             warnings.append(f"semantic_cache_threshold={threshold} is unusually low")
+
+        # Semantic cache max_size validation (negative values are always invalid)
+        max_size = rag.get("semantic_cache_max_size", 100)
+        if max_size < 0:
+            errors.append(
+                f"semantic_cache_max_size={max_size} is negative; must be >= 0"
+            )
 
         return ConfigValidationResult(errors=errors, warnings=warnings)

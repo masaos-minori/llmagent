@@ -13,7 +13,7 @@ import pytest
 from agent.workflow.approval_ops import (
     find_latest_pending_approval,
     find_pending_approval_by_session,
-    get_pending_approval,
+    get_latest_approval,
     request_approval,
     resolve_approval,
 )
@@ -182,22 +182,22 @@ class TestApprovals:
         approval = request_approval(store._db, task.task_id, stage_id="execute")
         assert approval.stage_id == "execute"
 
-    def test_get_pending_approval_returns_latest(self, store) -> None:
+    def test_get_latest_approval_returns_latest(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         request_approval(store._db, task.task_id)
-        found = get_pending_approval(store._db, task.task_id)
+        found = get_latest_approval(store._db, task.task_id)
         assert found is not None
         assert found.status == "pending"
 
-    def test_get_pending_approval_returns_none_when_absent(self, store) -> None:
+    def test_get_latest_approval_returns_none_when_absent(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        assert get_pending_approval(store._db, task.task_id) is None
+        assert get_latest_approval(store._db, task.task_id) is None
 
     def test_resolve_approval_approved(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id)
         resolve_approval(store._db, approval.approval_id, "approved", "looks good")
-        found = get_pending_approval(store._db, task.task_id)
+        found = get_latest_approval(store._db, task.task_id)
         assert found is not None
         assert found.status == "approved"
         assert found.reason == "looks good"
@@ -207,7 +207,7 @@ class TestApprovals:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
         approval = request_approval(store._db, task.task_id)
         resolve_approval(store._db, approval.approval_id, "rejected", "too risky")
-        found = get_pending_approval(store._db, task.task_id)
+        found = get_latest_approval(store._db, task.task_id)
         assert found is not None
         assert found.status == "rejected"
         assert found.reason == "too risky"

@@ -250,3 +250,49 @@ class TestStartupValidationStrictMode:
             for r in caplog.records
             if r.levelno >= logging.WARNING
         )
+
+
+class TestAllToolConstantsFrozensetsRegistered:
+    def test_all_tool_constants_frozensets_are_registered(self) -> None:
+        """Every tool named in every tool_constants.py frozenset is in the registry.
+
+        Complements the fixed-count tests in tests/test_tool_registry_counts.py: two independent
+        additions/removals could cancel out a count check numerically without this membership
+        check catching the actual drift.
+        """
+        from shared.tool_constants import (
+            CICD_TOOLS,
+            DELETE_TOOLS,
+            GIT_TOOLS,
+            GITHUB_TOOLS,
+            MDQ_TOOLS,
+            RAG_TOOLS,
+            READ_TOOLS,
+            SHELL_TOOLS,
+            WEB_SEARCH_TOOLS,
+            WRITE_TOOLS,
+        )
+
+        registry = get_registry()
+        all_expected = (
+            CICD_TOOLS
+            | DELETE_TOOLS
+            | GIT_TOOLS
+            | GITHUB_TOOLS
+            | MDQ_TOOLS
+            | RAG_TOOLS
+            | READ_TOOLS
+            | SHELL_TOOLS
+            | WEB_SEARCH_TOOLS
+            | WRITE_TOOLS
+        )
+        assert all_expected <= registry.get_all_tool_names()
+
+
+class TestGetToolNamesOrdering:
+    def test_get_tool_names_returns_sorted_order(self) -> None:
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="zebra", server_key="s1"))
+        registry.register(ToolDefinition(name="apple", server_key="s1"))
+        registry.register(ToolDefinition(name="mango", server_key="s1"))
+        assert registry.get_tool_names("s1") == ["apple", "mango", "zebra"]

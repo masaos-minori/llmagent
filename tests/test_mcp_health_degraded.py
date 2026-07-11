@@ -269,3 +269,107 @@ async def test_watchdog_no_registry_no_error():
     ):
         # Should not raise even with no registry
         await _watchdog_check_http(ctx, "srv1", _srv_cfg(), {"srv1": 0}, max_restarts=3)
+
+
+def _make_probe_full(
+    reachable=True,
+    status_code=None,
+    restart_recommended=False,
+    operator_action_required=False,
+    body=None,
+    parse_failed=False,
+    parse_error=None,
+):
+    """Construct a full McpHealthProbeResult without mocking."""
+    from agent.shared.health_models import McpHealthProbeResult
+
+    return McpHealthProbeResult(
+        reachable=reachable,
+        status_code=status_code,
+        restart_recommended=restart_recommended,
+        operator_action_required=operator_action_required,
+        body=body if body is not None else {},
+        parse_failed=parse_failed,
+        parse_error=parse_error,
+    )
+
+
+@pytest.mark.asyncio
+async def test_watchdog_malformed_json_calls_record_degraded_with_reason():
+    from agent.repl_health import _watchdog_check_http
+
+    ctx = _make_watchdog_ctx()
+    probe = _make_probe_full(
+        reachable=True,
+        status_code=200,
+        restart_recommended=False,
+        operator_action_required=False,
+        body={},
+        parse_failed=True,
+        parse_error="unexpected token",
+    )
+
+    with patch(
+        "agent.repl_health._probe_mcp_health_detail", new=AsyncMock(return_value=probe)
+    ):
+        await _watchdog_check_http(ctx, "srv1", _srv_cfg(), {"srv1": 0}, max_restarts=3)
+
+    assert (
+        ctx.services_required.health_registry.get_state("srv1")
+        == McpServerHealthState.DEGRADED
+    )
+    assert (
+        ctx.services_required.health_registry.get_degraded_reason("srv1")
+        == "malformed_health_response"
+    )
+
+
+@pytest.mark.asyncio
+async def test_watchdog_degraded_with_restart_recommended_true_no_record_degraded():
+    from agent.repl_health import _watchdog_check_http
+
+    ctx = _make_watchdog_ctx()
+    probe = _make_probe_full(reachable=True, status_code=200, restart_recommended=True)
+
+    with patch(
+        "agent.repl_health._probe_mcp_health_detail", new=AsyncMock(return_value=probe)
+    ):
+        await _watchdog_check_http(ctx, "srv1", _srv_cfg(), {"srv1": 0}, max_restarts=3)
+
+    # Degraded + restart recommended goes through restart path, NOT record_degraded
+    assert ctx.services_required.health_registry.get_degraded_reason("srv1") is None
+
+
+def test_classify_health_failure_all_five_cases():
+    from agent.repl_health import _classify_health_failure
+
+    unreachable = _make_probe_full(reachable=False)
+    assert _classify_health_failure(unreachable) == "unreachable"
+
+    malformed = _make_probe_full(
+        reachable=True, status_code=200, parse_failed=True, parse_error="bad json"
+    )
+    result = _classify_health_failure(malformed)
+    assert "malformed JSON" in result
+    assert "bad json" in result
+
+    non_200 = _make_probe_full(reachable=True, status_code=503)
+    result = _classify_health_failure(non_200)
+    assert "non-200" in result
+    assert "status=503" in result
+
+    degraded_no_restart = _make_probe_full(
+        reachable=True, status_code=200, restart_recommended=False
+    )
+    assert (
+        _classify_health_failure(degraded_no_restart)
+        == "degraded (restart_recommended=false)"
+    )
+
+    degraded_restart = _make_probe_full(
+        reachable=True, status_code=200, restart_recommended=True
+    )
+    assert (
+        _classify_health_failure(degraded_restart)
+        == "degraded (restart_recommended=true)"
+    )

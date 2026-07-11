@@ -31,7 +31,7 @@ source:
 | TEST-DESIGN3-01 | FTS再構築がCOALESCE(normalized_content, content)を使用する | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
 | TEST-DESIGN3-02 | `chunks_fts`は`chunks`から同期される (独立して維持されるものではない) | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
 | TEST-DESIGN3-03 | 強制再取り込みは孤立したベクトルレコードを残さない | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
-| TEST-DESIGN3-04 | 削除順序の不変条件: `chunks_vec` → `chunks` → `documents` | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
+| TEST-DESIGN3-04 | 削除順序の不変条件: `chunks_vec` → `documents`（`ON DELETE CASCADE` により `chunks` を削除） | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
 | TEST-DESIGN3-05 | 整合性チェックが派生インデックスの非同期を検出する | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
 
 **バグ修正 — reconcile_url()のFTS削除:**
@@ -87,7 +87,7 @@ def test_force_reingest_no_orphan_vectors(db):
     # Insert document and chunks
     insert_doc(url="http://example.com")
     insert_chunk(doc_id=1, content="text", normalized_content=None, chunk_index=0)
-    # Force re-ingestion (deletes chunks_vec first, then chunks, then documents)
+    # Force re-ingestion (deletes chunks_vec first, then documents; CASCADE removes chunks)
     RagMaintenanceService().delete_document("http://example.com")
     # Verify: no orphan vec rows remain
     orphan_count = db.execute(
@@ -101,7 +101,7 @@ def test_force_reingest_no_orphan_vectors(db):
 ```python
 # Pseudocode for integration test
 def test_deletion_order_invariant(db):
-    """Deletion must follow: chunks_vec → chunks → documents."""
+    """Deletion must follow: chunks_vec → documents (CASCADE removes chunks)."""
     # Insert document with chunks and vectors
     insert_doc(url="http://order-test.com")
     chunk_id = insert_chunk(doc_id=1, content="test", normalized_content=None, chunk_index=0)

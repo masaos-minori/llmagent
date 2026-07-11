@@ -64,7 +64,7 @@ class StageDefinition:
 @dataclass
 class RetryPolicy:
     max_attempts: int
-    backoff: str  # "fixed" | "exponential"
+    backoff: str  # "fixed"
     backoff_sec: int
 
 

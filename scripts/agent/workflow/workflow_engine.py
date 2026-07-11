@@ -15,7 +15,7 @@ from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from typing import Protocol
 
-from agent.workflow.approval_ops import get_pending_approval, request_approval
+from agent.workflow.approval_ops import get_latest_approval, request_approval
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import TaskRecord, WorkflowDef
@@ -140,7 +140,7 @@ class WorkflowEngine:
 
     async def _gate_approval(self, task: TaskRecord) -> None:
         """Suspend execution until a human approves the task."""
-        existing = get_pending_approval(self._store._db, task.task_id)
+        existing = get_latest_approval(self._store._db, task.task_id)
         with self._span_ctx("workflow.approval") as approval_span:
             approval_span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             if existing is None:
@@ -164,6 +164,10 @@ class WorkflowEngine:
             if existing.status == "pending":
                 raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
             if existing.status == "rejected":
+                # Defensive fallback: /reject (cmd_workflow.py) already halts the task
+                # immediately when the user rejects. This branch only fires if the
+                # engine re-evaluates a task whose approval was resolved as "rejected"
+                # through some other path before the halt was applied.
                 self._store.update_task_status(task.task_id, "halted")
                 raise WorkflowHaltError(f"approval rejected: {existing.reason}")
 

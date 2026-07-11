@@ -134,6 +134,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
 
         assert ctx.workflow.approval_pending is True
         assert ctx.turn.pending_approval_id == "approval-123"
+        assert ctx.turn.pending_approval_task_id == "task-456"
 
     @pytest.mark.asyncio
     async def test_startup_recovery_warning_contains_task_and_approval_id(self) -> None:
@@ -165,6 +166,12 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         )
         assert "approval-123" in warning_text, (
             f"Expected approval_id in warning, got: {warning_text}"
+        )
+        assert "/approve approval-123" in warning_text, (
+            f"Expected /approve command with approval_id in warning, got: {warning_text}"
+        )
+        assert "/reject approval-123" in warning_text, (
+            f"Expected /reject command with approval_id in warning, got: {warning_text}"
         )
 
     @pytest.mark.asyncio

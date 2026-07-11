@@ -82,3 +82,56 @@ class TestRagConfigValidator:
     def test_no_rag_key(self) -> None:
         result = self.validator.validate({})
         assert result.ok is True
+
+    def test_flat_shape_uses_root_dict(self) -> None:
+        result = self.validator.validate(
+            {
+                "embedding_dim": 768,
+                "vec_dim": 1536,
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "embedding_dim=768 != vec_dim=1536" in result.errors[0]
+
+    def test_flat_config_negative_max_size_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "semantic_cache_max_size": -1,
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert (
+            "semantic_cache_max_size=-1 is negative; must be >= 0" in result.errors[0]
+        )
+
+    def test_flat_config_max_size_zero_no_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "semantic_cache_max_size": 0,
+            }
+        )
+        assert result.ok is True
+        assert len(result.errors) == 0
+
+    def test_flat_config_use_rrf_false_warning(self) -> None:
+        result = self.validator.validate(
+            {
+                "use_rrf": False,
+            }
+        )
+        assert len(result.warnings) == 1
+        assert "use_rrf=false" in result.warnings[0]
+
+    def test_nested_config_negative_max_size_error(self) -> None:
+        result = self.validator.validate(
+            {
+                "rag": {"semantic_cache_max_size": -1},
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert (
+            "semantic_cache_max_size=-1 is negative; must be >= 0" in result.errors[0]
+        )

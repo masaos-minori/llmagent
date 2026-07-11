@@ -899,14 +899,15 @@ def _create_workflow_db(
             col = missing_column[1]
             ddl = ddl.replace(f", {col} TEXT", "").replace(f"{col} TEXT, ", "")
         conn.execute(ddl)
-    conn.execute(
-        "CREATE TABLE workflow_schema_version (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
-    )
-    if schema_version is not None:
+    if exclude_table != "workflow_schema_version":
         conn.execute(
-            "INSERT INTO workflow_schema_version (version, applied_at) VALUES (?, ?)",
-            (schema_version, "2026-01-01T00:00:00Z"),
+            "CREATE TABLE workflow_schema_version (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
         )
+        if schema_version is not None:
+            conn.execute(
+                "INSERT INTO workflow_schema_version (version, applied_at) VALUES (?, ?)",
+                (schema_version, "2026-01-01T00:00:00Z"),
+            )
     conn.commit()
     conn.close()
     return db_path
@@ -961,4 +962,9 @@ class TestCheckWorkflowSchema:
     def test_mismatched_schema_version_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version="0.9.0")
         with pytest.raises(RuntimeError, match="schema version mismatch"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_missing_workflow_schema_version_table_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, exclude_table="workflow_schema_version")
+        with pytest.raises(RuntimeError, match="workflow_schema_version"):
             check_workflow_schema(db_path=db_path)

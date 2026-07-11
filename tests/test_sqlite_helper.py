@@ -209,3 +209,24 @@ class TestBeginExclusiveRollback:
         # Verify the transaction was rolled back — no inserts should exist
         rows = helper.fetchall("SELECT * FROM test_table WHERE id=1")
         assert len(rows) == 0
+
+
+class TestSQLiteHelperMissingDbPathMessage:
+    def test_missing_workflow_db_path_mentions_agent_toml(self) -> None:
+        """Missing workflow_db_path must mention agent.toml, not common.toml."""
+        from unittest.mock import patch
+
+        from db.config import DbConfig
+
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path="/opt/llm/db/workflow.sqlite",
+            eventbus_db_path="/tmp/eventbus.sqlite",
+        )
+        with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("workflow")
+            # Simulate the case where _db_path was never set (e.g., stale DbConfig)
+            helper._db_path = ""
+            with pytest.raises(ValueError, match="agent.toml"):
+                helper._connect()

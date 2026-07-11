@@ -620,6 +620,41 @@ class TestPluginLoadError:
         assert "alpha.py" in msg
         assert "beta.py" in msg
 
+    def test_aggregated_error_contains_load_tool_and_command_conflicts(
+        self, tmp_path: Path
+    ):
+        plugin_registry.register_builtin_commands(frozenset({"/help"}))
+        (tmp_path / "import_fail.py").write_text("raise RuntimeError('import_fail')")
+        (tmp_path / "tool_conflict.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        (tmp_path / "cmd_conflict.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/help")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        with pytest.raises(PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(
+                tmp_path,
+                known_tools=frozenset({"list_directory"}),
+                override_policy="reject",
+                strict_mode=True,
+            )
+        msg = str(exc_info.value)
+        assert "import_fail" in msg
+        assert "Tool MCP conflicts rejected" in msg
+        assert "Command builtin conflicts rejected" in msg
+
 
 class TestConflictLogging:
     def test_conflict_log_has_plugin_prefix(self, caplog):

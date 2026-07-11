@@ -32,8 +32,8 @@ source:
 
 | Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/approve [reason]` | 保留中のワークフロー承認を「承認済み」として解決 | `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック) |
-| `/reject [reason]` | 保留中のワークフロー承認を「却下」として解決 | `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック) |
+| `/approve <approval_id> [reason]` | 保留中のワークフロー承認を「承認済み」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
+| `/reject <approval_id> [reason]` | 保留中のワークフロー承認を「却下」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
 
 > **適用範囲:** `/approve`と`/reject`は**ワークフローレベルの承認ゲートのみ**(`approvals`DBレコード)を解決する。
 > ツールごとのインタラクティブな承認プロンプト(`tool_approval.run_approval_checks`)には影響しない。
@@ -46,7 +46,7 @@ source:
 起動時に自動検出される。起動時に以下の通知が表示される:
 
 ```
-[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve [reason] or /reject [reason].
+[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].
 ```
 
 ワークフローは承認ゲートから再開され、以前のステップの再実行は不要である。

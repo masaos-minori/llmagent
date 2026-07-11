@@ -12,7 +12,7 @@ from agent.workflow.approval_ops import (
     find_approval_by_id,
     find_latest_pending_approval,
     find_pending_approval_by_session,
-    get_pending_approval,
+    get_latest_approval,
     request_approval,
     resolve_approval,
 )
@@ -98,7 +98,7 @@ class TestFindApprovalById:
     def test_find_approval_by_id_populates_workflow_id(self, store) -> None:
         task = _make_task(store._db)
         request_approval(store._db, task_id=task.task_id, workflow_id="wf-find-1")
-        pending = get_pending_approval(store._db, task.task_id)
+        pending = get_latest_approval(store._db, task.task_id)
         assert pending is not None
         found = find_approval_by_id(store._db, pending.approval_id)
         assert found is not None
@@ -110,16 +110,16 @@ class TestFindApprovalById:
 
 
 class TestGetPendingApproval:
-    def test_get_pending_approval_returns_workflow_id(self, store) -> None:
+    def test_get_latest_approval_returns_workflow_id(self, store) -> None:
         task = _make_task(store._db)
         request_approval(store._db, task_id=task.task_id, workflow_id="wf-get-1")
-        found = get_pending_approval(store._db, task.task_id)
+        found = get_latest_approval(store._db, task.task_id)
         assert found is not None
         assert found.workflow_id == "wf-get-1"
 
-    def test_get_pending_approval_returns_none_when_absent(self, store) -> None:
+    def test_get_latest_approval_returns_none_when_absent(self, store) -> None:
         task = _make_task(store._db)
-        assert get_pending_approval(store._db, task.task_id) is None
+        assert get_latest_approval(store._db, task.task_id) is None
 
 
 class TestResolveApproval:
