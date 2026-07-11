@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """shared/tool_registry.py
-Primary source of truth for MCP tool definitions and drift validation.
+Primary source of truth for MCP tool ownership and routing.
 
 Ownership model:
   - This module is the primary registry of all MCP tools.
@@ -9,6 +9,10 @@ Ownership model:
   - Config mcp_servers.toml tool_names lists are optional; they are validated
     against the registry but not required as a source of truth.
   - Server /v1/tools responses are validated against the registry at startup.
+  - This module owns tool-to-server ownership and routing only; it is not a
+    schema/description registry. LLM-visible tool schemas come from each
+    server's own `tools.py` `TOOL_LIST` (see
+    `docs/04_mcp_07_tool_schema_export_policy.md`).
 
 Routing authority:
   ToolRegistry is the sole routing authority. Live /v1/tools is used only for startup
@@ -17,31 +21,36 @@ Routing authority:
 Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 
 Drift detection:
-  - compare_registry_vs_config(): validates config tool_names against registry
-  - compare_registry_vs_live(): validates live /v1/tools responses against registry
-  - compare_config_vs_live(): validates config tool_names against live responses
+  Canonical validation module: `shared.tool_routing_validation`.
+  - validate_routing_against_config(): validates config tool_names against registry
+  - validate_routing_against_live(): validates live /v1/tools responses against registry
+  - validate_all_routing(): runs both config and live validation together
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class ToolDefinition:
-    """Immutable tool definition owned by a single server."""
+    """Immutable tool definition owned by a single server.
+
+    `description` and `input_schema` are reserved for future use: they are never
+    populated by `_populate_default_registry()` and are not read by any caller today.
+    LLM-visible tool schemas are sourced from each server's own `tools.py` `TOOL_LIST`,
+    not from this registry.
+    """
 
     name: str
     server_key: str
-    description: str = ""
-    input_schema: dict[str, object] = field(default_factory=dict)
+    description: str = ""  # reserved for future use; not populated today
+    input_schema: dict[str, object] = field(
+        default_factory=dict
+    )  # reserved for future use; not populated today
 
 
 class ToolRegistry:

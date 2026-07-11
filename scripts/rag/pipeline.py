@@ -599,3 +599,13 @@ class RagPipeline:
                 ),
             },
         }
+
+    def invalidate_cache(self) -> None:
+        """Clear all cached semantic-search entries.
+
+        Call after any corpus-changing operation this pipeline instance is aware
+        of (e.g. MCP rag_delete_document) so subsequent queries don't return
+        context for a document that no longer exists. Delegates to
+        SemanticCache.invalidate(), which is thread-safe.
+        """
+        self.semantic_cache.invalidate()

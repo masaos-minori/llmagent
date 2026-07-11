@@ -298,3 +298,62 @@ class TestGetDiagnostics:
         diag = pipeline.get_diagnostics()
         encoded = orjson.dumps(diag)
         assert isinstance(encoded, bytes)
+
+
+# ── RagPipeline.invalidate_cache() ───────────────────────────────────────────
+
+
+class TestInvalidateCache:
+    def _make_pipeline(self) -> RagPipeline:
+        cfg = SimpleNamespace(
+            use_search=True,
+            rag_service_url="",
+            use_refiner=False,
+            use_mqe=False,
+            use_rerank=False,
+            use_rrf=True,
+            rrf_k=60,
+            use_semantic_cache=False,
+            top_k_search=5,
+            rag_top_k=3,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+            max_chunks_per_doc=3,
+            semantic_cache_max_size=100,
+            semantic_cache_threshold=0.0,
+            refiner_max_tokens=256,
+            refiner_max_chars_per_chunk=500,
+            refiner_timeout=10.0,
+        )
+        http = MagicMock()
+        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
+            return RagPipeline(http, cfg)
+
+    def test_invalidate_cache_clears_entries(self) -> None:
+        pipeline = self._make_pipeline()
+        pipeline.semantic_cache.put([0.1, 0.2], "ctx", "cached text")
+        assert pipeline.semantic_cache.size == 1
+
+        pipeline.invalidate_cache()
+
+        assert pipeline.semantic_cache.size == 0
+
+    def test_invalidate_cache_bumps_generation(self) -> None:
+        pipeline = self._make_pipeline()
+        before = pipeline.semantic_cache.generation
+
+        pipeline.invalidate_cache()
+
+        assert pipeline.semantic_cache.generation == before + 1
+
+    def test_invalidate_cache_returns_none(self) -> None:
+        pipeline = self._make_pipeline()
+        assert pipeline.invalidate_cache() is None
+
+    def test_invalidate_cache_noop_when_already_empty(self) -> None:
+        pipeline = self._make_pipeline()
+        assert pipeline.semantic_cache.size == 0
+
+        pipeline.invalidate_cache()
+
+        assert pipeline.semantic_cache.size == 0

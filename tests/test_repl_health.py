@@ -15,6 +15,7 @@ import httpx
 import pytest
 from agent.repl_health import (
     _check_tool_definitions,
+    _classify_health_failure,
     _probe_mcp_health_detail,
     audit_security_defaults,
     check_readiness,
@@ -27,6 +28,7 @@ from agent.security_audit_config import (
     GitHubAuditConfig,
     ShellAuditConfig,
 )
+from agent.shared.health_models import McpHealthProbeResult
 from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
 
@@ -94,6 +96,85 @@ class TestProbeMcpHealthDetail:
         assert result.restart_recommended is False
         assert result.operator_action_required is False
         assert result.body == {}
+
+    @pytest.mark.asyncio
+    async def test_reachable_true_parse_failed_on_malformed_json_body(self) -> None:
+        """HTTP 200 with a body that fails JSON parsing: parse_failed=True, parse_error populated."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.side_effect = ValueError("Expecting value: line 1 column 1 (char 0)")
+        resp.text = "not json"
+        http.get = _async_result(resp)
+
+        result = await _probe_mcp_health_detail(http, "http://localhost:8000")
+
+        assert result.reachable is True
+        assert result.status_code == 200
+        assert result.restart_recommended is False
+        assert result.operator_action_required is False
+        assert result.body == {}
+        assert result.parse_failed is True
+        assert result.parse_error is not None
+        assert "not json" in result.parse_error
+
+
+# ── _classify_health_failure() ─────────────────────────────────────────────────
+
+
+class TestClassifyHealthFailure:
+    def test_unreachable(self) -> None:
+        probe = McpHealthProbeResult(
+            reachable=False,
+            status_code=None,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+        )
+        assert _classify_health_failure(probe) == "unreachable"
+
+    def test_parse_failed_takes_priority_over_status_code(self) -> None:
+        """A malformed body arriving with status_code == 200 is classified as parse failure."""
+        probe = McpHealthProbeResult(
+            reachable=True,
+            status_code=200,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+            parse_failed=True,
+            parse_error="boom (raw='bad')",
+        )
+        assert _classify_health_failure(probe) == "malformed JSON (boom (raw='bad'))"
+
+    def test_non_200_status(self) -> None:
+        probe = McpHealthProbeResult(
+            reachable=True,
+            status_code=503,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+        )
+        assert _classify_health_failure(probe) == "non-200 (status=503)"
+
+    def test_degraded_restart_recommended_true(self) -> None:
+        probe = McpHealthProbeResult(
+            reachable=True,
+            status_code=200,
+            restart_recommended=True,
+            operator_action_required=False,
+            body={},
+        )
+        assert _classify_health_failure(probe) == "degraded (restart_recommended=true)"
+
+    def test_degraded_restart_recommended_false(self) -> None:
+        probe = McpHealthProbeResult(
+            reachable=True,
+            status_code=200,
+            restart_recommended=False,
+            operator_action_required=True,
+            body={},
+        )
+        assert _classify_health_failure(probe) == "degraded (restart_recommended=false)"
 
 
 # ── _check_tool_definitions() ──────────────────────────────────────────────────

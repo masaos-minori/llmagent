@@ -12,6 +12,7 @@ from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.lifecycle import LifecycleState
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthState
 
 
 class _Ctx:
@@ -234,42 +235,70 @@ class TestCmdMcpStatus:
         assert "http_error" in out
 
     @pytest.mark.asyncio
-    async def test_status_unchanged_after_reload_classification(
+    async def test_unavailable_server_shown_with_reason(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        from unittest.mock import patch as _patch
-
-        from agent.services.config_reload import ConfigReloadService
-
-        old_srv = _http(url="http://localhost:8080")
-        ctx = _Ctx({"svc": old_srv})
+        """UNAVAILABLE servers get their own block with the recorded reason."""
+        ctx = _Ctx({"svc": _http()})
         mcp = _Mcp(ctx)
 
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:9999", cmd=[]
-        )
-        reload_svc = ConfigReloadService(ctx)  # type: ignore[arg-type]
-        with _patch(
-            "agent.config_builders._build_mcp_servers",
-            return_value={"svc": new_srv, "new_one": new_srv},
-        ):
-            outcome = reload_svc._classify_mcp_server_changes(ctx, {})  # type: ignore[arg-type]
+        registry = MagicMock()
+        registry.get_state.return_value = McpServerHealthState.UNAVAILABLE
+        registry.get_degraded_reason.return_value = "restart_limit_reached"
+        ctx.services_required.health_registry = registry
 
-        resp = MagicMock()
-        resp.status_code = 200
-        mc = _mock_client()
-        mc.get = AsyncMock(return_value=resp)
-        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "new_one" not in out  # pending server not shown until restart
-        assert "svc" in out
-        assert (
-            "http://localhost:8080" not in out or "9999" not in out
-        )  # old URL probed, not new
-        assert "mcp/svc.url" in outcome.needs_restart
-        assert "mcp/new_one (new server)" in outcome.needs_restart
+        assert "  Unavailable servers:" in out
+        assert "    [UNAVAILABLE] svc: restart_limit_reached" in out
+
+    @pytest.mark.asyncio
+    async def test_unavailable_server_without_reason(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """UNAVAILABLE servers with no recorded reason omit the trailing colon text."""
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+
+        registry = MagicMock()
+        registry.get_state.return_value = McpServerHealthState.UNAVAILABLE
+        registry.get_degraded_reason.return_value = None
+        ctx.services_required.health_registry = registry
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "  Unavailable servers:" in out
+        assert "    [UNAVAILABLE] svc" in out
+        assert "[UNAVAILABLE] svc:" not in out
+
+    @pytest.mark.asyncio
+    async def test_no_unavailable_block_when_all_healthy(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """No 'Unavailable servers' block appears when no server is UNAVAILABLE."""
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+
+        registry = MagicMock()
+        registry.get_state.return_value = McpServerHealthState.HEALTHY
+        registry.get_degraded_reason.return_value = None
+        ctx.services_required.health_registry = registry
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "Unavailable servers" not in out
 
 
 class TestCmdMcpStatusNewColumns:

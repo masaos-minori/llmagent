@@ -50,7 +50,28 @@ class McpServerHealthRegistry:
         return McpServerHealthState.DEGRADED
 
     def record_degraded(self, server_key: str, reason: str | None = None) -> None:
-        """Record a reachable-but-degraded server without triggering UNAVAILABLE."""
+        """Record a reachable-but-degraded server without triggering UNAVAILABLE.
+
+        Does not downgrade a server currently in `UNAVAILABLE` or `HALF_OPEN`
+        state: those states gate dispatch via `is_unavailable()`, and `HALF_OPEN`
+        additionally represents a single-trial probe window. Allowing a
+        reachable-but-degraded watchdog probe to overwrite either state with
+        `DEGRADED` would silently defeat the circuit breaker (`is_unavailable()`
+        would start returning `False` again) or consume the trial window without
+        an actual trial outcome. When guarded, this method logs at `debug` level
+        and returns without mutating `_states` or `_degraded_reasons`.
+        """
+        current = self.get_state(server_key)
+        if current in (
+            McpServerHealthState.UNAVAILABLE,
+            McpServerHealthState.HALF_OPEN,
+        ):
+            logger.debug(
+                "Health: ignored degraded probe for %r, current state=%s",
+                server_key,
+                current.value,
+            )
+            return
         self._states[server_key] = McpServerHealthState.DEGRADED
         if reason is not None:
             self._degraded_reasons[server_key] = reason
@@ -58,11 +79,36 @@ class McpServerHealthRegistry:
             "Health: %r is DEGRADED (reason=%s)", server_key, reason or "unknown"
         )
 
+    def record_restart_exhausted(self, server_key: str) -> None:
+        """Record that the watchdog exhausted its restart attempts for server_key.
+
+        Does not change state (the server is expected to already be UNAVAILABLE
+        from the record_failure() calls made during the preceding restart
+        attempts) — only tags the reason so operators can distinguish "still
+        cycling" from "watchdog gave up; needs manual intervention" in /mcp
+        status.
+        """
+        self._degraded_reasons[server_key] = "restart_limit_reached"
+        logger.warning(
+            "Health: %r restart limit reached — manual intervention required",
+            server_key,
+        )
+
     def get_degraded_reason(self, server_key: str) -> str | None:
         """Return the last recorded degraded reason for a server, or None."""
         return self._degraded_reasons.get(server_key)
 
     def record_success(self, server_key: str) -> None:
+        """Record a successful call and reset the server to HEALTHY.
+
+        In addition to setting the state to `HEALTHY`, this clears
+        `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` for
+        `server_key`. Clearing `_failure_counts` matters because
+        `record_failure()` compares the running count against
+        `_failure_threshold`; without this reset, a later `record_failure()`
+        call could jump straight back to `UNAVAILABLE` using a stale count
+        left over from before this success.
+        """
         prev = self.get_state(server_key)
         self._states[server_key] = McpServerHealthState.HEALTHY
         self._failure_counts[server_key] = 0
@@ -75,6 +121,14 @@ class McpServerHealthRegistry:
         return self._states.get(server_key, McpServerHealthState.HEALTHY)
 
     def is_unavailable(self, server_key: str) -> bool:
+        """Return whether dispatch to `server_key` should currently be blocked.
+
+        Not a pure getter: as a side effect, once a server has been in
+        `UNAVAILABLE` for at least `_half_open_cooldown_sec`, this call
+        transitions its state to `HALF_OPEN` (a single-trial dispatch window)
+        and returns `False` for that call, allowing exactly one trial dispatch
+        through. Callers must not assume repeated calls are idempotent.
+        """
         state = self.get_state(server_key)
         if state != McpServerHealthState.UNAVAILABLE:
             return False

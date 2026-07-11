@@ -62,7 +62,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | メソッド | 説明 |
 |---|---|
 | `record_failure(server_key)` | 失敗回数をインクリメント; `HALF_OPEN → UNAVAILABLE`（クールダウンリセット); しきい値到達時 → `UNAVAILABLE` |
-| `record_degraded(server_key, reason)` | オプションの理由文字列とともに、状態を明示的に `DEGRADED` に設定する; 到達可能だが再起動不可なサーバーに対してウォッチドッグから呼び出される |
+| `record_degraded(server_key, reason)` | オプションの理由文字列とともに、状態を `DEGRADED` に設定する; 到達可能だが再起動不可なサーバーに対してウォッチドッグから呼び出される。現在の状態が `UNAVAILABLE` または `HALF_OPEN` の場合は no-op（debug ログのみ記録し、状態・理由は変更しない）— circuit breaker のディスパッチゲーティングとシングルトライアル窓を維持するためのガード |
 | `get_degraded_reason(server_key)` | 最後に記録された degraded の理由文字列を返す。設定されていない場合は `None` |
 | `record_success(server_key)` | 失敗回数、unavailable タイムスタンプ、degraded の理由をリセット; `HALF_OPEN → HEALTHY` |
 | `get_state(server_key)` | 現在の状態; 未知のキーの場合は `HEALTHY` を返す |

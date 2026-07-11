@@ -15,18 +15,22 @@ logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
 
 def delete_document_chain(db: SQLiteHelper, doc_id: int) -> None:
-    """Delete chunks_vec → chunks → documents for doc_id.
+    """Delete chunks_vec, then documents; ON DELETE CASCADE removes chunks.
 
-    chunks_vec has no FK to chunks, so it must be deleted first.
-    chunks deletion fires FTS5 triggers automatically (via ON DELETE trigger on chunks).
-    documents deletion cascades to any remaining chunks rows.
+    chunks_vec has no FK to chunks (sqlite-vec limitation), so it is deleted
+    explicitly first. Deleting documents cascades to chunks (requires the
+    write-mode connection's PRAGMA foreign_keys=ON), which in turn fires the
+    chunks_ad (FTS5 sync) and chunks_vec_ad (defensive vec cleanup) triggers
+    automatically. chunks_vec_ad is a backstop for direct chunks deletes that
+    bypass this helper -- it is not the primary mechanism here.
     """
+    # 1. delete chunks_vec rows for this doc's chunks (no FK, must be explicit)
     db.execute(
         "DELETE FROM chunks_vec"
         " WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
         (doc_id,),
     )
-    db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
+    # 2. delete documents row (CASCADE removes chunks automatically)
     db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 
@@ -109,7 +113,7 @@ class DocumentManager:
         return existing_etag == new_etag
 
     def delete_existing_document(self, doc_id: int) -> None:
-        """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
+        """Delete a document and its chunks_vec rows; documents delete cascades to chunks."""
         delete_document_chain(self._db, doc_id)
 
     def check_consistency(

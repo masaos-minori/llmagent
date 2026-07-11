@@ -3,8 +3,8 @@
 SQL DDL templates for rag.sqlite, session.sqlite, workflow.sqlite, and eventbus.sqlite schema creation.
 
 Templates use DIMS placeholder that must be replaced with the actual embedding
-dimension count before execution (done by _build_rag_schema_sql /
-_build_session_schema_sql in create_schema.py).
+dimension count before execution (done by build_rag_schema_sql(dims) /
+build_session_schema_sql(dims), both defined below in this module).
 
 Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension

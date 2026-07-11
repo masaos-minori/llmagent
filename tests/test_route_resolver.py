@@ -298,6 +298,68 @@ class TestDiscoveryMapValidationOnly:
         assert resolver.resolve("read_text_file") == "file_read"
 
 
+class TestLogRoutingCoverage:
+    """Tests for ToolRouteResolver._log_routing_coverage() registry-first classification.
+
+    "Mapped" must mean resolvable via ToolRegistry (the same authority resolve() uses),
+    not merely present in discovery_map — discovery_map is validation-only metadata.
+    """
+
+    def _make_configs(self) -> dict[str, McpServerConfig]:
+        return {
+            "file_read": _http("file_read"),
+        }
+
+    def test_discovery_map_only_tool_is_unmapped(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A tool present only in discovery_map (absent from registry) is UNMAPPED.
+
+        This is the core regression check: resolve() would raise ValueError for this
+        tool, so _log_routing_coverage() must not count it as mapped just because it
+        appears in discovery_map.
+        """
+        configs = self._make_configs()
+        discovery_map = {"discovery_only_tool": "some_server"}
+        known_tools = frozenset({"discovery_only_tool", "read_text_file"})
+        with caplog.at_level(logging.WARNING):
+            ToolRouteResolver(
+                configs,
+                discovery_map=discovery_map,
+                known_tools=known_tools,
+            )
+        warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any(
+            "1/2 tools mapped" in msg and "discovery_only_tool" in msg
+            for msg in warnings
+        )
+
+    def test_registry_mapped_tool_is_mapped(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A tool resolvable via the registry is MAPPED, regardless of discovery_map."""
+        configs = self._make_configs()
+        known_tools = frozenset({"read_text_file"})
+        with caplog.at_level(logging.INFO):
+            ToolRouteResolver(configs, known_tools=known_tools)
+        infos = [r.message for r in caplog.records if r.levelno == logging.INFO]
+        assert any("1/1 tools mapped" in msg for msg in infos)
+
+    def test_all_unmapped_when_registry_and_discovery_map_both_miss(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Tool absent from both registry and discovery_map is UNMAPPED."""
+        configs = self._make_configs()
+        known_tools = frozenset({"totally_unknown_tool"})
+        with caplog.at_level(logging.WARNING):
+            ToolRouteResolver(configs, known_tools=known_tools)
+        warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any(
+            "0/1 tools mapped" in msg and "totally_unknown_tool" in msg
+            for msg in warnings
+        )
+
+
 class TestRoutingSourceIsolation:
     def test_config_tool_names_do_not_affect_routing(self) -> None:
         """Config tool_names is metadata only — ToolRouteResolver.resolve() ignores it."""

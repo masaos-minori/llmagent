@@ -57,8 +57,16 @@ async def _probe_mcp_health_detail(
         )
     try:
         body: dict[str, object] = resp.json()
-    except Exception:  # noqa: BLE001 — health check must not fail on body parse errors
-        body = {}
+    except Exception as exc:  # noqa: BLE001 — health check must not fail on body parse errors
+        return McpHealthProbeResult(
+            reachable=True,
+            status_code=resp.status_code,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+            parse_failed=True,
+            parse_error=f"{exc} (raw={resp.text[:200]!r})",
+        )
     restart_recommended: bool = bool(body.get("restart_recommended", False))
     operator_action_required: bool = bool(body.get("operator_action_required", False))
     return McpHealthProbeResult(
@@ -68,6 +76,28 @@ async def _probe_mcp_health_detail(
         operator_action_required=operator_action_required,
         body=body,
     )
+
+
+def _classify_health_failure(probe: McpHealthProbeResult) -> str:
+    """Classify a non-fully-healthy McpHealthProbeResult into a short diagnostic label.
+
+    Diagnostic/logging use only — does not affect any restart/degrade decision.
+    Evaluated in fixed priority order (first match wins):
+      1. unreachable (no status code available)
+      2. malformed JSON body (may still arrive with status_code == 200)
+      3. non-200 status
+      4. degraded, restart recommended
+      5. degraded, restart not recommended
+    """
+    if not probe.reachable:
+        return "unreachable"
+    if probe.parse_failed:
+        return f"malformed JSON ({probe.parse_error})"
+    if probe.status_code != HTTPStatus.OK:
+        return f"non-200 (status={probe.status_code})"
+    if probe.restart_recommended:
+        return "degraded (restart_recommended=true)"
+    return "degraded (restart_recommended=false)"
 
 
 async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
@@ -561,7 +591,11 @@ async def _watchdog_check_http(
         return
     probe = await _probe_mcp_health_detail(ctx.services_required.http, srv_cfg.url)
 
-    if probe.reachable and probe.status_code == HTTPStatus.OK:
+    if (
+        probe.reachable
+        and probe.status_code == HTTPStatus.OK
+        and not probe.parse_failed
+    ):
         # Fully healthy
         restart_counts[key] = 0
         if ctx.services_required.health_registry:

@@ -66,6 +66,20 @@ class ToolRouteResolver:
         strict_mode: bool = False,
         known_tools: frozenset[str] | None = None,
     ) -> None:
+        """Initialize the resolver.
+
+        Args:
+            server_configs: Accepted for backward compatibility with existing callers;
+                not read or stored — routing never consults per-server config.
+            discovery_map: Live /v1/tools validation data; used only by the
+                currently-unreachable `_log_routing_coverage()` diagnostic, never by
+                `resolve()`.
+            warn_on_missing: When True, log a warning on unresolved tools in `resolve()`.
+            strict_mode: When True, raise on unresolved tools in `resolve()` with a
+                stricter error message.
+            known_tools: When provided, triggers a startup coverage log via
+                `_log_routing_coverage()`. No production caller passes this today.
+        """
         # Validation data from live /v1/tools (not used for routing).
         self._discovery_map: dict[str, str] = discovery_map or {}
         # Tool registry (canonical source of truth).
@@ -116,18 +130,26 @@ class ToolRouteResolver:
         )
 
     def _log_routing_coverage(self, known_tools: frozenset[str]) -> None:
-        """Log routing coverage for all known tools at startup."""
+        """Log routing coverage for all known tools at startup.
+
+        "Mapped" means resolvable via `ToolRegistry` — the same authority `resolve()`
+        uses — not merely present in `discovery_map`. `discovery_map` is validation-only
+        metadata from live /v1/tools responses and carries no routing authority: a tool
+        present only in `discovery_map` but absent from the registry is UNMAPPED for this
+        purpose, since `resolve()` would raise `ValueError` for it.
+
+        Note: as of this writing, no production caller passes `known_tools` to
+        `ToolRouteResolver.__init__()` (see `shared/tool_executor.py`'s construction
+        call), so this method does not currently execute in production. It remains
+        available for a future caller wanting startup coverage visibility.
+        """
         mapped: list[str] = []
         unmapped: list[str] = []
         for tool_name in sorted(known_tools):
-            if tool_name in self._discovery_map:
-                mapped.append(tool_name)
-                continue
             if self._lookup_registry(tool_name) is not None:
                 mapped.append(tool_name)
-                continue
-            # No mapping found — this tool is unmapped
-            unmapped.append(tool_name)
+            else:
+                unmapped.append(tool_name)
         total = len(known_tools)
         if unmapped:
             logger.warning(

@@ -208,6 +208,7 @@ def _make_service_with_pipeline(pipeline_mock: Any) -> RagPipelineMCPService:
     svc = RagPipelineMCPService.__new__(RagPipelineMCPService)
     svc._http = MagicMock()
     svc._pipeline = pipeline_mock
+    svc._doc_mgr = MagicMock()
     return svc
 
 
@@ -587,16 +588,32 @@ class TestFmtListDocuments:
 
 class TestFmtDeleteDocument:
     async def test_found_returns_deleted(self, monkeypatch: Any) -> None:
-        service = RagPipelineMCPService()
+        pipeline = MagicMock()
+        service = _make_service_with_pipeline(pipeline)
         monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: True)
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Deleted" in result
 
+    async def test_found_invalidates_cache(self, monkeypatch: Any) -> None:
+        pipeline = MagicMock()
+        service = _make_service_with_pipeline(pipeline)
+        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: True)
+        await service.fmt_delete_document({"url": "file:///a.md"})
+        pipeline.invalidate_cache.assert_called_once_with()
+
     async def test_not_found_returns_not_found(self, monkeypatch: Any) -> None:
-        service = RagPipelineMCPService()
+        pipeline = MagicMock()
+        service = _make_service_with_pipeline(pipeline)
         monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: False)
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Not found" in result
+
+    async def test_not_found_does_not_invalidate_cache(self, monkeypatch: Any) -> None:
+        pipeline = MagicMock()
+        service = _make_service_with_pipeline(pipeline)
+        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: False)
+        await service.fmt_delete_document({"url": "file:///a.md"})
+        pipeline.invalidate_cache.assert_not_called()
 
     async def test_missing_url_returns_error(self) -> None:
         service = RagPipelineMCPService()

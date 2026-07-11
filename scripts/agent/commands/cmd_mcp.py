@@ -101,6 +101,19 @@ class _McpMixin(MixinBase):
                 reason = registry.get_degraded_reason(key) if registry else None
                 reason_str = f": {reason}" if reason else ""
                 self._out.write(f"    [DEGRADED] {key}{reason_str}")
+        unavailable_keys = [
+            key
+            for key in ctx.cfg.mcp.mcp_servers
+            if registry is not None
+            and registry.get_state(key) == McpServerHealthState.UNAVAILABLE
+        ]
+        if unavailable_keys:
+            self._out.write("")
+            self._out.write("  Unavailable servers:")
+            for key in unavailable_keys:
+                reason = registry.get_degraded_reason(key) if registry else None
+                reason_str = f": {reason}" if reason else ""
+                self._out.write(f"    [UNAVAILABLE] {key}{reason_str}")
         wd_interval = ctx.cfg.mcp.mcp_watchdog_interval
         wd_max = ctx.cfg.mcp.mcp_watchdog_max_restarts
         if wd_interval > 0:

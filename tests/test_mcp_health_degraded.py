@@ -52,6 +52,56 @@ def test_get_degraded_reason_unknown_server():
     assert registry.get_degraded_reason("unknown") is None
 
 
+def test_record_restart_exhausted_sets_reason():
+    registry = McpServerHealthRegistry()
+    registry.record_restart_exhausted("srv1")
+    assert registry.get_degraded_reason("srv1") == "restart_limit_reached"
+
+
+def test_record_restart_exhausted_does_not_change_state():
+    registry = McpServerHealthRegistry(failure_threshold=1)
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+
+    registry.record_restart_exhausted("srv1")
+
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+    assert registry.get_degraded_reason("srv1") == "restart_limit_reached"
+
+
+def test_record_restart_exhausted_overwrites_prior_reason():
+    registry = McpServerHealthRegistry()
+    registry.record_degraded("srv1", reason="queue full")
+
+    registry.record_restart_exhausted("srv1")
+
+    assert registry.get_degraded_reason("srv1") == "restart_limit_reached"
+
+
+def test_record_degraded_does_not_downgrade_unavailable():
+    registry = McpServerHealthRegistry(failure_threshold=1)
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+
+    registry.record_degraded("srv1", reason="reachable but slow")
+
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+    assert registry.get_degraded_reason("srv1") is None
+
+
+def test_record_degraded_does_not_downgrade_half_open():
+    registry = McpServerHealthRegistry(failure_threshold=1, half_open_cooldown_sec=0.0)
+    registry.record_failure("srv1")
+    # Cooldown elapsed immediately (0.0s); is_unavailable() transitions to HALF_OPEN.
+    assert registry.is_unavailable("srv1") is False
+    assert registry.get_state("srv1") == McpServerHealthState.HALF_OPEN
+
+    registry.record_degraded("srv1", reason="reachable but slow")
+
+    assert registry.get_state("srv1") == McpServerHealthState.HALF_OPEN
+    assert registry.get_degraded_reason("srv1") is None
+
+
 # --- Watchdog integration tests ---
 
 

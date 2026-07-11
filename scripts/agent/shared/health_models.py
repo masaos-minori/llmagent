@@ -43,6 +43,12 @@ class McpHealthProbeResult:
         restart_recommended:      Body field `restart_recommended`; False if absent or parse fails.
         operator_action_required: Body field `operator_action_required`; False if absent or parse fails.
         body:                     Parsed JSON body dict; empty dict if parse failed or unreachable.
+        parse_failed:             True if an HTTP response was received but the body could not be
+                                   parsed as JSON. False for the unreachable case and for any
+                                   successful-parse case.
+        parse_error:              Short diagnostic string describing the parse failure (exception
+                                   message plus a truncated raw-body excerpt); populated only when
+                                   `parse_failed` is True, otherwise None.
     """
 
     reachable: bool
@@ -50,6 +56,8 @@ class McpHealthProbeResult:
     restart_recommended: bool
     operator_action_required: bool
     body: dict[str, object]
+    parse_failed: bool = False
+    parse_error: str | None = None
 
 
 class StartupCheckStatus(StrEnum):
