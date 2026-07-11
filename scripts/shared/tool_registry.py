@@ -77,8 +77,13 @@ class ToolRegistry:
         return td.server_key if td else None
 
     def get_tool_names(self, server_key: str) -> list[str]:
-        """Return all tool names for a server_key."""
-        return list(self._by_server.get(server_key, []))
+        """Return all tool names for a server_key, sorted alphabetically.
+
+        Ordering is a guaranteed contract of this method (not just an artifact of
+        default registration order) — callers and tests may rely on it directly
+        without re-sorting.
+        """
+        return sorted(self._by_server.get(server_key, []))
 
     def get_all_tool_names(self) -> frozenset[str]:
         """Return all registered tool names."""
