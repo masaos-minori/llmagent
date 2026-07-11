@@ -11,11 +11,14 @@ related:
   - 04_mcp_03_03_transport-and-health.md
   - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
+  - 04_mcp_07_tool_schema_export_policy.md
 source:
   - 04_mcp_03_routing_lifecycle_and_execution.md
 ---
 
 # Tool Registry: ドリフト検証、ツール追加、キャッシュと並行数制御
+
+ToolRegistry の責任はツールからサーバーへの所有関係とルーティングのみであり、スキーマレジストリではない。`ToolDefinition.description` / `input_schema` は予約済みで未使用である。LLM に見えるツールのスキーマの正規ソースは各サーバーの `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)) である。
 
 ### ドリフト検証
 
@@ -120,6 +123,7 @@ is_side_effect(tool_name: str) -> bool
 - `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
+- `04_mcp_07_tool_schema_export_policy.md`
 
 ## Keywords
 

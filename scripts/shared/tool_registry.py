@@ -119,17 +119,29 @@ class ToolRegistry:
         server_key: str,
         live_tool_names: list[str],
     ) -> list[str]:
-        """Validate live /v1/tools response against registry. Returns list of mismatches."""
+        """Validate live /v1/tools response against registry. Returns list of mismatches.
+
+        For tools found in the live response but not in this server's registry,
+        distinguishes between:
+        - Unknown tool: not registered to any server (get_server_for_tool returns None).
+        - Wrong-owner tool: registered to a different server than the one being validated.
+        """
         registry_tools = set(self.get_tool_names(server_key))
         live_set = set(live_tool_names)
 
         mismatches: list[str] = []
         in_live_not_registry = live_set - registry_tools
         if in_live_not_registry:
-            mismatches.extend(
-                f"[{server_key}] tool {t!r} in live response but not in registry"
-                for t in sorted(in_live_not_registry)
-            )
+            for t in sorted(in_live_not_registry):
+                owner = self.get_server_for_tool(t)
+                if owner is None:
+                    mismatches.append(
+                        f"[{server_key}] tool {t!r} is unknown (not registered to any server)"
+                    )
+                else:
+                    mismatches.append(
+                        f"[{server_key}] tool {t!r} is registered to server '{owner}', not '{server_key}'"
+                    )
 
         in_registry_not_live = registry_tools - live_set
         if in_registry_not_live:

@@ -605,6 +605,12 @@ async def _watchdog_check_http(
     if probe.reachable and not probe.restart_recommended:
         # Reachable but degraded; restart will not help
         restart_counts[key] = 0
+        logger.warning(
+            "Watchdog: %r (%s) -- %s",
+            key,
+            srv_cfg.url,
+            _classify_health_failure(probe),
+        )
         if probe.operator_action_required:
             logger.warning(
                 "Watchdog: %r requires operator action: %s",
@@ -612,21 +618,42 @@ async def _watchdog_check_http(
                 probe.body,
             )
         if ctx.services_required.health_registry is not None:
-            body: dict = probe.body or {}
-            reason_raw = body.get("reason") or body.get("message")
-            reason = str(reason_raw) if reason_raw is not None else None
-            ctx.services_required.health_registry.record_degraded(key, reason=reason)
+            if probe.parse_failed:
+                ctx.services_required.health_registry.record_degraded(
+                    key, reason="malformed_health_response"
+                )
+            else:
+                body: dict = probe.body or {}
+                reason_raw = body.get("reason") or body.get("message")
+                reason = str(reason_raw) if reason_raw is not None else None
+                ctx.services_required.health_registry.record_degraded(
+                    key, reason=reason
+                )
         return
 
     # Either unreachable (probe.reachable=False) or restart_recommended=True
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
         logger.warning(
+            "Watchdog: %r (%s) -- %s",
+            key,
+            srv_cfg.url,
+            _classify_health_failure(probe),
+        )
+        logger.warning(
             "Watchdog: %r unreachable; restart limit reached (%s)",
             key,
             max_restarts,
         )
+        if ctx.services_required.health_registry is not None:
+            ctx.services_required.health_registry.record_restart_exhausted(key)
         return
+    logger.warning(
+        "Watchdog: %r (%s) -- %s",
+        key,
+        srv_cfg.url,
+        _classify_health_failure(probe),
+    )
     logger.warning(
         "Watchdog: %r health check failed, restarting (attempt %s/%s)",
         key,

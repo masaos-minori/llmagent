@@ -124,13 +124,18 @@ def _srv_cfg(url="http://srv1.test"):
 
 
 def _make_probe(
-    reachable, restart_recommended, operator_action_required=False, body=None
+    reachable,
+    restart_recommended,
+    operator_action_required=False,
+    body=None,
+    parse_failed=False,
 ):
     probe = MagicMock()
     probe.reachable = reachable
     probe.status_code = 503  # != HTTPStatus.OK; prevents entering the healthy branch
     probe.restart_recommended = restart_recommended
     probe.operator_action_required = operator_action_required
+    probe.parse_failed = parse_failed
     probe.body = body if body is not None else {}
     return probe
 

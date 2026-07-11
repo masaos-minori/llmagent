@@ -8,6 +8,7 @@ tags:
   - policy
 related:
   - 04_mcp_00_document-guide.md
+  - 04_mcp_03_02_tool-registry.md
 ---
 
 # MCPツールスキーマ エクスポート命名ポリシー
@@ -15,6 +16,8 @@ related:
 ## 正規のエクスポート名: `TOOL_LIST`
 
 すべてのMCPサーバーのツールスキーマモジュール(`mcp/<name>/tools.py`)は、正規のツールリストを`TOOL_LIST`としてエクスポートしなければならない。
+
+関連: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry の所有権・ルーティングの役割について説明している（本ドキュメントのスキーマエクスポートの役割とは異なる）。
 
 ### 根拠
 
@@ -44,6 +47,7 @@ related:
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`
+- `04_mcp_03_02_tool-registry.md`
 
 ## Keywords
 

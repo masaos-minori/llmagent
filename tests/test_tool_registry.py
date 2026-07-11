@@ -94,7 +94,7 @@ class TestValidateRoutingAgainstLive:
         registry.register(ToolDefinition(name="x", server_key="s1"))
         drift = validate_routing_against_live(registry, {"s2": ["x"]})
         assert "s2" in drift
-        assert "'x' in live response but not in registry" in drift["s2"][0]
+        assert "is registered to server 's1'" in drift["s2"][0]
 
     def test_tool_in_live_not_in_registry(self) -> None:
         """Tool in live response but not in registry → mismatch."""
@@ -104,10 +104,7 @@ class TestValidateRoutingAgainstLive:
             registry, {"rag_pipeline": ["nonexistent_tool"]}
         )
         assert "rag_pipeline" in drift
-        assert (
-            "'nonexistent_tool' in live response but not in registry"
-            in drift["rag_pipeline"][0]
-        )
+        assert "is unknown (not registered to any server)" in drift["rag_pipeline"][0]
 
     def test_tool_in_registry_not_in_live(self) -> None:
         """Tool in registry but not in live → mismatch for all rag_pipeline tools."""
@@ -171,6 +168,19 @@ class TestStartupValidationStrictMode:
         assert "server_x" in drift
         assert any("extra_tool" in msg for msg in drift["server_x"])
 
+    def test_live_tool_unknown_message_contains_unknown_keyword(self) -> None:
+        """Unknown tool message must contain 'unknown' keyword."""
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="tool_a", server_key="server_x"))
+        drift = validate_routing_against_live(
+            registry, {"server_x": ["tool_a", "totally_unknown_tool"]}
+        )
+        assert "server_x" in drift
+        assert any(
+            "unknown" in msg and "totally_unknown_tool" in msg
+            for msg in drift["server_x"]
+        )
+
     def test_live_omits_registry_tool_for_server(self) -> None:
         """Condition 2: registry owns a tool for a server, but live response omits it.
 
@@ -205,6 +215,17 @@ class TestStartupValidationStrictMode:
         # server_a: tool_x in registry but not in live
         assert "server_a" in drift
         assert any("tool_x" in msg for msg in drift["server_a"])
+
+    def test_live_tool_wrong_owner_message_names_owner(self) -> None:
+        """Wrong-owner tool message must contain the actual registry owner."""
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="tool_x", server_key="server_a"))
+        drift = validate_routing_against_live(
+            registry,
+            {"server_a": [], "server_b": ["tool_x"]},
+        )
+        assert "server_b" in drift
+        assert any("server_a" in msg and "tool_x" in msg for msg in drift["server_b"])
 
     def test_duplicate_live_ownership_detected(
         self, caplog: pytest.LogCaptureFixture

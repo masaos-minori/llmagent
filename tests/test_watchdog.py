@@ -105,6 +105,60 @@ class TestWatchdogCheckHttp:
         ctx.services_required.lifecycle.restart.assert_called_once_with("test-server")
 
     @pytest.mark.asyncio
+    async def test_restart_limit_reached_does_not_call_lifecycle_restart_again(
+        self,
+    ) -> None:
+        """When restart limit reached, lifecycle.restart() must NOT be called again."""
+        ctx = _make_ctx()
+        srv_cfg = _make_srv_cfg()
+        restart_counts: dict[str, int] = {"test-server": 3}
+
+        probe_result = McpHealthProbeResult(
+            reachable=False,
+            status_code=None,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+        )
+        with patch(
+            "agent.repl_health._probe_mcp_health_detail",
+            new=AsyncMock(return_value=probe_result),
+        ):
+            await _watchdog_check_http(
+                ctx, "test-server", srv_cfg, restart_counts, max_restarts=3
+            )
+
+        ctx.services_required.lifecycle.restart.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_restart_limit_reached_calls_record_restart_exhausted(
+        self,
+    ) -> None:
+        """When restart limit reached, record_restart_exhausted() is called on health_registry."""
+        ctx = _make_ctx()
+        srv_cfg = _make_srv_cfg()
+        restart_counts: dict[str, int] = {"test-server": 3}
+        mock_registry = MagicMock()
+        ctx.services_required.health_registry = mock_registry
+
+        probe_result = McpHealthProbeResult(
+            reachable=False,
+            status_code=None,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+        )
+        with patch(
+            "agent.repl_health._probe_mcp_health_detail",
+            new=AsyncMock(return_value=probe_result),
+        ):
+            await _watchdog_check_http(
+                ctx, "test-server", srv_cfg, restart_counts, max_restarts=3
+            )
+
+        mock_registry.record_restart_exhausted.assert_called_once_with("test-server")
+
+    @pytest.mark.asyncio
     async def test_restart_not_called_when_503_and_restart_not_recommended(
         self,
     ) -> None:
