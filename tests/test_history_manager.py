@@ -14,10 +14,10 @@ import httpx
 import orjson
 import pytest
 from agent.history import HistoryManager
-from agent.history_selection_policy import _POLICY_KEYWORDS
+from agent.history_selection_policy import _POLICY_KEYWORDS, HistorySelectionPolicy
 from shared.types import LLMMessage
 
-_classify_importance = HistoryManager._classify_importance
+_classify_importance = HistorySelectionPolicy.classify_importance
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -347,11 +347,11 @@ class TestProtectTurns:
 class TestClassify:
     def test_tool_role_is_temporary(self) -> None:
         msg: LLMMessage = {"role": "tool", "content": "result"}
-        assert HistoryManager._classify(msg) == "temporary"
+        assert HistorySelectionPolicy.classify(msg) == "temporary"
 
     def test_system_role_is_factual(self) -> None:
         msg: LLMMessage = {"role": "system", "content": "You are helpful."}
-        assert HistoryManager._classify(msg) == "factual"
+        assert HistorySelectionPolicy.classify(msg) == "factual"
 
     def test_assistant_with_tool_calls_is_temporary_reasoning(self) -> None:
         msg: LLMMessage = {
@@ -365,15 +365,15 @@ class TestClassify:
                 }
             ],
         }
-        assert HistoryManager._classify(msg) == "temporary_reasoning"
+        assert HistorySelectionPolicy.classify(msg) == "temporary_reasoning"
 
     def test_assistant_without_tool_calls_is_history(self) -> None:
         msg: LLMMessage = {"role": "assistant", "content": "I can help with that."}
-        assert HistoryManager._classify(msg) == "history"
+        assert HistorySelectionPolicy.classify(msg) == "history"
 
     def test_user_role_is_history(self) -> None:
         msg: LLMMessage = {"role": "user", "content": "What is Python?"}
-        assert HistoryManager._classify(msg) == "history"
+        assert HistorySelectionPolicy.classify(msg) == "history"
 
 
 # ── count_tokens() ────────────────────────────────────────────────────────────

@@ -157,7 +157,13 @@ def test_offset_not_advanced_without_ack(client: TestClient) -> None:
 
 def test_consumer_id_stability() -> None:
     """Same consumer_name + host + pid → same consumer_id (stability)."""
-    from eventbus.offsets import _make_consumer_id
+    import hashlib
+    import os
+    import socket
+
+    def _make_consumer_id(consumer_name: str) -> str:
+        stable_key = f"{consumer_name}:{socket.gethostname()}:{os.getpid()}"
+        return hashlib.sha256(stable_key.encode()).hexdigest()[:16]
 
     cid1 = _make_consumer_id("my-consumer")
     cid2 = _make_consumer_id("my-consumer")

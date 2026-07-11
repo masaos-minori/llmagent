@@ -192,11 +192,6 @@ class HistoryManager:
         )
         return token_result
 
-    # Delegate classification to HistorySelectionPolicy; kept as staticmethod
-    # aliases so existing callers (e.g. tests) can still reference them here.
-    _classify = staticmethod(HistorySelectionPolicy.classify)
-    _classify_importance = staticmethod(HistorySelectionPolicy.classify_importance)
-
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.
 
