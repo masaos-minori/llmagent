@@ -14,7 +14,7 @@ sqlite_timeout = 30
 # SQLite busy timeout (milliseconds)
 sqlite_busy_timeout_ms = 30000
 
-embed_url = "http://127.0.0.1:8003/embedding"
+embed_url = "http://192.168.11.238:8081/embedding"
 embedding_dims = 384
 
 embed_retry = 3

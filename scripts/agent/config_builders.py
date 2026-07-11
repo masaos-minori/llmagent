@@ -157,7 +157,7 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
         max_chunks_per_doc=int(cfg.get("max_chunks_per_doc", 2)),
         web_search_url=cfg.get("web_search_url", ""),
         web_search_max_results=int(cfg.get("web_search_max_results", 5)),
-        embed_url=cfg.get("embed_url", "http://127.0.0.1:8003/embedding"),
+        embed_url=cfg.get("embed_url", ""),
         use_semantic_cache=bool(cfg.get("use_semantic_cache", False)),
         semantic_cache_threshold=float(cfg.get("semantic_cache_threshold", 0.92)),
         semantic_cache_max_size=int(cfg.get("semantic_cache_max_size", 100)),

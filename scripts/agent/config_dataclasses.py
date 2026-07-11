@@ -124,7 +124,7 @@ class RAGConfig:
     max_chunks_per_doc: int = 2
     web_search_url: str = ""
     web_search_max_results: int = 5
-    embed_url: str = "http://127.0.0.1:8003/embedding"
+    embed_url: str = ""
     use_semantic_cache: bool = False
     semantic_cache_threshold: float = 0.92
     semantic_cache_max_size: int = 100
