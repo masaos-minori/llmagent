@@ -60,9 +60,8 @@ def port_is_responding(port: int, timeout: float = 0.5) -> bool:
     """Return True if something is already listening on port's /health endpoint."""
     try:
         resp = httpx.get(f"http://127.0.0.1:{port}/health", timeout=timeout)
-        return (
-            resp.status_code < 500
-        )  # any response at all indicates something is listening
+        is_up: bool = resp.status_code < 500
+        return is_up  # any response at all indicates something is listening
     except httpx.HTTPError:
         return False
 
