@@ -76,12 +76,13 @@ def check_rag_consistency(
 
 def is_consistent(report: RagConsistencyReport) -> bool:
     """Return True when fts_gap == 0, fts_orphan_count == 0, orphan_vec_count == 0, and vec == chunks."""
-    return (
+    consistent: bool = (
         report.fts_gap == 0
         and report.fts_orphan_count == 0
         and report.orphan_vec_count == 0
         and report.vec == report.chunks
     )
+    return consistent
 
 
 def summarize_issues(report: RagConsistencyReport) -> list[str]:

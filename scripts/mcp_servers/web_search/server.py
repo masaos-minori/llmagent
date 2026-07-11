@@ -53,7 +53,8 @@ async def health() -> JSONResponse:
     """Health check endpoint."""
     deps: dict[str, str] = {}
     details: dict[str, object] = {"service": "web-search-mcp"}
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

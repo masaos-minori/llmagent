@@ -35,7 +35,7 @@ class GitHubService(_GitHubServiceCore):
     """GitHubService with dispatch formatters (extends service_business.GitHubService)."""
 
     async def fmt_search_repositories(self, args: dict) -> str:
-        result = await self.search_repositories(args)  # type: ignore[arg-type]
+        result = await self.search_repositories(args)
         lines = [
             f"{fmt_md_link(r.full_name, r.url)} ★{r.stars}\n{r.description or ''}"
             for r in result.results
@@ -43,7 +43,7 @@ class GitHubService(_GitHubServiceCore):
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_list_branches(self, args: dict) -> str:
-        result = await self.list_branches(args)  # type: ignore[arg-type]
+        result = await self.list_branches(args)
         lines = [
             f"{b.name} ({b.sha[:8]}){' [protected]' if b.protected else ''}"
             for b in result.branches
@@ -53,7 +53,8 @@ class GitHubService(_GitHubServiceCore):
     @staticmethod
     def _dry_run_preview(preview: str) -> str:
         """Return a JSON dry-run preview response string."""
-        return _json_dumps({"preview": preview, "dry_run": True})
+        result: str = _json_dumps({"preview": preview, "dry_run": True})
+        return result
 
     async def _execute_with_dry_run(
         self,
@@ -101,12 +102,12 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_list_commits(self, args: dict) -> str:
-        result = await self.list_commits(args)  # type: ignore[arg-type]
+        result = await self.list_commits(args)
         lines = [f"{c.sha[:8]} {c.message} ({c.author})" for c in result.commits]
         return "\n".join(lines) if lines else "No commits found."
 
     async def fmt_get_commit(self, args: dict) -> str:
-        result = await self.get_commit(args)  # type: ignore[arg-type]
+        result = await self.get_commit(args)
         c = result.commit
         return (
             f"{c.sha[:8]} {c.message}\n"
@@ -115,13 +116,14 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_search_code(self, args: dict) -> str:
-        result = await self.search_code(args)  # type: ignore[arg-type]
+        result = await self.search_code(args)
         lines = [f"[{r.repository}/{r.path}]({r.url})" for r in result.results]
         return "\n".join(lines) if lines else "No results found."
 
     async def fmt_get_file_contents(self, args: dict) -> str:
-        result = await self.get_file_contents(args)  # type: ignore[arg-type]
-        return result.content
+        result = await self.get_file_contents(args)
+        content: str = result.content
+        return content
 
     async def fmt_create_or_update_file(self, args: dict) -> str:
         req = CreateOrUpdateFileRequest(**args)
@@ -185,12 +187,12 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_list_issues(self, args: dict) -> str:
-        result = await self.list_issues(args)  # type: ignore[arg-type]
+        result = await self.list_issues(args)
         lines = [GitHubService._fmt_issue_line(i) for i in result.issues]
         return "\n\n".join(lines) if lines else "No issues found."
 
     async def fmt_get_issue(self, args: dict) -> str:
-        result = await self.get_issue(args)  # type: ignore[arg-type]
+        result = await self.get_issue(args)
         i = result.issue
         return f"#{i.number} [{i.state}] {i.title}\n{i.body or ''}\nURL: {i.url}"
 
@@ -214,7 +216,7 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_search_issues(self, args: dict) -> str:
-        result = await self.search_issues(args)  # type: ignore[arg-type]
+        result = await self.search_issues(args)
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
@@ -236,12 +238,12 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_list_pull_requests(self, args: dict) -> str:
-        result = await self.list_pull_requests(args)  # type: ignore[arg-type]
+        result = await self.list_pull_requests(args)
         lines = [GitHubService._fmt_pr_line(pr) for pr in result.pull_requests]
         return "\n\n".join(lines) if lines else "No pull requests found."
 
     async def fmt_get_pull_request(self, args: dict) -> str:
-        result = await self.get_pull_request(args)  # type: ignore[arg-type]
+        result = await self.get_pull_request(args)
         pr = result.pull_request
         return (
             f"#{pr.number} [{pr.state}] {pr.title}\n"
@@ -272,7 +274,7 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_search_pull_requests(self, args: dict) -> str:
-        result = await self.search_pull_requests(args)  # type: ignore[arg-type]
+        result = await self.search_pull_requests(args)
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 

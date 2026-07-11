@@ -232,7 +232,8 @@ def _apply_turn_char_limit(
             turn_chars + len(llm_text),
             limit,
         )
-        return TURN_LIMIT_HINT
+        hint: str = TURN_LIMIT_HINT
+        return hint
     return llm_text
 
 
@@ -457,7 +458,7 @@ async def execute_all_tool_calls(
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     denied_history, denied_msgs = _build_denied_messages(denied_ids)
-    ctx.conv.history.extend(denied_history)  # type: ignore[arg-type]
+    ctx.conv.history.extend(denied_history)
     tool_msgs.extend(denied_msgs)
     ctx.session.save_many(tool_msgs)
 
@@ -473,7 +474,8 @@ async def _run_approval_gate(
     """
     from agent.tool_approval import run_approval_checks  # noqa: PLC0415
 
-    return await run_approval_checks(ctx, tool_calls)
+    result: tuple[list[dict[Any, Any]], list[str]] = await run_approval_checks(ctx, tool_calls)
+    return result
 
 
 def _build_denied_messages(

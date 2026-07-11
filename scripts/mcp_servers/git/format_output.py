@@ -88,7 +88,7 @@ def format_add(repo: git.Repo, req: GitAddRequest) -> str:
         untracked = {p for p in repo.untracked_files if p in req.paths}
         modified = {i.a_path for i in repo.index.diff(None) if i.a_path in req.paths}
         to_stage = untracked | modified
-        return f"[DRY RUN] Would stage: {sorted(to_stage)}"
+        return f"[DRY RUN] Would stage: {sorted(p for p in to_stage if p is not None)}"
     repo.index.add(req.paths)
     return f"Staged: {req.paths}"
 

@@ -50,9 +50,9 @@ class LlmPayloadHandler:
         finish_reason = choice.get("finish_reason")
         if finish_reason is not None and not isinstance(finish_reason, str):
             finish_reason = None
-        usage = LlmSseHelpers.parse_usage(raw, on_usage)  # type: ignore[arg-type]
+        usage = LlmSseHelpers.parse_usage(raw, on_usage)
         return LLMResponse(
-            message=message_raw,  # type: ignore[arg-type]
+            message=message_raw,
             finish_reason=finish_reason,
             usage=usage,
         )

@@ -94,7 +94,8 @@ async def health() -> JSONResponse:
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
     details: dict[str, object] = {"service": "github-mcp"}
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

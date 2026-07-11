@@ -45,7 +45,8 @@ class ReadSecurityGuards:
 
     def _resolve_safe(self, raw_path: str) -> Path:
         """Resolve and validate path against allowed_dirs."""
-        return resolve_safe(raw_path, self._allowed_dirs)
+        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
+        return resolved
 
     def _require_file(self, target: Path, raw_path: str) -> None:
         require_file(target, raw_path)
@@ -54,7 +55,8 @@ class ReadSecurityGuards:
         require_dir(target, raw_path)
 
     def _check_size_limit(self, target: Path) -> int:
-        return check_size_limit(target, self._max_read_bytes)
+        size: int = check_size_limit(target, self._max_read_bytes)
+        return size
 
     # ── Shared validation pipeline for file read operations ──
 

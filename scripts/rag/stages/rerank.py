@@ -23,13 +23,15 @@ async def _rerank(
         cfg.rag_top_k,
         rag_min_score=cfg.rag_min_score,
     )
-    return deduplicate_chunks(result, cfg.max_chunks_per_doc)
+    deduped: list[RagHit] = deduplicate_chunks(result, cfg.max_chunks_per_doc)
+    return deduped
 
 
 def _rerank_fallback(merged: list[RagHit], cfg: RagConfig) -> list[RagHit]:
     """Fallback reranking when use_rerank=False: slice + dedup."""
     result = merged[: cfg.rag_top_k]
-    return deduplicate_chunks(result, cfg.max_chunks_per_doc)
+    deduped: list[RagHit] = deduplicate_chunks(result, cfg.max_chunks_per_doc)
+    return deduped
 
 
 class RerankStage(PipelineStage):

@@ -52,7 +52,8 @@ class ReadFileService(_ReadFileServiceCore):
             ListDirectoryRequest(**args),
             include_dir_sizes=False,
         )
-        return fmt_dir_entries(result.entries)
+        formatted: str = fmt_dir_entries(result.entries)
+        return formatted
 
     async def fmt_list_directory_with_sizes(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
@@ -60,7 +61,8 @@ class ReadFileService(_ReadFileServiceCore):
             ListDirectoryRequest(**args),
             include_dir_sizes=True,
         )
-        return fmt_dir_entries(result.entries)
+        formatted: str = fmt_dir_entries(result.entries)
+        return formatted
 
     async def fmt_directory_tree(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
@@ -70,13 +72,15 @@ class ReadFileService(_ReadFileServiceCore):
         total_nodes = count_tree_nodes(result.root)
         trunc_note = ", truncated" if has_depth_limit(result.root) else ""
         header = f"[Tree: {total_nodes} nodes, depth={effective_depth}{trunc_note}]\n"
-        return header + fmt_tree_node(result.root)
+        tree_text: str = header + fmt_tree_node(result.root)
+        return tree_text
 
     async def fmt_read_text_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.read_text_file(ReadTextFileRequest(**args)),
         )
-        return result.content
+        content: str = result.content
+        return content
 
     async def fmt_read_media_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(

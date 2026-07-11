@@ -21,11 +21,13 @@ async def dlq_list(
 
     def _dlq_count() -> int:
         with get_db_lock():
-            return count_dlq(db)
+            count: int = count_dlq(db)
+            return count
 
     def _dlq_fetch() -> list:
         with get_db_lock():
-            return fetch_dlq(db, limit=limit, offset=offset)
+            rows: list = fetch_dlq(db, limit=limit, offset=offset)
+            return rows
 
     total = await asyncio.to_thread(_dlq_count)
     rows = await asyncio.to_thread(_dlq_fetch)

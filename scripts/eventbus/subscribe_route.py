@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 def _get_config(request: Request) -> "EventBusConfig":
     cfg = request.app.state.config
     assert cfg is not None
-    return cfg  # type: ignore[no-any-return]
+    return cfg
 
 
 def _get_broker(request: Request) -> EventBroker:
     broker = request.app.state.broker
     assert broker is not None
-    return broker  # type: ignore[no-any-return]
+    return broker
 
 
 async def subscribe(

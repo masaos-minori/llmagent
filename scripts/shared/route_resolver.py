@@ -108,7 +108,8 @@ class ToolRouteResolver:
     def _lookup_registry(self, tool_name: str) -> str | None:
         """Look up a tool in the registry; returns server key or None."""
         if self._registry is not None:
-            return self._registry.get_server_for_tool(tool_name)
+            result: str | None = self._registry.get_server_for_tool(tool_name)
+            return result
         return None
 
     def _raise_strict_error(self, tool_name: str) -> None:

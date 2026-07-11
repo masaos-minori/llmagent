@@ -156,15 +156,18 @@ class _ServerLifecycleRouter:
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
-        return self._http_mgr.get_process_snapshot(server_key)
+        snapshot: dict | None = self._http_mgr.get_process_snapshot(server_key)
+        return snapshot
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
-        return self._http_mgr.get_process_info(server_key)
+        info: ProcessInfoSnapshot | None = self._http_mgr.get_process_info(server_key)
+        return info
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
-        return self._http_mgr.list_processes()
+        processes: list[ProcessInfoSnapshot] = self._http_mgr.list_processes()
+        return processes
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -309,10 +312,10 @@ def _build_memory_services(
 
     _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
     return MemoryServices(
-        injection=injection,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
-        ingestion=ingestion,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
+        injection=injection,
+        ingestion=ingestion,
         store=store,
-        retriever=retriever,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
+        retriever=retriever,
     )
 
 

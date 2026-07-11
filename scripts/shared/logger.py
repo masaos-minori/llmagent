@@ -74,7 +74,8 @@ class _JsonFormatter(logging.Formatter):
             entry["exc"] = self.formatException(record.exc_info)
         from shared.json_utils import dumps as _json_dumps
 
-        return _json_dumps(entry)
+        formatted: str = _json_dumps(entry)
+        return formatted
 
 
 class Logger:

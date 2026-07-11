@@ -63,41 +63,46 @@ class CiCdService(CiCdGuards):
             )
             if req.inputs:
                 preview += f" with inputs={req.inputs}"
-            return _json_dumps({"preview": preview, "dry_run": True})
+            result: str = _json_dumps({"preview": preview, "dry_run": True})
+            return result
         owner, repo = self._parse_repo(req.repo)
-        return await self._backend.trigger_workflow(
+        result2: str = await self._backend.trigger_workflow(
             owner,
             repo,
             req.workflow,
             req.ref,
             req.inputs,
         )
+        return result2
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
         from mcp_servers.cicd.models import GetWorkflowRunsRequest  # noqa: PLC0415
 
         req = GetWorkflowRunsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        return await self._backend.get_workflow_runs(
+        result3: str = await self._backend.get_workflow_runs(
             owner,
             repo,
             req.workflow,
             req.limit,
         )
+        return result3
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
         from mcp_servers.cicd.models import GetWorkflowStatusRequest  # noqa: PLC0415
 
         req = GetWorkflowStatusRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        return await self._backend.get_workflow_status(owner, repo, req.run_id)
+        result4: str = await self._backend.get_workflow_status(owner, repo, req.run_id)
+        return result4
 
     async def handle_get_workflow_logs(self, args: ToolArgs) -> str:
         from mcp_servers.cicd.models import GetWorkflowLogsRequest  # noqa: PLC0415
 
         req = GetWorkflowLogsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        return await self._backend.get_workflow_logs(owner, repo, req.run_id)
+        result5: str = await self._backend.get_workflow_logs(owner, repo, req.run_id)
+        return result5
 
     def get_dispatch_table(
         self,

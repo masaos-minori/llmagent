@@ -97,7 +97,8 @@ async def health() -> JSONResponse:
         "service": "shell-mcp",
         "sandbox_backend": _service.sandbox_backend,
     }
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

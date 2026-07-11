@@ -20,7 +20,8 @@ from shared.config_loader import ConfigLoader
 def _degraded_response(
     deps: dict[str, str], details: dict[str, object]
 ) -> JSONResponse:
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
@@ -109,4 +110,5 @@ def check_health() -> JSONResponse:
     except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
         deps["config"] = f"check failed: {e}"
 
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result

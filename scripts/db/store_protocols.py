@@ -25,7 +25,8 @@ from db.models import DocumentRow, MessageRow, SessionRow
 
 def get_embedding_dims() -> int:
     """Return embedding dimensions from DbConfig; raises on config error."""
-    return build_db_config().embedding_dims
+    dims: int = build_db_config().embedding_dims
+    return dims
 
 
 def get_embedding_bytes() -> int:

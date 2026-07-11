@@ -10,7 +10,7 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
@@ -27,6 +27,14 @@ if TYPE_CHECKING:
     from mcp_servers.mdq.service import MdqService
 
 logger = logging.getLogger(__name__)
+
+
+class RefreshSummary(TypedDict):
+    indexed_count: int
+    skipped_count: int
+    deleted_count: int
+    failed_count: int
+    elapsed_seconds: float
 
 
 def generate_chunk_id(
@@ -157,7 +165,7 @@ async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
     return "Indexing complete"
 
 
-async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
+async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> RefreshSummary:
     """Incrementally refresh the index for a set of paths.
 
     Returns structured summary with indexed_count, skipped_count, deleted_count,

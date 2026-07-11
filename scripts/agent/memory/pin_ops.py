@@ -26,7 +26,8 @@ def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
             (_now_iso(), memory_id),
         )
         db.commit()
-    return cur.rowcount > 0
+    pinned: bool = cur.rowcount > 0
+    return pinned
 
 
 def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
@@ -37,7 +38,8 @@ def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
             (_now_iso(), memory_id),
         )
         conn.commit()
-        return cur.rowcount > 0
+        unpinned: bool = cur.rowcount > 0
+        return unpinned
 
     from db.helper import SQLiteHelper
 
@@ -47,4 +49,5 @@ def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
             (_now_iso(), memory_id),
         )
         db.commit()
-    return cur.rowcount > 0
+    unpinned2: bool = cur.rowcount > 0
+    return unpinned2

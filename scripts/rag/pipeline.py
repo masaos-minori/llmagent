@@ -269,14 +269,16 @@ class RagPipeline:
         """
         if not self._cfg.use_rerank:
             result = merged[: self._cfg.rag_top_k]
-            return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+            deduped: list[RagHit] = deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+            return deduped
         result = await self._llm.cross_encoder_rerank(
             query,
             merged[: self._cfg.top_k_rerank],
             self._cfg.rag_top_k,
             rag_min_score=self._cfg.rag_min_score,
         )
-        return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+        deduped2: list[RagHit] = deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+        return deduped2
 
     async def run(
         self,
@@ -419,7 +421,8 @@ class RagPipeline:
             if emb is not None:
                 cached = self.semantic_cache.lookup(emb, history_context)
                 if cached is not None:
-                    return cached
+                    result422: str = cached
+                    return result422
         try:
             if self._rag_db_path:
                 db = SQLiteHelper(
@@ -456,8 +459,9 @@ class RagPipeline:
         if self._cfg.use_refiner:
             refined = await self._run_refiner(pipeline_result.reranked, query)
             if refined.text is not None:
-                return refined.text
-        context_block = _augment_format_chunks(pipeline_result.reranked)
+                refined_text: str = refined.text
+                return refined_text
+        context_block: str = _augment_format_chunks(pipeline_result.reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
         return context_block
@@ -502,7 +506,8 @@ class RagPipeline:
         # Apply stage result from HttpAugment
         if http_aug.stage_result is not None:
             self.last_stage_results.append(http_aug.stage_result)
-        return result.result
+        http_result: str | None = result.result
+        return http_result
 
     async def _run_refiner(
         self,

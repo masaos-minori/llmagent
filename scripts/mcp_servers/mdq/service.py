@@ -16,6 +16,7 @@ from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_fts import fts_consistency_check, fts_rebuild
 from mcp_servers.mdq.db_grep import grep_docs
 from mcp_servers.mdq.db_schema import create_production_tables
+from mcp_servers.mdq.indexer import RefreshSummary
 from mcp_servers.mdq.indexer import index_paths as _index_paths
 from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
 from mcp_servers.mdq.models import (
@@ -141,7 +142,7 @@ class MdqService:
 
     async def search_docs(self, req: SearchDocsRequest) -> str:
         """Search indexed Markdown sections by query."""
-        result = await search_docs(self, req)
+        result: str = await search_docs(self, req)
         if self._is_indexing:
             result += (
                 "\n\n[WARNING: Index is being updated — results may be incomplete]"
@@ -322,7 +323,8 @@ class MdqService:
         async with self._index_lock:
             self._is_indexing = True
             try:
-                return await _index_paths(self, req)
+                result: str = await _index_paths(self, req)
+                return result
             finally:
                 self._is_indexing = False
 
@@ -350,7 +352,7 @@ class MdqService:
                     f"Access denied: {path_str} is outside allowed directories"
                 )
 
-    def _format_refresh_summary(self, summary: Any) -> list[str]:
+    def _format_refresh_summary(self, summary: RefreshSummary) -> list[str]:
         return [
             f"Refresh complete in {summary['elapsed_seconds']}s",
             f"  Indexed: {summary['indexed_count']}",
@@ -410,7 +412,7 @@ class MdqService:
 
         conn = self._get_db_connection()
         try:
-            return grep_docs(
+            result: str = grep_docs(
                 conn,
                 compiled,
                 req.paths or [],
@@ -419,6 +421,7 @@ class MdqService:
                 ctx_before,
                 ctx_after,
             )
+            return result
         finally:
             conn.close()
 
@@ -426,7 +429,8 @@ class MdqService:
         """Check FTS5 consistency between chunks and chunks_fts tables."""
         conn = self._get_db_connection()
         try:
-            return fts_consistency_check(conn)
+            result: str = fts_consistency_check(conn)
+            return result
         finally:
             conn.close()
 
@@ -437,6 +441,7 @@ class MdqService:
             chunks_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM chunks"
             ).fetchone()["cnt"]
-            return fts_rebuild(conn, chunks_count)
+            result: str = fts_rebuild(conn, chunks_count)
+            return result
         finally:
             conn.close()

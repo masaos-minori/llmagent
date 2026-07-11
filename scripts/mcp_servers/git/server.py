@@ -105,7 +105,8 @@ async def health() -> JSONResponse:
     except OSError:
         deps["git"] = "check failed"
     details: dict[str, object] = {"service": "git-mcp"}
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

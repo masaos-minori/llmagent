@@ -68,10 +68,11 @@ def score(
     importance_w = 1.0 if entry.memory_type == MemoryType.SEMANTIC else 0.5
     recency_w = 0.5 if entry.memory_type == MemoryType.SEMANTIC else 1.0
 
-    return (
+    score: float = (
         -bm25_rank  # FTS5 rank is negative (lower magnitude = better match)
         + importance_w * entry.importance * _IMPORTANCE_BOOST_SCALE
         + (_PIN_BOOST if entry.pinned else 0.0)
         + recency_w * recency_boost(entry.created_at, recency_days)
         + context_boost(entry, project, repo, branch)
     )
+    return score

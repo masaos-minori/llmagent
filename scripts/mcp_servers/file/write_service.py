@@ -55,7 +55,8 @@ class WriteFileService:
 
     def _resolve_safe(self, raw_path: str) -> Path:
         """Resolve and validate path against allowed_dirs."""
-        return resolve_safe(raw_path, self._allowed_dirs)
+        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
+        return resolved
 
     def _require_file(self, target: Path, raw_path: str) -> None:
         require_file(target, raw_path)
@@ -266,25 +267,29 @@ class WriteFileService:
         result = await asyncio.to_thread(
             lambda: self.write_file(WriteFileRequest(**args)),
         )
-        return WriteFileFormatter.format_write_result(result)
+        formatted: str = WriteFileFormatter.format_write_result(result)
+        return formatted
 
     async def fmt_edit_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.edit_file(EditFileRequest(**args)),
         )
-        return WriteFileFormatter.format_edit_result(result)
+        formatted: str = WriteFileFormatter.format_edit_result(result)
+        return formatted
 
     async def fmt_create_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.create_directory(CreateDirectoryRequest(**args)),
         )
-        return WriteFileFormatter.format_directory_result(result)
+        formatted: str = WriteFileFormatter.format_directory_result(result)
+        return formatted
 
     async def fmt_move_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.move_file(MoveFileRequest(**args)),
         )
-        return WriteFileFormatter.format_move_result(result)
+        formatted: str = WriteFileFormatter.format_move_result(result)
+        return formatted
 
     def get_dispatch_table(
         self,

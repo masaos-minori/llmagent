@@ -179,7 +179,8 @@ class RagPipelineMCPService:
         result = await self.run_pipeline(req)
         if not result.augmented_text:
             return "(No relevant documents found in the knowledge base.)"
-        return result.augmented_text
+        text: str = result.augmented_text
+        return text
 
     async def fmt_list_documents(self, args: ToolArgs) -> str:
         lang = args.get("lang")

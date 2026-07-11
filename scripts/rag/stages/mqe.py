@@ -14,7 +14,8 @@ async def _run_mqe(query: str, cfg: RagConfig, llm: RagLLM) -> list[str]:
     """
     if not cfg.use_mqe:
         return [query]
-    return await llm.expand_queries(query)
+    queries: list[str] = await llm.expand_queries(query)
+    return queries
 
 
 class MqeStage(PipelineStage):

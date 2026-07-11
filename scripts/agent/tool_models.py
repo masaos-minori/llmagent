@@ -68,4 +68,5 @@ class GuardDecision:
     @property
     def blocks(self) -> bool:
         """True when this decision prevents further tool execution."""
-        return self.type != GuardDecisionType.PASS
+        result: bool = self.type != GuardDecisionType.PASS
+        return result

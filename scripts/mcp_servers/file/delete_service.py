@@ -55,7 +55,8 @@ class DeleteFileService:
 
     def _resolve_safe(self, raw_path: str) -> Path:
         """Resolve and validate path against allowed_dirs."""
-        return resolve_safe(raw_path, self._allowed_dirs)
+        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
+        return resolved
 
     def _require_file(self, target: Path, raw_path: str) -> None:
         require_file(target, raw_path)
@@ -186,13 +187,15 @@ class DeleteFileService:
         result = await asyncio.to_thread(
             lambda: self.delete_file(DeleteFileRequest(**args)),
         )
-        return DeleteFileFormatter.format_file_result(result)
+        formatted: str = DeleteFileFormatter.format_file_result(result)
+        return formatted
 
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.delete_directory(DeleteDirectoryRequest(**args)),
         )
-        return DeleteFileFormatter.format_directory_result(result)
+        formatted: str = DeleteFileFormatter.format_directory_result(result)
+        return formatted
 
     def get_dispatch_table(
         self,

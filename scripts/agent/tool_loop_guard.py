@@ -95,7 +95,8 @@ class ToolLoopGuard:
             parsed = orjson.loads(arguments_str)
         except (orjson.JSONDecodeError, TypeError):
             parsed = {}
-        return tool_hash_key(name, parsed)
+        hash_key: str = tool_hash_key(name, parsed)
+        return hash_key
 
     def check_cycle(
         self,

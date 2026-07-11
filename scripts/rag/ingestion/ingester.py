@@ -389,18 +389,20 @@ class RagIngester:
     ) -> sqlite3.Cursor:
         """Insert a document row and return the cursor."""
         if fetched_at is not None:
-            return db.execute(
+            cursor: sqlite3.Cursor = db.execute(
                 "INSERT INTO documents"
                 " (url, title, lang, etag, last_modified, chunking_strategy, fetched_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (url, title, lang, etag, last_modified, chunking_strategy, fetched_at),
             )
-        return db.execute(
+            return cursor
+        cursor2: sqlite3.Cursor = db.execute(
             "INSERT INTO documents"
             " (url, title, lang, etag, last_modified, chunking_strategy)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             (url, title, lang, etag, last_modified, chunking_strategy),
         )
+        return cursor2
 
     def _insert_chunk(
         self,

@@ -62,7 +62,8 @@ async def _build_preview_with_dry_run(
         tool_name not in ctx.cfg.approval.approval_dry_run_tools
         or ctx.services_required.tools is None
     ):
-        return preview
+        preview_str: str = preview
+        return preview_str
     try:
         result = await ctx.services_required.tools.execute(
             tool_name,
@@ -82,7 +83,8 @@ async def _build_preview_with_dry_run(
         raise ApprovalPreviewError(
             f"Dry-run execution failed for {tool_name!r}: {e}"
         ) from e
-    return preview
+    final_preview: str = preview
+    return final_preview
 
 
 async def _prompt_user_approval(risk: RiskLevel) -> bool:

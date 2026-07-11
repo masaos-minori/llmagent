@@ -30,7 +30,8 @@ class LlmReconnectHandler:
             return heartbeat_timeout_retry
         if e.kind == "MALFORMED_SSE_FRAME":
             return malformed_chunk_retry
-        return e.retryable
+        retryable: bool = e.retryable
+        return retryable
 
     @staticmethod
     async def stream(

@@ -109,7 +109,8 @@ async def health() -> JSONResponse:
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     details: dict[str, object] = {"service": "cicd-mcp"}
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

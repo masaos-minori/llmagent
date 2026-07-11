@@ -145,7 +145,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
         )
 
     def decorator(fn: _F) -> _F:
-        _pipeline_post.append(fn)  # type: ignore[arg-type]
+        _pipeline_post.append(fn)
         logger.debug("Pipeline post-stage registered: %r", fn.__name__)
         return fn
 
@@ -154,7 +154,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
 
 def get_pipeline_post_stages() -> list[PipelineHook]:
     """Return a snapshot of all registered post-rerank pipeline stage hooks."""
-    return list(_pipeline_post)  # type: ignore[arg-type]
+    return list(_pipeline_post)
 
 
 # ── Accessors ─────────────────────────────────────────────────────────────────
@@ -180,7 +180,8 @@ def get_tool(name: str) -> Callable[..., Any] | None:
     if entry is None:
         return None
     fn, _mod = entry
-    return fn
+    fn_typed: Callable[..., Any] | None = fn
+    return fn_typed
 
 
 def iter_tools() -> dict[str, Callable[..., Any]]:
@@ -275,7 +276,7 @@ def _reset_for_testing() -> None:  # noqa: F811 — replaces re-export
         _reset_for_testing as _reset,  # noqa: PLC0415
     )
 
-    return _reset()
+    _reset()
 
 
 # ── Conflict validation (re-exported from plugin_conflicts for backward compat) ─
@@ -291,7 +292,8 @@ def _validate_tool_conflicts(  # noqa: F811 — re-export with underscore prefix
         validate_tool_conflicts as _validate,  # noqa: PLC0415
     )
 
-    return _validate(known_tools, override_policy, strict_mode)
+    result: tuple[int, int, list[str]] = _validate(known_tools, override_policy, strict_mode)
+    return result
 
 
 def _validate_command_conflicts(  # noqa: F811 — re-export with underscore prefix
@@ -302,4 +304,5 @@ def _validate_command_conflicts(  # noqa: F811 — re-export with underscore pre
         validate_command_conflicts as _validate,  # noqa: PLC0415
     )
 
-    return _validate(strict_mode)
+    result: tuple[int, list[str]] = _validate(strict_mode)
+    return result

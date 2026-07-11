@@ -175,7 +175,8 @@ class MemoryIngestionService:
     def _get_dedup_threshold(self, entry: MemoryEntry) -> float:
         """Return the dedup similarity threshold for this entry's source type."""
         source_key = str(entry.source_type).upper()
-        return DEDUP_THRESHOLDS.get(source_key, self._dedup_policy.threshold)
+        threshold: float = DEDUP_THRESHOLDS.get(source_key, self._dedup_policy.threshold)
+        return threshold
 
     def _has_near_duplicate(
         self, memory_id: str, embedding: list[float], entry: MemoryEntry

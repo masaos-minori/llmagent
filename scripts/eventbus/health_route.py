@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 def _get_broker(request: Request) -> EventBroker:
     broker = request.app.state.broker
     assert broker is not None
-    return broker  # type: ignore[no-any-return]
+    return broker
 
 
 def _get_config(request: Request) -> "EventBusConfig":
     cfg = request.app.state.config
     assert cfg is not None
-    return cfg  # type: ignore[no-any-return]
+    return cfg
 
 
 async def health_check(request: Request) -> JSONResponse:
@@ -35,7 +35,8 @@ async def health_check(request: Request) -> JSONResponse:
 
     def _check() -> bool:
         with get_db_lock():
-            return check_db(db)
+            ok: bool = check_db(db)
+            return ok
 
     db_ok = await asyncio.to_thread(_check)
     db_status = "ok" if db_ok else "unavailable"

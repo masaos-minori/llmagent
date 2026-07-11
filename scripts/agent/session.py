@@ -69,16 +69,19 @@ class AgentSession:
     @property
     def skipped_no_session_count(self) -> int:
         """Number of save calls skipped due to missing session_id."""
-        return self._message_repo.stat_skipped_no_session
+        count: int = self._message_repo.stat_skipped_no_session
+        return count
 
     @property
     def skipped_invalid_role_count(self) -> int:
         """Number of save calls skipped due to invalid role."""
-        return self._message_repo.stat_skipped_invalid_role
+        count: int = self._message_repo.stat_skipped_invalid_role
+        return count
 
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch messages for a session from DB. Returns [] when session has no messages."""
-        return self._message_repo.fetch_messages(session_id)
+        messages: list[LLMMessage] = self._message_repo.fetch_messages(session_id)
+        return messages
 
     # ── Session lifecycle ────────────────────────────────────────────────────
 

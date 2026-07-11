@@ -146,4 +146,4 @@ def row_to_entry(row: sqlite3.Row | Mapping[str, object]) -> MemoryEntry:
         "created_at": _opt_str(d, "created_at"),
         "updated_at": _opt_str(d, "updated_at"),
     }
-    return MemoryEntry(**required)  # type: ignore[arg-type]
+    return MemoryEntry(**required)

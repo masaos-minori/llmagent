@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from typing import Any
 
 import httpx
 import orjson
@@ -97,7 +98,8 @@ class RagLLM:
             },
         )
         resp.raise_for_status()
-        return _extract_chat_content(orjson.loads(resp.content))
+        chat_content: str = _extract_chat_content(orjson.loads(resp.content))
+        return chat_content
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
         """Expand query to MQE paraphrases via LLM.
@@ -111,7 +113,8 @@ class RagLLM:
                 _MQE_MAX_TOKENS,
             )
             result = _parse_mqe_response(raw, query)
-            return result.queries
+            queries: list[str] = result.queries
+            return queries
         except (
             httpx.HTTPStatusError,
             httpx.RequestError,
@@ -160,7 +163,8 @@ class RagLLM:
                 len(result),
                 rag_min_score,
             )
-        return result
+        reranked: list[Any] = result
+        return reranked
 
     async def summarize_tool_result(
         self,
@@ -211,7 +215,8 @@ class RagLLM:
             timeout=timeout,
         )
         resp.raise_for_status()
-        return _extract_chat_content(orjson.loads(resp.content))
+        refined_text: str = _extract_chat_content(orjson.loads(resp.content))
+        return refined_text
 
 
 # ─────────────────────────────────────────────────────────────────────────────

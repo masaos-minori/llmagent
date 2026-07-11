@@ -532,7 +532,8 @@ def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
     from shared.tool_routing_validation import check_tool_safety_tiers  # noqa: PLC0415
 
     tool_safety_tiers = getattr(ctx.cfg.approval, "tool_safety_tiers", {})
-    return check_tool_safety_tiers(tool_safety_tiers=tool_safety_tiers)
+    warnings: list[str] = check_tool_safety_tiers(tool_safety_tiers=tool_safety_tiers)
+    return warnings
 
 
 async def _watchdog_check_http(

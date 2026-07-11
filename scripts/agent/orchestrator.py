@@ -212,7 +212,7 @@ class Orchestrator:
                 )
                 return None
 
-            await engine.run(task, plan_fn, execute_fn, verify_fn)  # type: ignore[arg-type]
+            await engine.run(task, plan_fn, execute_fn, verify_fn)
         except WorkflowPendingApprovalError as exc:
             self._handle_workflow_approval_pending(exc, session_id)
         except WorkflowHaltError as exc:
@@ -345,7 +345,7 @@ class Orchestrator:
                     {
                         "role": "system",
                         "content": memory_block,
-                        "_memory_injected": True,  # type: ignore[typeddict-unknown-key]
+                        "_memory_injected": True,
                     }
                 )
 

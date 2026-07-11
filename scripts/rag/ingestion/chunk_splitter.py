@@ -207,13 +207,14 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _chunk_code(self, code: str) -> list[str]:
         """Split a code block at blank lines (function/class boundaries); not subject to stopword removal or morphological analysis."""
         blocks = re.split(r"\n{2,}", code.strip())
-        return merge_text_items(
+        chunks: list[str] = merge_text_items(
             blocks,
             "\n\n",
             self._min_chunk,
             self._max_chunk,
             self._chunk_overlap,
         )
+        return chunks
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
@@ -320,7 +321,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _collect_targets(self, target: Path | None) -> list[Path]:
         """Return source files to process. Delegates to pipeline_utils."""
         files, _ = collect_source_files(self._rag_src_dir, target)
-        return files
+        result: list[Path] = files
+        return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -48,7 +48,8 @@ class ConfigLoadError(RuntimeError):
 def load_config() -> dict[str, Any]:
     """Load configuration from files.  No module-level cache — always fresh."""
     try:
-        return ConfigLoader().load_all()
+        config: dict[str, Any] = ConfigLoader().load_all()
+        return config
     except (OSError, ValueError, TypeError) as e:
         raise ConfigLoadError(f"Config load failed: {e}") from e
 

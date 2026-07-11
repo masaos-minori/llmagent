@@ -38,7 +38,8 @@ class GitHubSecurityGuards:
 
     def _clamp_per_page(self, per_page: int) -> int:
         """Clamp per_page to the configured maximum to prevent oversized API calls."""
-        return min(per_page, self._max_per_page)
+        clamped: int = min(per_page, self._max_per_page)
+        return clamped
 
     def _assert_allowed_repo(self, owner: str, repo: str) -> None:
         """Raise GitHubAuthorizationError if owner/repo is not permitted.

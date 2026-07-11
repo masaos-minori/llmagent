@@ -14,6 +14,7 @@ See scoring.py for scoring formula details.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.fts_query import build_fts_query
@@ -235,7 +236,8 @@ class HybridRetriever:
         self.last_retrieval_mode = "hybrid"
         merged = rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
         # hit.score is set to the RRF score by rrf_merge; already sorted by rrf_merge.
-        return merged[: query.limit]
+        result: list[Any] = merged[: query.limit]
+        return result
 
     def knn_search(
         self,

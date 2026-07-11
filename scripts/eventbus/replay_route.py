@@ -44,7 +44,8 @@ async def replay(
 
     def _fetch() -> list:
         with get_db_lock():
-            return fetch_events_since(db, since_seq, limit=limit, offset=offset)
+            rows: list = fetch_events_since(db, since_seq, limit=limit, offset=offset)
+            return rows
 
     rows = await asyncio.to_thread(_fetch)
 

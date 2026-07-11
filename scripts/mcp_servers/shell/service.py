@@ -124,7 +124,8 @@ class ShellService:
             raise ShellAuthorizationError(
                 f"Command not in allowlist: {base!r}",
             )
-        return argv
+        result: list[str] = argv
+        return result
 
     def _filter_env(self, req_env: dict[str, str]) -> dict[str, str]:
         """Filter caller-supplied environment variables.
@@ -299,7 +300,8 @@ class ShellService:
             cwd = req.cwd or "(default)"
             cmd_display = req.command
             preview = f"Would execute: {cmd_display} (cwd: {cwd})"
-            return _json_dumps({"preview": preview, "dry_run": True})
+            dry_result: str = _json_dumps({"preview": preview, "dry_run": True})
+            return dry_result
         result = await self.run_command(req)
         return self._format_run_result(result)
 

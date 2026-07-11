@@ -125,7 +125,8 @@ async def health() -> JSONResponse:
     except Exception:
         deps["config"] = "check failed"  # noqa: BLE001 — health check must not fail on config errors
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
-    return make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

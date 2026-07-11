@@ -114,7 +114,7 @@ class LLMClient:
     ) -> httpx.Response:
         """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
         try:
-            return await LlmRetryHandler.request_with_retry(
+            response: httpx.Response = await LlmRetryHandler.request_with_retry(
                 self._http,
                 url,
                 payload,
@@ -124,6 +124,7 @@ class LLMClient:
         except (httpx.HTTPStatusError, httpx.RequestError):
             self.stat_retries += 1
             raise
+        return response
 
     # ── Payload construction ──────────────────────────────────────────────────
 
@@ -134,13 +135,14 @@ class LLMClient:
         stream: bool = False,
     ) -> dict[str, Any]:
         """Build the request payload for a chat completion request."""
-        return LlmPayloadHandler.build_payload(
+        payload: dict[str, Any] = LlmPayloadHandler.build_payload(
             history,
             tool_defs,
             self._temperature,
             self._max_tokens,
             stream,
         )
+        return payload
 
     def _parse_response(self, raw: dict[str, Any]) -> LLMResponse:
         """Validate and parse raw LLM JSON into LLMResponse DTO; raises ValueError on schema mismatch."""

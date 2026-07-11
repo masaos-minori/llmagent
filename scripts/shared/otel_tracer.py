@@ -43,12 +43,14 @@ def build_tracer(
 ) -> TracerProtocol:
     """Build and return a private OTel Tracer (or NoOp) without modifying the global provider."""
     if not enabled:
-        return NoOpTracer()
+        noop: TracerProtocol = NoOpTracer()
+        return noop
 
     sdk = _import_sdk()
     if sdk is None:
         logger.warning("opentelemetry-sdk not installed; falling back to NoOp tracer")
-        return NoOpTracer()
+        noop2: TracerProtocol = NoOpTracer()
+        return noop2
 
     resource = sdk.Resource.create({"service.name": service_name})
     provider = sdk.TracerProvider(resource=resource)

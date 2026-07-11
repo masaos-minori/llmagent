@@ -67,9 +67,10 @@ class MemoryServices:
 
     def on_session_start(self, session_id: int | None) -> list[MemorySnippet]:
         """Return top semantic snippets for injection at session start."""
-        return (
+        snippets: list[MemorySnippet] = (
             self.injection.on_session_start()
         )  # session_id not used by injection layer
+        return snippets
 
     async def on_session_stop(
         self,
@@ -86,4 +87,5 @@ class MemoryServices:
         session_id: int | None,
     ) -> list[MemorySnippet]:
         """Return relevant snippets for the current user query."""
-        return await self.injection.on_user_prompt(query, session_id)
+        snippets: list[MemorySnippet] = await self.injection.on_user_prompt(query, session_id)
+        return snippets

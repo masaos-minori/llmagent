@@ -129,31 +129,38 @@ async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONR
 
 
 async def _handle_search_docs(args: ToolArgs) -> str:
-    return await _service.search_docs(SearchDocsRequest(**args))
+    result: str = await _service.search_docs(SearchDocsRequest(**args))
+    return result
 
 
 async def _handle_get_chunk(args: ToolArgs) -> str:
-    return await _service.get_chunk(GetChunkRequest(**args))
+    result: str = await _service.get_chunk(GetChunkRequest(**args))
+    return result
 
 
 async def _handle_outline(args: ToolArgs) -> str:
-    return await _service.outline(OutlineRequest(**args))
+    result: str = await _service.outline(OutlineRequest(**args))
+    return result
 
 
 async def _handle_index_paths(args: ToolArgs) -> str:
-    return await _service.index_paths(IndexPathsRequest(**args))
+    result: str = await _service.index_paths(IndexPathsRequest(**args))
+    return result
 
 
 async def _handle_refresh_index(args: ToolArgs) -> str:
-    return await _service.refresh_index(RefreshIndexRequest(**args))
+    result: str = await _service.refresh_index(RefreshIndexRequest(**args))
+    return result
 
 
 async def _handle_stats(args: ToolArgs) -> str:
-    return await _service.stats(StatsRequest(**args))
+    result: str = await _service.stats(StatsRequest(**args))
+    return result
 
 
 async def _handle_grep_docs(args: ToolArgs) -> str:
-    return await _service.grep_docs(GrepDocsRequest(**args))
+    result: str = await _service.grep_docs(GrepDocsRequest(**args))
+    return result
 
 
 _DISPATCH_TABLE = {
@@ -265,7 +272,8 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    return check_health()
+    result: JSONResponse = check_health()
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

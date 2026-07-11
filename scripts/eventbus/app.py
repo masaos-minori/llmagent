@@ -78,7 +78,8 @@ async def _dlq_loop(app: FastAPI) -> None:
                 from eventbus.db import get_db_lock  # noqa: PLC0415
 
                 with get_db_lock():
-                    return sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
+                    result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
+                    return result
 
             n = await asyncio.to_thread(_sweep)
             if n:
@@ -95,12 +96,14 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health(request: Request) -> JSONResponse:
-    return await health_check(request)
+    result: JSONResponse = await health_check(request)
+    return result
 
 
 @app.post("/publish")
 async def publish(request: Request) -> dict[str, Any]:
-    return await publish_route(request)
+    result: dict[str, Any] = await publish_route(request)
+    return result
 
 
 @app.get("/replay")
@@ -134,12 +137,14 @@ async def dlq_list(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
-    return await dlq_list_route(request, limit=limit, offset=offset)
+    result: dict[str, Any] = await dlq_list_route(request, limit=limit, offset=offset)
+    return result
 
 
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
-    return await dlq_requeue_route(request, event_id)
+    result: dict[str, Any] = await dlq_requeue_route(request, event_id)
+    return result
 
 
 @app.post("/events/{event_id}/ack")
@@ -148,7 +153,8 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
-    return await ack_event_route(request, event_id=event_id, consumer_id=consumer_id)
+    result: dict[str, Any] = await ack_event_route(request, event_id=event_id, consumer_id=consumer_id)
+    return result
 
 
 @app.post("/nack")
@@ -156,7 +162,8 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
 ) -> dict[str, Any]:
-    return await nack_route(request, event_id=event_id)
+    result: dict[str, Any] = await nack_route(request, event_id=event_id)
+    return result
 
 
 def _main() -> None:

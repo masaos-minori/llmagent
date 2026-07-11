@@ -35,7 +35,7 @@ async def publish(request: Request) -> dict[str, Any]:
 
     def _insert() -> tuple[int, bool]:
         with get_db_lock():
-            return insert_event(
+            insert_result: tuple[int, bool] = insert_event(
                 db,
                 event_id,
                 topic,
@@ -43,6 +43,7 @@ async def publish(request: Request) -> dict[str, Any]:
                 producer,
                 published_at,
             )
+            return insert_result
 
     seq, inserted = await asyncio.to_thread(_insert)
 

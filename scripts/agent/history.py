@@ -168,7 +168,8 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens
-        return estimate_tokens(history)[0]
+        token_count: int = estimate_tokens(history)[0]
+        return token_count
 
     async def count_tokens_async(
         self,
@@ -186,9 +187,10 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens, True
-        return await get_token_count(
+        token_result: tuple[int, bool] = await get_token_count(
             history, self._tokenize_url, self._http, warn_once=self._warn_once
         )
+        return token_result
 
     # Delegate classification to HistorySelectionPolicy; kept as staticmethod
     # aliases so existing callers (e.g. tests) can still reference them here.

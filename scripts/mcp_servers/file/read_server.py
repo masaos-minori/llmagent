@@ -216,7 +216,8 @@ async def list_allowed_directories() -> dict[str, list[str]]:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    return await _health(_cfg.allowed_dirs)
+    result: JSONResponse = await _health(_cfg.allowed_dirs)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
