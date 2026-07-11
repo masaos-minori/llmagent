@@ -11,7 +11,7 @@ Import from here:  from agent.commands.cmd_config_stats import _ConfigStatsMixin
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import LatencySnapshot, StatsViewModel
@@ -74,6 +74,9 @@ def _get_rag_db_configured(ctx) -> bool:
 
 class _ConfigStatsMixin(MixinBase):
     """Stats collection and display for slash commands."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _collect_stats(self) -> StatsViewModel:
         """Collect session statistics from ctx and services into a typed ViewModel."""

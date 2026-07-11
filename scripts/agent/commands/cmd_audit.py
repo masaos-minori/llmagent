@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 class _AuditMixin(MixinBase):
     """Audit log inspection slash-command handlers."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     def _audit_log_path(self) -> pathlib.Path:
         return pathlib.Path(self._ctx.cfg.obs.audit_log_file)
 

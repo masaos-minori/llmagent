@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.workflow.approval_ops import (
@@ -49,6 +50,9 @@ class _WorkflowMixin(MixinBase):
     before the REPL starts. The user will see a startup notice and can then
     use ``/approve`` or ``/reject`` to resolve it.
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _emit_approval_audit(
         self,

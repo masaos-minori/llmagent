@@ -7,6 +7,7 @@ Provides _DebugMixin with:
 """
 
 import logging
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 
@@ -17,6 +18,9 @@ _DEBUG_LOGGER_NAMES = ("agent_repl", "orchestrator")
 
 class _DebugMixin(MixinBase):
     """Debug-mode slash-command handlers."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _cmd_debug(self, args: str = "") -> None:
         """Toggle RAG debug output, or change log level with '/debug verbose|normal'."""

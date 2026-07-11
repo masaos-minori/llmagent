@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 class _MdqMixin(MixinBase):
     """MDQ slash-command handlers."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     async def _cmd_mdq(self, args: str) -> None:
         """Dispatch /mdq subcommands.
 

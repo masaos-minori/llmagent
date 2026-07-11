@@ -279,6 +279,10 @@ class StartupOrchestrator:
 
         if pipeline.has_fatal:
             fatal_str = "; ".join(pipeline.fatal_messages())
+            logger.error(
+                "FATAL pipeline outcomes: %s",
+                [(o.source, o.status, o.message) for o in pipeline.outcomes],
+            )
             raise RuntimeError(f"Startup validation failed: {fatal_str}")
 
     def _display_pipeline_results(self, pipeline: StartupValidationResult) -> None:

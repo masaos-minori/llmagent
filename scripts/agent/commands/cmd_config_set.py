@@ -13,7 +13,7 @@ Import from here:  from agent.commands.cmd_config_set import _ConfigSetMixin
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 
@@ -28,6 +28,9 @@ SET_PARTS_COUNT = 2
 
 class _ConfigSetMixin(MixinBase):
     """Runtime LLM parameter override for slash commands."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _set_temperature(self, ctx: AgentContext, value_str: str) -> None:
         """Parse and apply llm_temperature from value_str."""

@@ -47,10 +47,6 @@ from mcp_servers.github.exception_handlers import setup_exception_handlers
 from mcp_servers.github.models import (
     GitHubConfig,
 )
-from mcp_servers.github.server_file import router as file_router
-from mcp_servers.github.server_issues import router as issues_router
-from mcp_servers.github.server_pull_requests import router as pr_router
-from mcp_servers.github.server_repository import router as repo_router
 from mcp_servers.github.service_dispatch import GitHubService
 from mcp_servers.github.service_init import _GITHUB_TOKEN, build_service
 from mcp_servers.github.tools import TOOL_LIST
@@ -76,10 +72,21 @@ app = FastAPI(
 # ──────────────────────────────────────────────────────────────────────────────
 
 setup_exception_handlers(app)
-app.include_router(repo_router)
-app.include_router(file_router)
-app.include_router(issues_router)
-app.include_router(pr_router)
+
+
+def _include_routers():
+    from mcp_servers.github.server_file import router as file_router
+    from mcp_servers.github.server_issues import router as issues_router
+    from mcp_servers.github.server_pull_requests import router as pr_router
+    from mcp_servers.github.server_repository import router as repo_router
+
+    app.include_router(repo_router)
+    app.include_router(file_router)
+    app.include_router(issues_router)
+    app.include_router(pr_router)
+
+
+_include_routers()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

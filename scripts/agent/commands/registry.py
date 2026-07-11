@@ -79,6 +79,7 @@ class CommandRegistry(
     def __init__(self, ctx: AgentContext, out: OutputPort | None = None) -> None:
         self._ctx = ctx
         self._out: OutputPort = out if out is not None else CliOutputPort()
+        super().__init__(ctx, out)
         # Fail-fast: validate all handler strings refer to existing methods.
         for _cmd in _COMMANDS:
             if not hasattr(self, _cmd.handler):

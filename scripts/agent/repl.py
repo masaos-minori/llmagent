@@ -480,5 +480,23 @@ class AgentREPL:
             _signal.signal(_signal.SIGTERM, lambda *_: _sigterm_handler())
 
         startup = StartupOrchestrator(self._ctx, self._view)
-        self._cmds, self._orchestrator = await startup.run()
+        try:
+            self._cmds, self._orchestrator = await startup.run()
+        except Exception as e:
+            self._view.write_fatal(f"Startup failed: {e}")
+            raise
         await self._run_repl_loop()
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Start the interactive REPL."""
+    asyncio.run(AgentREPL().run())
+
+
+if __name__ == "__main__":
+    main()

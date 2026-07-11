@@ -4,10 +4,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from agent.commands.mixin_base import MixinBase
 
 
 class _PluginsMixin(MixinBase):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     def _cmd_plugin(self, args: str = "") -> None:
         """Handle /plugin [status]."""
         from shared.plugin_registry import get_last_load_result  # noqa: PLC0415

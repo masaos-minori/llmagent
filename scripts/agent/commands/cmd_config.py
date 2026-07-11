@@ -16,6 +16,7 @@ Import from here:  from agent.commands.cmd_config import _ConfigMixin
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from agent.commands.cmd_config_display import _ConfigDisplayMixin  # noqa: E402
 from agent.commands.cmd_config_set import _ConfigSetMixin  # noqa: E402
@@ -30,6 +31,9 @@ class _ConfigMixin(
     _ConfigSetMixin,
 ):
     """Configuration and statistics slash-command handlers."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _cmd_reload(self) -> None:
         """Reload all config/*.toml files and apply runtime-configurable parameters.

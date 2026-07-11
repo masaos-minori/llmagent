@@ -20,7 +20,7 @@ Import from here:  from agent.commands.cmd_config_display import _ConfigDisplayM
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 
@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 
 class _ConfigDisplayMixin(MixinBase):
     """Config display helpers for slash commands."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _print_llm_settings(self, ctx: AgentContext) -> None:
         self._out.write("Settings:")

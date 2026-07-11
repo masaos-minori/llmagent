@@ -9,6 +9,7 @@ Formatting (table, next-steps) is handled in this module — not in the services
 """
 
 import logging
+from typing import Any
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
@@ -65,6 +66,9 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
 
 class _McpMixin(MixinBase):
     """MCP server management slash-command handlers."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table."""

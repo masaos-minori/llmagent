@@ -9,6 +9,7 @@ Provides _RagExportMixin with:
 """
 
 import logging
+from typing import Any
 
 import orjson
 from agent.commands.mixin_base import MixinBase
@@ -23,6 +24,9 @@ RAG_SEARCH_PARTS_COUNT = 2
 
 class _RagExportMixin(MixinBase):
     """Export, compact, and RAG search slash-command handlers."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _cmd_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.

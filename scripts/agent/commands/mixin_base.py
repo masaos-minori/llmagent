@@ -7,7 +7,7 @@ is declared exactly once rather than repeated in every mixin body.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.output_port import CliOutputPort, OutputPort
 
@@ -39,3 +39,6 @@ class MixinBase:
 
     _ctx: AgentContext
     _out: OutputPort = CliOutputPort()  # overridden by CommandRegistry.__init__
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass

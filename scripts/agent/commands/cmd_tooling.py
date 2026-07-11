@@ -7,6 +7,7 @@ Provides _ToolingMixin with:
 """
 
 import logging
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 
@@ -15,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 class _ToolingMixin(MixinBase):
     """Plan-mode slash-command handler."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _cmd_plan(self) -> None:
         """Toggle plan mode. In plan mode, plan_blocked_tools are automatically blocked.

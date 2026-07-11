@@ -67,26 +67,6 @@ if ! PYTHONPATH="${PYTHONPATH}" uv run python -m agent.workflow.validate "${WORK
     exit 1
 fi
 
-# ── Event Bus のヘルスチェック ─────────────────────────────────────────────────
-EVENTBUS_HEALTH=$(curl -s http://127.0.0.1:8015/health 2>/dev/null || true)
-if [[ -z "${EVENTBUS_HEALTH}" ]]; then
-    echo "[WARN] Event Bus health check failed at port 8015." >&2
-    echo "  Start Event Bus manually: bash deploy/setup_services.sh" >&2
-else
-    echo "Event Bus health: OK"
-fi
-
-# ── LLM サービスのヘルスチェック ──────────────────────────────────────────────
-for svc_port in 8001 8003; do
-    HEALTH=$(curl -s http://127.0.0.1:${svc_port}/health 2>/dev/null || true)
-    if [[ -n "${HEALTH}" ]]; then
-        echo "LLM service (port ${svc_port}): OK"
-    else
-        echo "[WARN] LLM service not ready on port ${svc_port}." >&2
-        echo "  Wait for model loading or start manually: bash deploy/setup_services.sh" >&2
-    fi
-done
-
 # ── AgentREPL 起動 ────────────────────────────────────────────────────────────
 echo ""
 echo "=== AgentREPL 起動中 ==="

@@ -17,6 +17,7 @@ Clear/system logic delegates to agent.services.conversation_service.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.token_display import TokenDisplay
@@ -32,6 +33,9 @@ CONTEXT_PREVIEW_LENGTH = 120
 
 class _ContextMixin(MixinBase, TokenDisplay):
     """Context, history, and database slash-command handlers."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
