@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shared.mcp_config import SecurityProfile
@@ -25,7 +26,7 @@ _REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
 
 
 def _check_missing_tool_safety_tiers(
-    tool_safety_tiers: Any,
+    tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
 ) -> list[str]:
     """Return tool names that are registered but missing from tool_safety_tiers."""
@@ -41,7 +42,7 @@ def _check_missing_tool_safety_tiers(
 
 
 def _check_unknown_tool_safety_tiers(
-    tool_safety_tiers: Any,
+    tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
 ) -> list[str]:
     """Return tool_safety_tiers keys that are not registered tool names."""
@@ -59,7 +60,7 @@ def _check_unknown_tool_safety_tiers(
 class ProductionConfigValidator:
     def validate(
         self,
-        config: Any,
+        config: Mapping[str, object],
         security_profile: SecurityProfile | str = "local",
         known_tools: set[str] | None = None,
     ) -> ConfigValidationResult:
@@ -87,7 +88,10 @@ class ProductionConfigValidator:
                     warnings.append(f"[local/development] {msg}")
 
         # Bidirectional tool_safety_tiers validation
-        tool_safety_tiers = config.get("tool_safety_tiers") or {}
+        raw_tiers = config.get("tool_safety_tiers")
+        tool_safety_tiers: Mapping[str, object] = (
+            raw_tiers if isinstance(raw_tiers, Mapping) else {}
+        )
         if tool_safety_tiers:
             missing_tiers = _check_missing_tool_safety_tiers(
                 tool_safety_tiers, known_tools=known_tools
