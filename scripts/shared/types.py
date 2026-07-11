@@ -70,10 +70,10 @@ class RagConfig(Protocol):
     can be passed to RagPipeline without importing agent-layer classes into the RAG layer.
 
     This is NOT a file-format DTO.  Config file DTOs live in:
-      - mcp.rag_pipeline.models.RagPipelineConfig (MCP TOML)
+      - mcp_servers.rag_pipeline.models.RagPipelineConfig (MCP TOML)
       - rag.models_config.* (ingestion TOML)
 
-    See also: build_rag_cfg_adapter() in mcp.rag_pipeline.models for the MCP adapter.
+    See also: build_rag_cfg_adapter() in mcp_servers.rag_pipeline.models for the MCP adapter.
     """
 
     semantic_cache_max_size: int
