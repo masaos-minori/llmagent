@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 import shared.plugin_registry as plugin_registry
+from shared.plugin_conflicts import validate_tool_conflicts
+from shared.plugin_result import PluginLoadError
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ class TestRegisterTool:
         assert is_error is False
 
 
-# ── @register_tool conflict detection (via _validate_tool_conflicts) ─────────
+# ── @register_tool conflict detection (via validate_tool_conflicts) ─────────
 
 
 class TestRegisterToolConflict:
@@ -108,7 +110,7 @@ class TestRegisterToolConflict:
 
         mcp_tools = frozenset({"list_directory"})
         with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
-            plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
+            validate_tool_conflicts(mcp_tools, "reject")
 
         assert plugin_registry.get_tool("list_directory") is None
         assert any("rejected" in r.message for r in caplog.records)
@@ -122,7 +124,7 @@ class TestRegisterToolConflict:
 
         mcp_tools = frozenset({"list_directory"})
         with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
-            plugin_registry._validate_tool_conflicts(mcp_tools, "allow")
+            validate_tool_conflicts(mcp_tools, "allow")
 
         assert plugin_registry.get_tool("list_directory") is not None
         assert any("shadows MCP tool" in r.message for r in caplog.records)
@@ -133,7 +135,7 @@ class TestRegisterToolConflict:
             return "ok", False
 
         mcp_tools = frozenset({"list_directory"})
-        plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
+        validate_tool_conflicts(mcp_tools, "reject")
 
         assert plugin_registry.get_tool("my_unique_tool") is not None
 
@@ -142,7 +144,7 @@ class TestRegisterToolConflict:
         async def handler(args: dict) -> tuple[str, bool]:
             return "ok", False
 
-        plugin_registry._validate_tool_conflicts(frozenset(), "reject")
+        validate_tool_conflicts(frozenset(), "reject")
         assert plugin_registry.get_tool("list_directory") is not None
 
 
@@ -456,7 +458,7 @@ class TestLoadPluginsStrictMode:
 
     def test_strict_mode_broken_plugin_raises(self, tmp_path: Path):
         (tmp_path / "bad.py").write_text("raise RuntimeError('boom')")
-        with pytest.raises(plugin_registry.PluginLoadError, match="boom"):
+        with pytest.raises(PluginLoadError, match="boom"):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
     def test_non_strict_mode_broken_plugin_continues(self, tmp_path: Path):
@@ -482,7 +484,7 @@ class TestLoadPluginsStrictMode:
 
     def test_strict_mode_raises_plugin_load_error(self, tmp_path: Path):
         (tmp_path / "bad.py").write_text("raise RuntimeError('strict_boom')")
-        with pytest.raises(plugin_registry.PluginLoadError, match="strict_boom"):
+        with pytest.raises(PluginLoadError, match="strict_boom"):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
 
@@ -598,12 +600,12 @@ class TestRunPipelineStages:
 
 class TestPluginLoadError:
     def test_is_runtime_error_subclass(self):
-        assert issubclass(plugin_registry.PluginLoadError, RuntimeError)
+        assert issubclass(PluginLoadError, RuntimeError)
 
     def test_aggregated_error_strict_mode(self, tmp_path: Path):
         (tmp_path / "bad1.py").write_text("raise RuntimeError('first_fail')")
         (tmp_path / "bad2.py").write_text("raise RuntimeError('second_fail')")
-        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+        with pytest.raises(PluginLoadError) as exc_info:
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
         msg = str(exc_info.value)
         assert "first_fail" in msg
@@ -612,7 +614,7 @@ class TestPluginLoadError:
     def test_aggregated_error_contains_all_module_names(self, tmp_path: Path):
         (tmp_path / "alpha.py").write_text("raise ImportError('no_module')")
         (tmp_path / "beta.py").write_text("raise RuntimeError('bad_runtime')")
-        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+        with pytest.raises(PluginLoadError) as exc_info:
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
         msg = str(exc_info.value)
         assert "alpha.py" in msg
@@ -626,9 +628,7 @@ class TestConflictLogging:
             return "ok", False
 
         with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
-            plugin_registry._validate_tool_conflicts(
-                frozenset({"search_web"}), "reject"
-            )
+            validate_tool_conflicts(frozenset({"search_web"}), "reject")
 
         assert any("[plugin] conflict:" in r.message for r in caplog.records)
 
@@ -737,9 +737,7 @@ class TestCommandShadowRejection:
                     pass
             """)
         )
-        with pytest.raises(
-            plugin_registry.PluginLoadError, match="Command builtin conflicts rejected"
-        ):
+        with pytest.raises(PluginLoadError, match="Command builtin conflicts rejected"):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
     def test_shadow_strict_mode_message_contains_command_name(
@@ -755,7 +753,7 @@ class TestCommandShadowRejection:
                     pass
             """)
         )
-        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+        with pytest.raises(PluginLoadError) as exc_info:
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
         assert "/help" in str(exc_info.value)
 
@@ -772,9 +770,7 @@ class TestStrictModeToolConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        with pytest.raises(
-            plugin_registry.PluginLoadError, match="Tool MCP conflicts rejected"
-        ):
+        with pytest.raises(PluginLoadError, match="Tool MCP conflicts rejected"):
             plugin_registry.load_plugins(
                 tmp_path,
                 known_tools=mcp_tools,
@@ -802,7 +798,7 @@ class TestStrictModeToolConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory", "read_file"})
-        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+        with pytest.raises(PluginLoadError) as exc_info:
             plugin_registry.load_plugins(
                 tmp_path,
                 known_tools=mcp_tools,
@@ -865,7 +861,7 @@ class TestStrictModeToolConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+        with pytest.raises(PluginLoadError) as exc_info:
             plugin_registry.load_plugins(
                 tmp_path,
                 known_tools=mcp_tools,

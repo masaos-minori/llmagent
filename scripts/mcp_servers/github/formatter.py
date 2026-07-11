@@ -2,8 +2,6 @@
 Presentation helpers extracted from service.py.
 
 dry_run_preview: formats a dry-run operation preview string.
-Full fmt_* function extraction is deferred (service.py retains instance methods
-as backward-compat wrappers for the dispatch table).
 """
 
 

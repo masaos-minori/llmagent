@@ -9,7 +9,6 @@ Pipeline order:
   [4] Rerank  — RagLLM.cross_encoder_rerank
 
 Module layout:
-  rag/types.py       — RagHit TypedDict; re-exports LLMMessage from shared/types.py
   rag/repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
   rag/llm.py         — RagLLM, get_embedding, summarize_tool_result
   rag/pipeline_service.py — External RAG service delegation

@@ -55,10 +55,6 @@ def build_discovery_map(
 class ToolRouteResolver:
     """Map tool_name → server_key using ToolRegistry as the sole routing authority.
     Raises ValueError when the tool is not in the registry.
-
-    Live /v1/tools discovery (discovery_map parameter) is retained for backward
-    compatibility with integration tests but does NOT affect routing results.
-    Config `tool_names` is NOT a routing input; it is validation metadata only.
     """
 
     def __init__(

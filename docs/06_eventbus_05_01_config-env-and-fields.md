@@ -7,7 +7,6 @@ tags:
   - environment-variables
   - config-fields
   - toml
-  - deprecated-fields
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
@@ -45,10 +44,6 @@ Event Busの設定はTOMLファイルから読み込まれる（デフォルト:
 | `host` | str | `127.0.0.1` | HTTPリスンアドレス（下記のBind Addressセクションを参照） |
 | `allow_public_bind` | bool | `false` | オーバーライド: パブリック/ワイルドカードアドレスへのバインドを許可する（セキュリティリスクあり、認証なし） |
 
-#### 削除された設定フィールド
-
-> **注記（2026-07-10）**: `poll_interval_ms` と `offset_checkpoint_interval` は削除された（いずれもno-opフィールドであった）。いずれかのキーが `eventbus.toml` に存在する場合、`load_config()` は起動時に `ValueError` を発生させる — 設定ファイルからこれらのキーを削除すること。
-
 ## Related Documents
 
 - `06_eventbus_05_02_bind-address-and-start.md`
@@ -61,4 +56,3 @@ configuration
 environment-variables
 config-fields
 toml
-deprecated-fields

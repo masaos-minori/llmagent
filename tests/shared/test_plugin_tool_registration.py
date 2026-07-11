@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from shared import plugin_registry
+from shared.plugin_result import PluginLoadError
 
 
 @pytest.fixture(autouse=True)
@@ -73,5 +74,5 @@ class TestPluginToolRegistration:
             "@register_tool('bad')\n"
             "async def h(args): return 'x', False\n"
         )
-        with pytest.raises(plugin_registry.PluginLoadError):
+        with pytest.raises(PluginLoadError):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
