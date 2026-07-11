@@ -71,6 +71,8 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 **コンストラクタ:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
 - `half_open_cooldown_sec`: `UNAVAILABLE` に入ってから試行ディスパッチが許可されるまでの秒数（デフォルト30秒、固定値 — 指数バックオフではない）
 
+**共有配線:** このレジストリは一度だけ作成され、2つの場所で消費される — `ToolExecutor` とウォッチドッグ。`agent/factory.py::_build_tool_executor()` で `McpServerHealthRegistry()` が1つ生成され、`ToolExecutor.set_health_registry()` 経由で `ToolExecutor` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。`ToolExecutor` のトランスポート失敗記録とウォッチドッグのプロブ記録はどちらもこの1つの共有オブジェクトを変更する。結果として、ディスパッチゲーティング（`is_unavailable()`）は両方のソースの影響を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、2つの消費者間の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
+
 ---
 
 ## エンドツーエンドのツール呼び出し追跡
