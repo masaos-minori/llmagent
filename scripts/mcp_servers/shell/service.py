@@ -34,17 +34,11 @@ from shared.protocols.shell import ShellPolicy
 
 from .service_static_helpers import (
     init_sandbox,
-    set_resource_limits,
 )
 from .subprocess_runner import SubprocessRunner
 
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
-
-
-# Re-export for backward compatibility with tests that import these directly.
-_init_sandbox = init_sandbox
-_set_resource_limits = set_resource_limits
 
 
 class ShellService:

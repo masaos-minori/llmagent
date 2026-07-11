@@ -65,8 +65,8 @@ def estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
     system     3.5    Mixed format: instructions + code snippets
     ======  =====  ============================================
 
-    This replaces the legacy ``chars // 4`` fallback with a more accurate estimate
-    that accounts for structured vs unstructured content.
+    This provides a more accurate estimate than a simple ``chars // 4`` heuristic,
+    accounting for structured vs unstructured content.
     """
     total = 0
     breakdown: dict[str, int] = {"text": 0, "tool_calls": 0, "system": 0}

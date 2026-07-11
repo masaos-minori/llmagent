@@ -160,7 +160,7 @@ class HistoryManager:
 
         The category-aware estimator uses different character-to-token ratios for
         natural language text (4.0), structured JSON tool calls (2.5), and system
-        messages (3.5).  This is more accurate than the legacy ``chars // 4``
+        messages (3.5).  This is more accurate than a simple ``chars // 4``
         heuristic, especially for multilingual text and tool payloads.
 
         When ``last_input_tokens`` is ``None`` the returned value is an estimate

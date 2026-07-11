@@ -36,7 +36,6 @@ from rag.pipeline_refiner import RefineResult, refine_context
 from rag.repository import (
     RagRepository,
     deduplicate_chunks,
-    fetch_full_document,
 )
 from rag.stage import PipelineContext, PipelineStage, StageResult
 from rag.stages.augment import AugmentStage
@@ -54,16 +53,8 @@ from shared.plugin_registry import (
 )
 from shared.types import (
     RagConfig,
-    RagHit,  # noqa: F401 — re-exported via __all__
+    RagHit,
 )
-
-# Re-export symbols that external callers import from this module
-__all__ = [
-    "RagHit",
-    "RagPipeline",
-    "RagPipelineError",
-    "fetch_full_document",
-]
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +260,9 @@ class RagPipeline:
         """
         if not self._cfg.use_rerank:
             result = merged[: self._cfg.rag_top_k]
-            deduped: list[RagHit] = deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+            deduped: list[RagHit] = deduplicate_chunks(
+                result, self._cfg.max_chunks_per_doc
+            )
             return deduped
         result = await self._llm.cross_encoder_rerank(
             query,
@@ -277,7 +270,9 @@ class RagPipeline:
             self._cfg.rag_top_k,
             rag_min_score=self._cfg.rag_min_score,
         )
-        deduped2: list[RagHit] = deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+        deduped2: list[RagHit] = deduplicate_chunks(
+            result, self._cfg.max_chunks_per_doc
+        )
         return deduped2
 
     async def run(

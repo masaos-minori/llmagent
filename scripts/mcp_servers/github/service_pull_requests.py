@@ -11,6 +11,7 @@ import itertools
 from typing import Any
 
 from github import Github
+from mcp_servers.github.mapper import issue_to_info, pr_to_info
 from mcp_servers.github.models_config import GitHubAuthorizationError
 from mcp_servers.github.models_pull_requests import (
     CreatePullRequestRequest,
@@ -47,7 +48,7 @@ class PullRequestOps(GitHubSecurityGuards):
         def _sync() -> list[PullRequestInfo]:
             repo = self._get_repo(req.owner, req.repo)
             prs_slice = itertools.islice(repo.get_pulls(state=req.state), per_page)
-            return [self._pr_to_info(pr) for pr in prs_slice]
+            return [pr_to_info(pr) for pr in prs_slice]
 
         prs = await self._run_github(_sync)
         return ListPullRequestsResponse(pull_requests=prs)
@@ -60,7 +61,7 @@ class PullRequestOps(GitHubSecurityGuards):
 
         def _sync() -> PullRequestInfo:
             repo = self._get_repo(req.owner, req.repo)
-            return self._pr_to_info(repo.get_pull(number=req.pr_number))
+            return pr_to_info(repo.get_pull(number=req.pr_number))
 
         pr = await self._run_github(_sync)
         return GetPullRequestResponse(pull_request=pr)
@@ -80,7 +81,7 @@ class PullRequestOps(GitHubSecurityGuards):
                 head=req.head,
                 base=req.base,
             )
-            return self._pr_to_info(pr)
+            return pr_to_info(pr)
 
         pr = await self._run_github(_sync)
         self._write_github_audit_log(
@@ -107,7 +108,7 @@ class PullRequestOps(GitHubSecurityGuards):
                 self._gh.search_issues(query=query),
                 per_page,
             )
-            return [self._issue_to_info(i) for i in issues_slice]
+            return [issue_to_info(i) for i in issues_slice]
 
         results = await self._run_github(_sync)
         return SearchPullRequestsResponse(query=req.query, results=results)
@@ -132,7 +133,7 @@ class PullRequestOps(GitHubSecurityGuards):
                 kwargs["state"] = req.state
             if kwargs:
                 pr.edit(**kwargs)
-            return self._pr_to_info(pr)
+            return pr_to_info(pr)
 
         pr = await self._run_github(_sync)
         self._write_github_audit_log(

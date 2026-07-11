@@ -11,6 +11,7 @@ import itertools
 from typing import Any
 
 from github import Github
+from mcp_servers.github.mapper import issue_to_info
 from mcp_servers.github.models_issues import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
@@ -40,7 +41,7 @@ class IssuesOps(GitHubSecurityGuards):
         def _sync() -> list[IssueInfo]:
             repo = self._get_repo(req.owner, req.repo)
             issues_slice = itertools.islice(repo.get_issues(state=req.state), per_page)
-            return [self._issue_to_info(i) for i in issues_slice]
+            return [issue_to_info(i) for i in issues_slice]
 
         issues = await self._run_github(_sync)
         return ListIssuesResponse(issues=issues)
@@ -50,7 +51,7 @@ class IssuesOps(GitHubSecurityGuards):
 
         def _sync() -> IssueInfo:
             repo = self._get_repo(req.owner, req.repo)
-            return self._issue_to_info(repo.get_issue(number=req.issue_number))
+            return issue_to_info(repo.get_issue(number=req.issue_number))
 
         issue = await self._run_github(_sync)
         return GetIssueResponse(issue=issue)
@@ -67,7 +68,7 @@ class IssuesOps(GitHubSecurityGuards):
                 labels=req.labels or [],
                 assignees=req.assignees or [],
             )
-            return self._issue_to_info(issue)
+            return issue_to_info(issue)
 
         issue = await self._run_github(_sync)
         self._write_github_audit_log(
@@ -87,7 +88,7 @@ class IssuesOps(GitHubSecurityGuards):
                 self._gh.search_issues(query=req.query),
                 per_page,
             )
-            return [self._issue_to_info(i) for i in issues_slice]
+            return [issue_to_info(i) for i in issues_slice]
 
         issues = await self._run_github(_sync)
         return SearchIssuesResponse(query=req.query, results=issues)

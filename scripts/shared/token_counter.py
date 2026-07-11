@@ -14,7 +14,7 @@ type:
   - Structured JSON (assistant tool_calls):        2.5 chars/token
   - System messages (mixed format):                3.5 chars/token
 
-This is more accurate than the legacy ``chars // 4`` heuristic, especially for
+This is more accurate than a simple ``chars // 4`` heuristic, especially for
 multilingual text and structured tool payloads.  The count is marked
 ``is_exact=False`` to distinguish it from LLM-provided or /tokenize-derived
 counts.

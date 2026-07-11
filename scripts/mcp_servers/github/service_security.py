@@ -19,7 +19,6 @@ from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
-from mcp_servers.github.mapper import issue_to_info, pr_to_info
 from mcp_servers.github.models_config import GitHubConfig
 
 logger = logging.getLogger(__name__)
@@ -193,7 +192,3 @@ class GitHubSecurityGuards:
             return await asyncio.to_thread(func)
         except GithubException as e:
             GitHubSecurityGuards._handle_github_error(e)
-
-    # _issue_to_info and _pr_to_info moved to mcp_servers.github.mapper; aliases for backward compat
-    _issue_to_info = staticmethod(issue_to_info)
-    _pr_to_info = staticmethod(pr_to_info)

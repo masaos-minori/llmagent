@@ -46,10 +46,6 @@ from mcp_servers.file.read_models import (
 from mcp_servers.file.read_security import ReadSecurityGuards
 from mcp_servers.file.read_static_helpers import (
     build_tree,
-    count_tree_nodes,
-    fmt_dir_entries,
-    fmt_tree_node,
-    has_depth_limit,
     slice_lines,
 )
 
@@ -304,12 +300,3 @@ class ReadFileService(ReadSecurityGuards):
             permissions=perms,
         )
         return GetFileInfoResponse(info=info)
-
-    # ── Static method aliases for backward compat (tests call ReadFileService._slice_lines etc.) ──
-
-    _slice_lines = staticmethod(slice_lines)
-    _fmt_tree_node = staticmethod(fmt_tree_node)
-    _fmt_dir_entries = staticmethod(fmt_dir_entries)
-    _has_depth_limit = staticmethod(has_depth_limit)
-    _build_tree = staticmethod(build_tree)
-    _count_tree_nodes = staticmethod(count_tree_nodes)

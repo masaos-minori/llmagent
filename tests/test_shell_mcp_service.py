@@ -18,7 +18,8 @@ from mcp_servers.shell.models import (
     ShellValidationError,
     load_shell_policy,
 )
-from mcp_servers.shell.service import ShellService, _init_sandbox
+from mcp_servers.shell.service import ShellService
+from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
 from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
 from shared.protocols.shell import ShellPolicy
 

@@ -49,9 +49,6 @@ from .models_issues import (
     SearchIssuesRequest,
     SearchIssuesResponse,
 )
-from .models_issues import (
-    IssueInfo as _IssuesIssueInfo,  # noqa: F401 — re-export from models_base
-)
 from .models_pull_requests import (
     CreatePullRequestRequest,
     CreatePullRequestResponse,

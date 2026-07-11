@@ -6,6 +6,14 @@ from pathlib import Path
 
 import pytest
 from mcp_servers.file.common import FileAuthorizationError, FileValidationError
+from mcp_servers.file.read_business import (
+    build_tree,
+    count_tree_nodes,
+    fmt_dir_entries,
+    fmt_tree_node,
+    has_depth_limit,
+    slice_lines,
+)
 from mcp_servers.file.read_models import FileEntry, TreeNode
 from mcp_servers.file.read_service import ReadFileService
 
@@ -176,30 +184,30 @@ class TestSecurityWrappers:
 class TestStaticHelpers:
     def test_slice_lines_no_args_returns_content(self):
         content = "line1\nline2\nline3\n"
-        assert ReadFileService._slice_lines(content, None, None) == content
+        assert slice_lines(content, None, None) == content
 
     def test_slice_lines_head_only(self):
         content = "line1\nline2\nline3\nline4\nline5\n"
-        assert ReadFileService._slice_lines(content, 2, None) == "line1\nline2\n"
+        assert slice_lines(content, 2, None) == "line1\nline2\n"
 
     def test_slice_lines_tail_only(self):
         content = "line1\nline2\nline3\nline4\nline5\n"
-        assert ReadFileService._slice_lines(content, None, 2) == "line4\nline5\n"
+        assert slice_lines(content, None, 2) == "line4\nline5\n"
 
     def test_slice_lines_head_overrides_tail(self):
         content = "line1\nline2\nline3\n"
-        assert ReadFileService._slice_lines(content, 1, 10) == "line1\n"
+        assert slice_lines(content, 1, 10) == "line1\n"
 
     def test_fmt_tree_node_file(self):
         node = TreeNode(
             name="test.txt", path="/x/test.txt", type="file", size=100, children=[]
         )
-        result = ReadFileService._fmt_tree_node(node)
+        result = fmt_tree_node(node)
         assert "[FILE] test.txt (100 B)" in result
 
     def test_fmt_tree_node_dir(self):
         node = TreeNode(name="mydir", path="/x/mydir", type="dir", size=0, children=[])
-        result = ReadFileService._fmt_tree_node(node)
+        result = fmt_tree_node(node)
         assert "[DIR] mydir/" in result
 
     def test_fmt_tree_node_depth_limit_note(self):
@@ -211,11 +219,11 @@ class TestStaticHelpers:
             children=[],
             depth_limited=True,
         )
-        result = ReadFileService._fmt_tree_node(node)
+        result = fmt_tree_node(node)
         assert "(depth limit reached)" in result
 
     def test_fmt_dir_entries_empty(self):
-        result = ReadFileService._fmt_dir_entries([])
+        result = fmt_dir_entries([])
         assert result == "(empty directory)"
 
     def test_fmt_dir_entries_with_files(self):
@@ -223,7 +231,7 @@ class TestStaticHelpers:
             FileEntry(name="a.py", path="/x/a.py", type="file", size=50),
             FileEntry(name="b_dir", path="/x/b_dir", type="dir", size=0),
         ]
-        result = ReadFileService._fmt_dir_entries(entries)
+        result = fmt_dir_entries(entries)
         assert "[2 entries]" in result
         assert "[FILE] a.py (50 B)" in result
         assert "[DIR] b_dir" in result
@@ -232,17 +240,17 @@ class TestStaticHelpers:
         node = TreeNode(
             name="x", path="/x", type="dir", size=0, children=[], depth_limited=True
         )
-        assert ReadFileService._has_depth_limit(node) is True
+        assert has_depth_limit(node) is True
 
     def test_has_depth_limit_false(self):
         node = TreeNode(
             name="x", path="/x", type="dir", size=0, children=[], depth_limited=False
         )
-        assert ReadFileService._has_depth_limit(node) is False
+        assert has_depth_limit(node) is False
 
     def test_build_tree_single_file(self, service):
         svc, tmp_workspace = service
-        node = ReadFileService._build_tree(tmp_workspace / "file_a.py", 0, 3)
+        node = build_tree(tmp_workspace / "file_a.py", 0, 3)
         assert node.name == "file_a.py"
         assert node.type == "file"
         assert node.children == []
@@ -251,13 +259,13 @@ class TestStaticHelpers:
         svc, tmp_workspace = service
         empty_dir = tmp_workspace / "empty"
         empty_dir.mkdir()
-        node = ReadFileService._build_tree(empty_dir, 0, 3)
+        node = build_tree(empty_dir, 0, 3)
         assert node.type == "dir"
         assert node.children == []
 
     def test_build_tree_expands_subdirs_within_depth(self, service):
         svc, tmp_workspace = service
-        node = ReadFileService._build_tree(tmp_workspace / "subdir", 0, 3)
+        node = build_tree(tmp_workspace / "subdir", 0, 3)
         assert node.type == "dir"
         names = [c.name for c in node.children]
         assert "nested.txt" in names
@@ -267,7 +275,7 @@ class TestStaticHelpers:
         deep = tmp_workspace / "a" / "b" / "c" / "d"
         deep.mkdir(parents=True)
         (deep / "deep_file.txt").write_text("deep", encoding="utf-8")
-        node = ReadFileService._build_tree(tmp_workspace, 0, 2)
+        node = build_tree(tmp_workspace, 0, 2)
 
         def _find_depth_limited(n):
             if n.depth_limited:
@@ -278,8 +286,8 @@ class TestStaticHelpers:
 
     def test_count_tree_nodes(self, service):
         svc, tmp_workspace = service
-        node = ReadFileService._build_tree(tmp_workspace, 0, 3)
-        count = ReadFileService._count_tree_nodes(node)
+        node = build_tree(tmp_workspace, 0, 3)
+        count = count_tree_nodes(node)
         assert count >= 4
 
 

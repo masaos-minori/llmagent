@@ -99,7 +99,6 @@ class RagConfig(Protocol):
 
 # ── RAG hit types ─────────────────────────────────────────────────────────────
 # Defined here so shared/ can reference them without importing from rag/.
-# rag/types.py re-exports these for backward compatibility.
 
 
 @dataclasses.dataclass

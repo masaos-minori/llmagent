@@ -229,7 +229,7 @@ async def run_pipeline_stages(
     return hits
 
 
-# ── Plugin auto-discovery (re-exported from plugin_auto_discover) ──────────────
+# ── Plugin auto-discovery ─────────────────────────────────────────────────────
 
 
 # Use lazy access so patches on shared.plugin_auto_discover propagate correctly.
