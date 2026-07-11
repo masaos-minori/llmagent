@@ -9,18 +9,17 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# production: /opt/llm/pyproject.toml が存在すればそちらを優先
+if [[ -f "/opt/llm/pyproject.toml" ]]; then
+    REPO_ROOT="/opt/llm"
+else
+    REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 
 echo "=== start_agent.sh: AgentREPL 起動 ==="
 echo "リポジトリ: ${REPO_ROOT}"
 
-# ── 環境変数設定 ──────────────────────────────────────────────────────────────
-# production: /opt/llm/pyproject.toml から PYTHONPATH を自動検出
-if [[ -f "/opt/llm/pyproject.toml" ]]; then
-    export PYTHONPATH="/opt/llm/scripts"
-else
-    export PYTHONPATH="${REPO_ROOT}/scripts"
-fi
+export PYTHONPATH="${REPO_ROOT}/scripts"
 
 # ── 依存チェック ──────────────────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
