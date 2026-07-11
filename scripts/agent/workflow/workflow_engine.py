@@ -82,10 +82,11 @@ class WorkflowPendingApprovalError(Exception):
 class WorkflowEngine:
     """Runs a workflow definition against a set of stage callbacks.
 
-    Approval gate:
-      When require_approval=True, a human approval gate is inserted between
-      the execute and verify stages. The gate raises WorkflowPendingApprovalError,
-      suspending the workflow until the user runs /approve or /reject.
+    Approval gate (optional):
+      When require_approval=True on the WorkflowDef, a human approval gate is
+      inserted between the execute and verify stages. The gate raises
+      WorkflowPendingApprovalError, suspending the workflow until the user
+      runs /approve or /reject.
 
       This is distinct from per-tool approval (tool_approval.run_approval_checks),
       which fires interactively during the execute stage for MEDIUM/HIGH risk tools.

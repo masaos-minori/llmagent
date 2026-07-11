@@ -392,6 +392,8 @@ class Orchestrator:
                 logger.info("LLM response: %s", result.answer)
                 if result.persist_as_assistant:
                     ctx.session.save("assistant", result.answer)
+                if self._on_llm_wait_end:
+                    self._on_llm_wait_end()
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
                     handle_llm_transport_error(
@@ -406,6 +408,8 @@ class Orchestrator:
         except LLMTransportError as e:
             # Reached when run() is mocked with side_effect=e (tests) or re-raises
             handle_llm_transport_error(e, ctx, self._diagnostic_store)
+            if self._on_llm_wait_end:
+                self._on_llm_wait_end()
             if self._on_error:
                 self._on_error(e)
             return TurnResult(
@@ -415,9 +419,6 @@ class Orchestrator:
                 exception=e,
                 persist_as_assistant=False,
             )
-        finally:
-            if self._on_llm_wait_end:
-                self._on_llm_wait_end()
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float

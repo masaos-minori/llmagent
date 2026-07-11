@@ -141,7 +141,7 @@ class TestDisplayHelpers:
     def test_write_token(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
         view.write_token("hello")
         captured = capsys.readouterr()
-        assert captured.out == "hello"
+        assert "hello" in captured.out
 
     def test_write_compress_notice(
         self, view: CLIView, capsys: CaptureFixture[str]
@@ -255,3 +255,54 @@ class TestWriteStartupBanner:
         assert "Memory: enabled" in captured.out
         assert "Workflow: running" in captured.out
         assert "/help" in captured.out
+
+
+# ── spinner ──────────────────────────────────────────────────────────────────
+
+
+class TestSpinner:
+    @pytest.mark.asyncio
+    async def test_start_stop_spinner(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        await view.start_spinner("Loading")
+        await asyncio.sleep(0.05)
+        view.stop_spinner()
+        captured = capsys.readouterr()
+        assert "Loading" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_stop_spinner_is_idempotent(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        await view.start_spinner()
+        view.stop_spinner()
+        view.stop_spinner()
+        view.stop_spinner()
+        captured = capsys.readouterr()
+        assert captured.out.count("\r") >= 3
+
+    @pytest.mark.asyncio
+    async def test_write_token_stops_spinner(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        await view.start_spinner("Waiting")
+        await asyncio.sleep(0.05)
+        view.write_token("hello")
+        await asyncio.sleep(0.15)
+        view.stop_spinner()
+        captured = capsys.readouterr()
+        assert "hello" in captured.out
+        assert "Waiting" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_start_spinner_stops_previous(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        await view.start_spinner("First")
+        await asyncio.sleep(0.05)
+        await view.start_spinner("Second")
+        await asyncio.sleep(0.05)
+        view.stop_spinner()
+        captured = capsys.readouterr()
+        assert "Second" in captured.out
