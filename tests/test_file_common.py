@@ -10,6 +10,7 @@ import pytest
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
+    _build_health_deps,
     check_size_limit,
     format_permissions,
     require_dir,
@@ -143,6 +144,29 @@ class TestCheckSizeLimit:
         with pytest.raises(FileValidationError) as exc_info:
             check_size_limit(target, 5)
         assert "11" in str(exc_info.value)
+
+
+class TestBuildHealthDeps:
+    def test_configured_dir_exists_returns_empty(self, tmp_path: Path) -> None:
+        assert _build_health_deps([str(tmp_path)]) == {}
+
+    def test_configured_dir_missing_reports_filesystem_dep(
+        self, tmp_path: Path
+    ) -> None:
+        missing = tmp_path / "does_not_exist"
+        deps = _build_health_deps([str(missing)])
+        assert "filesystem" in deps
+
+    def test_configured_dir_is_a_file_reports_filesystem_dep(
+        self, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "not_a_dir.txt"
+        target.write_text("x", encoding="utf-8")
+        deps = _build_health_deps([str(target)])
+        assert "filesystem" in deps
+
+    def test_empty_allowed_dirs_returns_empty(self) -> None:
+        assert _build_health_deps([]) == {}
 
 
 class TestFormatPermissions:

@@ -40,6 +40,27 @@ def _make_bare_repl() -> AgentREPL:
 # ── _get_chunk_count ──────────────────────────────────────────────────────────
 
 
+class TestGetWorkflowStatus:
+    def test_returns_unknown_when_orchestrator_is_none(self) -> None:
+        repl = _make_bare_repl()
+        repl._orchestrator = None
+        assert repl._get_workflow_status() == "unknown"
+
+    def test_returns_enabled_when_tracking_enabled(self) -> None:
+        repl = _make_bare_repl()
+        repl._orchestrator.workflow_status = MagicMock(
+            return_value={"tracking": "enabled"}
+        )
+        assert repl._get_workflow_status() == "enabled"
+
+    def test_returns_not_loaded_when_tracking_not_loaded(self) -> None:
+        repl = _make_bare_repl()
+        repl._orchestrator.workflow_status = MagicMock(
+            return_value={"tracking": "not_loaded"}
+        )
+        assert repl._get_workflow_status() == "not loaded"
+
+
 class TestGetChunkCount:
     def test_returns_formatted_count(self) -> None:
         repl = _make_bare_repl()

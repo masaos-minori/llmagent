@@ -126,7 +126,7 @@ async def move_file(req: MoveFileRequest) -> MoveFileResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    return await _health()
+    return await _health(_cfg.allowed_dirs)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

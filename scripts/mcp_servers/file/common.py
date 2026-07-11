@@ -73,18 +73,23 @@ def format_permissions(mode: int) -> str:
     return _stat.filemode(mode)[1:]
 
 
-def _build_health_deps() -> dict[str, str]:
+def _build_health_deps(allowed_dirs: list[str]) -> dict[str, str]:
     """Build health check dependency status dict.
 
+    Checks that the server's own configured allowed_dirs exist, since those
+    are the only directories the server can actually operate on.
     Returns an empty dict when all dependencies are healthy,
     or a dict with error messages for failed checks.
     """
     deps: dict[str, str] = {}
-    try:
-        if not _stat.S_ISDIR(os.stat("/workspace").st_mode):
-            deps["filesystem"] = "/workspace is not a directory"
-    except OSError as e:
-        deps["filesystem"] = f"check failed: {e}"
+    for raw_dir in allowed_dirs:
+        try:
+            if not _stat.S_ISDIR(os.stat(raw_dir).st_mode):
+                deps["filesystem"] = f"{raw_dir} is not a directory"
+                break
+        except OSError as e:
+            deps["filesystem"] = f"check failed: {e}"
+            break
     return deps
 
 
@@ -103,8 +108,8 @@ async def _on_validation_error(_req: Request, exc: Exception) -> JSONResponse:
     return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
-async def _health() -> JSONResponse:
-    deps = _build_health_deps()
+async def _health(allowed_dirs: list[str]) -> JSONResponse:
+    deps = _build_health_deps(allowed_dirs)
     ready = len(deps) == 0
     return JSONResponse(
         {

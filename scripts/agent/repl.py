@@ -413,12 +413,9 @@ class AgentREPL:
         if self._orchestrator is None:
             return "unknown"
         status = self._orchestrator.workflow_status()
-        mode = status["mode"]
-        if mode == "disabled":
-            return "disabled"
         if status["tracking"] == "enabled":
-            return f"{mode} (tracking enabled)"
-        return f"{mode} (definition not loaded)"
+            return "enabled"
+        return "not loaded"
 
     def _print_startup_banner(self) -> None:
         """Print the startup line showing DB chunks, tool count, and workflow status."""
