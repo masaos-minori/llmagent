@@ -94,6 +94,7 @@ class CLIView:
 
     def write_token(self, token: str) -> None:
         """Write one streaming token to stdout without a trailing newline."""
+        self.stop_spinner()
         print(token, end="", flush=True)
 
     def write_compress_notice(self, n: int) -> None:
