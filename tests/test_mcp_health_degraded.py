@@ -102,6 +102,67 @@ def test_record_degraded_does_not_downgrade_half_open():
     assert registry.get_degraded_reason("srv1") is None
 
 
+def test_record_failure_below_threshold_sets_degraded():
+    registry = McpServerHealthRegistry(failure_threshold=3)
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.DEGRADED
+
+
+def test_record_failure_reaches_threshold_sets_unavailable():
+    registry = McpServerHealthRegistry(failure_threshold=3)
+    registry.record_failure("srv1")
+    registry.record_failure("srv1")
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+
+
+def test_is_unavailable_transitions_to_half_open_after_cooldown():
+    registry = McpServerHealthRegistry(failure_threshold=1, half_open_cooldown_sec=0.0)
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+    assert registry.is_unavailable("srv1") is False
+    assert registry.get_state("srv1") == McpServerHealthState.HALF_OPEN
+
+
+def test_record_success_from_half_open_sets_healthy():
+    registry = McpServerHealthRegistry(failure_threshold=1, half_open_cooldown_sec=0.0)
+    registry.record_failure("srv1")
+    assert registry.is_unavailable("srv1") is False
+    assert registry.get_state("srv1") == McpServerHealthState.HALF_OPEN
+    registry.record_success("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.HEALTHY
+
+
+def test_record_failure_from_half_open_sets_unavailable_and_resets_cooldown():
+    registry = McpServerHealthRegistry(failure_threshold=1, half_open_cooldown_sec=30.0)
+    with patch("time.monotonic", return_value=100.0):
+        registry.record_failure("srv1")
+        assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+        assert registry.is_unavailable("srv1") is True
+
+        # Simulate cooldown elapsing — transition to HALF_OPEN
+        with patch("time.monotonic", return_value=131.0):
+            assert registry.is_unavailable("srv1") is False
+            assert registry.get_state("srv1") == McpServerHealthState.HALF_OPEN
+
+            # Another failure while HALF_OPEN — back to UNAVAILABLE, cooldown reset
+            with patch("time.monotonic", return_value=132.0):
+                registry.record_failure("srv1")
+                assert registry.get_state("srv1") == McpServerHealthState.UNAVAILABLE
+                assert registry.is_unavailable("srv1") is True
+
+
+def test_record_success_resets_failure_count_and_unavailable_timestamp():
+    registry = McpServerHealthRegistry(failure_threshold=3)
+    registry.record_failure("srv1")
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.DEGRADED
+    registry.record_success("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.HEALTHY
+    registry.record_failure("srv1")
+    assert registry.get_state("srv1") == McpServerHealthState.DEGRADED
+
+
 # --- Watchdog integration tests ---
 
 
