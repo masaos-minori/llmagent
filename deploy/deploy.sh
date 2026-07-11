@@ -131,9 +131,15 @@ rsync -av --delete \
   --exclude="*.pyo" \
   "${REPO_ROOT}/tests/" "${DEPLOY_TESTS}/"
 
+# ── 起動スクリプト ─────────────────────────────────────────────────────────────
+echo "--- start_agent.sh → /opt/llm/ ---"
+cp "${REPO_ROOT}/deploy/start_agent.sh" "/opt/llm/"
+chmod +x /opt/llm/start_agent.sh
+
 echo "=== deploy.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
 echo "  1. bash deploy/build_sqlite_vec.sh  # sqlite-vec 拡張ビルド (初回のみ)"
 echo "  2. bash deploy/init_db.sh           # DB スキーマ初期化"
 echo "  3. bash deploy/setup_services.sh    # サブプロセス登録・起動"
+echo "  4. /opt/llm/start_agent.sh          # AgentREPL 起動"
