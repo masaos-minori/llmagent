@@ -15,6 +15,8 @@ from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
+_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
 
 @runtime_checkable
 class Writer(Protocol):
@@ -58,6 +60,8 @@ class CLIView:
 
     def __init__(self, slash_commands: list[str]) -> None:
         self._slash_commands = slash_commands
+        self._spinner_task: asyncio.Task[None] | None = None
+        self._stop_spinner_event: asyncio.Event | None = None
 
     def setup_readline(self) -> None:
         """Configure readline for bash-equivalent editing and tab completion."""
@@ -115,6 +119,29 @@ class CLIView:
     def clear_progress(self) -> None:
         """Erase the progress line."""
         print(" " * 32, end="\r", flush=True)
+
+    async def start_spinner(self, msg: str = "Thinking") -> None:
+        """Start an async spinner animation on the current line."""
+        self.stop_spinner()
+        self._stop_spinner_event = asyncio.Event()
+
+        async def _spin() -> None:
+            assert self._stop_spinner_event is not None
+            i = 0
+            while not self._stop_spinner_event.is_set():
+                frame = _SPINNER_FRAMES[i % len(_SPINNER_FRAMES)]
+                print(f"\r  {frame} {msg}...", end="", flush=True)
+                await asyncio.sleep(0.1)
+                i += 1
+
+        self._spinner_task = asyncio.create_task(_spin())
+
+    def stop_spinner(self) -> None:
+        """Stop the spinner and clear the line."""
+        if self._spinner_task is not None and not self._spinner_task.done():
+            assert self._stop_spinner_event is not None
+            self._stop_spinner_event.set()
+        print("\r" + " " * 40 + "\r", end="", flush=True)
 
     def write_warning(self, msg: str) -> None:
         """Print a startup or runtime warning prefixed with [warn]."""

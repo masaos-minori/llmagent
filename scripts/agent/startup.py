@@ -101,6 +101,8 @@ class StartupOrchestrator:
             on_turn_end=self._view.write_turn_end,
             on_error=self._view.write_llm_error,
             on_first_turn=self._cmds._generate_session_title,
+            on_llm_wait_start=self._view.start_spinner,
+            on_llm_wait_end=self._view.stop_spinner,
             tracer=tracer,
         )
 

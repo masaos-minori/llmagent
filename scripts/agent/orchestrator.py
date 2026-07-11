@@ -101,6 +101,8 @@ class Orchestrator:
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
+        on_llm_wait_start: Callable[[], Any] | None = None,
+        on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
     ) -> None:
         self._ctx = ctx
@@ -109,6 +111,8 @@ class Orchestrator:
         self._on_turn_start = on_turn_start
         self._on_turn_end = on_turn_end
         self._on_error = on_error
+        self._on_llm_wait_start = on_llm_wait_start
+        self._on_llm_wait_end = on_llm_wait_end
         self._tracer = tracer
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
@@ -372,6 +376,8 @@ class Orchestrator:
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
         try:
+            if self._on_llm_wait_start:
+                await self._on_llm_wait_start()
             if self._on_turn_start:
                 self._on_turn_start()
             with self._llm_runner._span_ctx("llm") as llm_span:
@@ -409,6 +415,9 @@ class Orchestrator:
                 exception=e,
                 persist_as_assistant=False,
             )
+        finally:
+            if self._on_llm_wait_end:
+                self._on_llm_wait_end()
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float
