@@ -19,11 +19,12 @@ class _RetryPolicyJson(TypedDict):
     backoff_sec: int
 
 
-class _WorkflowJson(TypedDict):
+class _WorkflowJson(TypedDict, total=False):
     name: str
     version: str
     stages: list[_StageJson]
     retry_policy: _RetryPolicyJson
+    require_approval: bool
 
 
 class _StageJson(TypedDict):
@@ -131,6 +132,7 @@ class WorkflowLoader:
             version=data["version"],
             stages=stages,
             retry_policy=policy,
+            require_approval=bool(data.get("require_approval", False)),
         )
         logger.debug(
             "Loaded workflow %r v%s (%d stages)",

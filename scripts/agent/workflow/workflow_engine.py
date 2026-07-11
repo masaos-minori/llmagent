@@ -124,7 +124,8 @@ class WorkflowEngine:
             try:
                 await self._run_stage(task, "plan", plan_fn)
                 await self._run_execute_with_retry(task, execute_fn)
-                await self._gate_approval(task)
+                if self._wdef.require_approval:
+                    await self._gate_approval(task)
                 await self._run_stage(task, "verify", verify_fn)
             except WorkflowPendingApprovalError:
                 raise

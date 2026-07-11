@@ -78,6 +78,7 @@ class WorkflowDef:
             max_attempts=3, backoff="fixed", backoff_sec=1
         )
     )
+    require_approval: bool = False
 
     def get_stage(self, stage_id: str) -> StageDefinition | None:
         """Return the StageDefinition for the given id, or None."""

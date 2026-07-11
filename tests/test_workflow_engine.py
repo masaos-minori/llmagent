@@ -41,7 +41,9 @@ def _make_cfg(db_path: str) -> DbConfig:
     )
 
 
-def _make_wdef(max_attempts: int = 3, backoff_sec: int = 0) -> WorkflowDef:
+def _make_wdef(
+    max_attempts: int = 3, backoff_sec: int = 0, require_approval: bool = False
+) -> WorkflowDef:
     stages = [
         StageDefinition(id="plan", description="d", timeout_sec=5, retryable=False),
         StageDefinition(id="execute", description="d", timeout_sec=5, retryable=True),
@@ -51,7 +53,11 @@ def _make_wdef(max_attempts: int = 3, backoff_sec: int = 0) -> WorkflowDef:
         max_attempts=max_attempts, backoff="fixed", backoff_sec=backoff_sec
     )
     return WorkflowDef(
-        name="default", version="1.0.0", stages=stages, retry_policy=policy
+        name="default",
+        version="1.0.0",
+        stages=stages,
+        retry_policy=policy,
+        require_approval=require_approval,
     )
 
 
@@ -226,7 +232,7 @@ class TestWorkflowEngineIdempotency:
 class TestWorkflowEngineApprovalGate:
     @pytest.mark.asyncio
     async def test_gate_always_raises_pending_on_new_task(self, store) -> None:
-        wdef = _make_wdef()
+        wdef = _make_wdef(require_approval=True)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         with pytest.raises(WorkflowPendingApprovalError) as exc_info:
@@ -235,7 +241,7 @@ class TestWorkflowEngineApprovalGate:
 
     @pytest.mark.asyncio
     async def test_approved_task_gate_passes(self, store) -> None:
-        wdef = _make_wdef()
+        wdef = _make_wdef(require_approval=True)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         approval = request_approval(store._db, task.task_id)
@@ -244,7 +250,7 @@ class TestWorkflowEngineApprovalGate:
 
     @pytest.mark.asyncio
     async def test_rejected_task_halts(self, store) -> None:
-        wdef = _make_wdef()
+        wdef = _make_wdef(require_approval=True)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
         with pytest.raises(WorkflowPendingApprovalError):
@@ -258,7 +264,7 @@ class TestWorkflowEngineApprovalGate:
     @pytest.mark.asyncio
     async def test_resume_does_not_rerun_plan_or_execute(self, store) -> None:
         """After /approve, resume must not rerun plan or execute stages."""
-        wdef = _make_wdef()
+        wdef = _make_wdef(require_approval=True)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
 
