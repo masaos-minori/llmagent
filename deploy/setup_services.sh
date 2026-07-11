@@ -13,6 +13,60 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Workflow: pre-flight definition + schema check (see docs/02_deployment.md §2.3)
+echo "--- Pre-flight: workflow definition and schema check ---"
+
+WORKFLOW_JSON="/opt/llm/config/workflows/default.json"
+WORKFLOW_DB="/opt/llm/db/workflow.sqlite"
+
+if [ ! -f "${WORKFLOW_JSON}" ]; then
+  echo "[FATAL] Missing required workflow definition: ${WORKFLOW_JSON}" >&2
+  echo "Run deploy/deploy.sh before deploy/setup_services.sh." >&2
+  exit 1
+fi
+
+if ! PYTHONPATH=/opt/llm/scripts uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+  echo "[FATAL] Deployed workflow definition failed validation: ${WORKFLOW_JSON}" >&2
+  echo "Run the workflow schema initialization step before starting the agent." >&2
+  exit 1
+fi
+
+if [ ! -f "${WORKFLOW_DB}" ]; then
+  echo "[FATAL] Workflow database schema is missing or incomplete." >&2
+  echo "Run the workflow schema initialization step before starting the agent." >&2
+  exit 1
+fi
+
+REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts approvals"
+MISSING_TABLES=""
+for t in ${REQUIRED_WORKFLOW_TABLES}; do
+  FOUND=$(sqlite3 "${WORKFLOW_DB}" \
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='${t}';")
+  if [ -z "${FOUND}" ]; then
+    MISSING_TABLES="${MISSING_TABLES} ${t}"
+  fi
+done
+if [ -n "${MISSING_TABLES}" ]; then
+  echo "[FATAL] Workflow database schema is missing or incomplete." >&2
+  echo "Missing table(s):${MISSING_TABLES}" >&2
+  echo "Run the workflow schema initialization step before starting the agent." >&2
+  exit 1
+fi
+
+EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts uv run python -c \
+  "from db.schema_sql import WORKFLOW_SCHEMA_VERSION; print(WORKFLOW_SCHEMA_VERSION)")
+ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
+  "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;")
+echo "Workflow schema version: ${ACTUAL_SCHEMA_VERSION:-<none>} (expected: ${EXPECTED_SCHEMA_VERSION})"
+if [ "${ACTUAL_SCHEMA_VERSION}" != "${EXPECTED_SCHEMA_VERSION}" ]; then
+  echo "[FATAL] Workflow schema version mismatch: expected ${EXPECTED_SCHEMA_VERSION}, found ${ACTUAL_SCHEMA_VERSION:-<none>}." >&2
+  echo "Run deploy/init_db.sh to migrate the workflow schema before starting services." >&2
+  exit 1
+fi
+
+echo "OK: workflow definition and schema pre-flight checks passed"
+echo ""
+
 echo "=== setup_services.sh: サービス設定開始 ==="
 
 # ── LLM サービスのサブプロセス起動 ─────────────────────────────────────────────

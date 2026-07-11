@@ -21,6 +21,7 @@ import sys
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     _WORKFLOW_MIGRATIONS,
+    WORKFLOW_SCHEMA_VERSION,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
@@ -29,6 +30,19 @@ from db.schema_sql import (
 from db.store_protocols import get_embedding_dims
 
 logger = logging.getLogger(__name__)
+
+
+def _record_workflow_schema_version(db: SQLiteHelper) -> None:
+    """Idempotently record WORKFLOW_SCHEMA_VERSION as the current version."""
+    row = db.execute(
+        "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1"
+    ).fetchone()
+    current = row[0] if row else None
+    if current != WORKFLOW_SCHEMA_VERSION:
+        db.execute(
+            "INSERT INTO workflow_schema_version (version) VALUES (?)",
+            (WORKFLOW_SCHEMA_VERSION,),
+        )
 
 
 def create_rag_schema() -> None:
@@ -68,6 +82,7 @@ def create_workflow_schema() -> None:
                 db.execute(stmt)
             except sqlite3.OperationalError:
                 pass  # column already exists
+        _record_workflow_schema_version(db)
         db.commit()
     logger.info("Workflow schema created successfully.")
 

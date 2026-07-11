@@ -35,8 +35,24 @@ sqlite3 "${DEPLOY_DB}/rag.sqlite" ".tables"
 sqlite3 "${DEPLOY_DB}/session.sqlite" ".tables"
 # 期待値: memories  memories_fts  memories_vec  memory_links  messages  session_diagnostics  sessions  tool_results
 
-sqlite3 "${DEPLOY_DB}/workflow.sqlite" ".tables"
-# expected: artifacts  attempts  approvals  processed_events  tasks
+# Workflow: schema table verification (see docs/02_deployment.md §3.1)
+echo "--- workflow.sqlite テーブル確認 ---"
+REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts approvals"
+MISSING_TABLES=""
+for t in ${REQUIRED_WORKFLOW_TABLES}; do
+  FOUND=$(sqlite3 "${DEPLOY_DB}/workflow.sqlite" \
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='${t}';")
+  if [ -z "${FOUND}" ]; then
+    MISSING_TABLES="${MISSING_TABLES} ${t}"
+  fi
+done
+if [ -n "${MISSING_TABLES}" ]; then
+  echo "[FATAL] Workflow database schema is missing or incomplete." >&2
+  echo "Missing table(s):${MISSING_TABLES}" >&2
+  echo "Run the workflow schema initialization step before starting the agent." >&2
+  exit 1
+fi
+echo "OK: all required workflow.sqlite tables present (${REQUIRED_WORKFLOW_TABLES})"
 
 sqlite3 "${DEPLOY_DB}/eventbus.sqlite" ".tables"
 # expected: events

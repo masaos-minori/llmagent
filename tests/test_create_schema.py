@@ -353,6 +353,11 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         created_at  TEXT NOT NULL,
         resolved_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS workflow_schema_version (
+        version    TEXT NOT NULL,
+        applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    );
 """
 
 

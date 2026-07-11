@@ -1,0 +1,33 @@
+name: Deploy Scripts Lint
+
+on:
+  push:
+    paths:
+      - "deploy/*.sh"
+  pull_request:
+    paths:
+      - "deploy/*.sh"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Shell Syntax and Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash -n syntax check
+        run: |
+          set -euo pipefail
+          for f in deploy/*.sh; do
+            echo "Checking: $f"
+            bash -n "$f"
+          done
+
+      - name: shellcheck
+        uses: ludeeus/action-shellcheck@v2
+        with:
+          scandir: "./deploy"

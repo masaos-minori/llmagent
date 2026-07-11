@@ -27,6 +27,7 @@ from agent.security_audit_config import (
     GitHubAuditConfig,
     ShellAuditConfig,
 )
+from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -784,8 +785,13 @@ def _create_workflow_db(
     *,
     exclude_table: str | None = None,
     missing_column: tuple[str, str] | None = None,
+    schema_version: str | None = WORKFLOW_SCHEMA_VERSION,
 ) -> str:
-    """Create a minimal workflow SQLite DB for testing check_workflow_schema()."""
+    """Create a minimal workflow SQLite DB for testing check_workflow_schema().
+
+    schema_version=None creates an empty workflow_schema_version table (simulates
+    a pre-existing DB created before any version was ever recorded).
+    """
     db_path = str(tmp_path / "workflow.sqlite")
     conn = sqlite3.connect(db_path)
     schemas = {
@@ -812,6 +818,14 @@ def _create_workflow_db(
             col = missing_column[1]
             ddl = ddl.replace(f", {col} TEXT", "").replace(f"{col} TEXT, ", "")
         conn.execute(ddl)
+    conn.execute(
+        "CREATE TABLE workflow_schema_version (version TEXT NOT NULL, applied_at TEXT NOT NULL)"
+    )
+    if schema_version is not None:
+        conn.execute(
+            "INSERT INTO workflow_schema_version (version, applied_at) VALUES (?, ?)",
+            (schema_version, "2026-01-01T00:00:00Z"),
+        )
     conn.commit()
     conn.close()
     return db_path
@@ -852,4 +866,18 @@ class TestCheckWorkflowSchema:
     def test_missing_required_column_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, missing_column=("tasks", "workflow_id"))
         with pytest.raises(RuntimeError, match="workflow_id"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_matching_schema_version_passes(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, schema_version=WORKFLOW_SCHEMA_VERSION)
+        check_workflow_schema(db_path=db_path)  # must not raise
+
+    def test_missing_schema_version_row_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, schema_version=None)
+        with pytest.raises(RuntimeError, match="schema version mismatch"):
+            check_workflow_schema(db_path=db_path)
+
+    def test_mismatched_schema_version_fails(self, tmp_path: Any) -> None:
+        db_path = _create_workflow_db(tmp_path, schema_version="0.9.0")
+        with pytest.raises(RuntimeError, match="schema version mismatch"):
             check_workflow_schema(db_path=db_path)

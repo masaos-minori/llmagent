@@ -16,6 +16,9 @@ Functions:
 
 import sqlite3
 
+# Bump this constant whenever a new entry is added to _WORKFLOW_MIGRATIONS.
+WORKFLOW_SCHEMA_VERSION = "1.0.0"
+
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
         doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -196,6 +199,11 @@ CREATE TABLE IF NOT EXISTS approvals (
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     resolved_at TEXT,
     workflow_id TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS workflow_schema_version (
+    version    TEXT NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 """
 

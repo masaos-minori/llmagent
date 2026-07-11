@@ -150,11 +150,26 @@ deploy.sh does:
 - Creates `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/`
 - Creates `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` (Event Bus)
 
+**Workflow artifact responsibilities (deploy.sh):**
+- Checks that `config/workflows/default.json` exists — aborts before any copy if missing
+- Validates the workflow definition (parseable JSON, required fields/stages/retry-policy) via `python -m agent.workflow.validate`
+- Copies `config/workflows/` to `/opt/llm/config/workflows/`
+- Prints workflow name, version, stage list, and SHA256 checksums (source and deployed); aborts if the checksums differ
+
+The workflow definition is a **required workflow deployment artifact**:
+source `config/workflows/default.json` → deployed to `/opt/llm/config/workflows/default.json`.
+There is no disable, fallback, or workflow-optional mode.
+
 ### 2.3 Registering and starting LLM services
 
 `deploy/setup_services.sh` initializes the LLM services.
 
 MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent startup.
+
+**Workflow pre-flight responsibilities (setup_services.sh):**
+- Re-checks that the deployed workflow definition (`/opt/llm/config/workflows/default.json`) exists and re-validates it
+- Re-checks that `workflow.sqlite` exists with all required tables and a matching schema version
+- Services (Event Bus, LLM, MCP) are started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 
 ```bash
 # deploy.sh 実行後に実行する
@@ -200,6 +215,31 @@ bash deploy/init_db.sh
 # Output: Schema created successfully.
 # Verify tables (chunks  chunks_fts  chunks_vec  documents)
 ```
+
+**Workflow schema responsibilities (init_db.sh):**
+- Creates `workflow.sqlite` and its required tables (`tasks`, `attempts`, `processed_events`, `artifacts`, `approvals`) via `create_workflow_schema()`
+- Applies incremental schema migrations (idempotent — safe to re-run)
+- Verifies all 5 required tables exist after initialization; aborts if any are missing
+- Records the current workflow schema version in `workflow_schema_version`
+
+### 3.2 Workflow deployment checklist
+
+- [ ] `config/workflows/default.json` exists in the repository before running `deploy.sh`
+- [ ] `bash deploy/deploy.sh` completes with a printed workflow Name/Version/Stages/SHA256 block and no `[FATAL]` errors
+- [ ] `bash deploy/init_db.sh` reports all 5 workflow tables present and the expected schema version recorded
+- [ ] `bash deploy/setup_services.sh` passes its pre-flight workflow checks before any service starts
+
+### 3.3 Workflow deployment failure modes
+
+| Symptom | Failing script | Remediation |
+|---|---|---|
+| `[FATAL] Missing required workflow definition` | `deploy.sh` | Add `config/workflows/default.json` to the repository before deploying |
+| `[FATAL] Invalid workflow definition ...` | `deploy.sh` | Fix the JSON per the printed validation error (missing field, duplicate stage ID, invalid retry policy, etc.) |
+| `[FATAL] Deployed workflow definition checksum does not match source` | `deploy.sh` | Re-run `deploy.sh`; investigate why the copy was not byte-identical (disk/filesystem issue) |
+| `[FATAL] Workflow database schema is missing or incomplete` | `init_db.sh` or `setup_services.sh` | Run `bash deploy/init_db.sh` to (re-)create the workflow schema |
+| `[FATAL] Workflow schema version mismatch` | `setup_services.sh` (or `RuntimeError` at agent startup) | Run `bash deploy/init_db.sh` to apply pending migrations and record the current version |
+
+For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
 ## Related Documents
 

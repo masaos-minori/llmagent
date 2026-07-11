@@ -63,13 +63,11 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 フラグを持つメッセージは、各ターン開始時のシステムプロンプト同期処理で除去される。永続セッション履歴には保存されない。
 
-**workflow_mode の3種**
+**ワークフローは常時必須(モード設定なし)**
 
-| workflow_mode | 動作 | 失敗時挙動 |
-|---|---|---|
-| `auto` (デフォルト) | ワークフロー定義が存在すれば有効化 | ロード失敗は警告ログで継続 |
-| `required` | ワークフロー定義が必須 | ロード失敗は `RuntimeError` で起動中断 |
-| `disabled` | 常にダイレクト実行 | ワークフローを完全バイパス |
+`workflow_mode` は設定キーとして存在しない(`build_agent_config()` の `_FORBIDDEN_KEYS` に含まれ、設定すると `ConfigLoadError` で起動不可)。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
+
+詳細: [02_deployment.md §Workflow deployment checklist](02_deployment.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook)
 
 `workflow_require_approval=True` で execute → verify 間に人間承認ゲートを挿入できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/config_dataclasses.py`, `agent/orchestrator.py`, `agent/startup.py`)
 

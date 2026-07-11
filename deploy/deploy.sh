@@ -10,6 +10,31 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Workflow: existence + content validation (see docs/02_deployment.md §2.2)
+# Mandatory-artifact existence check (source). Scoped to default.json only,
+# not the config/workflows/ directory as a whole.
+if [[ ! -f "${REPO_ROOT}/config/workflows/default.json" ]]; then
+  echo "[FATAL] Missing required workflow definition: config/workflows/default.json" >&2
+  echo "This agent requires a valid workflow definition and does not support workflow-disabled mode." >&2
+  exit 1
+fi
+
+# Workflow: content validation (parseable JSON, required fields/stages/retry-policy)
+if ! PYTHONPATH="${REPO_ROOT}/scripts" uv run python -m agent.workflow.validate \
+     "${REPO_ROOT}/config/workflows/default.json"; then
+  echo "[FATAL] Workflow definition failed validation; aborting deployment." >&2
+  exit 1
+fi
+
+echo "Workflow definition:"
+echo "Source   : config/workflows/default.json"
+echo "Deployed : /opt/llm/config/workflows/default.json"
+PYTHONPATH="${REPO_ROOT}/scripts" uv run python -m agent.workflow.validate \
+  --print-metadata "${REPO_ROOT}/config/workflows/default.json"
+SOURCE_SHA256=$(sha256sum "${REPO_ROOT}/config/workflows/default.json" | awk '{print $1}')
+echo "SHA256 (source)   : ${SOURCE_SHA256}"
+
 DEPLOY_SCRIPTS="/opt/llm/scripts"
 DEPLOY_CONFIG="/opt/llm/config"
 DEPLOY_DB="/opt/llm/db"
@@ -84,6 +109,19 @@ cp -r "${REPO_ROOT}/schemas/." /opt/llm/schemas/
 echo "--- config/workflows/ → ${DEPLOY_CONFIG}/workflows/ ---"
 mkdir -p "${DEPLOY_CONFIG}/workflows"
 cp -r "${REPO_ROOT}/config/workflows/." "${DEPLOY_CONFIG}/workflows/"
+
+DEPLOYED_SHA256=$(sha256sum "${DEPLOY_CONFIG}/workflows/default.json" | awk '{print $1}')
+echo "SHA256 (deployed) : ${DEPLOYED_SHA256}"
+if [ "${SOURCE_SHA256}" != "${DEPLOYED_SHA256}" ]; then
+  echo "[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted." >&2
+  exit 1
+fi
+
+# Workflow: mandatory-artifact existence check (deployed copy). Scoped to default.json only.
+if [[ ! -f "${DEPLOY_CONFIG}/workflows/default.json" ]]; then
+  echo "[FATAL] Deployed workflow definition missing after copy: ${DEPLOY_CONFIG}/workflows/default.json" >&2
+  exit 1
+fi
 
 # ── テスト ────────────────────────────────────────────────────────────────────
 echo "--- tests/ → ${DEPLOY_TESTS}/ ---"

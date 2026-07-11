@@ -455,6 +455,7 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
 def check_workflow_schema(db_path: str | None = None) -> None:
     """Raise RuntimeError if the workflow DB is missing required tables or columns."""
     from db.helper import SQLiteHelper  # noqa: PLC0415
+    from db.schema_sql import WORKFLOW_SCHEMA_VERSION  # noqa: PLC0415
 
     db = SQLiteHelper(target="workflow", db_path=db_path)
     db.open(write_mode=False, row_factory=False)
@@ -480,6 +481,17 @@ def check_workflow_schema(db_path: str | None = None) -> None:
                         f"Workflow schema missing column {table}.{col}. "
                         "Reinitialize the workflow database."
                     )
+
+        rows = db.fetchall(
+            "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1",
+            (),
+        )
+        actual_version = rows[0][0] if rows else None
+        if actual_version != WORKFLOW_SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
+                f"found {actual_version!r}. Run create_workflow_schema() to migrate."
+            )
     finally:
         db.close()
 
