@@ -135,6 +135,7 @@ class Orchestrator:
     def workflow_status(self) -> dict[str, str]:
         """Return public workflow status for display purposes."""
         return {
+            "mode": "active" if self._workflow_def is not None else "disabled",
             "tracking": "enabled" if self._workflow_def is not None else "not_loaded",
         }
 
