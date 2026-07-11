@@ -1,7 +1,6 @@
 """MQE stage for RAG pipeline."""
 
-from rag.llm_client import RagLLM  # noqa: F401 — re-exported for callers
-from rag.llm_prompts import RagExpansionError  # noqa: F401 — re-exported for callers
+from rag.llm_client import RagLLM
 from rag.stage import PipelineContext, PipelineStage
 from shared.types import RagConfig
 

@@ -11,7 +11,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from shared.llm_client import LLMTransportError
+    from shared.llm_exceptions import LLMTransportError
 
 
 @dataclasses.dataclass(frozen=True)

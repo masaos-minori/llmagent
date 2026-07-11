@@ -41,7 +41,7 @@ from agent.workflow import (
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 from shared.json_utils import dumps as _json_dumps
-from shared.llm_client import LLMTransportError
+from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")

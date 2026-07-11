@@ -14,7 +14,7 @@ from agent.history import CompressResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
-from shared.llm_client import LLMErrorKind, LLMTransportError
+from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

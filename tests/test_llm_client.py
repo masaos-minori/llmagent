@@ -11,12 +11,9 @@ from collections.abc import AsyncIterator, Callable
 import httpx
 import pytest
 import respx
-from shared.llm_client import (
-    LLMClient,
-    LLMTransportError,
-    RobustSSEParser,
-    _anext_or_done,
-)
+from shared.llm_client import LLMClient
+from shared.llm_exceptions import LLMTransportError
+from shared.sse_parser import RobustSSEParser, _anext_or_done
 from shared.transport_dto import TransportErrorInfo
 
 # ── LLMTransportError ─────────────────────────────────────────────────────────

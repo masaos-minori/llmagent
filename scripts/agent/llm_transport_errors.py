@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import orjson
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
-from shared.llm_client import LLMTransportError
+from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")

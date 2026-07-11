@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.llm_turn_runner import LLMTurnRunner
-from shared.llm_client import LLMTransportError
+from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 
 pytestmark = pytest.mark.asyncio

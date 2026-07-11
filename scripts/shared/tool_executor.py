@@ -28,15 +28,7 @@ from shared.mcp_config import (
 from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
-from shared.tool_executor_helpers import (  # noqa: F401 — re-export for backward compat
-    format_transport_error,
-    is_side_effect,
-    tool_hash_key,
-)
-from shared.transport_dto import (
-    ToolCallResult,  # noqa: F401 — re-export for backward compat
-    TransportErrorInfo,  # noqa: F401 — re-export for backward compat
-)
+from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
 

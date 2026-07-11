@@ -1,10 +1,6 @@
 """shared/llm_client.py
 LLM communication layer with robust SSE streaming.
 
-Backward-compatible re-exports (also available from sub-modules):
-  shared.llm_exceptions → LLMErrorKind, LLMTransportError
-  shared.sse_parser     → RobustSSEParser, _anext_or_done
-
 Key components:
   LLMClient — HTTP retry, payload construction, reconnect-aware SSE streaming
 """
@@ -16,23 +12,13 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
-from shared.llm_exceptions import LLMErrorKind, LLMTransportError
+from shared.llm_exceptions import LLMTransportError
 from shared.llm_hot_config import LlmHotConfigHandler
 from shared.llm_payload import LlmPayloadHandler
 from shared.llm_reconnect import LlmReconnectHandler
 from shared.llm_retry import LlmRetryHandler
 from shared.llm_types import LLMResponse
-from shared.sse_parser import RobustSSEParser, _anext_or_done
 from shared.types import LLMMessage
-
-# Re-exports for backward compatibility
-__all__ = [
-    "LLMClient",
-    "LLMTransportError",
-    "LLMErrorKind",
-    "RobustSSEParser",
-    "_anext_or_done",
-]
 
 logger = logging.getLogger(__name__)
 

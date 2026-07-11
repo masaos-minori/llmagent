@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """rag/types.py
 RAG-pipeline-specific type definitions.
-
-RawHit / MergedHit / RankedHit / RagHit are canonically defined in
-shared/types.py; import them from there directly. This module only
-defines types specific to the RAG pipeline's own run/query lifecycle.
 """
 
 from __future__ import annotations

@@ -66,11 +66,7 @@ from shared.plugin_registries import (
     _pipeline_post,
     _tools,
 )
-from shared.plugin_result import (  # noqa: F401 — re-export for backward compatibility
-    PluginFailure,
-    PluginLoadError,
-    PluginLoadResult,
-)
+from shared.plugin_result import PluginLoadResult
 from shared.types import RagHit
 
 logger = logging.getLogger(__name__)
@@ -277,32 +273,3 @@ def _reset_for_testing() -> None:  # noqa: F811 — replaces re-export
     )
 
     _reset()
-
-
-# ── Conflict validation (re-exported from plugin_conflicts for backward compat) ─
-
-
-def _validate_tool_conflicts(  # noqa: F811 — re-export with underscore prefix
-    known_tools: frozenset[str],
-    override_policy: str,
-    strict_mode: bool = False,
-) -> tuple[int, int, list[str]]:
-    """Validate plugin tools against known MCP tool names. Backward compat alias."""
-    from shared.plugin_conflicts import (
-        validate_tool_conflicts as _validate,  # noqa: PLC0415
-    )
-
-    result: tuple[int, int, list[str]] = _validate(known_tools, override_policy, strict_mode)
-    return result
-
-
-def _validate_command_conflicts(  # noqa: F811 — re-export with underscore prefix
-    strict_mode: bool = False,
-) -> tuple[int, list[str]]:
-    """Reject plugin commands shadowing built-in names. Backward compat alias."""
-    from shared.plugin_conflicts import (
-        validate_command_conflicts as _validate,  # noqa: PLC0415
-    )
-
-    result: tuple[int, list[str]] = _validate(strict_mode)
-    return result
