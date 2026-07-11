@@ -27,6 +27,24 @@ source:
 | `startup_timeout_sec` | `int` | `30` | subprocessモード: ヘルスポーリングのタイムアウト |
 | `call_timeout_sec` | `float` | `60.0` | HttpTransportの呼び出しごとのタイムアウト；0 = タイムアウトなし |
 | `tool_names` | `list[str]` | `[]` | 検証用のヒント（任意）；registryはこれに関わらずルーティングする。空 = 検証なし。[Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md#routing-source-of-truth) を参照。 |
+
+Routing is identical in all three cases — `tool_names` never determines which server a tool routes to; only whether config-vs-registry drift validation runs for this server.
+
+```toml
+# Omitted — identical to tool_names = [] (both skip config-vs-registry validation for this server)
+[mcp_servers.example_a]
+cmd = ["..."]
+
+# Explicit empty — same effect as omitting the key entirely
+[mcp_servers.example_b]
+cmd = ["..."]
+tool_names = []
+
+# Populated — validated against the registry at startup; mismatches are drift, not routing changes
+[mcp_servers.example_c]
+cmd = ["..."]
+tool_names = ["read_text_file", "list_directory"]
+```
 | `auth_token` | `str` | `""` | 認証用のBearerトークン（空 = 認証なし） |
 
 > `auth_token=""`（Bearer認証なし）は
