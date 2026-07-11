@@ -17,7 +17,7 @@ source:
 
 # エージェントデータ層
 
-- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
 
 ## rag.sqlite Tables (Agent-facing)(rag.sqlite のテーブル。エージェントから見た視点)
 
@@ -86,9 +86,9 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 | `/db` コマンド(管理用) | `/db rag urls`+`/db rag clean` → rag-pipeline-mcp; `/db rag stats`+メンテナンス → `DbMaintenanceService`/`RagMaintenanceService` | 管理タスクのみ |
 | DB直接アクセス | 推奨されない | アプリケーションコードでは使用しない |
 
-MCPツールが推奨かつサポートされる経路である。`rag.sqlite` や `mdq.sqlite` に対する `sqlite3` の直接インポートは、通常のアプリケーションコードでは許可されない。`/db` の管理コマンドは、明示的なメンテナンス例外として `RagMaintenanceService` を使用する([04_mcp_05 §Agent Access Patterns](04_mcp_05_security_and_safety_model.md#agent-access-patterns) を参照)。RAGとMDQシステムの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) を参照。
+MCPツールが推奨かつサポートされる経路である。`rag.sqlite` や `mdq.sqlite` に対する `sqlite3` の直接インポートは、通常のアプリケーションコードでは許可されない。`/db` の管理コマンドは、明示的なメンテナンス例外として `RagMaintenanceService` を使用する([04_mcp_05 §Agent Access Patterns](04_mcp_05_04_mdq-rag-boundary.md#agent-access-patterns) を参照)。RAGとMDQシステムの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) を参照。
 
-- **MDQ**: Markdownクエリサーバ。`mdq-mcp` ツール経由でのみアクセスする。FTS5検索とインデックス化が実装されている。RAG/MDQの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) を参照。
+- **MDQ**: Markdownクエリサーバ。`mdq-mcp` ツール経由でのみアクセスする。FTS5検索とインデックス化が実装されている。RAG/MDQの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) を参照。
 
 ## Memory Tables (optional)(メモリテーブル。任意)
 

@@ -92,7 +92,7 @@ Format:
 - Preserve existing navigation and cross-references.
 
 Style:
-- Write in Japanese, unless the target document is clearly English-only.
+- Write in Japanese.
 - Use concise, professional Markdown. Do not bloat the documents.
 
 #### Step 5: Classify evidence

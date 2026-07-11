@@ -10,8 +10,8 @@ tags:
   - rrf
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_12_01_memory-overview-and-modes.md
-  - 05_agent_12_02_memory-gate-data-model-search.md
+  - 05_agent_12_01_memory-overview-and-modes-part1.md
+  - 05_agent_12_02_memory-gate-data-model-search-part1.md
   - 05_agent_12_03_memory-module-ref-core-and-store.md
   - 05_agent_12_04_memory-module-ref-retrieval-and-injection.md
   - 05_agent_12_05_memory-module-ref-extraction-and-facade.md
@@ -108,8 +108,8 @@ float から BLOB への変換、タイムスタンプ付与、ISO 8601 タイ�
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
-- `05_agent_12_01_memory-overview-and-modes.md`
-- `05_agent_12_02_memory-gate-data-model-search.md`
+- `05_agent_12_01_memory-overview-and-modes-part1.md`
+- `05_agent_12_02_memory-gate-data-model-search-part1.md`
 - `05_agent_12_03_memory-module-ref-core-and-store.md`
 - `05_agent_12_04_memory-module-ref-retrieval-and-injection.md`
 - `05_agent_12_05_memory-module-ref-extraction-and-facade.md`

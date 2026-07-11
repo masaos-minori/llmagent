@@ -19,7 +19,7 @@ source:
 # エージェントのツール実行と承認
 
 - ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
+- MCPルーティング → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 
 ## 目的
 
@@ -48,7 +48,7 @@ source:
 
 ## 並列実行と逐次実行
 
-`execute_all_tool_calls()`は設定フラグに基づいてディスパッチする。設定リファレンス → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_01_configuration-loading-agent-config.md)。
+`execute_all_tool_calls()`は設定フラグに基づいてディスパッチする。設定リファレンス → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_01_configuration-loading-agent-config-part1.md)。
 
 | Condition | Execution |
 |---|---|

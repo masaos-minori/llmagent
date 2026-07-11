@@ -50,7 +50,7 @@ source:
 
 - 分散または複製SQLite構成
 - 外部ベクトルデータベース（プロセス内のsqlite-vecのみ対応）
-- LLM通信プロトコルの詳細（`05_agent_05_llm-and-streaming.md` で扱う）
+- LLM通信プロトコルの詳細（`05_agent_05_llm-and-streaming-part1.md` で扱う）
 
 ---
 

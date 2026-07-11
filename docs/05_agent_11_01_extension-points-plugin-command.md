@@ -8,7 +8,7 @@ tags:
   - register-command
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_11_02_extension-points-tool-registration.md
+  - 05_agent_11_02_extension-points-tool-registration-part1.md
   - 05_agent_11_03_extension-points-registry-rules.md
 source:
   - 05_agent_11_01_extension-points-plugin-command.md
@@ -16,7 +16,7 @@ source:
 
 # Agent Extension Points
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
 
 ## 目的
 
@@ -101,7 +101,7 @@ handler(ctx: AgentContext, args: str) -> None  # sync or async
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
-- `05_agent_11_02_extension-points-tool-registration.md`
+- `05_agent_11_02_extension-points-tool-registration-part1.md`
 - `05_agent_11_03_extension-points-registry-rules.md`
 
 ## Keywords

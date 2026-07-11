@@ -136,17 +136,17 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 
 | Topic | File |
 |---|---|
-| ランタイムコンポーネントアーキテクチャ | [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md) |
+| ランタイムコンポーネントアーキテクチャ | [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md) |
 | ターン処理フロー | [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) |
-| 状態と永続化 | [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md) |
-| LLMとストリーミング | [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) |
+| 状態と永続化 | [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md) |
+| LLMとストリーミング | [05_agent_05_llm-and-streaming-part1.md](05_agent_05_llm-and-streaming-part1.md) |
 | ツール実行と承認 | [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) |
 | CLIとコマンド | [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md) |
-| 設定 | [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md) |
+| 設定 | [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) |
 | データレイヤー | [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) |
 | 運用と可観測性 | [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) |
 | 拡張ポイント | [05_agent_11_01_extension-points-plugin-command.md](05_agent_11_01_extension-points-plugin-command.md) |
-| APIリファレンス | [05_agent_13_reference-api.md](05_agent_13_reference-api.md) |
+| APIリファレンス | [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md) |
 
 ## Related Documents
 

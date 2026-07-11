@@ -9,11 +9,11 @@ tags:
   - observabilityconfig
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_08_01_configuration-loading-agent-config.md
+  - 05_agent_08_01_configuration-loading-agent-config-part1.md
   - 05_agent_08_02_configuration-llm-rag.md
   - 05_agent_08_03_configuration-tools-memory.md
 source:
-  - 05_agent_08_01_configuration-loading-agent-config.md
+  - 05_agent_08_01_configuration-loading-agent-config-part1.md
 ---
 
 # エージェント設定
@@ -34,7 +34,7 @@ GitHub MCPエンドポイントは`mcp_servers.github.url` (`McpServerConfig`の
 通じて設定される — レガシーなトップレベルの`github_server_url`キーは削除されており、
 存在する場合`build_agent_config()`によって`ConfigLoadError`で拒否される。
 
-`McpServerConfig`のフィールドについては[04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)を参照。
+`McpServerConfig`のフィールドについては[04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)を参照。
 
 ---
 
@@ -81,7 +81,7 @@ Source: `config/agent.toml`
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
-- `05_agent_08_01_configuration-loading-agent-config.md`
+- `05_agent_08_01_configuration-loading-agent-config-part1.md`
 - `05_agent_08_02_configuration-llm-rag.md`
 - `05_agent_08_03_configuration-tools-memory.md`
 

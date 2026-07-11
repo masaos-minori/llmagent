@@ -10,8 +10,8 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md
-  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
-  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
+  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
+  - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
 source:
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
 ---
@@ -136,8 +136,8 @@ class Logger:
 
 - `90_shared_00_document-guide.md`
 - `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`
-- `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md`
-- `90_shared_03_04_runtime_and_execution-caching-and-reference.md`
+- `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`
+- `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
 
 ## Keywords
 

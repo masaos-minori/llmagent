@@ -12,8 +12,8 @@ related:
   - 01_overview-arch-03-features.md
   - 01_overview-files-01-build.md
   - 01_overview-files-02-rag.md
-  - 01_overview-files-03-scripts.md
-  - 01_overview-files-04-shared.md
+  - 01_overview-files-03-scripts-part1.md
+  - 01_overview-files-04-shared-part1.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
 source:
@@ -29,8 +29,8 @@ source:
 | [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | 機能アーキテクチャ(実装済み機能、実装上の補足) |
 | [01_overview-files-01-build.md](01_overview-files-01-build.md) | ビルド・モデル関連のファイル構成 |
 | [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG関連のファイル構成 |
-| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) | scripts配下のファイル構成 |
-| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) | 共有インフラのファイル構成 |
+| [01_overview-files-03-scripts-part1.md](01_overview-files-03-scripts-part1.md) 〜 part5 | scripts配下のファイル構成(5分割) |
+| [01_overview-files-04-shared-part1.md](01_overview-files-04-shared-part1.md) 〜 part2 | 共有インフラのファイル構成(2分割) |
 | [01_overview-files-05-config.md](01_overview-files-05-config.md) | 設定ファイル構成 |
 | [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | その他のファイル構成 |
 
@@ -45,7 +45,7 @@ source:
 
 | ファイル | 内容 |
 |---|---|
-| [02_deployment.md](02_deployment.md) | 導入手順・デプロイ |
+| [02_deployment-part1.md](02_deployment-part1.md) | 導入手順・デプロイ |
 | [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAGドキュメントセットガイド(全ファイル一覧) |
 | [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCPドキュメントセットガイド(全ファイル一覧) |
 | [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | Agentドキュメントセットガイド(全ファイル一覧) |
@@ -58,11 +58,11 @@ source:
 - `01_overview-arch-03-features.md`
 - `01_overview-files-01-build.md`
 - `01_overview-files-02-rag.md`
-- `01_overview-files-03-scripts.md`
-- `01_overview-files-04-shared.md`
+- `01_overview-files-03-scripts-part1.md`
+- `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
-- `02_deployment.md`
+- `02_deployment-part1.md`
 
 ## Keywords
 

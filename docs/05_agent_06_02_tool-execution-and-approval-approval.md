@@ -19,7 +19,7 @@ source:
 # エージェントのツール実行と承認
 
 - ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
+- MCPルーティング → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 
 ## 承認フロー
 
@@ -142,7 +142,7 @@ toolロールメッセージとして返され、会話は自然に継続する)
 [Result omitted: per-turn tool result limit reached.]
 ```
 
-このヒントは`tool_results_turn_max_chars` ([05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md) 参照) を超過した場合に追加される。
+このヒントは`tool_results_turn_max_chars` ([05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) 参照) を超過した場合に追加される。
 
 ---
 

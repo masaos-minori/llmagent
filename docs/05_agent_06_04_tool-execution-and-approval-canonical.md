@@ -19,7 +19,7 @@ source:
 # エージェントのツール実行と承認
 
 - ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
+- MCPルーティング → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 
 ## 正準承認モデル (ADR-001)
 
@@ -47,7 +47,7 @@ source:
 ワークフローレベルの承認ゲートは`AgentConfig.workflow_require_approval`
 (デフォルト`False`) によって制御される。有効にするにはエージェント設定で
 `workflow_require_approval = true`を設定する。フィールドリファレンスと起動時のみの分類については
-[AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config.md#agentconfig-structure)を参照。
+[AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config-part1.md#agentconfig-structure)を参照。
 
 ### 共存ルール
 

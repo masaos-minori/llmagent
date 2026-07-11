@@ -11,7 +11,7 @@ related:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
   - 05_agent_10_03_operations-and-observability-workflow-observability.md
-  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md
   - 05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
 source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
@@ -122,7 +122,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) as total_sessions, AVG(json_
 - `05_agent_10_01_operations-and-observability-startup-and-health.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
 - `05_agent_10_03_operations-and-observability-workflow-observability.md`
-- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
 - `05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ## Keywords

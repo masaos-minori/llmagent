@@ -26,15 +26,15 @@ source:
 | `idle_timeout_sec` | `int` | `0` | subprocessの自動停止までの遅延（0 = 無効） |
 | `startup_timeout_sec` | `int` | `30` | subprocessモード: ヘルスポーリングのタイムアウト |
 | `call_timeout_sec` | `float` | `60.0` | HttpTransportの呼び出しごとのタイムアウト；0 = タイムアウトなし |
-| `tool_names` | `list[str]` | `[]` | 検証用のヒント（任意）；registryはこれに関わらずルーティングする。空 = 検証なし。[Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth) を参照。 |
+| `tool_names` | `list[str]` | `[]` | 検証用のヒント（任意）；registryはこれに関わらずルーティングする。空 = 検証なし。[Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md#routing-source-of-truth) を参照。 |
 | `auth_token` | `str` | `""` | 認証用のBearerトークン（空 = 認証なし） |
 
 > `auth_token=""`（Bearer認証なし）は
 > `security_profile="local"` の場合にのみ許可される；
 > `security_profile="production"` では起動時に拒否される。
 > local/productionの区別とその強制箇所の詳細は
-> [04_mcp_05 §Authentication](04_mcp_05_security_and_safety_model.md#authentication-auth_token)
-> および [§Security Profile](04_mcp_05_security_and_safety_model.md#security-profile-security_profile)
+> [04_mcp_05 §Authentication](04_mcp_05_02_auth-profiles-and-sandboxing.md#authentication-auth_token)
+> および [§Security Profile](04_mcp_05_02_auth-profiles-and-sandboxing.md#security-profile-security_profile)
 > を参照。
 
 **廃止に関する注記:** 以前のバージョンでは、`healthcheck_mode=""` を自動推論の明示的リクエストとして受け付けていた（本フィールド導入以前のconfigとの互換性のため）。この空文字列によるsentinelは廃止された — キーを完全に省略して自動導出させるか、厳密な文字列 `"http"` を設定すること。明示的な空文字列は、他の未知の文字列と同様に無効な値として拒否される。

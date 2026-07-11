@@ -11,7 +11,7 @@ related:
   - 05_agent_00_document-guide.md
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
-  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md
   - 05_agent_10_05_operations-and-observability-monitoring.md
   - 05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
 source:
@@ -155,7 +155,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT DISTINCT kind FROM session_diagnostic
 - `05_agent_00_document-guide.md`
 - `05_agent_10_01_operations-and-observability-startup-and-health.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
+- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
 - `05_agent_10_05_operations-and-observability-monitoring.md`
 - `05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 

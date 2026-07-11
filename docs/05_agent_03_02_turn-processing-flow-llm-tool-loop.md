@@ -10,14 +10,14 @@ tags:
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_01_turn-processing-flow-overview.md
-  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
 source:
   - 05_agent_03_01_turn-processing-flow-overview.md
 ---
 
 # エージェントターン処理フロー
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
 
 ## LLM呼び出しとツールループ
 
@@ -132,7 +132,7 @@ source:
 
 - `05_agent_00_document-guide.md`
 - `05_agent_03_01_turn-processing-flow-overview.md`
-- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
 
 ## Keywords
 

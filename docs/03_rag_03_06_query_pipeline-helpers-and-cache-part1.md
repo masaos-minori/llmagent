@@ -1,0 +1,70 @@
+---
+title: "RAG Query Pipeline - Helpers and Cache (Part 1)"
+category: rag
+tags:
+  - semantic-cache
+  - rag-repository
+  - rag-scorer
+  - rag-llm
+related:
+  - 03_rag_00_document-guide.md
+  - 03_rag_01_system_overview-part1.md
+  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
+  - 03_rag_03_query_pipeline-stages.md
+  - 03_rag_04_05_dto-types.md
+  - 03_rag_05_1-configuration-reference.md
+source:
+  - 03_rag_03_06_query_pipeline-helpers-and-cache-part1.md
+---
+
+# RAG クエリパイプライン
+
+- システム概要 → [03_rag_01_system_overview-part1.md](03_rag_01_system_overview-part1.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+
+---
+
+## 6. SemanticCache (`scripts/rag/cache.py`)
+
+`SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
+
+```python
+from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by rag/pipeline.py:30
+
+cache = SemanticCache(max_size=100, threshold=0.92)
+```
+
+| メソッド / プロパティ | シグネチャ | 説明 |
+|---|---|---|
+| `lookup` | `(embedding, history_context="") -> str \| None` | 一致する `history_context` エントリの中でコサイン類似度がしきい値以上のものがあればキャッシュ結果を返す；埋め込み次元の不一致時は `ValueError` を発生させる；それ以外は `None` |
+| `put` | `(embedding, history_context, context_str) -> None` | エントリを保存する；`history_context` はキャッシュキーの一部；埋め込み次元の不一致時は `ValueError` を発生させる；その後 `prune()` を呼び出す |
+| `prune` | `() -> None` | `len ≤ max_size` になるまで最古のエントリを削除する（FIFO） |
+| `size` | プロパティ `int` | 現在のエントリ数 |
+| `invalidate` | `() -> None` | 世代カウンタをインクリメントし、キャッシュ済みエントリをすべてアトミックにクリアする |
+| `generation` | プロパティ `int` | 現在のキャッシュ無効化世代カウント |
+
+キャッシュは `RagPipeline.__init__` で `cfg.semantic_cache_max_size` と
+`cfg.semantic_cache_threshold` を用いて初期化される。
+
+---
+
+## Related Documents
+
+- `03_rag_00_document-guide.md`
+- `03_rag_01_system_overview-part1.md`
+- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `03_rag_03_query_pipeline-stages.md`
+- `03_rag_04_05_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache-part2.md`
+
+## Keywords
+
+semantic-cache
+rag-repository
+rag-scorer
+rag-llm
+rag

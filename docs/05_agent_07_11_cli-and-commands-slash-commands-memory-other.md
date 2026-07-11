@@ -55,7 +55,7 @@ source:
 | `/mdq get <chunk_id> [--with-neighbors]` | なし | チャンクの内容を表示 |
 | `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | チャンクに対する正規表現検索 | なし |
 
-> **注記:** すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール(ポート8013)を呼び出す。MDQは`mdq.sqlite`(`rag.sqlite`とは別)を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary)を参照。
+> **注記:** すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール(ポート8013)を呼び出す。MDQは`mdq.sqlite`(`rag.sqlite`とは別)を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
 
 ### Pluginカテゴリ
 

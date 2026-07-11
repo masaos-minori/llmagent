@@ -53,7 +53,7 @@ firejail --version
 shell_sandbox_backend = "firejail"
 ```
 
-fail-open/closedポリシーの全体表については`04_mcp_05_security_and_safety_model.md`を参照。
+fail-open/closedポリシーの全体表については`04_mcp_05_01_access-control-and-allowlists.md`を参照。
 
 ---
 

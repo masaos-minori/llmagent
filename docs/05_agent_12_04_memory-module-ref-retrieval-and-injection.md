@@ -10,8 +10,8 @@ tags:
   - ingestion
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_12_01_memory-overview-and-modes.md
-  - 05_agent_12_02_memory-gate-data-model-search.md
+  - 05_agent_12_01_memory-overview-and-modes-part1.md
+  - 05_agent_12_02_memory-gate-data-model-search-part1.md
   - 05_agent_12_03_memory-module-ref-core-and-store.md
   - 05_agent_12_05_memory-module-ref-extraction-and-facade.md
   - 05_agent_12_06_memory-module-ref-ops-and-scoring.md
@@ -124,8 +124,8 @@ AND (? = '' OR m.branch = '' OR m.branch = ?)
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
-- `05_agent_12_01_memory-overview-and-modes.md`
-- `05_agent_12_02_memory-gate-data-model-search.md`
+- `05_agent_12_01_memory-overview-and-modes-part1.md`
+- `05_agent_12_02_memory-gate-data-model-search-part1.md`
 - `05_agent_12_03_memory-module-ref-core-and-store.md`
 - `05_agent_12_05_memory-module-ref-extraction-and-facade.md`
 - `05_agent_12_06_memory-module-ref-ops-and-scoring.md`

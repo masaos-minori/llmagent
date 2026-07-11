@@ -9,7 +9,7 @@ tags:
   - knowledge-base
 related:
   - 01_overview.md
-  - 02_deployment.md
+  - 02_deployment-part1.md
   - 03_rag_00_document-guide.md
   - 04_mcp_00_document-guide.md
   - 05_agent_00_document-guide.md
@@ -24,7 +24,7 @@ related:
 ## カテゴリ
 
 - [概要](01_overview.md) — システム全体のアーキテクチャとファイル構成
-- [デプロイ](02_deployment.md) — 環境構築とデプロイ手順
+- [デプロイ](02_deployment-part1.md) — 環境構築とデプロイ手順
 - [RAG](03_rag_00_document-guide.md) — Retrieval-Augmented Generation パイプライン
 - [MCP](04_mcp_00_document-guide.md) — Model Context Protocol サーバ群
 - [Agent](05_agent_00_document-guide.md) — Agent REPL システムと動作
@@ -35,7 +35,7 @@ related:
 ## 推奨読書順序
 
 1. [システム概要](01_overview.md) — まずここからシステム全体像を把握する
-2. [デプロイガイド](02_deployment.md) — 環境をセットアップする
+2. [デプロイガイド](02_deployment-part1.md) — 環境をセットアップする
 3. 関心領域を選択する:
    - [RAGパイプライン](03_rag_00_document-guide.md)
    - [MCPサーバ](04_mcp_00_document-guide.md)
@@ -48,7 +48,7 @@ related:
 
 各カテゴリはそれぞれ既知の不整合・未解決事項を管理している:
 
-- [RAG](03_rag_90_inconsistencies_and_known_issues.md)
+- [RAG](03_rag_90_inconsistencies_and_known_issues-part1.md)
 - [MCP](04_mcp_90_inconsistencies_and_known_issues.md)
 - [Agent](05_agent_90_inconsistencies_and_known_issues.md)
 - [Event Bus](06_eventbus_90_inconsistencies_and_known_issues.md)
@@ -57,7 +57,7 @@ related:
 ## Related Documents
 
 - `01_overview.md`
-- `02_deployment.md`
+- `02_deployment-part1.md`
 - `03_rag_00_document-guide.md`
 - `04_mcp_00_document-guide.md`
 - `05_agent_00_document-guide.md`

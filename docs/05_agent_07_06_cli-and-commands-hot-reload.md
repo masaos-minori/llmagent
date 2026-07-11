@@ -28,7 +28,7 @@ source:
 
 ## ホットリロードの範囲 (`/reload`)
 
-`/reload`は12個のベース設定ファイル(すべて、[設定ドキュメント](05_agent_08_01_configuration-loading-agent-config.md)参照)を読み込み、可能な限り変更を適用する。起動時のみの設定は検出されるが適用はされない。
+`/reload`は12個のベース設定ファイル(すべて、[設定ドキュメント](05_agent_08_01_configuration-loading-agent-config-part1.md)参照)を読み込み、可能な限り変更を適用する。起動時のみの設定は検出されるが適用はされない。
 
 ### 出力フォーマット
 
@@ -61,7 +61,7 @@ Startup-only (ignored): [1 items]
 | Startup-only | `[STARTUP-ONLY]` | 起動時に一度だけ読み込まれる。変更されても`/reload`では無視される |
 | Skipped | `[SKIP]` | 意図的に無視される変更。MCPサーバー定義ではない — Restart-requiredを参照 |
 
-各フィールドごとの完全な分類表については[Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)を参照。
+各フィールドごとの完全な分類表については[Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config-part1.md#config-file-ownership-and-hot-reload-eligibility)を参照。
 
 ---
 

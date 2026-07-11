@@ -10,7 +10,7 @@ tags:
   - hit-types
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_02_02_types_and_protocols-tool-and-execution-dto.md
+  - 90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md
   - 90_shared_02_03_types_and_protocols-reference.md
 source:
   - 90_shared_02_01_types_and_protocols-core-types.md
@@ -152,7 +152,7 @@ RagHit = RawHit | MergedHit | RankedHit
 ## Related Documents
 
 - `90_shared_00_document-guide.md`
-- `90_shared_02_02_types_and_protocols-tool-and-execution-dto.md`
+- `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`
 - `90_shared_02_03_types_and_protocols-reference.md`
 
 ## Keywords

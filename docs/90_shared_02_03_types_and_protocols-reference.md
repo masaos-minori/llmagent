@@ -10,7 +10,7 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_02_01_types_and_protocols-core-types.md
-  - 90_shared_02_02_types_and_protocols-tool-and-execution-dto.md
+  - 90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md
 source:
   - 90_shared_02_01_types_and_protocols-core-types.md
 ---
@@ -95,7 +95,7 @@ class CallToolResponse(BaseModel):
 
 - `90_shared_00_document-guide.md`
 - `90_shared_02_01_types_and_protocols-core-types.md`
-- `90_shared_02_02_types_and_protocols-tool-and-execution-dto.md`
+- `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`
 
 ## Keywords
 
