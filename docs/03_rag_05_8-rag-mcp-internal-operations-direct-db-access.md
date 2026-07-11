@@ -11,43 +11,42 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# RAG MCP Internal Operations (Direct DB Access)
+# RAG MCP内部操作 (DB直接アクセス)
 
-## RAG MCP Internal Operations (Direct DB Access)
+## RAG MCP内部操作 (DB直接アクセス)
 
-The following operations are internal to the RAG MCP service and directly access `rag.sqlite`
-through `SQLiteHelper("rag")`. These are **not** Agent-layer direct DB access — they are
-part of the RAG MCP service's responsibility boundary.
+以下の操作はRAG MCPサービスの内部処理であり、`SQLiteHelper("rag")`を通じて`rag.sqlite`に
+直接アクセスする。これらはエージェント層によるDB直接アクセス**ではなく**、
+RAG MCPサービスの責務範囲内の処理である。
 
 ### `list_documents()`
 
-Returns a list of documents with chunk counts, used by `/db rag urls` (via `rag_list_documents`
-MCP tool).
+`/db rag urls`コマンド (`rag_list_documents` MCPツール経由) で使用される、チャンク数付きの
+ドキュメント一覧を返す。
 
 ```python
 def list_documents(lang: str | None = None, limit: int = 20) -> list[DocumentItem]
 ```
 
-**Access pattern:** Read-only query against `documents` and `chunks` tables.
+**アクセスパターン:** `documents`テーブルと`chunks`テーブルに対する読み取り専用クエリ。
 
 ### `delete_document()`
 
-Deletes a document and its associated chunks/embeddings, used by `/db rag clean` (via
-`rag_delete_document` MCP tool).
+`/db rag clean`コマンド (`rag_delete_document` MCPツール経由) で使用される、ドキュメントと
+関連するチャンク/埋め込みの削除処理。
 
 ```python
 def delete_document(url: str) -> bool
 ```
 
-**Deletion order (critical):** The method enforces a strict deletion order to prevent orphan
-records:
+**削除順序 (重要):** このメソッドは孤立レコードを防ぐため、厳格な削除順序を強制する。
 
-1. Delete `chunks_vec` rows first (embedding vectors for this document's chunks)
-2. Delete `chunks` rows (triggers auto-sync `chunks_fts`)
-3. Delete `documents` row (parent document)
+1. まず`chunks_vec`の行を削除する (このドキュメントのチャンクに対応する埋め込みベクトル)
+2. `chunks`の行を削除する (トリガーにより`chunks_fts`が自動同期される)
+3. `documents`の行を削除する (親ドキュメント)
 
-This order is necessary because `chunks_vec` has no foreign key constraint pointing to
-`chunks`. Deleting `chunks` first would leave orphaned vector records.
+この順序が必要な理由は、`chunks_vec`が`chunks`を指す外部キー制約を持たないためである。
+`chunks`を先に削除すると、孤立したベクトルレコードが残ってしまう。
 
 ```python
 # Order matters — chunks_vec before chunks before documents
@@ -61,8 +60,8 @@ db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
 db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 ```
 
-Other derived records (e.g., `chunks` table rows) rely on cascade deletes or triggers
-where applicable.
+その他の派生レコード (例: `chunks`テーブルの行) は、該当する場合はカスケード削除または
+トリガーに依存する。
 
 ---
 

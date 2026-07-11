@@ -1,56 +1,63 @@
 ---
-title: "Agent Tool Execution and Approval"
+title: "Agent Tool Execution and Approval - Canonical Approval Model"
 category: agent
 tags:
   - agent
-  - agent
-  - tool
-  - execution
-  - approval
-  - safety
+  - tool-execution
+  - adr-001
+  - canonical-approval-model
+  - partial-completion
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
+source:
+  - 05_agent_06_tool-execution-and-approval.md
 ---
 
-# Agent Tool Execution and Approval
+# エージェントのツール実行と承認
 
-)
+- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
+
+## 正準承認モデル (ADR-001)
 
 **Date:** 2026-06-26
 **Status:** Accepted
 
-### Context
+### コンテキスト
 
-Two approval layers exist in the agent: tool-level and workflow-level. They must coexist without conflict.
+エージェントには2つの承認レイヤーが存在する: ツールレベルとワークフローレベル。これらは競合せず共存する必要がある。
 
-### Decision
+### 決定
 
-Both layers are canonical; boundaries and responsibilities are explicit, not exclusive.
+両レイヤーとも正準 (canonical) である; 境界と責務は排他的ではなく明示的なものとする。
 
-### Boundary Table
+### 境界表
 
 | Axis | Tool-level Approval | Workflow-level Approval |
 |------|---------------------|------------------------|
 | Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
-| Granularity | per tool call | per task (execute→verify gap) |
-| State | ephemeral (in-memory) | DB-persisted (`approvals`) |
-| Resolution | stdin interactive | `/approve` / `/reject` |
-| Currently active | always enabled | disabled (`require_approval=False`) |
+| Granularity | ツール呼び出しごと | タスクごと (execute→verify間) |
+| State | 一時的 (メモリ上) | DB永続化 (`approvals`) |
+| Resolution | 標準入力による対話 | `/approve` / `/reject` |
+| Currently active | 常に有効 | 無効 (`require_approval=False`) |
 
-The workflow-level approval gate is controlled by `AgentConfig.workflow_require_approval`
-(default `False`). Set `workflow_require_approval = true` in the agent config to enable it.
-See [AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config.md#agentconfig-structure) for the field
-reference and startup-only classification.
+ワークフローレベルの承認ゲートは`AgentConfig.workflow_require_approval`
+(デフォルト`False`) によって制御される。有効にするにはエージェント設定で
+`workflow_require_approval = true`を設定する。フィールドリファレンスと起動時のみの分類については
+[AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config.md#agentconfig-structure)を参照。
 
-### Coexistence Rules
+### 共存ルール
 
-When `require_approval=True`:
+`require_approval=True`の場合:
 
-1. During execute stage: `run_approval_checks` fires per tool call (MEDIUM/HIGH risk tools only).
-2. After execute stage: the approval gate suspends the workflow; user runs `/approve` or `/reject`.
-3. Both fire independently. This is intentional: they operate at different granularities.
+1. executeステージ中: `run_approval_checks`がツール呼び出しごとに発動する (MEDIUM/HIGHリスクのツールのみ)。
+2. executeステージ後: 承認ゲートがワークフローを一時停止する; ユーザーが`/approve`または`/reject`を実行する。
+3. 両者は独立して発動する。これは意図的なものであり、両者は異なる粒度で動作する。
 
-### Architecture Diagram
+### アーキテクチャ図
 
 ```
 User prompt
@@ -64,42 +71,41 @@ User prompt
                           └─► /approve or /reject command
 ```
 
-### ADR Rationale
+### ADRの根拠
 
-The requirement "one canonical approval object" means: define clear boundaries and responsibilities for each layer. It does not mean eliminate one layer. Both layers solve different problems:
+「単一の正準な承認オブジェクト」という要件は、各レイヤーの境界と責務を明確に定義することを意味する。いずれかのレイヤーを排除することを意味するものではない。両レイヤーは異なる問題を解決する:
 
-- Tool-level: real-time per-tool risk gate (before execution).
-- Workflow-level: human sign-off on the full execute stage result (after execution).
+- ツールレベル: ツールごとのリアルタイムなリスクゲート (実行前)。
+- ワークフローレベル: executeステージ全体の結果に対する人間による承認 (実行後)。
 
 ---
 
-## Partial Completion Persistence
+## 部分完了の永続化
 
-W
+一部のステップが完了した後にワークフローが失敗した場合、ワークフローエンジンは
+`StateStore.update_task_status()`経由で最終的なタスクステータスを記録する:
 
-hen a workflow fails after some steps have completed, the workflow engine records the
-final task status via `StateStore.update_task_status()`:
+- `"failed"` — ワークフローステップが未処理の例外を発生させた
+- `"halted"` — `WorkflowHaltError`によりワークフローが明示的に停止された
 
-- `"failed"` — workflow step raised an unhandled exception
-- `"halted"` — workflow was explicitly halted via `WorkflowHaltError`
+完了したステップは個別には永続化されない (ワークフローエンジンは個々のステップの進捗を
+DBで追跡しない)。失敗前にどのステップが成功したかを判断するには、ユーザーは監査ログを
+確認する必要がある。
 
-Completed steps are not separately persisted (the workflow engine does not track
-individual step progress in the DB). The user must inspect the audit log to determine
-which steps succeeded before the failure.
-
-Partial completions are **not** automatically resumed — the user must re-issue the
-request or use `/reject` to dismiss a pending approval gate.
+部分完了は自動的には再開**されない** — ユーザーはリクエストを再発行するか、
+`/reject`を使って承認待ちのゲートを却下する必要がある。
 
 ## Related Documents
 
-- `agent`
-- `tool`
-- `execution`
+- `05_agent_00_document-guide.md`
+- `05_agent_06_01_tool-execution-and-approval-execution.md`
+- `05_agent_06_02_tool-execution-and-approval-approval.md`
+- `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 
 ## Keywords
 
-agent
-tool
-execution
-approval
-safety
+canonical approval model
+ADR-001
+boundary table
+architecture diagram
+partial completion persistence

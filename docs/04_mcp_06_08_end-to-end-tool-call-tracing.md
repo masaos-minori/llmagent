@@ -15,41 +15,41 @@ source:
 
 ## End-to-End Tool Call Tracing
 
-To trace a failed tool call across agent, transport, and server logs:
+失敗したtool callをagent、transport、サーバのログを通じて追跡する手順:
 
-1. Find the `mcp_request_id` in the agent-side audit log:
+1. agent側のaudit logで `mcp_request_id` を見つける:
     ```bash
     jq 'select(.mcp_request_id == "<id>")' /opt/llm/logs/audit.log
     ```
-2. Search MCP server audit log for the same `request_id` field (JSON-lines format):
+2. MCPサーバのaudit logで同じ `request_id` フィールドを検索する（JSON-lines形式）:
     ```bash
     jq 'select(.request_id == "<id>")' /opt/llm/logs/audit.log
     ```
-3. Search per-server log for the `X-Request-Id` response header:
+3. サーバ別ログで `X-Request-Id` レスポンスヘッダを検索する:
     ```bash
     grep "<id>" /opt/llm/logs/github-mcp.log  # or relevant server log
     ```
-4. Check health state for `server_key` at that timestamp in `/opt/llm/logs/agent.log`.
-5. If health changed: check watchdog actions log for restart/failover.
+4. `/opt/llm/logs/agent.log` で、その時刻の `server_key` のヘルス状態を確認する。
+5. ヘルス状態が変化していた場合: watchdogのアクションログでrestart/failoverを確認する。
 
 ---
 
-### Error Type Distinction in Audit Logs (Agent-Side)
+### Audit Log内のエラー種別の区別（Agent側）
 
-Agent-side audit events include an `error_type` field:
+agent側のaudit eventには `error_type` フィールドが含まれる:
 
-| error_type | Meaning | Example cause |
+| error_type | 意味 | 発生原因の例 |
 |---|---|---|
-| `transport` | MCP server unreachable (network failure, timeout, crash) | Server process died, port not listening, HTTP 5xx |
-| `tool` | MCP server reachable but tool returned is_error=true | Tool validation failed, database constraint violation |
-| _(empty)_ | Successful execution | — |
+| `transport` | MCPサーバに到達不能（ネットワーク障害、タイムアウト、クラッシュ） | サーバプロセスの停止、ポートがリスニングしていない、HTTP 5xx |
+| `tool` | MCPサーバには到達可能だがtoolがis_error=trueを返した | tool検証失敗、database制約違反 |
+| _(空)_ | 実行成功 | — |
 
-Example audit log line:
+audit logの行の例:
 ```json
 {"event":"tool_exec","tool":"shell_run","is_error":true,"error_type":"transport",...}
 ```
 
-Filter by error type:
+エラー種別でフィルタする:
 ```bash
 # Transport failures (server issues)
 grep '"error_type":"transport"' /opt/llm/logs/audit.log
@@ -58,9 +58,9 @@ grep '"error_type":"transport"' /opt/llm/logs/audit.log
 grep '"error_type":"tool"' /opt/llm/logs/audit.log
 ```
 
-### Per-Server Error Counters
+### サーバごとのエラーカウンタ
 
-`ToolExecutor` maintains per-server error counters accessible via `ToolExecutor.get_error_counters()`:
+`ToolExecutor` はサーバごとのエラーカウンタを保持し、`ToolExecutor.get_error_counters()` から参照できる:
 
 ```python
 {
@@ -69,43 +69,43 @@ grep '"error_type":"tool"' /opt/llm/logs/audit.log
 }
 ```
 
-These counters are in-memory (not persisted) and reset on agent restart.
+これらのカウンタはメモリ上のみに保持され（永続化されない）、agent再起動時にリセットされる。
 
-### Repeated Failure Detection
+### 繰り返し失敗の検出
 
-When a tool fails 3+ times within a 5-minute sliding window, a warning is logged:
+toolが5分間のスライディングウィンドウ内で3回以上失敗すると、警告がログに出力される:
 
 ```
 WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s window
 ```
 
-> **Note:** The watchdog monitors transport availability (health checks). Tool-level errors (`error_type=tool`) do not trigger watchdog restarts — only transport failures (`error_type=transport`) affect server health state.
+> **注記:** watchdogはtransportの可用性（ヘルスチェック）を監視する。tool層のエラー（`error_type=tool`）はwatchdogの再起動をトリガーしない — サーバのヘルス状態に影響するのはtransport障害（`error_type=transport`）のみである。
 
 ---
 
-### Side-Effect Serialization
+### 副作用の直列化
 
-When a round contains side-effect tools (write operations), the scheduler groups them to prevent concurrent modifications. This is intentional for safety but reduces parallelism.
+ラウンドに副作用を持つtool（書き込み操作）が含まれる場合、スケジューラはそれらをグループ化して並行的な変更を防ぐ。これは安全性のために意図された挙動であるが、並列度は低下する。
 
-**Serialization triggers:**
+**直列化のトリガー:**
 
-| Trigger | Condition | Effect |
+| トリガー | 条件 | 効果 |
 |---|---|---|
-| `requires_serial` | Tool metadata has `requires_serial=true` | Tool runs alone in its own single-element group |
-| `resource_scope_conflict` | Multiple writes to same resource scope | All tools in that scope run serially |
-| `is_write_overlap` | Multiple writes without specific scope | All write tools grouped together (write-first) |
+| `requires_serial` | toolのメタデータに `requires_serial=true` が設定されている | そのtoolは単独で1要素だけのグループとして実行される |
+| `resource_scope_conflict` | 同じリソーススコープへの複数の書き込み | そのスコープ内のすべてのtoolが直列実行される |
+| `is_write_overlap` | 特定のスコープを持たない複数の書き込み | 書き込み系toolがすべてまとめてグループ化される（write-first） |
 
-**Log format:**
+**ログ形式:**
 ```
 ROUND_SERIALIZATION: triggered by shell_run (requires_serial) — 1 tools serialized in this round
 Serialization impact: 3 tools grouped serially (normally would run in parallel)
 ```
 
-**Viewing stats:**
-Run `/mcp` to see serialization statistics at the bottom of the MCP status output.
+**統計の確認方法:**
+`/mcp` を実行すると、MCPステータス出力の末尾に直列化に関する統計が表示される。
 
-**Why this matters:**
-Serialization reduces parallelism but prevents race conditions on shared resources. Before attempting to optimize parallelism, review serialization logs to understand which tools and scopes trigger grouping most frequently.
+**この情報が重要な理由:**
+直列化は並列度を下げるが、共有リソース上での競合状態を防ぐ。並列度の最適化を試みる前に、直列化ログを確認し、どのtoolとスコープが最も頻繁にグループ化を引き起こしているかを把握すること。
 
 ---
 

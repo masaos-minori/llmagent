@@ -18,13 +18,13 @@ source:
 
 # DB API and Operations
 
-- Schema → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
+- スキーマ → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
 
-## 3. Protocol Groups in `db/store.py`
+## 3. `db/store.py` のプロトコルグループ
 
-All protocols are `@runtime_checkable` — `isinstance()` check works.
+すべてのプロトコルは `@runtime_checkable` である — `isinstance()` チェックが機能する。
 
-### Embedding helpers
+### Embedding ヘルパー
 
 ```python
 from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob
@@ -34,7 +34,7 @@ nbytes = get_embedding_bytes()   # dims * 4 (float32)
 validate_embedding_blob(blob)    # TypeError if not bytes; ValueError if wrong size
 ```
 
-### `VectorStore` Protocol
+### `VectorStore` プロトコル
 
 ```python
 class VectorStore(Protocol):
@@ -44,10 +44,10 @@ class VectorStore(Protocol):
     def vec_count(self) -> int: ...
 ```
 
-- `vec_search` returns `(chunk_id, distance)` pairs
-- `vec_delete`: no-op if not found
+- `vec_search` は `(chunk_id, distance)` のペアを返す
+- `vec_delete`: 見つからない場合は no-op
 
-### `DocumentStore` Protocol
+### `DocumentStore` プロトコル
 
 ```python
 class DocumentStore(Protocol):
@@ -59,13 +59,13 @@ class DocumentStore(Protocol):
     def chunk_count(self) -> int: ...
 ```
 
-- `doc_upsert`: SELECT then UPDATE/INSERT; returns `doc_id`
-- `doc_get` returns `{doc_id, url, title, lang, fetched_at, etag, last_modified}` or `None`
-- `doc_list` returns `{doc_id, url, title, lang, fetched_at}` sorted `fetched_at DESC`
-- `doc_delete`: deletes document + cascades to chunks; returns `True` if found
-- `chunk_insert` uses `chunk_index`, `chunk_type`, and `source_file` columns in `chunks` table
+- `doc_upsert`: SELECT の後に UPDATE/INSERT を行う; `doc_id` を返す
+- `doc_get` は `{doc_id, url, title, lang, fetched_at, etag, last_modified}` または `None` を返す
+- `doc_list` は `{doc_id, url, title, lang, fetched_at}` を `fetched_at DESC` でソートして返す
+- `doc_delete`: ドキュメントを削除し、chunks にもカスケードする; 見つかった場合は `True` を返す
+- `chunk_insert` は `chunks` テーブルの `chunk_index`、`chunk_type`、`source_file` カラムを使用する
 
-### `SessionStore` Protocol
+### `SessionStore` プロトコル
 
 ```python
 class SessionStore(Protocol):
@@ -77,33 +77,33 @@ class SessionStore(Protocol):
     def message_list(self, session_id) -> list[dict]: ...
 ```
 
-- `session_list` returns `{session_id, created_at, title}` sorted `created_at DESC`
-- `session_delete` cascades to messages (ON DELETE CASCADE)
-- `message_list` returns `{role, content, tool_calls, tool_call_id}` in `message_id ASC` order
-- `tool_calls` is `str | None` (JSON string)
-- `tool_call_id` is `str | None`; always set for `tool` role messages, NULL for all other roles
+- `session_list` は `{session_id, created_at, title}` を `created_at DESC` でソートして返す
+- `session_delete` は messages にカスケードする (ON DELETE CASCADE)
+- `message_list` は `{role, content, tool_calls, tool_call_id}` を `message_id ASC` の順で返す
+- `tool_calls` は `str | None` (JSON文字列)
+- `tool_call_id` は `str | None`; `tool` ロールのメッセージには常に設定され、他のロールでは NULL
 
 ---
 
-## 4. SQLite Backend Implementations
+## 4. SQLite バックエンド実装
 
-| Class | Protocol | Constructor | Notes |
+| クラス | プロトコル | コンストラクタ | 備考 |
 |---|---|---|---|
-| `SQLiteVectorStore(db)` | `VectorStore` | `db: SQLiteHelper` | Validates embedding BLOB size in `vec_insert` |
-| `SQLiteDocumentStore(db)` | `DocumentStore` | `db: SQLiteHelper` | `doc_upsert` does SELECT then UPDATE/INSERT |
-| `SQLiteSessionStore(db)` | `SessionStore` | `db: SQLiteHelper` | Session list returned `created_at DESC` |
-| `SQLiteMemoryDeleteStore(db)` | `MemoryDeleteStore` | `db: SQLiteHelper` | Atomic cross-table delete for `memories`/`memories_fts`/`memories_vec` |
+| `SQLiteVectorStore(db)` | `VectorStore` | `db: SQLiteHelper` | `vec_insert` で embedding の BLOB サイズを検証する |
+| `SQLiteDocumentStore(db)` | `DocumentStore` | `db: SQLiteHelper` | `doc_upsert` は SELECT の後に UPDATE/INSERT を行う |
+| `SQLiteSessionStore(db)` | `SessionStore` | `db: SQLiteHelper` | セッション一覧は `created_at DESC` で返される |
+| `SQLiteMemoryDeleteStore(db)` | `MemoryDeleteStore` | `db: SQLiteHelper` | `memories`/`memories_fts`/`memories_vec` に対するアトミックな横断削除 |
 
-### `SessionMessageRepository` vs `SQLiteSessionStore`
+### `SessionMessageRepository` と `SQLiteSessionStore` の比較
 
-| Layer | Owned responsibilities |
+| レイヤー | 担当する責務 |
 |---|---|
-| `SessionMessageRepository` (agent layer) | role validation (`user`/`assistant`/`tool`/`system`), strict_mode skip behavior, content=None normalization, tool_calls JSON encode/decode, session-dependent persistence |
-| `SQLiteSessionStore` (db adapter layer) | schema-aligned INSERT/LIST operations, minimal validation only |
+| `SessionMessageRepository` (agent レイヤー) | ロール検証 (`user`/`assistant`/`tool`/`system`)、strict_mode のスキップ挙動、content=None の正規化、tool_calls の JSON エンコード/デコード、セッションに依存する永続化 |
+| `SQLiteSessionStore` (db アダプターレイヤー) | スキーマに整合した INSERT/LIST 操作のみで、最小限の検証しか行わない |
 
-**Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
+**ルール:** 検証・エンコードのロジックを `SQLiteSessionStore` に重複させてはならない。これは薄い DB アダプターであり、ロール検証も content の正規化も JSON エンコードも行わない。これらの関心事はすべて `SessionMessageRepository` に属する。
 
-See [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) for the agent-side responsibility boundary view.
+エージェント側の責務境界の見方については [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) を参照。
 
 ### `MemoryDeleteStore` / `SQLiteMemoryDeleteStore`
 
@@ -115,9 +115,9 @@ result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
 # result.deleted — count of deleted entries
 ```
 
-- Atomically deletes from `memories`, `memories_fts`, `memories_vec`
-- `maintenance.py::prune_old_memories()` delegates to this class
-- `MemoryDeleteStore` is a Protocol (structural type) that exists to preserve the option of a non-SQLite backend in the future. Today, `SQLiteMemoryDeleteStore` is the sole implementation.
+- `memories`、`memories_fts`、`memories_vec` からアトミックに削除する
+- `maintenance.py::prune_old_memories()` はこのクラスに委譲する
+- `MemoryDeleteStore` はプロトコル (構造的型) であり、将来 SQLite 以外のバックエンドを選択できる余地を残すために存在する。現時点では `SQLiteMemoryDeleteStore` が唯一の実装である。
 
 ---
 
@@ -125,24 +125,24 @@ result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
 
 ---
 
-## 6. Memory-Related Tables and Operations (`MemoryStore`)
+## 6. メモリ関連テーブルと操作 (`MemoryStore`)
 
-`MemoryStore` is defined in `agent/memory/store.py` (NOT `db/`). It uses `SQLiteHelper("session")`.
+`MemoryStore` は `agent/memory/store.py` (`db/` ではない) で定義されている。`SQLiteHelper("session")` を使用する。
 
-Key methods:
+主要メソッド:
 
-| Method | Description |
+| メソッド | 説明 |
 |---|---|
-| `add(entry, embedding=None)` | Insert into `memories` + `memories_fts`; optionally `memories_vec` |
-| `upsert(entry, embedding=None)` | `INSERT OR REPLACE` + sync FTS/vec |
-| `delete(memory_id)` | Delete 1 entry; returns `True` if found |
-| `search_by_type(type, limit)` | Filter by `memory_type`; ordered `importance DESC, pinned DESC` |
-| `pin(memory_id)` / `unpin(memory_id)` | Toggle pinned flag |
-| `clear_by_session(session_id)` | Delete all entries for session |
-| `count_vec()` | Row count in `memories_vec`; returns `0` if vec0 not loaded |
+| `add(entry, embedding=None)` | `memories` + `memories_fts` へ挿入; 必要に応じて `memories_vec` にも挿入 |
+| `upsert(entry, embedding=None)` | `INSERT OR REPLACE` + FTS/vec を同期 |
+| `delete(memory_id)` | 1件削除; 見つかった場合は `True` を返す |
+| `search_by_type(type, limit)` | `memory_type` でフィルタ; `importance DESC, pinned DESC` の順 |
+| `pin(memory_id)` / `unpin(memory_id)` | pinned フラグを切り替える |
+| `clear_by_session(session_id)` | セッションに紐づく全エントリを削除 |
+| `count_vec()` | `memories_vec` の行数; vec0 が読み込まれていない場合は `0` を返す |
 
-`prune_old_memories(db, older_than_days)` in `maintenance.py` delegates to
-`SQLiteMemoryDeleteStore` for cross-table deletion.
+`maintenance.py` の `prune_old_memories(db, older_than_days)` は、テーブル横断削除を
+`SQLiteMemoryDeleteStore` に委譲する。
 
 ---
 

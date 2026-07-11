@@ -15,8 +15,8 @@ source:
 
 ## Purpose
 
-Document all configuration files, per-server config keys, startup verification,
-health probes, audit log reading, and the new-server addition checklist.
+すべての設定ファイル、サーバごとのconfigキー、起動時検証、
+ヘルスプローブ、audit logの読み方、および新規サーバ追加チェックリストを文書化する。
 
 ---
 

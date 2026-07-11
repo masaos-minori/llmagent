@@ -1,147 +1,169 @@
 ---
-title: "Agent Turn Processing Flow"
+title: "Agent Turn Processing Flow - Workflow Engine Integration"
 category: agent
 tags:
   - agent
-  - agent
   - turn
-  - processing
-  - flow
-  - orchestrator
+  - workflow-engine
+  - partial-completion
+  - state-changes
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+source:
+  - 05_agent_03_01_turn-processing-flow-overview.md
 ---
 
-# Agent Turn Processing Flow
+# エージェントターン処理フロー
 
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
+## 部分完了モデル
 
-`Orchestrator.handle_turn()` runs via `WorkflowEngine` when `config/workflows/default.json`
-exists and workflow DB is available. Workflow state is the primary execution model;
-conversation history is maintained as a subordinate concern.
+部分完了は、全コンテンツを受信する前にLLMレスポンスのストリームが中断された場合に発生する。
 
-Each turn creates a `task` / `attempt` / `processed_event` record in `workflow.sqlite`:
-- `tasks` — one per turn; status: `pending → running → [pending_approval →] completed | halted | failed`
-- `attempts` — one per stage execution (plan/execute/verify), with retry tracking
-- `processed_events` — idempotency enforcement; prevents duplicate stage execution
-- `approvals` — one per approval gate; status: `pending → approved | rejected`
-- `artifacts` — URIs produced by stage callbacks
+| Trigger | Stored where | Visible via | `stat_partial_completions` |
+|---|---|---|---|
+| `partial_text`が空でない状態での`LLMTransportError` | `session_diagnostics`テーブル | `/stats` | +1 |
+| `partial_text`が空の状態での`LLMTransportError` (ストリーム開始前) | 格納されない (ユーザーメッセージは履歴からポップされる) | ユーザーに見えるエラーメッセージ | 変化なし |
 
-Workflow stages (defined in `default.json`):
-- `plan` — LLM generates initial plan; required
-- `execute` — LLM executes the plan; required
-- `verify` — LLM verifies execution results; required
-- `retry` — optional transport error retry gate after `execute`; `retryable: false`; presence not required for `WorkflowEngine` operation
+**重要な不変条件:** 部分的なコンテンツは決して`ctx.conv.history`に追加されない。診断チャンネルに隔離されることで、以降のLLMコンテキストを汚染しない。
 
-Each stage has a `StageDefinition`:
-- `id` — unique stage identifier (e.g., "plan", "execute")
-- `description` — human-readable description
-- `timeout_sec` — maximum execution time in seconds
-- `retryable` — whether the stage can be retried on failure
+各ターンの後、REPLの行ディスパッチャーが`stat_partial_completions`が増加したかをチェックする。増加していれば:
 
-`WorkflowDef.get_stage(stage_id)` — returns the `StageDefinition` for the given id, or `None`.
+```
+[warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
+```
 
-Fallback: if `config/workflows/default.json` is missing or workflow DB is unavailable,
-the traditional direct-execution flow is used.
+実装の詳細は上記の「LLMトランスポートエラー (部分完了)」の節を参照。
+永続化の挙動 → [05_agent_04 §Message save rules](05_agent_04_01_state-and-persistence-state-model.md)。
+運用者による監視 → [05_agent_10 §Interpreting /stats](05_agent_10_01_operations-and-observability-startup-and-health.md)。
 
-Workflow package: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine).
+---
 
-Default retry policy (applied when no `retry_policy` defined in `default.json`):
+## WorkflowEngineとの統合
+
+`Orchestrator.handle_turn()`は、`config/workflows/default.json`が存在しworkflow DBが利用可能な場合、
+`WorkflowEngine`経由で実行される。ワークフロー状態が主たる実行モデルであり、
+会話履歴は従属的な関心事として維持される。
+
+各ターンは`workflow.sqlite`に`task` / `attempt` / `processed_event`レコードを作成する:
+- `tasks` — ターンごとに1件; ステータス: `pending → running → [pending_approval →] completed | halted | failed`
+- `attempts` — ステージ実行 (plan/execute/verify) ごとに1件、リトライ追跡を含む
+- `processed_events` — 冪等性の担保; ステージの重複実行を防止
+- `approvals` — 承認ゲートごとに1件; ステータス: `pending → approved | rejected`
+- `artifacts` — ステージコールバックが生成するURI
+
+ワークフローステージ (`default.json`で定義):
+- `plan` — LLMが初期計画を生成; 必須
+- `execute` — LLMが計画を実行; 必須
+- `verify` — LLMが実行結果を検証; 必須
+- `retry` — `execute`後のオプションのトランスポートエラーリトライゲート; `retryable: false`; `WorkflowEngine`の動作に存在は必須ではない
+
+各ステージは`StageDefinition`を持つ:
+- `id` — 一意のステージ識別子 (例: "plan", "execute")
+- `description` — 人間が読める説明
+- `timeout_sec` — 最大実行時間 (秒)
+- `retryable` — 失敗時にステージをリトライ可能かどうか
+
+`WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
+
+フォールバック: `config/workflows/default.json`が存在しない、またはworkflow DBが利用不可の場合、
+従来の直接実行フローが使用される。
+
+ワークフローパッケージ: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine)。
+
+デフォルトのリトライポリシー (`default.json`に`retry_policy`が定義されていない場合に適用):
 - `max_attempts`: 3
 - `backoff`: "fixed"
 - `backoff_sec`: 1
 
-### Workflow Status
+### ワークフローステータス
 
-`Orchestrator.workflow_status()` returns a dict with two keys:
-- `mode`: "auto" | "required" | "disabled" — from workflow policy
-- `tracking`: "enabled" | "not_loaded" — "enabled" if workflow definition is set, "not_loaded" otherwise
+`Orchestrator.workflow_status()`は2つのキーを持つdictを返す:
+- `mode`: "auto" | "required" | "disabled" — ワークフローポリシーに基づく
+- `tracking`: "enabled" | "not_loaded" — ワークフロー定義が設定されていれば"enabled"、そうでなければ"not_loaded"
 
-### Approval Gate
+### 承認ゲート
 
-When `WorkflowEngine(require_approval=True)`, the engine suspends after the execute stage
-completes and before the verify stage runs:
+`WorkflowEngine(require_approval=True)`の場合、エンジンはexecuteステージ完了後、
+verifyステージ実行前に一時停止する:
 
-1. Engine calls `store.request_approval(task_id)` → `ApprovalRecord` with `status=pending`
-2. Task status → `pending_approval`
-3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
+1. エンジンが`store.request_approval(task_id)`を呼び出す → `status=pending`の`ApprovalRecord`
+2. タスクステータス → `pending_approval`
+3. `WorkflowPendingApprovalError`が発生 → orchestratorが`approval_id`を`ctx.turn.pending_approval_id`に格納; WARNINGをログ出力: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
 
-When the user runs `/approve [reason]` or `/reject [reason]`, the approval record is updated
-in the DB. On the next workflow run with the same task, the gate checks the existing
-approval record:
+ユーザーが`/approve [reason]`または`/reject [reason]`を実行すると、承認レコードがDB内で更新される。
+同一タスクでの次回のワークフロー実行時、ゲートは既存の承認レコードをチェックする:
 
-- `status=approved` → passes through to verify stage
-- `status=rejected` → `WorkflowHaltError` raised; task halted
-- `status=pending` → `WorkflowPendingApprovalError` re-raised (user has not yet responded)
+- `status=approved` → verifyステージへ通過
+- `status=rejected` → `WorkflowHaltError`が発生; タスクは停止
+- `status=pending` → `WorkflowPendingApprovalError`が再度発生 (ユーザーがまだ応答していない)
 
-If no existing approval record is found, a new one is created and the workflow is suspended.
+既存の承認レコードが見つからない場合、新規レコードが作成されワークフローは一時停止する。
 
-### Workflow Exceptions
+### ワークフロー例外
 
 | Exception | When Raised |
 |---|---|
-| `WorkflowTimeoutError` | Stage execution exceeds `timeout_sec` |
-| `WorkflowHaltError` | Task is halted (e.g., via `/halt` or after rejection) |
-| `WorkflowPendingApprovalError` | Approval gate requires user action before proceeding |
-| `WorkflowLoadError` | Workflow definition fails validation or loading |
+| `WorkflowTimeoutError` | ステージ実行が`timeout_sec`を超過した場合 |
+| `WorkflowHaltError` | タスクが停止された場合 (例: `/halt`経由、または拒否後) |
+| `WorkflowPendingApprovalError` | 承認ゲートが処理継続前にユーザーの操作を要求する場合 |
+| `WorkflowLoadError` | ワークフロー定義の検証または読み込みが失敗した場合 |
 
-### Retry Mechanism
+### リトライメカニズム
 
-When a stage is `retryable: true`, the engine uses the retry policy to determine retry behavior:
-- `max_attempts`: Maximum number of attempts (default 3)
-- `backoff`: Retry strategy — "fixed" or "exponential" (both use the same delay logic)
-- `backoff_sec`: Delay between retries in seconds (default 1; always used as-is regardless of backoff type — both "fixed" and "exponential" apply the same constant delay)
+ステージが`retryable: true`の場合、エンジンはリトライポリシーを使用してリトライ挙動を決定する:
+- `max_attempts`: 最大試行回数 (デフォルト3)
+- `backoff`: リトライ戦略 — "fixed"または"exponential" (両者とも同じ遅延ロジックを使用)
+- `backoff_sec`: リトライ間の遅延秒数 (デフォルト1; backoffの種類にかかわらず常にそのまま使用される — "fixed"と"exponential"はいずれも同じ一定の遅延を適用する)
 
-### Workflow Loader Validation Rules
+### ワークフローローダーの検証ルール
 
-When loading a workflow definition from `config/workflows/*.json`:
-- Required top-level keys: `name`, `version`, `stages`, `retry_policy`
-- `stages` must be a non-empty list
-- No duplicate stage IDs allowed
-- Required stages: `plan`, `execute`, `verify` (must all be present)
-- Each stage must have: `id`, `description`, `timeout_sec`, `retryable`
-- `retry_policy.max_attempts` must be >= 1
-- `retry_policy.backoff` must be "fixed" or "exponential"
-- `retry_policy.backoff_sec` must be >= 0
+`config/workflows/*.json`からワークフロー定義を読み込む際:
+- 必須のトップレベルキー: `name`, `version`, `stages`, `retry_policy`
+- `stages`は空でないリストである必要がある
+- ステージIDの重複は不可
+- 必須ステージ: `plan`, `execute`, `verify` (すべて存在する必要がある)
+- 各ステージは以下を持つ必要がある: `id`, `description`, `timeout_sec`, `retryable`
+- `retry_policy.max_attempts`は1以上である必要がある
+- `retry_policy.backoff`は"fixed"または"exponential"である必要がある
+- `retry_policy.backoff_sec`は0以上である必要がある
 
 ---
 
-## State Changes per Turn
+## ターンごとの状態変化
 
-| 
-
-Stage | State mutated |
+| Stage | State mutated |
 |---|---|
 | ① TurnStart | `ctx.turn.current_turn_id` = UUID4 |
-| ② Memory injection | `ctx.conv.history` prepended with system message |
-| ③ User append | `ctx.conv.history` += user message; `ctx.stats.stat_turns += 1` |
-| ④ Compression | `ctx.conv.history` oldest turns replaced with summary |
-| ⑤ LLM + tools | `ctx.conv.history` += assistant + tool messages; stats updated |
+| ② メモリ注入 | `ctx.conv.history`の先頭にsystemメッセージが追加される |
+| ③ ユーザー追加 | `ctx.conv.history` += ユーザーメッセージ; `ctx.stats.stat_turns += 1` |
+| ④ 圧縮 | `ctx.conv.history`の最も古いターンが要約に置換される |
+| ⑤ LLM + ツール | `ctx.conv.history` += assistant + toolメッセージ; 統計を更新 |
 | ⑥ TurnEnd | `ctx.turn.current_turn_id` = None |
 
-## Turn-State Mutation Refere
-
-nce
+## ターン状態変更リファレンス
 
 | State field | Mutated When | Durable? | Notes |
 |---|---|---|---|
-| `ctx.conv.history` | Each LLM/tool round (append) | Yes — saved to SQLite per message | Also compressed by HistoryManager |
-| `ctx.turn.current_turn_id` | TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for per-turn correlation |
-| `ctx.turn.pending_approval_id` | Workflow approval gate suspension | No — in-memory; approval persisted in `workflow.sqlite` | Reset to None on next turn |
-| `ctx.stats.stat_turns` | After each user message appended | No — in-memory (reported via `/stats`) | Reset on session restart |
-| `ctx.stats.stat_partial_completions` | When LLM stream interrupted | No — in-memory; partial content in `session_diagnostics` | Reset on session restart |
-| `session.title` | First turn (async background task) | Yes — SQLite `sessions.title` | Non-blocking; fallback to truncated first input on LLM failure |
+| `ctx.conv.history` | 各LLM/toolラウンド (追加) | Yes — メッセージごとにSQLiteへ保存 | HistoryManagerによる圧縮も行われる |
+| `ctx.turn.current_turn_id` | TurnStart時 (UUID4) / TurnEnd時 (None) | No — メモリ上のみ | ターン単位の相関に使用 |
+| `ctx.turn.pending_approval_id` | ワークフロー承認ゲートの一時停止時 | No — メモリ上のみ; 承認は`workflow.sqlite`に永続化 | 次のターンでNoneにリセット |
+| `ctx.stats.stat_turns` | 各ユーザーメッセージ追加後 | No — メモリ上 (`/stats`経由で報告) | セッション再起動時にリセット |
+| `ctx.stats.stat_partial_completions` | LLMストリーム中断時 | No — メモリ上; 部分的なコンテンツは`session_diagnostics`に格納 | セッション再起動時にリセット |
+| `session.title` | 最初のターン (非同期バックグラウンドタスク) | Yes — SQLite `sessions.title` | ノンブロッキング; LLM失敗時は先頭入力の切り詰めにフォールバック |
 
 ## Related Documents
 
-- `agent`
-- `turn`
-- `processing`
+- `05_agent_00_document-guide.md`
+- `05_agent_03_01_turn-processing-flow-overview.md`
+- `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
 
 ## Keywords
 
-agent
-turn
-processing
-flow
-orchestrator
+partial-completion model
+workflowengine integration
+state changes per turn
+turn-state mutation reference

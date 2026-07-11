@@ -11,58 +11,58 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# RAG index consistency checks
+# RAGインデックス整合性チェック
 
-## RAG index consistency checks
+## RAGインデックス整合性チェック
 
-The RAG index requires three tables to remain synchronized:
-- `chunks` — canonical chunk records
-- `chunks_fts` — FTS5 full-text index (populated by SQLite triggers)
-- `chunks_vec` — vector embedding index
+RAGインデックスは、以下の3つのテーブルが同期されている必要がある。
+- `chunks` — 正規のチャンクレコード
+- `chunks_fts` — FTS5全文検索インデックス (SQLiteトリガーによって生成される)
+- `chunks_vec` — ベクトル埋め込みインデックス
 
-### Startup warning
+### 起動時の警告
 
-On every agent startup, the RAG consistency check runs `check_rag_consistency()` (3 COUNT queries,
-read-only, fast). If any inconsistency is detected, a warning is emitted to the console:
+エージェント起動ごとに、RAG整合性チェックが`check_rag_consistency()` (COUNTクエリ3件、
+読み取り専用、高速) を実行する。不整合が検出された場合、コンソールに警告が出力される。
 
 ```
 [RAG] Consistency issue: fts_gap=3 (3 chunks missing from FTS index)
 ```
 
-No warning is shown on a healthy index (only `logger.info("RAG consistency: OK")` is written).
+インデックスが健全な場合は警告は表示されない (`logger.info("RAG consistency: OK")`のみが書き込まれる)。
 
-### `/db rag rebuild-fts` command
+### `/db rag rebuild-fts` コマンド
 
-The `/db rag rebuild-fts` command rebuilds `chunks_fts` from the canonical `chunks` table.
+`/db rag rebuild-fts`コマンドは、正規テーブルである`chunks`から`chunks_fts`を再構築する。
 
-**Rebuild rule:** The rebuild indexes `COALESCE(normalized_content, content)`, identical to the FTS5 trigger (`chunks_ai`).
+**再構築ルール:** 再構築では`COALESCE(normalized_content, content)`をインデックス化する。これはFTS5トリガー (`chunks_ai`) と同一である。
 
-- Japanese chunks: when `normalized_content` is present (Sudachi-normalized), it is indexed
-- English/code chunks: `normalized_content` is NULL → FTS5 falls back to `content` directly
-- `chunks_fts` must not be manually edited — it is a derived index maintained by triggers or rebuild operations
+- 日本語チャンク: `normalized_content` (Sudachiで正規化済み) が存在する場合、それがインデックス化される
+- 英語/コードチャンク: `normalized_content`はNULLのため、FTS5は直接`content`にフォールバックする
+- `chunks_fts`は手動で編集してはならない — これはトリガーまたは再構築処理によって維持される派生インデックスである
 
-**When to use:**
-- `fts_gap > 0` (missing FTS entries) detected by `/db consistency`
-- `fts_orphan_count > 0` (extra FTS entries, data loss risk)
-- After large-scale ingestion to verify FTS index integrity
+**使用場面:**
+- `/db consistency`で`fts_gap > 0` (FTSエントリの欠落) が検出された場合
+- `fts_orphan_count > 0` (余分なFTSエントリ、データ損失のリスク) の場合
+- 大規模な取り込み後にFTSインデックスの整合性を確認する場合
 
-**Repair decision tree:**
+**修復の判断フロー:**
 
 | Issue | Fix |
 |---|---|
-| `fts_gap > 0` | Run `/db rag rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
-| `fts_orphan_count > 0` | Run `/db rag rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
+| `fts_gap > 0` | `/db rag rebuild-fts`を実行 — FTSエントリが欠落しているため、`chunks`から再構築 |
+| `fts_orphan_count > 0` | `/db rag rebuild-fts`を実行 — FTSに余分なエントリがある (データ損失のリスクあり、緊急対応) |
 
-### `/db consistency` command
+### `/db consistency` コマンド
 
-The `/db consistency` command shows numeric counts followed by an OK or error summary:
+`/db consistency`コマンドは数値カウントを表示し、続けてOKまたはエラーの概要を表示する。
 
 ```
   chunks: 1042  fts: 1042  vec: 1042  fts_gap: 0  orphan_vec: 0  fts_orphan: 0
 RAG consistency: OK (chunks/FTS/vec in sync)
 ```
 
-On inconsistency:
+不整合がある場合:
 
 ```
   chunks: 1042  fts: 1039  vec: 1042  fts_gap: 3  orphan_vec: 0  fts_orphan: 0
@@ -70,27 +70,27 @@ RAG consistency: FAIL
 Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/db rag rebuild-fts' to repair.
 ```
 
-### Threshold policy
+### 閾値の方針
 
-The check uses a **strict-zero** threshold: any non-zero `fts_gap`, `fts_orphan_count`,
-or `orphan_vec_count` is reported as inconsistent. Configurable thresholds (e.g. allowing
-`fts_gap <= 5`) are not implemented. **Needs confirmation** if partial-OK policy is required.
+このチェックは**厳格なゼロ**閾値を使用する。すなわち、`fts_gap`、`fts_orphan_count`、
+`orphan_vec_count`のいずれかが0以外であれば不整合として報告される。設定可能な閾値
+(例: `fts_gap <= 5`を許容する) は実装されていない。部分的なOK判定の方針が必要かどうかは**確認が必要**。
 
-### Fixing inconsistencies
+### 不整合の修正
 
-Use `/db consistency` to detect issues. The report includes affected `chunk_id`/URL
-identifiers (up to 10 each) so operators can act without manual DB investigation.
+`/db consistency`を使用して問題を検出する。レポートには影響を受けた`chunk_id`/URLの
+識別子 (それぞれ最大10件) が含まれるため、運用者は手動でDBを調査せずに対応できる。
 
-**Repair decision tree:**
+**修復の判断フロー:**
 
 | Issue | Fix |
 |---|---|
-| `fts_gap > 0` | Run `/db rag rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
-| `fts_orphan_count > 0` | Run `/db rag rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
-| `orphan_vec_count > 0` | Run `ingester.py --force` for affected URLs — `chunks_vec` rows without `chunks` counterparts |
-| `vec != chunks` | Run `ingester.py --force` for the affected URL — embedding step likely failed |
+| `fts_gap > 0` | `/db rag rebuild-fts`を実行 — FTSエントリが欠落しているため、`chunks`から再構築 |
+| `fts_orphan_count > 0` | `/db rag rebuild-fts`を実行 — FTSに余分なエントリがある (データ損失のリスクあり、緊急対応) |
+| `orphan_vec_count > 0` | 該当URLに対して`ingester.py --force`を実行 — `chunks`に対応する行がない`chunks_vec`の行 |
+| `vec != chunks` | 該当URLに対して`ingester.py --force`を実行 — 埋め込みステップが失敗した可能性が高い |
 
-Run `/db rag rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
+`/db rag rebuild-fts`を実行して、`chunks`テーブルから`chunks_fts`を再同期する。
 
 
 <!-- AUTO-GENERATED: gen_rag_reference.py config -->

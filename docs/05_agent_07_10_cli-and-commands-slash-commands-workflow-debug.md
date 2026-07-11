@@ -1,73 +1,94 @@
 ---
-title: "Agent CLI and Commands"
+title: "Agent CLI and Commands - Slash Commands: Workflow, Debug/Audit, RAG/Export"
 category: agent
 tags:
   - agent
-  - agent
   - cli
-  - commands
-  - repl
   - slash-commands
+  - workflow
+  - debug
+  - rag-export
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_07_01_cli-and-commands-cli-reference.md
+  - 05_agent_07_02_cli-and-commands-cliview.md
+  - 05_agent_07_03_cli-and-commands-command-registry.md
+  - 05_agent_07_04_cli-and-commands-purpose.md
+  - 05_agent_07_05_cli-and-commands-repl-io.md
+  - 05_agent_07_06_cli-and-commands-hot-reload.md
+  - 05_agent_07_07_cli-and-commands-migration-notes.md
+  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+source:
+  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands
 
-### Workflow category
+- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-| Command | Side effects | Related state |
+### Workflowカテゴリ
+
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/approve [reason]` | Resolves suspended workflow approval as approved | `ctx.turn.pending_approval_id` (DB-lookup fallback when None) |
-| `/reject [reason]` | Resolves suspended workflow approval as rejected | `ctx.turn.pending_approval_id` (DB-lookup fallback when None) |
+| `/approve [reason]` | 保留中のワークフロー承認を「承認済み」として解決 | `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック) |
+| `/reject [reason]` | 保留中のワークフロー承認を「却下」として解決 | `ctx.turn.pending_approval_id`(Noneの場合はDB検索にフォールバック) |
 
-> **Scope:** `/approve` and `/reject` resolve **workflow-level approval gates only** (the `approvals` DB record).
-> They do not affect per-tool interactive approval prompts (`tool_approval.run_approval_checks`).
-> See [Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md) for the canonical approval model.
+> **適用範囲:** `/approve`と`/reject`は**ワークフローレベルの承認ゲートのみ**(`approvals`DBレコード)を解決する。
+> ツールごとのインタラクティブな承認プロンプト(`tool_approval.run_approval_checks`)には影響しない。
+> 正式な承認モデルについては[Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md)を参照。
 
-#### Startup Recovery
+#### 起動時のリカバリ
 
-If the agent restarts while a workflow-level approval is pending, the pending state is
-automatically detected at startup from the `approvals` database table via
-`StateStore.find_latest_pending_approval()`. A startup notice is shown:
+ワークフローレベルの承認が保留中の状態でエージェントが再起動した場合、その保留状態は
+`StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから
+起動時に自動検出される。起動時に以下の通知が表示される:
 
 ```
 [workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve [reason] or /reject [reason].
 ```
 
-The workflow resumes from the approval gate; no re-execution of prior steps is needed.
+ワークフローは承認ゲートから再開され、以前のステップの再実行は不要である。
 
-**Cross-session guarantee:** `/approve` and `/reject` resolve the latest pending approval
-from the `approvals` DB table even when in-memory `ctx.turn.pending_approval_id` is None
-(e.g., after a crash). After `/approve` succeeds, `ctx.turn.pending_approval_task_id` is
-set for auto-resume — no re-execution of prior steps is needed.
+**セッションをまたぐ保証:** `/approve`と`/reject`は、メモリ上の`ctx.turn.pending_approval_id`が
+None(クラッシュ後など)であっても、`approvals`DBテーブルから最新の保留中承認を解決する。
+`/approve`が成功すると、自動再開のために`ctx.turn.pending_approval_task_id`が
+設定される — 以前のステップの再実行は不要である。
 
-### Debug / audit category
+### Debug / auditカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/debug` | None | Toggle `ctx.conv.debug_mode` |
-| `/debug verbose\|normal` | Change log level | `structlog` level change |
-| `/audit [tail N\|turn <id>\|tool <name>]` | None | Read audit.log |
+| `/debug` | なし | `ctx.conv.debug_mode`をトグル |
+| `/debug verbose\|normal` | ログレベルを変更 | `structlog`のレベル変更 |
+| `/audit [tail N\|turn <id>\|tool <name>]` | なし | audit.logを読み取り |
 
-### RAG / Export category
+### RAG / Exportカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/rag search <query> [--debug]` | MCP call to rag-pipeline-mcp | None |
-| `/compact` | LLM call (compression) | Compresses history immediately |
-| `/export [md\|json] [file]` | Write conversation to file or stdout | Markdown or JSON export |
+| `/rag search <query> [--debug]` | rag-pipeline-mcpへのMCP呼び出し | なし |
+| `/compact` | LLM呼び出し(圧縮) | 履歴を即座に圧縮 |
+| `/export [md\|json] [file]` | 会話をファイルまたはstdoutに書き込み | Markdownまたは JSONエクスポート |
 
 ## Related Documents
 
-- `agent`
-- `cli`
-- `commands`
+- `05_agent_00_document-guide.md`
+- `05_agent_07_01_cli-and-commands-cli-reference.md`
+- `05_agent_07_02_cli-and-commands-cliview.md`
+- `05_agent_07_03_cli-and-commands-command-registry.md`
+- `05_agent_07_04_cli-and-commands-purpose.md`
+- `05_agent_07_05_cli-and-commands-repl-io.md`
+- `05_agent_07_06_cli-and-commands-hot-reload.md`
+- `05_agent_07_07_cli-and-commands-migration-notes.md`
+- `05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+- `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+- `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
 ## Keywords
 
-agent
-cli
-commands
-repl
-slash-commands
+workflow category
+startup recovery
+debug/audit category
+RAG/export category

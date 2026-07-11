@@ -15,16 +15,16 @@ source:
 
 ## Reading Audit Logs
 
-The shared audit log at `/opt/llm/logs/audit.log` contains JSON-lines records from both MCP server and agent-side audit events. Each line is a parseable JSON object.
+`/opt/llm/logs/audit.log` にある共有audit logには、MCPサーバとagent側の両方のaudit eventがJSON-lines形式で記録される。各行はパース可能なJSONオブジェクトである。
 
-### MCP server audit log (per-call)
+### MCPサーバのaudit log（呼び出しごと）
 
-Format: JSON-lines, one JSON object per line. Example:
+形式: JSON-lines、1行に1個のJSONオブジェクト。例:
 ```json
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"read_text_file","target":"/tmp/f.txt","outcome":"ok","server_key":"file_read","error_type":""}
 ```
 
-**Shared audit log** (`/opt/llm/logs/audit.log`): Used by web-search-mcp, file-read-mcp, file-write-mcp, rag-pipeline-mcp, cicd-mcp.
+**共有audit log** (`/opt/llm/logs/audit.log`): web-search-mcp、file-read-mcp、file-write-mcp、rag-pipeline-mcp、cicd-mcpで使用される。
 
 ```bash
 # View MCP server audit events (JSON-lines format)
@@ -33,7 +33,7 @@ tail -f /opt/llm/logs/audit.log | jq 'select(.source == "mcp_server")'
 tail -f /opt/llm/logs/audit.log | jq .
 ```
 
-**Per-server audit logs:**
+**サーバ別audit log:**
 
 ```bash
 # GitHub operations (ISO8601 + op + repo + user)
@@ -49,41 +49,41 @@ grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 grep "op=" /opt/llm/logs/mdq_audit.log
 ```
 
-> **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
+> **注記:** cicd-mcpとgit-mcpには専用のaudit logファイルがない。`logging.getLogger(__name__)` のみを使用する。
 
-### Per-server log files
+### サーバ別ログファイル
 
-| Server | Log path | Notes |
+| サーバ | ログパス | 補足 |
 |---|---|---|
-| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` | Dedicated app log |
-| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` | Dedicated app log |
-| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` | Dedicated app log |
-| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` | Dedicated app log |
-| github-mcp | `/opt/llm/logs/github-mcp.log` | Dedicated app log |
-| shell-mcp | `/opt/llm/logs/shell-mcp.log` | Dedicated app log |
-| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` | Dedicated app log |
-| rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
-| cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
-| git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
+| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` | 専用アプリログ |
+| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` | 専用アプリログ |
+| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` | 専用アプリログ |
+| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` | 専用アプリログ |
+| github-mcp | `/opt/llm/logs/github-mcp.log` | 専用アプリログ |
+| shell-mcp | `/opt/llm/logs/shell-mcp.log` | 専用アプリログ |
+| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` | 専用アプリログ |
+| rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | 専用アプリログ |
+| cicd-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用 |
+| git-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用 |
 
-### Per-server audit log files
+### サーバ別audit logファイル
 
-| Server | Audit log path | Format |
+| サーバ | Audit logパス | 形式 |
 |---|---|---|
-| web-search-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
-| file-read-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
-| file-write-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
-| file-delete-mcp | `/opt/llm/logs/delete_audit.log` | Structured (ISO8601 + op + path + user) |
-| github-mcp | `/opt/llm/logs/github_audit.log` | Structured (ISO8601 + op + repo + user) |
-| shell-mcp | `/opt/llm/logs/shell_audit.log` | Structured (ISO8601 + op + command + user) |
-| mdq-mcp | `/opt/llm/logs/mdq_audit.log` | Structured (MDQ-specific) |
-| rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
-| cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
-| git-mcp | Config key exists but no write code | `audit_log_path = "/opt/llm/logs/git-mcp.log"` in TOML — no audit write code in service.py; reserved for future implementation |
+| web-search-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
+| file-read-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
+| file-write-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
+| file-delete-mcp | `/opt/llm/logs/delete_audit.log` | 構造化（ISO8601 + op + path + user） |
+| github-mcp | `/opt/llm/logs/github_audit.log` | 構造化（ISO8601 + op + repo + user） |
+| shell-mcp | `/opt/llm/logs/shell_audit.log` | 構造化（ISO8601 + op + command + user） |
+| mdq-mcp | `/opt/llm/logs/mdq_audit.log` | 構造化（MDQ固有） |
+| rag-pipeline-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
+| cicd-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
+| git-mcp | configキーは存在するが書き込みコードがない | TOML内に `audit_log_path = "/opt/llm/logs/git-mcp.log"` はあるが、service.pyにaudit書き込みコードはない；将来実装のために予約されている |
 
-### Agent-side audit log (structured events)
+### Agent側のaudit log（構造化イベント）
 
-Format: JSON-lines, e.g.:
+形式: JSON-lines、例:
 ```json
 {"event":"tool_exec","task_id":"turn-123","tool":"shell_run","operation_type":"MCP","mcp_request_id":"abc-456","is_error":true,"error_type":"transport","ts":1719500000.0,"workflow_id":"","session_id":""}
 ```

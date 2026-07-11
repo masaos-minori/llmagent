@@ -15,9 +15,9 @@ source:
 # Watchdog Behavior — Health Reasons and Scheduling
 
 
-### Health reason priority order
+### ヘルス理由の優先順位
 
-When probing an HTTP MCP server via `/health`, the probe returns structured fields that determine both LIFECYCLE actions and display reasons:
+`/health`経由でHTTP MCPサーバーをプローブすると、LIFECYCLEのアクションと表示用の理由の両方を決定する構造化フィールドが返される。
 
 ```python
 # From McpProbeResult model
@@ -26,25 +26,25 @@ operator_action_required: bool  # True only if health endpoint sets this flag
 health_reason: str              # Derived priority: operator_action > restart_recommended
 ```
 
-Priority order for `health_reason` derivation:
+`health_reason`導出の優先順位:
 
-| Condition | Result |
+| 条件 | 結果 |
 |-----------|--------|
-| `operator_action_required=true` AND reachable+HTTP_OK | `"operator_action_required"` |
-| `restart_recommended=true` AND reachable+HTTP_OK | `"restart_recommended"` |
-| Server unreachable/failing | Body-provided reason string (from `details.reason` or fallback `message`) |
-| All other cases | Empty string |
+| `operator_action_required=true` かつ reachable+HTTP_OK | `"operator_action_required"` |
+| `restart_recommended=true` かつ reachable+HTTP_OK | `"restart_recommended"` |
+| サーバーが到達不能/失敗中 | ボディが提供する理由文字列(`details.reason`、なければ`message`にフォールバック) |
+| それ以外のすべてのケース | 空文字列 |
 
-The `restart_recommended` field has two sources with different semantics:
+`restart_recommended`フィールドには、異なるセマンティクスを持つ2つの発生源がある。
 
-1. **From `/health` endpoint**: Indicates proactive recommendation by the server itself
-2. **From LifecycleProtocol.ensure_ready()**: Set when `lifecycle_state == FAILED` — indicates reactive detection based on transport-level failures
+1. **`/health`エンドポイントから**: サーバー自身によるプロアクティブな推奨を示す
+2. **LifecycleProtocol.ensure_ready()から**: `lifecycle_state == FAILED`のときに設定される — トランスポート層の障害に基づくリアクティブな検出を示す
 
-Both are treated equivalently at the display level.
+両者は表示レベルでは同等に扱われる。
 
-#### Body reason tracking through probe chain
+#### プローブチェーン全体でのボディ理由の追跡
 
-When probing an HTTP MCP server's `/health`, the body field propagates as follows:
+HTTP MCPサーバーの`/health`をプローブする際、bodyフィールドは次のように伝播する。
 
 ```python
 # Step 1: Probe returns raw body
@@ -61,9 +61,9 @@ registry.record_failure(reason=str(body_reason))
 # - Global table column: McpProbeResult.health_reason derived below
 ```
 
-#### Watchdog logging behavior
+#### watchdogのロギング動作
 
-When the watchdog detects issues via `_watchdog_check_http()`:
+watchdogが`_watchdog_check_http()`経由で問題を検出した場合:
 
 ```python
 # In _probe_mcp_health_detail():
@@ -75,52 +75,51 @@ else:
     # No issue detected: normal operation continues
 ```
 
-For servers where `reachable=True` but `status_code=503` (degraded), the watchdog does NOT automatically restart because `restart_recommended=false`. Instead, it logs a warning containing the body-reason from `probe.body["reason"]` or `probe.body["message"]`. If `operator_action_required=true`, the same logic applies—no automatic restart, just a WARNING about what requires manual attention.
+`reachable=True`だが`status_code=503`(degraded)のサーバーの場合、`restart_recommended=false`であるため、watchdogは自動的に再起動しない。代わりに`probe.body["reason"]`または`probe.body["message"]`のボディ理由を含む警告をログに記録する。`operator_action_required=true`の場合も同様のロジックが適用される — 自動再起動はせず、手動対応が必要な旨のWARNINGのみを出す。
 
 ---
 
 
 
-### Tool error monitoring
+### ツールエラーの監視
 
-`ToolExecutor` distinguishes two error categories:
+`ToolExecutor`は2種類のエラーカテゴリを区別する。
 
-| Category | Log field | Condition |
+| カテゴリ | ログフィールド | 条件 |
 |----------|-----------|-----------|
-| Transport error | `error_type=transport` | Network failure, timeout, server unreachable |
-| Tool error | `error_type=tool` | Server reachable; tool execution returned `is_error=true` |
+| トランスポートエラー | `error_type=transport` | ネットワーク障害、タイムアウト、サーバー到達不能 |
+| ツールエラー | `error_type=tool` | サーバーは到達可能だが、ツール実行が`is_error=true`を返した |
 
-Transport errors affect the MCP server health state and may trigger watchdog restarts.
-Tool errors do not — the server is functioning, but the specific tool call failed
-(e.g., invalid arguments, upstream API error).
+トランスポートエラーはMCPサーバーのヘルス状態に影響し、watchdogの再起動をトリガーする可能性がある。
+ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗した
+(例: 不正な引数、上流APIのエラー)。
 
-Transport errors are raised by `HttpTransport` as `TransportError` and caught by
-the transport error handler, which increments `stat_transport_errors`
-and calls `HealthRegistry.record_failure()`.
+トランスポートエラーは`HttpTransport`によって`TransportError`として発生し、
+トランスポートエラーハンドラによって捕捉される。ハンドラは`stat_transport_errors`をインクリメントし、
+`HealthRegistry.record_failure()`を呼び出す。
 
-#### Per-server tool error counters
+#### サーバーごとのツールエラーカウンタ
 
-`ToolExecutor.stat_tool_errors` is a `dict[str, int]` (server_key → count) available
-for the lifetime of the process. Read it from the agent context:
+`ToolExecutor.stat_tool_errors`は`dict[str, int]`(server_key → カウント)で、
+プロセスの生存期間中利用可能である。エージェントコンテキストから参照する。
 
 ```python
 ctx.services.tools.stat_tool_errors   # {"rag_pipeline": 3, "github": 0}
 ```
 
-#### Repeated-failure warnings
+#### 繰り返し発生する障害の警告
 
-When the per-server tool error count reaches a multiple of
-`repeated_tool_error_threshold` (default: 3), a warning is logged:
+サーバーごとのツールエラー数が`repeated_tool_error_threshold`(デフォルト: 3)の倍数に
+達した場合、次の警告がログに記録される。
 
 ```
 WARNING repeated tool errors from 'rag_pipeline': 3 failures (error_type=tool)
 ```
 
-The threshold is configurable at `ToolExecutor` construction time. Counters reset
-on process restart. There is no automatic server restart on tool errors (only
-transport failures trigger the watchdog).
+このしきい値は`ToolExecutor`の構築時に設定可能である。カウンタはプロセス再起動時にリセットされる。
+ツールエラーによるサーバーの自動再起動は行われない(watchdogをトリガーするのはトランスポート障害のみ)。
 
-#### Grep patterns for monitoring
+#### 監視用のgrepパターン
 
 ```bash
 # Find tool errors for a specific server
@@ -137,40 +136,40 @@ grep "error_type=transport" agent.log
 
 
 
-### Tool scheduling and serialization
+### ツールのスケジューリングと直列化
 
-The agent executes tool calls in resource-scoped groups (DAG scheduling, active when `use_tool_dag=true`). Setting `use_tool_dag=false` reverts to the legacy non-production mode (all WRITE_TOOLS before READ_TOOLS within a round, without resource-scoped parallelism). Most tools run in parallel,
-but certain conditions force serial execution within a round:
+エージェントはリソーススコープでグループ化してツール呼び出しを実行する(`use_tool_dag=true`のときに有効なDAGスケジューリング)。`use_tool_dag=false`に設定すると、レガシーな非本番モード(ラウンド内でリソーススコープの並列性を持たずに、すべてのWRITE_TOOLSをREAD_TOOLSより先に実行する)に戻る。ほとんどのツールは並列実行されるが、
+特定の条件下ではラウンド内で直列実行が強制される。
 
-| Condition | Trigger | Log reason |
+| 条件 | トリガー | ログ上の理由 |
 |-----------|---------|------------|
-| Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
-| Multiple write tools share a `resource_scope` | Two+ write tools with same scope | `resource_scope_conflict` |
-| Write tools without a `resource_scope` | Any write tool lacking scope metadata | `is_write_overlap` |
-| Side-effect tool in round (standard execution path) | Any side-effect tool | logged as "Side-effect tool detected" |
+| ツールが`requires_serial=True`を持つ | このフラグを持つ任意のツール | `requires_serial` |
+| 複数のwriteツールが同じ`resource_scope`を共有 | 同じスコープを持つ2つ以上のwriteツール | `resource_scope_conflict` |
+| `resource_scope`を持たないwriteツール | スコープメタデータを持たない任意のwriteツール | `is_write_overlap` |
+| ラウンド内の副作用ツール(標準実行パス) | 任意の副作用ツール | "Side-effect tool detected"としてログ記録 |
 
-Serialization is intentional safety behavior — it prevents concurrent writes from corrupting
-shared resources. It does not indicate a configuration error.
+直列化は意図的な安全策である — 並行書き込みによる共有リソースの破損を防ぐ。
+これは設定エラーを示すものではない。
 
-#### Reading serialization log entries
+#### 直列化ログエントリの読み方
 
-Each serialization event logs:
+各直列化イベントは次の形式でログに記録される。
 
 ```
 INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
      — <N> tools serialized in this round
 ```
 
-Example:
+例:
 
 ```
 INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
      — 2 tools serialized in this round
 ```
 
-#### Serialization stats in /mcp status
+#### /mcp statusにおける直列化統計
 
-Run `/mcp status` to see cumulative session stats:
+`/mcp status`を実行すると、セッションの累積統計を確認できる。
 
 ```
 --- Tool Scheduling ---
@@ -178,16 +177,16 @@ Run `/mcp status` to see cumulative session stats:
   Tools affected by serialization:   12
 ```
 
-These counters reset on agent restart. A high serialization count relative to
-total tool calls may indicate candidates for `resource_scope` annotation or
-`requires_serial=False` review — but only after analyzing which tools are
-triggering it.
+これらのカウンタはエージェント再起動時にリセットされる。ツール呼び出し総数に対して
+直列化回数が多い場合、`resource_scope`アノテーションの追加や
+`requires_serial=False`への見直しの候補になり得る — ただし、どのツールがそれを
+引き起こしているかを分析した上で判断すること。
 
-#### Before optimizing
+#### 最適化を行う前に
 
-Do not change `requires_serial` or `resource_scope` values without reviewing
-the serialization log data. The observability layer provides the data needed
-to make safe decisions.
+直列化ログのデータを確認せずに`requires_serial`や`resource_scope`の値を
+変更してはならない。観測可能性(observability)レイヤーは、安全な判断を下すために
+必要なデータを提供する。
 
 ---
 

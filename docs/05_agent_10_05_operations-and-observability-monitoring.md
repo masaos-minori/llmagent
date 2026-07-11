@@ -17,80 +17,80 @@ source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
-# Agent Operations and Observability
+# エージェントの運用と可観測性
 
-- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## Partial Completion and Truncation Monitoring
+## Partial Completion and Truncation Monitoring(部分完了と切り捨ての監視)
 
-| Condition | How to detect | Action |
+| Condition | 検出方法 | Action |
 |---|---|---|
-| LLM stream interrupted (partial completion) | `/stats` shows `partials > 0`; agent log: `WARNING Partial LLM completion saved: {kind}` | Check `session_diagnostics` (`kind=partial_completion`) for details; check LLM endpoint stability |
-| Context compression (HistoryManager) | `/stats` shows `Compress: N > 0`; agent log: `INFO Compressed history` | Increase `compression_char_threshold` or reduce context size |
-| Max tool turns hit | Agent log: `WARNING max_tool_turns=N reached` | Increase `max_tool_turns` in `config/agent.toml` |
+| LLMストリームの中断(部分完了) | `/stats` で `partials > 0` と表示される。エージェントログ: `WARNING Partial LLM completion saved: {kind}` | 詳細は `session_diagnostics`(`kind=partial_completion`)を確認する。LLMエンドポイントの安定性を確認する |
+| コンテキスト圧縮(HistoryManager) | `/stats` で `Compress: N > 0` と表示される。エージェントログ: `INFO Compressed history` | `compression_char_threshold` を増やす、またはコンテキストサイズを削減する |
+| 最大ツールターン数に到達 | エージェントログ: `WARNING max_tool_turns=N reached` | `config/agent.toml` の `max_tool_turns` を増やす |
 
-For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md).
+正式な部分完了モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)。
 
 ---
 
-## Troubleshooting
+## Troubleshooting(トラブルシューティング)
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `embedding attempt 3/3` all fail | embed-llm not running or overloaded | `curl -s http://127.0.0.1:8003/health`; wait for model load |
-| `AttributeError: enable_load_extension` | Python built without sqlite extension support | `echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python && emerge dev-lang/python` |
-| `no such table: chunks_vec` | sqlite-vec extension load failed | `ls /opt/llm/sqlite-vec/vec0.so` |
-| FTS search returns 0 results | `chunks_fts` out of sync | `/db rag rebuild-fts` |
-| `blob_bytes` ≠ 1536 | Embedding dimension mismatch | Verify embed model outputs 384 dimensions |
-| `Sudachi tokenize error` frequent | sudachidict-core not installed | `pip install sudachidict-core` |
-| llama-server won't start | Model file path or permissions | `ls -lh /opt/llm/models/` |
-| Very high latency | Multiple models loaded, RAM exhausted | Adjust `--threads`; keep total ≤ 4 |
-| `/mcp` shows UNAVAILABLE server | Health registry marked server unavailable | Check watchdog logs for auto-restart attempts; if the server *definition* (URL, auth, transport, etc.) changed, a full agent restart is required — `/reload` does not apply MCP config changes |
+| `embedding attempt 3/3` がすべて失敗する | embed-llmが起動していない、または過負荷 | `curl -s http://127.0.0.1:8003/health` を実行し、モデルのロードを待つ |
+| `AttributeError: enable_load_extension` | sqlite拡張サポートなしでPythonがビルドされている | `echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python && emerge dev-lang/python` |
+| `no such table: chunks_vec` | sqlite-vec拡張のロードに失敗 | `ls /opt/llm/sqlite-vec/vec0.so` |
+| FTS検索が0件を返す | `chunks_fts` が非同期状態 | `/db rag rebuild-fts` |
+| `blob_bytes` ≠ 1536 | 埋め込み次元の不一致 | embedモデルが384次元を出力しているか確認する |
+| `Sudachi tokenize error` が頻発 | sudachidict-coreが未インストール | `pip install sudachidict-core` |
+| llama-serverが起動しない | モデルファイルのパスまたは権限の問題 | `ls -lh /opt/llm/models/` |
+| レイテンシが非常に高い | 複数モデルのロードによりRAMが枯渇 | `--threads` を調整し、合計を4以下に保つ |
+| `/mcp` でサーバがUNAVAILABLEと表示される | ヘルスレジストリがサーバを利用不可としてマークしている | 自動再起動の試行についてウォッチドッグログを確認する。サーバの*定義*(URL、認証、transportなど)が変更された場合はエージェントの完全な再起動が必要 — `/reload` はMCP設定の変更を適用しない |
 
 ---
 
-## Runtime Diagnostics (session-end summary)
+## Runtime Diagnostics (session-end summary)(実行時診断。セッション終了時サマリ)
 
-At session end, a lightweight diagnostic summary is persisted to the `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`. This survives beyond the REPL session for post-mortem analysis.
+セッション終了時、軽量な診断概要が `DiagnosticStore.save(kind="session_summary")` を通じて `session_diagnostics` テーブルに永続化される。これはREPLセッションを超えて保持され、事後分析に利用できる。
 
-Querying session diagnostics:
+セッション診断のクエリ:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC LIMIT 10;"
 ```
 
-Retrieving a specific diagnostic entry:
+特定の診断エントリの取得:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE session_id = ? AND kind = 'session_summary' ORDER BY created_at DESC LIMIT 1;" | jq .content
 ```
 
-Filtering by diagnostic kind:
+診断種別によるフィルタリング:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE kind = 'mid_turn_error' ORDER BY created_at DESC;" | jq -r '.content'
 ```
 
-**Fields in each record:**
+**各レコードのフィールド:**
 
 | Field | Description |
 |---|---|
-| `session_id` | SQLite session row ID |
-| `timestamp` | ISO-8601 UTC timestamp of session end |
-| `turns` | Total turns processed |
-| `tool_calls` | Total tool calls executed |
-| `tool_errors` | Tool call failures |
-| `partial_completions` | LLM partial completions (interrupted streams) |
-| `parse_errors` | SSE parse errors |
-| `heartbeat_timeouts` | SSE heartbeat timeouts |
-| `reconnects` | LLM transport reconnects |
-| `semantic_cache_hits` | Semantic cache lookups that matched |
-| `input_tokens` | Total input tokens (if available) |
-| `output_tokens` | Total output tokens (if available) |
-| `compress_count` | History compression operations |
-| `latency_summary` | Per-step mean/max latency in ms |
+| `session_id` | SQLiteのセッション行ID |
+| `timestamp` | セッション終了のISO-8601 UTCタイムスタンプ |
+| `turns` | 処理された総ターン数 |
+| `tool_calls` | 実行された総ツール呼び出し数 |
+| `tool_errors` | ツール呼び出しの失敗数 |
+| `partial_completions` | LLMの部分完了数(中断されたストリーム) |
+| `parse_errors` | SSEパースエラー数 |
+| `heartbeat_timeouts` | SSEハートビートタイムアウト数 |
+| `reconnects` | LLM転送の再接続数 |
+| `semantic_cache_hits` | 一致したセマンティックキャッシュ検索数 |
+| `input_tokens` | 入力トークンの総数(取得可能な場合) |
+| `output_tokens` | 出力トークンの総数(取得可能な場合) |
+| `compress_count` | 履歴圧縮の実行回数 |
+| `latency_summary` | ステップごとの平均/最大レイテンシ(ms) |
 
-**Reading diagnostics:**
+**診断情報の読み方:**
 
 ```bash
 # View all diagnostic events (most recent first)
@@ -112,7 +112,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
 ```
 
-Diagnostics persistence failures are logged at DEBUG level and do not affect REPL shutdown.
+診断情報の永続化に失敗した場合はDEBUGレベルでログに記録され、REPLの終了処理には影響しない。
 
 ---
 

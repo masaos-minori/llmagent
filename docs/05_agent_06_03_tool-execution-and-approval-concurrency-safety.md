@@ -1,96 +1,114 @@
 ---
-title: "Agent Tool Execution and Approval"
+title: "Agent Tool Execution and Approval - Concurrency and Safety"
 category: agent
 tags:
   - agent
-  - agent
-  - tool
-  - execution
-  - approval
-  - safety
+  - tool-execution
+  - concurrency-limits
+  - fail-closed
+  - toolloopguard
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - 05_agent_06_04_tool-execution-and-approval-canonical.md
+source:
+  - 05_agent_06_tool-execution-and-approval.md
 ---
 
-# Agent Tool Execution and Approval
+# エージェントのツール実行と承認
 
- tool loop in `LLMTurnRunner`:
+- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
+
+## 安全制御のまとめ
+
+| Control | Config field | Behavior |
+|---|---|---|
+| `allowed_tools` | `cfg.tool.allowed_tools` | ホワイトリスト; 空の場合はすべて許可。本番環境では`allowed_tools=[]`は設定エラーとして扱われる (制限なくすべてのツールが許可されるため)。特定のツールに制限する場合は明示的に設定すること。 |
+| `allowed_root` | `cfg.approval.allowed_root` | パスジェイル; 空の場合は無効 |
+| `approval_github_allowed_repos` | `cfg.approval.*` | GitHub書き込み許可リスト; 空の場合はすべて拒否 (フェイルクローズ) |
+| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | プランモードでの自動拒否 |
+| `approval_protected_paths` | `cfg.approval.*` | パスプレフィックスによる`high`へのエスカレーション |
+| `approval_high_risk_branches` | `cfg.approval.*` | ブランチ名による`high`へのエスカレーション |
+| `gitops_push_blocked` | `cfg.approval.*` | GitHubへの書き込みをグローバルにすべてブロック |
+| `gitops_force_push_blocked` | `cfg.approval.*` | force pushをブロック (デフォルト: `True`) |
+| `gitops_protected_branches` | `cfg.approval.*` | 保護対象ブランチ (デフォルト: main, master) |
+
+---
+
+## ToolLoopGuard
+
+`LLMTurnRunner`内の内部ツールループを制御する:
 
 | Guard | Config field | Behavior |
 |---|---|---|
-| Dedup | `tool_dedup_max_repeats` (default 3) | Same (name, args) repeated ≥ N times → terminate loop; hint stored in `session_diagnostics` |
-| Cycle detection | `tool_cycle_detect_window` (default 2) | Same tool-call fingerprint repeated in last N rounds → terminate loop; hint stored in `session_diagnostics` |
-| Retry cap | `tool_error_retry_max` (default 1) | Errored (name, args) called again → terminate loop; hint stored in `session_diagnostics` |
-| Consecutive error | `tool_error_max_consecutive` (default 3) | All tools in round error N times → terminate loop |
+| 重複排除 | `tool_dedup_max_repeats` (デフォルト3) | 同一の(name, args)がN回以上繰り返された場合 → ループを終了; ヒントは`session_diagnostics`に格納 |
+| 循環検出 | `tool_cycle_detect_window` (デフォルト2) | 直近Nラウンド内で同一のツール呼び出しフィンガープリントが繰り返された場合 → ループを終了; ヒントは`session_diagnostics`に格納 |
+| リトライ上限 | `tool_error_retry_max` (デフォルト1) | エラーとなった(name, args)が再度呼び出された場合 → ループを終了; ヒントは`session_diagnostics`に格納 |
+| 連続エラー | `tool_error_max_consecutive` (デフォルト3) | ラウンド内の全ツールがN回エラーとなった場合 → ループを終了 |
 
-> **Note:** Guard hints are stored for offline diagnostics only. They are **not** injected into `ctx.conv.history`.
-
----
-
-## Concurrency Limits
-
-`tool_concurr
-
-ency_limits: dict[str, int]` (in `ToolConfig`) maps server key to max
-concurrent calls. Implemented as `asyncio.Semaphore` lazily created during tool execution.
-
-If a server key appears in the limit dict, calls are bounded. Missing keys: no limit.
-Unknown server key warning logged but does not error.
+> **Note:** ガードヒントはオフライン診断専用として格納される。`ctx.conv.history`には**注入されない**。
 
 ---
 
-## Fail-Closed Execution Policy
+## 並行実行数の制限
 
-The
+`ToolConfig`内の`tool_concurrency_limits: dict[str, int]`は、サーバーキーを最大並行呼び出し数に
+マッピングする。ツール実行中に遅延生成される`asyncio.Semaphore`として実装される。
 
- orchestrator does NOT fall back to direct (unapproved) execution when a workflow
-cannot be created. If workflow creation fails, a `WorkflowCreationError` is raised and
-the task is rejected with a clear error message.
-
-**Before (removed):** the orchestrator would execute tool calls directly, bypassing
-workflow-level approval checks, when no workflow plan was available.
-
-**After:** `WorkflowCreationError` is raised. The user must fix the underlying cause
-(missing plan, invalid config) and retry.
-
-This is a fail-closed policy: safety is preferred over availability.
-See [Agent Startup and Recovery](05_agent_07_01_cli-and-commands-cli-reference.md#startup-recovery) for the startup recovery model.
+サーバーキーが制限dictに存在する場合、呼び出しは制限される。キーが存在しない場合: 制限なし。
+未知のサーバーキーは警告がログに記録されるがエラーにはならない。
 
 ---
 
-## Workflow Approval Recovery (Cross
+## フェイルクローズ実行ポリシー
 
--Session)
+Orchestratorは、ワークフローを作成できない場合に直接 (未承認の) 実行にフォールバックすること
+はない。ワークフロー作成が失敗すると`WorkflowCreationError`が発生し、タスクは明確なエラー
+メッセージと共に拒否される。
 
-Workflow-level approval state is persisted in the `approvals` table of `workflow.sqlite`.
-When a workflow task is suspended for approval (user must run `/approve` or `/reject`),
-the approval record survives agent restart:
+**以前 (削除済み):** ワークフロー計画が利用できない場合、orchestratorはワークフローレベルの
+承認チェックをバイパスして、ツール呼び出しを直接実行していた。
 
-- **Startup recovery:** On startup, queries the `approvals` table
-  for any pending approval. If found, it sets `ctx.workflow.approval_pending = True` and
-  `ctx.turn.pending_approval_id`, then displays a warning with task ID and approval ID.
+**現在:** `WorkflowCreationError`が発生する。ユーザーは根本原因 (計画の欠落、設定の不正) を
+修正してから再試行する必要がある。
 
-- **Resolution after restart:** `/approve` and `/reject` resolve the latest pending approval
-  from the workflow database — in-memory `pending_approval_id` is NOT required for resolution.
-  This means even if the in-memory state is lost, the user can still approve/reject via the CLI.
-
-- **Warning message includes IDs:** The startup warning shows `task=<id> approval=<id> reason=<reason>`
-  so operators can correlate with logs and know which task to act on.
+これはフェイルクローズなポリシーである: 可用性よりも安全性が優先される。
+起動時のリカバリモデルについては[Agent Startup and Recovery](05_agent_07_01_cli-and-commands-cli-reference.md#startup-recovery)を参照。
 
 ---
 
-## Canonical Approval Model (ADR-001
+## ワークフロー承認のリカバリ (セッションをまたぐ場合)
+
+ワークフローレベルの承認状態は`workflow.sqlite`の`approvals`テーブルに永続化される。
+ワークフロータスクが承認待ちで一時停止した場合 (ユーザーは`/approve`または`/reject`を
+実行する必要がある)、承認レコードはエージェントの再起動をまたいで存続する:
+
+- **起動時のリカバリ:** 起動時、`approvals`テーブルを検索し、承認待ちのものがあるかを
+  確認する。見つかった場合、`ctx.workflow.approval_pending = True`と
+  `ctx.turn.pending_approval_id`を設定し、タスクIDと承認IDを含む警告を表示する。
+
+- **再起動後の解決:** `/approve`と`/reject`は、ワークフローデータベースから最新の
+  承認待ちを解決する — 解決にはメモリ上の`pending_approval_id`は不要である。
+  つまり、メモリ上の状態が失われていても、ユーザーはCLI経由で承認/拒否を行える。
+
+- **警告メッセージにIDを含む:** 起動時の警告は`task=<id> approval=<id> reason=<reason>`を
+  表示するため、運用者はログと照合し、どのタスクに対応すべきかを把握できる。
+
+---
 
 ## Related Documents
 
-- `agent`
-- `tool`
-- `execution`
+- `05_agent_00_document-guide.md`
+- `05_agent_06_01_tool-execution-and-approval-execution.md`
+- `05_agent_06_02_tool-execution-and-approval-approval.md`
+- `05_agent_06_04_tool-execution-and-approval-canonical.md`
 
 ## Keywords
 
-agent
-tool
-execution
-approval
-safety
+safety controls summary
+ToolLoopGuard
+concurrency limits
+fail-closed execution policy
+workflow approval recovery

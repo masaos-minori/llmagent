@@ -12,38 +12,37 @@ source:
   - 03_rag_91_design_notes.md
 ---
 
-# DESIGN-3 Table Responsibilities
+# DESIGN-3 テーブルの責務
 
 
-## DESIGN-3 Regression Test Expectations
+## DESIGN-3 リグレッションテストの期待値
 
-**Existing tests:**
+**既存のテスト:**
 
 | Test | File | Coverage |
 |------|------|----------|
-| FTS5 trigger sync verification | `tests/test_fts_fallback.py` | ✓ INSERT/UPDATE/DELETE triggers use COALESCE |
-| Vector orphan detection | `scripts/db/maintenance.py:check_rag_consistency()` | ✓ `orphan_vec_count` reported |
+| FTS5トリガー同期の検証 | `tests/test_fts_fallback.py` | ✓ INSERT/UPDATE/DELETEトリガーがCOALESCEを使用していることを確認 |
+| ベクトル孤立検出 | `scripts/db/maintenance.py:check_rag_consistency()` | ✓ `orphan_vec_count`が報告される |
 
-**Regression tests:**
+**リグレッションテスト:**
 
 | Test ID | Description | File | Status |
 |---------|-------------|------|--------|
-| TEST-DESIGN3-01 | FTS rebuild uses COALESCE(normalized_content, content) | `tests/test_rag_index_integrity.py` | ✓ Added |
-| TEST-DESIGN3-02 | `chunks_fts` is synchronized from `chunks` (not independently maintained) | `tests/test_rag_index_integrity.py` | ✓ Added |
-| TEST-DESIGN3-03 | Force re-ingestion does not leave orphan vector records | `tests/test_rag_index_integrity.py` | ✓ Added |
-| TEST-DESIGN3-04 | Deletion order invariant: `chunks_vec` → `chunks` → `documents` | `tests/test_rag_index_integrity.py` | ✓ Added |
-| TEST-DESIGN3-05 | Consistency checks detect derived index desynchronization | `tests/test_rag_index_integrity.py` | ✓ Added |
+| TEST-DESIGN3-01 | FTS再構築がCOALESCE(normalized_content, content)を使用する | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
+| TEST-DESIGN3-02 | `chunks_fts`は`chunks`から同期される (独立して維持されるものではない) | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
+| TEST-DESIGN3-03 | 強制再取り込みは孤立したベクトルレコードを残さない | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
+| TEST-DESIGN3-04 | 削除順序の不変条件: `chunks_vec` → `chunks` → `documents` | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
+| TEST-DESIGN3-05 | 整合性チェックが派生インデックスの非同期を検出する | `tests/test_rag_index_integrity.py` | ✓ 追加済み |
 
-**Bug fix — reconcile_url() FTS deletion:**
+**バグ修正 — reconcile_url()のFTS削除:**
 
-`RagMaintenanceService.reconcile_url()` used `DELETE FROM chunks_fts WHERE chunk_id IN (...)`
-which is invalid on an FTS5 content table. Fixed in
-`scripts/agent/services/rag_maintenance_service.py` to use the correct per-row FTS5
-delete-command syntax:
-`INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', ?, ?)`.
-Regression test: `tests/test_rag_index_integrity.py::test_reconcile_url_fts_deletion`.
+`RagMaintenanceService.reconcile_url()`は`DELETE FROM chunks_fts WHERE chunk_id IN (...)`を
+使用していたが、これはFTS5コンテンツテーブルでは無効である。
+`scripts/agent/services/rag_maintenance_service.py`で修正し、正しい行単位のFTS5削除コマンド構文
+`INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', ?, ?)`を使用するようにした。
+リグレッションテスト: `tests/test_rag_index_integrity.py::test_reconcile_url_fts_deletion`。
 
-**TEST-DESIGN3-01: FTS rebuild uses COALESCE**
+**TEST-DESIGN3-01: FTS再構築がCOALESCEを使用する**
 
 ```python
 # Pseudocode for integration test
@@ -66,7 +65,7 @@ def test_fts_rebuild_uses_cascade(db):
     assert results[0].content == "english text"
 ```
 
-**TEST-DESIGN3-02: chunks_fts is derived, not canonical**
+**TEST-DESIGN3-02: chunks_ftsは派生であり、正規ではない**
 
 ```python
 # Pseudocode for integration test
@@ -79,7 +78,7 @@ def test_chunks_fts_is_derived_index(db):
     assert len(results) == 1
 ```
 
-**TEST-DESIGN3-03: Force re-ingestion no orphan vectors**
+**TEST-DESIGN3-03: 強制再取り込みで孤立ベクトルが発生しないこと**
 
 ```python
 # Pseudocode for integration test
@@ -97,7 +96,7 @@ def test_force_reingest_no_orphan_vectors(db):
     assert orphan_count == 0
 ```
 
-**TEST-DESIGN3-04: Deletion order invariant**
+**TEST-DESIGN3-04: 削除順序の不変条件**
 
 ```python
 # Pseudocode for integration test
@@ -116,7 +115,7 @@ def test_deletion_order_invariant(db):
     assert orphan_count == 0
 ```
 
-**TEST-DESIGN3-05: Consistency checks detect desynchronization**
+**TEST-DESIGN3-05: 整合性チェックが非同期を検出する**
 
 ```python
 # Pseudocode for integration test

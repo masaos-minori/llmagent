@@ -24,46 +24,46 @@ source:
 
 ## GET /subscribe
 
-Streams events to the caller using a hybrid replay+push model:
+replay と push を組み合わせたハイブリッドモデルで、呼び出し元にイベントをストリーミングする。
 
-**Phase 1 — Replay**: On connect, queries SQLite for all events with `seq > start_seq` matching the topic filter. Each event is yielded as a `data:` SSE line immediately.
+**フェーズ 1 — リプレイ**: 接続時に、トピックフィルタに一致する `seq > start_seq` のすべてのイベントを SQLite に問い合わせる。各イベントは即座に `data:` SSE 行として出力される。
 
-**Phase 2 — Live push**: After replay completes, the connection subscribes to the in-process `EventBroker`. New events published via `POST /publish` are pushed to the SSE stream within one event loop tick — no polling delay.
+**フェーズ 2 — ライブ push**: リプレイが完了すると、接続はプロセス内の `EventBroker` を subscribe する。`POST /publish` で publish された新しいイベントは、1 イベントループティック以内に SSE ストリームへ push される — ポーリングによる遅延はない。
 
-**Reconnect semantics**: Provide `consumer_id` to resume from the last acknowledged offset. The handler reads the stored offset as `start_seq`, ensuring missed events during a disconnect are replayed automatically.
+**再接続時のセマンティクス**: `consumer_id` を指定すると、最後に ack されたオフセットから再開する。ハンドラは保存済みオフセットを `start_seq` として読み込み、切断中に取り損なったイベントが再接続時に自動的に replay されるようにする。
 
-**Race-free transition**: The broker subscription is registered *before* the replay query. Any event published during the replay phase is queued and deduplicated against `replay_ceil` (last seq from replay) at the start of the live phase — no events are lost or duplicated.
+**競合のない遷移**: ブローカーへの subscribe 登録は、リプレイのクエリよりも*先に*行われる。リプレイフェーズ中に publish されたイベントはキューに保持され、ライブフェーズ開始時に `replay_ceil`（リプレイの最終 seq）と重複排除される — イベントの欠落や重複は発生しない。
 
-**Query parameters:**
-- `topic` (list[str], default all): filter by topic
-- `since_seq` (int, default 0): starting sequence; overridden by saved offset if `consumer_id` is set and `since_seq == 0`
-- `consumer_id` (str, optional): consumer identifier for offset persistence
+**クエリパラメータ:**
+- `topic` (list[str]、デフォルトは全件): トピックによる絞り込み
+- `since_seq` (int、デフォルト 0): 開始シーケンス。`consumer_id` が指定され `since_seq == 0` の場合は保存済みオフセットで上書きされる
+- `consumer_id` (str、任意): オフセット永続化のためのコンシューマ識別子
 
-Offsets advance only via ack (see `POST /events/{event_id}/ack`). On disconnect, no offset is written — if a consumer disconnects without acking an event, that event will be replayed on reconnect.
+オフセットは ack（`POST /events/{event_id}/ack` を参照）を通じてのみ前進する。切断時にはオフセットは書き込まれない — コンシューマがイベントを ack せずに切断した場合、そのイベントは再接続時に再度 replay される。
 
 ---
 
 ## POST /events/{event_id}/ack [canonical]
 
-Acknowledge an event. Updates the consumer offset to the event's `seq` if `consumer_id` is provided. Idempotent — repeated acks return 200 with `already_acked: true`. Returns 404 only if the event does not exist.
+イベントを ack する。`consumer_id` が指定されている場合、コンシューマオフセットをそのイベントの `seq` に更新する。冪等性あり — 重複した ack は `already_acked: true` を伴う 200 を返す。イベントが存在しない場合のみ 404 を返す。
 
-**Path parameter:**
-- `event_id` (str, required): event ID to acknowledge
+**パスパラメータ:**
+- `event_id` (str、必須): ack するイベント ID
 
-**Query parameters:**
-- `consumer_id` (str, optional): consumer identifier; if present and event is newly acked, writes the event's `seq` as the consumer offset
+**クエリパラメータ:**
+- `consumer_id` (str、任意): コンシューマ識別子。指定されており、かつイベントが新規に ack された場合、そのイベントの `seq` をコンシューマオフセットとして書き込む
 
-**Response 200 (newly acked):** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
-**Response 200 (already acked):** `{"event_id": "...", "acked": true, "already_acked": true}` — no `seq` field
-**Response 404:** event not found.
+**レスポンス 200（新規 ack）:** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` はイベントのシーケンス番号（consumer_id が指定されなかった場合は None）
+**レスポンス 200（既に ack 済み）:** `{"event_id": "...", "acked": true, "already_acked": true}` — `seq` フィールドはなし
+**レスポンス 404:** イベントが見つからない。
 
-**Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 200 with `already_acked: true` regardless of whether a consumer_id is provided.
+**オフセットの挙動**: オフセットは、`consumer_id` が指定されており、かつそのイベントが新規に ack された場合（以前に ack されていない場合）にのみ更新される。イベントが既に ack されていた場合、consumer_id の有無に関わらず `already_acked: true` を伴う 200 が返る。
 
-**Monotonic offset note**: Offset advancement is NOT monotonically enforced. Acknowledging an older event (with a smaller `seq`) will move the consumer offset backward to that `seq`. Consumers should ensure they only ack events in order, or handle offset rollback on reconnect.
+**単調性に関する注記**: オフセットの前進は単調性が保証されて**いない**。より小さい `seq` を持つ古いイベントを ack すると、コンシューマオフセットはその `seq` まで後退する。コンシューマ側でイベントを順序どおりに ack するか、再接続時にオフセットの巻き戻りを処理するようにすること。
 
 ---
 
-**Note (2026-07-10):** `POST /ack` (the query-parameter compatibility alias) was removed. Use `POST /events/{event_id}/ack` exclusively.
+**注記 (2026-07-10):** `POST /ack`（クエリパラメータ方式の互換エイリアス）は削除された。`POST /events/{event_id}/ack` のみを使用すること。
 
 ## Related Documents
 

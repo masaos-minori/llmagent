@@ -20,10 +20,10 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
@@ -40,49 +40,49 @@ from rag.utils import (
 )
 ```
 
-| Function / Constant | Signature | Returns | Description |
+| 関数 / 定数 | シグネチャ | 戻り値 | 説明 |
 |---|---|---|---|
-| `normalize_unicode` | `(text: str) -> str` | `str` | NFKC normalization; converts full-width alphanumerics and variant chars |
-| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | Little-endian float32 BLOB; sqlite-vec `MATCH` operator format. Raises TypeError/ValueError on invalid input |
-| `validate_url` | `(url: str) -> bool` | `bool` | `True` if `http`/`https` scheme with non-empty netloc |
-| `cosine_sim` | `(a: list[float], b: list[float]) -> float` | `float` | Cosine similarity; returns 0.0 when either vector has zero magnitude. Used by SemanticCache |
-| `sanitize_document` | `(text: str) -> str` | `str` | Remove prompt injection patterns (e.g., "ignore instructions", "[SYSTEM OVERRIDE]"); replaces matches with `[REMOVED]` |
-| `sanitize_document_full` | `(text: str) -> SanitizeResult` | `SanitizeResult` | Same as sanitize_document but returns audit trail (detected patterns, was_sanitized flag); returns SanitizeResult dataclass with `was_sanitized: bool`, `patterns: list[str]`, `sanitized_text: str` |
+| `normalize_unicode` | `(text: str) -> str` | `str` | NFKC正規化；全角英数字や異体字を変換する |
+| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | リトルエンディアンのfloat32 BLOB；sqlite-vecの `MATCH` 演算子の形式。不正な入力に対してTypeError/ValueErrorを発生させる |
+| `validate_url` | `(url: str) -> bool` | `bool` | `http`/`https` スキームでnetlocが空でない場合に `True` |
+| `cosine_sim` | `(a: list[float], b: list[float]) -> float` | `float` | コサイン類似度；いずれかのベクトルの大きさが0の場合は0.0を返す。SemanticCacheで使用される |
+| `sanitize_document` | `(text: str) -> str` | `str` | プロンプトインジェクションパターン（例: "ignore instructions"、"[SYSTEM OVERRIDE]"）を除去する；マッチした部分を `[REMOVED]` に置換する |
+| `sanitize_document_full` | `(text: str) -> SanitizeResult` | `SanitizeResult` | sanitize_documentと同様だが監査記録（検出されたパターン、was_sanitizedフラグ）を返す；`was_sanitized: bool`、`patterns: list[str]`、`sanitized_text: str` を持つSanitizeResult dataclassを返す |
 
-**Constants:**
+**定数:**
 
-| Constant | Value | Description |
+| 定数 | 値 | 説明 |
 |---|---|---|
-| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language; also used by `detect_lang()` in crawler_utils |
-| `LOG_KEY_URL` | `"url"` | Structured log field key for URL |
-| `LOG_KEY_DOC_ID` | `"doc_id"` | Structured log field key for document ID |
-| `LOG_KEY_CHUNK_ID` | `"chunk_id"` | Structured log field key for chunk ID |
-| `LOG_KEY_SOURCE_TYPE` | `"source_type"` | Structured log field key for source type (http/file) |
-| `LOG_KEY_STAGE_NAME` | `"stage_name"` | Structured log field key for stage name |
+| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | 言語判定に必要な最小テキスト長；これより短いページはヒント言語を使用する；crawler_utilsの `detect_lang()` でも使用される |
+| `LOG_KEY_URL` | `"url"` | URL用の構造化ログフィールドキー |
+| `LOG_KEY_DOC_ID` | `"doc_id"` | ドキュメントID用の構造化ログフィールドキー |
+| `LOG_KEY_CHUNK_ID` | `"chunk_id"` | チャンクID用の構造化ログフィールドキー |
+| `LOG_KEY_SOURCE_TYPE` | `"source_type"` | ソースタイプ（http/file）用の構造化ログフィールドキー |
+| `LOG_KEY_STAGE_NAME` | `"stage_name"` | ステージ名用の構造化ログフィールドキー |
 
-**Prompt injection patterns:**
+**プロンプトインジェクションパターン:**
 
-| Pattern | Regex | Description |
+| パターン | 正規表現 | 説明 |
 |---|---|---|
-| Ignore instructions | `(?i)(ignore\s+(?:(?:all\|previous)\s+)*instructions?)` | Catch "ignore all instructions", "ignore previous instructions" etc. |
-| System prefix | `(?i)(system\s*:\s*)` | Catch "system:" prefix |
-| SYSTEM OVERRIDE | `(?i)\[SYSTEM\s*OVERRIDE\]` | Catch "[SYSTEM OVERRIDE]" |
-| Disregard instructions | `(?i)(disregard\s+(?:(?:all\|prior\|previous)\s+)*instructions?)` | Catch "disregard all instructions" etc. |
-| New instructions | `(?i)(new\s+instructions?:)` | Catch "new instructions:" etc. |
+| Ignore instructions | `(?i)(ignore\s+(?:(?:all\|previous)\s+)*instructions?)` | "ignore all instructions"、"ignore previous instructions" などを捕捉する |
+| System prefix | `(?i)(system\s*:\s*)` | "system:" というプレフィックスを捕捉する |
+| SYSTEM OVERRIDE | `(?i)\[SYSTEM\s*OVERRIDE\]` | "[SYSTEM OVERRIDE]" を捕捉する |
+| Disregard instructions | `(?i)(disregard\s+(?:(?:all\|prior\|previous)\s+)*instructions?)` | "disregard all instructions" などを捕捉する |
+| New instructions | `(?i)(new\s+instructions?:)` | "new instructions:" などを捕捉する |
 
-**Structured log keys (RAG lifecycle tracing):**
+**構造化ログキー（RAGライフサイクルのトレース）:**
 
-| Key | Value | Used by |
+| キー | 値 | 使用元 |
 |---|---|---|
-| `url` | URL string | crawler, ingester |
-| `doc_id` | INTEGER document ID | ingester |
-| `chunk_id` | INTEGER chunk ID | ingester (via chunks_vec insert) |
-| `source_type` | `"http"` / `"file"` | crawler, ingester |
-| `stage_name` | Script name ("ingester") | ingester |
+| `url` | URL文字列 | crawler、ingester |
+| `doc_id` | INTEGER型のドキュメントID | ingester |
+| `chunk_id` | INTEGER型のチャンクID | ingester（chunks_vec挿入経由） |
+| `source_type` | `"http"` / `"file"` | crawler、ingester |
+| `stage_name` | スクリプト名（"ingester"） | ingester |
 
-**Used by:**
+**利用元:**
 
-| Script | Functions used |
+| スクリプト | 使用される関数 |
 |---|---|
 | `scripts/rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
 | `scripts/rag/ingestion/chunk_japanese.py` | `normalize_unicode` |

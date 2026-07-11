@@ -19,14 +19,14 @@ source:
 
 # Event Bus: Failure Behavior Summary
 
-| Failure | Behavior |
+| 失敗要因 | 動作 |
 |---|---|
-| JSON Schema validation failure on publish | 422, event not stored |
-| JSONL append failure after SQLite commit | 200 returned, WARNING logged, event in SQLite |
-| DB unavailable on `/health` | `{"status": "degraded", "db": "unavailable", ...}` |
-| DLQ task stopped on `/health` | `{"status": "degraded", ..., "dlq_task": "stopped"}` |
-| Unknown `event_id` on requeue | 404 |
-| Event exists but not in DLQ on requeue | 409 Conflict |
+| publish時のJSON Schema検証失敗 | 422、イベントは保存されない |
+| SQLiteコミット後のJSONL追記失敗 | 200を返す、WARNINGをログ出力、イベントはSQLiteに存在 |
+| `/health` でDBが利用不可 | `{"status": "degraded", "db": "unavailable", ...}` |
+| `/health` でDLQタスクが停止中 | `{"status": "degraded", ..., "dlq_task": "stopped"}` |
+| requeue時に未知の `event_id` | 404 |
+| requeue時にイベントは存在するがDLQに無い | 409 Conflict |
 
 ## Related Documents
 

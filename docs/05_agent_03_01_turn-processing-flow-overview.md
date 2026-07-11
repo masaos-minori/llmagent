@@ -1,8 +1,7 @@
 ---
-title: "Agent Turn Processing Flow"
+title: "Agent Turn Processing Flow - Overview"
 category: agent
 tags:
-  - agent
   - agent
   - turn
   - processing
@@ -10,164 +9,106 @@ tags:
   - orchestrator
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+source:
+  - 05_agent_03_01_turn-processing-flow-overview.md
 ---
 
-# Agent Turn Processing Flow
+# エージェントターン処理フロー
+
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+
+## 目的
+
+1回の会話ターンにおける操作の正確なシーケンスを、状態遷移・エラーハンドリングパス・
+部分完了時の挙動を含めて文書化する。
+
+---
+
+## 1ターンの処理フロー
 
 ```
 User input (line)
   │
   ├─ line.startswith("/")
-  │    └─ CommandRegistry.dispatch(line)     — slash command; no LLM call
+  │    └─ CommandRegistry.dispatch(line)     — スラッシュコマンド、LLM呼び出しなし
   │
   └─ Orchestrator.handle_turn(line)
        │
-       ① Turn start handling
-       │    → generate UUID4 current_turn_id
-       │    → emit audit log: turn_start
+       ① ターン開始処理
+       │    → UUID4のcurrent_turn_idを生成
+       │    → 監査ログを発行: turn_start
        │
-       ② Memory injection                       [if use_memory_layer=True]
+       ② メモリ注入                       [use_memory_layer=Trueの場合]
        │    → MemoryInjectionService.on_user_prompt(query, session_id)
-       │    → inject memory snippets as "system" role messages
-       │          → sets memory_injected flag
+       │    → メモリスニペットを"system"ロールメッセージとして注入
+       │          → memory_injectedフラグを設定
        │
-       ③ Append user message
-        │    → append user message to ctx.conv.history
+       ③ ユーザーメッセージの追加
+        │    → ユーザーメッセージをctx.conv.historyに追加
         │    → AgentSession.save("user", content)
-        │    → (first turn only) asyncio.create_task for session title generation
+        │    → (最初のターンのみ) セッションタイトル生成のためasyncio.create_task
         │
-        ④ Handle history compression
+        ④ 履歴圧縮の処理
        │    → HistoryManager.compress(history)
-       │    → replaces oldest turns with LLM summary if over char/token limit
+       │    → 文字数/トークン数の上限を超えた場合、最も古いターンをLLM要約で置換
        │
-       ⑤ LLM turn handling
+       ⑤ LLMターン処理
        │    → LLMTurnRunner.run(llm_url)
        │         ├─ LLMClient.stream(url, history, tool_defs)
-       │         │    → SSE streaming → on_token callbacks → CLIView.write_token()
-       │         │    → collect content_parts + tool_calls_map
+       │         │    → SSEストリーミング → on_tokenコールバック → CLIView.write_token()
+       │         │    → content_parts + tool_calls_mapを収集
        │         │
-       │         └─ Tool loop (inner, up to max_tool_turns=5):
+       │         └─ ツールループ (内部、max_tool_turns=5まで):
        │              → execute_all_tool_calls()
-       │                   → parallel (asyncio.gather) unless side-effect tools present
+       │                   → 副作用のあるツールが存在しない限り並列実行 (asyncio.gather)
        │                   → ToolExecutor.execute(tool_name, args)
-       │                   → append tool results to history as "tool" role
-       │              → re-send history to LLM
-       │              → ToolLoopGuard: dedup / cycle / retry / consecutive-error guards
+       │                   → ツール実行結果を"tool"ロールとして履歴に追加
+       │              → 履歴をLLMに再送信
+       │              → ToolLoopGuard: 重複排除/循環/リトライ/連続エラーのガード
        │
-       ⑥ Turn end handling
-            → emit audit log: turn_end (elapsed_ms, token counts, reconnect count, etc.)
+       ⑥ ターン終了処理
+            → 監査ログを発行: turn_end (経過ms、トークン数、再接続回数など)
             → ctx.turn.current_turn_id = None
 ```
 
 ---
 
-## Memory Injection Detail
+## メモリ注入の詳細
 
--
-
- Triggered at step ② when `AgentConfig.use_memory_layer=True`
-- `MemoryInjectionService.on_user_prompt()` retrieves relevant memories (FTS5 + optional KNN)
-- Injected as a `"system"` role message prepended to the turn
-- `/undo` removes these injected messages along with the user+assistant turn
+- `AgentConfig.use_memory_layer=True`の場合、ステップ②でトリガーされる
+- `MemoryInjectionService.on_user_prompt()`が関連メモリを取得する (FTS5 + オプションでKNN)
+- ターンの先頭に`"system"`ロールメッセージとして注入される
+- `/undo`はこれらの注入メッセージをユーザー+アシスタントのターンと共に削除する
 
 ---
 
-## History Compression Detail
+## 履歴圧縮の詳細
 
-
-
-- Triggered at step ④ every turn (no-op if below threshold)
-- `HistoryManager.compress()` checks `context_char_limit` (chars) AND `context_token_limit` (tokens)
-- `HistorySelectionPolicy` selects oldest turns by importance score and category:
-  - `temporary` (tool role) → lowest retention priority
-  - `temporary_reasoning` (assistant with tool_calls) → low priority
-  - `factual` (system) → preserved
-  - `history` (user/assistant text) → normal priority
-- Most recent `history_protect_turns` (default 2) turn pairs are always protected
-- On success: `CLIView.write_compress_notice(n)` displays compression notice
-- On LLM failure while over char limit: drops lowest-importance messages
-  (tool-role first, then sorted by `classify_importance` ascending) until under limit
-- Fallback count tracked in `stat_fallback_truncate_count`; visible via `/context` as "Fallback trunc"
+- 毎ターン、ステップ④でトリガーされる (閾値未満の場合は何もしない)
+- `HistoryManager.compress()`は`context_char_limit` (文字数) と `context_token_limit` (トークン数) の両方をチェックする
+- `HistorySelectionPolicy`が重要度スコアとカテゴリに基づき最も古いターンを選択する:
+  - `temporary` (toolロール) → 最も保持優先度が低い
+  - `temporary_reasoning` (tool_calls付きassistant) → 優先度低
+  - `factual` (system) → 保持される
+  - `history` (user/assistantのテキスト) → 通常優先度
+- 直近の`history_protect_turns` (デフォルト2) ターンペアは常に保護される
+- 成功時: `CLIView.write_compress_notice(n)`が圧縮通知を表示する
+- 文字数上限超過中にLLM呼び出しが失敗した場合: 重要度の低いメッセージから
+  (toolロールを優先し、次に`classify_importance`の昇順でソート) 上限を下回るまで破棄する
+- フォールバック回数は`stat_fallback_truncate_count`で追跡され、`/context`で"Fallback trunc"として表示される
 
 ---
-
-## LLM Invocation and Tool Lo
-
-op
-
-`LLMTurnRunner.run(llm_url)` manages the inner loop:
-
-1. Build payload: `history + tool_definitions + temperature + max_tokens + stream=True`
-2. Send to LLM via SSE streaming
-3. Collect `content_parts` (text) and `tool_calls_map` (function calls)
-4. If `finish_reason == "tool_calls"`:
-   - Execute tools → append results → re-send to LLM
-   - Repeat up to `max_tool_turns` times
-5. If `finish_reason == "stop"` or `max_tool_turns` exceeded: return final answer
-
-
-
-`ToolLoopGuard` guards during each tool loop iteration:
-- **Dedup:** same `(name, args)` seen ≥ `tool_dedup_max_repeats` times → terminate loop;
-  user sees `"Repeated tool call detected."`; hint stored in `session_diagnostics`
-  (`kind='guard_hint'`, `guard_type='dedup'`).
-- **Cycle detection:** same tool-call fingerprint repeated in the last
-  `tool_cycle_detect_window` rounds → terminate loop;
-  user sees `"Cyclic tool call pattern detected."`;
-  hint stored in `session_diagnostics` (`kind='guard_hint'`, `guard_type='cycle'`).
-- **Retry:** errored `(name, args)` called again → terminate loop;
-  user sees `"Repeated failed tool call detected."`;
-  hint stored in `session_diagnostics` (`kind='guard_hint'`, `guard_type='retry'`).
-- **Consecutive error:** all tools in a round errored `tool_error_max_consecutive` times
-   → terminate loop; user sees `"Too many consecutive tool errors."`.
-
-### TurnLoopState dataclass
-
-Holds per-turn loop state:
-
-| Field | Type | Description |
-|---|---|---|
-| `seen_calls` | `set[str]` | Tool call fingerprints seen in current turn |
-| `failed_calls` | `set[str]` | Failed tool call fingerprints |
-| `consecutive_errors` | `int` | Count of consecutive rounds where all tools failed |
-| `round_fingerprints` | `list[str]` | Fingerprints from last N rounds (cycle detection window) |
-
-### Guard methods
-
-| Method | Responsibility |
-|---|---|
-| `check_all(seen_calls, round_fingerprints, failed_calls, message)` | Run dedup, cycle, and retry checks; return hint if any guard triggers |
-| `check_error_limit(consecutive_errors)` | Check consecutive error limit; return message if exceeded |
-
-### Guard constants
-
-| Constant | Value | Purpose |
-|---|---|---|
-| `DEDUP_HINT` | `"Repeated tool call detected. Use /context to see conversation."` | Dedup guard hit message |
-| `CYCLE_HINT` | `"Cyclic tool call pattern detected."` | Cycle detection guard hit message |
-| `RETRY_HINT` | `"Repeated failed tool call detected."` | Retry guard hit message |
-
-> **Note:** Guard hints (`DEDUP_HINT`, `CYCLE_HINT`, `RETRY_HINT`) are stored in
-> `session_diagnostics` under `kind='guard_hint'` for offline diagnostics only.
-> They are **not** injected into `ctx.conv.history` and the LLM does not see them.
-> The loop terminates immediately on any guard hit.
-
----
-
-## Error Handling
-
-### LLM Tr
 
 ## Related Documents
 
-- `agent`
-- `turn`
-- `processing`
+- `05_agent_00_document-guide.md`
+- `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
 
 ## Keywords
 
-agent
-turn
-processing
-flow
-orchestrator
+one-turn processing flow
+memory injection detail
+history compression detail

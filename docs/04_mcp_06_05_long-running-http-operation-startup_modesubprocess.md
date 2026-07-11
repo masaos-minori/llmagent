@@ -15,8 +15,8 @@ source:
 
 ## Long-Running HTTP Operation (startup_mode=subprocess)
 
-Agent spawns uvicorn at launch, polls `/health` every 1 second up to `startup_timeout_sec`.
-`RuntimeError` if health check never succeeds.
+Agentは起動時にuvicornを起動し、`startup_timeout_sec` まで1秒ごとに `/health` をポーリングする。
+ヘルスチェックが一度も成功しない場合は `RuntimeError` となる。
 
 ---
 

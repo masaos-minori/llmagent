@@ -1,42 +1,48 @@
 ---
-title: "Agent Configuration"
+title: "Agent Configuration - ToolConfig and MemoryConfig"
 category: agent
 tags:
   - agent
-  - agent
   - configuration
-  - config
-  - settings
+  - toolconfig
+  - memoryconfig
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_08_01_configuration-loading-agent-config.md
+  - 05_agent_08_02_configuration-llm-rag.md
+  - 05_agent_08_04_configuration-mcp-approval-obs.md
+source:
+  - 05_agent_08_01_configuration-loading-agent-config.md
 ---
 
-# Agent Configuration
+# エージェント設定
 
-ol.*`)
+- 運用 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+
+## ToolConfig (`cfg.tool.*`)
 
 Source: `config/agent.toml`
 
 | Field | Default | Production Recommended | Description |
 |---|---|---|---|
-| `tool_cache_ttl` | `300.0` | `300.0` | Tool result cache TTL (seconds) |
-| `tool_cache_max_size` | `200` | `200` | LRU cache size (0 = unlimited) |
-| `serial_tool_calls` | `False` | `False` | Force sequential tool execution |
-| `tool_definitions_strict` | `False` | `True` | `true`: schema mismatch in reachable servers → `RuntimeError` at startup. `false`: mismatch → WARNING only. When ALL servers are unreachable, strict mode skips validation (no abort). See [04_mcp_06 §Startup Validation Behavior](04_mcp_06_02_configuration-file-inventory.md) for full behavior table. |
-| `routing_drift_strict` | `False` | `True` | `true`: config/registry routing drift detected at startup → `RuntimeError` (startup aborted). `false`: drift → `[non-fatal]` WARNING only. Startup-only field; requires restart to take effect. |
-| `tool_dedup_max_repeats` | `3` | `3` | Same (name,args) repeat limit |
-| `tool_cycle_detect_window` | `2` | `2` | Cycle detection window (rounds; 0=disabled) |
-| `tool_error_max_consecutive` | `3` | `3` | Consecutive all-error rounds to break loop |
-| `tool_error_retry_max` | `1` | `1` | Errored (name,args) retry limit |
-| `tool_concurrency_limits` | `{}` | `{}` | Server key → max concurrent calls |
-| `masked_fields` | `["file_content"]` | `["file_content"]` | Args keys to mask in console display |
-| `plan_blocked_tools` | `[write_file, create_directory, ...]` | `[write_file, create_directory, ...]` | Auto-blocked in plan mode |
-| `max_tool_turns` | `5` | `5` | Max tool call turns per message |
-| `tool_result_max_llm_chars` | `8000` | `8000` | Max tool result chars added to LLM context |
-| `tool_results_turn_max_chars` | `50000` | `50000` | Maximum cumulative tool result characters added to LLM context in a single turn. Protects against excessive per-turn context growth from multiple tool outputs. When exceeded, omitted results are replaced with TURN_LIMIT_HINT. |
-| `use_tool_dag` | `True` | `True` | Dependency-aware scheduling: independent reads run concurrently; writes serialized per resource scope. Setting to `false` is legacy (non-production) behavior: all WRITE_TOOLS run before READ_TOOLS within a round, without resource-scoped parallelism. |
-| `plugin_strict` | `False` | `True` | Raise on first plugin import error (fail-fast for CI/CD) |
-| `plugin_tool_override` | `False` | `False` | Allow plugin tools to shadow MCP tools when names conflict |
+| `tool_cache_ttl` | `300.0` | `300.0` | ツール実行結果キャッシュのTTL (秒) |
+| `tool_cache_max_size` | `200` | `200` | LRUキャッシュサイズ (0 = 無制限) |
+| `serial_tool_calls` | `False` | `False` | ツール実行を強制的に逐次化 |
+| `tool_definitions_strict` | `False` | `True` | `true`: 到達可能なサーバーでのスキーマ不一致 → 起動時に`RuntimeError`。`false`: 不一致 → WARNINGのみ。すべてのサーバーが到達不可の場合、strictモードでも検証をスキップする (中止しない)。全体の挙動表は[04_mcp_06 §Startup Validation Behavior](04_mcp_06_02_configuration-file-inventory.md)を参照。 |
+| `routing_drift_strict` | `False` | `True` | `true`: 起動時にconfig/レジストリのルーティングドリフトを検出 → `RuntimeError` (起動中止)。`false`: ドリフト → `[non-fatal]` WARNINGのみ。起動時のみのフィールド; 反映には再起動が必要。 |
+| `tool_dedup_max_repeats` | `3` | `3` | 同一(name,args)の繰り返し上限 |
+| `tool_cycle_detect_window` | `2` | `2` | 循環検出ウィンドウ (ラウンド数; 0=無効) |
+| `tool_error_max_consecutive` | `3` | `3` | ループを終了させる連続全エラーラウンド数 |
+| `tool_error_retry_max` | `1` | `1` | エラーとなった(name,args)のリトライ上限 |
+| `tool_concurrency_limits` | `{}` | `{}` | サーバーキー → 最大並行呼び出し数 |
+| `masked_fields` | `["file_content"]` | `["file_content"]` | コンソール表示でマスクする引数キー |
+| `plan_blocked_tools` | `[write_file, create_directory, ...]` | `[write_file, create_directory, ...]` | プランモードで自動ブロックされる |
+| `max_tool_turns` | `5` | `5` | メッセージごとの最大ツール呼び出しターン数 |
+| `tool_result_max_llm_chars` | `8000` | `8000` | LLMコンテキストに追加されるツール実行結果の最大文字数 |
+| `tool_results_turn_max_chars` | `50000` | `50000` | 1ターン中にLLMコンテキストへ追加されるツール実行結果の累積最大文字数。複数のツール出力によるターンあたりの過剰なコンテキスト増大を防ぐ。超過した場合、省略された結果はTURN_LIMIT_HINTに置き換えられる。 |
+| `use_tool_dag` | `True` | `True` | 依存関係を考慮したスケジューリング: 独立した読み取りは並行実行され、書き込みはリソーススコープごとにシリアル化される。`false`に設定するのはレガシー (非本番) の挙動である: リソーススコープ単位の並列性なしに、ラウンド内のすべてのWRITE_TOOLSがREAD_TOOLSより前に実行される。 |
+| `plugin_strict` | `False` | `True` | 最初のプラグインインポートエラーで例外を発生させる (CI/CD向けfail-fast) |
+| `plugin_tool_override` | `False` | `False` | 名前が競合した場合、プラグインツールがMCPツールをシャドーすることを許可する |
 
 **`use_tool_dag` resource_scope 規約:**
 
@@ -50,37 +56,35 @@ DAG モード (`use_tool_dag = true`) では、ツールごとに `ToolSpec` を
 
 config (`tools_definitions.toml` または `agent.toml`) に `resource_scope` または `requires_serial` を明示した場合はそれが優先される。同一 `resource_scope` を持つ write ツールの複数呼び出しは同一グループ内で `asyncio.gather` により並行実行される。
 
-| `tool_definitions` | `[]` | Tool definitions from `tools_definitions.toml` |
-| `system_prompts` | `{}` | System prompt preset dict |
-| `allowed_tools` | `[]` | Session tool whitelist (empty = all allowed) |
+| `tool_definitions` | `[]` | `tools_definitions.toml`由来のツール定義 |
+| `system_prompts` | `{}` | システムプロンプトプリセットのdict |
+| `allowed_tools` | `[]` | セッションのツールホワイトリスト (空 = すべて許可) |
 
 ---
 
-## MemoryConfig (`cfg.
-
-memory.*`)
+## MemoryConfig (`cfg.memory.*`)
 
 Source: `config/agent.toml`
 
 | Field | Default | Description |
 |---|---|---|
-| `use_memory_layer` | `False` | Enable persistent semantic memory |
-| `memory_jsonl_dir` | `"/opt/llm/memory"` | JSONL source directory (canonical key; NOT `memory_jsonl_path`) |
-| `memory_max_inject_semantic` | `5` | Semantic entries injected at session start |
-| `memory_max_inject_episodic` | `3` | Episodic entries injected per user prompt |
-| `memory_min_importance` | `0.3` | Minimum importance score for injection |
-| `memory_embed_enabled` | `False` | Enable embedding + KNN for memory retrieval |
-| `memory_embed_dim` | `384` | Embedding dimension (must match vec0 schema) |
-| `memory_dedup_threshold` | `0.3` | L2 distance for dedup link detection |
-| `memory_max_content_chars` | `500` | Max content chars saved per memory entry |
-| `memory_embed_timeout_sec` | `5.0` | Embedding HTTP call timeout |
-| `memory_retention_days` | `90` | Retention period (days) |
-| `memory_local_only` | `False` | Reject non-loopback `embed_url` at startup |
-| `memory_fts_limit` | `50` | FTS5 candidate limit before rescoring |
-| `memory_rrf_k` | `60` | RRF fusion constant |
-| `memory_recency_days` | `7.0` | Recency boost window (days) |
+| `use_memory_layer` | `False` | 永続的なセマンティックメモリを有効化 |
+| `memory_jsonl_dir` | `"/opt/llm/memory"` | JSONLソースディレクトリ (正式なキー; `memory_jsonl_path`ではない) |
+| `memory_max_inject_semantic` | `5` | セッション開始時に注入されるセマンティックエントリ数 |
+| `memory_max_inject_episodic` | `3` | ユーザープロンプトごとに注入されるエピソードエントリ数 |
+| `memory_min_importance` | `0.3` | 注入に必要な最小重要度スコア |
+| `memory_embed_enabled` | `False` | メモリ検索のための埋め込み+KNNを有効化 |
+| `memory_embed_dim` | `384` | 埋め込み次元数 (vec0スキーマと一致する必要がある) |
+| `memory_dedup_threshold` | `0.3` | 重複排除リンク検出のL2距離 |
+| `memory_max_content_chars` | `500` | メモリエントリごとに保存する最大コンテンツ文字数 |
+| `memory_embed_timeout_sec` | `5.0` | 埋め込みHTTP呼び出しのタイムアウト |
+| `memory_retention_days` | `90` | 保持期間 (日数) |
+| `memory_local_only` | `False` | 起動時にloopback以外の`embed_url`を拒否 |
+| `memory_fts_limit` | `50` | 再スコアリング前のFTS5候補数上限 |
+| `memory_rrf_k` | `60` | RRF融合定数 |
+| `memory_recency_days` | `7.0` | 直近性ブーストのウィンドウ (日数) |
 
-**Activation mode**: set by the combination of `use_memory_layer`, `memory_embed_enabled`, and embedding circuit state:
+**有効化モード**: `use_memory_layer`, `memory_embed_enabled`, 埋め込みサーキットの状態の組み合わせにより決定される:
 
 | `use_memory_layer` | `memory_embed_enabled` | Circuit | Mode |
 |---|---|---|---|
@@ -91,17 +95,14 @@ Source: `config/agent.toml`
 
 ---
 
-## MCPConfig (`cfg.mcp
-
 ## Related Documents
 
-- `agent`
-- `configuration`
-- `config`
+- `05_agent_00_document-guide.md`
+- `05_agent_08_01_configuration-loading-agent-config.md`
+- `05_agent_08_02_configuration-llm-rag.md`
+- `05_agent_08_04_configuration-mcp-approval-obs.md`
 
 ## Keywords
 
-agent
-configuration
-config
-settings
+ToolConfig
+MemoryConfig

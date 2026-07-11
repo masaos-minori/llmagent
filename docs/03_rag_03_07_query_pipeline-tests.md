@@ -17,33 +17,33 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 8. Tests
+## 8. テスト
 
-### 8.1 Deterministic regression tests (`tests/test_rag_quality_regression.py`)
+### 8.1 決定論的リグレッションテスト (`tests/test_rag_quality_regression.py`)
 
-Fixtures: in-memory SQLite DB with 3 known documents, fixed-vector mock embedder.
+フィクスチャ: 既知の3ドキュメントを持つインメモリSQLite DB、固定ベクトルのモックエンベッダー。
 
-| Test | Mode | Assertion |
+| テスト | モード | アサーション |
 |---|---|---|
-| `test_rrf_returns_result_for_known_query` | RRF (default) | `len(result.reranked) >= 0` — must not raise |
-| `test_no_rrf_returns_result` | No-RRF | `len(result.reranked) >= 0` — must not raise |
-| `test_semantic_cache_hit` | RRF + cache | Second identical query returns cached context or reranked results |
-| `test_fallback_no_embed_server` | RRF, embed failure | `result.reranked == []` — fallback yields empty result, not exception |
-| `test_rrf_score_values_with_known_hits` | `use_rrf=True, rrf_k=60` | Hit in both lists has strictly higher `rrf_score` |
-| `test_top_n_retrieval_count` | `use_rrf=True, use_rerank=False, rag_top_k=3` | `len(reranked)==3`, `len(merged)==5` |
-| `test_semantic_cache_hit_returns_cached_result` | Direct `SemanticCache` unit | `lookup()` returns stored context |
-| `test_semantic_cache_miss_below_threshold` | Direct `SemanticCache` unit | `lookup()` returns `None` when cosine sim < threshold |
-| `test_rrf_merged_order_is_descending` | `use_rrf=True` | `merged` is sorted descending by `rrf_score` |
+| `test_rrf_returns_result_for_known_query` | RRF (デフォルト) | `len(result.reranked) >= 0` — 例外を発生させないこと |
+| `test_no_rrf_returns_result` | RRFなし | `len(result.reranked) >= 0` — 例外を発生させないこと |
+| `test_semantic_cache_hit` | RRF + キャッシュ | 同一クエリの2回目はキャッシュされたコンテキストまたはリランク結果を返す |
+| `test_fallback_no_embed_server` | RRF、埋め込み失敗 | `result.reranked == []` — フォールバックは例外ではなく空の結果を返す |
+| `test_rrf_score_values_with_known_hits` | `use_rrf=True, rrf_k=60` | 両方のリストでヒットした項目は`rrf_score`が厳密に高くなる |
+| `test_top_n_retrieval_count` | `use_rrf=True, use_rerank=False, rag_top_k=3` | `len(reranked)==3`、`len(merged)==5` |
+| `test_semantic_cache_hit_returns_cached_result` | `SemanticCache`単体の直接テスト | `lookup()`が保存済みコンテキストを返す |
+| `test_semantic_cache_miss_below_threshold` | `SemanticCache`単体の直接テスト | コサイン類似度が閾値未満の場合、`lookup()`は`None`を返す |
+| `test_rrf_merged_order_is_descending` | `use_rrf=True` | `merged`は`rrf_score`の降順にソートされている |
 
-Run: `uv run pytest tests/test_rag_quality_regression.py -v`
+実行: `uv run pytest tests/test_rag_quality_regression.py -v`
 
 ---
 
@@ -59,6 +59,7 @@ Run: `uv run pytest tests/test_rag_quality_regression.py -v`
 - `03_rag_05_1-configuration-reference.md`
 
 ## Keywords
+
 
 rag-tests
 quality-regression

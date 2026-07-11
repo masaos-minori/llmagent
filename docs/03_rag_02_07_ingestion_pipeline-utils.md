@@ -22,79 +22,79 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 5. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
 
-### 5.1 Module overview
+### 5.1 モジュール概要
 
-`crawler_utils.py` — Pure-function utilities for WebCrawler: URL helpers, content extraction, language detection, and target URL parsing. Extracted from `WebCrawler` class to keep it under 400 lines.
+`crawler_utils.py` — WebCrawlerのための純粋関数ユーティリティ群: URLヘルパー、コンテンツ抽出、言語判定、対象URLのパース。`WebCrawler` クラスを400行未満に保つために抽出された。
 
-**Module-level constants**
+**モジュールレベルの定数**
 
-| Constant | Value | Description |
+| 定数 | 値 | 説明 |
 |---|---|---|
-| `_SUPPORTED_LANGS` | `frozenset({"en", "ja"})` | Supported language codes for resolved (output) lang values |
-| `_VALID_HINT_LANGS` | `frozenset({"en", "ja", "auto"})` | Valid hint lang values including "auto" for per-page CJK-ratio detection |
-| `_CJK_RATIO_THRESHOLD` | `0.1` | CJK character ratio threshold above which text is classified as Japanese |
-| `_TARGET_URL_ENTRY_LENGTH` | `2` | Expected element count for target_urls entries: [url, lang] |
-| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` (from `rag.utils`) | Minimum text length for language detection |
+| `_SUPPORTED_LANGS` | `frozenset({"en", "ja"})` | 解決後（出力）のlang値としてサポートされる言語コード |
+| `_VALID_HINT_LANGS` | `frozenset({"en", "ja", "auto"})` | ページごとのCJK比率判定用の"auto"を含む、有効なヒントlang値 |
+| `_CJK_RATIO_THRESHOLD` | `0.1` | この値を超えるとテキストが日本語と判定されるCJK文字比率のしきい値 |
+| `_TARGET_URL_ENTRY_LENGTH` | `2` | target_urlsエントリの想定要素数: [url, lang] |
+| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100`（`rag.utils` 由来） | 言語判定に必要な最小テキスト長 |
 
-**Unicode code point ranges for CJK detection**
+**CJK判定用Unicodeコードポイント範囲**
 
-| Constant | Range | Description |
+| 定数 | 範囲 | 説明 |
 |---|---|---|
-| Hiragana + Katakana | "぀"–"ヿ" | |
-| CJK Unified Ideographs | "一"–"鿿" | |
-| CJK Extension A | "㐀"–"䶿" | |
+| ひらがな + カタカナ | "぀"–"ヿ" | |
+| CJK統合漢字 | "一"–"鿿" | |
+| CJK拡張A | "㐀"–"䶿" | |
 
-**Public functions**
+**公開関数**
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `url_to_slug` | `(url: str) -> str` | Convert URL to filesystem-safe ASCII slug (max 80 chars); strips scheme, replaces non-alphanumeric with hyphens |
-| `normalize_url` | `(url: str) -> str` | Strip fragment and trailing slash |
-| `same_origin` | `(url: str, base: str) -> bool` | True if scheme + hostname match |
-| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript) from soup; extract body text via Trafilatura with `include_comments=False`, `include_tables=True`, `no_fallback=False`, `target_language=None`; fall back to BS4 `get_text(separator="\n", strip=True)` |
-| `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
-| `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
-| `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | Parse a TOML file containing target_urls = [[url, lang], ...] pairs; raises FileNotFoundError if file not found, ValueError on parse error |
+| `url_to_slug` | `(url: str) -> str` | URLをファイルシステムで安全なASCIIスラグに変換する（最大80文字）；スキームを除去し、英数字以外をハイフンに置換する |
+| `normalize_url` | `(url: str) -> str` | フラグメントと末尾のスラッシュを除去する |
+| `same_origin` | `(url: str, base: str) -> bool` | スキームとホスト名が一致する場合にTrueを返す |
+| `extract_text` | `(soup: BeautifulSoup) -> str` | soupからノイズタグ（nav、footer、aside、script、style、noscript）を除去する；`include_comments=False`、`include_tables=True`、`no_fallback=False`、`target_language=None` の設定でTrafilaturaを用いて本文テキストを抽出する；フォールバックとしてBS4の `get_text(separator="\n", strip=True)` を使用する |
+| `detect_lang` | `(text: str) -> str \| None` | CJK比率判定；比率が0.1以上なら'ja'、それ以外は'en'を返す；100文字未満のテキストではNoneを返す |
+| `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | target_urls設定を検証し(url, lang)のタプルにパースする；不正なエントリの場合はValueErrorを発生させる |
+| `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | `target_urls = [[url, lang], ...]` を含むTOMLファイルをパースする；ファイルが見つからない場合はFileNotFoundError、パースエラーの場合はValueErrorを発生させる |
 
 ---
 
 ## 6. Chunk English Mixin (`scripts/rag/ingestion/chunk_english.py`)
 
-### 6.1 Module overview
+### 6.1 モジュール概要
 
-`chunk_english.py` — `ChunkEnglishMixin`: paragraph/sentence-level chunking for English text with stopword filtering and sentence boundary splitting. Mixed into `ChunkSplitter` via multiple inheritance.
+`chunk_english.py` — `ChunkEnglishMixin`: ストップワードフィルタリングと文境界分割を伴う、英語テキスト用の段落/文単位のチャンク化。多重継承により `ChunkSplitter` にミックスインされる。
 
 ---
 
 ## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
-### 7.1 Module overview
+### 7.1 モジュール概要
 
-`chunk_utils.py` — Shared buffer helpers for `ChunkEnglishMixin` and `ChunkJapaneseMixin`. Provides tail-overlap buffer management and item accumulation with min/max chunk size constraints. Imported by both mixin classes and `chunk_splitter.py`.
+`chunk_utils.py` — `ChunkEnglishMixin` と `ChunkJapaneseMixin` で共有されるバッファヘルパー。末尾重複バッファの管理と、最小/最大チャンクサイズ制約付きの項目蓄積を提供する。両ミックスインクラスと `chunk_splitter.py` からインポートされる。
 
-**Public functions**
+**公開関数**
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `start_next_buf` | `(prev: str, next_item: str, sep: str, chunk_overlap: int) -> str` | Start a new accumulation buffer with optional tail-overlap from prev. When `chunk_overlap=0`, returns next_item directly. Otherwise prepends the last N characters of prev (where N = chunk_overlap) to next_item |
-| `merge_text_items` | `(items: list[str], sep: str, min_chunk: int, max_chunk: int, chunk_overlap: int) -> list[str]` | Accumulate items into chunks satisfying min_chunk ≤ len ≤ max_chunk. A short tail item is merged into the last chunk instead of discarded |
+| `start_next_buf` | `(prev: str, next_item: str, sep: str, chunk_overlap: int) -> str` | prevからの末尾重複を任意で行いつつ、新しい蓄積バッファを開始する。`chunk_overlap=0` の場合はnext_itemをそのまま返す。それ以外の場合は、prevの末尾N文字（N = chunk_overlap）をnext_itemの先頭に付加する |
+| `merge_text_items` | `(items: list[str], sep: str, min_chunk: int, max_chunk: int, chunk_overlap: int) -> list[str]` | min_chunk ≤ len ≤ max_chunk を満たすように項目をチャンクへ蓄積する。短い末尾項目は破棄されず最後のチャンクに結合される |
 
-**Usage in mixins:**
+**ミックスインでの使用箇所:**
 
-| Mixin | Function used | Purpose |
+| ミックスイン | 使用する関数 | 目的 |
 |---|---|---|
-| `ChunkEnglishMixin` | `merge_text_items` | Paragraph/sentence accumulation with overlap |
-| `ChunkJapaneseMixin` | `start_next_buf`, `merge_text_items` | Sentence pair accumulation with overlap |
-| `ChunkSplitter` | `merge_text_items` | Code block accumulation (blank-line split) |
+| `ChunkEnglishMixin` | `merge_text_items` | 重複を伴う段落/文の蓄積 |
+| `ChunkJapaneseMixin` | `start_next_buf`, `merge_text_items` | 重複を伴う文ペアの蓄積 |
+| `ChunkSplitter` | `merge_text_items` | コードブロックの蓄積（空行分割） |
 
 ---
 

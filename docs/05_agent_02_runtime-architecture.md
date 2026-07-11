@@ -3,7 +3,6 @@ title: "Agent Runtime Architecture"
 category: agent
 tags:
   - agent
-  - agent
   - runtime
   - architecture
   - lifecycle
@@ -13,15 +12,15 @@ related:
 
 # Agent Runtime Architecture
 
-- System overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-Describe the major runtime components, their dependency relationships, and responsibility
-boundaries so that an engineer or AI can locate where any behavior is implemented.
+主要なランタイムコンポーネント、それらの依存関係、および責務境界を記述し、
+エンジニアやAIがどの振る舞いがどこに実装されているかを特定できるようにする。
 
-> **Scope of this chapter:** runtime behavior, module graph, data flow, and component lifecycles.
-> For function signatures, parameter types, and return values → [05_agent_13 §Reference API](05_agent_13_reference-api.md).
+> **本章の対象範囲:** ランタイムの振る舞い、モジュールグラフ、データフロー、コンポーネントのライフサイクル。
+> 関数シグネチャ、パラメータ型、戻り値については → [05_agent_13 §Reference API](05_agent_13_reference-api.md)を参照。
 
 ---
 
@@ -58,12 +57,12 @@ agent/__main__.py
 
 ### AgentREPL (`agent/repl.py`)
 
-- Owns the input/dispatch loop: read line → command or LLM turn
-- Delegates entire startup sequence to `StartupOrchestrator`
-- Owns graceful shutdown (SIGTERM → `SystemExit(0)` conversion)
-- No business logic; contains only UI loop, command dispatch, and output display
+- 入力/ディスパッチループを管理する: 行を読み取る → コマンドまたはLLMターンへ
+- 起動シーケンス全体を`StartupOrchestrator`に委譲する
+- グレースフルシャットダウンを管理する(SIGTERM → `SystemExit(0)`への変換)
+- ビジネスロジックを持たない。UIループ、コマンドディスパッチ、出力表示のみを含む
 
-**Startup sequence (delegated to `StartupOrchestrator.run()`):**
+**起動シーケンス(`StartupOrchestrator.run()`に委譲):**
 
 ```
 StartupOrchestrator.run()
@@ -82,60 +81,60 @@ REPL loop
 
 ### StartupOrchestrator (`agent/startup.py`)
 
-- Houses all startup orchestration extracted from `AgentREPL`
-- Constructed with `(ctx, view)`; `run()` returns `(CommandRegistry, Orchestrator)`
-- Isolates startup complexity so `AgentREPL` contains only UI concerns
+- `AgentREPL`から抽出された起動オーケストレーション処理をすべて内包する
+- `(ctx, view)`で構築される。`run()`は`(CommandRegistry, Orchestrator)`を返す
+- 起動時の複雑さを分離し、`AgentREPL`がUI関心事のみを持つようにする
 
 ### Orchestrator (`agent/orchestrator.py`)
 
-- Handles one user turn end-to-end
-- Manages memory injection → user message append → history compression → LLM turn
-- Delegates LLM streaming + tool loop to `LLMTurnRunner`
-- Emits audit log events (`turn_start`, `turn_end`)
+- 1回のユーザーターンをエンドツーエンドで処理する
+- メモリ注入 → ユーザーメッセージ追加 → 履歴圧縮 → LLMターンの流れを管理する
+- LLMストリーミングとツールループを`LLMTurnRunner`に委譲する
+- 監査ログイベント(`turn_start`、`turn_end`)を発行する
 
 | Method | Responsibility |
 |---|---|
-| `handle_turn(line)` | Top-level turn handler |
+| `handle_turn(line)` | 最上位のターンハンドラー |
 
 ### AgentContext (`agent/context.py`)
 
-Shared mutable state and component reference hub. `factory.build_agent_context()` injects
-all services. Sub-structures:
+共有される可変状態とコンポーネント参照のハブである。`factory.build_agent_context()`が
+すべてのサービスを注入する。サブ構造は以下の通り:
 
 | Sub-structure | Scope | Key contents |
 |---|---|---|
-| `ctx.conv` | session | `history: list[LLMMessage]`, `plan_mode`, `debug_mode`, `system_prompt_content` |
-| `ctx.turn` | per-turn | `current_turn_id: str\|None` (UUID4, None between turns) |
-| `ctx.stats` | cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
-| `ctx.workflow` | session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
-| `ctx.cfg` | hot-reload | `AgentConfig` (7 sub-configs) |
-| `ctx.session` | session | `AgentSession` (SQLite) |
-| `ctx.services` | injected | All service instances (LLMClient, ToolExecutor, etc.) |
+| `ctx.conv` | セッション | `history: list[LLMMessage]`, `plan_mode`, `debug_mode`, `system_prompt_content` |
+| `ctx.turn` | ターンごと | `current_turn_id: str\|None` (UUID4、ターン間ではNone) |
+| `ctx.stats` | 累積 | `stat_turns`、`stat_tool_calls`、`stat_latency`、トークン数 |
+| `ctx.workflow` | セッション | `WorkflowState`: `active`、`current_task_id`、`workflow_id`、`approval_pending` (一時的) |
+| `ctx.cfg` | ホットリロード | `AgentConfig` (7つのサブ設定) |
+| `ctx.session` | セッション | `AgentSession` (SQLite) |
+| `ctx.services` | 注入される | すべてのサービスインスタンス (LLMClient、ToolExecutorなど) |
 ### LLMClient (`shared/llm_client.py`)
 
-- Builds request payload (messages + tool_defs + temperature + max_tokens)
-- SSE streaming with `RobustSSEParser` (incremental UTF-8, heartbeat tracking)
-- Reconnect on retryable errors (up to `sse_reconnect_max`)
-- Partial completion detection and reporting via `LLMTransportError`
+- リクエストペイロードを構築する(messages + tool_defs + temperature + max_tokens)
+- `RobustSSEParser`によるSSEストリーミング(インクリメンタルUTF-8、ハートビート追跡)
+- リトライ可能なエラー発生時に再接続する(`sse_reconnect_max`まで)
+- `LLMTransportError`による部分的な補完の検出と報告
 
 ### ToolExecutor (`shared/tool_executor.py`)
 
-- Plugin tool lookup → TTL cache check → MCP routing
-- Side-effect detection: serializes parallel tool calls when write/delete/shell_run present
-- `ToolRouteResolver`: resolves tool name → server key (live `/v1/tools` discovery → ToolRegistry)
-- `McpServerHealthRegistry`: tracks per-server health state (HEALTHY/DEGRADED/UNAVAILABLE)
+- プラグインツールの検索 → TTLキャッシュチェック → MCPルーティング
+- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する
+- `ToolRouteResolver`: ツール名 → サーバーキーを解決する(ライブの`/v1/tools`ディスカバリー → ToolRegistry)
+- `McpServerHealthRegistry`: サーバーごとのヘルス状態(HEALTHY/DEGRADED/UNAVAILABLE)を追跡する
 
 ### HistoryManager (`agent/history.py`)
 
-- Counts conversation history size (chars or tokens)
-- Triggers LLM-based summarization when threshold exceeded
-- `HistorySelectionPolicy`: selects which turns to compress (importance scoring + categories)
-- Protects most recent `history_protect_turns` turn pairs from compression
-- `compress_turns` property: number of oldest turn pairs selected for compression
+- 会話履歴のサイズ(文字数またはトークン数)をカウントする
+- 閾値を超えるとLLMベースの要約をトリガーする
+- `HistorySelectionPolicy`: 圧縮対象のターンを選択する(重要度スコアリング + カテゴリ)
+- 直近の`history_protect_turns`ターンペアは圧縮対象から保護する
+- `compress_turns`プロパティ: 圧縮対象として選択された最も古いターンペアの数
 
 ### CommandRegistry (`agent/commands/registry.py`)
 
-12 mixins, each owning a command group. Dispatches built-in commands first, then plugin commands.
+12個のmixinがあり、それぞれがコマンドグループを1つ担当する。まず組み込みコマンドをディスパッチし、その後プラグインコマンドをディスパッチする。
 
 | Mixin | Commands |
 |---|---|
@@ -153,51 +152,49 @@ all services. Sub-structures:
 
 ### CLIView (`agent/cli_view.py`)
 
-- Presentation layer only; no business logic
-- Provides `Writer` and `Reader` protocols for testability
-- Callbacks injected into `Orchestrator`, `HistoryManager`, `LLMClient`
+- 表示層のみを担当し、ビジネスロジックを持たない
+- テスト容易性のために`Writer`と`Reader`のプロトコルを提供する
+- `Orchestrator`、`HistoryManager`、`LLMClient`にコールバックを注入する
 
 ### LifecycleState (`agent/lifecycle.py`)
 
-Transport state enum shared by lifecycle managers:
+ライフサイクルマネージャー間で共有されるトランスポート状態のenum:
 
 | Value | Description |
 |---|---|
-| `STARTING` | Server starting up |
-| `RUNNING` | Server is operational |
-| `STOPPED` | Server has been stopped |
-| `FAILED` | Server encountered an error |
-| `UNKNOWN` | Initial/unknown state |
+| `STARTING` | サーバー起動中 |
+| `RUNNING` | サーバーは稼働中 |
+| `STOPPED` | サーバーは停止済み |
+| `FAILED` | サーバーでエラーが発生 |
+| `UNKNOWN` | 初期/不明な状態 |
 
-Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
+有効な遷移: `STOPPED → STARTING/FAILED`、`STARTING → RUNNING/FAILED/STOPPED`、`RUNNING → STOPPED/FAILED/STARTING`、`FAILED → STARTING/STOPPED`、`UNKNOWN → any`。
 
-`assert_valid_transition(from_state, to_state)` raises `ValueError` when the transition is illegal.
+`assert_valid_transition(from_state, to_state)`は、遷移が不正な場合に`ValueError`を発生させる。
 
 ### AgentSession (`agent/session.py`)
 
-- CRUD for `sessions`, `messages` tables
-- RAG document delete/list (delegated from `/db` commands)
-- `fetch_messages(session_id)` returns `list[LLMMessage]` for session restore
+- `sessions`、`messages`テーブルのCRUD
+- RAGドキュメントの削除/一覧取得(`/db`コマンドから委譲される)
+- `fetch_messages(session_id)`はセッション復元用に`list[LLMMessage]`を返す
 
 ### Memory Services (`agent/memory/`)
 
-Optional subsystem activated by `use_memory_layer=True`.
-Accessed via `ctx.services.memory`.
+`use_memory_layer=True`で有効化されるオプションのサブシステムである。
+`ctx.services.memory`経由でアクセスする。
 
 | Sub-service | Role |
 |---|---|
-| `injection` | Injects relevant memories at session start and per-turn |
-| `ingestion` | Extracts and persists memories at session end |
-| `store` | JSONL + SQLite store for memory entries |
-| `retriever` | FTS5 + optional KNN retrieval |
+| `injection` | セッション開始時および各ターンで関連するメモリを注入する |
+| `ingestion` | セッション終了時にメモリを抽出・永続化する |
+| `store` | メモリエントリ用のJSONL + SQLiteストア |
+| `retriever` | FTS5とオプションのKNN検索 |
 
 ---
 
 ## Related Documents
 
-- `agent`
-- `runtime`
-- `architecture`
+- `05_agent_00_document-guide.md`
 
 ## Keywords
 

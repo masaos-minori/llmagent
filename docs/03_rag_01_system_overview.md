@@ -3,46 +3,43 @@ title: "RAG System Overview"
 category: rag
 tags:
   - rag
-  - rag
   - system
   - overview
   - architecture
   - pipeline
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_00_document-guide.md
   - 03_rag_02_01_ingestion_pipeline-overview.md
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG System Overview
+# RAG システム概要
 
-- Document guide → [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
+- ドキュメントガイド → [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
 
-## Purpose
+## 目的
 
-Provide document retrieval augmentation for the LLM agent by crawling web pages and
-local files, indexing them in SQLite, and injecting relevant context blocks into each
-LLM turn.
-
----
-
-## Scope
-
-**In scope:**
-- Ingestion pipeline: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
-- Query pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
-- Utility: `scripts/rag/utils.py`
-- MCP wrapper: `scripts/mcp/rag_pipeline/server.py` (port 8010)
-
-**Out of scope:**
-- MDQ (Markdown-dedicated index) — separate service; see [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for boundary definition
-- Agent REPL — calls the pipeline via MCP; does not own RAG logic
-- LLM and embedding servers — external services at ports 8001 and 8003
+Webページとローカルファイルをクロールし、SQLiteにインデックスを構築し、各LLMターンに
+関連するコンテキストブロックを注入することで、LLMエージェントに文書検索拡張を提供する。
 
 ---
 
-## System Architecture
+## 対象範囲
+
+**対象に含まれるもの:**
+- インジェクションパイプライン: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
+- クエリパイプライン: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
+- ユーティリティ: `scripts/rag/utils.py`
+- MCPラッパー: `scripts/mcp_servers/rag_pipeline/server.py`（ポート8010）
+
+**対象に含まれないもの:**
+- MDQ（Markdown専用インデックス）— 別サービス。境界の定義は [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) を参照
+- エージェントREPL — MCPを介してパイプラインを呼び出すのみで、RAGロジックは持たない
+- LLMおよび埋め込みサーバー — ポート8001および8003で動作する外部サービス
+
+---
+
+## システムアーキテクチャ
 
 ```
 [Admin / Operator]
@@ -70,7 +67,7 @@ LLM turn.
       | augment(query)
       v
 +----------------------+    MCP :8010    +-------------------+
-| scripts/mcp/rag_pipeline/ | <-------------> | RagPipeline       |
+| scripts/mcp_servers/rag_pipeline/ | <-------------> | RagPipeline       |
 | service.py           |                 | (6 logical stages)|
 +----------------------+                 +-------------------+
                                                    |
@@ -82,22 +79,22 @@ LLM turn.
 
 ---
 
-## Ingestion Pipeline
+## インジェクションパイプライン
 
-**3 scripts / 4 processing phases**
+**3つのスクリプト / 4つの処理フェーズ**
 
-| Script | Phase | Input | Output |
+| スクリプト | フェーズ | 入力 | 出力 |
 |---|---|---|---|
-| `crawler.py` | Crawl | URL or local path | `rag-src/yyyymmddhhmmss-{slug}.json` (JSON) |
-| `chunk_splitter.py` | Chunk | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json` (JSON) |
-| `ingester.py` | Embed | `rag-src/chunk/*.json` | embed API call (port 8003) |
-| `ingester.py` | Store | embed vectors | SQLite tables + `rag-src/registered/` |
+| `crawler.py` | クロール | URLまたはローカルパス | `rag-src/yyyymmddhhmmss-{slug}.json`（JSON） |
+| `chunk_splitter.py` | チャンク化 | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json`（JSON） |
+| `ingester.py` | 埋め込み | `rag-src/chunk/*.json` | 埋め込みAPI呼び出し（ポート8003） |
+| `ingester.py` | 格納 | 埋め込みベクトル | SQLiteテーブル + `rag-src/registered/` |
 
-> **Terminology:** "3 scripts" refers to the three executable files (`crawler.py`, `chunk_splitter.py`, `ingester.py`).
-> "4 processing phases" refers to the four logical steps (Crawl, Chunk, Embed, Store) — two of which run inside `ingester.py`.
-> "Stage" is reserved for query pipeline stages (MQE, Search, Fusion, Rerank, PluginHooks, Augment); it is not used for ingestion.
+> **用語について:** 「3つのスクリプト」とは、3つの実行ファイル（`crawler.py`、`chunk_splitter.py`、`ingester.py`）を指す。
+> 「4つの処理フェーズ」とは、4つの論理的なステップ（クロール、チャンク化、埋め込み、格納）を指し、そのうち2つは `ingester.py` の内部で実行される。
+> 「ステージ（Stage）」という語はクエリパイプラインのステージ（MQE、Search、Fusion、Rerank、PluginHooks、Augment）専用であり、インジェクションでは使用しない。
 
-### Ingestion data flow (summary)
+### インジェクションのデータフロー（概要）
 
 ```
 config/rag_pipeline.toml [target_urls]
@@ -110,71 +107,71 @@ config/rag_pipeline.toml [target_urls]
 
 ---
 
-## Query Pipeline
+## クエリパイプライン
 
-**6 logical stages executed per agent turn** (5 fixed + PluginHooks optional)
+**エージェントの1ターンごとに実行される6つの論理ステージ**（固定5つ + PluginHooksは任意）
 
-| Stage | Class | Function |
+| ステージ | クラス | 機能 |
 |---|---|---|
-| 1. MQE | `MqeStage` | Expand query into N variants for higher recall |
-| 2. Search | `SearchStage` | KNN (sqlite-vec) + BM25 (FTS5) per query variant |
-| 3. Fusion | `FusionStage` | Merge multi-query results using RRF (Σ 1/(rrf_k+rank)); `rrf_k` configurable via config (default: 60) |
-| 4. Rerank | `RerankStage` | Cross-encoder LLM scoring; filter by `rag_min_score`; post-rerank dedup by URL |
-| 5. PluginHooks | registered hooks | Post-rerank plugin stage; runs after RerankStage, before AugmentStage; error-isolated (failures logged, skipped); configurable via `hook_strict` in `run()` |
-| 6. Augment | `AugmentStage` | Format chunks as `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` |
+| 1. MQE | `MqeStage` | 再現率向上のためクエリをN個のバリアントに展開する |
+| 2. Search | `SearchStage` | 各クエリバリアントに対しKNN（sqlite-vec）+ BM25（FTS5）を実行する |
+| 3. Fusion | `FusionStage` | RRF（Σ 1/(rrf_k+rank)）を用いて複数クエリの結果を統合する。`rrf_k` は設定で変更可能（デフォルト: 60） |
+| 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にURL単位で重複排除する |
+| 5. PluginHooks | 登録済みフック | リランク後のプラグインステージ。RerankStageの後、AugmentStageの前に実行される。エラーは分離される（失敗はログに記録されスキップされる）。`run()` の `hook_strict` で挙動を設定可能 |
+| 6. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
 
-**Entry point:** `RagPipeline.augment(query) -> str`  
-**Caller:** `scripts/mcp/rag_pipeline/service.py` via MCP HTTP (port 8010)
+**エントリポイント:** `RagPipeline.augment(query) -> str`
+**呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（MCP HTTP、ポート8010経由）
 
-### Semantic cache
+### セマンティックキャッシュ
 
-When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_cache_threshold`
-(default 0.92) returns the cached context block, skipping the pipeline. Thread-safe via `threading.RLock`. FIFO cache (oldest-first eviction); max size = `semantic_cache_max_size` (default 100 entries).
+`use_semantic_cache=True` の場合、クエリ埋め込みのコサイン類似度が `semantic_cache_threshold`
+（デフォルト0.92）以上であれば、パイプラインをスキップしてキャッシュ済みのコンテキストブロックを返す。`threading.RLock` によりスレッドセーフである。FIFOキャッシュ（最古のエントリから削除）で、最大サイズは `semantic_cache_max_size`（デフォルト100件）。
 
 ---
 
-## Prerequisites
+## 前提条件
 
-| Requirement | Check command |
+| 要件 | 確認コマンド |
 |---|---|
-| Embedding server running on port 8003 | `curl -s http://127.0.0.1:8003/health` |
-| `sqlite-vec` extension loadable | `/opt/llm/sqlite-vec/vec0.so` must exist |
-| Config file present | `config/rag_pipeline.toml` |
-| Ingest target URL or file specified | CLI `--url` or `target_urls` in config |
+| ポート8003で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8003/health` |
+| `sqlite-vec` 拡張がロード可能であること | `/opt/llm/sqlite-vec/vec0.so` が存在すること |
+| 設定ファイルが存在すること | `config/rag_pipeline.toml` |
+| インジェクション対象のURLまたはファイルが指定されていること | CLIの `--url`、または設定内の `target_urls` |
 
 ---
 
-## Constraints
+## 制約
 
-| Constraint | Value | Source |
+| 制約 | 値 | ソース |
 |---|---|---|
-| Language detection | CJK ratio ≥ 0.10 → `ja`; else `en`; < 100 chars → fallback to hint | `crawler.py` |
-| Chunk size | min 40 chars, max 500 chars | `rag_pipeline.toml` |
-| Chunk overlap | 50 chars sliding window | `rag_pipeline.toml` |
-| Embedding dimension | 384 (production, `config/agent.toml:43`); no dataclass default — defined only in config. float32 little-endian BLOB | `config/agent.toml` — see `03_rag_90` DOC-03 |
-| Crawl depth | max 6 hops from start URL | `rag_pipeline.toml` |
-| Crawl page limit | max 500 pages per site | `rag_pipeline.toml` |
-| DB | SQLite single-node only | architecture |
+| 言語判定 | CJK比率 ≥ 0.10 → `ja`; それ以外は `en`; 100文字未満はヒントへのフォールバック | `crawler.py` |
+| チャンクサイズ | 最小40文字、最大500文字 | `rag_pipeline.toml` |
+| チャンクの重複 | 50文字のスライディングウィンドウ | `rag_pipeline.toml` |
+| 埋め込み次元 | 384（本番環境、`config/agent.toml:43`）。dataclassのデフォルト値はなく、設定ファイルでのみ定義される。float32リトルエンディアンBLOB | `config/agent.toml` — `03_rag_90` DOC-03を参照 |
+| クロール深度 | 開始URLから最大6ホップ | `rag_pipeline.toml` |
+| クロールページ数上限 | サイトあたり最大500ページ | `rag_pipeline.toml` |
+| DB | SQLiteシングルノードのみ | アーキテクチャ |
 
 ---
 
-## MCP Server Responsibility Split
+## MCPサーバーの責務分担
 
-| File | Responsibility |
+| ファイル | 責務 |
 |---|---|
-| `scripts/mcp/rag_pipeline/server.py` | HTTP entry point + route definitions |
-| `scripts/mcp/rag_pipeline/service.py` | Pipeline adapter (lifecycle + response formatting) |
-| `scripts/rag/pipeline.py` | Core RAG logic |
+| `scripts/mcp_servers/rag_pipeline/server.py` | HTTPエントリポイント + ルート定義 |
+| `scripts/mcp_servers/rag_pipeline/service.py` | パイプラインアダプタ（ライフサイクル + レスポンス整形） |
+| `scripts/rag/pipeline.py` | RAGのコアロジック |
 
 ## Related Chapters
 
-| Topic | File |
+| トピック | ファイル |
 |---|---|
-| Ingestion scripts (API, CLI, config) | [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) |
-| Query pipeline (API, stage details) | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
-| DB schema, type definitions | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
-| Configuration, run commands, logs | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
-| Known bugs and inconsistencies | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) |
+| インジェクションスクリプト（API、CLI、設定） | [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) |
+| クエリパイプライン（API、ステージ詳細） | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
+| DBスキーマ、型定義 | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
+| 設定、実行コマンド、ログ | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
+| 既知のバグと不整合 | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
 

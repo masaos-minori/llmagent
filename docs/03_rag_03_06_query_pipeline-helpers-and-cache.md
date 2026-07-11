@@ -18,17 +18,17 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
 ## 6. SemanticCache (`scripts/rag/cache.py`)
 
-`SemanticCache` implements the `CacheService` protocol (also defined in `rag/cache.py`), which declares only `lookup()` and `put()` — callers should type against `CacheService` rather than `SemanticCache` directly where substitutability matters.
+`SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
 
 ```python
 from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by rag/pipeline.py:30
@@ -36,95 +36,95 @@ from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by r
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
 
-| Method / Property | Signature | Description |
+| メソッド / プロパティ | シグネチャ | 説明 |
 |---|---|---|
-| `lookup` | `(embedding, history_context="") -> str \| None` | Return cached result if cosine similarity ≥ threshold among matching `history_context` entries; raises `ValueError` on embedding dimension mismatch; else `None` |
-| `put` | `(embedding, history_context, context_str) -> None` | Store entry; `history_context` is part of cache key; raises `ValueError` on embedding dimension mismatch; calls `prune()` after |
-| `prune` | `() -> None` | Remove oldest entries (FIFO) until `len ≤ max_size` |
-| `size` | property `int` | Current entry count |
-| `invalidate` | `() -> None` | Bump generation counter and clear all cached entries atomically |
-| `generation` | property `int` | Current cache invalidation generation count |
+| `lookup` | `(embedding, history_context="") -> str \| None` | 一致する `history_context` エントリの中でコサイン類似度がしきい値以上のものがあればキャッシュ結果を返す；埋め込み次元の不一致時は `ValueError` を発生させる；それ以外は `None` |
+| `put` | `(embedding, history_context, context_str) -> None` | エントリを保存する；`history_context` はキャッシュキーの一部；埋め込み次元の不一致時は `ValueError` を発生させる；その後 `prune()` を呼び出す |
+| `prune` | `() -> None` | `len ≤ max_size` になるまで最古のエントリを削除する（FIFO） |
+| `size` | プロパティ `int` | 現在のエントリ数 |
+| `invalidate` | `() -> None` | 世代カウンタをインクリメントし、キャッシュ済みエントリをすべてアトミックにクリアする |
+| `generation` | プロパティ `int` | 現在のキャッシュ無効化世代カウント |
 
-Cache is initialized in `RagPipeline.__init__` using `cfg.semantic_cache_max_size` and
-`cfg.semantic_cache_threshold`.
+キャッシュは `RagPipeline.__init__` で `cfg.semantic_cache_max_size` と
+`cfg.semantic_cache_threshold` を用いて初期化される。
 
 ---
 
-## 7. Helper Classes
+## 7. ヘルパークラス
 
 ### 7.1 RagRepository (`scripts/rag/repository.py`)
 
-Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapsed_ms on every call for observability.
+すべてのSQLを保有する。ステージから内部的に使用される。可観測性のため、呼び出しごとにquery / fts_query / top_k / elapsed_msをログに記録する。
 
-**SQL queries:**
+**SQLクエリ:**
 
-| Method | SQL |
+| メソッド | SQL |
 |---|---|
 | `vector_search` | `SELECT c.chunk_id, c.content, d.url, d.title, cv.distance FROM chunks_vec cv JOIN chunks c ON c.chunk_id = cv.chunk_id JOIN documents d ON d.doc_id = c.doc_id WHERE cv.embedding MATCH ? ORDER BY cv.distance LIMIT ?` |
 | `fts_search` | `SELECT c.chunk_id, c.content, d.url, d.title, bm25(chunks_fts) AS bm25_score FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid JOIN documents d ON d.doc_id = c.doc_id WHERE chunks_fts MATCH ? ORDER BY bm25(chunks_fts) LIMIT ?` |
 
-**Japanese FTS5 tokenization:**
+**日本語FTS5のトークン化:**
 
-| Constant | Value | Description |
+| 定数 | 値 | 説明 |
 |---|---|---|
-| Maximum tokens in an FTS5 query | 20 | |
-| Sudachi POS categories retained for Japanese tokens | `{"名詞", "動詞", "形容詞"}` | |
+| FTS5クエリ内のトークン数上限 | 20 | |
+| 日本語トークンとして保持されるSudachiの品詞カテゴリ | `{"名詞", "動詞", "形容詞"}` | |
 
-**Lazy Sudachi loading:**
+**Sudachiの遅延ロード:**
 
-Sudachi is loaded on first use. Dictionary: `core`, SplitMode: `C`.
+Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `tokenize_pos_filter` | `(text: str, keep_pos: frozenset[str]) -> list[str]` | Return normalized_form() for tokens whose part_of_speech()[0] is in keep_pos; raises RuntimeError on tokenization failure |
+| `tokenize_pos_filter` | `(text: str, keep_pos: frozenset[str]) -> list[str]` | part_of_speech()[0]がkeep_posに含まれるトークンについて normalized_form() を返す；トークナイズ失敗時はRuntimeErrorを発生させる |
 
-**Public methods:**
+**公開メソッド:**
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | KNN via sqlite-vec; returns RawHit with `distance` field; logs `top_k`/`hits`/`elapsed_ms` |
-| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | BM25 via FTS5; returns RawHit with `bm25_score` field; raises `sqlite3.OperationalError` on FTS syntax errors (caller handles); logs `query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` |
+| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | sqlite-vecによるKNN；`distance` フィールドを持つRawHitを返す；`top_k`/`hits`/`elapsed_ms` をログに記録する |
+| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | FTS5によるBM25；`bm25_score` フィールドを持つRawHitを返す；FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）；`query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` をログに記録する |
 
-**Module-level standalone wrappers:**
-- `vector_search(embedding, top_k, db)` → delegates to `RagRepository(db).vector_search()`
-- `fts_search(query, top_k, db)` → delegates to `RagRepository(db).fts_search()`
-- `fetch_full_document(chunk_id, db, window=None)` → same-doc chunks by `chunk_index` asc; `window=N` → ±N
-- `deduplicate_chunks(hits, max_per_doc)` → cap same-URL hits; input must be descending-sorted
-- `cosine_sim(a, b) -> float` → cosine similarity; returns `0.0` for zero vectors
+**モジュールレベルの単独ラッパー:**
+- `vector_search(embedding, top_k, db)` → `RagRepository(db).vector_search()` に委譲する
+- `fts_search(query, top_k, db)` → `RagRepository(db).fts_search()` に委譲する
+- `fetch_full_document(chunk_id, db, window=None)` → 同一ドキュメントのチャンクを`chunk_index`昇順で取得する；`window=N` → ±N
+- `deduplicate_chunks(hits, max_per_doc)` → 同一URLのヒット数を制限する；入力は降順にソートされている必要がある
+- `cosine_sim(a, b) -> float` → コサイン類似度；ゼロベクトルの場合は `0.0` を返す
 
 ### 7.2 RagScorer (`scripts/rag/repository.py`)
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `rrf_merge` (static) | `(results_list: list[list[RawHit]] \| list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score`; accepts RawHit or RagHit result lists |
+| `rrf_merge`（静的メソッド） | `(results_list: list[list[RawHit]] \| list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRFスコア Σ 1/(rrf_k+rank)；降順；`rrf_score` を割り当てる；RawHitまたはRagHitの結果リストを受け入れる |
 
 ### 7.3 RagLLM (`scripts/rag/llm_client.py`)
 
-Implementations live in:
+実装は以下にある。
 
-- `scripts/rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
-- `scripts/rag/llm_prompts.py` — prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
+- `scripts/rag/llm_client.py` — `RagLLM` クラス、`get_embedding()`、`summarize_tool_result()`
+- `scripts/rag/llm_prompts.py` — プロンプトテンプレート、`RagExpansionError`、`RagRerankError`、`MqeParseError`
 
 ```python
 from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completions")
 ```
 
-**Note:** `scripts/rag/llm_client.py:48-50` has a duplicate `logger = logging.getLogger(__name__)` line — the second assignment overwrites the first. Only one is needed.
+**注記:** `scripts/rag/llm_client.py:48-50` には `logger = logging.getLogger(__name__)` の行が重複している — 2番目の代入が最初のものを上書きする。1つだけあれば十分である。
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `expand_queries` | `async (query: str, context: str = "") -> list[str]` | MQE; raises `RagExpansionError` on HTTP failure, connection error, or parse failure |
-| `cross_encoder_rerank` | `async (query: str, candidates: list[RagHit], top_k: int, rag_min_score=0.0) -> list[RagHit]` | Cross-encoder; raises `RagRerankError` on HTTP failure, connection error, or parse failure; filters by `rag_min_score` |
-| `summarize_tool_result` | `async (text: str, tool_name: str, args: dict[str, object]) -> str` | Summarize tool output via LLM; raises on any HTTP or parse failure — callers decide how to handle |
-| `refine_context` | `async (chunks: list[RagHit], query: str, max_tokens: int, per_chunk_chars: int, timeout: float) -> str` | Compress chunks to query-relevant key points via single LLM call; raises on error so callers can fall back |
+| `expand_queries` | `async (query: str, context: str = "") -> list[str]` | MQE；HTTP失敗、接続エラー、またはパース失敗時に `RagExpansionError` を発生させる |
+| `cross_encoder_rerank` | `async (query: str, candidates: list[RagHit], top_k: int, rag_min_score=0.0) -> list[RagHit]` | クロスエンコーダ；HTTP失敗、接続エラー、またはパース失敗時に `RagRerankError` を発生させる；`rag_min_score` でフィルタする |
+| `summarize_tool_result` | `async (text: str, tool_name: str, args: dict[str, object]) -> str` | LLM経由でツール出力を要約する；HTTPまたはパースの失敗時に例外を発生させる — 処理方法の判断は呼び出し元に委ねられる |
+| `refine_context` | `async (chunks: list[RagHit], query: str, max_tokens: int, per_chunk_chars: int, timeout: float) -> str` | 単一のLLM呼び出しでチャンクをクエリに関連する要点に圧縮する；エラー時に例外を発生させ呼び出し元がフォールバックできるようにする |
 
-**Module-level functions:**
+**モジュールレベルの関数:**
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `get_embedding` | `async (text, client, embed_url) -> list[float]` | Convert text to embedding vector; uses `"query: "` prefix (E5 convention); raises on HTTP failure or missing/empty embedding field |
-| `summarize_tool_result` | `async (text, tool_name, args, client, llm_url=None) -> str` | Standalone summarization; loads `llm_url` from cached config when `None`; raises on LLM call failure |
+| `get_embedding` | `async (text, client, embed_url) -> list[float]` | テキストを埋め込みベクトルに変換する；`"query: "` プレフィックスを使用する（E5の規約）；HTTP失敗または埋め込みフィールドの欠落/空の場合に例外を発生させる |
+| `summarize_tool_result` | `async (text, tool_name, args, client, llm_url=None) -> str` | 単独利用可能な要約処理；`None` の場合はキャッシュされた設定から `llm_url` をロードする；LLM呼び出し失敗時に例外を発生させる |
 
 ### 7.4 PipelineRunResult (`scripts/rag/types.py`)
 
@@ -140,7 +140,7 @@ class PipelineRunResult:
     result_source: str | None = None
 ```
 
-Returned by `RagPipeline.run()`. **`result_source` is always `None`** — `run()` never sets it. The field exists only for HTTP mode where HTTP augment handler may set it via `dataclasses.replace()`.
+`RagPipeline.run()` が返す。**`result_source` は常に `None`** である — `run()` はこれを設定することがない。このフィールドは、HTTPモードでHTTPのaugmentハンドラが `dataclasses.replace()` により設定する場合のためだけに存在する。
 
 ---
 

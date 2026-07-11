@@ -17,17 +17,17 @@ related:
 
 # Agent Documentation Guide
 
-Entry point for the restructured Agent documentation set.
-Read this file first to choose which chapter to open.
+再構成されたAgentドキュメントセットのエントリポイントである。
+最初に本ファイルを読み、どの章を開くべきかを判断すること。
 
 ---
 
 ## Purpose of This Document Set
 
-These files document the LLM Agent REPL system: a CLI tool that uses LLM function
-calling to interact with MCP tool servers, maintain conversation history, and deliver
-answers to the terminal. They are the primary reference (original monolithic source
-files have been deleted).
+これらのファイルはLLM Agent REPLシステムを文書化するものである。LLM Agent REPLシステムとは、LLMのfunction
+callingを用いてMCPツールサーバーと対話し、会話履歴を維持し、ターミナルに
+回答を返すCLIツールである。これらのファイルが正式なリファレンスである(元のモノリシックなソース
+ファイルは削除済み)。
 
 ---
 
@@ -46,25 +46,25 @@ files have been deleted).
 
 | Question | File |
 |---|---|
-| What is the agent and how does it work? | `05_agent_01` |
-| What are the major components/dependencies? Function signatures? | `05_agent_02` (runtime) / `05_agent_13` (signatures) |
-| What happens during a single user turn? | `05_agent_03` (§Overview; §LLM+Tool Loop; §Workflow Engine) |
-| History compression? What state is persisted vs in-memory? | `05_agent_04` |
-| SSE streaming, retry, `LLMTransportError`? | `05_agent_05` |
-| How are tools executed/approved? `/plan` mode? | `05_agent_06` (§Execution; §Approval) |
-| Slash commands and effects? `/reload` scope? | `05_agent_07` (§Slash Commands; §Hot Reload) |
-| Config fields, defaults, which file controls what? | `05_agent_08` (§Loading Agent Config; §LLM/RAG; §Tools/Memory; §MCP/Approval/Obs) |
-| What SQLite tables does the agent use? | `05_agent_09_data-layer-*.md` (session-db / access-patterns) |
-| How to start, verify, troubleshoot, read audit logs? | `05_agent_10_operations-and-observability-*.md` (startup-and-health / validation-and-troubleshooting / audit-and-otel) |
-| How to add a plugin command, tool, or new MCP server? | `05_agent_11_extension-points-*.md` (plugin-command / tool-registration / registry-rules) |
-| How does the memory layer work (injection, pruning)? | `05_agent_12_memory-*.md` — **Implemented** (SQLite + JSONL + FTS5 + optional vectors) |
-| Where is class X defined and what are its callers? | `05_agent_13` — runtime context → `05_agent_02` |
+| エージェントとは何か、どのように動作するか | `05_agent_01` |
+| 主要コンポーネント/依存関係は何か。関数シグネチャは | `05_agent_02` (runtime) / `05_agent_13` (signatures) |
+| 1回のユーザーターンで何が起きるか | `05_agent_03` (§Overview; §LLM+Tool Loop; §Workflow Engine) |
+| 履歴圧縮とは何か。永続化される状態とメモリ上の状態の違いは | `05_agent_04` |
+| SSEストリーミング、リトライ、`LLMTransportError`とは | `05_agent_05` |
+| ツールはどのように実行/承認されるか。`/plan`モードとは | `05_agent_06` (§Execution; §Approval) |
+| スラッシュコマンドとその効果は。`/reload`のスコープは | `05_agent_07` (§Slash Commands; §Hot Reload) |
+| 設定フィールド、デフォルト値、どのファイルが何を制御するか | `05_agent_08` (§Loading Agent Config; §LLM/RAG; §Tools/Memory; §MCP/Approval/Obs) |
+| エージェントはどのSQLiteテーブルを使うか | `05_agent_09_data-layer-*.md` (session-db / access-patterns) |
+| 起動、検証、トラブルシューティング、監査ログの読み方は | `05_agent_10_operations-and-observability-*.md` (startup-and-health / validation-and-troubleshooting / audit-and-otel) |
+| プラグインコマンド、ツール、新しいMCPサーバーの追加方法は | `05_agent_11_extension-points-*.md` (plugin-command / tool-registration / registry-rules) |
+| メモリレイヤー(注入、プルーニング)はどのように動作するか | `05_agent_12_memory-*.md` — **Implemented** (SQLite + JSONL + FTS5 + optional vectors) |
+| クラスXはどこで定義され、呼び出し元は誰か | `05_agent_13` — runtime context → `05_agent_02` |
 
 ---
 
 ## Canonical Source Rules
 
-Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are superseded by chapters 02–13 above. Known issues and open questions: [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md).
+削除済みの`05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md`ファイルは、上記の02〜13章に統合されている。既知の問題と未解決の論点: [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md)。
 
 ---
 
@@ -93,13 +93,13 @@ Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are super
 
 ## Documentation Consistency Checklist
 
-When changing schema or command references, verify: `05_agent_01_system-overview.md` §Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (every CommandDef has a doc entry, no deleted commands referenced); `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py` and `init_db.sh`; diagnostics docs reference `session_diagnostics` only (no deleted `diagnostics.jsonl`).
+スキーマやコマンド参照を変更する際は、以下を確認すること: `05_agent_01_system-overview.md` の§Slash Commandsおよび`05_agent_07_cli-and-commands-*.md`が`scripts/agent/commands/registry.py`と一致していること(すべてのCommandDefにドキュメント項目があり、削除済みコマンドへの参照が残っていないこと)。`05_agent_09_data-layer-*.md`が`scripts/db/schema_sql.py`と`init_db.sh`と一致していること。診断関連のドキュメントが`session_diagnostics`のみを参照していること(削除済みの`diagnostics.jsonl`への参照が残っていないこと)。
 
 ---
 
 ## Known Limitations
 
-Old monolithic source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) have been deleted; this document set is the primary reference. Memory layer (`agent/memory/`) is documented in `05_agent_12_memory-*.md` and summarized in `05_agent_02` §Memory Services.
+古いモノリシックなソースファイル(`05_agent.md`、`05_ref-agent-*.md`など)は削除済みであり、本ドキュメントセットが正式なリファレンスである。メモリレイヤー(`agent/memory/`)は`05_agent_12_memory-*.md`で詳細に文書化され、`05_agent_02`の§Memory Servicesで概要が述べられている。
 
 ## Related Documents
 

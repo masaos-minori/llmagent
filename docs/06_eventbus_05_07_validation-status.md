@@ -18,17 +18,17 @@ source:
 
 # Event Bus: Validation Status
 
-## Validation status
+## 検証状況
 
-Event Bus module CI verification:
+Event Bus モジュールの CI 検証結果:
 
-| Check | Command | Status |
+| チェック | コマンド | 状態 |
 |---|---|---|
-| Lint | `uv run ruff check scripts/eventbus/` | 0 errors |
-| Type check | `uv run mypy scripts/eventbus/` | no errors |
-| Tests | `uv run pytest tests/test_eventbus*.py` | all pass |
+| Lint | `uv run ruff check scripts/eventbus/` | エラー0件 |
+| 型チェック | `uv run mypy scripts/eventbus/` | エラーなし |
+| テスト | `uv run pytest tests/test_eventbus*.py` | すべて成功 |
 
-Last verified: 2026-06-24
+最終確認日: 2026-06-24
 
 ## Related Documents
 

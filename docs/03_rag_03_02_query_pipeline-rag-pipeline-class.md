@@ -17,30 +17,30 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 2. RagPipeline Class (`scripts/rag/pipeline.py`)
+## 2. RagPipeline クラス (`scripts/rag/pipeline.py`)
 
 ```python
 from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get_embedding
 from rag.utils import sanitize_document
 ```
 
-### Constructor
+### コンストラクタ
 
-| Parameter | Type | Description |
+| パラメータ | 型 | 説明 |
 |---|---|---|
-| `http` | `httpx.AsyncClient` | HTTP client for LLM/embedding calls |
-| `cfg` | `RagConfig` | RAG configuration from agent.toml |
-| `module_cfg` | `dict \| None` | Optional config override; bypasses load_all() / agent.toml (agent process path); when None, falls back to internal module config retrieval |
-| `on_status` | `Callable[[str], None] \| None` | Progress callback; defaults to no-op |
-| `on_clear` | `Callable[[], None] \| None` | Cleanup callback; always called in `finally` block of `run()`/`augment()` |
+| `http` | `httpx.AsyncClient` | LLM/埋め込み呼び出し用のHTTPクライアント |
+| `cfg` | `RagConfig` | agent.tomlから読み込まれるRAG設定 |
+| `module_cfg` | `dict \| None` | 任意の設定オーバーライド；load_all() / agent.toml（エージェントプロセス経路）をバイパスする；Noneの場合は内部モジュール設定の取得にフォールバックする |
+| `on_status` | `Callable[[str], None] \| None` | 進行状況コールバック；デフォルトはno-op |
+| `on_clear` | `Callable[[], None] \| None` | クリーンアップコールバック；`run()`/`augment()` の `finally` ブロックで常に呼び出される |
 
 ```python
 RagPipeline(
@@ -53,47 +53,47 @@ RagPipeline(
 )
 ```
 
-### Public attributes
+### 公開属性
 
-| Attribute | Type | Description |
+| 属性 | 型 | 説明 |
 |---|---|---|
-| `last_fetch_result` | `TwoStageFetchResult \| None` | Reranked hits from last `run()`/`augment()`. Holds `hits`, `min_score_applied`, `max_chunks_per_doc` |
-| `last_timings` | `dict[str, float]` | Wall-clock seconds per stage from last `run()` |
-| `last_stage_results` | `list[StageResult]` | Per-stage outcome records (status, fallback reason, elapsed) from last `run()` |
-| `semantic_cache` | `SemanticCache` | In-memory nearest-neighbor cache |
-| `last_search_diagnostics` | `SearchDiagnostics` | Search diagnostics from last `run()`; includes `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` for HTTP mode |
-| `stat_search_embed_failed` | `int` | Cumulative embedding failure count across all `run()` calls on this instance |
-| `stat_search_fts_errors` | `int` | Cumulative FTS error count across all `run()` calls on this instance |
+| `last_fetch_result` | `TwoStageFetchResult \| None` | 直前の `run()`/`augment()` によるリランク済みヒット。`hits`、`min_score_applied`、`max_chunks_per_doc` を保持する |
+| `last_timings` | `dict[str, float]` | 直前の `run()` の各ステージの実測秒数 |
+| `last_stage_results` | `list[StageResult]` | 直前の `run()` のステージごとの結果記録（status、fallback reason、elapsed） |
+| `semantic_cache` | `SemanticCache` | インメモリの最近傍キャッシュ |
+| `last_search_diagnostics` | `SearchDiagnostics` | 直前の `run()` の検索診断情報；HTTPモード用に `result_source`、`http_result_kind`、`remote_status_code`、`remote_latency_ms`、`fallback_reason` を含む |
+| `stat_search_embed_failed` | `int` | このインスタンス上のすべての `run()` 呼び出しにおける埋め込み失敗の累積数 |
+| `stat_search_fts_errors` | `int` | このインスタンス上のすべての `run()` 呼び出しにおけるFTSエラーの累積数 |
 
-### Public methods
+### 公開メソッド
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | Execute MQE→search→RRF→rerank+PluginHooks; return `PipelineRunResult` (queries, search_results, merged, reranked, stage_results, diagnostics); **does NOT set `result_source`** — always `None` in local mode; `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
-| `augment` | `async (query, debug_fn=None, history_context="") -> str` | Full pipeline + Augment stage; returns context block string or `""`; raises `RagPipelineError` on DB failure |
-| `search_queries` | `async (queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search; **does NOT record diagnostics** — unlike SearchStage which populates `SearchDiagnostics` |
-| `rerank_candidates` | `async (query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or slice+dedup fallback + dedup |
-| `get_diagnostics` | `() -> dict` | Return structured diagnostics for the last pipeline execution; safe to call before `run()`/`augment()` — returns empty/zero values |
+| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | MQE→search→RRF→rerank+PluginHooksを実行する；`PipelineRunResult`（queries、search_results、merged、reranked、stage_results、diagnostics）を返す；**`result_source` は設定しない** — ローカルモードでは常に `None`；`hook_strict=True` の場合は最初のプラグインフック失敗を再送出する（デフォルト: 警告をログに記録しスキップ）；`finally` で常に `on_clear()` を呼び出す |
+| `augment` | `async (query, debug_fn=None, history_context="") -> str` | パイプライン全体 + Augmentステージを実行する；コンテキストブロック文字列または `""` を返す；DB失敗時は `RagPipelineError` を発生させる |
+| `search_queries` | `async (queries, db) -> list[list[RagHit]]` | 単独利用可能なヘルパー: 並列埋め込み + 逐次DB検索；`SearchDiagnostics` を記録するSearchStageとは異なり、**診断情報を記録しない** |
+| `rerank_candidates` | `async (query, merged) -> list[RagHit]` | 単独利用可能なヘルパー: クロスエンコーダ、またはスライス+重複排除によるフォールバック + 重複排除 |
+| `get_diagnostics` | `() -> dict` | 直前のパイプライン実行に関する構造化された診断情報を返す；`run()`/`augment()` の前に呼び出しても安全 — 空/ゼロ値を返す |
 
-### HTTP Mode (`rag_service_url`)
+### HTTPモード（`rag_service_url`）
 
-When `rag_service_url` is non-empty, `augment()` delegates to the external RAG service via
-`call_rag_service()` in `scripts/rag/pipeline_service.py` instead of running the in-process pipeline.
+`rag_service_url` が空でない場合、`augment()` はインプロセスパイプラインを実行する代わりに、
+`scripts/rag/pipeline_service.py` の `call_rag_service()` を介して外部RAGサービスに委譲する。
 
-| Behavior | Detail |
+| 動作 | 詳細 |
 |---|---|
-| Auth | `X-RAG-Token: {rag_auth_token}` header added when `rag_auth_token != ""` (default: no header) |
-| Timeout | 10.0 seconds per HTTP attempt (connect + read) |
-| Retry | Up to 2 retries on 5xx or transport errors; exponential backoff (1s, 2s); no retry on 4xx or JSON parse errors |
-| Fallback | `None` returned → in-process pipeline; `""` (empty context) → accepted as valid result |
-| Anti-loop | MCP adapter hardcodes `rag_service_url=""` so in-process `augment()` never re-delegates |
-| Return values | `call_rag_service()` returns `(context: str \| None, status_code: int \| None, elapsed_ms: float)` — `status_code` and `elapsed_ms` are available for diagnostics |
+| 認証 | `rag_auth_token != ""` の場合、`X-RAG-Token: {rag_auth_token}` ヘッダが付加される（デフォルト: ヘッダなし） |
+| タイムアウト | HTTP試行1回あたり10.0秒（接続+読み取り） |
+| リトライ | 5xxまたはトランスポートエラーの場合は最大2回リトライ；指数バックオフ（1秒、2秒）；4xxまたはJSONパースエラーではリトライしない |
+| フォールバック | `None` が返された場合 → インプロセスパイプライン；`""`（空のコンテキスト）→ 有効な結果として受理される |
+| 無限委譲の防止 | MCPアダプタは `rag_service_url=""` をハードコードしているため、インプロセスの `augment()` が再度委譲することはない |
+| 戻り値 | `call_rag_service()` は `(context: str \| None, status_code: int \| None, elapsed_ms: float)` を返す — `status_code` と `elapsed_ms` は診断情報として利用可能 |
 
-Config fields in `RagConfig` Protocol (`shared/types.py`):
-- `rag_service_url: str` — remote endpoint URL; empty string disables HTTP mode
-- `rag_auth_token: str` — optional bearer token for `X-RAG-Token` header; `""` = no auth (default)
+`RagConfig` Protocol（`shared/types.py`）の設定フィールド:
+- `rag_service_url: str` — リモートエンドポイントのURL；空文字列の場合HTTPモードは無効
+- `rag_auth_token: str` — `X-RAG-Token` ヘッダ用の任意のベアラートークン；`""` = 認証なし（デフォルト）
 
-#### call_rag_service() function (`scripts/rag/pipeline_service.py`)
+#### call_rag_service() 関数 (`scripts/rag/pipeline_service.py`)
 
 ```python
 call_rag_service(
@@ -108,45 +108,45 @@ call_rag_service(
 ) -> tuple[str | None, int | None, float]
 ```
 
-Return contract:
+戻り値の契約:
 
-| Return value | Condition |
+| 戻り値 | 条件 |
 |---|---|
-| `str` (non-empty) | HTTP 200 + response body has `"result"` key with non-empty string value |
-| `""` (empty string) | HTTP 200 but `"result"` key is absent, None, or empty — valid empty result |
-| `None` | HTTP 4xx (no retry), 5xx with retries exhausted, transport error, or JSON parse error — triggers in-process fallback |
+| `str`（非空） | HTTP 200 かつレスポンスボディに空でない文字列値を持つ `"result"` キーがある |
+| `""`（空文字列） | HTTP 200だが `"result"` キーが存在しない、None、または空 — 有効な空の結果 |
+| `None` | HTTP 4xx（リトライなし）、リトライを使い切った5xx、トランスポートエラー、またはJSONパースエラー — インプロセスへのフォールバックを発生させる |
 
-Side effects:
-- `set_fetch_result` called with `TwoStageFetchResult` holding fetch stage status and hits from response body
-- `set_fallback_reason` called with reason string on non-success path (4xx, transport error, etc.)
+副作用:
+- `set_fetch_result` は、レスポンスボディから取得したフェッチステージのステータスとヒットを保持する `TwoStageFetchResult` と共に呼び出される
+- `set_fallback_reason` は、成功以外の経路（4xx、トランスポートエラーなど）で理由文字列と共に呼び出される
 
-When `rag_service_url` is set, `augment()` classifies the HTTP result and records it
-in `get_diagnostics()["http_result_kind"]` and in `StageResult.fallback_reason`.
+`rag_service_url` が設定されている場合、`augment()` はHTTP結果を分類し、
+`get_diagnostics()["http_result_kind"]` と `StageResult.fallback_reason` に記録する。
 
-| `http_result_kind` | `StageResult` status | `fallback_reason` | Condition |
+| `http_result_kind` | `StageResult` のstatus | `fallback_reason` | 条件 |
 |---|---|---|---|
-| `"remote_nonempty"` | `"success"` | `None` | HTTP call succeeded; non-empty context returned |
-| `"remote_empty"` | `"success"` | `None` | HTTP 200 but context field is `""` — valid empty result, not a fallback |
-| `"in_process_fallback"` | `"fallback"` | error string | HTTP error; in-process RAG pipeline ran instead |
-| `None` | — | — | `rag_service_url` not set; HTTP mode not used |
+| `"remote_nonempty"` | `"success"` | `None` | HTTP呼び出しが成功；非空のコンテキストが返された |
+| `"remote_empty"` | `"success"` | `None` | HTTP 200だがcontextフィールドが `""` — 有効な空の結果であり、フォールバックではない |
+| `"in_process_fallback"` | `"fallback"` | エラー文字列 | HTTPエラー；代わりにインプロセスのRAGパイプラインが実行された |
+| `None` | — | — | `rag_service_url` が未設定；HTTPモードは使用されていない |
 
-The `"remote_empty"` case is a **success**, not a fallback: the remote service
-responded with HTTP 200 but found no relevant context. The in-process pipeline does NOT
-run in this case. `fallback_reason` is `None` for both `remote_nonempty` and `remote_empty`
-to prevent confusion with actual fallback events.
+`"remote_empty"` のケースはフォールバックではなく**成功**である。リモートサービスは
+HTTP 200で応答したが、関連コンテキストが見つからなかった。この場合、インプロセスパイプラインは
+実行されない。実際のフォールバック事象と混同しないよう、`remote_nonempty` と `remote_empty` の両方で
+`fallback_reason` は `None` になる。
 
-The classification is visible in:
+この分類結果は以下で確認できる。
 - `get_diagnostics()["http_result_kind"]`
 - `/rag search --debug`: `[debug] http mode: result_source=remote http_result_kind=success (empty response — no in-process fallback)`
 
-#### HTTP RAG request details
+#### HTTP RAGリクエストの詳細
 
-| Detail | Value |
+| 項目 | 値 |
 |---|---|
-| Endpoint | `{rag_url}/v1/call_tool` |
-| Request body | `{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [history_context]}}` (empty list when history_context is empty) |
-| Maximum attempts | 3 total attempts (initial + 2 retries) |
-| Retry backoff | Exponential: `min(2**attempt, 5)` seconds |
+| エンドポイント | `{rag_url}/v1/call_tool` |
+| リクエストボディ | `{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [history_context]}}`（history_contextが空の場合は空リスト） |
+| 最大試行回数 | 合計3回（初回 + 2回のリトライ） |
+| リトライのバックオフ | 指数的: `min(2**attempt, 5)` 秒 |
 
 ---
 

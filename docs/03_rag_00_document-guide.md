@@ -18,110 +18,110 @@ related:
   - 03_rag_91_design_notes-part2.md
 ---
 
-# RAG Documentation Guide
+# RAG ドキュメントガイド
 
-This is the entry point for the restructured RAG system documentation.
-Read this file first to choose which chapter to open.
+これは再構成されたRAGシステムドキュメントのエントリポイントである。
+どの章を開くべきか判断するため、最初にこのファイルを読むこと。
 
 ---
 
-## Reading Order
+## 読む順序
 
 ```
-01 System Overview → 02 Ingestion Pipeline → 03 Query Pipeline → 04 Data Model → 05 Configuration → 90 Issues → 91 Design Notes
+01 システム概要 → 02 インジェクションパイプライン → 03 クエリパイプライン → 04 データモデル → 05 設定 → 90 既知の問題 → 91 設計ノート
 ```
 
 ---
 
-## AI Query Routing Table
+## AIクエリルーティングテーブル
 
-| Question | File |
+| 質問 | ファイル |
 |---|---|
-| What is the RAG system and how does it work overall? | `03_rag_01` |
-| What are the ingestion pipeline scripts and how do I run them? | `03_rag_02`, `03_rag_05` |
-| What does `WebCrawler` / `ChunkSplitter` / `RagIngester` do (API)? | `03_rag_02` |
-| How does the query pipeline work (stages, RRF, rerank)? | `03_rag_03` |
-| What is the `RagPipeline` API? | `03_rag_03` |
-| How does `use_rrf` affect fusion mode? | `03_rag_03` |
-| What is the SQLite schema for the RAG database? | `03_rag_04` |
-| What are `RawHit`, `MergedHit`, `RankedHit`? | `03_rag_04` |
-| What are the configuration parameters? | `03_rag_05` |
-| Are there known bugs or behavior inconsistencies? | `03_rag_90` |
-| What are the confirmed design invariants for FTS5/LLM content separation or table responsibilities? | `03_rag_91` |
+| RAGシステムとは何か、全体としてどう動作するか | `03_rag_01` |
+| インジェクションパイプラインのスクリプトは何か、どう実行するか | `03_rag_02`, `03_rag_05` |
+| `WebCrawler` / `ChunkSplitter` / `RagIngester` は何をするか（API） | `03_rag_02` |
+| クエリパイプラインはどう動作するか（ステージ、RRF、リランク） | `03_rag_03` |
+| `RagPipeline` のAPIとは何か | `03_rag_03` |
+| `use_rrf` はフュージョンモードにどう影響するか | `03_rag_03` |
+| RAGデータベースのSQLiteスキーマとは何か | `03_rag_04` |
+| `RawHit`、`MergedHit`、`RankedHit` とは何か | `03_rag_04` |
+| 設定パラメータには何があるか | `03_rag_05` |
+| 既知のバグや動作の不整合はあるか | `03_rag_90` |
+| FTS5/LLMコンテンツ分離やテーブル責務についての確定した設計上の不変条件は何か | `03_rag_91` |
 
 ---
 
-## Canonical Source Rules
+## 正典ソースのルール
 
-The restructured docs in the File Index below are the only active spec sources.
+以下のファイル索引に記載された再構成後のドキュメントのみが、有効な仕様のソースである。
 
-| Domain | Canonical source |
+| 領域 | 正典ソース |
 |---|---|
-| System purpose, ingestion and query pipeline overviews | `03_rag_01_system_overview.md` |
-| File formats (JSON structure, field names) | `03_rag_02_01_ingestion_pipeline-overview.md`, `03_rag_04_01_dto-models_data.md` |
-| Query pipeline behavior (stages, RRF, rerank, HTTP mode) | `03_rag_03_01_query_pipeline-overview.md` |
-| Configuration parameters and operations commands | `03_rag_05_1-configuration-reference.md` |
-| Known bugs, spec conflicts, open questions | `03_rag_90_inconsistencies_and_known_issues.md` |
-| Confirmed design invariants and regression test gaps | `03_rag_91_design_notes-part1.md`, `03_rag_91_design_notes-part2.md` |
+| システムの目的、インジェクション/クエリパイプラインの概要 | `03_rag_01_system_overview.md` |
+| ファイル形式（JSON構造、フィールド名） | `03_rag_02_01_ingestion_pipeline-overview.md`, `03_rag_04_01_dto-models_data.md` |
+| クエリパイプラインの動作（ステージ、RRF、リランク、HTTPモード） | `03_rag_03_01_query_pipeline-overview.md` |
+| 設定パラメータと運用コマンド | `03_rag_05_1-configuration-reference.md` |
+| 既知のバグ、仕様の矛盾、未解決の課題 | `03_rag_90_inconsistencies_and_known_issues.md` |
+| 確定した設計上の不変条件とリグレッションテストのギャップ | `03_rag_91_design_notes-part1.md`, `03_rag_91_design_notes-part2.md` |
 
-**Conflict resolution**: If two docs disagree on a fact and the conflict cannot be resolved immediately, record it as an entry in `03_rag_90_inconsistencies_and_known_issues.md` with a DOC-N label, then fix the root cause in the owning document.
+**コンフリクト解決**: 2つのドキュメントで事実が一致せず、すぐに解決できない場合は、`03_rag_90_inconsistencies_and_known_issues.md` にDOC-Nラベルを付けたエントリとして記録し、その後、責任を持つドキュメント側で根本原因を修正すること。
 
-### Running checks locally
+### ローカルでのチェック実行
 
-Run the RAG documentation consistency checker from the project root:
+プロジェクトルートからRAGドキュメント整合性チェッカーを実行する。
 
 ```bash
 python scripts/checks/check_docs_consistency.py
 ```
 
-To check specific files:
+特定のファイルのみチェックする場合。
 
 ```bash
 python scripts/checks/check_docs_consistency.py docs/03_rag_01_system_overview.md
 ```
 
-The checker runs 10 checks: broken headings, malformed tables, unclosed inline code, JSON not wrapped in fenced code blocks, stale artifact references (`.txt` -> `.json`), non-canonical command names, resolved issues under active sections, stale issue ID routing, deleted RAG source file references, and Migration Notes in active sections. Historical markers (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) exempt lines from stale-pattern failures.
+このチェッカーは10種類のチェックを実行する: 壊れた見出し、不正な形式のテーブル、閉じていないインラインコード、フェンス付きコードブロックで囲まれていないJSON、古くなったアーティファクト参照（`.txt` -> `.json`）、非正典的なコマンド名、有効なセクション内にある解決済みの課題、古くなったissue IDルーティング、削除されたRAGソースファイルへの参照、有効なセクション内の移行ノート。履歴を示すマーカー（`legacy`、`historical`、`archive only`、`resolved`、`was:`、`removed`）が付いた行は、古い記述パターンの検出対象から除外される。
 
 ---
 
-## File Index
+## ファイル索引
 
-| File | Description |
+| ファイル | 説明 |
 |---|---|
-| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | Entry point and routing guide |
-| [03_rag_01_system_overview.md](03_rag_01_system_overview.md) | System overview, architecture, prerequisites |
-| [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) | Ingestion execution guide |
-| [03_rag_02_02_ingestion_pipeline-crawler.md](03_rag_02_02_ingestion_pipeline-crawler.md) | WebCrawler detail |
-| [03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md) | ChunkSplitter detail |
-| [03_rag_02_04_ingestion_pipeline-ingester.md](03_rag_02_04_ingestion_pipeline-ingester.md) | RagIngester detail |
-| [03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) | DocumentManager detail |
-| [03_rag_02_06_ingestion_pipeline-supporting-components.md](03_rag_02_06_ingestion_pipeline-supporting-components.md) | ETagManager + Configuration |
-| [03_rag_02_07_ingestion_pipeline-utils.md](03_rag_02_07_ingestion_pipeline-utils.md) | Utility functions |
-| [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-shared.md) | Shared utilities |
-| [03_rag_02_09_ingestion_pipeline-shared-utilities.md](03_rag_02_09_ingestion_pipeline-shared-utilities.md) | rag.utils detail |
-| [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) | Query pipeline overview |
-| [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md) | RagPipeline class |
-| [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) | Context + diagnostics |
-| [03_rag_03_04_query_pipeline-search-stages.md](03_rag_03_04_query_pipeline-search-stages.md) | Search stages |
-| [03_rag_03_05_query_pipeline-augment-stages.md](03_rag_03_05_query_pipeline-augment-stages.md) | Augment stages |
-| [03_rag_03_06_query_pipeline-helpers-and-cache.md](03_rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + cache |
-| [03_rag_03_07_query_pipeline-tests.md](03_rag_03_07_query_pipeline-tests.md) | Tests |
+| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | エントリポイントとルーティングガイド |
+| [03_rag_01_system_overview.md](03_rag_01_system_overview.md) | システム概要、アーキテクチャ、前提条件 |
+| [03_rag_02_01_ingestion_pipeline-overview.md](03_rag_02_01_ingestion_pipeline-overview.md) | インジェクション実行ガイド |
+| [03_rag_02_02_ingestion_pipeline-crawler.md](03_rag_02_02_ingestion_pipeline-crawler.md) | WebCrawlerの詳細 |
+| [03_rag_02_03_ingestion_pipeline-chunksplitter.md](03_rag_02_03_ingestion_pipeline-chunksplitter.md) | ChunkSplitterの詳細 |
+| [03_rag_02_04_ingestion_pipeline-ingester.md](03_rag_02_04_ingestion_pipeline-ingester.md) | RagIngesterの詳細 |
+| [03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) | DocumentManagerの詳細 |
+| [03_rag_02_06_ingestion_pipeline-supporting-components.md](03_rag_02_06_ingestion_pipeline-supporting-components.md) | ETagManager + 設定 |
+| [03_rag_02_07_ingestion_pipeline-utils.md](03_rag_02_07_ingestion_pipeline-utils.md) | ユーティリティ関数 |
+| [03_rag_02_08_ingestion_pipeline-shared.md](03_rag_02_08_ingestion_pipeline-shared.md) | 共有ユーティリティ |
+| [03_rag_02_09_ingestion_pipeline-shared-utilities.md](03_rag_02_09_ingestion_pipeline-shared-utilities.md) | rag.utilsの詳細 |
+| [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) | クエリパイプライン概要 |
+| [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md) | RagPipelineクラス |
+| [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) | コンテキスト + 診断 |
+| [03_rag_03_04_query_pipeline-search-stages.md](03_rag_03_04_query_pipeline-search-stages.md) | 検索ステージ |
+| [03_rag_03_05_query_pipeline-augment-stages.md](03_rag_03_05_query_pipeline-augment-stages.md) | 拡張ステージ |
+| [03_rag_03_06_query_pipeline-helpers-and-cache.md](03_rag_03_06_query_pipeline-helpers-and-cache.md) | ヘルパー + キャッシュ |
+| [03_rag_03_07_query_pipeline-tests.md](03_rag_03_07_query_pipeline-tests.md) | テスト |
 | [03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) | DTO: models_data |
 | [03_rag_04_02_dto-models_result.md](03_rag_04_02_dto-models_result.md) | DTO: models_result |
 | [03_rag_04_03_dto-models_audit.md](03_rag_04_03_dto-models_audit.md) | DTO: models_audit |
 | [03_rag_04_04_dto-models_config.md](03_rag_04_04_dto-models_config.md) | DTO: models_config |
 | [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md) | DTO: types |
-| [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) | Config reference |
-| [03_rag_05_2-execution-guide.md](03_rag_05_2-execution-guide.md) | Execution guide |
-| [03_rag_05_3-logging.md](03_rag_05_3-logging.md) | Logging |
-| [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md) | Error handling |
-| [03_rag_05_5-constraints-reference.md](03_rag_05_5-constraints-reference.md) | Constraints |
-| [03_rag_05_6-local-file-re-ingestion.md](03_rag_05_6-local-file-re-ingestion.md) | Local re-ingestion |
-| [03_rag_05_7-rag-index-consistency-checks.md](03_rag_05_7-rag-index-consistency-checks.md) | Consistency checks |
-| [03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md](03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP internal ops |
-| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Known issues |
-| [03_rag_91_design_notes-part1.md](03_rag_91_design_notes-part1.md) | DESIGN-2 notes |
-| [03_rag_91_design_notes-part2.md](03_rag_91_design_notes-part2.md) | DESIGN-3 notes |
+| [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) | 設定リファレンス |
+| [03_rag_05_2-execution-guide.md](03_rag_05_2-execution-guide.md) | 実行ガイド |
+| [03_rag_05_3-logging.md](03_rag_05_3-logging.md) | ロギング |
+| [03_rag_05_4-error-handling-reference.md](03_rag_05_4-error-handling-reference.md) | エラーハンドリング |
+| [03_rag_05_5-constraints-reference.md](03_rag_05_5-constraints-reference.md) | 制約 |
+| [03_rag_05_6-local-file-re-ingestion.md](03_rag_05_6-local-file-re-ingestion.md) | ローカル再インジェクション |
+| [03_rag_05_7-rag-index-consistency-checks.md](03_rag_05_7-rag-index-consistency-checks.md) | 整合性チェック |
+| [03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md](03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP内部操作 |
+| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | 既知の問題 |
+| [03_rag_91_design_notes-part1.md](03_rag_91_design_notes-part1.md) | DESIGN-2ノート |
+| [03_rag_91_design_notes-part2.md](03_rag_91_design_notes-part2.md) | DESIGN-3ノート |
 
 ---
 

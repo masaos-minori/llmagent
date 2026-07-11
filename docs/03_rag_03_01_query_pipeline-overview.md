@@ -19,47 +19,47 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 1. Pipeline Overview
+## 1. パイプライン概要
 
-`RagPipeline` orchestrates 6 sequential stages (5 fixed + PluginHooks). Each stage implements
-`PipelineStage` Protocol and mutates a shared `PipelineContext` dataclass in-place.
+`RagPipeline` は6つのステージを順に実行する（固定5つ + PluginHooks）。各ステージは
+`PipelineStage` Protocolを実装し、共有される `PipelineContext` dataclassをインプレースで変更する。
 
 ```
 RagPipeline.augment(query)
-  → use_search=False? → return ""
-  → rag_service_url set? → call_rag_service() → fallback to in-process on failure
+  → use_search=False? → ""を返す
+  → rag_service_urlが設定されている? → call_rag_service() → 失敗時はインプロセス実行にフォールバック
   → run(query, db, history_context, hook_strict=False)
-      [1] MqeStage    — expand query into N variants
-      [2] SearchStage — KNN + BM25 per variant
-      [3] FusionStage — RRF merge (Σ 1/(rrf_k+rank); rrf_k configurable via config, default: 60)
-      [4] RerankStage — cross-encoder scoring; filter by rag_min_score; post-rerank dedup by URL
-      [5] PluginHooks — registered post-rerank hooks (error-isolated; strict mode re-raises); runs between RerankStage and AugmentStage (not a PipelineStage)
-      [6] AugmentStage — format [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
-  → use_refiner=True? → refine_context() (compress chunks; fallback to raw on error)
-  → return context block string
+      [1] MqeStage    — クエリをN個のバリアントに展開する
+      [2] SearchStage — バリアントごとにKNN + BM25を実行する
+      [3] FusionStage — RRFによるマージ（Σ 1/(rrf_k+rank)；rrf_kは設定で変更可能、デフォルト: 60）
+      [4] RerankStage — クロスエンコーダによるスコアリング；rag_min_scoreでフィルタ；リランク後にURL単位で重複排除
+      [5] PluginHooks — 登録済みのリランク後フック（エラーは分離される；strictモードでは再送出される）；RerankStageとAugmentStageの間で実行される（PipelineStageではない）
+      [6] AugmentStage — [RAG_CONTEXT_START]...[RAG_CONTEXT_END] 形式に整形する
+  → use_refiner=True? → refine_context()（チャンクを圧縮；エラー時は生のチャンクにフォールバック）
+  → コンテキストブロック文字列を返す
 ```
 
-**Caller:** `scripts/mcp/rag_pipeline/service.py` (`RagPipelineMCPService`). Agent REPL does not
-call `RagPipeline` directly.
+**呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（`RagPipelineMCPService`）。エージェントREPLは
+`RagPipeline` を直接呼び出さない。
 
 ### MCP サーバー呼び出しパス
 
 ```
 MCP クライアント
-  → scripts/mcp/rag_pipeline/server.py (HTTP ルート)
+  → scripts/mcp_servers/rag_pipeline/server.py (HTTP ルート)
     → RagPipelineMCPService.run_pipeline() (service.py)
       → RagPipeline.run() (scripts/rag/pipeline.py)
 ```
 
-For RagPipeline class details → [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md)
+RagPipelineクラスの詳細 → [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md)
 
 ---
 
@@ -73,8 +73,8 @@ class MyStage(PipelineStage):
         ...
 ```
 
-`kwargs` receives `db: SQLiteHelper` and other stage-specific args.
-The stage mutates `ctx` in-place; it does not return a value.
+`kwargs` には `db: SQLiteHelper` などステージ固有の引数が渡される。
+ステージは `ctx` をインプレースで変更し、値を返さない。
 
 ---
 

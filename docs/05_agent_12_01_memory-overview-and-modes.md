@@ -20,89 +20,89 @@ source:
 
 # Memory Layer — Module Reference
 
-- Operations and observability → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
+- 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+- 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-## Persistent Semantic Memory — Overview
+## 永続的セマンティックメモリ — 概要
 
-Persistent Semantic Memory stores abstract rules, design decisions, failure patterns,
-and conversational Q&A across agent sessions.
+永続的セマンティックメモリは、エージェントのセッションをまたいで抽象的なルール、設計上の決定、失敗パターン、
+および会話の Q&A を保存する。
 
-**Memory types**:
-- Semantic: long-lived rules and decisions (importance ≥ 0.5 for session startup injection)
-- Episodic: session-specific failures and Q&A (injected on first user prompt)
+**メモリの種類**:
+- セマンティック: 長期にわたるルールと決定（セッション開始時の注入には importance ≥ 0.5 が必要）
+- エピソディック: セッション固有の失敗と Q&A（最初のユーザープロンプトで注入される）
 
-**Source types**: RULE / DECISION / FAILURE / CONVERSATION
+**ソースの種類**: RULE / DECISION / FAILURE / CONVERSATION
 
-**Local-only guarantee**: set `memory_local_only = true` to enforce that the embedding
-endpoint is a loopback address. Fails startup if `embed_url` is non-local.
+**ローカル限定保証**: `memory_local_only = true` を設定すると、埋め込み
+エンドポイントがループバックアドレスであることを強制する。`embed_url` がローカルでない場合は起動が失敗する。
 
-**Automatic context restoration**:
-- Session start: pinned + high-importance semantic injected
-- First user prompt: task-specific hybrid retrieval (semantic + episodic)
+**自動的なコンテキスト復元**:
+- セッション開始時: pinned および重要度が高いセマンティックメモリが注入される
+- 最初のユーザープロンプト時: タスク固有のハイブリッド検索（セマンティック＋エピソディック）
 
-## Production Checklist
+## 本番運用チェックリスト
 
-- [ ] `memory_local_only = true` if data must not leave the machine
-- [ ] `embed_url` points to local embedding service (e.g., `http://localhost:11434`)
-- [ ] `/memory status` shows one of: `Hybrid mode`, `FTS-only`, `Degraded mode`, or `disabled`
-- [ ] `/memory rebuild` tested after restoring JSONL backup
-
----
-
-## Purpose
-
-API reference for all modules under `scripts/agent/memory/`. A developer should
-understand each module's responsibility, public API surface, and disabled behavior
-without reading source code.
+- [ ] データがマシン外に出てはならない場合は `memory_local_only = true`
+- [ ] `embed_url` がローカルの埋め込みサービスを指している（例: `http://localhost:11434`）
+- [ ] `/memory status` が `Hybrid mode`、`FTS-only`、`Degraded mode`、`disabled` のいずれかを表示する
+- [ ] JSONL バックアップの復元後に `/memory rebuild` をテスト済み
 
 ---
 
-## Overview
+## 目的
+
+`scripts/agent/memory/` 配下のすべてのモジュールの API リファレンス。開発者は
+ソースコードを読まずに各モジュールの責務、公開 API の範囲、および無効化時の動作を
+理解できるようにする。
+
+---
+
+## 概要
 
 | Module | Responsibility |
 |---|---|
-| `__init__.py` | Public API barrel — re-exports all public symbols |
-| `types.py` | Core runtime types (MemoryEntry, MemoryQuery, MemoryHit, EmbeddingResult) |
-| `enums.py` | Domain enums (MemoryType, DedupAction, RetrievalMode, ExtractionDecision) |
-| `exceptions.py` | Exception hierarchy |
-| `models.py` | Frozen DTOs (HistoryMessage, JsonlRecord, MemorySnippet, ConsistencyReport) |
-| `store.py` | CRUD for memories / memories_fts / memories_vec tables |
-| `retriever.py` | FTS5 / KNN / Hybrid search (FtsRetriever, VectorRetriever, HybridRetriever) |
-| `injection.py` | MemoryInjectionService — lifecycle hooks for snippet injection |
-| `ingestion.py` | MemoryIngestionService — extract, dedup, persist |
-| `extract.py` | Rule-based extraction from conversation history |
-| `jsonl_store.py` | Append-only JSONL archive |
-| `embedding_client.py` | HTTP embedding client with retry and circuit breaker |
-| `services.py` | MemoryServices facade over injection, ingestion, store, retriever |
-| `mapper.py` | SQLite row conversion, embedding blob serialisation |
+| `__init__.py` | 公開 API のバレル — すべての公開シンボルを再エクスポートする |
+| `types.py` | コアランタイム型（MemoryEntry、MemoryQuery、MemoryHit、EmbeddingResult） |
+| `enums.py` | ドメイン enum（MemoryType、DedupAction、RetrievalMode、ExtractionDecision） |
+| `exceptions.py` | 例外階層 |
+| `models.py` | 不変の DTO（HistoryMessage、JsonlRecord、MemorySnippet、ConsistencyReport） |
+| `store.py` | memories / memories_fts / memories_vec テーブルの CRUD |
+| `retriever.py` | FTS5 / KNN / ハイブリッド検索（FtsRetriever、VectorRetriever、HybridRetriever） |
+| `injection.py` | MemoryInjectionService — スニペット注入のライフサイクルフック |
+| `ingestion.py` | MemoryIngestionService — 抽出、重複排除、永続化 |
+| `extract.py` | 会話履歴からのルールベース抽出 |
+| `jsonl_store.py` | 追記専用の JSONL アーカイブ |
+| `embedding_client.py` | リトライとサーキットブレーカーを備えた HTTP 埋め込みクライアント |
+| `services.py` | injection、ingestion、store、retriever に対するファサードである MemoryServices |
+| `mapper.py` | SQLite 行の変換、埋め込み blob のシリアライズ |
 
 ---
 
-## Memory Modes
+## メモリモード
 
-The memory layer operates in four distinct modes, visible via `/memory status`:
+メモリ層は4つの異なるモードで動作し、`/memory status` で確認できる。
 
 | Mode | Description | Retrieval Behavior |
 |---|---|---|
-| `Hybrid mode (semantic + FTS)` | Full operation — embedding endpoint available and healthy | Hybrid search using RRF merge of vector similarity and FTS results |
-| `Memory enabled, embedding disabled (FTS-only)` | Embedding endpoint unavailable but circuit closed | FTS-only search; no vector similarity component |
-| `Degraded mode (circuit open, FTS fallback)` | Embedding circuit breaker triggered by repeated failures | FTS-only search; same as above but indicates active health issues with the embedding service |
-| `Memory layer disabled` | Memory subsystem disabled entirely (`use_memory_layer = false`) | No memory retrieval at all |
+| `Hybrid mode (semantic + FTS)` | 完全動作 — 埋め込みエンドポイントが利用可能で正常な状態 | ベクトル類似度と FTS 結果の RRF マージによるハイブリッド検索 |
+| `Memory enabled, embedding disabled (FTS-only)` | 埋め込みエンドポイントは利用不可だが circuit は closed | FTS のみの検索。ベクトル類似度の要素はない |
+| `Degraded mode (circuit open, FTS fallback)` | 繰り返しの失敗により埋め込みのサーキットブレーカーが作動した状態 | FTS のみの検索。上記と同じだが、埋め込みサービスに現在進行中の問題があることを示す |
+| `Memory layer disabled` | メモリサブシステムが完全に無効化されている（`use_memory_layer = false`） | メモリ検索は一切行われない |
 
-**When each mode applies:**
+**各モードが適用される条件:**
 
-- **Hybrid mode**: Default when memory is enabled and the embedding endpoint is reachable and returning valid embeddings.
-- **FTS-only**: When the embedding endpoint fails (network error, timeout, invalid response), the system falls back to FTS-only. This happens automatically without manual intervention.
-- **Degraded mode**: When the embedding circuit breaker opens due to persistent failures. The circuit breaker threshold is configurable in `embedding_client.py`. Degraded mode uses the same FTS fallback but signals that the embedding service has ongoing issues.
-- **Disabled**: When `use_memory_layer = false` in `config/agent.toml`. No memory retrieval occurs regardless of embedding availability.
+- **Hybrid mode**: メモリが有効で、埋め込みエンドポイントに到達可能かつ有効な埋め込みを返している場合のデフォルト。
+- **FTS-only**: 埋め込みエンドポイントが失敗した場合（ネットワークエラー、タイムアウト、無効な応答）、システムは FTS のみにフォールバックする。これは手動操作なしに自動的に発生する。
+- **Degraded mode**: 継続的な失敗により埋め込みのサーキットブレーカーが開いた場合。サーキットブレーカーの閾値は `embedding_client.py` で設定可能。Degraded mode は上記と同じ FTS フォールバックを使用するが、埋め込みサービスに継続中の問題があることを示す。
+- **Disabled**: `config/agent.toml` で `use_memory_layer = false` の場合。埋め込みの可用性に関わらずメモリ検索は行われない。
 
-**Transition between modes:**
+**モード間の遷移:**
 
-- Hybrid → FTS-only: Automatic on embedding failure
-- FTS-only → Hybrid: Automatic when embedding recovers
-- Degraded → Hybrid: Automatic when circuit breaker closes after recovery period
-- Any → Disabled: Requires config change and agent restart
+- Hybrid → FTS-only: 埋め込み失敗時に自動的に遷移する
+- FTS-only → Hybrid: 埋め込みが復旧した際に自動的に遷移する
+- Degraded → Hybrid: 復旧期間後にサーキットブレーカーが閉じた際に自動的に遷移する
+- いずれか → Disabled: 設定変更とエージェントの再起動が必要
 
 ```
 session_start

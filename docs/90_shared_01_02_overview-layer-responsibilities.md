@@ -19,90 +19,90 @@ source:
 
 - Document guide → [90_shared_00_document-guide.md](90_shared_00_document-guide.md)
 
-## 4. Overall Layer Structure
+## 4. レイヤー構造全体
 
 ```
 External Libraries
         ↑
-   shared/          ← bottom layer; all other layers depend on this
+   shared/          ← 最下層。他の全レイヤーがこれに依存する
         ↑
-       db/           ← depends on shared/ only
+       db/           ← shared/ のみに依存
         ↑
-  rag/ | mcp/        ← depend on db/ and shared/
+  rag/ | mcp/        ← db/ と shared/ に依存
         ↑
-    agent/           ← depends on all layers
+    agent/           ← 全レイヤーに依存
 ```
 
-Import direction is enforced by `.importlinter`. Violations fail `lint-imports`.
+インポート方向は `.importlinter` で強制される。違反すると `lint-imports` が失敗する。
 
 ---
 
-## 5. Responsibilities of `shared/`
+## 5. `shared/` の責務
 
-| Module | Responsibility |
+| モジュール | 責務 |
 |---|---|
-| `config_loader.py` | TOML/JSON file loading and merging |
-| `config_errors.py` | ConfigMissingError, ConfigParseError, ConfigReadError, ConfigPermissionError error classes |
-| `config_validator.py` | RagConfigValidator (validate embedding_dim/vec_dim consistency, use_rrf warning, semantic_cache_threshold sanity) |
-| `logger.py` | Named logger with FileHandler + StreamHandler |
-| `types.py` | `LLMMessage` (TypedDict), `RagConfig` (Protocol) |
-| `llm_types.py` | `LLMUsage`, `LLMResponse` frozen dataclasses |
-| `transport_dto.py` | `ToolCallResult`, `TransportErrorInfo` dataclasses — MCP tool execution result and transport failure info |
-| `action_result.py` | `ActionResult` frozen dataclass — machine decision schema |
-| `events.py` | `ArtifactEvent`, `RetryEvent` TypedDicts |
-| `protocols/shell.py` | `ShellPolicy` dataclass — shell execution policy |
-| `tool_constants.py` | frozenset classification tables: `READ_TOOLS`, `WRITE_TOOLS`, etc. (registry seed only, not a routing input) |
-| `route_resolver.py` | `ToolRouteResolver` — tool name → server key |
-| `mcp_config.py` | `McpServerConfig`, re-exports McpServerHealthState/McpServerHealthRegistry from mcp_health.py |
-| `mcp_health.py` | `McpServerHealthState` enum (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN), `McpServerHealthRegistry` — health tracking for dispatch gating |
-| `tool_executor.py` | `ToolExecutor`, `HttpTransport` |
-| `http_transport.py` | `TransportError`, `HttpTransport` — HTTP transport layer (calls /v1/call_tool) |
-| `plugin_registry.py` | Dynamic plugin loading and tool/command registration |
-| `plugin_auto_discover.py` | `load_plugins()` — import all *.py from plugin_dir with conflict validation |
-| `plugin_result.py` | `PluginFailure`, `PluginLoadResult` dataclasses, `PluginLoadError` exception |
-| `otel_tracer.py` | Private TracerProvider for OpenTelemetry |
-| `otel_noop.py` | NoOpTracer and NoOpSpan stubs for disabled tracing |
-| `token_counter.py` | Token count via `/tokenize` endpoint or chars//4 fallback |
-| `token_estimation.py` | `estimate_tokens_for_text()`, `estimate_tokens_for_assistant_with_tool_calls()`, `estimate_tokens()` — category-aware token estimation |
-| `git_helper.py` | Git repository info retrieval |
-| `formatters.py` | Text truncation, key=value log strings, size formatting |
-| `json_utils.py` | `dumps()` — orjson.dumps().decode() wrapper returning str |
-| `llm_exceptions.py` | `LLMErrorKind` literal, `LLMTransportError` with kind/phase/url/status_code/retryable/partial_text/detail fields |
-| `llm_transport_errors.py` | `LlmTransportErrorHandler` — raise_http_status_error, translate_stream_error |
-| `llm_sse_stream.py` | `LlmSseStreamHandler` — read_next_chunk, stream_once |
-| `llm_sse_helpers.py` | `LlmSseHelpers` — merge_tool_call_delta, build_stream_response |
-| `llm_reconnect.py` | `LlmReconnectHandler` — resolve_retryable, stream |
-| `llm_retry.py` | `LlmRetryHandler` — exponential-backoff retry for LLM HTTP requests |
-| `llm_payload.py` | `LlmPayloadHandler` — build_payload, parse_response |
-| `llm_hot_config.py` | `LlmHotConfigHandler` — hot-reloadable config fields |
-| `sse_parser.py` | `RobustSSEParser` — stateful SSE parser with incremental UTF-8 decoder + heartbeat tracking + malformed frame budget |
-| `tool_registry.py` | `ToolDefinition` dataclass, `ToolRegistry` class — central MCP tool registry and drift validation |
-| `tool_routing_validation.py` | `validate_routing_against_config()`, `validate_routing_against_live()`, `validate_all_routing()` — drift validation functions |
-| `tool_transport_invoker.py` | `ToolTransportInvoker` — transport layer MCP invocation (health, lifecycle, semaphore, call recording) |
-| `tool_lifecycle.py` | `LifecycleProtocol` protocol for MCP server lifecycle managers |
-| `tool_executor_helpers.py` | `is_side_effect()`, `format_transport_error()`, `tool_hash_key()` helper functions |
-| `tool_spec.py` | `ToolSpec` dataclass — execution metadata for a single tool call (resource_scope, requires_serial, is_write) |
-| `tool_cache.py` | `CacheEntry` dataclass, `ToolResultCache` — LRU cache with TTL for tool call results |
-| `plugin_tool_invoker.py` | `PluginToolInvoker` — plugin tool execution layer |
+| `config_loader.py` | TOML/JSON ファイルの読み込みとマージ |
+| `config_errors.py` | ConfigMissingError, ConfigParseError, ConfigReadError, ConfigPermissionError エラークラス |
+| `config_validator.py` | RagConfigValidator(embedding_dim/vec_dimの整合性検証、use_rrf警告、semantic_cache_thresholdの妥当性チェック） |
+| `logger.py` | FileHandler + StreamHandler を持つ名前付きロガー |
+| `types.py` | `LLMMessage`(TypedDict）、`RagConfig`（Protocol） |
+| `llm_types.py` | `LLMUsage`、`LLMResponse` frozenデータクラス |
+| `transport_dto.py` | `ToolCallResult`、`TransportErrorInfo` データクラス — MCPツール実行結果とトランスポート失敗情報 |
+| `action_result.py` | `ActionResult` frozenデータクラス — マシン判定スキーマ |
+| `events.py` | `ArtifactEvent`、`RetryEvent` TypedDict |
+| `protocols/shell.py` | `ShellPolicy` データクラス — シェル実行ポリシー |
+| `tool_constants.py` | frozensetの分類テーブル: `READ_TOOLS`、`WRITE_TOOLS` 等（レジストリのシードのみで、ルーティング入力ではない） |
+| `route_resolver.py` | `ToolRouteResolver` — ツール名 → サーバキー |
+| `mcp_config.py` | `McpServerConfig`、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
+| `mcp_health.py` | `McpServerHealthState` enum（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）、`McpServerHealthRegistry` — ディスパッチ判定用のヘルス追跡 |
+| `tool_executor.py` | `ToolExecutor`、`HttpTransport` |
+| `http_transport.py` | `TransportError`、`HttpTransport` — HTTPトランスポート層（/v1/call_toolを呼ぶ） |
+| `plugin_registry.py` | 動的プラグイン読込とツール/コマンド登録 |
+| `plugin_auto_discover.py` | `load_plugins()` — plugin_dir配下の全*.pyを競合検証しつつインポート |
+| `plugin_result.py` | `PluginFailure`、`PluginLoadResult` データクラス、`PluginLoadError` 例外 |
+| `otel_tracer.py` | OpenTelemetry用のプライベートTracerProvider |
+| `otel_noop.py` | トレーシング無効時のNoOpTracer/NoOpSpanスタブ |
+| `token_counter.py` | `/tokenize` エンドポイント経由、またはchars//4フォールバックによるトークン数カウント |
+| `token_estimation.py` | `estimate_tokens_for_text()`、`estimate_tokens_for_assistant_with_tool_calls()`、`estimate_tokens()` — カテゴリ別トークン推定 |
+| `git_helper.py` | Gitリポジトリ情報の取得 |
+| `formatters.py` | テキスト切り詰め、key=value形式のログ文字列、サイズのフォーマット |
+| `json_utils.py` | `dumps()` — orjson.dumps().decode() をラップしstrを返す |
+| `llm_exceptions.py` | `LLMErrorKind` リテラル、kind/phase/url/status_code/retryable/partial_text/detail フィールドを持つ `LLMTransportError` |
+| `llm_transport_errors.py` | `LlmTransportErrorHandler` — raise_http_status_error、translate_stream_error |
+| `llm_sse_stream.py` | `LlmSseStreamHandler` — read_next_chunk、stream_once |
+| `llm_sse_helpers.py` | `LlmSseHelpers` — merge_tool_call_delta、build_stream_response |
+| `llm_reconnect.py` | `LlmReconnectHandler` — resolve_retryable、stream |
+| `llm_retry.py` | `LlmRetryHandler` — LLM HTTPリクエストの指数バックオフリトライ |
+| `llm_payload.py` | `LlmPayloadHandler` — build_payload、parse_response |
+| `llm_hot_config.py` | `LlmHotConfigHandler` — ホットリロード可能な設定フィールド |
+| `sse_parser.py` | `RobustSSEParser` — インクリメンタルUTF-8デコーダ・ハートビート追跡・不正フレーム許容量を備えたステートフルSSEパーサ |
+| `tool_registry.py` | `ToolDefinition` データクラス、`ToolRegistry` クラス — 中央MCPツールレジストリとドリフト検証 |
+| `tool_routing_validation.py` | `validate_routing_against_config()`、`validate_routing_against_live()`、`validate_all_routing()` — ドリフト検証関数群 |
+| `tool_transport_invoker.py` | `ToolTransportInvoker` — トランスポート層のMCP呼び出し（ヘルス、ライフサイクル、セマフォ、呼び出し記録） |
+| `tool_lifecycle.py` | MCPサーバのライフサイクルマネージャ向け `LifecycleProtocol` プロトコル |
+| `tool_executor_helpers.py` | `is_side_effect()`、`format_transport_error()`、`tool_hash_key()` ヘルパー関数群 |
+| `tool_spec.py` | `ToolSpec` データクラス — 単一ツール呼び出しの実行メタデータ（resource_scope、requires_serial、is_write） |
+| `tool_cache.py` | `CacheEntry` データクラス、`ToolResultCache` — TTL付きLRUキャッシュ(ツール呼び出し結果用) |
+| `plugin_tool_invoker.py` | `PluginToolInvoker` — プラグインツール実行層 |
 
 ---
 
-## 6. Responsibilities of `db/`
+## 6. `db/` の責務
 
-| Module | Responsibility |
+| モジュール | 責務 |
 |---|---|
-| `config.py` | `DbConfig` dataclass, `build_db_config()` — DB path resolution from config |
-| `helper.py` | `SQLiteHelper` — connection lifecycle, WAL/PRAGMA, vec extension |
-| `create_schema.py` | Schema DDL creation (idempotent via `IF NOT EXISTS`) |
-| `models.py` | DTO dataclasses: `DocumentRow`, `MessageRow`, `SessionRow`, `DbHealthMetrics`, `PurgeCounts`, `RecoveryResult`, `WalCheckpointCounts` |
-| `schema_sql.py` | DDL template strings (separation of SQL text from execution) |
-| `store.py` | Re-export stub — delegates to `store_protocols.py` + `store_impl.py` |
-| `store_protocols.py` | `VectorStore`, `DocumentStore`, `SessionStore`, `MemoryDeleteStore` Protocols + embedding helpers |
-| `store_impl.py` | `SQLiteVectorStore`, `SQLiteDocumentStore`, `SQLiteSessionStore`, `SQLiteMemoryDeleteStore` implementations |
-| `maintenance.py` | WAL checkpoint, VACUUM, session purge, memory prune |
-| `rotation.py` | DB rotation (archive current DB, create new one) — `rotate_all_dbs()` function |
-| `recovery.py` | Corruption recovery (integrity check + VACUUM or restore from backup) |
-| `rag_consistency.py` | Read-only RAG consistency checks (chunks/FTS/vec row counts + orphan detection) — `check_rag_consistency()`, `is_consistent()`, `summarize_issues()` |
+| `config.py` | `DbConfig` データクラス、`build_db_config()` — 設定からのDBパス解決 |
+| `helper.py` | `SQLiteHelper` — 接続ライフサイクル、WAL/PRAGMA、vec拡張 |
+| `create_schema.py` | スキーマDDL作成（`IF NOT EXISTS` による冪等性） |
+| `models.py` | DTOデータクラス: `DocumentRow`、`MessageRow`、`SessionRow`、`DbHealthMetrics`、`PurgeCounts`、`RecoveryResult`、`WalCheckpointCounts` |
+| `schema_sql.py` | DDLテンプレート文字列（SQLテキストと実行の分離） |
+| `store.py` | 再エクスポート用のスタブ — `store_protocols.py` + `store_impl.py` に委譲 |
+| `store_protocols.py` | `VectorStore`、`DocumentStore`、`SessionStore`、`MemoryDeleteStore` プロトコル + 埋め込みヘルパー |
+| `store_impl.py` | `SQLiteVectorStore`、`SQLiteDocumentStore`、`SQLiteSessionStore`、`SQLiteMemoryDeleteStore` の実装 |
+| `maintenance.py` | WALチェックポイント、VACUUM、セッションパージ、メモリのプルーニング |
+| `rotation.py` | DBローテーション（現行DBをアーカイブし新規作成） — `rotate_all_dbs()` 関数 |
+| `recovery.py` | 破損リカバリ（整合性チェック + VACUUM、またはバックアップからの復元） |
+| `rag_consistency.py` | 読み取り専用のRAG整合性チェック（chunks/FTS/vecの行数比較・孤立データ検出） — `check_rag_consistency()`、`is_consistent()`、`summarize_issues()` |
 
 ---
 

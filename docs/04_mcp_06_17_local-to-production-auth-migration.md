@@ -13,65 +13,65 @@ source:
 
 # Local to Production Auth Migration
 
-## Local to Production Auth Migration
+## ローカルから本番への認証移行
 
-When migrating from local development to production, authentication configuration must change. Follow these steps carefully.
+ローカル開発環境から本番環境へ移行する際は、認証設定を変更する必要がある。以下の手順を注意深く実施すること。
 
-### Migration Steps
+### 移行手順
 
-1. Switch `security_profile` from `local` to `production` in `config/agent.toml`
-   - This enables startup enforcement of auth requirements
-   - In `security_profile="local"`, empty `auth_token=""` is allowed; in `security_profile="production"`, it is rejected at startup
+1. `config/agent.toml`で`security_profile`を`local`から`production`に切り替える
+   - これにより起動時の認証要件の強制チェックが有効になる
+   - `security_profile="local"`では空の`auth_token=""`が許容されるが、`security_profile="production"`では起動時に拒否される
 
-2. Set non-empty `auth_token` for all HTTP MCP servers
-   - Each `[mcp_servers.*]` entry in `config/agent.toml` that uses `transport="http"` must have a non-empty `auth_token`
-   - Use environment variable injection or secret management (e.g., `/etc/conf.d/` files), never hardcode secrets in config files
+2. すべてのHTTP MCPサーバーに空でない`auth_token`を設定する
+   - `config/agent.toml`内の`transport="http"`を使用する各`[mcp_servers.*]`エントリには、空でない`auth_token`が必須である
+   - 環境変数による注入やシークレット管理(例: `/etc/conf.d/`配下のファイル)を使用し、設定ファイルにシークレットをハードコードしないこと
 
-3. Restart the agent process (do NOT use `/reload`)
-   - `/reload` does not modify `[mcp_servers.*]` at runtime — MCP server definition changes require a full agent restart
-   - The watchdog (`mcp_watchdog_interval`, `mcp_watchdog_max_restarts`) does not apply pending `/reload` config changes either
+3. エージェントプロセスを再起動する(`/reload`は使用しないこと)
+   - `/reload`は実行時に`[mcp_servers.*]`を変更しない — MCPサーバー定義の変更にはエージェントの完全な再起動が必要である
+   - watchdog(`mcp_watchdog_interval`、`mcp_watchdog_max_restarts`)も、保留中の`/reload`設定変更を適用しない
 
-4. Verify with `/mcp status`
-   - Confirm all servers show `OK` status
-   - Check that no servers report authentication-related failures
+4. `/mcp status`で確認する
+   - すべてのサーバーが`OK`ステータスを示していることを確認する
+   - 認証関連の失敗を報告しているサーバーがないことを確認する
 
-5. Inspect startup logs for missing/mismatched auth tokens
-   - Look for errors mentioning auth failures during startup
-   - Check `/opt/llm/logs/agent.log` for transport-level errors on newly authenticated servers
+5. 認証トークンの欠落・不一致について起動ログを確認する
+   - 起動時に認証失敗に関するエラーがないか確認する
+   - 新たに認証を要求するようになったサーバーについて、`/opt/llm/logs/agent.log`のトランスポート層エラーを確認する
 
-### Troubleshooting
+### トラブルシューティング
 
-#### Empty `auth_token`
+#### `auth_token`が空
 
-Symptom: Agent fails to start with auth error when `security_profile="production"`.
+症状: `security_profile="production"`の状態で、エージェントが認証エラーにより起動に失敗する。
 
-Cause: At least one HTTP MCP server has `auth_token=""` while `security_profile="production"`.
+原因: `security_profile="production"`であるにもかかわらず、少なくとも1つのHTTP MCPサーバーで`auth_token=""`になっている。
 
-Fix: Set a valid `auth_token` for each affected server in `config/agent.toml`.
+対処: `config/agent.toml`で該当する各サーバーに有効な`auth_token`を設定する。
 
-#### Missing env secret
+#### 環境変数によるシークレットの欠落
 
-Symptom: Server starts but health checks fail with dependency failure.
+症状: サーバーは起動するが、依存関係の失敗によりヘルスチェックが失敗する。
 
-Cause: Environment variable referenced by `env` field or config key is not set.
+原因: `env`フィールドまたは設定キーが参照する環境変数が設定されていない。
 
-Fix: Ensure the required secret is available in the agent process environment before starting.
+対処: 起動前に、必要なシークレットがエージェントプロセスの環境で利用可能であることを確認する。
 
-#### Mismatched Bearer token
+#### Bearerトークンの不一致
 
-Symptom: Tool calls return authentication errors despite having an `auth_token` set.
+症状: `auth_token`が設定されているにもかかわらず、ツール呼び出しが認証エラーを返す。
 
-Cause: The Bearer token value does not match what the MCP server expects.
+原因: Bearerトークンの値がMCPサーバーの期待値と一致していない。
 
-Fix: Verify the token value against the MCP server's expected credentials. Tokens are passed as `Authorization: Bearer <token>` headers.
+対処: MCPサーバーが期待する認証情報とトークン値を照合する。トークンは`Authorization: Bearer <token>`ヘッダーとして渡される。
 
-#### `/reload` vs full restart
+#### `/reload`とフル再起動の違い
 
-Symptom: After changing `auth_token` in config, `/reload` reports no effect.
+症状: 設定内の`auth_token`を変更した後、`/reload`を実行しても効果が反映されない。
 
-Cause: `/reload` never modifies `[mcp_servers.*]` at runtime. Changes to MCP server definitions (URL, auth token, startup mode, transport, command, environment) always require a full agent restart.
+原因: `/reload`は実行時に`[mcp_servers.*]`を変更することは一切ない。MCPサーバー定義(URL、認証トークン、起動モード、トランスポート、コマンド、環境)の変更には、常にエージェントの完全な再起動が必要である。
 
-Fix: Stop the agent process and restart it to pick up the new auth configuration.
+対処: エージェントプロセスを停止し、再起動して新しい認証設定を反映させる。
 
 
 ## Related Documents

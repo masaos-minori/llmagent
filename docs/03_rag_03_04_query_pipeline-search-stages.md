@@ -18,15 +18,15 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 5. Stage Details
+## 5. ステージの詳細
 
 ### 5.1 MqeStage
 
@@ -34,9 +34,9 @@ source:
 MqeStage(cfg: RagConfig, llm: RagLLM)
 ```
 
-- `use_mqe=False`: sets `ctx.queries = [ctx.query]` (single query, no expansion)
-- `use_mqe=True`: calls `RagLLM.expand_queries(query)` → `ctx.queries` (context is applied via prompt template from cfg, not as a direct parameter); raises `RagExpansionError` on LLM failure
-- `mqe_n_queries` config controls number of variants
+- `use_mqe=False`: `ctx.queries = [ctx.query]` を設定する（単一クエリ、展開なし）
+- `use_mqe=True`: `RagLLM.expand_queries(query)` を呼び出し `ctx.queries` へ格納する（コンテキストは直接のパラメータではなく、cfgのプロンプトテンプレートを介して適用される）；LLM失敗時は `RagExpansionError` を発生させる
+- `mqe_n_queries` の設定でバリアント数を制御する
 
 ### 5.2 SearchStage
 
@@ -44,13 +44,13 @@ MqeStage(cfg: RagConfig, llm: RagLLM)
 SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: str = "")
 ```
 
-- Parallel embed generation for all queries in `ctx.queries`
-- Sequential DB search (one connection per query to avoid contention)
-- Each query contributes 0–2 `list[RawHit]` entries to `ctx.search_results` (KNN + BM25); empty on embed failure or DB error
-- KNN: `vector_search(embedding, top_k)` via sqlite-vec
-- BM25: `fts_search(query, top_k)` via FTS5; raises `sqlite3.OperationalError` on FTS syntax errors (caller handles)
-- Logs to `/opt/llm/logs/search.log`: embed failure warnings, search degradation warnings (embed_failed count, FTS error count)
-- Handles `db=None` by returning empty results with warning
+- `ctx.queries` 内のすべてのクエリに対して並列に埋め込みを生成する
+- DB検索は逐次実行する（競合を避けるためクエリごとに1接続）
+- 各クエリは `ctx.search_results` に0〜2件の `list[RawHit]` を追加する（KNN + BM25）；埋め込み失敗またはDBエラーの場合は空
+- KNN: sqlite-vecによる `vector_search(embedding, top_k)`
+- BM25: FTS5による `fts_search(query, top_k)`；FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）
+- `/opt/llm/logs/search.log` にログを記録: 埋め込み失敗の警告、検索の劣化警告（embed_failed件数、FTSエラー件数）
+- `db=None` の場合は警告付きで空の結果を返して処理する
 
 ### 5.3 FusionStage
 
@@ -58,36 +58,36 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 ```
 
-- Merges `ctx.search_results` using Reciprocal Rank Fusion: score = Σ 1/(rrf_k + rank)
-- `rrf_k` default: 60; configurable via `cfg.rrf_k` (RagConfig Protocol includes `rrf_k` field)
-- Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
+- Reciprocal Rank Fusionを用いて `ctx.search_results` をマージする: score = Σ 1/(rrf_k + rank)
+- `rrf_k` のデフォルト: 60；`cfg.rrf_k` で変更可能（RagConfig Protocolに `rrf_k` フィールドが含まれる）
+- 各 `MergedHit` に `rrf_score` を割り当て、`ctx.merged` に格納する
 
-> `use_rrf=False` activates a dedup-only fallback (all `rrf_score=0.0`). `pipeline.py:184` passes the RRF configuration flag to `FusionStage`.
+> `use_rrf=False` は重複排除のみのフォールバックを発動させる（すべて `rrf_score=0.0`）。`pipeline.py:184` がRRF設定フラグを `FusionStage` に渡す。
 
-#### Retrieval-quality tradeoff: `use_rrf=False` vs `use_rrf=True`
+#### 検索品質のトレードオフ: `use_rrf=False` と `use_rrf=True`
 
-> **Warning:** `use_rrf=False` is a **significant quality degradation**, not a harmless fallback.
-> Rank signal is completely disabled: MQE multi-query expansion provides no additional ranking benefit.
-> Use only for diagnostics or when latency must be minimized and ranking quality can be sacrificed.
+> **警告:** `use_rrf=False` は無害なフォールバックではなく、**大幅な品質低下**を意味する。
+> ランク信号は完全に無効化される: MQEによる複数クエリ展開は追加的なランキング効果を持たなくなる。
+> 診断目的、またはレイテンシを最小化する必要があり検索品質を犠牲にできる場合にのみ使用すること。
 
-| Mode | Mechanism | Quality impact |
+| モード | 仕組み | 品質への影響 |
 |---|---|---|
-| `use_rrf=True` (default) | RRF: each hit scored as `Σ 1/(rrf_k + rank)` across all result lists | Chunks seen by multiple queries get promoted; robust cross-list ranking |
-| `use_rrf=False` | Dedup-only: chunk_id dedup, first-occurrence wins; all hits get `rrf_score=0.0` | No rank signal; MQE results provide no additional ranking benefit |
+| `use_rrf=True`（デフォルト） | RRF: 各ヒットを全結果リストにわたって `Σ 1/(rrf_k + rank)` でスコア付けする | 複数クエリで見られたチャンクが優先される；リスト横断で堅牢なランキングを行う |
+| `use_rrf=False` | 重複排除のみ: chunk_idで重複排除し、最初に出現したものが優先される；すべてのヒットは `rrf_score=0.0` になる | ランク信号なし；MQEの結果は追加的なランキング効果を持たない |
 
-**When `use_rrf=False`:**
-- Deduplication by `chunk_id`; first occurrence across result lists wins
-- All merged hits receive `rrf_score=0.0` — no rank-weighted scoring
-- MQE-generated multi-query results provide **no additional ranking benefit**: a chunk seen
-  by 3 queries scores identically to one seen by only 1
-- Recommendation: keep `use_rrf=True` (default) unless embedding/FTS overhead must be
-  minimized and ranking quality can be sacrificed
+**`use_rrf=False` の場合:**
+- `chunk_id` による重複排除；結果リスト全体で最初に出現したものが優先される
+- マージ後のすべてのヒットが `rrf_score=0.0` になる — ランクによる重み付けスコアリングは行われない
+- MQEによって生成された複数クエリの結果は**追加的なランキング効果を持たない**: 3つのクエリで
+  見られたチャンクも、1つのクエリでしか見られなかったチャンクと同じスコアになる
+- 推奨: 埋め込み/FTSのオーバーヘッドを最小化する必要があり検索品質を犠牲にできる場合を除き、
+  `use_rrf=True`（デフォルト）を維持すること
 
-**Observability:**
-- `/rag search --debug` shows `[debug] fusion: use_rrf=False (rank signal disabled)`
-- `get_diagnostics()["fusion_mode"]` returns `"rrf"` or `"dedup_only"`
-- Log: `INFO FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit`
-- Startup: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics` (via `config_validator.py` during pipeline initialization)
+**可観測性:**
+- `/rag search --debug` は `[debug] fusion: use_rrf=False (rank signal disabled)` を表示する
+- `get_diagnostics()["fusion_mode"]` は `"rrf"` または `"dedup_only"` を返す
+- ログ: `INFO FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit`
+- 起動時: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics`（パイプライン初期化時に `config_validator.py` 経由で出力される）
 
 ---
 

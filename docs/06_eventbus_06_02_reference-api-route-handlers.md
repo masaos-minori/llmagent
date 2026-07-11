@@ -24,133 +24,133 @@ source:
 
 ## scripts/eventbus/publish_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `publish` | `(request: Request) -> dict[str, Any]` | POST /publish handler; validates JSON Schema, inserts event to DB, appends to JSONL archive, notifies EventBroker |
+| `publish` | `(request: Request) -> dict[str, Any]` | POST /publish ハンドラ。JSON Schema を検証し、イベントを DB に挿入し、JSONL アーカイブに追記し、EventBroker に通知する |
 
-### Response
+### レスポンス
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `event_id` | str | The event ID |
-| `seq` | int | The assigned sequence number |
+| `event_id` | str | イベント ID |
+| `seq` | int | 割り当てられたシーケンス番号 |
 
-### Error Responses
+### エラーレスポンス
 
-| Status Code | Detail | Condition |
+| ステータスコード | 詳細 | 条件 |
 |---|---|---|
-| 422 | JSON Schema validation error message | Invalid payload |
+| 422 | JSON Schema 検証エラーメッセージ | 無効なペイロード |
 
-**Note**: a JSONL archive append failure does not surface as an HTTP error — `OSError` is caught, logged as a warning, and the request still returns 200 with the event committed to SQLite.
+**注記**: JSONL アーカイブへの追記失敗は HTTP エラーとして表面化しない。`OSError` はキャッチされ、警告としてログに記録され、イベントは SQLite にコミットされたままリクエストは 200 を返す。
 
 ---
 
 ## scripts/eventbus/ack_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `ack_event` | `(request: Request, event_id: str, consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /events/{event_id}/ack handler (canonical path) |
-| `nack` | `(request: Request, event_id: str = Query(default="")) -> dict[str, Any]` | POST /nack handler; increments failure count, promotes to DLQ if >= max_retry |
+| `ack_event` | `(request: Request, event_id: str, consumer_id: str = Query(default="")) -> dict[str, Any]` | POST /events/{event_id}/ack ハンドラ(正規のパス) |
+| `nack` | `(request: Request, event_id: str = Query(default="")) -> dict[str, Any]` | POST /nack ハンドラ。失敗回数をインクリメントし、`>= max_retry` の場合は DLQ に promotion する |
 
-### Response (ack)
+### レスポンス (ack)
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `event_id` | str | The event ID |
-| `acked` | bool | Always True for successful ack |
-| `seq` | int \| None | Sequence number (only if newly acked, not already acked) |
-| `already_acked` | bool | Present only if event was previously acked |
+| `event_id` | str | イベント ID |
+| `acked` | bool | ack が成功した場合は常に True |
+| `seq` | int \| None | シーケンス番号(新規に ack された場合のみ。既に ack 済みの場合は含まれない) |
+| `already_acked` | bool | イベントが既に ack 済みだった場合のみ存在する |
 
-### Response (nack)
+### レスポンス (nack)
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `event_id` | str | The event ID |
-| `delivery_failure_count` | int | Current delivery failure count |
-| `dlq_promoted` | bool \| None | Present only if event was promoted to DLQ |
+| `event_id` | str | イベント ID |
+| `delivery_failure_count` | int | 現在の配信失敗回数 |
+| `dlq_promoted` | bool \| None | イベントが DLQ に promotion された場合のみ存在する |
 
-### Error Responses (nack)
+### エラーレスポンス (nack)
 
-| Status Code | Detail | Condition |
+| ステータスコード | 詳細 | 条件 |
 |---|---|---|
-| 404 | "event not found" | Event does not exist or was already acked |
-| 400 | "event_id is required" | Missing event_id query parameter |
+| 404 | "event not found" | イベントが存在しない、または既に ack 済み |
+| 400 | "event_id is required" | event_id クエリパラメータが指定されていない |
 
 ---
 
 ## scripts/eventbus/dlq_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `dlq_list` | `(request: Request, limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0)) -> dict[str, Any]` | GET /dlq handler; returns paginated DLQ event list |
-| `dlq_requeue` | `(request: Request, event_id: str) -> dict[str, Any]` | POST /dlq/{event_id}/requeue handler; requeues a DLQ event back to normal delivery |
+| `dlq_list` | `(request: Request, limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0)) -> dict[str, Any]` | GET /dlq ハンドラ。ページネーションされた DLQ イベントリストを返す |
+| `dlq_requeue` | `(request: Request, event_id: str) -> dict[str, Any]` | POST /dlq/{event_id}/requeue ハンドラ。DLQ イベントを通常の配信に requeue する |
 
-### Response (dlq_list)
+### レスポンス (dlq_list)
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `total` | int | Total number of DLQ events |
-| `limit` | int | Requested limit |
-| `offset` | int | Requested offset |
-| `items` | list[dict] | Paginated list of DLQ event dicts |
+| `total` | int | DLQ イベントの総数 |
+| `limit` | int | リクエストされた limit |
+| `offset` | int | リクエストされた offset |
+| `items` | list[dict] | ページネーションされた DLQ イベント dict のリスト |
 
-### Response (dlq_requeue)
+### レスポンス (dlq_requeue)
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `event_id` | str | The event ID |
-| `requeued` | bool | Always True for successful requeue |
-| `dlq_imminent` | bool \| None | Present only if failure_count >= max_retry (event may be immediately re-DLQ'd) |
+| `event_id` | str | イベント ID |
+| `requeued` | bool | requeue が成功した場合は常に True |
+| `dlq_imminent` | bool \| None | failure_count >= max_retry の場合のみ存在する(イベントが直ちに再度 DLQ 化される可能性がある) |
 
-### Error Responses (dlq_requeue)
+### エラーレスポンス (dlq_requeue)
 
-| Status Code | Detail | Condition |
+| ステータスコード | 詳細 | 条件 |
 |---|---|---|
-| 404 | "event not found" | Event does not exist |
-| 409 | "event is not in DLQ" | Event exists but dlq_at IS NULL (already requeued or acked) |
+| 404 | "event not found" | イベントが存在しない |
+| 409 | "event is not in DLQ" | イベントは存在するが dlq_at が NULL(既に requeue または ack 済み) |
 
 ---
 
 ## scripts/eventbus/replay_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `replay` | `(request: Request, since_seq: int = Query(default=0), fmt: str = Query(default="sse"), limit: int = Query(default=100), offset: int = Query(default=0)) -> StreamingResponse \| dict[str, Any]` | GET /replay handler; streams events via SSE (default) or returns paginated JSON when `fmt=json` |
+| `replay` | `(request: Request, since_seq: int = Query(default=0), fmt: str = Query(default="sse"), limit: int = Query(default=100), offset: int = Query(default=0)) -> StreamingResponse \| dict[str, Any]` | GET /replay ハンドラ。SSE(デフォルト)でイベントをストリーミングするか、`fmt=json` の場合はページネーションされた JSON を返す |
 
 ---
 
 ## scripts/eventbus/subscribe_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `subscribe` | `(request: Request, topic: list[str] = Query(default=[]), since_seq: int = Query(default=0), consumer_id: str = Query(default="")) -> StreamingResponse` | GET /subscribe handler; hybrid replay+push model with SSE streaming; `topic` accepts multiple values |
+| `subscribe` | `(request: Request, topic: list[str] = Query(default=[]), since_seq: int = Query(default=0), consumer_id: str = Query(default="")) -> StreamingResponse` | GET /subscribe ハンドラ。SSE ストリーミングによる replay+push ハイブリッドモデル。`topic` は複数値を受け付ける |
 
 ---
 
 ## scripts/eventbus/health_route.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `health_check` | `(request: Request) -> JSONResponse` | GET /health handler; returns component health status |
+| `health_check` | `(request: Request) -> JSONResponse` | GET /health ハンドラ。各コンポーネントのヘルス状態を返す |
 
 ---
 
-## scripts/eventbus/app.py — HTTP Endpoints
+## scripts/eventbus/app.py — HTTP エンドポイント
 
-### Active endpoints
+### 有効なエンドポイント
 
-| Endpoint | Method | Description |
+| エンドポイント | メソッド | 説明 |
 |---|---|---|
-| `/publish` | POST | Publish an event (idempotent by event_id) |
-| `/replay` | GET | Replay past events (SSE stream or JSON paginated response; supports limit/offset pagination for JSON) |
-| `/subscribe` | GET | Stream events via hybrid replay+push model |
-| `/health` | GET | Component health check |
-| `/dlq` | GET | List DLQ events |
-| `/dlq/{event_id}/requeue` | POST | Requeue a DLQ event back to normal delivery |
-| `/events/{event_id}/ack` | POST | Acknowledge an event (canonical ack path) |
-| `/nack` | POST | Negative acknowledge an event |
+| `/publish` | POST | イベントを publish する(event_id により冪等) |
+| `/replay` | GET | 過去のイベントを replay する(SSE ストリームまたはページネーションされた JSON レスポンス。JSON の場合は limit/offset によるページネーションをサポート) |
+| `/subscribe` | GET | replay+push ハイブリッドモデルでイベントをストリーミングする |
+| `/health` | GET | コンポーネントのヘルスチェック |
+| `/dlq` | GET | DLQ イベントを一覧表示する |
+| `/dlq/{event_id}/requeue` | POST | DLQ イベントを通常の配信に requeue する |
+| `/events/{event_id}/ack` | POST | イベントを ack する(正規の ack パス) |
+| `/nack` | POST | イベントを nack する |
 
-**Note (2026-07-10):** `POST /ack` (the query-parameter compatibility alias) was removed.
+**注記 (2026-07-10):** `POST /ack`(クエリパラメータ方式の互換エイリアス)は削除された。
 
 ## Related Documents
 

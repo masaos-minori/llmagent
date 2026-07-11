@@ -19,35 +19,35 @@ source:
 
 # Event Bus: Configuration Fields and Environment Variables
 
-## Configuration
+## 設定
 
-Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
+Event Busの設定はTOMLファイルから読み込まれる（デフォルト: `/opt/llm/config/eventbus.toml`）。
 
-### Environment variable overrides
+### 環境変数によるオーバーライド
 
-| Variable | Default | Purpose |
+| 変数 | デフォルト | 用途 |
 |---|---|---|
-| `EVENTBUS_CONFIG_PATH` | `/opt/llm/config/eventbus.toml` | TOML config file path |
-| `EVENTBUS_SCHEMA_PATH` | `/opt/llm/schemas/event_envelope.json` | JSON Schema for event envelopes |
+| `EVENTBUS_CONFIG_PATH` | `/opt/llm/config/eventbus.toml` | TOML設定ファイルのパス |
+| `EVENTBUS_SCHEMA_PATH` | `/opt/llm/schemas/event_envelope.json` | イベントエンベロープ用のJSON Schema |
 
-### Config fields
+### 設定フィールド
 
-#### Active config fields
+#### 有効な設定フィールド
 
-| Field | Type | Default | Description |
+| フィールド | 型 | デフォルト | 説明 |
 |---|---|---|---|
-| `port` | int | — | HTTP listen port |
-| `db_path` | str | — | SQLite database file path |
-| `storage_dir` | str | — | JSONL event archive directory |
-| `offsets_dir` | str | — | Consumer offset file directory |
-| `deadletter_dir` | str | — | Dead-letter queue JSONL directory |
-| `max_retry` | int | — | Retry threshold before DLQ promotion |
-| `host` | str | `127.0.0.1` | HTTP listen address (see Bind Address section below) |
-| `allow_public_bind` | bool | `false` | Override: allow binding to public/wildcard addresses (security risk, no authentication) |
+| `port` | int | — | HTTPリスンポート |
+| `db_path` | str | — | SQLiteデータベースファイルのパス |
+| `storage_dir` | str | — | JSONLイベントアーカイブのディレクトリ |
+| `offsets_dir` | str | — | コンシューマーオフセットファイルのディレクトリ |
+| `deadletter_dir` | str | — | デッドレターキューJSONLのディレクトリ |
+| `max_retry` | int | — | DLQ昇格前の再試行閾値 |
+| `host` | str | `127.0.0.1` | HTTPリスンアドレス（下記のBind Addressセクションを参照） |
+| `allow_public_bind` | bool | `false` | オーバーライド: パブリック/ワイルドカードアドレスへのバインドを許可する（セキュリティリスクあり、認証なし） |
 
-#### Removed config fields
+#### 削除された設定フィールド
 
-> **Note (2026-07-10)**: `poll_interval_ms` and `offset_checkpoint_interval` have been removed (both were no-op fields). If either key is present in `eventbus.toml`, `load_config()` raises `ValueError` at startup — delete these keys from the config file.
+> **注記（2026-07-10）**: `poll_interval_ms` と `offset_checkpoint_interval` は削除された（いずれもno-opフィールドであった）。いずれかのキーが `eventbus.toml` に存在する場合、`load_config()` は起動時に `ValueError` を発生させる — 設定ファイルからこれらのキーを削除すること。
 
 ## Related Documents
 

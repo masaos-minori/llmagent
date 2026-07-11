@@ -1,149 +1,154 @@
 ---
-title: "Agent Tool Execution and Approval"
+title: "Agent Tool Execution and Approval - Execution"
 category: agent
 tags:
   - agent
-  - agent
-  - tool
-  - execution
-  - approval
-  - safety
+  - tool-execution
+  - toolexecutor
+  - dag-scheduler
+  - parallel-execution
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
+  - 05_agent_06_04_tool-execution-and-approval-canonical.md
+source:
+  - 05_agent_06_tool-execution-and-approval.md
 ---
 
-# Agent Tool Execution and Approval
+# エージェントのツール実行と承認
 
-or.py`)
+- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
 
-`execute(tool_name, args) -> ToolCallResult` dispatch priority:
+## 目的
+
+`ToolExecutor`の挙動、並列実行と逐次実行、承認フロー、
+プランモード、ツール実行結果の要約、キャッシュ、安全制御、`allowed_tools`を文書化する。
+
+---
+
+## ToolExecutor (`shared/tool_executor.py`)
+
+`execute(tool_name, args) -> ToolCallResult`のディスパッチ優先順位:
 
 ```
-1. Plugin tool (@register_tool)        — local Python function, bypasses MCP
-2. TTL cache                           — returns cached result if not expired
+1. Plugin tool (@register_tool)        — ローカルPython関数、MCPをバイパス
+2. TTL cache                           — 期限切れでなければキャッシュ結果を返す
 3. MCP server dispatch via internal method
-     → ToolRouteResolver.resolve()     — tool_name → server_key (routing authority; see 04_mcp_03 §Routing Source of Truth)
-     → McpServerHealthRegistry check  — skip UNAVAILABLE servers
-     → LifecycleProtocol.ensure_ready() — start ondemand servers if needed
-     → HttpTransport — send to MCP server
+     → ToolRouteResolver.resolve()     — tool_name → server_key (ルーティングの権威; 04_mcp_03 §Routing Source of Truth 参照)
+     → McpServerHealthRegistry check  — UNAVAILABLEなサーバーをスキップ
+     → LifecycleProtocol.ensure_ready() — 必要に応じてondemandサーバーを起動
+     → HttpTransport — MCPサーバーへ送信
 ```
 
-`ToolCallResult` is a frozen dataclass: `(output: str, is_error: bool, request_id: str, server_key: str)`
+`ToolCallResult`はfrozenなdataclass: `(output: str, is_error: bool, request_id: str, server_key: str)`
 
 ---
 
-## Parallel vs Sequential Execution
+## 並列実行と逐次実行
 
-
-
-`execute_all_tool_calls()` dispatches based on config flags. Config reference → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_01_configuration-loading-agent-config.md).
+`execute_all_tool_calls()`は設定フラグに基づいてディスパッチする。設定リファレンス → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_01_configuration-loading-agent-config.md)。
 
 | Condition | Execution |
 |---|---|
-| `use_tool_dag=True` and `serial_tool_calls=False` | DAG scheduling |
-| `serial_tool_calls=True` | Sequential (all tools) |
-| `use_tool_dag=False`, any side-effect tool | Sequential (serialized for safety) |
-| `use_tool_dag=False`, no side-effect tools | Parallel (`asyncio.gather()`) |
+| `use_tool_dag=True`かつ`serial_tool_calls=False` | DAGスケジューリング |
+| `serial_tool_calls=True` | 逐次 (全ツール) |
+| `use_tool_dag=False`、副作用のあるツールが存在 | 逐次 (安全のためシリアル化) |
+| `use_tool_dag=False`、副作用のあるツールなし | 並列 (`asyncio.gather()`) |
 
-**Production note:** Setting `use_tool_dag=false` is considered legacy (non-production) behavior. In production mode, this setting is flagged as an error during startup validation via `ProductionConfigValidator.validate()`. The DAG scheduler provides resource-scoped parallelism for independent reads while serializing writes per resource scope.
+**本番運用上の注意:** `use_tool_dag=false`の設定はレガシー (非本番) 動作とみなされる。本番モードでは、この設定は`ProductionConfigValidator.validate()`による起動時検証でエラーとしてフラグされる。DAGスケジューラは独立した読み取りに対してリソーススコープ単位の並列性を提供しつつ、書き込みはリソーススコープごとにシリアル化する。
 
 ---
 
-## DAG Tool Scheduler (`agent/tool_s
+## DAG Tool Scheduler (`agent/tool_scheduler.py`)
 
-cheduler.py`)
+`build_execution_groups(tool_calls, tool_meta)`はツール呼び出しを順序付きバッチにグルーピングする。
 
-`build_execution_groups(tool_calls, tool_meta)` groups tool calls into ordered batches.
+### ルール (優先順位順に適用)
 
-### Rules (applied in priority order)
+1. **`requires_serial=True`** — ツールは単一要素のシリアルバリアを形成し、他のすべてのツールより前に単独で実行される
+2. **同一の`resource_scope` + `is_write=True`** — 同じスコープを共有するツールはそのスコープのグループ内でシリアル化される
+3. **`resource_scope`のない`is_write=True`** — `write_first`グループに入る (保守的に、読み取りより前に実行される)
+4. **その他すべて** — 末尾の並列グループ
 
-1. **`requires_serial=True`** — tool forms a single-element serial barrier; runs alone before all other tools
-2. **Same `resource_scope` + `is_write=True`** — tools sharing a scope are serialized within that scope's group
-3. **`is_write=True` without `resource_scope`** — goes into a `write_first` group (conservative; runs before reads)
-4. **All others** — parallel group at the end
+### `concurrent_groups`構造
 
-### `concurrent_groups` structure
+`metadata.concurrent_groups: list[list[list[dict]]]` — バッチのリスト:
+- 各**バッチ**は他のバッチに対して逐次実行される
+- バッチ**内**のグループは`asyncio.gather()`により並行実行される
+- `serial_barrier`ツール: それぞれ単独のバッチ
+- `write_first`グループ: 専用の逐次バッチ
+- すべての`resource_scope`グループ + 並列グループ: 共有の並行バッチ
 
-`metadata.concurrent_groups: list[list[list[dict]]]` — list of batches:
-- Each **batch** runs sequentially relative to other batches
-- Groups **within** a batch run concurrently via `asyncio.gather()`
-- `serial_barrier` tools: one batch each (solo)
-- `write_first` group: own sequential batch
-- All `resource_scope` groups + parallel group: shared concurrent batch
+例: `[write_file(scope=file), github_push(scope=github), read_text_file]` →
+3つのグループを持つ1つの並行バッチとなり、すべて同時に実行される。
 
-Example: `[write_file(scope=file), github_push(scope=github), read_text_file]` →
-one concurrent batch with three groups, all running simultaneously.
+### `scheduling_mode`監査フィールド
 
-### `scheduling_mode` audit field
-
-`"dag_concurrent"` — at least one batch had multiple groups running concurrently.
-`"dag_sequential"` — all batches ran with a single group (no intra-batch concurrency).
+`"dag_concurrent"` — 少なくとも1つのバッチで複数のグループが並行実行された。
+`"dag_sequential"` — すべてのバッチが単一グループで実行された (バッチ内の並行性なし)。
 
 ### `execute_one_tool_call(ctx, tc, turn)`
 
-Parses, executes, and optionally summarizes one tool_call dict. Returns `(tc_id, name, args, full_text, is_error, llm_text)`.
+1つのtool_call dictを解析、実行し、必要に応じて要約する。`(tc_id, name, args, full_text, is_error, llm_text)`を返す。
 
-- Parses `arguments` JSON; raises `ToolArgumentsDecodeError` on malformed JSON
-- Raises `ToolExecutorUnavailableError` when `ctx.services_required.tools` is None
-- If transport error: saves failure to `ctx.diagnostics`
-- If summarization enabled and result > threshold: calls `summarize_tool_result()` → `llm_text`
-- Otherwise: truncates to `tool_result_max_llm_chars` + "\n... (truncated)"
+- `arguments` JSONを解析する; 不正なJSONの場合は`ToolArgumentsDecodeError`を発生させる
+- `ctx.services_required.tools`がNoneの場合`ToolExecutorUnavailableError`を発生させる
+- トランスポートエラーの場合: 失敗を`ctx.diagnostics`に保存する
+- 要約が有効かつ結果が閾値を超える場合: `summarize_tool_result()`を呼び出す → `llm_text`
+- それ以外: `tool_result_max_llm_chars`まで切り詰め + "\n... (truncated)"
 
-### Serialization statistics
+### シリアル化統計
 
-Serialization stats track serialization impact across rounds:
+シリアル化統計はラウンドをまたいだシリアル化の影響を追跡する:
 
 | Counter | Description |
 |---|---|
-| `total_events` | Cumulative serialization events across all rounds |
-| `total_tools_affected` | Cumulative tools affected by serialization |
-| `tools_affected_last_round` | Tools affected in the most recent round (reset to 0 when no serialization) |
+| `total_events` | 全ラウンドを通じた累積シリアル化イベント数 |
+| `total_tools_affected` | シリアル化の影響を受けた累積ツール数 |
+| `tools_affected_last_round` | 直近のラウンドで影響を受けたツール数 (シリアル化がない場合は0にリセット) |
 
-### Display threshold
+### 表示閾値
 
-Results longer than 500 chars are shown as line/char counts instead of full text in logs.
+500文字を超える結果は、ログ上で全文の代わりに行数/文字数として表示される。
 
 ---
 
-### Serialization Event Schema
+### シリアル化イベントスキーマ
 
-Every round emits a `round_exec` audit event:
+各ラウンドは`round_exec`監査イベントを発行する:
 
 | Field | Type | Description |
 |---|---|---|
-| `round_id` | string | UUIDv4 identifying this round |
-| `tool_count` | int | Number of tool calls in the round |
-| `mode` | string | `"parallel"` or `"serial"` |
-| `has_side_effect` | bool | True if any serialization event was triggered |
-| `trigger_tool` | string or null | First tool that triggered serialization |
-| `elapsed_ms` | float | Wall-clock time for the full round in milliseconds |
-| `scheduling_mode` | string or null | DAG mode: `"dag_concurrent"` or `"dag_sequential"`; null in standard mode |
+| `round_id` | string | このラウンドを識別するUUIDv4 |
+| `tool_count` | int | ラウンド内のツール呼び出し数 |
+| `mode` | string | `"parallel"`または`"serial"` |
+| `has_side_effect` | bool | シリアル化イベントが発生した場合True |
+| `trigger_tool` | string or null | シリアル化を引き起こした最初のツール |
+| `elapsed_ms` | float | ラウンド全体の実時間 (ミリ秒) |
+| `scheduling_mode` | string or null | DAGモード: `"dag_concurrent"`または`"dag_sequential"`; 標準モードではnull |
 
-Use `elapsed_ms` to identify serialization overhead. A round with
-`has_side_effect=true` and a high `elapsed_ms` compared to equivalent parallel rounds
-is a candidate for optimization.
+`elapsed_ms`を使ってシリアル化のオーバーヘッドを特定する。`has_side_effect=true`かつ
+同等の並列ラウンドと比較して`elapsed_ms`が高いラウンドは、最適化の候補となる。
 
-Query the audit log:
+監査ログの検索:
 ```
 grep round_exec /path/to/audit.log
 ```
 
 ---
 
-## Approval Flow
-
-`check_approval()`
-
 ## Related Documents
 
-- `agent`
-- `tool`
-- `execution`
+- `05_agent_00_document-guide.md`
+- `05_agent_06_02_tool-execution-and-approval-approval.md`
+- `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- `05_agent_06_04_tool-execution-and-approval-canonical.md`
 
 ## Keywords
 
-agent
-tool
-execution
-approval
-safety
+ToolExecutor
+parallel vs sequential execution
+DAG tool scheduler
+execute_one_tool_call

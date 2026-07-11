@@ -1,79 +1,80 @@
 ---
-title: "Agent Configuration"
+title: "Agent Configuration - LLMConfig and RAGConfig"
 category: agent
 tags:
   - agent
-  - agent
   - configuration
-  - config
-  - settings
+  - llmconfig
+  - ragconfig
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_08_01_configuration-loading-agent-config.md
+  - 05_agent_08_03_configuration-tools-memory.md
+  - 05_agent_08_04_configuration-mcp-approval-obs.md
+source:
+  - 05_agent_08_01_configuration-loading-agent-config.md
 ---
 
-# Agent Configuration
+# エージェント設定
 
-.*`)
+- 運用 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+
+## LLMConfig (`cfg.llm.*`)
 
 Source: `config/agent.toml`
 
 | Field | Default | Description |
 |---|---|---|
-| `llm_url` | `""` | LLM endpoint URL |
-| `http_timeout` | `30.0` | HTTP timeout (seconds) |
-| `llm_max_retries` | `3` | Retry limit for HTTP 429/503/connection errors |
-| `llm_retry_base_delay` | `1.0` | Exponential backoff base (seconds) |
-| `llm_temperature` | `0.2` | Generation temperature (0.0–2.0) |
-| `llm_max_tokens` | `1024` | Max generation tokens |
-| `title_llm_temperature` | `0.1` | Session title generation temperature |
-| `title_llm_max_tokens` | `20` | Session title max tokens |
-| `sse_heartbeat_timeout` | `30.0` | SSE idle timeout (0 = disabled) |
-| `sse_malformed_retry` | `2` | Malformed SSE frame tolerance |
-| `sse_reconnect_max` | `1` | Max SSE reconnects on retryable error |
-| `llm_stream_retry_on_heartbeat_timeout` | `True` | Reconnect on HEARTBEAT_TIMEOUT |
-| `llm_stream_retry_on_malformed_chunk` | `False` | Reconnect on MALFORMED_SSE_FRAME |
-| `tokenize_url` | `""` | llamacpp `/tokenize` URL; `""` = chars//4 fallback |
-| `context_token_limit` | `0` | Token-based compression threshold (0 = disabled) |
-| `context_char_limit` | `8000` | Char-based compression threshold |
-| `context_compress_turns` | `4` | Oldest N turn pairs to compress per cycle |
-| `history_protect_turns` | `2` | Most recent N turn pairs protected from compression |
-| `budget_warn_ratio` | `0.8` | Warn when history reaches this fraction of limit |
+| `llm_url` | `""` | LLMエンドポイントURL |
+| `http_timeout` | `30.0` | HTTPタイムアウト (秒) |
+| `llm_max_retries` | `3` | HTTP 429/503/接続エラーのリトライ上限 |
+| `llm_retry_base_delay` | `1.0` | 指数バックオフの基準値 (秒) |
+| `llm_temperature` | `0.2` | 生成温度 (0.0-2.0) |
+| `llm_max_tokens` | `1024` | 最大生成トークン数 |
+| `title_llm_temperature` | `0.1` | セッションタイトル生成の温度 |
+| `title_llm_max_tokens` | `20` | セッションタイトルの最大トークン数 |
+| `sse_heartbeat_timeout` | `30.0` | SSEアイドルタイムアウト (0 = 無効) |
+| `sse_malformed_retry` | `2` | 不正なSSEフレームの許容回数 |
+| `sse_reconnect_max` | `1` | リトライ可能なエラー発生時の最大SSE再接続回数 |
+| `llm_stream_retry_on_heartbeat_timeout` | `True` | HEARTBEAT_TIMEOUT発生時に再接続 |
+| `llm_stream_retry_on_malformed_chunk` | `False` | MALFORMED_SSE_FRAME発生時に再接続 |
+| `tokenize_url` | `""` | llamacppの`/tokenize` URL; `""` = chars//4フォールバック |
+| `context_token_limit` | `0` | トークンベースの圧縮閾値 (0 = 無効) |
+| `context_char_limit` | `8000` | 文字数ベースの圧縮閾値 |
+| `context_compress_turns` | `4` | 1サイクルで圧縮する最も古いNターンペア |
+| `history_protect_turns` | `2` | 圧縮から保護される直近のNターンペア |
+| `budget_warn_ratio` | `0.8` | 履歴がこの上限に対する割合に達した場合に警告 |
 
 ---
 
-## RAGConfig (`cfg.rag
-
-.*`)
+## RAGConfig (`cfg.rag.*`)
 
 Source: `config/agent.toml`
 
 | Field | Default | Description |
 |---|---|---|
-| `top_k_search` | `10` | Vector/FTS search result count |
-| `top_k_rerank` | `15` | Cross-encoder candidate count |
-| `max_chunks_per_doc` | `2` | Max chunks per document in results |
-| `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint |
-| `use_semantic_cache` | `False` | Enable semantic cache for RAG results |
-| `semantic_cache_threshold` | `0.92` | Cosine similarity threshold for cache hit |
-| `semantic_cache_max_size` | `100` | Max cache entries (FIFO eviction; oldest removed first) |
-| `use_refiner` | `False` | Compress chunks via LLM after reranking |
-| `refiner_max_tokens` | `512` | Refiner LLM max tokens |
-| `refiner_timeout` | `30.0` | Refiner LLM timeout (seconds) |
-| `refiner_max_chars_per_chunk` | `300` | Max chars per chunk passed to refiner |
+| `top_k_search` | `10` | ベクトル/FTS検索結果数 |
+| `top_k_rerank` | `15` | クロスエンコーダの候補数 |
+| `max_chunks_per_doc` | `2` | 結果内の文書ごとの最大チャンク数 |
+| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIエンドポイント |
+| `use_semantic_cache` | `False` | RAG結果に対するセマンティックキャッシュを有効化 |
+| `semantic_cache_threshold` | `0.92` | キャッシュヒットのコサイン類似度閾値 |
+| `semantic_cache_max_size` | `100` | 最大キャッシュエントリ数 (FIFO退避; 最も古いものから削除) |
+| `use_refiner` | `False` | リランキング後にLLMでチャンクを圧縮 |
+| `refiner_max_tokens` | `512` | Refiner LLMの最大トークン数 |
+| `refiner_timeout` | `30.0` | Refiner LLMのタイムアウト (秒) |
+| `refiner_max_chars_per_chunk` | `300` | Refinerに渡すチャンクごとの最大文字数 |
 
 ---
-
-## ToolConfig (`cfg.to
 
 ## Related Documents
 
-- `agent`
-- `configuration`
-- `config`
+- `05_agent_00_document-guide.md`
+- `05_agent_08_01_configuration-loading-agent-config.md`
+- `05_agent_08_03_configuration-tools-memory.md`
+- `05_agent_08_04_configuration-mcp-approval-obs.md`
 
 ## Keywords
 
-agent
-configuration
-config
-settings
+LLMConfig
+RAGConfig

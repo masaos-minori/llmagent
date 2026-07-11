@@ -15,7 +15,7 @@ source:
 
 ## Verification Methods
 
-### Health probes
+### ヘルスプローブ
 
 ```bash
 # Individual server health checks (all return 4-field nested format)
@@ -33,21 +33,21 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
 
-### HTTP status code behavior
+### HTTPステータスコードの挙動
 
-- **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
-- **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
+- **HTTP 200**: サーバは完全に健全（`status="ok"`、`ready=true`）
+- **HTTP 503**: サーバに依存関係の失敗がある（`status="degraded"`、`ready=false`）
 
-The watchdog inspects both the HTTP status code and the `restart_recommended` body field; restart is only attempted when `restart_recommended=true` or the server is unreachable. HTTP 503 with `restart_recommended=false` (e.g. missing credentials) logs a WARNING but does not restart.
+watchdogはHTTPステータスコードと、レスポンスbody内の `restart_recommended` フィールドの両方を確認する；再起動は `restart_recommended=true` の場合、またはサーバに到達不能な場合にのみ試行される。`restart_recommended=false` を伴うHTTP 503（例: 認証情報の欠落）はWARNINGをログに出力するが、再起動は行わない。
 
 ```bash
 # Check HTTP status code (not just body)
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if healthy, 503 if degraded
 ```
 
-### Health probe response examples
+### ヘルスプローブレスポンスの例
 
-**Base response (healthy, all servers):**
+**ベースレスポンス（healthy、全サーバ共通）:**
 ```json
 {
   "status": "ok",
@@ -59,9 +59,9 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if h
   "details": {}
 }
 ```
-HTTP 200 — fully healthy.
+HTTP 200 — 完全に健全。
 
-**shell-mcp (port 8009) — degraded:**
+**shell-mcp（port 8009）— degraded:**
 ```json
 {
   "status": "degraded",
@@ -73,9 +73,9 @@ HTTP 200 — fully healthy.
   "details": {"sandbox_backend": "firejail"}
 }
 ```
-HTTP 503 — `sh` is not found in PATH. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
+HTTP 503 — PATH内に `sh` が見つからない。Watchdogは WARNING をログに出力するが再起動は行わない（`operator_action_required=true`）。
 
-**rag-pipeline-mcp (port 8010) — degraded:**
+**rag-pipeline-mcp（port 8010）— degraded:**
 ```json
 {
   "status": "degraded",
@@ -87,9 +87,9 @@ HTTP 503 — `sh` is not found in PATH. Watchdog logs WARNING but does NOT resta
   "details": {}
 }
 ```
-HTTP 503 — no embedding URL is set. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
+HTTP 503 — embedding URLが設定されていない。Watchdogは WARNING をログに出力するが再起動は行わない（`operator_action_required=true`）。
 
-**github-mcp (port 8006) — degraded:**
+**github-mcp（port 8006）— degraded:**
 ```json
 {
   "status": "degraded",
@@ -101,9 +101,9 @@ HTTP 503 — no embedding URL is set. Watchdog logs WARNING but does NOT restart
   "details": {}
 }
 ```
-HTTP 503 — GitHub token is not set. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
+HTTP 503 — GitHubトークンが設定されていない。Watchdogは WARNING をログに出力するが再起動は行わない（`operator_action_required=true`）。
 
-**mdq-mcp (port 8013) — degraded:**
+**mdq-mcp（port 8013）— degraded:**
 ```json
 {
   "status": "degraded",
@@ -115,9 +115,9 @@ HTTP 503 — GitHub token is not set. Watchdog logs WARNING but does NOT restart
   "details": {"service": "mdq-mcp", "database": "/opt/llm/db/mdq.sqlite"}
 }
 ```
-HTTP 503 — database file not found. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
+HTTP 503 — databaseファイルが見つからない。Watchdogは WARNING をログに出力するが再起動は行わない（`operator_action_required=true`）。
 
-**git-mcp (port 8014) — degraded:**
+**git-mcp（port 8014）— degraded:**
 ```json
 {
   "status": "degraded",
@@ -129,30 +129,49 @@ HTTP 503 — database file not found. Watchdog logs WARNING but does NOT restart
   "details": {}
 }
 ```
-HTTP 503 — git is not found in PATH. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
+HTTP 503 — PATH内にgitが見つからない。Watchdogは WARNING をログに出力するが再起動は行わない（`operator_action_required=true`）。
 
-### /v1/tools verification
+### /v1/tools による検証
 
 ```bash
 curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
 ```
 
-### Agent REPL check
+### Agent REPLでの確認
 
 ```
 agent[:#N]> /mcp
 ```
 
-Probes all HTTP servers. Expected: all show `OK` with tool list.
+全HTTPサーバをプローブする。期待される結果: すべてがtool一覧とともに `OK` を表示する。
 
-### Startup failure checkpoints
+### 起動失敗時のチェックポイント
 
-| Failure | Cause | Check |
+| 失敗 | 原因 | 確認方法 |
 |---|---|---|
-| Server not started | Subprocess failed to start | Check stderr; verify port not in use |
-| subprocess timeout | uvicorn fails to start | Check stderr; verify port not in use |
-| Tool definition mismatch | Config out of sync | `/mcp` → tool count; compare with config |
+| サーバが起動しない | subprocessの起動失敗 | stderrを確認；ポートが使用中でないか確認 |
+| subprocessタイムアウト | uvicornの起動失敗 | stderrを確認；ポートが使用中でないか確認 |
+| Tool定義の不一致 | configの同期漏れ | `/mcp` → tool数を確認し、configと比較 |
 
+## Standalone launch (dev/debug)
+
+Each MCP server can be launched individually for local debugging via the unified launcher:
+
+```bash
+uv run python scripts/mcp_launcher.py <server_key>      # launch one server standalone
+uv run python scripts/mcp_launcher.py --list             # list all discoverable server keys
+uv run python scripts/mcp_launcher.py <server_key> --force # bypass the port-collision guard
+```
+
+**Why `mcp_servers`, not `mcp`**: the package was renamed from `scripts/mcp` to
+`scripts/mcp_servers` because the original name collided with the PyPI Model Context
+Protocol SDK (`mcp`), which is transitively installed via the `semgrep` dev dependency —
+this caused `ModuleNotFoundError: No module named 'mcp.audit'` when launching a server
+standalone in the dev venv.
+
+The launcher guards against accidentally starting a server whose port is already bound
+(e.g., by the running agent) — use `--force` only when intentionally starting a
+duplicate instance.
 
 ---
 

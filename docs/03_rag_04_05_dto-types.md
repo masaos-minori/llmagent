@@ -16,24 +16,24 @@ source:
 
 ### 6.3 types.py (`scripts/rag/types.py`)
 
-**RagQuery** — Query with optional context.
+**RagQuery** — 省略可能なコンテキスト付きのクエリ。
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `query` | `str` | (required) | Query string |
-| `context` | `str` | `""` | Optional context |
+| `query` | `str` | (required) | クエリ文字列 |
+| `context` | `str` | `""` | 省略可能なコンテキスト |
 
-**PipelineRunResult** — Pipeline run outcome.
+**PipelineRunResult** — パイプライン実行結果。
 
 | Field | Type | Description |
 |---|---|---|
-| `queries` | `list[str]` | MQE-expanded queries |
-| `search_results` | `list[list[RawHit]]` | Per-query search results |
-| `merged` | `list[RagHit]` | RRF-merged hits |
-| `reranked` | `list[RagHit]` | Post-rerank hits |
-| `stage_results` | `list[StageResult]` | Per-stage outcomes |
-| `diagnostics` | `SearchDiagnostics` | Search diagnostics |
-| `result_source` | `str \| None` | Result source (remote/local/fallback) |
+| `queries` | `list[str]` | MQEで展開されたクエリ群 |
+| `search_results` | `list[list[RawHit]]` | クエリごとの検索結果 |
+| `merged` | `list[RagHit]` | RRFで統合されたヒット結果 |
+| `reranked` | `list[RagHit]` | リランク後のヒット結果 |
+| `stage_results` | `list[StageResult]` | 各ステージの実行結果 |
+| `diagnostics` | `SearchDiagnostics` | 検索診断情報 |
+| `result_source` | `str \| None` | 結果の取得元 (remote/local/fallback) |
 
 
 ## Related Documents

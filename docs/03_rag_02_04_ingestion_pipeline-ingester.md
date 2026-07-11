@@ -21,118 +21,118 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-### 4.1 Class overview
+### 4.1 クラス概要
 
-`RagIngester` — reads chunk files, generates embeddings via `embed-llm` (port 8003),
-and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed chunks to
-`rag-src/registered/`.
+`RagIngester` — チャンクファイルを読み込み、`embed-llm`（ポート8003）経由で埋め込みを生成し、
+SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済みチャンクは
+`rag-src/registered/` へ移動する。
 
 **Dataclass**
 
-| Class | Purpose |
+| クラス | 用途 |
 |---|---|
-| `IngestUrlResult` | Per-URL ingestion outcome returned by `ingest_url_group()`; fields: `url`, `n_success`, `n_failed`, `skipped`, `n_embed_failed` (default 0) |
+| `IngestUrlResult` | `ingest_url_group()` が返すURL単位のインジェクション結果。フィールド: `url`、`n_success`、`n_failed`、`skipped`、`n_embed_failed`（デフォルト0） |
 
-**Public methods**
+**公開メソッド**
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | Load `ingester.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; process each group. Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check); also returns None when no chunk files exist |
-| `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group in ascending chunk_index order; moves files to registered/ after processing including on skip; returns `{n_success, n_failed, n_embed_failed, skipped}` |
-| `close` | `() -> None` | Close the underlying `httpx.Client` |
-| `__del__` | `() -> None` | Safety cleanup: close httpx.Client if not already closed (handles missing explicit close) |
+| `__init__` | `(config: dict \| None = None)` | `ingester.toml` をロードし、`httpx.Client` を初期化する |
+| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | チャンクファイルをURLごとにグループ化し、各グループを処理する。整合性レポートを返すか、インジェクション後の整合性チェックが失敗した場合（チェック中にDBエラーが発生する稀な失敗ケース）はNoneを返す。チャンクファイルが存在しない場合もNoneを返す |
+| `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | 1つのURLグループをchunk_indexの昇順で処理する。処理後（スキップした場合も含む）にファイルをregistered/へ移動する。`{n_success, n_failed, n_embed_failed, skipped}` を返す |
+| `close` | `() -> None` | 内部の `httpx.Client` を閉じる |
+| `__del__` | `() -> None` | 安全のためのクリーンアップ: 未クローズであればhttpx.Clientを閉じる（明示的なcloseの呼び忘れに対応） |
 
-### 4.2 Behavior details
+### 4.2 動作の詳細
 
-- **E5 prefix:** prepend `passage: {text}` before embedding (vs `query: ` at query time)
-- **Vector encoding:** `struct.pack(f"<{N}f", *values)` → little-endian float32 BLOB
-- **Parallel embed:** `ThreadPoolExecutor(embed_workers)` per URL group;
-  each thread uses an independent `SQLiteHelper().open()`
-- **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
-- **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT; `chunking_strategy` is preserved from the source file
+- **E5プレフィックス:** 埋め込み前に `passage: {text}` を先頭に付加する（クエリ時は `query: `） 
+- **ベクトルエンコーディング:** `struct.pack(f"<{N}f", *values)` → リトルエンディアンのfloat32 BLOB
+- **並列埋め込み:** URLグループごとに `ThreadPoolExecutor(embed_workers)` を使用する。
+  各スレッドは独立した `SQLiteHelper().open()` を使用する
+- **WALモード:** 並行読み書きの安全性のため `PRAGMA journal_mode=WAL` を使用する
+- **Upsert（`--force`）:** `chunks_vec` → `chunks` → `documents` の順で削除し、再INSERTする。`chunking_strategy` は元ファイルの値が保持される
 
-### 4.2.1 Deletion order invariant
+### 4.2.1 削除順序の不変条件
 
-The following deletion order is a design invariant — it must be maintained by all code paths that delete document records:
+以下の削除順序は設計上の不変条件であり、ドキュメントレコードを削除するすべてのコードパスで維持されなければならない。
 
 ```
-chunks_vec (first) → chunks → documents
+chunks_vec（最初）→ chunks → documents
 ```
 
-**Reason:** `chunks_vec` is a sqlite-vec virtual table with no foreign key constraint pointing to `chunks`. Deleting `chunks` first would leave orphaned vector records. The order must be strictly enforced in every code path:
+**理由:** `chunks_vec` はsqlite-vecの仮想テーブルであり、`chunks` を指す外部キー制約を持たない。`chunks` を先に削除すると、孤立したベクトルレコードが残ってしまう。そのため、すべてのコードパスでこの順序が厳格に守られなければならない。
 
-1. Delete `chunks_vec` rows for the document's chunk_ids
-2. Delete `chunks` rows (triggers auto-sync `chunks_fts`)
-3. Delete `documents` row
+1. その文書のchunk_idsに対応する `chunks_vec` の行を削除する
+2. `chunks` の行を削除する（`chunks_fts` の自動同期トリガーが発火する）
+3. `documents` の行を削除する
 
-**Affected code paths:**
-- `DocumentManager.delete_existing_document()` — deletes chunks_vec, chunks, documents rows
-- `DocumentManager.delete_existing_document()` — MCP tool path
-- Both must follow the same order to prevent orphaned vector records
-- **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified` via skip-path guard (see below); `chunking_strategy` is not updated during skip
-- **Skip-path stale guard:** incoming `fetched_at` (chunk payload) is compared against stored `documents.fetched_at`; if incoming < stored the update is skipped (newer crawl wins — prevents stale chunk files from overwriting fresher metadata). Missing `fetched_at` (legacy chunks without a freshness signal) uses fill-only semantics: `COALESCE(etag, ?)` — only populates the stored field if currently NULL; never overwrites a non-NULL value. This prevents stale chunk-file metadata from replacing fresher values stored by a more recent crawl.
-- **Embed failure tracking:** chunk and embedding results are returned as a tuple;
-  `n_embed_failed` counts embedding-specific failures separately from parse/DB errors
-- **Local file unchanged detection:** SHA-256 etags are compared for `file://` URLs
+**影響を受けるコードパス:**
+- `DocumentManager.delete_existing_document()` — chunks_vec、chunks、documentsの各行を削除
+- `DocumentManager.delete_existing_document()` — MCPツール経路
+- 孤立したベクトルレコードを防ぐため、両者は同じ順序に従わなければならない
+- **冪等性:** URLが既に `documents` に存在する場合はスキップする。ただし後述のスキップ経路のガードにより `etag`/`last_modified` はUPDATEされる。スキップ時は `chunking_strategy` は更新されない
+- **スキップ経路の古さガード:** 入力された `fetched_at`（チャンクペイロード）を、格納済みの `documents.fetched_at` と比較する。入力側が古い場合は更新をスキップする（より新しいクロールが優先される — 古いチャンクファイルがより新しいメタデータを上書きすることを防ぐ）。`fetched_at` が欠落している場合（鮮度情報を持たない旧形式のチャンク）は、埋め込みのみのセマンティクスを使用する: `COALESCE(etag, ?)` — 現在NULLの場合にのみ値を設定し、NULL以外の値を上書きすることはない。これにより、古いチャンクファイルのメタデータが、より新しいクロールで格納された値を置き換えてしまうことを防ぐ。
+- **埋め込み失敗の追跡:** チャンクと埋め込みの結果はタプルとして返される。
+  `n_embed_failed` は、パース/DBエラーとは別に埋め込み固有の失敗をカウントする
+- **ローカルファイルの未変更判定:** `file://` URLについてはSHA-256のetagを比較する
 
-### 4.3 CLI arguments
+### 4.3 CLI引数
 
-| Argument | Description | Default |
+| 引数 | 説明 | デフォルト |
 |---|---|---|
-| `--force` | Delete existing document/chunks/chunks_vec records and re-embed; always re-ingests regardless of etag (for `file://` URLs) | false |
+| `--force` | 既存のdocument/chunks/chunks_vecレコードを削除し再埋め込みする。（`file://` URLの場合）etagに関わらず常に再インジェクションする | false |
 
-### 4.4 Embedding API
+### 4.4 埋め込みAPI
 
 ```
 POST http://127.0.0.1:8003/embedding
 Request:  {"content": "passage: {text}"}
-Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config/agent.toml::embedding_dims)
+Response: {"embedding": [float, ...]}   # 384次元（multilingual-E5-small；config/agent.toml::embedding_dims）
 ```
 
-### 4.5 DB tables updated
+### 4.5 更新されるDBテーブル
 
-| Table | Operation |
+| テーブル | 操作 |
 |---|---|
-| `documents` | SELECT to check; DELETE+INSERT (`force=True`) or skip+UPDATE etag (`force=False`); stores `url`, `title`, `lang`, `etag`, `last_modified`, `chunking_strategy`, `fetched_at` |
-| `chunks` | INSERT (FK → documents; ON DELETE CASCADE) |
-| `chunks_vec` | INSERT BLOB vector |
-| `chunks_fts` | Auto-synced by `chunks_ai` trigger (`COALESCE(normalized_content, content)`) |
+| `documents` | 存在確認のためSELECT；DELETE+INSERT（`force=True`）またはスキップ+UPDATE etag（`force=False`）；`url`、`title`、`lang`、`etag`、`last_modified`、`chunking_strategy`、`fetched_at` を格納 |
+| `chunks` | INSERT（FK → documents；ON DELETE CASCADE） |
+| `chunks_vec` | ベクトルのBLOBをINSERT |
+| `chunks_fts` | `chunks_ai` トリガーにより自動同期される（`COALESCE(normalized_content, content)`） |
 
-### 4.6 Error handling
+### 4.6 エラーハンドリング
 
-| Case | Action |
+| ケース | 対応 |
 |---|---|
-| Embed API failure | Exponential backoff retry up to `embed_retry` times (capped at 10 seconds) |
-| Retry exhausted (single chunk) | `WARNING` log; skip chunk; continue |
-| Invalid `lang` value | `ValueError`; skip URL group; `ERROR` log with traceback |
-| `chunks_vec` delete order | Must delete `chunks_vec` first (no FK constraint on sqlite-vec virtual table) |
-| Embedding dimension mismatch | `ValueError`; skip chunk; `WARNING` log |
-| Artifact validation failure | `WARNING` log; skip chunk as embed failure |
-| File move failure | `ERROR` log with url, source_type, stage_name structured fields |
+| 埋め込みAPI失敗 | `embed_retry` 回まで指数バックオフでリトライ（上限10秒） |
+| リトライ上限到達（単一チャンク） | `WARNING` ログ；そのチャンクをスキップし継続 |
+| `lang` 値が不正 | `ValueError`；そのURLグループをスキップ；トレースバック付き `ERROR` ログ |
+| `chunks_vec` の削除順序 | `chunks_vec` を最初に削除しなければならない（sqlite-vec仮想テーブルにはFK制約がないため） |
+| 埋め込み次元の不一致 | `ValueError`；そのチャンクをスキップ；`WARNING` ログ |
+| アーティファクト検証失敗 | `WARNING` ログ；そのチャンクを埋め込み失敗としてスキップ |
+| ファイル移動失敗 | url、source_type、stage_nameの構造化フィールドを含む `ERROR` ログ |
 
-### 4.7 Logging
+### 4.7 ロギング
 
-- **File:** `/opt/llm/logs/ingest.log` + stderr
-- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- **ファイル:** `/opt/llm/logs/ingest.log` + stderr
+- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-| Level | Timing | Structured fields |
+| レベル | タイミング | 構造化フィールド |
 |---|---|---|
-| `INFO` | Chunks processed, DB inserts, file moves, skipped URLs | `doc_id`, `source_type`, `stage_name` (on insert); `url` (on skip) |
-| `WARNING` | Embed API error, retry, embed skip | `source_type`, `stage_name` |
-| `ERROR` | Chunk file read error, file move error, URL group failure (with traceback) | — |
+| `INFO` | 処理済みチャンク、DB挿入、ファイル移動、スキップされたURL | `doc_id`、`source_type`、`stage_name`（挿入時）；`url`（スキップ時） |
+| `WARNING` | 埋め込みAPIエラー、リトライ、埋め込みスキップ | `source_type`、`stage_name` |
+| `ERROR` | チャンクファイル読み込みエラー、ファイル移動エラー、URLグループの失敗（トレースバック付き） | — |
 
-For ETagManager details → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-For Configuration details → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+ETagManagerの詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+設定の詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
 

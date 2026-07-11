@@ -18,16 +18,18 @@ source:
 
 # Event Bus: Health Endpoint Semantics
 
-## Health Endpoint Semantics
+## ヘルスエンドポイントの意味論
 
-| HTTP Status | Status Value | Meaning |
+| HTTP ステータス | ステータス値 | 意味 |
 |---|---|---|
-| 200 | `ok` | All systems nominal |
-| 503 | `degraded` | Connected but degraded (DB unavailable, DLQ task stopped, broker queue backlog high, slow consumers) |
+| 200 | `ok` | すべてのシステムが正常 |
+| 503 | `degraded` | 接続されているが degraded 状態（DB が利用不可、DLQ タスクが停止、ブローカーのキュー滞留が多い、consumer の処理が遅い、など） |
 
-There is no `unhealthy` status value — the health endpoint returns HTTP 503 for all non-ok states. The JSON body includes `status: "degraded"` and component-level details (e.g., `"db": "unavailable"`).
+`unhealthy` というステータス値は存在しない — ヘルスエンドポイントは ok 以外の
+すべての状態に対して HTTP 503 を返す。JSON ボディには `status: "degraded"` と
+コンポーネント単位の詳細（例: `"db": "unavailable"`）が含まれる。
 
-**Monitoring tools MUST use HTTP status code, not JSON body, for alerting.**
+**監視ツールはアラート判定に JSON ボディではなく HTTP ステータスコードを使用しなければならない。**
 
 ## Related Documents
 

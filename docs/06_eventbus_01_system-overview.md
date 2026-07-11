@@ -20,57 +20,56 @@ source:
 
 # Event Bus: System Overview
 
-## Purpose
+## 目的
 
-The Event Bus provides an internal publish/subscribe backbone for the LLM agent system. Producers publish JSON events; consumers subscribe to topics via SSE and replay past events.
+Event Bus は LLM エージェントシステム向けの内部 publish/subscribe 基盤を提供する。プロデューサーは JSON イベントを publish し、コンシューマーは SSE 経由でトピックを subscribe し、過去のイベントを replay する。
 
-> **Note:** The Event Bus HTTP API is fully implemented and operational as a standalone service.
-> Agent runtime integration (publishing events from the Agent, subscribing to Agent topics via SSE)
-> is intentionally deferred and not yet implemented. This document describes the Event Bus as an
-> independent component; Agent-side event production/consumption will be documented in a future
-> release.
+> **注記:** Event Bus HTTP API はスタンドアロンサービスとして完全に実装され、稼働している。
+> Agent ランタイムとの統合（Agent からのイベント publish、SSE 経由での Agent トピックの subscribe）は
+> 意図的に見送られており、まだ実装されていない。本ドキュメントは Event Bus を独立したコンポーネントとして
+> 記述するものであり、Agent 側のイベント生成/消費については将来のリリースで文書化する予定である。
 
-## Architecture
+## アーキテクチャ
 
-The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event delivery. Each subscriber gets a dedicated `asyncio.Queue`; the broker fans out events to matching subscribers based on topic filters.
+Event Bus はライブイベント配信のためにインメモリの pub/sub ブローカー（`EventBroker`）を使用する。各サブスクライバーは専用の `asyncio.Queue` を持ち、ブローカーはトピックフィルタに基づいてイベントを該当するサブスクライバーに fan-out する。
 
-- **Live delivery**: `EventBroker` provides topic-aware fan-out via asyncio Queues
-- **Replay**: past events are replayed from SQLite via `/replay` and `/subscribe` endpoints
-- **Persistence**: all events are stored in SQLite; DLQ events are written as JSONL files
-- **Offset management**: file-based offset persistence for consumer recovery
+- **ライブ配信**: `EventBroker` は asyncio Queue を介したトピック単位の fan-out を提供する
+- **リプレイ**: 過去のイベントは `/replay` と `/subscribe` エンドポイントを通じて SQLite から再生される
+- **永続化**: すべてのイベントは SQLite に保存され、DLQ イベントは JSONL ファイルとして書き出される
+- **オフセット管理**: コンシューマのリカバリ用にファイルベースでオフセットを永続化する
 
 ### EventBroker
 
-`EventBroker` maintains a list of `_Subscriber` dataclasses, each with an asyncio Queue and optional topic filter. `publish()` fans out events to matching subscribers, dropping on queue full (with WARNING log). `shutdown()` sends None sentinels to unblock all subscriber queues.
+`EventBroker` は `_Subscriber` データクラスのリストを保持し、各要素は asyncio Queue と任意のトピックフィルタを持つ。`publish()` は該当するサブスクライバーにイベントを fan-out し、キューが満杯の場合は破棄する（WARNING ログを出力）。`shutdown()` はすべてのサブスクライバーキューのブロックを解除するために None センチネルを送信する。
 
-Queue maxsize=1000; slow consumer threshold=100 items.
+Queue の maxsize は 1000、低速コンシューマの閾値は 100 件。
 
-## Security model
+## セキュリティモデル
 
-The Event Bus API has **no authentication or ACL**.
+Event Bus API には **認証も ACL も存在しない**。
 
-- **Design assumption**: single-node deployment on an internal network / trusted hosts
-- **Access control**: enforced at the network boundary (firewall, Docker network)
-- **Do not expose publicly**: the Event Bus must not be directly reachable from the internet
-- **Startup guard**: config validation rejects binding to public/wildcard addresses (0.0.0.0, ::) unless `allow_public_bind=true` is set in TOML config. A WARNING log message is emitted when a public address is bound without authentication.
+- **設計上の前提**: 内部ネットワーク/信頼済みホスト上でのシングルノード運用を想定
+- **アクセス制御**: ネットワーク境界（ファイアウォール、Docker ネットワーク）で実施
+- **公開しないこと**: Event Bus はインターネットから直接到達可能にしてはならない
+- **起動時のガード**: TOML 設定で `allow_public_bind=true` を設定しない限り、公開/ワイルドカードアドレス（0.0.0.0、::）へのバインドは設定検証で拒否される。認証なしで公開アドレスにバインドされた場合は WARNING ログが出力される。
 
-### Future authentication options
+### 将来の認証オプション
 
-If requirements arise:
-- API-key authentication via FastAPI `Depends`
-- mTLS for service-to-service authentication
+要件が生じた場合の選択肢:
+- FastAPI の `Depends` による API キー認証
+- サービス間認証のための mTLS
 
-Not implemented at this time. Evaluate based on the actual threat model before adding.
+現時点では未実装。追加する前に実際の脅威モデルに基づいて評価すること。
 
-## Future Integration
+## 今後の統合
 
-The following Agent-side integrations are intentionally not implemented at this time:
+以下の Agent 側統合は現時点で意図的に未実装である。
 
-- **Agent event publishing**: No Agent-side event producer is implemented. The Event Bus HTTP API supports publishing from any HTTP client; Agent-specific producers will be added in a future release.
-- **Agent SSE subscription**: No Agent-side subscriber for consuming events via `/subscribe` SSE. Agent-side consumers will be added in a future release.
-- **Agent event topics**: No Agent-defined topics exist today. Topic conventions for Agent lifecycle events will be defined when Agent integration is implemented.
+- **Agent によるイベント publish**: Agent 側のイベントプロデューサーは実装されていない。Event Bus HTTP API は任意の HTTP クライアントからの publish をサポートしており、Agent 固有のプロデューサーは将来のリリースで追加される予定。
+- **Agent の SSE subscribe**: `/subscribe` の SSE を介してイベントを消費する Agent 側サブスクライバーは存在しない。Agent 側のコンシューマーは将来のリリースで追加される予定。
+- **Agent のイベントトピック**: 現時点で Agent が定義したトピックは存在しない。Agent のライフサイクルイベントに関するトピック命名規則は、Agent 統合の実装時に定義される。
 
-These items are also documented as Deferred Items in `docs/06_eventbus_90_inconsistencies_and_known_issues.md`.
+これらの項目は `docs/06_eventbus_90_inconsistencies_and_known_issues.md` にも保留事項（Deferred Items）として文書化されている。
 
 ## Related Documents
 

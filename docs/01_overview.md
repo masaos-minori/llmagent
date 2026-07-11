@@ -20,36 +20,36 @@ source:
   - 01_overview.md
 ---
 
-# Overview & Architecture & File Structure (Index)
+# 概要・アーキテクチャ・ファイル構成(索引)
 
-| File | Content |
+| ファイル | 内容 |
 |---|---|
-| [01_overview-arch-01-process.md](01_overview-arch-01-process.md) | Process architecture (LLM services, MCP servers, configuration isolation) |
-| [01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md) | Pipeline architecture (ingestion/query pipelines, turn processing order, workflow modes) |
-| [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | Feature architecture (implemented features, implementation notes) |
-| [01_overview-files-01-build.md](01_overview-files-01-build.md) | Build and models file structure |
-| [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG files file structure |
-| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) | Scripts file structure |
-| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) | Shared infrastructure file structure |
-| [01_overview-files-05-config.md](01_overview-files-05-config.md) | Configuration file structure |
-| [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | Miscellaneous file structure |
+| [01_overview-arch-01-process.md](01_overview-arch-01-process.md) | プロセスアーキテクチャ(LLMサービス、MCPサーバ、設定分離) |
+| [01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md) | パイプラインアーキテクチャ(取込/検索パイプライン、ターン処理順序、ワークフローモード) |
+| [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | 機能アーキテクチャ(実装済み機能、実装上の補足) |
+| [01_overview-files-01-build.md](01_overview-files-01-build.md) | ビルド・モデル関連のファイル構成 |
+| [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG関連のファイル構成 |
+| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) | scripts配下のファイル構成 |
+| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) | 共有インフラのファイル構成 |
+| [01_overview-files-05-config.md](01_overview-files-05-config.md) | 設定ファイル構成 |
+| [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | その他のファイル構成 |
 
-## Implementation Intent
+## 実装意図
 
-- Split `01_overview-arch.md` into 3 files at H2 boundaries: process, pipelines, features
-- Split `01_overview-files.md` into 6 files at directory-based logical boundaries: build, rag, scripts, shared, config, misc
-- Each file has YAML Front Matter with title, category, tags, related documents, and keywords
-- This file is the system-wide overview index. For detailed document sets, see the catalog below.
+- `01_overview-arch.md` をH2境界で3ファイルに分割: process, pipelines, features
+- `01_overview-files.md` をディレクトリ単位の論理境界で6ファイルに分割: build, rag, scripts, shared, config, misc
+- 各ファイルにtitle/category/tags/related documents/keywordsを含むYAML Front Matterを付与
+- 本ファイルはシステム全体の概要索引。各詳細ドキュメントセットは以下のカタログを参照
 
-## Other Document Sets
+## 他のドキュメントセット
 
-| File | Content |
+| ファイル | 内容 |
 |---|---|
-| [02_deployment.md](02_deployment.md) | Installation steps, deployment |
-| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAG document set guide (all files listed) |
-| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCP document set guide (all files listed) |
-| [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | Agent document set guide (all files listed) |
-| [90_shared_00_document-guide.md](90_shared_00_document-guide.md) | shared/DB document set guide (all files listed) |
+| [02_deployment.md](02_deployment.md) | 導入手順・デプロイ |
+| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAGドキュメントセットガイド(全ファイル一覧) |
+| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCPドキュメントセットガイド(全ファイル一覧) |
+| [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | Agentドキュメントセットガイド(全ファイル一覧) |
+| [90_shared_00_document-guide.md](90_shared_00_document-guide.md) | shared/DBドキュメントセットガイド(全ファイル一覧) |
 
 ## Related Documents
 

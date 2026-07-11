@@ -16,36 +16,36 @@ source:
 
 # Agent Extension Points
 
-- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
-## Purpose
+## 目的
 
-Document the plugin architecture, all `@register_*` decorators, extension rules,
-and priority relationships between built-in features and extensions.
+プラグインアーキテクチャ、すべての `@register_*` デコレータ、拡張ルール、
+および組み込み機能と拡張機能の間の優先関係を文書化する。
 
 ---
 
-## Plugin Architecture
+## プラグインアーキテクチャ
 
-Plugins are Python files in `plugins/*.py` (relative to the project root, 2 levels above `scripts/`).
+プラグインは `plugins/*.py` にある Python ファイルである（プロジェクトルート、つまり `scripts/` の2階層上を基準とする）。
 
-**Loading:**
-1. Plugin registry initialization calls `plugin_registry.load_plugins(plugin_dir)` at startup
-2. Each `*.py` file is imported in alphabetical order
-3. `@register_*` decorators run at import time and register handlers globally
-4. Errors during load are logged individually with `[plugin] skipped: <filename> (<ErrorType>)`
-5. When `plugin_strict=true` in config, all plugins are attempted; a single `PluginLoadError` is raised at the end with aggregated details
-6. After loading, a summary line is logged: `[plugin] loaded=N, skipped=M`
-7. After loading, plugin tool and command names are checked against built-in names; each conflict is logged with the source module name
-8. Directory not found → 0 plugins loaded (no error)
+**ロード:**
+1. プラグインレジストリの初期化時に、起動時に `plugin_registry.load_plugins(plugin_dir)` が呼び出される
+2. 各 `*.py` ファイルはアルファベット順にインポートされる
+3. `@register_*` デコレータはインポート時に実行され、ハンドラをグローバルに登録する
+4. ロード中のエラーは `[plugin] skipped: <filename> (<ErrorType>)` として個別にログ出力される
+5. config で `plugin_strict=true` の場合、すべてのプラグインが試行され、最後に集約された詳細を含む単一の `PluginLoadError` が発生する
+6. ロード後、サマリー行がログ出力される: `[plugin] loaded=N, skipped=M`
+7. ロード後、プラグインのツール名およびコマンド名が組み込み名と照合され、競合はそれぞれソースモジュール名とともにログ出力される
+8. ディレクトリが見つからない場合 → 0個のプラグインがロードされる（エラーなし）
 
-Startup log format (individual skip):
+起動時ログ形式（個別スキップ）:
 `[plugin] skipped: <filename> (<ErrorType>)`
 
-Startup log format (conflict):
+起動時ログ形式（競合）:
 `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected|allowed`
 
-Startup log format (command shadow):
+起動時ログ形式（コマンドシャドウ）:
 `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
 
 ```python
@@ -74,27 +74,27 @@ def post_rerank(hits, query):
 handler(ctx: AgentContext, args: str) -> None  # sync or async
 ```
 
-- `name`: slash command string including `/` (e.g., `"/ping"`)
-- `prefix=False`: exact match only
-- `prefix=True`: accepts trailing arguments (`line.startswith(name + " ")`)
-- Dispatch priority: **lower** than built-in commands (checked second)
-- Access: `plugin_registry.get_command(name)` → `(handler, is_prefix) | None`
+- `name`: `/` を含むスラッシュコマンド文字列（例: `"/ping"`）
+- `prefix=False`: 完全一致のみ
+- `prefix=True`: 後続の引数を受け付ける（`line.startswith(name + " ")`）
+- ディスパッチ優先度: 組み込みコマンドより**低い**（2番目にチェックされる）
+- アクセス: `plugin_registry.get_command(name)` → `(handler, is_prefix) | None`
 
-**Built-in vs plugin priority:**
-Built-in commands are matched first. If no built-in matches, plugin commands are tried. Plugin commands that share a name with a built-in
-command are **rejected at load time** (removed from the plugin command registry).
-They will not appear in `iter_commands()` and cannot be dispatched. This is a
-startup-time enforcement, not a dispatch-time priority.
+**組み込みとプラグインの優先度:**
+組み込みコマンドが最初にマッチングされる。組み込みにマッチしない場合、プラグインコマンドが試行される。組み込みコマンドと同名の
+プラグインコマンドは**ロード時に拒否される**（プラグインコマンドレジストリから削除される）。
+これらは `iter_commands()` に現れず、ディスパッチもされない。これは
+起動時の強制であり、ディスパッチ時の優先度ではない。
 
-#### Command Shadow Policy
+#### コマンドシャドウポリシー
 
-Plugin commands that share a name with a built-in command are subject to **Option A (reject)** policy:
+組み込みコマンドと同名のプラグインコマンドは、**オプションA（拒否）**ポリシーの対象となる。
 
-- At load time, the shadowing command is **removed** from the command registry and will not appear in `iter_commands()` or be dispatched.
-- Log: `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
-- When `plugin_strict = true`, a `PluginLoadError` is raised after all plugins are loaded, with a message containing `"Command builtin conflicts rejected: /help, /debug"` (comma-separated list of rejected command names).
-- In non-strict mode (default), the rejection is silent beyond the log line — startup continues normally.
-- `/plugin status` reports the count under `"Command shadows (rejected)"`.
+- ロード時に、シャドウしているコマンドはコマンドレジストリから**削除**され、`iter_commands()` に現れず、ディスパッチもされない。
+- ログ: `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
+- `plugin_strict = true` の場合、すべてのプラグインのロード後に、`"Command builtin conflicts rejected: /help, /debug"`（拒否されたコマンド名のカンマ区切りリスト）を含むメッセージとともに `PluginLoadError` が発生する。
+- 非strictモード（デフォルト）では、拒否はログ行を出す以外は無音であり、起動は通常通り継続する。
+- `/plugin status` は `"Command shadows (rejected)"` のもとでこの件数を報告する。
 
 ---
 

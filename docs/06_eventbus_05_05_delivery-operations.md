@@ -20,11 +20,11 @@ source:
 
 # Event Bus: Delivery Operations
 
-## Delivery Operations
+## 配信オペレーション
 
-### Verifying delivery
+### 配信の確認
 
-After enabling the in-memory broker, confirm live push is working:
+インメモリブローカーを有効化した後、ライブプッシュが機能していることを確認する。
 
 ```bash
 # Terminal 1: subscribe (hold connection open)
@@ -36,44 +36,50 @@ curl -X POST http://localhost:8010/publish \
   -d '{"event_id":"test-001","topic":"test","payload":{},"producer":"ops","published_at":"2026-06-25T12:00:00Z"}'
 ```
 
-The event should appear in Terminal 1 within one event-loop tick (< 1 ms typical latency on localhost).
+イベントは 1 イベントループティック以内（localhost では通常 1 ms 未満のレイテンシ）に
+ターミナル 1 に表示されるはずである。
 
-### Monitoring slow consumers
+### 低速な consumer の監視
 
-Slow consumers are those whose in-process queue depth reaches >= 100 events. Check via health endpoint:
+低速な consumer とは、プロセス内キューの深さが 100 イベント以上に達したものを指す。
+ヘルスエンドポイント経由で確認する。
 
 ```bash
 curl http://localhost:8010/health | jq '.slow_consumers, .max_queue_depth, .active_subscribers'
 ```
 
-**Thresholds:**
-- `slow_consumers > 0` → `degraded_reasons` includes `slow_consumers_detected`
-- `max_queue_depth >= 500` → `degraded_reasons` includes `broker_queue_backlog_high`
+**しきい値:**
+- `slow_consumers > 0` → `degraded_reasons` に `slow_consumers_detected` が含まれる
+- `max_queue_depth >= 500` → `degraded_reasons` に `broker_queue_backlog_high` が含まれる
 
-When a consumer is slow, events are dropped from the in-process queue (logged as WARNING). The consumer must reconnect to replay missed events from SQLite.
+consumer が低速な場合、イベントはプロセス内キューから破棄される（WARNING として
+ログ出力される）。consumer は再接続して SQLite から欠落したイベントをリプレイ
+する必要がある。
 
-### Reconnect recovery
+### 再接続時の復旧
 
-If a subscriber disconnects, it can resume without missing events:
+サブスクライバが切断された場合、イベントを欠落させることなく再開できる。
 
 ```bash
 # Reconnect with consumer_id — replays from last acked offset automatically
 curl -N "http://localhost:8010/subscribe?consumer_id=my-consumer"
 ```
 
-If the consumer has never acked any events, replay starts from seq=0 (all events). To start from a specific point:
+consumer がこれまでに一度も ack していない場合、リプレイは seq=0（すべてのイベント）
+から開始される。特定の位置から開始するには以下のようにする。
 
 ```bash
 curl -N "http://localhost:8010/subscribe?consumer_id=my-consumer&since_seq=100"
 ```
 
-### Checking subscriber count
+### サブスクライバ数の確認
 
 ```bash
 curl http://localhost:8010/health | jq '.active_subscribers'
 ```
 
-Zero subscribers means the broker is idle. Events are still persisted to SQLite and available for replay on next connect.
+サブスクライバが 0 である場合、ブローカーはアイドル状態である。イベントは
+それでも SQLite に永続化されており、次回接続時にリプレイ可能である。
 
 ## Related Documents
 

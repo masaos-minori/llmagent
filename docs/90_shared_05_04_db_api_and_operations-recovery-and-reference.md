@@ -47,53 +47,53 @@ class RecoveryResult:
 
 ---
 
-## 10. Error Handling
+## 10. エラーハンドリング
 
-| Error | Behavior |
+| エラー | 挙動 |
 |---|---|
-| `sqlite3.OperationalError` (busy/locked) | Auto-wait via `PRAGMA busy_timeout` (default 30s) |
-| `sqlite3.IntegrityError` | Propagates to caller; does not occur in upsert paths |
-| sqlite-vec load error | `sqlite3.OperationalError` → connection failure |
-| Schema DDL failure | Exception re-raised from `executescript()` |
-| Integrity check failure | Error logged + backup restore attempted |
-| `prune_old_memories` failure | STRICT: exception propagates; BEST_EFFORT: returns `MaintenanceResult(success=False)` |
-| `commit()` error | Logs WARNING + re-raises `sqlite3.OperationalError` |
-| `close()` error | Logs WARNING; does NOT raise |
+| `sqlite3.OperationalError`(busy/locked） | `PRAGMA busy_timeout` による自動待機(デフォルト30秒） |
+| `sqlite3.IntegrityError` | 呼び出し元に伝播する;upsertパスでは発生しない |
+| sqlite-vec ロードエラー | `sqlite3.OperationalError` → 接続失敗 |
+| スキーマDDL失敗 | `executescript()` から例外が再スローされる |
+| 整合性チェック失敗 | エラーをログ記録 + バックアップからの復元を試行 |
+| `prune_old_memories` の失敗 | STRICT: 例外が伝播する;BEST_EFFORT: `MaintenanceResult(success=False)` を返す |
+| `commit()` エラー | WARNINGをログ記録 + `sqlite3.OperationalError` を再スロー |
+| `close()` エラー | WARNINGをログ記録するのみ;例外は発生させない |
 
 ---
 
-## 11. DB Recreation Procedure
+## 11. DB再作成手順
 
-Schema changes require DB recreation — no migration support exists.
+スキーマ変更にはDBの再作成が必要 — マイグレーション機能は存在しない。
 
-**Step 1: Archive** — run `rotate_all_dbs()` to archive all three production DBs:
+**手順1: アーカイブ** — `rotate_all_dbs()` を実行し、本番用3DBすべてをアーカイブする:
 
 ```bash
 uv run python -c "from db.rotation import rotate_all_dbs; rotate_all_dbs()"
 ```
 
-**Step 2: Delete** — manually remove the DB files:
+**手順2: 削除** — DBファイルを手動で削除する:
 
 ```bash
 rm /opt/llm/db/rag.sqlite /opt/llm/db/session.sqlite /opt/llm/db/workflow.sqlite
 ```
 
-DB paths are resolved from `agent.toml` keys `rag_db_path`, `session_db_path`, `workflow_db_path`.
+DBパスは `agent.toml` の `rag_db_path`、`session_db_path`、`workflow_db_path` キーから解決される。
 
-**Step 3: Recreate** — run `create_schema()` to initialize empty DBs:
+**手順3: 再作成** — `create_schema()` を実行し空のDBを初期化する:
 
 ```bash
 uv run python -c "from db.create_schema import create_schema; create_schema()"
 ```
 
-**Important notes:**
-- Recreated DBs are empty — existing records are NOT migrated automatically.
-- `create_schema()` also initializes `eventbus.sqlite` if not yet present.
-- If only one DB needs recreation, use individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`.
+**重要な注意事項:**
+- 再作成されたDBは空である — 既存レコードは自動的に移行されない。
+- `create_schema()` は `eventbus.sqlite` が未存在の場合これも初期化する。
+- 1つのDBのみ再作成が必要な場合は個別の関数を使う: `create_rag_schema()`、`create_session_schema()`、`create_workflow_schema()`。
 
 ---
 
-## 12. Verification Plan
+## 12. 検証計画
 
 ```bash
 # Schema initialization
@@ -113,19 +113,19 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 
 ---
 
-## 13. AI Reference Guide
+## 13. AIリファレンスガイド
 
-| Question | Answer |
+| 質問 | 回答 |
 |---|---|
-| How to open a DB connection | `with SQLiteHelper("rag").open(row_factory=True) as db:` |
-| How to write atomically | `with db.begin_immediate():` inside an `open(write_mode=True)` context |
-| What does `target="workflow"` connect to | `workflow.sqlite` — task tracking DB |
-| How to validate embedding BLOB | `validate_embedding_blob(blob)` from `db.store` |
-| How to purge old sessions | `purge_old_sessions(db, RetentionConfig(...))` — returns `MaintenanceResult`; check `.success` |
-| How to recover from corruption | `recover_corruption(backup_path=..., target="rag")` |
-| Does `prune_old_memories` catch exceptions? | **STRICT** (default): propagates; **BEST_EFFORT**: caught and returned in `MaintenanceResult` |
-| How to use BEST_EFFORT mode | Pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, or `prune_old_memories` |
-| How to check RAG consistency | `check_rag_consistency(db)` → `is_consistent(report)` + `summarize_issues(report)` |
+| DB接続を開く方法 | `with SQLiteHelper("rag").open(row_factory=True) as db:` |
+| アトミックに書き込む方法 | `open(write_mode=True)` コンテキスト内で `with db.begin_immediate():` |
+| `target="workflow"` は何に接続するか | `workflow.sqlite` — タスク追跡DB |
+| 埋め込みBLOBを検証する方法 | `db.store` の `validate_embedding_blob(blob)` |
+| 古いセッションをパージする方法 | `purge_old_sessions(db, RetentionConfig(...))` — `MaintenanceResult` を返す;`.success` を確認 |
+| 破損から復旧する方法 | `recover_corruption(backup_path=..., target="rag")` |
+| `prune_old_memories` は例外を捕捉するか | **STRICT**(デフォルト）: 伝播する;**BEST_EFFORT**: 捕捉され `MaintenanceResult` に格納される |
+| BEST_EFFORTモードの使い方 | `vacuum_db`、`purge_old_sessions`、`prune_old_memories` に `mode=MaintenanceMode.BEST_EFFORT` を渡す |
+| RAG整合性を確認する方法 | `check_rag_consistency(db)` → `is_consistent(report)` + `summarize_issues(report)` |
 
 ## Related Documents
 

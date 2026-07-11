@@ -1,56 +1,65 @@
 ---
-title: "Agent Tool Execution and Approval"
+title: "Agent Tool Execution and Approval - Approval Flow"
 category: agent
 tags:
   - agent
-  - agent
-  - tool
-  - execution
-  - approval
-  - safety
+  - tool-execution
+  - approval-flow
+  - risk-classification
+  - plan-mode
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
+  - 05_agent_06_04_tool-execution-and-approval-canonical.md
+source:
+  - 05_agent_06_tool-execution-and-approval.md
 ---
 
-# Agent Tool Execution and Approval
+# エージェントのツール実行と承認
 
- runs before each tool execution:
+- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCPルーティング → [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
 
-### Pre-flight checks (instant deny)
+## 承認フロー
 
-1. **`allowed_tools` whitelist:** if list is non-empty and tool not in list → denied
-2. **`allowed_root` root jail:** if path arg is outside `cfg.allowed_root` → denied
-3. **GitHub repo allowlist:** if write op on repo not in `approval_github_allowed_repos` → denied (fail-closed)
+各ツール実行前に`check_approval()`が実行される:
+
+### 事前チェック (即時拒否)
+
+1. **`allowed_tools`ホワイトリスト:** リストが空でなく、ツールがリストに含まれない場合 → 拒否
+2. **`allowed_root`ルートジェイル:** パス引数が`cfg.allowed_root`外の場合 → 拒否
+3. **GitHubリポジトリの許可リスト:** 書き込み操作対象のリポジトリが`approval_github_allowed_repos`に含まれない場合 → 拒否 (フェイルクローズ)
 
 #### `check_allowed_root(cfg, tool_name, args)`
 
-Returns `False` when any path argument is outside `cfg.approval.allowed_root`. Returns `True` when:
-- `allowed_root` is not set (no restriction)
-- All path arguments resolve to paths within the allowed root
+いずれかのパス引数が`cfg.approval.allowed_root`の外にある場合`False`を返す。以下の場合は`True`を返す:
+- `allowed_root`が未設定 (制限なし)
+- すべてのパス引数が許可されたルート内のパスに解決される
 
 #### `check_allowed_repo(cfg, tool_name, args)`
 
-Returns `False` when a GitHub write tool targets a repo not in the allowlist. Only applies to GitHub write tools. Returns:
-- `True` for non-GitHub write tools
-- `False` when `allowed_repos` is empty (fail-closed)
-- Result of `"owner/repo" in allowed_repos` check
+GitHub書き込みツールが許可リストにないリポジトリを対象とする場合`False`を返す。GitHub書き込みツールにのみ適用される。戻り値:
+- GitHub書き込みツール以外は`True`
+- `allowed_repos`が空の場合`False` (フェイルクローズ)
+- `"owner/repo" in allowed_repos`チェックの結果
 
-### Operation type classification
+### 操作種別の分類
 
-`classify_operation_type(tool_name)` returns one of: `READ`, `WRITE`, `DELETE`, `EXECUTE`, `API_WRITE`.
+`classify_operation_type(tool_name)`は以下のいずれかを返す: `READ`, `WRITE`, `DELETE`, `EXECUTE`, `API_WRITE`。
 
-Classification priority (first match wins):
+分類の優先順位 (最初に一致したものが採用される):
 1. `WRITE_TOOLS` → `OperationType.WRITE`
 2. `DELETE_TOOLS` → `OperationType.DELETE`
-3. Exec tools (`shell_run`) → `OperationType.EXECUTE`
-4. API write tools (github_* tools) → `OperationType.API_WRITE`
-5. Default → `OperationType.READ`
+3. 実行系ツール (`shell_run`) → `OperationType.EXECUTE`
+4. API書き込みツール (github_*系ツール) → `OperationType.API_WRITE`
+5. デフォルト → `OperationType.READ`
 
-### Risk classification
+### リスク分類
 
-Priority: `approval_risk_rules` table → `tool_safety_tiers` mapping
+優先順位: `approval_risk_rules`テーブル → `tool_safety_tiers`マッピング
 
-#### Tier-to-risk mapping
+#### ティア-リスク対応
 
 | Tier | Risk level |
 |---|---|
@@ -59,64 +68,62 @@ Priority: `approval_risk_rules` table → `tool_safety_tiers` mapping
 | `WRITE_DANGEROUS` | `medium` |
 | `ADMIN` | `high` |
 
-Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
+`tool_safety_tiers`に存在しないツールはデフォルトで`WRITE_DANGEROUS`となる (フェイルセーフ)。
 
 | Risk level | Behavior |
 |---|---|
-| `none` | Auto-approved (no prompt) |
-| `medium` | Preview + `y/N` prompt |
-| `high` | Preview + full `yes` input required |
+| `none` | 自動承認 (プロンプトなし) |
+| `medium` | プレビュー + `y/N`プロンプト |
+| `high` | プレビュー + 完全な`yes`入力が必須 |
 
-### Risk escalation conditions
+### リスクエスカレーション条件
 
-- Path in `approval_protected_paths` → escalate to `high`
-- GitHub branch in `approval_high_risk_branches` (default: main, master) → escalate to `high`
-- `gitops_force_push_blocked=True` and `force=True` arg → deny
-- `gitops_push_blocked=True` → deny all GitHub write ops
+- パスが`approval_protected_paths`に含まれる → `high`にエスカレート
+- GitHubブランチが`approval_high_risk_branches` (デフォルト: main, master) に含まれる → `high`にエスカレート
+- `gitops_force_push_blocked=True`かつ`force=True`引数 → 拒否
+- `gitops_push_blocked=True` → すべてのGitHub書き込み操作を拒否
 
-#### GitHub write tools
+#### GitHub書き込みツール
 
-7 GitHub write tools used for `gitops_push_blocked` check:
+`gitops_push_blocked`チェックで使用される7つのGitHub書き込みツール:
 
 | Tool | Purpose |
 |---|---|
-| `github_push_files` | Push multiple files |
-| `github_create_or_update_file` | Create or update a single file |
-| `github_delete_file` | Delete a file |
-| `github_merge_pull_request` | Merge a PR |
-| `github_create_pull_request` | Create a PR |
-| `github_update_pull_request` | Update a PR |
-| `github_create_branch` | Create a branch |
+| `github_push_files` | 複数ファイルをプッシュ |
+| `github_create_or_update_file` | 単一ファイルを作成または更新 |
+| `github_delete_file` | ファイルを削除 |
+| `github_merge_pull_request` | PRをマージ |
+| `github_create_pull_request` | PRを作成 |
+| `github_update_pull_request` | PRを更新 |
+| `github_create_branch` | ブランチを作成 |
 
-When `gitops_push_blocked=True`, any of these tools are denied without prompt.
+`gitops_push_blocked=True`の場合、これらのツールはいずれもプロンプトなしで拒否される。
 
-### Dry-run preview
+### ドライラン プレビュー
 
-Tools in `approval_dry_run_tools` (default: write_file, edit_file, delete_file, delete_directory,
-move_file) are pre-executed with `dry_run=True` before the approval prompt. Result appended to preview.
+`approval_dry_run_tools` (デフォルト: write_file, edit_file, delete_file, delete_directory,
+move_file) 内のツールは、承認プロンプト前に`dry_run=True`で事前実行される。結果はプレビューに追加される。
 
-### Denial handling
+### 拒否時の処理
 
-Denied tools receive `"Tool execution denied by user."` as tool result (returned to LLM as a
-tool role message, so conversation continues naturally).
+拒否されたツールはツール実行結果として`"Tool execution denied by user."`を受け取る (LLMには
+toolロールメッセージとして返され、会話は自然に継続する)。
 
 ---
 
-## Plan Mode
+## プランモード
 
-`/plan` toggles `ctx.c
+`/plan`は`ctx.conv.plan_mode`を切り替える。
 
-onv.plan_mode`.
-
-- When `True`: tools in `cfg.tool.plan_blocked_tools` are auto-denied (without prompt)
-- Default blocked: `write_file`, `create_directory`, `delete_file`, `delete_directory`
-- Purpose: allow LLM to reason and plan without executing destructive operations
+- `True`の場合: `cfg.tool.plan_blocked_tools`内のツールは (プロンプトなしで) 自動拒否される
+- デフォルトでブロックされるもの: `write_file`, `create_directory`, `delete_file`, `delete_directory`
+- 目的: 破壊的操作を実行せずにLLMが推論・計画できるようにする
 
 ---
 
 ### `build_preview(tool_name, args)`
 
-Builds a human-readable operation preview shown before approval prompts.
+承認プロンプト前に表示される、人間が読める操作プレビューを構築する。
 
 | Tool category | Preview format |
 |---|---|
@@ -125,34 +132,45 @@ Builds a human-readable operation preview shown before approval prompts.
 | `move_file` | `{source} → {destination}` |
 | `shell_run` | `{command}` |
 | `github_*` | `{owner}/{repo} {extra args JSON[:200]}` |
-| Other tools | `json.dumps(args)[:300]` |
+| その他のツール | `json.dumps(args)[:300]` |
 
 ### `TURN_LIMIT_HINT`
 
-Hint appended to history when a tool result is dropped due to the per-turn limit. Format:
+ターン単位の上限によりツール実行結果が破棄された場合に履歴に追加されるヒント。形式:
 
 ```
 [Result omitted: per-turn tool result limit reached.]
 ```
 
-This hint is appended when `tool_results_turn_max_chars` (see [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md)) is exceeded.
+このヒントは`tool_results_turn_max_chars` ([05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md) 参照) を超過した場合に追加される。
 
 ---
 
-## Tool Result Cache
+## ツール実行結果のキャッシュ
 
-`ToolExecutor`
+`ToolExecutor`はTTL + LRUキャッシュを維持する:
+
+- キャッシュキー: JSONシリアル化されたツール名+引数 (プレーンな文字列、MD5化なし)
+- 成功した結果 (`is_error=False`) のみキャッシュされる
+- TTL: `tool_cache_ttl`秒 (デフォルト300)
+- `tool_cache_max_size > 0`の場合LRU退避 (デフォルト200)
+- キャッシュヒット時: 結果内で`request_id=""`
+- `/clear`がキャッシュをクリアする
+- キャッシュ統計: `/stats`で`Cache hits`として表示される
+
+---
 
 ## Related Documents
 
-- `agent`
-- `tool`
-- `execution`
+- `05_agent_00_document-guide.md`
+- `05_agent_06_01_tool-execution-and-approval-execution.md`
+- `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
+- `05_agent_06_04_tool-execution-and-approval-canonical.md`
 
 ## Keywords
 
-agent
-tool
-execution
-approval
-safety
+approval flow
+pre-flight checks
+risk classification
+plan mode
+tool result cache

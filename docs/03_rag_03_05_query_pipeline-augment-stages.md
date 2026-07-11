@@ -16,15 +16,15 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG Query Pipeline
+# RAG クエリパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- Type definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 5. Stage Details
+## 5. ステージの詳細
 
 ### 5.4 RerankStage
 
@@ -32,29 +32,29 @@ source:
 RerankStage(cfg: RagConfig, llm: RagLLM)
 ```
 
-- `use_rerank=False`: return top `rag_top_k` by RRF order (slice) + `deduplicate_chunks`
-- `use_rerank=True`: `RagLLM.cross_encoder_rerank(query, candidates, top_k, rag_min_score)`; raises `RagRerankError` on LLM failure
-- Filters by `rag_min_score`; no fallback on cross-encoder failure (exception propagates)
-- Deduplication: `deduplicate_chunks(hits, max_chunks_per_doc)` — caps same-URL hits; input must be descending-sorted; applied after reranking (not before)
+- `use_rerank=False`: RRF順で上位 `rag_top_k` を返す（スライス） + `deduplicate_chunks`
+- `use_rerank=True`: `RagLLM.cross_encoder_rerank(query, candidates, top_k, rag_min_score)`；LLM失敗時は `RagRerankError` を発生させる
+- `rag_min_score` によりフィルタする；クロスエンコーダの失敗時にフォールバックはない（例外が伝播する）
+- 重複排除: `deduplicate_chunks(hits, max_chunks_per_doc)` — 同一URLのヒット数を制限する；入力は降順にソートされている必要がある；リランクの後に適用される（前ではない）
 
 ### 5.5 AugmentStage
 
-No constructor (inherits from `PipelineStage`).
+コンストラクタなし（`PipelineStage` を継承）。
 
-**Note:** Chunk formatting function is duplicated between `scripts/rag/pipeline.py:368` (static method) and `scripts/rag/stages/augment.py:11` (module function). They produce identical output but are separate copies. AugmentStage uses the augment.py version; `RagPipeline.augment()` uses the pipeline.py version for raw-chunk fallback (line 474).
+**注記:** チャンク整形関数は `scripts/rag/pipeline.py:368`（静的メソッド）と `scripts/rag/stages/augment.py:11`（モジュール関数）の間で重複している。両者は同一の出力を生成するが別々のコピーである。AugmentStageはaugment.py版を使用する；`RagPipeline.augment()` は生チャンクへのフォールバック用にpipeline.py版を使用する（474行目）。
 
-- Formats `ctx.reranked` as `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` blocks; when title is empty, uses URL as fallback
-- Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
-- Stored in `ctx.augment_result`
-- Uses `sanitize_document(c.content)` from `rag.utils` to sanitize content before formatting
-- Empty reranked returns `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]`
+- `ctx.reranked` を `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` の形式のブロックとして整形する；titleが空の場合はURLをフォールバックとして使用する
+- `\n\n---\n\n` で連結し、`[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]` で囲む
+- `ctx.augment_result` に格納する
+- 整形前に `rag.utils` の `sanitize_document(c.content)` でコンテンツをサニタイズする
+- rerankedが空の場合は `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]` を返す
 
-**Content-only invariant (DESIGN-2):** AugmentStage formats `content` only — never `normalized_content`.
+**コンテンツのみの不変条件（DESIGN-2）:** AugmentStageは `content` のみを整形し、`normalized_content` は決して使用しない。
 
-- `chunks.content` is the original chunk text and the **only** text used for LLM context
-- `chunks.normalized_content` is Sudachi-normalized Japanese text used **exclusively** for FTS5 search indexing; it must never appear in LLM context
-- Replacing `content` with `normalized_content` would degrade LLM context quality (Sudachi-normalized text loses original readability)
-- RAG context blocks must always contain original readable chunk text
+- `chunks.content` は元のチャンクテキストであり、LLMコンテキストとして使用される**唯一の**テキストである
+- `chunks.normalized_content` はSudachiで正規化された日本語テキストで、FTS5の検索インデックス用途に**限定して**使用される；LLMコンテキストに出現してはならない
+- `content` を `normalized_content` に置き換えると、LLMコンテキストの品質が低下する（Sudachi正規化されたテキストは元の可読性を失う）
+- RAGコンテキストブロックには常に元の読みやすいチャンクテキストが含まれなければならない
 
 #### RefineResult dataclass (`scripts/rag/pipeline_refiner.py`)
 
@@ -62,29 +62,29 @@ No constructor (inherits from `PipelineStage`).
 from rag.pipeline_refiner import RefineResult
 ```
 
-| Field | Type | Description |
+| フィールド | 型 | 説明 |
 |---|---|---|
-| `text` | `str \| None` | Refined context text; `None` on failure (fallback to raw chunks) |
-| `reason` | `str \| None` | Reason for failure; `None` on success; `"refiner_returned_empty"` or `"refiner_exception: ..."` on fallback |
+| `text` | `str \| None` | 要約されたコンテキストテキスト；失敗時は `None`（生のチャンクへフォールバック） |
+| `reason` | `str \| None` | 失敗理由；成功時は `None`；フォールバック時は `"refiner_returned_empty"` または `"refiner_exception: ..."` |
 
-#### Refiner fallback reasons
+#### リファイナーのフォールバック理由
 
-When `use_refiner=true` and refinement fails, `augment()` falls back to raw-chunk
-formatting. The fallback reason is recorded in `last_stage_results` and
-`get_diagnostics()["fallback_reasons"]`.
+`use_refiner=true` で要約処理が失敗した場合、`augment()` は生チャンクの
+整形処理にフォールバックする。フォールバック理由は `last_stage_results` と
+`get_diagnostics()["fallback_reasons"]` に記録される。
 
-| Reason | Condition |
+| 理由 | 条件 |
 |---|---|
-| `refiner_returned_empty` | LLM response content is `""` or whitespace-only after `.strip()`. The `if refined:` guard is falsy. Common causes: content-policy refusal, empty LLM generation, prompt format producing no extractable key points. |
-| `refiner_exception: {e}` | `httpx.HTTPStatusError`, `httpx.RequestError`, or `ValueError` raised during the LLM call. The exception message is included in the reason string. Not retried. |
+| `refiner_returned_empty` | LLMレスポンスの内容が `.strip()` 後に `""` または空白のみである。`if refined:` のガードがFalseと評価される。よくある原因: コンテンツポリシーによる拒否、空のLLM生成、抜き出せる要点がないプロンプト形式。 |
+| `refiner_exception: {e}` | LLM呼び出し中に `httpx.HTTPStatusError`、`httpx.RequestError`、または `ValueError` が発生した。例外メッセージが理由文字列に含まれる。リトライは行われない。 |
 
-**No retry policy**: Refiner failure is treated as a non-critical degradation — raw chunks are acceptable output. Retrying a failed LLM call adds latency with low expected benefit (transient errors are rare; content-policy refusals will not succeed on retry). Use `use_refiner=false` to disable the refiner entirely when degraded output is not acceptable.
+**リトライなしの方針**: リファイナーの失敗は致命的でない品質低下として扱われる — 生チャンクを出力として許容する。失敗したLLM呼び出しをリトライしても、期待される効果は低い一方でレイテンシが増加する（一時的なエラーは稀であり、コンテンツポリシーによる拒否はリトライしても成功しない）。劣化した出力を許容できない場合は `use_refiner=false` でリファイナーを完全に無効化すること。
 
-Both reasons are:
-- Visible at INFO level in application logs (`augment: refiner fallback (reason=...)`)
-- Visible in `/rag search` output as `[warn] refiner fallback: <reason>`
-- Visible in `/rag search --debug` stage results as `~ Refiner: fallback — <reason>` and summary line `[refiner] fallback: N time(s)`
-- Available via `pipeline.get_diagnostics()["fallback_reasons"]`, `["refiner_fallback_count"]`, `["refiner_exception_count"]`
+いずれの理由も以下で確認できる。
+- アプリケーションログでINFOレベルで表示される（`augment: refiner fallback (reason=...)`）
+- `/rag search` の出力で `[warn] refiner fallback: <reason>` として表示される
+- `/rag search --debug` のステージ結果で `~ Refiner: fallback — <reason>` およびサマリー行 `[refiner] fallback: N time(s)` として表示される
+- `pipeline.get_diagnostics()["fallback_reasons"]`、`["refiner_fallback_count"]`、`["refiner_exception_count"]` から取得可能
 
 ---
 

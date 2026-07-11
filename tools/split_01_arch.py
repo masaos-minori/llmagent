@@ -3,6 +3,7 @@
 
 import re
 
+
 def add_frontmatter(content, title, category="overview"):
     """Add YAML Front Matter to content."""
     fm = f"""---
@@ -21,9 +22,10 @@ source:
 """
     return fm + content
 
+
 def add_tail(content):
     """Add Related Documents and Keywords sections."""
-    tail = f"""
+    tail = """
 ## Related Documents
 
 - `01_overview.md`
@@ -39,32 +41,33 @@ implementation
 """
     return content.rstrip() + tail
 
+
 # Read original file
-with open("docs/01_overview-arch.md", "r") as f:
+with open("docs/01_overview-arch.md") as f:
     content = f.read()
 
 # Split at H2 boundaries first
-h2_pattern = r'^#{2} .+$'
+h2_pattern = r"^#{2} .+$"
 sections = []
 current_section = None
 current_lines = []
 
-for line in content.split('\n'):
+for line in content.split("\n"):
     m = re.match(h2_pattern, line)
     if m:
         if current_section:
-            sections.append((current_section, '\n'.join(current_lines)))
+            sections.append((current_section, "\n".join(current_lines)))
         current_section = m.group(0)
         current_lines = [line]
     else:
         current_lines.append(line)
 
 if current_section:
-    sections.append((current_section, '\n'.join(current_lines)))
+    sections.append((current_section, "\n".join(current_lines)))
 
 print(f"Found {len(sections)} H2 sections:")
 for sec_name, sec_content in sections:
-    lines = sec_content.count('\n') + 1
+    lines = sec_content.count("\n") + 1
     print(f"  - {sec_name}: {lines} lines")
 
 # File 1: Section 1 + Section 2.1 (プロセス構成)
@@ -74,22 +77,22 @@ for sec_name, sec_content in sections:
         file1_content += sec_content + "\n\n"
     elif "2. アーキテクチャ" in sec_name:
         # Further split at H3 boundaries
-        h3_pattern = r'^#{3} .+$'
+        h3_pattern = r"^#{3} .+$"
         sub_sections = []
         current_sub = None
         current_sub_lines = []
-        for line in sec_content.split('\n'):
+        for line in sec_content.split("\n"):
             m = re.match(h3_pattern, line)
             if m:
                 if current_sub:
-                    sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
+                    sub_sections.append((current_sub, "\n".join(current_sub_lines)))
                 current_sub = m.group(0)
                 current_sub_lines = [line]
             else:
                 current_sub_lines.append(line)
         if current_sub:
-            sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
-        
+            sub_sections.append((current_sub, "\n".join(current_sub_lines)))
+
         for sub_name, sub_content in sub_sections:
             if "2.1" in sub_name:
                 file1_content += sub_content + "\n\n"
@@ -107,22 +110,22 @@ print(f"\nCreated docs/01_overview-arch-process.md ({len(file1_content)} bytes)"
 file2_content = ""
 for sec_name, sec_content in sections:
     if "2. アーキテクチャ" in sec_name:
-        h3_pattern = r'^#{3} .+$'
+        h3_pattern = r"^#{3} .+$"
         sub_sections = []
         current_sub = None
         current_sub_lines = []
-        for line in sec_content.split('\n'):
+        for line in sec_content.split("\n"):
             m = re.match(h3_pattern, line)
             if m:
                 if current_sub:
-                    sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
+                    sub_sections.append((current_sub, "\n".join(current_sub_lines)))
                 current_sub = m.group(0)
                 current_sub_lines = [line]
             else:
                 current_sub_lines.append(line)
         if current_sub:
-            sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
-        
+            sub_sections.append((current_sub, "\n".join(current_sub_lines)))
+
         for sub_name, sub_content in sub_sections:
             if "2.2" in sub_name or "2.3" in sub_name:
                 file2_content += sub_content + "\n\n"
@@ -140,22 +143,22 @@ print(f"Created docs/01_overview-arch-pipelines.md ({len(file2_content)} bytes)"
 file3_content = ""
 for sec_name, sec_content in sections:
     if "2. アーキテクチャ" in sec_name:
-        h3_pattern = r'^#{3} .+$'
+        h3_pattern = r"^#{3} .+$"
         sub_sections = []
         current_sub = None
         current_sub_lines = []
-        for line in sec_content.split('\n'):
+        for line in sec_content.split("\n"):
             m = re.match(h3_pattern, line)
             if m:
                 if current_sub:
-                    sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
+                    sub_sections.append((current_sub, "\n".join(current_sub_lines)))
                 current_sub = m.group(0)
                 current_sub_lines = [line]
             else:
                 current_sub_lines.append(line)
         if current_sub:
-            sub_sections.append((current_sub, '\n'.join(current_sub_lines)))
-        
+            sub_sections.append((current_sub, "\n".join(current_sub_lines)))
+
         for sub_name, sub_content in sub_sections:
             if "2.4" in sub_name or "2.5" in sub_name:
                 file3_content += sub_content + "\n\n"
@@ -189,7 +192,7 @@ new_refs = {
 
 for filepath in files_to_update:
     try:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             content = f.read()
         new_content = content.replace(old_ref, new_refs.get(filepath, old_ref))
         if new_content != content:

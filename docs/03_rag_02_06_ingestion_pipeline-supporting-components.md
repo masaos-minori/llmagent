@@ -19,36 +19,36 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4.8 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
 
-`ETagManager` — Manages ETag/Last-Modified updates for existing documents. Provides stale guard: if new_fetched_at < stored fetched_at, the incoming data is older and the existing DB values are kept. Two update modes:
-- Freshness mode: Overwrite ETag/Last-Modified when freshness is proven (uses COALESCE for fetched_at)
-- Null-fill mode: Fill NULL only; never overwrite existing values (uses COALESCE for both etag and last_modified)
+`ETagManager` — 既存ドキュメントのETag/Last-Modifiedの更新を管理する。古さガードを提供する: new_fetched_at が stored fetched_at より古い場合、入力データは古いものと判断され、既存のDBの値が保持される。2つの更新モードがある。
+- 鮮度モード: 鮮度が確認できた場合にETag/Last-Modifiedを上書きする（fetched_atにはCOALESCEを使用）
+- Null埋めモード: NULLのみを埋める；既存の値は上書きしない（etagとlast_modifiedの両方にCOALESCEを使用）
 
-**Public methods**
+**公開メソッド**
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | Refresh ETag/Last-Modified for an existing document; returns early if both etag and last_modified are None |
+| `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | 既存ドキュメントのETag/Last-Modifiedを更新する；etagとlast_modifiedの両方がNoneの場合は早期リターンする |
 
-## 4.9 Configuration (`config/rag_pipeline.toml`)
+## 4.9 設定（`config/rag_pipeline.toml`）
 
-| Parameter | Default | Description |
+| パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint URL |
-| `embed_retry` | 3 | Retry limit for embedding API failures (exponential backoff) |
-| `embed_workers` | 4 | Max concurrent embed threads via ThreadPoolExecutor |
-| `embedding_dims` | 384 | Expected embedding vector dimension; validated against API response |
-| `strict_artifact_validation` | False | Require `schema_version`, `artifact_type`, `created_by` in chunk JSON payloads |
+| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIのエンドポイントURL |
+| `embed_retry` | 3 | 埋め込みAPI失敗時のリトライ上限（指数バックオフ） |
+| `embed_workers` | 4 | ThreadPoolExecutorによる最大並行埋め込みスレッド数 |
+| `embedding_dims` | 384 | 想定される埋め込みベクトルの次元数；APIレスポンスと照合して検証される |
+| `strict_artifact_validation` | False | チャンクのJSONペイロードに `schema_version`、`artifact_type`、`created_by` を必須とする |
 
-See [03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md).
+[03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md) を参照。
 
 ---
 

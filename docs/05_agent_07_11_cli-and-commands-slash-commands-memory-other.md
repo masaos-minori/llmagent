@@ -1,74 +1,93 @@
 ---
-title: "Agent CLI and Commands"
+title: "Agent CLI and Commands - Slash Commands: Memory, MDQ, Plugin, Other"
 category: agent
 tags:
   - agent
-  - agent
   - cli
-  - commands
-  - repl
   - slash-commands
+  - memory
+  - mdq
+  - plugin
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_07_01_cli-and-commands-cli-reference.md
+  - 05_agent_07_02_cli-and-commands-cliview.md
+  - 05_agent_07_03_cli-and-commands-command-registry.md
+  - 05_agent_07_04_cli-and-commands-purpose.md
+  - 05_agent_07_05_cli-and-commands-repl-io.md
+  - 05_agent_07_06_cli-and-commands-hot-reload.md
+  - 05_agent_07_07_cli-and-commands-migration-notes.md
+  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+source:
+  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands
 
-### Memory category
+- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-| Command | Side effects | Related state |
+### Memoryカテゴリ
+
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/memory list [semantic\|episodic] [n]` | None | Display memory entries |
-| `/memory search <query>` | None | FTS5 search over memories |
-| `/memory show <id>` | None | Full memory entry display |
-| `/memory pin <id>` | UPDATE pinned flag | Entry injected at every session start |
-| `/memory unpin <id>` | UPDATE pinned flag | Remove session-start injection |
-| `/memory delete <id>` | DELETE entry | Immediate |
-| `/memory prune [days]` | DELETE entries older than N days | Uses `memory_retention_days` default |
-| `/memory status` | None | Memory mode label (e.g., Hybrid mode / Degraded mode / Memory layer disabled), embedding status, circuit state, retrieval mode; works when memory disabled |
-| `/memory check-consistency` | None | Compare JSONL, SQLite, FTS5, and vec row counts |
-| `/memory rebuild [--dry-run]` | DELETE + INSERT all memories from JSONL | JSONL is canonical source; clears and re-inserts SQLite |
+| `/memory list [semantic\|episodic] [n]` | なし | メモリエントリを表示 |
+| `/memory search <query>` | なし | メモリに対するFTS5検索 |
+| `/memory show <id>` | なし | メモリエントリの全文表示 |
+| `/memory pin <id>` | pinnedフラグをUPDATE | セッション開始のたびにエントリが注入される |
+| `/memory unpin <id>` | pinnedフラグをUPDATE | セッション開始時の注入を解除 |
+| `/memory delete <id>` | エントリをDELETE | 即時反映 |
+| `/memory prune [days]` | N日より古いエントリをDELETE | デフォルトは`memory_retention_days`を使用 |
+| `/memory status` | なし | メモリモードのラベル(例: Hybrid mode / Degraded mode / Memory layer disabled)、埋め込みの状態、サーキットの状態、検索モードを表示。メモリ無効時にも動作する |
+| `/memory check-consistency` | なし | JSONL、SQLite、FTS5、vecの行数を比較 |
+| `/memory rebuild [--dry-run]` | JSONLから全メモリをDELETE + INSERT | JSONLが正典のソースであり、SQLiteをクリアして再挿入する |
 
-### MDQ category
+### MDQカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/mdq status` | None | Display health and index statistics (calls `stats` MCP tool) |
-| `/mdq index <path> [--force]` | Index file/directory | mdq.sqlite updated |
-| `/mdq refresh <path> [--force]` | Incremental refresh for changed files | mdq.sqlite updated |
-| `/mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25\|grep]` | FTS5 search | None |
-| `/mdq outline <path> [--max-depth N]` | None | Display heading hierarchy |
-| `/mdq get <chunk_id> [--with-neighbors]` | None | Display chunk content |
-| `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | Regex search over chunks | None |
+| `/mdq status` | なし | ヘルスとインデックス統計を表示(`stats` MCPツールを呼び出す) |
+| `/mdq index <path> [--force]` | ファイル/ディレクトリをインデックス | mdq.sqliteが更新される |
+| `/mdq refresh <path> [--force]` | 変更されたファイルの差分更新 | mdq.sqliteが更新される |
+| `/mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25\|grep]` | FTS5検索 | なし |
+| `/mdq outline <path> [--max-depth N]` | なし | 見出し階層を表示 |
+| `/mdq get <chunk_id> [--with-neighbors]` | なし | チャンクの内容を表示 |
+| `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | チャンクに対する正規表現検索 | なし |
 
-> **Note:** All /mdq commands call mdq-mcp MCP tools (port 8013) via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). See [MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for guidance on when to use MDQ vs RAG.
+> **注記:** すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール(ポート8013)を呼び出す。MDQは`mdq.sqlite`(`rag.sqlite`とは別)を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary)を参照。
 
-### Plugin category
+### Pluginカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/plugin status` | None | Display plugin load results (loaded, failed, conflicts) |
+| `/plugin status` | なし | プラグインの読み込み結果(loaded、failed、conflicts)を表示 |
 
-### Other category
+### Otherカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/help` | None | Show this help output |
+| `/help` | なし | このヘルプ出力を表示 |
 
 ---
 
-## Hot-Reload Scope (`/re
-
 ## Related Documents
 
-- `agent`
-- `cli`
-- `commands`
+- `05_agent_00_document-guide.md`
+- `05_agent_07_01_cli-and-commands-cli-reference.md`
+- `05_agent_07_02_cli-and-commands-cliview.md`
+- `05_agent_07_03_cli-and-commands-command-registry.md`
+- `05_agent_07_04_cli-and-commands-purpose.md`
+- `05_agent_07_05_cli-and-commands-repl-io.md`
+- `05_agent_07_06_cli-and-commands-hot-reload.md`
+- `05_agent_07_07_cli-and-commands-migration-notes.md`
+- `05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+- `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+- `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
 
 ## Keywords
 
-agent
-cli
-commands
-repl
-slash-commands
+memory category
+MDQ category
+plugin category
+other category

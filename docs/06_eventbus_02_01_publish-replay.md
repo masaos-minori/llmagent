@@ -23,9 +23,9 @@ source:
 
 ## POST /publish
 
-Publish an event. Idempotent: duplicate `event_id` is silently ignored.
+イベントを publish する。冪等性あり: 重複する `event_id` は黙って無視される。
 
-**Request body** (validated against `event_envelope.json` JSON Schema):
+**リクエストボディ**（`event_envelope.json` JSON Schema に対して検証される）:
 
 ```json
 {
@@ -37,62 +37,62 @@ Publish an event. Idempotent: duplicate `event_id` is silently ignored.
 }
 ```
 
-**Request body constraints:**
+**リクエストボディの制約:**
 
-| Field | Type | Required | Constraints |
+| フィールド | 型 | 必須 | 制約 |
 |---|---|---|---|
-| `event_id` | string (UUID v4) | Yes | Must match `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` |
-| `topic` | string | Yes | minLength 1, maxLength 255 |
-| `payload` | object | Yes | Must be an object (not string) |
-| `producer` | string | Yes | minLength 1, maxLength 255 |
-| `published_at` | string (date-time) | Yes | ISO-8601 date-time format |
-| `schema_version` | string | No | Default "1.0" |
+| `event_id` | string (UUID v4) | Yes | `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` に一致する必要がある |
+| `topic` | string | Yes | minLength 1、maxLength 255 |
+| `payload` | object | Yes | オブジェクトである必要がある（文字列不可） |
+| `producer` | string | Yes | minLength 1、maxLength 255 |
+| `published_at` | string (date-time) | Yes | ISO-8601 date-time 形式 |
+| `schema_version` | string | No | デフォルト "1.0" |
 
-**Additional constraint**: No additional properties allowed (`additionalProperties: false`). Extra fields cause 422 validation failure.
+**追加制約**: 追加プロパティは許可されない（`additionalProperties: false`）。余分なフィールドがあると 422 の検証エラーになる。
 
-**Response 200:**
+**レスポンス 200:**
 ```json
 {"event_id": "uuid-string", "seq": 42}
 ```
 
-**Response 422:** JSON Schema validation failure.
+**レスポンス 422:** JSON Schema の検証エラー。
 
-**JSONL append failure**: If writing to the JSONL archive fails (e.g. disk full), the event is still committed to SQLite and 200 is returned. A WARNING is logged.
+**JSONL 追記の失敗**: JSONL アーカイブへの書き込みが失敗した場合（例: ディスクフル）でも、イベントは SQLite にはコミットされ、200 が返される。WARNING がログに記録される。
 
 ---
 
 ## GET /replay
 
-Replay past events. Returns events with `seq > since_seq`. Supports pagination for `format=json`.
+過去のイベントを replay する。`seq > since_seq` を満たすイベントを返す。`format=json` の場合はページネーションに対応する。
 
-**Query parameters:**
+**クエリパラメータ:**
 
-| Parameter | Type | Default | Constraints | Description |
+| パラメータ | 型 | デフォルト | 制約 | 説明 |
 |---|---|---|---|---|
-| `since_seq` | int | 0 | >= 0 | Start sequence number (exclusive) — no upper bound validation |
-| `limit` | int | 100 | >= 1, <= 1000 | Maximum number of events to return per page |
-| `offset` | int | 0 | >= 0 | Number of events to skip for pagination |
-| `format` | str | `sse` | `sse` or `json` | Response format: SSE stream or JSON paginated object |
+| `since_seq` | int | 0 | >= 0 | 開始シーケンス番号（この値自体は含まない） — 上限値の検証なし |
+| `limit` | int | 100 | >= 1、<= 1000 | 1 ページあたりに返すイベントの最大数 |
+| `offset` | int | 0 | >= 0 | ページネーションのためにスキップするイベント数 |
+| `format` | str | `sse` | `sse` または `json` | レスポンス形式: SSE ストリームまたは JSON のページネーションオブジェクト |
 
-**Response (`format=json`):** Paginated object with `total`, `limit`, `offset`, and `items` fields:
+**レスポンス（`format=json`）:** `total`、`limit`、`offset`、`items` フィールドを持つページネーションオブジェクト:
 ```json
 {"total": 100, "limit": 50, "offset": 0, "items": [{seq, event_id, topic, payload, producer, published_at}, ...]}
 ```
 
-- `total`: Total number of matching events (ignores limit/offset) — used to compute remaining pages
-- `limit`: The requested limit value
-- `offset`: The requested offset value
-- `items`: Array of event objects (up to `limit` items); empty array if `offset >= total`
+- `total`: 条件に一致するイベントの総数（limit/offset は無視）— 残りページ数の計算に使用
+- `limit`: リクエストされた limit の値
+- `offset`: リクエストされた offset の値
+- `items`: イベントオブジェクトの配列（最大 `limit` 件）。`offset >= total` の場合は空配列
 
-**Response (`format=sse`):** Each event is emitted as a SSE data line:
+**レスポンス（`format=sse`）:** 各イベントは SSE の data 行として出力される:
 ```
 data: {"seq": 42, "event_id": "...", "topic": "...", "payload": {}, "producer": "...", "published_at": "..."}
 ```
 
-**SSE pagination behavior**: SSE format applies SQL-level `LIMIT/OFFSET` but does **not** support paginatable incremental consumption. The stream terminates after emitting `limit` events and closes — there is no mechanism to continue the same stream with updated offset. For paginated consumption, use `format=json`.
+**SSE のページネーション動作**: SSE 形式は SQL レベルの `LIMIT/OFFSET` を適用するが、ページネーション可能な増分消費には対応**していない**。ストリームは `limit` 件のイベントを出力した後に終了し、クローズする — 更新後の offset で同じストリームを継続する仕組みはない。ページネーションによる消費が必要な場合は `format=json` を使用すること。
 
-**Error responses:**
-- **422**: Invalid parameter values (limit < 1 or limit > 1000, offset < 0)
+**エラーレスポンス:**
+- **422**: パラメータ値が不正な場合（limit < 1 または limit > 1000、offset < 0）
 
 ## Related Documents
 

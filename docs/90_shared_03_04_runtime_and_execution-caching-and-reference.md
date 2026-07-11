@@ -18,9 +18,9 @@ source:
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
 ---
 
-# Shared Runtime and Execution Infrastructure
+# 共有ランタイムおよび実行インフラストラクチャ
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 14. `LlmRetryHandler` (`shared/llm_retry.py`)
 
@@ -36,12 +36,12 @@ class LlmRetryHandler:
     ) -> httpx.Response
 ```
 
-- Exponential-backoff retry for LLM HTTP POST requests
-- Retries on 429 (rate limit) and 503 (service unavailable), plus `httpx.RequestError` (connection errors)
-- Non-transient HTTP errors (4xx, 5xx other than 429/503) are re-raised immediately
-- Delay formula: `retry_base_delay * (2**attempt)` where attempt is 0-indexed
-- Raises the last exception when all attempts exhausted
-- Import: `from shared.llm_retry import LlmRetryHandler`
+- LLM への HTTP POST リクエストに対する指数バックオフ再試行
+- 429 (レート制限) と 503 (サービス利用不可)、および `httpx.RequestError` (接続エラー) を再試行対象とする
+- 一時的でない HTTP エラー (429/503 以外の 4xx, 5xx) は即座に再スローされる
+- 遅延計算式: `retry_base_delay * (2**attempt)` (attempt は 0 始まり)
+- すべての試行を使い切った場合は最後の例外をスローする
+- インポート: `from shared.llm_retry import LlmRetryHandler`
 
 ---
 
@@ -62,12 +62,12 @@ class ToolResultCache:
     def clear(self) -> None
 ```
 
-- LRU cache for tool call results with TTL expiry and optional max-size eviction
-- Only `is_error=False` results are cached (`store_if_success` skips error results)
-- Cache key format: `{tool_name}:{json_dumps(args)}` (uses `shared.json_utils.dumps`)
-- TTL check: `time.time() - cached_at >= ttl` → evict and return None
-- LRU eviction: when `max_size > 0` and cache exceeds limit, `popitem(last=False)` removes oldest entry
-- Import: `from shared.tool_cache import ToolResultCache`
+- TTL 失効とオプションの最大サイズ超過時のエビクションを備えた、ツール呼び出し結果用の LRU キャッシュ
+- `is_error=False` の結果のみキャッシュされる (`store_if_success` はエラー結果をスキップする)
+- キャッシュキーの形式: `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用)
+- TTL チェック: `time.time() - cached_at >= ttl` → エビクトして None を返す
+- LRU エビクション: `max_size > 0` かつキャッシュが上限を超えた場合、`popitem(last=False)` で最も古いエントリを削除する
+- インポート: `from shared.tool_cache import ToolResultCache`
 
 ---
 
@@ -85,11 +85,11 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG scheduling (unconditional) — the DAG execution layer constructs ToolSpec for each tool call
-- `resource_scope` enables conflict detection between parallel tool calls on the same resource
-- `requires_serial` forces serialization even in parallel execution mode
-- `is_write` is used by `is_side_effect()` to classify write/delete tools
-- Import: `from shared.tool_spec import ToolSpec`
+- DAG スケジューリング (無条件) で使用される — DAG 実行レイヤーが各ツール呼び出しに対して ToolSpec を構築する
+- `resource_scope` により、同一リソースに対する並列ツール呼び出し間の競合検出が可能になる
+- `requires_serial` は、並列実行モードであっても強制的にシリアライズする
+- `is_write` は `is_side_effect()` が書き込み/削除系ツールを分類する際に使用される
+- インポート: `from shared.tool_spec import ToolSpec`
 
 ---
 
@@ -100,12 +100,12 @@ class PluginToolInvoker:
     async def try_execute(self, tool_name: str, args: dict[str, Any]) -> ToolCallResult | None
 ```
 
-- Executes plugin tools registered via `plugin_registry.register_tool()`
-- Returns `None` if no plugin tool is registered for the given name
-- Converts plugin exceptions to `ToolCallResult(is_error=True)` to keep errors local (never propagates)
-- Performs defensive runtime validation of return value contract: must be exactly 2-element tuple `(str, bool)`
-- Raises `TypeError` if output is not str or is_error is not bool
-- Import: `from shared.plugin_tool_invoker import PluginToolInvoker`
+- `plugin_registry.register_tool()` 経由で登録されたプラグインツールを実行する
+- 指定された名前に対応するプラグインツールが登録されていない場合は `None` を返す
+- プラグインの例外を `ToolCallResult(is_error=True)` に変換し、エラーをローカルに留める (決して伝播させない)
+- 戻り値の契約に対して防御的なランタイム検証を行う: 厳密に2要素のタプル `(str, bool)` でなければならない
+- output が str でない、または is_error が bool でない場合は `TypeError` をスローする
+- インポート: `from shared.plugin_tool_invoker import PluginToolInvoker`
 
 ---
 
@@ -126,16 +126,16 @@ class McpServerHealthRegistry:
     def is_unavailable(self, server_key: str) -> bool
 ```
 
-- Tracks per-server health states for ToolExecutor dispatch gating
-- State transitions:
-  - HEALTHY → DEGRADED (first failure)
-  - DEGRADED → UNAVAILABLE (failure_threshold consecutive failures, default 3)
-  - UNAVAILABLE → HALF_OPEN (after half_open_cooldown_sec, default 30s, trial probe)
-  - HALF_OPEN → UNAVAILABLE (failure during trial probe, cooldown resets)
-  - HALF_OPEN → HEALTHY (success during trial probe)
-  - Any state → HEALTHY (successful response resets everything)
-- `is_unavailable()` also handles the UNAVAILABLE → HALF_OPEN transition on cooldown expiry
-- Import: `from shared.mcp_health import McpServerHealthState, McpServerHealthRegistry`
+- ToolExecutor のディスパッチゲーティングのために、サーバーごとのヘルス状態を追跡する
+- 状態遷移:
+  - HEALTHY → DEGRADED (最初の失敗)
+  - DEGRADED → UNAVAILABLE (failure_threshold 回連続失敗、デフォルト 3 回)
+  - UNAVAILABLE → HALF_OPEN (half_open_cooldown_sec 経過後、デフォルト 30 秒、試験的プローブ)
+  - HALF_OPEN → UNAVAILABLE (試験的プローブ中の失敗、クールダウンがリセットされる)
+  - HALF_OPEN → HEALTHY (試験的プローブ中の成功)
+  - いずれの状態からも → HEALTHY (成功レスポンスによりすべてがリセットされる)
+- `is_unavailable()` は、クールダウン失効時の UNAVAILABLE → HALF_OPEN 遷移も処理する
+- インポート: `from shared.mcp_health import McpServerHealthState, McpServerHealthRegistry`
 
 ---
 
@@ -147,9 +147,9 @@ class LlmPayloadHandler:
     def parse_response(self, response: httpx.Response) -> LLMResponse
 ```
 
-- Builds LLM request payloads from history + tool definitions
-- Parses HTTP responses into LLMResponse DTOs
-- Import: `from shared.llm_payload import LlmPayloadHandler`
+- history とツール定義から LLM リクエストペイロードを構築する
+- HTTP レスポンスを LLMResponse DTO にパースする
+- インポート: `from shared.llm_payload import LlmPayloadHandler`
 
 ---
 
@@ -160,25 +160,25 @@ class LlmHotConfigHandler:
     """Hot-reloadable config fields for LLMClient."""
 ```
 
-- Manages hot-reloadable configuration fields for LLMClient (temperature, max_tokens, etc.)
-- Import: `from shared.llm_hot_config import LlmHotConfigHandler`
+- LLMClient のホットリロード可能な設定フィールド (temperature, max_tokens など) を管理する
+- インポート: `from shared.llm_hot_config import LlmHotConfigHandler`
 
 ---
 
-## 21. AI Reference Guide
+## 21. AI リファレンスガイド
 
-| Question | Answer |
+| 質問 | 回答 |
 |---|---|
-| How to load config files | `ConfigLoader().load("filename.toml")` or `load_all()` |
-| Config ownership table | **See §2a Config Ownership** — canonical reference for all 12 TOML files |
-| Does `load_all()` include `agent.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES` (see §2a Config Ownership) |
-| How to register a plugin tool | `@register_tool("name")` decorator in `plugins/*.py` |
-| When does ToolExecutor use cache? | `is_error=False` results only; TTL + LRU |
-| Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; check `.success` and `.failure_reason` (FailureReason enum) |
-| How to get exact token count | `await get_token_count(history, tokenize_url, http)` |
-| How does LLM retry work? | Exponential backoff: `retry_base_delay * (2**attempt)` on 429/503 + connection errors |
-| ToolExecutor cache key format? | `{tool_name}:{json_dumps(args)}` (uses `shared.json_utils.dumps`) |
-| Health gate state transitions? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (see §18) |
+| 設定ファイルの読み込み方法 | `ConfigLoader().load("filename.toml")` または `load_all()` |
+| 設定オーナーシップ表 | **§2a 設定オーナーシップを参照** — 12 個の TOML ファイルすべての正式なリファレンス |
+| `load_all()` は `agent.toml` を含むか? | **含む** — `_BASE_CONFIG_FILES` のインデックス 0 に含まれる (§2a 設定オーナーシップを参照) |
+| プラグインツールの登録方法 | `plugins/*.py` 内の `@register_tool("name")` デコレータ |
+| ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU |
+| `git_helper.get_repo_info()` は信頼できるか? | `RepoInfoResult` を返す; `.success` と `.failure_reason` (FailureReason enum) を確認すること |
+| 正確なトークン数を取得する方法 | `await get_token_count(history, tokenize_url, http)` |
+| LLM の再試行はどう動くか? | 指数バックオフ: 429/503 および接続エラー時に `retry_base_delay * (2**attempt)` |
+| ToolExecutor のキャッシュキー形式は? | `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用) |
+| ヘルスゲートの状態遷移は? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (§18 を参照) |
 
 ## Related Documents
 

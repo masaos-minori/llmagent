@@ -20,45 +20,49 @@ source:
 
 # Event Bus: Bind Address and Start Command
 
-### Bind Address
+### バインドアドレス
 
-The EventBus server should bind to `127.0.0.1` (loopback) in production, not
-`0.0.0.0`. Binding to `0.0.0.0` exposes the EventBus API to the local network,
-which is a security risk (no authentication layer on the EventBus HTTP endpoints).
+EventBus サーバは本番環境では `0.0.0.0` ではなく `127.0.0.1`（ループバック）に
+バインドすべきである。`0.0.0.0` にバインドすると EventBus API がローカルネットワークに
+公開されてしまい、セキュリティリスクとなる（EventBus の HTTP エンドポイントには
+認証レイヤーが存在しないため）。
 
-#### Address classification
+#### アドレスの分類
 
-The startup guard validates the bind address at config load time:
+起動時のガード処理は、設定ロード時にバインドアドレスを検証する。
 
-| Category | Addresses | Allowed without override? |
+| カテゴリ | アドレス | オーバーライドなしで許可されるか |
 |---|---|---|
-| Loopback | `127.0.0.1`, `::1` | Yes |
-| Private IP | `192.168.x.x`, `10.x.x.x`, `172.16.x.x–172.31.x.x` | Yes |
-| Wildcard IPv4 | `0.0.0.0` | No — raises `ValueError` |
-| Wildcard IPv6 | `::` | No — raises `ValueError` |
-| Hostname (non-IP) | Any hostname (e.g., `example.com`) | No — treated as public; `ipaddress.ip_address()` raises ValueError for non-IP strings, which is caught and treated as public |
+| ループバック | `127.0.0.1`, `::1` | Yes |
+| プライベート IP | `192.168.x.x`, `10.x.x.x`, `172.16.x.x–172.31.x.x` | Yes |
+| ワイルドカード IPv4 | `0.0.0.0` | No — `ValueError` を発生させる |
+| ワイルドカード IPv6 | `::` | No — `ValueError` を発生させる |
+| ホスト名（非 IP） | 任意のホスト名（例: `example.com`） | No — public として扱われる。`ipaddress.ip_address()` は非 IP 文字列に対して ValueError を発生させ、これが捕捉されて public として扱われる |
 
-#### Public bind override
+#### パブリックバインドのオーバーライド
 
-Setting `allow_public_bind: true` in the TOML config bypasses the validation. This is **not recommended** unless you have authentication via a reverse proxy or other mechanism. The error message when rejected is:
+TOML 設定で `allow_public_bind: true` を設定すると、この検証を回避できる。
+リバースプロキシなどによる認証手段がない限り、この設定は**推奨されない**。
+拒否された場合のエラーメッセージは以下の通り。
 
 ```
 Event Bus bound to public address {host} without allow_public_bind=true.
 The API has no authentication — this is a security risk.
 ```
 
-If remote access is required, use a reverse proxy with authentication.
+リモートアクセスが必要な場合は、認証機能を持つリバースプロキシを使用すること。
 
-### Start command
+### 起動コマンド
 
 ```bash
 EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 ```
 
-The app starts uvicorn programmatically using the config's `host` and `port` values.
-Alternatively: `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010` (CLI overrides).
+アプリケーションは、設定内の `host` と `port` の値を使って uvicorn を
+プログラム的に起動する。
+別の方法として: `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010`（CLI での上書き）。
 
-### TOML example
+### TOML の例
 
 ```toml
 port = 8010

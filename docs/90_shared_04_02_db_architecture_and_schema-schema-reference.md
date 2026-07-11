@@ -18,10 +18,10 @@ source:
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
-## 5. `rag.sqlite` Schema
+## 5. `rag.sqlite` スキーマ
 
 ### `documents` table
 
@@ -44,7 +44,7 @@ source:
 | `doc_id` | INTEGER | FK → `documents(doc_id)` |
 | `chunk_index` | INTEGER | NOT NULL |
 | `content` | TEXT | NOT NULL |
-| `normalized_content` | TEXT | (NULL for English/code) |
+| `normalized_content` | TEXT | (英語/コードの場合は NULL) |
 | `chunk_type`        | TEXT | NOT NULL DEFAULT `'text'` |
 | `source_file`       | TEXT | NOT NULL DEFAULT `''` |
 
@@ -59,16 +59,16 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 )
 ```
 
-**Auto-sync triggers:** These triggers maintain `chunks_fts` consistency automatically. Manual sync is NOT needed.
+**自動同期トリガー:** これらのトリガーは `chunks_fts` の整合性を自動的に維持する。手動での同期は不要である。
 
 | Trigger | Event | Behavior |
 |---|---|---|
-| `chunks_ai` | AFTER INSERT ON chunks | Inserts new row into `chunks_fts` using `COALESCE(new.normalized_content, new.content)` |
-| `chunks_au` | AFTER UPDATE ON chunks | Deletes old row, inserts new row in `chunks_fts` |
-| `chunks_ad` | AFTER DELETE ON chunks | Deletes row from `chunks_fts` using `COALESCE(old.normalized_content, old.content)` |
-| `chunks_vec_ad` | AFTER DELETE ON chunks | Deletes corresponding entry from `chunks_vec` where `chunk_id = old.chunk_id` |
+| `chunks_ai` | AFTER INSERT ON chunks | `COALESCE(new.normalized_content, new.content)` を用いて `chunks_fts` に新しい行を挿入する |
+| `chunks_au` | AFTER UPDATE ON chunks | 古い行を削除し、`chunks_fts` に新しい行を挿入する |
+| `chunks_ad` | AFTER DELETE ON chunks | `COALESCE(old.normalized_content, old.content)` を用いて `chunks_fts` から行を削除する |
+| `chunks_vec_ad` | AFTER DELETE ON chunks | `chunk_id = old.chunk_id` に該当する `chunks_vec` のエントリを削除する |
 
-> **Important:** Never manually synchronize `chunks_fts` after INSERT/UPDATE/DELETE — triggers handle this automatically.
+> **重要:** INSERT/UPDATE/DELETE の後に `chunks_fts` を手動で同期してはならない — トリガーが自動的に処理する。
 
 ### `chunks_vec` (sqlite-vec virtual table)
 
@@ -80,11 +80,11 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 -- DIMS replaced at runtime from embedding_dims config (default 384)
 ```
 
-Stores float32 little-endian BLOB. `DIMS` is substituted dynamically at runtime from embedding_dims config (default 384).
+float32 のリトルエンディアン BLOB を格納する。`DIMS` は実行時に embedding_dims の設定値から動的に置換される (デフォルト 384)。
 
 ---
 
-## 6. `session.sqlite` Schema
+## 6. `session.sqlite` スキーマ
 
 ### `sessions` table
 
@@ -103,7 +103,7 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically at runtime 
 | `role` | TEXT | NOT NULL |
 | `content` | TEXT | NOT NULL |
 | `tool_calls` | TEXT | (JSON string) |
-| `tool_call_id` | TEXT | Tool call correlation ID (for tool role messages). Persisted/restored by `SessionMessageRepository`. NULL for non-tool messages. |
+| `tool_call_id` | TEXT | ツール呼び出しの関連付け ID (tool ロールのメッセージ用)。`SessionMessageRepository` により永続化/復元される。tool 以外のメッセージでは NULL。 |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 
 ### `memories` table
@@ -113,8 +113,8 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically at runtime 
 | `memory_id` | TEXT | PRIMARY KEY (UUID v4) |
 | `memory_type` | TEXT | CHECK (`semantic` or `episodic`) |
 | `source_type` | TEXT | NOT NULL DEFAULT `'conversation'` |
-| `session_id` | INTEGER | (NULL allowed) |
-| `turn_id` | TEXT | (NULL allowed) |
+| `session_id` | INTEGER | (NULL 許容) |
+| `turn_id` | TEXT | (NULL 許容) |
 | `project` | TEXT | NOT NULL DEFAULT `''` |
 | `repo` | TEXT | NOT NULL DEFAULT `''` |
 | `branch` | TEXT | NOT NULL DEFAULT `''` |
@@ -137,14 +137,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 )
 ```
 
-- `memory_id UNINDEXED` — column excluded from FTS index (used for filtering, not search)
-- Used by `FtsRetriever.search()` for BM25 full-text search on `content`, `summary`, `tags`
+- `memory_id UNINDEXED` — FTS インデックスから除外されたカラム (検索用ではなくフィルタ用)
+- `FtsRetriever.search()` により `content`、`summary`、`tags` に対する BM25 全文検索で使用される
 
 ### `memories_vec` (sqlite-vec virtual table)
 
-- `memory_id TEXT PRIMARY KEY`, `embedding FLOAT[384]`
-- Written only when `embed_enabled=True` and embedding generation succeeds
-- Used by `VectorRetriever.knn_search()` for KNN search
+- `memory_id TEXT PRIMARY KEY`、`embedding FLOAT[384]`
+- `embed_enabled=True` かつ embedding 生成が成功した場合にのみ書き込まれる
+- `VectorRetriever.knn_search()` による KNN 検索で使用される
 
 ### `memory_links` table
 
@@ -154,8 +154,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 | `dst_id` | TEXT | NOT NULL; part of PRIMARY KEY |
 | PRIMARY KEY | (`src_id`, `dst_id`) | |
 
-No foreign keys (uses `INSERT OR IGNORE` for idempotency).
-Records near-duplicate memory pairs for deduplication.
+外部キーは持たない (冪等性のために `INSERT OR IGNORE` を使用)。
+重複除去のため、ほぼ重複するメモリのペアを記録する。
 
 ### `session_diagnostics` table
 
@@ -169,13 +169,13 @@ Records near-duplicate memory pairs for deduplication.
 | `task_id` | TEXT | (NULL allowed) |
 | `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
 
-Index: `idx_session_diagnostics_session ON session_diagnostics(session_id)`
+インデックス: `idx_session_diagnostics_session ON session_diagnostics(session_id)`
 
 ---
 
-## 7. `workflow.sqlite` Schema
+## 7. `workflow.sqlite` スキーマ
 
-Initialized by `create_workflow_schema()`. Used by `agent/workflow/state_store.py`.
+`create_workflow_schema()` により初期化される。`agent/workflow/state_store.py` で使用される。
 
 ### `tasks` table
 
@@ -204,23 +204,23 @@ Initialized by `create_workflow_schema()`. Used by `agent/workflow/state_store.p
 | `resolved_at` | TEXT | |
 | `workflow_id` | TEXT NOT NULL DEFAULT '' | |
 
-### `attempts`, `processed_events`, `artifacts` tables
+### `attempts`、`processed_events`、`artifacts` テーブル
 
-See `scripts/db/schema_sql.py` for full DDL. All use `CREATE TABLE IF NOT EXISTS`.
+完全な DDL は `scripts/db/schema_sql.py` を参照。すべて `CREATE TABLE IF NOT EXISTS` を使用する。
 
 ---
 
-## 7a. Timestamp Format Policy
+## 7a. タイムスタンプ形式ポリシー
 
-All SQLite schema DEFAULT timestamps use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for consistency.
+すべての SQLite スキーマの DEFAULT タイムスタンプは、一貫性のため `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` を使用する。
 
-Tables using this format:
+この形式を使用するテーブル:
 
-- `session_diagnostics.created_at` (Z suffix)
-- `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at` (Z suffix)
-- Event Bus: `events.published_at` (Z suffix)
+- `session_diagnostics.created_at` (Z サフィックス)
+- `documents.fetched_at`、`sessions.created_at`、`messages.created_at`、`memories.created_at`、`memories.updated_at` (Z サフィックス)
+- Event Bus: `events.published_at` (Z サフィックス)
 
-Python-side timestamp generation (for workflow tables without DEFAULT): `datetime.now(UTC).isoformat()` — produces ISO-8601 with `+00:00` suffix (e.g., `2024-01-01T00:00:00+00:00`).
+Python 側でのタイムスタンプ生成 (DEFAULT を持たない workflow テーブル用): `datetime.now(UTC).isoformat()` — `+00:00` サフィックス付きの ISO-8601 を生成する (例: `2024-01-01T00:00:00+00:00`)。
 
 ---
 

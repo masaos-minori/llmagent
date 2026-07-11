@@ -1,54 +1,69 @@
 ---
-title: "Agent CLI and Commands"
+title: "Agent CLI and Commands - CommandRegistry"
 category: agent
 tags:
   - agent
-  - agent
   - cli
-  - commands
-  - repl
-  - slash-commands
+  - command-registry
+  - module-ownership
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_07_01_cli-and-commands-cli-reference.md
+  - 05_agent_07_02_cli-and-commands-cliview.md
+  - 05_agent_07_04_cli-and-commands-purpose.md
+  - 05_agent_07_05_cli-and-commands-repl-io.md
+  - 05_agent_07_06_cli-and-commands-hot-reload.md
+  - 05_agent_07_07_cli-and-commands-migration-notes.md
+  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+  - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+source:
+  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands
 
-t/commands/registry.py`)
+- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-All slash commands dispatched by `CommandRegistry.dispatch(line)`.
+## CommandRegistry (`agent/commands/registry.py`)
 
-Lookup order:
-1. Exact match or prefix match in the built-in command list
-2. Plugin commands registered via `@register_command` decorator (lower priority)
+すべてのスラッシュコマンドは`CommandRegistry.dispatch(line)`によってディスパッチされる。
 
-Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
+検索順序:
+1. 組み込みコマンドリストにおける完全一致またはプレフィックス一致
+2. `@register_command`デコレータで登録されたプラグインコマンド(優先度は低い)
 
-### Module Ownership
+境界条件: `line == name`(完全一致)または`line.startswith(name + " ")`(プレフィックス一致)。
+
+### モジュールの責務
 
 | Module | Owns | Does NOT Own |
 |--------|------|--------------|
-| `command_defs.py` | `CommandDef`, `SubcommandSpec` dataclasses | Command list |
-| `command_defs_list.py` | Built-in command definitions | Dispatch logic |
-| `registry.py` | Dispatch behavior; imports command list from `command_defs_list` | Command list definition |
+| `command_defs.py` | `CommandDef`、`SubcommandSpec`データクラス | コマンドリスト |
+| `command_defs_list.py` | 組み込みコマンド定義 | ディスパッチロジック |
+| `registry.py` | ディスパッチの挙動、`command_defs_list`からコマンドリストをインポート | コマンドリストの定義 |
 
-> **Future command additions:** add a new `CommandDef(...)` entry to `command_defs_list.py` only.
-> Implement the corresponding handler in the appropriate mixin file.
+> **今後のコマンド追加:** `command_defs_list.py`にのみ新しい`CommandDef(...)`エントリを追加する。
+> 対応するハンドラは適切なmixinファイルに実装すること。
 
 ---
 
-## Slash Command Referenc
-
 ## Related Documents
 
-- `agent`
-- `cli`
-- `commands`
+- `05_agent_00_document-guide.md`
+- `05_agent_07_01_cli-and-commands-cli-reference.md`
+- `05_agent_07_02_cli-and-commands-cliview.md`
+- `05_agent_07_04_cli-and-commands-purpose.md`
+- `05_agent_07_05_cli-and-commands-repl-io.md`
+- `05_agent_07_06_cli-and-commands-hot-reload.md`
+- `05_agent_07_07_cli-and-commands-migration-notes.md`
+- `05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+- `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+- `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
+- `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
 ## Keywords
 
-agent
-cli
-commands
-repl
-slash-commands
+CommandRegistry
+module ownership

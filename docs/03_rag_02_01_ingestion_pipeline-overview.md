@@ -17,45 +17,45 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
-## 1. Execution Guide
+## 1. 実行ガイド
 
-### Prerequisites
+### 前提条件
 
 ```bash
-curl -s http://127.0.0.1:8003/health   # confirm embed-llm is running
+curl -s http://127.0.0.1:8003/health   # embed-llmが稼働していることを確認
 ```
 
-### Step 1: Crawl
+### ステップ1: クロール
 
 ```bash
-# All target_urls from config/rag_pipeline.toml
+# config/rag_pipeline.tomlのtarget_urlsすべてを対象
 nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
 tail -f logs/crawl.log
 
-# Single URL (with per-page language auto-detection)
+# 単一URL（ページごとの言語自動判定付き）
 uv run python scripts/rag/ingestion/crawler.py --url "https://ziglang.org/documentation/master/" --lang en
 
-# Multiple URLs (same --lang applied to all)
+# 複数URL（すべてに同じ--langを適用）
 uv run python scripts/rag/ingestion/crawler.py \
     --url "https://ziglang.org/documentation/master/" \
           "https://zig.guide/" \
     --lang en
 
-# Per-page CJK-ratio language detection
+# ページごとのCJK比率による言語判定
 uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/page" --lang auto
 
-# Load targets (http:// and file://) from a TOML file
+# TOMLファイルから対象（http://とfile://）を読み込む
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 ```
 
-The targets TOML file format:
+対象を記述するTOMLファイルの形式:
 ```toml
 target_urls = [
     ["https://ziglang.org/documentation/master/", "en"],
@@ -63,48 +63,48 @@ target_urls = [
 ]
 ```
 
-**Note:** All file paths (`rag_src_dir`) are resolved from `config/rag_pipeline.toml`. Production default: `/opt/llm/rag-src/`.
+**注記:** すべてのファイルパス（`rag_src_dir`）は `config/rag_pipeline.toml` から解決される。本番環境のデフォルトは `/opt/llm/rag-src/`。
 
-### Step 2: Chunk split
+### ステップ2: チャンク分割
 
 ```bash
-# All unprocessed .json files in {rag_src_dir}/
+# {rag_src_dir}/内の未処理.jsonファイルすべてを対象
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
-# Single file only (path relative to rag_src_dir)
+# 単一ファイルのみ（パスはrag_src_dirからの相対パス）
 uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.json
 
-# Regenerate existing chunks
+# 既存のチャンクを再生成
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
-### Step 3: Embed and store
+### ステップ3: 埋め込みと格納
 
 ```bash
-# Confirm embed-llm is running
+# embed-llmが稼働していることを確認
 curl -s http://127.0.0.1:8003/health
 
 uv run python scripts/rag/ingestion/ingester.py
 
-# Force re-register existing URLs
+# 既存URLを強制的に再登録
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-### File lifecycle
+### ファイルのライフサイクル
 
-| Path | Created by | Format |
+| パス | 作成元 | 形式 |
 |---|---|---|
-| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by, chunking_strategy) |
-| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py` (moved from chunk/) | Same as chunk file |
+| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON（url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by） |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON（url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by, chunking_strategy） |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py`（chunk/から移動） | chunkファイルと同一 |
 
-> **Artifact format note:** All `.json` files listed above contain JSON payloads.
-> Always parse with `orjson.loads()` or `json.loads()`. To inspect a file:
+> **アーティファクト形式についての注記:** 上記に列挙した `.json` ファイルはすべてJSONペイロードを含む。
+> 常に `orjson.loads()` または `json.loads()` でパースすること。ファイルを確認するには以下を使う。
 > ```
 > python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"
 > ```
 
-Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only when no config is present.
+本番設定: `rag_src_dir = "/opt/llm/rag-src"`。デフォルト値 `rag-src` は設定が存在しない場合にのみ使用される。
 
 ---
 

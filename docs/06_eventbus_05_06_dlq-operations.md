@@ -20,23 +20,42 @@ source:
 
 # Event Bus: DLQ Operations
 
-## DLQ Operations
+## DLQ オペレーション
 
-### DLQ file creation timing
+### DLQ ファイル作成タイミング
 
-DLQ files are created immediately during inline promotion (on `/nack` call) at `{deadletter_dir}/{event_id}.json`. The background DLQ loop (60-second interval) is a safety sweep that catches events which reached the retry threshold but were not promoted inline (e.g., due to a race condition).
+DLQ ファイルは、インラインプロモーション時（`/nack` 呼び出し時）に
+`{deadletter_dir}/{event_id}.json` として即座に作成される。バックグラウンド DLQ
+ループ（60 秒間隔）は、リトライしきい値に達したがインラインでプロモートされな
+かったイベント（例: 競合状態が原因）を捕捉するためのセーフティスイープである。
 
-### Background DLQ loop role
+### バックグラウンド DLQ ループの役割
 
-The background DLQ loop runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. It uses an optimistic lock: only counts events where `dlq_at` is still NULL, preventing double-promotion. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
+バックグラウンド DLQ ループは 60 秒ごとに実行され、`delivery_failure_count >=
+max_retry AND dlq_at IS NULL` を満たすイベントを検索する。楽観的ロックを使用し
+ており、`dlq_at` がまだ NULL であるイベントのみを対象とすることで二重プロモー
+ションを防いでいる。スイープで孤立イベントが見つかった場合、
+`"dlq_loop: swept %d orphan(s) missed by inline promotion"` というログが出力
+される。スイープ件数が 0 でない場合は、インラインプロモーションに問題がある
+可能性がある。
 
-### DLQ requeue behavior
+### DLQ 再投入（requeue）の動作
 
-Requeueing a DLQ event via `POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` by 1. **Important**: `delivery_failure_count` is NOT reset on requeue. If the event's `delivery_failure_count >= max_retry`, it will be immediately re-promoted to DLQ on the next background loop tick (within 60 seconds). Requeue only works for events with `delivery_failure_count < max_retry`.
+`POST /dlq/{event_id}/requeue` による DLQ イベントの再投入は、`dlq_at` をクリ
+アし、`dlq_requeue_count` を 1 増加させる。**重要**: `delivery_failure_count`
+は再投入時にリセットされない。イベントの `delivery_failure_count >= max_retry`
+である場合、次回のバックグラウンドループのティック（60 秒以内）で即座に DLQ
+に再プロモートされる。再投入は `delivery_failure_count < max_retry` である
+イベントに対してのみ有効に機能する。
 
-### Monitoring sweep results
+### スイープ結果の監視
 
-Orphan DLQ promotions are logged to the application log as `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Check the logs for non-zero sweep counts — this may indicate an inline promotion issue and should be investigated. The health endpoint does not expose a `dlq_sweep_count` field; monitoring requires log analysis.
+孤立 DLQ プロモーションはアプリケーションログに
+`"dlq_loop: swept %d orphan(s) missed by inline promotion"` として記録される。
+スイープ件数が 0 でない場合はログを確認すること — インラインプロモーションに
+問題がある可能性があり、調査が必要である。ヘルスエンドポイントは
+`dlq_sweep_count` フィールドを公開していないため、監視にはログ分析が必要で
+ある。
 
 ## Related Documents
 

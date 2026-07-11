@@ -22,7 +22,7 @@ source:
 
 ## scripts/eventbus/app.py
 
-Module-level variables (`db`, `broker`, `config`, `envelope_schema`) are set on `app.state` during the FastAPI `lifespan` context manager. `app.py` itself defines no route logic or helper functions beyond `_main()` (CLI entrypoint, private); route handlers live in the dedicated `*_route.py` modules (see `06_eventbus_06_02_reference-api-route-handlers.md`). JSONL archive append (on publish) and its `OSError` handling live inline in `publish_route.py::publish()`, not in `app.py`.
+モジュールレベル変数(`db`、`broker`、`config`、`envelope_schema`)は、FastAPI の `lifespan` コンテキストマネージャ内で `app.state` に設定される。`app.py` 自体には、`_main()`(CLI エントリポイント、private)以外のルートロジックやヘルパー関数は定義されていない。ルートハンドラは専用の `*_route.py` モジュールに存在する(`06_eventbus_06_02_reference-api-route-handlers.md` を参照)。JSONL アーカイブへの追記(publish 時)とその `OSError` ハンドリングは、`app.py` ではなく `publish_route.py::publish()` にインラインで実装されている。
 
 ---
 
@@ -40,57 +40,57 @@ class EventBusConfig:
     allow_public_bind: bool = False  # Override: allow binding to public/wildcard addresses
 ```
 
-**Note (2026-07-10)**: `poll_interval_ms` and `offset_checkpoint_interval` were removed. `load_config()` raises `ValueError` if either key is present in the TOML file.
+**注記 (2026-07-10)**: `poll_interval_ms` と `offset_checkpoint_interval` は削除された。TOML ファイルにいずれかのキーが存在する場合、`load_config()` は `ValueError` を発生させる。
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `get_config_path` | `() -> str` | Returns `EVENTBUS_CONFIG_PATH` env var or default |
-| `get_schema_path` | `() -> str` | Returns `EVENTBUS_SCHEMA_PATH` env var or default |
-| `load_config` | `(path: Path \| str \| None) -> EventBusConfig` | Load TOML config; uses `get_config_path()` if path is None |
+| `get_config_path` | `() -> str` | `EVENTBUS_CONFIG_PATH` 環境変数、またはデフォルト値を返す |
+| `get_schema_path` | `() -> str` | `EVENTBUS_SCHEMA_PATH` 環境変数、またはデフォルト値を返す |
+| `load_config` | `(path: Path \| str \| None) -> EventBusConfig` | TOML 設定を読み込む。path が None の場合は `get_config_path()` を使用する |
 
-#### Internal function
+#### 内部関数
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `is_public_host` | `(host: str) -> bool` | Returns True if host is a wildcard (`0.0.0.0`, `::`) or cannot be parsed as an IP address (hostname); raises no exception |
+| `is_public_host` | `(host: str) -> bool` | host がワイルドカード(`0.0.0.0`、`::`)である場合、または IP アドレスとして解析できない(ホスト名の)場合に True を返す。例外は発生させない |
 
 ---
 
 ## scripts/eventbus/db.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `open_db` | `(db_path: str) -> sqlite3.Connection` | Open SQLite with WAL, foreign keys, and schema init; logs and re-raises on error |
+| `open_db` | `(db_path: str) -> sqlite3.Connection` | WAL、外部キー、スキーマ初期化を有効にして SQLite を開く。エラー時はログを出力して再送出する |
 
-### DB Schema
+### DB スキーマ
 
-DDL is defined in `scripts/eventbus/schema.sql`. The `events` table has the following columns:
+DDL は `scripts/eventbus/schema.sql` で定義されている。`events` テーブルには以下のカラムがある。
 
-| Column | Type | Constraints | Description |
+| カラム | 型 | 制約 | 説明 |
 |---|---|---|---|
-| `seq` | INTEGER | PRIMARY KEY AUTOINCREMENT | Auto-increment sequence number |
-| `event_id` | TEXT | NOT NULL UNIQUE | Client-supplied UUID; prevents duplicates |
-| `topic` | TEXT | NOT NULL | Event topic string (1–255 characters) |
-| `payload` | TEXT | NOT NULL | Serialized JSON string of the event payload |
-| `producer` | TEXT | NOT NULL | Producer identifier string (1–255 characters) |
-| `published_at` | TEXT | NOT NULL | ISO-8601 timestamp when event was published |
-| `acked_at` | TEXT | — | Set during ack (idempotent) |
-| `delivery_failure_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
-| `dlq_requeue_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on DLQ requeue |
-| `dlq_at` | TEXT | — | Set when event is promoted to DLQ |
+| `seq` | INTEGER | PRIMARY KEY AUTOINCREMENT | 自動増分シーケンス番号 |
+| `event_id` | TEXT | NOT NULL UNIQUE | クライアントが指定する UUID。重複を防止する |
+| `topic` | TEXT | NOT NULL | イベントトピック文字列(1〜255文字) |
+| `payload` | TEXT | NOT NULL | イベントペイロードをシリアライズした JSON 文字列 |
+| `producer` | TEXT | NOT NULL | プロデューサ識別子文字列(1〜255文字) |
+| `published_at` | TEXT | NOT NULL | イベント publish 時の ISO-8601 タイムスタンプ |
+| `acked_at` | TEXT | — | ack 時に設定される(冪等) |
+| `delivery_failure_count` | INTEGER | NOT NULL DEFAULT 0 | nack 時にインクリメントされる。`>= max_retry` で DLQ への promotion が発生する |
+| `dlq_requeue_count` | INTEGER | NOT NULL DEFAULT 0 | DLQ requeue 時にインクリメントされる |
+| `dlq_at` | TEXT | — | イベントが DLQ に promotion された時に設定される |
 
-Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at` (dlq_at), `idx_events_dlq_seq` (dlq_at, seq)
+インデックス: `idx_events_topic` (topic)、`idx_events_seq` (seq)、`idx_events_dlq_at` (dlq_at)、`idx_events_dlq_seq` (dlq_at, seq)
 
 ---
 
 ## scripts/eventbus/dlq.py
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `sweep_orphans` | `(db, deadletter_dir, max_retry) -> int` | Background sweep loop (called from `app.py`) for events that reached `max_retry` but were not promoted inline; returns count promoted (0 under normal operation) |
-| `promote_single` | `(db, deadletter_dir, event_id) -> bool` | Promote one event immediately on nack threshold (inline path, called from `ack_route.py`); writes the DLQ JSON file before updating the DB row, so a write failure leaves the event live; returns `False` if already in DLQ or not found |
+| `sweep_orphans` | `(db, deadletter_dir, max_retry) -> int` | `max_retry` に達したがインラインで promotion されなかったイベントに対する、バックグラウンドの sweep ループ(`app.py` から呼び出される)。promotion した件数を返す(通常運用では 0) |
+| `promote_single` | `(db, deadletter_dir, event_id) -> bool` | nack しきい値に達した際に1件のイベントを即座に promotion する(インラインパス、`ack_route.py` から呼び出される)。DB 行を更新する前に DLQ の JSON ファイルを書き込むため、書き込み失敗時はイベントが live のまま残る。すでに DLQ 内にある場合、または見つからない場合は `False` を返す |
 
-**Note**: `promote_to_dlq()` also exists in this module with logic nearly identical to `sweep_orphans()`, but has no callers anywhere in `scripts/eventbus/` — appears to be dead code.
+**注記**: このモジュールには `promote_to_dlq()` も存在し、`sweep_orphans()` とほぼ同一のロジックを持つが、`scripts/eventbus/` 内のどこからも呼び出されていない。デッドコードと見られる。
 
 ## Related Documents
 

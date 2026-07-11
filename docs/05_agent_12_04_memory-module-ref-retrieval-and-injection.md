@@ -21,105 +21,105 @@ source:
 
 # Memory Layer — Module Reference
 
-- Operations and observability → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
+- 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+- 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-### 7. `retriever.py` — Search (FTS5 + KNN + Hybrid)
+### 7. `retriever.py` — 検索（FTS5 + KNN + ハイブリッド）
 
 | Class | Role |
 |---|---|
-| `FtsRetriever` | FTS5 BM25 search with importance / pin / recency rescoring |
-| `VectorRetriever` | KNN search via sqlite-vec |
-| `HybridRetriever` | Primary external interface — composes both with RRF merge |
+| `FtsRetriever` | importance / pin / recency による再スコアリングを伴う FTS5 BM25 検索 |
+| `VectorRetriever` | sqlite-vec による KNN 検索 |
+| `HybridRetriever` | 主要な外部インターフェース。両方を RRF マージで組み合わせる |
 
-**`HybridRetriever` attributes and methods:**
-
-| Method / Attribute | Returns | Description |
-|---|---|---|
-| `search(query: MemoryQuery, embedding: list[float] | None = None, project="", repo="", branch="")` | `list[MemoryHit]` | FTS-only when no embedding; RRF merge when embedding present. Takes a `MemoryQuery` object (not raw string) — the query text is extracted from `query.query` internally. Sets `last_retrieval_mode` on return. |
-| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | Delegate to VectorRetriever (used by ingestion dedup) |
-| `top_semantic(limit=5, min_importance=0.0, project="", repo="", branch="")` | `list[MemoryEntry]` | Direct SQL — no FTS needed |
-| `embed_client` | `EmbeddingClient \| None` | Injected at construction; used by `/memory status` |
-| `last_retrieval_mode` | `str` | `"hybrid"` / `"fts_only"` / `"unknown"` — set on each `search()` call |
-| `fts_fallback_count` | `int` | Count of FTS fallbacks during hybrid search |
-
-**`FtsRetriever` methods and attributes:**
+**`HybridRetriever` の属性とメソッド:**
 
 | Method / Attribute | Returns | Description |
 |---|---|---|
-| `search(query: MemoryQuery, project="", repo="", branch="")` | `list[MemoryHit]` | FTS5 BM25 search with rescoring. Returns [] on error or empty query. |
-| `candidate_limit` | `int` | Maximum candidate results from FTS query |
+| `search(query: MemoryQuery, embedding: list[float] | None = None, project="", repo="", branch="")` | `list[MemoryHit]` | 埋め込みがない場合は FTS のみ、埋め込みがある場合は RRF マージ。（生の文字列ではなく）`MemoryQuery` オブジェクトを受け取る。クエリテキストは内部で `query.query` から抽出される。戻り値に応じて `last_retrieval_mode` を設定する。 |
+| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | VectorRetriever に委譲する（ingestion の重複排除で使用） |
+| `top_semantic(limit=5, min_importance=0.0, project="", repo="", branch="")` | `list[MemoryEntry]` | 直接 SQL を使用する。FTS は不要 |
+| `embed_client` | `EmbeddingClient \| None` | 構築時に注入される。`/memory status` で使用される |
+| `last_retrieval_mode` | `str` | `"hybrid"` / `"fts_only"` / `"unknown"` — `search()` の呼び出しごとに設定される |
+| `fts_fallback_count` | `int` | ハイブリッド検索中の FTS フォールバックの回数 |
 
-**`VectorRetriever` methods:**
+**`FtsRetriever` のメソッドと属性:**
+
+| Method / Attribute | Returns | Description |
+|---|---|---|
+| `search(query: MemoryQuery, project="", repo="", branch="")` | `list[MemoryHit]` | 再スコアリングを伴う FTS5 BM25 検索。エラー時または空のクエリの場合は [] を返す。 |
+| `candidate_limit` | `int` | FTS クエリからの候補結果の最大数 |
+
+**`VectorRetriever` のメソッド:**
 
 | Method | Returns | Description |
 |---|---|---|
-| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | KNN search; score is cosine similarity (higher-is-better). When embeddings disabled, returns []. |
+| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | KNN 検索。score はコサイン類似度（値が高いほど良い）。埋め込みが無効な場合は [] を返す。 |
 
-**Scoring formula:**
+**スコアリングの数式:**
 ```
 score = -bm25_rank + importance_boost + pin_boost + recency_decay + context_match
 ```
-- Semantic: importance_weight=1.0, recency_weight=0.5
-- Episodic: importance_weight=0.5, recency_weight=1.0
+- セマンティック: importance_weight=1.0, recency_weight=0.5
+- エピソディック: importance_weight=0.5, recency_weight=1.0
 
-**Failure modes:**
-- `sqlite3.OperationalError` — vec table missing → KNN returns []
-- `MemorySchemaError` — invalid created_at timestamp
+**失敗モード:**
+- `sqlite3.OperationalError` — vec テーブルが欠落している場合 → KNN は [] を返す
+- `MemorySchemaError` — 無効な created_at タイムスタンプ
 
-**Branch Awareness:**
+**ブランチ認識:**
 
-All retrieval paths apply a hard SQL branch filter when a non-empty branch is provided:
+すべての検索パスは、空でない branch が指定された場合にハード SQL ブランチフィルタを適用する。
 
 ```sql
 AND (? = '' OR m.branch = '' OR m.branch = ?)
 ```
 
-- Branch is resolved once at startup via `shared.git_helper.get_repo_info()` in `factory.py`.
-- Entries with `branch=""` (global memories) are always included regardless of current branch.
-- When `get_repo_info()` fails or HEAD is detached, branch defaults to `""` — no filter is applied (safe degraded behavior).
-- The injection service passes the resolved branch value to all `retriever.search()` calls.
-- Dedup KNN in ingestion uses `branch=""` (global scope) to ensure cross-branch duplicate detection.
+- ブランチは `factory.py` の `shared.git_helper.get_repo_info()` を介して起動時に一度だけ解決される。
+- `branch=""`（グローバルメモリ）のエントリは、現在のブランチに関わらず常に含まれる。
+- `get_repo_info()` が失敗する、または HEAD が detached の場合、branch はデフォルトで `""` になる。フィルタは適用されない（安全な劣化動作）。
+- injection サービスは、解決済みの branch の値をすべての `retriever.search()` 呼び出しに渡す。
+- ingestion における重複排除の KNN は、ブランチをまたいだ重複検出を保証するために `branch=""`（グローバルスコープ）を使用する。
 
-### 8. `injection.py` — Lifecycle injection service
+### 8. `injection.py` — ライフサイクル注入サービス
 
-Class `MemoryInjectionService(policy, retriever, embed_client, project="", repo="", branch="", enabled=False)`:
+クラス `MemoryInjectionService(policy, retriever, embed_client, project="", repo="", branch="", enabled=False)`:
 
 | Method | Returns | Description |
 |---|---|---|
-| `on_session_start()` | `list[MemorySnippet]` | Top semantic entries by importance (sync) |
-| `on_user_prompt(query, session_id)` | `list[MemorySnippet]` | Semantic + episodic search with embedding (async) |
+| `on_session_start()` | `list[MemorySnippet]` | importance 順の上位セマンティックエントリ（同期） |
+| `on_user_prompt(query, session_id)` | `list[MemorySnippet]` | 埋め込みを用いたセマンティック＋エピソディック検索（非同期） |
 
-Uses `InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.5)`.
+`InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.5)` を使用する。
 
-**Failure modes:** `InjectionValidationError` when query is empty.
+**失敗モード:** クエリが空の場合に `InjectionValidationError`。
 
 | Attribute / Method | Type / Returns | Default | Description |
 |---|---|---|---|
-| `max_semantic` | `int` | `5` | Max semantic snippets to inject |
-| `max_episodic` | `int` | `3` | Max episodic snippets to inject |
-| `min_importance` | `float` | `0.5` | Min importance threshold for retrieval |
-| `format_prefix_semantic` | `str` | `"[Semantic memory]"` | Prefix for semantic snippets |
-| `format_prefix_episodic` | `str` | `"[Episodic memory]"` | Prefix for episodic snippets |
+| `max_semantic` | `int` | `5` | 注入するセマンティックスニペットの最大数 |
+| `max_episodic` | `int` | `3` | 注入するエピソディックスニペットの最大数 |
+| `min_importance` | `float` | `0.5` | 検索対象とする importance の最小閾値 |
+| `format_prefix_semantic` | `str` | `"[Semantic memory]"` | セマンティックスニペットのプレフィックス |
+| `format_prefix_episodic` | `str` | `"[Episodic memory]"` | エピソディックスニペットのプレフィックス |
 
-**Failure modes:** `InjectionValidationError` when query is empty.
+**失敗モード:** クエリが空の場合に `InjectionValidationError`。
 
-### 9. `ingestion.py` — Extraction + dedup + persist
+### 9. `ingestion.py` — 抽出＋重複排除＋永続化
 
-Class `MemoryIngestionService(store, jsonl, retriever, embed_client=None, *, dedup_policy=None, project="", repo="", branch="", max_content_chars=500)`:
+クラス `MemoryIngestionService(store, jsonl, retriever, embed_client=None, *, dedup_policy=None, project="", repo="", branch="", max_content_chars=500)`:
 
 | Method / Attribute | Returns | Description |
 |---|---|---|
-| `on_session_stop(session_id, history, turn_id=None)` | `None` | Extract, dedup, persist from conversation history |
-| `write_semantic(session_id, content)` | `None` | Manual persist (no dedup) |
-| `write_episodic(session_id, content)` | `None` | Manual persist (no dedup) |
-| `stat_embed_skip` | `int` | Counter of embeddings skipped due to errors |
+| `on_session_stop(session_id, history, turn_id=None)` | `None` | 会話履歴からの抽出、重複排除、永続化 |
+| `write_semantic(session_id, content)` | `None` | 手動での永続化（重複排除なし） |
+| `write_episodic(session_id, content)` | `None` | 手動での永続化（重複排除なし） |
+| `stat_embed_skip` | `int` | エラーによりスキップされた埋め込みのカウンタ |
 
-Dedup: uses `DedupPolicy(action=SKIP_NEW, threshold=...)` with KNN near-duplicate detection.
+重複排除: KNN による準重複検出を伴う `DedupPolicy(action=SKIP_NEW, threshold=...)` を使用する。
 
-**Failure modes:** `sqlite3.OperationalError` on memory_links insert (swallowed with warning).
+**失敗モード:** memory_links への挿入時の `sqlite3.OperationalError`（警告として握り潰される）。
 
-**Embed failure tracking:** `stat_embed_skip` counter increments whenever a write operation stores an entry without embedding (embedding failed). Logged in `on_session_stop()` summary: `"MemoryIngestionService.on_session_stop: persisted %d entries; %d embed_skipped"`.
+**埋め込み失敗の追跡:** 書き込み操作が埋め込みなしでエントリを保存するたびに（埋め込みが失敗した場合）、`stat_embed_skip` カウンタが増加する。`on_session_stop()` のサマリーでログ出力される: `"MemoryIngestionService.on_session_stop: persisted %d entries; %d embed_skipped"`。
 
 ## Related Documents
 

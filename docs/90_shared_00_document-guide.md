@@ -16,16 +16,16 @@ source:
 
 # Shared/DB Documentation Guide
 
-Entry point for the restructured `shared/` and `db/` layer documentation.
-Read this file first to choose which chapter to open.
+再構成された `shared/` および `db/` レイヤードキュメントのエントリポイント。
+どの章を開くべきか判断するため、まずこのファイルを読むこと。
 
 ---
 
 ## Purpose of This Document Set
 
-These files document the `shared/` layer (common types, config, logging, plugins,
-OTel, tool routing) and the `db/` layer (SQLite connection management, schemas, store
-protocols, and maintenance).
+これらのファイルは、`shared/` レイヤー（共通型、設定、ロギング、プラグイン、
+OTel、ツールルーティング）と `db/` レイヤー（SQLite接続管理、スキーマ、ストア
+プロトコル、メンテナンス）についてドキュメント化している。
 
 ---
 
@@ -40,101 +40,101 @@ protocols, and maintenance).
 
 ## AI Query Routing Table
 
-File suffixes below match the File Index; full filenames start with the `90_shared_0N_<topic>-` prefix shown there.
+以下のファイルサフィックスはFile Indexと対応する。完全なファイル名は、そこに示す `90_shared_0N_<topic>-` プレフィックスから始まる。
 
-| Question | File suffix §Section |
+| 質問 | File suffix §Section |
 |---|---|
-| What layers does `shared/` serve? / import rules? | `...purpose-and-scope.md` / `...constraints-and-reference.md` §7 |
-| What types are in `shared/types.py`? (`LLMMessage`, `RagConfig`) | `...core-types.md` §3-4 |
-| What tool frozensets exist? | `...reference.md` (02) §10 |
-| Does `ConfigLoader.load_all()` include `agent.toml`? | `...config-and-logging.md` §2 — **Yes**, index 0 of `_BASE_CONFIG_FILES`; see §2a |
-| How do plugins load? | `...plugin-and-tool-runtime.md` §4 |
-| How does `ToolExecutor.execute()` work? Does `LLMClient` have docs? | `...llm-and-mcp-clients.md` §9/§10 (+ `05_agent_05_llm-and-streaming.md`) |
-| What SQLite DBs exist? Does `SQLiteHelper` support `workflow.sqlite`? | `...overview-and-config.md` (04) §2/§4 (yes; undocumented in spec) |
-| What is the `rag.sqlite` / `session.sqlite` schema? | `...schema-reference.md` §5/§6 |
-| Scaling limits for RAG architecture? | `...migration-and-scaling.md` §11 |
-| How to open a DB connection? Module boundaries? | `...module-boundaries-and-helper.md` §2/§1a |
-| What are the store protocols? | `...protocol-and-backend.md` §3 |
-| How to delete old memories? RAG consistency check? | `...maintenance-and-rotation.md` §7/§7b |
-| How to recover from DB corruption? Recreate DB? | `...recovery-and-reference.md` §9/§11 |
-| What is broken or undocumented? | `90_shared_90_inconsistencies_and_known_issues.md` |
+| `shared/` はどのレイヤーに使われるか？／インポートルールは？ | `...purpose-and-scope.md` / `...constraints-and-reference.md` §7 |
+| `shared/types.py` にはどんな型があるか？（`LLMMessage`、`RagConfig`） | `...core-types.md` §3-4 |
+| どんなツールfrozensetが存在するか？ | `...reference.md` (02) §10 |
+| `ConfigLoader.load_all()` は `agent.toml` を含むか？ | `...config-and-logging.md` §2 — **はい**、`_BASE_CONFIG_FILES` のインデックス0。§2aを参照 |
+| プラグインはどのようにロードされるか？ | `...plugin-and-tool-runtime.md` §4 |
+| `ToolExecutor.execute()` はどう動作するか？`LLMClient` のドキュメントはあるか？ | `...llm-and-mcp-clients.md` §9/§10（+ `05_agent_05_llm-and-streaming.md`） |
+| どんなSQLite DBが存在するか？`SQLiteHelper` は `workflow.sqlite` に対応しているか？ | `...overview-and-config.md` (04) §2/§4（対応している；仕様書には未記載） |
+| `rag.sqlite` / `session.sqlite` のスキーマは？ | `...schema-reference.md` §5/§6 |
+| RAGアーキテクチャのスケーリング上限は？ | `...migration-and-scaling.md` §11 |
+| DB接続の開き方は？モジュール境界は？ | `...module-boundaries-and-helper.md` §2/§1a |
+| ストアプロトコルとは何か？ | `...protocol-and-backend.md` §3 |
+| 古いメモリの削除方法は？RAG整合性チェックは？ | `...maintenance-and-rotation.md` §7/§7b |
+| DB破損からの復旧方法は？DBの再作成方法は？ | `...recovery-and-reference.md` §9/§11 |
+| 何が壊れている、あるいは未記載か？ | `90_shared_90_inconsistencies_and_known_issues.md` |
 
 ---
 
 ## Navigation to Major Known Issues
 
-See [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) for the full catalog, including DOCREF-01 (`90_shared.md` references non-existent `06_ref-sqlite.md`) and DOCFIELD-01 (`LLMMessage` field count discrepancy, 5 vs 7). `ArtifactEvent` having no event bus is out of scope — data definition only, no runtime integration planned.
+DOCREF-01（`90_shared.md` が存在しない `06_ref-sqlite.md` を参照している）や DOCFIELD-01（`LLMMessage` のフィールド数の不一致、5 対 7）を含む完全なカタログは、[90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照。`ArtifactEvent` にイベントバスが存在しない点は対象外——データ定義のみであり、ランタイム統合の予定はない。
 
 ---
 
 ## Canonical Source Rules
 
-- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` are deleted legacy sources; their content lives in the `90_shared_02_*` through `90_shared_05_*` files above
-- When source files disagree, trust the new restructured files (see `90_shared_90` for all discrepancies)
+- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` は削除済みのレガシーソースであり、その内容は上記の `90_shared_02_*` から `90_shared_05_*` の各ファイルに存在する
+- ソースファイル間で内容が矛盾する場合は、新しい再構成後のファイルを信頼すること（すべての不一致については `90_shared_90` を参照）
 
 ---
 
 ## File Index
 
-### Overview
+### Overview（概要）
 
 | File | Description |
 |---|---|
-| [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md) | Purpose, scope |
-| [90_shared_01_02_overview-layer-responsibilities.md](90_shared_01_02_overview-layer-responsibilities.md) | Layer structure, `shared/`/`db/` responsibilities |
-| [90_shared_01_03_overview-constraints-and-reference.md](90_shared_01_03_overview-constraints-and-reference.md) | Import constraints, executive summary, AI reference |
+| [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md) | 目的、スコープ |
+| [90_shared_01_02_overview-layer-responsibilities.md](90_shared_01_02_overview-layer-responsibilities.md) | レイヤー構造、`shared/`/`db/` の責務 |
+| [90_shared_01_03_overview-constraints-and-reference.md](90_shared_01_03_overview-constraints-and-reference.md) | インポート制約、要旨、AIリファレンス |
 
-### Types and Protocols
+### Types and Protocols（型とプロトコル）
 
 | File | Description |
 |---|---|
 | [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md) | LLMMessage, RagConfig, RawHit/MergedHit/RankedHit/RagHit |
 | [90_shared_02_02_types_and_protocols-tool-and-execution-dto.md](90_shared_02_02_types_and_protocols-tool-and-execution-dto.md) | ToolCallResult, ActionResult, ToolSpec, CacheEntry, ArtifactEvent, ShellPolicy |
-| [90_shared_02_03_types_and_protocols-reference.md](90_shared_02_03_types_and_protocols-reference.md) | DbConfig, tool constants, CallToolRequest/Response, Protocol vs DTO |
+| [90_shared_02_03_types_and_protocols-reference.md](90_shared_02_03_types_and_protocols-reference.md) | DbConfig、ツール定数、CallToolRequest/Response、Protocol と DTO の違い |
 
-### Runtime and Execution
+### Runtime and Execution（実行時とランタイム）
 
 | File | Description |
 |---|---|
-| [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) | ConfigLoader, Config Isolation Policy, Logger |
+| [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) | ConfigLoader、Config Isolation Policy、Logger |
 | [90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md](90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md) | plugin_registry, token_counter, otel_tracer, git_helper, formatters |
-| [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) | ToolExecutor, LLMClient, McpServerConfig, execution flow |
+| [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) | ToolExecutor、LLMClient、McpServerConfig、実行フロー |
 | [90_shared_03_04_runtime_and_execution-caching-and-reference.md](90_shared_03_04_runtime_and_execution-caching-and-reference.md) | LlmRetryHandler, ToolResultCache, ToolSpec, PluginToolInvoker |
 
-### DB Architecture and Schema
+### DB Architecture and Schema（DBアーキテクチャとスキーマ）
 
 | File | Description |
 |---|---|
-| [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) | DB layer structure, DbConfig, SQLiteHelper |
-| [90_shared_04_02_db_architecture_and_schema-schema-reference.md](90_shared_04_02_db_architecture_and_schema-schema-reference.md) | rag/session/workflow.sqlite schemas, timestamp policy |
-| [90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md](90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md) | Migration approach, constraints, scaling limits |
+| [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) | DBレイヤー構造、DbConfig、SQLiteHelper |
+| [90_shared_04_02_db_architecture_and_schema-schema-reference.md](90_shared_04_02_db_architecture_and_schema-schema-reference.md) | rag/session/workflow.sqlite のスキーマ、タイムスタンプ方針 |
+| [90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md](90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md) | マイグレーション方式、制約、スケーリング上限 |
 
-### DB API and Operations
-
-| File | Description |
-|---|---|
-| [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) | Module boundaries, `SQLiteHelper` (`db/helper.py`) |
-| [90_shared_05_02_db_api_and_operations-protocol-and-backend.md](90_shared_05_02_db_api_and_operations-protocol-and-backend.md) | Protocol groups, SQLite backend, memory tables |
-| [90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md](90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md) | Maintenance functions, DB rotation, RAG consistency |
-| [90_shared_05_04_db_api_and_operations-recovery-and-reference.md](90_shared_05_04_db_api_and_operations-recovery-and-reference.md) | Corruption recovery, error handling, verification |
-
-### Inconsistencies
+### DB API and Operations（DB APIと運用）
 
 | File | Description |
 |---|---|
-| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, IMPORT-01, DOCFIELD-01, others |
+| [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) | モジュール境界、`SQLiteHelper`（`db/helper.py`） |
+| [90_shared_05_02_db_api_and_operations-protocol-and-backend.md](90_shared_05_02_db_api_and_operations-protocol-and-backend.md) | プロトコル群、SQLiteバックエンド、メモリテーブル |
+| [90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md](90_shared_05_03_db_api_and_operations-maintenance-and-rotation.md) | メンテナンス関数、DBローテーション、RAG整合性 |
+| [90_shared_05_04_db_api_and_operations-recovery-and-reference.md](90_shared_05_04_db_api_and_operations-recovery-and-reference.md) | 破損からの復旧、エラー処理、検証 |
+
+### Inconsistencies（不整合）
+
+| File | Description |
+|---|---|
+| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, IMPORT-01, DOCFIELD-01、他 |
 
 ---
 
 ## Guidance for Safe AI Use
 
-1. **`load_all()` includes `agent.toml`** at index 0 of `_BASE_CONFIG_FILES`. See `90_shared_03_01_runtime_and_execution-config-and-logging.md` §2a. Only `rag_pipeline.toml` needs explicit loading.
-2. **`orjson.dumps()` returns `bytes`.** Call `.decode()` before using as string.
-3. **`ArtifactEvent` is data only.** No event bus exists.
-4. **`LLMMessage` has 7 fields** including `importance` and `pinned` (not 5 as in the old `90_shared.md`).
-5. **DB triggers auto-sync `chunks_fts`.** Do not manually INSERT into `chunks_fts`.
-6. **`SQLiteHelper("workflow")` is valid** — documented in `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`.
-7. **For `LLMClient` details**, see `05_agent_05_llm-and-streaming.md` — not covered here.
+1. **`load_all()` は `agent.toml` を含む**（`_BASE_CONFIG_FILES` のインデックス0）。詳細は `90_shared_03_01_runtime_and_execution-config-and-logging.md` §2a を参照。明示的にロードが必要なのは `rag_pipeline.toml` のみ。
+2. **`orjson.dumps()` は `bytes` を返す。** 文字列として使う前に `.decode()` を呼ぶこと。
+3. **`ArtifactEvent` はデータのみ。** イベントバスは存在しない。
+4. **`LLMMessage` は7フィールドを持つ**（`importance` と `pinned` を含む。旧 `90_shared.md` の5フィールドではない）。
+5. **DBトリガーが `chunks_fts` を自動同期する。** `chunks_fts` へ手動でINSERTしないこと。
+6. **`SQLiteHelper("workflow")` は有効** —— `90_shared_04_01_db_architecture_and_schema-overview-and-config.md` にドキュメントあり。
+7. **`LLMClient` の詳細については**、`05_agent_05_llm-and-streaming.md` を参照——本ドキュメントの対象外。
 
 ## Related Documents
 

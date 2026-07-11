@@ -15,23 +15,23 @@ source:
 
 ## Startup Validation Behavior (`tool_definitions_strict`)
 
-> **Canonical specification.** This section describes the tool definitions check in `repl_health.py`.
-> For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see
-> [04_mcp_03 §Drift validation](04_mcp_03_routing_lifecycle_and_execution.md#drift-validation).
-> These are different functions — see also `04_mcp_90 §SPEC-01`.
+> **正典となる仕様。** 本セクションは `repl_health.py` におけるtool definitionsチェックについて記述する。
+> ルーティングのドリフト検出（`route_resolver.py` の `validate_routing_against_live`）については
+> [04_mcp_03 §Drift validation](04_mcp_03_routing_lifecycle_and_execution.md#drift-validation) を参照。
+> これらは異なる機能である — `04_mcp_90 §SPEC-01` も参照。
 
-The tool definitions check runs at agent startup and compares `tool_definitions` from `config/agent.toml` against live `/v1/tools` responses. Behavior depends on server reachability and `tool_definitions_strict`:
+tool definitionsチェックはagentの起動時に実行され、`config/agent.toml` の `tool_definitions` を、実際の `/v1/tools` レスポンスと比較する。挙動はサーバへの到達可能性と `tool_definitions_strict` の設定によって変わる:
 
-| Scenario | `strict = false` | `strict = true` |
+| シナリオ | `strict = false` | `strict = true` |
 |---|---|---|
-| **Partial unreachable** — some servers respond | Validation proceeds with reachable servers; unreachable servers logged as `WARNING` | Same — only reachable tools compared; mismatch in reachable tools raises `RuntimeError` |
-| **All unreachable** — no server responds | Validation skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
-| **Tool mismatch** — reachable but names differ | `WARNING` per direction (missing_in_server / extra_on_servers) | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
+| **一部到達不能** — 一部のサーバが応答する | 到達可能なサーバで検証が進行する；到達不能なサーバは `WARNING` としてログに出力される | 同様 — 到達可能なtoolのみを比較する；到達可能なtoolに不一致があれば `RuntimeError` が発生する |
+| **全て到達不能** — どのサーバも応答しない | 検証がスキップされる；`INFO: "All MCP servers unreachable ... skipping tool definition check"` | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
+| **Tool不一致** — 到達可能だが名前が異なる | 方向ごとに `WARNING`（missing_in_server / extra_on_servers） | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
 
-**Key points:**
-- A tool name mismatch in strict mode raises `RuntimeError`.
-- When all servers are unreachable in strict mode, `RuntimeError` is raised listing the unreachable servers. In non-strict mode, validation is skipped with an INFO log.
-- The error message clearly separates mismatches from unreachable servers for operator debugging.
+**要点:**
+- strictモードでのtool名の不一致は `RuntimeError` を発生させる。
+- strictモードで全サーバが到達不能な場合、到達不能なサーバの一覧を含む `RuntimeError` が発生する。非strictモードでは、検証はINFOログとともにスキップされる。
+- エラーメッセージは、運用者がデバッグしやすいように、不一致と到達不能サーバを明確に区別して表示する。
 
 ---
 

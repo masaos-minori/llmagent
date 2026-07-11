@@ -11,19 +11,19 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 5. Constraints Reference
+# 5. 制約リファレンス
 
-## 5. Constraints Reference
+## 5. 制約リファレンス
 
 | Constraint | Value |
 |---|---|
-| Language detection threshold | CJK ratio ≥ 0.10 → `ja`; pages < 100 chars → use hint language |
-| Chunk size range | 40–500 chars (configurable) |
-| Chunk overlap | 50 chars sliding window |
-| Embedding dimension | 384 (production, `config/agent.toml:43`). float32 little-endian BLOB |
-| Crawl depth | max 6 hops |
-| Crawl page limit | max 500 pages/site |
-| Replica | Single-node SQLite only |
+| 言語判定の閾値 | CJK比率 ≥ 0.10 → `ja`; ページが100文字未満 → ヒント言語を使用 |
+| チャンクサイズの範囲 | 40〜500文字 (設定可能) |
+| チャンクの重複 | 50文字のスライディングウィンドウ |
+| 埋め込みの次元数 | 384 (本番環境、`config/agent.toml:43`)。float32リトルエンディアンBLOB |
+| クロール深度 | 最大6ホップ |
+| クロールページ数の上限 | サイトごと最大500ページ |
+| レプリカ | 単一ノードのSQLiteのみ |
 
 ---
 

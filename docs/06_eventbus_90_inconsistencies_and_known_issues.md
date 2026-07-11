@@ -21,50 +21,50 @@ source:
 
 # Event Bus: Known Inconsistencies and Issues
 
-## Active Items
+## 対応が必要な項目
 
-These items represent unresolved issues that require implementation changes or have active impact on users.
+これらの項目は、実装変更を要する未解決の問題、またはユーザーに実際の影響を与えている問題を示す。
 
-### Ack Offset Not Monotonically Enforced
+### Ack オフセットの単調性が保証されていない
 
-| Item | Safe interpretation | Recommended action |
+| 項目 | 安全な解釈 | 推奨される対応 |
 |---|---|---|
-| `write_offset()` in `offsets.py` does not enforce monotonic offset advancement (no max(current, new) check) | Acknowledging an older event seq moves the consumer offset backward — consumers may receive duplicate events on reconnect | Consumers must handle potential offset rollback; no server-side fix planned |
+| `offsets.py` の `write_offset()` は、オフセットの単調な前進を保証しない(max(current, new) のチェックがない) | 古いイベント seq を ack すると、コンシューマのオフセットが後退する可能性がある。再接続時にコンシューマが重複イベントを受信することがある | コンシューマ側でオフセットの後退が起こり得ることを考慮した実装が必要。サーバー側での修正は予定していない |
 
-## Docs-Only Items
+## ドキュメントのみで対応する項目
 
-These items are documentation improvements that do not require implementation changes.
+これらの項目は、実装変更を伴わないドキュメント上の改善事項である。
 
-### /replay?format=json Returns Paginated Object
+### /replay?format=json はページネーションされたオブジェクトを返す
 
-| Item | Safe interpretation |
+| 項目 | 安全な解釈 |
 |---|---|
-| `GET /replay?format=json` returns `{total, limit, offset, items}` not a raw array | Clients can paginate through replay results using limit/offset parameters |
+| `GET /replay?format=json` は生の配列ではなく `{total, limit, offset, items}` を返す | クライアントは limit/offset パラメータを使って replay 結果をページネーションできる |
 
-### DLQ Promotion Is Inline-on-nack Plus Safety Sweep
+### DLQ への promotion は nack 時のインライン処理と安全網としての sweep の組み合わせである
 
-| Item | Safe interpretation |
+| 項目 | 安全な解釈 |
 |---|---|
-| Primary DLQ promotion is inline on `/nack` when `delivery_failure_count >= max_retry`; background loop is a safety sweep for orphans | The background DLQ loop catches events that reached the threshold but were not promoted inline; non-zero sweep results may indicate an inline promotion issue |
+| 主たる DLQ への promotion は、`delivery_failure_count >= max_retry` となった際に `/nack` でインラインに実行される。バックグラウンドループは、取り残されたイベントに対する安全網としての sweep である | バックグラウンドの DLQ ループは、しきい値に達したがインラインで promotion されなかったイベントを捕捉する。sweep の結果が 0 以外である場合、インライン promotion に問題がある可能性を示す |
 
-## Deferred Items
+## 保留中の項目
 
-Agent runtime integration with Event Bus is intentionally not implemented at this time.
+Event Bus と Agent ランタイムとの統合は、現時点では意図的に実装されていない。
 
-| Item | Status | Notes |
+| 項目 | 状態 | 補足 |
 |---|---|---|
-| Agent event publishing | Deferred | No Agent-side event producer is implemented. The Event Bus HTTP API supports publishing from any HTTP client; Agent-specific producers will be added in a future release. |
-| Agent SSE subscription | Deferred | No Agent-side subscriber for consuming events via `/subscribe` SSE. Agent-side consumers will be added in a future release. |
-| Agent event topics | Deferred | No Agent-defined topics exist today. Topic conventions for Agent lifecycle events will be defined when Agent integration is implemented. |
+| Agent によるイベント publish | 保留 | Agent 側のイベントプロデューサーは実装されていない。Event Bus の HTTP API はどの HTTP クライアントからの publish もサポートしている。Agent 専用のプロデューサーは今後のリリースで追加予定である |
+| Agent による SSE subscription | 保留 | `/subscribe` の SSE 経由でイベントを消費する Agent 側のサブスクライバーは存在しない。Agent 側のコンシューマーは今後のリリースで追加予定である |
+| Agent 用のイベントトピック | 保留 | 現時点で Agent が定義するトピックは存在しない。Agent のライフサイクルイベント用のトピック規約は、Agent 統合が実装される際に定義される |
 
-## Schema vs Implementation Differences
+## スキーマと実装の差異
 
-| Field | Schema definition | Runtime behavior | Status |
+| フィールド | スキーマ定義 | 実行時の挙動 | 状態 |
 |---|---|---|---|
-| `acked_at` | TEXT | Set during ack (idempotent — will not overwrite existing value) | Used — see `db.py::ack_event()` |
-| `delivery_failure_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` | Used — see `db.py::nack_event()` |
-| `dlq_requeue_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on DLQ requeue; does not reset `delivery_failure_count` | Used — see `db.py::requeue_event()` |
-| `dlq_at` | TEXT | Set when event is promoted to DLQ (inline or background sweep) | Used — set during DLQ promotion |
+| `acked_at` | TEXT | ack 時に設定される(冪等 — 既存の値を上書きしない) | 使用中 — `db.py::ack_event()` を参照 |
+| `delivery_failure_count` | INTEGER NOT NULL DEFAULT 0 | nack 時にインクリメントされる。`>= max_retry` で DLQ への promotion が発生する | 使用中 — `db.py::nack_event()` を参照 |
+| `dlq_requeue_count` | INTEGER NOT NULL DEFAULT 0 | DLQ requeue 時にインクリメントされる。`delivery_failure_count` はリセットされない | 使用中 — `db.py::requeue_event()` を参照 |
+| `dlq_at` | TEXT | イベントが DLQ に promotion された時に設定される(インラインまたはバックグラウンド sweep) | 使用中 — DLQ promotion 時に設定される |
 
 ## Related Documents
 

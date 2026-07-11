@@ -15,9 +15,9 @@ source:
   - 90_shared_02_01_types_and_protocols-core-types.md
 ---
 
-# Shared Types and Protocols
+# 共有の型とプロトコル
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 9a. `DbConfig` (`db/config.py`)
 
@@ -33,15 +33,15 @@ class DbConfig:
     embedding_dims: int = 384
 ```
 
-- Validated in `__post_init__`: parent directories must exist; timeout/embedding_dims >= 1
-- Built by `build_db_config()` which reads `agent.toml` via `ConfigLoader().load("agent.toml")`
-- Used by `SQLiteHelper`, `maintenance.py`, and session factory code
+- `__post_init__` で検証される: 親ディレクトリが存在すること、timeout/embedding_dims が 1 以上であること
+- `ConfigLoader().load("agent.toml")` 経由で `agent.toml` を読み込む `build_db_config()` によって構築される
+- `SQLiteHelper`、`maintenance.py`、およびセッションファクトリのコードで使用される
 
 ---
 
-## 10. Tool Constants (`shared/tool_constants.py`)
+## 10. ツール定数 (`shared/tool_constants.py`)
 
-All constants are `frozenset[str]`. Used by `ToolRegistry` for seed data and by `ToolExecutor` for side-effect classification.
+すべての定数は `frozenset[str]` である。`ToolRegistry` のシードデータとして、また `ToolExecutor` の副作用分類に使用される。
 
 | Constant | Tool names |
 |---|---|
@@ -55,13 +55,13 @@ All constants are `frozenset[str]`. Used by `ToolRegistry` for seed data and by 
 | `SHELL_TOOLS` | `shell_run` |
 | `WEB_SEARCH_TOOLS` | `search_web` |
 
-Referenced also by `shared/tool_executor.py` and `agent/tool_runner.py`.
+`shared/tool_executor.py` および `agent/tool_runner.py` からも参照される。
 
 ---
 
-## 11. `CallToolRequest` / `CallToolResponse` Reference
+## 11. `CallToolRequest` / `CallToolResponse` リファレンス
 
-Defined in `mcp/models.py` (NOT in `shared/`):
+`mcp/models.py` で定義されている (`shared/` ではない):
 
 ```python
 class CallToolRequest(BaseModel):
@@ -73,12 +73,12 @@ class CallToolResponse(BaseModel):
     is_error: bool
 ```
 
-These are Pydantic models used only within MCP servers. `shared/` layer code does not
-import from `mcp/`. Do not confuse with `ToolCallResult` dataclass in `shared/tool_executor.py`.
+これらは MCP サーバー内でのみ使用される Pydantic モデルである。`shared/` レイヤーのコードは
+`mcp/` からインポートしない。`shared/tool_executor.py` の `ToolCallResult` dataclass と混同しないこと。
 
 ---
 
-## 12. How `Protocol`, `TypedDict`, `dataclass`, and DTO Differ
+## 12. `Protocol`、`TypedDict`、`dataclass`、DTO の違い
 
 | Kind | Examples | Mutability | `isinstance()` | Usage |
 |---|---|---|---|---|
@@ -88,8 +88,8 @@ import from `mcp/`. Do not confuse with `ToolCallResult` dataclass in `shared/to
 | `dataclass` | `ShellPolicy`, `DbConfig` | Mutable | Yes | Configuration objects |
 | Pydantic model | `CallToolRequest`, `CallToolResponse` | Mutable | Yes | MCP HTTP request/response validation |
 
-**AI guidance:** When a function accepts `RagConfig`, any object with the required fields
-(including `SimpleNamespace`) satisfies the protocol. Do not assume it must be `AgentConfig`.
+**AI ガイダンス:** 関数が `RagConfig` を受け取る場合、必要なフィールドを持つオブジェクトであれば
+(`SimpleNamespace` を含め) プロトコルを満たす。`AgentConfig` でなければならないと仮定しないこと。
 
 ## Related Documents
 

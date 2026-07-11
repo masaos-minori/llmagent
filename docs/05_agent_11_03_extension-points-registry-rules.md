@@ -17,31 +17,31 @@ source:
 
 # Agent Extension Points
 
-- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
-## Registry API (`shared/plugin_registry.py`)
+## レジストリ API（`shared/plugin_registry.py`）
 
 | Function | Description |
 |---|---|
 | `get_command(name)` | `(handler, is_prefix) \| None` |
-| `iter_commands()` | Dict snapshot of all registered commands |
+| `iter_commands()` | 登録済みのすべてのコマンドの辞書スナップショット |
 | `get_tool(name)` | `Callable \| None` |
-| `get_pipeline_post_stages()` | List snapshot of all post-rerank stage handlers |
-| `load_plugins(plugin_dir, *, known_tools, override_policy, strict_mode)` | Import all `*.py` in dir; returns `PluginLoadResult` with loaded/failed/conflict counts; raises `PluginLoadError` in strict mode |
+| `get_pipeline_post_stages()` | すべての post-rerank ステージハンドラのリストスナップショット |
+| `load_plugins(plugin_dir, *, known_tools, override_policy, strict_mode)` | ディレクトリ内のすべての `*.py` をインポートする。loaded/failed/conflict のカウントを含む `PluginLoadResult` を返す。strict モードでは `PluginLoadError` を発生させる |
 
-### Test Isolation
+### テストの分離
 
-A test-only function is the **only** supported way to clear global registry state.
+テスト専用の関数が、グローバルなレジストリ状態をクリアする**唯一**の方法である。
 
-Rules:
-- Tests that call `load_plugins()` or any `@register_*` decorator **must** call
-  this function in a `pytest.fixture(autouse=True)` before (and optionally after)
-  each test function.
-- Production code (non-test modules) must **never** call this function.
-- Direct mutation of internal registries is also forbidden in tests;
-  use this function + public decorators instead.
+ルール:
+- `load_plugins()` または任意の `@register_*` デコレータを呼び出すテストは、
+  各テスト関数の前（および任意で後）に `pytest.fixture(autouse=True)` の中で
+  この関数を呼び出さなければならない。
+- 本番コード（テスト以外のモジュール）はこの関数を**絶対に**呼び出してはならない。
+- テストにおけるレジストリ内部の直接変更も禁止されている。
+  代わりにこの関数とパブリックなデコレータを使用すること。
 
-Example:
+例。
 ```python
 import pytest
 import shared.plugin_registry as plugin_registry
@@ -55,41 +55,41 @@ def reset_registry():
 
 ---
 
-## Extension Rules
+## 拡張ルール
 
-1. Plugin tools cannot be cached by `ToolExecutor` (only MCP tool results are cached)
-2. Plugin commands that share a name with a built-in command are **rejected** at
-   load time and removed from the registry. A `PluginLoadError` is raised in strict mode.
-3. Plugin files that raise exceptions during import are skipped silently — always test plugins before deployment
-4. `@register_pipeline_stage` hooks run inside the RAG pipeline context; exceptions are caught and logged by `run_pipeline_stages()` — the pipeline continues with the hits unchanged
-5. Plugin tool handlers must be `async` functions; command handlers can be sync or async
+1. プラグインツールは `ToolExecutor` によってキャッシュされない（MCP ツールの結果のみがキャッシュされる）
+2. 組み込みコマンドと同名のプラグインコマンドは
+   ロード時に**拒否され**、レジストリから削除される。strict モードでは `PluginLoadError` が発生する。
+3. インポート中に例外を発生させるプラグインファイルは無音でスキップされる。デプロイ前には必ずプラグインをテストすること
+4. `@register_pipeline_stage` フックは RAG パイプラインのコンテキスト内で実行される。例外は `run_pipeline_stages()` によって捕捉されログ出力される。パイプラインは hits を変更しないまま継続する
+5. プラグインツールのハンドラは `async` 関数でなければならない。コマンドハンドラは同期・非同期のどちらでも構わない
 
-#### Hook Failure Behavior
+#### フック失敗時の動作
 
-In normal mode (default), exceptions raised by post-rerank hooks are:
-- Caught by `run_pipeline_stages()` in `shared/plugin_registry.py`
-- Logged as warnings with the hook name, error type, and query context
-- Skipped: the pipeline continues with the hits as they were before that hook ran
+通常モード（デフォルト）では、post-rerank フックが発生させた例外は以下のように扱われる。
+- `shared/plugin_registry.py` の `run_pipeline_stages()` によって捕捉される
+- フック名、エラータイプ、クエリのコンテキストとともに警告としてログ出力される
+- スキップされる: パイプラインはそのフック実行前の hits のまま継続する
 
-In strict mode (`hook_strict=True` on `RagPipeline.run()`), the first hook failure
-raises the original exception to the caller. Use this mode in tests to verify hook behavior.
+strict モード（`RagPipeline.run()` の `hook_strict=True`）では、最初のフック失敗が
+元の例外を呼び出し元に発生させる。フックの動作を検証するテストではこのモードを使用すること。
 
-Log format: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <message>`
+ログ形式: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <message>`
 
 ---
 
-## Adding a New MCP Server
+## 新しい MCP サーバーの追加
 
-1. Subclass `MCPServer` in `scripts/mcp/<name>/server.py`; override `dispatch()`
-2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
-3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
-4. Add tool definitions to `config/tools_definitions.toml`
-5. Create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section
-6. Add new files to `deploy/deploy.sh` copy list
-7. Add startup step to `deploy/setup_services.sh`
+1. `scripts/mcp_servers/<name>/server.py` で `MCPServer` をサブクラス化し、`dispatch()` をオーバーライドする
+2. `server_key` フィールドを含むツール定義を返す `GET /v1/tools` エンドポイントを追加する
+3. `shared/tool_constants.py` の frozenset にツール名を追加する（このサーバーが所有するもの）
+4. `config/tools_definitions.toml` にツール定義を追加する
+5. アプリ設定と `[mcp_servers.<key>]` トランスポートセクションを持つ `config/<key>_mcp_server.toml` を作成する
+6. `deploy/deploy.sh` のコピーリストに新しいファイルを追加する
+7. `deploy/setup_services.sh` に起動ステップを追加する
 
-See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
-for full MCP server addition procedure.
+MCP サーバー追加の完全な手順は
+[04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) を参照。
 
 ## Related Documents
 

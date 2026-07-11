@@ -24,62 +24,62 @@ source:
 
 ## POST /nack
 
-Negative acknowledge an event. Increments `delivery_failure_count`. If `delivery_failure_count >= max_retry`, the event is promoted to the DLQ.
+イベントを nack（否定応答）する。`delivery_failure_count` を増加させる。`delivery_failure_count >= max_retry` の場合、そのイベントは DLQ に移行する。
 
-**Query parameters:**
-- `event_id` (str, required): event ID to nack
+**クエリパラメータ:**
+- `event_id` (str、必須): nack するイベント ID
 
-**Response 200:** `{"event_id": "...", "delivery_failure_count": <int>}` — may include `"dlq_promoted": true` if the event was promoted to DLQ on this nack
-**Response 404:** event not found.
+**レスポンス 200:** `{"event_id": "...", "delivery_failure_count": <int>}` — この nack でイベントが DLQ に移行した場合は `"dlq_promoted": true` が含まれることがある
+**レスポンス 404:** イベントが見つからない。
 
 ---
 
 ## GET /health
 
-Returns component health. HTTP 200 for `ok`, HTTP 503 for `degraded`/`unhealthy`.
+各コンポーネントのヘルス状態を返す。`ok` の場合は HTTP 200、`degraded`/`unhealthy` の場合は HTTP 503。
 
 ```json
 {"status": "ok|degraded", "db": "ok|unavailable", "dlq_task": "running|stopped", "active_subscribers": 0, "max_queue_depth": 0, "slow_consumers": 0, "degraded_reasons": []}
 ```
 
-`status` is `"ok"` only when all components are healthy. Broker metrics `active_subscribers`, `max_queue_depth`, and `slow_consumers` reflect the in-process EventBroker state. `degraded_reasons` lists specific failure reasons (e.g., `db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`).
+`status` はすべてのコンポーネントが健全な場合にのみ `"ok"` となる。ブローカーのメトリクスである `active_subscribers`、`max_queue_depth`、`slow_consumers` は、プロセス内の EventBroker の状態を反映する。`degraded_reasons` には具体的な障害要因が列挙される（例: `db_unavailable`、`dlq_task_stopped`、`broker_queue_backlog_high`、`slow_consumers_detected`）。
 
 ---
 
 ## GET /dlq
 
-List events in the dead-letter queue (events with `dlq_at IS NOT NULL`).
+デッドレターキュー内のイベント一覧を取得する（`dlq_at IS NOT NULL` のイベント）。
 
-**Query parameters:**
-- `limit` (int, default: 100, min: 1, max: 1000): Maximum number of items to return
-- `offset` (int, default: 0, min: 0): Number of items to skip for pagination
+**クエリパラメータ:**
+- `limit` (int、デフォルト: 100、最小: 1、最大: 1000): 返す件数の最大値
+- `offset` (int、デフォルト: 0、最小: 0): ページネーションのためにスキップする件数
 
-**Response:** paginated object with fields:
-- `total` (int): Total number of DLQ events
-- `limit` (int): The requested limit
-- `offset` (int): The requested offset
-- `items` ([{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}]): List of DLQ events for this page
+**レスポンス:** 以下のフィールドを持つページネーションオブジェクト:
+- `total` (int): DLQ イベントの総数
+- `limit` (int): リクエストされた limit
+- `offset` (int): リクエストされた offset
+- `items` ([{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}]): このページの DLQ イベント一覧
 
-- `delivery_failure_count`: Number of nacks since last successful ack
-- `dlq_requeue_count`: Number of times this event was requeued (does not reset on requeue)
+- `delivery_failure_count`: 直前の ack 成功以降の nack 回数
+- `dlq_requeue_count`: このイベントが requeue された回数（requeue してもリセットされない）
 
 ---
 
 ## POST /dlq/{event_id}/requeue
 
-Move an event out of the DLQ back to normal delivery. Increments `dlq_requeue_count` by 1 (does NOT reset `delivery_failure_count`). If `delivery_failure_count >= max_retry` after re-promotion logic runs, the event re-enters the DLQ on the next DLQ loop tick.
+イベントを DLQ から取り出し、通常の配信に戻す。`dlq_requeue_count` を 1 増加させる（`delivery_failure_count` はリセットされ**ない**）。再移行ロジック実行後に `delivery_failure_count >= max_retry` であれば、次回の DLQ ループティックでそのイベントは再び DLQ に入る。
 
-**Path parameter:**
-- `event_id` (str, required): event ID to requeue
+**パスパラメータ:**
+- `event_id` (str、必須): requeue するイベント ID
 
-**Response 200:** `{"event_id": "...", "requeued": true}` — may include `"dlq_imminent": true` if `delivery_failure_count >= max_retry` after requeue
-**Response 409 Conflict:** event exists but is not in the DLQ (dlq_at IS NULL).
-**Response 404:** event not found.
+**レスポンス 200:** `{"event_id": "...", "requeued": true}` — requeue 後に `delivery_failure_count >= max_retry` であれば `"dlq_imminent": true` が含まれることがある
+**レスポンス 409 Conflict:** イベントは存在するが DLQ には入っていない（dlq_at IS NULL）。
+**レスポンス 404:** イベントが見つからない。
 
-**Edge cases:**
-- Event not in DLQ (dlq_at IS NULL): returns 409 Conflict
-- Repeated requeue of same event: dlq_requeue_count increments each time
-- Event at delivery_failure_count >= max_retry: requeue succeeds but next DLQ loop tick will re-promote
+**エッジケース:**
+- イベントが DLQ に入っていない場合（dlq_at IS NULL）: 409 Conflict を返す
+- 同一イベントを繰り返し requeue した場合: dlq_requeue_count はそのたびに増加する
+- delivery_failure_count が max_retry 以上のイベント: requeue 自体は成功するが、次回の DLQ ループティックで再度 DLQ に移行する
 
 ## Related Documents
 

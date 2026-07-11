@@ -15,7 +15,7 @@ source:
 
 ## MCP Failure Diagnosis
 
-Use this flow to trace a failed or unexpected MCP tool call:
+失敗した、または予期しないMCP tool callを追跡するには、以下のフローを使用する:
 
 ```
 1. Was the request delivered to the server?
@@ -35,11 +35,11 @@ Use this flow to trace a failed or unexpected MCP tool call:
    NO  → Check serialization. See §Serialization in Tool Execution.
 ```
 
-For correlation across agent, transport, and server logs, see §End-to-End Tool Call Tracing.
+agent、transport、サーバのログを横断した相関分析については §End-to-End Tool Call Tracing を参照。
 
-#### Ensure ready behavior during tool dispatch
+#### Tool dispatch時のensure ready動作
 
-When a tool call arrives via `_raw_execute()` path:
+`_raw_execute()` パス経由でtool callが到着した場合:
 
 ```python
 # In shared/tool_executor.py ensure_ready():
@@ -54,13 +54,16 @@ except Exception:                               # any startup failure
     raise                                       # propagate up so caller sees the failure
 ```
 
-This means that even when the watchdog has given up on auto-restart (after exceeding max_restarts), individual tool calls can still attempt recovery through `ensure_ready()`, provided they haven't triggered their own circuit-break thresholds yet.
+つまり、watchdogが自動再起動を諦めた後（max_restartsを超えた後）であっても、
+まだ自身のcircuit-breakの閾値に達していない個々のtool callは、`ensure_ready()` を通じて
+回復を試みることができる。
 
 ---
 
-**Restart-worthy:** health transition to `FAILED` + repeated transport errors within threshold OR successful `ensure_ready()` after sub-process crash.
+**再起動が妥当なケース:** ヘルス状態が `FAILED` に遷移＋閾値内でのtransportエラーの繰り返し、または
+subprocessクラッシュ後の `ensure_ready()` の成功。
 
-**Not restart-worthy:** single tool error, one-time timeout, or serialization delay.
+**再起動が妥当でないケース:** 単発のtoolエラー、一度限りのタイムアウト、直列化による遅延。
 
 ---
 

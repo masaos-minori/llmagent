@@ -20,25 +20,24 @@ source:
 
 - Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
-## 1. Purpose
+## 1. 目的
 
-Defines all common types, protocols, DTOs, and constants in `shared/` that are used
-across `agent/`, `mcp/`, `rag/`, and `db/` layers.
+`agent/`、`mcp/`、`rag/`、`db/` の各レイヤーで共通して使われる、`shared/` 内のすべての共通型・プロトコル・DTO・定数を定義する。
 
-**Key points:**
-- `LLMMessage`, `RagConfig` are in `shared/types.py`
-- `LLMUsage`, `LLMResponse` are in `shared/llm_types.py` (separated to allow import without `LLMClient`)
-- `ActionResult`, `ArtifactEvent`, `ShellPolicy` are in `shared/action_result.py`, `shared/events.py`, `shared/protocols/shell.py`
-- Tool constant frozensets are in `shared/tool_constants.py`
+**要点:**
+- `LLMMessage`、`RagConfig` は `shared/types.py` にある
+- `LLMUsage`、`LLMResponse` は `shared/llm_types.py` にある(`LLMClient` なしでインポートできるよう分離)
+- `ActionResult`、`ArtifactEvent`、`ShellPolicy` はそれぞれ `shared/action_result.py`、`shared/events.py`、`shared/protocols/shell.py` にある
+- ツール定数のfrozensetは `shared/tool_constants.py` にある
 
 ---
 
-## 2. Overall Type Definition Structure
+## 2. 型定義の全体構造
 
-| Type | Kind | File | Layer usage |
+| 型 | 種別 | ファイル | 利用レイヤー |
 |---|---|---|---|
 | `LLMMessage` | TypedDict | `shared/types.py` | All layers |
-| `RagConfig` | Protocol | `shared/types.py` | `rag/`, `scripts/mcp/rag_pipeline/` |
+| `RagConfig` | Protocol | `shared/types.py` | `rag/`, `scripts/mcp_servers/rag_pipeline/` |
 | `RagHit` / `RawHit` / `MergedHit` / `RankedHit` | dataclass / Union alias | `shared/types.py` | `rag/`, `agent/`, `shared/` |
 | `LLMUsage` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `LLMResponse` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
@@ -71,8 +70,8 @@ class LLMMessage(TypedDict, total=False):
     pinned: bool            # preserve during history compression
 ```
 
-- `total=False` means all fields are technically optional, but `role` is always required
-- Canonical import: `from shared.types import LLMMessage` (used by 20+ modules across agent/, rag/, shared/)
+- `total=False` は技術的には全フィールドが省略可能を意味するが、`role` は常に必須
+- 正典インポート: `from shared.types import LLMMessage`(agent/、rag/、shared/全体で20以上のモジュールから利用)
 
 ---
 
@@ -101,10 +100,10 @@ class RagConfig(Protocol):
     use_semantic_cache: bool
 ```
 
-- `@runtime_checkable` — `isinstance()` check works
-- Used by `RagPipeline` (`scripts/rag/pipeline.py`); consumed by `scripts/mcp/rag_pipeline/service.py`
-- `agent/` does NOT use `RagConfig` directly (no in-process RAG pipeline)
-- `SimpleNamespace` adapter can satisfy this protocol
+- `@runtime_checkable` — `isinstance()` チェックが可能
+- `RagPipeline`(`scripts/rag/pipeline.py`)で使用され、`scripts/mcp_servers/rag_pipeline/service.py` から利用される
+- `agent/` は `RagConfig` を直接使用しない(インプロセスのRAGパイプラインを持たない)
+- `SimpleNamespace` アダプタでこのプロトコルを満たすことができる
 
 ---
 
@@ -143,10 +142,10 @@ class RankedHit:
 RagHit = RawHit | MergedHit | RankedHit
 ```
 
-- Canonically defined in `shared/types.py`; fields are added incrementally by pipeline stages
-- **Import:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
-- `scripts/rag/types.py` no longer re-exports these names — the backward-compat re-export was removed; import directly from `shared.types`
-- Used by `rag/`, `agent/`, and `shared/plugin_registry.py`
+- `shared/types.py` に正典として定義されており、パイプラインの各ステージでフィールドが段階的に追加される
+- **インポート:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
+- `scripts/rag/types.py` はこれらの名前をもはや再エクスポートしない — 後方互換用の再エクスポートは削除済み。`shared.types` から直接インポートすること
+- `rag/`、`agent/`、`shared/plugin_registry.py` から利用される
 
 ---
 

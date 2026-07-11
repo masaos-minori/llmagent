@@ -17,18 +17,18 @@ source:
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
-## 1. Purpose
+## 1. 目的
 
-Documents the `db/` layer structure, DB file organization, `DbConfig`, `SQLiteHelper`
-connection behavior, WAL/FTS5/sqlite-vec configuration, all table schemas, and schema
-initialization approach.
+`db/` レイヤー構造、DB ファイル構成、`DbConfig`、`SQLiteHelper` の接続動作、
+WAL/FTS5/sqlite-vec の設定、全テーブルスキーマ、およびスキーマ初期化方式について
+記述する。
 
 ---
 
-## 2. Overall DB Layer Structure
+## 2. DB レイヤー全体構造
 
 ```
 db/
@@ -41,20 +41,20 @@ db/
 └── create_schema.py DDL creation (rag + session + workflow + eventbus schemas; idempotent)
 ```
 
-Four DB files:
+DB ファイルは4つ存在する。
 
-| DB | Default path | Tables |
+| DB | デフォルトパス | テーブル |
 |---|---|---|
 | `rag.sqlite` | `agent.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
 | `session.sqlite` | `agent.toml::session_db_path` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
 | `workflow.sqlite` | `agent.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
 | `eventbus.sqlite` | `agent.toml::eventbus_db_path` | `events` |
 
-**Why separate DB files?** RAG indexing and conversation state have different access patterns.
-`rag.sqlite` is write-heavy during ingestion, read-heavy during queries.
-`session.sqlite` is append-heavy during conversations. Separation avoids WAL contention.
+**なぜ DB ファイルを分離するのか。** RAG インデキシングと会話状態はアクセスパターンが異なる。
+`rag.sqlite` は取り込み時に書き込みが多く、クエリ時に読み込みが多い。
+`session.sqlite` は会話中に追記が多い。分離することで WAL の競合を避けられる。
 
-**Import boundary:** See [90_shared_05 §1a](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries) for the full import rules — callers should always import from `db.store`, never from internal modules directly.
+**インポート境界:** 完全なインポートルールは [90_shared_05 §1a](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#1a-db-store-module-boundaries) を参照。呼び出し側は常に `db.store` からインポートすべきであり、内部モジュールから直接インポートしてはならない。
 
 ---
 
@@ -73,16 +73,16 @@ class DbConfig:
     embedding_dims: int = 384  # embedding vector dimension
 ```
 
-- `__post_init__` validates all path fields are non-empty, `sqlite_timeout >= 1`, `embedding_dims >= 1`, and that each DB path's parent directory exists (the DB file itself is created by SQLite on first open)
-- `embed_url` field does NOT exist in `DbConfig`
-- Constructed by `build_db_config()` in `db/config.py`
-- `agent.toml` is loaded via `ConfigLoader().load_all()` (included at index 0 of `_BASE_CONFIG_FILES`) — see [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership for the full ownership table
+- `__post_init__` は、すべてのパスフィールドが空でないこと、`sqlite_timeout >= 1` であること、`embedding_dims >= 1` であること、および各 DB パスの親ディレクトリが存在すること（DB ファイル自体は SQLite が初回オープン時に作成する）を検証する
+- `embed_url` フィールドは `DbConfig` に存在しない
+- `db/config.py` の `build_db_config()` によって構築される
+- `agent.toml` は `ConfigLoader().load_all()` 経由でロードされる（`_BASE_CONFIG_FILES` のインデックス0に含まれる）— 完全な所有関係表は [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership を参照
 
 ---
 
-## 4. DB File Structure and `SQLiteHelper`
+## 4. DB ファイル構造と `SQLiteHelper`
 
-`SQLiteHelper` manages connection lifecycle. Constructor resolves config at init time.
+`SQLiteHelper` は接続のライフサイクルを管理する。コンストラクタは初期化時に設定を解決する。
 
 ```python
 SQLiteHelper(target: DbTarget | str = "rag")
@@ -93,16 +93,16 @@ SQLiteHelper(target: DbTarget | str = "rag")
 # "eventbus" → eventbus.sqlite (Event Bus DDL only; no runtime integration yet)
 ```
 
-**Note:** Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is out of scope for this cleanup. Future Event Bus writers must use ISO-8601 UTC Z suffix timestamps.
+**注記:** Event Bus のランタイム（publisher/subscriber/dispatcher/DLQ worker）は本クリーンアップの対象範囲外である。今後 Event Bus の書き込み側を実装する際は、ISO-8601 UTC の Z サフィックス付きタイムスタンプを使用しなければならない。
 
-**Connection setup (every `open()` call):**
-1. Load sqlite-vec extension (rag target only); then `enable_load_extension(False)`
+**接続セットアップ（`open()` 呼び出しごと）:**
+1. sqlite-vec 拡張をロード（rag ターゲットのみ）。その後 `enable_load_extension(False)`
 2. `PRAGMA journal_mode=WAL`
 3. `PRAGMA synchronous=NORMAL`
-4. `PRAGMA busy_timeout=30000` (from `agent.toml::sqlite_busy_timeout_ms`)
-5. `PRAGMA foreign_keys=ON` (when `write_mode=True`)
+4. `PRAGMA busy_timeout=30000`（`agent.toml::sqlite_busy_timeout_ms` から取得）
+5. `PRAGMA foreign_keys=ON`（`write_mode=True` の場合）
 
-sqlite-vec is loaded only for `target="rag"`. Session and workflow targets do not load vec.
+sqlite-vec は `target="rag"` の場合のみロードされる。session および workflow ターゲットでは vec はロードされない。
 
 ---
 

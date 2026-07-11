@@ -18,10 +18,10 @@ source:
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
-## 8. Schema Generation and Migration Approach
+## 8. スキーマ生成とマイグレーション方針
 
 ```python
 # Initialize all schemas (rag + session + workflow + eventbus)
@@ -29,13 +29,13 @@ from db.create_schema import create_schema
 create_schema()
 ```
 
-- All DDL uses `IF NOT EXISTS` — idempotent; safe to run multiple times
-- **Compatible migration is unsupported.** Schema changes require DB recreation: archive → delete → recreate via `create_schema()`. See [90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure) for the full procedure.
-- `embedding_dims` is substituted dynamically at runtime from config (default 384)
+- すべてのDDLは`IF NOT EXISTS`を使用する — べき等であり、何度実行しても安全
+- **互換マイグレーションは非対応。** スキーマ変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。
+- `embedding_dims`は実行時にconfigから動的に置換される（デフォルト384）
 
 ---
 
-## 9. Constraint List
+## 9. 制約一覧
 
 | Constraint | Value |
 |---|---|
@@ -50,90 +50,90 @@ create_schema()
 
 ---
 
-## 9a. AI Reference Guide
+## 9a. AIリファレンスガイド
 
-| Question | Answer |
+| 質問 | 回答 |
 |---|---|
-| Where is rag.sqlite schema? | This document §5 |
-| Where is session.sqlite schema? | This document §6 |
-| Does `SQLiteHelper` support workflow.sqlite? | Yes — `target="workflow"` (undocumented in spec, see §4) |
-| How is embedding dimension set? | `agent.toml::embedding_dims` (default 384) |
-| What initializes schemas? | `create_schema()` — idempotent DDL-only initialization; no migration |
-| Are DB triggers documented? | Yes — chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6) |
+| rag.sqliteのスキーマはどこにあるか？ | 本ドキュメント§5 |
+| session.sqliteのスキーマはどこにあるか？ | 本ドキュメント§6 |
+| `SQLiteHelper`はworkflow.sqliteをサポートしているか？ | サポートしている — `target="workflow"`（仕様書には未記載、§4参照） |
+| 埋め込み次元数はどのように設定されるか？ | `agent.toml::embedding_dims`（デフォルト384） |
+| スキーマを初期化するものは何か？ | `create_schema()` — べき等なDDLのみの初期化であり、マイグレーションではない |
+| DBトリガーは文書化されているか？ | されている — chunks_fts自動同期トリガー（§5）、memories_fts自動同期トリガー（§6） |
 
 ---
 
-## 10. Source of Truth
+## 10. 正典（Source of Truth）
 
-| Category | Source |
+| カテゴリ | ソース |
 |---|---|
-| DDL source | `db/schema_sql.py` |
-| Schema initialization entry point | `db/create_schema.py::create_schema()` |
-| Deploy initialization entry point | `deploy/init_db.sh` |
-| DB connection helper | `db/helper.py::SQLiteHelper` |
-| DB files | `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite` |
-| Event Bus schema (DDL only) | `scripts/eventbus/schema.sql` |
-| Deleted entry point | `db/workflow_schema.py` — removed in plan 54 |
+| DDLソース | `db/schema_sql.py` |
+| スキーマ初期化エントリポイント | `db/create_schema.py::create_schema()` |
+| デプロイ初期化エントリポイント | `deploy/init_db.sh` |
+| DB接続ヘルパー | `db/helper.py::SQLiteHelper` |
+| DBファイル | `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite` |
+| Event Busスキーマ（DDLのみ） | `scripts/eventbus/schema.sql` |
+| 削除済みエントリポイント | `db/workflow_schema.py` — plan 54で削除 |
 
-**Note:** Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is out of scope for this cleanup. Future Event Bus writers must use ISO-8601 UTC Z suffix timestamps.
+**注記:** Event Busランタイム（publisher/subscriber/dispatcher/DLQワーカー）は本クリーンアップの対象外である。今後のEvent Bus書き込み処理はISO-8601 UTC Zサフィックス形式のタイムスタンプを使用しなければならない。
 
-## 11. Scaling Limits and Migration Signals
+## 11. スケーリング限界とマイグレーションの兆候
 
-The current RAG architecture uses single-node SQLite. This is appropriate for
-team-scale deployments with moderate corpus sizes and infrequent concurrent writes.
-The following signals indicate when re-evaluation may be warranted.
+現行のRAGアーキテクチャはシングルノードSQLiteを使用している。これはチーム規模の
+デプロイで、コーパスサイズが中程度かつ同時書き込みが頻発しない場合に適している。
+以下の兆候は、再評価が必要となりうるタイミングを示す。
 
-### Corpus size
+### コーパスサイズ
 
-- **`chunks` table > ~500K rows:** KNN scan time in `chunks_vec` grows linearly with corpus
-  size; start monitoring `/rag search` latency at this scale.
-  *(Needs confirmation: actual threshold depends on hardware and embedding dimensions.)*
-- **DB file size > ~10 GB:** VACUUM time, backup duration, and WAL checkpoint latency all
-  increase; `/db vacuum` may take minutes instead of seconds.
-  *(Needs confirmation.)*
+- **`chunks`テーブルが約50万行を超える場合:** `chunks_vec`におけるKNNスキャン時間はコーパス
+  サイズに対して線形に増加する。この規模になったら`/rag search`のレイテンシの監視を開始すること。
+  *(要確認: 実際の閾値はハードウェアと埋め込み次元数に依存する。)*
+- **DBファイルサイズが約10GBを超える場合:** VACUUM時間、バックアップ所要時間、WALチェックポイント
+  のレイテンシがいずれも増加し、`/db vacuum`が秒単位ではなく分単位の時間を要する場合がある。
+  *(要確認。)*
 
-### Write concurrency
+### 書き込み同時実行性
 
-- Multiple simultaneous `RagIngester` processes writing to the same `rag.sqlite` serialize
-  at the WAL layer. If ingestion throughput becomes a bottleneck, SQLite write serialization
-  may be limiting.
-- **Signal:** WAL file grows faster than checkpoint reduces it. Monitor with `/db health`.
+- 同一の`rag.sqlite`に対して複数の`RagIngester`プロセスが同時に書き込むと、WALレイヤーで
+  シリアライズされる。取り込みスループットがボトルネックとなる場合、SQLiteの書き込み
+  シリアライズが制約要因となりうる。
+- **兆候:** WALファイルがチェックポイントによる縮小よりも速く増大する。`/db health`で監視すること。
 
-### FTS5 search latency
+### FTS5検索レイテンシ
 
-- **Signal:** `/rag search` consistently takes > 500 ms. FTS5 BM25 scales with document
-  count; very large corpora may see degraded search speed.
-  *(Needs confirmation.)*
+- **兆候:** `/rag search`が一貫して500msを超える。FTS5のBM25はドキュメント数に応じて
+  スケールするため、非常に大きなコーパスでは検索速度が低下する場合がある。
+  *(要確認。)*
 
-### Operational complexity signals
+### 運用上の複雑性に関する兆候
 
-- Backup and point-in-time recovery become complex as file size grows
-- Multiple environments sharing the same DB file is not supported (SQLite is single-file)
-- `/db consistency` issues become harder to repair at scale
+- ファイルサイズの増大に伴い、バックアップとポイントインタイムリカバリが複雑化する
+- 複数環境で同一DBファイルを共有することは非対応（SQLiteは単一ファイル方式のため）
+- 規模が拡大するにつれ`/db consistency`の問題の修復が難しくなる
 
-### Migration signal checklist
+### マイグレーション兆候チェックリスト
 
-When two or more of the following apply, consider an architecture review:
+以下のうち2つ以上に該当する場合、アーキテクチャの見直しを検討すること:
 
-- [ ] KNN search latency > 1 s at p95
-- [ ] DB file size > 20 GB
-- [ ] WAL checkpoint consistently takes > 30 s
-- [ ] Ingest queue depth consistently > 10 K unprocessed chunk files
-- [ ] Multiple teams or processes need simultaneous write access
+- [ ] p95でのKNN検索レイテンシが1秒を超える
+- [ ] DBファイルサイズが20GBを超える
+- [ ] WALチェックポイントが一貫して30秒を超える
+- [ ] 取り込みキューの深さが一貫して未処理チャンクファイル1万件を超える
+- [ ] 複数のチームまたはプロセスが同時書き込みアクセスを必要とする
 
-Use `/db health` and `/db consistency` to monitor these signals in normal operations.
+通常運用でこれらの兆候を監視するには`/db health`と`/db consistency`を使用すること。
 
-### What to evaluate when limits approach
+### 限界が近づいた際に評価すべき事項
 
-- **Vector search:** Dedicated vector databases (approximate nearest neighbor, distributed
-  index) outperform `sqlite-vec` at > 1 M vectors
-- **Full-text search:** Inverted-index search services handle large corpora with lower latency
-- **Hybrid stores:** Relational DB + vector extension (e.g. `pgvector`-compatible) preserves
-  SQL semantics while scaling write concurrency
+- **ベクトル検索:** 専用のベクトルデータベース（近似最近傍探索、分散インデックス）は、
+  ベクトル数が100万を超える規模で`sqlite-vec`を上回る性能を発揮する
+- **全文検索:** 転置インデックス型の検索サービスは、より低いレイテンシで大規模コーパスを扱える
+- **ハイブリッドストア:** リレーショナルDB + ベクトル拡張（例: `pgvector`互換）は、SQLセマンティクス
+  を維持しながら書き込み同時実行性のスケーリングを可能にする
 
-> **Note:** All numeric thresholds above are planning estimates, not benchmarked guarantees.
-> Actual limits depend on hardware, embedding dimensions, query patterns, and corpus
-> characteristics. Validate with your specific deployment before treating any threshold as firm.
+> **注記:** 上記の数値閾値はすべて計画上の見積もりであり、ベンチマークによって保証されたものではない。
+> 実際の限界はハードウェア、埋め込み次元数、クエリパターン、コーパスの特性に依存する。
+> いずれの閾値も確定的なものとして扱う前に、個別のデプロイ環境で検証すること。
 
 ## Related Documents
 

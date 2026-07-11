@@ -20,67 +20,64 @@ source:
 
 - Document guide → [90_shared_00_document-guide.md](90_shared_00_document-guide.md)
 
-## 7. Import Direction Constraints
+## 7. インポート方向の制約
 
-**Rule:** `shared/` → external libraries only. Import from `agent/`, `mcp/`, `rag/`, `db/` is **prohibited**.
+**規則:** `shared/` → 外部ライブラリのみ。`agent/`、`mcp/`、`rag/`、`db/` からのインポートは**禁止**。
 
-**Rule:** `db/` → `shared/` only. Import from `agent/`, `mcp/`, `rag/` is **prohibited**.
+**規則:** `db/` → `shared/` のみ。`agent/`、`mcp/`、`rag/` からのインポートは**禁止**。
 
-Enforced by `.importlinter` (fails `PYTHONPATH=scripts uv run lint-imports`).
+`.importlinter` により強制される(違反すると `PYTHONPATH=scripts uv run lint-imports` が失敗する)。
 
-Key constraint: `orjson.dumps()` returns `bytes`, not `str`. Always call `.decode()` when a `str` is required. Use `httpx.AsyncClient` (not `requests`) for async HTTP.
+重要な制約: `orjson.dumps()` は `bytes` を返す(`str` ではない)。`str` が必要な場合は必ず `.decode()` を呼ぶこと。非同期HTTPには(`requests` ではなく)`httpx.AsyncClient` を使うこと。
 
 ---
 
-## 8. Overall Picture of Persistent Data
+## 8. 永続データの全体像
 
-| DB File | Tables | Purpose |
+| DBファイル | テーブル | 用途 |
 |---|---|---|
-| `rag.sqlite` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` | RAG document index + vector + FTS search |
-| `session.sqlite` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links` | Agent conversation state + memory layer |
-| `workflow.sqlite` | `tasks`, `attempts`, `processed_events`, `approvals`, `artifacts` | Workflow engine task tracking |
+| `rag.sqlite` | `documents`、`chunks`、`chunks_fts`、`chunks_vec` | RAGドキュメント索引 + ベクトル + FTS検索 |
+| `session.sqlite` | `sessions`、`messages`、`memories`、`memories_fts`、`memories_vec`、`memory_links` | Agentの会話状態 + メモリ層 |
+| `workflow.sqlite` | `tasks`、`attempts`、`processed_events`、`approvals`、`artifacts` | ワークフローエンジンのタスク追跡 |
 
-All three DBs use WAL mode and `busy_timeout`. sqlite-vec is loaded only for `rag.sqlite` (target=`"rag"`).
+3つのDBはすべてWALモードと `busy_timeout` を使用する。sqlite-vec は `rag.sqlite`(target=`"rag"`)のみでロードされる。
 
 ---
 
-## 9. Major Constraints
+## 9. 主要な制約
 
-| Constraint | Value |
+| 制約 | 値 |
 |---|---|
-| Import direction | `shared/` → external only; `db/` → `shared/` only |
-| JSON library | `orjson` (not stdlib `json`); `orjson.dumps()` returns `bytes` |
-| HTTP client | `httpx` (not `requests`); `httpx.AsyncClient` for async |
-| Config format | TOML / JSON in `/opt/llm/config/`; `_`-prefixed keys are excluded |
-| Log messages | English only (no Japanese in code comments or logs) |
-| SQLite WAL | All connections use `PRAGMA journal_mode=WAL` |
-| `agent.toml` | See [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership for full ownership table |
-| Embedding dimension | `embedding_dims` in `agent.toml` (default 384) |
+| インポート方向 | `shared/` → 外部のみ、`db/` → `shared/` のみ |
+| JSONライブラリ | `orjson`(標準の`json`ではない）; `orjson.dumps()` は `bytes` を返す |
+| HTTPクライアント | `httpx`(`requests`ではない）; 非同期は `httpx.AsyncClient` |
+| 設定形式 | `/opt/llm/config/` 配下のTOML / JSON;`_`始まりのキーは除外される |
+| ログメッセージ | 英語のみ(コードコメント・ログに日本語は使わない） |
+| SQLite WAL | 全接続で `PRAGMA journal_mode=WAL` を使用 |
+| `agent.toml` | 所有権テーブル全体は [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership を参照 |
+| 埋め込み次元 | `agent.toml` の `embedding_dims`(デフォルト384） |
 
 ---
 
-## 10. Executive Summary
+## 10. まとめ
 
-`shared/` is the lowest dependency layer. It provides config, logging, types, routing,
-plugin support, and DTOs. No code in `shared/` may import from upper layers.
+`shared/` は最下層の依存レイヤーであり、設定、ロギング、型、ルーティング、プラグインサポート、DTOを提供する。`shared/` 内のコードは上位レイヤーをインポートしてはならない。
 
-`db/` provides typed, WAL-enabled SQLite access with FTS5 and sqlite-vec integration.
-It is the canonical source for schema definitions. `db/` depends on `shared/` only.
+`db/` は型付けされたWAL対応SQLiteアクセスをFTS5・sqlite-vec連携込みで提供する。スキーマ定義の正典ソースである。`db/` は `shared/` のみに依存する。
 
-All persistent data lives in three SQLite files: `rag.sqlite` (RAG index), `session.sqlite`
-(conversation + memory), and `workflow.sqlite` (task tracking).
+すべての永続データは3つのSQLiteファイルに存在する: `rag.sqlite`(RAG索引）、`session.sqlite`(会話 + メモリ）、`workflow.sqlite`(タスク追跡）。
 
 ---
 
-## 11. AI Reference Guide
+## 11. AIリファレンスガイド
 
-| Question | Look in |
+| 質問 | 参照先 |
 |---|---|
-| What types/DTOs are defined in shared/? | [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md) |
-| How does ConfigLoader work? | [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) |
-| What SQLite schemas exist? | [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) |
-| What is the SQLiteHelper API? | [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) |
-| What bugs or inconsistencies exist? | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) |
+| shared/にはどんな型/DTOが定義されているか | [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md) |
+| ConfigLoaderはどう動作するか | [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) |
+| どんなSQLiteスキーマが存在するか | [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) |
+| SQLiteHelperのAPIは何か | [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) |
+| どんな不具合・不整合が存在するか | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
 

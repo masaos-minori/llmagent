@@ -43,21 +43,21 @@ def get_pipeline_post_stages() -> list[Callable]
 async def run_pipeline_stages(hits, query, *, strict=False) -> list[Any]
 ```
 
-**Plugin loading flow:**
+**プラグイン読込フロー:**
 ```
 plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="reject", strict_mode=False)
-  → glob plugins/*.py in alphabetical order
-  → import each file
-  → @register_* decorators run at import time
-  → errors: logged as WARNING, plugin skipped (fail-open); strict_mode=True raises on first error
-  → after all loaded: tool conflict validation removes conflicting tools from known MCP set
-  → missing dir: returns 0 (no error)
+  → plugins/*.py をアルファベット順にglob
+  → 各ファイルをインポート
+  → @register_* デコレータがインポート時に実行される
+  → エラー時: WARNINGとして記録しプラグインをスキップ(fail-open);strict_mode=Trueなら最初のエラーで例外
+  → 全読込後: ツール競合検証により既知のMCPセットから競合ツールを除去
+  → ディレクトリが存在しない場合: 0を返す(エラーにしない)
 ```
 
-**Priority:** `@register_tool` handlers are checked by `ToolExecutor.execute()` **before** cache and MCP routing.
-`@register_command` handlers are dispatched by `CommandRegistry` **after** built-in commands.
+**優先順位:** `@register_tool` ハンドラは `ToolExecutor.execute()` によってキャッシュ・MCPルーティングより**先に**チェックされる。
+`@register_command` ハンドラは `CommandRegistry` によって組み込みコマンドの**後に**ディスパッチされる。
 
-**Return types:**
+**戻り値の型:**
 
 ```python
 @dataclass(frozen=True)
@@ -79,13 +79,12 @@ class PluginLoadError(RuntimeError):
 def get_last_load_result() -> PluginLoadResult | None
 ```
 
-- `get_last_load_result()` returns the most recent `PluginLoadResult`, or `None` before first load.
-- `PluginLoadError` is raised only when `strict_mode=True` and there are failures or MCP conflicts.
-- `PluginFailure.error` contains the full exception message from the failed plugin.
+- `get_last_load_result()` は直近の `PluginLoadResult` を返す。初回ロード前は `None`。
+- `PluginLoadError` は `strict_mode=True` かつ失敗またはMCP競合がある場合のみ発生する。
+- `PluginFailure.error` には失敗したプラグインの例外メッセージ全文が入る。
 
-**Test isolation:** A reset function clears all registries and must be called
-in a `pytest.fixture(autouse=True)` in any test file that registers commands, tools,
-or pipeline stages. Non-test code must never call this function.
+**テスト分離:** リセット関数は全レジストリをクリアするもので、コマンド・ツール・パイプラインステージを登録するテストファイルでは
+`pytest.fixture(autouse=True)` 内で必ず呼び出す必要がある。テスト以外のコードはこの関数を呼び出してはならない。
 
 ---
 
@@ -100,13 +99,13 @@ async def get_token_count(
 ) -> tuple[int, bool]   # (token_count, is_exact)
 ```
 
-**Priority:**
-1. `POST {tokenize_url}/tokenize` → exact count (`is_exact=True`)
-2. Category-aware character-to-token estimate (text: 4.0, tool_calls: 2.5, system: 3.5) → estimate (`is_exact=False`)
+**優先順位:**
+1. `POST {tokenize_url}/tokenize` → 正確な数値(`is_exact=True`)
+2. カテゴリ別の文字数→トークン数推定(text: 4.0、tool_calls: 2.5、system: 3.5) → 推定値(`is_exact=False`)
 
-- Connection errors fall back silently; a `_WarnOnce` instance suppresses repeated warnings per process lifetime
-- Category-aware estimation replaces the legacy `chars // 4` heuristic for better accuracy with multilingual text and structured tool payloads
-- Token estimation returns `(total_tokens, breakdown: dict[str, int])` with per-category counts
+- 接続エラーは静かにフォールバックする。`_WarnOnce` インスタンスがプロセス生存期間中の重複警告を抑制する
+- カテゴリ別推定は、旧来の `chars // 4` ヒューリスティックを置き換え、多言語テキストと構造化ツールペイロードでの精度を高めたもの
+- トークン推定は `(total_tokens, breakdown: dict[str, int])` をカテゴリ別カウント付きで返す
 
 ---
 
@@ -120,10 +119,10 @@ def build_tracer(
 ) -> TracerProtocol
 ```
 
-- `enabled=False` → returns NoOp stub (no OTel initialization)
-- `enabled=True`, `otlp_endpoint=""` → `ConsoleSpanExporter` (writes to stdout/log)
-- `enabled=True`, `otlp_endpoint` set → OTLP HTTP exporter
-- Uses a **private** `TracerProvider` — does not touch the global OTel provider
+- `enabled=False` → NoOpスタブを返す(OTel初期化なし)
+- `enabled=True`、`otlp_endpoint=""` → `ConsoleSpanExporter`(stdout/ログへ出力)
+- `enabled=True`、`otlp_endpoint` 指定あり → OTLP HTTPエクスポーター
+- **プライベート** `TracerProvider` を使用する — グローバルなOTelプロバイダには触れない
 
 ---
 
@@ -136,12 +135,12 @@ def get_repo_info(path: str = ".") -> RepoInfoResult
 # Returns None on any error (GitPython not installed, not a git repo, etc.)
 ```
 
-- `ImportError` caught separately (when GitPython is not installed)
-- Git operations catch `git.exc.GitError`, `OSError`, `AttributeError`, `ValueError` specifically
-- The `except Exception` catch-all has been removed; each error type is logged at DEBUG level with its cause
+- `ImportError` は個別に捕捉される(GitPythonが未インストールの場合)
+- Git操作は `git.exc.GitError`、`OSError`、`AttributeError`、`ValueError` を個別に捕捉する
+- `except Exception` の catch-all は削除済み。各エラー種別はその原因とともにDEBUGレベルでログ記録される
 
-- `"origin"` field is NOT in the return dict
-- `"commit"` is `HEAD.hexsha[:8]` (8 characters only)
+- 戻り値の辞書に `"origin"` フィールドは含まれない
+- `"commit"` は `HEAD.hexsha[:8]`(8文字のみ)
 
 ---
 

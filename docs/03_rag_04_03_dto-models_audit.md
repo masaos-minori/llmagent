@@ -16,23 +16,23 @@ source:
 
 ### 6.4 models_audit.py (`scripts/rag/models_audit.py`)
 
-**AuditLogRecord** — Tool execution audit record for approval workflows.
+**AuditLogRecord** — 承認ワークフロー用のツール実行監査レコード。
 
 | Field | Type | Description |
 |---|---|---|
-| `tool_name` | `str` | Name of the tool executed |
-| `args_masked` | `str` | Masked arguments (sensitive data redacted) |
-| `result_summary` | `str` | Summary of the execution result |
-| `is_error` | `bool` | Whether the execution resulted in an error |
-| `session_id` | `int \| None` | Associated session ID |
+| `tool_name` | `str` | 実行されたツール名 |
+| `args_masked` | `str` | マスクされた引数 (機密データは伏字化) |
+| `result_summary` | `str` | 実行結果の概要 |
+| `is_error` | `bool` | 実行がエラーになったか |
+| `session_id` | `int \| None` | 関連するセッションID |
 
-**ApprovalDecision** — Decision from tool approval workflow.
+**ApprovalDecision** — ツール承認ワークフローからの判定結果。
 
 | Field | Type | Description |
 |---|---|---|
-| `approved` | `bool` | Whether the tool execution is approved |
-| `reason` | `str` | Reason for the decision |
-| `risk_level` | `str` | Risk level classification |
+| `approved` | `bool` | ツール実行が承認されたか |
+| `reason` | `str` | 判定の理由 |
+| `risk_level` | `str` | リスクレベルの分類 |
 
 
 ## Related Documents

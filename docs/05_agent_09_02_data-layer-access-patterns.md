@@ -15,50 +15,50 @@ source:
   - 05_agent_09_01_data-layer-session-db.md
 ---
 
-# Agent Data Layer
+# エージェントデータ層
 
-- State and persistence → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
-## rag.sqlite Tables (Agent-facing)
+## rag.sqlite Tables (Agent-facing)(rag.sqlite のテーブル。エージェントから見た視点)
 
-The agent layer does NOT own rag.sqlite. These tables are owned by the RAG layer.
-The agent accesses document-level data through `rag-pipeline-mcp` (for `/db rag urls` and `/db rag clean`),
-and counts through `DbMaintenanceService.stats()` or `RagMaintenanceService.stats_rag()` (for `/db rag stats`).
+エージェント層はrag.sqliteを所有していない。これらのテーブルはRAG層が所有する。
+エージェントはドキュメントレベルのデータには `rag-pipeline-mcp` を通じてアクセスし(`/db rag urls` と `/db rag clean` の場合)、
+件数取得には `DbMaintenanceService.stats()` または `RagMaintenanceService.stats_rag()` を使用する(`/db rag stats` の場合)。
 
-| Table | Used by agent for |
+| Table | エージェントによる用途 |
 |---|---|
-| `documents` | `/db rag urls` (via `rag_list_documents` MCP), `/db rag clean` (via `rag_delete_document` MCP) |
-| `chunks` | `/db rag stats`, `/db rag rebuild-fts` |
-| `chunks_fts` | `/db rag rebuild-fts` (FTS5 virtual table) |
+| `documents` | `/db rag urls`(`rag_list_documents` MCP経由)、`/db rag clean`(`rag_delete_document` MCP経由) |
+| `chunks` | `/db rag stats`、`/db rag rebuild-fts` |
+| `chunks_fts` | `/db rag rebuild-fts`(FTS5仮想テーブル) |
 | `chunks_vec` | `/db rag stats` |
 
-**Responsibility boundary:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and
-`rag_delete_document` via rag-pipeline-mcp. `DbMaintenanceService` no longer owns RAG
-document access for listing or deletion.
+**責任境界:** `/db rag urls` と `/db rag clean` は rag-pipeline-mcp 経由で `rag_list_documents` と
+`rag_delete_document` を呼び出す。`DbMaintenanceService` は、一覧取得や削除に関するRAG
+ドキュメントアクセスをもはや所有していない。
 
 ---
 
-## RAG MCP Internal Path
+## RAG MCP Internal Path(RAG MCP内部パス)
 
-`RagPipelineMCPService` directly accesses `rag.sqlite` through `SQLiteHelper("rag")` for
-`list_documents()` and `delete_document()`. This is an internal operation of the RAG MCP
-service owner, not Agent-layer direct DB access.
+`RagPipelineMCPService` は `list_documents()` と `delete_document()` のために `SQLiteHelper("rag")` を通じて
+`rag.sqlite` に直接アクセスする。これはRAG MCPサービス所有者の内部操作であり、
+エージェント層による直接DBアクセスではない。
 
-**Allowed:** `RagPipelineMCPService` (scripts/mcp/rag_pipeline/service.py) — RAG MCP service owns
-these operations as part of its responsibility boundary.
+**許可されるもの:** `RagPipelineMCPService`(scripts/mcp_servers/rag_pipeline/service.py) — RAG MCPサービスは
+これらの操作をその責任境界の一部として所有する。
 
-**Not allowed:** Agent application code, other MCP services, or shared-layer code accessing
-`rag.sqlite` directly. These must use MCP tool calls or approved maintenance services.
+**許可されないもの:** エージェントのアプリケーションコード、他のMCPサービス、共有層コードが
+`rag.sqlite` に直接アクセスすること。これらはMCPツール呼び出しまたは承認済みのメンテナンスサービスを使用しなければならない。
 
-### Deletion order safety
+### 削除順序の安全性
 
-`delete_document()` enforces a strict deletion order to prevent orphan records:
+`delete_document()` は孤立レコードを防ぐため、厳格な削除順序を強制する:
 
-1. Delete `chunks_vec` rows first (embedding vectors)
-2. Delete `documents` row (parent document)
+1. まず `chunks_vec` の行(埋め込みベクトル)を削除する
+2. `documents` の行(親ドキュメント)を削除する
 
-This order is necessary because `chunks_vec` has no foreign key constraint pointing to
-`documents`. Deleting the document first would leave orphaned embedding vector rows.
+この順序が必要なのは、`chunks_vec` が `documents` を指す外部キー制約を持たないためである。
+ドキュメントを先に削除すると、埋め込みベクトルの行が孤立して残ってしまう。
 
 ```python
 # delete_document() — order matters
@@ -71,42 +71,42 @@ db.execute(
 db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 ```
 
-Other derived records (e.g., `chunks` table rows) rely on cascade deletes or triggers
-where applicable.
+その他の派生レコード(例: `chunks` テーブルの行)は、適用可能な場合は
+カスケード削除やトリガーに依存する。
 
 ---
 
-## Agent-Side Document Access Patterns
+## Agent-Side Document Access Patterns(エージェント側のドキュメントアクセスパターン)
 
-The agent accesses document data through three paths:
+エージェントは3つの経路でドキュメントデータにアクセスする:
 
-| Path | Mechanism | When to use |
+| Path | Mechanism | 使用場面 |
 |---|---|---|
-| MCP tools (primary) | `ToolRouteResolver` → MCP server (rag-pipeline-mcp or mdq-mcp) | Normal operation; all agent turns |
-| `/db` commands (admin) | `/db rag urls`+`/db rag clean` → rag-pipeline-mcp; `/db rag stats`+maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Admin tasks only |
-| Direct DB access | Not recommended | Never in application code |
+| MCPツール(基本) | `ToolRouteResolver` → MCPサーバ(rag-pipeline-mcp または mdq-mcp) | 通常運用。すべてのエージェントターン |
+| `/db` コマンド(管理用) | `/db rag urls`+`/db rag clean` → rag-pipeline-mcp; `/db rag stats`+メンテナンス → `DbMaintenanceService`/`RagMaintenanceService` | 管理タスクのみ |
+| DB直接アクセス | 推奨されない | アプリケーションコードでは使用しない |
 
-MCP tools are the preferred and supported path. Direct `sqlite3` imports against `rag.sqlite` or `mdq.sqlite` are not allowed in normal application code. The `/db` admin commands use `RagMaintenanceService` as an explicit maintenance exception (see [04_mcp_05 §Agent Access Patterns](04_mcp_05_security_and_safety_model.md#agent-access-patterns)). See [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for the boundary between RAG and MDQ systems.
+MCPツールが推奨かつサポートされる経路である。`rag.sqlite` や `mdq.sqlite` に対する `sqlite3` の直接インポートは、通常のアプリケーションコードでは許可されない。`/db` の管理コマンドは、明示的なメンテナンス例外として `RagMaintenanceService` を使用する([04_mcp_05 §Agent Access Patterns](04_mcp_05_security_and_safety_model.md#agent-access-patterns) を参照)。RAGとMDQシステムの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) を参照。
 
-- **MDQ**: Markdown query server. Access via `mdq-mcp` tools only. FTS5 search and indexing implemented. See [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for the RAG/MDQ boundary.
+- **MDQ**: Markdownクエリサーバ。`mdq-mcp` ツール経由でのみアクセスする。FTS5検索とインデックス化が実装されている。RAG/MDQの境界については [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) を参照。
 
-## Memory Tables (optional)
+## Memory Tables (optional)(メモリテーブル。任意)
 
-When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
+`use_memory_layer=True` の場合、メモリサブシステムはJSONLとSQLiteの両方を使用する:
 
 | Storage | Path | Contents |
 |---|---|---|
-| JSONL | `{memory_jsonl_dir}/memories.jsonl` | Append-only archive for import/export and disaster recovery |
-| SQLite: `memories` | `session.sqlite` (same DB as sessions/messages) | Authoritative current memory state |
-| SQLite: `memories_fts` | same DB | FTS5 index over memory content |
-| SQLite: `memory_links` | same DB | Many-to-many links between memories |
-| SQLite: `memories_vec` | same DB | Optional KNN embeddings |
+| JSONL | `{memory_jsonl_dir}/memories.jsonl` | インポート/エクスポートおよび災害復旧用の追記専用アーカイブ |
+| SQLite: `memories` | `session.sqlite`(sessions/messagesと同じDB) | 現在のメモリ状態の正本 |
+| SQLite: `memories_fts` | 同じDB | メモリ内容に対するFTS5インデックス |
+| SQLite: `memory_links` | 同じDB | メモリ間の多対多リンク |
+| SQLite: `memories_vec` | 同じDB | 任意のKNN埋め込み |
 
-Data ownership: memory layer owns these tables. Agent accesses via `ctx.services.memory`.
+データ所有権: メモリ層がこれらのテーブルを所有する。エージェントは `ctx.services.memory` を通じてアクセスする。
 
-**Current behavior:** SQLite memory tables are authoritative for current memory state. JSONL is retained as an append-only archive for import/export and disaster recovery. Deletes and pin/unpin state changes are not replayed from JSONL.
+**現在の動作:** SQLiteのメモリテーブルが現在のメモリ状態の正本である。JSONLはインポート/エクスポートおよび災害復旧用の追記専用アーカイブとして保持される。削除およびpin/unpin状態の変更はJSONLから再生されない。
 
-All memory SQLite tables (`memories`, `memories_fts`, `memory_links`, `memories_vec`) live in `session.sqlite`. No separate memory SQLite database is used.
+すべてのメモリ用SQLiteテーブル(`memories`、`memories_fts`、`memory_links`、`memories_vec`)は `session.sqlite` 内に存在する。独立したメモリ用SQLiteデータベースは使用されない。
 
 ---
 

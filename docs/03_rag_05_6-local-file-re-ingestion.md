@@ -11,13 +11,13 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 6. Local file re-ingestion
+# 6. ローカルファイルの再取り込み
 
-## 6. Local file re-ingestion
+## 6. ローカルファイルの再取り込み
 
-### First-time ingestion
+### 初回取り込み
 
-Add the file path to `target_urls` in `config/rag_pipeline.toml` with scheme `file://`:
+`config/rag_pipeline.toml`の`target_urls`に、スキーム`file://`でファイルパスを追加する。
 
 ```toml
 [[target_urls]]
@@ -25,46 +25,47 @@ url = "file:///path/to/file.py"
 lang = "en"
 ```
 
-Then run:
+その後、以下を実行する。
 
 ```
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 ```
 
-The crawler calls `crawl_file()`, writes a JSON to `rag-src/`, chunks it,
-and embeds it into the SQLite vector store.
+クローラーは`crawl_file()`を呼び出し、JSONを`rag-src/`に書き込み、チャンク分割を行い、
+SQLiteベクトルストアに埋め込む。
 
-### Re-ingesting after file changes
+### ファイル変更後の再取り込み
 
-The ingester compares the SHA-256 hash of the current file content against the
-stored `etag` in `documents`:
+ingesterは、現在のファイル内容のSHA-256ハッシュを`documents`に保存されている
+`etag`と比較する。
 
-- **Unchanged** (hash match): skipped automatically, no re-ingestion.
-- **Changed** (hash differs): automatically re-ingested — delete old doc + chunks, re-chunk, re-embed.
-- **`--force`**: delete and re-ingest regardless of hash.
+- **変更なし** (ハッシュが一致): 自動的にスキップされ、再取り込みは行われない。
+- **変更あり** (ハッシュが異なる): 自動的に再取り込みされる — 旧ドキュメントとチャンクを削除し、再チャンク分割、再埋め込みを行う。
+- **`--force`**: ハッシュに関わらず削除して再取り込みする。
 
-Log messages during ingestion:
+取り込み中のログメッセージ:
 
-- `"file:// unchanged (sha256 match): file:///path/to/file"` — skipped
-- `"file:// changed — auto re-ingesting: file:///path/to/file"` — re-ingested
+- `"file:// unchanged (sha256 match): file:///path/to/file"` — スキップされた
+- `"file:// changed — auto re-ingesting: file:///path/to/file"` — 再取り込みされた
 
-### Batch re-ingestion of many local files
+### 多数のローカルファイルの一括再取り込み
 
-When multiple files change, run the crawler with `--targets-file` to re-crawl all listed `file://` URLs.
-The crawler does not support `--force`; unchanged files are skipped automatically via SHA-256 hash comparison.
-To force re-embedding of already-ingested URLs, run `ingester.py --force` after crawling:
+複数のファイルが変更された場合は、`--targets-file`を指定してクローラーを実行し、
+リストされた`file://` URLをすべて再クロールする。
+クローラーは`--force`をサポートしない。未変更のファイルはSHA-256ハッシュ比較により自動的にスキップされる。
+すでに取り込み済みのURLの埋め込みを強制的に再実行するには、クロール後に`ingester.py --force`を実行する。
 
 ```
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-### Comparison: local files vs. web URLs
+### 比較: ローカルファイル vs. Web URL
 
-| Aspect | Web URL | Local file (file://) |
+| Aspect | Web URL | ローカルファイル (file://) |
 |---|---|---|
-| Skip unchanged | Yes (ETag/304) | Yes (SHA-256 hash) |
-| Force re-index | `--force` | `--force` |
+| 未変更時のスキップ | あり (ETag/304) | あり (SHA-256ハッシュ) |
+| 強制再インデックス | `--force` | `--force` |
 
 ---
 

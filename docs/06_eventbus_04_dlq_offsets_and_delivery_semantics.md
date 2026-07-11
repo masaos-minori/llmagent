@@ -21,71 +21,71 @@ source:
 
 # Event Bus: DLQ, Offsets, and Delivery Semantics
 
-## Dead Letter Queue (DLQ)
+## デッドレターキュー（DLQ）
 
-### Primary promotion path: inline on nack
+### 主な昇格経路: nack時のインライン処理
 
-When a consumer calls `POST /nack?event_id=...`, the server increments `delivery_failure_count`. If the new value reaches `max_retry`, the event is promoted to the DLQ **immediately** as part of the nack response. The response includes `"dlq_promoted": true` when this occurs.
+コンシューマーが `POST /nack?event_id=...` を呼び出すと、サーバーは `delivery_failure_count` をインクリメントする。新しい値が `max_retry` に達した場合、そのイベントはnackレスポンスの一部として**即座に**DLQへ昇格する。この場合、レスポンスには `"dlq_promoted": true` が含まれる。
 
-### Safety sweep: background DLQ loop
+### セーフティスイープ: バックグラウンドDLQループ
 
-The background DLQ loop runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. This catches events that reached the retry threshold but were not promoted inline (e.g., due to a race condition between nack and the loop).
+バックグラウンドDLQループは60秒ごとに実行され、`delivery_failure_count >= max_retry AND dlq_at IS NULL` を満たすイベントを検索する。これにより、再試行の閾値に達したものの（例えばnackとループ間の競合状態により）インライン処理では昇格されなかったイベントを捕捉する。
 
-The loop uses an optimistic lock: it only counts events where `dlq_at` is still NULL, preventing double-promotion when both paths race. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
+このループは楽観的ロックを使用する。`dlq_at` がまだNULLのイベントのみをカウント対象とすることで、両経路が競合した際の二重昇格を防止する。スイープで孤立イベントが見つかった場合、`"dlq_loop: swept %d orphan(s) missed by inline promotion"` というログが出力される。スイープ結果が0件でない場合、インライン昇格処理に問題がある可能性を示す。
 
-### Promotion actions (both paths)
+### 昇格処理（両経路共通）
 
-1. Write a JSON file to `{deadletter_dir}/{event_id}.json` atomically (tempfile + `os.replace`)
-2. Set `dlq_at` on the events row in SQLite
+1. `{deadletter_dir}/{event_id}.json` にJSONファイルをアトミックに書き込む（tempfile + `os.replace`）
+2. SQLiteのeventsテーブルの行に `dlq_at` を設定する
 
-Both inline and background promotion use the same atomic write mechanism for consistency.
+一貫性のため、インライン処理とバックグラウンド処理は同じアトミック書き込み機構を使用する。
 
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` by 1 (does **not** reset `delivery_failure_count`). 
+`POST /dlq/{event_id}/requeue` は `dlq_at` をクリアし、`dlq_requeue_count` を1インクリメントする（`delivery_failure_count` は**リセットしない**）。
 
-**Important**: If the event's `delivery_failure_count` is already at or above `max_retry`, requeueing it will result in immediate re-promotion on the next DLQ loop tick (within 60 seconds). Requeue is not a "second chance" for events at the threshold — it only works for events with `delivery_failure_count < max_retry`.
+**重要**: イベントの `delivery_failure_count` が既に `max_retry` 以上の場合、requeueすると次のDLQループのtick（60秒以内）で即座に再昇格する。requeueは閾値に達したイベントに対する「セカンドチャンス」ではない — `delivery_failure_count < max_retry` のイベントに対してのみ機能する。
 
-## Consumer offsets
+## コンシューマーオフセット
 
-Offset files are stored in `{offsets_dir}/{sanitized_consumer_id}` (plain text, one integer per file). The `consumer_id` is sanitized by replacing `..`, `.`, and `/` with `_` (in that order) to prevent path traversal attacks. Replacement is applied to all occurrences across the full string. If the result is empty, `"default"` is used. Note: backslash characters are NOT sanitized — they pass through as-is.
+オフセットファイルは `{offsets_dir}/{sanitized_consumer_id}` に保存される（プレーンテキストで、1ファイルに1つの整数）。`consumer_id` は、パストラバーサル攻撃を防ぐために `..`、`.`、`/` を（この順序で）`_` に置換してサニタイズされる。置換は文字列全体の全出現箇所に適用される。結果が空文字列になった場合は `"default"` が使用される。注意: バックスラッシュ文字はサニタイズされず、そのまま通過する。
 
-### Offset restoration
+### オフセットの復元
 
-On `/subscribe`, if `consumer_id` is set and `since_seq == 0`, the saved offset is read and used as the start sequence.
+`/subscribe` において、`consumer_id` が設定されており `since_seq == 0` の場合、保存済みオフセットが読み取られ開始シーケンスとして使用される。
 
-### Ack-only offset model
+### Ack専用のオフセットモデル
 
-Consumer offsets advance only when the consumer explicitly acknowledges an event via `POST /events/{event_id}/ack?consumer_id={consumer_id}`. Offsets are never advanced automatically during streaming.
+コンシューマーオフセットは、コンシューマーが `POST /events/{event_id}/ack?consumer_id={consumer_id}` により明示的にイベントをackした場合にのみ進む。ストリーミング中にオフセットが自動的に進むことはない。
 
-**Reconnect resume**
+**再接続時の再開**
 
-On reconnect, provide `consumer_id` (without `since_seq`) to resume from the last acknowledged offset. The subscribe handler calls `read_offset(offsets_dir, consumer_id)` at connect time and uses the stored seq as `start_seq` for the SQLite replay query.
+再接続時には、（`since_seq` を指定せずに）`consumer_id` を指定することで、最後にackされたオフセットから再開できる。subscribeハンドラーは接続時に `read_offset(offsets_dir, consumer_id)` を呼び出し、保存されたseqをSQLiteのreplayクエリの `start_seq` として使用する。
 
-Example reconnect flow:
-1. Consumer connects: `GET /subscribe?consumer_id=svc-A`
-2. Receives events seq=1..10, acks seq=10: `POST /events/{id}/ack?consumer_id=svc-A`
-3. Disconnects
-4. Reconnects: `GET /subscribe?consumer_id=svc-A` → replay starts from seq=11
+再接続フローの例:
+1. コンシューマーが接続: `GET /subscribe?consumer_id=svc-A`
+2. seq=1..10のイベントを受信し、seq=10をack: `POST /events/{id}/ack?consumer_id=svc-A`
+3. 切断
+4. 再接続: `GET /subscribe?consumer_id=svc-A` → replayはseq=11から開始
 
-**Consumer ID stability requirement**: Consumer IDs must be stable across restarts for offset resume to work. Process-lifetime stable IDs (e.g., PID-based) will NOT survive restarts — offsets will not resume. Recommended: use application-level identifiers (e.g., service name + instance ID) as consumer_ids.
+**コンシューマーIDの安定性要件**: オフセットの再開を機能させるには、コンシューマーIDが再起動をまたいで安定している必要がある。プロセスの生存期間中のみ安定なID（例: PIDベース）は再起動を生き延びない — オフセットは再開されない。推奨: アプリケーションレベルの識別子（例: サービス名+インスタンスID）をconsumer_idとして使用すること。
 
-**Note (2026-07-10)**: `offset_checkpoint_interval` was removed (it was a no-op field; offset checkpointing was replaced with the ack-only model). Setting this key in `eventbus.toml` now causes the Event Bus to fail at startup — remove it from the config file.
+**注記（2026-07-10）**: `offset_checkpoint_interval` は削除された（no-opフィールドであり、オフセットのチェックポイント処理はack専用モデルに置き換えられた）。このキーを `eventbus.toml` に設定すると、現在はEvent Busが起動時に失敗する — 設定ファイルから削除すること。
 
-## Delivery semantics
+## 配送保証
 
-| Property | Value |
+| 特性 | 値 |
 |---|---|
-| Delivery guarantee | At-least-once |
-| Duplicate suppression on publish | Yes — `event_id` UNIQUE constraint in SQLite; duplicate publishes are silently ignored |
-| Duplicate delivery on consumer | Possible — consumer may re-receive events after crash if ack was not written before the crash |
-| Ordering | Per-topic ordering is preserved (seq ascending); cross-topic ordering is not guaranteed |
+| 配送保証レベル | At-least-once |
+| publish時の重複抑制 | あり — SQLiteの `event_id` UNIQUE制約により、重複publishは黙って無視される |
+| コンシューマー側での重複配送 | 発生し得る — クラッシュ前にackが書き込まれていなかった場合、クラッシュ後にコンシューマーが同じイベントを再受信する可能性がある |
+| 順序保証 | トピック単位の順序は保持される（seq昇順）。トピック間の順序は保証されない |
 
-## Reliability limits
+## 信頼性の限界
 
-- SQLite is the only durable store; if the DB file is lost, all events are lost
-- JSONL archive is supplementary and may diverge from SQLite if append fails
-- The DLQ loop runs every 60 seconds; there is a window where events with `delivery_failure_count >= max_retry` remain visible as live events
+- SQLiteが唯一の永続ストアである。DBファイルが失われると全イベントが失われる
+- JSONLアーカイブは補助的なものであり、追記に失敗するとSQLiteと内容が乖離する可能性がある
+- DLQループは60秒ごとに実行される。`delivery_failure_count >= max_retry` のイベントが有効なイベントとして見え続けるウィンドウが存在する
 
 ## Related Documents
 

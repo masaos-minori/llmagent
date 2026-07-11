@@ -18,20 +18,20 @@ source:
 
 # DB API and Operations
 
-- Schema → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
+- スキーマ → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
 
-## 7. Maintenance Functions (`db/maintenance.py`)
+## 7. メンテナンス関数 (`db/maintenance.py`)
 
-All functions accept a `SQLiteHelper` instance and delegate low-level operations back to it.
+すべての関数は `SQLiteHelper` インスタンスを受け取り、低レベルの操作をそのインスタンスに委譲する。
 
-| Function | Signature | Description |
+| 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `checkpoint_wal(db, mode=None)` | `-> WalCheckpointCounts` | WAL flush; default mode from `agent.toml::sqlite_wal_checkpoint_mode` (default `TRUNCATE`) |
-| `vacuum_db(db, mode=STRICT)` | `-> MaintenanceResult` | Delegates to `db.vacuum()`; call outside transaction |
-| `purge_old_sessions(db, cfg=None, mode=STRICT)` | `-> MaintenanceResult` | Age-based + count-based session purge; commits internally |
-| `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | Delete old memories via `SQLiteMemoryDeleteStore` |
+| `checkpoint_wal(db, mode=None)` | `-> WalCheckpointCounts` | WAL のフラッシュ; デフォルトモードは `agent.toml::sqlite_wal_checkpoint_mode` から取得 (デフォルト `TRUNCATE`) |
+| `vacuum_db(db, mode=STRICT)` | `-> MaintenanceResult` | `db.vacuum()` に委譲する; トランザクション外で呼び出すこと |
+| `purge_old_sessions(db, cfg=None, mode=STRICT)` | `-> MaintenanceResult` | 経過日数ベース + 件数ベースのセッションパージ; 内部でコミットする |
+| `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | `SQLiteMemoryDeleteStore` 経由で古いメモリを削除 |
 
-### `MaintenanceMode` and `MaintenanceResult`
+### `MaintenanceMode` と `MaintenanceResult`
 
 ```python
 class MaintenanceMode(StrEnum):
@@ -47,9 +47,9 @@ class MaintenanceResult:
     data: dict | None = None   # e.g. {"age_deleted": N, "count_deleted": N} or {"deleted": N}
 ```
 
-**Mode semantics:**
-- `STRICT` (default): behavior unchanged from pre-mode code — exceptions propagate; on success a `MaintenanceResult(success=True)` is returned
-- `BEST_EFFORT`: exceptions are caught, logged as ERROR, and returned as `MaintenanceResult(success=False, detail=str(exc))`; callers MUST check `result.success`
+**モードの意味:**
+- `STRICT` (デフォルト): mode 導入前のコードと挙動は変わらない — 例外はそのまま伝播する; 成功時は `MaintenanceResult(success=True)` が返される
+- `BEST_EFFORT`: 例外は捕捉され、ERROR としてログに記録され、`MaintenanceResult(success=False, detail=str(exc))` として返される; 呼び出し側は必ず `result.success` を確認すること
 
 ```python
 from db.maintenance import MaintenanceMode, MaintenanceResult, vacuum_db
@@ -73,28 +73,28 @@ class RetentionConfig:
     max_age_days: int = 90    # purge sessions older than N days (0 = disabled)
 ```
 
-`RetentionConfig.from_config()` reads `agent.toml::sqlite_retention_max_sessions` /
-`sqlite_retention_max_age_days`.
+`RetentionConfig.from_config()` は `agent.toml::sqlite_retention_max_sessions` /
+`sqlite_retention_max_age_days` を読み込む。
 
-### `purge_old_sessions` behavior
+### `purge_old_sessions` の挙動
 
-1. If `max_age_days > 0`: delete sessions older than N days (`age_deleted`)
-2. If remaining count > `max_sessions`: delete oldest excess sessions (`count_deleted`)
-3. Assumes `messages` has `ON DELETE CASCADE`
-4. Calls `db.conn.commit()` at end
-5. Returns `MaintenanceResult(success=True, data={"age_deleted": N, "count_deleted": N})`
+1. `max_age_days > 0` の場合: N日より古いセッションを削除する (`age_deleted`)
+2. 残り件数が `max_sessions` を超える場合: 最も古い超過分のセッションを削除する (`count_deleted`)
+3. `messages` に `ON DELETE CASCADE` が設定されていることを前提とする
+4. 最後に `db.conn.commit()` を呼ぶ
+5. `MaintenanceResult(success=True, data={"age_deleted": N, "count_deleted": N})` を返す
 
-### `prune_old_memories` behavior
+### `prune_old_memories` の挙動
 
-1. Collect `memory_id` values older than `older_than_days`
-2. Delete from `memories`, `memories_fts`, `memories_vec`
-3. Call `db.commit()`
-4. Returns `MaintenanceResult(success=True, data={"deleted": N})`
-5. On failure in STRICT mode: exception propagates; in BEST_EFFORT mode: returns `success=False`
+1. `older_than_days` より古い `memory_id` を収集する
+2. `memories`、`memories_fts`、`memories_vec` から削除する
+3. `db.commit()` を呼ぶ
+4. `MaintenanceResult(success=True, data={"deleted": N})` を返す
+5. STRICT モードで失敗した場合: 例外が伝播する; BEST_EFFORT モードの場合: `success=False` を返す
 
 ---
 
-## 7a. DB Rotation (`db/rotation.py`)
+## 7a. DB ローテーション (`db/rotation.py`)
 
 ```python
 from db.rotation import rotate_session_db, rotate_workflow_db, rotate_all_dbs, rotate_db

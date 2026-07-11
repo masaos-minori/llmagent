@@ -1,71 +1,93 @@
 ---
-title: "Agent CLI and Commands"
+title: "Agent CLI and Commands - Slash Commands: Context, DB, Plan"
 category: agent
 tags:
   - agent
-  - agent
   - cli
-  - commands
-  - repl
   - slash-commands
+  - context
+  - db
+  - plan
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_07_01_cli-and-commands-cli-reference.md
+  - 05_agent_07_02_cli-and-commands-cliview.md
+  - 05_agent_07_03_cli-and-commands-command-registry.md
+  - 05_agent_07_04_cli-and-commands-purpose.md
+  - 05_agent_07_05_cli-and-commands-repl-io.md
+  - 05_agent_07_06_cli-and-commands-hot-reload.md
+  - 05_agent_07_07_cli-and-commands-migration-notes.md
+  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
+  - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+  - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+source:
+  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands
 
-### Context category
+- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-| Command | Side effects | Related state |
+### Contextカテゴリ
+
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/context` | None | Display history size, budget, system prompt, workflow mode, approval-pending state |
-| `/compact` | LLM call (compression) | Compresses history immediately |
-| `/system [name]` | Updates `history[0]` | `ctx.conv.system_prompt_name` |
+| `/context` | なし | 履歴サイズ、バジェット、システムプロンプト、ワークフローモード、承認待ち状態を表示 |
+| `/compact` | LLM呼び出し(圧縮) | 履歴を即座に圧縮 |
+| `/system [name]` | `history[0]`を更新 | `ctx.conv.system_prompt_name` |
 
-### DB category
+### DBカテゴリ
 
-#### `/db rag` subcommands
+#### `/db rag`サブコマンド
 
-| Command | Side effects | Notes |
+| Command | 副作用 | Notes |
 |---|---|---|
-| `/db rag stats` | None | Document/chunk counts (RAG only) |
-| `/db rag urls [--lang] [--limit]` | None | List documents via rag-pipeline-mcp |
-| `/db rag clean <url>` | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
-| `/db rag rebuild-fts` | Rebuilds `chunks_fts` index | FTS5 rebuild |
-| `/db rag vec-rebuild` | None | Rebuild vector index |
-| `/db rag reconcile-url <url>` | None | Rebuild FTS/vec for a single URL |
-| `/db rag recover [backup-path]` | Integrity check; restore from backup if corrupt | RAG only |
-| `/db rag consistency` | None | Chunks/FTS/vector index sync check |
+| `/db rag stats` | なし | ドキュメント/チャンク数(RAGのみ) |
+| `/db rag urls [--lang] [--limit]` | なし | rag-pipeline-mcp経由でドキュメント一覧を表示 |
+| `/db rag clean <url>` | rag-pipeline-mcp経由でドキュメント+チャンクを削除 | カスケード削除 |
+| `/db rag rebuild-fts` | `chunks_fts`インデックスを再構築 | FTS5再構築 |
+| `/db rag vec-rebuild` | なし | ベクトルインデックスを再構築 |
+| `/db rag reconcile-url <url>` | なし | 単一URLについてFTS/vecを再構築 |
+| `/db rag recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | RAGのみ |
+| `/db rag consistency` | なし | Chunks/FTS/ベクトルインデックスの同期チェック |
 
-#### `/db session` subcommands
+#### `/db session`サブコマンド
 
-| Command | Side effects | Notes |
+| Command | 副作用 | Notes |
 |---|---|---|
-| `/db session stats` | None | Session/message counts |
-| `/db session health` | None | journal_mode / integrity / page stats |
-| `/db session checkpoint [MODE]` | WAL checkpoint | Flush WAL to main DB |
-| `/db session vacuum` | VACUUM | Recover free pages |
-| `/db session purge [--max-sessions N] [--max-age-days N]` | DELETE old sessions | Based on count or age |
-| `/db session recover [backup-path]` | Integrity check; restore from backup if corrupt | Session only |
+| `/db session stats` | なし | セッション/メッセージ数 |
+| `/db session health` | なし | journal_mode / 整合性 / ページ統計 |
+| `/db session checkpoint [MODE]` | WALチェックポイント | WALをメインDBにフラッシュ |
+| `/db session vacuum` | VACUUM | 空きページを回収 |
+| `/db session purge [--max-sessions N] [--max-age-days N]` | 古いセッションをDELETE | 件数または経過日数に基づく |
+| `/db session recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | Sessionのみ |
 
-> **Note:** `/db rag urls` and `/db rag clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. RAG maintenance commands use `RagMaintenanceService`; session maintenance commands use `DbMaintenanceService`. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
+> **注記:** `/db rag urls`と`/db rag clean`は、エージェントのツールエグゼキュータ経由でrag-pipeline-mcpのMCPツール(`rag_list_documents`、`rag_delete_document`)を呼び出す。RAGメンテナンスコマンドは`RagMaintenanceService`を使用し、セッションメンテナンスコマンドは`DbMaintenanceService`を使用する。`session.sqlite`と`workflow.sqlite`は、コード内で`SQLiteHelper(target=...)`経由でアクセスされ、`/db`コマンド経由ではない。スキーマの詳細: `90_shared_04`。
 
-### Plan category
+### Planカテゴリ
 
-| Command | Side effects | Related state |
+| Command | 副作用 | 関連する状態 |
 |---|---|---|
-| `/plan` | None | Toggle `ctx.conv.plan_mode` |
+| `/plan` | なし | `ctx.conv.plan_mode`をトグル |
 
 ## Related Documents
 
-- `agent`
-- `cli`
-- `commands`
+- `05_agent_00_document-guide.md`
+- `05_agent_07_01_cli-and-commands-cli-reference.md`
+- `05_agent_07_02_cli-and-commands-cliview.md`
+- `05_agent_07_03_cli-and-commands-command-registry.md`
+- `05_agent_07_04_cli-and-commands-purpose.md`
+- `05_agent_07_05_cli-and-commands-repl-io.md`
+- `05_agent_07_06_cli-and-commands-hot-reload.md`
+- `05_agent_07_07_cli-and-commands-migration-notes.md`
+- `05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
+- `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
+- `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
 ## Keywords
 
-agent
-cli
-commands
-repl
-slash-commands
+context category
+DB category
+/db rag subcommands
+/db session subcommands
+plan category

@@ -11,107 +11,107 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 1. Configuration Reference
+# 1. 設定リファレンス
 
-## 1. Configuration Reference
+## 1. 設定リファレンス
 
-crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes that read only their own config file. There is no shared config file. If DB path or external service URL is needed across multiple processes, each config file must specify it individually.
+crawler / chunk_splitter / ingester / rag-pipeline-mcpはそれぞれ独立したプロセスであり、各自の設定ファイルのみを読み込む。共有の設定ファイルは存在しない。DBパスや外部サービスのURLを複数プロセスで必要とする場合、各設定ファイルにそれぞれ個別に指定する必要がある。
 
-→ Process separation policy details: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ プロセス分離ポリシーの詳細: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ### 1.1 `config/crawler.toml`
 
-Used by: `crawler.py` のみ
+使用元: `crawler.py` のみ
 
 | Parameter | Default | Description |
 |---|---|---|
-| `rag_src_dir` | `/opt/llm/rag-src` | Crawler output directory: `{rag_src_dir}/*.json` |
-| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLite database path (ETag/Last-Modified lookups) |
-| `sqlite_timeout` | `30` | SQLite connection timeout (seconds) |
-| `sqlite_busy_timeout_ms` | `30000` | SQLite busy timeout (milliseconds) |
-| `crawl_delay` | `1.5` | Seconds to wait between crawl requests (minimum 1.0 recommended) |
-| `max_depth` | `3` | BFS maximum hop depth from start URL |
-| `fetch_retry` | `3` | HTTP request retry limit (exponential backoff: `min(2**i, 10)` sec) |
-| `fetch_timeout` | `15` | HTTP request timeout per request (seconds) |
-| `crawl_concurrency` | `3` | `asyncio.Semaphore` limit for parallel BFS requests |
-| `max_pages` | `200` | Maximum pages per site (BFS stops when `visited` reaches this) |
-| `skip_nofollow` | `true` | When true, skip `rel="nofollow"` links from BFS queue |
-| `skip_external` | `true` | When true, skip cross-origin links from BFS queue |
-| `target_urls` | — | List of `[[url, lang], ...]` pairs; used when `--url` is not specified |
-| `min_chunk` | `40` | Minimum chunk size (chars); smaller chunks are discarded as noise |
+| `rag_src_dir` | `/opt/llm/rag-src` | クローラーの出力先ディレクトリ: `{rag_src_dir}/*.json` |
+| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLiteデータベースのパス (ETag/Last-Modifiedの参照用) |
+| `sqlite_timeout` | `30` | SQLite接続タイムアウト (秒) |
+| `sqlite_busy_timeout_ms` | `30000` | SQLite busyタイムアウト (ミリ秒) |
+| `crawl_delay` | `1.5` | クロールリクエスト間の待機秒数 (最小1.0推奨) |
+| `max_depth` | `3` | 開始URLからのBFS最大ホップ深度 |
+| `fetch_retry` | `3` | HTTPリクエストの再試行上限 (指数バックオフ: `min(2**i, 10)` 秒) |
+| `fetch_timeout` | `15` | リクエストごとのHTTPタイムアウト (秒) |
+| `crawl_concurrency` | `3` | 並列BFSリクエスト用の`asyncio.Semaphore`上限 |
+| `max_pages` | `200` | サイトごとの最大ページ数 (`visited`がこの値に達するとBFSを停止) |
+| `skip_nofollow` | `true` | trueの場合、`rel="nofollow"`リンクをBFSキューからスキップ |
+| `skip_external` | `true` | trueの場合、クロスオリジンリンクをBFSキューからスキップ |
+| `target_urls` | — | `[[url, lang], ...]`形式のペアのリスト。`--url`未指定時に使用 |
+| `min_chunk` | `40` | 最小チャンクサイズ (文字数)。これより小さいチャンクはノイズとして破棄 |
 
 ### 1.2 `config/chunk_splitter.toml`
 
-Used by: `chunk_splitter.py` only
+使用元: `chunk_splitter.py` のみ
 
 | Parameter | Default | Description |
 |---|---|---|
-| `rag_src_dir` | `/opt/llm/rag-src` | Base directory for chunk input/output |
-| `min_chunk` | `40` | Minimum chunk size (chars); smaller chunks are discarded as noise |
-| `max_chunk` | `500` | Maximum chunk size (chars) |
-| `chunk_overlap` | `50` | Overlap chars prepended from previous chunk to next (0 = disabled) |
-| `md_index_enable` | `false` | Enable Markdown heading-boundary splitting for non-`.md` content with ≥2 heading lines. `.md`/`.markdown`/`.mdx` URLs always use heading split regardless |
-| `md_snippet_max_chars` | `600` | Max chars per Markdown heading section; fallback to text split if exceeded |
-| `en_stopwords` | (see config) | English stopwords excluded from FTS5 indexing and chunking |
-| `ja_stop_pos` | `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]` (particle, auxiliary verb, supplementary symbol, blank, interjection, conjunction) | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
+| `rag_src_dir` | `/opt/llm/rag-src` | チャンク入出力のベースディレクトリ |
+| `min_chunk` | `40` | 最小チャンクサイズ (文字数)。これより小さいチャンクはノイズとして破棄 |
+| `max_chunk` | `500` | 最大チャンクサイズ (文字数) |
+| `chunk_overlap` | `50` | 前のチャンクから次のチャンクの先頭に付加する重複文字数 (0=無効) |
+| `md_index_enable` | `false` | 見出し行が2行以上ある非`.md`コンテンツについて、Markdown見出し境界での分割を有効化。`.md`/`.markdown`/`.mdx`のURLは常に見出し分割を使用する |
+| `md_snippet_max_chars` | `600` | Markdown見出しセクションごとの最大文字数。超えた場合はテキスト分割にフォールバック |
+| `en_stopwords` | (設定を参照) | FTS5インデックスとチャンキングから除外する英語のストップワード |
+| `ja_stop_pos` | `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]` (助詞、助動詞、補助記号、空白、感動詞、接続詞) | 日本語FTS5インデックスでストップワードとして扱われるSudachi品詞カテゴリ |
 
 ### 1.3 `config/ingester.toml`
 
-Used by: `ingester.py` only
+使用元: `ingester.py` のみ
 
 | Parameter | Default | Description |
 |---|---|---|
-| `rag_src_dir` | `/opt/llm/rag-src` | Chunk input directory: `{rag_src_dir}/chunk/*.json` |
-| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLite database path |
-| `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec extension shared library path |
-| `sqlite_timeout` | `30` | SQLite connection timeout (seconds) |
-| `sqlite_busy_timeout_ms` | `30000` | SQLite busy timeout (milliseconds) |
-| `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint |
-| `embedding_dims` | `384` | Dimensionality of float32 embedding vectors (must match model: all-MiniLM-L6-v2 = 384) |
-| `embed_retry` | `3` | Embed API retry limit (exponential backoff) |
-| `embed_workers` | `4` | `ThreadPoolExecutor` thread count for parallel embedding |
-| `strict_artifact_validation` | `true` | Reject chunks with missing required fields |
+| `rag_src_dir` | `/opt/llm/rag-src` | チャンク入力ディレクトリ: `{rag_src_dir}/chunk/*.json` |
+| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLiteデータベースのパス |
+| `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec拡張の共有ライブラリパス |
+| `sqlite_timeout` | `30` | SQLite接続タイムアウト (秒) |
+| `sqlite_busy_timeout_ms` | `30000` | SQLite busyタイムアウト (ミリ秒) |
+| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIのエンドポイント |
+| `embedding_dims` | `384` | float32埋め込みベクトルの次元数 (モデルと一致必須: all-MiniLM-L6-v2 = 384) |
+| `embed_retry` | `3` | 埋め込みAPIの再試行上限 (指数バックオフ) |
+| `embed_workers` | `4` | 並列埋め込み用の`ThreadPoolExecutor`スレッド数 |
+| `strict_artifact_validation` | `true` | 必須フィールドが欠落したチャンクを拒否 |
 
 ### 1.4 `config/rag_pipeline_mcp_server.toml`
 
-Used by: `rag-pipeline-mcp` only (rag-pipeline MCP server process)
+使用元: `rag-pipeline-mcp` のみ (rag-pipeline MCPサーバープロセス)
 
 | Parameter | Default | Description |
 |---|---|---|
-| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLite database path |
-| `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec extension shared library path |
-| `sqlite_timeout` | `30` | SQLite connection timeout (seconds) |
-| `sqlite_busy_timeout_ms` | `30000` | SQLite busy timeout (milliseconds) |
-| `llm_url` | `http://127.0.0.1:8001/v1/chat/completions` | LLM endpoint for MQE and rerank |
-| `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint |
-| `mqe_n_queries` | `3` | Number of query variants to generate in MQE |
-| `mqe_prompt_template` | (built-in) | MQE prompt template; placeholders: `{n_queries}`, `{query}` |
-| `rerank_prompt_template` | (built-in) | Cross-encoder prompt template; placeholders: `{query}`, `{items_text}` |
+| `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLiteデータベースのパス |
+| `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec拡張の共有ライブラリパス |
+| `sqlite_timeout` | `30` | SQLite接続タイムアウト (秒) |
+| `sqlite_busy_timeout_ms` | `30000` | SQLite busyタイムアウト (ミリ秒) |
+| `llm_url` | `http://127.0.0.1:8001/v1/chat/completions` | MQEおよびリランク用のLLMエンドポイント |
+| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIのエンドポイント |
+| `mqe_n_queries` | `3` | MQEで生成するクエリバリエーションの数 |
+| `mqe_prompt_template` | (組み込み) | MQEプロンプトテンプレート。プレースホルダー: `{n_queries}`、`{query}` |
+| `rerank_prompt_template` | (組み込み) | クロスエンコーダー用プロンプトテンプレート。プレースホルダー: `{query}`、`{items_text}` |
 
 ### 1.5 `config/agent.toml`
 
-Used by: Agent process only. Loaded from `ConfigLoader().load_all()` to build `AgentConfig`.
+使用元: エージェントプロセスのみ。`ConfigLoader().load_all()`から読み込まれ、`AgentConfig`を構築する。
 
-**RagConfig Protocol fields** (injected via `AgentConfig`):
+**RagConfigプロトコルのフィールド** (`AgentConfig`経由で注入):
 
 | Field | Description |
 |---|---|
-| `use_search` | Global RAG on/off switch |
-| `use_mqe` | Enable query expansion |
-| `use_rrf` | Enable RRF merge (`True`, default) for rank-weighted fusion, or dedup-only (`False`). **Quality tradeoff:** `False` disables rank scoring — all hits get `rrf_score=0.0`; MQE provides no additional ranking benefit. Recommended: keep `True` unless minimizing overhead. Setting `False` emits `WARNING rag config warning: use_rrf=false degrades retrieval quality` at pipeline startup. |
-| `use_rerank` | Enable cross-encoder reranking |
-| `use_refiner` | Enable chunk compression via LLM |
-| `top_k_search` | KNN/FTS hit count per query |
-| `top_k_rerank` | Cross-encoder candidate count |
-| `rag_top_k` | Final chunk count returned to LLM |
-| `rag_min_score` | Cross-encoder score floor |
-| `max_chunks_per_doc` | Per-document chunk cap |
-| `rag_service_url` | External RAG service URL (empty = in-process) |
-| `semantic_cache_max_size` | SemanticCache capacity |
-| `semantic_cache_threshold` | Cache hit cosine similarity threshold |
-| `refiner_max_tokens` | Max tokens for refiner LLM |
-| `refiner_max_chars_per_chunk` | Max chars per chunk for refiner |
-| `refiner_timeout` | Refiner LLM timeout (seconds) |
+| `use_search` | RAG全体のオン/オフ切り替え |
+| `use_mqe` | クエリ展開を有効化 |
+| `use_rrf` | RRFマージを有効化 (`True`、デフォルト) してランク重み付き融合を行うか、重複排除のみ (`False`) にするか。**品質上のトレードオフ:** `False`にするとランクスコアリングが無効化され、すべてのヒットの`rrf_score`が`0.0`になる。MQEによる追加のランキング効果も得られなくなる。オーバーヘッドを最小化したい場合を除き`True`を維持することを推奨。`False`に設定するとパイプライン起動時に`WARNING rag config warning: use_rrf=false degrades retrieval quality`が出力される。 |
+| `use_rerank` | クロスエンコーダーによるリランクを有効化 |
+| `use_refiner` | LLMによるチャンク圧縮を有効化 |
+| `top_k_search` | クエリごとのKNN/FTSヒット数 |
+| `top_k_rerank` | クロスエンコーダーの候補数 |
+| `rag_top_k` | LLMに返す最終的なチャンク数 |
+| `rag_min_score` | クロスエンコーダーのスコア下限 |
+| `max_chunks_per_doc` | ドキュメントごとのチャンク数上限 |
+| `rag_service_url` | 外部RAGサービスのURL (空=インプロセス) |
+| `semantic_cache_max_size` | SemanticCacheの容量 |
+| `semantic_cache_threshold` | キャッシュヒット判定用のコサイン類似度閾値 |
+| `refiner_max_tokens` | Refiner LLMの最大トークン数 |
+| `refiner_max_chars_per_chunk` | Refinerでのチャンクごとの最大文字数 |
+| `refiner_timeout` | Refiner LLMのタイムアウト (秒) |
 
 ---
 

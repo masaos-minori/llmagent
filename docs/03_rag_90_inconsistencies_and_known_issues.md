@@ -3,114 +3,112 @@ title: "RAG Inconsistencies and Known Issues"
 category: rag
 tags:
   - rag
-  - rag
   - inconsistencies
   - known-issues
   - bugs
   - open-questions
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_00_document-guide.md
   - 03_rag_91_design_notes-part1.md
   - 03_rag_91_design_notes-part2.md
 ---
 
-# RAG Inconsistencies and Known Issues
+# RAGの不整合と既知の問題
 
-This file catalogs known bugs, spec conflicts, document inconsistencies, and open questions
-discovered during the restructuring of RAG documentation.
+このファイルは、RAGドキュメントの再構成中に発見された既知のバグ、仕様の矛盾、
+ドキュメント間の不整合、および未解決の疑問点をまとめたものである。
 
-Each entry uses: Type / Impact / Description / Safe interpretation / Recommended action / Source.
-
----
-
-## Confirmed Design Decisions
-
-### DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
-
-- **Type:** Confirmed design decision
-- **Impact scope:** `chunks` table, `chunks_fts` virtual table, `scripts/rag/repository.py`, `scripts/rag/stages/augment.py`
-- **Invariants (non-negotiable):**
-  - `chunks.content` is the original chunk text and the **only** text used for LLM context.
-  - `chunks.normalized_content` is Sudachi-normalized Japanese text used **exclusively** for FTS5 search indexing; it must never appear in LLM context.
-  - FTS5 indexes `COALESCE(normalized_content, content)` via the `chunks_ai` trigger.
-  - Japanese chunks store Sudachi-normalized space-joined text in `normalized_content`. English/code chunks keep `normalized_content = NULL`; FTS5 falls back to `content`.
-  - `AugmentStage` must always output `content`, never `normalized_content`.
-- **Description:** Japanese chunks store two text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi-normalized) is indexed by the `chunks_ai` trigger into `chunks_fts`. FTS5 query-side also normalizes Japanese terms using Sudachi POS filtering. This separation ensures LLM receives readable original text while BM25 search uses morphologically normalized forms.
-- **Notes for AI reference:** Never replace `content` with `normalized_content` in the Augment stage output. The separation is intentional and confirmed. Source: `03_rag_02_01_ingestion_pipeline-overview.md §FTS5/LLM content separation`, `03_rag_03_01_query_pipeline-overview.md §5.5 AugmentStage`.
+各エントリは以下の形式を使用する: Type / Impact / Description / Safe interpretation / Recommended action / Source。
 
 ---
 
-### DESIGN-3: Separation of responsibilities among `documents`, `chunks`, `chunks_fts`, `chunks_vec`
+## 確定済みの設計判断
 
-- **Type:** Confirmed design decision
-- **Impact scope:** DB schema, all ingestion and query code
+### DESIGN-2: FTS5は`normalized_content`を使用し、LLMは`content`を受け取る
+
+- **Type:** 確定済みの設計判断
+- **Impact scope:** `chunks`テーブル、`chunks_fts`仮想テーブル、`scripts/rag/repository.py`、`scripts/rag/stages/augment.py`
 - **Invariants (non-negotiable):**
-  - `documents` and `chunks` are **canonical data stores**; all mutations go through them.
-  - `chunks_fts` and `chunks_vec` are **derived indexes**; application code must treat them as read-only.
-  - `chunks_fts` sync: trigger-based (`chunks_ai`/`chunks_au`/`chunks_ad`); never INSERT/UPDATE directly. Manual edits to `chunks_fts` are prohibited — use `/db rag rebuild-fts` instead.
-  - `chunks_vec` sync: ingestion-time INSERT and explicit DELETE; no FK constraint (sqlite-vec limitation).
-  - Deletion order for force-reinsertion: `chunks_vec` first → `chunks` → `documents` (mandatory to avoid orphaned vector records).
-  - RAG consistency checks (`/db consistency`) validate synchronization between canonical `chunks` and derived indexes `chunks_fts` and `chunks_vec`.
+  - `chunks.content`は元のチャンクテキストであり、LLMコンテキストに使用される**唯一**のテキストである。
+  - `chunks.normalized_content`はSudachiで正規化された日本語テキストであり、FTS5検索インデックス**専用**に使用される。LLMコンテキストに含まれてはならない。
+  - FTS5は`chunks_ai`トリガー経由で`COALESCE(normalized_content, content)`をインデックス化する。
+  - 日本語チャンクはSudachiで正規化された空白区切りのテキストを`normalized_content`に格納する。英語/コードチャンクは`normalized_content = NULL`を保持し、FTS5は`content`にフォールバックする。
+  - `AugmentStage`は常に`content`を出力し、`normalized_content`を出力してはならない。
+- **Description:** 日本語チャンクは2種類のテキスト表現を保持する。`chunks.content` (元のテキスト) は`AugmentStage`によってLLMコンテキストに注入される。`chunks.normalized_content` (Sudachi正規化済み) は`chunks_ai`トリガーによって`chunks_fts`にインデックス化される。FTS5のクエリ側でも、Sudachiの品詞フィルタリングを用いて日本語の語を正規化する。この分離により、LLMは読みやすい元のテキストを受け取りつつ、BM25検索では形態素的に正規化された形式が使用される。
+- **Notes for AI reference:** Augmentステージの出力において、`content`を`normalized_content`に置き換えてはならない。この分離は意図的なものであり、確定済みである。Source: `03_rag_02_01_ingestion_pipeline-overview.md §FTS5/LLM content separation`、`03_rag_03_01_query_pipeline-overview.md §5.5 AugmentStage`。
+
+---
+
+### DESIGN-3: `documents`、`chunks`、`chunks_fts`、`chunks_vec`間の責務分離
+
+- **Type:** 確定済みの設計判断
+- **Impact scope:** DBスキーマ、すべての取り込みおよびクエリ処理コード
+- **Invariants (non-negotiable):**
+  - `documents`と`chunks`は**正規のデータストア**であり、すべての変更操作はこれらを経由する。
+  - `chunks_fts`と`chunks_vec`は**派生インデックス**であり、アプリケーションコードはこれらを読み取り専用として扱う必要がある。
+  - `chunks_fts`の同期: トリガーベース (`chunks_ai`/`chunks_au`/`chunks_ad`) で行われ、直接のINSERT/UPDATEは行わない。`chunks_fts`への手動編集は禁止されており、代わりに`/db rag rebuild-fts`を使用する。
+  - `chunks_vec`の同期: 取り込み時のINSERTと明示的なDELETEによって行われる。外部キー制約はない (sqlite-vecの制約による)。
+  - 強制再挿入時の削除順序: `chunks_vec`が最初 → `chunks` → `documents` (孤立したベクトルレコードを避けるために必須)。
+  - RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。
 - **Description:**
-  - `documents`: canonical URL/document metadata (url, title, lang, fetched_at, etag, last_modified, chunking_strategy); one row per URL.
-  - `chunks`: canonical chunk text and position data (content, normalized_content, chunk_index, chunk_type); FK to `documents` via `doc_id` (ON DELETE CASCADE).
-  - `chunks_fts`: derived FTS5/BM25 full-text index; auto-synced by triggers using `COALESCE(normalized_content, content)`; BM25 search only. Must not be manually edited — use `/db rag rebuild-fts` to repair.
-  - `chunks_vec`: derived sqlite-vec KNN vector index; float32 embedding BLOB; KNN search only.
-- **RAG consistency checks:** validate synchronization between canonical data and derived indexes:
-  - `fts_gap`: number of chunks missing from `chunks_fts` (repair: `/db rag rebuild-fts`)
-  - `fts_orphan_count`: FTS entries without matching chunks (data loss risk; repair: `/db rag rebuild-fts`)
-  - `orphan_vec_count`: vector rows without matching chunks (repair: `ingester.py --force`)
-- **Notes for AI reference:** sqlite-vec virtual tables do not support standard FK constraints. RAG consistency checks (`/db consistency`) validate synchronization between canonical `chunks` and derived indexes `chunks_fts` and `chunks_vec`. Source: `03_rag_04_05_dto-types.md §DB Schema`, `03_rag_05_1-configuration-reference.md §RAG index consistency checks`.
+  - `documents`: 正規のURL/ドキュメントメタデータ (url、title、lang、fetched_at、etag、last_modified、chunking_strategy)。URLごとに1行。
+  - `chunks`: 正規のチャンクテキストと位置情報 (content、normalized_content、chunk_index、chunk_type)。`doc_id`を介して`documents`への外部キー (ON DELETE CASCADE)。
+  - `chunks_fts`: 派生FTS5/BM25全文検索インデックス。`COALESCE(normalized_content, content)`を使用してトリガーにより自動同期される。BM25検索専用。手動で編集してはならず、修復には`/db rag rebuild-fts`を使用する。
+  - `chunks_vec`: 派生sqlite-vec KNNベクトルインデックス。float32埋め込みBLOB。KNN検索専用。
+- **RAG consistency checks:** 正規データと派生インデックス間の同期を検証する:
+  - `fts_gap`: `chunks_fts`に欠落しているチャンク数 (修復: `/db rag rebuild-fts`)
+  - `fts_orphan_count`: 対応するチャンクを持たないFTSエントリ (データ損失のリスク; 修復: `/db rag rebuild-fts`)
+  - `orphan_vec_count`: 対応するチャンクを持たないベクトル行 (修復: `ingester.py --force`)
+- **Notes for AI reference:** sqlite-vecの仮想テーブルは標準的な外部キー制約をサポートしない。RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。Source: `03_rag_04_05_dto-types.md §DB Schema`、`03_rag_05_1-configuration-reference.md §RAG index consistency checks`。
 
 ---
 
 ---
 
-## Cache Invalidation
+## キャッシュ無効化
 
-### OPEN-01: CLI ingestion does not invalidate the semantic cache
+### OPEN-01: CLIによる取り込みはセマンティックキャッシュを無効化しない
 
-**Status:** Open design question (verified against implementation 2026-07-09)
-**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()` calls
-`ingester.ingest_all(args.force)` at line 620
-**Impact:** After a CLI `rag-ingest` run, any running `RagPipeline` instance (e.g. inside
-the MCP server) retains stale semantic cache entries. Subsequent queries may return cached
-results that no longer reflect the updated document corpus.
-**Root cause:** `main()` calls `ingester.ingest_all(args.force)` without passing an
-`on_ingest_complete` callback. `RagIngester.ingest_all()` accepts
-`on_ingest_complete: Callable[[], None] | None = None` (line 95) and forwards it (line 132);
-this callback is the only mechanism for post-ingestion cache invalidation.
-**Recommended action:** Pass `pipeline.semantic_cache.invalidate` as `on_ingest_complete`
-in callers that require fresh results immediately after ingestion.
-
----
-
-### OPEN-02: `delete_document()` does not invalidate the semantic cache
-
-**Status:** Open design question (verified against implementation 2026-07-09 — affected
-code path updated, root cause unchanged)
-**Affected code:** The deletion logic moved out of `service.py` since this entry was
-written. Actual chain: `scripts/mcp/rag_pipeline/service.py::RagPipelineMCPService.fmt_delete_document()`
-(the `rag_delete_document` MCP tool handler, line 197) calls
-`scripts/mcp/rag_pipeline/document_manager.py::DocumentManager.delete_document()` (line 72),
-which deletes `chunks_vec` and `documents` rows directly via SQL.
-**Impact:** After a document is deleted via `rag_delete_document` MCP tool, cached semantic
-search results that referenced the deleted document remain in `SemanticCache` until the
-next `invalidate()` call or process restart.
-**Root cause:** Neither `fmt_delete_document()` nor `DocumentManager.delete_document()` calls
-`semantic_cache.invalidate()`. `DocumentManager` holds no reference to the pipeline or its
-cache, so it cannot invalidate directly; only `RagPipelineMCPService` (which holds
-`self._pipeline: RagPipelineLike`, and `RagPipeline.semantic_cache` — see
-`scripts/rag/pipeline.py:125`) can. No other invalidation path exists in the MCP service.
-**Recommended action:** In `fmt_delete_document()`, after `self._doc_mgr.delete_document(url)`
-returns `True`, call `self._pipeline.semantic_cache.invalidate()` (guard for
-`self._pipeline is None`, matching `_pipeline_or_raise()`'s existing pattern), or document
-that callers must trigger cache invalidation separately.
+**Status:** 未解決の設計上の疑問点 (実装に対して2026-07-09に検証済み)
+**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()`が620行目で
+`ingester.ingest_all(args.force)`を呼び出す
+**Impact:** CLIの`rag-ingest`実行後、稼働中の`RagPipeline`インスタンス (例: MCPサーバー内) は
+古いセマンティックキャッシュエントリを保持し続ける。以降のクエリは、更新されたドキュメント群を
+反映していないキャッシュ結果を返す可能性がある。
+**Root cause:** `main()`は`on_ingest_complete`コールバックを渡さずに
+`ingester.ingest_all(args.force)`を呼び出している。`RagIngester.ingest_all()`は
+`on_ingest_complete: Callable[[], None] | None = None` (95行目) を受け付け、それを転送する (132行目)。
+このコールバックが取り込み後のキャッシュ無効化を行う唯一の仕組みである。
+**Recommended action:** 取り込み直後に最新の結果を必要とする呼び出し元では、
+`on_ingest_complete`に`pipeline.semantic_cache.invalidate`を渡すこと。
 
 ---
 
-## Active Issues
+### OPEN-02: `delete_document()`はセマンティックキャッシュを無効化しない
+
+**Status:** 未解決の設計上の疑問点 (実装に対して2026-07-09に検証済み — 対象のコードパスは
+更新されているが、根本原因は変わらない)
+**Affected code:** 削除ロジックは本エントリ記載時点から`service.py`外に移動している。
+現在の実際の呼び出し連鎖: `scripts/mcp_servers/rag_pipeline/service.py::RagPipelineMCPService.fmt_delete_document()`
+(`rag_delete_document` MCPツールハンドラ、197行目) が
+`scripts/mcp_servers/rag_pipeline/document_manager.py::DocumentManager.delete_document()` (72行目) を呼び出し、
+これが`chunks_vec`と`documents`の行をSQLで直接削除する。
+**Impact:** `rag_delete_document` MCPツールでドキュメントが削除された後も、削除された
+ドキュメントを参照していたキャッシュ済みのセマンティック検索結果は、次の`invalidate()`呼び出し
+またはプロセス再起動まで`SemanticCache`に残り続ける。
+**Root cause:** `fmt_delete_document()`も`DocumentManager.delete_document()`も
+`semantic_cache.invalidate()`を呼び出していない。`DocumentManager`はパイプラインやそのキャッシュへの
+参照を保持していないため、直接無効化することができない。無効化できるのは
+`self._pipeline: RagPipelineLike`および`RagPipeline.semantic_cache` (`scripts/rag/pipeline.py:125`参照) を
+保持する`RagPipelineMCPService`のみである。MCPサービス内に他の無効化経路は存在しない。
+**Recommended action:** `fmt_delete_document()`内で、`self._doc_mgr.delete_document(url)`が
+`True`を返した後に`self._pipeline.semantic_cache.invalidate()`を呼び出す
+(`_pipeline_or_raise()`の既存パターンに合わせて`self._pipeline is None`のガードを入れる)。
+あるいは、呼び出し元が別途キャッシュ無効化を行う必要がある旨をドキュメント化する。
+
+---
+
+## 未解決の課題
 
 ---
 

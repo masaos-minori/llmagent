@@ -3,7 +3,6 @@ title: "Agent Reference API"
 category: agent
 tags:
   - agent
-  - agent
   - reference
   - api
   - types
@@ -13,180 +12,178 @@ related:
 
 # Agent Reference API
 
-- Document guide → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
+- ドキュメントガイド → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
 
-## Purpose
+## 目的
 
-Concise per-module API reference with role, primary public APIs, callers, callees,
-related configuration, and failure behavior. For full method signatures see linked chapters.
+役割、主要な公開 API、呼び出し元、呼び出し先、関連する設定、失敗時の動作を含む、
+モジュールごとの簡潔な API リファレンス。完全なメソッドシグネチャはリンク先の各章を参照。
 
-> **Scope of this chapter:** function signatures, parameter types, return values, and error conditions.
-> For component context, data flow, and runtime behavior → [05_agent_02 §Runtime Architecture](05_agent_02_runtime-architecture.md).
-
----
-
-## AgentREPL (`agent/repl.py`)
-
-- **Role:** REPL coordinator; thin startup/loop driver
-- **Primary API:** `await AgentREPL().run()`
-- **Callers:** `agent/__main__.py`
-- **Callees:** `Orchestrator`, `CommandRegistry`, `CLIView`, `factory.build_agent_context()`
-- **Config:** all of `AgentConfig`
-- **Failure:** unhandled exceptions propagate to event loop; `finally` always closes resources
-
-Full details: [05_agent_02_runtime-architecture.md §AgentREPL](05_agent_02_runtime-architecture.md)
+> **本章の範囲:** 関数シグネチャ、パラメータ型、戻り値、エラー条件。
+> コンポーネントのコンテキスト、データフロー、実行時の動作については → [05_agent_02 §Runtime Architecture](05_agent_02_runtime-architecture.md) を参照。
 
 ---
 
-## Orchestrator (`agent/orchestrator.py`)
+## AgentREPL（`agent/repl.py`）
 
-- **Role:** Turn-level facade; owns memory injection → compress → LLM → tool loop
-- **Primary API:** `await Orchestrator.handle_turn(line)`
-- **Callers:** REPL loop driver
-- **Callees:** `LLMTurnRunner`, `HistoryManager`, `AgentSession`, `MemoryInjectionService`
-- **Config:** `cfg.llm.*`, `cfg.tool.*`, `cfg.memory.*`
-- **Failure:** `LLMTransportError` caught internally; REPL continues
+- **役割:** REPL コーディネーター。薄い起動／ループドライバ
+- **主要な API:** `await AgentREPL().run()`
+- **呼び出し元:** `agent/__main__.py`
+- **呼び出し先:** `Orchestrator`、`CommandRegistry`、`CLIView`、`factory.build_agent_context()`
+- **設定:** `AgentConfig` 全体
+- **失敗時:** 未処理の例外はイベントループに伝播する。`finally` は常にリソースをクローズする
 
-Full details: [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-
----
-
-## AgentContext (`agent/context.py`)
-
-- **Role:** Per-session DI hub; shared mutable state container
-- **Primary API:** `ctx.conv`, `ctx.turn`, `ctx.stats`, `ctx.cfg`, `ctx.session`, `ctx.services`
-- **Callers:** all components
-- **Callees:** none (pure state holder)
-- **Config:** `AgentConfig` stored as `ctx.cfg`
-- **Failure:** N/A
-
-Full details: [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+完全な詳細: [05_agent_02_runtime-architecture.md §AgentREPL](05_agent_02_runtime-architecture.md)
 
 ---
 
-## LLMClient (`shared/llm_client.py`)
+## Orchestrator（`agent/orchestrator.py`）
 
-- **Role:** LLM HTTP communication; SSE streaming + retry
-- **Primary API:** `await client.stream(url, history, tool_defs)`, `client.build_payload(...)`
-- **Callers:** `LLMTurnRunner`, `HistoryManager` (via `call()`), `SessionTitleService`
-- **Callees:** `RobustSSEParser`, `httpx.AsyncClient`
-- **Config:** `cfg.llm.*`
-- **Failure:** raises `LLMTransportError` with `partial_text` on stream failure
+- **役割:** ターンレベルのファサード。メモリ注入 → 圧縮 → LLM → ツールループを管理する
+- **主要な API:** `await Orchestrator.handle_turn(line)`
+- **呼び出し元:** REPL ループドライバ
+- **呼び出し先:** `LLMTurnRunner`、`HistoryManager`、`AgentSession`、`MemoryInjectionService`
+- **設定:** `cfg.llm.*`、`cfg.tool.*`、`cfg.memory.*`
+- **失敗時:** `LLMTransportError` は内部で捕捉される。REPL は継続する
 
-Full details: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
-
----
-
-## ToolExecutor (`shared/tool_executor.py`)
-
-- **Role:** MCP tool routing with TTL cache, side-effect classification, concurrency limits
-- **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
-- **Callers:** `LLMTurnRunner` (via `execute_all_tool_calls`)
-- **Callees:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`
-- **Config:** `cfg.tool.*`, `cfg.mcp.*`
-- **Failure:** returns `ToolCallResult(is_error=True)` on transport failure
-
-Full details: [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
+完全な詳細: [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 
 ---
 
-## ToolRouteResolver (`shared/route_resolver.py`) — internal component of ToolExecutor
+## AgentContext（`agent/context.py`）
 
-- **Role:** Four-layer tool-to-server routing cascade (live discovery > ToolRegistry > config `tool_names` > static constants)
-- **Primary API:** `resolve(tool_name) -> server_key`
-- **Callers:** Tool execution layer
-- **Callees:** `McpServerHealthRegistry`, `LifecycleProtocol` (via server startup)
-- **Config:** None directly; reads from ToolRegistry, live discovery map, config `tool_names`, and `tool_constants.py` frozensets in priority order
-- **Failure:** raises `KeyError` if no layer resolves the tool name
+- **役割:** セッションごとの DI ハブ。共有される可変状態のコンテナ
+- **主要な API:** `ctx.conv`、`ctx.turn`、`ctx.stats`、`ctx.cfg`、`ctx.session`、`ctx.services`
+- **呼び出し元:** すべてのコンポーネント
+- **呼び出し先:** なし（純粋な状態保持クラス）
+- **設定:** `AgentConfig` が `ctx.cfg` として保持される
+- **失敗時:** 該当なし
 
-Full details: [04_mcp_03 §Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth)
-
----
-
-## HistoryManager (`agent/history.py`)
-
-- **Role:** Conversation history size management and LLM-based compression
-- **Primary API:** `await mgr.compress(history)`, `mgr.count_chars(history)`, `apply_config(...)`
-- **Callers:** Orchestrator history compression
-- **Callees:** `LLMClient`, `HistorySelectionPolicy`
-- **Config:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
-- **Failure:** LLM summarization failure → returns unmodified history (no compression)
-
-Full details: [05_agent_04_01_state-and-persistence-state-model.md §HistoryManager](05_agent_04_01_state-and-persistence-state-model.md)
+完全な詳細: [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
-## CommandRegistry (`agent/commands/registry.py`)
+## LLMClient（`shared/llm_client.py`）
 
-- **Role:** All slash command dispatch; 13 mixin-based command groups
-- **Primary API:** `await cmds.dispatch(line) -> bool`
-- **Callers:** REPL loop driver
-- **Callees:** 10 mixin handlers + plugin registry
-- **Config:** various `cfg.*` fields per command
-- **Failure:** command errors displayed to user; REPL continues
+- **役割:** LLM との HTTP 通信。SSE ストリーミング＋リトライ
+- **主要な API:** `await client.stream(url, history, tool_defs)`、`client.build_payload(...)`
+- **呼び出し元:** `LLMTurnRunner`、`HistoryManager`（`call()` 経由）、`SessionTitleService`
+- **呼び出し先:** `RobustSSEParser`、`httpx.AsyncClient`
+- **設定:** `cfg.llm.*`
+- **失敗時:** ストリーム失敗時に `partial_text` を伴う `LLMTransportError` を発生させる
 
-Full details: [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md)
-
----
-
-## CLIView (`agent/cli_view.py`)
-
-- **Role:** CLI presentation layer; readline, progress, multiline input
-- **Primary API:** `setup_readline()`, `write_token()`, `write_progress()`, `async read_multiline()`
-- **Callers:** `AgentREPL`, `Orchestrator` (via Writer protocol callbacks)
-- **Callees:** `readline`, `sys.stdout`
-- **Config:** none directly; callbacks wired at construction
-- **Failure:** I/O errors propagate to caller
-
-Full details: [05_agent_07_01_cli-and-commands-cli-reference.md §CLIView](05_agent_07_01_cli-and-commands-cli-reference.md)
+完全な詳細: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
 
 ---
 
-## AgentSession (`agent/session.py`)
+## ToolExecutor（`shared/tool_executor.py`）
 
-- **Role:** SQLite persistence for sessions and messages (RAG document ops moved to rag-pipeline-mcp)
-- **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`
-- **Skip counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (per-session, read-only properties)
-- **Strict mode:** `AgentSession(strict_mode=True)` raises `RuntimeError` on first skipped save instead of warning
-- **Callers:** `Orchestrator`, `CommandRegistry` (`/session` commands; `/db` commands delegate to rag-pipeline-mcp)
-- **Callees:** `SQLiteHelper`
-- **Config:** DB path from `config/agent.toml`
-- **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
+- **役割:** TTL キャッシュ、副作用の分類、並行数制限を伴う MCP ツールルーティング
+- **主要な API:** `await executor.execute(tool_name, args) -> ToolCallResult`
+- **呼び出し元:** `LLMTurnRunner`（`execute_all_tool_calls` 経由）
+- **呼び出し先:** `ToolRouteResolver`、`HttpTransport`、`McpServerHealthRegistry`
+- **設定:** `cfg.tool.*`、`cfg.mcp.*`
+- **失敗時:** トランスポート失敗時に `ToolCallResult(is_error=True)` を返す
 
-Full details: [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
+完全な詳細: [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
 
 ---
 
-## AgentConfig (`agent/config_dataclasses.py`)
+## ToolRouteResolver（`shared/route_resolver.py`）— ToolExecutor の内部コンポーネント
 
-- **Role:** Configuration container; 7 sub-configs; hot-reloadable via `/reload`
-- **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig`
-- **Callers:** Session initialization, config reload
-- **Callees:** `ConfigLoader.load_all()`
-- **Config:** all TOML files in `config/`
-- **Failure:** `ConfigLoadError` on file read/parse failure
+- **役割:** 4層構成のツール・サーバー間ルーティングカスケード（live discovery > ToolRegistry > config `tool_names` > 静的定数）
+- **主要な API:** `resolve(tool_name) -> server_key`
+- **呼び出し元:** ツール実行層
+- **呼び出し先:** `McpServerHealthRegistry`、`LifecycleProtocol`（サーバー起動経由）
+- **設定:** 直接の設定なし。優先順位に従って ToolRegistry、live discovery マップ、config `tool_names`、`tool_constants.py` の frozenset から読み取る
+- **失敗時:** どの層でもツール名を解決できない場合に `KeyError` を発生させる
 
-Full details: [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md)
+完全な詳細: [04_mcp_03 §Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth)
 
 ---
 
-## MemoryServices (`agent/memory/`)
+## HistoryManager（`agent/history.py`）
 
-- **Role:** Optional persistent semantic memory subsystem
-- **Primary API:** `memory.on_session_start()`, `memory.on_user_prompt(query, session_id)`, `memory.on_session_stop()`
-- **Callers:** `Orchestrator`, `AgentREPL` (startup/shutdown)
-- **Callees:** `MemoryStore`, `MemoryRetriever`, `EmbeddingClient`
-- **Config:** `cfg.memory.*`
-- **Failure:** errors logged; REPL continues without memory (graceful degradation)
+- **役割:** 会話履歴のサイズ管理と LLM ベースの圧縮
+- **主要な API:** `await mgr.compress(history)`、`mgr.count_chars(history)`、`apply_config(...)`
+- **呼び出し元:** Orchestrator の履歴圧縮処理
+- **呼び出し先:** `LLMClient`、`HistorySelectionPolicy`
+- **設定:** `cfg.llm.context_char_limit`、`context_compress_turns`、`history_protect_turns`
+- **失敗時:** LLM による要約が失敗した場合 → 履歴を変更せずに返す（圧縮なし）
 
-**Activation:** `ctx.services.memory` is `None` when `use_memory_layer=False` (default).
-Always null-check before accessing memory services.
+完全な詳細: [05_agent_04_01_state-and-persistence-state-model.md §HistoryManager](05_agent_04_01_state-and-persistence-state-model.md)
+
+---
+
+## CommandRegistry（`agent/commands/registry.py`）
+
+- **役割:** すべてのスラッシュコマンドのディスパッチ。13のミックスインベースのコマンドグループ
+- **主要な API:** `await cmds.dispatch(line) -> bool`
+- **呼び出し元:** REPL ループドライバ
+- **呼び出し先:** 10個のミックスインハンドラ＋プラグインレジストリ
+- **設定:** コマンドごとに異なる `cfg.*` フィールド
+- **失敗時:** コマンドエラーはユーザーに表示される。REPL は継続する
+
+完全な詳細: [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md)
+
+---
+
+## CLIView（`agent/cli_view.py`）
+
+- **役割:** CLI 表示層。readline、進捗表示、複数行入力
+- **主要な API:** `setup_readline()`、`write_token()`、`write_progress()`、`async read_multiline()`
+- **呼び出し元:** `AgentREPL`、`Orchestrator`（Writer プロトコルのコールバック経由）
+- **呼び出し先:** `readline`、`sys.stdout`
+- **設定:** 直接の設定なし。構築時にコールバックが配線される
+- **失敗時:** I/O エラーは呼び出し元に伝播する
+
+完全な詳細: [05_agent_07_01_cli-and-commands-cli-reference.md §CLIView](05_agent_07_01_cli-and-commands-cli-reference.md)
+
+---
+
+## AgentSession（`agent/session.py`）
+
+- **役割:** セッションとメッセージの SQLite への永続化（RAG ドキュメント操作は rag-pipeline-mcp に移管済み）
+- **主要な API:** `start()`、`save(role, content)`、`save_diagnostic(content)`、`fetch_messages(session_id)`
+- **スキップカウンタ:** `skipped_no_session_count`、`skipped_invalid_role_count`（セッションごとの読み取り専用プロパティ）
+- **strict モード:** `AgentSession(strict_mode=True)` は、警告の代わりに最初のスキップされた保存時に `RuntimeError` を発生させる
+- **呼び出し元:** `Orchestrator`、`CommandRegistry`（`/session` コマンド。`/db` コマンドは rag-pipeline-mcp に委譲する）
+- **呼び出し先:** `SQLiteHelper`
+- **設定:** DB パスは `config/agent.toml` から取得
+- **失敗時:** 致命的な失敗時に `sqlite3.Error`。`session_id=None` の場合は警告をログ出力し、カウンタを増加させる
+
+完全な詳細: [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
+
+---
+
+## AgentConfig（`agent/config_dataclasses.py`）
+
+- **役割:** 設定コンテナ。7個のサブ設定。`/reload` によるホットリロードが可能
+- **主要な API:** `build_agent_config(cfg_override=None) -> AgentConfig`
+- **呼び出し元:** セッション初期化、設定の再読み込み
+- **呼び出し先:** `ConfigLoader.load_all()`
+- **設定:** `config/` 内のすべての TOML ファイル
+- **失敗時:** ファイルの読み込み／パース失敗時に `ConfigLoadError`
+
+完全な詳細: [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md)
+
+---
+
+## MemoryServices（`agent/memory/`）
+
+- **役割:** オプションの永続的セマンティックメモリサブシステム
+- **主要な API:** `memory.on_session_start()`、`memory.on_user_prompt(query, session_id)`、`memory.on_session_stop()`
+- **呼び出し元:** `Orchestrator`、`AgentREPL`（起動／シャットダウン時）
+- **呼び出し先:** `MemoryStore`、`MemoryRetriever`、`EmbeddingClient`
+- **設定:** `cfg.memory.*`
+- **失敗時:** エラーはログ出力される。REPL はメモリなしで継続する（グレースフルデグラデーション）
+
+**有効化:** `use_memory_layer=False`（デフォルト）の場合、`ctx.services.memory` は `None` になる。
+メモリサービスにアクセスする前に必ず null チェックを行うこと。
 
 ## Related Documents
 
-- `agent`
-- `reference`
-- `api`
+- `05_agent_00_document-guide.md`
 
 ## Keywords
 

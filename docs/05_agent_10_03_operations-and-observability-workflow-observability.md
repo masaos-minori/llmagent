@@ -18,13 +18,13 @@ source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
-# Agent Operations and Observability
+# エージェントの運用と可観測性
 
-- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
 ## OpenTelemetry (OTel)
 
-Configure in `config/agent.toml`:
+`config/agent.toml` で設定する:
 
 ```toml
 otel_enabled = true
@@ -32,14 +32,14 @@ otel_endpoint = ""          # "" = ConsoleSpanExporter (logs to agent.log)
 otel_service_name = "llm-agent"
 ```
 
-With `otel_endpoint = ""`: spans written to stdout / `agent.log`.
+`otel_endpoint = ""` の場合: スパンは標準出力 / `agent.log` に書き込まれる。
 
 ```bash
 # Extract span names from agent.log
 tail -f /opt/llm/logs/agent.log | grep '"name":'
 ```
 
-Expected spans:
+期待されるスパン:
 ```json
 {"name": "compress", ...}
 {"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8001/..."}, ...}
@@ -49,53 +49,53 @@ Expected spans:
 
 ---
 
-## Workflow Observability
+## Workflow Observability(ワークフローの可観測性)
 
-### OTel Spans
+### OTel Spans(OTelスパン)
 
-`WorkflowEngine` emits four span types when a tracer is configured:
+`WorkflowEngine` は、トレーサーが設定されている場合に4種類のスパンを発行する:
 
-| Span name | Emitted by | Attributes |
+| Span name | 発行元 | Attributes |
 |---|---|---|
 | `workflow.run` | `WorkflowEngine.run()` | `workflow.task_id`, `workflow.version`, `workflow.workflow_id`, `workflow.session_id` |
 
-The tracer is propagated from `Orchestrator` → `WorkflowEngine` so all workflow spans share the same trace context as the enclosing `llm` span.
+トレーサーは `Orchestrator` → `WorkflowEngine` へと伝播するため、すべてのワークフロースパンは、それを包含する `llm` スパンと同じトレースコンテキストを共有する。
 
-### Workflow Identifiers
+### Workflow Identifiers(ワークフロー識別子)
 
-Each turn in workflow mode generates a unique `workflow_id` (UUID4) in addition to the existing `task_id`. Both IDs propagate through:
-- OTel span attributes
-- All audit log events (`workflow_start`, `stage_completed`, `approval_requested`)
-- `ToolApprovalEvent`, `ApprovalDecisionEvent`, `ToolExecEvent` DTOs
-- `turn_end` audit event
-- `WorkflowState` in `AgentContext` (`ctx.workflow.workflow_id`)
-- `tasks` table in `workflow.sqlite`
+ワークフローモードの各ターンでは、既存の `task_id` に加えて一意の `workflow_id`(UUID4)が生成される。両IDは以下を通じて伝播する:
+- OTelスパン属性
+- すべての監査ログイベント(`workflow_start`、`stage_completed`、`approval_requested`)
+- `ToolApprovalEvent`、`ApprovalDecisionEvent`、`ToolExecEvent` のDTO
+- `turn_end` 監査イベント
+- `AgentContext` 内の `WorkflowState`(`ctx.workflow.workflow_id`)
+- `workflow.sqlite` の `tasks` テーブル
 
-### Audit Events
+### Audit Events(監査イベント)
 
-Three workflow-specific events are appended to `audit.log` per turn:
+3つのワークフロー固有イベントが、ターンごとに `audit.log` に追記される:
 
-**`workflow_start` event** (emitted when a task is created):
+**`workflow_start` イベント**(タスク作成時に発行):
 ```json
 {"event": "workflow_start", "task_id": "...", "workflow_id": "...", "session_id": "...", "workflow_version": "1.0", "ts": 1718600000.1}
 ```
 
-**`stage_completed` event** (emitted after the execute stage):
+**`stage_completed` イベント**(executeステージ完了後に発行):
 ```json
 {"event": "stage_completed", "task_id": "...", "workflow_id": "...", "session_id": "...", "stage_id": "execute", "elapsed_ms": 1234.5, "ts": 1718600001.4}
 ```
 
-**`approval_requested` event** (emitted when human approval is required):
+**`approval_requested` イベント**(人間の承認が必要な場合に発行):
 ```json
 {"event": "approval_requested", "task_id": "...", "workflow_id": "...", "session_id": "...", "approval_id": "...", "ts": 1718600001.5}
 ```
 
-**`turn_end` event** (updated to include workflow context):
+**`turn_end` イベント**(ワークフローコンテキストを含むよう更新):
 ```json
 {"event": "turn_end", "task_id": "...", "workflow_id": "...", "session_id": "...", "elapsed_ms": 1234.5, ...}
 ```
 
-### Reading workflow audit events
+### Reading workflow audit events(ワークフロー監査イベントの読み方)
 
 ```bash
 # All workflow events
@@ -111,9 +111,9 @@ grep '"approval_requested"' /opt/llm/logs/audit.log | jq '{workflow_id, task_id,
 grep '"workflow_id":"<id>"' /opt/llm/logs/audit.log | jq .
 ```
 
-### Session Diagnostics
+### Session Diagnostics(セッション診断)
 
-Diagnostics are persisted in the `session_diagnostics` table via `DiagnosticStore.save()`. The session summary is written at session end:
+診断情報は `DiagnosticStore.save()` を通じて `session_diagnostics` テーブルに永続化される。セッション概要はセッション終了時に書き込まれる:
 
 ```json
 {
@@ -128,21 +128,21 @@ Diagnostics are persisted in the `session_diagnostics` table via `DiagnosticStor
 }
 ```
 
-These counts are derived from `workflow.sqlite` at session end.
+これらの件数は、セッション終了時に `workflow.sqlite` から導出される。
 
-Querying session diagnostics:
+セッション診断のクエリ:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC LIMIT 10;"
 ```
 
-Retrieving a specific diagnostic entry:
+特定の診断エントリの取得:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE session_id = ? AND kind = 'session_summary' ORDER BY created_at DESC LIMIT 1;" | jq .content
 ```
 
-Listing all diagnostic kinds for a session:
+あるセッションの全診断種別の一覧表示:
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite "SELECT DISTINCT kind FROM session_diagnostics WHERE session_id = ? ORDER BY kind;"

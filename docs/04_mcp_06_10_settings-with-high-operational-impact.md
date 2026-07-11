@@ -15,16 +15,16 @@ source:
 
 ## Settings with High Operational Impact
 
-| Setting | Impact |
+| 設定 | 影響 |
 |---|---|
-| `allowed_dirs` = `[]` | File access completely denied |
-| `allowed_repos` = `[]` + `fail_closed` | All GitHub writes denied |
-| `command_allowlist` = `[]` | All shell commands denied |
-| `repo_allowlist` = `[]` | All cicd-mcp access denied |
-| `allowed_repo_paths` = `[]` | All git-mcp access denied |
-| `read_only = true` (git-mcp) | git writes blocked even if `allowed_repo_paths` is set |
-| `tool_definitions_strict = true` | Agent startup aborts on tool name mismatch |
-| `mcp_watchdog_interval = 0` | No auto-restart of failed subprocess servers (LOCAL profile default; PRODUCTION default is 30.0) |
+| `allowed_dirs` = `[]` | ファイルアクセスが完全に拒否される |
+| `allowed_repos` = `[]` + `fail_closed` | すべてのGitHub書き込みが拒否される |
+| `command_allowlist` = `[]` | すべてのshellコマンドが拒否される |
+| `repo_allowlist` = `[]` | すべてのcicd-mcpアクセスが拒否される |
+| `allowed_repo_paths` = `[]` | すべてのgit-mcpアクセスが拒否される |
+| `read_only = true`（git-mcp） | `allowed_repo_paths` が設定されていてもgitの書き込みがブロックされる |
+| `tool_definitions_strict = true` | tool名の不一致でagentの起動が中断される |
+| `mcp_watchdog_interval = 0` | 失敗したsubprocessサーバの自動再起動が行われない（LOCALプロファイルのデフォルト；PRODUCTIONのデフォルトは30.0） |
 
 ---
 

@@ -20,119 +20,119 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 2. WebCrawler (`scripts/rag/ingestion/crawler.py`)
 
-### 2.1 Class overview
+### 2.1 クラス概要
 
-`WebCrawler` — BFS-crawls from a start URL within the same origin up to `max_depth` levels; saves each page as
-a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified), local files,
-and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Semaphore for concurrency control.
+`WebCrawler` — 開始URLから同一オリジン内を `max_depth` の階層までBFSでクロールし、各ページを
+`rag-src/` 内のJSONファイルとして保存する。条件付きGET（ETag/Last-Modified）、ローカルファイル、
+ページごとのCJK比率による言語自動判定（`--lang auto`）に対応する。並行数制御には asyncio.Semaphore を使用する。
 
 **Typed dict**
 
-| TypedDict | Purpose |
+| TypedDict | 用途 |
 |---|---|
-| `CrawlPayload` | Typed dict for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
+| `CrawlPayload` | クロール出力JSONファイル用の型付きdict（url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by） |
 
-**Public methods**
+**公開メソッド**
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | Load `crawler.toml`; AsyncClient created in `crawl_site()` method |
-| `crawl` | `async (targets: list[tuple[str, str]] \| None = None) -> None` | Crawl all given targets, or config target_urls when targets is None |
-| `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop |
-| `crawl_file` | `(path: Path, lang: str) -> int` | Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure |
+| `__init__` | `(config: dict \| None = None)` | `crawler.toml` をロードする。AsyncClientは `crawl_site()` メソッド内で生成される |
+| `crawl` | `async (targets: list[tuple[str, str]] \| None = None) -> None` | 指定されたすべての対象、または targets が None の場合は設定の target_urls をクロールする |
+| `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | asyncio.Semaphoreによる並行数制御とFIRST_COMPLETEDループを用いて、同一オリジン内をmax_depthの階層まで非同期BFSクロールする |
+| `crawl_file` | `(path: Path, lang: str) -> int` | ローカルファイルをクロール結果JSONとしてrag-src/に保存する。.pyファイルはコードブロックとして格納される。成功時は1、失敗時は0を返す |
 
-**Module-level utilities**
+**モジュールレベルのユーティリティ**
 
-| Function | Description |
+| 関数 | 説明 |
 |---|---|
-| `url_to_slug(url)` | Convert URL to filesystem-safe ASCII slug (max 80 chars) |
-| `normalize_url(url)` | Remove fragment and trailing slash |
-| `same_origin(url, base)` | True if scheme + hostname match |
+| `url_to_slug(url)` | URLをファイルシステムで安全なASCIIスラグに変換する（最大80文字） |
+| `normalize_url(url)` | フラグメントと末尾のスラッシュを除去する |
+| `same_origin(url, base)` | スキームとホスト名が一致する場合にTrueを返す |
 
-### 2.1.1 Configuration parameters
+### 2.1.1 設定パラメータ
 
-| Parameter | Default | Description |
+| パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `crawl_delay` | 1.5 | Request interval during BFS crawl in seconds; minimum 1.0 recommended |
-| `max_depth` | 3 | Maximum BFS crawl depth (URL hops from seed URL); code reads directly from config with no fallback |
-| `min_chunk` | 40 | Minimum chunk character count; chunks below this are discarded as noise |
-| `fetch_retry` | 3 | Retry limit for HTTP fetch failures (exponential backoff) |
-| `fetch_timeout` | 15 | HTTP request timeout in seconds |
-| `crawl_concurrency` | 3 | Max concurrent fetch tasks via asyncio.Semaphore |
-| `max_pages` | 500 | Maximum pages to crawl per start URL |
-| `skip_nofollow` | False | Skip links with rel="nofollow" |
-| `skip_external` | True | Skip cross-origin links (same-origin only by default) |
+| `crawl_delay` | 1.5 | BFSクロール中のリクエスト間隔（秒）。最小1.0を推奨 |
+| `max_depth` | 3 | BFSクロールの最大深度（起点URLからのURLホップ数）。コードは設定から直接読み込み、フォールバックはない |
+| `min_chunk` | 40 | チャンクの最小文字数。これ未満のチャンクはノイズとして破棄される |
+| `fetch_retry` | 3 | HTTP取得失敗時のリトライ上限（指数バックオフ） |
+| `fetch_timeout` | 15 | HTTPリクエストのタイムアウト（秒） |
+| `crawl_concurrency` | 3 | asyncio.Semaphoreによる最大並行取得タスク数 |
+| `max_pages` | 500 | 開始URLごとにクロールする最大ページ数 |
+| `skip_nofollow` | False | rel="nofollow"が付いたリンクをスキップする |
+| `skip_external` | True | クロスオリジンのリンクをスキップする（デフォルトでは同一オリジンのみ） |
 
-### 2.1.2 crawl_file behavior
+### 2.1.2 crawl_fileの動作
 
-`crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
-Unlike web URLs, no HTTP round-trip occurs. Python files (.py) are stored as code blocks
-so the code chunker applies. Non-Python files store their content directly in the `content` field.
-Local files include `schema_version`, `artifact_type` [ingestion-only], `created_by` metadata fields in the payload.
+`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
+WebのURLと異なり、HTTPの往復は発生しない。Pythonファイル（.py）はコードブロックとして格納され、
+コード用のチャンカーが適用される。Python以外のファイルは内容を `content` フィールドに直接格納する。
+ローカルファイルのペイロードには `schema_version`、`artifact_type`（ingestion-onlyの値）、`created_by` のメタデータフィールドが含まれる。
 
-The method resolves "auto" lang by CJK-ratio detection on the file content when `lang == "auto"`.
+`lang == "auto"` の場合、このメソッドはファイル内容に対するCJK比率判定によって「auto」を解決する。
 
-### 2.2 Behavior details
+### 2.2 動作の詳細
 
-- **Text extraction:** `crawler_utils.extract_text()` for body text; BeautifulSoup4 `<pre>` for code blocks
-- **Language detection:** CJK ratio (hiragana + katakana + CJK unified ideographs ≥ 10%) → `ja`; else `en`.
-  Pages < 100 chars use hint language. `--lang auto` always auto-detects; fallback to `en`.
-- **Idempotency:** `visited` set prevents fetching same URL twice in one run
-- **Conditional GET:** reads `documents.etag` / `documents.last_modified` from SQLite;
-  sends `If-None-Match` / `If-Modified-Since`; skips file save on 304
+- **テキスト抽出:** 本文テキストには `crawler_utils.extract_text()`、コードブロックにはBeautifulSoup4の `<pre>` を使用
+- **言語判定:** CJK比率（ひらがな + カタカナ + CJK統合漢字が10%以上）→ `ja`；それ以外は `en`。
+  100文字未満のページはヒント言語を使用する。`--lang auto` は常に自動判定を行い、フォールバックは `en`。
+- **冪等性:** `visited` セットにより、同一実行内で同じURLを二重に取得することを防ぐ
+- **条件付きGET:** SQLiteから `documents.etag` / `documents.last_modified` を読み込み、
+  `If-None-Match` / `If-Modified-Since` を送信する。304の場合はファイル保存をスキップする
 
-### Local file ingestion
+### ローカルファイルのインジェクション
 
-`crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
-Unlike web URLs, no HTTP round-trip occurs.
+`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
+WebのURLと異なり、HTTPの往復は発生しない。
 
-#### Freshness detection (automatic)
+#### 鮮度判定（自動）
 
-`crawl_file()` computes mtime (ISO string) and SHA-256 of the file content and
-stores both in the crawl payload as `last_modified` and `etag` respectively.
-The URL is stored as `file://{absolute_path}`.
+`crawl_file()` はmtime（ISO文字列）とファイル内容のSHA-256を計算し、
+それぞれクロールペイロードの `last_modified` と `etag` として格納する。
+URLは `file://{absolute_path}` として格納される。
 
-A freshness check is performed for `file://` URLs before deciding to skip or re-ingest:
+`file://` URLに対しては、スキップするか再インジェクションするかを判断する前に鮮度チェックが行われる。
 
-| Condition | Decision |
+| 条件 | 判定 |
 |---|---|
-| Same `etag` (SHA-256) | Skip — content unchanged |
-| Different `etag` | Auto re-ingest (deletes old record, re-embeds) |
-| `etag` missing in DB | Re-ingest (conservative) |
+| `etag`（SHA-256）が同一 | スキップ — 内容は変化していない |
+| `etag` が異なる | 自動で再インジェクション（旧レコードを削除し再埋め込み） |
+| DBに `etag` がない | 再インジェクション（保守的な判断） |
 
-The `etag` column stores the raw SHA-256 hex digest for local files.
-HTTP ETags are never set for `file://` URLs, so there is no collision.
-`force=True` always re-ingests regardless of the stored hash.
+`etag` カラムには、ローカルファイルの場合、SHA-256の16進ダイジェストがそのまま格納される。
+`file://` URLに対してHTTPのETagが設定されることはないため、衝突は発生しない。
+`force=True` の場合は、格納されているハッシュに関わらず常に再インジェクションする。
 
-Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto re-ingesting"`.
+ログメッセージ: `"file:// unchanged (sha256 match)"` または `"file:// changed — auto re-ingesting"`。
 
-#### Contrast with web ingestion
+#### Webインジェクションとの対比
 
-| Aspect | Web (HTTP) | Local file (file://) |
+| 観点 | Web（HTTP） | ローカルファイル（file://） |
 |---|---|---|
-| Freshness signal | ETag / Last-Modified header | File mtime / SHA-256 |
-| Skip mechanism | 304 Not Modified | Stored mtime or hash compare |
-| Force re-index | `--force` flag | `--force` flag |
-| Current state | Implemented | Implemented (SHA-256 hash comparison) |
+| 鮮度の判定材料 | ETag / Last-Modifiedヘッダ | ファイルmtime / SHA-256 |
+| スキップの仕組み | 304 Not Modified | 保存済みmtimeまたはハッシュの比較 |
+| 強制再インデックス | `--force` フラグ | `--force` フラグ |
+| 現在の状態 | 実装済み | 実装済み（SHA-256ハッシュ比較） |
 
-### 2.3 CLI arguments
+### 2.3 CLI引数
 
-| Argument | Description | Default |
+| 引数 | 説明 | デフォルト |
 |---|---|---|
-| `--url URL [URL ...]` | Target URLs (multiple allowed; omit to use `target_urls` from config) | — |
-| `--lang {en,ja,auto}` | Hint language for per-page CJK-ratio detection | `en` |
-| `--targets-file PATH` | Path to a TOML file with `target_urls = [[url, lang], ...]`; supports `http://`, `https://`, and `file://`; mutually exclusive with `--url` | — |
+| `--url URL [URL ...]` | 対象URL（複数指定可。省略時は設定の `target_urls` を使用） | — |
+| `--lang {en,ja,auto}` | ページごとのCJK比率判定に使うヒント言語 | `en` |
+| `--targets-file PATH` | `target_urls = [[url, lang], ...]` を記述したTOMLファイルのパス。`http://`、`https://`、`file://` に対応。`--url` とは併用不可 | — |
 
-### 2.4 Output JSON format (`rag-src/yyyymmddhhmmss-{slug}.json`)
+### 2.4 出力JSON形式（`rag-src/yyyymmddhhmmss-{slug}.json`）
 
 ```json
 {
@@ -150,31 +150,31 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 }
 ```
 
-Local file payloads include `etag` (SHA-256 hex digest of file content) and `last_modified` (ISO mtime string).
-Python files (.py) store their content in `code_blocks` with empty `content`; other file types store content directly.
+ローカルファイルのペイロードには `etag`（ファイル内容のSHA-256十六進ダイジェスト）と `last_modified`（ISO形式のmtime文字列）が含まれる。
+Pythonファイル（.py）は内容を `code_blocks` に格納し `content` は空にする。それ以外のファイル種別は内容を直接格納する。
 
-### 2.5 Error handling
+### 2.5 エラーハンドリング
 
-| Case | Action |
+| ケース | 対応 |
 |---|---|
-| HTTP request failure | Exponential backoff retry up to `fetch_retry` times (`min(2**i, 10)` sec) |
-| URL-level exception | `WARNING` log; continue to next URL |
-| Text < 100 chars | Use hint language (`en` fallback for `--lang auto`) |
-| Language not `ja`/`en` | Skip URL silently (no log entry) |
+| HTTPリクエスト失敗 | `fetch_retry` 回まで指数バックオフでリトライ（`min(2**i, 10)` 秒） |
+| URL単位の例外 | `WARNING` ログを出力し、次のURLへ継続 |
+| テキストが100文字未満 | ヒント言語を使用（`--lang auto` の場合は `en` にフォールバック） |
+| 言語が `ja`/`en` でない | ログを出さずに黙ってURLをスキップ |
 
-### 2.6 Logging
+### 2.6 ロギング
 
-- **File:** `/opt/llm/logs/crawl.log` + stderr
-- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- **ファイル:** `/opt/llm/logs/crawl.log` + stderr
+- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-| Level | Timing | Structured fields |
+| レベル | タイミング | 構造化フィールド |
 |---|---|---|
-| `INFO` | Crawl start, URL saved, skipped URL | `url`, `source_type` (on save); `url` (on skip) |
-| `WARNING` | HTTP error, retry event | — |
+| `INFO` | クロール開始、URL保存、URLスキップ | `url`、`source_type`（保存時）；`url`（スキップ時） |
+| `WARNING` | HTTPエラー、リトライ発生 | — |
 
-### 2.7 Configuration (`config/rag_pipeline.toml`)
+### 2.7 設定（`config/rag_pipeline.toml`）
 
-See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
+[03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md) を参照。
 
 ---
 

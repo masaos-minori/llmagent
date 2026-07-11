@@ -3,7 +3,6 @@ title: "MCP System Overview"
 category: mcp
 tags:
   - mcp
-  - mcp
   - system
   - overview
   - architecture
@@ -13,51 +12,51 @@ related:
 
 # MCP System Overview
 
-- Document guide → [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
+- ドキュメントガイド → [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
 
 ## Purpose
 
-The MCP (Model Context Protocol) layer provides the agent with safe, controlled access to
-external resources (filesystem, GitHub, web search, SQLite, shell, RAG, CI/CD, Git) through
-a set of independent server processes.
+MCP（Model Context Protocol）レイヤーは、独立したサーバプロセス群を通じて、
+エージェントに対して外部リソース（ファイルシステム、GitHub、Web検索、SQLite、shell、RAG、CI/CD、Git）への
+安全かつ制御されたアクセスを提供する。
 
 ---
 
 ## Scope
 
-**In scope:**
-- `mcp/` server implementations
-- `shared/tool_executor.py`, `shared/route_resolver.py`, `shared/mcp_config.py`
-- 10 MCP servers, totaling 66 tools (all tracked in `tool_constants.py` frozensets; registered via `ToolRegistry`)
+**対象範囲:**
+- `mcp/` のサーバ実装
+- `shared/tool_executor.py`、`shared/route_resolver.py`、`shared/mcp_config.py`
+- 10個のMCPサーバ、合計66個のtool（すべて `tool_constants.py` のfrozensetで管理され、`ToolRegistry` 経由で登録される）
 
-**Out of scope:**
-- Agent REPL internal implementation
-- RAG pipeline search logic
+**対象外:**
+- Agent REPLの内部実装
+- RAGパイプラインの検索ロジック
 
 ---
 
 ## Server Catalog
 
-Per-server configuration, tools, security settings, and operational notes → [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) (authoritative catalog).
+サーバごとのconfiguration、tool、セキュリティ設定、運用上の注意事項 → [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md)（正典となるカタログ）。
 
-| Server | Port | Transport | Startup mode | Tools | Role |
+| サーバ | ポート | トランスポート | 起動モード | tool数 | 役割 |
 |---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | persistent | 1 | Web search (DuckDuckGo) |
-| file-read-mcp | 8005 | HTTP | persistent | 9 | Local file reading |
+| web-search-mcp | 8004 | HTTP | persistent | 1 | Web検索（DuckDuckGo） |
+| file-read-mcp | 8005 | HTTP | persistent | 9 | ローカルファイル読み取り |
 | github-mcp | 8006 | HTTP | persistent | 21 | GitHub API |
-| file-write-mcp | 8007 | HTTP | persistent | 4 | Local file writing |
-| file-delete-mcp | 8008 | HTTP | persistent | 2 | Local file deletion |
-| shell-mcp | 8009 | HTTP | persistent | 1 | Sandboxed shell execution |
-| rag-pipeline-mcp | 8010 | HTTP | persistent | 4 | RAG retrieval pipeline |
+| file-write-mcp | 8007 | HTTP | persistent | 4 | ローカルファイル書き込み |
+| file-delete-mcp | 8008 | HTTP | persistent | 2 | ローカルファイル削除 |
+| shell-mcp | 8009 | HTTP | persistent | 1 | サンドボックス化されたshell実行 |
+| rag-pipeline-mcp | 8010 | HTTP | persistent | 4 | RAG検索パイプライン |
 | cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
-| mdq-mcp | 8013 | HTTP | persistent | 9 | Markdown context compression |
-| git-mcp | 8014 | HTTP | persistent | 10 | Local git operations |
+| mdq-mcp | 8013 | HTTP | persistent | 9 | Markdownコンテキスト圧縮 |
+| git-mcp | 8014 | HTTP | persistent | 10 | ローカルgit操作 |
 
 ---
 
 ## Transport Mechanisms
 
-### HTTP transport (most servers)
+### HTTP transport（大半のサーバ）
 
 ```
 Agent ToolExecutor
@@ -66,43 +65,43 @@ Agent ToolExecutor
   ← {"result": "...", "is_error": false}
 ```
 
-Servers run as persistent HTTP processes on loopback.
+サーバはloopback上でpersistentなHTTPプロセスとして動作する。
 
 ### Transport Selection Guide
 
-> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only)).**
-> HTTP supports watchdog, health checks, concurrent requests, and remote monitoring.
+> **本番環境のデフォルト: 常にHTTPを使用する（`transport = "http"`。agent管理下のHTTPサーバ（agentがuvicornを起動する場合）は `startup_mode = "subprocess"`、既存のHTTPサーバ（agentは接続のみ）は `startup_mode = "persistent"`）。**
+> HTTPはwatchdog、ヘルスチェック、並行リクエスト、リモート監視をサポートする。
 
 ---
 
 ## Startup Modes
 
-| `startup_mode` | `transport` | Behavior |
+| `startup_mode` | `transport` | 動作 |
 |---|---|---|
-| `none` | N/A | Disabled mode — no subprocess spawn, no lifecycle action |
-| `persistent` | `http` | Externally managed server; agent connects to existing HTTP endpoint |
-| `subprocess` | `http` | Agent starts uvicorn subprocess at launch; polls `/health` |
+| `none` | N/A | 無効化モード — subprocessの起動もライフサイクル動作も行わない |
+| `persistent` | `http` | 外部で管理されるサーバ；agentは既存のHTTPエンドポイントに接続する |
+| `subprocess` | `http` | agentが起動時にuvicorn subprocessを開始し、`/health` をポーリングする |
 
-**Default value:** Omitting `startup_mode` in config defaults to `"none"` — the server must opt into `"persistent"` or `"subprocess"` to be usable.
+**デフォルト値:** configで `startup_mode` を省略すると `"none"` になる — サーバを利用可能にするには `"persistent"` または `"subprocess"` を明示的に指定する必要がある。
 
 ---
 
 ## Major Components
 
-| Component | File | Responsibility |
+| コンポーネント | ファイル | 責務 |
 |---|---|---|
-| `MCPServer` | `mcp/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
-| `CallToolRequest` / `CallToolResponse` | `mcp/models.py` | Shared Pydantic models for all servers |
-| `ToolExecutor` | `shared/tool_executor.py` | Routing, TTL cache, concurrency, health registry |
-| `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key resolution |
-| `ToolRegistry` | `shared/tool_registry.py` | Single source of truth for tool definitions and ownership |
-| `McpServerConfig` | `shared/mcp_config.py` | Per-server transport configuration |
-| `McpServerHealthRegistry` | `shared/mcp_config.py` | Per-server HEALTHY/DEGRADED/UNAVAILABLE state |
-| `HttpTransport` | `shared/tool_executor.py` | HTTP POST to MCP server |
+| `MCPServer` | `mcp/server.py` | 基底クラス: HTTP起動、`/v1/call_tool`、`/v1/tools`、`/health` |
+| `CallToolRequest` / `CallToolResponse` | `mcp/models.py` | 全サーバ共通のPydanticモデル |
+| `ToolExecutor` | `shared/tool_executor.py` | ルーティング、TTLキャッシュ、並行実行、ヘルスレジストリ |
+| `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key の解決 |
+| `ToolRegistry` | `shared/tool_registry.py` | tool定義と所有権に関する単一の正典 |
+| `McpServerConfig` | `shared/mcp_config.py` | サーバごとのtransport設定 |
+| `McpServerHealthRegistry` | `shared/mcp_config.py` | サーバごとのHEALTHY/DEGRADED/UNAVAILABLE状態 |
+| `HttpTransport` | `shared/tool_executor.py` | MCPサーバへのHTTP POST |
 
 ---
 
-## Relationship Among server, protocol, and shared
+## server、protocol、sharedの関係
 
 ```
 agent/factory.py
@@ -122,31 +121,29 @@ MCP server processes (mcp/<name>/server.py)
 
 ## Major Constraints
 
-| Constraint | Value | Source |
+| 制約 | 値 | 出典 |
 |---|---|---|
-| Max response size | 512 KB (`MCP_MAX_RESPONSE_BYTES = 524288`) | `mcp/server.py` |
+| 最大レスポンスサイズ | 512 KB（`MCP_MAX_RESPONSE_BYTES = 524288`） | `mcp/server.py` |
 
-| Auth header | `Authorization: Bearer <token>` (when `auth_token` set) | `mcp/server.py` |
-| Health state threshold | 3 consecutive failures → UNAVAILABLE | `shared/mcp_config.py` |
+| 認証ヘッダ | `Authorization: Bearer <token>`（`auth_token` 設定時） | `mcp/server.py` |
+| ヘルス状態の閾値 | 3回連続失敗 → UNAVAILABLE | `shared/mcp_config.py` |
 
 ---
 
 ## Related Chapters
 
-| Topic | File |
+| トピック | ファイル |
 |---|---|
-| Protocol details, HTTP format, audit log | [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) |
-| Routing, lifecycle, ToolExecutor | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) |
-| Per-server specifications | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) |
-| Security and safety model | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) |
-| Configuration and operations | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
-| Known bugs and inconsistencies | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
+| プロトコル詳細、HTTP形式、audit log | [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) |
+| ルーティング、ライフサイクル、ToolExecutor | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) |
+| サーバ別仕様 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) |
+| セキュリティおよびセーフティモデル | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) |
+| 設定と運用 | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
+| 既知の不具合と不整合 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
 
-- `mcp`
-- `system`
-- `overview`
+- `04_mcp_00_document-guide.md`
 
 ## Keywords
 

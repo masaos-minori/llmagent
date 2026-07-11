@@ -16,7 +16,7 @@ source:
 
 # Agent Extension Points
 
-- Runtime architecture → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
 ## `@register_tool`
 
@@ -25,15 +25,15 @@ source:
 async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 ```
 
-- Registers a local Python function as a tool handler
-- Bypasses MCP routing entirely
-- Called by `ToolExecutor.execute()` **before** cache check and MCP dispatch
-- Return value: `(result_text: str, is_error: bool)`
+- ローカルの Python 関数をツールハンドラとして登録する
+- MCP ルーティングを完全にバイパスする
+- キャッシュチェックと MCP ディスパッチの**前**に `ToolExecutor.execute()` から呼び出される
+- 戻り値: `(result_text: str, is_error: bool)`
 
-**Return-type validation (fail-fast):** At registration time, `@register_tool` inspects
-the function's return annotation. If the annotation is missing or is not `tuple[str, bool]`,
-a `ValueError` is raised immediately — the tool is **not** registered. Fix the annotation
-before deployment.
+**戻り値型の検証（fail-fast）:** 登録時に `@register_tool` は
+関数の戻り値アノテーションを検査する。アノテーションが欠落している、または `tuple[str, bool]` でない場合、
+即座に `ValueError` が発生する。この場合ツールは登録**されない**。デプロイ前に
+アノテーションを修正すること。
 
 ```python
 # Contract: must annotate return type as tuple[str, bool]
@@ -42,84 +42,84 @@ async def tool_echo(args: dict) -> tuple[str, bool]:   # required
     return str(args.get("text", "")), False
 ```
 
-**Why fail-fast instead of warn?** Silent warnings were missed in production, causing
-unexpected behavior at call time. Failing at registration makes the error unmissable.
+**なぜ警告ではなく fail-fast にするのか。** 静かな警告は本番環境で見逃され、
+呼び出し時に予期しない動作を引き起こしていた。登録時に失敗させることで、エラーを見逃せなくする。
 
-**Runtime return value validation:** `ToolExecutor.execute()` validates the actual return value at call time. It checks that the return is a `tuple` with **exactly 2 elements** (`len == 2`), that `result[0]` is `str`, and that `result[1]` is `bool`. A tuple with more or fewer than 2 elements raises `ValueError`. A non-`str` first element raises `TypeError`. A non-`bool` second element raises `TypeError`.
+**実行時の戻り値検証:** `ToolExecutor.execute()` は呼び出し時に実際の戻り値を検証する。戻り値が**ちょうど2要素**の `tuple` であること（`len == 2`）、`result[0]` が `str` であること、`result[1]` が `bool` であることを確認する。要素数が2以外の tuple は `ValueError` を発生させる。最初の要素が `str` でない場合は `TypeError` を発生させる。2番目の要素が `bool` でない場合は `TypeError` を発生させる。
 
-- Access: `plugin_registry.get_tool(name)` → `Callable | None`
+- アクセス: `plugin_registry.get_tool(name)` → `Callable | None`
 
-### Plugin Tool Precedence and Conflict Policy
+### プラグインツールの優先度と競合ポリシー
 
-Plugin tools are registered via the `@register_tool()` decorator in plugin files
-located in the `plugins/` directory. When a plugin tool shares the same name as an
-MCP tool, the outcome depends on `plugin_tool_override`:
+プラグインツールは `plugins/` ディレクトリにあるプラグインファイル内の
+`@register_tool()` デコレータを介して登録される。プラグインツールが
+MCP ツールと同名の場合、結果は `plugin_tool_override` に依存する。
 
-- **`plugin_tool_override = false` (default):** The conflicting plugin tool is
-  rejected at startup and removed from the registry.
-- **`plugin_tool_override = true`:** The plugin tool takes precedence over the MCP
-  tool for the session (plugin tools are checked first in `ToolExecutor.execute()`).
+- **`plugin_tool_override = false`（デフォルト）:** 競合するプラグインツールは
+  起動時に拒否され、レジストリから削除される。
+- **`plugin_tool_override = true`:** プラグインツールがそのセッションにおいて MCP
+  ツールより優先される（`ToolExecutor.execute()` でプラグインツールが最初にチェックされる）。
 
-#### Conflict Detection
+#### 競合検出
 
-When `plugin_tool_override = false` (default):
+`plugin_tool_override = false`（デフォルト）の場合。
 
-- At startup, all known MCP tool names are collected from `ToolRegistry`.
-- If a plugin tool name matches any known MCP tool, the tool is **rejected** (removed from the registry).
-- Log: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`
-- Only the conflicting tool is removed; the plugin module and other tools continue loading.
+- 起動時に、既知のすべての MCP ツール名が `ToolRegistry` から収集される。
+- プラグインツール名が既知の MCP ツールのいずれかと一致する場合、そのツールは**拒否される**（レジストリから削除される）。
+- ログ: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`
+- 競合したツールのみが削除され、プラグインモジュールおよびその他のツールのロードは継続する。
 
-When `plugin_tool_override = true`:
+`plugin_tool_override = true` の場合。
 
-- Conflicts are allowed and logged: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — allowed`
-- The plugin tool takes precedence over the MCP tool for the session.
+- 競合は許容され、ログ出力される: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — allowed`
+- プラグインツールがそのセッションにおいて MCP ツールより優先される。
 
-#### Configuration
+#### 設定
 
-Set in `config/agent.toml`:
+`config/agent.toml` に設定する。
 
 ```toml
 plugin_tool_override = false  # or true to allow shadowing
 plugin_strict = false         # or true to fail startup on first plugin import error
 ```
 
-#### Strict Plugin Loading Mode
+#### 厳格プラグインロードモード
 
-When `plugin_strict = true`, all plugin files are attempted first. After the full load loop, if any failures occurred, a single `PluginLoadError` (subclass of `RuntimeError`) is raised with all failure details aggregated in the message.
+`plugin_strict = true` の場合、まずすべてのプラグインファイルが試行される。ロードループ全体の完了後、失敗が発生していれば、失敗の詳細をすべて集約したメッセージを持つ単一の `PluginLoadError`（`RuntimeError` のサブクラス）が発生する。
 
-#### Safety Tier Enforcement
+#### 安全ティアの強制
 
-In production mode, all registered tools must have a declared safety tier entry in `tool_safety_tiers`. Missing tiers produce a fatal `RuntimeError` at startup via `ProductionConfigValidator.validate()`. This ensures no tool can operate without a defined risk classification. Unknown tier keys (keys not matching any registered tool name) also produce a fatal error in production.
+本番モードでは、登録されるすべてのツールは `tool_safety_tiers` に安全ティアのエントリを宣言していなければならない。ティアが欠落している場合、`ProductionConfigValidator.validate()` により起動時に致命的な `RuntimeError` が発生する。これにより、リスク分類が定義されていないツールは動作できないことが保証される。未知のティアキー（登録済みのツール名に一致しないキー）も本番環境で致命的なエラーを発生させる。
 
-**CI auto-detect:** If `plugin_strict` is absent from config and the `CI` environment variable is set (GitHub Actions, CircleCI, etc.), `plugin_strict` defaults to `True` automatically. Explicit `plugin_strict = false` in config always overrides this.
+**CI 自動検出:** config に `plugin_strict` が存在せず、`CI` 環境変数が設定されている場合（GitHub Actions、CircleCI など）、`plugin_strict` は自動的に `True` にデフォルト設定される。config で明示的に `plugin_strict = false` とした場合は常にこれを上書きする。
 
-Default is `false` (fail-open): failures are logged as `[plugin] skipped: <filename> (<ErrorType>)` and loading continues.
+デフォルトは `false`（フェイルオープン）であり、失敗は `[plugin] skipped: <filename> (<ErrorType>)` としてログ出力され、ロードは継続する。
 
-Per-failure entry in `PluginLoadResult.failed`: `PluginFailure(path="<filename>", error="Plugin load failed (<filename>): <ErrorType>: <message>")`
+`PluginLoadResult.failed` の各失敗エントリ: `PluginFailure(path="<filename>", error="Plugin load failed (<filename>): <ErrorType>: <message>")`
 
-`PluginLoadResult` fields: `loaded_count`, `failed`, `tool_conflicts_shadowed`, `tool_conflicts_allowed`, `command_shadows_rejected`
+`PluginLoadResult` のフィールド: `loaded_count`、`failed`、`tool_conflicts_shadowed`、`tool_conflicts_allowed`、`command_shadows_rejected`
 
-The most recent `PluginLoadResult` is accessible via `plugin_registry.get_last_load_result()` and displayed by `/plugin status`.
+最新の `PluginLoadResult` は `plugin_registry.get_last_load_result()` からアクセス可能であり、`/plugin status` によって表示される。
 
-#### Precedence Order
+#### 優先順位
 
-1. Plugin tools (checked first in `ToolExecutor.execute()`)
-2. MCP tools (routed via `ToolRouteResolver`)
-3. Built-in commands (slash commands, not tool calls)
+1. プラグインツール（`ToolExecutor.execute()` で最初にチェックされる）
+2. MCP ツール（`ToolRouteResolver` を介してルーティングされる）
+3. 組み込みコマンド（スラッシュコマンド。ツール呼び出しではない）
 
-To avoid confusion, give plugin tools names that do not overlap with existing MCP tool names.
+混乱を避けるため、既存の MCP ツール名と重複しない名前をプラグインツールに付けること。
 
-**Priority vs MCP:** plugin tools are checked first. A plugin tool with the same name as
-an MCP tool will shadow the MCP tool for all calls in that session (unless conflict detection rejects it).
+**MCP との優先度比較:** プラグインツールが先にチェックされる。MCP ツールと同名の
+プラグインツールは、そのセッション内のすべての呼び出しにおいて MCP ツールをシャドウする（競合検出によって拒否されない限り）。
 
-#### Observability Limitations
+#### オブザーバビリティの制限
 
-Plugin tools emit `tool_exec` audit events via `audit_tool_exec()` with `source="plugin"` and empty `mcp_request_id`. However, unlike MCP tool events, plugin audit events lack:
+プラグインツールは `source="plugin"` および空の `mcp_request_id` を持つ `tool_exec` オーディットイベントを `audit_tool_exec()` 経由で発行する。しかし、MCP ツールイベントとは異なり、プラグインのオーディットイベントには以下が欠けている。
 
-- **No `X-Request-Id`**: Plugin tools do not go through the HTTP transport layer, so there is no `request_id` to correlate with server-side logs.
-- **No `server_key`**: The `server_key` field is always empty for plugin tools.
+- **`X-Request-Id` なし**: プラグインツールは HTTP トランスポート層を経由しないため、サーバー側のログと関連付けるための `request_id` が存在しない。
+- **`server_key` なし**: `server_key` フィールドはプラグインツールでは常に空である。
 
-This means plugin tool audit events cannot be correlated with MCP server access logs. See [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md#plugin-tool-audit-events) for details.
+つまり、プラグインツールのオーディットイベントは MCP サーバーのアクセスログと関連付けることができない。詳細は [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md#plugin-tool-audit-events) を参照。
 
 ---
 
@@ -130,14 +130,14 @@ This means plugin tool audit events cannot be correlated with MCP server access 
 handler(hits: list[dict], query: str) -> list[dict]
 ```
 
-- `when="post"`: hook runs after cross-encoder rerank stage
-- Receives the reranked hits list and the original query string
-- Must return the (possibly modified) hits list
-- All registered post-rerank stages run in registration order
-- Access: `plugin_registry.get_pipeline_post_stages()` → `list[Callable]`
+- `when="post"`: フックはクロスエンコーダーによる rerank ステージの後に実行される
+- rerank 済みの hits リストと元のクエリ文字列を受け取る
+- （変更されている可能性のある）hits リストを返さなければならない
+- 登録済みのすべての post-rerank ステージは登録順に実行される
+- アクセス: `plugin_registry.get_pipeline_post_stages()` → `list[Callable]`
 
-**Current limitation:** only `when="post"` is supported (post-rerank). Pre-search
-and pre-rerank hooks are not yet implemented.
+**現時点の制限:** `when="post"`（post-rerank）のみがサポートされる。pre-search
+および pre-rerank のフックは未実装である。
 
 ---
 

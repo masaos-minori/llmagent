@@ -15,16 +15,15 @@ source:
 # Watchdog Behavior — Configuration and Monitoring
 
 
-## Watchdog Behavior
+## Watchdogの動作
 
-The watchdog loop (`watchdog_loop()` in `agent/repl_health.py`) periodically probes all MCP
-servers and attempts to restart them when they fail. It runs as a background asyncio task.
+watchdogループ(`agent/repl_health.py`の`watchdog_loop()`)は、すべてのMCPサーバーを定期的にプローブし、障害が発生した際に再起動を試みる。バックグラウンドのasyncioタスクとして動作する。
 
-**Note:** The watchdog's periodic `record_success()`/`record_failure()` calls supplement (but do not replace) the per-call HealthRegistry updates from the tool execution layer. Each tool call increments its own failure count independently of the watchdog.
+**注記:** watchdogによる定期的な`record_success()`/`record_failure()`呼び出しは、ツール実行層からのHealthRegistry更新(呼び出しごと)を補完するものであり、置き換えるものではない。各ツール呼び出しは、watchdogとは独立して自身の失敗カウントをインクリメントする。
 
-#### Process snapshot integration in status display
+#### ステータス表示におけるプロセススナップショットの統合
 
-When `_probe_single_server()` executes via McpStatusService.probe_all(), it integrates lifecycle introspection data into each row:
+`_probe_single_server()`がMcpStatusService.probe_all()経由で実行されると、ライフサイクル情報を各行に統合する。
 
 ```python
 snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
@@ -41,67 +40,67 @@ operator_action_required = op_action_http                    # Only from HTTP en
 health_reason = body_reason                                   # Priority-derived reason string
 ```
 
-This means that even without calling the `/health` endpoint directly, you can determine whether a subprocess-mode server has been marked as FAILED due to prior transport failures during tool dispatch—visible both through the LIFECYCLE state and the derived `restart_recommended` field.
+つまり、`/health`エンドポイントを直接呼び出さなくても、ツールディスパッチ中の過去のトランスポート障害によってサブプロセスモードのサーバーがFAILEDとマークされているかどうかを判定できる。これはLIFECYCLE状態と、そこから導出される`restart_recommended`フィールドの両方から確認できる。
 
 
 
-### Configuration
+### 設定
 
-| Setting | LOCAL default | PRODUCTION default | Effect |
+| 設定項目 | LOCALデフォルト | PRODUCTIONデフォルト | 効果 |
 |---|---|---|---|
-| `mcp_watchdog_interval` | `0` (disabled) | `30.0` | Probe interval in seconds; `0` = disabled |
-| `mcp_watchdog_max_restarts` | `3` | `3` | Max restart attempts per server before giving up |
+| `mcp_watchdog_interval` | `0`(無効) | `30.0` | プローブ間隔(秒);`0`は無効 |
+| `mcp_watchdog_max_restarts` | `3` | `3` | サーバーごとの最大再起動試行回数(超過すると諦める) |
 
 
 
-### Disabled state consequences
+### 無効化状態の影響
 
-When `mcp_watchdog_interval = 0`:
-- The watchdog loop still starts but logs a warning: `Watchdog: disabled (interval=0) — failed servers will not be auto-restarted`
-- Crashed HTTP servers will remain unreachable until the agent process is restarted manually
-- Crashed subprocess servers (shell-mcp) will not be restarted automatically
+`mcp_watchdog_interval = 0`の場合:
+- watchdogループ自体は起動するが、警告ログを出力する: `Watchdog: disabled (interval=0) — failed servers will not be auto-restarted`
+- クラッシュしたHTTPサーバーは、エージェントプロセスを手動で再起動するまで到達不能のままとなる
+- クラッシュしたサブプロセスサーバー(shell-mcp)は自動的に再起動されない
 
 
 
-### Recommended values and operational impact
+### 推奨値と運用上の影響
 
-| Profile | `mcp_watchdog_interval` | Rationale |
+| プロファイル | `mcp_watchdog_interval` | 根拠 |
 |---|---|---|
-| LOCAL development | `0` (disabled) | Manual restart is acceptable during development; avoids unnecessary log noise |
-| PRODUCTION | `30.0` | Balances detection speed against probe overhead; frequent enough to catch crashes within 30s |
+| LOCAL開発環境 | `0`(無効) | 開発時は手動再起動で十分であり、不要なログノイズを避けられる |
+| PRODUCTION | `30.0` | 検出速度とプローブのオーバーヘッドのバランスを取り、30秒以内にクラッシュを検知できる頻度 |
 
-**Setting `mcp_watchdog_interval` too low (< 10s):**
-- Increased probe overhead across all MCP servers
-- More frequent log entries for transient failures
-- May cause rapid restart loops for servers with slow recovery
+**`mcp_watchdog_interval`を低すぎる値(10秒未満)に設定した場合:**
+- すべてのMCPサーバーに対するプローブのオーバーヘッドが増加する
+- 一時的な障害に対するログエントリが頻発する
+- 復旧が遅いサーバーで再起動ループが高速に発生する可能性がある
 
-**Setting `mcp_watchdog_interval` too high (> 120s):**
-- Delayed detection of server failures
-- Longer periods of degraded service before auto-restart
-- Extended downtime for critical MCP servers between crash and recovery
+**`mcp_watchdog_interval`を高すぎる値(120秒超)に設定した場合:**
+- サーバー障害の検出が遅延する
+- 自動再起動までのサービス劣化期間が長引く
+- クラッシュから復旧までの間、重要なMCPサーバーのダウンタイムが延びる
 
-**General guidance:** Keep `mcp_watchdog_interval` between 15–60 seconds for production. Values outside this range should only be used with explicit justification.
+**一般的な指針:** 本番環境では`mcp_watchdog_interval`を15〜60秒の範囲に保つこと。この範囲外の値は、明確な根拠がある場合にのみ使用すべきである。
 
 
 
-### Verifying watchdog state
+### watchdog状態の確認方法
 
-Two places show the current watchdog state:
+現在のwatchdog状態は次の2箇所で確認できる。
 
-1. **Startup logs** (`/opt/llm/logs/agent.log`):
+1. **起動ログ**(`/opt/llm/logs/agent.log`):
    ```
    INFO  Watchdog: enabled (interval=30s, max_restarts=3)
    ```
-   or
+   または
    ```
    WARNING Watchdog: disabled (interval=0) — failed servers will not be auto-restarted
    ```
 
-2. **`/mcp status` command** (REPL):
+2. **`/mcp status`コマンド**(REPL):
    ```
    Watchdog    enabled (interval=30s, max_restarts=3)
    ```
-   or
+   または
    ```
    Watchdog    disabled (interval=0) — no auto-restart
    ```

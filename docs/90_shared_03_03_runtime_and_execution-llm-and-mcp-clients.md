@@ -22,9 +22,9 @@ source:
 
 ## 9. `ToolExecutor` and Surrounding Concepts (`shared/tool_executor.py`)
 
-**Responsibility:** Core tool dispatch engine — resolves tool → server, handles caching, concurrency limits, health gating, and transport communication.
+**責務:** ツールディスパッチのコアエンジン — ツール→サーバの解決、キャッシュ、同時実行数制限、ヘルスゲーティング、トランスポート通信を担う。
 
-**`ToolCallResult` dataclass (result contract):**
+**`ToolCallResult` データクラス(結果の契約):**
 ```python
 @dataclass
 class ToolCallResult:
@@ -34,54 +34,54 @@ class ToolCallResult:
     server_key: str      # Server key used for routing (e.g. "file_read", "shell")
 ```
 
-**Execution flow:**
+**実行フロー:**
 ```
 ToolExecutor.execute(tool_name, args) -> ToolCallResult
-  1. plugin_registry.get_tool(tool_name) → plugin takes priority
+  1. plugin_registry.get_tool(tool_name) → プラグインが優先される
   2. ToolRouteResolver.resolve(tool_name) → server_key
-  3. McpServerHealthRegistry.is_unavailable(server_key) → block if UNAVAILABLE
-  4. TTL + LRU cache check (is_error=False results only)
-  5. Execute tool call (tool_name, args)
-       → Semaphore acquire (if concurrency_limits set for server_key)
+  3. McpServerHealthRegistry.is_unavailable(server_key) → UNAVAILABLEならブロック
+  4. TTL + LRU キャッシュチェック(is_error=Falseの結果のみ)
+  5. ツール呼び出しの実行(tool_name, args)
+       → セマフォ取得(server_key に concurrency_limits が設定されている場合)
        → HttpTransport.call()
-  6. Cache store (is_error=False only; TTL from config)
-  7. Return ToolCallResult
+  6. キャッシュ保存(is_error=Falseのみ;TTLは設定から取得)
+  7. ToolCallResult を返す
 ```
 
-**Cache behavior:**
-- Only `is_error=False` results are cached
-- TTL + LRU eviction (configurable via `tool_cache_ttl_sec`, `tool_cache_maxsize`)
-- Cache key: `(tool_name, serialized_args)`
-- Side-effect tools bypass cache entirely
+**キャッシュの挙動:**
+- `is_error=False` の結果のみキャッシュされる
+- TTL + LRU退避(`tool_cache_ttl_sec`、`tool_cache_maxsize` で設定可能)
+- キャッシュキー: `(tool_name, serialized_args)`
+- 副作用のあるツールはキャッシュを完全にバイパスする
 
-**Health gate:**
-- `McpServerHealthRegistry.is_unavailable(server_key)` blocks dispatch when UNAVAILABLE
-- Consecutive transport failures → DEGRADED → UNAVAILABLE state transitions
-- Successful response → resets to HEALTHY
+**ヘルスゲート:**
+- `McpServerHealthRegistry.is_unavailable(server_key)` はUNAVAILABLE時にディスパッチをブロックする
+- 連続したトランスポート失敗 → DEGRADED → UNAVAILABLE の状態遷移
+- 成功レスポンス → HEALTHYにリセット
 
-**Concurrency behavior:**
-- `concurrency_limits` dict maps server_key → max concurrent calls
-- Semaphore-based throttling in the tool execution layer
-- When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round are serialized
+**同時実行の挙動:**
+- `concurrency_limits` 辞書は server_key → 最大同時呼び出し数 をマッピングする
+- ツール実行層でのセマフォベースのスロットリング
+- `execute_all_tool_calls()` が副作用のあるツールを検出すると、そのラウンドの全呼び出しが直列化される
 
-**Side-effect detection:**
+**副作用の検出:**
 ```python
 _SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
 is_side_effect(tool_name: str) -> bool
 ```
 
-When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round
-are serialized regardless of `serial_tool_calls` setting.
+`execute_all_tool_calls()` が副作用のあるツールを検出すると、`serial_tool_calls` の設定に関わらず
+そのラウンドの全呼び出しが直列化される。
 
-**Routing:** Two-layer cascade — (1) live `/v1/tools` discovery, (2) `ToolRegistry` from `tool_constants.py`. Unknown tools fail immediately with `ValueError`. See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for full routing details.
+**ルーティング:** 2段カスケード — (1) `/v1/tools` によるライブ検出、(2) `tool_constants.py` の `ToolRegistry`。未知のツールは即座に `ValueError` で失敗する。ルーティングの詳細は [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) を参照。
 
 ---
 
 ## 10. `LLMClient` (`shared/llm_client.py`)
 
-**Responsibility:** HTTP client for LLM API communication with retry logic, SSE streaming, and error handling.
+**責務:** リトライロジック、SSEストリーミング、エラーハンドリングを備えたLLM API通信用HTTPクライアント。
 
-**Main API:**
+**主要API:**
 ```python
 class LLMClient:
     def __init__(
@@ -100,68 +100,68 @@ class LLMClient:
     def build_payload(history: list[LLMMessage], tool_defs: list[dict[str, Any]], stream: bool = False) -> dict[str, Any]  # Payload construction
 ```
 
-**Error behavior:**
-- HTTP errors → `LLMTransportError` with `LLMErrorKind` classification
-- SSE heartbeat timeout → retry (configurable via `llm_stream_retry_on_heartbeat_timeout`)
-- SSE malformed chunk → retry (configurable via `llm_stream_retry_on_malformed_chunk`)
-- Max retries exhausted → raises `LLMTransportError`
+**エラー挙動:**
+- HTTPエラー → `LLMErrorKind` 分類付きの `LLMTransportError`
+- SSEハートビートタイムアウト → リトライ(`llm_stream_retry_on_heartbeat_timeout` で設定可能)
+- SSEの不正なチャンク → リトライ(`llm_stream_retry_on_malformed_chunk` で設定可能)
+- リトライ上限到達 → `LLMTransportError` を発生
 
-**Retry:** Exponential backoff starting at `retry_base_delay`, capped at `max_retries`.
+**リトライ:** `retry_base_delay` から始まる指数バックオフ。上限は `max_retries`。
 
-**Statistics (instance-level):** `stat_retries`, `stat_reconnects`, `stat_heartbeat_timeouts`, `stat_partial_completions`, `stat_parse_errors`
+**統計(インスタンスレベル):** `stat_retries`、`stat_reconnects`、`stat_heartbeat_timeouts`、`stat_partial_completions`、`stat_parse_errors`
 
-**Configuration:** `apply_config()` hot-reloads temperature, max_tokens, and other fields from config dict.
+**設定:** `apply_config()` は設定辞書からtemperature、max_tokens等のフィールドをホットリロードする。
 
-**Full details:** See [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) for streaming protocol details and SSE parser internals.
+**詳細:** ストリーミングプロトコルの詳細とSSEパーサの内部実装は [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) を参照。
 
 ---
 
 ## 11. `McpServerConfig` / `McpServerHealthRegistry`
 
-Both defined in `shared/mcp_config.py`. Full field reference in
-[04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) and
-[05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md).
+両方とも `shared/mcp_config.py` で定義されている。フィールド全体のリファレンスは
+[04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) と
+[05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md) を参照。
 
-**Summary:**
-- `McpServerConfig`: per-server transport settings (transport, url, cmd, startup_mode, tool_names, auth_token, etc.) — validated by `__post_init__` (URL scheme, timeout ranges, tool_names uniqueness, env types). The `key` field is set by `_build_single_server()` from the TOML section name and is excluded from `==` comparison.
+**概要:**
+- `McpServerConfig`: サーバごとのトランスポート設定(transport、url、cmd、startup_mode、tool_names、auth_token等) — `__post_init__` により検証される(URLスキーム、タイムアウト範囲、tool_namesの一意性、env型)。`key` フィールドは `_build_single_server()` がTOMLセクション名から設定し、`==` 比較からは除外される。
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
-- `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track reachable-but-degraded servers without incrementing failure count
+- `McpServerHealthRegistry`: 連続失敗を追跡する;`UNAVAILABLE` はディスパッチをブロックする;`record_degraded(key, reason)` / `get_degraded_reason(key)` は失敗カウントを増やさずに「到達可能だが劣化している」サーバを追跡する
 
-> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`). Related enums in the same module: `StartupMode` (`none`/`persistent`/`subprocess`), `HealthcheckMode` (`http`), `SecurityProfile` (`local`/`production`, controls MCP auth enforcement).
+> **注記:** `McpServerConfig.transport` は(単純な`str`ではなく)`TransportType` enum を使用する。同モジュール内の関連enum: `StartupMode`(`none`/`persistent`/`subprocess`）、`HealthcheckMode`(`http`）、`SecurityProfile`(`local`/`production`、MCP認証強制を制御）。
 
-`build_discovery_map(server_tool_lists)` in `shared/route_resolver.py` now returns `tuple[dict[str, str], dict[str, list[str]]]`: `(route_map, duplicates)` where `duplicates` maps each tool name claimed by more than one server to the full list of claiming server keys.
+`shared/route_resolver.py` の `build_discovery_map(server_tool_lists)` は現在 `tuple[dict[str, str], dict[str, list[str]]]` を返す: `(route_map, duplicates)` であり、`duplicates` は複数サーバから要求されたツール名を、要求元サーバキーの一覧にマッピングする。
 
 ---
 
-## 12. Execution Flow Summary
+## 12. 実行フローのまとめ
 
-**Config loading:**
+**設定の読み込み:**
 ```
 build_agent_config()
-  → ConfigLoader().load_all()     [12 files incl. agent.toml — see §2a Config Ownership for full table]
+  → ConfigLoader().load_all()     [agent.toml含む12ファイル — 全体表は§2a Config Ownershipを参照]
 ```
 
-**Plugin loading:**
+**プラグインの読み込み:**
 ```
-Plugin registry initialization
+プラグインレジストリの初期化
   → plugin_registry.load_plugins(plugin_dir)
-  → imports plugins/*.py alphabetically
-  → @register_* decorators populate global registry
+  → plugins/*.py をアルファベット順にインポート
+  → @register_* デコレータがグローバルレジストリを構築
 ```
 
-**Tool execution:**
+**ツール実行:**
 ```
 ToolExecutor.execute(tool_name, args)
-  → plugin priority → health gate → cache → raw MCP call
+  → プラグイン優先 → ヘルスゲート → キャッシュ → 生のMCP呼び出し
 ```
 
 ---
 
-## 13. Import Boundaries and Design Notes
+## 13. インポート境界と設計上の注記
 
-- `shared/` must NOT import from `agent/`, `mcp/`, `rag/`, `db/`
-- `LLMClient` details are in this document (§10) and [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
-- `ToolExecutor` details are in this document (§9), [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md), and [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
+- `shared/` は `agent/`、`mcp/`、`rag/`、`db/` をインポートしてはならない
+- `LLMClient` の詳細は本ドキュメント(§10)および [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) を参照
+- `ToolExecutor` の詳細は本ドキュメント(§9)、[04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)、[05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) を参照
 
 ---
 

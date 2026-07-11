@@ -20,97 +20,97 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG Ingestion Pipeline
+# RAG インジェクションパイプライン
 
-- System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
 
-### 3.1 Class overview
+### 3.1 クラス概要
 
-`ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
-saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` sentinel exists (`--force` overrides).
+`ChunkSplitter` — `rag-src/*.json` ファイルを言語とコンテンツタイプに応じてチャンクに分割し、
+`rag-src/chunk/` に保存する。冪等性あり: `{stem}-0000.json` センチネルが存在する場合はスキップする（`--force` で上書き可能）。
 
-**Module-level constants**
+**モジュールレベルの定数**
 
-| Constant | Value | Description |
+| 定数 | 値 | 説明 |
 |---|---|---|
-| `MIN_HEADING_LINES_FOR_MARKDOWN` | 2 | Minimum heading lines to trigger heuristic Markdown detection for non-.md files |
-| `MARKDOWN_HEADING_RE` | `r"^#{1,6}"` | Regex pattern for matching Markdown headings (1-6 levels) |
+| `MIN_HEADING_LINES_FOR_MARKDOWN` | 2 | .md以外のファイルでヒューリスティックなMarkdown判定を発動させるための最小見出し行数 |
+| `MARKDOWN_HEADING_RE` | `r"^#{1,6}"` | Markdown見出し（1〜6レベル）にマッチする正規表現パターン |
 
-**Typed dicts**
+**Typed dict**
 
-| TypedDict | Purpose |
+| TypedDict | 用途 |
 |---|---|
-| `CrawlFilePayload` | Typed dict for crawl output JSON files (url, title, lang, content, code_blocks required; etag, last_modified optional via NotRequired) |
-| `ChunkOutputPayload` | Typed dict for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content required; normalized_content optional via NotRequired) |
-| `ChunkMetadata` | Optional metadata dict for ** spreading into output payload (total=False); all fields optional including url, title, lang, etag, last_modified, source_file, chunking_strategy |
+| `CrawlFilePayload` | クロール出力JSONファイル用の型付きdict（url, title, lang, content, code_blocksは必須；etag, last_modifiedはNotRequiredで任意） |
+| `ChunkOutputPayload` | チャンク出力JSONファイル用の型付きdict（schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, contentは必須；normalized_contentはNotRequiredで任意） |
+| `ChunkMetadata` | 出力ペイロードに ** で展開するための任意メタデータdict（total=False）。url、title、lang、etag、last_modified、source_file、chunking_strategyを含む全フィールドが任意 |
 
-**Inheritance**
+**継承**
 
-`ChunkSplitter` inherits from both `ChunkEnglishMixin` and `ChunkJapaneseMixin` via multiple inheritance.
-Method resolution order: `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`.
+`ChunkSplitter` は多重継承により `ChunkEnglishMixin` と `ChunkJapaneseMixin` の両方を継承する。
+メソッド解決順序: `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`。
 
-**Public methods**
+**公開メソッド**
 
-| Method | Signature | Description |
+| メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None) -> None` | Load `chunk_splitter.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
-| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all *.json files in rag-src/ (or a single target); returns total chunks written |
-| `process_file` | `(src_path: Path, force: bool = False) -> int` | Read a crawler JSON file, split into chunks, and write to chunk_dir; returns chunk count; skips already-chunked files when force=False |
+| `__init__` | `(config: dict \| None = None) -> None` | `chunk_splitter.toml` をロードし、Sudachiトークナイザ（SplitMode.C、`core` 辞書）を初期化する |
+| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | rag-src/内の全 *.json ファイル（またはターゲット単体）を処理する。書き込んだチャンクの総数を返す |
+| `process_file` | `(src_path: Path, force: bool = False) -> int` | クローラのJSONファイルを読み込みチャンクに分割してchunk_dirへ書き込む。チャンク数を返す。force=Falseの場合、既にチャンク済みのファイルはスキップする |
 
-### 3.1.1 Markdown heading chunking configuration
+### 3.1.1 Markdown見出しチャンク化の設定
 
-| Parameter | Default | Description |
+| パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `md_index_enable` | False | Enable heuristic Markdown detection for non-.md files |
-| `md_snippet_max_chars` | 600 | Max characters per markdown heading section before falling back to sentence-level chunking |
+| `md_index_enable` | False | .md以外のファイルに対するヒューリスティックなMarkdown判定を有効化する |
+| `md_snippet_max_chars` | 600 | 文単位のチャンク化にフォールバックする前の、1つのMarkdown見出しセクションあたりの最大文字数 |
 
-### 3.1.2 Chunking parameters (shared with crawler)
+### 3.1.2 チャンク化パラメータ（crawlerと共有）
 
-| Parameter | Default | Description |
+| パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `min_chunk` | 40 | Minimum chunk character count; chunks below this are discarded as noise |
-| `max_chunk` | 500 | Maximum chunk character count; longer text is split |
-| `chunk_overlap` | 50 | Sliding window chunk overlap (chars); prepends this many chars from previous chunk tail; 0 = disabled |
-| `en_stopwords` | — | English stop words excluded from chunking (see config/rag_pipeline.toml) |
-| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stop words in Japanese (see config/rag_pipeline.toml) |
+| `min_chunk` | 40 | チャンクの最小文字数。これ未満のチャンクはノイズとして破棄される |
+| `max_chunk` | 500 | チャンクの最大文字数。これを超えるテキストは分割される |
+| `chunk_overlap` | 50 | スライディングウィンドウのチャンク重複（文字数）。直前のチャンク末尾からこの文字数を先頭に付加する；0は無効化を意味する |
+| `en_stopwords` | — | チャンク化から除外する英語のストップワード（config/rag_pipeline.tomlを参照） |
+| `ja_stop_pos` | — | 日本語でストップワードとして扱うSudachiの品詞カテゴリ（config/rag_pipeline.tomlを参照） |
 
-### 3.1.3 Markdown source detection behavior
+### 3.1.3 Markdownソース判定の挙動
 
-URLs ending with `.md`, `.markdown`, or `.mdx` always use heading chunking regardless of `md_index_enable`.
-Non-`.md` files use heuristic detection (≥2 heading lines in content) only when `md_index_enable=true`.
+`.md`、`.markdown`、`.mdx` で終わるURLは、`md_index_enable` に関わらず常に見出しチャンク化を使用する。
+.md以外のファイルは、`md_index_enable=true` の場合のみヒューリスティック判定（内容に見出し行が2行以上）を使用する。
 
-### 3.1.4 Markdown heading chunking behavior
+### 3.1.4 Markdown見出しチャンク化の挙動
 
-Split text at Markdown headings (# through ######); sections exceeding `md_snippet_max_chars` characters are further split via sentence-level chunking.
+Markdownの見出し（# から ######）でテキストを分割する。`md_snippet_max_chars` 文字を超えるセクションは、さらに文単位のチャンク化で分割される。
 
-### 3.2 Splitting strategies
+### 3.2 分割戦略
 
-| Content type | Strategy |
+| コンテンツタイプ | 戦略 |
 |---|---|
-| Japanese text | Sudachi SplitMode.C morphological analysis; `(original_sentence, normalized_form_space_joined)` pairs |
-| English text | Regex sentence boundary split (`(?<=[.!?])\s+`); merges short paragraphs, discards chunks below min_chunk after stopword removal |
-| `.md`/`.markdown`/`.mdx` URL | Heading boundary split (`#`/`##`/`###`); always applied regardless of `md_index_enable` |
-| Non-`.md` content with ≥2 heading lines | Heading boundary split; applied only when `md_index_enable=true` |
-| Code blocks | Blank-line split (language-agnostic); not subject to stopword removal or morphological analysis |
+| 日本語テキスト | Sudachi SplitMode.Cによる形態素解析；`(元の文, 正規化形をスペース結合したもの)` のペア |
+| 英語テキスト | 正規表現による文境界分割（`(?<=[.!?])\s+`）；短い段落を結合し、ストップワード除去後にmin_chunk未満のチャンクは破棄 |
+| `.md`/`.markdown`/`.mdx` のURL | 見出し境界分割（`#`/`##`/`###`）；`md_index_enable` に関わらず常に適用される |
+| .md以外で見出し行が2行以上の内容 | 見出し境界分割；`md_index_enable=true` の場合のみ適用 |
+| コードブロック | 空行分割（言語に依存しない）；ストップワード除去や形態素解析の対象外 |
 
-- Japanese chunks: `content` = original text, `normalized_content` = Sudachi normalized forms
-- English/code chunks: `normalized_content = null`
-- `chunk_type`: `"text"` or `"code"`
-- `chunking_strategy`: `"text"` or `"heading"`
+- 日本語チャンク: `content` = 元のテキスト、`normalized_content` = Sudachiによる正規化形
+- 英語/コードチャンク: `normalized_content = null`
+- `chunk_type`: `"text"` または `"code"`
+- `chunking_strategy`: `"text"` または `"heading"`
 
-### 3.3 CLI arguments
+### 3.3 CLI引数
 
-| Argument | Description | Default |
+| 引数 | 説明 | デフォルト |
 |---|---|---|
-| `--file PATH` | Process single file only (path relative to rag_src_dir) | all unprocessed `.json` in rag-src/ |
-| `--force` | Regenerate existing chunks (overrides sentinel check) | false |
+| `--file PATH` | 単一ファイルのみ処理する（パスはrag_src_dirからの相対パス） | rag-src/内の未処理の `.json` すべて |
+| `--force` | 既存チャンクを再生成する（センチネルチェックを上書き） | false |
 
-### 3.4 Output JSON format (`rag-src/chunk/{stem}-{idx:04d}.json`)
+### 3.4 出力JSON形式（`rag-src/chunk/{stem}-{idx:04d}.json`）
 
 ```json
 {
@@ -131,31 +131,31 @@ Split text at Markdown headings (# through ######); sections exceeding `md_snipp
 }
 ```
 
-The `source_file` field retains the original `.json` extension from the crawler output filename.
-All fields from `ChunkMetadata` TypedDict (total=False) are included via `**metadata` spread.
+`source_file` フィールドには、クローラの出力ファイル名の元の `.json` 拡張子がそのまま保持される。
+`ChunkMetadata` TypedDict（total=False）のすべてのフィールドが `**metadata` の展開によって含まれる。
 
-### 3.5 Error handling
+### 3.5 エラーハンドリング
 
-| Case | Action |
+| ケース | 対応 |
 |---|---|
-| Sudachi tokenize error | Catch; return `""`; skip that chunk |
-| File-level failure | `ERROR` log (with traceback); continue to next file |
-| Existing chunk (`{stem}-0000.json`) | Skip unless `--force` |
+| Sudachiのトークナイズエラー | 捕捉し `""` を返す；そのチャンクをスキップ |
+| ファイル単位の失敗 | `ERROR` ログ（トレースバック付き）；次のファイルへ継続 |
+| 既存チャンク（`{stem}-0000.json`） | `--force` がない限りスキップ |
 
-### 3.6 Logging
+### 3.6 ロギング
 
-- **File:** `/opt/llm/logs/chunk.log` + stderr
-- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- **ファイル:** `/opt/llm/logs/chunk.log` + stderr
+- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-| Level | Timing |
+| レベル | タイミング |
 |---|---|
-| `INFO` | Files processed, chunks generated, skipped files (with URL) |
-| `WARNING` | Sudachi error |
-| `ERROR` | File read error, file-level failure (with traceback) |
+| `INFO` | 処理済みファイル、生成されたチャンク、スキップされたファイル（URL付き） |
+| `WARNING` | Sudachiエラー |
+| `ERROR` | ファイル読み込みエラー、ファイル単位の失敗（トレースバック付き） |
 
-### 3.7 Configuration
+### 3.7 設定
 
-See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
+[03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md) を参照。
 
 ---
 

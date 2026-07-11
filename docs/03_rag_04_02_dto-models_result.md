@@ -16,89 +16,89 @@ source:
 
 ### 6.2 models_result.py (`scripts/rag/models_result.py`)
 
-**ResultSource** — Source of the RAG result.
+**ResultSource** — RAG結果の取得元。
 
 | Value | Description |
 |---|---|
-| `"remote"` | HTTP RAG service |
-| `"local"` | In-process pipeline |
-| `"fallback"` | In-process fallback from HTTP failure |
+| `"remote"` | HTTP RAGサービス |
+| `"local"` | インプロセスパイプライン |
+| `"fallback"` | HTTP失敗時のインプロセスフォールバック |
 
-**HttpResultKind** — Classification of HTTP RAG result.
+**HttpResultKind** — HTTP RAG結果の分類。
 
 | Value | Description |
 |---|---|
-| `"success"` | Non-empty context returned |
-| `"empty"` | Empty context (valid empty result) |
-| `"error"` | HTTP error path |
-| `"not_used"` | HTTP mode not active |
+| `"success"` | 空でないコンテキストが返された |
+| `"empty"` | 空のコンテキスト (正当な空結果) |
+| `"error"` | HTTPエラー経路 |
+| `"not_used"` | HTTPモードが非アクティブ |
 
-**ExpandedQuerySet** — MQE expansion result.
-
-| Field | Type | Description |
-|---|---|---|
-| `status` | `MqeStatus` | Expansion status |
-| `queries` | `list[str]` | Expanded queries |
-
-**SkipInfo** — Chunk processing skip record.
+**ExpandedQuerySet** — MQE展開結果。
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | `str` | File path that was skipped |
-| `reason` | `str` | Reason for skipping |
+| `status` | `MqeStatus` | 展開のステータス |
+| `queries` | `list[str]` | 展開後のクエリ群 |
 
-**RagSearchRequest** — Search request DTO.
+**SkipInfo** — チャンク処理のスキップ記録。
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `str` | スキップされたファイルパス |
+| `reason` | `str` | スキップの理由 |
+
+**RagSearchRequest** — 検索リクエストDTO。
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `query` | `str` | (required) | Search query |
-| `top_k` | `int` | `5` | Number of results to return |
+| `query` | `str` | (required) | 検索クエリ |
+| `top_k` | `int` | `5` | 返却する結果数 |
 
-**RagSearchResult** — Search result DTO.
+**RagSearchResult** — 検索結果DTO。
 
 | Field | Type | Description |
 |---|---|---|
-| `query` | `str` | Original query |
-| `hits` | `list[Any]` | Ranked hits (typed as `list[RankedHit]` after Phase 3-1) |
-| `context_str` | `str` | Context string |
+| `query` | `str` | 元のクエリ |
+| `hits` | `list[Any]` | ランク付けされたヒット結果 (Phase 3-1以降は`list[RankedHit]`型) |
+| `context_str` | `str` | コンテキスト文字列 |
 
-**PipelineExecutionResult** — Pipeline execution outcome.
+**PipelineExecutionResult** — パイプライン実行結果。
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `success` | `bool` | (required) | Whether execution succeeded |
-| `processed` | `int` | (required) | Number of chunks processed |
-| `failed` | `int` | (required) | Number of failures |
-| `errors` | `list[str]` | `[]` | Error messages |
+| `success` | `bool` | (required) | 実行が成功したか |
+| `processed` | `int` | (required) | 処理されたチャンク数 |
+| `failed` | `int` | (required) | 失敗数 |
+| `errors` | `list[str]` | `[]` | エラーメッセージ |
 
-**SearchDocsResult** — Search documents result.
-
-| Field | Type | Description |
-|---|---|---|
-| `query` | `str` | Original query |
-| `results` | `list[str]` | Result strings |
-| `total` | `int` | Total result count |
-
-**SanitizeResult** — Prompt injection sanitization result.
+**SearchDocsResult** — ドキュメント検索結果。
 
 | Field | Type | Description |
 |---|---|---|
-| `text` | `str` | Sanitized text |
-| `was_sanitized` | `bool` | Whether text was modified |
-| `patterns_detected` | `list[str]` | Detected injection patterns |
+| `query` | `str` | 元のクエリ |
+| `results` | `list[str]` | 結果文字列 |
+| `total` | `int` | 結果の総数 |
 
-**SearchDiagnostics** — Diagnostic counters for a single search call.
+**SanitizeResult** — プロンプトインジェクションのサニタイズ結果。
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `str` | サニタイズ後のテキスト |
+| `was_sanitized` | `bool` | テキストが変更されたか |
+| `patterns_detected` | `list[str]` | 検出されたインジェクションパターン |
+
+**SearchDiagnostics** — 単一の検索呼び出しに対する診断カウンタ。
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `embed_ok` | `int` | `0` | Successful embedding calls |
-| `embed_failed` | `int` | `0` | Failed embedding calls |
-| `fts_errors` | `int` | `0` | FTS5 query errors |
-| `result_source` | `ResultSource` | `LOCAL` | Where the result came from (remote mode) |
-| `http_result_kind` | `HttpResultKind` | `NOT_USED` | Classification of the HTTP result (remote mode) |
-| `remote_status_code` | `int \| None` | `None` | HTTP status code from the remote RAG service |
-| `remote_latency_ms` | `float \| None` | `None` | Remote call latency in milliseconds |
-| `fallback_reason` | `str \| None` | `None` | Why in-process fallback was triggered, if applicable |
+| `embed_ok` | `int` | `0` | 成功した埋め込み呼び出し数 |
+| `embed_failed` | `int` | `0` | 失敗した埋め込み呼び出し数 |
+| `fts_errors` | `int` | `0` | FTS5クエリエラー数 |
+| `result_source` | `ResultSource` | `LOCAL` | 結果の取得元 (remoteモード) |
+| `http_result_kind` | `HttpResultKind` | `NOT_USED` | HTTP結果の分類 (remoteモード) |
+| `remote_status_code` | `int \| None` | `None` | リモートRAGサービスからのHTTPステータスコード |
+| `remote_latency_ms` | `float \| None` | `None` | リモート呼び出しのレイテンシ (ミリ秒) |
+| `fallback_reason` | `str \| None` | `None` | インプロセスフォールバックが発生した理由 (該当する場合) |
 
 ## Related Documents
 

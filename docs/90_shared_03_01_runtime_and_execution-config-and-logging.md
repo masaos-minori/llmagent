@@ -16,15 +16,15 @@ source:
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
 ---
 
-# Shared Runtime and Execution Infrastructure
+# 共有ランタイムと実行基盤
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
-## 1. Purpose
+## 1. 目的
 
-Documents the runtime infrastructure and utilities in `shared/`: config loading, logging,
-plugin registry, token counting, OTel tracing, git helper, formatters, ToolExecutor,
-and McpServerConfig.
+`shared/` におけるランタイム基盤とユーティリティを文書化する: 設定読み込み、ロギング、
+プラグインレジストリ、トークンカウント、OTel トレーシング、git ヘルパー、フォーマッター、ToolExecutor、
+および McpServerConfig。
 
 ---
 
@@ -41,22 +41,22 @@ class ConfigLoader:
 ```
 
 **`load(*filenames)`**
-- Loads and merges one or more TOML/JSON files in order
-- Later files override earlier files
-- Keys prefixed with `_` are excluded (documentation metadata)
-- Raises `ConfigMissingError` (file not found), `ConfigParseError` (parse error), or `ConfigReadError` (I/O error) — all subclass `ValueError`
-- If `restrict_to()` has been called, raises `ConfigPermissionError` when a filename is not in the allowed set
+- 1 つ以上の TOML/JSON ファイルを順に読み込み、マージする
+- 後のファイルが前のファイルを上書きする
+- `_` で始まるキーは除外される (ドキュメント用メタデータ)
+- `ConfigMissingError` (ファイル未検出)、`ConfigParseError` (パースエラー)、`ConfigReadError` (I/O エラー) を発生させる — いずれも `ValueError` のサブクラス
+- `restrict_to()` が呼ばれている場合、許可セットに含まれないファイル名を指定すると `ConfigPermissionError` を発生させる
 
 **`load_all()`**
-- Loads only `agent.toml` (`_BASE_CONFIG_FILES = ("agent.toml",)`)
-- Missing files are silently skipped (catches `ConfigMissingError` and continues)
-- If `restrict_to()` has been called, raises `ConfigPermissionError` when `agent.toml` is not in the allowed set
+- `agent.toml` のみを読み込む (`_BASE_CONFIG_FILES = ("agent.toml",)`)
+- 存在しないファイルは黙って無視される (`ConfigMissingError` を捕捉して継続)
+- `restrict_to()` が呼ばれている場合、`agent.toml` が許可セットに含まれないと `ConfigPermissionError` を発生させる
 
-**`restrict_to(*filenames)`** (class method)
-- Call once at process startup to declare the only config files this process is permitted to load
-- Any subsequent `load()` or `load_all()` call that touches a file outside this set raises `ConfigPermissionError`
-- Not called by the agent process (unrestricted); called by MCP servers, crawler, ingester, chunk_splitter
-- Tests do not call `restrict_to()`, so test processes are unrestricted
+**`restrict_to(*filenames)`** (クラスメソッド)
+- プロセス起動時に一度呼び出し、そのプロセスが読み込むことを許可された設定ファイルを宣言する
+- それ以降の `load()` や `load_all()` の呼び出しがこのセット外のファイルに触れると `ConfigPermissionError` を発生させる
+- エージェントプロセスからは呼ばれない (無制限); MCP サーバー、crawler、ingester、chunk_splitter から呼ばれる
+- テストは `restrict_to()` を呼ばないため、テストプロセスは無制限である
 
 ---
 
@@ -124,11 +124,11 @@ class Logger:
     def clear_context(self) -> None
 ```
 
-- Configures `FileHandler` + `StreamHandler` automatically (`propagate=False` prevents duplication)
-- `structured_log=True` → JSON Lines format for log file
-- Context injection: `set_context(turn_id="T001", session_id=42)` adds fields to all subsequent log lines
-- File write errors → WARNING logged via `shared.logger.fallback` logger (visible on stderr), then falls back to StreamHandler only; no exception raised
-- Log messages must be in **English only** (no Japanese)
+- `FileHandler` + `StreamHandler` を自動設定する (`propagate=False` により重複を防止)
+- `structured_log=True` → ログファイルは JSON Lines 形式になる
+- コンテキスト注入: `set_context(turn_id="T001", session_id=42)` により、以降のすべてのログ行にフィールドが追加される
+- ファイル書き込みエラー → `shared.logger.fallback` ロガー経由で WARNING がログされ (stderr に表示される)、StreamHandler のみにフォールバックする; 例外は発生しない
+- ログメッセージは**英語のみ**でなければならない (日本語不可)
 
 ---
 

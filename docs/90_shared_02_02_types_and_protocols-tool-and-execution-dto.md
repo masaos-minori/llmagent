@@ -17,9 +17,9 @@ source:
   - 90_shared_02_01_types_and_protocols-core-types.md
 ---
 
-# Shared Types and Protocols
+# 共有の型とプロトコル
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 6. `LLMUsage` / `LLMResponse` (`shared/llm_types.py`)
 
@@ -36,7 +36,7 @@ class LLMResponse:
     usage: LLMUsage | None = None
 ```
 
-- Separated from `llm_client.py` so callers can import DTOs without importing `LLMClient`
+- 呼び出し元が `LLMClient` をインポートせずに DTO をインポートできるよう `llm_client.py` から分離されている
 - Import: `from shared.llm_types import LLMUsage, LLMResponse`
 
 ---
@@ -61,8 +61,8 @@ class TransportErrorInfo:
     detail: str            # JSON-encoded dict for audit log
 ```
 
-- `ToolCallResult` is the canonical result contract for all tool call executions (transport, plugin, cache)
-- `TransportErrorInfo` is used for structured error info in audit logs
+- `ToolCallResult` はすべてのツール呼び出し実行 (transport, plugin, cache) における正規の結果契約である
+- `TransportErrorInfo` はオーディットログ用の構造化エラー情報として使われる
 - Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
 ---
@@ -82,8 +82,8 @@ class ActionResult:
     confidence: float = 1.0
 ```
 
-- Generic machine-decision schema for agent action routing
-- `frozen=True` — immutable after construction
+- エージェントのアクションルーティング用の汎用的な機械判定スキーマ
+- `frozen=True` — 構築後は不変
 
 ---
 
@@ -101,7 +101,7 @@ class ToolSpec:
     is_write: bool = False       # True when the tool has write/delete side effects
 ```
 
-- Used in DAG scheduling (unconditional) — ToolSpec is constructed for each tool call
+- DAG スケジューリングで使用される (無条件) — ツール呼び出しごとに ToolSpec が構築される
 - Import: `from shared.tool_spec import ToolSpec`
 
 ---
@@ -124,9 +124,9 @@ class ToolResultCache:
     def clear(self) -> None
 ```
 
-- LRU cache for tool call results with TTL expiry and optional max-size eviction
-- Only `is_error=False` results are cached
-- Cache key: `(tool_name, serialized_args via json_utils.dumps)`
+- TTL 失効とオプションの最大サイズによるエビクションを備えた、ツール呼び出し結果用の LRU キャッシュ
+- `is_error=False` の結果のみがキャッシュされる
+- キャッシュキー: `(tool_name, serialized_args via json_utils.dumps)`
 - Import: `from shared.tool_cache import ToolResultCache`
 
 ---
@@ -151,9 +151,9 @@ class PluginLoadError(RuntimeError):
     pass
 ```
 
-- `PluginFailure` — individual plugin load failure detail
-- `PluginLoadResult` — aggregated result from `load_plugins()` call
-- `PluginLoadError` — raised only when `strict_mode=True` and there are failures or MCP conflicts
+- `PluginFailure` — 個々のプラグイン読み込み失敗の詳細
+- `PluginLoadResult` — `load_plugins()` 呼び出しから集約された結果
+- `PluginLoadError` — `strict_mode=True` で失敗または MCP 競合がある場合にのみ発生する
 - Import: `from shared.plugin_result import PluginFailure, PluginLoadResult, PluginLoadError`
 
 ---
@@ -170,8 +170,8 @@ class ToolDefinition:
     input_schema: dict[str, object] = field(default_factory=dict)
 ```
 
-- Immutable tool definition — one tool belongs to exactly one MCP server
-- Populated at import time from `tool_constants.py` frozensets
+- 不変のツール定義 — 1 つのツールは必ず 1 つの MCP サーバーに属する
+- インポート時に `tool_constants.py` の frozenset から値が設定される
 - Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
 
 ---
@@ -203,32 +203,32 @@ class RetryEvent(TypedDict):
     timestamp: str   # ISO-8601 UTC
 ```
 
-> **Note:** `ArtifactEvent` is a data definition only. No event bus is implemented.
+> **Note:** `ArtifactEvent` はデータ定義のみである。イベントバスは実装されていない。
 
-### Future event envelope (aspirational — not implemented)
+### 将来のイベントエンベロープ (構想段階 — 未実装)
 
-These fields are reserved for a future event-bus layer. They are documented
-in `shared/events.py` as design direction only. Do not assume they exist on
-any current `ArtifactEvent` instance.
+これらのフィールドは将来のイベントバス層のために予約されている。`shared/events.py` に
+設計方針としてのみ記載されている。現在の `ArtifactEvent` インスタンスにこれらが
+存在すると仮定してはならない。
 
 | Field | Type | Purpose |
 |---|---|---|
-| `event_id` | str | UUID v7 — unique identifier per event |
-| `source` | str | Emitting module (e.g. `"mcp/github"`) |
-| `timestamp` | str | ISO-8601 UTC — already present as a field |
-| `correlation_id` | str | Trace ID linking related events |
+| `event_id` | str | UUID v7 — イベントごとの一意識別子 |
+| `source` | str | 発行元モジュール (例: `"mcp/github"`) |
+| `timestamp` | str | ISO-8601 UTC — 既にフィールドとして存在 |
+| `correlation_id` | str | 関連イベントを結びつけるトレース ID |
 
-When an event bus is implemented, these fields will be added to `ArtifactEvent`
-and populated by the emitter before delivery to subscribers.
+イベントバスが実装された場合、これらのフィールドは `ArtifactEvent` に追加され、
+サブスクライバーへの配信前に発行元によって値が設定される。
 
 ---
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
 
-- Pure `dataclass` — no FastAPI, MCP, or agent dependencies
-- Used by `mcp/shell/service.py` as its configuration object
-- Fields: see `shared/protocols/shell.py` source directly
-- Purpose: decouple shell execution policy from MCP server implementation
+- 純粋な `dataclass` — FastAPI、MCP、エージェントへの依存はない
+- `mcp/shell/service.py` がその設定オブジェクトとして使用する
+- フィールド: `shared/protocols/shell.py` のソースを直接参照
+- 目的: シェル実行ポリシーを MCP サーバー実装から分離すること
 
 ---
 

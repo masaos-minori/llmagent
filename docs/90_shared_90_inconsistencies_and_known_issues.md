@@ -18,14 +18,13 @@ source:
   - 90_shared_90_inconsistencies_and_known_issues.md
 ---
 
-# Shared/DB Inconsistencies and Known Issues
+# Shared/DB の不整合と既知の問題
 
-This file catalogs all known inconsistencies between source documents, implementation
-bugs, undocumented areas, unimplemented features, and undefined behavior in the
-`shared/` and `db/` layers.
+本ファイルは、`shared/` および `db/` レイヤーにおけるドキュメント間の既知の不整合、実装上の不具合、
+未文書化の領域、未実装の機能、未定義の挙動をすべて記録する。
 
-Each entry uses the required format:
-- **Type:** `Document inconsistency` / `Implementation bug` / `Undocumented` / `Unimplemented` / `Undefined` / `Needs confirmation`
+各項目は以下の形式に従う:
+- **種別:** `ドキュメント不整合` / `実装上の不具合` / `未文書化` / `未実装` / `未定義` / `確認が必要`
 
 ---
 

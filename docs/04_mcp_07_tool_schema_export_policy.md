@@ -3,7 +3,6 @@ title: "MCP Tool Schema Export Policy"
 category: mcp
 tags:
   - mcp
-  - mcp
   - tool-schema
   - export
   - policy
@@ -11,20 +10,20 @@ related:
   - 04_mcp_00_document-guide.md
 ---
 
-# MCP Tool Schema Export Naming Policy
+# MCPツールスキーマ エクスポート命名ポリシー
 
-## Canonical Export: `TOOL_LIST`
+## 正規のエクスポート名: `TOOL_LIST`
 
-All MCP server tool schema modules (`mcp/<name>/tools.py`) must export the canonical tool list as `TOOL_LIST`.
+すべてのMCPサーバーのツールスキーマモジュール(`mcp/<name>/tools.py`)は、正規のツールリストを`TOOL_LIST`としてエクスポートしなければならない。
 
-### Rationale
+### 根拠
 
-- `TOOL_LIST` is a public, non-prefixed name that clearly indicates this is the main export.
-- GitHub MCP already uses `TOOL_LIST` as canonical (see `mcp/github/tools.py`).
+- `TOOL_LIST`はプレフィックスのないパブリックな名前であり、これがメインのエクスポートであることを明確に示す。
+- GitHub MCPは既に`TOOL_LIST`を正規名として使用している(`mcp/github/tools.py`を参照)。
 
-### Migration History
+### 移行履歴
 
-All MCP servers have been migrated to `TOOL_LIST`. The migration was completed in the following order:
+すべてのMCPサーバーは`TOOL_LIST`への移行が完了している。移行は以下の順序で実施された。
 
 1. **git** — `scripts/mcp_servers/git/tools.py`, `scripts/mcp_servers/git/server.py`
 2. **mdq** — `scripts/mcp_servers/mdq/tools.py`, `scripts/mcp_servers/mdq/server.py`
@@ -36,17 +35,15 @@ All MCP servers have been migrated to `TOOL_LIST`. The migration was completed i
 8. **file_write** — `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/write_server.py`
 9. **file_delete** — `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/file/delete_server.py`
 
-### Validation
+### 検証
 
-After all migrations:
-- Run: `pytest tests/test_<name>_mcp_service.py -v`
-- Run: `pytest tests/test_mcp_tool_schema_exports.py -v` — asserts every active MCP tool schema module exports TOOL_LIST as a non-empty list of dicts with "name" key, and no module uses the legacy _MCP_TOOLS name.
+すべての移行完了後:
+- 実行: `pytest tests/test_<name>_mcp_service.py -v`
+- 実行: `pytest tests/test_mcp_tool_schema_exports.py -v` — アクティブなすべてのMCPツールスキーマモジュールが、"name"キーを持つ辞書の空でないリストとしてTOOL_LISTをエクスポートしていること、およびレガシー名の_MCP_TOOLSを使用しているモジュールが存在しないことを検証する。
 
 ## Related Documents
 
-- `mcp`
-- `tool-schema`
-- `export`
+- `04_mcp_00_document-guide.md`
 
 ## Keywords
 

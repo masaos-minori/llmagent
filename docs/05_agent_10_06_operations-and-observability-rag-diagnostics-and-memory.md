@@ -20,15 +20,15 @@ source:
 
 # Agent Operations and Observability
 
-- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## RAG Pipeline Diagnostics
+## RAG パイプライン診断
 
-### /rag search --debug output
+### /rag search --debug の出力
 
-Running `/rag search <query> --debug` prints a structured debug trace after the result.
+`/rag search <query> --debug` を実行すると、結果の後に構造化されたデバッグトレースが出力される。
 
-Example output:
+出力例。
 
 ```
   [debug] RRF config: use_rrf=True rrf_k=60
@@ -53,7 +53,7 @@ Example output:
     RerankStage [fallback]: use_rerank=False
 ```
 
-### Stage result interpretation
+### ステージ結果の解釈
 
 | Stage | `"success"` | `"fallback"` | `"failure"` |
 |---|---|---|---|
@@ -64,37 +64,37 @@ Example output:
 | `HttpAugment` | Remote RAG service returned result | `http_result_kind`: `"remote_nonempty"` (success) / `"remote_empty"` (valid empty) / `"in_process_fallback"` (failure) | HTTP error / no context |
 | `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | LLM call failed |
 
-### StageResult fields
+### StageResult のフィールド
 
-Each pipeline run populates `pipeline.last_stage_results` (a list of `StageResult` dicts):
+各パイプライン実行は `pipeline.last_stage_results`（`StageResult` の dict のリスト）を生成する。
 
 | Field | Type | Description |
 |---|---|---|
-| `stage_name` | str | Class name of the stage (e.g. `"MqeStage"`) |
-| `status` | str | `"success"`, `"fallback"`, or `"failure"` |
-| `elapsed_seconds` | float | Wall-clock seconds for this stage |
-| `fallback_reason` | str or None | Reason string when status is `"fallback"` or `"failure"` |
+| `stage_name` | str | ステージのクラス名（例: `"MqeStage"`） |
+| `status` | str | `"success"`、`"fallback"`、または `"failure"` |
+| `elapsed_seconds` | float | このステージの実時間（秒） |
+| `fallback_reason` | str or None | status が `"fallback"` または `"failure"` の場合の理由文字列 |
 
-### Status values
+### ステータス値
 
 | Status | Meaning |
 |---|---|
-| `success` | Stage completed normally |
-| `fallback` | Stage bypassed due to config flag (e.g. `use_rrf=False`) |
-| `failure` | Stage raised an exception; pipeline continued with degraded output |
+| `success` | ステージが正常に完了した |
+| `fallback` | 設定フラグ（例: `use_rrf=False`）によりステージがバイパスされた |
+| `failure` | ステージが例外を発生させ、パイプラインは低下した出力のまま継続した |
 
-### Refiner and HTTP fallback stages
+### Refiner と HTTP フォールバックのステージ
 
-Two additional entries appear in `last_stage_results` when applicable:
+該当する場合、`last_stage_results` にさらに2つのエントリが現れる。
 
 | stage_name | Appears when | fallback_reason on fallback |
 |---|---|---|
-| `HttpAugment` | `rag_service_url` is set | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
-| `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
+| `HttpAugment` | `rag_service_url` が設定されている場合 | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
+| `Refiner` | `use_refiner=True` の場合 | `"refiner_returned_empty"`（空の出力）または `"refiner_exception: {e}"`（LLM エラー） |
 
-### RAG ingestion diagnostics
+### RAG 取り込み診断
 
-The standalone RAG ingestion pipeline (`scripts/rag/ingestion/crawler.py`) prints per-URL progress and a summary line:
+スタンドアロンの RAG 取り込みパイプライン（`scripts/rag/ingestion/crawler.py`）は、URL ごとの進捗とサマリー行を出力する。
 
 ```
 [ingest] crawling https://example.com/docs (lang=en)...
@@ -109,17 +109,17 @@ inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registe
 
 | Field | Description |
 |---|---|
-| `inserted N/M chunks: <url>` | N chunks embedded, M total in crawl JSON; 0/M means URL was skipped (already in DB without `--force`) |
-| `done: X URLs processed` | Aggregate across all URL groups in this run |
-| `success` | Chunks successfully embedded and stored |
-| `failed` | Chunks where embedding or DB write failed |
-| `skipped` | URL groups skipped because the URL already exists in `documents` (use `--force` to re-embed) |
+| `inserted N/M chunks: <url>` | N 個のチャンクが埋め込まれた、M はクロール JSON 内の総数。0/M は URL がスキップされたことを意味する（`--force` なしで既に DB に存在） |
+| `done: X URLs processed` | この実行における全 URL グループの集計 |
+| `success` | 埋め込みと保存に成功したチャンク |
+| `failed` | 埋め込みまたは DB 書き込みに失敗したチャンク |
+| `skipped` | URL が既に `documents` に存在するためスキップされた URL グループ（再埋め込みするには `--force` を使用） |
 
 ---
 
-## Memory Status (`/memory status`)
+## メモリステータス（`/memory status`）
 
-Example output:
+出力例。
 
 ```
 Field                   Value
@@ -142,26 +142,26 @@ Embed skip count        8
   source:CONVERSATION   71
 ```
 
-- **Mode** labels: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
-- **Local-only**: `enabled` when `memory_local_only = true` in `config/agent.toml`
-- **FTS fallback count**: sessions where embedding was unavailable and FTS-only was used
-- **Embed skip count**: entries stored without embedding (circuit open or embed disabled)
+- **Mode** ラベル: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
+- **Local-only**: `config/agent.toml` で `memory_local_only = true` の場合に `enabled`
+- **FTS fallback count**: 埋め込みが利用不可で FTS のみが使用されたセッション数
+- **Embed skip count**: 埋め込みなしで保存されたエントリ数（circuit open または embed disabled による）
 
 ---
 
-## Graceful Shutdown
+## グレースフルシャットダウン
 
-- `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
-- Shutdown flag set → `AgentREPL._read_input()` races the blocking `input()` call
-  against `_shutdown_event.wait()` (`asyncio.wait(FIRST_COMPLETED)`); if the shutdown
-  event wins, `_read_input()` returns `None` immediately without waiting for the next
-  keystroke. The orphaned `input()` executor thread is not interrupted — it terminates
-  when the process exits.
-- `finally` block:
-  - Session diagnostics persistence → write runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
-  - `memory.on_session_stop()` → extract + persist memories
+- `SIGTERM` → `agent.py` によって `SystemExit(0)` に変換される
+- シャットダウンフラグが立つ → `AgentREPL._read_input()` は、ブロッキングする `input()` 呼び出しと
+  `_shutdown_event.wait()`（`asyncio.wait(FIRST_COMPLETED)`）を競合させる。シャットダウン
+  イベントが先に完了した場合、`_read_input()` は次のキー入力を待たずに即座に `None` を返す。
+  取り残された `input()` の executor スレッドは中断されず、プロセス終了時に
+  終了する。
+- `finally` ブロック:
+  - セッション診断の永続化 → `DiagnosticStore.save(kind="session_summary")` 経由で `session_diagnostics` テーブルにランタイムサマリーを書き込む
+  - `memory.on_session_stop()` → メモリの抽出と永続化
   - `watchdog_task.cancel()`
-  - Resource cleanup → readline history save, `lifecycle.shutdown_all()`, HTTP client close
+  - リソースのクリーンアップ → readline history の保存、`lifecycle.shutdown_all()`、HTTP クライアントのクローズ
 
 ## Related Documents
 

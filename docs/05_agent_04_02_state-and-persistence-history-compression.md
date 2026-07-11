@@ -1,139 +1,121 @@
 ---
-title: "Agent State and Persistence"
+title: "Agent State and Persistence - History Compression"
 category: agent
 tags:
   - agent
-  - agent
   - state
   - persistence
-  - session
-  - history
+  - history-compression
+  - data-classification
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_04_01_state-and-persistence-state-model.md
+  - 05_agent_04_03_state-and-persistence-platform-databases.md
+source:
+  - 05_agent_04_01_state-and-persistence-state-model.md
 ---
 
-# Agent State and Persistence
+# エージェントの状態と永続化
 
-sation History and Database
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- データレイヤー (スキーマ) → [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
-```
-ctx.conv.history (in-memory list)
-    ↕ synchronized per turn
-AgentSession (session.sqlite: sessions + messages)
-```
+## HistoryManagerによる圧縮
 
-- History is the authoritative source during a session
-- Database is the persistent backup
-- `/session load <id>` reconstructs `ctx.conv.history` from database
-- `delete_last_turn()` removes last 2 rows (up to 2) from DB
-- `undo_last_turn()` removes everything from the last `role='user'` message onwards
+`HistoryManager` (`agent/history.py`) が`ctx.conv.history`の圧縮を管理する。
 
----
+### 圧縮のトリガー
 
-## HistoryManager Compression
+以下のいずれかに該当する場合、各ターンでトリガーされる:
+- `len(history_chars) > context_char_limit` (デフォルト8000)
+- `token_count > context_token_limit` (0より大きい場合)
 
+### 圧縮対象の選択
 
+`HistorySelectionPolicy.select_turns_to_compress()`は以下によりターンを選択する:
+1. 重要度スコアリング (ピン留め → 明示的な重要度 → キーワードベース)
+2. カテゴリ分類:
+   - `temporary` (toolロール) — 最も削除優先度が高い
+   - `temporary_reasoning` (tool_calls付きassistant) — 次点の優先度
+   - `factual` (system) — 保持される
+   - `history` (user/assistantのテキスト) — 通常優先度
+3. 直近の`history_protect_turns` (デフォルト2) 件のuser+assistantペアは対象外
 
-`HistoryManager` (`agent/history.py`) manages compression of `ctx.conv.history`.
+### 圧縮結果
 
-### Compression trigger
+- 選択された古いターン → 1件のLLM要約メッセージに置換される
+- `CompressResult.compressed_count` = 置換されたメッセージ数
+- `CompressResult.protected_count` = スキップされた (保護された) メッセージ数
+- `stat_compress_count`がインクリメントされる
 
-Triggered each turn if either:
-- `len(history_chars) > context_char_limit` (default 8000)
-- `token_count > context_token_limit` (if > 0)
+### 圧縮の永続化モデル
 
-### Compression selection
+各履歴圧縮 (自動または`/compact`) の後、圧縮されたスナップショットは`AgentSession.replace_messages()`経由で`session.sqlite`に書き戻される。これにより`/session load`が意味的に一貫した状態を復元できる — 復元された履歴は次のLLM呼び出し前にコンテキストに実際にあったものと一致する。
 
-`HistorySelectionPolicy.select_turns_to_compress()` selects turns by:
-1. Importance scoring (pinned → explicit importance → keyword-based)
-2. Category classification:
-   - `temporary` (tool role) — highest removal priority
-   - `temporary_reasoning` (assistant with tool_calls) — second priority
-   - `factual` (system) — preserved
-   - `history` (user/assistant text) — normal priority
-3. The most recent `history_protect_turns` (default 2) user+assistant pairs are exempt
+主な挙動:
+- 圧縮された`[Conversation summary]`のsystemメッセージは`role=system`の行として永続化される; `fetch_messages()` → `LLMMessage`を通じて正しくラウンドトリップする。
+- フォールバックの切り詰め (要約なしの破棄) もDBの一貫性を保つため永続化をトリガーする。
+- メモリ上の`ctx.conv.history`は現在のセッションの正となるソースであり続ける; DB永続化はリロード時のためのバックアップである。
+- `/history`と`/export`は引き続き`ctx.conv.history`に対して動作する; 変更不要。
+- `stat_turns`カウンタと他のメモリ上の統計はリロード時にリセットされる (既存の挙動)。
 
-### Compression result
+**注:** 圧縮されたセッションのリロード後、`/undo`は圧縮済みのDB行に対して動作する — 元のメッセージが要約メッセージに置き換えられているため、ユーザーが期待するよりも少ないターン数しか取り消せない場合がある。
 
-- Selected old turns → replaced with one LLM summary message
-- `CompressResult.compressed_count` = number of messages replaced
-- `CompressResult.protected_count` = number of messages skipped (protected)
-- `stat_compress_count` incremented
+### トークンカウント
 
-### Compression Persistence Model
+優先順位: (1) LLMの`usage.input_tokens` (正確); (2) `/tokenize`エンドポイント (正確);
+(3) `chars // 4`のフォールバック。
 
-After each history compression (automatic or `/compact`), the compressed snapshot is persisted back to `session.sqlite` via `AgentSession.replace_messages()`. This ensures that `/session load` restores a semantically consistent state — the restored history matches what was actually in context before the next LLM call.
-
-Key behaviors:
-- Compressed `[Conversation summary]` system messages are persisted as `role=system` rows; they round-trip correctly through `fetch_messages()` → `LLMMessage`.
-- Fallback truncation (drop-without-summary) also triggers persistence to keep DB consistent.
-- The in-memory `ctx.conv.history` remains the source of truth for the current session; DB persistence is a backup for reload scenarios.
-- `/history` and `/export` continue to operate on `ctx.conv.history`; no change needed.
-- The `stat_turns` counter and other in-memory stats reset on reload (existing behavior).
-
-**Note**: After a reload of a compressed session, `/undo` operates on the compressed DB rows — the user may undo fewer turns than expected since the original messages were replaced by the summary message.
-
-### Token counting
-
-Priority: (1) LLM `usage.input_tokens` (exact); (2) `/tokenize` endpoint (exact);
-(3) `chars // 4` fallback.
-
-### HistoryManager API (key methods)
+### HistoryManager API (主なメソッド)
 
 | Method | Description |
 |---|---|
-| `count_chars(history)` | Total chars (content + tool_calls JSON) |
-| `count_tokens(history, last_input_tokens)` | Sync token estimate |
-| `count_tokens_async(...)` | Async token count; returns `(count, is_exact)` |
-| `compress(history)` | Compress if over limit; returns `(new_history, CompressResult)` |
-| `force_compress(history)` | Compress immediately regardless of limit (`/compact` cmd) |
-| `apply_config(...)` | Hot-reload: char_limit, compress_turns, token_limit, tokenize_url |
+| `count_chars(history)` | 合計文字数 (content + tool_calls JSON) |
+| `count_tokens(history, last_input_tokens)` | 同期のトークン数推定 |
+| `count_tokens_async(...)` | 非同期のトークン数計算; `(count, is_exact)`を返す |
+| `compress(history)` | 上限超過時に圧縮; `(new_history, CompressResult)`を返す |
+| `force_compress(history)` | 上限にかかわらず即座に圧縮する (`/compact`コマンド) |
+| `apply_config(...)` | ホットリロード: char_limit, compress_turns, token_limit, tokenize_url |
 
-### Compression Persistence Model
+### 圧縮の永続化モデル
 
-After each history compression (automatic or `/compact`), the compressed snapshot is persisted back to `session.sqlite` via `AgentSession.replace_messages()`. This ensures that `/session load` restores a semantically consistent state — the restored history matches what was actually in context before the next LLM call.
+各履歴圧縮 (自動または`/compact`) の後、圧縮されたスナップショットは`AgentSession.replace_messages()`経由で`session.sqlite`に書き戻される。これにより`/session load`が意味的に一貫した状態を復元できる — 復元された履歴は次のLLM呼び出し前にコンテキストに実際にあったものと一致する。
 
-Key behaviors:
-- Compressed `[Conversation summary]` system messages are persisted as `role=system` rows; they round-trip correctly through `fetch_messages()` → `LLMMessage`.
-- Fallback truncation (drop-without-summary) also triggers persistence to keep DB consistent (`CompressResult.is_fallback=True`).
-- The in-memory `ctx.conv.history` remains the source of truth for the current session; DB persistence is a backup for reload scenarios.
-- `/history` and `/export` continue to operate on `ctx.conv.history`; no change needed.
-- The `stat_turns` counter and other in-memory stats reset on reload (existing behavior).
+主な挙動:
+- 圧縮された`[Conversation summary]`のsystemメッセージは`role=system`の行として永続化される; `fetch_messages()` → `LLMMessage`を通じて正しくラウンドトリップする。
+- フォールバックの切り詰め (要約なしの破棄) もDBの一貫性を保つため永続化をトリガーする (`CompressResult.is_fallback=True`)。
+- メモリ上の`ctx.conv.history`は現在のセッションの正となるソースであり続ける; DB永続化はリロード時のためのバックアップである。
+- `/history`と`/export`は引き続き`ctx.conv.history`に対して動作する; 変更不要。
+- `stat_turns`カウンタと他のメモリ上の統計はリロード時にリセットされる (既存の挙動)。
 
-**Note**: After a reload of a compressed session, `/undo` operates on the compressed DB rows — the user may undo fewer turns than expected since the original messages were replaced by the summary message.
+**注:** 圧縮されたセッションのリロード後、`/undo`は圧縮済みのDB行に対して動作する — 元のメッセージが要約メッセージに置き換えられているため、ユーザーが期待するよりも少ないターン数しか取り消せない場合がある。
 
 ---
 
-## Data Classification
+## データ分類
 
-| Data
-
- type | Scope | Storage | When persisted | Cleared by |
+| Data type | Scope | Storage | When persisted | Cleared by |
 |---|---|---|---|---|
-| `ctx.conv.history` | session | in-memory | Per message (async, before LLM call) | `/clear` or session end |
-| `ctx.conv.*` flags | session | in-memory | — (not persisted) | session restart |
-| `ctx.turn.current_turn_id` | turn | in-memory | — (not persisted) | end of each turn |
-| `ctx.stats.*` | session | in-memory | — (reported via `/stats`) | `/clear` |
-| `sessions` table | persistent | SQLite | On session create; title async on first turn | `/session delete` |
-| `messages` table | persistent | SQLite | Per `AgentSession.save()` call | `/session delete` or `/undo` |
-| Memory JSONL / `memories` table | persistent | JSONL + SQLite | On memory extraction (async) | `/memory delete` or `/memory prune` |
+| `ctx.conv.history` | セッション | メモリ上 | メッセージごと (非同期、LLM呼び出し前) | `/clear`またはセッション終了時 |
+| `ctx.conv.*`フラグ | セッション | メモリ上 | — (永続化されない) | セッション再起動時 |
+| `ctx.turn.current_turn_id` | ターン | メモリ上 | — (永続化されない) | 各ターン終了時 |
+| `ctx.stats.*` | セッション | メモリ上 | — (`/stats`経由で報告) | `/clear` |
+| `sessions`テーブル | 永続 | SQLite | セッション作成時; タイトルは最初のターンで非同期生成 | `/session delete` |
+| `messages`テーブル | 永続 | SQLite | `AgentSession.save()`呼び出しごと | `/session delete`または`/undo` |
+| メモリJSONL / `memories`テーブル | 永続 | JSONL + SQLite | メモリ抽出時 (非同期) | `/memory delete`または`/memory prune` |
 
 ---
-
-## Platform Databases
-
-The age
 
 ## Related Documents
 
-- `agent`
-- `state`
-- `persistence`
+- `05_agent_00_document-guide.md`
+- `05_agent_04_01_state-and-persistence-state-model.md`
+- `05_agent_04_03_state-and-persistence-platform-databases.md`
 
 ## Keywords
 
-agent
-state
-persistence
-session
-history
+HistoryManager compression
+compression trigger
+compression selection
+data classification

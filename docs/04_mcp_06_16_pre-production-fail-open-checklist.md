@@ -13,28 +13,28 @@ source:
 
 # Pre-Production Fail-Open Checklist
 
-## Pre-Production Fail-Open Checklist
+## 本番投入前フェイルオープン確認チェックリスト
 
-Before deploying to production, verify:
+本番環境へのデプロイ前に、以下を確認する。
 
-- [ ] `tool_definitions_strict = true` (fatal on schema mismatch)
-- [ ] `routing_drift_strict = true` (fatal on routing drift)
-- [ ] `plugin_strict = true` (fail-fast on plugin errors)
-- [ ] `use_tool_dag = true` (DAG scheduling; `false` is legacy non-production behavior)
-- [ ] `allowed_tools` explicitly set (empty = allow all tools; should be a whitelist)
-- [ ] All registered tools have entries in `tool_safety_tiers` (missing tiers → fatal in production)
-- [ ] No unknown keys in `tool_safety_tiers` (unknown keys → fatal in production)
-- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`) and firejail binary installed
-- [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (empty = fail-closed: deny all)
-- [ ] `security_profile = "production"` in `config/agent.toml` (enables startup enforcement)
-- [ ] `mcp_watchdog_interval = 30.0` (auto-restart enabled)
-- [ ] Health check thresholds reviewed (`startup_timeout_sec`, `mcp_watchdog_max_restarts`)
-- [ ] Audit log paths configured and writable
-- [ ] API keys (`github_token`, `auth_token`) set via environment variables, not hardcoded in config
-- [ ] `repo_allowlist` non-empty in `cicd_mcp_server.toml` (empty = deny all repos)
-- [ ] `allowed_repos` non-empty in `github_mcp_server.toml` (empty = deny all GitHub write ops)
+- [ ] `tool_definitions_strict = true`(スキーマ不整合時に致命的エラーとする)
+- [ ] `routing_drift_strict = true`(ルーティングのドリフト発生時に致命的エラーとする)
+- [ ] `plugin_strict = true`(プラグインエラー時にfail-fastとする)
+- [ ] `use_tool_dag = true`(DAGスケジューリング;`false`はレガシーな非本番動作)
+- [ ] `allowed_tools`が明示的に設定されている(空 = すべてのツールを許可;ホワイトリストにすべき)
+- [ ] 登録済みのすべてのツールが`tool_safety_tiers`にエントリを持つ(ティア欠落 → 本番では致命的エラー)
+- [ ] `tool_safety_tiers`に未知のキーがない(未知のキー → 本番では致命的エラー)
+- [ ] shell-mcp: `shell_sandbox_backend = "firejail"`(`"none"`ではない)であり、firejailバイナリがインストールされている
+- [ ] `cicd-mcp`: `workflow_allowlist`が明示的に設定されている(空 = fail-closed: すべて拒否)
+- [ ] `config/agent.toml`で`security_profile = "production"`(起動時の強制チェックを有効化する)
+- [ ] `mcp_watchdog_interval = 30.0`(自動再起動が有効)
+- [ ] ヘルスチェックのしきい値(`startup_timeout_sec`、`mcp_watchdog_max_restarts`)を見直し済み
+- [ ] 監査ログのパスが設定され、書き込み可能である
+- [ ] APIキー(`github_token`、`auth_token`)が環境変数経由で設定されており、設定ファイルにハードコードされていない
+- [ ] `cicd_mcp_server.toml`の`repo_allowlist`が空でない(空 = すべてのリポジトリを拒否)
+- [ ] `github_mcp_server.toml`の`allowed_repos`が空でない(空 = すべてのGitHub書き込み操作を拒否)
 
-### Installing firejail
+### firejailのインストール
 
 ```bash
 # Debian/Ubuntu
@@ -47,13 +47,13 @@ apk add firejail
 firejail --version
 ```
 
-After installation, update `config/shell_mcp_server.toml`:
+インストール後、`config/shell_mcp_server.toml`を更新する。
 
 ```toml
 shell_sandbox_backend = "firejail"
 ```
 
-See `04_mcp_05_security_and_safety_model.md` for the full fail-open/closed policy table.
+fail-open/closedポリシーの全体表については`04_mcp_05_security_and_safety_model.md`を参照。
 
 ---
 

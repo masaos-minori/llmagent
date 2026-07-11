@@ -11,42 +11,42 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 4. Error Handling Reference
+# 4. エラー処理リファレンス
 
-## 4. Error Handling Reference
+## 4. エラー処理リファレンス
 
 ### Crawler
 
 | Error | Action |
 |---|---|
-| HTTP failure | Retry up to `fetch_retry` with exponential backoff (`min(2**i, 10)` sec) |
-| URL-level exception | `WARNING` + continue |
-| Language not `ja`/`en` | Skip URL |
+| HTTP失敗 | `fetch_retry`まで指数バックオフ (`min(2**i, 10)` 秒) で再試行 |
+| URL単位の例外 | `WARNING` を出して継続 |
+| `lang`が`ja`/`en`以外 | URLをスキップ |
 
 ### ChunkSplitter
 
 | Error | Action |
 |---|---|
-| Sudachi tokenize error | Return `""`; skip chunk; `WARNING` |
-| File-level failure | `ERROR` (traceback); continue to next file |
-| Existing chunks | Skip unless `--force` |
+| Sudachiのトークナイズエラー | `""`を返却; チャンクをスキップ; `WARNING` |
+| ファイル単位の失敗 | `ERROR` (トレースバック付き); 次のファイルへ継続 |
+| 既存チャンク | `--force`指定がない限りスキップ |
 
 ### RagIngester
 
 | Error | Action |
 |---|---|
-| Embed API failure | Retry up to `embed_retry` with exponential backoff |
-| Retry exhausted (single chunk) | `WARNING`; skip chunk; continue |
-| Invalid `lang` value | `ValueError`; skip URL group; `ERROR` (traceback) |
+| 埋め込みAPIの失敗 | `embed_retry`まで指数バックオフで再試行 |
+| リトライ上限到達 (単一チャンク) | `WARNING`; チャンクをスキップ; 継続 |
+| `lang`の値が不正 | `ValueError`; URLグループをスキップ; `ERROR` (トレースバック付き) |
 
 ### RagPipeline
 
 | Error | Action |
 |---|---|
-| DB open error | Raise `RagPipelineError` (not return `""`) |
-| `use_search=False` | Return `""` immediately |
-| `rag_service_url` set + failure | Fall back to in-process pipeline |
-| Cross-encoder failure | `RagRerankError` is caught as `RuntimeError`, records `StageResult.status="failure"`, and logs a warning. The pipeline continues with `ctx.reranked=[]` (no RRF fallback). `use_rerank=False` uses RRF order + dedup instead. |
+| DBオープンエラー | `RagPipelineError`を発生 (`""`を返却しない) |
+| `use_search=False` | 即座に`""`を返却 |
+| `rag_service_url`設定時に失敗 | インプロセスパイプラインにフォールバック |
+| クロスエンコーダーの失敗 | `RagRerankError`は`RuntimeError`として捕捉され、`StageResult.status="failure"`が記録され、警告がログに出力される。パイプラインは`ctx.reranked=[]`のまま継続する (RRFへのフォールバックはない)。`use_rerank=False`の場合はRRFの順序と重複排除が代わりに使用される。 |
 
 ---
 

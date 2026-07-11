@@ -18,35 +18,35 @@ source:
 
 # DB API and Operations
 
-- Schema → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
+- スキーマ → [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)
 
-## 1. Purpose
+## 1. 目的
 
-Documents the `SQLiteHelper` API, `db/store.py` protocol groups and implementations,
-memory-related table operations, maintenance functions, corruption
-recovery, error handling, and the operational verification plan.
+`SQLiteHelper` API、`db/store.py` のプロトコルグループと実装、
+メモリ関連のテーブル操作、メンテナンス機能、破損時の
+リカバリ、エラーハンドリング、運用上の検証計画を文書化する。
 
 ---
 
-## 1a. DB Store Module Boundaries
+## 1a. DB Store モジュールの境界
 
-The DB store layer is split into three modules with clear import boundaries:
+DB store 層は、明確なインポート境界を持つ3つのモジュールに分割されている。
 
-| Module | Role | Import boundary |
+| Module | 役割 | インポート境界 |
 |---|---|---|
-| `db/store.py` | **Public API surface** — re-exports protocols and embedding helpers | Callers should import from here. Stable contract. |
-| `db/store_protocols.py` | **Extension point** — Protocol definitions for storage contracts | Implementations import this; callers rarely need to. |
-| `db/store_impl.py` | **SQLite implementation layer** — concrete implementations of protocols | Never import directly unless intentionally bypassing the protocol abstraction. |
+| `db/store.py` | **公開 API サーフェス** — プロトコルとエンベディングヘルパーを re-export する | 呼び出し側はここからインポートすべき。安定した契約。 |
+| `db/store_protocols.py` | **拡張ポイント** — ストレージ契約のプロトコル定義 | 実装側がこれをインポートする。呼び出し側が直接使う必要はほとんどない。 |
+| `db/store_impl.py` | **SQLite 実装層** — プロトコルの具体的な実装 | プロトコル抽象化を意図的にバイパスする場合を除き、直接インポートしないこと。 |
 
-**Rule:** Callers should always import from `db.store`. Direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used when intentionally working at the protocol/implementation level.
+**ルール:** 呼び出し側は常に `db.store` からインポートすること。`store_protocols.py` や `store_impl.py` からの直接インポートは推奨されず、プロトコル/実装レベルで意図的に作業する場合にのみ使用すべきである。
 
-### How to extend the DB store
+### DB store を拡張する方法
 
-1. Add a new Protocol class to `db/store_protocols.py` (e.g., `class NewStorageProtocol(Protocol): ...`)
-2. Implement the protocol in `db/store_impl.py` (e.g., `class NewStorageImpl(NewStorageProtocol): ...`)
-3. Export from `db/store.py` — callers import from `db.store`, not from internal modules
+1. `db/store_protocols.py` に新しい Protocol クラスを追加する（例: `class NewStorageProtocol(Protocol): ...`）
+2. `db/store_impl.py` でプロトコルを実装する（例: `class NewStorageImpl(NewStorageProtocol): ...`）
+3. `db/store.py` から export する — 呼び出し側は内部モジュールからではなく `db.store` からインポートする
 
-**Anti-pattern:** Never import directly from `store_protocols.py` or `store_impl.py` in caller code:
+**アンチパターン:** 呼び出し側コードで `store_protocols.py` や `store_impl.py` から直接インポートしないこと。
 
 ```python
 # BAD — direct import of internal module
@@ -60,7 +60,7 @@ from db.store import NewStorageProtocol, NewStorageImpl  # stable contract
 
 ## 2. `SQLiteHelper` (`db/helper.py`)
 
-### Constructor
+### コンストラクタ
 
 ```python
 SQLiteHelper(
@@ -76,9 +76,9 @@ SQLiteHelper(
 # Invalid target → ValueError
 ```
 
-`build_db_config()` is called in `__init__()` to resolve all paths and settings — unless `db_path` is passed explicitly, in which case `build_db_config()` is bypassed entirely and the supplied `db_path`/`sqlite_vec_so`/`sqlite_timeout`/`sqlite_busy_timeout_ms` are used directly (lets callers such as MCP servers self-contain their DB config without loading `agent.toml`).
+すべてのパスと設定を解決するために `build_db_config()` が `__init__()` 内で呼び出される — ただし `db_path` が明示的に渡された場合は `build_db_config()` が完全にバイパスされ、指定された `db_path`/`sqlite_vec_so`/`sqlite_timeout`/`sqlite_busy_timeout_ms` がそのまま使用される（MCP サーバーなどの呼び出し側が `agent.toml` を読み込まずに DB 設定を自己完結させられる）。
 
-### `open()` method
+### `open()` メソッド
 
 ```python
 def open(
@@ -90,35 +90,35 @@ def open(
 ) -> "SQLiteHelper"
 ```
 
-Returns `self` for chaining. Sets `self.conn`.
+チェーン用に `self` を返す。`self.conn` を設定する。
 
-| Argument | Effect |
+| 引数 | 効果 |
 |---|---|
-| `write_mode=True` | Adds `PRAGMA foreign_keys=ON` |
-| `row_factory=True` | Sets `conn.row_factory = sqlite3.Row` (column name access) |
-| `load_vec=None` | Uses target default: `rag` → True; `session`/`workflow` → False |
-| `load_vec=True` | Force load sqlite-vec extension |
-| `load_vec=False` | Skip vec extension |
+| `write_mode=True` | `PRAGMA foreign_keys=ON` を追加する |
+| `row_factory=True` | `conn.row_factory = sqlite3.Row` を設定する（カラム名でのアクセス） |
+| `load_vec=None` | ターゲットのデフォルトを使用: `rag` → True、`session`/`workflow` → False |
+| `load_vec=True` | sqlite-vec 拡張を強制的にロードする |
+| `load_vec=False` | vec 拡張をスキップする |
 
-Always applies: vec load (if enabled), WAL, NORMAL sync, busy_timeout.
+常に適用される: vec のロード（有効な場合）、WAL、NORMAL sync、busy_timeout。
 
-### Core methods
+### コアメソッド
 
-| Method | Signature | Notes |
+| メソッド | シグネチャ | 補足 |
 |---|---|---|
-| `execute(sql, params=())` | `-> sqlite3.Cursor` | `params`: tuple (positional `?`) or dict (named `:name`). `RuntimeError` if conn None; `ValueError` if sql empty |
-| `executescript(sql_script)` | `-> None` | Execute multiple SQL statements; commits any pending transaction first |
-| `executemany(sql, params_seq)` | `-> sqlite3.Cursor` | Batch INSERT/UPDATE. `params_seq: list[tuple[Any, ...]]` |
-| `fetchall(sql, params=())` | `-> list[Any]` | `execute + fetchall` combined |
-| `commit()` | `-> None` | Logs ERROR on `sqlite3.OperationalError` then re-raises |
-| `close()` | `-> None` | Idempotent; logs WARNING on close error but does not raise |
-| `begin_immediate()` | `@contextmanager` | `BEGIN IMMEDIATE ... COMMIT`; auto-ROLLBACK on `Exception` (not `BaseException`) |
-| `begin_exclusive()` | `@contextmanager` | `BEGIN EXCLUSIVE ... COMMIT`; for VACUUM/DDL only; auto-ROLLBACK on `Exception` (not `BaseException`) |
-| `health_check()` | `-> DbHealthMetrics` | `PRAGMA quick_check`; returns `{journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}` |
-| `checkpoint(mode="TRUNCATE")` | `-> WalCheckpointCounts` | Modes: PASSIVE/FULL/RESTART/TRUNCATE. Invalid mode → `ValueError` |
-| `vacuum()` | `-> None` | In-place DB rebuild; requires ~2× DB size free disk; call outside transaction |
+| `execute(sql, params=())` | `-> sqlite3.Cursor` | `params`: タプル（位置指定 `?`）または辞書（名前付き `:name`）。conn が None の場合は `RuntimeError`、sql が空の場合は `ValueError` |
+| `executescript(sql_script)` | `-> None` | 複数の SQL ステートメントを実行する。実行前に保留中のトランザクションをコミットする |
+| `executemany(sql, params_seq)` | `-> sqlite3.Cursor` | バッチ INSERT/UPDATE。`params_seq: list[tuple[Any, ...]]` |
+| `fetchall(sql, params=())` | `-> list[Any]` | `execute + fetchall` を組み合わせたもの |
+| `commit()` | `-> None` | `sqlite3.OperationalError` 発生時に ERROR をログ出力してから再スローする |
+| `close()` | `-> None` | 冪等。クローズエラー時は WARNING をログ出力するが例外はスローしない |
+| `begin_immediate()` | `@contextmanager` | `BEGIN IMMEDIATE ... COMMIT`。`Exception`（`BaseException` ではない）で自動 ROLLBACK |
+| `begin_exclusive()` | `@contextmanager` | `BEGIN EXCLUSIVE ... COMMIT`。VACUUM/DDL 専用。`Exception`（`BaseException` ではない）で自動 ROLLBACK |
+| `health_check()` | `-> DbHealthMetrics` | `PRAGMA quick_check`。`{journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}` を返す |
+| `checkpoint(mode="TRUNCATE")` | `-> WalCheckpointCounts` | モード: PASSIVE/FULL/RESTART/TRUNCATE。不正なモードは `ValueError` |
+| `vacuum()` | `-> None` | DB をインプレースで再構築する。DB サイズの約2倍の空きディスク容量が必要。トランザクション外で呼び出すこと |
 
-### Typical usage patterns
+### 典型的な使用パターン
 
 ```python
 # Read-only query
