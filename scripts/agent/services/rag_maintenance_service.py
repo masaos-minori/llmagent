@@ -5,8 +5,6 @@ Operates exclusively on rag.sqlite.
 
 from __future__ import annotations
 
-from typing import Any
-
 from agent.services.models import DbRecoverResult, RagConsistencyResult
 from db.helper import SQLiteHelper
 from db.rag_consistency import (
@@ -15,6 +13,7 @@ from db.rag_consistency import (
     summarize_issues,
 )
 from db.recovery import recover_corruption
+from shared.db_maintenance import count_table
 
 
 class RagMaintenanceService:
@@ -23,13 +22,9 @@ class RagMaintenanceService:
     def stats_rag(self) -> tuple[int, int]:
         """Return (docs, chunks) counts from rag.sqlite."""
         with SQLiteHelper("rag").open(row_factory=True) as db:
-            docs = self._count_table(db, "documents")
-            chunks = self._count_table(db, "chunks")
+            docs = count_table(db, "documents")
+            chunks = count_table(db, "chunks")
         return docs, chunks
-
-    @staticmethod
-    def _count_table(db: Any, table: str) -> int:
-        return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])  # nosec B608 — table is always a hardcoded name, never user input
 
     def rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index using COALESCE(normalized_content, content).

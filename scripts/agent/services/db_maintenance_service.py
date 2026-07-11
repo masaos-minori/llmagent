@@ -7,8 +7,6 @@ independently of the REPL command layer.
 
 from __future__ import annotations
 
-from typing import Any
-
 from agent.services.models import (
     DbCheckpointResult,
     DbHealth,
@@ -24,6 +22,7 @@ from db.maintenance import (
     vacuum_db,
 )
 from db.recovery import recover_corruption
+from shared.db_maintenance import count_table
 
 
 class DbMaintenanceService:
@@ -32,14 +31,9 @@ class DbMaintenanceService:
     def stats(self) -> DbStats:
         """Return session/message counts from session.sqlite."""
         with SQLiteHelper("session").open(row_factory=True) as db:
-            sessions = self._count_table(db, "sessions")
-            messages = self._count_table(db, "messages")
+            sessions = count_table(db, "sessions")
+            messages = count_table(db, "messages")
         return DbStats(docs=0, chunks=0, sessions=sessions, messages=messages)
-
-    @staticmethod
-    def _count_table(db: Any, table: str) -> int:
-        """Return row count for a single table."""
-        return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])  # nosec B608 — table is always a hardcoded name, never user input
 
     def health(self) -> DbHealth:
         """Return DB health metrics from session.sqlite."""

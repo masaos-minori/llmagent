@@ -20,6 +20,90 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from agent.services.config_validators import (
+    validate_approval_risk_rules as _v_app_risk,
+)
+from agent.services.config_validators import (
+    validate_llm_budget_warn_ratio as _v_llm_bwr,
+)
+from agent.services.config_validators import (
+    validate_llm_context_char_limit as _v_llm_ccl,
+)
+from agent.services.config_validators import (
+    validate_llm_max_retries as _v_llm_mr,
+)
+from agent.services.config_validators import (
+    validate_llm_max_tokens as _v_llm_mt,
+)
+from agent.services.config_validators import (
+    validate_llm_retry_base_delay as _v_llm_rbd,
+)
+from agent.services.config_validators import (
+    validate_llm_sse_heartbeat_timeout as _v_llm_shrt,
+)
+from agent.services.config_validators import (
+    validate_llm_sse_malformed_retry as _v_llm_smr,
+)
+from agent.services.config_validators import (
+    validate_llm_sse_reconnect_max as _v_llm_srm,
+)
+from agent.services.config_validators import (
+    validate_llm_temperature as _v_llm_temp,
+)
+from agent.services.config_validators import (
+    validate_memory_fts_limit as _v_mem_fts,
+)
+from agent.services.config_validators import (
+    validate_memory_recency_days as _v_mem_rec,
+)
+from agent.services.config_validators import (
+    validate_memory_rrf_k as _v_mem_rrf,
+)
+from agent.services.config_validators import (
+    validate_rag_max_chunks_per_doc as _v_rag_mcd,
+)
+from agent.services.config_validators import (
+    validate_rag_refiner_max_chars_per_chunk as _v_rag_rmcc,
+)
+from agent.services.config_validators import (
+    validate_rag_refiner_max_tokens as _v_rag_rmt,
+)
+from agent.services.config_validators import (
+    validate_rag_refiner_timeout as _v_rag_rt,
+)
+from agent.services.config_validators import (
+    validate_rag_rrf_k as _v_rag_rrf,
+)
+from agent.services.config_validators import (
+    validate_rag_top_k_rerank as _v_rag_tkr,
+)
+from agent.services.config_validators import (
+    validate_rag_top_k_search as _v_rag_tks,
+)
+from agent.services.config_validators import (
+    validate_tool_cache_max_size as _v_tool_cms,
+)
+from agent.services.config_validators import (
+    validate_tool_cycle_detect_window as _v_tool_cdw,
+)
+from agent.services.config_validators import (
+    validate_tool_dedup_max_repeats as _v_tool_dm,
+)
+from agent.services.config_validators import (
+    validate_tool_error_max_consecutive as _v_tool_emc,
+)
+from agent.services.config_validators import (
+    validate_tool_error_retry_max as _v_tool_erm,
+)
+from agent.services.config_validators import (
+    validate_tool_plugin_strict as _v_tool_ps,
+)
+from agent.services.config_validators import (
+    validate_tool_plugin_tool_override as _v_tool_pto,
+)
+from agent.services.config_validators import (
+    validate_tool_safety_tiers as _v_app_tier,
+)
 from shared.mcp_config import McpServerConfig, SecurityProfile
 
 LLM_TEMPERATURE_MAX = 2.0
@@ -50,69 +134,15 @@ class LLMConfig:
     budget_warn_ratio: float = 0.8
 
     def __post_init__(self) -> None:
-        self._validate_context_char_limit()
-        self._validate_budget_warn_ratio()
-        self._validate_llm_max_retries()
-        self._validate_llm_retry_base_delay()
-        self._validate_llm_temperature()
-        self._validate_llm_max_tokens()
-        self._validate_sse_heartbeat_timeout()
-        self._validate_sse_malformed_retry()
-        self._validate_sse_reconnect_max()
-
-    def _validate_context_char_limit(self) -> None:
-        if self.context_char_limit < 0:
-            raise ValueError(
-                f"context_char_limit must be >= 0, got {self.context_char_limit}",
-            )
-
-    def _validate_budget_warn_ratio(self) -> None:
-        if not 0.0 < self.budget_warn_ratio <= 1.0:
-            raise ValueError(
-                f"budget_warn_ratio must be in (0.0, 1.0], got {self.budget_warn_ratio}",
-            )
-
-    def _validate_llm_max_retries(self) -> None:
-        if self.llm_max_retries < 0:
-            raise ValueError(
-                f"llm_max_retries must be >= 0, got {self.llm_max_retries}",
-            )
-
-    def _validate_llm_retry_base_delay(self) -> None:
-        if self.llm_retry_base_delay <= 0:
-            raise ValueError(
-                f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}",
-            )
-
-    def _validate_llm_temperature(self) -> None:
-        from agent.config_dataclasses import LLM_TEMPERATURE_MAX as _MAX
-
-        if not 0.0 <= self.llm_temperature <= _MAX:
-            raise ValueError(
-                f"llm_temperature must be in [0.0, {_MAX}], got {self.llm_temperature}",
-            )
-
-    def _validate_llm_max_tokens(self) -> None:
-        if self.llm_max_tokens < 1:
-            raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")
-
-    def _validate_sse_heartbeat_timeout(self) -> None:
-        if self.sse_heartbeat_timeout < 0:
-            raise ValueError(
-                f"sse_heartbeat_timeout must be >= 0, got {self.sse_heartbeat_timeout}",
-            )
-
-    def _validate_sse_malformed_retry(self) -> None:
-        if self.sse_malformed_retry < 0:
-            raise ValueError(
-                f"sse_malformed_retry must be >= 0, got {self.sse_malformed_retry}",
-            )
-
-    def _validate_sse_reconnect_max(self) -> None:
-        if self.sse_reconnect_max < 0:
-            raise ValueError(
-                f"sse_reconnect_max must be >= 0, got {self.sse_reconnect_max}",
-            )
+        _v_llm_ccl(self)
+        _v_llm_bwr(self)
+        _v_llm_mr(self)
+        _v_llm_rbd(self)
+        _v_llm_temp(self)
+        _v_llm_mt(self)
+        _v_llm_shrt(self)
+        _v_llm_smr(self)
+        _v_llm_srm(self)
 
 
 @dataclass
@@ -136,48 +166,13 @@ class RAGConfig:
     rrf_k: int = 60
 
     def __post_init__(self) -> None:
-        self._validate_top_k_search()
-        self._validate_top_k_rerank()
-        self._validate_max_chunks_per_doc()
-        self._validate_refiner_max_tokens()
-        self._validate_refiner_timeout()
-        self._validate_refiner_max_chars_per_chunk()
-        self._validate_rrf_k()
-
-    def _validate_top_k_search(self) -> None:
-        if self.top_k_search < 1:
-            raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
-
-    def _validate_top_k_rerank(self) -> None:
-        if self.top_k_rerank < 1:
-            raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
-
-    def _validate_max_chunks_per_doc(self) -> None:
-        if self.max_chunks_per_doc < 1:
-            raise ValueError(
-                f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}",
-            )
-
-    def _validate_refiner_max_tokens(self) -> None:
-        if self.refiner_max_tokens < 1:
-            raise ValueError(
-                f"refiner_max_tokens must be >= 1, got {self.refiner_max_tokens}",
-            )
-
-    def _validate_refiner_timeout(self) -> None:
-        if self.refiner_timeout <= 0:
-            raise ValueError(f"refiner_timeout must be > 0, got {self.refiner_timeout}")
-
-    def _validate_refiner_max_chars_per_chunk(self) -> None:
-        if self.refiner_max_chars_per_chunk < 1:
-            raise ValueError(
-                f"refiner_max_chars_per_chunk must be >= 1,"
-                f" got {self.refiner_max_chars_per_chunk}",
-            )
-
-    def _validate_rrf_k(self) -> None:
-        if self.rrf_k < 1:
-            raise ValueError(f"rrf_k must be >= 1, got {self.rrf_k}")
+        _v_rag_tks(self)
+        _v_rag_tkr(self)
+        _v_rag_mcd(self)
+        _v_rag_rmt(self)
+        _v_rag_rt(self)
+        _v_rag_rmcc(self)
+        _v_rag_rrf(self)
 
 
 @dataclass
@@ -232,58 +227,13 @@ class ToolConfig:
     plugin_strict: bool = False
 
     def __post_init__(self) -> None:
-        self._validate_tool_dedup_max_repeats()
-        self._validate_tool_cycle_detect_window()
-        self._validate_tool_error_max_consecutive()
-        self._validate_tool_cache_max_size()
-        self._validate_tool_error_retry_max()
-        self._validate_plugin_tool_override()
-        self._validate_plugin_strict()
-
-    def _validate_plugin_tool_override(self) -> None:
-        if not isinstance(self.plugin_tool_override, bool):
-            raise ValueError(
-                f"plugin_tool_override must be bool, "
-                f"got {type(self.plugin_tool_override).__name__}"
-            )
-
-    def _validate_plugin_strict(self) -> None:
-        if not isinstance(self.plugin_strict, bool):
-            raise ValueError(
-                f"plugin_strict must be bool, got {type(self.plugin_strict).__name__}"
-            )
-
-    def _validate_tool_dedup_max_repeats(self) -> None:
-        if self.tool_dedup_max_repeats < 1:
-            raise ValueError(
-                f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}",
-            )
-
-    def _validate_tool_cycle_detect_window(self) -> None:
-        if self.tool_cycle_detect_window < 0:
-            raise ValueError(
-                "tool_cycle_detect_window must be >= 0,"
-                f" got {self.tool_cycle_detect_window}",
-            )
-
-    def _validate_tool_error_max_consecutive(self) -> None:
-        if self.tool_error_max_consecutive < 0:
-            raise ValueError(
-                "tool_error_max_consecutive must be >= 0,"
-                f" got {self.tool_error_max_consecutive}",
-            )
-
-    def _validate_tool_cache_max_size(self) -> None:
-        if self.tool_cache_max_size < 0:
-            raise ValueError(
-                f"tool_cache_max_size must be >= 0, got {self.tool_cache_max_size}",
-            )
-
-    def _validate_tool_error_retry_max(self) -> None:
-        if self.tool_error_retry_max < 0:
-            raise ValueError(
-                f"tool_error_retry_max must be >= 0, got {self.tool_error_retry_max}",
-            )
+        _v_tool_dm(self)
+        _v_tool_cdw(self)
+        _v_tool_emc(self)
+        _v_tool_cms(self)
+        _v_tool_erm(self)
+        _v_tool_pto(self)
+        _v_tool_ps(self)
 
 
 @dataclass
@@ -317,27 +267,9 @@ class MemoryConfig:
     memory_local_only: bool = False
 
     def __post_init__(self) -> None:
-        self._validate_memory_fts_limit()
-        self._validate_memory_rrf_k()
-        self._validate_memory_recency_days()
-
-    def _validate_memory_fts_limit(self) -> None:
-        if self.memory_fts_limit < 1:
-            raise ValueError(
-                f"memory_fts_limit must be >= 1, got {self.memory_fts_limit}",
-            )
-
-    def _validate_memory_rrf_k(self) -> None:
-        if self.memory_rrf_k < 1:
-            raise ValueError(
-                f"memory_rrf_k must be >= 1, got {self.memory_rrf_k}",
-            )
-
-    def _validate_memory_recency_days(self) -> None:
-        if self.memory_recency_days <= 0:
-            raise ValueError(
-                f"memory_recency_days must be > 0, got {self.memory_recency_days}",
-            )
+        _v_mem_fts(self)
+        _v_mem_rrf(self)
+        _v_mem_rec(self)
 
 
 @dataclass
@@ -455,30 +387,8 @@ class ApprovalConfig:
     )
 
     def __post_init__(self) -> None:
-        self._validate_approval_risk_rules()
-        self._validate_tool_safety_tiers()
-
-    def _validate_approval_risk_rules(self) -> None:
-        _valid_risk = {"none", "medium", "high"}
-        bad = {
-            k: v for k, v in self.approval_risk_rules.items() if v not in _valid_risk
-        }
-        if bad:
-            raise ValueError(
-                f"approval_risk_rules: invalid levels {bad};"
-                " must be 'none', 'medium', or 'high'",
-            )
-
-    def _validate_tool_safety_tiers(self) -> None:
-        _valid_tiers = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
-        bad_tiers = {
-            k: v for k, v in self.tool_safety_tiers.items() if v not in _valid_tiers
-        }
-        if bad_tiers:
-            raise ValueError(
-                f"tool_safety_tiers: invalid tier values {bad_tiers};"
-                " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN",
-            )
+        _v_app_risk(self)
+        _v_app_tier(self)
 
 
 @dataclass
