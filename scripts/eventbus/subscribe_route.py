@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from eventbus.broker import EventBroker
+from eventbus.route_helpers import get_broker, get_db
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
@@ -14,18 +14,6 @@ if TYPE_CHECKING:
     from eventbus.config import EventBusConfig  # noqa: F401
 
 logger = logging.getLogger(__name__)
-
-
-def _get_config(request: Request) -> "EventBusConfig":
-    cfg = request.app.state.config
-    assert cfg is not None
-    return cfg
-
-
-def _get_broker(request: Request) -> EventBroker:
-    broker = request.app.state.broker
-    assert broker is not None
-    return broker
 
 
 async def subscribe(
@@ -36,10 +24,10 @@ async def subscribe(
 ) -> Any:
     from eventbus.offsets import read_offset  # noqa: PLC0415
 
-    cfg = _get_config(request)
-    broker = _get_broker(request)
-    db = request.app.state.db
-    assert db is not None
+    cfg = request.app.state.config
+    assert cfg is not None
+    broker = get_broker(request)
+    db = get_db(request)
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:

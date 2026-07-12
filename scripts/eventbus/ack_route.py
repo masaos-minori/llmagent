@@ -10,6 +10,7 @@ from eventbus.db import ack_event as _ack_event
 from eventbus.db import get_db_lock
 from eventbus.db import nack_event as _nack_event
 from eventbus.offsets import write_offset
+from eventbus.route_helpers import get_config, get_db
 from fastapi import HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
@@ -57,10 +58,8 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
-    db = request.app.state.db
-    assert db is not None
-    cfg = request.app.state.config
-    assert cfg is not None
+    db = get_db(request)
+    cfg = get_config(request)
     return await _do_ack(db, cfg, event_id, consumer_id)
 
 
@@ -71,10 +70,8 @@ async def nack(
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
 
-    db = request.app.state.db
-    assert db is not None
-    cfg = request.app.state.config
-    assert cfg is not None
+    db = get_db(request)
+    cfg = get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
         with get_db_lock():

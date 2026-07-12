@@ -5,33 +5,20 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from eventbus.broker import EventBroker
 from eventbus.db import check_db, get_db_lock
+from eventbus.route_helpers import get_broker, get_db
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 if TYPE_CHECKING:
-    from eventbus.config import EventBusConfig
+    pass
 
 logger = logging.getLogger(__name__)
 
 
-def _get_broker(request: Request) -> EventBroker:
-    broker = request.app.state.broker
-    assert broker is not None
-    return broker
-
-
-def _get_config(request: Request) -> "EventBusConfig":
-    cfg = request.app.state.config
-    assert cfg is not None
-    return cfg
-
-
 async def health_check(request: Request) -> JSONResponse:
-    db = request.app.state.db
-    assert db is not None
-    broker = _get_broker(request)
+    db = get_db(request)
+    broker = get_broker(request)
 
     def _check() -> bool:
         with get_db_lock():

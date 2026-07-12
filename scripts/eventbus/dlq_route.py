@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from eventbus.db import count_dlq, fetch_dlq, get_db_lock, requeue_event
+from eventbus.route_helpers import get_config, get_db
 from fastapi import HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,7 @@ async def dlq_list(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
-    db = request.app.state.db
-    assert db is not None
+    db = get_db(request)
 
     def _dlq_count() -> int:
         with get_db_lock():
@@ -40,10 +40,8 @@ async def dlq_list(
 
 
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
-    db = request.app.state.db
-    assert db is not None
-    cfg = request.app.state.config
-    assert cfg is not None
+    db = get_db(request)
+    cfg = get_config(request)
 
     def _requeue() -> tuple[bool, int | None]:
         with get_db_lock():

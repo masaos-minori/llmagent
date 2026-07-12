@@ -10,6 +10,7 @@ from typing import Any
 import jsonschema
 import orjson
 from eventbus.db import get_db_lock, insert_event
+from eventbus.route_helpers import get_broker, get_config, get_db
 from fastapi import HTTPException, Request
 
 logger = logging.getLogger(__name__)
@@ -28,10 +29,8 @@ async def publish(request: Request) -> dict[str, Any]:
     producer: str = body["producer"]
     published_at: str = body["published_at"]
 
-    db = request.app.state.db
-    assert db is not None
-    broker = request.app.state.broker
-    assert broker is not None
+    db = get_db(request)
+    broker = get_broker(request)
 
     def _insert() -> tuple[int, bool]:
         with get_db_lock():
@@ -48,8 +47,7 @@ async def publish(request: Request) -> dict[str, Any]:
     seq, inserted = await asyncio.to_thread(_insert)
 
     try:
-        cfg = request.app.state.config
-        assert cfg is not None
+        cfg = get_config(request)
         path = Path(cfg.storage_dir) / "events.jsonl"
         line = orjson.dumps({**body, "seq": seq}).decode() + "\n"
         with path.open("a", encoding="utf-8") as f:

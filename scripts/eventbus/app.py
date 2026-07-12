@@ -24,6 +24,8 @@ from eventbus.dlq_route import dlq_requeue as dlq_requeue_route
 from eventbus.health_route import health_check
 from eventbus.publish_route import publish as publish_route
 from eventbus.replay_route import replay as replay_route
+from eventbus.route_helpers import app_get_config as get_config
+from eventbus.route_helpers import app_get_db as get_db
 from eventbus.subscribe_route import subscribe as subscribe_route
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
@@ -69,10 +71,8 @@ async def lifespan(app: FastAPI) -> Any:
 async def _dlq_loop(app: FastAPI) -> None:
     while True:
         try:
-            cfg = app.state.config
-            db = app.state.db
-            assert cfg is not None
-            assert db is not None
+            cfg = get_config(type("Req", (), {"app": app})())
+            db = get_db(type("Req", (), {"app": app})())
 
             def _sweep() -> int:
                 from eventbus.db import get_db_lock  # noqa: PLC0415
@@ -153,7 +153,9 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
-    result: dict[str, Any] = await ack_event_route(request, event_id=event_id, consumer_id=consumer_id)
+    result: dict[str, Any] = await ack_event_route(
+        request, event_id=event_id, consumer_id=consumer_id
+    )
     return result
 
 

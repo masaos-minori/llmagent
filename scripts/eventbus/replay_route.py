@@ -7,6 +7,7 @@ from typing import Any
 
 import orjson
 from eventbus.db import fetch_events_since, get_db_lock
+from eventbus.route_helpers import get_db
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
@@ -39,8 +40,7 @@ async def replay(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
-    db = request.app.state.db
-    assert db is not None
+    db = get_db(request)
 
     def _fetch() -> list:
         with get_db_lock():
