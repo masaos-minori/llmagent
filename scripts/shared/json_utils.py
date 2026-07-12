@@ -44,3 +44,22 @@ def now_iso() -> str:
     centralizes the format so it cannot drift across the codebase.
     """
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def now_iso_raw() -> str:
+    """Return current time as ISO 8601 string via datetime.isoformat().
+
+    Wrapper around datetime.now(UTC).isoformat() that centralizes the call
+    so it cannot drift across the codebase. Produces output like
+    '2026-07-13T12:00:00+00:00'.
+    """
+    return datetime.now(UTC).isoformat()
+
+
+def tool_call_serialized_length(tool_call: object) -> int:
+    """Return the byte length of a tool call dict when serialized to JSON.
+
+    Wrapper around ``len(orjson.dumps(tc))`` that centralizes the serialization
+    so it cannot drift across the codebase.
+    """
+    return len(orjson.dumps(tool_call))

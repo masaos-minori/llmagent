@@ -30,6 +30,7 @@ from mcp_servers.file.delete_models import (
     FileDeleteConfig,
 )
 from mcp_servers.server import ToolArgs
+from shared.json_utils import now_iso_raw
 
 # Standard library logger; log path is owned by file_delete_mcp_server.py
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ class DeleteFileService(FileSecurityMixin):
         Writing errors are logged but never propagated — audit failure must not
         block the actual delete operation from returning a result to the caller.
         """
-        ts = datetime.now(tz=UTC).isoformat()
+        ts = now_iso_raw()
         record = f"{ts} op={op} path={path} user=llm-agent\n"
         try:
             with open(self._audit_log_path, "a", encoding="utf-8") as fh:

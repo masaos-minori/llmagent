@@ -11,7 +11,6 @@ import asyncio
 import logging
 import sqlite3
 import time
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -25,6 +24,7 @@ from agent.tool_result_formatter import (
 )
 from agent.tool_scheduler import build_execution_groups
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import now_iso_raw
 from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
@@ -297,7 +297,7 @@ async def _execute_with_dag(
         results.extend(r for group_res in batch_results for r in group_res)
     results.sort(key=lambda r: call_order.get(r[0], 0))
     elapsed_ms = (time.perf_counter() - t0) * 1000
-    ts = datetime.now(UTC).isoformat()
+    ts = now_iso_raw()
     for se in serialization_events:
         round_event: dict[str, Any] = {
             "trigger_tool": se.trigger_tool,
@@ -397,7 +397,7 @@ async def _execute_standard(
             "elapsed_ms": round(elapsed_ms, 1),
             "estimated_parallel_ms": round(estimated_parallel_ms, 1),
             "serial_overhead": serial_overhead,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": now_iso_raw(),
         }
         ctx.stats.stat_serialization_events.append(round_event)
         ctx.stats.stat_serialization_total_overhead_ms += (
@@ -474,7 +474,9 @@ async def _run_approval_gate(
     """
     from agent.tool_approval import run_approval_checks  # noqa: PLC0415
 
-    result: tuple[list[dict[Any, Any]], list[str]] = await run_approval_checks(ctx, tool_calls)
+    result: tuple[list[dict[Any, Any]], list[str]] = await run_approval_checks(
+        ctx, tool_calls
+    )
     return result
 
 

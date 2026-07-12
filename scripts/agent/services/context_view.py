@@ -13,6 +13,7 @@ import orjson
 from agent.services.exceptions import ContextStateBuildError
 from agent.services.models import ContextBudget, ContextStateView
 from shared.git_helper import get_repo_info
+from shared.json_utils import tool_call_serialized_length
 from shared.types import LLMMessage
 
 if TYPE_CHECKING:
@@ -115,7 +116,7 @@ def _token_breakdown(
             if text:
                 hist_tokens += int(len(text) / _RATIO_TEXT)
             for tc in tool_calls:
-                tool_tokens += int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
+                tool_tokens += int(tool_call_serialized_length(tc) / _RATIO_TOOL_CALL)
         elif role == "tool":
             if text:
                 tool_tokens += int(len(text) / _RATIO_TEXT)

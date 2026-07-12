@@ -14,12 +14,12 @@ import asyncio
 import fnmatch
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
 from mcp_servers.github.models_config import GitHubConfig
+from shared.json_utils import now_iso_raw
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class GitHubSecurityGuards:
 
         if not self._cfg.audit_log_path:
             return
-        ts = datetime.now(tz=UTC).isoformat()
+        ts = now_iso_raw()
         fields = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
         record = f"{ts} op={op} {fields}\n"
         try:

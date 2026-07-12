@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import nullcontext
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
 from agent.turn_result import TurnResult
-from shared.json_utils import dumps
+from shared.json_utils import dumps, now_iso_raw
 from shared.llm_exceptions import LLMTransportError
 from shared.types import LLMMessage
 
@@ -145,7 +144,7 @@ class LLMTurnRunner:
                         "error_type": type(e).__name__,
                         "detail": summary,
                         "turn": turn,
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": now_iso_raw(),
                     }
                 ),
                 workflow_id=workflow_id,

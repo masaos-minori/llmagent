@@ -19,7 +19,6 @@ import pwd
 import shlex
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
 from mcp_servers.server import ToolArgs
@@ -30,6 +29,7 @@ from mcp_servers.shell.models import (
     ShellValidationError,
 )
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import now_iso_raw
 from shared.protocols.shell import ShellPolicy
 
 from .service_static_helpers import (
@@ -175,7 +175,7 @@ class ShellService:
         Writing errors are logged but never propagated — audit failure must not
         block the caller from receiving the command result.
         """
-        ts = datetime.now(tz=UTC).isoformat()
+        ts = now_iso_raw()
         record = (
             f"{ts} cmd={command!r} argv={argv!r} cwd={cwd!r}"
             f" uid={os.getuid()} exit={exit_code}"

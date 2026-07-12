@@ -25,6 +25,7 @@ import logging
 import httpx
 import orjson
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import tool_call_serialized_length
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
 
@@ -53,7 +54,9 @@ def _estimate_chars(history: list[LLMMessage]) -> int:
     for msg in history:
         content = msg.get("content")
         total += len(content) if isinstance(content, str) else 0
-        total += sum(len(orjson.dumps(tc)) for tc in msg.get("tool_calls") or [])
+        total += sum(
+            tool_call_serialized_length(tc) for tc in msg.get("tool_calls") or []
+        )
     return total
 
 

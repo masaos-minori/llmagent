@@ -4,7 +4,7 @@
 import logging
 from typing import cast
 
-import orjson
+from shared.json_utils import tool_call_serialized_length
 from shared.types import LLMMessage, ToolCallDict
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def estimate_tokens_for_assistant_with_tool_calls(
         n = estimate_tokens_for_text(text, "text", RATIO_TEXT, breakdown)
         total += n
     for tc in tool_calls:
-        n = int(len(orjson.dumps(tc)) / RATIO_TOOL_CALL)
+        n = int(tool_call_serialized_length(tc) / RATIO_TOOL_CALL)
         breakdown["tool_calls"] += n
         total += n
     return total

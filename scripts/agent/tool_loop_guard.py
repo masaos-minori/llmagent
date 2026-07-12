@@ -11,11 +11,11 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
 from shared.json_utils import dumps as json_dumps
+from shared.json_utils import now_iso_raw
 from shared.tool_executor_helpers import tool_hash_key
 from shared.types import LLMMessage
 
@@ -76,7 +76,7 @@ class ToolLoopGuard:
         payload = {
             **fields,
             "guard_type": guard_type,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": now_iso_raw(),
         }
         ctx.diagnostics.save(ctx.session.session_id, "guard_hint", json_dumps(payload))
 

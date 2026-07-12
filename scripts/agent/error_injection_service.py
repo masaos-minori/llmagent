@@ -9,10 +9,9 @@ Do not add test-specific error injection to this class.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from shared.json_utils import dumps
+from shared.json_utils import dumps, now_iso_raw
 from shared.tool_executor_helpers import format_transport_error
 
 if TYPE_CHECKING:
@@ -49,7 +48,7 @@ class ErrorInjectionService:
                         "error_type": type(e).__name__,
                         "detail": err.detail,
                         "turn": turn,
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": now_iso_raw(),
                     }
                 ),
             )

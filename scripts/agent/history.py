@@ -15,6 +15,7 @@ from agent.history_selection_policy import (
     HistorySelectionPolicy,
     SelectionResult,
 )
+from shared.json_utils import tool_call_serialized_length
 from shared.token_counter import _WarnOnce, get_token_count
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
@@ -143,7 +144,7 @@ class HistoryManager:
         for msg in history:
             total += len(str(msg.get("content") or ""))
             for tc in msg.get("tool_calls") or []:
-                total += len(orjson.dumps(tc))
+                total += tool_call_serialized_length(tc)
         return total
 
     def count_tokens(
