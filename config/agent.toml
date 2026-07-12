@@ -19,7 +19,7 @@ eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
-  llm_url = "http://192.168.11.197:8080"
+  llm_url = "http://192.168.11.197:8080/v1/chat/completions"
 web_search_url = "http://127.0.0.1:8004"
 llm_max_retries = 3
 llm_retry_base_delay = 1.0
@@ -255,6 +255,17 @@ refresh_index            = "WRITE_SAFE"
 fts_rebuild              = "WRITE_DANGEROUS"
 rag_run_pipeline         = "READ_ONLY"
 rag_debug_pipeline       = "READ_ONLY"
+get_file_info            = "READ_ONLY"
+github_get_commit        = "READ_ONLY"
+github_get_issue         = "READ_ONLY"
+github_get_pull_request  = "READ_ONLY"
+github_list_commits      = "READ_ONLY"
+github_list_pull_requests = "READ_ONLY"
+github_search_issues     = "READ_ONLY"
+github_search_pull_requests = "READ_ONLY"
+list_directory_with_sizes = "READ_ONLY"
+read_media_file          = "READ_ONLY"
+read_multiple_files      = "READ_ONLY"
 rag_list_documents       = "READ_ONLY"
 rag_delete_document      = "WRITE_DANGEROUS"
 get_workflow_runs        = "READ_ONLY"
