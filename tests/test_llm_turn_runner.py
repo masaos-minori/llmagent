@@ -15,8 +15,6 @@ from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 
-pytestmark = pytest.mark.asyncio
-
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
@@ -49,6 +47,7 @@ def runner() -> LLMTurnRunner:
 
 
 class TestStreamLlm:
+    @pytest.mark.asyncio
     async def test_returns_response(self, runner: LLMTurnRunner) -> None:
         expected = {"id": "resp_1"}
         runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
@@ -58,6 +57,7 @@ class TestStreamLlm:
         assert result == expected
         runner._ctx.services_required.llm.stream.assert_awaited_once()
 
+    @pytest.mark.asyncio
     async def test_propagates_transport_error(self, runner: LLMTurnRunner) -> None:
         runner._ctx.services_required.llm.stream = AsyncMock(
             side_effect=LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm"),
@@ -85,6 +85,7 @@ class TestFinalizeAnswer:
 
 
 class TestHandleLlmError:
+    @pytest.mark.asyncio
     async def test_stores_in_diagnostic_and_returns_fail(
         self, runner: LLMTurnRunner
     ) -> None:
@@ -108,6 +109,7 @@ WF_CTX = dict(
 
 
 class TestRun:
+    @pytest.mark.asyncio
     async def test_returns_answer_on_stop(self, runner: LLMTurnRunner) -> None:
         stop_response = LLMResponse(
             message={"role": "assistant", "content": "Hello"},
@@ -118,6 +120,7 @@ class TestRun:
 
         assert result.answer == "Hello"
 
+    @pytest.mark.asyncio
     async def test_executes_tool_calls_then_returns(
         self, runner: LLMTurnRunner
     ) -> None:
@@ -148,6 +151,7 @@ class TestRun:
         assert len(runner._ctx.conv.history) == 2
         assert runner._ctx.conv.history[0]["tool_calls"] is not None
 
+    @pytest.mark.asyncio
     async def test_handles_transport_error(self, runner: LLMTurnRunner) -> None:
         """LLMTransportError during run() returns fail TurnResult with error detail."""
         err = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
@@ -159,6 +163,7 @@ class TestRun:
         runner._ctx.diagnostics.save.assert_called_once()
         assert result.persist_as_assistant is False
 
+    @pytest.mark.asyncio
     async def test_reaches_max_tool_turns(self, runner: LLMTurnRunner) -> None:
         tool_calls = [{"id": "c1"}]
         tool_response = LLMResponse(
@@ -182,6 +187,7 @@ class TestRun:
 
         assert "Maximum tool turns reached" in result.answer
 
+    @pytest.mark.asyncio
     async def test_guard_check_all_blocks(self, runner: LLMTurnRunner) -> None:
         tool_calls = [{"id": "c1"}]
         tool_response = LLMResponse(
@@ -196,6 +202,7 @@ class TestRun:
 
         assert "Blocked by guard" in result.answer
 
+    @pytest.mark.asyncio
     async def test_check_error_limit_triggers(self, runner: LLMTurnRunner) -> None:
         tool_calls = [{"id": "c1"}]
         tool_response = LLMResponse(
@@ -216,6 +223,7 @@ class TestRun:
 
         assert "Error limit reached" in result.answer
 
+    @pytest.mark.asyncio
     async def test_mid_turn_transport_error_not_persisted_as_assistant(
         self, runner: LLMTurnRunner
     ) -> None:
@@ -245,6 +253,7 @@ class TestRun:
         assert result.persist_as_assistant is False
         runner._ctx.diagnostics.save.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_run_raises_without_workflow_context(
         self, runner: LLMTurnRunner
     ) -> None:
