@@ -2,14 +2,10 @@
 """agent/workflow/attempt_ops.py — Attempt operations for workflow.sqlite."""
 
 import uuid
-from datetime import UTC, datetime
 
 from agent.workflow.models import AttemptRecord
 from db.helper import SQLiteHelper
-
-
-def _now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+from shared.json_utils import now_iso as _now
 
 
 def start_attempt(db: SQLiteHelper, task_id: str, stage_id: str) -> AttemptRecord:

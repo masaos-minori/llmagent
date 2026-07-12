@@ -5,10 +5,10 @@ import os
 import sqlite3
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 import orjson
+from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def promote_to_dlq(
     deadletter_dir: str,
     max_retry: int,
 ) -> int:
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = now_iso()
     rows = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
         " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
@@ -81,7 +81,7 @@ def sweep_orphans(
     the nack endpoint working correctly), this returns 0.
     Non-zero return value indicates a bug in the inline promotion path.
     """
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = now_iso()
     rows = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
         " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
@@ -115,7 +115,7 @@ def promote_single(
     Write the JSON file before updating the DB row to preserve consistency:
     if _atomic_write fails, the DB row is not updated and the event remains live.
     """
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = now_iso()
     row = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
         " FROM events WHERE event_id = ? AND dlq_at IS NULL",

@@ -7,17 +7,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 from agent.workflow.models import AttemptRecord, TaskRecord
 from db.helper import SQLiteHelper
+from shared.json_utils import now_iso as _now
 
 logger = logging.getLogger(__name__)
-
-
-def _now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class StateStore:

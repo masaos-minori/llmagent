@@ -2,14 +2,10 @@
 """agent/workflow/idempotency_ops.py — Idempotency operations for workflow.sqlite."""
 
 import uuid
-from datetime import UTC, datetime
 
 from agent.workflow.models import AttemptRecord
 from db.helper import SQLiteHelper
-
-
-def _now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+from shared.json_utils import now_iso as _now
 
 
 def is_event_processed(db: SQLiteHelper, event_id: str) -> bool:

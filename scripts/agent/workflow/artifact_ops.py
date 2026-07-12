@@ -2,14 +2,10 @@
 """agent/workflow/artifact_ops.py — Artifact operations for workflow.sqlite."""
 
 import uuid
-from datetime import UTC, datetime
 
 from agent.workflow.models import ArtifactRef
 from db.helper import SQLiteHelper
-
-
-def _now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+from shared.json_utils import now_iso as _now
 
 
 def record_artifact(

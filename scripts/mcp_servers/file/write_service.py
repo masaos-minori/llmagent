@@ -17,9 +17,8 @@ from pathlib import Path
 
 from mcp_servers.file.common import (
     FileAuthorizationError,
+    FileSecurityMixin,
     FileValidationError,
-    require_file,
-    resolve_safe,
 )
 from mcp_servers.file.write_formatter import WriteFileFormatter
 from mcp_servers.file.write_models import (
@@ -40,7 +39,7 @@ from mcp_servers.server import ToolArgs
 logger = logging.getLogger(__name__)
 
 
-class WriteFileService:
+class WriteFileService(FileSecurityMixin):
     """Encapsulates write/create/move filesystem operations with security boundaries."""
 
     def __init__(
@@ -50,16 +49,6 @@ class WriteFileService:
     ) -> None:
         self._allowed_dirs = allowed_dirs
         self._max_write_bytes = max_write_bytes
-
-    # ── Security wrappers (delegate to file_mcp_common) ──
-
-    def _resolve_safe(self, raw_path: str) -> Path:
-        """Resolve and validate path against allowed_dirs."""
-        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
-        return resolved
-
-    def _require_file(self, target: Path, raw_path: str) -> None:
-        require_file(target, raw_path)
 
     # ── Static helpers ──
 

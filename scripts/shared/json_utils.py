@@ -10,6 +10,8 @@ All functions use orjson for speed and deterministic output (sort_keys=True by d
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import orjson
 
 
@@ -33,3 +35,12 @@ def dumps(obj: object, option: int | None = orjson.OPT_SORT_KEYS) -> str:
         '[\\n  1,\\n  2,\\n  3\\n]'
     """
     return orjson.dumps(obj, option=option).decode()
+
+
+def now_iso() -> str:
+    """Return current time as ISO 8601 string: YYYY-MM-DDTHH:MM:SSZ.
+
+    Wrapper around datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") that
+    centralizes the format so it cannot drift across the codebase.
+    """
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

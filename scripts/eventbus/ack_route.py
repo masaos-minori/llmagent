@@ -2,7 +2,6 @@
 """eventbus/ack_route.py — Ack/Nack endpoint handlers."""
 
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from eventbus.db import ack_event as _ack_event
@@ -16,6 +15,7 @@ from eventbus.route_helpers import (
     run_with_db_lock,
 )
 from fastapi import HTTPException, Query, Request
+from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def _do_ack(
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = now_iso()
         found, newly_acked = _ack_event(db, event_id, now)
         seq: int | None = None
         if consumer_id and newly_acked:

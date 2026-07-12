@@ -13,14 +13,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from mcp_servers.file.common import (
+    FileSecurityMixin,
     check_size_limit,
-    require_dir,
-    require_file,
-    resolve_safe,
 )
 
 
-class ReadSecurityGuards:
+class ReadSecurityGuards(FileSecurityMixin):
     """Mixin that provides path validation and security checks for read operations."""
 
     def __init__(
@@ -41,18 +39,7 @@ class ReadSecurityGuards:
         """Maximum read size configured for this service."""
         return self._max_read_bytes
 
-    # ── Security wrappers (delegate to file_mcp_common) ──
-
-    def _resolve_safe(self, raw_path: str) -> Path:
-        """Resolve and validate path against allowed_dirs."""
-        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
-        return resolved
-
-    def _require_file(self, target: Path, raw_path: str) -> None:
-        require_file(target, raw_path)
-
-    def _require_dir(self, target: Path, raw_path: str) -> None:
-        require_dir(target, raw_path)
+    # ── Read-specific security helper ──
 
     def _check_size_limit(self, target: Path) -> int:
         size: int = check_size_limit(target, self._max_read_bytes)

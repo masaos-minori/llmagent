@@ -56,6 +56,26 @@ def require_dir(target: Path, raw_path: str) -> None:
         raise FileValidationError(f"Not a directory: {raw_path}")
 
 
+class FileSecurityMixin:
+    """Mixin providing path validation methods for file service classes.
+
+    Subclasses must define `self._allowed_dirs: list[Path]`.
+    """
+
+    _allowed_dirs: list[Path]
+
+    def _resolve_safe(self, raw_path: str) -> Path:
+        """Resolve and validate path against allowed_dirs."""
+        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
+        return resolved
+
+    def _require_file(self, target: Path, raw_path: str) -> None:
+        require_file(target, raw_path)
+
+    def _require_dir(self, target: Path, raw_path: str) -> None:
+        require_dir(target, raw_path)
+
+
 def check_size_limit(target: Path, max_bytes: int) -> int:
     """Return file size; raise 413 if it exceeds max_bytes."""
     try:

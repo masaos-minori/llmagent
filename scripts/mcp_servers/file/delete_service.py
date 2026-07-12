@@ -18,10 +18,8 @@ from pathlib import Path
 
 from mcp_servers.file.common import (
     FileAuthorizationError,
+    FileSecurityMixin,
     FileValidationError,
-    require_dir,
-    require_file,
-    resolve_safe,
 )
 from mcp_servers.file.delete_formatter import DeleteFileFormatter
 from mcp_servers.file.delete_models import (
@@ -40,7 +38,7 @@ logger = logging.getLogger(__name__)
 _DRY_RUN_MAX_FILES = 1000
 
 
-class DeleteFileService:
+class DeleteFileService(FileSecurityMixin):
     """Encapsulates delete filesystem operations with security boundaries and audit logging."""
 
     def __init__(
@@ -50,19 +48,6 @@ class DeleteFileService:
     ) -> None:
         self._allowed_dirs = allowed_dirs
         self._audit_log_path = audit_log_path
-
-    # ── Security wrappers (delegate to file_mcp_common) ──
-
-    def _resolve_safe(self, raw_path: str) -> Path:
-        """Resolve and validate path against allowed_dirs."""
-        resolved: Path = resolve_safe(raw_path, self._allowed_dirs)
-        return resolved
-
-    def _require_file(self, target: Path, raw_path: str) -> None:
-        require_file(target, raw_path)
-
-    def _require_dir(self, target: Path, raw_path: str) -> None:
-        require_dir(target, raw_path)
 
     # ── Audit log ──
 
