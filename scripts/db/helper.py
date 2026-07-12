@@ -23,6 +23,20 @@ logger = logging.getLogger(__name__)
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 
 
+def apply_connection_pragmas(
+    conn: sqlite3.Connection,
+    *,
+    busy_timeout_ms: int = _DEFAULT_BUSY_TIMEOUT_MS,
+    write_mode: bool = True,
+) -> None:
+    """Apply WAL/synchronous=NORMAL/busy_timeout/foreign_keys pragmas to a connection."""
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+    if write_mode:
+        conn.execute("PRAGMA foreign_keys=ON")
+
+
 class DbTarget(StrEnum):
     """SQLite database target type."""
 
@@ -139,11 +153,9 @@ class SQLiteHelper:
         write_mode: bool,
     ) -> None:
         """Apply WAL/synchronous=NORMAL/busy_timeout; foreign_keys enforced only in write_mode."""
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms}")
-        if write_mode:
-            conn.execute("PRAGMA foreign_keys=ON")
+        apply_connection_pragmas(
+            conn, busy_timeout_ms=self._busy_timeout_ms, write_mode=write_mode
+        )
 
     def open(
         self,

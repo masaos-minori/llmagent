@@ -11,6 +11,7 @@ import re
 import sqlite3
 from pathlib import Path
 
+from db.helper import apply_connection_pragmas
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_fts import fts_consistency_check, fts_rebuild
 from mcp_servers.mdq.db_grep import grep_docs
@@ -133,10 +134,9 @@ class MdqService:
 
             raise MdqDatabaseError(f"Failed to open database: {e}") from e
         conn.row_factory = sqlite3.Row
-        # Enable WAL mode for better concurrent read performance
-        conn.execute("PRAGMA journal_mode=WAL")
-        # Set busy timeout to avoid "database is locked" errors
-        conn.execute(f"PRAGMA busy_timeout = {self.sqlite_busy_timeout}")
+        apply_connection_pragmas(
+            conn, busy_timeout_ms=self.sqlite_busy_timeout, write_mode=False
+        )
         return conn
 
     async def search_docs(self, req: SearchDocsRequest) -> str:

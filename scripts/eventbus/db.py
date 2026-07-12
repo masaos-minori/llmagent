@@ -5,6 +5,8 @@ import sqlite3
 import threading
 from pathlib import Path
 
+from db.helper import apply_connection_pragmas
+
 logger = logging.getLogger(__name__)
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -31,8 +33,7 @@ def open_db(db_path: str) -> sqlite3.Connection:
     try:
         conn = sqlite3.connect(db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        apply_connection_pragmas(conn, write_mode=True)
         _init_schema(conn)
         return conn
     except sqlite3.Error as exc:

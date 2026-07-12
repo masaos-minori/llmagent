@@ -13,6 +13,8 @@ import logging
 import sqlite3
 from pathlib import Path
 
+from db.helper import apply_connection_pragmas
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +30,9 @@ def create_production_tables(
     db_dir = Path(db_path).parent
     db_dir.mkdir(parents=True, exist_ok=True)
     try:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute(f"PRAGMA busy_timeout = {sqlite_busy_timeout}")
+        apply_connection_pragmas(
+            conn, busy_timeout_ms=sqlite_busy_timeout, write_mode=False
+        )
 
         # Detect and rebuild old schema (id INTEGER PK + chunk_id TEXT UNIQUE)
         old_col = conn.execute("PRAGMA table_info(chunks)").fetchone()
