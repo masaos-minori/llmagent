@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 import respx
-from shared.mcp_config import TransportType
+from shared.mcp_config import StartupMode, TransportType
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -178,6 +178,7 @@ class TestErrorInjectionChaos:
             url="http://127.0.0.1:19002",
             cmd=[],
             tool_names=["_chaos_tool_b1"],
+            startup_mode=StartupMode.PERSISTENT,
         )
         with respx.mock(
             base_url="http://127.0.0.1:19002", assert_all_called=False
@@ -206,6 +207,7 @@ class TestErrorInjectionChaos:
             url="http://127.0.0.1:19003",
             cmd=[],
             tool_names=["_chaos_tool_b2a", "_chaos_tool_b2b"],
+            startup_mode=StartupMode.PERSISTENT,
         )
 
         def _side_effect(request: httpx.Request) -> httpx.Response:
@@ -242,6 +244,7 @@ class TestErrorInjectionChaos:
             url="http://127.0.0.1:19004",
             cmd=[],
             tool_names=["_chaos_ok", "_chaos_fail"],
+            startup_mode=StartupMode.PERSISTENT,
         )
         call_count = 0
 
@@ -359,6 +362,7 @@ class TestNetworkChaos:
             url="http://127.0.0.1:19005",
             cmd=[],
             tool_names=["_chaos_d1"],
+            startup_mode=StartupMode.PERSISTENT,
         )
         call_count = 0
 
@@ -396,6 +400,7 @@ class TestNetworkChaos:
             url="http://127.0.0.1:19006",
             cmd=[],
             tool_names=["_chaos_d2"],
+            startup_mode=StartupMode.PERSISTENT,
         )
         with respx.mock(
             base_url="http://127.0.0.1:19006", assert_all_called=False
@@ -426,6 +431,7 @@ class TestNetworkChaos:
             url="http://127.0.0.1:19007",
             cmd=[],
             tool_names=["_chaos_d3"],
+            startup_mode=StartupMode.PERSISTENT,
         )
         with respx.mock(
             base_url="http://127.0.0.1:19007", assert_all_called=False
