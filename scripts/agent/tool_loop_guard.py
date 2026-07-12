@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
+from shared.json_utils import dumps as json_dumps
 from shared.tool_executor_helpers import tool_hash_key
 from shared.types import LLMMessage
 
@@ -77,9 +78,7 @@ class ToolLoopGuard:
             "guard_type": guard_type,
             "timestamp": datetime.now(UTC).isoformat(),
         }
-        ctx.diagnostics.save(
-            ctx.session.session_id, "guard_hint", orjson.dumps(payload).decode()
-        )
+        ctx.diagnostics.save(ctx.session.session_id, "guard_hint", json_dumps(payload))
 
     # ── Guard checks ──────────────────────────────────────────────────────────
 

@@ -14,10 +14,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import orjson
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import check_preflight, classify_operation_type, classify_risk
+from shared.json_utils import dumps as json_dumps
 from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
@@ -95,7 +95,7 @@ class RepositoryGateway:
                 "id": f"gateway_{tool_name}",
                 "function": {
                     "name": tool_name,
-                    "arguments": orjson.dumps(args).decode(),
+                    "arguments": json_dumps(args),
                 },
             }
             approved_calls, denied_ids = await run_approval_checks(

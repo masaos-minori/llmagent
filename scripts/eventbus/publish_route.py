@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
-import orjson
 from eventbus.db import insert_event
 from eventbus.route_helpers import get_broker, get_config, get_db, run_with_db_lock
 from fastapi import HTTPException, Request
+from shared.json_utils import dumps as json_dumps
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ async def publish(request: Request) -> dict[str, Any]:
 
     event_id: str = body["event_id"]
     topic: str = body["topic"]
-    payload_str: str = orjson.dumps(body["payload"]).decode()
+    payload_str: str = json_dumps(body["payload"])
     producer: str = body["producer"]
     published_at: str = body["published_at"]
 
@@ -47,7 +47,7 @@ async def publish(request: Request) -> dict[str, Any]:
     try:
         cfg = get_config(request)
         path = Path(cfg.storage_dir) / "events.jsonl"
-        line = orjson.dumps({**body, "seq": seq}).decode() + "\n"
+        line = json_dumps({**body, "seq": seq}) + "\n"
         with path.open("a", encoding="utf-8") as f:
             f.write(line)
             f.flush()

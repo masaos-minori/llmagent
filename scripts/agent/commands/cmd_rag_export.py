@@ -11,11 +11,11 @@ Provides _RagExportMixin with:
 import logging
 from typing import Any
 
-import orjson
 from agent.commands.mixin_base import MixinBase
 from agent.history import HistoryCompressionError
 from agent.services.export_formatter import render_export, write_export
 from mcp_servers.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
+from shared.json_utils import dumps as json_dumps
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +189,7 @@ class _RagExportMixin(MixinBase):
                 ctx.diagnostics.save(
                     ctx.session.session_id,
                     kind="rag_query",
-                    content=orjson.dumps(diag_data).decode(),
+                    content=json_dumps(diag_data),
                 )
             except Exception:  # noqa: BLE001 — diagnostics must not crash the command
                 logger.debug("Failed to persist RAG query diagnostics", exc_info=True)

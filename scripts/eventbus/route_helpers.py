@@ -72,3 +72,19 @@ async def run_with_db_lock(func: Any) -> Any:
             return func()
 
     return await asyncio.to_thread(_locked)
+
+
+# -- Event row helpers -------------------------------------------------------
+
+
+def _row_to_dict(row: Any) -> dict[str, Any]:
+    import orjson  # noqa: PLC0415
+
+    return {
+        "seq": row["seq"],
+        "event_id": row["event_id"],
+        "topic": row["topic"],
+        "payload": orjson.loads(row["payload"]),
+        "producer": row["producer"],
+        "published_at": row["published_at"],
+    }

@@ -4,24 +4,13 @@
 import logging
 from typing import Any
 
-import orjson
 from eventbus.db import fetch_events_since
-from eventbus.route_helpers import get_db, run_with_db_lock
+from eventbus.route_helpers import _row_to_dict, get_db, run_with_db_lock
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
+from shared.json_utils import dumps as json_dumps
 
 logger = logging.getLogger(__name__)
-
-
-def _row_to_dict(row: Any) -> dict[str, Any]:
-    return {
-        "seq": row["seq"],
-        "event_id": row["event_id"],
-        "topic": row["topic"],
-        "payload": orjson.loads(row["payload"]),
-        "producer": row["producer"],
-        "published_at": row["published_at"],
-    }
 
 
 def _count_events_since(conn: Any, since_seq: int) -> int:
@@ -62,7 +51,7 @@ async def replay(
 
     async def _sse_gen() -> Any:
         for row in rows:
-            data = orjson.dumps(_row_to_dict(row)).decode()
+            data = json_dumps(_row_to_dict(row))
             yield f"data: {data}\n\n"
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
