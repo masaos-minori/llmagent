@@ -23,7 +23,7 @@ from agent.repository_gateway import RepositoryGateway
 from agent.services.models import ProcessInfoSnapshot
 from shared import plugin_registry
 from shared.git_helper import get_repo_info
-from shared.llm_client import LLMClient, build_llm_url
+from shared.llm_client import LLMClient, build_embed_url, build_llm_url
 from shared.logger import Logger
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry
@@ -327,7 +327,7 @@ def _build_embedding_client(
 ) -> object:
     """Build and return the embedding client instance."""
     cfg = config_cls(
-        embed_url=ctx.cfg.rag.embed_url,
+        embed_url=build_embed_url(ctx.cfg.rag.embed_url),
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
         embed_dim=ctx.cfg.memory.memory_embed_dim,
         local_only=ctx.cfg.memory.memory_local_only,

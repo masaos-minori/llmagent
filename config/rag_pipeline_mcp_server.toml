@@ -7,7 +7,7 @@
 llm_url = "http://192.168.11.197:8080"
 
 # Embedding LLM endpoint used for KNN search
-embed_url = "http://192.168.11.238:8081/embedding"
+embed_url = "http://192.168.11.238:8081"
 
 # RAG SQLite database path
 rag_db_path = "/opt/llm/db/rag.sqlite"

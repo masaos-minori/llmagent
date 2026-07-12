@@ -7,7 +7,7 @@
 rag_db_path = "/opt/llm/db/rag.sqlite"
 session_db_path = "/opt/llm/db/session.sqlite"
 sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
-embed_url = "http://192.168.11.238:8081/embedding"
+embed_url = "http://192.168.11.238:8081"
 sqlite_timeout = 30
 sqlite_busy_timeout_ms = 30000
 sqlite_wal_checkpoint_mode = "TRUNCATE"

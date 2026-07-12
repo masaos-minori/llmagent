@@ -40,7 +40,7 @@ from rag.llm_prompts import (
 )
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps as _json_dumps
-from shared.llm_client import build_llm_url
+from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,
     RagHit,  # noqa: F401 — imported for use in this module
@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 
 # Module-level cached llm_url; loaded once and reused across calls.
 _llm_url_cache: str | None = None
+_embed_url_cache: str | None = None
 
 
 def _get_cached_llm_url() -> str:
@@ -63,6 +64,19 @@ def _get_cached_llm_url() -> str:
             _llm_url_cache = ""
     assert _llm_url_cache is not None
     return _llm_url_cache
+
+
+def _get_cached_embed_url() -> str:
+    """Return the cached embed_url, loading from config on first call."""
+    global _embed_url_cache
+    if _embed_url_cache is None:
+        try:
+            cfg = ConfigLoader().load_all()
+            _embed_url_cache = build_embed_url(cfg.get("embed_url", ""))
+        except (FileNotFoundError, ValueError):
+            _embed_url_cache = ""
+    assert _embed_url_cache is not None
+    return _embed_url_cache
 
 
 # ─────────────────────────────────────────────────────────────────────────────

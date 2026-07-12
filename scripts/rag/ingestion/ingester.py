@@ -28,6 +28,7 @@ from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
+from shared.llm_client import build_embed_url
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
@@ -59,7 +60,7 @@ class RagIngester:
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
         self._registered_dir: Path = rag_src_dir / "registered"
-        self._embed_url: str = cfg["embed_url"]
+        self._embed_url: str = build_embed_url(cfg["embed_url"])
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
         self._expected_dims: int = int(cfg.get("embedding_dims", 384))
@@ -611,7 +612,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    from shared.config_loader import ConfigLoader
-
     ConfigLoader.restrict_to("ingester.toml")
     main()

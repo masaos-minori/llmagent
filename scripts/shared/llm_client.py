@@ -23,6 +23,7 @@ from shared.types import LLMMessage
 logger = logging.getLogger(__name__)
 
 CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
+EMBEDDING_PATH = "/embedding"
 
 
 def build_llm_url(base_url: str) -> str:
@@ -31,6 +32,14 @@ def build_llm_url(base_url: str) -> str:
         return ""
     base = base_url.rstrip("/")
     return f"{base}{CHAT_COMPLETIONS_PATH}"
+
+
+def build_embed_url(base_url: str) -> str:
+    """Append the embedding endpoint path to a base URL."""
+    if not base_url:
+        return ""
+    base = base_url.rstrip("/")
+    return f"{base}{EMBEDDING_PATH}"
 
 
 class LLMClient:

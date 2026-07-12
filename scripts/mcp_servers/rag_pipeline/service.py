@@ -24,7 +24,7 @@ from mcp_servers.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp_servers.server import ToolArgs
-from shared.llm_client import build_llm_url
+from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import RagHit
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class RagPipelineMCPService:
         rag_cfg = build_rag_cfg_adapter(cfg)
         module_cfg: dict[str, object] = {
             "llm_url": build_llm_url(cfg.llm_url),
-            "embed_url": cfg.embed_url,
+            "embed_url": build_embed_url(cfg.embed_url),
             "rag_db_path": cfg.rag_db_path,
             "sqlite_vec_so": cfg.sqlite_vec_so,
             "sqlite_timeout": cfg.sqlite_timeout,
