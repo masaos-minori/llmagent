@@ -13,8 +13,6 @@ related:
   - 04_mcp_04_03_rag-pipeline-and-cicd.md
   - 04_mcp_04_04_mdq.md
   - 04_mcp_04_05_git.md
-source:
-  - 04_mcp_04_server_catalog.md
 ---
 
 # MCP Server Catalog: web-search-mcp / file-read-mcp / github-mcp

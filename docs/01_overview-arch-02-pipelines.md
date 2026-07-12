@@ -13,8 +13,6 @@ related:
   - 01_overview-arch-01-process.md
   - 01_overview-arch-03-features.md
   - 01_overview.md
-source:
-  - 01_overview-arch.md
 ---
 
 # 概要・アーキテクチャ

@@ -11,13 +11,9 @@ tags:
   - file-structure
 related:
   - 01_overview-files-01-build.md
-  - 01_overview-files-03-scripts.md
-  - 01_overview-files-04-shared.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
   - 01_overview.md
-source:
-  - 01_overview-files.md
 ---
 
 # ファイル構成

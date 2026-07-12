@@ -95,6 +95,27 @@ def check_links(path: Path, content: str) -> list[str]:
     return issues
 
 
+def check_related_links(path: Path, content: str) -> list[str]:
+    if not content.startswith("---"):
+        return []
+    end = content.find("\n---", 3)
+    if end == -1:
+        return []
+    try:
+        data = yaml.safe_load(content[3:end]) or {}
+    except yaml.YAMLError:
+        return []  # already reported by check_front_matter(); avoid double-reporting
+    issues = []
+    for field in ("related", "source"):
+        for entry in data.get(field) or []:
+            resolved = (path.parent / entry).resolve()
+            if not resolved.is_file():
+                issues.append(
+                    f"{path.name}: front matter references missing file '{entry}' (field: {field})"
+                )
+    return issues
+
+
 def validate_file(path: Path, expected_category: str | None) -> list[str]:
     content = path.read_text(encoding="utf-8")
     size = len(content.encode("utf-8"))
@@ -105,6 +126,7 @@ def validate_file(path: Path, expected_category: str | None) -> list[str]:
     issues.extend(check_front_matter(path, content, expected_category))
     issues.extend(check_tail_sections(path, content))
     issues.extend(check_links(path, content))
+    issues.extend(check_related_links(path, content))
     return issues
 
 

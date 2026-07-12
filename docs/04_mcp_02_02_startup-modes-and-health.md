@@ -10,8 +10,6 @@ related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_02_01_endpoints-and-transport.md
   - 04_mcp_02_03_audit-logging-and-errors.md
-source:
-  - 04_mcp_02_protocol_and_transport.md
 ---
 
 # MCP プロトコルとトランスポート: 起動モード・認証・ヘルスチェック

@@ -7,9 +7,6 @@ tags:
   - fts5
 related:
   - 03_rag_00_document-guide.md
-  - 03_rag_91_design_notes.md
-source:
-  - 03_rag_91_design_notes.md
 ---
 
 # DESIGN-2 FTS5コンテンツ分離

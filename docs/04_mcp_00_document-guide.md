@@ -73,7 +73,7 @@ related:
 | [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | エントリポイント |
 | [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | システム概要 |
 | [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | プロトコルとトランスポート(3分割) |
-| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03](04_mcp_03_03_transport-and-health.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md) | ルーティングとライフサイクル(5分割) |
+| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health-part1.md)/[_03b](04_mcp_03_03_transport-and-health-part2.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md) | ルーティングとライフサイクル(6分割) |
 | [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md) 〜 [_02](04_mcp_04_02_file-write-file-delete-shell.md)/[_03](04_mcp_04_03_rag-pipeline-and-cicd.md)/[_04](04_mcp_04_04_mdq.md)/[_05](04_mcp_04_05_git.md) | サーバカタログ(5分割、_04=mdq) |
 | [04_mcp_05_01](04_mcp_05_01_access-control-and-allowlists.md) 〜 [_02](04_mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](04_mcp_05_04_mdq-rag-boundary.md)/[_05](04_mcp_05_05_mdq-enforcement-and-lockdown.md) | セキュリティモデル(5分割) |
 | [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | config目的 |

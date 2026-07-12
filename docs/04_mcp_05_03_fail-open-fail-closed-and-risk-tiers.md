@@ -13,8 +13,6 @@ related:
   - 04_mcp_05_02_auth-profiles-and-sandboxing.md
   - 04_mcp_05_04_mdq-rag-boundary.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-source:
-  - 04_mcp_05_security_and_safety_model.md
 ---
 
 # MCP セキュリティと安全性モデル: Fail-Open/Fail-Closed 要約・Dry-Run・リスクティア・AI 注記

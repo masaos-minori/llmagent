@@ -20,8 +20,6 @@ related:
   - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
   - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
   - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
-source:
-  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands

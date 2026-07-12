@@ -12,8 +12,6 @@ related:
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 04_mcp_05_04_mdq-rag-boundary.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
-source:
-  - 04_mcp_05_security_and_safety_model.md
 ---
 
 # MCP セキュリティと安全性モデル

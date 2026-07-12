@@ -12,8 +12,6 @@ related:
   - 05_agent_06_01_tool-execution-and-approval-execution.md
   - 05_agent_06_02_tool-execution-and-approval-approval.md
   - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
-source:
-  - 05_agent_06_tool-execution-and-approval.md
 ---
 
 # エージェントのツール実行と承認

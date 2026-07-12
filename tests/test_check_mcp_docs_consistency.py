@@ -229,81 +229,124 @@ class TestCheckActiveInconsistencies:
 
 # ── check_tool_counts ────────────────────────────────────────────────────────
 
+_ALL_CATALOG_FILENAMES = (
+    "04_mcp_04_01_web-search-file-read-github.md",
+    "04_mcp_04_02_file-write-file-delete-shell.md",
+    "04_mcp_04_03_rag-pipeline-and-cicd.md",
+    "04_mcp_04_04_mdq.md",
+    "04_mcp_04_05_git.md",
+)
+
+
+def _mk_all_catalog_files(overrides: dict[str, list[str]]) -> list[DocFile]:
+    """Build all 5 real catalog DocFiles; override specific files' lines,
+    leave the rest empty (present but with no server sections)."""
+    return [_mk_file(rel, overrides.get(rel, [])) for rel in _ALL_CATALOG_FILENAMES]
+
 
 class TestCheckToolCounts:
     def test_correct_count_no_issue(self) -> None:
         """Documented count matching expected should not produce issues."""
-        doc = _mk_file(
-            "04_mcp_04_server_catalog.md",
-            [
-                "## web-search-mcp (port 8015)",
-                "**Tools(1):** search_web",
-            ],
+        docs = _mk_all_catalog_files(
+            {
+                "04_mcp_04_01_web-search-file-read-github.md": [
+                    "## web-search-mcp（ポート 8004）",
+                    "**ツール（1個）:** search_web",
+                ],
+            }
         )
-        issues = check_tool_counts(Path("/fake"), [doc])
+        issues = check_tool_counts(Path("/fake"), docs)
         assert not issues
 
     def test_incorrect_count_triggers_warning(self) -> None:
         """Documented count not matching expected should produce WARNING."""
-        doc = _mk_file(
-            "04_mcp_04_server_catalog.md",
-            [
-                "## web-search-mcp (port 8015)",
-                "**Tools(2):** search_web",
-            ],
+        docs = _mk_all_catalog_files(
+            {
+                "04_mcp_04_01_web-search-file-read-github.md": [
+                    "## web-search-mcp（ポート 8004）",
+                    "**ツール（2個）:** search_web",
+                ],
+            }
         )
-        issues = check_tool_counts(Path("/fake"), [doc])
+        issues = check_tool_counts(Path("/fake"), docs)
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
         assert "web-search-mcp" in issues[0].message
 
     def test_missing_catalog_file_returns_warning(self) -> None:
-        """Missing catalog file should produce WARNING."""
+        """None of the 5 catalog files present should produce one WARNING."""
         doc = _mk_file("04_mcp_02_protocol_and_transport.md", [])
         issues = check_tool_counts(Path("/fake"), [doc])
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
 
-    def test_unknown_server_no_issue(self) -> None:
-        """Unknown server section should not produce issues (no comparison)."""
+    def test_partial_catalog_files_missing(self) -> None:
+        """Some but not all of the 5 catalog files present: WARNING per missing
+        file, plus normal checking of the files that are present."""
         doc = _mk_file(
-            "04_mcp_04_server_catalog.md",
+            "04_mcp_04_01_web-search-file-read-github.md",
             [
-                "## unknown-mcp (port 9999)",
-                "**Tools(5):** fake_tool",
+                "## web-search-mcp（ポート 8004）",
+                "**ツール（1個）:** search_web",
             ],
         )
-        issues = check_tool_counts(Path("/fake"), [doc])
+        other = _mk_file("04_mcp_02_protocol_and_transport.md", [])
+        issues = check_tool_counts(Path("/fake"), [doc, other])
+        assert len(issues) == 4
+        assert all(i.severity == "WARNING" for i in issues)
+        missing_messages = " ".join(i.message for i in issues)
+        for missing_file in (
+            "04_mcp_04_02_file-write-file-delete-shell.md",
+            "04_mcp_04_03_rag-pipeline-and-cicd.md",
+            "04_mcp_04_04_mdq.md",
+            "04_mcp_04_05_git.md",
+        ):
+            assert missing_file in missing_messages
+        assert not any("Tool count mismatch" in i.message for i in issues)
+
+    def test_unknown_server_no_issue(self) -> None:
+        """Unknown server section should not produce issues (no comparison)."""
+        docs = _mk_all_catalog_files(
+            {
+                "04_mcp_04_01_web-search-file-read-github.md": [
+                    "## unknown-mcp（ポート 9999）",
+                    "**ツール（5個）:** fake_tool",
+                ],
+            }
+        )
+        issues = check_tool_counts(Path("/fake"), docs)
         assert not issues
 
     def test_multiple_servers_checked(self) -> None:
         """Multiple server sections each validated."""
-        doc = _mk_file(
-            "04_mcp_04_server_catalog.md",
-            [
-                "## web-search-mcp (port 8015)",
-                "**Tools(1):** search_web",
-                "## mdq-mcp (port 8013)",
-                "**Tools(9):** search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild",
-            ],
+        docs = _mk_all_catalog_files(
+            {
+                "04_mcp_04_02_file-write-file-delete-shell.md": [
+                    "## file-write-mcp（ポート 8007）",
+                    "**ツール（4個）:** write_file, edit_file, create_directory, move_file",
+                    "## file-delete-mcp（ポート 8008）",
+                    "**ツール（2個）:** delete_file, delete_directory",
+                ],
+            }
         )
-        issues = check_tool_counts(Path("/fake"), [doc])
+        issues = check_tool_counts(Path("/fake"), docs)
         assert not issues
 
     def test_one_server_incorrect_count(self) -> None:
         """One incorrect count among multiple should produce one WARNING."""
-        doc = _mk_file(
-            "04_mcp_04_server_catalog.md",
-            [
-                "## web-search-mcp (port 8015)",
-                "**Tools(2):** search_web",
-                "## mdq-mcp (port 8013)",
-                "**Tools(9):** search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild",
-            ],
+        docs = _mk_all_catalog_files(
+            {
+                "04_mcp_04_02_file-write-file-delete-shell.md": [
+                    "## file-write-mcp（ポート 8007）",
+                    "**ツール（3個）:** write_file, edit_file, create_directory, move_file",
+                    "## file-delete-mcp（ポート 8008）",
+                    "**ツール（2個）:** delete_file, delete_directory",
+                ],
+            }
         )
-        issues = check_tool_counts(Path("/fake"), [doc])
+        issues = check_tool_counts(Path("/fake"), docs)
         assert len(issues) == 1
-        assert "web-search-mcp" in issues[0].message
+        assert "file-write-mcp" in issues[0].message
 
 
 # ── _ACTIVE_ISSUE_ALLOWLIST ──────────────────────────────────────────────────

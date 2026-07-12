@@ -9,7 +9,6 @@ related:
   - 03_rag_01_system_overview-part1.md
   - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
-  - 03_rag_03_query_pipeline-stages.md
   - 03_rag_03_06_query_pipeline-helpers-and-cache-part1.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md

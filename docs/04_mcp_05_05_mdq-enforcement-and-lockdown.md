@@ -14,8 +14,6 @@ related:
   - 04_mcp_05_02_auth-profiles-and-sandboxing.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 04_mcp_05_04_mdq-rag-boundary.md
-source:
-  - 04_mcp_05_security_and_safety_model.md
 ---
 
 # MCP セキュリティと安全性モデル: MDQ/RAG 境界の強制と Fail-Open/Fail-Closed・Deny-All ロックダウン

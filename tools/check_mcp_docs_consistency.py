@@ -368,7 +368,15 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
 # Check 5: Tool count consistency
 # ---------------------------------------------------------------------------
 
-_TOOL_COUNT_RE = re.compile(r"\bTools\((\d+)\)")
+_TOOL_COUNT_RE = re.compile(r"ツール（(\d+)個）")
+
+_TOOL_COUNT_CATALOG_FILES = (
+    "04_mcp_04_01_web-search-file-read-github.md",
+    "04_mcp_04_02_file-write-file-delete-shell.md",
+    "04_mcp_04_03_rag-pipeline-and-cicd.md",
+    "04_mcp_04_04_mdq.md",
+    "04_mcp_04_05_git.md",
+)
 
 _SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
     "web-search-mcp": frozenset({"search_web"}),
@@ -452,47 +460,68 @@ _SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
 
 
 def check_tool_counts(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Check that documented tool counts in 04_mcp_04_server_catalog.md match
+    """Check that documented tool counts in the MCP server catalog docs
+    (04_mcp_04_01..05, split from the former 04_mcp_04_server_catalog.md) match
     the canonical frozenset definitions.
 
     Reports WARNING (not ERROR) to avoid brittleness when new tools are added.
     """
-    catalog_file = None
-    for doc in files:
-        if doc.rel_path == "04_mcp_04_server_catalog.md":
-            catalog_file = doc
-            break
+    catalog_files = [d for d in files if d.rel_path in _TOOL_COUNT_CATALOG_FILES]
 
-    if catalog_file is None:
-        return [
+    issues: list[Issue] = []
+    if not catalog_files:
+        issues.append(
             Issue(
                 file="docs/",
                 line_no=0,
                 severity="WARNING",
-                message="04_mcp_04_server_catalog.md not found — cannot verify tool counts.",
+                message=(
+                    "None of "
+                    f"{_TOOL_COUNT_CATALOG_FILES} found — cannot verify tool counts."
+                ),
             )
-        ]
+        )
+        return issues
 
+    found_names = {d.rel_path for d in catalog_files}
+    for missing in sorted(set(_TOOL_COUNT_CATALOG_FILES) - found_names):
+        issues.append(
+            Issue(
+                file="docs/",
+                line_no=0,
+                severity="WARNING",
+                message=f"{missing} not found — cannot verify tool counts for its section(s).",
+            )
+        )
+
+    for catalog_file in catalog_files:
+        issues.extend(_check_tool_counts_for_file(catalog_file))
+    return issues
+
+
+def _check_tool_counts_for_file(catalog_file: DocFile) -> list[Issue]:
     issues: list[Issue] = []
     for i, line in enumerate(catalog_file.lines, start=1):
         m = _TOOL_COUNT_RE.search(line)
-        if m:
-            server_section = _find_server_section_for_line(catalog_file, i)
-            if server_section and server_section in _SERVER_TOOLS_MAP:
-                expected_count = len(_SERVER_TOOLS_MAP[server_section])
-                doc_count = int(m.group(1))
-                if doc_count != expected_count:
-                    issues.append(
-                        Issue(
-                            file=catalog_file.rel_path,
-                            line_no=i,
-                            severity="WARNING",
-                            message=(
-                                f"Tool count mismatch for {server_section}: "
-                                f"documented {doc_count}, expected {expected_count}"
-                            ),
-                        )
-                    )
+        if not m:
+            continue
+        server_section = _find_server_section_for_line(catalog_file, i)
+        if not server_section or server_section not in _SERVER_TOOLS_MAP:
+            continue
+        expected_count = len(_SERVER_TOOLS_MAP[server_section])
+        doc_count = int(m.group(1))
+        if doc_count != expected_count:
+            issues.append(
+                Issue(
+                    file=catalog_file.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        f"Tool count mismatch for {server_section}: "
+                        f"documented {doc_count}, expected {expected_count}"
+                    ),
+                )
+            )
     return issues
 
 
@@ -501,7 +530,7 @@ def _find_server_section_for_line(catalog: DocFile, line_no: int) -> str | None:
     for i, line in enumerate(catalog.lines, start=1):
         if i >= line_no:
             break
-        m = re.match(r"^## (\S+)", line)
+        m = re.match(r"^## ([\w-]+)", line)
         if m:
             section_name = m.group(1).split("(")[0].strip()
             if section_name:

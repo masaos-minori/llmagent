@@ -16,8 +16,6 @@ related:
   - 05_agent_12_03_memory-module-ref-core-and-store.md
   - 05_agent_12_04_memory-module-ref-retrieval-and-injection.md
   - 05_agent_12_06_memory-module-ref-ops-and-scoring.md
-source:
-  - 05_agent_12_memory.md
 ---
 
 # Memory Layer — Module Reference

@@ -12,8 +12,6 @@ related:
   - 04_mcp_04_02_file-write-file-delete-shell.md
   - 04_mcp_04_04_mdq.md
   - 04_mcp_04_05_git.md
-source:
-  - 04_mcp_04_server_catalog.md
 ---
 
 # MCP Server Catalog: rag-pipeline-mcp / cicd-mcp

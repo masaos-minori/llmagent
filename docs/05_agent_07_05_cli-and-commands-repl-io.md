@@ -17,8 +17,6 @@ related:
   - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
   - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
   - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
-source:
-  - 05_agent_07_cli-and-commands.md
 ---
 
 # Agent CLI and Commands
