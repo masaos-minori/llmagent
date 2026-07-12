@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from mcp_servers.health_response import make_health_response
 
 
 class FileAuthorizationError(RuntimeError):
@@ -110,16 +111,4 @@ async def _on_validation_error(_req: Request, exc: Exception) -> JSONResponse:
 
 async def _health(allowed_dirs: list[str]) -> JSONResponse:
     deps = _build_health_deps(allowed_dirs)
-    ready = len(deps) == 0
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "degraded",
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": {},
-        },
-        status_code=200 if ready else 503,
-    )
+    return make_health_response(deps, {})

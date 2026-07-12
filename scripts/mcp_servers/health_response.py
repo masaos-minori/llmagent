@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from fastapi.responses import JSONResponse
 
+HEALTH_STATUS_OK = "ok"
+HEALTH_STATUS_DEGRADED = "degraded"
+
 
 def make_health_response(
     deps: dict[str, str],
@@ -35,7 +38,7 @@ def make_health_response(
     ready = len(deps) == 0
     return JSONResponse(
         {
-            "status": "ok" if ready else "degraded",
+            "status": HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED,
             "ready": ready,
             "liveness": True,
             "restart_recommended": False,

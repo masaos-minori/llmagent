@@ -9,9 +9,10 @@ Import from here:  from mcp_servers.mdq.health_check import check_health
 
 from __future__ import annotations
 
-import os as _os
 import sqlite3
+from pathlib import Path
 
+from db.helper import apply_connection_pragmas
 from fastapi.responses import JSONResponse
 from mcp_servers.health_response import make_health_response
 from shared.config_loader import ConfigLoader
@@ -46,12 +47,13 @@ def check_health() -> JSONResponse:
         db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
         details["database"] = db_path
 
-        if not _os.path.isfile(db_path):
+        if not Path(db_path).is_file():
             deps["db_file"] = f"not found: {db_path}"
             return _degraded_response(deps, details)
 
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
+        apply_connection_pragmas(conn, write_mode=False)
         try:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}

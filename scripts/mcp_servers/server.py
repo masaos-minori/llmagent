@@ -17,6 +17,7 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from mcp_servers.dispatch import DispatchResult
+from mcp_servers.health_response import HEALTH_STATUS_DEGRADED, HEALTH_STATUS_OK
 
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ class MCPServer:
         ready = len(deps) == 0
         status_code = 200 if ready else 503
         return {
-            "status": "ok" if ready else "degraded",
+            "status": HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED,
             "ready": ready,
             "liveness": True,
             "restart_recommended": False,
