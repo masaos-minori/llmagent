@@ -294,13 +294,21 @@ class RagIngester:
     def _validate_artifact(
         payload: ChunkJsonRaw,
         expected_type: str,
+        strict: bool = True,
     ) -> bool:
-        """Validate artifact_type field; missing artifact_type is rejected.
+        """Validate artifact_type field; missing artifact_type is always rejected.
+
+        When strict=False, schema_version and created_by are optional.
+        When strict=True, all three fields are required.
 
         Returns True when validation passes, False when it fails.
         """
-        for required in ("schema_version", "artifact_type", "created_by"):
-            if required not in payload:
+        if strict:
+            for required in ("schema_version", "artifact_type", "created_by"):
+                if required not in payload:
+                    return False
+        else:
+            if "artifact_type" not in payload:
                 return False
         actual = payload.get("artifact_type")
         if actual != expected_type:

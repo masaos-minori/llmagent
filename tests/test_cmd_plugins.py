@@ -49,7 +49,8 @@ class TestCmdPlugin:
         assert shadow_row[1] == "0"  # default value
 
     def test_failed_plugins_listed(self) -> None:
-        from shared.plugin_registry import PluginFailure, PluginLoadResult
+        from shared.plugin_registry import PluginLoadResult
+        from shared.plugin_result import PluginFailure
 
         result = PluginLoadResult(
             loaded_count=1,

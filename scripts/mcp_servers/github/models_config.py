@@ -12,7 +12,6 @@ import logging
 from typing import Any
 
 from shared.config_loader import ConfigLoader
-from shared.llm_client import build_llm_url
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ class GitHubConfig:
             require_pr_review=bool(d.get("require_pr_review", True)),
             default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
             max_per_page=int(d.get("max_per_page", 100)),
-            llm_url=build_llm_url(_get_str(d, "llm_url")),
+            llm_url=_get_str(d, "llm_url"),
         )
 
     @classmethod

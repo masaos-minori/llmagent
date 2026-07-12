@@ -83,6 +83,9 @@ def _make_chunk_json(
         "fetched_at": "2024-01-01T00:00:00",
         "content": content,
         "code_blocks": [],
+        "schema_version": "1",
+        "artifact_type": "chunk",
+        "created_by": "chunk_splitter",
         "etag": f"etag-{content_hash[:8]}",
         "last_modified": "2024-01-01T00:00:00",
     }

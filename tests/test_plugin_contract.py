@@ -145,7 +145,8 @@ async def test_runtime_valid_returns_result() -> None:
 
 
 def test_strict_mode_raises_on_invalid_plugin(tmp_path) -> None:  # type: ignore[type-arg]
-    from shared.plugin_registry import PluginLoadError, _reset_for_testing, load_plugins
+    from shared.plugin_registry import _reset_for_testing, load_plugins
+    from shared.plugin_result import PluginLoadError
 
     plugin_code = (
         "from shared.plugin_registry import register_tool\n"

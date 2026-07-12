@@ -84,6 +84,7 @@ class _FakeSQLiteHelper:
 def _make_db() -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
     return conn, _FakeSQLiteHelper(conn)
 
@@ -97,6 +98,9 @@ class _ChunkSpec:
     normalized_content: str | None = "normalized"
     chunk_index: int = 0
     chunking_strategy: str = "heading"
+    schema_version: str = "1"
+    artifact_type: str = "chunk"
+    created_by: str = "chunk_splitter"
     etag: str | None = None
     last_modified: str | None = None
 

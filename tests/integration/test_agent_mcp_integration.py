@@ -29,6 +29,7 @@ def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
         transport=TransportType.HTTP,
         url=_TEST_URL,
         tool_names=[_HTTP_TOOL],
+        startup_mode=None,
     )
     executor = ToolExecutor(
         http=http,
