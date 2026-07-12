@@ -29,7 +29,7 @@ _COMMANDS ownership:
                     validation in __init__.
 """
 
-import asyncio
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -157,7 +157,7 @@ class CommandRegistry(
                 pass  # args stays empty
             else:
                 continue
-            if asyncio.iscoroutinefunction(handler):
+            if inspect.iscoroutinefunction(handler):
                 await handler(self._ctx, args)
             else:
                 handler(self._ctx, args)

@@ -424,14 +424,7 @@ class TestKillPolicy:
         req = ShellRunRequest(command="echo hello", timeout_sec=1)
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             with patch("os.killpg") as mock_killpg:
-                with patch(
-                    "asyncio.wait_for",
-                    side_effect=[
-                        TimeoutError(),
-                        -9,
-                    ],  # communicate times out, then wait returns
-                ):
-                    result = await svc.run_command(req)
+                result = await svc.run_command(req)
 
         assert result.timed_out is True
         mock_killpg.assert_called_with(99999, signal.SIGKILL)
@@ -453,12 +446,7 @@ class TestKillPolicy:
         req = ShellRunRequest(command="echo hello", timeout_sec=1)
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             with patch("os.killpg") as mock_killpg:
-                # communicate times out; grace period wait returns immediately
-                with patch(
-                    "asyncio.wait_for",
-                    side_effect=[TimeoutError(), -15, -15],
-                ):
-                    result = await svc.run_command(req)
+                result = await svc.run_command(req)
 
         assert result.timed_out is True
         # SIGTERM must be sent first

@@ -39,7 +39,11 @@ def _make_cfg(**overrides: object) -> SimpleNamespace:
 
 
 def _make_pipeline(cfg: SimpleNamespace) -> RagPipeline:
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = b'{"embedding": [0.1]}'
     http = AsyncMock()
+    http.post = AsyncMock(return_value=mock_resp)
     with patch("rag.pipeline._ModuleConfig.get", return_value={}):
         return RagPipeline(http, cfg)
 

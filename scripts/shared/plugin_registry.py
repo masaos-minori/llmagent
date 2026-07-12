@@ -205,7 +205,7 @@ async def run_pipeline_stages(
     """Execute all registered post-rerank hooks with error isolation.
 
     Iterates hooks; calls each hook with (hits, query).
-    Supports both sync and async hooks (detected via asyncio.iscoroutinefunction).
+    Supports both sync and async hooks (detected via inspect.iscoroutinefunction).
     Failed hooks are logged and skipped; strict=True re-raises the first failure.
     Returns the (possibly modified) hits list.
     """
