@@ -270,7 +270,9 @@ class HttpServerLifecycleManager:
                             )
                             return
                     except (httpx.HTTPError, OSError) as e:
-                        logger.debug("Lifecycle: health-check poll %r: %s", server_key, e)
+                        logger.debug(
+                            "Lifecycle: health-check poll %r: %s", server_key, e
+                        )
                     await asyncio.sleep(0.5)
 
             stderr_full = self._read_stderr_tail(server_key)
@@ -307,29 +309,54 @@ class HttpServerLifecycleManager:
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
+    @staticmethod
+    def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
+        logger.warning(
+            "Lifecycle: SIGINT received during shutdown_all(); "
+            "ignoring until cleanup completes"
+        )
+
     async def shutdown_all(self) -> None:
-        """Terminate all HTTP subprocess servers and clear internal state."""
-        keys = list(self._http_procs.keys())
-        for key in keys:
-            proc = self._http_procs.pop(key, None)
-            if proc is None:
-                continue
-            if proc.poll() is not None:
-                logger.debug("Lifecycle: %r already exited; removing entry", key)
-            else:
-                try:
-                    await self._terminate_with_timeout(proc, key, timeout=5.0)
-                except (OSError, TimeoutError) as e:
-                    logger.warning(
-                        "Lifecycle: error stopping HTTP subprocess %r: %s", key, e
-                    )
-            self._http_pgids.pop(key, None)
-            stderr_fh = self._stderr_files.pop(key, None)
-            if stderr_fh is not None:
-                try:
-                    stderr_fh.close()
-                except OSError as close_err:
-                    logger.warning(
-                        "Lifecycle: error closing stderr log for %r: %s", key, close_err
-                    )
-        self._stderr_log_paths.clear()
+        """Terminate all HTTP subprocess servers and clear internal state.
+
+        Absorbs a second SIGINT that arrives while cleanup is already running so a user
+        pressing Ctrl-C twice cannot abort the loop and orphan the remaining subprocesses.
+        """
+        old_sigint: object | None = None
+        try:
+            old_sigint = signal.getsignal(signal.SIGINT)
+            signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
+        except ValueError:
+            # Not on the main thread — proceed without the guard rather than fail shutdown.
+            old_sigint = None
+
+        try:
+            keys = list(self._http_procs.keys())
+            for key in keys:
+                proc = self._http_procs.pop(key, None)
+                if proc is None:
+                    continue
+                if proc.poll() is not None:
+                    logger.debug("Lifecycle: %r already exited; removing entry", key)
+                else:
+                    try:
+                        await self._terminate_with_timeout(proc, key, timeout=5.0)
+                    except (OSError, TimeoutError) as e:
+                        logger.warning(
+                            "Lifecycle: error stopping HTTP subprocess %r: %s", key, e
+                        )
+                self._http_pgids.pop(key, None)
+                stderr_fh = self._stderr_files.pop(key, None)
+                if stderr_fh is not None:
+                    try:
+                        stderr_fh.close()
+                    except OSError as close_err:
+                        logger.warning(
+                            "Lifecycle: error closing stderr log for %r: %s",
+                            key,
+                            close_err,
+                        )
+            self._stderr_log_paths.clear()
+        finally:
+            if old_sigint is not None:
+                signal.signal(signal.SIGINT, old_sigint)

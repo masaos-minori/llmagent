@@ -729,6 +729,11 @@ _TRANSPORT_IS_ERROR_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Literal negation markers that mean the line is correctly describing what HttpTransport
+# does NOT do, not making the stale claim itself. Extend opportunistically as new phrasings
+# of the same correct statement are encountered (same policy as the "never" check below).
+_JA_NEGATION_MARKERS = ("ことはない", "しない", "返さない")
+
 
 def check_transport_error_is_error(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     """Detect docs claiming HttpTransport returns is_error=True for transport failures."""
@@ -745,7 +750,11 @@ def check_transport_error_is_error(docs_dir: Path, files: list[DocFile]) -> list
                 continue
             if not _TRANSPORT_IS_ERROR_RE.search(line):
                 continue
-            if "never" in line.lower() or "ToolCallResult" in line:
+            if (
+                "never" in line.lower()
+                or "ToolCallResult" in line
+                or any(marker in line for marker in _JA_NEGATION_MARKERS)
+            ):
                 continue
             issues.append(
                 Issue(

@@ -52,7 +52,6 @@ related:
 | 課題 | 場所 |
 |---|---|
 | mdq-mcpは本番稼働可能（FTS5検索とインデックスが実装済み） | [04_mcp_04_04_mdq.md](04_mcp_04_04_mdq.md) |
-| cicd workflow_allowlistのRuntimeErrorに関する記載の不整合 | [MCP-09](04_mcp_90_inconsistencies_and_known_issues.md#mcp-09-cicd-workflow_allowlist-policy-mismatch--runtimeerror-vs-warning) |
 
 ---
 

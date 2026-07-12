@@ -54,7 +54,7 @@ source:
 
 ## Navigation to Major Known Issues
 
-既知の不整合(DOCREF-01、DOCFIELD-01等)の全カタログは [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
+既知の不整合の全カタログは [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照(現時点でオープンな項目はない)。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
 
 ---
 
@@ -113,7 +113,7 @@ source:
 
 | File | Description |
 |---|---|
-| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, IMPORT-01, DOCFIELD-01、他 |
+| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | 既知の不整合カタログ(現時点でオープンな項目はない) |
 
 ---
 

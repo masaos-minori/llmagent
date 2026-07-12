@@ -547,6 +547,25 @@ class TestCheckTransportErrorIsError:
         issues = check_transport_error_is_error(Path("/fake"), [doc])
         assert not issues
 
+    def test_japanese_negation_no_issue(self) -> None:
+        """Japanese negation of the stale claim should not produce a warning."""
+        doc = _mk_file(
+            "04_mcp_02_03_audit-logging-and-errors.md",
+            ["HttpTransport は is_error=True を直接返すことはない"],
+        )
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert not issues
+
+    def test_japanese_affirmative_stale_still_triggers(self) -> None:
+        """Japanese affirmative stale claim (no negation) should still produce a WARNING."""
+        doc = _mk_file(
+            "04_mcp_02_03_audit-logging-and-errors.md",
+            ["HttpTransport は transport 障害時に is_error=True を返す"],
+        )
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
 
 # ── check_stdio_active_transport ─────────────────────────────────────────────
 

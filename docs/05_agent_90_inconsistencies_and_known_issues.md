@@ -25,16 +25,6 @@ related:
 
 ---
 
-## 未解決の疑問点
-
-### セッション SQLite 破損復旧のギャップ
-
-- `/db rag recover [backup-path]` は `rag.sqlite` のみを対象とする（`RagMaintenanceService` 経由）
-- `/db session recover [backup-path]` が存在する。`DbMaintenanceService.recover_session()` → `recover_corruption(backup_path, target="session")` を呼び出す
-- オペレーターの操作: `/db session recover /path/to/backup.sqlite`
-
----
-
 ## 未文書化領域
 
 *（現在追跡中の未文書化領域はない。UNDOC-02「プラグインツールの戻り値の
