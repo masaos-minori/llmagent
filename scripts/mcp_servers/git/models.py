@@ -10,22 +10,13 @@ import logging
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-def _get_str(d: dict[str, object], key: str, default: str = "") -> str:
-    """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
-    v = d.get(key)
-    if v is None:
-        return default
-    if not isinstance(v, str):
-        raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
-    return v
 
 
 @dataclasses.dataclass
@@ -53,9 +44,9 @@ class GitConfig:
         return cls(
             allowed_repo_paths=list(allowed),
             read_only=read_only,
-            auth_token=_get_str(d, "auth_token"),
+            auth_token=get_str(d, "auth_token"),
             max_log_entries=max_log,
-            audit_log_path=_get_str(d, "audit_log_path"),
+            audit_log_path=get_str(d, "audit_log_path"),
         )
 
     @classmethod

@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 
 logger = logging.getLogger(__name__)
 
@@ -18,16 +19,6 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-def _get_str(d: dict[str, Any], key: str, default: str = "") -> str:
-    """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
-    v = d.get(key)
-    if v is None:
-        return default
-    if not isinstance(v, str):
-        raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
-    return v
 
 
 @dataclasses.dataclass
@@ -44,11 +35,11 @@ class CicdConfig:
     def from_dict(cls, d: dict[str, Any]) -> CicdConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
-            auth_token=_get_str(d, "auth_token"),
+            auth_token=get_str(d, "auth_token"),
             repo_allowlist=list(d.get("repo_allowlist", [])),
             workflow_allowlist=list(d.get("workflow_allowlist", [])),
             max_log_size_kb=int(d.get("max_log_size_kb", 256)),
-            github_token=_get_str(d, "github_token"),
+            github_token=get_str(d, "github_token"),
         )
 
     @classmethod

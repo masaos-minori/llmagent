@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +21,6 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_PER_PAGE: int = 10
-
-
-def _get_str(d: dict[str, Any], key: str, default: str = "") -> str:
-    """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
-    v = d.get(key)
-    if v is None:
-        return default
-    if not isinstance(v, str):
-        raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
-    return v
 
 
 @dataclasses.dataclass
@@ -55,12 +46,12 @@ class GitHubConfig:
             path_denylist=list(d.get("path_denylist", [])),
             protected_branches=list(d.get("protected_branches", [])),
             max_file_size_kb=int(d.get("max_file_size_kb", 0)),
-            audit_log_path=_get_str(d, "audit_log_path"),
+            audit_log_path=get_str(d, "audit_log_path"),
             allow_force_push=bool(d.get("allow_force_push", False)),
             require_pr_review=bool(d.get("require_pr_review", True)),
             default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
             max_per_page=int(d.get("max_per_page", 100)),
-            llm_url=_get_str(d, "llm_url"),
+            llm_url=get_str(d, "llm_url"),
         )
 
     @classmethod
