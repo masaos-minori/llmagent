@@ -25,7 +25,7 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from mcp_servers.audit import _audit_log
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.git.models import GitConfig, GitServiceError
 from mcp_servers.git.service import build_service
 from mcp_servers.git.tools import TOOL_LIST
@@ -93,7 +93,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         outcome=r.outcome,
         server_key="git",
     )
-    return CallToolResponse(result=r.output, is_error=r.is_error)
+    return _to_call_tool_response(r)
 
 
 @app.get("/health")

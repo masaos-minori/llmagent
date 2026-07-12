@@ -18,7 +18,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from mcp_servers.audit import _audit_log
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.mdq.audit_target import extract_audit_target
 from mcp_servers.mdq.health_check import check_health
 from mcp_servers.mdq.models import (
@@ -267,7 +267,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         detail=", ".join(detail_parts),
         server_key="mdq",
     )
-    return CallToolResponse(result=r.output, is_error=r.is_error)
+    return _to_call_tool_response(r)
 
 
 @app.get("/health")

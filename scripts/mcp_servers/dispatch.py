@@ -9,7 +9,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mcp_servers.models import CallToolResponse
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,13 @@ class DispatchResult:
     @property
     def outcome(self) -> str:
         return "error" if self.is_error else "ok"
+
+
+def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
+    """Convert a DispatchResult into a CallToolResponse."""
+    from mcp_servers.models import CallToolResponse
+
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 async def dispatch_tool(

@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
@@ -149,7 +149,7 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     r = await _dispatch_write_tool(req.name, req.args)
-    return CallToolResponse(result=r.output, is_error=r.is_error)
+    return _to_call_tool_response(r)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

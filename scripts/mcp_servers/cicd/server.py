@@ -32,7 +32,12 @@ from mcp_servers.cicd.models import (
 )
 from mcp_servers.cicd.service import CiCdService, build_service
 from mcp_servers.cicd.tools import TOOL_LIST
-from mcp_servers.dispatch import DispatchResult, ToolArgs, dispatch_tool
+from mcp_servers.dispatch import (
+    DispatchResult,
+    ToolArgs,
+    _to_call_tool_response,
+    dispatch_tool,
+)
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
@@ -96,7 +101,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         outcome=r.outcome,
         server_key="cicd",
     )
-    return CallToolResponse(result=r.output, is_error=r.is_error)
+    return _to_call_tool_response(r)
 
 
 @app.get("/health")

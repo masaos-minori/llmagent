@@ -26,7 +26,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.rag_pipeline.models import (
@@ -148,7 +148,7 @@ async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     r = await _dispatch_rag_tool(req.name, req.args)
-    return CallToolResponse(result=r.output, is_error=r.is_error)
+    return _to_call_tool_response(r)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
