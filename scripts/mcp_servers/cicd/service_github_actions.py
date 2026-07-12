@@ -19,6 +19,7 @@ from mcp_servers.cicd.models import (
     CicdNotFoundError,
     CicdValidationError,
 )
+from shared.json_utils import dumps as _json_dumps
 
 from .service_defs import (
     _GH_API_VERSION,
@@ -171,8 +172,8 @@ class GitHubActionsBackend:
             "total_count": data.get("total_count", len(runs)),
             "runs": formatted,
         }
-        encoded: bytes = orjson.dumps(result, option=orjson.OPT_INDENT_2)
-        return encoded.decode()
+        encoded: str = _json_dumps(result, option=orjson.OPT_INDENT_2)
+        return encoded
 
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str:
         """Return details for a single workflow run."""
@@ -195,5 +196,5 @@ class GitHubActionsBackend:
             "event": r.get("event"),
             "run_attempt": r.get("run_attempt"),
         }
-        encoded2: bytes = orjson.dumps(result, option=orjson.OPT_INDENT_2)
-        return encoded2.decode()
+        encoded2: str = _json_dumps(result, option=orjson.OPT_INDENT_2)
+        return encoded2
