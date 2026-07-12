@@ -95,7 +95,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=req.args.get("query", ""),
-        outcome="error" if r.is_error else "ok",
+        outcome=r.outcome,
         server_key="web_search",
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)

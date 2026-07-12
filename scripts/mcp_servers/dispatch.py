@@ -23,6 +23,10 @@ class DispatchResult:
     output: str
     is_error: bool
 
+    @property
+    def outcome(self) -> str:
+        return "error" if self.is_error else "ok"
+
 
 async def dispatch_tool(
     table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]],

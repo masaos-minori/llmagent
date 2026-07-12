@@ -93,7 +93,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=req.args.get("repo", ""),
-        outcome="error" if r.is_error else "ok",
+        outcome=r.outcome,
         server_key="cicd",
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)

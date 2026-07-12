@@ -263,7 +263,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=target[:80],
-        outcome="error" if r.is_error else "ok",
+        outcome=r.outcome,
         detail=", ".join(detail_parts),
         server_key="mdq",
     )
