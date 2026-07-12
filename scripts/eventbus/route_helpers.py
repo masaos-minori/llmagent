@@ -9,6 +9,12 @@ from fastapi import Request
 if TYPE_CHECKING:
     from eventbus.broker import EventBroker  # noqa: F401
 
+# -- Reusable error messages -------------------------------------------------
+
+ERR_EVENT_NOT_FOUND = "event not found"
+ERR_EVENT_ID_REQUIRED = "event_id is required"
+ERR_EVENT_NOT_IN_DLQ = "event is not in DLQ"
+
 
 def _require_state(app: Any, attr: str) -> Any:
     """Get an attribute from app.state or raise RuntimeError."""

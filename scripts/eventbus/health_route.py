@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """eventbus/health_route.py — Health check endpoint handler."""
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from eventbus.db import check_db, get_db_lock
-from eventbus.route_helpers import get_broker, get_db
+from eventbus.db import check_db
+from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -21,11 +20,10 @@ async def health_check(request: Request) -> JSONResponse:
     broker = get_broker(request)
 
     def _check() -> bool:
-        with get_db_lock():
-            ok: bool = check_db(db)
-            return ok
+        ok: bool = check_db(db)
+        return ok
 
-    db_ok = await asyncio.to_thread(_check)
+    db_ok = await run_with_db_lock(_check)
     db_status = "ok" if db_ok else "unavailable"
 
     dlq_task_status = (

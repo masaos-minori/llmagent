@@ -26,6 +26,7 @@ from eventbus.publish_route import publish as publish_route
 from eventbus.replay_route import replay as replay_route
 from eventbus.route_helpers import app_get_config as get_config
 from eventbus.route_helpers import app_get_db as get_db
+from eventbus.route_helpers import run_with_db_lock
 from eventbus.subscribe_route import subscribe as subscribe_route
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
@@ -75,13 +76,10 @@ async def _dlq_loop(app: FastAPI) -> None:
             db = get_db(type("Req", (), {"app": app})())
 
             def _sweep() -> int:
-                from eventbus.db import get_db_lock  # noqa: PLC0415
+                result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
+                return result
 
-                with get_db_lock():
-                    result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
-                    return result
-
-            n = await asyncio.to_thread(_sweep)
+            n = await run_with_db_lock(_sweep)
             if n:
                 logger.warning(
                     "dlq_loop: swept %d orphan(s) missed by inline promotion", n

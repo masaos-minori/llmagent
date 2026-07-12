@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from eventbus.route_helpers import get_broker, get_db
+from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
@@ -56,7 +56,7 @@ async def subscribe(
                     ).fetchall()
                 )
 
-            rows = await asyncio.to_thread(_fetch_replay)
+            rows = await run_with_db_lock(_fetch_replay)
             replay_ceil = start_seq
             for row in rows:
                 data = orjson.dumps(_row_to_dict(row)).decode()

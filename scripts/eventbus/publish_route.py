@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """eventbus/publish_route.py — Publish endpoint handler."""
 
-import asyncio
 import logging
 import os
 from pathlib import Path
@@ -9,8 +8,8 @@ from typing import Any
 
 import jsonschema
 import orjson
-from eventbus.db import get_db_lock, insert_event
-from eventbus.route_helpers import get_broker, get_config, get_db
+from eventbus.db import insert_event
+from eventbus.route_helpers import get_broker, get_config, get_db, run_with_db_lock
 from fastapi import HTTPException, Request
 
 logger = logging.getLogger(__name__)
@@ -33,18 +32,17 @@ async def publish(request: Request) -> dict[str, Any]:
     broker = get_broker(request)
 
     def _insert() -> tuple[int, bool]:
-        with get_db_lock():
-            insert_result: tuple[int, bool] = insert_event(
-                db,
-                event_id,
-                topic,
-                payload_str,
-                producer,
-                published_at,
-            )
-            return insert_result
+        insert_result: tuple[int, bool] = insert_event(
+            db,
+            event_id,
+            topic,
+            payload_str,
+            producer,
+            published_at,
+        )
+        return insert_result
 
-    seq, inserted = await asyncio.to_thread(_insert)
+    seq, inserted = await run_with_db_lock(_insert)
 
     try:
         cfg = get_config(request)

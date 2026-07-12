@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """eventbus/replay_route.py — Replay endpoint handler."""
 
-import asyncio
 import logging
 from typing import Any
 
 import orjson
-from eventbus.db import fetch_events_since, get_db_lock
-from eventbus.route_helpers import get_db
+from eventbus.db import fetch_events_since
+from eventbus.route_helpers import get_db, run_with_db_lock
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 
@@ -43,19 +42,17 @@ async def replay(
     db = get_db(request)
 
     def _fetch() -> list:
-        with get_db_lock():
-            rows: list = fetch_events_since(db, since_seq, limit=limit, offset=offset)
-            return rows
+        rows: list = fetch_events_since(db, since_seq, limit=limit, offset=offset)
+        return rows
 
-    rows = await asyncio.to_thread(_fetch)
+    rows = await run_with_db_lock(_fetch)
 
     if fmt == "json":
 
         def _count() -> int:
-            with get_db_lock():
-                return _count_events_since(db, since_seq)
+            return _count_events_since(db, since_seq)
 
-        total = await asyncio.to_thread(_count)
+        total = await run_with_db_lock(_count)
         return {
             "total": total,
             "limit": limit,
