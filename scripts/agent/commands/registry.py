@@ -20,6 +20,7 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
   cmd_plugins.py    — _PluginsMixin:    /plugin
   cmd_mdq.py        — _MdqMixin:        /mdq commands
+  cmd_skill.py      — _SkillMixin:      /skill commands
 
 _COMMANDS ownership:
   _COMMANDS is IMPORTED from agent.commands.command_defs_list.
@@ -44,6 +45,7 @@ from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
+from agent.commands.cmd_skill import _SkillMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
 from agent.commands.command_defs import CommandDef
@@ -69,6 +71,7 @@ class CommandRegistry(
     _WorkflowMixin,
     _PluginsMixin,
     _MdqMixin,
+    _SkillMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 

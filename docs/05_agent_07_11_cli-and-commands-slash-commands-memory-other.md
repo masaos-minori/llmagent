@@ -61,6 +61,15 @@ related:
 |---|---|---|
 | `/plugin status` | なし | プラグインの読み込み結果(loaded、failed、conflicts)を表示 |
 
+### Skillカテゴリ
+
+| Command | 副作用 | 関連する状態 |
+|---|---|---|
+| `/skill` | なし | `skills/`配下のディレクトリ名一覧を表示(`DESIGN.md`等のファイル単体エントリは除外)。LLM呼び出しは発生しない |
+| `/skill <name> [args]` | `ctx.conv.history`にephemeral systemメッセージを追加(`_ephemeral: True`, `_skill_ephemeral: True`) | `skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる。次のターン開始時に`_sync_system_prompt()`で自動的に除去される |
+
+> **注記:** `_skill_ephemeral: True`は`/skill`由来のメッセージのみを識別するための専用フラグであり、`mode_classification.py`や`memory injection`由来の`_ephemeral: True`メッセージには影響しない。実装は`agent/commands/cmd_skill.py`の`_SkillMixin`。
+
 ### Otherカテゴリ
 
 | Command | 副作用 | 関連する状態 |

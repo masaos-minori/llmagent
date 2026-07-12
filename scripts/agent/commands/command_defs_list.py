@@ -172,6 +172,13 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_plugin",
         "status  Show plugin load results (loaded, failed, conflicts)",
     ),
+    CommandDef(
+        "/skill",
+        True,
+        False,
+        "_cmd_skill",
+        "[name] [args]  List skills, or load skills/<name>/SKILL.md as ephemeral system context",
+    ),
     # ── Prefix async ───────────────────────────────────────────────────────────
     CommandDef(
         "/mdq",

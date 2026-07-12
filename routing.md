@@ -5,6 +5,7 @@ Maps task type to files that must be loaded. Read this immediately after AGENTS.
 ## Task → skill mapping
 
 Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `Skill("python-implementation")`. The command reads `skills/*/SKILL.md` automatically.
+`/skill <name> [args]` is the equivalent runtime-invocable form inside AgentREPL; `/skill` with no argument lists available skill names.
 
 | Task type | Keywords | Load |
 |---|---|---|
