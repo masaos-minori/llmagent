@@ -78,7 +78,9 @@ class StartupOrchestrator:
         ctx = self._ctx
         self._view.setup_readline()
         build_agent_context(ctx, self._view)
-        ctx.conv.llm_url = ctx.cfg.llm.llm_url
+        from shared.llm_client import build_llm_url
+
+        ctx.conv.llm_url = build_llm_url(ctx.cfg.llm.llm_url)
         self._init_command_registry()
         self._check_workflow_definition()
         self._check_workflow_schema()

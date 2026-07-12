@@ -23,7 +23,7 @@ from agent.repository_gateway import RepositoryGateway
 from agent.services.models import ProcessInfoSnapshot
 from shared import plugin_registry
 from shared.git_helper import get_repo_info
-from shared.llm_client import LLMClient
+from shared.llm_client import LLMClient, build_llm_url
 from shared.logger import Logger
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry
@@ -239,7 +239,7 @@ def _build_history_manager(
     """Build and return HistoryManager."""
     return HistoryManager(
         http,
-        llm_url=ctx.cfg.llm.llm_url,
+        llm_url=build_llm_url(ctx.cfg.llm.llm_url),
         char_limit=ctx.cfg.llm.context_char_limit,
         compress_turns=ctx.cfg.llm.context_compress_turns,
         compress_temperature=_COMPRESS_TEMPERATURE,

@@ -46,6 +46,7 @@ from rag.stages.search import SearchStage
 from rag.types import PipelineRunResult
 from shared.config_loader import ConfigLoader
 from shared.config_validator import RagConfigValidator
+from shared.llm_client import build_llm_url
 from shared.plugin_registry import (
     get_pipeline_post_stages,
     run_pipeline_stages,
@@ -127,7 +128,9 @@ class RagPipeline:
         if not result.ok:
             raise ValueError(f"RAG config validation failed: {result.errors}")
         self._llm = RagLLM(
-            self._http, _resolved_cfg.get("llm_url", ""), cfg=_resolved_cfg
+            self._http,
+            build_llm_url(_resolved_cfg.get("llm_url", "")),
+            cfg=_resolved_cfg,
         )
         self._embed_url: str = _resolved_cfg.get("embed_url", "")
         # DB settings stored for augment(); used when db_path is provided explicitly.

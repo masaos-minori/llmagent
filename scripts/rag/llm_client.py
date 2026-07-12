@@ -40,6 +40,7 @@ from rag.llm_prompts import (
 )
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps as _json_dumps
+from shared.llm_client import build_llm_url
 from shared.types import (
     LLMMessage,
     RagHit,  # noqa: F401 — imported for use in this module
@@ -57,7 +58,7 @@ def _get_cached_llm_url() -> str:
     if _llm_url_cache is None:
         try:
             cfg = ConfigLoader().load_all()
-            _llm_url_cache = cfg.get("llm_url", "")
+            _llm_url_cache = build_llm_url(cfg.get("llm_url", ""))
         except (FileNotFoundError, ValueError):
             _llm_url_cache = ""
     assert _llm_url_cache is not None

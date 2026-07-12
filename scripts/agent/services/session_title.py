@@ -14,6 +14,7 @@ import httpx
 import orjson
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.models import SessionTitleResult
+from shared.llm_client import build_llm_url
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -40,7 +41,7 @@ class SessionTitleService:
         prompt = _TITLE_PROMPT.format(text=first_input[:200])
         try:
             resp = await ctx.services_required.http.post(
-                ctx.cfg.llm.llm_url,
+                build_llm_url(ctx.cfg.llm.llm_url),
                 json={
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": ctx.cfg.llm.title_llm_temperature,

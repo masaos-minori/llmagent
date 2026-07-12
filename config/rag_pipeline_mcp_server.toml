@@ -4,7 +4,7 @@
 # so that RAG pipeline runs independently of the main agent process.
 
 # LLM endpoint used for MQE and reranking
-llm_url = "http://192.168.11.197:8080/v1/chat/completions"
+llm_url = "http://192.168.11.197:8080"
 
 # Embedding LLM endpoint used for KNN search
 embed_url = "http://192.168.11.238:8081/embedding"

@@ -22,6 +22,16 @@ from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 
+CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
+
+
+def build_llm_url(base_url: str) -> str:
+    """Append the chat completions endpoint path to a base URL."""
+    if not base_url:
+        return ""
+    base = base_url.rstrip("/")
+    return f"{base}{CHAT_COMPLETIONS_PATH}"
+
 
 class LLMClient:
     """LLM HTTP client with exponential-backoff retry and robust SSE streaming; stat_* counters accumulate for the instance lifetime."""
