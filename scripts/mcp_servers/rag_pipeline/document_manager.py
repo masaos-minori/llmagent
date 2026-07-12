@@ -9,23 +9,10 @@ Import from here:  from mcp_servers.rag_pipeline.document_manager import Documen
 
 from __future__ import annotations
 
-import dataclasses
-from typing import Any
-
 from db.helper import SQLiteHelper
 from mcp_servers.rag_pipeline.models import (
     DocumentItem,
 )
-from shared.types import RagHit
-
-
-def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
-    """Safely convert a hit to a dict; supports dataclass and dict inputs."""
-    if isinstance(hit, dict):
-        return hit
-    if dataclasses.is_dataclass(hit) and not isinstance(hit, type):
-        return dataclasses.asdict(hit)
-    raise TypeError(f"Unsupported hit type: {type(hit)}")
 
 
 class DocumentManager:
