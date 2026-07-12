@@ -10,7 +10,6 @@ import logging
 import re
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_fts import fts_consistency_check, fts_rebuild
