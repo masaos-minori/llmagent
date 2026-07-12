@@ -15,7 +15,6 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-import orjson
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_transport_errors import handle_llm_transport_error
@@ -40,6 +39,7 @@ from agent.workflow import (
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
+from shared.json_utils import dumps
 from shared.json_utils import dumps as _json_dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
@@ -329,7 +329,7 @@ class Orchestrator:
         session_id = _format_session_id(ctx.session.session_id) or "none"
         if ctx.services_required.audit_logger is not None:
             ctx.services_required.audit_logger.info(
-                orjson.dumps(
+                dumps(
                     {
                         "event": "turn_start",
                         "task_id": ctx.turn.current_turn_id,
@@ -337,7 +337,7 @@ class Orchestrator:
                         "event_id": str(uuid.uuid4()),
                         "ts": time.time(),
                     },
-                ).decode(),
+                ),
             )
 
     async def _handle_memory_injection(self, line: str) -> None:

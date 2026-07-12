@@ -19,12 +19,12 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import orjson
 from agent.commands.enums import MemoryAction
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.memory_status import build_memory_status, build_status_table
 from agent.commands.mixin_base import MixinBase
 from agent.memory.services import MemoryServices
+from shared.json_utils import dumps
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -50,7 +50,7 @@ def _emit_memory_audit(ctx: AgentContext, result: MemoryOpResult) -> None:
     if audit is None:
         return
     audit.info(
-        orjson.dumps(
+        dumps(
             {
                 "event": "memory_op",
                 "action": result.action,
@@ -60,7 +60,7 @@ def _emit_memory_audit(ctx: AgentContext, result: MemoryOpResult) -> None:
                 "ok": result.ok,
                 "ts": time.time(),
             },
-        ).decode(),
+        ),
     )
 
 

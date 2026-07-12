@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import orjson
 from db.helper import SQLiteHelper
+from shared.json_utils import dumps
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class DiagnosticStore:
         reason: str,
     ) -> None:
         """Persist a round-level serialization event."""
-        content = orjson.dumps(
+        content = dumps(
             {
                 "round_id": round_id,
                 "trigger_tool": trigger_tool,
@@ -70,7 +70,7 @@ class DiagnosticStore:
                 "elapsed_ms": round(elapsed_ms, 1),
                 "reason": reason,
             }
-        ).decode()
+        )
         self.save(session_id=session_id, kind="serialization_event", content=content)
 
     def save_partial_completion(
@@ -81,13 +81,13 @@ class DiagnosticStore:
         content_length: int,
     ) -> None:
         """Persist a partial LLM completion event to session_diagnostics."""
-        content = orjson.dumps(
+        content = dumps(
             {
                 "turn": turn,
                 "reason": reason,
                 "content_length": content_length,
             }
-        ).decode()
+        )
         self.save(session_id=session_id, kind="partial_completion", content=content)
 
     def save_transport_failure(
@@ -98,13 +98,13 @@ class DiagnosticStore:
         error_msg: str,
     ) -> None:
         """Persist a transport-level tool execution failure."""
-        content = orjson.dumps(
+        content = dumps(
             {
                 "tool_name": tool_name,
                 "server_key": server_key,
                 "error": error_msg,
             }
-        ).decode()
+        )
         self.save(session_id=session_id, kind="transport_failure", content=content)
 
     def save_loop_guard_hint(
@@ -114,12 +114,12 @@ class DiagnosticStore:
         turn_count: int,
     ) -> None:
         """Persist a tool loop guard hint (cycle or dedup threshold exceeded)."""
-        content = orjson.dumps(
+        content = dumps(
             {
                 "reason": reason,
                 "turn_count": turn_count,
             }
-        ).decode()
+        )
         self.save(session_id=session_id, kind="loop_guard_hint", content=content)
 
     def fetch_by_kind(self, session_id: int, kind: str) -> list[dict[str, Any]]:

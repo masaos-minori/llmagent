@@ -12,7 +12,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-import orjson
+from shared.json_utils import dumps
 from shared.tool_executor_helpers import format_transport_error
 
 if TYPE_CHECKING:
@@ -44,14 +44,14 @@ class ErrorInjectionService:
             ctx.diagnostics.save(
                 ctx.session.session_id,
                 "mid_turn_error",
-                orjson.dumps(
+                dumps(
                     {
                         "error_type": type(e).__name__,
                         "detail": err.detail,
                         "turn": turn,
                         "timestamp": datetime.now(UTC).isoformat(),
                     }
-                ).decode(),
+                ),
             )
         logger.warning(
             "LLM transport error during tool continuation (turn=%s): %s",

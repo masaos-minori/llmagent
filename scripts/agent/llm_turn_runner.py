@@ -11,10 +11,10 @@ from contextlib import nullcontext
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-import orjson
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
 from agent.turn_result import TurnResult
+from shared.json_utils import dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.types import LLMMessage
 
@@ -140,14 +140,14 @@ class LLMTurnRunner:
             ctx.diagnostics.save(
                 ctx.session.session_id,
                 "mid_turn_error",
-                orjson.dumps(
+                dumps(
                     {
                         "error_type": type(e).__name__,
                         "detail": summary,
                         "turn": turn,
                         "timestamp": datetime.now(UTC).isoformat(),
                     }
-                ).decode(),
+                ),
                 workflow_id=workflow_id,
                 task_id=task_id,
             )

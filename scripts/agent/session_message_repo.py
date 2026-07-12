@@ -172,13 +172,13 @@ class SessionMessageRepository:
                         e,
                     )
                     logger.warning(
-                        orjson.dumps(
+                        _json_dumps(
                             {
                                 "event": "corrupt_record",
                                 "session_id": session_id,
                                 "message_id": r["message_id"],
                             }
-                        ).decode()
+                        )
                     )
             if r["tool_call_id"]:
                 msg["tool_call_id"] = r["tool_call_id"]

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import orjson
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
+from shared.json_utils import dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
 
@@ -53,14 +53,14 @@ def handle_non_partial_error(
     diagnostic_store.save(
         ctx.session.session_id,
         "mid_turn_error",
-        orjson.dumps(
+        dumps(
             {
                 "action": "pre_stream_error",
                 "reason": "llm_transport_error_non_partial",
                 "error_kind": e.kind,
                 "timestamp": datetime.now(UTC).isoformat(),
             }
-        ).decode(),
+        ),
     )
     logger.error(
         "LLM transport error (pre-stream): %s status=%s",

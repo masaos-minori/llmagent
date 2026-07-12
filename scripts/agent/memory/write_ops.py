@@ -3,18 +3,18 @@
 
 import logging
 
-import orjson
 from agent.memory.mapper import _floats_to_blob, _now_iso, _stamp_entry
 from agent.memory.sql_constants import _INSERT_SQL, _UPSERT_SQL
 from agent.memory.types import MemoryEntry
 from db.helper import SQLiteHelper
+from shared.json_utils import dumps
 
 logger = logging.getLogger(__name__)
 
 
 def _build_row_params(entry: MemoryEntry) -> tuple[object, ...]:
     """Return the param tuple for a memories INSERT statement."""
-    tags_json: bytes = orjson.dumps(entry.tags)
+    tags_json = dumps(entry.tags)
     return (
         entry.memory_id,
         entry.memory_type,
@@ -26,7 +26,7 @@ def _build_row_params(entry: MemoryEntry) -> tuple[object, ...]:
         entry.branch,
         entry.content,
         entry.summary,
-        tags_json.decode(),
+        tags_json,
         entry.importance,
         int(entry.pinned),
         entry.created_at,
