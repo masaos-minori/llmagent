@@ -27,9 +27,13 @@ source:
 ## 2. RagPipeline クラス (`scripts/rag/pipeline.py`)
 
 ```python
-from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get_embedding
-from rag.utils import sanitize_document
+from rag.pipeline import RagPipeline, RagPipelineError
 ```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document`（`rag/repository.py`）と `sanitize_document`
+> （`rag/utils.py`）は `rag.pipeline` からは提供されない。詳細は
+> [Part 1](03_rag_03_02_query_pipeline-rag-pipeline-class-part1.md) 参照。
+> (根拠分類: Explicit in code)
 
 ### HTTPモード（`rag_service_url`）
 
@@ -94,6 +98,12 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 この分類結果は以下で確認できる。
 - `get_diagnostics()["http_result_kind"]`
 - `/rag search --debug`: `[debug] http mode: result_source=remote http_result_kind=success (empty response — no in-process fallback)`
+
+> **注意**: `get_diagnostics()["http_result_kind"]`（値: `remote_nonempty`/`remote_empty`/`in_process_fallback`）と
+> `SearchDiagnostics.http_result_kind`（`rag.models_result.HttpResultKind` enum、値:
+> `success`/`empty`/`error`/`not_used`）は名前は似ているが異なる語彙を持つ別々のフィールドである。
+> 詳細は [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 参照。
+> (根拠分類: Explicit in code — `scripts/rag/http_augment.py:25-32`, `scripts/rag/pipeline.py:485-499`)
 
 #### HTTP RAGリクエストの詳細
 

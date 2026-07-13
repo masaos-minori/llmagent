@@ -49,6 +49,22 @@ source:
 - `CompressResult.protected_count` = スキップされた (保護された) メッセージ数
 - `stat_compress_count`がインクリメントされる
 
+### 失敗時の意図 (要約LLM呼び出し失敗時)
+
+`HistoryManager.compress()`が要約用LLM呼び出し (`_call_compress_llm`) に失敗すると`HistoryCompressionError`が送出されるが、`_get_summary_text()`内で捕捉されWARNINGログの上`None`が返る (呼び出し元に例外を伝播させない)。その後の分岐:
+- 文字数上限を超えたままの場合 → `_fallback_truncate()`にフォールスルーし、要約なしで低重要度メッセージから機械的に削除する。
+- 文字数上限を超えていない場合 (トークン上限のみ超過していた場合等) → 履歴を変更せずno-opで返す (`CompressResult(compressed_count=0, ...)`)。
+
+`_fallback_truncate()`は`HistorySelectionPolicy.classify_importance()`昇順 (重要度が低いものから) でメッセージをソートし、`system`ロールと直近`protect_turns`ペアを除外した候補から、文字数上限を下回るまで1件ずつ削除する。全件削除しても上限を下回れない場合はWARNINGログを出すのみで処理を継続する (例外は発生しない)。この経路は`CompressResult.is_fallback=True`および`HistoryManager.stat_fallback_truncate_count`のインクリメントを伴う。
+
+*(根拠分類: Explicit in code — `agent/history.py` `compress()`, `_get_summary_text()`, `_fallback_truncate()`)*
+
+### 実装上の補足 (`force_compress`)
+
+`/compact`コマンドが呼ぶ`force_compress()`は、`char_limit`を一時的に`1`、`token_limit`を`0`に差し替えて`compress()`を呼び出し、`finally`節で元の値に戻す実装になっている。上限を無視する専用のパスを持たず、既存の`compress()`ロジックを「必ず上限超過とみなす」状態にして再利用している。
+
+*(根拠分類: Explicit in code — `agent/history.py` `force_compress()`)*
+
 ### 圧縮の永続化モデル
 
 各履歴圧縮 (自動または`/compact`) の後、圧縮されたスナップショットは`AgentSession.replace_messages()`経由で`session.sqlite`に書き戻される。これにより`/session load`が意味的に一貫した状態を復元できる — 復元された履歴は次のLLM呼び出し前にコンテキストに実際にあったものと一致する。
@@ -77,6 +93,10 @@ source:
 | `compress(history)` | 上限超過時に圧縮; `(new_history, CompressResult)`を返す |
 | `force_compress(history)` | 上限にかかわらず即座に圧縮する (`/compact`コマンド) |
 | `apply_config(...)` | ホットリロード: char_limit, compress_turns, token_limit, tokenize_url |
+
+**境界条件:** `stat_compress_count`と`stat_fallback_truncate_count`は`HistoryManager`インスタンス自身が保持するカウンタであり、`ctx.stats`配下のフィールドではない (`ctx.stats`には対応するcompress系カウンタが存在しない)。表示系コマンドがこれらを参照する場合は`ctx.services.hist_mgr`経由でアクセスする必要がある。
+
+*(根拠分類: Explicit in code — `agent/history.py` `__init__`)*
 
 ### 圧縮の永続化モデル
 

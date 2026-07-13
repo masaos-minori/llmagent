@@ -50,7 +50,8 @@ class ToolCallResult:
     is_error: bool         # True if the tool call failed
     request_id: str        # x-request-id from HTTP transport; "" for plugin/cache
     server_key: str        # server key that handled the call; "" for plugin tools
-    error_type: str = ""   # "transport" | "tool" | "" (empty on success)
+    source: str = ""       # "mcp" | "plugin" | "" (cache/error paths)
+    error_type: str = ""   # "transport" | "tool" | "plugin_contract" | "" (empty on success)
 
     @classmethod
     def from_transport(cls, output: str, is_error: bool, request_id: str = "") -> "ToolCallResult"
@@ -62,6 +63,8 @@ class TransportErrorInfo:
 ```
 
 - `ToolCallResult` はすべてのツール呼び出し実行 (transport, plugin, cache) における正規の結果契約である
+- `source` フィールドは呼び出し元がMCPツールかプラグインツールかを区別する。`from_transport()` は常に `source="mcp"` を設定する (Explicit in code: `scripts/shared/transport_dto.py`)
+- `error_type` には `"plugin_contract"` も存在する(プラグインの契約違反を表す)。ドキュメント旧版の `"transport" | "tool" | ""` の3値だけではない (Explicit in code)
 - `TransportErrorInfo` はオーディットログ用の構造化エラー情報として使われる
 - Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
@@ -102,6 +105,7 @@ class ToolSpec:
 ```
 
 - DAG スケジューリングで使用される (無条件) — ツール呼び出しごとに ToolSpec が構築される
+- 実際のスケジューリングロジックは `agent/tool_scheduler.py` にある。`requires_serial=True` のツールは単独のグループとして直列実行され、同一の `resource_scope` かつ `is_write=True` のツール同士も直列化される。`resource_scope` を持たない write ツールは write-first グループにまとめられる (Explicit in code: `scripts/agent/tool_scheduler.py`)
 - Import: `from shared.tool_spec import ToolSpec`
 
 ---
@@ -128,6 +132,11 @@ class ToolResultCache:
 - `is_error=False` の結果のみがキャッシュされる
 - キャッシュキー: `(tool_name, serialized_args via json_utils.dumps)`
 - Import: `from shared.tool_cache import ToolResultCache`
+
+### Current behavior — 実運用では未使用
+
+`ToolResultCache` は現在 `ToolExecutor` からは使われていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュを内部に持ち(`shared/tool_executor.py` の `_execute_with_cache()` / `_store_and_evict()`)、`ToolResultCache` にはない stampede 防止機構(`_inflight` future 共有)と密結合している。
+`ToolResultCache` は非推奨ではなく、stampede 防止が不要な将来の利用者向けにシンプルな LRU+TTL キャッシュとして残されている実装だが、現時点での正規キャッシュではない (Explicit in code: `scripts/shared/tool_cache.py` モジュールdocstring)。
 
 ---
 

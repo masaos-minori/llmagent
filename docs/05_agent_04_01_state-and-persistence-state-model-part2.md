@@ -75,6 +75,19 @@ AgentREPL.run()
 - ガードヒントとターン中のエラーは診断データにのみ格納される — `ctx.conv.history`には現れない
 - 診断データは`DiagnosticStore`経由で`session_diagnostics`テーブルに格納される; `messages`には決して存在せず、したがって`fetch_messages()`からは返されない
 
+**現在の実装挙動 (`DiagnosticStore`の全種別):** `agent/diagnostic_store.py`が持つ専用書込みメソッドと対応する`kind`は以下の通り。上記の`mid_turn_error`/`guard_hint`は呼び出し元 (`error_injection_service.py`, `llm_transport_errors.py`, `llm_turn_runner.py`, `tool_loop_guard.py`) が`save()`を直接呼んで書く一方、以下は`DiagnosticStore`自身の専用メソッド経由で書かれる。
+
+| Method | `kind` | Caller |
+|---|---|---|
+| `save_partial_completion()` | `partial_completion` | `llm_transport_errors.handle_partial_completion()` (LLM応答が部分的に切断された場合) |
+| `save_serialization_event()` | `serialization_event` | `tool_runner.py` (DAGツール実行のラウンド単位シリアル化イベント) |
+| `save_transport_failure()` | `transport_failure` | `tool_runner.py` (ツール実行のトランスポート層失敗) |
+| `save_loop_guard_hint()` | `loop_guard_hint` | 呼び出し元なし (grep上、定義のみで未使用) |
+
+**矛盾/未整理点:** `DiagnosticStore.save_loop_guard_hint()`は`kind="loop_guard_hint"`を書き込むメソッドとして定義されているが、実際に`ToolLoopGuard`が使うのは`save()`を直接呼ぶ`kind="guard_hint"`の経路 (`tool_loop_guard.py`内`_save_guard_hint()`) であり、`save_loop_guard_hint()`はコードベース中どこからも呼ばれていない。同一目的のメソッドが2種類存在し、一方が死んでいる状態。
+
+*(根拠分類: Explicit in code — `agent/diagnostic_store.py`, `agent/tool_loop_guard.py`, `agent/llm_transport_errors.py`)*
+
 > **現在の挙動:** DiagnosticStoreは`session_diagnostics`テーブルにのみ書き込む。診断データは`session_diagnostics`を通じてのみ永続化され、`diagnostics.jsonl`への二重永続化は行われない。
 
 ---

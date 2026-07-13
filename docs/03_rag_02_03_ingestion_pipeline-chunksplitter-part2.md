@@ -38,6 +38,8 @@ source:
 
 Markdownの見出し（# から ######）でテキストを分割する。`md_snippet_max_chars` 文字を超えるセクションは、さらに文単位のチャンク化で分割される。
 
+> 根拠: Explicit in code — `_chunk_markdown_by_heading()`（`chunk_splitter.py`）は超過セクションを常に `_chunk_english()`（英語の文境界分割）にフォールバックする。`lang` が `"ja"` であっても日本語形態素解析（Sudachi）は適用されず、`normalized_content` は生成されない（見出しチャンク全体で `normalized_content` は常に空扱い、後述の通り）。
+
 ### 3.2 分割戦略
 
 | コンテンツタイプ | 戦略 |
@@ -52,6 +54,8 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 - 英語/コードチャンク: `normalized_content = null`
 - `chunk_type`: `"text"` または `"code"`
 - `chunking_strategy`: `"text"` または `"heading"`
+
+> 根拠: Explicit in code — 見出しチャンク化（`chunking_strategy="heading"`）は `lang` に関わらず `normalized_content` を常に `null` にする（`_build_text_triples()` が見出し分岐で正規化形を生成しない）。すなわち日本語のMarkdownソースは見出しチャンク化が優先され、Sudachi正規化はスキップされる。FTS5は `COALESCE(normalized_content, content)` により元テキスト（`content`）をそのままインデックス化する。
 
 ### 3.3 CLI引数
 
@@ -88,9 +92,11 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 
 | ケース | 対応 |
 |---|---|
-| Sudachiのトークナイズエラー | 捕捉し `""` を返す；そのチャンクをスキップ |
-| ファイル単位の失敗 | `ERROR` ログ（トレースバック付き）；次のファイルへ継続 |
+| Sudachiのトークナイズエラー | `_normalize_ja_sentence()` が `TokenizationError`（`RagLayerError`/`RuntimeError`のサブクラス）を送出する。個別チャンク単位のtry/exceptは存在せず、`process_all()` のファイル単位ループの `except (OSError, RuntimeError, ValueError)` まで伝播する。結果として当該チャンクのみでなく **ファイル全体** の処理が失敗扱いになる |
+| ファイル単位の失敗 | `ERROR` ログ（トレースバック付き、`logger.exception`）；次のファイルへ継続 |
 | 既存チャンク（`{stem}-0000.json`） | `--force` がない限りスキップ |
+
+> 根拠: Explicit in code — `scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence()` は Sudachi の `RuntimeError` を捕捉して `TokenizationError` に変換し再送出する（`""` を返す実装にはなっていない）。`scripts/rag/ingestion/chunk_splitter.py::process_all()` は `except (OSError, RuntimeError, ValueError)` でこれを受け止め、`process_file failed: %s: %s` としてログ後、次のファイルへ進む。旧記載「そのチャンクをスキップ」は実装と矛盾するため訂正した。
 
 ### 3.6 ロギング
 

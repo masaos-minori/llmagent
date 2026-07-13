@@ -48,13 +48,36 @@ source:
 | `rag_service_url`設定時に失敗 | インプロセスパイプラインにフォールバック |
 | クロスエンコーダーの失敗 | `RagRerankError`は`RuntimeError`として捕捉され、`StageResult.status="failure"`が記録され、警告がログに出力される。パイプラインは`ctx.reranked=[]`のまま継続する (RRFへのフォールバックはない)。`use_rerank=False`の場合はRRFの順序と重複排除が代わりに使用される。 |
 
+### 実装上の補足
+
+- `RagRerankError`は`scripts/rag/exceptions.py`ではなく`scripts/rag/llm_prompts.py`に
+  `class RagRerankError(RuntimeError)`として定義されている。`RuntimeError`のサブクラスなので、
+  `pipeline.py`の`_run_stage()`が捕捉する例外タプル (`RuntimeError`, `sqlite3.OperationalError`,
+  `httpx.HTTPStatusError`, `httpx.RequestError`, `TimeoutError`) に含まれ、
+  「`RuntimeError`として捕捉される」という記述は正確。
+  [Explicit in code]
+- `scripts/rag/exceptions.py`で定義されている実際の例外クラスは
+  `RagLayerError` (基底) / `EmbeddingSchemaError` / `PipelineValidationError` /
+  `SearchQueryError` / `ChunkFormatError` / `TokenizationError` / `UnknownMetadataError`
+  の7種であり、`RagRerankError`や`RagPipelineError`はここには含まれない
+  (両者はそれぞれ`llm_prompts.py`, `pipeline.py`に個別定義)。
+  例外階層はrag層全体で単一の基底クラスに統一されているわけではない。
+  [Explicit in code]
+- `RagPipeline.__init__()`は起動時に`RagConfigValidator().validate()`
+  (`shared/config_validator.py`) を実行し、`result.ok`が`False`の場合は
+  `ValueError`を送出してインスタンス生成自体を中断する。警告 (`result.warnings`) は
+  ログに出力されるのみで継続可能。
+  [Explicit in code] — 本節にはこの初期化時バリデーションの記載がなかったため補足。
+
 ---
 
 
 ## Related Documents
 
 - [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- [03_rag_04_04_dto-models_config.md](03_rag_04_04_dto-models_config.md)
 
 ## Keywords
 
 configuration
+exception-hierarchy

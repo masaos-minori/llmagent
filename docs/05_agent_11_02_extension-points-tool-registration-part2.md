@@ -20,9 +20,15 @@ source:
 
 #### 安全ティアの強制
 
-本番モードでは、登録されるすべてのツールは `tool_safety_tiers` に安全ティアのエントリを宣言していなければならない。ティアが欠落している場合、`ProductionConfigValidator.validate()` により起動時に致命的な `RuntimeError` が発生する。これにより、リスク分類が定義されていないツールは動作できないことが保証される。未知のティアキー（登録済みのツール名に一致しないキー）も本番環境で致命的なエラーを発生させる。
+本番モードでは、登録されるすべてのツールは `tool_safety_tiers` に安全ティアのエントリを宣言していなければならない。ティアが欠落している場合、`ProductionConfigValidator.validate()` が本番プロファイルでエラーを返し、呼び出し元が起動時にそれを致命的エラーとして扱う。これにより、リスク分類が定義されていないツールは動作できないことが保証される。未知のティアキー（登録済みのツール名に一致しないキー）も本番環境で致命的なエラーを発生させる。
 
-**CI 自動検出:** config に `plugin_strict` が存在せず、`CI` 環境変数が設定されている場合（GitHub Actions、CircleCI など）、`plugin_strict` は自動的に `True` にデフォルト設定される。config で明示的に `plugin_strict = false` とした場合は常にこれを上書きする。
+> **実装補足（Explicit in code）:** `ProductionConfigValidator.validate()` 自体は例外を送出せず、`ConfigValidationResult(errors, warnings)` を返すだけである。エラーをどう扱うかは呼び出し元次第で、実装上2経路が存在し挙動が異なる。
+> - `agent/repl_health.py` の起動時ヘルスチェック経路（`tool_safety_tiers` を含む）: 本番モードで `errors` が非空の場合、各メッセージを **`RuntimeError`** として送出する。
+> - `agent/config_builders.py` の config ロード経路（`plugin_strict` を含む全 `_REQUIRED_STRICT_KEYS`）: 本番プロファイルで `errors` が非空の場合、`RuntimeError` ではなくログ出力後に **`sys.exit(1)`** でプロセスを終了する。
+>
+> どちらの経路も `local`/開発プロファイルでは同じ条件を警告（warning）としてログ出力するのみで、起動は継続する。（根拠分類: Explicit in code — `scripts/shared/production_config_validator.py`, `scripts/agent/repl_health.py:855-873`, `scripts/agent/config_builders.py:284-299`）
+
+**CI 自動検出:** config に `plugin_strict` が存在せず、`CI` 環境変数が設定されている場合（GitHub Actions、CircleCI など）、`plugin_strict` は自動的に `True` にデフォルト設定される。config で明示的に `plugin_strict = false` とした場合は常にこれを上書きする。（根拠: `agent/config_builders.py` の `plugin_strict=bool(cfg.get("plugin_strict", os.getenv("CI") is not None))`）
 
 デフォルトは `false`（フェイルオープン）であり、失敗は `[plugin] skipped: <filename> (<ErrorType>)` としてログ出力され、ロードは継続する。
 
@@ -51,6 +57,16 @@ source:
 - **`server_key` なし**: `server_key` フィールドはプラグインツールでは常に空である。
 
 つまり、プラグインツールのオーディットイベントは MCP サーバーのアクセスログと関連付けることができない。詳細は [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md#plugin-tool-audit-events) を参照。
+
+#### プラグインツール実行時の契約検証（`shared/plugin_tool_invoker.py`）
+
+`ToolExecutor.execute()` は内部で `PluginToolInvoker.try_execute()` に処理を委譲する。プラグイン関数が登録されていない場合は `None` を返し、`ToolExecutor` は MCP ルーティングにフォールバックする。
+
+- ハンドラが例外を送出した場合、例外はプラグイン外に伝播せず `ToolCallResult(is_error=True, error_type="tool")` に変換される（メッセージは `[plugin error] <tool_name>: <exc>`）。
+- 戻り値が `tuple[str, bool]` でない場合（要素数不一致、`output` が `str` でない、`is_error` が `bool` でない）も同様に捕捉され、`error_type="plugin_contract"` の `ToolCallResult(is_error=True)` に変換される（メッセージは `[plugin contract violation] <tool_name>: <detail>`）。`@register_tool` の登録時アノテーション検査に加えて、実行のたびにこの実行時検証が行われる。
+- いずれの場合も `request_id=""`, `server_key=""`, `source="plugin"` が設定される。
+
+（根拠分類: Explicit in code — `scripts/shared/plugin_tool_invoker.py`, `scripts/shared/tool_executor.py`）
 
 ---
 
@@ -86,3 +102,7 @@ plugin tool precedence
 conflict detection
 safety tier enforcement
 @register_pipeline_stage
+ProductionConfigValidator
+PluginToolInvoker
+plugin_contract violation
+sys.exit(1) vs RuntimeError

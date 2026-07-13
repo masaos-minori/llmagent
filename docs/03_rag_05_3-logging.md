@@ -23,6 +23,28 @@ source:
 
 **共通フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
+### 実装上の補足
+
+- 上記3スクリプトはいずれも `shared/logger.py` の `Logger` クラスを
+  `Logger(__name__, "<path>.log")` の形で使用する。ログレベルはコンストラクタでは
+  変更不可であり、常に `logging.INFO` に固定される (`_configure_logger()`内で
+  `self._logger.setLevel(logging.INFO)`)。
+  [Explicit in code]
+- 出力先はファイルハンドラ (`FileHandler`) と `stderr` への `StreamHandler` の両方。
+  ログファイルのオープンに失敗した場合 (`OSError`) は、フォールバックの
+  `shared.logger.fallback` ロガーへ警告を出し、`stderr`ハンドラのみで継続する。
+  [Explicit in code]
+- `propagate=False`が設定されており、ルートロガーへの二重出力は発生しない。
+  [Explicit in code]
+- `Logger`は`structured_log=True`指定でJSON-lines形式 (`_JsonFormatter`) に切り替え可能だが、
+  crawler.py / chunk_splitter.py / ingester.pyはいずれも`structured_log`を指定していないため、
+  本ドキュメント記載の共通フォーマットのままとなる。
+  [Explicit in code]
+- `extra={...}`で付与される`turn_id` / `session_id` / `rag_query_id` / `workflow_id` / `task_id`
+  等のコンテキストフィールドは、テキストフォーマット (`_FORMAT`) には出力されない。
+  これらは構造化ログ (`structured_log=True`) 使用時のみJSON出力に反映される。
+  [Strongly implied by code] — `_FORMAT`文字列がこれらのフィールドを参照していないため。
+
 ---
 
 

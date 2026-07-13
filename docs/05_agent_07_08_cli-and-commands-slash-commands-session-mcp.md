@@ -53,6 +53,12 @@ related:
 `/reload`が`[RESTART]`項目を報告した後も、`/mcp`はエージェントが実際に
 再起動されるまで、リロード前のサーバー・URL・認証状態を表示し続ける。
 
+`/mcp status`の出力にはサーバー一覧テーブルに加え、Watchdogの有効/無効状態
+(`mcp_watchdog_interval`, `mcp_watchdog_max_restarts`)、DEGRADED/UNAVAILABLE状態の
+サーバー一覧(`ServerHealthRegistry`経由)、直列化(serialization)イベント統計
+(発生回数・平均影響ツール数・理由別内訳・上位トリガー)が含まれる
+(根拠: Explicit in code — `agent/commands/cmd_mcp.py::_cmd_mcp_status()`)。
+
 ### Config / statsカテゴリ
 
 | Command | 副作用 | 関連する状態 |
@@ -81,5 +87,7 @@ related:
 
 slash command reference
 session category
+mcp watchdog status
+serialization events
 MCP category
 config/stats category

@@ -85,7 +85,7 @@ from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completions")
 ```
 
-**注記:** `scripts/rag/llm_client.py:48-50` には `logger = logging.getLogger(__name__)` の行が重複している — 2番目の代入が最初のものを上書きする。1つだけあれば十分である。
+**訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py:49` に1箇所のみ存在する。
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
@@ -115,7 +115,13 @@ class PipelineRunResult:
     result_source: str | None = None
 ```
 
-`RagPipeline.run()` が返す。**`result_source` は常に `None`** である — `run()` はこれを設定することがない。このフィールドは、HTTPモードでHTTPのaugmentハンドラが `dataclasses.replace()` により設定する場合のためだけに存在する。
+`RagPipeline.run()` が返す。**`result_source` は常に `None`** である — `run()` はこれを設定することがない。
+
+**訂正（Explicit in code）:** 旧記述では「HTTPモードでHTTPのaugmentハンドラが `dataclasses.replace()` により設定する場合のためだけに存在する」としていたが、これは誤り。`dataclasses.replace()` が呼ばれているのは `PipelineRunResult` ではなく `SearchDiagnostics`（`self.last_search_diagnostics`、`scripts/rag/models_result.py` の別フィールド `result_source: ResultSource`）である。`PipelineRunResult.result_source`（`rag/types.py`）自体を設定するコードパスは現状のコードベース中に存在せず、実質的に未使用フィールドである（Needs confirmation: 将来的な利用予定か、除去すべき残置コードかは実装者に確認要）。
+
+**混同注意:** 名前が同じ `result_source` でも型が異なる2つのフィールドが存在する。
+- `PipelineRunResult.result_source: str | None`（`rag/types.py`）— 常に `None`、未使用
+- `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `RagPipeline._run_http_augment()` が `dataclasses.replace()` で更新する
 
 ---
 
@@ -125,7 +131,8 @@ class PipelineRunResult:
 - `03_rag_01_system_overview-part1.md`
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_query_pipeline-stages.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_03_06_query_pipeline-helpers-and-cache-part1.md`

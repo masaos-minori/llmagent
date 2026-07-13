@@ -27,9 +27,14 @@ source:
 ## 2. RagPipeline クラス (`scripts/rag/pipeline.py`)
 
 ```python
-from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get_embedding
-from rag.utils import sanitize_document
+from rag.pipeline import RagPipeline, RagPipelineError
 ```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document` は `rag/pipeline.py` からは提供されない。実体は
+> `rag/repository.py` で定義されている（`from rag.repository import fetch_full_document`）。
+> `sanitize_document` も同様に `rag/utils.py` の関数であり `rag.pipeline` には存在しない。
+> テスト・実装コードでの実際のインポートは `from rag.pipeline import RagPipeline, RagPipelineError` のみ。
+> (根拠分類: Explicit in code — `scripts/rag/pipeline.py` のimport文、`scripts/rag/repository.py:232`)
 
 ### コンストラクタ
 
@@ -73,6 +78,14 @@ RagPipeline(
 | `search_queries` | `async (queries, db) -> list[list[RagHit]]` | 単独利用可能なヘルパー: 並列埋め込み + 逐次DB検索；`SearchDiagnostics` を記録するSearchStageとは異なり、**診断情報を記録しない** |
 | `rerank_candidates` | `async (query, merged) -> list[RagHit]` | 単独利用可能なヘルパー: クロスエンコーダ、またはスライス+重複排除によるフォールバック + 重複排除 |
 | `get_diagnostics` | `() -> dict` | 直前のパイプライン実行に関する構造化された診断情報を返す；`run()`/`augment()` の前に呼び出しても安全 — 空/ゼロ値を返す |
+| `invalidate_cache` | `() -> None` | `semantic_cache`（`SemanticCache`）を全消去する；コーパスを変更する操作（例: MCPの`rag_delete_document`）の後に呼び出すことを想定；`SemanticCache.invalidate()` はスレッドセーフ (根拠分類: Explicit in code — `scripts/rag/pipeline.py:606-614` のdocstring) |
+
+### 実装意図 (Implementation note)
+
+- `invalidate_cache()` はこのパイプラインインスタンスが認識しているコーパス変更後にのみ呼び出される想定であり、
+  呼び出し側（MCPサービス層など）がコーパス変更操作を検知して明示的に呼び出す設計になっている。パイプライン自身が
+  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない (根拠分類: Strongly implied by code — docstringの
+  "Call after any corpus-changing operation this pipeline instance is aware of" という記述)。
 
 ## Related Documents
 

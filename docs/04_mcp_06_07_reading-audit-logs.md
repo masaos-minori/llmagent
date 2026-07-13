@@ -45,11 +45,11 @@ grep "exit=1" /opt/llm/logs/shell_audit.log
 # File deletions (ISO8601 + op + path + user)
 grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 
-# MDQ operations (MDQ-specific format)
-grep "op=" /opt/llm/logs/mdq_audit.log
+# MDQ operations (JSON-lines形式、専用のaudit logファイルはない。app logと共通)
+grep '"event":"mcp_tool_exec"' /opt/llm/logs/mdq-mcp.log
 ```
 
-> **注記:** cicd-mcpとgit-mcpには専用のaudit logファイルがない。`logging.getLogger(__name__)` のみを使用する。
+> **注記:** cicd-mcp、git-mcp、mdq-mcp には専用のaudit logファイルがない。cicd-mcp/git-mcp は `logging.getLogger(__name__)` のみを使用し、mdq-mcp は `_audit_log()` 経由でアプリログ(`mdq-mcp.log`)にJSON-linesで記録する。
 
 ### サーバ別ログファイル
 
@@ -76,10 +76,12 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | file-delete-mcp | `/opt/llm/logs/delete_audit.log` | 構造化（ISO8601 + op + path + user） |
 | github-mcp | `/opt/llm/logs/github_audit.log` | 構造化（ISO8601 + op + repo + user） |
 | shell-mcp | `/opt/llm/logs/shell_audit.log` | 構造化（ISO8601 + op + command + user） |
-| mdq-mcp | `/opt/llm/logs/mdq_audit.log` | 構造化（MDQ固有） |
+| mdq-mcp | `/opt/llm/logs/mdq-mcp.log`（アプリログと共通） | JSON-lines（`_audit_log()` 経由。専用の `mdq_audit.log` ファイルへの書き込みは実装されていない） |
 | rag-pipeline-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
 | cicd-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
-| git-mcp | configキーは存在するが書き込みコードがない | TOML内に `audit_log_path = "/opt/llm/logs/git-mcp.log"` はあるが、service.pyにaudit書き込みコードはない；将来実装のために予約されている |
+| git-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用 |
+
+**注記（2026-07-13）:** mdq-mcp の `audit_log_path`、git-mcp の `audit_log_path` はいずれも実装で一切参照されないデッド設定であることを確認し、両サーバーの設定ファイル（`config/mdq_mcp_server.toml`、`config/git_mcp_server.toml`）から削除した。mdq-mcp の監査イベントは実際には `MdqService`/`server.py` の `_audit_log()` が、`/opt/llm/logs/mdq-mcp.log` を出力先とする標準の `logger`（`Logger(__name__, "/opt/llm/logs/mdq-mcp.log")`）へ書き込む。(Explicit in code)
 
 ### Agent側のaudit log（構造化イベント）
 

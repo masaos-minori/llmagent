@@ -32,7 +32,7 @@ source:
 |---|---|---|
 | `memory_id` | `str` | UUID v4、主キー |
 | `memory_type` | `MemoryType` | `"semantic"` \| `"episodic"` |
-| `source_type` | `SourceType` | `"RULE"` \| `"CONVERSATION"` \| `"DECISION"` \| `"FAILURE"` |
+| `source_type` | `SourceType` | `"rule"` \| `"conversation"` \| `"decision"` \| `"failure"`（`StrEnum` の実値は小文字。本表は従来カテゴリ名として大文字で提示していたが、実装値は小文字である点に注意 — 根拠分類: Explicit in code, `agent/memory/types.py`） |
 | `session_id` | `int \| None` | 親セッションの ID |
 | `turn_id` | `str \| None` | 発生元の会話ターンにリンクする UUID |
 | `project` | `str` | コンテキストフィルタリング用のプロジェクト名 |
@@ -70,14 +70,16 @@ source:
 JSONL ストアの各行は、すべての `MemoryEntry` フィールドをシリアライズした単一の JSON オブジェクトである。
 
 ```json
-{"memory_id": "uuid-here", "memory_type": "semantic", "source_type": "RULE", "session_id": 1, "turn_id": null, "project": "myproj", "repo": "myrepo", "branch": "main", "content": "Use orjson for JSON.", "summary": "orjson preference", "tags": [], "importance": 0.7, "pinned": false, "created_at": "2026-06-19T23:00:00Z", "updated_at": "2026-06-19T23:00:00Z"}
+{"memory_id": "uuid-here", "memory_type": "semantic", "source_type": "rule", "session_id": 1, "turn_id": null, "project": "myproj", "repo": "myrepo", "branch": "main", "content": "Use orjson for JSON.", "summary": "orjson preference", "tags": [], "importance": 0.7, "pinned": false, "created_at": "2026-06-19T23:00:00Z", "updated_at": "2026-06-19T23:00:00Z"}
 ```
 
 **特性:**
-- 追記専用: ファイル内のエントリは変更・削除されない
+- 追記専用: ファイル内のエントリは変更・削除されない（`agent/memory/jsonl_store.py` のモジュール docstring: 「JSONL does NOT record mutations (delete, pin, unpin); SQLite is the authoritative source of truth」）
 - 1行に1エントリ。UTF-8 エンコード。各行は有効な JSON
 - ファイルパスは `memory_jsonl_dir` config によって制御される（ファイル名: `memories.jsonl`）
 - 正本データ: 必要に応じて SQLite インデックスは JSONL から再構築される
+
+> **実装補足（Explicit in code）:** `jsonl_store.py` の docstring は SQLite（`MemoryStore` 経由）こそが正本状態（authoritative source of truth）であると明記しており、JSONL は追記専用アーカイブという位置付けである。`read_all()` は監査・エクスポート・初回インポート用と限定されており、"authoritative state の再構築に使うな。`MemoryStore` を直接使うか SQLite バックアップから復元せよ" と明示されている。`import_ops.import_from_jsonl()` を用いた再構築は **`memories` / `memories_fts` / `memories_vec` の全行を削除してから JSONL の内容で再挿入する**破壊的操作であり、削除・pin/unpin 済みの状態変更は再生されない（それらの履歴は JSONL 側に存在しないため）。整合性の部分修復（FTS/vec のみのズレ解消）が目的なら `rebuild_ops.rebuild_fts()` / `rebuild_vec()` を使うこと。
 
 ---
 

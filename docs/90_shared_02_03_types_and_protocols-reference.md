@@ -61,7 +61,7 @@ class DbConfig:
 
 ## 11. `CallToolRequest` / `CallToolResponse` リファレンス
 
-`mcp/models.py` で定義されている (`shared/` ではない):
+`mcp_servers/models.py` で定義されている (`shared/` ではない。`mcp_servers` パッケージは PyPI の Model Context Protocol SDK `mcp` との名前衝突を避けるため `mcp` から改称された):
 
 ```python
 class CallToolRequest(BaseModel):
@@ -74,7 +74,7 @@ class CallToolResponse(BaseModel):
 ```
 
 これらは MCP サーバー内でのみ使用される Pydantic モデルである。`shared/` レイヤーのコードは
-`mcp/` からインポートしない。`shared/tool_executor.py` の `ToolCallResult` dataclass と混同しないこと。
+`mcp_servers/` からインポートしない。`shared/tool_executor.py` の `ToolCallResult` dataclass と混同しないこと。
 
 ---
 

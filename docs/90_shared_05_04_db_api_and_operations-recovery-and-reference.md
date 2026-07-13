@@ -34,6 +34,13 @@ result = recover_corruption(
 )
 ```
 
+`target` は `"rag"`(デフォルト)または `"session"` のみを想定している。実装は
+`target == "rag"` かどうかの二択でパス表示用の `db_path` を決定するため、`"workflow"` や
+`"eventbus"` を渡した場合は表示上 `session_db_path` にフォールバックする一方、実際に開く
+DB接続は `SQLiteHelper(target)` に渡した文字列(`"workflow"`/`"eventbus"`)で解決される。
+両者が食い違うため、`target` には `"rag"`/`"session"` 以外を渡さないこと
+(Explicit in code — `db/recovery.py::recover_corruption`)。
+
 ### `RecoveryResult`
 
 ```python
@@ -78,7 +85,10 @@ uv run python -c "from db.rotation import rotate_all_dbs; rotate_all_dbs()"
 rm /opt/llm/db/rag.sqlite /opt/llm/db/session.sqlite /opt/llm/db/workflow.sqlite
 ```
 
-DBパスは `agent.toml` の `rag_db_path`、`session_db_path`、`workflow_db_path` キーから解決される。
+DBパスは `agent.toml` の `rag_db_path`、`session_db_path`、`workflow_db_path`、`eventbus_db_path`
+キーから解決される(`db/config.py::DbConfig`)。`create_schema()` は `eventbus.sqlite` も再作成対象
+なので、削除する場合は `/opt/llm/db/eventbus.sqlite` も対象に含めること
+(Explicit in code — `db/create_schema.py`)。
 
 **手順3: 再作成** — `create_schema()` を実行し空のDBを初期化する:
 
@@ -88,8 +98,13 @@ uv run python -c "from db.create_schema import create_schema; create_schema()"
 
 **重要な注意事項:**
 - 再作成されたDBは空である — 既存レコードは自動的に移行されない。
-- `create_schema()` は `eventbus.sqlite` が未存在の場合これも初期化する。
-- 1つのDBのみ再作成が必要な場合は個別の関数を使う: `create_rag_schema()`、`create_session_schema()`、`create_workflow_schema()`。
+- `create_schema()` は `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` →
+  `create_eventbus_schema()` を無条件に順次呼び出す4関数のラッパーである。各スキーマDDLは
+  `IF NOT EXISTS` で保護されているため、既存ファイルに対して再実行しても冪等
+  (Explicit in code — `db/create_schema.py`)。「`eventbus.sqlite` が未存在の場合のみ初期化する」という
+  条件分岐は実装には存在しない。
+- 1つのDBのみ再作成が必要な場合は個別の関数を使う: `create_rag_schema()`、`create_session_schema()`、
+  `create_workflow_schema()`、`create_eventbus_schema()`。
 
 ---
 

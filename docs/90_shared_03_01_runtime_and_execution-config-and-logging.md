@@ -34,7 +34,7 @@ source:
 class ConfigLoader:
     def __init__(self, config_dir: Path | None = None)
     def load(self, *filenames: str) -> dict[str, Any]
-    def load_all(self) -> dict[str, Any]
+    def load_all(self, strict: bool = False) -> dict[str, Any]
 
     @classmethod
     def restrict_to(cls, *filenames: str) -> None
@@ -42,14 +42,16 @@ class ConfigLoader:
 
 **`load(*filenames)`**
 - 1 つ以上の TOML/JSON ファイルを順に読み込み、マージする
-- 後のファイルが前のファイルを上書きする
+- 後のファイルが前のファイルを上書きする (トップレベルの単純な `dict.update`; ネストした dict のマージは行わない)
 - `_` で始まるキーは除外される (ドキュメント用メタデータ)
 - `ConfigMissingError` (ファイル未検出)、`ConfigParseError` (パースエラー)、`ConfigReadError` (I/O エラー) を発生させる — いずれも `ValueError` のサブクラス
 - `restrict_to()` が呼ばれている場合、許可セットに含まれないファイル名を指定すると `ConfigPermissionError` を発生させる
 
-**`load_all()`**
+**`load_all(strict=False)`**
 - `agent.toml` のみを読み込む (`_BASE_CONFIG_FILES = ("agent.toml",)`)
-- 存在しないファイルは黙って無視される (`ConfigMissingError` を捕捉して継続)
+- `strict=False` (デフォルト): 存在しないファイルは黙って無視される (`ConfigMissingError` を捕捉し debug ログを出して継続)
+- `strict=True`: `_REQUIRED_CONFIG_FILES = frozenset(("agent.toml",))` に含まれるファイルが欠けている場合は `ConfigMissingError` を再送出する
+- `dict` 値を持つキーは 1 階層だけ深くマージされる (`{**merged[key], **val}`) — 複数の MCP サーバー設定ファイルがそれぞれ `[mcp_servers.<key>]` セクションを持ち込んでも、先に読んだファイルのエントリを上書きせずに済む設計
 - `restrict_to()` が呼ばれている場合、`agent.toml` が許可セットに含まれないと `ConfigPermissionError` を発生させる
 
 **`restrict_to(*filenames)`** (クラスメソッド)
@@ -112,11 +114,56 @@ ConfigLoader().load_all()                 # → ConfigPermissionError (agent.tom
 
 ---
 
+## 2b. `RagConfigValidator` / `ProductionConfigValidator` (`shared/config_validator.py`, `shared/production_config_validator.py`)
+
+```python
+@dataclasses.dataclass
+class ConfigValidationResult:  # config_validator.py
+    errors: list[str]
+    warnings: list[str]
+
+    @property
+    def ok(self) -> bool
+
+class RagConfigValidator:
+    def validate(self, cfg: dict[str, Any]) -> ConfigValidationResult
+```
+
+- RAG 設定のクロスファイル整合性を検証する。`cfg` は `agent.toml` 形式のネスト `{"rag": {...}}` と MCP モジュール設定のフラット `{...}` の両方を受け付ける (`"rag" in cfg` で判定)
+- チェック内容: `embedding_dim` と `vec_dim` の不一致 (error) / `use_rrf=False` (warning) / `semantic_cache_threshold < 0.5` (warning) / `semantic_cache_max_size < 0` (error)
+
+```python
+@dataclass
+class ConfigValidationResult:  # production_config_validator.py (別定義、同名だが別モジュール)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+class ProductionConfigValidator:
+    def validate(
+        self,
+        config: Mapping[str, object],
+        security_profile: SecurityProfile | str = "local",
+        known_tools: set[str] | None = None,
+    ) -> ConfigValidationResult
+    def validate_unknown_tool_safety_tiers(self, unknown_keys: list[str]) -> ConfigValidationResult
+```
+
+- `security_profile == "production"` の場合のみ違反を error にする。それ以外 (local/development) は `[local/development]` 接頭辞付きの warning に降格される
+- 検証項目:
+  - `_REQUIRED_STRICT_KEYS = ("plugin_strict", "tool_definitions_strict", "routing_drift_strict")` が `False` (未設定含む)
+  - `tool_safety_tiers` と `tool_registry.get_registry().get_all_tool_names()` の双方向差分 (登録済みツールで tier 未設定 / tier に未登録キー)
+  - `allowed_tools == []` (空リストは「全ツール許可」を意味するため警告/エラー対象)
+- `known_tools` 省略時は `shared.tool_registry.get_registry()` から動的取得を試み、例外時は当該チェックをスキップする (静かに空リスト扱い)
+
+**Note (Explicit in code):** `config_validator.py` と `production_config_validator.py` はそれぞれ独立した `ConfigValidationResult` データクラスを定義しており、共通の型ではない。両者は責務が異なる (RAG 設定の整合性 vs 本番運用の厳格性) ため、混同しないこと。
+
+---
+
 ## 3. `Logger` (`shared/logger.py`)
 
 ```python
 class Logger:
-    def __init__(self, name: str, filepath: str, *, structured_log: bool = False)
+    def __init__(self, name: str, log_file: str, *, structured_log: bool = False)
     def info(self, msg: str, *args, **kwargs) -> None
     def warning(self, msg: str, *args, **kwargs) -> None
     def error(self, msg: str, *args, **kwargs) -> None
@@ -124,11 +171,14 @@ class Logger:
     def clear_context(self) -> None
 ```
 
+- コンストラクタ第2引数名は `log_file` (実装名。旧記載の `filepath` は誤り)
+- `name` / `log_file` はいずれも非空文字列であることが必須で、違反時は `ValueError` を送出する (`_require_str`)
 - `FileHandler` + `StreamHandler` を自動設定する (`propagate=False` により重複を防止)
-- `structured_log=True` → ログファイルは JSON Lines 形式になる
-- コンテキスト注入: `set_context(turn_id="T001", session_id=42)` により、以降のすべてのログ行にフィールドが追加される
-- ファイル書き込みエラー → `shared.logger.fallback` ロガー経由で WARNING がログされ (stderr に表示される)、StreamHandler のみにフォールバックする; 例外は発生しない
-- ログメッセージは**英語のみ**でなければならない (日本語不可)
+- 同一 `name` のロガーに既にハンドラが設定済みの場合、`_configure_logger` は何もせず即座に return する (二重登録防止; 同名 `Logger` を複数回生成しても安全)
+- `structured_log=True` → ログファイルは JSON Lines 形式になる (`_JsonFormatter`; フィールドは `ts`/`level`/`func`/`msg` に加え `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` が値のあるもののみ出力される)
+- コンテキスト注入: `set_context(turn_id="T001", session_id=42)` により、以降のすべてのログ行にフィールドが追加される。`_ContextFilter` は `contextvars.ContextVar` を使うため、同一ロガーを共有する並行 asyncio タスク間でコンテキストが混線しない
+- ファイル書き込みエラー (`OSError`) → `shared.logger.fallback` ロガー経由で WARNING がログされ (stderr に表示される)、StreamHandler のみにフォールバックする; 例外は発生しない
+- ログメッセージは**英語のみ**でなければならない (日本語不可) — `rules/coding.md` の規約
 
 ---
 
@@ -143,5 +193,7 @@ class Logger:
 
 ConfigLoader
 config isolation policy
+RagConfigValidator
+ProductionConfigValidator
 Logger
 runtime

@@ -180,8 +180,12 @@ curl -s http://127.0.0.1:8003/health   # embed-llm
 curl -s http://127.0.0.1:8001/health   # agent-llm
 
 # Start the agent after LLM services complete model loading
-/opt/llm/scripts/agent.py
+bash deploy/start_agent.sh
 ```
+
+### 実装上の補足(起動方法)
+
+`deploy/start_agent.sh` は `/opt/llm/pyproject.toml` の有無で本番(`/opt/llm`)/開発(リポジトリルート)を自動判別し、当該ルートで `python -m agent` (`scripts/agent/__main__.py`)を実行する。(Explicit in code)
 
 > API キーの設定:
 > - Web 検索: DuckDuckGo — API キー不要

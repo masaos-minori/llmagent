@@ -61,7 +61,9 @@ class ToolDefinition:
 ```
 
 - 不変のツール定義 — 1 つのツールは必ず 1 つの MCP サーバーに属する
-- インポート時に `tool_constants.py` の frozenset から値が設定される
+- インポート時に `tool_constants.py` の frozenset から `_populate_default_registry()` により値が設定される
+- **境界条件 (Boundary and ownership):** `description` と `input_schema` は将来利用のための予約フィールドであり、`_populate_default_registry()` では一切設定されず、現状どの呼び出し元からも読まれない。LLMに見せるツールスキーマは各サーバー自身の `tools.py` の `TOOL_LIST` が情報源であり、この `ToolRegistry` からではない (Explicit in code: `scripts/shared/tool_registry.py` docstring)
+- `ToolRegistry` はツールの所有権・ルーティングのみを扱う。ライブ `/v1/tools` の応答は起動時のドリフト検証にのみ使われ、ルーティング判断には使われない (Explicit in code)
 - Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
 
 ---
@@ -93,7 +95,7 @@ class RetryEvent(TypedDict):
     timestamp: str   # ISO-8601 UTC
 ```
 
-> **Note:** `ArtifactEvent` はデータ定義のみである。イベントバスは実装されていない。
+> **Note:** `ArtifactEvent` は純粋なデータ構造(`TypedDict`)である。配信の仕組み・イベントバス・購読者は一切存在しない。将来的にアーティファクトイベントを発行しうるコードのための型注釈としてのみ存在する。`ArtifactEvent` のインスタンス生成が何らかのアクションをトリガーすると仮定してはならない (Explicit in code: `scripts/shared/events.py` モジュールdocstring)。
 
 ### 将来のイベントエンベロープ (構想段階 — 未実装)
 
@@ -115,10 +117,30 @@ class RetryEvent(TypedDict):
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
 
-- 純粋な `dataclass` — FastAPI、MCP、エージェントへの依存はない
-- `mcp/shell/service.py` がその設定オブジェクトとして使用する
-- フィールド: `shared/protocols/shell.py` のソースを直接参照
+```python
+@dataclass(frozen=True)
+class ShellPolicy:
+    allowed_commands: frozenset[str]
+    cwd_allowed_dirs: tuple[str, ...]
+    default_cwd: str
+    timeout_sec: int
+    max_output_kb: int
+    max_memory_mb: int
+    kill_policy: str          # "sigterm_then_sigkill" | "sigkill_only"
+    kill_grace_sec: float     # grace period before SIGKILL (sigterm_then_sigkill only)
+    execution_user: str       # "" = no switch; non-empty requires root (CAP_SETUID)
+    shell_path: str
+    audit_log_path: str
+    sandbox_backend: str      # "firejail" | "none"
+    env_allowlist: tuple[str, ...]
+    env_denylist: tuple[str, ...]
+```
+
+- 不変の `frozen=True` dataclass — FastAPI、MCP、エージェントへの依存はない(shared → external のみ)
+- `mcp_servers/shell/service.py`(`ShellService`)がその設定オブジェクトとして使用する。値のみを保持し、業務ロジックは持たない
+- **失敗時の意図 (Failure behavior):** `__post_init__` で以下を検証し、違反時は `ValueError` を送出する: `kill_policy` は `{"sigterm_then_sigkill", "sigkill_only"}` のいずれか、`sandbox_backend` は `{"firejail", "none"}` のいずれか、`timeout_sec >= 1`、`max_output_kb >= 1`、`max_memory_mb >= 1`、`kill_grace_sec >= 0` (Explicit in code: `scripts/shared/protocols/shell.py`)
 - 目的: シェル実行ポリシーを MCP サーバー実装から分離すること
+- Import: `from shared.protocols.shell import ShellPolicy`
 
 ---
 

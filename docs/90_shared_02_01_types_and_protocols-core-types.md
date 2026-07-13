@@ -72,6 +72,21 @@ class LLMMessage(TypedDict, total=False):
 
 - `total=False` は技術的には全フィールドが省略可能を意味するが、`role` は常に必須
 - 正典インポート: `from shared.types import LLMMessage`(agent/、rag/、shared/全体で20以上のモジュールから利用)
+- 実装上、`role` は `_LLMMessageRequired(TypedDict)` を継承する形で必須フィールドとして分離定義されている (Explicit in code)
+
+### 関連TypedDict(ツール呼び出し表現用)
+
+`shared/types.py` には `LLMMessage.tool_calls` の要素や、ストリーミング時の差分表現のための補助的な `TypedDict` も定義されている。
+
+| 型 | 用途 |
+|---|---|
+| `ToolCallFunction` | ツール呼び出し内の `name` / `arguments`(JSON文字列) |
+| `ToolCallDict` | assistant メッセージの `tool_calls` 1件分(`id` / `type` / `function`) |
+| `ToolCallFunctionDelta` | ストリーミング時の関数部分の差分(`total=False`) |
+| `ToolCallDelta` | ストリーミング時の1ツール呼び出し分の差分(`total=False`) |
+| `AccumulatedToolCall` | ストリーミング差分から組み立てた完全なツール呼び出し |
+
+(Explicit in code: `scripts/shared/types.py`)
 
 ---
 
@@ -90,6 +105,7 @@ class RagConfig(Protocol):
     top_k_rerank: int
     rag_min_score: float
     use_rrf: bool
+    rrf_k: int
     use_search: bool
     rag_service_url: str
     rag_auth_token: str
@@ -104,6 +120,7 @@ class RagConfig(Protocol):
 - `RagPipeline`(`scripts/rag/pipeline.py`)で使用され、`scripts/mcp_servers/rag_pipeline/service.py` から利用される
 - `agent/` は `RagConfig` を直接使用しない(インプロセスのRAGパイプラインを持たない)
 - `SimpleNamespace` アダプタでこのプロトコルを満たすことができる
+- ファイル形式のDTOではない。設定ファイル用DTOは別に存在する: `mcp_servers.rag_pipeline.models.RagPipelineConfig`(MCP TOML)、`rag.models_config.*`(ingestion TOML)。MCPアダプタは `build_rag_cfg_adapter()`(`scripts/mcp_servers/rag_pipeline/models.py`)を参照 (Explicit in code)
 
 ---
 
@@ -112,37 +129,42 @@ class RagConfig(Protocol):
 ```python
 @dataclasses.dataclass
 class RawHit:
-    """Raw search result from vector or FTS search."""
+    """Search result from vector_search or fts_search."""
     chunk_id: int
     content: str
-    url: str
-    title: str
-    distance: float | None = None
-    bm25_score: float | None = None
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
 
 @dataclasses.dataclass
 class MergedHit:
     """RawHit after RRF merge; carries aggregated rrf_score."""
     chunk_id: int
     content: str
-    url: str
-    title: str
-    rrf_score: float
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
 
 @dataclasses.dataclass
 class RankedHit:
     """MergedHit after cross-encoder rerank; carries rerank_score."""
     chunk_id: int
     content: str
-    url: str
-    title: str
-    rrf_score: float
-    rerank_score: float
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
+    rerank_score: float | None = None
 
 RagHit = RawHit | MergedHit | RankedHit
 ```
 
 - `shared/types.py` に正典として定義されており、パイプラインの各ステージでフィールドが段階的に追加される
+- **実装上の補足 (Current behavior):** 実コードでは `MergedHit` / `RankedHit` も `distance` / `bm25_score` を保持し続ける(前段の値をそのまま引き継ぐ)。またすべてのフィールドにデフォルト値が設定されており、`chunk_id` と `content` 以外は省略可能。`rerank_score` のみ `None` を許容する (Explicit in code: `scripts/shared/types.py`)
 - **インポート:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
 - `scripts/rag/types.py` はこれらの名前をもはや再エクスポートしない — 後方互換用の再エクスポートは削除済み。`shared.types` から直接インポートすること
 - `rag/`、`agent/`、`shared/plugin_registry.py` から利用される
@@ -165,3 +187,6 @@ RawHit
 MergedHit
 RankedHit
 RagHit
+ToolCallDict
+AccumulatedToolCall
+rrf_k

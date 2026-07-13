@@ -58,6 +58,7 @@ related:
 │       ├─ plugin_conflicts.py              # プラグイン競合検出
 │       ├─ plugin_result.py                 # PluginFailure / PluginLoadResult データクラス、PluginLoadError 例外
 │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
+│       ├─ db_maintenance.py                # count_table(): テーブル行数カウント共通ヘルパー
 │       ├─ action_result.py                 # ActionResult データクラス (ActionType リテラル) — 機械判定パス向け汎用アクション/結果スキーマ
 │       ├─ events.py                        # ArtifactEvent / RetryEvent TypedDict — ライフサイクル/成果物通知の型定義 (配送機構なし)
 │       ├─ transport_dto.py                 # ToolCallResult / TransportErrorInfo データクラス — MCP ツール実行結果とトランスポート失敗情報

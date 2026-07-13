@@ -68,6 +68,9 @@ class ToolResultCache:
 - TTL チェック: `time.time() - cached_at >= ttl` → エビクトして None を返す
 - LRU エビクション: `max_size > 0` かつキャッシュが上限を超えた場合、`popitem(last=False)` で最も古いエントリを削除する
 - インポート: `from shared.tool_cache import ToolResultCache`
+- **[Explicit in code]** `shared/tool_cache.py` のモジュール docstring により、`ToolResultCache` は現時点で `ToolExecutor` からは使用されていないと明記されている。`ToolExecutor` は `shared/tool_executor.py` 内に独自の `OrderedDict` ベースのキャッシュ (`_execute_with_cache()`, `_store_and_evict()`) を持ち、`_inflight` (`dict[str, asyncio.Future]`) によるスタンピード防止 (同時リクエストの future 共有) と統合されている。`ToolResultCache` にはスタンピード防止の仕組みが無い
+- **[Explicit in code]** `ToolResultCache` は非推奨ではなく、スタンピード防止を必要としない将来の呼び出し元向けに、LRU+TTL キャッシュ単体機能を提供するスタンドアロンユーティリティとして残置されている
+- **[Explicit in code]** `get_result()` の戻り値 `ToolCallResult` は `request_id=""`, `server_key=""` で構築され、`error_type` は `is_error=True` のとき `"tool"`、それ以外は `""` となる
 
 ---
 
@@ -103,8 +106,10 @@ class PluginToolInvoker:
 - `plugin_registry.register_tool()` 経由で登録されたプラグインツールを実行する
 - 指定された名前に対応するプラグインツールが登録されていない場合は `None` を返す
 - プラグインの例外を `ToolCallResult(is_error=True)` に変換し、エラーをローカルに留める (決して伝播させない)
-- 戻り値の契約に対して防御的なランタイム検証を行う: 厳密に2要素のタプル `(str, bool)` でなければならない
-- output が str でない、または is_error が bool でない場合は `TypeError` をスローする
+- 戻り値の契約に対して防御的なランタイム検証を行う: 厳密に2要素のタプル `(str, bool)` でなければならない (登録時のアノテーション検証が正であり、これは追加の実行時防御)
+- **[Explicit in code — 訂正]** output が str でない、または is_error が bool でない場合、`TypeError`/`ValueError` は関数内部で捕捉され、呼び出し元へは伝播しない。捕捉後は `ToolCallResult(is_error=True, source="plugin", error_type="plugin_contract")` を返す (旧記載「`TypeError` をスローする」は誤り)
+- **[Explicit in code]** プラグイン実行時の例外 (Exception) を捕捉した場合は `error_type="tool"` で `ToolCallResult(is_error=True, source="plugin")` を返す。契約違反 (戻り値の型不正) の場合は `error_type="plugin_contract"` で区別される
+- **[Explicit in code]** 正常系の戻り値も `source="plugin"` を伴う `ToolCallResult` として返る。`error_type` は `is_error=True` のとき `"tool"`、`False` のとき `""`
 - インポート: `from shared.plugin_tool_invoker import PluginToolInvoker`
 
 ---
@@ -122,6 +127,8 @@ class PluginToolInvoker:
 LlmRetryHandler
 ToolResultCache
 CacheEntry
+plugin_contract
+_inflight
 ToolSpec
 PluginToolInvoker
 McpServerHealthState

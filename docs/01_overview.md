@@ -49,6 +49,7 @@ source:
 | [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAGドキュメントセットガイド(全ファイル一覧) |
 | [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCPドキュメントセットガイド(全ファイル一覧) |
 | [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | Agentドキュメントセットガイド(全ファイル一覧) |
+| [06_eventbus_00_document-guide.md](06_eventbus_00_document-guide.md) | Event Busドキュメントセットガイド(全ファイル一覧) |
 | [90_shared_00_document-guide.md](90_shared_00_document-guide.md) | shared/DBドキュメントセットガイド(全ファイル一覧) |
 
 ## Related Documents

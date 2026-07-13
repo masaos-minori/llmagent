@@ -19,11 +19,18 @@ source:
 ## HistoryManager（`agent/history.py`）
 
 - **役割:** 会話履歴のサイズ管理と LLM ベースの圧縮
-- **主要な API:** `await mgr.compress(history)`、`mgr.count_chars(history)`、`apply_config(...)`
-- **呼び出し元:** Orchestrator の履歴圧縮処理
-- **呼び出し先:** `LLMClient`、`HistorySelectionPolicy`
+- **主要な API:** `await mgr.compress(history)`、`await mgr.force_compress(history)`、`mgr.count_chars(history)`、`mgr.count_tokens(history, last_input_tokens=None)`、`await mgr.count_tokens_async(...)`、`apply_config(...)`
+- **呼び出し元:** Orchestrator の履歴圧縮処理（`_handle_history_compression()`）、`/compact` コマンド（`force_compress`）
+- **呼び出し先:** `httpx.AsyncClient`（コンストラクタで注入される `http`。要約 LLM 呼び出しは `LLMClient` を経由せず `self._http.post()` で直接行う）、`HistorySelectionPolicy`
 - **設定:** `cfg.llm.context_char_limit`、`context_compress_turns`、`history_protect_turns`
-- **失敗時:** LLM による要約が失敗した場合 → 履歴を変更せずに返す（圧縮なし）
+- **失敗時:** LLM 要約が失敗した場合（`HistoryCompressionError`）→ 文字数制限超過中なら `_fallback_truncate()` で低重要度メッセージから切り捨てる。文字数制限内（トークン制限のみ超過）の場合は履歴を変更せずに返す
+
+> **根拠分類: Explicit in code（訂正）。** 旧版は呼び出し先を `LLMClient` としていたが、
+> `HistoryManager._call_compress_llm()` はコンストラクタで受け取った `httpx.AsyncClient` に対し
+> 直接 `self._http.post()` を発行しており、`shared/llm_client.py::LLMClient` のインスタンスは経由しない。
+> また「失敗時は圧縮なし」という記述は不完全で、文字数超過時は `_fallback_truncate()` による
+> 切り捨てが行われる（`stat_fallback_truncate_count` が増分される）。トークン制限のみの超過時は
+> 変更なしで返る。
 
 完全な詳細: [05_agent_04_01_state-and-persistence-state-model-part1.md §HistoryManager](05_agent_04_01_state-and-persistence-state-model-part1.md)
 
@@ -31,10 +38,10 @@ source:
 
 ## CommandRegistry（`agent/commands/registry.py`）
 
-- **役割:** すべてのスラッシュコマンドのディスパッチ。13のミックスインベースのコマンドグループ
+- **役割:** すべてのスラッシュコマンドのディスパッチ。14のミックスインベースのコマンドグループ
 - **主要な API:** `await cmds.dispatch(line) -> bool`
 - **呼び出し元:** REPL ループドライバ
-- **呼び出し先:** 10個のミックスインハンドラ＋プラグインレジストリ
+- **呼び出し先:** 14個のミックスインハンドラ＋プラグインレジストリ
 - **設定:** コマンドごとに異なる `cfg.*` フィールド
 - **失敗時:** コマンドエラーはユーザーに表示される。REPL は継続する
 

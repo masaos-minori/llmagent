@@ -25,6 +25,8 @@ source:
 
 これらの項目は、実装変更を要する未解決の問題、またはユーザーに実際の影響を与えている問題を示す。
 
+*(2026-07-13: `_dlq_loop` のクラッシュ不具合は修正済みのため削除。`scripts/eventbus/app.py` の `_dlq_loop()` が `route_helpers` の app 引数版ヘルパー(`app_get_config`/`app_get_db`、`get_config`/`get_db` としてエイリアスインポート)をダミーの `Req` ラッパー越しに誤って呼び出しており、`AttributeError` で毎ティッククラッシュしていた。呼び出しを `get_config(app)`/`get_db(app)` に修正し、`uv run pytest tests/test_eventbus*.py` で148件全て成功することを確認済み。詳細は [06_eventbus_05_07_validation-status.md](06_eventbus_05_07_validation-status.md) を参照。)*
+
 ### Ack オフセットの単調性が保証されていない
 
 | 項目 | 安全な解釈 | 推奨される対応 |
@@ -46,6 +48,12 @@ source:
 | 項目 | 安全な解釈 |
 |---|---|
 | 主たる DLQ への promotion は、`delivery_failure_count >= max_retry` となった際に `/nack` でインラインに実行される。バックグラウンドループは、取り残されたイベントに対する安全網としての sweep である | バックグラウンドの DLQ ループは、しきい値に達したがインラインで promotion されなかったイベントを捕捉する。sweep の結果が 0 以外である場合、インライン promotion に問題がある可能性を示す |
+
+### `dlq.py::promote_to_dlq()` は本番経路から呼ばれていない
+
+| 項目 | 安全な解釈 |
+|---|---|
+| `dlq.py` は `promote_to_dlq()`（全件一括 promotion）、`sweep_orphans()`（安全網 sweep）、`promote_single()`（inline promotion）の 3 関数を公開しているが、`app.py` は `sweep_orphans` のみを、`ack_route.py` は `promote_single` のみを import している。`promote_to_dlq` は本番コードパス（`app.py`, `ack_route.py`, `dlq_route.py`）のいずれからも呼ばれておらず、`tests/test_eventbus_dlq_promotion.py` からのみ直接呼び出されている | `promote_to_dlq` は実運用では未使用。テストユーティリティ、または将来の一括運用コマンド用に残されている可能性がある。ドキュメント上は `sweep_orphans`（60 秒間隔の安全網）と `promote_single`（nack 時の inline promotion）の 2 経路のみを正規の DLQ promotion 経路として扱う（根拠分類: Explicit in code） |
 
 ## 保留中の項目
 

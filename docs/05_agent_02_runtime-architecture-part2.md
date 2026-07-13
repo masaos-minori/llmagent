@@ -22,25 +22,46 @@ source:
 
 - 入力/ディスパッチループを管理する: 行を読み取る → コマンドまたはLLMターンへ
 - 起動シーケンス全体を`StartupOrchestrator`に委譲する
-- グレースフルシャットダウンを管理する(SIGTERM → `SystemExit(0)`への変換)
+- グレースフルシャットダウンを管理する
 - ビジネスロジックを持たない。UIループ、コマンドディスパッチ、出力表示のみを含む
 
 **起動シーケンス(`StartupOrchestrator.run()`に委譲):**
 
 ```
 StartupOrchestrator.run()
-  Initialization phase:
+  Initialization phase (_initialize):
     → Readline setup
     → build_agent_context(ctx, view)   [factory.py]
     → Command registry initialization
+    → Workflow definition / schema preflight checks
     → Orchestrator initialization
-  MCP server startup                 [HTTP subprocess MCP servers]
-  Prompt setup
+  MCP server startup (_start_servers)  [HTTP subprocess MCP servers; startup_mode=SUBPROCESS かつ transport=HTTPのみ]
+  Service checks (_check_services)     [security audit, embedding dim整合, readiness,
+                                         tool定義検証, routing drift(static/live), RAG consistency]
+  Pending approval recovery (_recover_pending_approvals) [StateStoreから前回セッションの承認待ちを復元]
+  Prompt setup (_setup_prompt)
     → system prompt init
     → memory.on_session_start()
 → returns (CommandRegistry, Orchestrator)
 REPL loop
 ```
+
+### Current behavior (シャットダウン)
+
+- `AgentREPL.run()`は`SIGTERM`ハンドラを登録し、受信すると`ctx.conv.shutdown_requested = True`を
+  設定して`asyncio.Event`をセットする。これによりREPLループが次の入力待ち/ターン完了後に終了する
+  (`SystemExit(0)`への直接変換ではなく、フラグベースのグレースフルシャットダウン)。進行中のターンには
+  最大10秒(`_GRACEFUL_TIMEOUT`)の猶予があり、超過するとタイムアウトしてループを抜ける。(Explicit in code)
+- `_close_resources()`はWALチェックポイント実行後、`ctx.services.lifecycle.shutdown_all()`と
+  `http.aclose()`を呼ぶ。`HttpServerLifecycleManager.shutdown_all()`は実行中に届いた2回目の
+  SIGINTを一時的に吸収し、クリーンアップの完了を保証する。(Explicit in code)
+
+### Current behavior (StartupOrchestrator検証パイプライン)
+
+`_check_services()`は`StartupValidationResult`に各チェックの結果(OK/WARNING/FATAL/SKIPPED)を
+蓄積し、FATALが1件でもあれば`RuntimeError`で起動を中断する。`_start_servers()`実行後に例外が
+発生した場合、起動済みのMCPサブプロセスは`shutdown_all()`でロールバックされる。
+(Explicit in code)
 
 ### StartupOrchestrator (`agent/startup.py`)
 
@@ -58,6 +79,11 @@ REPL loop
 | Method | Responsibility |
 |---|---|
 | `handle_turn(line)` | 最上位のターンハンドラー |
+
+**Current behavior:** `handle_turn()`は上記の流れを`WorkflowEngine`のplan/execute/verifyステージに
+乗せて実行する(`plan_fn`は現状no-op、`execute_fn`がLLMターン本体、`verify_fn`がturn_end処理)。
+`ctx.workflow.approval_pending`がTrueの間は新規ターンを拒否する。(Explicit in code — 詳細は
+`05_agent_03`系の管轄)
 
 ### AgentContext (`agent/context.py`)
 
@@ -97,21 +123,26 @@ REPL loop
 
 ### CommandRegistry (`agent/commands/registry.py`)
 
-12個のmixinがあり、それぞれがコマンドグループを1つ担当する。まず組み込みコマンドをディスパッチし、その後プラグインコマンドをディスパッチする。
+実装上は14個のmixinを継承する(`_`始まりの内部命名だが、クラス構成として一覧化する)。
+まず組み込みコマンド(`_COMMANDS`、`agent/commands/command_defs_list.py`が正本)をディスパッチし、
+その後プラグインコマンドをディスパッチする。(Explicit in code — 旧版の「12個」は実態と不一致)
 
 | Mixin | Commands |
 |---|---|
-| `SessionMixin` | `/session` |
-| `McpMixin` | `/mcp` |
-| `ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
-| `ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
-| `DbMixin` | `/db` |
-| `ToolingMixin` | `/plan` |
-| `DebugMixin` | `/debug` |
-| `AuditMixin` | `/audit` |
-| `RagExportMixin` | `/rag`, `/export`, `/compact` |
-| `MemoryMixin` | `/memory` |
-| `WorkflowMixin` | `/approve`, `/reject` |
+| `_SessionMixin` | `/session` |
+| `_McpMixin` | `/mcp` |
+| `_ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
+| `_ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
+| `_DbMixin` | `/db` |
+| `_ToolingMixin` | `/plan` |
+| `_DebugMixin` | `/debug` |
+| `_AuditMixin` | `/audit` |
+| `_RagExportMixin` | `/rag`, `/export`, `/compact` |
+| `_MemoryMixin` | `/memory` |
+| `_WorkflowMixin` | `/approve`, `/reject` |
+| `_PluginsMixin` | `/plugin` |
+| `_MdqMixin` | `/mdq` |
+| `_SkillMixin` | `/skill` |
 
 ### CLIView (`agent/cli_view.py`)
 
@@ -134,6 +165,16 @@ REPL loop
 有効な遷移: `STOPPED → STARTING/FAILED`、`STARTING → RUNNING/FAILED/STOPPED`、`RUNNING → STOPPED/FAILED/STARTING`、`FAILED → STARTING/STOPPED`、`UNKNOWN → any`。
 
 `assert_valid_transition(from_state, to_state)`は、遷移が不正な場合に`ValueError`を発生させる。
+
+### Current behavior (Lifecycle実装の所在)
+
+`LifecycleManagerProtocol`(`agent/lifecycle_protocol.py`)が`ensure_ready`/`shutdown_all`/`restart`/
+`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot`を定義する
+構造的サブタイピング用プロトコルである。本番実装は`agent/factory.py`内にあり、HTTPサブプロセスの
+起動・ヘルスポーリング・再起動・終了は`agent/http_lifecycle.py`の`HttpServerLifecycleManager`に
+委譲される(実装クラス名はアンダースコア始まりの内部命名のため本書では割愛)。
+`ensure_ready`/`start_http_subprocess`/`restart`は、シャットダウン開始後(`shutdown_all()`呼び出し後)は
+すべて無視されるガードを持つ。(Explicit in code)
 
 ### AgentSession (`agent/session.py`)
 

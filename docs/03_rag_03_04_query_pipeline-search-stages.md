@@ -48,9 +48,24 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 - DB検索は逐次実行する（競合を避けるためクエリごとに1接続）
 - 各クエリは `ctx.search_results` に0〜2件の `list[RawHit]` を追加する（KNN + BM25）；埋め込み失敗またはDBエラーの場合は空
 - KNN: sqlite-vecによる `vector_search(embedding, top_k)`
-- BM25: FTS5による `fts_search(query, top_k)`；FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）
+- BM25: FTS5による `fts_search(query, top_k)`
 - `/opt/llm/logs/search.log` にログを記録: 埋め込み失敗の警告、検索の劣化警告（embed_failed件数、FTSエラー件数）
 - `db=None` の場合は警告付きで空の結果を返して処理する
+
+> **ドキュメントと実装の矛盾**: `vector_search`/`fts_search` が送出する `sqlite3.OperationalError` /
+> `RuntimeError` は `SearchStage` 内部（`_search_all_queries()`）で捕捉され、クエリ単位で
+> `fts_errors` カウンタに計上されるのみで、例外として呼び出し元（`RagPipeline._run_stage()`）へは
+> 伝播しない。1クエリの検索失敗は残りのクエリの処理を止めない
+> (根拠分類: Explicit in code — `scripts/rag/stages/search.py:56-65`)。
+
+#### 失敗時の意図 (Failure behavior)
+
+`_search_all_queries()` は埋め込み取得（`asyncio.gather(..., return_exceptions=True)`）とDB検索
+（`try/except`）の両方で例外を個別に握りつぶし、`SearchDiagnostics` のカウンタに反映するのみで
+処理を継続する。これは、MQEで複数バリアントに展開したクエリのうち一部が失敗しても、
+残りのクエリの検索結果でパイプライン全体を継続させるための設計と考えられる
+(根拠分類: Strongly implied by code — 各クエリのループ内で個別に例外処理し、失敗時も
+`continue`/ループ継続する構造)。
 
 ### 5.3 FusionStage
 
@@ -62,7 +77,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 - `rrf_k` のデフォルト: 60；`cfg.rrf_k` で変更可能（RagConfig Protocolに `rrf_k` フィールドが含まれる）
 - 各 `MergedHit` に `rrf_score` を割り当て、`ctx.merged` に格納する
 
-> `use_rrf=False` は重複排除のみのフォールバックを発動させる（すべて `rrf_score=0.0`）。`pipeline.py:184` がRRF設定フラグを `FusionStage` に渡す。
+> `use_rrf=False` は重複排除のみのフォールバックを発動させる（すべて `rrf_score=0.0`）。`pipeline.py:294` がRRF設定フラグを `FusionStage` に渡す。
 
 #### 検索品質のトレードオフ: `use_rrf=False` と `use_rrf=True`
 

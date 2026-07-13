@@ -56,6 +56,7 @@ source:
 | SQLite WAL | 全接続で `PRAGMA journal_mode=WAL` を使用 |
 | `agent.toml` | 所有権テーブル全体は [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership を参照 |
 | 埋め込み次元 | `agent.toml` の `embedding_dims`(デフォルト384） |
+| セキュリティプロファイル | `mcp_config.py` の `SecurityProfile` enum(`local`/`production`）。`production_config_validator.py` の `ProductionConfigValidator` が production 時に strict キー・`tool_safety_tiers`・`allowed_tools` を検証 |
 
 ---
 

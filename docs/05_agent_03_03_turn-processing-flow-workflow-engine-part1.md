@@ -89,6 +89,8 @@ source:
 `WorkflowEngine(require_approval=True)`の場合、エンジンはexecuteステージ完了後、
 verifyステージ実行前に一時停止する:
 
+**現在の実装挙動:** `WorkflowDef.require_approval`のデフォルトは`False`であり、`config/workflows/default.json`にも明示指定がないため、本番デプロイのデフォルト設定では承認ゲートは発火しない。承認ゲートを有効化するには`config/workflows/default.json`に`"require_approval": true`を明示的に追加する必要がある。(Explicit in code / `issues/20260711_00_issue.md`で追跡中の未決事項)
+
 1. エンジンが`store.request_approval(task_id)`を呼び出す → `status=pending`の`ApprovalRecord`
 2. タスクステータス → `pending_approval`
 3. `WorkflowPendingApprovalError`が発生 → orchestratorが`approval_id`を`ctx.turn.pending_approval_id`に格納; WARNINGをログ出力: `[workflow] Approval required. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`

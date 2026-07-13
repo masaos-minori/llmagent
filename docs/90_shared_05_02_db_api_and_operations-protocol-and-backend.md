@@ -64,6 +64,8 @@ class DocumentStore(Protocol):
 - `doc_list` は `{doc_id, url, title, lang, fetched_at}` を `fetched_at DESC` でソートして返す
 - `doc_delete`: ドキュメントを削除し、chunks にもカスケードする; 見つかった場合は `True` を返す
 - `chunk_insert` は `chunks` テーブルの `chunk_index`、`chunk_type`、`source_file` カラムを使用する
+- `chunk_insert` のフィールド構成は `scripts/rag/ingestion/ingester.py` の `RagIngester._insert_chunk()` の INSERT と一致させる意図でプロトコル定義側に注記されている(`db/store_protocols.py` docstring より)。呼び出し側でフィールドを追加/変更する際は ingester 側との整合を確認すること。(Explicit in code)
+- `doc_upsert`/`chunk_insert`（`SQLiteDocumentStore`）、`session_create`（`SQLiteSessionStore`）は、それぞれ `RETURNING doc_id` / `INSERT` の `lastrowid` が取得できなかった場合に `RuntimeError` を送出する（通常は到達しない防御的チェック）。(Explicit in code)
 
 ### `SessionStore` プロトコル
 
@@ -159,3 +161,5 @@ protocol groups
 db/store.py
 SQLite backend implementations
 MemoryStore
+RagIngester._insert_chunk
+lastrowid RuntimeError

@@ -46,16 +46,14 @@ related:
 
 ## 並列実行と逐次実行
 
-`execute_all_tool_calls()`は設定フラグに基づいてディスパッチする。設定リファレンス → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_01_configuration-loading-agent-config-part1.md)。
+`execute_all_tool_calls()`は`ctx.cfg.tool.serial_tool_calls`のみに基づいてディスパッチする。
 
 | Condition | Execution |
 |---|---|
-| `use_tool_dag=True`かつ`serial_tool_calls=False` | DAGスケジューリング |
-| `serial_tool_calls=True` | 逐次 (全ツール) |
-| `use_tool_dag=False`、副作用のあるツールが存在 | 逐次 (安全のためシリアル化) |
-| `use_tool_dag=False`、副作用のあるツールなし | 並列 (`asyncio.gather()`) |
+| `serial_tool_calls=False` (デフォルト) | `_execute_with_dag()` — DAGスケジューリング |
+| `serial_tool_calls=True` | `_execute_standard()` — 逐次/並列判定 (副作用のあるツールが1つでもあれば逐次、なければ`asyncio.gather()`で並列) |
 
-**本番運用上の注意:** `use_tool_dag=false`の設定はレガシー (非本番) 動作とみなされる。本番モードでは、この設定は`ProductionConfigValidator.validate()`による起動時検証でエラーとしてフラグされる。DAGスケジューラは独立した読み取りに対してリソーススコープ単位の並列性を提供しつつ、書き込みはリソーススコープごとにシリアル化する。
+> **Explicit in code:** `agent/tool_runner.py`の`execute_all_tool_calls()`は`if not ctx.cfg.tool.serial_tool_calls: _execute_with_dag(...) else: _execute_standard(...)`という2分岐のみで構成される。`use_tool_dag`という設定フィールドはコードベース全体 (`agent/config_dataclasses.py`含む) に存在しない。DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効であり、「レガシー動作」への切替フラグは実装上存在しない。旧版ドキュメントにあった`use_tool_dag`および`ProductionConfigValidator`による`use_tool_dag=false`の起動時エラー化の記述は実装と一致しないため削除した。`ProductionConfigValidator.validate()` (`shared/production_config_validator.py`) が実際に検証するのは`plugin_strict`/`tool_definitions_strict`/`routing_drift_strict`のstrictキー、`tool_safety_tiers`の登録漏れ・不明キー、および`allowed_tools=[]`のみである (詳細は[05_agent_06_03](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md)参照)。
 
 ---
 
@@ -126,6 +124,13 @@ related:
 | `trigger_tool` | string or null | シリアル化を引き起こした最初のツール |
 | `elapsed_ms` | float | ラウンド全体の実時間 (ミリ秒) |
 | `scheduling_mode` | string or null | DAGモード: `"dag_concurrent"`または`"dag_sequential"`; 標準モードではnull |
+| `affected_tools` | list[string] | このラウンドで実行されたツール名一覧 |
+| `serial_reason` | string or null | シリアル化理由 (例: `"side_effect"`。DAGモードでは`requires_serial`/`resource_scope_conflict`/`is_write_overlap`のいずれか) |
+| `estimated_parallel_ms` | float or null | 標準モードでのみ設定。並列実行だった場合の推定所要時間 (各ツール実行時間の合計) |
+| `source` | string | 固定値`"agent"` |
+| `ts` | float | イベント発行時刻 (UNIX時間) |
+
+> **Explicit in code:** `agent/tool_audit.py`の`write_round_exec()`が上記フィールドをすべて発行する。`agent/tool_runner.py`の`_execute_with_dag()`は`mode`フィールドに常に文字列`"parallel"`を設定する (DAG実行であることを示す固定値であり、バッチ内の逐次/並列の別は`scheduling_mode`側で表現される)。一方`_execute_standard()`の`mode`は実際の実行方式に応じて`"serial"`または`"parallel"`になる。同じ`mode`フィールドでも経路によって意味が異なる点に注意。
 
 `elapsed_ms`を使ってシリアル化のオーバーヘッドを特定する。`has_side_effect=true`かつ
 同等の並列ラウンドと比較して`elapsed_ms`が高いラウンドは、最適化の候補となる。

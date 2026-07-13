@@ -111,7 +111,7 @@ Pythonファイル（.py）は内容を `code_blocks` に格納し `content` は
 | `INFO` | クロール開始、URL保存、URLスキップ | `url`、`source_type`（保存時）；`url`（スキップ時） |
 | `WARNING` | HTTPエラー、リトライ発生 | — |
 
-### 2.7 設定（`config/rag_pipeline.toml`）
+### 2.7 設定（`config/crawler.toml`）
 
 [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md) を参照。
 

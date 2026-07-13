@@ -35,16 +35,7 @@ source:
 設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
 変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
 
-**注記:** MCPサーバ定義(`transport`、`url`、`startup_mode`、
-`healthcheck_mode`、`call_timeout_sec`、`startup_timeout_sec`、`tool_names`、
-`auth_token`、`role`、`cmd`、`env`)は再起動時点のスナップショットである。`/reload`
-は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告する
-(`[RESTART] - mcp/<server>.<field>`)が、稼働中のプロセスには一切適用しない。
-`/mcp` / `/mcp status` は常に稼働中(再起動前)のサーバ設定を反映し、保留中の
-`/reload` の変更は反映しない。ウォッチドッグによる再起動(`watchdog_loop()`)は、
-失敗したサブプロセスを*現在*の起動設定で再起動する — これはヘルス駆動の復旧であり、
-設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
-変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
+**実装補足(`agent/services/config_reload.py _classify_mcp_server_changes()`):** 上記のフィールド単位の差分検出に加え、`config/*.toml` に新規追加されたサーバは `mcp/<server> (new server)`、削除されたサーバは `mcp/<server> (removed server)` として `needs_restart` に計上される。いずれも `ctx.cfg.mcp.mcp_servers` を書き換えず比較のみを行う関数であり、この点は既存の「稼働中のプロセスには一切適用しない」という記述と整合する(根拠: Explicit in code)。
 
 ---
 
@@ -72,6 +63,12 @@ Budget breakdown:
 - **Token limit:** `context_token_limit` が未設定の場合は `disabled`。`context_token_limit` が設定されている場合は `200,000 tokens`(または設定値)を表示
 - **Memory layer:** `use_memory_layer=True` の場合は `enabled (entries=N)`
 
+**実装補足(`agent/services/context_view.py collect_context_state()`、`agent/commands/cmd_context.py _cmd_context()`):**
+
+- 実際の `/context` 出力には上記の項目に加え、`Fallback trunc`(`hist_mgr.stat_fallback_truncate_count`)、`System prompt`、`Git`(ブランチ@コミット。取得失敗時は `unavailable`)、`Approval pending`、および `Budget breakdown` の各カテゴリ行(`system`/`history`/`tool_messages`、文字数と割合)が表示される。`state.partial_completions > 0` の場合のみ `Partial compl` 行が追加される(根拠: Explicit in code)。
+- **Token estimateの算出方法はドキュメント記載と異なる。** `HistoryManager.count_tokens()`(`agent/history.py`)は `last_input_tokens` が無い場合、単純な `文字数 / 4` ではなく、テキスト(比率4.0)・ツール呼び出しJSON(比率2.5)・システムメッセージ(比率3.5)をカテゴリ別に按分するカテゴリ別推定を行う(`agent/services/context_view.py _token_breakdown()`)。さらに `/context` が使う `collect_context_state()` は同期版 `count_tokens()` のみを呼び出しており、`/tokenize` エンドポイントを問い合わせる `count_tokens_async()` は使われない。そのため `tokenize_url` が設定されていても `/context` のToken estimate値自体はカテゴリ別推定のまま変わらず、ラベルが `/tokenize (next turn)` に変わるだけである(`agent/commands/token_display.py _token_source_label()`)。`/tokenize` の値が実際に使われるのは次ターンの履歴圧縮判定(`agent/history.py` の圧縮処理経路)であり、`/context` の表示値ではない(根拠: Explicit in code)。
+- **Approval pendingの判定元がコマンドごとに異なる。** `/context` の `Approval pending` は `ctx.turn.pending_approval_id is not None` から算出される(`context_view.py` L193)。一方、後述の `/stats` の `Approval pending` は `ctx.workflow.approval_pending` を参照する。両フィールドは `orchestrator.py`(`_handle_workflow_approval_pending()`)と `startup.py`、`commands/cmd_workflow.py` で常にペアでセット/クリアされているため実運用上の値は一致するが、参照しているフィールドはコマンドごとに異なる実装になっている(根拠: Explicit in code)。
+
 ---
 
 ## Interpreting `/stats`(`/stats` の解釈)
@@ -88,6 +85,12 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 - **HB timeouts:** SSEハートビートタイムアウト(LLMの過負荷の可能性)
 - **Cache hits:** ツール結果キャッシュのヒット数
 - **Approval pending:** `Approval: PENDING — use /approve or /reject` の行は、`ctx.workflow.approval_pending=True` の場合のみ表示される。ワークフロータスクが `/approve` または `/reject` の入力を待機している場合に表示される。
+
+**実装補足(`agent/commands/cmd_config_stats.py _collect_stats()` / `_cmd_stats()`):**
+
+- 上記のサンプル出力は簡略化されたイメージであり、実際の `/stats` はキーバリュー形式で1項目1行、かつドキュメント記載より多くの項目を出力する。`Session ID`、`Turns`、`Tool calls`、`Tool errors`、`LLM retries`、`LLM reconnects`、`HB timeouts`、`Partial compl`(0件でも常に表示、`stat_partial_completions > 0` の場合のみ `(stored in session_diagnostics)` を付記)、`Parse errors`、`Cache hits`、`Compress`、`Fallback trunc`、`Sem. cache`、`Input tokens`/`Output tokens`(未取得時は `N/A`)、`Debug mode` が常に出力される(根拠: Explicit in code)。
+- 条件付き行として、`stat_memory_consistency_failures` が真の場合のみ `Memory inconsist.`、メモリ埋め込みのサーキットブレーカーが開いている場合は `Memory embed: CIRCUIT OPEN [DEGRADED]`、そうでなくFTSフォールバック回数が1以上の場合は `Memory embed: fts_only x<N> [degraded]`、`rag_db_configured`(`db.config.build_db_config()` が例外なく成功するか)が真の場合は `Hint: Run /db rag consistency for index integrity status` が追加表示される。これらはドキュメントのサンプルには含まれていない(根拠: Explicit in code)。
+- `Latency (mean/max)` は `ctx.stats.stat_latency` の `"llm"` キーのサンプル配列のみを集計対象としており、ツール呼び出し(`tools=...`)の遅延行は出力されない。ドキュメントのサンプル出力にある `tools=0.3s/0.8s` に相当する行は現行実装には存在しない(根拠: Explicit in code)。
 
 ---
 

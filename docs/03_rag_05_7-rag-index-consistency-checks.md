@@ -94,11 +94,16 @@ Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Af
 
 
 <!-- AUTO-GENERATED: gen_rag_reference.py config -->
+
+### 実装上の補足(このAUTO-GENERATEDブロックについて)
+
+`tools/gen_rag_reference.py` の出力先は `docs/03_rag_05_configuration_and_operations.md` (`OPS_DOC`定数) だが、ドキュメント分割後の現構成にはこのファイルは存在しないため、本ブロックはツールによる自動更新の対象外になっている。値は [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) の方が最新かつ正本であり、以下は現在の設定ファイルに合わせて手動修正済み。(Explicit in code / Needs confirmation — ツールのOPS_DOC定数を分割後のファイルに追随させる方針は未確認)
+
 | Key | Default | Description |
 |---|---|---|
 | `rag_src_dir` | `/opt/llm/rag-src` | — |
 | `crawl_delay` | `1.5` | — |
-| `max_depth` | `6` | — |
+| `max_depth` | `3` | — |
 | `min_chunk` | `40` | — |
 | `max_chunk` | `500` | — |
 | `embed_retry` | `3` | — |
@@ -106,11 +111,11 @@ Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Af
 | `fetch_retry` | `3` | — |
 | `fetch_timeout` | `15` | — |
 | `crawl_concurrency` | `3` | — |
-| `max_pages` | `500` | — |
+| `max_pages` | `200` | — |
 | `chunk_overlap` | `50` | — |
 | `md_index_enable` | `False` | — |
 | `md_snippet_max_chars` | `600` | — |
-| `skip_nofollow` | `False` | — |
+| `skip_nofollow` | `True` | — |
 | `skip_external` | `True` | — |
 | `target_urls` | `[['https://ziglang.org/documentation/master/', 'en'], ['https://zig.guide/', 'en'], ['https://www.ruby-lang.org/en/documentation/quickstart/', 'en'], ['https://www.ruby-lang.org/ja/documentation/quickstart/', 'ja'], ['https://docs.ruby-lang.org/en/3.4/doc/', 'en'], ['https://docs.ruby-lang.org/ja/3.4/doc/', 'ja'], ['https://www.gnu.org/software/emacs/manual/html_node/elisp/', 'en']]` | — |
 | `en_stopwords` | `['a', 'an', 'the', 'and', 'or', 'but', 'if', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'this', 'that', 'these', 'those', 'it', 'its', 'i', 'you', 'he', 'she', 'we', 'they', 'them', 'their', 'our', 'your', 'my', 'his', 'her', 'not', 'no', 'nor', 'so', 'yet', 'both', 'either', 'each', 'other', 'such', 'into', 'through', 'about', 'than', 'then', 'when', 'where', 'who', 'which', 'what', 'how', 'all', 'any', 'more', 'most', 'also', 'up', 'out', 'as', 'just', 'over', 'after', 'before', 'while', 'since', 'because', 'although', 'however', 'therefore', 'thus', 'hence', 'whether', 'once', 'only', 'even', 'still', 'now', 'here', 'there', 'very', 'too', 'much', 'many', 'some', 'few', 'must', 'let', 'get', 'got', 'make', 'made', 'use', 'used', 'using', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'new', 'old', 'first', 'last', 'long', 'great', 'little', 'own', 'right', 'big', 'high', 'small', 'large', 'next', 'early', 'young', 'important', 'public', 'private', 'real', 'best', 'free', 'same', 'different']` | — |

@@ -14,6 +14,7 @@ related:
   - 04_mcp_05_02_auth-profiles-and-sandboxing.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 04_mcp_05_04_mdq-rag-boundary.md
+  - 04_mcp_04_04_mdq.md
 ---
 
 # MCP セキュリティと安全性モデル: MDQ/RAG 境界の強制と Fail-Open/Fail-Closed・Deny-All ロックダウン
@@ -50,9 +51,42 @@ related:
 
 ---
 
+### mdq-mcp 自身の allowed_dirs 認可（fail-closed）
+
+mdq-mcp は他サーバーとの DB 境界とは別に、ファイルパス単位の fail-closed allowlist を持つ。
+`config/mdq_mcp_server.toml` の `allowed_dirs`（デフォルト `[]`）で読み取り対象ディレクトリを
+制限し、`scripts/mcp_servers/mdq/auth.py` の `authorize_path()` が実際の許可判定を行う
+(Explicit in code)。
+
+- `allowed_dirs` が空の場合、`authorize_path()` は常に `False` を返す — 全パスアクセスを拒否する
+  fail-closed 実装(Explicit in code)。
+- 判定前に `Path.resolve()` で対象パスと許可ルートの双方を正規化し、`../` トラバーサルや
+  シンボリックリンクによる allowlist 外への脱出を防ぐ(Explicit in code)。
+- 認可チェックの適用箇所は `MdqService.outline()`（`outline` ツール）と
+  `MdqService._validate_paths()`（`index_paths`/`refresh_index` ツールが使用）の2箇所。
+  違反時は `MdqAuthorizationError` を送出し、HTTP 層では 403 に変換される
+  (`scripts/mcp_servers/mdq/server.py` の例外ハンドラ) (Explicit in code)。
+- `search_docs`・`get_chunk`・`grep_docs`・`stats` は既にインデックス済みの DB レコードのみを
+  参照するため、`authorize_path()` によるパス認可チェックを経由しない。これらのツールが
+  未許可ディレクトリの内容を返さないことは、そのディレクトリが事前に `index_paths`/`refresh_index`
+  で認可済みパスとしてインデックスされていないことに依存する(Strongly implied by code)。
+
+---
+
 ### 既知の課題
 
 - MDQ-02: ハイブリッド検索の埋め込み統合（`mode=hybrid`）は未実装 — BM25 とベクトルモードのみ利用可能。
+- `scripts/mcp_servers/mdq/tools.py` の `TOOL_LIST` は `fts_consistency_check` と `fts_rebuild`
+  を `status: "admin"` として定義しており、`config/agent.toml` の `mcp_servers.mdq.tool_names`
+  にも両ツール名が列挙されている。しかし `scripts/mcp_servers/mdq/server.py` の
+  `_DISPATCH_TABLE` にはこの2ツールのハンドラが登録されていない。呼び出すと
+  `dispatch_tool()` が「Unknown tool」エラーを返す — ツールスキーマ・設定上は存在するが
+  実行経路が未接続の状態(Explicit in code)。**矛盾点として明記**（後述）。
+- `mdq_mcp_server.toml` の `concurrency_limit` は、`scripts/mcp_servers/mdq/` 配下および
+  リポジトリ全体のどこからも参照されていないことを確認した（`grep -rn '"concurrency_limit"'`
+  でヒットなし）ため、**2026-07-13 に設定ファイルから削除した**。実際の直列化は `MdqService`
+  内の `asyncio.Lock`（`_index_lock`）により `index_paths`/`refresh_index` に対してのみ
+  達成されており、設定値には依存しない(Explicit in code)。
 
 ---
 
@@ -82,6 +116,15 @@ related:
 - 空である全ての fail-open 設定（警告 — 意図しないアクセスが許可される可能性がある）
 - 要約行: `Security posture summary — fail-closed (...): ...; fail-open (...): ...`
 
+**mdq-mcp はこの起動時 audit の対象外である。** `audit_security_defaults()` が明示的に
+チェックするのは `shell.command_allowlist`・`git.allowed_repo_paths`・`github.allowed_repos`・
+`cicd.workflow_allowlist` の4設定のみで、mdq-mcp の `allowed_dirs` は `fail_closed_empty` /
+DENY-ALL 警告ロジックに含まれていない(Explicit in code)。したがって
+`mdq_mcp_server.toml` の `allowed_dirs = []`（deny-all 状態）は、他の fail-closed 設定と異なり
+起動ログに警告として出力されない。運用上は `04_mcp_05_01_access-control-and-allowlists.md`
+の「サーバー別アクセス制御」表と本ドキュメントの記載を頼りに手動で確認する必要がある
+(Strongly implied by code)。
+
 ---
 
 ## 意図的な deny-all ロックダウン
@@ -97,6 +140,11 @@ related:
 | `shell.command_allowlist` | shell-mcp | 全シェルコマンドを拒否 |
 | `git.allowed_repo_paths` | git-mcp | 全 git 操作を拒否 |
 | `github.allowed_repos` | github-mcp | 全リポジトリアクセスを拒否 |
+
+mdq-mcp の `allowed_dirs` も同種の fail-closed 設定（空 = 全パスアクセス拒否）だが、
+上表・`security_lockdown_enabled` による警告抑制ロジックのいずれにも含まれていない
+（前節「起動時の audit」参照）。mdq-mcp のロックダウンは設定ファイル上は成立するが、
+起動ログ上の deny-all 通知・抑制の対象にはならない(Explicit in code)。
 
 ### 意図的なロックダウンの設定方法
 
@@ -148,6 +196,7 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 | `shell_sandbox_backend` | `"none"` | `"none"` = OS 分離なし | 本番環境では `"firejail"` を設定する |
 | `workflow_allowlist`（cicd-mcp） | `[]` | `[]` = 全トリガーを拒否（fail-closed） | 許可するワークフローを明示的に列挙する |
 | `command_allowlist`（shell-mcp） | `[]` | `[]` = 全コマンドを拒否（fail-closed） | 許可するコマンドを列挙する |
+| `allowed_dirs`（mdq-mcp） | `[]` | `[]` = 全パスアクセスを拒否（fail-closed）; ただし起動時 audit の対象外(Explicit in code) | 読み取りを許可するディレクトリを明示的に列挙する |
 | `mcp_watchdog_interval` | `0`（local） / `30.0`（prod） | `0` = 自動再起動なし | 本番環境では `30.0` を使用する |
 
 ## Related Documents
@@ -157,6 +206,7 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 - `04_mcp_05_02_auth-profiles-and-sandboxing.md`
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `04_mcp_05_04_mdq-rag-boundary.md`
+- `04_mcp_04_04_mdq.md`
 
 ## Keywords
 
@@ -169,3 +219,8 @@ lockdown
 fail-open
 fail-closed
 security-audit
+mdq-allowed-dirs
+authorize-path
+mdq-authorization-error
+fts-consistency-check
+fts-rebuild

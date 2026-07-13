@@ -28,7 +28,7 @@ source:
 | Column | Type | Constraint |
 |---|---|---|
 | `session_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
+| `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
 | `title` | TEXT | |
 
 ### `messages` table
@@ -41,7 +41,7 @@ source:
 | `content` | TEXT | NOT NULL |
 | `tool_calls` | TEXT | (JSON string) |
 | `tool_call_id` | TEXT | ツール呼び出しの関連付け ID (tool ロールのメッセージ用)。`SessionMessageRepository` により永続化/復元される。tool 以外のメッセージでは NULL。 |
-| `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
+| `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
 
 ### `memories` table
 

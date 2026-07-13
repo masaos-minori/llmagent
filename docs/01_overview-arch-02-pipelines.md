@@ -73,10 +73,22 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 `McpServerConfig.startup_mode` で2種類:
 
-- `persistent` (デフォルト): 外部で常時起動済みのサーバに接続する
-- `subprocess`: エージェント起動時にサブプロセスとして起動し、`/health` ポーリングで準備完了を確認する。起動失敗は `RuntimeError` ではなく警告ログに留め、REPL 起動を継続する (fail-open)。
+- `none` (スキーマ上のデフォルト、TOMLにキー未指定時): サブプロセス起動もヘルスチェックも行わない。サーバは利用不可のまま扱われる。
+- `persistent`: 外部で常時起動済みのサーバに接続する
+- `subprocess`: エージェント起動時にサブプロセスとして起動し、`/health` ポーリングで準備完了を確認する。
 
-(根拠: `shared/mcp_config.py`, `agent/startup.py`)
+(根拠: `shared/mcp_config.py` の `StartupMode` enum)
+
+現行の `config/agent.toml` は全 MCP サーバに `startup_mode = "subprocess"` を明示指定している(persistent はスキーマ上存在するが未使用)。(根拠: Explicit in code, `config/agent.toml`)
+
+##### 実装上の補足: subprocess 起動失敗時の挙動
+
+`startup_mode="subprocess"` のサーバ起動に失敗した場合の挙動は `security_profile` に依存する分岐になっている(根拠: `agent/startup.py` の `_start_servers()`):
+
+- `security_profile = "production"`: `RuntimeError` を送出し、起動を中断する (fail-fast)
+- `security_profile = "local"` (現行 `config/agent.toml` の設定値): 警告ログと画面表示のみに留め、REPL 起動を継続する (fail-open)
+
+一律の fail-open ではない点に注意。(根拠: Explicit in code)
 
 ## Related Documents
 

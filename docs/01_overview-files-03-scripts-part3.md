@@ -40,6 +40,7 @@ related:
 │   │   │   ├─ rag_maintenance_service.py   # RAG 保守サービス
 │   │   │   ├─ session_restore.py           # セッション復元
 │   │   │   ├─ session_title.py             # セッションタイトル生成
+│   │   │   ├─ config_validators.py        # config_dataclasses.py __post_init__ から抽出された単一フィールド/クロスフィールド検証関数群
 │   │   │   ├─ typed_validators.py          # 設定リロード用型境界抽出ヘルパー
 │   │   │   └─ undo_service.py              # アンドゥサービス
 │   │   ├─ shared/                          # agent パッケージ内共有型 (agent 層専用)
@@ -64,6 +65,7 @@ related:
 │   │       ├─ attempt_ops.py               # アテンプト操作 (start, finish, count)
 │   │       ├─ idempotency_ops.py           # 冪等性操作 (is_event_processed, begin_stage_if_new)
 │   │       ├─ task_ops.py                  # タスク CRUD (create, update_status, get_by_id, list_pending)
+│   │       ├─ validate.py                  # デプロイ時にworkflow定義JSONを検証するスタンドアロンCLI(エージェント/MCP/LLMは起動しない)
 │   │       └─ __init__.py                  # workflow パッケージ初期化
 ```
 

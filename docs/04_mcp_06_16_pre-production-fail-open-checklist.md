@@ -20,7 +20,7 @@ source:
 - [ ] `tool_definitions_strict = true`(スキーマ不整合時に致命的エラーとする)
 - [ ] `routing_drift_strict = true`(ルーティングのドリフト発生時に致命的エラーとする)
 - [ ] `plugin_strict = true`(プラグインエラー時にfail-fastとする)
-- [ ] `use_tool_dag = true`(DAGスケジューリング;`false`はレガシーな非本番動作)
+- [ ] `serial_tool_calls = false`(デフォルト; DAGスケジューリングが常時有効になる。`true`はレガシーな逐次/並列判定モードに切り替える。`use_tool_dag`という設定フィールドは存在しない — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)
 - [ ] `allowed_tools`が明示的に設定されている(空 = すべてのツールを許可;ホワイトリストにすべき)
 - [ ] 登録済みのすべてのツールが`tool_safety_tiers`にエントリを持つ(ティア欠落 → 本番では致命的エラー)
 - [ ] `tool_safety_tiers`に未知のキーがない(未知のキー → 本番では致命的エラー)

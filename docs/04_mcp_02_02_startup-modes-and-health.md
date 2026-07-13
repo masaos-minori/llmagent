@@ -39,7 +39,11 @@ related:
 
 **`restart_recommended`**: `true` は、プロセスを再起動することで障害が解決する可能性があることをウォッチドッグに伝える。`false` は再起動しても効果がないことを意味する（例: 認証情報の欠落はオペレーターの対応が必要）。
 
+**注記（実装の現状）:** 現行コードでは、全10 MCPサーバーの `/health` 実装（`mcp_servers/health_response.py::make_health_response()` を使うサーバー、および mdq/file-read/write/delete の独自実装）はいずれも `restart_recommended` を常に `False` で返す。`MCPServer.health()` 基底実装も同様に固定 `False` である。`restart_recommended=True` を返す経路はコードベース上に存在しない（Explicit in code）。したがって、現状ウォッチドッグの自動再起動がトリガーされるのは「到達不可（`reachable=False`）」のケースのみであり、「到達可能だが `restart_recommended=true`」のケースは仕様上サポートされているが実装済みサーバーでは発生しない（Explicit in code）。
+
 **`operator_action_required`**: 人間による対応が必要な場合（認証情報の欠落、バイナリの欠落など）に `true`。ウォッチドッグは WARNING をログに記録するが、これが `true` かつ `restart_recommended=false` の場合は再起動を行わない。
+
+**注記:** `make_health_response()` ヘルパーは `operator_action_required = not ready` を機械的に設定する（`deps` が空でなければ常に `True`）。したがって同ヘルパーを使うサーバーでは、`ready=False` になった依存関係障害はすべて `operator_action_required=True` として扱われ、両者は事実上連動する（Explicit in code）。`MCPServer.health()` 基底実装は逆に `operator_action_required=False` 固定である。
 
 **`dependencies`**: 依存関係名 → エラーメッセージの Dict。健全な場合は空。
 
@@ -54,7 +58,8 @@ related:
 **ウォッチドッグの挙動**: ウォッチドッグ（`agent/repl_health.py`）は HTTP ステータスコードと `restart_recommended` の本文フィールドの両方を検査する。再起動は `restart_recommended` によって制御される。
 - `reachable=False`（HTTP レスポンスなし）: 再起動を試みる（subprocess モード、max_restarts 制限内）
 - `reachable=True` かつ `restart_recommended=true`: 上記と同様に再起動を試みる
-- `reachable=True` かつ `restart_recommended=false`: 再起動なし; `operator_action_required=true` の場合は WARNING をログに記録
+- `reachable=True` かつ `restart_recommended=false`: 再起動なし; `operator_action_required=true` の場合は WARNING をログに記録; さらに `HealthRegistry.record_degraded(server_key, reason=...)` を呼び出し、状態を `DEGRADED` として記録する（現在 `UNAVAILABLE`/`HALF_OPEN` の場合は no-op）（Explicit in code）
+- 再起動試行が `mcp_watchdog_max_restarts` に到達した場合: `HealthRegistry.record_restart_exhausted(server_key)` を呼び出す。状態そのものは変更しないが、`/mcp status` 等で「再起動上限到達・要手動対応」と「まだ再起動サイクル中」を区別するための理由文字列を記録する（Explicit in code）
 
 **健全なレスポンスの例**:
 ```json

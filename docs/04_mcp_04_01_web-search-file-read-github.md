@@ -46,6 +46,7 @@ related:
 | `max_results_limit` | `20` | サーバー側の上限 |
 
 **ヘルス:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
+**エラーハンドリング:** 全プロバイダ（DuckDuckGo）が失敗すると `WebSearchUpstreamError` を送出し、HTTP 502 を返す（`search_provider.py::search_duckduckgo` が `RuntimeError`/`TimeoutError` を捕捉して変換）。[Explicit in code]
 **ログ:** `/opt/llm/logs/web-search-mcp.log`
 **使用場面:** RAG インデックスにないリアルタイム情報; 最新リリース; ニュース。
 
@@ -83,6 +84,11 @@ related:
 **ログ:** `/opt/llm/logs/file-read-mcp.log`
 **追加エンドポイント:** `GET /list_allowed_directories`（MCP ツールではない）
 
+### 実装上の補足（Current behavior）
+
+- `FileReadConfig.from_dict`（`read_models.py`）は toml の `max_read_bytes` を **KB 換算で読み替えて** 保持する（`max_file_size_kb = max_read_bytes // 1024`）。デフォルト値 1,000,000 の場合、実効上限は `1,000,000 // 1024 * 1024 = 999,424` バイトとなり、toml の値と厳密には一致しない。[Explicit in code]
+- 読み取り専用系エラーは `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 または 422 で登録されるが、`read_server.py` では 422 ハンドラのみ登録)に加え、`read_text_file` の `head`/`tail` 同時指定は Pydantic のモデルバリデーションで拒否される（`model_validator` により ValueError → FastAPI 標準の 422）。[Explicit in code]
+
 ---
 
 ## github-mcp（ポート 8006）
@@ -104,7 +110,9 @@ related:
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
 `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
 
-**設定フィールド:** `default_per_page`（20）, `max_per_page`（100）, `allowed_repos`, `protected_branches`, `path_denylist`, `max_file_size_kb`（1024 KB）, `allow_force_push`（false）, `require_pr_review`（true）, `audit_log_path`
+**設定フィールド:** `max_per_page`（100）, `allowed_repos`, `protected_branches`, `path_denylist`, `max_file_size_kb`（1024 KB）, `allow_force_push`（false）, `require_pr_review`（true）, `audit_log_path`
+
+**注記（2026-07-13）:** `default_per_page` は `config/github_mcp_server.toml` から削除した。`GitHubConfig.default_per_page` は `service_security.py` の `self._default_per_page` に代入されるだけで以降参照されず、実際の一覧系エンドポイントのデフォルト件数はモジュール定数 `DEFAULT_PER_PAGE = 10`（`models_config.py`）を各リクエストモデルが直接参照する（設定不可）。`max_per_page` は `self._max_per_page` として実際に `per_page` のクランプに使われており、こちらは有効な設定である。
 
 **セキュリティ制御:**
 - `allowed_repos`（fail-closed; 空リスト = 全て拒否）
@@ -120,6 +128,14 @@ related:
 **ヘルス:** トークン設定時は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定時は `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}` — ready 時は HTTP 200、degraded 時は 503。
 **ログ:** `/opt/llm/logs/github-mcp.log`
 **Audit ログ:** `config/github_mcp_server.toml::audit_log_path`
+
+### 実装上の補足（Current behavior）
+
+- ドメイン例外の HTTP ステータス対応（`exception_handlers.py`）: `GitHubAuthorizationError`→403, `GitHubNotFoundError`→404, `GitHubValidationError`→400, `GitHubConflictError`→409, `GitHubUpstreamError`→502, `GitHubAuditError`→500。[Explicit in code]
+- PyGithub の `GithubException` は `service_security.py::_handle_github_error` でステータスコードに応じてドメイン例外へ変換される（404→NotFound, 403→Authorization, 409→Conflict, 400/422→Validation、それ以外→Upstream）。[Explicit in code]
+- `allow_force_push=false` は `merge_pull_request` の `merge_method="rebase"` 指定を拒否する形でのみ適用される（それ以外の force-push 相当操作を直接ブロックする実装は無い）。[Explicit in code]
+- `require_pr_review=true` は `merge_pull_request` 実行時に限り、少なくとも1件の `APPROVED` レビューが存在するかを確認する。[Explicit in code]
+- `GITHUB_TOKEN` 未設定時は匿名 `Github()` クライアントで起動し、`/health` が `degraded` を返す（`service_init.py`）。[Explicit in code]
 
 ---
 

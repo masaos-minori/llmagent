@@ -32,6 +32,8 @@ source:
 **レスポンス 200:** `{"event_id": "...", "delivery_failure_count": <int>}` — この nack でイベントが DLQ に移行した場合は `"dlq_promoted": true` が含まれることがある
 **レスポンス 404:** イベントが見つからない。
 
+**実装の詳細（Explicit in code）**: DLQ 昇格は `dlq.py` の `promote_single()` によってインラインで実行される（同モジュールの `promote_to_dlq()` はどこからも呼び出されておらず、現状デッドコードである）。`promote_single()` は先に DLQ 用 JSON ファイルをアトミックに書き込み（一時ファイル→`os.replace`）、その後に SQLite の `dlq_at` を更新する順序で実行される。これにより、ファイル書き込みが失敗した場合は DB 側も更新されず、イベントは「配信中」のまま残る（矛盾状態を防ぐ設計）。
+
 ---
 
 ## GET /health
@@ -43,6 +45,8 @@ source:
 ```
 
 `status` はすべてのコンポーネントが健全な場合にのみ `"ok"` となる。ブローカーのメトリクスである `active_subscribers`、`max_queue_depth`、`slow_consumers` は、プロセス内の EventBroker の状態を反映する。`degraded_reasons` には具体的な障害要因が列挙される（例: `db_unavailable`、`dlq_task_stopped`、`broker_queue_backlog_high`、`slow_consumers_detected`）。
+
+**実装の詳細（Explicit in code）**: `broker_queue_backlog_high` は `max_queue_depth >= 500` で判定される。`slow_consumers_detected` は、いずれかのコンシューマのキュー滞留数（`qsize()`）が `_SLOW_CONSUMER_THRESHOLD = 100` 以上のコンシューマが1件でも存在する場合に発生する。両閾値ともコード内定数であり、設定ファイルからの変更はできない。コンシューマキューの上限は `maxsize=1000`（`broker.py`）— これを超えるとイベントは配信されずに破棄される（詳細は `06_eventbus_02_02_subscribe-ack.md` を参照）。
 
 ---
 

@@ -47,12 +47,16 @@ cd /opt/llm/scripts && python -m agent
 ```
 DB: 12,345 chunks | Tools: 14
 Memory: disabled
-Type /help for commands, Ctrl-C or Ctrl-D to exit.
+Type /help for commands, /exit to quit.
 
 agent[:#1]>
 ```
 
-**Memoryの行:** `write_startup_banner()` が `memory_enabled != None` を受け取った場合のみ表示される。`repl.py` は常に `ctx.cfg.memory.use_memory_layer` を渡すため、この行は常に表示される — デフォルトは `disabled`、`use_memory_layer=True` の場合は `enabled`。
+**Memoryの行:** `CliView.write_startup_banner()`(`cli_view.py`)は引数 `memory_mode: str | None = None` を受け取り、`None` でない場合のみ `Memory: <mode>` 行を表示する。`repl.py` の `_print_startup_banner()` は常に `ctx.cfg.memory.use_memory_layer` から `"enabled"`/`"disabled"` を計算して渡すため、この行は常に表示される。
+
+**Workflowの行:** `write_startup_banner()` は `workflow_status` が空文字でない場合のみ `Workflow: <status>` 行を追加表示する。`_get_workflow_status()` は `self._orchestrator is None` なら `"unknown"`、`orchestrator.workflow_status()["tracking"] == "enabled"` なら `"enabled"`、それ以外は `"not loaded"` を返す。上記の期待バナー例は workflow 追跡が無効な場合の表示であり、有効時は3行目に `Workflow: enabled` が追加される。
+
+**終了案内の文言:** 最終行は実装上 `"Type /help for commands, /exit to quit."` の固定文字列であり、"Ctrl-C or Ctrl-D" という文言はバナーには含まれない(旧記載は誤り)。ただし実際の終了経路としては `/exit` に加え、`repl.py` の `_read_input()` が `EOFError`(Ctrl-D)・`KeyboardInterrupt`(Ctrl-C)を捕捉して `None` を返し、`_repl_loop()` がそれを見てループを終了するため、Ctrl-C/Ctrl-Dによる終了自体は現在も機能する(根拠: Explicit in code)。
 
 ---
 
@@ -63,7 +67,7 @@ agent[:#1]>
 - **タイミング:** 起動時、`ctx.workflow is not None` の場合
 - **復元される内容:** `StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から取得される最新のグローバルな保留中承認
 - **複数セッション時の動作:** 保留中の承認は同時に1件のみ追跡される。全セッションを通じた最新のレコードが復元される(セッション固有ではない)
-- **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`
+- **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`(`reason` が未設定の場合は `none` と表示される。根拠: `startup.py` の `_recover_pending_approvals()`、`approval.reason or 'none'`)
 - **確認方法:** `sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 1;"`
 
 ---
@@ -107,7 +111,9 @@ print("session schema OK")
 PY
 ```
 
-作成されるテーブル: `sessions`、`messages`、`memories`、`memories_fts`、`memories_vec`、`session_diagnostics`。
+作成されるテーブル: `sessions`、`messages`、`memories`、`memories_fts`(FTS5仮想テーブル)、`memory_links`、`session_diagnostics`、`memories_vec`(vec0仮想テーブル)。
+
+**Current behavior:** `memory_links` テーブル(`src_id`/`dst_id` による関連メモリ間のリンク、`memories.memory_id` へのFK付き)は既存ドキュメントの一覧に含まれていなかった。根拠: `db/schema_sql.py` の `_SESSION_SCHEMA_TEMPLATE`(Explicit in code)。
 
 #### workflow.sqlite の初期化
 
@@ -121,16 +127,18 @@ print("workflow schema OK")
 PY
 ```
 
-作成されるテーブル: `tasks`、`attempts`、`processed_events`、`artifacts`、`approvals`。
+作成されるテーブル: `tasks`、`attempts`、`processed_events`、`artifacts`、`approvals`、`workflow_schema_version`(適用済みマイグレーションのバージョン記録用)。
+
+**Current behavior:** `create_workflow_schema()` はテーブル作成後に `apply_workflow_migrations()`(`db/schema_sql.py`)を呼び出し、`attempts.error_kind`/`attempts.error_detail`/`artifacts.workflow_id`/`artifacts.attempt_number`/`processed_events.workflow_id` の列を `ALTER TABLE ... ADD COLUMN` で追加する。列が既に存在する場合の `duplicate column name` エラーのみ握りつぶし、それ以外の `OperationalError` は再送出される。最後に `workflow_schema_version` へ現在のスキーマバージョンを記録する(既存レコードと同一なら再挿入しない)。根拠: `db/schema_sql.py` の `apply_workflow_migrations()`、`db/create_schema.py` の `_record_workflow_schema_version()`(Explicit in code)。
 
 #### テーブルの検証
 
 ```bash
 sqlite3 /opt/llm/db/session.sqlite  ".tables"
-# Expected: memories  memories_fts  memories_vec  messages  session_diagnostics  sessions
+# Expected: memories  memories_fts  memories_vec  memory_links  messages  session_diagnostics  sessions
 
 sqlite3 /opt/llm/db/workflow.sqlite ".tables"
-# Expected: approvals  artifacts  attempts  processed_events  tasks
+# Expected: approvals  artifacts  attempts  processed_events  tasks  workflow_schema_version
 ```
 
 #### 再実行の安全性

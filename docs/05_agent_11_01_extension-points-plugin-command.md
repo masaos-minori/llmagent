@@ -27,7 +27,7 @@ source:
 
 ## プラグインアーキテクチャ
 
-プラグインは `plugins/*.py` にある Python ファイルである（プロジェクトルート、つまり `scripts/` の2階層上を基準とする）。
+プラグインは `plugins/*.py` にある Python ファイルである（プロジェクトルート直下、`scripts/` と同階層。`agent/factory.py` の `_init_plugin_registry()` が `Path(__file__).parent.parent.parent / "plugins"` として解決する — Explicit in code）。
 
 **ロード:**
 1. プラグインレジストリの初期化時に、起動時に `plugin_registry.load_plugins(plugin_dir)` が呼び出される
@@ -47,6 +47,15 @@ source:
 
 起動時ログ形式（コマンドシャドウ）:
 `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
+
+起動完了時、`agent/factory.py` の `_init_plugin_registry()` が発行する集約サマリー行（audit logger 経由）:
+`Plugin startup: discovered=%d, loaded=%d, skipped=%d, tool_conflicts_shadowed=%d, tool_conflicts_allowed=%d, command_shadows=%d`
+
+### 実装上の補足（設定キーとの対応）
+
+- `plugin_strict`（`ToolConfig.plugin_strict`, デフォルト `False`。CI環境では `os.getenv("CI")` により自動的に `True` になる — `agent/config_builders.py`）が本文中の `plugin_strict=true` に対応する。`/config` 表示は `cmd_config_display.py` の `plugin_strict` 行で確認できる。
+- ツール名の組み込み衝突ポリシーは `plugin_strict` ではなく別設定 `ToolConfig.plugin_tool_override` が決める: `True` なら `override_policy="allow"`（MCPツールをシャドウしても許可、`known_tools` チェック自体が空集合になりスキップされる）、`False`（デフォルト）なら `override_policy="reject"`（衝突したプラグインツールはロード後に登録解除される）。コマンド名の衝突は常に拒否（オプションA）のみで、`plugin_tool_override` の影響を受けない。
+  （Explicit in code: `scripts/agent/factory.py` `_init_plugin_registry()`）
 
 ```python
 # plugins/my_plugin.py

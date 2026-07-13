@@ -50,6 +50,20 @@ RagPipeline.augment(query)
 **呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（`RagPipelineMCPService`）。エージェントREPLは
 `RagPipeline` を直接呼び出さない。
 
+### augment() のフォールバックチェーン（`scripts/rag/pipeline.py`）
+
+`augment()` は以下の順で結果を確定させる。各ステップは `None` を返した場合のみ次のステップにフォールバックする（Explicit in code）。
+
+1. HTTPモード: `_run_http_augment()` → `str`（空文字含む）または `None`（フォールバック）
+2. セマンティックキャッシュ: `semantic_cache.lookup()` がヒットすれば文字列を返す。ミス時は `None`
+3. 検索パイプライン: MQE + KNN/BM25 + RRFマージ + リランク → `ctx.reranked`
+4. リファイナー: `refine_context()` → 圧縮テキスト（確定）または `None`（フォールバック）
+5. 生チャンク: `_format_chunks()`（`stages/augment.py` の関数）で整形（最終）
+
+**identity vs truthiness（Explicit in code）:** HTTPおよびリファイナーの結果判定は `is not None` によるidentityチェックであり、truthinessチェックではない。そのためHTTPモードが返す `""`（空文字）は有効な結果として扱われ、明示的な `None` のときのみフォールバックする。
+
+**DB接続失敗時（Explicit in code）:** `self._rag_db_path` からのDBオープンが `sqlite3.OperationalError` / `sqlite3.DatabaseError` を送出した場合、`augment()` は `RagPipelineError` を再送出する（キャッチしてフォールバックしない）。
+
 ### MCP サーバー呼び出しパス
 
 ```

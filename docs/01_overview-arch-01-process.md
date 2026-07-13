@@ -83,6 +83,10 @@ related:
 | `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |
 | `eventbus` | 8015 | — | イベント配信サーバ (MCP サーバ群とは別プロセス。詳細: `06_eventbus_01_system-overview.md`) |
 
+### 実装上の補足(LLMサービスのURL/ポート)
+
+`agent-llm`/`embed-llm` の実際の接続先は `config/agent.toml` の `llm.llm_url` / `rag.embed_url` で個別ホスト・ポートとして設定するものであり、本表の `8001`/`8003` は代表値。稼働環境によっては別ホスト・別ポート(llama.cppのデフォルト`8080`系等)を指す場合がある。MCPサーバ群(`8004`〜`8015`)は `agent.toml` の `[mcp_servers.*].url` と一致する。(Explicit in code)
+
 ## Related Documents
 
 - `01_overview-arch-02-pipelines.md`

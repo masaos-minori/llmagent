@@ -27,7 +27,7 @@ related:
 ```
 │   │   ├─ commands/
 │   │   │   └─ __init__.py                  # commands パッケージ初期化
-│   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (13 mixins)
+│   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (14 mixins)
 │   │   │   ├─ command_defs.py              # CommandDef / SubcommandSpec データクラス (データクラス定義のみ; _COMMANDS は持たない)
 │   │   │   ├─ command_defs_list.py         # _COMMANDS: 全組み込みスラッシュコマンドの単一ソース (コマンド追加はここへ)
 │   │   │   ├─ mixin_base.py                # MixinBase: 全 mixin の共通基底クラス
@@ -52,6 +52,7 @@ related:
 │   │   │   ├─ cmd_mdq.py                   # /mdq コマンド (_MdqMixin): status/index/refresh/search/outline/get/grep
 │   │   │   ├─ cmd_plugins.py               # /plugin コマンド (_PluginsMixin): プラグインロード状態表示
 │   │   │   ├─ cmd_workflow.py              # /approve, /reject コマンド (_WorkflowMixin)
+│   │   │   ├─ cmd_skill.py                 # /skill コマンド (_SkillMixin): SKILL.md を一時的な ephemeral system context として注入
 │   │   │   ├─ db_help_display.py           # DB ヘルプ表示
 │   │   │   ├─ db_session_ops.py            # セッション DB 操作
 │   │   │   ├─ db_stats_display.py          # DB ステータス表示

@@ -57,7 +57,23 @@ from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 | `remote_latency_ms` | float \| None | None | リモート呼び出しのレイテンシ（ミリ秒、HTTPモードのみ） |
 | `fallback_reason` | str \| None | None | HTTPモードが失敗した際のフォールバック理由（HTTPモードのみ） |
 
-### 4.3 get_diagnostics() の戻り値 (`scripts/rag/pipeline.py:562`)
+#### 境界条件 (Boundary and ownership)
+
+`http_result_kind` という名前は2つの異なる値体系で使われており、混同しないよう注意が必要（根拠分類: Explicit in code）。
+
+- `SearchDiagnostics.http_result_kind`（本節、`rag/models_result.py` の `HttpResultKind` enum）は
+  `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` の4値。`pipeline.py` の `_run_http_augment()` 内で
+  `HttpResultKind.SUCCESS`（非空）・`HttpResultKind.EMPTY`（`""`）・`HttpResultKind.ERROR`（`None`）の
+  いずれかに設定される (`scripts/rag/pipeline.py:485-499`)。
+- `get_diagnostics()["http_result_kind"]`（`RagPipeline._http_result_kind` 属性経由、
+  `scripts/rag/http_augment.py:25-32,82-90`）は `"remote_nonempty"` / `"remote_empty"` /
+  `"in_process_fallback"` の文字列リテラル3値。`HttpAugment.run()` 内で計算され、
+  `pipeline.py:482-483` でコピーされる。
+
+両者は同じHTTP呼び出し結果を別の粒度・別の語彙で表現した独立のフィールドであり、
+片方から他方を直接導出することはできない。
+
+### 4.3 get_diagnostics() の戻り値 (`scripts/rag/pipeline.py:544`)
 
 ```python
 pipeline.get_diagnostics() -> dict

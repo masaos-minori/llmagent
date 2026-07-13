@@ -75,13 +75,19 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `chunk_splitter.py` | 既存の`{stem}-*.json`チャンクを削除して再生成 |
 | `ingester.py` | 対象URLの`chunks_vec` → `chunks` → `documents`レコードを削除後、再挿入 |
 
-### 2.6 RAG整合性チェック (`db/maintenance.py`)
+### 2.6 RAG整合性チェック (`db/rag_consistency.py`)
 
-`check_rag_consistency(db)`を使用して、トリガーベースの同期失敗や孤立レコードを検出する。
+> **訂正:** 本節の見出しは従来「`db/maintenance.py`」としていたが、
+> `check_rag_consistency` / `is_consistent` / `summarize_issues` の実体は
+> `scripts/db/rag_consistency.py` に定義されている。`db/maintenance.py` には存在しない。
+> [Explicit in code]
+
+`check_rag_consistency(db, embed_failed=0)`を使用して、トリガーベースの同期失敗や孤立レコードを検出する。
 大量取り込みの後、強制再登録の後、または診断時に実行する。
 
 ```python
-from db.rag_consistency import RagConsistencyReport, check_rag_consistency, is_consistent, summarize_issues
+from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
+from db.models import RagConsistencyReport
 from db.helper import SQLiteHelper
 
 with SQLiteHelper("rag").open() as db:
@@ -91,7 +97,7 @@ with SQLiteHelper("rag").open() as db:
             print(issue)
 ```
 
-**`RagConsistencyReport`のフィールド:**
+**`RagConsistencyReport`のフィールド** (定義は`db/models.py`):
 
 | Field | Description |
 |---|---|
@@ -101,14 +107,21 @@ with SQLiteHelper("rag").open() as db:
 | `orphan_vec_count` | `chunk_id`が`chunks`に対応する行を持たない`chunks_vec`の行数 |
 | `fts_gap` | `chunks - fts`。0であればFTSインデックスは同期済み |
 | `fts_orphan_count` | `fts - chunks`。正の値は余分なFTSエントリ (データ損失のリスク) を示す |
+| `embed_failed` | 取り込み時の埋め込み失敗件数。デフォルト`0`。`check_rag_consistency()`の`embed_failed`引数から転記される |
+| `issues` | `summarize_issues()`が生成した問題点の文字列タプル。`check_rag_consistency()`内部で自動的に埋められる |
 | `affected_chunk_ids` | FTSに存在しないchunk_id (最大10件) |
 | `affected_doc_ids` | FTSに存在しないチャンクのdoc_id (最大10件) |
 | `affected_orphan_chunk_ids` | `chunks`に対応する行がない`chunks_vec`のchunk_id (最大10件) |
 | `affected_orphan_urls` | 孤立したvec行を持つドキュメントのURL (最大10件。親ドキュメントが解決できない場合は`None`) |
 
-**CLI:** `/db consistency`はREPLから同じチェックを実行し、問題点を表示する。
+**CLI:** `/db consistency`はREPLから同じチェックを実行し、問題点を表示する
+(実装: `scripts/agent/commands/cmd_db.py`)。
 
-**取り込み後の警告:** `ingester.py`は各`ingest_all()`実行後に非ブロッキングの整合性チェックを実行する。警告はログに記録されるが、取り込み処理自体は中断しない。
+**取り込み後の警告:** `ingester.py`は`ingest_all()`完了後に`DocumentManager.check_consistency()`
+(`scripts/rag/ingestion/document_manager.py`) 経由で非ブロッキングの整合性チェックを実行する。
+警告はログに記録されるが、取り込み処理自体は中断しない。チェック自体が
+`sqlite3.OperationalError` / `sqlite3.DatabaseError` / `ValueError`で失敗した場合は
+`None`を返し、例外は再送出されない。 [Explicit in code]
 
 **注記:**
 - `fts`は`chunks_fts`ではなく`chunks_fts_docsize` (FTS5シャドウテーブル) から読み取られる。
@@ -116,6 +129,13 @@ with SQLiteHelper("rag").open() as db:
 - `orphan_vec_count > 0`はvecトリガーの失敗を示す。該当URLに対して`ingester.py --force`を再実行することで修復できる。
 - この関数は読み取り専用であり、不整合を修復するものではない。
 - パフォーマンス: 孤立検出における`NOT IN`サブクエリはO(vec × chunks)である。大規模データセットではメンテナンスウィンドウ中に実行すること。
+
+### 2.7 crawler.pyの追加オプション
+
+- `--targets-file PATH`: `target_urls = [[url, lang], ...]`形式のTOMLファイルを指定し、
+  設定ファイル(`config/crawler.toml`)の`target_urls`を上書きする。`--url`とは併用不可
+  (`parser.error`で終了)。
+  [Explicit in code] — `scripts/rag/ingestion/crawler.py`の`main()`引数定義より。
 
 ---
 

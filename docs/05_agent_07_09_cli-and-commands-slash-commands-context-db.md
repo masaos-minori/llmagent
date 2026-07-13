@@ -54,13 +54,15 @@ related:
 | Command | 副作用 | Notes |
 |---|---|---|
 | `/db session stats` | なし | セッション/メッセージ数 |
-| `/db session health` | なし | journal_mode / 整合性 / ページ統計 |
+| `/db session health` | なし | 整合性チェック結果(`integrity_ok`)とDBファイルサイズ |
 | `/db session checkpoint [MODE]` | WALチェックポイント | WALをメインDBにフラッシュ |
 | `/db session vacuum` | VACUUM | 空きページを回収 |
 | `/db session purge [--max-sessions N] [--max-age-days N]` | 古いセッションをDELETE | 件数または経過日数に基づく |
 | `/db session recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | Sessionのみ |
 
 > **注記:** `/db rag urls`と`/db rag clean`は、エージェントのツールエグゼキュータ経由でrag-pipeline-mcpのMCPツール(`rag_list_documents`、`rag_delete_document`)を呼び出す。RAGメンテナンスコマンドは`RagMaintenanceService`を使用し、セッションメンテナンスコマンドは`DbMaintenanceService`を使用する。`session.sqlite`と`workflow.sqlite`は、コード内で`SQLiteHelper(target=...)`経由でアクセスされ、`/db`コマンド経由ではない。スキーマの詳細: `90_shared_04`。
+>
+> **注記(移行):** `/db urls`・`/db clean`・`/db stats`・`/db health`・`/db checkpoint`・`/db vacuum`・`/db purge`・`/db consistency`・`/db rebuild-fts`・`/db recover`のようなスコープなしフラット形式は廃止されており、`/db rag <subcmd>`または`/db session <subcmd>`のスコープ付き形式のみが有効(根拠: Explicit in code — `tests/test_agent_cmd_db.py::TestCmdDbFlatAliasesInvalid`)。詳細は`05_agent_07_07_cli-and-commands-migration-notes.md`を参照。
 
 ### Planカテゴリ
 
@@ -89,3 +91,4 @@ DB category
 /db rag subcommands
 /db session subcommands
 plan category
+flat DB alias removal

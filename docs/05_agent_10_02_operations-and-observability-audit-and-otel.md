@@ -128,7 +128,7 @@ REPL経由: `/audit [tail N | turn <id> | tool <name>]`
 |---|---|
 | `log_approval_decision(ctx, outcome)` | 構造化されたapproval_decisionイベントを監査ログに書き込む |
 | `write_round_exec(ctx, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode)` | ラウンド全体の実行イベントを記録し、直列化による影響を捕捉する |
-| `audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri=None, source="")` | tool_execイベントを監査ログに書き込む。プラグインツールは `source="plugin"` を渡すことで、リクエストIDがないイベントを抑制する `mcp_request_id` ガードを回避する。 |
+| `audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri=None, source="")` | tool_execイベントを監査ログに書き込む。ガード条件は `if not mcp_request_id and not source: return`(`mcp_request_id` と `source` が両方とも空の場合のみ書き込みをスキップする)。プラグインツールは `source="plugin"` を渡すことでこのガードを回避する。根拠: `agent/tool_audit.py` の `audit_tool_exec()`(Explicit in code) |
 
 ### Plugin tool audit events(プラグインツールの監査イベント)
 
@@ -138,6 +138,51 @@ REPL経由: `/audit [tail N | turn <id> | tool <name>]`
 ```json
 {"event":"tool_exec","task_id":"...","tool":"my_plugin_tool","operation_type":"","resource_scope":{},"mcp_request_id":"","is_error":false,"args_preview":{},"ts":1718600000.1,"source":"plugin","error_type":"","workflow_id":"","session_id":""}
 ```
+
+---
+
+## OTel Tracing(OTelトレーシング)
+
+### 設定
+
+| 設定キー(`cfg.obs.*`) | デフォルト | 説明 |
+|---|---|---|
+| `otel_enabled` | `False` | `True` の場合のみ実トレーサーを構築。`False` ならNoOpトレーサーを使用する |
+| `otel_endpoint` | `""`(空文字) | OTLPエクスポータのエンドポイントURL。空の場合はConsoleSpanExporterにフォールバック |
+| `otel_service_name` | `"llm-agent"` | `Resource` に設定する `service.name` |
+
+根拠: `agent/config_dataclasses.py`(`otel_enabled`/`otel_endpoint`/`otel_service_name` フィールド定義)、`agent/config_builders.py`(TOML→dataclass変換)(Explicit in code)。
+
+### 初期化フロー
+
+`agent/factory.py` の `init_tracer(ctx)` が `shared/otel_tracer.py` の `build_tracer(enabled, service_name, otlp_endpoint)` を呼び出す。
+
+- `enabled=False` の場合、SDKをインポートせずに `otel_noop.NoOpTracer` を返す(`opentelemetry-sdk` が未インストールの環境でも動作する設計)。
+- `enabled=True` かつ `opentelemetry-sdk` が未インストールの場合、警告ログを出して `NoOpTracer` にフォールバックする。
+- `enabled=True` かつSDK利用可能な場合、`TracerProvider` を新規構築して返す。`trace.set_tracer_provider()`(グローバル登録)は**呼ばない**設計(コード内コメント "Design (R10)" 参照)。テスト間のプロバイダ汚染防止と、プロセス内での複数トレーサーインスタンス共存を意図している。
+- エクスポータは `otlp_endpoint` が空なら `ConsoleSpanExporter`、指定があれば `OTLPSpanExporter`(`opentelemetry-exporter-otlp` 未インストール時は警告を出してConsoleSpanExporterにフォールバック)。
+
+根拠: `shared/otel_tracer.py` の `build_tracer()`/`_attach_exporter()`/docstring(Explicit in code)。
+
+### Why this exists / What this component intentionally does NOT do
+
+- OTel SDKは任意依存(optional dependency)として扱われ、未インストール環境でもエージェントが起動できるよう、NoOp実装(`shared/otel_noop.py` の `NoOpTracer`/`NoOpSpan`)へ常にフォールバックする。根拠: `otel_tracer.py` モジュールdocstring(Explicit in code)。
+- グローバルな `TracerProvider` を意図的に設定しない(プライベートインスタンスとして保持)。他プロセス/他テストのトレーサー状態に影響を与えない境界を意図している。根拠: `build_tracer()` docstring "Design (R10)"(Explicit in code)。
+
+### スパン生成箇所
+
+`agent/llm_turn_runner.py` はターン処理中に `self._tracer.start_as_current_span(name, attributes=attrs or None)` でスパンを生成する。`_tracer` が `None`(未初期化)の場合は `nullcontext(_NoOpSpan())` を返す。付与されるカスタム属性(いずれも該当値が非空の場合のみ設定):
+
+| 属性キー | 内容 |
+|---|---|
+| `workflow.task_id` | ターンのタスクID |
+| `workflow.session_id` | セッションID |
+| `llm.model_url` | LLMエンドポイントURL |
+| `workflow.workflow_id` | ワークフローID |
+| `workflow.stage_id` | ステージID |
+| `workflow.attempt_id` | 試行ID |
+
+根拠: `agent/llm_turn_runner.py`(Explicit in code)。
 
 ---
 
@@ -157,3 +202,8 @@ reading audit logs
 audit event dtos
 audit writers
 OpenTelemetry
+otel tracer
+otel_enabled
+otlp exporter
+noop tracer
+tracer provider

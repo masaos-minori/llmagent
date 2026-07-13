@@ -42,7 +42,7 @@ agent、transport、サーバのログを横断した相関分析については
 `_raw_execute()` パス経由でtool callが到着した場合:
 
 ```python
-# In shared/tool_executor.py ensure_ready():
+# In agent/factory.py _ServerLifecycleRouter.ensure_ready():
 if _shutting_down: return immediately          # shutdown guard
 cfg.transport != HTTP or cfg.startup_mode != SUBPROCESS: return immediately  # non-subprocess servers skip this check
 not http_mgr.verify_running(server_key):      # subprocess-mode, not running -> start!
@@ -58,6 +58,11 @@ except Exception:                               # any startup failure
 まだ自身のcircuit-breakの閾値に達していない個々のtool callは、`ensure_ready()` を通じて
 回復を試みることができる。
 
+> **実装上の補足 (Explicit in code):** `ensure_ready()` は `shared/tool_executor.py` にはなく、
+> `agent/factory.py` の `_ServerLifecycleRouter` クラスに実装されている。実際のsubprocess起動/停止は
+> `agent/http_lifecycle.py` の `HttpServerLifecycleManager` に委譲される。`ToolExecutor` は
+> `LifecycleProtocol`(`shared/tool_lifecycle.py`)経由でこのルータを呼び出すのみで、起動ロジック自体は持たない。
+
 ---
 
 **再起動が妥当なケース:** ヘルス状態が `FAILED` に遷移＋閾値内でのtransportエラーの繰り返し、または
@@ -65,7 +70,23 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 
 **再起動が妥当でないケース:** 単発のtoolエラー、一度限りのタイムアウト、直列化による遅延。
 
----
+#### Tool実行層のcircuit breaker（`McpServerHealthRegistry`）
+
+`shared/mcp_health.py` の `McpServerHealthRegistry` は、watchdogとは別に、サーバーごとの
+連続失敗をトラッキングしディスパッチをゲートする独立したcircuit breakerである。
+
+- `record_failure()` は失敗カウントをインクリメントし、`failure_threshold`(デフォルト3)に達すると
+  状態を `UNAVAILABLE` にする。
+- `is_unavailable()` は単なるgetterではない。`UNAVAILABLE` になってから
+  `half_open_cooldown_sec`(デフォルト30秒)経過すると、呼び出し側に気づかれないまま状態を
+  `HALF_OPEN`（1回だけ試行を許可する窓）へ遷移させ、その呼び出しでは `False` を返す。
+- `HALF_OPEN` 中の失敗は即座に `UNAVAILABLE` に戻り、cooldownがリセットされる。
+- `record_success()` は状態を `HEALTHY` に戻し、失敗カウント・degraded理由をクリアする。
+
+根拠: Explicit in code（`shared/mcp_health.py`）。この機構はwatchdogの再起動ループ
+（`repl_health.py` の `watchdog_loop()`／`mcp_watchdog_max_restarts`）とは独立しており、
+`ToolExecutor._raw_execute()` 内の `_check_health()` がディスパッチ前のゲートとして参照する
+（本ドキュメントの他のwatchdog関連記述と混同しないこと）。
 
 
 ## Related Documents

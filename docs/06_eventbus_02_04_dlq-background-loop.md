@@ -24,7 +24,9 @@ source:
 
 このループは楽観的ロックを使用する。`dlq_at` がまだNULLのイベントのみをカウント対象とすることで、二重昇格を防止する。スイープで孤立イベントが見つかった場合、`"dlq_loop: swept %d orphan(s) missed by inline promotion"` というログが出力される。スイープ結果が0件でない場合、インライン昇格処理に問題がある可能性を示す。
 
-昇格処理の内容はインライン処理と同じである。JSONLファイルをアトミックに書き込み、SQLite内で `dlq_at` を設定する。
+昇格処理の内容はインライン処理と同じである。JSONファイルをアトミックに書き込み、SQLite内で `dlq_at` を設定する。
+
+**実装の詳細（Explicit in code）**: `_dlq_loop` が呼び出す実体は `dlq.py` の `sweep_orphans()` であり、抽出条件の `SELECT` に加え、`UPDATE ... WHERE event_id = ? AND dlq_at IS NULL` として更新自体にも `dlq_at IS NULL` 条件を付け、`cur.rowcount` を見て実際に更新できた場合のみ昇格件数としてカウントする。この二段構えにより、`SELECT` から `UPDATE` までの間に別経路（nack のインライン昇格など）が先に `dlq_at` を設定していた場合でも二重昇格しない。同モジュールには条件の弱い `promote_to_dlq()` という関数も存在するが、これはアプリケーションのどこからも呼び出されていない（コード上デッドコード）。呼び出されているのは常に `sweep_orphans()` である。
 
 ## Related Documents
 

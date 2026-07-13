@@ -35,14 +35,27 @@ Event Busの設定はTOMLファイルから読み込まれる（デフォルト:
 
 | フィールド | 型 | デフォルト | 説明 |
 |---|---|---|---|
-| `port` | int | — | HTTPリスンポート |
+| `port` | int | — | HTTPリスンポート（1024～65535の範囲外は起動時に `ValueError`） |
 | `db_path` | str | — | SQLiteデータベースファイルのパス |
 | `storage_dir` | str | — | JSONLイベントアーカイブのディレクトリ |
 | `offsets_dir` | str | — | コンシューマーオフセットファイルのディレクトリ |
 | `deadletter_dir` | str | — | デッドレターキューJSONLのディレクトリ |
-| `max_retry` | int | — | DLQ昇格前の再試行閾値 |
+| `max_retry` | int | — | DLQ昇格前の再試行閾値（1未満は起動時に `ValueError`） |
 | `host` | str | `127.0.0.1` | HTTPリスンアドレス（下記のBind Addressセクションを参照） |
 | `allow_public_bind` | bool | `false` | オーバーライド: パブリック/ワイルドカードアドレスへのバインドを許可する（セキュリティリスクあり、認証なし） |
+
+`port` と `max_retry` の検証は `EventBusConfig.__post_init__()` で行われる（根拠分類: Explicit in code — `scripts/eventbus/config.py`）。
+
+### 廃止済み設定キー
+
+`load_config()` は、設定ファイルに廃止済みキーが残っている場合、起動前にエラーとする。
+
+| キー | 状態 |
+|---|---|
+| `poll_interval_ms` | 削除済み。設定ファイルに存在すると起動時エラー |
+| `offset_checkpoint_interval` | 削除済み（no-opフィールドだった）。設定ファイルに存在すると起動時エラー |
+
+これらのキーが `eventbus.toml` に残っている場合、`load_config()` は `ValueError` を送出し、Event Busは起動しない。エラーメッセージには対象キー名と設定ファイルパスが含まれる（根拠分類: Explicit in code — `scripts/eventbus/config.py` の `_REMOVED_CONFIG_KEYS`）。
 
 ## Related Documents
 

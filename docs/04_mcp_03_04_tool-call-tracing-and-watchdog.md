@@ -123,6 +123,10 @@ AgentREPL.run()
 `restart()`, `shutdown_idle()` を保護する: `shutdown_all()` が呼び出された後は、これらのメソッドは
 ログ行を出力して即座にリターンし、`HttpServerLifecycleManager` への委譲は行わない。
 
+### 実装上の補足(二重 SIGINT ガード)
+
+`HttpServerLifecycleManager.shutdown_all()`(`agent/http_lifecycle.py`)は、クリーンアップ実行中にシグナルハンドラを一時的に `_absorb_sigint_during_shutdown()` に差し替え、後続の SIGINT を WARNING ログのみで吸収する(メインスレッド以外で呼ばれた場合は `signal.signal()` が `ValueError` を送出するため、ガードなしで続行する)。ユーザーが Ctrl-C を connectionを待っている間に2回押してループを中断し、残存サブプロセスが孤児化することを防ぐ意図。クリーンアップ完了後に元のハンドラへ復元する。(Explicit in code)
+
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`

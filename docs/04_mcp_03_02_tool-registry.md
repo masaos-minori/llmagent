@@ -50,7 +50,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 2 | レジストリはインポート時にこれらの frozenset から自動構築される — レジストリの手動編集は不要 | （自動） |
 | 3 | 所有する MCP サーバー（`mcp/<name>/server.py`）に `dispatch()` ハンドラーを実装する | **[必須]** |
 | 4 | `/v1/tools` エンドポイントでツールを公開する（`server_key` フィールドを含むツール定義を返す） | **[推奨]** — `check_routing_drift_vs_live()` による起動時ドリフト検出を可能にする |
-| 5 | `config/tools_definitions.toml` に LLM スキーマを追加する（OpenAI function-calling 形式） | **[必須]** — ツールを LLM に見せる場合 |
+| 5 | `config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する（OpenAI function-calling 形式） | **[必須]** — ツールを LLM に見せる場合 |
 | 6 | 新ツール用に `config/agent.toml` に `tool_safety_tiers` エントリを追加する | **[必須]** — 全てのツールは安全性ティアを宣言しなければならない |
 | 7 | `config/<key>_mcp_server.toml` の `[mcp_servers.<key>]` セクションの `tool_names` にツール名を追加する | **[任意]** — 起動時ドリフト検証のみを可能にする; ルーティングには不要 |
 
@@ -108,12 +108,28 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ### 副作用検出
 
 ```python
-_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
+_SIDE_EFFECT_TOOLS = (
+    WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
+    | GIT_WRITE_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
+)
 is_side_effect(tool_name: str) -> bool
 ```
 
 `execute_all_tool_calls()` が副作用を持つツールを1つでも検出した場合、`serial_tool_calls`
 の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
+
+（注: `_SIDE_EFFECT_TOOLS` は `WRITE_TOOLS` / `DELETE_TOOLS` / `shell_run` に加え、Git 書き込み系（`GIT_WRITE_TOOLS`）と GitHub 書き込み・危険操作系（`GITHUB_WRITE_TOOLS`、`GITHUB_DANGEROUS_TOOLS`）も含む。Explicit in code: `shared/tool_executor_helpers.py`。）
+
+### 安全性ティア検証
+
+- `check_tool_safety_tiers()`: `tool_safety_tiers` に未宣言のレジストリ登録済みツールを警告する。`agent/repl_health.py` の起動時チェックから呼び出される（Explicit in code）。
+- `check_unknown_tool_safety_tiers()`: `tool_safety_tiers` のキーがレジストリ未登録（例: 個別ツール名ではなくサーバーキーを誤って指定）の場合に検出する。`shared/production_config_validator.py` から呼び出される（Explicit in code）。
+- 両関数とも `tool_safety_tiers` が空/未設定の場合は空リストを返す（チェックをスキップする）。
+
+### 実装上の補足 (Current behavior): tool_cache.py と ToolSpec
+
+- `shared/tool_cache.py` の `ToolResultCache`（LRU + TTL）は現在 `ToolExecutor` からは使用されていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュ（本ドキュメント「キャッシュの挙動」節）を持ち、stampede protection（inflight future 共有）と密結合しているため、代わりに使われている。`ToolResultCache` は非推奨ではなく、stampede protection を必要としない将来の利用者向けのスタンドアロンユーティリティとして残されている。（Explicit in code: `shared/tool_cache.py` モジュール docstring）
+- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scope`, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py` で構築され、`agent/tool_scheduler.py` の実行DAGで並列/直列判定に使われる。（Explicit in code）
 
 ## Related Documents
 
@@ -131,6 +147,9 @@ mcp
 routing
 ToolRegistry
 tool cache
+ToolResultCache
+ToolSpec
 concurrency limits
 side effect detection
 routing drift
+tool safety tiers

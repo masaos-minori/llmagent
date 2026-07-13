@@ -35,15 +35,21 @@ User input (line)
   │    └─ CommandRegistry.dispatch(line)     — スラッシュコマンド、LLM呼び出しなし
   │
   └─ Orchestrator.handle_turn(line)
+       │  (workflow.approval_pendingの場合はここでブロックし、
+       │   /approve または /reject を促すエラーを返して処理を終了する)
        │
        ① ターン開始処理
        │    → UUID4のcurrent_turn_idを生成
        │    → 監査ログを発行: turn_start
+       │    → WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn) を起動
+       │         (plan_fnは何もしない; ターン開始処理は既にここで完了済み)
        │
-       ② メモリ注入                       [use_memory_layer=Trueの場合]
-       │    → MemoryInjectionService.on_user_prompt(query, session_id)
+       ② メモリ注入 と モード分類          [WorkflowEngineのexecuteステージ内]
+       │    → [use_memory_layer=Trueの場合] MemoryInjectionService.on_user_prompt(query, session_id)
        │    → メモリスニペットを"system"ロールメッセージとして注入
        │          → memory_injectedフラグを設定
+       │    → classify_and_inject_mode(line, ctx): クエリをMDQ/RAGに分類し、
+       │         ヒントを"_ephemeral"付きsystemメッセージとして注入 (下記参照)
        │
        ③ ユーザーメッセージの追加
         │    → ユーザーメッセージをctx.conv.historyに追加
@@ -68,10 +74,20 @@ User input (line)
        │              → 履歴をLLMに再送信
        │              → ToolLoopGuard: 重複排除/循環/リトライ/連続エラーのガード
        │
-       ⑥ ターン終了処理
+       ⑥ ターン終了処理                    [WorkflowEngineのverifyステージ内]
             → 監査ログを発行: turn_end (経過ms、トークン数、再接続回数など)
             → ctx.turn.current_turn_id = None
 ```
+
+### Implementation note: ワークフローエンジンは常に経由する (Explicit in code)
+
+`Orchestrator.__init__`は`WorkflowLoader().load()`を呼び、失敗時（`config/workflows/default.json`が
+存在しない、または検証エラー）は`RuntimeError`を送出してOrchestratorの構築自体が失敗する。
+`handle_turn()`内でも`self._workflow_def is None`のケースは`_log_fallback()`が`RuntimeError`を送出する
+だけであり、旧来の直接実行フローへの実装上のフォールバック経路は存在しない。
+上記フロー図の①〜⑥はすべて`WorkflowEngine.run()`のplan/execute/verify各ステージのコールバックとして
+実行される。ステージ構成の詳細は
+[05_agent_03_03_turn-processing-flow-workflow-engine-part1.md](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md)を参照。
 
 ---
 
@@ -81,6 +97,21 @@ User input (line)
 - `MemoryInjectionService.on_user_prompt()`が関連メモリを取得する (FTS5 + オプションでKNN)
 - ターンの先頭に`"system"`ロールメッセージとして注入される
 - `/undo`はこれらの注入メッセージをユーザー+アシスタントのターンと共に削除する
+
+---
+
+## MDQ/RAGモード分類の詳細
+
+- `classify_and_inject_mode(line, ctx)` (`agent/mode_classification.py`) がメモリ注入と同じ
+  execute ステージ内、ユーザーメッセージ追加より前に実行される (Explicit in code)
+- `resolve_mode()` (`agent/mdq_rag_classifier.py`): `ctx.cfg.mdq_rag_mode`が`"auto"`以外の
+  設定値であればそれを優先し、`"auto"`または未設定なら`classify_query()`のキーワードヒューリスティクス
+  (`heading`, `outline`, `toc`, `.md`, `structure`など) でMDQ/RAGを判定する
+- MDQモードと判定されても`search_docs`ツールを持つMCPサーバーが利用不可の場合はRAGにフォールバックする
+  (警告ログを出力)
+- 判定結果に応じたヒント文字列を`"system"`ロール・`_ephemeral: true`付きメッセージとして
+  `ctx.conv.history`に注入する。`_ephemeral`メッセージは次ターン開始時に
+  `Orchestrator._sync_system_prompt()`で除去される (毎ターン再評価される一時的なヒント)
 
 ---
 
@@ -111,4 +142,6 @@ User input (line)
 
 one-turn processing flow
 memory injection detail
+mdq/rag mode classification
+workflow engine mandatory execution path
 history compression detail

@@ -17,7 +17,9 @@ source:
 
 # HttpTransport、McpServerHealthRegistry、追跡の相関キー(Part 1)
 
-## HttpTransport (`shared/tool_executor.py`)
+## HttpTransport (`shared/http_transport.py`)
+
+**矛盾点（要修正の記録）:** 本節の見出しは従来 `shared/tool_executor.py` としていたが、`HttpTransport` クラスの実体は `shared/http_transport.py` に定義されている（Explicit in code）。インスタンス化と保持は `shared/tool_transport_invoker.py` が行い、`shared/tool_executor.py` は `TransportError` 例外型のみを同モジュールからインポートしている。`shared/tool_executor.py` のモジュール docstring には "Provides HttpTransport implementation for POST /v1/call_tool over httpx." とあるが、実装本体は同ファイルには存在しない（Explicit in code）。
 
 ```python
 HttpTransport(http, base_url, server_key, cfg=McpServerConfig)
@@ -34,7 +36,9 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 ---
 
-## McpServerHealthRegistry (`shared/mcp_config.py`)
+## McpServerHealthRegistry (`shared/mcp_health.py`)
+
+**注記:** クラス実体は `shared/mcp_health.py` に定義されている。`shared/mcp_config.py` はこれを `# noqa: F401` 付きで re-export しているのみである（Explicit in code）。両モジュールから同名でインポート可能なため実害はないが、正典モジュールは `shared/mcp_health.py` である。
 
 `_build_tool_executor()`（factory.py）内で作成され、`ToolExecutor`（`set_health_registry()` 経由）と
 `AppServices.health_registry` の間で共有される、サーバーごとの失敗トラッカー。
@@ -64,6 +68,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 |---|---|
 | `record_failure(server_key)` | 失敗回数をインクリメント; `HALF_OPEN → UNAVAILABLE`（クールダウンリセット); しきい値到達時 → `UNAVAILABLE` |
 | `record_degraded(server_key, reason)` | オプションの理由文字列とともに、状態を `DEGRADED` に設定する; 到達可能だが再起動不可なサーバーに対してウォッチドッグから呼び出される。現在の状態が `UNAVAILABLE` または `HALF_OPEN` の場合は no-op（debug ログのみ記録し、状態・理由は変更しない）— circuit breaker のディスパッチゲーティングとシングルトライアル窓を維持するためのガード |
+| `record_restart_exhausted(server_key)` | ウォッチドッグが `mcp_watchdog_max_restarts` に到達し再起動を諦めたことを記録する。状態（`_states`）は変更しない（直前の `record_failure()` 呼び出し列によりすでに `UNAVAILABLE` になっている想定）。`_degraded_reasons[server_key] = "restart_limit_reached"` を設定するのみで、「再起動サイクル継続中」と「再起動上限到達・要手動対応」を運用側（`/mcp status` 等）が区別できるようにする（Explicit in code） |
 | `get_degraded_reason(server_key)` | 最後に記録された degraded の理由文字列を返す。設定されていない場合は `None` |
 | `record_success(server_key)` | 失敗回数、unavailable タイムスタンプ、degraded の理由をリセット; `HALF_OPEN → HEALTHY` |
 | `get_state(server_key)` | 現在の状態; 未知のキーの場合は `HEALTHY` を返す |

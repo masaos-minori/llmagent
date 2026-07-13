@@ -85,11 +85,20 @@ source:
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
 - `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする
 - `plugin_strict` — 起動時にプラグインのインポートエラーでfail-fastを有効にする
+- `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
+  (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`が
+  `use_memory_layer`, `plugin_strict`と共に3フィールドを比較する。根拠: Explicit in code —
+  `agent/services/config_reload.py::_detect_startup_only()`)
 
 **削除されたキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
 `build_agent_config()`の`_FORBIDDEN_KEYS`参照): `workflow_mode`, `workflow_require_approval`,
 `use_tool_summarize`, `tool_summarize_threshold`。これらはもはや一切有効な設定キーではない —
 単にホットリロードできない起動時のみの設定というわけではない。
+
+さらに、`github_server_url`キーも単独のチェックで拒否される
+(`_FORBIDDEN_KEYS`とは別の`if "github_server_url" in cfg:`分岐、
+`agent/config_builders.py`)。エラーメッセージは`[mcp_servers.github].url`を使うよう案内する
+(根拠: Explicit in code)。
 
 すべての設定キーは`config/agent.toml`で定義されている。デフォルト値を提供する個別の`common.toml`や他の分割ファイルは存在しない。
 

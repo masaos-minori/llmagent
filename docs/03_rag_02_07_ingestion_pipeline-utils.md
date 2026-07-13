@@ -62,8 +62,11 @@ source:
 | `same_origin` | `(url: str, base: str) -> bool` | スキームとホスト名が一致する場合にTrueを返す |
 | `extract_text` | `(soup: BeautifulSoup) -> str` | soupからノイズタグ（nav、footer、aside、script、style、noscript）を除去する；`include_comments=False`、`include_tables=True`、`no_fallback=False`、`target_language=None` の設定でTrafilaturaを用いて本文テキストを抽出する；フォールバックとしてBS4の `get_text(separator="\n", strip=True)` を使用する |
 | `detect_lang` | `(text: str) -> str \| None` | CJK比率判定；比率が0.1以上なら'ja'、それ以外は'en'を返す；100文字未満のテキストではNoneを返す |
-| `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | target_urls設定を検証し(url, lang)のタプルにパースする；不正なエントリの場合はValueErrorを発生させる |
+| `parse_target_urls` | `(target_raw: list[list[str]]) -> list[tuple[str,str]]` | target_urls設定を検証し(url, lang)のタプルにパースする；URL検証には `rag.utils.validate_url`（http/https限定）を使用する；不正なエントリの場合はValueErrorを発生させる |
 | `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | `target_urls = [[url, lang], ...]` を含むTOMLファイルをパースする；ファイルが見つからない場合はFileNotFoundError、パースエラーの場合はValueErrorを発生させる |
+
+**実装上の補足:**
+- `parse_targets_file` はURL検証にモジュール内の `_validate_target_url` を使う。これは `rag.utils.validate_url`（http/https限定）と異なり `file://` スキームも許可する。docstringには「`--targets-file` クロールパスで使うfile://を扱うため」と明記されている（`crawler_utils.py:31-40`）。一方 `parse_target_urls`（設定ファイル `config/rag_pipeline.toml` の `target_urls` をパースする方）は `rag.utils.validate_url` を使うためfile://を受け付けない。両関数は同じ「(url, lang)のリストをパースする」役割に見えるが、想定入力元（TOML `--targets-file` vs 設定内リスト）によって許可URLスキームが異なる。(Explicit in code)
 
 ---
 

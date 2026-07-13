@@ -78,6 +78,8 @@ SQLiteHelper(
 
 すべてのパスと設定を解決するために `build_db_config()` が `__init__()` 内で呼び出される — ただし `db_path` が明示的に渡された場合は `build_db_config()` が完全にバイパスされ、指定された `db_path`/`sqlite_vec_so`/`sqlite_timeout`/`sqlite_busy_timeout_ms` がそのまま使用される（MCP サーバーなどの呼び出し側が `agent.toml` を読み込まずに DB 設定を自己完結させられる）。
 
+`DB_PATH` プロパティで、インスタンスに解決済みの DB パスを参照できる（読み取り専用）。(Explicit in code)
+
 ### `open()` メソッド
 
 ```python
@@ -87,6 +89,7 @@ def open(
     write_mode: bool = False,
     row_factory: bool = False,
     load_vec: bool | None = None,
+    reuse_connection: bool = False,
 ) -> "SQLiteHelper"
 ```
 
@@ -99,8 +102,24 @@ def open(
 | `load_vec=None` | ターゲットのデフォルトを使用: `rag` → True、`session`/`workflow` → False |
 | `load_vec=True` | sqlite-vec 拡張を強制的にロードする |
 | `load_vec=False` | vec 拡張をスキップする |
+| `reuse_connection=True` | 既存の `self.conn` があれば再接続をスキップする。この場合 `__exit__` でも `close()` を呼ばない（コネクション使い回しを許可する） |
 
 常に適用される: vec のロード（有効な場合）、WAL、NORMAL sync、busy_timeout。
+
+`reuse_connection` の詳細は [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) §4b を参照。(Explicit in code)
+
+### モジュールレベル関数 `apply_connection_pragmas()`
+
+```python
+def apply_connection_pragmas(
+    conn: sqlite3.Connection,
+    *,
+    busy_timeout_ms: int = 30000,
+    write_mode: bool = True,
+) -> None
+```
+
+`SQLiteHelper.open()` が内部で使う WAL/synchronous=NORMAL/busy_timeout/foreign_keys の pragma 適用ロジックを、`SQLiteHelper` を経由しない生の `sqlite3.Connection` にも適用できるようモジュールレベル関数として公開したもの。`mcp_servers/mdq/db_schema.py`、`mcp_servers/mdq/service.py`、`mcp_servers/mdq/health_check.py`、`eventbus/db.py` が直接インポートして使用している。(Explicit in code)
 
 ### コアメソッド
 
@@ -152,3 +171,6 @@ with SQLiteHelper("rag").open(write_mode=True) as db:
 DB store module boundaries
 SQLiteHelper
 db/helper.py
+apply_connection_pragmas
+reuse_connection
+DB_PATH

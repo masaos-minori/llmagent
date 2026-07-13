@@ -69,6 +69,7 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 ```
 usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
+                   [--targets-file PATH]
 
 BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.json
 
@@ -78,7 +79,13 @@ options:
                        target_urls from config)
   --lang {en,ja,auto}  Hint language when --url is given (default: en). 'auto'
                        detects per-page language by CJK character ratio.
+  --targets-file PATH  Path to a TOML file containing target_urls = [[url,
+                       lang], ...] pairs. Mutually exclusive with --url.
 ```
+
+### 実装上の補足(この節のAUTO-GENERATEDマーカーについて)
+
+`tools/gen_rag_reference.py` の出力先は `docs/03_rag_05_configuration_and_operations.md` (`OPS_DOC`定数) だが、このファイルはドキュメント分割後の現構成には存在しない(分割後は `03_rag_05_1`〜`03_rag_05_8` に分かれている)。そのため本節の内容はツールによる自動更新が効かず、手動で追随させる必要がある。`--targets-file`引数は元のAUTO-GENERATED内容作成後に追加されたため、上記usageブロックは本修正で追記した。(Explicit in code / Needs confirmation — ツールのOPS_DOC定数を分割後のファイルに追随させる方針は未確認)
 
 ### chunk_splitter
 

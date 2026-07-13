@@ -34,6 +34,10 @@ related:
 
 境界条件: `line == name`(完全一致)または`line.startswith(name + " ")`(プレフィックス一致)。
 
+`dispatch(line)`は`line`が`str`でなければ`TypeError`を送出し、空文字列は`False`を返す(未マッチ扱い)。組み込みコマンド(`_COMMANDS`)で一致しない場合、`_dispatch_plugin(line)`に処理を委譲し、`shared.plugin_registry.iter_commands()`に登録済みのプラグインコマンド(完全一致・プレフィックス一致の両方に対応)を順に試す。根拠: `agent/commands/registry.py`。(Explicit in code)
+
+`CommandRegistry.__init__`は、`_COMMANDS`内の全`CommandDef.handler`文字列が実際に`self`上に存在するかをfail-fastで検証し、存在しなければ`AttributeError`を送出する。(Explicit in code)
+
 ### モジュールの責務
 
 | Module | Owns | Does NOT Own |
@@ -42,8 +46,14 @@ related:
 | `command_defs_list.py` | 組み込みコマンド定義 | ディスパッチロジック |
 | `registry.py` | ディスパッチの挙動、`command_defs_list`からコマンドリストをインポート | コマンドリストの定義 |
 
+`CommandRegistry`は14個のmixinクラス(`_SessionMixin`, `_McpMixin`, `_ConfigMixin`, `_ContextMixin`, `_DbMixin`, `_ToolingMixin`, `_DebugMixin`, `_AuditMixin`, `_RagExportMixin`, `_MemoryMixin`, `_WorkflowMixin`, `_PluginsMixin`, `_MdqMixin`, `_SkillMixin`)を多重継承する。各mixinは対応する`agent/commands/cmd_*.py`ファイルに実装される。(Explicit in code)
+
 > **今後のコマンド追加:** `command_defs_list.py`にのみ新しい`CommandDef(...)`エントリを追加する。
 > 対応するハンドラは適切なmixinファイルに実装すること。
+
+### 境界条件 (Boundary and ownership)
+
+- `AgentREPL.SLASH_COMMANDS`(`agent/repl.py`、タブ補完用の一覧)と`command_defs_list._COMMANDS`(ディスパッチ用の正本)は別々に保守されているリストであり、現状一致していない。`SLASH_COMMANDS`には`/memory`, `/audit`, `/plan`, `/plugin`, `/skill`, `/mdq`が含まれていない。そのためこれらのコマンドはディスパッチは可能だがタブ補完の対象外になる。(Explicit in code。矛盾点として明記)
 
 ---
 

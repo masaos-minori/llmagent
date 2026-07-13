@@ -11,6 +11,7 @@ related:
   - 03_rag_01_system_overview-part1.md
   - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
+  - 03_rag_03_06_query_pipeline-helpers-and-cache-part2.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
 source:
@@ -30,7 +31,7 @@ source:
 `SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
 
 ```python
-from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by rag/pipeline.py:30
+from rag.cache import SemanticCache  # defined in rag/cache.py:31; imported by rag/pipeline.py:29
 
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
@@ -44,6 +45,8 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 | `invalidate` | `() -> None` | 世代カウンタをインクリメントし、キャッシュ済みエントリをすべてアトミックにクリアする |
 | `generation` | プロパティ `int` | キャッシュ無効化世代カウント（観測用のみ；エントリの鮮度フィルタには使用されない） |
 
+**テストで確認されている挙動（`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`）:** `invalidate()` 呼び出しにより `generation` が1増加し、既存エントリは即座に全て `lookup()` でヒットしなくなる（`size == 0` になる）。
+
 ### RagPipeline.invalidate_cache()
 
 ```python
@@ -51,6 +54,8 @@ RagPipeline.invalidate_cache(self) -> None
 ```
 
 `self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
+
+**Why this exists（Strongly implied by code）:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
 
 ### CLI インジェスト後のキャッシュ鮮度
 
@@ -64,7 +69,8 @@ MCP `rag_delete_document` は呼び出し元のMCPプロセス内の `RagPipelin
 - `03_rag_01_system_overview-part1.md`
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_query_pipeline-stages.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_03_06_query_pipeline-helpers-and-cache-part2.md`

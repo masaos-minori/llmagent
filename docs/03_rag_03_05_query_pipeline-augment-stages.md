@@ -37,11 +37,13 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 - `rag_min_score` によりフィルタする；クロスエンコーダの失敗時にフォールバックはない（例外が伝播する）
 - 重複排除: `deduplicate_chunks(hits, max_chunks_per_doc)` — 同一URLのヒット数を制限する；入力は降順にソートされている必要がある；リランクの後に適用される（前ではない）
 
+**例外の捕捉位置（Explicit in code）:** `RerankStage.run()` 自体は例外を捕捉しない。`RagPipeline._run_stage()`（`scripts/rag/pipeline.py`）が `run()` の実行を try/except で包み、`RuntimeError`（`RagRerankError` の基底）・`sqlite3.OperationalError`・`httpx.HTTPStatusError`・`httpx.RequestError`・`TimeoutError` を捕捉して `StageResult(status="failure", fallback_reason=<例外メッセージ>)` に変換する。したがってパイプライン全体としては例外で停止せず、後続ステージ（PluginHooks・AugmentStage）は空の `ctx.reranked` を引き継いで実行が継続する。
+
 ### 5.5 AugmentStage
 
 コンストラクタなし（`PipelineStage` を継承）。
 
-**注記:** チャンク整形関数は `scripts/rag/pipeline.py:368`（静的メソッド）と `scripts/rag/stages/augment.py:11`（モジュール関数）の間で重複している。両者は同一の出力を生成するが別々のコピーである。AugmentStageはaugment.py版を使用する；`RagPipeline.augment()` は生チャンクへのフォールバック用にpipeline.py版を使用する（474行目）。
+**訂正（Explicit in code）:** チャンク整形関数の重複は解消済みである。`scripts/rag/stages/augment.py:11` の `_format_chunks()` が唯一の実装であり、`scripts/rag/pipeline.py` はこれを `_augment_format_chunks` としてimportして使う（`from rag.stages.augment import _format_chunks as _augment_format_chunks`）。AugmentStage（augment.py内）と `RagPipeline.augment()` の生チャンクフォールバック（pipeline.py 461行目付近）はいずれも同一関数を呼び出す。
 
 - `ctx.reranked` を `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` の形式のブロックとして整形する；titleが空の場合はURLをフォールバックとして使用する
 - `\n\n---\n\n` で連結し、`[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]` で囲む
@@ -86,6 +88,15 @@ from rag.pipeline_refiner import RefineResult
 - `/rag search --debug` のステージ結果で `~ Refiner: fallback — <reason>` およびサマリー行 `[refiner] fallback: N time(s)` として表示される
 - `pipeline.get_diagnostics()["fallback_reasons"]`、`["refiner_fallback_count"]`、`["refiner_exception_count"]` から取得可能
 
+**`get_diagnostics()` の関連フィールド（Explicit in code、`scripts/rag/pipeline.py`）:**
+
+| キー | 説明 |
+|---|---|
+| `refiner_fallback_count` | Refinerステージが `status="fallback"` になった回数 |
+| `refiner_returned_empty` | 上記のうち `fallback_reason == "refiner_returned_empty"` の件数 |
+| `refiner_exception_count` | 上記のうち `fallback_reason` が `"refiner_exception:"` で始まる件数 |
+| `refiner_exception` | `refiner_exception_count > 0` の真偽値 |
+
 ---
 
 ## Related Documents
@@ -97,9 +108,12 @@ from rag.pipeline_refiner import RefineResult
 - `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache-part1.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache-part2.md`
 
 ## Keywords
 
 rerank-stage
 augment-stage
+refiner-fallback
 rag

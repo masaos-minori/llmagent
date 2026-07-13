@@ -64,7 +64,7 @@ related:
 | 既知のバグ、仕様の矛盾、未解決の課題 | `03_rag_90_inconsistencies_and_known_issues-part1.md` |
 | 確定した設計上の不変条件とリグレッションテストのギャップ | `03_rag_91_design_notes-part1.md`, `03_rag_91_design_notes-part2.md` |
 
-**コンフリクト解決**: 2つのドキュメントで事実が一致せず、すぐに解決できない場合は、`03_rag_90_inconsistencies_and_known_issues-part1.md` にDOC-Nラベルを付けたエントリとして記録し、その後、責任を持つドキュメント側で根本原因を修正すること。ローカルチェックは `python scripts/checks/check_docs_consistency.py [対象ファイル...]` を使用。
+**コンフリクト解決**: 2つのドキュメントで事実が一致せず、すぐに解決できない場合は、`03_rag_90_inconsistencies_and_known_issues-part1.md` にDOC-Nラベルを付けたエントリとして記録し、その後、責任を持つドキュメント側で根本原因を修正すること。ローカルチェックは `python tools/check_docs_consistency.py [対象ファイル...]` を使用。
 
 ---
 

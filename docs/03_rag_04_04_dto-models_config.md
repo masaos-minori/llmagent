@@ -76,12 +76,31 @@ source:
 | `rerank` | `RerankConfig` | クロスエンコーダーリランクの設定 |
 | `search` | `SearchConfig` | 検索の設定 |
 
+### 実装上の補足
+
+- 本ファイルの全dataclass (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`,
+  `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) は `scripts/rag/` 配下の
+  どのモジュールからも import・インスタンス化されていない。
+  実行時の設定読み込みは `ConfigLoader().load("xxx.toml")` が返す生の `dict` を
+  `cfg.get("key", default)` の形で直接参照する方式であり (例:
+  `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`)、
+  本ファイルのdataclassは経由しない。
+  [Explicit in code] — importのグレップ結果より、本ファイルへの参照は自己定義のみ。
+- `RagPipeline` が実際に使用する実行時設定コントラクトは
+  `shared/types.py` の `RagConfig` (Protocol) であり、そのdocstringには
+  「`rag.models_config.*` はingestion TOML向けのファイル形式DTO」と明記されている。
+  ただし前述の通り、ingestion側スクリプトも現状はdict直接参照であり、
+  本ファイルのdataclassとの接続は確認できない。
+  [Needs confirmation] — 将来的な移行を見込んだ未接続の定義か、削除漏れかは
+  コードから判断できない。
 
 ## Related Documents
 
 - [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- [shared/types.py の `RagConfig` Protocol](../scripts/shared/types.py) — 実行時に実際に使われる設定コントラクト
 
 ## Keywords
 
 dto
 data-model
+unused-dto

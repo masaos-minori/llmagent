@@ -83,12 +83,20 @@ source:
 | `min_score_applied` | `float` | フィルタリングに使用されたrag_min_score |
 | `max_chunks_per_doc` | `int` | 適用されたドキュメント単位の重複排除上限 |
 
+### 実装意図 (Implementation note)
+
+- `scripts/rag/models_data.py` の全DTOは `@dataclass(frozen=True)` として定義されている(Explicit in code)。生成後の書き換えを禁止し、パイプラインステージ間で受け渡す際の意図しない変更を防ぐ設計と読み取れる(Strongly implied by code)。
+- `CrawlTarget.lang` の型は `str` ではなく `rag.enums.LanguageCode`(`StrEnum`、値は `"en"`/`"ja"`)。他のDTO(`ChunkDocument.lang` 等)は素の `str` のままであり、DTO間で言語表現の型が統一されていない(Explicit in code)。
+- `TwoStageFetchResult.hits` は `list[Any]` で、インプロセス実行時は `RagHit`、HTTPモード時は `dict` が格納される。呼び出しモードによって要素の実体型が変わることはコード中のコメントに明記されている(Explicit in code、`scripts/rag/models_data.py` の型注釈コメント)。実際の利用箇所は `scripts/rag/pipeline.py`・`scripts/rag/pipeline_service.py`・`scripts/rag/http_augment.py`。
 
 ## Related Documents
 
-- [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md)
+- [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
 
 ## Keywords
 
 dto
 data-model
+frozen-dataclass
+LanguageCode

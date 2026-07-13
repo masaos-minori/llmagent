@@ -119,7 +119,7 @@ source:
 
 ## Guidance for Safe AI Use
 
-1. `load_all()`は`agent.toml`を含む(`_BASE_CONFIG_FILES`先頭、詳細`90_shared_03_01`§2a)。明示ロードが必要なのは`rag_pipeline.toml`のみ。
+1. `load_all()`は`agent.toml`のみを含む(`_BASE_CONFIG_FILES = ("agent.toml",)`、詳細`90_shared_03_01`§2a)。`rag_pipeline.toml`という設定ファイルは存在しない — 各MCPサーバー(rag-pipeline-mcp含む)はプロセス分離方針により自身の`config/<key>_mcp_server.toml`のみを個別にロードし、エージェント側で明示ロードする必要はない(Explicit in code)。
 2. `orjson.dumps()`は`bytes`を返す(要`.decode()`)。
 3. `ArtifactEvent` はデータのみでイベントバスは存在しない。
 4. `LLMMessage` は7フィールド(`importance`/`pinned`含む。旧`90_shared.md`の5ではない)。

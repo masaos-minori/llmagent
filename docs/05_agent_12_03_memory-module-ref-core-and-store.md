@@ -82,7 +82,7 @@ related:
 | Class | Fields | Purpose |
 |---|---|---|
 | `HistoryMessage` | role (str), content (str) | 会話履歴内の単一メッセージ |
-| `JsonlRecord` | 不変の DTO。フィールド: memory_id (str), memory_type (MemoryType), source_type (SourceType), session_id (int \| None, default: None), turn_id (str \| None, default: None), project (str, default: ""), repo (str, default: ""), branch (str, default: ""), content (str), summary (str), tags (list[str], default: []), importance (float, default: 0.5), pinned (bool, default: False), created_at (str, default: ""), updated_at (str, default: "") | JSONL メモリストアからデシリアライズされたレコード |
+| `JsonlRecord` | 不変の DTO。フィールド: memory_id (str), memory_type (str), source_type (str), session_id (int \| None, default: None), turn_id (str \| None, default: None), project (str, default: ""), repo (str, default: ""), branch (str, default: ""), content (str), summary (str), tags (list[str], default: []), importance (float, default: 0.5), pinned (bool, default: False), created_at (str, default: ""), updated_at (str, default: "") | JSONL メモリストアからデシリアライズされたレコード |
 | `MemorySnippet` | text (str), source (str), score (float) | ソースタグと検索スコアを持つ、注入用のコンテキストスニペット |
 | `ConsistencyReport` | memories (int), fts (int), vec (int) | 整合性チェック用の行数比較 |
 
@@ -90,7 +90,7 @@ related:
 
 書き込み操作（`add`、`upsert`、`delete`、`clear_by_session`）は `write_ops.py` にある。
 
-クラス `MemoryStore(embed_dim=None)`: `embed_dim` が None の場合、デフォルトで 384 になる。
+クラス `MemoryStore(embed_dim=None)`。
 
 | Method | Returns | Description |
 |---|---|---|
@@ -103,6 +103,18 @@ related:
 **失敗モード:**
 - `sqlite3.OperationalError` — DB ロック、vec テーブルの欠落など
 - `MemoryConsistencyError` — FTS の件数取得が失敗した場合
+
+**`list_entries` の branch フィルタ挙動 (境界条件):**
+
+`branch` を指定した場合の WHERE 条件は `branch = '' OR branch = ?` であり、branch が空文字列のエントリ（例: リポジトリ非依存の全体ルール）は指定した branch 値に関わらず常にマッチする。branch を絞り込みたい場合でも、branch 未設定のエントリは除外されない（根拠: Explicit in code — `store.py` `list_entries()`）。
+
+**`embed_dim` の実装挙動 (Current behavior):**
+
+`MemoryStore.__init__` は `embed_dim` を `self._embed_dim` にそのまま保持するのみで、`store.py` 内のいずれのメソッドからも参照されない。デフォルト値は `None` であり、コード上「未指定時に 384 になる」処理は `store.py` には存在しない（旧ドキュメントの記述はコードと不一致 — 修正済み）。
+
+実際には `agent/memory/ingestion.py` の `MemoryIngestionService` が `self._store._embed_dim` を読み取り、`write_ops.write_upsert(..., embed_dim=...)` に渡す。そこで `mapper._floats_to_blob(embedding, expected_dim)` が呼ばれ、`expected_dim` が非 None かつ埋め込みベクトルの長さと不一致の場合に `ValueError` を送出する（次元検証用途）。
+
+384 という既定値は `MemoryStore` 自体にはなく、呼び出し元 `agent/factory.py` が `MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)` として渡す `AgentConfig.memory.memory_embed_dim`（`agent/config_dataclasses.py` で既定値 384、`agent/config_builders.py` で `memory_embed_dim` 設定キーから読み込み）に由来する。（根拠: Explicit in code — `store.py`, `ingestion.py`, `write_ops.py`, `mapper.py`, `factory.py`, `config_dataclasses.py`, `config_builders.py` を確認）
 
 ## Related Documents
 

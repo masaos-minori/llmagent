@@ -58,6 +58,8 @@ source:
 
 コンシューマーオフセットは、コンシューマーが `POST /events/{event_id}/ack?consumer_id={consumer_id}` により明示的にイベントをackした場合にのみ進む。ストリーミング中にオフセットが自動的に進むことはない。
 
+`consumer_id` が指定されていても、対象イベントが既にack済みの場合（冪等な二重ack）はオフセットファイルへの書き込みは行われない — オフセット更新は「新規にackされた」場合のみ発生する（根拠分類: Explicit in code — `scripts/eventbus/ack_route.py` の `_do_ack()`）。
+
 **再接続時の再開**
 
 再接続時には、（`since_seq` を指定せずに）`consumer_id` を指定することで、最後にackされたオフセットから再開できる。subscribeハンドラーは接続時に `read_offset(offsets_dir, consumer_id)` を呼び出し、保存されたseqをSQLiteのreplayクエリの `start_seq` として使用する。

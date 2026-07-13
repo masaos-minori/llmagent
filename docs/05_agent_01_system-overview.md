@@ -51,6 +51,11 @@ python -m agent   (scripts/agent/__main__.py)
 - 履歴ファイル: `~/.agent_history`
 - 複数行入力: 末尾の`\`で次の行へ継続、`...`プロンプトを表示
 
+### Current behavior (差異)
+
+- `agent/repl.py`の`AgentREPL._prompt`プロパティは常に`"> "`を返す。`agent>`/`agent[:#N]>`形式のプロンプトはコード上に見当たらない。(Explicit in code)
+- 複数行継続時のプロンプトは`agent/cli_view.py`の`read_multiline()`で`"... "`固定。(Explicit in code)
+
 ---
 
 ## Overall Tool-Calling Model
@@ -65,6 +70,17 @@ python -m agent   (scripts/agent/__main__.py)
 ```
 
 MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
+
+### Current behavior (ワークフローエンジン経由の実行)
+
+`agent/orchestrator.py`の`Orchestrator.handle_turn()`は、起動時に`WorkflowLoader().load()`で
+読み込んだ`WorkflowDef`(`config/workflows/default.json`相当)を用い、各ユーザーターンを
+`WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`の3ステージ(plan/execute/verify)として
+実行する。上記の`[1]-[6]`のシンプルな模式図は`execute_fn`内で行われるLLMターン処理(メモリ注入 →
+ユーザーメッセージ追加 → 履歴圧縮 → LLMターン)に相当する。ワークフロー定義のロードに失敗した場合、
+`Orchestrator.__init__()`は`RuntimeError`を送出し起動が止まる。承認待ち(`ctx.workflow.approval_pending`)
+中は新規ターンを受け付けず、`/approve`または`/reject`を促すエラーを返す。(Explicit in code)
+詳細は`05_agent_03`系(turn processing flow)を参照。(Strongly implied by code — 本ドキュメントの管轄外のため詳細記述は行わない)
 
 ---
 
@@ -116,7 +132,18 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | デバッグ/監査 | `/debug`, `/audit` |
 | RAG/エクスポート | `/rag search`, `/export`, `/compact` |
 | メモリ | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
+| プラグイン | `/plugin status` |
+| MDQ | `/mdq status\|index\|refresh\|search\|outline\|get\|grep` |
+| スキル | `/skill [name] [args]` |
 | その他 | `/help` |
+
+### Current behavior (コマンド一覧の相違)
+
+`scripts/agent/commands/command_defs_list.py`の`_COMMANDS`(単一の正本)には上記に加え、
+`_PluginsMixin`(`/plugin`)、`_MdqMixin`(`/mdq`)、`_SkillMixin`(`/skill`)が存在する。
+一方`agent/repl.py`の`AgentREPL.SLASH_COMMANDS`(readlineタブ補完用リスト)には
+`/plugin`、`/mdq`、`/skill`、`/rag`、`/memory`が含まれていない。タブ補完対象外という
+挙動であり、コマンドとして無効という意味ではない。(Explicit in code)
 
 ---
 
@@ -129,6 +156,13 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | HTTPタイムアウト | `http_timeout` (default 30.0 sec) |
 | LLMリトライ上限 | `llm_max_retries` (default 3) |
 | ツール結果キャッシュのTTL | `tool_cache_ttl` (default 300 sec) |
+
+### Current behavior (MCP watchdog)
+
+`ctx.cfg.mcp.mcp_watchdog_interval`が0より大きい場合、`AgentREPL`はバックグラウンドで
+watchdogタスク(`agent/repl_health.py`の`watchdog_loop`)を起動する。0の場合はwatchdog無効。
+本表には未記載の起動時パラメータであり、`mcp_watchdog_max_restarts`と併用される。
+(Explicit in code — 挙動の詳細はrepl_health.pyの管轄)
 
 ---
 

@@ -53,10 +53,12 @@ Source: `config/agent.toml`
 
 | Field | Default | Description |
 |---|---|---|
-| `top_k_search` | `10` | ベクトル/FTS検索結果数 |
+| `top_k_search` | `20` | ベクトル/FTS検索結果数 |
 | `top_k_rerank` | `15` | クロスエンコーダの候補数 |
 | `max_chunks_per_doc` | `2` | 結果内の文書ごとの最大チャンク数 |
-| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIエンドポイント |
+| `web_search_url` | `""` | Web検索APIエンドポイント |
+| `web_search_max_results` | `5` | Web検索結果の最大件数 |
+| `embed_url` | `""` | 埋め込みAPIエンドポイント |
 | `use_semantic_cache` | `False` | RAG結果に対するセマンティックキャッシュを有効化 |
 | `semantic_cache_threshold` | `0.92` | キャッシュヒットのコサイン類似度閾値 |
 | `semantic_cache_max_size` | `100` | 最大キャッシュエントリ数 (FIFO退避; 最も古いものから削除) |
@@ -64,6 +66,14 @@ Source: `config/agent.toml`
 | `refiner_max_tokens` | `512` | Refiner LLMの最大トークン数 |
 | `refiner_timeout` | `30.0` | Refiner LLMのタイムアウト (秒) |
 | `refiner_max_chars_per_chunk` | `300` | Refinerに渡すチャンクごとの最大文字数 |
+| `rrf_k` | `60` | RAGパイプラインのRRF (Reciprocal Rank Fusion) 融合定数 |
+
+> **矛盾の記録:** 旧版では`top_k_search`のデフォルトを`10`、`embed_url`のデフォルトを
+> `http://127.0.0.1:8003/embedding`としていたが、`agent/config_dataclasses.py::RAGConfig`の
+> 現在の実装ではそれぞれ`20`と`""` (空文字) である。`embed_url`が空の場合、
+> `use_semantic_cache=True`や`memory.memory_embed_enabled=True`との組み合わせは
+> `AgentConfig`のフィールド間検証で`ValueError`となる (Part 2参照)。
+> 根拠: Explicit in code。
 
 ---
 

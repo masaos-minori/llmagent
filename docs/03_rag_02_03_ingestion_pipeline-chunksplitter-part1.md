@@ -49,6 +49,8 @@ source:
 | `ChunkOutputPayload` | チャンク出力JSONファイル用の型付きdict（schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, contentは必須；normalized_contentはNotRequiredで任意） |
 | `ChunkMetadata` | 出力ペイロードに ** で展開するための任意メタデータdict（total=False）。url、title、lang、etag、last_modified、source_file、chunking_strategyを含む全フィールドが任意 |
 
+> 根拠: Explicit in code — `CrawlFilePayload` と `ChunkOutputPayload` は `chunk_splitter.py` 内で型として宣言されているが、同ファイル内の実処理では型注釈として参照されていない（実際の入出力は `ChunkJsonRaw`（`pipeline_utils.py`）や `dict[str, object]` 経由で扱われる）。ドキュメント目的の宣言と考えられる。
+
 **継承**
 
 `ChunkSplitter` は多重継承により `ChunkEnglishMixin` と `ChunkJapaneseMixin` の両方を継承する。
@@ -76,8 +78,10 @@ source:
 | `min_chunk` | 40 | チャンクの最小文字数。これ未満のチャンクはノイズとして破棄される |
 | `max_chunk` | 500 | チャンクの最大文字数。これを超えるテキストは分割される |
 | `chunk_overlap` | 50 | スライディングウィンドウのチャンク重複（文字数）。直前のチャンク末尾からこの文字数を先頭に付加する；0は無効化を意味する |
-| `en_stopwords` | — | チャンク化から除外する英語のストップワード（config/rag_pipeline.tomlを参照） |
-| `ja_stop_pos` | — | 日本語でストップワードとして扱うSudachiの品詞カテゴリ（config/rag_pipeline.tomlを参照） |
+| `en_stopwords` | — | チャンク化から除外する英語のストップワード（`config/chunk_splitter.toml`で定義。旧docs記載の`rag_pipeline.toml`は存在しないため訂正） |
+| `ja_stop_pos` | — | 日本語でストップワードとして扱うSudachiの品詞カテゴリ。デフォルト値: `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]`（`config/chunk_splitter.toml`で定義） |
+
+> 根拠: Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` は `ConfigLoader().load("chunk_splitter.toml")` を使用し、`config/chunk_splitter.toml` に `en_stopwords`/`ja_stop_pos` が定義されている。`config/rag_pipeline.toml` というファイルは本リポジトリに存在しない。
 
 ## Related Documents
 

@@ -35,7 +35,7 @@ curl -s http://127.0.0.1:8003/health   # embed-llmが稼働していることを
 ### ステップ1: クロール
 
 ```bash
-# config/rag_pipeline.tomlのtarget_urlsすべてを対象
+# crawler.tomlのtarget_urlsすべてを対象
 nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
 tail -f logs/crawl.log
 
@@ -63,7 +63,7 @@ target_urls = [
 ]
 ```
 
-**注記:** すべてのファイルパス（`rag_src_dir`）は `config/rag_pipeline.toml` から解決される。本番環境のデフォルトは `/opt/llm/rag-src/`。
+**注記:** すべてのファイルパス（`rag_src_dir`）は各プロセス自身の設定ファイル(`crawler.toml`/`chunk_splitter.toml`/`ingester.toml`)から個別に解決される。共通設定ファイルは存在しない(プロセスごとの設定分離方針、詳細: 90_shared_03 §2a)。本番環境のデフォルトは `/opt/llm/rag-src/`。
 
 ### ステップ2: チャンク分割
 
@@ -117,7 +117,6 @@ uv run python scripts/rag/ingestion/ingester.py --force
 - `03_rag_02_04_ingestion_pipeline-ingester-part1.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`
 - `03_rag_02_08_ingestion_pipeline-shared.md`
-- `03_rag_02_ingestion_pipeline-ft5.md`
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_05_1-configuration-reference.md`
 

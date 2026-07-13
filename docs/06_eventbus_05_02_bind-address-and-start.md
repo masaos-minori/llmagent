@@ -65,7 +65,7 @@ EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 ### TOML の例
 
 ```toml
-port = 8010
+port = 8015
 db_path = "/opt/llm/data/eventbus.sqlite"
 storage_dir = "/opt/llm/data/eventbus-storage"
 offsets_dir = "/opt/llm/data/eventbus-offsets"
@@ -74,6 +74,8 @@ max_retry = 3
 host = "127.0.0.1"
 allow_public_bind = false
 ```
+
+**実装上の補足:** 実際の `config/eventbus.toml` は `host`/`allow_public_bind` を省略しており(デフォルトの`127.0.0.1`/`false`が適用される)、パスも `/opt/llm/db/eventbus.sqlite`・`/opt/llm/storage`・`/opt/llm/offsets`・`/opt/llm/deadletter` を使用している。上記は設定可能なキーを網羅するための例示であり、実配置とは異なる(Explicit in code)。
 
 ## Related Documents
 

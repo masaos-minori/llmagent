@@ -30,8 +30,23 @@ create_schema()
 ```
 
 - すべてのDDLは`IF NOT EXISTS`を使用する — べき等であり、何度実行しても安全
-- **互換マイグレーションは非対応。** スキーマ変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。
+- **互換マイグレーションは非対応。** rag/session/eventbusスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。
 - `embedding_dims`は実行時にconfigから動的に置換される（デフォルト384）
+
+### 8a. workflow.sqlite限定の増分マイグレーション (Explicit in code)
+
+**矛盾（要修正）:** 上記「互換マイグレーションは非対応」の原則には例外がある。`db/schema_sql.py`は`workflow.sqlite`専用の増分マイグレーション機構を実装している。
+
+- `_WORKFLOW_MIGRATIONS: list[tuple[str, str]]` — マイグレーションID文字列と`ALTER TABLE ... ADD COLUMN`のSQL文のペアのリスト（例: `error_kind`/`error_detail`列を`attempts`に追加、`workflow_id`/`attempt_number`列を`artifacts`に追加等）
+- `apply_workflow_migrations(conn)` — リストを順に適用する。`sqlite3.OperationalError`のうち文字列に`"duplicate column name"`を含むものだけ握りつぶし（既に適用済みとみなしてログに記録）、それ以外のエラーは再送出する
+- `create_workflow_schema()`（`db/create_schema.py`）は`build_workflow_schema_sql()`によるベーステーブル作成の直後に`apply_workflow_migrations()`を呼び出し、続けて`WORKFLOW_SCHEMA_VERSION`（現在`"1.0.0"`）を`workflow_schema_version`テーブルに記録する
+- 新規作成されたDBでは、ベーススキーマ（`_WORKFLOW_SCHEMA`）に該当カラムが既に含まれているため、これらのマイグレーションは実質的にno-op（`duplicate column name`で握りつぶされる）となる。既存の旧DBに対して増分カラムを追加する用途で機能する
+
+rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレーション機構は存在しない。
+
+### 8b. RAG整合性検証 (Explicit in code)
+
+`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`（正確には`chunks_fts_docsize`カウント用の内部テーブル経由）/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用の検証関数である。`is_consistent()`は`fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`を満たす場合に整合とみなす。`summarize_issues()`は検出した不整合ごとに`[WARNING]`/`[CRITICAL]`のプレフィックス付きメッセージと復旧コマンド（`/db rag rebuild-fts`、`ingester.py --force`）を生成する。
 
 ---
 

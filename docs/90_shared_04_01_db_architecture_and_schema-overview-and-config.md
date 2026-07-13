@@ -93,6 +93,8 @@ SQLiteHelper(target: DbTarget | str = "rag")
 # "eventbus" → eventbus.sqlite (Event Bus DDL only; no runtime integration yet)
 ```
 
+`DbTarget` は `db/helper.py` に定義された `StrEnum`（`RAG`/`SESSION`/`WORKFLOW`/`EVENTBUS`）であり、`target` 引数には enum メンバーまたは同名の文字列リテラルのいずれかを渡せる。
+
 **注記:** Event Bus のランタイム（publisher/subscriber/dispatcher/DLQ worker）は本クリーンアップの対象範囲外である。今後 Event Bus の書き込み側を実装する際は、ISO-8601 UTC の Z サフィックス付きタイムスタンプを使用しなければならない。
 
 **接続セットアップ（`open()` 呼び出しごと）:**
@@ -103,6 +105,21 @@ SQLiteHelper(target: DbTarget | str = "rag")
 5. `PRAGMA foreign_keys=ON`（`write_mode=True` の場合）
 
 sqlite-vec は `target="rag"` の場合のみロードされる。session および workflow ターゲットでは vec はロードされない。
+
+### 4a. `SQLiteHelper` コンストラクタの `db_path` オーバーライド (Explicit in code)
+
+`SQLiteHelper.__init__()` は `db_path` キーワード引数を受け取ることができる。指定された場合、`build_db_config()`（＝`agent.toml` 読み込み）を完全にバイパスし、渡された `db_path` / `sqlite_vec_so` / `sqlite_timeout` / `sqlite_busy_timeout_ms` をそのまま使用する（`db/helper.py` `SQLiteHelper.__init__`）。これは MCP サーバーなど、`agent.toml` に依存せず自己完結的に DB パスを指定したい呼び出し元向けの経路である。`db_path` を指定しない場合は従来どおり `target` に応じて `build_db_config()` の結果からパスを解決する。
+
+### 4b. `open()` の追加オプション (Explicit in code)
+
+`open()` は本文記載の `write_mode` / `row_factory` に加えて以下を受け取る。
+
+- `load_vec: bool | None = None` — `None` の場合はターゲットごとのデフォルト（rag のみ True）に従う。明示的に `True`/`False` を渡すとデフォルトを上書きできる。
+- `reuse_connection: bool = False` — `True` かつ既存の `self.conn` がある場合は再接続をスキップする。この場合 `__exit__` でも `close()` を呼ばない（コネクションの使い回しを許可する）。
+
+### 4c. トランザクションヘルパー (Explicit in code)
+
+`SQLiteHelper` は `BEGIN IMMEDIATE` / `BEGIN EXCLUSIVE` をラップするコンテキストマネージャ `begin_immediate()` / `begin_exclusive()` を提供する。いずれも通常の例外発生時は `ROLLBACK` を試み（`sqlite3.OperationalError` は握りつぶす）、元の例外を再送出する。`BaseException`（`KeyboardInterrupt`/`SystemExit`）は捕捉しない。`begin_exclusive()` は VACUUM やスキーマ変更など、排他ロックが必要な操作専用（`db/helper.py` docstring より）。
 
 ---
 

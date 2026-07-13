@@ -31,6 +31,13 @@ source:
 
 正式な部分完了モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)。
 
+> **実装との差異(要修正の可能性):**
+> - `/stats` の実際の表示ラベルは `Partial compl : N`(0件時は `Partial compl : 0`)であり、本表の `partials > 0` は正確な画面文字列ではなく意味的な要約表現である。1件以上のとき `(stored in session_diagnostics)` という補足が付く(`scripts/agent/commands/cmd_config_stats.py`)(根拠: Explicit in code)。
+> - 圧縮を発生させるログ文言は実際には `"History compressed: %s messages summarized"`(`scripts/agent/history.py`)であり、本表の `Compressed history` と文字列が一致しない(根拠: Explicit in code)。
+> - `compression_char_threshold` という設定キーは実装に存在しない。圧縮閾値の実際の設定キーは `context_char_limit`(既定値 8000、`config/agent.toml` および `scripts/agent/config_dataclasses.py`)であり、履歴の合計文字数がこの値を超えると圧縮がトリガーされる。圧縮しきい値を調整する場合は `context_char_limit` を使用する(根拠: Explicit in code)。
+> - `max_tool_turns` 到達時の実際のログ文言は `"Reached max_tool_turns=%s"`(`scripts/agent/llm_turn_runner.py`)であり、本表の `max_tool_turns=N reached` と語順が異なる(意味は同じ)(根拠: Explicit in code)。
+> - 圧縮が発生せず文字数上限を超えたままの場合、`HistoryManager` はフォールバック切り捨て(重要度の低いメッセージから削除)を行い `stat_fallback_truncate_count` をインクリメントする。`/stats` では `Fallback trunc: N` として表示される。これは本表に記載がない挙動であり、圧縮に失敗した場合のフェイルセーフとして実装されている(根拠: Explicit in code)。
+
 ---
 
 ## Troubleshooting(トラブルシューティング)
@@ -71,6 +78,20 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE kind = 'mid_turn_error' ORDER BY created_at DESC;" | jq -r '.content'
 ```
 
+> **kind種別の網羅性(加筆):** `session_summary` / `mid_turn_error` 以外にも `DiagnosticStore` を経由して以下の`kind`が実際に保存される(`scripts/agent/diagnostic_store.py` および各呼び出し元)(根拠: Explicit in code)。
+>
+> | kind | 発生元 | 内容 |
+> |---|---|---|
+> | `partial_completion` | `scripts/agent/llm_transport_errors.py` `handle_partial_completion` | LLMストリームが部分完了で終わったターン番号・理由・部分テキスト長 |
+> | `llm_transport_error` | `scripts/agent/llm_transport_errors.py`、`scripts/agent/session.py` `save_diagnostic` | 部分完了テキストそのもの、または任意の転送エラー詳細 |
+> | `guard_hint` | `scripts/agent/tool_loop_guard.py` `_save_guard_hint` | ツールループガード(サイクル検出・重複しきい値超過)発火時のヒント |
+> | `transport_failure` | `scripts/agent/tool_runner.py`(`DiagnosticStore.save_transport_failure`) | ツール実行時のトランスポート層失敗(ツール名・server_key・エラー内容) |
+> | `serialization_event` | `scripts/agent/tool_runner.py`(`DiagnosticStore.save_serialization_event`) | ラウンド単位の直列化実行イベント |
+> | `rag_query` | `scripts/agent/commands/cmd_rag_export.py` | RAGクエリのパイプライン診断(`stage_results`等)。`session_summary` の `rag_query_count`/`rag_stage_outcomes` の集計元 |
+>
+> `DiagnosticStore` には `save_loop_guard_hint`(kind=`loop_guard_hint`)というメソッドも定義されているが、現行コードからの呼び出し箇所は見当たらない。実際にツールループガードが保存する`kind`は `guard_hint`(`tool_loop_guard.py` `_save_guard_hint` による直接の`save()`呼び出し)である。`loop_guard_hint`というkind名は現状生成されない可能性がある(根拠: Needs confirmation)。
+> 同様に `fetch_by_kind` / `fetch_all` という参照系メソッドも `DiagnosticStore` に定義されているが、`scripts/agent/` 配下から実際に呼び出している箇所は確認できなかった(将来のCLI/API用途と推測されるが未確認)(根拠: Needs confirmation)。
+
 **各レコードのフィールド:**
 
 | Field | Description |
@@ -89,6 +110,21 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 | `output_tokens` | 出力トークンの総数(取得可能な場合) |
 | `compress_count` | 履歴圧縮の実行回数 |
 | `latency_summary` | ステップごとの平均/最大レイテンシ(ms) |
+
+> **実装との差異(表の追記漏れ):** `scripts/agent/repl.py` の `summary` 辞書には上表に記載のないフィールドが以下のとおり含まれる(根拠: Explicit in code)。
+>
+> | Field | Description |
+> |---|---|
+> | `fallback_truncate_count` | フォールバック切り捨て(重要度の低いメッセージ削除)の実行回数 |
+> | `workflow_count` | セッション中に開始されたワークフロー数 |
+> | `task_count` | セッション中に生成されたタスク数 |
+> | `approval_events` | 承認関連イベントの件数 |
+> | `retry_count` | タスク実行(`execute`ステージ)のリトライ回数 |
+> | `artifacts` | セッション中に生成されたアーティファクトのURI一覧 |
+> | `rag_query_count` | セッション中の`kind=rag_query`診断エントリ件数 |
+> | `rag_stage_outcomes` | RAGクエリ診断から集約したステージ別結果(`stage_results`)一覧 |
+>
+> `workflow_count` / `task_count` / `approval_events` / `retry_count` / `artifacts` はワークフロー用DB(`workflow` DB)への問い合わせに失敗した場合、静かに既定値(0または空リスト)にフォールバックする(`try`/`except (RuntimeError, sqlite3.Error)`)(根拠: Explicit in code)。
 
 **診断情報の読み方:**
 
@@ -112,7 +148,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
 ```
 
-診断情報の永続化に失敗した場合はDEBUGレベルでログに記録され、REPLの終了処理には影響しない。
+診断情報の永続化に失敗した場合はDEBUGレベルでログに記録され、REPLの終了処理には影響しない(`scripts/agent/repl.py`: `session_summary` 保存を `try`/`except (RuntimeError, sqlite3.Error)` で包み、さらに外側を `except (OSError, sqlite3.Error)` で包む二重防御構成)(根拠: Explicit in code)。`DiagnosticStore.save()` 自体は例外を握りつぶさない実装であり、呼び出し側(`repl.py`、`llm_transport_errors.py`、`tool_loop_guard.py`、`tool_runner.py` 等)がそれぞれ診断保存を失敗させても本処理を止めないよう責任を持って囲んでいる。これは「診断保存の失敗が本来の処理(会話継続やセッション終了)を妨げてはならない」という設計意図を示す(根拠: Strongly implied by code)。
 
 ---
 

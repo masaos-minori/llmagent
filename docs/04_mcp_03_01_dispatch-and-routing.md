@@ -35,14 +35,24 @@ LLM returns tool_call
    → ToolExecutor.execute(tool_name, args)
         1. Plugin tool check (@register_tool)   — bypasses cache and MCP
         2. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
-        3. MCP server dispatch via internal method
+           (cache miss: inflight future で同一キーの同時実行を1回に集約 — stampede protection)
+        3. MCP server dispatch (ToolExecutor._raw_execute)
+             → startup_mode==none ゲート → 即時エラー ("disabled (startup_mode=none)")
              → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
+               (HALF_OPEN の場合はトライアルディスパッチとして通過させる)
              → LifecycleProtocol.ensure_ready(server_key)
              → concurrency semaphore acquire (if configured)
              → HttpTransport.call()
              → HealthRegistry.record_success() on success / record_failure() on transport error
              → return ToolCallResult(output, is_error, request_id, server_key)
 ```
+
+### 実装上の補足 (Current behavior)
+
+- キャッシュミス時、同一 `cache_key`（`tool_name:json(args)`）への同時呼び出しは `asyncio.Future` を共有し、実処理は1回のみ実行される（stampede protection）。実行元が例外を送出した場合、待機中の全呼び出しに同じ例外が伝播する。（Explicit in code: `shared/tool_executor.py::_execute_with_stampede_protection`）
+- `startup_mode=none` のサーバー宛てのツール呼び出しは、ヘルスチェックやライフサイクル起動を試みる前に即座にエラーを返す。（Explicit in code: `shared/tool_executor.py::_check_startup_mode`）
+- ヘルスレジストリが `HALF_OPEN` 状態を返す場合、`is_unavailable` によるブロックをスキップして1回のトライアルディスパッチを許可する（サーキットブレーカーの半開試行）。（Explicit in code: `shared/tool_transport_invoker.py::_check_health`）
+- `ToolTransportInvoker.invoke()` は `ToolExecutor._raw_execute()` とほぼ同等の健全性チェック・ライフサイクル起動・セマフォ制御を提供する汎用メソッドとして別途存在するが、`startup_mode` ゲートは含まない。（Explicit in code）
 
 ---
 
@@ -133,3 +143,6 @@ ToolRouteResolver
 ToolRegistry
 tool dispatch
 routing drift
+stampede protection
+startup_mode gate
+HALF_OPEN trial dispatch

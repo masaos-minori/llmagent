@@ -38,6 +38,7 @@ source:
   - `AugmentStage`は常に`content`を出力し、`normalized_content`を出力してはならない。
 - **Description:** 日本語チャンクは2種類のテキスト表現を保持する。`chunks.content` (元のテキスト) は`AugmentStage`によってLLMコンテキストに注入される。`chunks.normalized_content` (Sudachi正規化済み) は`chunks_ai`トリガーによって`chunks_fts`にインデックス化される。FTS5のクエリ側でも、Sudachiの品詞フィルタリングを用いて日本語の語を正規化する。この分離により、LLMは読みやすい元のテキストを受け取りつつ、BM25検索では形態素的に正規化された形式が使用される。
 - **Notes for AI reference:** Augmentステージの出力において、`content`を`normalized_content`に置き換えてはならない。この分離は意図的なものであり、確定済みである。Source: `03_rag_02_01_ingestion_pipeline-overview.md §FTS5/LLM content separation`、`03_rag_03_01_query_pipeline-overview.md §5.5 AugmentStage`。
+- **2026-07-12実装確認:** `scripts/db/schema_sql.py`の`chunks_ai`/`chunks_au`/`chunks_ad`トリガー定義は現在も`COALESCE(new.normalized_content, new.content)`(または`old.`)を使用しており、記載どおり。`scripts/rag/stages/augment.py`はチャンクの`content`フィールドのみをLLMコンテキストブロックに整形しており、`normalized_content`を出力する経路は確認できなかった。本項目に変更なし。根拠分類: Explicit in code。
 
 ---
 
@@ -62,6 +63,7 @@ source:
   - `fts_orphan_count`: 対応するチャンクを持たないFTSエントリ (データ損失のリスク; 修復: `/db rag rebuild-fts`)
   - `orphan_vec_count`: 対応するチャンクを持たないベクトル行 (修復: `ingester.py --force`)
 - **Notes for AI reference:** sqlite-vecの仮想テーブルは標準的な外部キー制約をサポートしない。RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。Source: `03_rag_04_05_dto-types.md §DB Schema`、`03_rag_05_1-configuration-reference.md §RAG index consistency checks`。
+- **2026-07-12実装確認:** `scripts/db/rag_consistency.py`の`check_rag_consistency()`は`chunks_fts_docsize`および`chunks_vec`をクエリして`fts_gap`/`fts_orphan_count`/`orphan_vec_count`相当の値を算出しており、記載の整合性チェック項目は現行コードでも維持されている。本項目に変更なし。根拠分類: Explicit in code。
 
 ---
 

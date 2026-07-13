@@ -120,7 +120,14 @@ def test_consistency_checks_detect_fts_gap(db):
     """check_rag_consistency() must detect FTS index desync."""
     # Insert chunk without triggering FTS (simulate trigger failure)
     insert_chunk(doc_id=1, content="test", normalized_content=None, chunk_index=0)
+    # Manually remove the FTS-synced row to simulate desync
+    db.execute("DELETE FROM chunks_fts WHERE rowid = 1")
+    # Verify: check_rag_consistency() reports the gap
+    result = check_rag_consistency(db)
+    assert result.fts_gap > 0
+```
 
+対応する実装(`test_consistency_check_detects_fts_gap`)は `tests/test_rag_index_integrity.py:298` に実在する。(Explicit in code)
 
 ## Related Documents
 

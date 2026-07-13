@@ -21,9 +21,11 @@ source:
 ## `@register_tool`
 
 ```python
-@register_tool(name: str, *, known_tools: frozenset[str] = frozenset(), override_policy: str = "reject")
+@register_tool(name: str)
 async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 ```
+
+`known_tools` と `override_policy` は `@register_tool` 自体の引数ではなく、起動時に呼ばれる `plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy=..., strict_mode=...)` の引数である（Explicit in code: `shared/plugin_registry.py`, `shared/plugin_auto_discover.py`）。競合判定はロード完了後に一括で行われる。
 
 - ローカルの Python 関数をツールハンドラとして登録する
 - MCP ルーティングを完全にバイパスする
@@ -45,7 +47,7 @@ async def tool_echo(args: dict) -> tuple[str, bool]:   # required
 **なぜ警告ではなく fail-fast にするのか。** 静かな警告は本番環境で見逃され、
 呼び出し時に予期しない動作を引き起こしていた。登録時に失敗させることで、エラーを見逃せなくする。
 
-**実行時の戻り値検証:** `ToolExecutor.execute()` は呼び出し時に実際の戻り値を検証する。戻り値が**ちょうど2要素**の `tuple` であること（`len == 2`）、`result[0]` が `str` であること、`result[1]` が `bool` であることを確認する。要素数が2以外の tuple は `ValueError` を発生させる。最初の要素が `str` でない場合は `TypeError` を発生させる。2番目の要素が `bool` でない場合は `TypeError` を発生させる。
+**実行時の戻り値検証:** 実体は `shared/plugin_tool_invoker.py` の `PluginToolInvoker.try_execute()`（`ToolExecutor.execute()` が最初に呼び出す）。戻り値が**ちょうど2要素**の `tuple` であること（`len == 2`）、`result[0]` が `str` であること、`result[1]` が `bool` であることを確認する。要素数が2以外の tuple は内部で `ValueError` を、型不一致は `TypeError` を発生させるが、**いずれも呼び出し元には伝播しない**——`try_execute()` 内で捕捉され、`ToolCallResult(is_error=True, error_type="plugin_contract", ...)` として返される（Explicit in code）。同様に、プラグイン関数自体が送出した例外も `try_execute()` 内で捕捉され、`error_type="tool"` の `ToolCallResult(is_error=True)` に変換される。プラグイン起因のエラーはツール実行の1件のみを失敗させ、REPL やエージェント全体を止めない。
 
 - アクセス: `plugin_registry.get_tool(name)` → `Callable | None`
 
@@ -85,7 +87,9 @@ plugin_strict = false         # or true to fail startup on first plugin import e
 
 #### 厳格プラグインロードモード
 
-`plugin_strict = true` の場合、まずすべてのプラグインファイルが試行される。ロードループ全体の完了後、失敗が発生していれば、失敗の詳細をすべて集約したメッセージを持つ単一の `PluginLoadError`（`RuntimeError` のサブクラス）が発生する。
+`plugin_strict = true` の場合、まずすべてのプラグインファイルが試行される。ロードループ全体の完了後、失敗が発生していれば、失敗の詳細をすべて集約したメッセージを持つ単一の `PluginLoadError`（`RuntimeError` のサブクラス）が発生する。集約対象はプラグイン読み込み失敗だけでなく、ツールの MCP 名衝突（`override_policy="reject"` 時）およびコマンドの組み込み名衝突も含まれる（`shared/plugin_auto_discover.py` の `load_plugins()`）。
+
+**実装上の補足:** `plugin_strict` のデフォルトは `False` だが、`agent/config_builders.py` で `cfg.get("plugin_strict", os.getenv("CI") is not None)` として構築されるため、`config/agent.toml` に明示指定がなければ CI 環境（環境変数 `CI` が設定されている）では自動的に `True` になる（Explicit in code）。
 
 ## Related Documents
 

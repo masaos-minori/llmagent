@@ -53,13 +53,17 @@ External Libraries
 | `protocols/shell.py` | `ShellPolicy` データクラス — シェル実行ポリシー |
 | `tool_constants.py` | frozensetの分類テーブル: `READ_TOOLS`、`WRITE_TOOLS` 等（レジストリのシードのみで、ルーティング入力ではない） |
 | `route_resolver.py` | `ToolRouteResolver` — ツール名 → サーバキー |
-| `mcp_config.py` | `McpServerConfig`、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
+| `mcp_config.py` | `McpServerConfig`、`TransportType`/`StartupMode`/`HealthcheckMode`/`SecurityProfile` enum、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
 | `mcp_health.py` | `McpServerHealthState` enum（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）、`McpServerHealthRegistry` — ディスパッチ判定用のヘルス追跡 |
 | `tool_executor.py` | `ToolExecutor`、`HttpTransport` |
 | `http_transport.py` | `TransportError`、`HttpTransport` — HTTPトランスポート層（/v1/call_toolを呼ぶ） |
+| `llm_client.py` | `LLMClient` — HTTPリトライ、ペイロード構築、再接続対応SSEストリーミングを束ねるLLM通信層。`build_llm_url()`/`build_embed_url()` ヘルパー |
 | `plugin_registry.py` | 動的プラグイン読込とツール/コマンド登録 |
+| `plugin_registries.py` | プラグインのコマンド/ツール/パイプラインフックの内部レジストリ（`_commands`/`_tools`/`_pipeline_post`）。`plugin_registry.py`・`plugin_conflicts.py` から共有される状態 |
+| `plugin_conflicts.py` | `validate_tool_conflicts()`、`validate_command_conflicts()` — プラグインのツール/コマンド名がMCPツールまたは組み込みコマンドと衝突する場合の検証・排除 |
 | `plugin_auto_discover.py` | `load_plugins()` — plugin_dir配下の全*.pyを競合検証しつつインポート |
 | `plugin_result.py` | `PluginFailure`、`PluginLoadResult` データクラス、`PluginLoadError` 例外 |
+| `production_config_validator.py` | `ProductionConfigValidator`、`ConfigValidationResult` — 本番セキュリティプロファイルでの strict キー未設定・`tool_safety_tiers` の過不足・`allowed_tools=[]` を検証 |
 | `otel_tracer.py` | OpenTelemetry用のプライベートTracerProvider |
 | `otel_noop.py` | トレーシング無効時のNoOpTracer/NoOpSpanスタブ |
 | `token_counter.py` | `/tokenize` エンドポイント経由、またはchars//4フォールバックによるトークン数カウント |
@@ -84,6 +88,7 @@ External Libraries
 | `tool_spec.py` | `ToolSpec` データクラス — 単一ツール呼び出しの実行メタデータ（resource_scope、requires_serial、is_write） |
 | `tool_cache.py` | `CacheEntry` データクラス、`ToolResultCache` — TTL付きLRUキャッシュ(ツール呼び出し結果用) |
 | `plugin_tool_invoker.py` | `PluginToolInvoker` — プラグインツール実行層 |
+| `db_maintenance.py` | `count_table()` — テーブル行数を取得する薄いヘルパー（`db/maintenance.py` とは別モジュール。テーブル名は必ずハードコードされた識別子であることが前提） |
 
 ---
 

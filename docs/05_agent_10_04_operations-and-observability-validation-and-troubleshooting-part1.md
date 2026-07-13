@@ -44,6 +44,21 @@ source:
 明確なエラーメッセージを生成する。`Orchestrator.__init__()` 自体も、プリフライトチェックを
 通過した後に `WorkflowLoader().load()` が何らかの理由で失敗した場合、無条件に `RuntimeError` を発生させる。
 
+**補足(起動シーケンス):** `StartupOrchestrator._initialize()` の実際の呼び出し順は
+`_init_command_registry()` → `_check_workflow_definition()` → `_check_workflow_schema()` →
+`_init_orchestrator()` である。つまりワークフロー定義ファイルの存在検証
+(`check_workflow_definition()`)の直後に、`workflow.sqlite` の必須テーブル・必須カラム・
+`workflow_schema_version` の一致を検証する `check_workflow_schema()`(`agent/repl_health.py`)が
+同じ `_initialize()` 内で連続実行され、いずれも `Orchestrator.__init__()` より前に完了する。
+どちらも失敗時は `RuntimeError` を送出し、`StartupOrchestrator.run()` 側で捕捉されずに
+起動そのものを中断させる(根拠: Explicit in code)。
+
+**補足(`Orchestrator.__init__()` のエラーメッセージ):** `WorkflowLoader().load()` が
+`WorkflowLoadError` または任意の例外を送出した場合、`Orchestrator.__init__()` は
+`f"[workflow] WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."`
+という書式で `RuntimeError` を再送出する。期待パスは常にメッセージに含まれる
+(根拠: Explicit in code)。
+
 For the exact validation rules applied, see
 [05_agent_03_03 §ワークフローローダーの検証ルール](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md).
 
@@ -103,6 +118,12 @@ PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/def
 
 **Recovery:** Correct the named `retry_policy` field per the message, then re-validate.
 
+> **矛盾(要修正):** 上記の `retry_policy.backoff must be one of: exponential, fixed` というメッセージ例は現在の実装と一致しない。
+> `scripts/agent/workflow/workflow_loader.py` の `_SUPPORTED_BACKOFF` は `{"fixed"}` のみを定義しており、
+> `"exponential"` は現時点でサポート対象に含まれない。実際に発生するメッセージは
+> `retry_policy.backoff must be one of: fixed` である。`backoff` に `"exponential"` を指定した場合も
+> この同じメッセージで拒否される(根拠: Explicit in code)。
+
 ### Missing or incomplete `workflow.sqlite`
 
 **Symptom:** `init_db.sh` or `setup_services.sh` prints `[FATAL] Workflow database schema is missing or incomplete.` naming one or more missing tables.
@@ -149,3 +170,6 @@ MCP server reload
 /stats
 partial completion
 troubleshooting
+retry_policy.backoff
+workflow_schema_version
+check_workflow_schema

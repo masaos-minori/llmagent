@@ -34,12 +34,20 @@ source:
 | `reason` | `str` | 判定の理由 |
 | `risk_level` | `str` | リスクレベルの分類 |
 
+### 実装意図 (Implementation note) / 矛盾点
+
+- `AuditLogRecord` / `ApprovalDecision` はいずれも `scripts/` 配下のどこからも import されていない(`grep -rn "from rag.models_audit\|rag.models_audit\." scripts/` で該当なし。Explicit in code、否定的事実)。
+- 類似名の `ApprovalDecisionEvent`(`scripts/agent/shared/models.py`)や、ツール承認の実処理(`scripts/agent/tool_approval.py`、`scripts/agent/tool_audit.py`)は agent 層に別途独自実装されており、本ファイルの2クラスとは無関係(Explicit in code)。
+- git履歴上は `f6a3d2db`(旧 `rag/models.py` 分割時)で現在の形になって以降、参照追加は行われていない(Explicit in code、`git log --oneline -- scripts/rag/models_audit.py`)。
+- 以上より、本モジュールの2クラスは「RAGパイプラインのツール実行監査/承認ワークフロー用DTO」という説明どおりの用途では現状使われておらず、未使用コード(dead code)である可能性が高い(Needs confirmation — 将来の利用を見越した先行定義か、削除し忘れかは実装からは判別不能)。
 
 ## Related Documents
 
-- [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md)
+- [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
 
 ## Keywords
 
 dto
 data-model
+unused-code

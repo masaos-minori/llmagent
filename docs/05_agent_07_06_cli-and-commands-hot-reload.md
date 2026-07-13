@@ -26,7 +26,9 @@ related:
 
 ## ホットリロードの範囲 (`/reload`)
 
-`/reload`は12個のベース設定ファイル(すべて、[設定ドキュメント](05_agent_08_01_configuration-loading-agent-config-part1.md)参照)を読み込み、可能な限り変更を適用する。起動時のみの設定は検出されるが適用はされない。
+`/reload`はベース設定ファイル(`shared.config_loader._BASE_CONFIG_FILES`が定義する集合、詳細は[設定ドキュメント](05_agent_08_01_configuration-loading-agent-config-part1.md)参照)を読み込み、可能な限り変更を適用する。起動時のみの設定は検出されるが適用はされない。
+
+> **注記(矛盾):** `scripts/shared/config_loader.py`の`_BASE_CONFIG_FILES`は現状`("agent.toml",)`の1件のみであり、「12個のベース設定ファイル」という記述は実装と一致しない。すべての設定キーは`config/agent.toml`に集約されており、個別の`common.toml`等の分割ファイルは存在しない(根拠: Explicit in code — `config_loader.py`)。旧来の複数ファイル構成を前提にした記述が残っていた可能性がある。件数の記述は削除し、実装ファイルへの参照に置き換えた。
 
 ### 出力フォーマット
 
@@ -83,3 +85,5 @@ hot-reload scope
 /reload
 output format
 reload classification summary
+_BASE_CONFIG_FILES
+config_loader.py

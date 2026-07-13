@@ -28,6 +28,10 @@ related:
 REPLの入出力モデル、CLIViewの責務、複数行入力、および全スラッシュコマンドカテゴリについて、
 その目的と副作用を文書化する。
 
+### Why this exists
+
+- `agent/repl.py`のdocstringが明示する通り、`AgentREPL`は薄いコーディネータであり、ターン処理(LLMループ・ツール呼び出し)は`agent/orchestrator.py`に、スラッシュコマンドのディスパッチは`agent/commands/registry.py`に、端末I/Oは`agent/cli_view.py`に委譲される。本章の各ファイルはこの責務分割を反映している。(Explicit in code、`repl.py`冒頭コメント)
+
 ---
 
 ## Related Documents

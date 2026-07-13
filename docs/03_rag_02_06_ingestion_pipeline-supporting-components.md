@@ -38,7 +38,11 @@ source:
 |---|---|---|
 | `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | 既存ドキュメントのETag/Last-Modifiedを更新する；etagとlast_modifiedの両方がNoneの場合は早期リターンする |
 
-## 4.9 設定（`config/rag_pipeline.toml`）
+**境界条件:**
+- 古さ判定（`_is_stale_update`）は `new_fetched_at` と保存済み `fetched_at` を文字列比較で行う（ISO 8601形式であることを前提とする）。値がNone、または保存済み行が存在しない場合は「古くない」とみなして更新を進める。(Explicit in code)
+- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。[03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) に記載の通り、`DocumentManager._update_etag` は `existing_doc_id` ではなく固定値 `0` を渡しており、既存ドキュメント再取得時のETag更新が意図通り機能しない可能性がある（Needs confirmation）。
+
+## 4.9 設定（`config/ingester.toml`）
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
@@ -46,7 +50,8 @@ source:
 | `embed_retry` | 3 | 埋め込みAPI失敗時のリトライ上限（指数バックオフ） |
 | `embed_workers` | 4 | ThreadPoolExecutorによる最大並行埋め込みスレッド数 |
 | `embedding_dims` | 384 | 想定される埋め込みベクトルの次元数；APIレスポンスと照合して検証される |
-| `strict_artifact_validation` | False | チャンクのJSONペイロードに `schema_version`、`artifact_type`、`created_by` を必須とする |
+
+**注記（2026-07-13）:** `strict_artifact_validation` は `config/ingester.toml` から削除した。`RagIngester.__init__` はこのキーを一切読み込んでおらず、`_validate_artifact()` の呼び出し箇所2箇所とも `strict` 引数を省略しているため、Pythonのデフォルト `strict=True`（`schema_version`/`artifact_type`/`created_by` を必須とする）が設定に関わらず常時適用される。
 
 [03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md) を参照。
 

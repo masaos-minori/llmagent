@@ -45,6 +45,7 @@ source:
 | `system_prompt_name` | `str` | `"default"` | アクティブなシステムプロンプトプリセット名 |
 | `system_prompt_content` | `str` | `""` | システムプロンプトの全文; 各ターンごとに`history[0]`と同期される |
 | `shutdown_requested` | `bool` | `False` | グレースフルシャットダウンフラグ |
+| `is_processing` | `bool` | `False` | `handle_turn()`実行中は`True` |
 
 ### TurnState (`ctx.turn`)
 
@@ -56,6 +57,7 @@ source:
 | `background_tasks` | `set[asyncio.Task[Any]]` | `set()` | このターン中に生成されたバックグラウンドタスク; クリーンシャットダウンのため追跡される |
 | `last_error_kind` | `str\|None` | `None` | 直近のターン失敗時のエラー種別; 直近のターンが成功していれば`None` |
 | `pending_approval_id` | `str\|None` | `None` | 直近のワークフローターンが人間の承認待ちで一時停止した際の承認ID |
+| `pending_approval_task_id` | `str\|None` | `None` | `/approve`実行後に再開すべきタスクID; `/approve`コマンドがセットし、`Orchestrator.handle_turn()`がクリアする |
 
 ### WorkflowState (`ctx.workflow`)
 
@@ -93,6 +95,29 @@ source:
 | `stat_memory_consistency_failures` | `int` | このセッションでの`/memory check-consistency`失敗回数。`cmd_memory.py`によりインクリメントされる。初期値: `0`。 |
 | `stat_memory_circuit_open` | `bool` | メモリ埋め込みのサーキットブレーカーがオープン状態の場合`True`。表示時に`MemoryServices`から読み取られる — 通常運用中は`ctx.stats`に**書き込まれない**。初期値: `False`。 |
 | `stat_memory_fts_fallback_count` | `int` | このセッションでのFTSフォールバック回数 (埋め込みが利用不可の場合にトリガーされる)。`MemoryServices.retriever.fts_fallback_count`をミラーする — 表示時に読み取られ、`ctx.stats`では独立して追跡されない。初期値: `0`。 |
+| `stat_partial_completions` | `int` | LLMの部分応答 (途中切断されたストリーミング応答) を受理した回数。初期値: `0`。 |
+
+---
+
+## AppServices (`ctx.services`)
+
+`factory.build_agent_context()`が構築する、完全初期化済みのサービス参照の集合体。フィールドは`http`, `llm`, `tools`, `lifecycle`, `hist_mgr`, `audit_logger`, `memory`, `health_registry`, `gateway`。
+`memory`は`use_memory_layer=False`の場合のみ意図的に`None`(未初期化ではなく明示的な不在)。
+`gateway` (`RepositoryGateway`) は`factory.py`が構築してから注入されるまでの間は`None`。
+
+`AppServices`はさらに以下のランタイム集計フィールドを持つ (`ctx.stats`とは別枠):
+
+| Field | Type | Description |
+|---|---|---|
+| `serialization_events` | `int` | DAGツール実行のシリアル化イベント発生回数 |
+| `serialization_tools_affected` | `int` | シリアル化の影響を受けたツール呼び出し数 |
+
+### RepositoryGateway (`agent/repository_gateway.py`)
+
+すべてのリポジトリ書込み/削除/API書込み操作の単一の強制境界。読み取り専用ツール呼び出しはノーチェックで`ToolExecutor`に直接転送される。書込み系操作は次の順で通過する: (1) ポリシー事前チェック (`tool_policy.check_preflight`)、(2) 承認プロンプト (`tool_approval.run_approval_checks`)、(3) `ToolExecutor`による実行、(4) 監査ログ出力。
+ポリシー違反時は`PolicyViolationError`を捕捉し `is_error=True, error_type="denied"`の`ToolCallResult`を返す (例外を上位に伝播させない)。承認が拒否された場合も同様に`denied`扱いの結果を返す。
+
+*(根拠分類: Explicit in code — `agent/repository_gateway.py`, `agent/context.py`)*
 
 ---
 
@@ -110,4 +135,6 @@ ConversationState
 TurnState
 WorkflowState
 RuntimeStats
+AppServices
+RepositoryGateway
 session persistence

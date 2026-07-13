@@ -37,13 +37,21 @@ source:
 ### インジェクションのデータフロー（概要）
 
 ```
-config/rag_pipeline.toml [target_urls]
+config/crawler.toml [target_urls]
   → crawler.py: BFS crawl (same-origin) → rag-src/
-  → chunk_splitter.py: language-aware splitting (JA: Sudachi / EN: sentence / code: blank-line)
+  → chunk_splitter.py (config/chunk_splitter.toml): language-aware splitting
+                       (JA: Sudachi / EN: sentence / code: blank-line)
                        → rag-src/chunk/
-  → ingester.py: "passage: {text}" embed → struct.pack float32 BLOB → SQLite INSERT
+  → ingester.py (config/ingester.toml): "passage: {text}" embed
+                → struct.pack float32 BLOB → SQLite INSERT
                 → rag-src/registered/
 ```
+
+> **実装上の補足 (Current behavior):** 設定は単一の `config/rag_pipeline.toml` ではなく、スクリプトごとに分離された3ファイル
+> （`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`）で構成される。各スクリプトは
+> `ConfigLoader().load("<script>.toml")` で自分自身の設定ファイルのみを読み込み、`ConfigLoader.restrict_to("<script>.toml")`
+> で他ファイルへのアクセスを制限している（`scripts/rag/ingestion/crawler.py`, `ingester.py` 内で確認）。
+> 根拠: Explicit in code。
 
 ---
 

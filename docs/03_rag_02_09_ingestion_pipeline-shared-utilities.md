@@ -42,7 +42,7 @@ from rag.utils import (
 
 | 関数 / 定数 | シグネチャ | 戻り値 | 説明 |
 |---|---|---|---|
-| `normalize_unicode` | `(text: str) -> str` | `str` | NFKC正規化；全角英数字や異体字を変換する |
+| `normalize_unicode` | `(text: str) -> str` | `str` | NFKC正規化；全角英数字や異体字を変換する；`text` が `str` でない場合はTypeErrorを発生させる |
 | `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | リトルエンディアンのfloat32 BLOB；sqlite-vecの `MATCH` 演算子の形式。不正な入力に対してTypeError/ValueErrorを発生させる |
 | `validate_url` | `(url: str) -> bool` | `bool` | `http`/`https` スキームでnetlocが空でない場合に `True` |
 | `cosine_sim` | `(a: list[float], b: list[float]) -> float` | `float` | コサイン類似度；いずれかのベクトルの大きさが0の場合は0.0を返す。SemanticCacheで使用される |

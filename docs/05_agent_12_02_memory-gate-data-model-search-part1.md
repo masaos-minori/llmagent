@@ -51,7 +51,7 @@ source:
 | `injection.py` | レイヤー1でバイパス | `MemoryInjectionService` は構築されず、スニペットは注入されない |
 | `ingestion.py` | レイヤー1でバイパス | `MemoryIngestionService` は構築されず、エントリは書き込まれない |
 | `embedding_client.py` | `enabled=False`（レイヤー2） | `fetch()` は HTTP 呼び出しを行わずに `EmbeddingResult(error_kind=DISABLED)` を返す |
-| `retriever.py` | レイヤー2が無効 | `HybridRetriever.search()` は FTS5 のみを使用する。`knn_search()` は `[]` を返す |
+| `retriever.py` | レイヤー2が無効 | `HybridRetriever.search()` は `embedding=None` の場合 FTS5 のみで結果を返す（`last_retrieval_mode="fts_only"`、`fts_fallback_count` を加算） |
 | `jsonl_store.py` | レイヤー1でバイパス | `write()` は呼び出されず、ファイルは変更されない |
 | `store.py` | レイヤー1でバイパス | `upsert()` は呼び出されず、SQLite インデックスは変更されない |
 | `extract.py` | レイヤー1でバイパス | `extract_memories()` は呼び出されない |
@@ -60,6 +60,38 @@ source:
 | `types.py` | 該当なし（純粋なデータ） | 常に利用可能 |
 | `enums.py` | 該当なし（純粋なデータ） | 常に利用可能 |
 | `exceptions.py` | 該当なし（純粋なデータ） | 常に利用可能 |
+
+### 境界条件: `knn_search()` の空リスト判定と例外の違い
+
+`HybridRetriever.search()` は、呼び出し時点で `embedding=None`（埋め込み無効・未取得）の
+場合、または `VectorRetriever.knn_search()` が空リストを返した場合（KNN 結果 0 件）に
+FTS のみへフォールバックする。一方、`VectorRetriever.knn_search()` 自体は
+`memories_vec` テーブルが存在しない場合に `sqlite3.OperationalError` を送出する
+（docstring 明記）。`HybridRetriever.search()` はこの例外を捕捉していないため、
+テーブル未初期化状態で埋め込みが有効な場合は例外が呼び出し元まで伝播する。
+
+根拠分類: Explicit in code（`retriever.py` `VectorRetriever.knn_search` docstring
+「raises OperationalError when table missing」、`HybridRetriever.search()` に
+`knn_search` 呼び出しへの try/except なし）。
+
+### 実装上の補足: DedupPolicy と保持期間
+
+`enums.py` は重複排除・保持関連の定数も定義する。
+
+| 定数 | 内容 |
+|---|---|
+| `DedupPolicy` | `action: DedupAction = SKIP_NEW`, `threshold: float = 0.3`（`ingestion.py` のデフォルト重複排除ポリシー） |
+| `DEDUP_THRESHOLDS` | source_type 別の重複判定しきい値: RULE=0.98, DECISION=0.98, FAILURE=0.90, CONVERSATION=0.85 |
+| `RETENTION_DAYS` | source_type 別の保持日数: RULE=None（無期限）, DECISION=None（無期限）, FAILURE=180, CONVERSATION=90 |
+
+`DEDUP_THRESHOLDS` は `ingestion.py` の `_get_dedup_threshold()` が
+`entry.source_type` に応じて参照する。`RETENTION_DAYS` は `enums.py` に定義されているが、
+本ドキュメント担当範囲のモジュール（`store.py` / `retriever.py` / `services.py` /
+`ingestion.py`）内でこの値を参照する保持削除処理は確認できなかった
+（`rebuild_ops.py` 等の未読モジュールで使用されている可能性がある）。
+
+根拠分類: Explicit in code（`enums.py` の定数定義、`ingestion.py`
+`_get_dedup_threshold`）／`RETENTION_DAYS` の利用箇所は Needs confirmation。
 
 ---
 

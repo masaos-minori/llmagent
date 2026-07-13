@@ -46,13 +46,23 @@ related:
 | `write_progress(msg)` | `  [rag] {msg:<24}` をその場で上書き表示(`\r`) |
 | `clear_progress()` | 進捗行をスペースで消去 |
 | `write_warning(msg)` | `[warn] {msg}` |
-| `write_startup_banner(chunk_count, n_tools)` | `DB: {n} chunks \| Tools: {n}` |
+| `write_fatal(msg)` | `[fatal] {msg}` |
+| `write_startup_banner(chunk_count, n_tools, workflow_status="", memory_mode=None)` | `DB: {n} chunks \| Tools: {n}`。`memory_mode`指定時は`Memory: {mode}`行、`workflow_status`指定時は`Workflow: {status}`行を追加出力し、最後に`Type /help for commands, /exit to quit.`を表示 |
 | `write_history()` | readlineの履歴を`~/.agent_history`に保存(最大1000件) |
 | `async read_multiline(loop, first_line)` | `\`で終わる行を収集し、`\n`で連結 |
+| `async start_spinner(msg="Thinking")` / `stop_spinner()` | 非同期スピナー(`⠋⠙⠹...`)をその場でアニメーション表示・停止 |
+| `write_debug_rag(data)` | RAGパイプラインのデバッグ情報(RRF設定・MQEクエリ・マージ結果・リランク結果)を構造化表示。`/rag ... --debug`から利用 |
+
+### 実装上の補足 (Current behavior)
+
+- `write_token()`はトークン出力の直前に`stop_spinner()`を呼び、スピナー表示中でもストリーミングトークンが割り込めるようにしている。(Explicit in code)
+- `write_startup_banner()`のシグネチャは`workflow_status`・`memory_mode`引数を持つ。ドキュメント記載の`write_startup_banner(chunk_count, n_tools)`は簡略化された旧形。(Explicit in code)
+- `CLIView.__init__(slash_commands)`はスラッシュコマンド一覧(タブ補完候補)を必須引数として受け取る。
 
 ### プロトコル(テスト用)
 
 `Writer`プロトコル(出力操作)と`Reader`プロトコル(複数行入力)。
+`Writer`には`write_fatal`・`write_startup_banner`(拡張シグネチャ)を含む。
 テストでは実際のCLIViewの代わりに別実装を注入できる。
 
 ---

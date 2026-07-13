@@ -75,6 +75,8 @@ related:
 |---------|-------------|----------|
 | _(なし — DESIGN-2に関するテストはすべて実装済み)_ | | |
 
+**2026-07-12実装確認:** 上表の全テストクラス・関数 (`tests/test_fts_fallback.py`の`TestEnglishFtsFallback`/`TestCodeFtsFallback`/`TestNormalizedContentEdgeCases`、`tests/test_rag_pipeline.py::TestFormatChunksDesign2`、`tests/test_rag_pipeline_stage.py::TestAugmentStage`) の存在を確認した。DESIGN-2の不変条件・トリガーSQL・テスト状況に記載との齟齬はない。根拠分類: Explicit in code。
+
 ---
 
 

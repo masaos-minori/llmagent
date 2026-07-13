@@ -51,7 +51,9 @@ related:
 | `refiner_max_chars_per_chunk` | `300` | コンテキスト精緻化のチャンクあたりの文字数 |
 | `refiner_timeout` | `30.0` | コンテキスト精緻化のタイムアウト（秒） |
 
-**設定フィールド（単体）:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `host`, `port`, `http_timeout`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `semantic_cache_max_size`, `semantic_cache_threshold`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
+**設定フィールド（単体）:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `semantic_cache_max_size`, `semantic_cache_threshold`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
+
+**注記（2026-07-13）:** `host`/`port`/`http_timeout` は `config/rag_pipeline_mcp_server.toml` から削除した。いずれも `RagPipelineConfig` に読み込まれず実装からも一切参照されていなかった。実際の値はハードコード: `http_host="127.0.0.1"`（`MCPServer` 基底クラス）、`http_port=8010`（`rag_pipeline/server.py`）、`http_timeout=120.0`（`rag_pipeline/service.py`）。
 
 **ヘルス:** embed_url が設定されている場合は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定の場合は `"status":"degraded","ready":false,"dependencies":{"embed_url":"not configured"}}` または `"dependencies":{"config":"check failed"}}` — ready 時は HTTP 200、degraded 時は 503。
 **設計上の注記:** HTTP ループを防ぐため、`build_rag_cfg_adapter()` では `rag_service_url = ""` がハードコードされている。

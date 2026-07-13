@@ -37,6 +37,7 @@ related:
 │   ├─ dlq_route.py                     # DLQ エンドポイント
 │   ├─ replay_route.py                  # リプレイエンドポイント
 │   ├─ health_route.py                  # ヘルスチェックエントポイント
+│   ├─ route_helpers.py                 # ルートハンドラ共通ヘルパー
 │   ├─ schema.sql                       # イベントバスDBスキーマ
 │   └─ __init__.py                      # イベントバスパッケージ初期化
     └─ logs/                                    # 各サービスのログファイル出力先
@@ -48,8 +49,8 @@ related:
 
 - `01_overview-files-01-build.md`
 - `01_overview-files-02-rag.md`
-- `01_overview-files-03-scripts.md`
-- `01_overview-files-04-shared.md`
+- `01_overview-files-03-scripts-part1.md`
+- `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
 
 ## Keywords

@@ -25,6 +25,8 @@ source:
 
 イベントを publish する。冪等性あり: 重複する `event_id` は黙って無視される。
 
+**実装の詳細（Explicit in code）**: `event_id` が既存の場合、SQLite への `INSERT OR IGNORE` はスキップされ（`inserted=False`）、その場合は `EventBroker.publish()` による購読者への配信通知も行われない。既存イベントと同じ `seq` を含む 200 レスポンスは返るが、ライブ subscribe 中のコンシューマへは再配信されない。
+
 **リクエストボディ**（`event_envelope.json` JSON Schema に対して検証される）:
 
 ```json
