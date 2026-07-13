@@ -10,10 +10,12 @@ Import from here:  from mcp_servers.cicd.service_github_actions_job import GitHu
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 import httpx
 import orjson
 from mcp_servers.cicd.models import CicdUpstreamError
+from shared.json_utils import parse_http_json
 
 from .service_defs import _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS, build_auth_headers
 
@@ -159,9 +161,7 @@ class GitHubActionsJobBackend:
             raise CicdUpstreamError(
                 f"GitHub API error (status={jobs_resp.status_code}): get_workflow_logs jobs {owner}/{repo} run={run_id}"
             )
-        import typing as _typing
-
-        return _typing.cast(dict, orjson.loads(jobs_resp.content))
+        return cast(dict, parse_http_json(jobs_resp))
 
     async def _append_job_output(
         self,

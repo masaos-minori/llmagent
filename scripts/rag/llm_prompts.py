@@ -14,10 +14,9 @@ Provides:
   _SUMMARIZE_*         — summarization constants
   _REFINER_*           — context refiner constants
   _DEFAULT_RERANK_SCORE — default score when LLM omits a candidate
-  _mqe_prompt          — build MQE rephrasing prompt
-  _parse_mqe_response  — extract/validate JSON array from LLM output
-  _extract_chat_content — extract content text from chat completion response
-  _build_rerank_prompt  — build Cross-Encoder scoring prompt
+ _mqe_prompt          — build MQE rephrasing prompt
+   _parse_mqe_response  — extract/validate JSON array from LLM output
+   _build_rerank_prompt  — build Cross-Encoder scoring prompt
   _apply_rerank_scores  — parse LLM score output and return top_k candidates
 
 Import from here:  from rag.llm_prompts import RagLLM, RagExpansionError, ...
@@ -29,7 +28,7 @@ import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import NotRequired, TypedDict, cast
+from typing import cast
 
 import orjson
 from shared.types import (
@@ -40,19 +39,7 @@ from shared.types import (
 logger = logging.getLogger(__name__)
 
 
-class _ChatCompletionChoice(TypedDict):
-    """Typed dict for a single choice in a chat completion response."""
-
-    message: NotRequired[dict[str, object]]
-
-
-class _ChatCompletionResponse(TypedDict):
-    """Typed dict for an OpenAI-compatible chat completion response."""
-
-    choices: list[_ChatCompletionChoice]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # Exception types
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -173,28 +160,6 @@ def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
     return MqeParseResult(queries=[original_query] + valid)
 
 
-def _extract_chat_content(data: _ChatCompletionResponse) -> str:
-    """Extract content text from an OpenAI-compatible chat completion response.
-
-    Raises ValueError if the response is malformed or missing expected fields.
-    """
-    choices = data.get("choices")
-    if not isinstance(choices, list) or not choices:
-        raise ValueError("Unexpected LLM response: missing or empty 'choices'")
-    first = choices[0]
-    if not isinstance(first, dict):
-        raise ValueError("Unexpected LLM response: choices[0] is not a dict")
-    message = first.get("message")
-    if not isinstance(message, dict):
-        raise ValueError("Unexpected LLM response: choices[0].message is not a dict")
-    content = message.get("content")
-    if not isinstance(content, str):
-        raise ValueError(
-            f"Unexpected LLM response: content is not a str, got {type(content).__name__}"
-        )
-    return content.strip()
-
-
 def _build_rerank_prompt(
     query: str, candidates: list[RagHit], cfg: Mapping[str, object]
 ) -> str:
@@ -278,7 +243,6 @@ __all__ = [
     "_DEFAULT_RERANK_SCORE",
     "_mqe_prompt",
     "_parse_mqe_response",
-    "_extract_chat_content",
     "_build_rerank_prompt",
     "_apply_rerank_scores",
 ]

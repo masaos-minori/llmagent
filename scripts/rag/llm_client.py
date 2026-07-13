@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 import httpx
 import orjson
@@ -34,14 +34,12 @@ from rag.llm_prompts import (
     RagRerankError,
     _apply_rerank_scores,
     _build_rerank_prompt,
-    _ChatCompletionResponse,
-    _extract_chat_content,
     _mqe_prompt,
     _parse_mqe_response,
 )
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import parse_http_json
+from shared.json_utils import extract_llm_content, parse_http_json
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,
@@ -115,9 +113,7 @@ class RagLLM:
             },
         )
         resp.raise_for_status()
-        chat_content: str = _extract_chat_content(
-            cast(_ChatCompletionResponse, parse_http_json(resp))
-        )
+        chat_content: str = extract_llm_content(parse_http_json(resp))
         return chat_content
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
@@ -234,9 +230,7 @@ class RagLLM:
             timeout=timeout,
         )
         resp.raise_for_status()
-        refined_text: str = _extract_chat_content(
-            cast(_ChatCompletionResponse, parse_http_json(resp))
-        )
+        refined_text: str = extract_llm_content(parse_http_json(resp))
         return refined_text
 
 
