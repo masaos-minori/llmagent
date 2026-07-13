@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "Documentation Sync Report"
 category: meta
@@ -114,6 +115,26 @@ source:
 
 - `python tools/check_docs_consistency.py`: 全チェック通過
 - `python tools/check_mcp_docs_consistency.py`: **No issues found**(`_SERVER_TOOLS_MAP["github-mcp"]` の修正後)
+
+## memo-doc.md 実行記録 (最新)
+
+プライベートメソッド参照の削除:
+
+| ファイル | 変更内容 | 証拠分類 |
+|---|---|---|
+| `docs/05_agent_08_01_configuration-loading-agent-config-part2.md` | `_check_workflow_definition()` を機能説明に置換 | コード上の明示 |
+| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md` | `_check_workflow_definition()` ×2 を `_initialize()` / 機能説明に置換 | コード上の明示 |
+| `docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md` | `_sync_system_prompt()` を汎用説明に置換 | コード上の明示 |
+
+グループ別サマリー:
+
+| グループ | Pythonファイル数 | プライベートメソッド | ドキュメント記載 | アクション |
+|---|---|---|---|---|
+| rag → docs/03_*.md | ~15 | 58 | なし | なし |
+| mcp_servers → docs/04_*.md | ~20 | 50 | なし | なし |
+| agent → docs/05_*.md | ~35 | 70 | 3件 | 3件削除 |
+| eventbus → docs/06_*.md | ~9 | 9 | なし | なし |
+| db+shared → docs/90_*.md | ~13 | 22 | なし | なし |
 
 ## ドメイン別内訳
 

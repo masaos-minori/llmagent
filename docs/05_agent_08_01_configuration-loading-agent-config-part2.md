@@ -51,7 +51,7 @@ class AgentConfig:
 **現在の挙動:** エージェントは無条件に有効なワークフロー定義を要求する。
 `StartupOrchestrator._initialize()`は、`Orchestrator.__init__()`の**前**に
 2つのプレフライトチェックを順に呼び出す (`agent/startup.py:85-86`):
-1. `_check_workflow_definition()` — `agent/repl_health.py`内の
+1. ワークフロー定義の存在チェック — `agent/repl_health.py`内の
    `check_workflow_definition()`をラップ。`config/workflows/default.json`が
    存在しない場合、期待されるパスを明記した実行可能なメッセージと共に
    `RuntimeError`を発生させる。
