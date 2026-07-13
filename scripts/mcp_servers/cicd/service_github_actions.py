@@ -24,9 +24,9 @@ from shared.json_utils import dumps as _json_dumps
 from shared.json_utils import parse_http_json
 
 from .service_defs import (
-    _GH_API_VERSION,
     _GITHUB_API_BASE,
     GITHUB_REPO_PARTS_COUNT,
+    build_auth_headers,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class GitHubActionsBackend:
     """GitHub Actions REST API client for workflow dispatch/status operations.
 
-    NEVER log self._auth_headers() return value — it contains the Bearer token.
+    NEVER log build_auth_headers() return value — it contains the Bearer token.
     """
 
     def __init__(
@@ -51,16 +51,6 @@ class GitHubActionsBackend:
         # Mask token value to prevent accidental log exposure (R-4)
         token_status = "set" if self._token else "not set"
         return f"GitHubActionsBackend(token={token_status!r})"
-
-    def _auth_headers(self) -> dict[str, str]:
-        """Return request headers; NEVER pass return value to any logger."""
-        headers: dict[str, str] = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": _GH_API_VERSION,
-        }
-        if self._token:
-            headers["Authorization"] = f"Bearer {self._token}"
-        return headers
 
     @staticmethod
     def _parse_error_message(resp: httpx.Response, default: str) -> str:
@@ -119,7 +109,10 @@ class GitHubActionsBackend:
         body = orjson.dumps({"ref": ref, "inputs": inputs})
         resp = await self._http.post(
             url,
-            headers={**self._auth_headers(), "Content-Type": "application/json"},
+            headers={
+                **build_auth_headers(self._token),
+                "Content-Type": "application/json",
+            },
             content=body,
         )
         # 204 No Content = success (no body returned by GitHub)
@@ -148,7 +141,7 @@ class GitHubActionsBackend:
         )
         resp = await self._http.get(
             url,
-            headers=self._auth_headers(),
+            headers=build_auth_headers(self._token),
             params={"per_page": min(limit, 50)},
         )
         self._check_response(resp, f"get_workflow_runs {owner}/{repo}/{workflow}")
@@ -180,7 +173,7 @@ class GitHubActionsBackend:
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str:
         """Return details for a single workflow run."""
         url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}"
-        resp = await self._http.get(url, headers=self._auth_headers())
+        resp = await self._http.get(url, headers=build_auth_headers(self._token))
         self._check_response(resp, f"get_workflow_status {owner}/{repo} run={run_id}")
         r = parse_http_json(resp)
         head_sha_raw = r.get("head_sha")

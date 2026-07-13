@@ -55,3 +55,17 @@ class CiBackend(Protocol):
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str: ...
 
     async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str: ...
+
+
+def build_auth_headers(token: str | None) -> dict[str, str]:
+    """Build GitHub API request headers with authentication.
+
+    NEVER pass the return value to any logger — it contains the Bearer token.
+    """
+    headers: dict[str, str] = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": _GH_API_VERSION,
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers

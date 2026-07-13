@@ -76,10 +76,10 @@ def read_json_file(path: Path) -> ChunkDocument:
     title = _get_str(data, "title") or ""
     lang = _get_str(data, "lang") or "en"
     code_blocks = _get_list(data, "code_blocks") or []
-    etag = _get_str_or_none(data, "etag")
-    last_modified = _get_str_or_none(data, "last_modified")
+    etag = _get_str(data, "etag")
+    last_modified = _get_str(data, "last_modified")
     chunking_strategy = _get_str_with_default(data, "chunking_strategy", "text")
-    normalized_content = _get_str_or_none(data, "normalized_content")
+    normalized_content = _get_str(data, "normalized_content")
     chunk_index = _get_int_with_default(data, "chunk_index", 0)
     source_file = _get_str(data, "source_file") or ""
     chunk_type = _get_str(data, "chunk_type") or ""
@@ -109,12 +109,6 @@ def _get_list(data: ChunkJsonRaw, key: str) -> list[str] | None:
     """Get a list value from data."""
     val = data.get(key)
     return list(val) if isinstance(val, list) else None
-
-
-def _get_str_or_none(data: ChunkJsonRaw, key: str) -> str | None:
-    """Get a string value or None from data."""
-    val = data.get(key)
-    return val if isinstance(val, str) else None
 
 
 def _get_str_with_default(data: ChunkJsonRaw, key: str, default: str) -> str:

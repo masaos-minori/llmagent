@@ -9,11 +9,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import orjson
 from agent.services.exceptions import ContextStateBuildError
 from agent.services.models import ContextBudget, ContextStateView
 from shared.git_helper import get_repo_info
-from shared.json_utils import tool_call_serialized_length
+from shared.json_utils import serialized_length, tool_call_serialized_length
 from shared.types import LLMMessage
 
 if TYPE_CHECKING:
@@ -53,7 +52,7 @@ def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
         elif role == "assistant":
             history += len(text)
             if tool_calls:
-                tool_messages += len(orjson.dumps(tool_calls))
+                tool_messages += serialized_length(tool_calls)
         else:
             history += len(text)
     return ContextBudget(system=system, history=history, tool_messages=tool_messages)

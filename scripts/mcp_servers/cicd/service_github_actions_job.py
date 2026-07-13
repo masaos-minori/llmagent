@@ -15,7 +15,7 @@ import httpx
 import orjson
 from mcp_servers.cicd.models import CicdUpstreamError
 
-from .service_defs import _GH_API_VERSION, _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS
+from .service_defs import _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS, build_auth_headers
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class GitHubActionsJobBackend:
     """GitHub Actions job log operations.
 
-    NEVER log self._auth_headers() return value — it contains the Bearer token.
+    NEVER log build_auth_headers() return value — it contains the Bearer token.
     """
 
     def __init__(
@@ -41,16 +41,6 @@ class GitHubActionsJobBackend:
         # Mask token value to prevent accidental log exposure (R-4)
         token_status = "set" if self._token else "not set"
         return f"GitHubActionsJobBackend(token={token_status!r})"
-
-    def _auth_headers(self) -> dict[str, str]:
-        """Return request headers; NEVER pass return value to any logger."""
-        headers: dict[str, str] = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": _GH_API_VERSION,
-        }
-        if self._token:
-            headers["Authorization"] = f"Bearer {self._token}"
-        return headers
 
     @staticmethod
     def _format_job_header(job: dict) -> str:
@@ -86,7 +76,7 @@ class GitHubActionsJobBackend:
         try:
             log_resp = await self._http.get(
                 log_url,
-                headers=self._auth_headers(),
+                headers=build_auth_headers(self._token),
                 follow_redirects=True,
             )
             if log_resp.is_success:
@@ -161,7 +151,9 @@ class GitHubActionsJobBackend:
     async def _fetch_jobs(self, owner: str, repo: str, run_id: int) -> dict:
         """Fetch and return the jobs data for a workflow run."""
         jobs_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
-        jobs_resp = await self._http.get(jobs_url, headers=self._auth_headers())
+        jobs_resp = await self._http.get(
+            jobs_url, headers=build_auth_headers(self._token)
+        )
         # Use try/except to handle non-2xx responses gracefully since this is called from a loop
         if not jobs_resp.is_success:
             raise CicdUpstreamError(

@@ -6,7 +6,6 @@ Used by both store.py (Row objects) and retriever.py (dict rows).
 
 from __future__ import annotations
 
-import datetime
 import sqlite3
 import struct
 from collections.abc import Mapping
@@ -16,10 +15,6 @@ import orjson
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.types import MemoryEntry, SourceType
-
-
-def _now_iso() -> str:
-    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:

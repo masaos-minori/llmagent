@@ -24,9 +24,9 @@ import uuid
 from dataclasses import dataclass
 
 from agent.memory.enums import MemoryType
-from agent.memory.mapper import _now_iso
 from agent.memory.models import HistoryMessage
 from agent.memory.types import MemoryEntry, SourceType
+from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -317,7 +317,7 @@ def extract_memories(
         return []
 
     candidates: list[MemoryEntry] = []
-    now = _now_iso()
+    now = now_iso()
     for msg in history:
         role = msg.role
         if role == "assistant":

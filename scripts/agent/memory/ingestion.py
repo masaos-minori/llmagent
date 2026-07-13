@@ -22,13 +22,13 @@ from agent.memory.embedding_client import (
 from agent.memory.enums import DEDUP_THRESHOLDS, DedupAction, DedupPolicy, MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
-from agent.memory.mapper import _now_iso
 from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 from agent.memory.write_ops import upsert as write_upsert
 from db.helper import SQLiteHelper
+from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,9 @@ class MemoryIngestionService:
     def _get_dedup_threshold(self, entry: MemoryEntry) -> float:
         """Return the dedup similarity threshold for this entry's source type."""
         source_key = str(entry.source_type).upper()
-        threshold: float = DEDUP_THRESHOLDS.get(source_key, self._dedup_policy.threshold)
+        threshold: float = DEDUP_THRESHOLDS.get(
+            source_key, self._dedup_policy.threshold
+        )
         return threshold
 
     def _has_near_duplicate(
@@ -224,7 +226,7 @@ class MemoryIngestionService:
         session_id: int | None,
         importance: float,
     ) -> MemoryEntry:
-        now = _now_iso()
+        now = now_iso()
         return MemoryEntry(
             memory_id=str(uuid.uuid4()),
             memory_type=memory_type,

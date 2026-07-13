@@ -69,6 +69,13 @@ def tool_call_serialized_length(tool_call: object) -> int:
     return len(orjson.dumps(tool_call))
 
 
+def serialized_length(obj: object) -> int:
+    """Return the byte length of obj when serialized to JSON.
+
+    Wrapper around ``len(orjson.dumps(obj))`` that centralizes the serialization
+    so it cannot drift across the codebase.
+    """
+    return len(orjson.dumps(obj))
 def parse_http_json(resp: Response) -> dict[str, object]:
     """Parse an HTTP response body as JSON and return a dict.
 

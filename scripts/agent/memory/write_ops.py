@@ -3,11 +3,11 @@
 
 import logging
 
-from agent.memory.mapper import _floats_to_blob, _now_iso, _stamp_entry
+from agent.memory.mapper import _floats_to_blob, _stamp_entry
 from agent.memory.sql_constants import _INSERT_SQL, _UPSERT_SQL
 from agent.memory.types import MemoryEntry
 from db.helper import SQLiteHelper
-from shared.json_utils import dumps
+from shared.json_utils import dumps, now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def add(
     When embedding is provided, also writes to memories_vec for KNN search.
     Uses BEGIN IMMEDIATE for atomicity across memories + memories_fts + memories_vec.
     """
-    now = _now_iso()
+    now = now_iso()
     stamped = _stamp_entry(entry, now)
     with SQLiteHelper("session").open(write_mode=True) as db:
         with db.begin_immediate():
@@ -85,7 +85,7 @@ def upsert(
     """
     from dataclasses import replace as _replace
 
-    now = _now_iso()
+    now = now_iso()
     stamped = _replace(
         entry,
         updated_at=now,

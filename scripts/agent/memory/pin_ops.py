@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from agent.memory.mapper import _now_iso
+from shared.json_utils import now_iso
 
 
 def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
@@ -13,7 +13,7 @@ def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
     if conn is not None:
         cur = conn.execute(
             "UPDATE memories SET pinned=1, updated_at=? WHERE memory_id=?",
-            (_now_iso(), memory_id),
+            (now_iso(), memory_id),
         )
         conn.commit()
         return cur.rowcount > 0
@@ -23,7 +23,7 @@ def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute(
             "UPDATE memories SET pinned=1, updated_at=? WHERE memory_id=?",
-            (_now_iso(), memory_id),
+            (now_iso(), memory_id),
         )
         db.commit()
     pinned: bool = cur.rowcount > 0
@@ -35,7 +35,7 @@ def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
     if conn is not None:
         cur = conn.execute(
             "UPDATE memories SET pinned=0, updated_at=? WHERE memory_id=?",
-            (_now_iso(), memory_id),
+            (now_iso(), memory_id),
         )
         conn.commit()
         unpinned: bool = cur.rowcount > 0
@@ -46,7 +46,7 @@ def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute(
             "UPDATE memories SET pinned=0, updated_at=? WHERE memory_id=?",
-            (_now_iso(), memory_id),
+            (now_iso(), memory_id),
         )
         db.commit()
     unpinned2: bool = cur.rowcount > 0
