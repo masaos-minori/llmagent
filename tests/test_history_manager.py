@@ -115,9 +115,9 @@ class TestCompressWithLLM:
     async def test_calls_compress_llm_when_over_limit(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -134,9 +134,9 @@ class TestCompressWithLLM:
     async def test_increments_stat_compress_count(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -149,9 +149,9 @@ class TestCompressWithLLM:
     async def test_calls_on_compress_callback(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -182,7 +182,7 @@ class TestCompressWithLLM:
     ) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"choices": []}
+        mock_resp.content = orjson.dumps({"choices": []})
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -196,9 +196,9 @@ class TestCompressWithLLM:
     async def test_preserves_system_messages(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -253,9 +253,9 @@ class TestCompressBoundary:
     async def test_compress_turns_one_compresses_single_pair(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -291,9 +291,9 @@ class TestProtectTurns:
         """With protect_turns=2, the most-recent 2 turn pairs must survive compression."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -321,9 +321,9 @@ class TestProtectTurns:
         """With protect_turns=1 and compress_turns=2, and 7 turn pairs, compression proceeds."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -409,9 +409,9 @@ class TestCompressTokenLimit:
     def _mock_http(self) -> AsyncMock:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
         return mock_http
@@ -525,7 +525,9 @@ class TestForceCompress:
         mock = AsyncMock(spec=httpx.AsyncClient)
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
-        resp.text = "compressed summary"
+        resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "compressed summary"}}]}
+        )
         mock.post = AsyncMock(return_value=resp)
         return mock
 
@@ -623,9 +625,9 @@ class TestCompressResult:
     async def test_successful_compress_sets_summary_added(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -646,9 +648,9 @@ class TestCompressResult:
     async def test_system_message_not_compressed(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 

@@ -34,7 +34,6 @@ from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.mapper import (
     _floats_to_blob,
-    _now_iso,
     _stamp_entry,
     row_to_entry,
 )
@@ -90,7 +89,6 @@ __all__ = [
     "VectorRetriever",
     # mapper / utils
     "_floats_to_blob",
-    "_now_iso",
     "row_to_entry",
     "_stamp_entry",
     # extract

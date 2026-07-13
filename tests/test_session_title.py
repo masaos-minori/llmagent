@@ -60,7 +60,7 @@ async def test_generate_empty_choices_raises() -> None:
     mock_resp.raise_for_status = MagicMock()
     mock_resp.content = orjson.dumps({"choices": []})
     ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
-    with pytest.raises(SessionTitleGenerationError, match="no choices"):
+    with pytest.raises(SessionTitleGenerationError, match="Missing or empty"):
         await SessionTitleService().generate(ctx, "hello")
 
 

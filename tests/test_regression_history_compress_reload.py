@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
+import orjson
 from agent.history import HistoryManager
 from shared.types import LLMMessage
 
@@ -41,9 +42,9 @@ class TestCompressResultOnSuccess:
         """compress() returns summary_added=True when LLM provides a summary."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Compressed summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Compressed summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
@@ -59,9 +60,9 @@ class TestCompressResultOnSuccess:
         """compress() reports compressed_count > 0 when turns were summarised."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary."}}]
-        }
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
 
