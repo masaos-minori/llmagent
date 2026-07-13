@@ -72,8 +72,8 @@ async def lifespan(app: FastAPI) -> Any:
 async def _dlq_loop(app: FastAPI) -> None:
     while True:
         try:
-            cfg = get_config(type("Req", (), {"app": app})())
-            db = get_db(type("Req", (), {"app": app})())
+            cfg = get_config(app)
+            db = get_db(app)
 
             def _sweep() -> int:
                 result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
