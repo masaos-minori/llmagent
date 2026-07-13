@@ -168,8 +168,8 @@ class TestCmdMcpStatus:
         assert "new_one" not in out  # pending server not shown until restart
         assert "http://localhost:8080" in out  # old URL still probed
         assert "9999" not in out  # new URL never probed
-        assert "mcp/svc.url" in outcome.needs_restart
-        assert "mcp/new_one (new server)" in outcome.needs_restart
+        assert "mcp_servers/svc.url" in outcome.needs_restart
+        assert "mcp_servers/new_one (new server)" in outcome.needs_restart
 
     @pytest.mark.asyncio
     async def test_stdio_running(self, capsys: pytest.CaptureFixture) -> None:
