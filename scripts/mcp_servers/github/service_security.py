@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/service_security.py
+
 GitHubSecurityGuards: security policy enforcement mixin for GitHubService.
 
 Methods: _clamp_per_page, _assert_allowed_*, _write_github_audit_log,
@@ -152,6 +153,7 @@ class GitHubSecurityGuards:
     @staticmethod
     def _handle_github_error(e: GithubException) -> NoReturn:
         """Convert a GithubException to a domain exception and raise it.
+
         Declared as NoReturn so callers do not need to write their own raise.
         """
         from mcp_servers.github.models_config import (  # noqa: PLC0415
@@ -185,6 +187,7 @@ class GitHubSecurityGuards:
 
     async def _run_github(self, func: Callable[[], T]) -> T:
         """Run a synchronous PyGithub call in the thread pool.
+
         Converts GithubException to domain exceptions so endpoints stay free of
         try/except boilerplate.
         """

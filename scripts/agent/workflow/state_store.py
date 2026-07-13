@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/workflow/state_store.py
+
 CRUD operations and idempotency enforcement for workflow.sqlite.
 """
 
@@ -44,6 +45,7 @@ class StateStore:
         now = _now()
         self._db.execute(
             """
+
             INSERT INTO tasks
                 (task_id, session_id, workflow_id, turn_number, workflow_version,
                  status, idempotency_key, created_at, updated_at)
@@ -140,6 +142,7 @@ class StateStore:
         now = _now()
         self._db.execute(
             """
+
             INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
             VALUES (?, ?, ?, 'running', ?)
             """,

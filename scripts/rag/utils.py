@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag_utils.py
+
 Shared utilities for the RAG ingestion pipeline
 (Crawler, ChunkSplitter, RagIngester, agent_rag).
 """

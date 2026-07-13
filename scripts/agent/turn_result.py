@@ -1,4 +1,5 @@
 """agent/turn_result.py
+
 TurnResult frozen dataclass for LLM turn lifecycle.
 
 Defined separately from orchestrator.py so that llm_turn_runner.py

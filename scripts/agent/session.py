@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/session.py
+
 AgentSession facade — delegates to domain-specific repository modules.
 """
 

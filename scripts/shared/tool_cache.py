@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/tool_cache.py
+
 Cache entry dataclass and ToolResultCache for a standalone tool-result cache.
 
 Status: ToolResultCache is NOT currently used by ToolExecutor -- ToolExecutor

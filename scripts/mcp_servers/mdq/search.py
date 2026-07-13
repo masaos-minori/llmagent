@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/search.py
+
 Search functionality using FTS5 and optional embedding/hybrid search.
 """
 

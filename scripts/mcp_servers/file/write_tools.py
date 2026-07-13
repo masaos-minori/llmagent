@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/write_tools.py
+
 MCP tool schema definitions for file-write-mcp server (inputSchema format).
 """
 

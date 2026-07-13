@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_config_display.py
+
 Config display helpers for _ConfigMixin.
 
 Provides:

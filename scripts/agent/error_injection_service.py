@@ -1,4 +1,5 @@
 """agent/error_injection_service.py
+
 Stores mid-turn LLMTransportError diagnostics in the diagnostic channel only;
 does not write to any store and does not modify conversation history.
 

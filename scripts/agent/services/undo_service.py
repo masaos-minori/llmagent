@@ -1,4 +1,5 @@
 """agent/services/undo_service.py
+
 Undo service — rolls back the last user+assistant turn.
 
 Extracted from cmd_context._ContextMixin so the rollback logic can be

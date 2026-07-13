@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_session.py
+
 Session management mixin for CommandRegistry.
 
 Provides _SessionMixin with:

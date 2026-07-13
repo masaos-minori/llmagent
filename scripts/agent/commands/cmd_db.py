@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_db.py
+
 Database management mixin for CommandRegistry.
 
 Provides _DbMixin with:

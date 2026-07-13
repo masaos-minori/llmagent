@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """github_mcp_server.py
+
 GitHub operations MCP server equivalent to @modelcontextprotocol/server-github.
 
 Dependency direction: models -> service -> server_repository/file/issues/pull_requests -> server

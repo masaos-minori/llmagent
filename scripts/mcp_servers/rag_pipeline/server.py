@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers.rag_pipeline.server
+
 RAG Pipeline MCP server (port 8010).
 
 Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) as an

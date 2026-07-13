@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/store_protocols.py
+
 Public storage-layer contracts for the RAG pipeline and session/memory layers.
 
 Protocol → SQLite implementation mapping (all in db/store_impl.py):

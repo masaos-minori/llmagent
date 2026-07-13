@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/pipeline.py
+
 RAG pipeline orchestration: MQE → vector/FTS search → RRF → Cross-Encoder rerank.
 
 Pipeline order:

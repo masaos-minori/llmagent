@@ -1,4 +1,5 @@
 """agent/tool_approval.py
+
 Interactive tool approval flow: risk-based prompts and plan-mode blocking.
 
 Depends on tool_policy / tool_audit / tool_result_formatter but has no

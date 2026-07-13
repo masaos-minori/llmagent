@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/models_config.py
+
 Config DTOs for the RAG pipeline and ingestion layers.
 """
 

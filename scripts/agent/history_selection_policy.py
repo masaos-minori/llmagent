@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/history_selection_policy.py
+
 HistorySelectionPolicy — importance-based compression candidate selection.
 
 Extracted from HistoryManager so the selection logic can be tested and

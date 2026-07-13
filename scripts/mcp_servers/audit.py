@@ -1,4 +1,5 @@
 """mcp_servers/audit.py
+
 Structured audit logging helper extracted from mcp/server.py.
 
 Emits one JSON-lines record per MCP tool execution event.

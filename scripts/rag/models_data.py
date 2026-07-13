@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/models_data.py
+
 Data DTOs for the RAG and ingestion layers.
 """
 

@@ -1,4 +1,5 @@
 """agent/services/config_reload.py
+
 ConfigReloadService — applies reloaded configuration to live service instances.
 
 Responsibilities:
@@ -73,6 +74,7 @@ class ConfigReloadOutcome:
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     """Fields intentionally ignored by /reload for reasons other than restart-
+
     required (e.g. unrecognized keys). MCP server definition changes are never
     reported here — see needs_restart instead."""
     source_files: list[str] = field(default_factory=list)

@@ -1,4 +1,5 @@
 """agent/tool_scheduler.py
+
 Resource-scoped dependency scheduler for tool call batches.
 
 Groups tool calls so that:
@@ -32,6 +33,7 @@ class _SerializationEvent:
 @dataclass
 class ScheduledBatch:
     """One concurrent execution unit: groups run concurrently; within each group,
+
     execution is sequential when serialize_flags[i] is True, gathered when False."""
 
     groups: list[list[dict]]
@@ -53,6 +55,7 @@ def build_execution_groups(
     tool_meta: dict[str, ToolSpec],  # tool_name -> ToolSpec
 ) -> tuple[list[list[dict]], _GroupMetadata]:
     """Return (groups, metadata) where groups is an ordered list of execution groups
+
     and metadata contains serialization event information.
 
     Rules:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_audit.py
+
 Audit log inspection mixin for CommandRegistry.
 
 Provides _AuditMixin with:

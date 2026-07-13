@@ -1,4 +1,5 @@
 """agent/services/mcp_status.py
+
 McpStatusService — probe all MCP servers and format the status table.
 
 Extracted from cmd_mcp._McpMixin so the presentation logic can be

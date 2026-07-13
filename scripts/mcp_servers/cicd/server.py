@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/cicd/server.py
+
 CI/CD MCP server (GitHub Actions backend, port 8012).
 
 Provides HTTP endpoints for triggering and inspecting GitHub Actions workflows.

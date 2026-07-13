@@ -1,4 +1,5 @@
 """agent/tool_exceptions.py
+
 Domain exceptions for the tool execution subsystem.
 """
 
@@ -27,6 +28,7 @@ class ApprovalPreviewError(RuntimeError):
 
 class AuditUnavailableError(RuntimeError):
     """Defined for completeness; not raised — silent return is the policy
+
     when audit logger is not configured.
     """
 

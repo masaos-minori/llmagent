@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_tooling.py
+
 Plan-mode mixin for CommandRegistry.
 
 Provides _ToolingMixin with:

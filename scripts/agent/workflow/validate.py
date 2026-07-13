@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/workflow/validate.py
+
 Standalone CLI to validate a workflow-definition JSON file at deploy time.
 Does not start the agent or any MCP/LLM service.
 

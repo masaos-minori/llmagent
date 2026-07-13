@@ -1,4 +1,5 @@
 """agent/tool_audit.py
+
 Structured audit-log writers for tool approval and execution events.
 
 Isolated here to keep audit concerns separate from execution logic.

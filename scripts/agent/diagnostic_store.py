@@ -1,4 +1,5 @@
 """agent/diagnostic_store.py
+
 DiagnosticStore — dedicated storage for runtime diagnostics.
 Diagnostic data is stored in the session_diagnostics table,
 separate from normal conversation messages.

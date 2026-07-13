@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/memory/extract.py
+
 Rule-based extraction of MemoryEntry candidates from conversation history.
 
 Semantic memory triggers:

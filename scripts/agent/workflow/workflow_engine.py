@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/workflow/workflow_engine.py
+
 Stage transition engine: plan -> execute -> [approval gate] -> verify -> (retry loop).
 
 Callers pass async callbacks for each stage. WorkflowEngine handles

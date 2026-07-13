@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/models.py
+
 Pydantic models, and domain exceptions for mdq-mcp.
 """
 

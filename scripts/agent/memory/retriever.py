@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/memory/retriever.py
+
 FTS5-based memory search with importance / pin / recency scoring.
 Phase 2: optional KNN search via memories_vec + RRF merge.
 
@@ -116,6 +117,7 @@ class FtsRetriever:
             ORDER BY f.rank
             LIMIT ?
         """  # nosec B608 — type_filter and branch_filter are literal strings; all values use ? placeholders
+
         return sql, params
 
     def _fetch_hits(
@@ -217,6 +219,7 @@ class HybridRetriever:
         Falls back to FTS-only when embedding is None or vec table is unavailable.
         When embedding is supplied, merges FTS5 and KNN results via RRF.
         """
+
         fts_hits = self._fts.search(query, project, repo, branch)
         if embedding is None:
             logger.info("retrieval: fts_only (reason=embedding_disabled_or_none)")

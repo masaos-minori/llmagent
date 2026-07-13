@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/orchestrator.py
+
 Turn-level orchestration facade.
 
 Delegates LLM streaming and tool-loop guarding to:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/read_security.py
+
 ReadSecurityGuards mixin for read-only filesystem operations.
 
 Extracted from read_business.py to reduce file size.

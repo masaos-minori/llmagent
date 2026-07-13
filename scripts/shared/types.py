@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/types.py
+
 Cross-layer type definitions shared by shared, rag, and agent packages.
 """
 

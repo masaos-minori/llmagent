@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/read_service.py
+
 ReadFileService dispatch formatters + lazy singleton proxy for file-read-mcp.
 
 Split layout:

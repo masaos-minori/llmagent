@@ -1,4 +1,5 @@
 """agent/tool_policy.py
+
 Tool risk classification and pre-flight access checks.
 
 Policy rules are isolated here so they can be tested independently

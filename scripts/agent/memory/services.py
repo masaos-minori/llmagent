@@ -1,4 +1,5 @@
 """agent/memory/services.py
+
 MemoryServices — facade over the three memory service instances.
 
 Replaces MemoryLayer as the AppServices.memory type.
@@ -87,5 +88,7 @@ class MemoryServices:
         session_id: int | None,
     ) -> list[MemorySnippet]:
         """Return relevant snippets for the current user query."""
-        snippets: list[MemorySnippet] = await self.injection.on_user_prompt(query, session_id)
+        snippets: list[MemorySnippet] = await self.injection.on_user_prompt(
+            query, session_id
+        )
         return snippets

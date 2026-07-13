@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """file_delete_mcp_service.py
+
 DeleteFileService business logic, audit log, and lazy singleton proxy for file-delete-mcp.
 
 Dependency direction: file_delete_mcp_models → file_delete_mcp_service → file_delete_mcp_server

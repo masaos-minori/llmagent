@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_context.py
+
 Context and history mixin for CommandRegistry.
 
 Provides _ContextMixin with:

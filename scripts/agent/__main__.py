@@ -1,4 +1,5 @@
 """agent/__main__.py
+
 Entry point for `python -m agent` invocation.
 
 Runs the interactive REPL agent. sys.path manipulation is not needed because

@@ -1,4 +1,5 @@
 """rag/exceptions.py
+
 Exception hierarchy for the RAG and ingestion layer.
 """
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/parser.py
+
 Hierarchy-aware Markdown parsing — heading-based section extraction.
 
 Produces section records with:

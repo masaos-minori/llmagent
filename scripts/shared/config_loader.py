@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """config_loader.py
+
 Shared configuration loader for agent pipeline modules.
 Supports both TOML (.toml) and JSON (.json) config files.
 """

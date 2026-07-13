@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """logger.py
+
 Shared logging setup for entry-point scripts.
 
 Usage (entry-point scripts only):

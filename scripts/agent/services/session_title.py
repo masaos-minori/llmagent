@@ -1,4 +1,5 @@
 """agent/services/session_title.py
+
 SessionTitleService — generate and persist a session title via LLM.
 
 Extracted from cmd_session._SessionMixin so the HTTP + prompt logic

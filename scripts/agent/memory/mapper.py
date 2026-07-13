@@ -1,4 +1,5 @@
 """agent/memory/mapper.py
+
 Shared SQLite row → MemoryEntry conversion helper, plus shared utilities.
 
 Used by both store.py (Row objects) and retriever.py (dict rows).

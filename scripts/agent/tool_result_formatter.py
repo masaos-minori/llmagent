@@ -1,4 +1,5 @@
 """agent/tool_result_formatter.py
+
 Tool argument masking and result preview/display helpers.
 """
 

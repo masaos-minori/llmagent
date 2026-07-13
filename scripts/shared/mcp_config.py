@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/mcp_config.py
+
 Transport configuration for MCP servers.
 Placed in shared/ so tool_executor.py can reference it without depending on agent/.
 """

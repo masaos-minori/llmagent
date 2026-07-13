@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/indexer.py
+
 Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 """
 
@@ -165,7 +166,9 @@ async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
     return "Indexing complete"
 
 
-async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> RefreshSummary:
+async def refresh_paths(
+    service: MdqService, req: RefreshIndexRequest
+) -> RefreshSummary:
     """Incrementally refresh the index for a set of paths.
 
     Returns structured summary with indexed_count, skipped_count, deleted_count,

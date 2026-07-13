@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/events.py
+
 Typed event definitions for agent lifecycle and artifact notifications.
 
 ArtifactEvent is a pure data structure (TypedDict). It has no delivery system,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_mdq.py
+
 MDQ (Markdown Query) slash-command mixin for CommandRegistry.
 
 Provides _MdqMixin with:

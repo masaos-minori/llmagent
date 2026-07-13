@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/llm_prompts.py
+
 LLM prompt constants, exception types, DTOs, and helper functions for the RAG pipeline.
 
 Provides:

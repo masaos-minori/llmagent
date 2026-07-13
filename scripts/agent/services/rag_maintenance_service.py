@@ -1,4 +1,5 @@
 """agent/services/rag_maintenance_service.py
+
 RagMaintenanceService — maintenance operations on rag.sqlite only.
 Operates exclusively on rag.sqlite.
 """

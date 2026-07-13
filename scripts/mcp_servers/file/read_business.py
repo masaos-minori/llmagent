@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/read_business.py
+
 ReadFileService business operations for file-read-mcp.
 
 Dependency direction: read_business → read_models, common, read_static_helpers

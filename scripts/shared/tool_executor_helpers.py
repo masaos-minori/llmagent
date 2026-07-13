@@ -27,6 +27,7 @@ _SIDE_EFFECT_TOOLS: frozenset[str] = (
 
 def is_side_effect(tool_name: str) -> bool:
     """Return True when the tool modifies state: file write/delete, shell,
+
     Git write operations, or GitHub write/dangerous operations."""
     return tool_name in _SIDE_EFFECT_TOOLS
 

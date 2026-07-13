@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/git/service.py
+
 GitService: local git operations via GitPython with repo-path allowlist and read_only guard.
 
 Dependency direction: git_models -> git_security -> service

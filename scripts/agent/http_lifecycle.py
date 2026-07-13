@@ -1,4 +1,5 @@
 """agent/http_lifecycle.py
+
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 
 Extracted from lifecycle.py. _ServerLifecycleRouter in factory.py delegates

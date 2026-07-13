@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """create_schema.py
+
 現行スキーマをDDLのみで作成する。スキーマ変更が必要な場合はDBを再作成すること。
 
 既存テーブルはIF NOT EXISTSで保護され、冪等再実行が可能。

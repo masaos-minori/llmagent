@@ -25,6 +25,7 @@ def create_task(
     now = _now()
     db.execute(
         """
+
         INSERT INTO tasks
             (task_id, session_id, workflow_id, turn_number, workflow_version,
              status, idempotency_key, created_at, updated_at)

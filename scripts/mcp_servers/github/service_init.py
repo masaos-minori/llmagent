@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/service_init.py
+
 GitHub client initialization and lazy singleton proxy.
 
 Produces:

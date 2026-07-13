@@ -1,4 +1,5 @@
 """mcp_servers/github/service_dispatch.py
+
 GitHubService dispatch formatters and dispatch table builder.
 
 Extends the business-class GitHubService from service_business with

@@ -1,4 +1,5 @@
 """agent/startup.py
+
 Startup orchestration for AgentREPL.
 
 Extracted from agent/repl.py so that AgentREPL contains only input loop,

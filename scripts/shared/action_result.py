@@ -1,4 +1,5 @@
 """shared/action_result.py
+
 Universal action/result contract for all machine-interpreted outputs.
 """
 

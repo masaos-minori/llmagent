@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """AgentREPL
+
 Interactive REPL agent with MCP tool calling.
 Imported by agent.py as the entry point.
 Slash-command handlers live in agent/commands/registry.CommandRegistry.

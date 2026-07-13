@@ -1,4 +1,5 @@
 """agent/memory/embedding_client.py
+
 EmbeddingClient — HTTP embedding service with retry and circuit breaker.
 """
 

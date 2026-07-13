@@ -1,4 +1,5 @@
 """agent/commands/mixin_base.py
+
 Common type-annotation base for all CommandRegistry mixin classes.
 
 Each mixin inherits MixinBase so that the _ctx: AgentContext annotation

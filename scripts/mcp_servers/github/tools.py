@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/tools.py
+
 MCP tool schema definitions for github-mcp server (inputSchema format).
 
 Dependency direction: tools_repository/file/issues/pull_requests -> tools

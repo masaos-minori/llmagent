@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/web_search/tools.py
+
 MCP tool schema definitions for web-search-mcp server (inputSchema format).
 """
 

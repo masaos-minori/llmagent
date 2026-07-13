@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/lifecycle.py
+
 LifecycleState enum shared by lifecycle managers and callers.
 
 ServerLifecycleManager facade has been removed — routing is now handled

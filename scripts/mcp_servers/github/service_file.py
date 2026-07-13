@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/service_file.py
+
 File operations (get/create/update/push/delete) for GitHubService.
 
 Dependency direction: service_file → service_security, models

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/shell/tools.py
+
 MCP tool schema definitions for shell-mcp server (inputSchema format).
 """
 

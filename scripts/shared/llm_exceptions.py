@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/llm_exceptions.py
+
 Structured exception for LLM HTTP/SSE transport failures.
 
 Defines LLMErrorKind literal and LLMTransportError with per-failure

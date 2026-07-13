@@ -1,4 +1,5 @@
 """mcp_servers/dispatch.py
+
 Tool dispatch helpers extracted from mcp/server.py.
 Kept separate so MCP servers can import dispatch_tool without pulling in the
 full MCPServer base class.

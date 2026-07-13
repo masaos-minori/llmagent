@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/config.py
+
 DbConfig dataclass and builder for SQLite database paths.
 
 Separated from agent/config.py so that db/ layer modules can reference

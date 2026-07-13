@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/server.py
+
 Markdown Context Compression Engine MCP server (port 8013).
 
 Exposes 7 tools for indexing, searching, and inspecting Markdown documents.

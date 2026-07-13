@@ -1,4 +1,5 @@
 """agent/services/conversation_service.py
+
 Conversation lifecycle operations that should not live in command handlers.
 
 These functions encapsulate state mutations on AgentContext that were previously

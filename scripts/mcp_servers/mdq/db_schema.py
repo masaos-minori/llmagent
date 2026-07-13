@@ -57,6 +57,7 @@ def create_production_tables(
                 indexed_at REAL NOT NULL
             )
         """)
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS chunks (
                 chunk_id TEXT PRIMARY KEY,
@@ -77,6 +78,7 @@ def create_production_tables(
                 indexed_at REAL NOT NULL
             )
         """)
+
         conn.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
                 normalized_content,
@@ -87,6 +89,7 @@ def create_production_tables(
                 content
             )
         """)
+
         # Triggers for FTS sync — use rowid (chunks.rowid = implicit rowid of TEXT PK table)
         conn.execute("""
             CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
@@ -95,12 +98,14 @@ def create_production_tables(
                 VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
             END
         """)
+
         conn.execute("""
             CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
             BEGIN
                 DELETE FROM chunks_fts WHERE rowid = old.rowid;
             END
         """)
+
         conn.execute("""
             CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
             BEGIN
@@ -109,12 +114,14 @@ def create_production_tables(
                 VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
             END
         """)
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS index_state (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )
         """)
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS chunk_summaries (
                 chunk_id TEXT PRIMARY KEY,
@@ -124,6 +131,7 @@ def create_production_tables(
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
         # Create vector table conditionally based on use_embedding config
         if use_embedding:
             vec0_path: str = "/opt/llm/sqlite-vec/vec0.so"

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/cicd/service.py
+
 Re-export stub for mcp/cicd/service modules.
 
 Split layout:

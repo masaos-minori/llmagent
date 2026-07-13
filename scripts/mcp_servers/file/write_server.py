@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """file_write_mcp_server.py
+
 MCP server for write filesystem operations (port 8007).
 
 Provides an HTTP API via FastAPI for creating, editing, and moving files.

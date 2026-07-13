@@ -1,4 +1,5 @@
 """agent/repository_gateway.py
+
 Single enforcement boundary for all repository write/delete/API-write operations.
 
 Read-only tool calls are forwarded directly to ToolExecutor without checks.

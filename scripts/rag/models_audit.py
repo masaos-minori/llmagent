@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/models_audit.py
+
 Audit DTOs for tool execution and approval workflows.
 """
 

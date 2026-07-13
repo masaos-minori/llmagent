@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/schema_sql.py
+
 SQL DDL templates for rag.sqlite, session.sqlite, workflow.sqlite, and eventbus.sqlite schema creation.
 
 Templates use DIMS placeholder that must be replaced with the actual embedding

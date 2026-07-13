@@ -1,4 +1,5 @@
 """db/models.py
+
 Typed DTOs for db-layer operation results.
 
 Defined here (not in agent/services/models.py) so that db-layer code can import

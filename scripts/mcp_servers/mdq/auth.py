@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/auth.py
+
 Path authorization for mdq-mcp — fail-closed allowlist enforcement."""
 
 from __future__ import annotations

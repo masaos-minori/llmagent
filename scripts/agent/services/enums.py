@@ -1,4 +1,5 @@
 """agent/services/enums.py
+
 Enum types for the agent/services subsystem.
 """
 

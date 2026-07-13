@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/rag_pipeline/service.py
+
 RagPipelineMCPService: wraps RagPipeline for use in rag-pipeline-mcp server.
 
 Dependency direction: mcp_servers.rag_pipeline.models → mcp_servers.rag_pipeline.service → mcp_servers.rag_pipeline.server
