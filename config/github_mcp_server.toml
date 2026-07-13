@@ -1,7 +1,12 @@
 # github-mcp server configuration
 
-# default_per_page: default item count for list endpoints; overridable by request
-default_per_page = 20
+# NOTE: default_per_page was removed (2026-07-13). GitHubConfig.default_per_page is
+# parsed and assigned to service_security.py's self._default_per_page, but that
+# attribute is never subsequently read. The actual per-page default used by list
+# endpoints is the module constant DEFAULT_PER_PAGE = 10 (models_config.py),
+# referenced directly by the Pydantic request models -- independent of this
+# config value. Re-add only alongside an implementation that reads
+# self._default_per_page.
 
 # max_per_page: maximum item count for list endpoints
 max_per_page = 100

@@ -43,8 +43,12 @@ use_rerank = true
 rag_top_k = 5
 rag_min_score = 2.0
 max_chunks_per_doc = 3
-use_two_stage_fetch = false
-two_stage_max_docs = 2
+# NOTE: use_two_stage_fetch / two_stage_max_docs were removed (2026-07-13). Neither
+# key appears anywhere in scripts/ (RagConfig Protocol in shared/types.py has no
+# matching fields, and grep for "two_stage"/"stage_fetch" across scripts/ is empty).
+# They still appear as boilerplate in several test fixture dicts, but those are
+# inline literals independent of this file. Re-add only alongside an actual
+# two-stage-fetch implementation.
 rag_service_url = "http://127.0.0.1:8010"
 use_semantic_cache = false
 semantic_cache_threshold = 0.92

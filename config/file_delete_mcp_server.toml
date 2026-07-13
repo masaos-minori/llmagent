@@ -3,5 +3,8 @@
 # allowed_dirs: directories permitted for delete operations (narrowest scope, least privilege)
 allowed_dirs = ["/opt/llm/storage"]
 
-# audit_log_path: path for delete operation audit log; records all delete_file / delete_directory calls
-audit_log_path = "/opt/llm/logs/delete_audit.log"
+# NOTE: audit_log_path was removed (2026-07-13). FileDeleteConfig (delete_models.py)
+# only ever parsed `allowed_dirs` -- this key was never read into the dataclass at
+# all. The actual delete-audit log path is hardcoded in delete_service.py as
+# "/opt/llm/logs/delete_audit.log" (same value as this key coincidentally had), not
+# sourced from config. Re-add only alongside an implementation that reads it.

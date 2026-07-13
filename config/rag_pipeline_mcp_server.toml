@@ -21,14 +21,13 @@ sqlite_timeout = 30
 # SQLite busy timeout (milliseconds)
 sqlite_busy_timeout_ms = 30000
 
-# HTTP listen host
-host = "127.0.0.1"
-
-# HTTP listen port
-port = 8010
-
-# Internal HTTP client timeout (seconds)
-http_timeout = 120.0
+# NOTE: host, port, and http_timeout were removed (2026-07-13). None of these keys
+# were ever read into RagPipelineConfig (models.py) or referenced anywhere in
+# scripts/mcp_servers/rag_pipeline/ -- the actual values are hardcoded: http_host
+# defaults to "127.0.0.1" on the MCPServer base class (server.py), http_port=8010
+# is hardcoded in rag_pipeline/server.py, and http_timeout=120.0 is hardcoded in
+# rag_pipeline/service.py. All three happened to match this file's former values by
+# coincidence. Re-add only alongside an implementation that actually reads them.
 
 # Pipeline stage flags
 use_mqe    = true

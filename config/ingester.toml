@@ -20,4 +20,7 @@ embedding_dims = 384
 embed_retry = 3
 embed_workers = 4
 
-strict_artifact_validation = true
+# NOTE: strict_artifact_validation was removed (2026-07-13). RagIngester.__init__
+# never reads this key, and both call sites of _validate_artifact() omit the
+# `strict` argument, so the Python default `strict=True` always applies regardless
+# of this setting. Re-add only alongside an implementation that reads it.

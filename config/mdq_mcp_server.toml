@@ -53,11 +53,17 @@ enable_refresh = true
 # Enable grep_docs tool (when false, grep_docs returns MdqValidationError)
 enable_grep = true
 
-# Audit log path for write operations
-audit_log_path = "/opt/llm/logs/mdq_audit.log"
+# NOTE: audit_log_path was removed (2026-07-13). MdqService.audit_log_path was
+# parsed but never subsequently read -- audit events are emitted via _audit_log()
+# into the standard mdq-mcp.log app logger (JSON-lines), not a dedicated file at
+# this path. See docs/04_mcp_06_07_reading-audit-logs.md. Re-add only alongside an
+# implementation that actually opens and writes to this path.
 
-# Concurrency limit for mdq server (1 = serialize all operations)
-concurrency_limit = 1
+# NOTE: concurrency_limit was removed (2026-07-13). It was never read anywhere in
+# scripts/mcp_servers/mdq/ -- index/refresh serialization is instead achieved via a
+# fixed internal asyncio.Lock (MdqService._index_lock), independent of any config
+# value (see docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md). Re-add only
+# alongside an implementation that actually reads it.
 
 # Summary cache for large chunks (reduces token usage by returning summaries)
 summary_cache_enabled = false

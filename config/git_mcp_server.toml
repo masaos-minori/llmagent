@@ -15,5 +15,8 @@ max_log_entries = 50
 # auth_token: Bearer token; empty string = auth disabled.
 auth_token = ""
 
-# audit_log_path: path for operation audit log.
-audit_log_path = "/opt/llm/logs/git-mcp.log"
+# NOTE: audit_log_path was removed (2026-07-13). GitConfig.audit_log_path was parsed
+# but never read anywhere else in git-mcp -- no file-writing logic exists for it,
+# unlike github-mcp/shell-mcp/file-delete-mcp which do open and append to their
+# audit_log_path. Call-level logging still goes to logging.getLogger(__name__)
+# (see docs/04_mcp_04_05_git.md). Re-add only alongside an actual write implementation.
