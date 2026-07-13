@@ -76,6 +76,8 @@ def serialized_length(obj: object) -> int:
     so it cannot drift across the codebase.
     """
     return len(orjson.dumps(obj))
+
+
 def parse_http_json(resp: Response) -> dict[str, object]:
     """Parse an HTTP response body as JSON and return a dict.
 
