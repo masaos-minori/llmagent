@@ -21,7 +21,7 @@ source:
 |---|---|---|
 | 1 | `shared/tool_constants.py`内の該当するfrozensetにツール名を追加する(例: `READ_TOOLS`、`WRITE_TOOLS`、または新しい`<SERVER>_TOOLS` frozensetを作成して`get_all_mcp_tool_names()`に追加) | **[必須]** |
 | 2 | レジストリはインポート時にこれらのfrozensetから自動的に構築される — レジストリの手動編集は不要 | (自動) |
-| 3 | 所有元のMCPサーバー(`mcp/<name>/server.py`)に`dispatch()`ハンドラを実装する | **[必須]** |
+| 3 | 所有元のMCPサーバー(`mcp_servers/<name>/server.py`)に`dispatch()`ハンドラを実装する | **[必須]** |
 | 4 | `/v1/tools`エンドポイントでツールを公開する(`server_key`フィールドを含むツール定義を返す) | **[推奨]** — 起動時のドリフト検証を有効化するが、ルーティングには影響しない |
 | 5 | `config/agent.toml`の`[[tool_definitions]]`にLLMスキーマを追加する(OpenAIのfunction-calling形式) | **[必須]** — LLMにツールを見せる場合 |
 | 6 | 新しいツールについて`config/agent.toml`に`tool_safety_tiers`のエントリを追加する | **[必須]** — すべてのツールは安全性ティアを宣言する必要がある |

@@ -50,7 +50,7 @@ related:
 #### 実装上の補足
 
 - エントリポイントは `scripts/agent/__main__.py` であり、`python -m agent` で起動する。図中の `agent.py` はこのモジュールエントリを指す。(根拠: `__main__.py` の docstring)
-- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/tool_executor.py` の `HttpTransport`, stdio トランスポートは削除済み)
+- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/http_transport.py` の `HttpTransport`, stdio トランスポートは削除済み)
 - 起動シーケンス (MCP サーバ起動・ヘルスチェック・セキュリティ監査・プロンプトセットアップ) は `agent/startup.py` の `StartupOrchestrator` に分離されており、`AgentREPL.run()` から委譲される。(根拠: `agent/startup.py`)
 
 #### 設定ファイル分離方針

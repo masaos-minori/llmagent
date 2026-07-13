@@ -22,7 +22,7 @@ source:
 
 ## 1. 目的
 
-`agent/`、`mcp/`、`rag/`、`db/` の各レイヤーで共通して使われる、`shared/` 内のすべての共通型・プロトコル・DTO・定数を定義する。
+`agent/`、`mcp_servers/`、`rag/`、`db/` の各レイヤーで共通して使われる、`shared/` 内のすべての共通型・プロトコル・DTO・定数を定義する。
 
 **要点:**
 - `LLMMessage`、`RagConfig` は `shared/types.py` にある
@@ -42,18 +42,18 @@ source:
 | `LLMUsage` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `LLMResponse` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `ActionResult` | frozen dataclass | `shared/action_result.py` | `agent/` |
-| `ArtifactEvent` | TypedDict | `shared/events.py` | `agent/`, `mcp/github/` |
-| `ShellPolicy` | dataclass | `shared/protocols/shell.py` | `mcp/shell/` |
+| `ArtifactEvent` | TypedDict | `shared/events.py` | `agent/`, `mcp_servers/github/` |
+| `ShellPolicy` | dataclass | `shared/protocols/shell.py` | `mcp_servers/shell/` |
 | `DbConfig` | dataclass | `db/config.py` | `db/`, `agent/` |
-| `CallToolRequest` / `CallToolResponse` | Pydantic models | `mcp/models.py` | `mcp/` only |
-| Tool frozensets | `frozenset[str]` | `shared/tool_constants.py` | `shared/`, `agent/`, `mcp/` |
-| `ToolCallResult` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `mcp/`, `shared/` |
+| `CallToolRequest` / `CallToolResponse` | Pydantic models | `mcp_servers/models.py` | `mcp_servers/` only |
+| Tool frozensets | `frozenset[str]` | `shared/tool_constants.py` | `shared/`, `agent/`, `mcp_servers/` |
+| `ToolCallResult` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `mcp_servers/`, `shared/` |
 | `TransportErrorInfo` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `shared/` (audit logs) |
 | `ToolSpec` | frozen dataclass | `shared/tool_spec.py` | `agent/` (DAG mode) |
 | `CacheEntry` | frozen dataclass | `shared/tool_cache.py` | `shared/` (ToolExecutor cache) |
 | `PluginFailure` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
 | `PluginLoadResult` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
-| `ToolDefinition` | frozen dataclass | `shared/tool_registry.py` | `shared/`, `mcp/` |
+| `ToolDefinition` | frozen dataclass | `shared/tool_registry.py` | `shared/`, `mcp_servers/` |
 
 ---
 

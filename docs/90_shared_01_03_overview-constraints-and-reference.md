@@ -22,9 +22,9 @@ source:
 
 ## 7. インポート方向の制約
 
-**規則:** `shared/` → 外部ライブラリのみ。`agent/`、`mcp/`、`rag/`、`db/` からのインポートは**禁止**。
+**規則:** `shared/` → 外部ライブラリのみ。`agent/`、`mcp_servers/`、`rag/`、`db/` からのインポートは**禁止**。
 
-**規則:** `db/` → `shared/` のみ。`agent/`、`mcp/`、`rag/` からのインポートは**禁止**。
+**規則:** `db/` → `shared/` のみ。`agent/`、`mcp_servers/`、`rag/` からのインポートは**禁止**。
 
 `.importlinter` により強制される(違反すると `PYTHONPATH=scripts uv run lint-imports` が失敗する)。
 

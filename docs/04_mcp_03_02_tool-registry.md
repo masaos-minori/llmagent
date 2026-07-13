@@ -48,7 +48,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 |---|---|---|
 | 1 | `shared/tool_constants.py` の適切な frozenset にツール名を追加する | **[必須]** |
 | 2 | レジストリはインポート時にこれらの frozenset から自動構築される — レジストリの手動編集は不要 | （自動） |
-| 3 | 所有する MCP サーバー（`mcp/<name>/server.py`）に `dispatch()` ハンドラーを実装する | **[必須]** |
+| 3 | 所有する MCP サーバー（`mcp_servers/<name>/server.py`）に `dispatch()` ハンドラーを実装する | **[必須]** |
 | 4 | `/v1/tools` エンドポイントでツールを公開する（`server_key` フィールドを含むツール定義を返す） | **[推奨]** — `check_routing_drift_vs_live()` による起動時ドリフト検出を可能にする |
 | 5 | `config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する（OpenAI function-calling 形式） | **[必須]** — ツールを LLM に見せる場合 |
 | 6 | 新ツール用に `config/agent.toml` に `tool_safety_tiers` エントリを追加する | **[必須]** — 全てのツールは安全性ティアを宣言しなければならない |

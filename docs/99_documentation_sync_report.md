@@ -108,7 +108,7 @@ source:
 
 ## 未対応・追加調査を推奨する領域
 
-- **`mcp/` 旧パッケージ名の残存箇所**: 今回は 90_shared 系の数箇所のみ修正した。`04_mcp_*`, `05_agent_08_01` 等にも `mcp/<name>/server.py` 等の literal path 表記が広範囲に残っている可能性が高く(grep で日本語プローズ中の `mcp/<server>.field` 形式のログ文字列表記と混在しているため要注意)、専用の一括棚卸しを推奨。
+- **`mcp/` 旧パッケージ名の残存箇所**: 90_shared 系に加え、`04_mcp_*`, `05_agent_08_01` 等の literal path 表記も修正完了。ただし、`mcp/<server>.field` 形式のログ文字列表記が一部に残る可能性があるため、再度の確認を推奨。
 - `05_agent_90_inconsistencies_and_known_issues.md` および `04_mcp_90_inconsistencies_and_known_issues.md` は現時点でほぼ解消済みの記載のみで、新規の恒久的な既知課題エントリは今回追加していない(発見した問題はその場で本文修正、または `06_eventbus_90` にのみ正式追加)。
 
 ## 整合性チェックツールの実行結果(2026-07-13、修正後)

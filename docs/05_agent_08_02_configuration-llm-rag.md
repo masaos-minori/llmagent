@@ -45,6 +45,20 @@ Source: `config/agent.toml`
 | `history_protect_turns` | `2` | 圧縮から保護される直近のNターンペア |
 | `budget_warn_ratio` | `0.8` | 履歴がこの上限に対する割合に達した場合に警告 |
 
+**バリデーションルール** (`agent/services/config_validators.py`):
+
+| 関数 | 条件 |
+|---|---|
+| `validate_llm_context_char_limit()` | `context_char_limit >= 0` |
+| `validate_llm_budget_warn_ratio()` | `0.0 < budget_warn_ratio <= 1.0` |
+| `validate_llm_max_retries()` | `llm_max_retries >= 0` |
+| `validate_llm_retry_base_delay()` | `llm_retry_base_delay > 0` |
+| `validate_llm_temperature()` | `0.0 <= llm_temperature <= 2.0` |
+| `validate_llm_max_tokens()` | `llm_max_tokens >= 1` |
+| `validate_llm_sse_heartbeat_timeout()` | `sse_heartbeat_timeout >= 0` |
+| `validate_llm_sse_malformed_retry()` | `sse_malformed_retry >= 0` |
+| `validate_llm_sse_reconnect_max()` | `sse_reconnect_max >= 0` |
+
 ---
 
 ## RAGConfig (`cfg.rag.*`)
@@ -67,6 +81,18 @@ Source: `config/agent.toml`
 | `refiner_timeout` | `30.0` | Refiner LLMのタイムアウト (秒) |
 | `refiner_max_chars_per_chunk` | `300` | Refinerに渡すチャンクごとの最大文字数 |
 | `rrf_k` | `60` | RAGパイプラインのRRF (Reciprocal Rank Fusion) 融合定数 |
+
+**バリデーションルール** (`agent/services/config_validators.py`):
+
+| 関数 | 条件 |
+|---|---|
+| `validate_rag_top_k_search()` | `top_k_search >= 1` |
+| `validate_rag_top_k_rerank()` | `top_k_rerank >= 1` |
+| `validate_rag_max_chunks_per_doc()` | `max_chunks_per_doc >= 1` |
+| `validate_rag_refiner_max_tokens()` | `refiner_max_tokens >= 1` |
+| `validate_rag_refiner_timeout()` | `refiner_timeout > 0` |
+| `validate_rag_refiner_max_chars_per_chunk()` | `refiner_max_chars_per_chunk >= 1` |
+| `validate_rag_rrf_k()` | `rrf_k >= 1` |
 
 > **矛盾の記録:** 旧版では`top_k_search`のデフォルトを`10`、`embed_url`のデフォルトを
 > `http://127.0.0.1:8003/embedding`としていたが、`agent/config_dataclasses.py::RAGConfig`の

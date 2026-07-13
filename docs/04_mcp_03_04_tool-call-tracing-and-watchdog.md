@@ -102,7 +102,7 @@ asyncio のバックグラウンドタスクとして実行される。`mcp_watc
 AgentREPL.run()
   → MCP server startup
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
-            stderr → /opt/llm/logs/mcp/{server_key}.stderr.log (append mode)
+            stderr → /opt/llm/logs/mcp_servers/{server_key}.stderr.log (append mode)
        → startup_mode="persistent" (http): no lifecycle action needed
        → startup_mode="none": no subprocess spawn, no health check — server is disabled
    → [REPL loop]
