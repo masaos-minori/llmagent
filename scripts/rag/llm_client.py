@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -34,12 +34,14 @@ from rag.llm_prompts import (
     RagRerankError,
     _apply_rerank_scores,
     _build_rerank_prompt,
+    _ChatCompletionResponse,
     _extract_chat_content,
     _mqe_prompt,
     _parse_mqe_response,
 )
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import parse_http_json
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,
@@ -113,7 +115,9 @@ class RagLLM:
             },
         )
         resp.raise_for_status()
-        chat_content: str = _extract_chat_content(orjson.loads(resp.content))
+        chat_content: str = _extract_chat_content(
+            cast(_ChatCompletionResponse, parse_http_json(resp))
+        )
         return chat_content
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
@@ -162,7 +166,7 @@ class RagLLM:
                 _RERANK_TEMPERATURE,
                 _RERANK_MAX_TOKENS,
             )
-        except (httpx.HTTPStatusError, httpx.RequestError, orjson.JSONDecodeError) as e:
+        except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as e:
             raise RagRerankError(f"Cross-encoder rerank LLM call failed: {e}") from e
         result = _apply_rerank_scores(raw, candidates, top_k)
         if result is None:
@@ -230,7 +234,9 @@ class RagLLM:
             timeout=timeout,
         )
         resp.raise_for_status()
-        refined_text: str = _extract_chat_content(orjson.loads(resp.content))
+        refined_text: str = _extract_chat_content(
+            cast(_ChatCompletionResponse, parse_http_json(resp))
+        )
         return refined_text
 
 
@@ -251,7 +257,7 @@ async def get_embedding(
         json={"content": f"query: {text}"},
     )
     resp.raise_for_status()
-    embedding = orjson.loads(resp.content).get("embedding")
+    embedding = parse_http_json(resp).get("embedding")
     if not isinstance(embedding, list) or not embedding:
         raise ValueError("missing or empty 'embedding' field in embed response")
     return embedding

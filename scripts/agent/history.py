@@ -8,14 +8,18 @@ when the character limit is exceeded.
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 import httpx
-import orjson
 from agent.history_selection_policy import (
     HistorySelectionPolicy,
     SelectionResult,
 )
-from shared.json_utils import tool_call_serialized_length
+from shared.json_utils import (
+    extract_llm_content,
+    parse_http_json,
+    tool_call_serialized_length,
+)
 from shared.token_counter import _WarnOnce, get_token_count
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
@@ -212,17 +216,14 @@ class HistoryManager:
                 },
             )
             resp.raise_for_status()
-            data = resp.json()
-            choices = data.get("choices") or []
-            raw_content = (
-                choices[0].get("message", {}).get("content") if choices else None
-            )
+            data = parse_http_json(resp)
+            raw_content = extract_llm_content(data)
             if not raw_content:
                 raise HistoryCompressionError(
                     "Context compression: LLM returned empty summary"
                 )
-            return str(raw_content).strip()
-        except (httpx.HTTPError, orjson.JSONDecodeError, KeyError, TypeError) as e:
+            return cast(str, raw_content)
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             raise HistoryCompressionError(f"Context compression failed: {e}") from e
 
     def _build_history_text(self, messages: list[LLMMessage]) -> str:

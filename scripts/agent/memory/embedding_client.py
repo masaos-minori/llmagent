@@ -10,8 +10,8 @@ import time
 from dataclasses import dataclass
 
 import httpx
-import orjson
 from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
+from shared.json_utils import parse_http_json
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ async def _fetch_embedding(
     try:
         resp = await http.post(embed_url, json={"content": f"{query_prefix}{text}"})
         resp.raise_for_status()
-        data = orjson.loads(resp.content)
-        embedding = data.get("embedding") if isinstance(data, dict) else None
+        data = parse_http_json(resp)
+        embedding = data.get("embedding")
         if isinstance(embedding, list) and embedding:
             if embed_dim > 0 and len(embedding) != embed_dim:
                 logger.error(
@@ -92,7 +92,7 @@ async def _fetch_embedding(
         return EmbeddingResult(
             success=False, error_kind=EmbeddingErrorKind.UNKNOWN_ERROR
         )
-    except orjson.JSONDecodeError as e:
+    except ValueError as e:
         logger.warning("EmbeddingClient._fetch_embedding invalid JSON response: %s", e)
         return EmbeddingResult(
             success=False, error_kind=EmbeddingErrorKind.INVALID_RESPONSE

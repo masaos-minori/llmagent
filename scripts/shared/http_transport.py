@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 import httpx
-import orjson
+from shared.json_utils import parse_http_json
 from shared.mcp_config import McpServerConfig
 from shared.transport_dto import ToolCallResult
 
@@ -49,11 +49,7 @@ class HttpTransport:
 
         Raises ValueError if the response structure is invalid.
         """
-        data = orjson.loads(resp.content)
-        if not isinstance(data, dict):
-            raise ValueError(
-                f"MCP /v1/call_tool returned non-dict: {type(data).__name__}"
-            )
+        data = parse_http_json(resp)
         result_val = data.get("result")
         if not isinstance(result_val, str):
             raise ValueError("MCP /v1/call_tool missing 'result' str field")

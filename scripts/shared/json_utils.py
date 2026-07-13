@@ -11,8 +11,12 @@ All functions use orjson for speed and deterministic output (sort_keys=True by d
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import orjson
+
+if TYPE_CHECKING:
+    from httpx import Response
 
 
 def dumps(obj: object, option: int | None = orjson.OPT_SORT_KEYS) -> str:
@@ -63,3 +67,56 @@ def tool_call_serialized_length(tool_call: object) -> int:
     so it cannot drift across the codebase.
     """
     return len(orjson.dumps(tool_call))
+
+
+def parse_http_json(resp: Response) -> dict[str, object]:
+    """Parse an HTTP response body as JSON and return a dict.
+
+    Wrapper around ``orjson.loads(resp.content)`` that centralizes the
+    deserialization so it cannot drift across the codebase.
+
+    Args:
+        resp: An object with a ``content`` attribute (e.g. httpx.Response).
+
+    Returns:
+        Parsed JSON dict.
+
+    Raises:
+        ValueError: If the parsed value is not a dict or the body is invalid JSON.
+    """
+    try:
+        data = orjson.loads(resp.content)
+    except orjson.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected JSON dict, got {type(data).__name__}: {data!r}")
+    return data
+
+
+def extract_llm_content(data: dict[str, object]) -> str:
+    """Extract and validate content text from an OpenAI-compatible chat completion response.
+
+    Validates the nested structure: choices → choices[0] → message → content.
+
+    Args:
+        data: Raw LLM response dict.
+
+    Returns:
+        Stripped content string.
+
+    Raises:
+        ValueError: If the response is malformed or missing expected fields.
+    """
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("Missing or empty 'choices' in LLM response")
+    first = choices[0]
+    if not isinstance(first, dict):
+        raise ValueError("choices[0] is not a dict")
+    message = first.get("message")
+    if not isinstance(message, dict):
+        raise ValueError("choices[0].message is not a dict")
+    content = message.get("content")
+    if not isinstance(content, str):
+        raise ValueError(f"content is not a str, got {type(content).__name__}")
+    return content.strip()

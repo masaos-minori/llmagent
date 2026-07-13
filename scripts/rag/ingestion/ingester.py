@@ -21,13 +21,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import httpx
-import orjson
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
+from shared.json_utils import parse_http_json
 from shared.llm_client import build_embed_url
 from shared.logger import Logger
 
@@ -208,7 +208,8 @@ class RagIngester:
                     json={"content": f"passage: {text}"},
                 )
                 resp.raise_for_status()
-                embedding = orjson.loads(resp.content).get("embedding")
+                data = parse_http_json(resp)
+                embedding = data.get("embedding")
                 if not isinstance(embedding, list) or not embedding:
                     raise ValueError("missing or empty 'embedding' field in response")
                 if len(embedding) != self._expected_dims:
@@ -220,7 +221,6 @@ class RagIngester:
             except (
                 httpx.RequestError,
                 httpx.HTTPStatusError,
-                orjson.JSONDecodeError,
                 ValueError,
             ) as e:
                 logger.warning(

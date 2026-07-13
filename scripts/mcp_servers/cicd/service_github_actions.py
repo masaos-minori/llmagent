@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from http import HTTPStatus
+from typing import cast
 
 import httpx
 import orjson
@@ -20,6 +21,7 @@ from mcp_servers.cicd.models import (
     CicdValidationError,
 )
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import parse_http_json
 
 from .service_defs import (
     _GH_API_VERSION,
@@ -64,10 +66,10 @@ class GitHubActionsBackend:
     def _parse_error_message(resp: httpx.Response, default: str) -> str:
         """Parse 'message' field from JSON response or return default."""
         try:
-            body = orjson.loads(resp.content)
-        except (orjson.JSONDecodeError, UnicodeDecodeError):
+            body = parse_http_json(resp)
+        except (ValueError, UnicodeDecodeError):
             return default
-        msg: str = body.get("message", default)
+        msg = cast(str, body.get("message", default))
         return msg
 
     def _check_response(self, resp: httpx.Response, context: str) -> None:
@@ -150,8 +152,8 @@ class GitHubActionsBackend:
             params={"per_page": min(limit, 50)},
         )
         self._check_response(resp, f"get_workflow_runs {owner}/{repo}/{workflow}")
-        data = orjson.loads(resp.content)
-        runs = data.get("workflow_runs", [])[:limit]
+        data = parse_http_json(resp)
+        runs = cast(list[dict], data.get("workflow_runs", []))[:limit]
         formatted = [
             {
                 "id": r.get("id"),
@@ -162,7 +164,7 @@ class GitHubActionsBackend:
                 "updated_at": r.get("updated_at"),
                 "html_url": r.get("html_url"),
                 "head_branch": r.get("head_branch"),
-                "head_sha": (r.get("head_sha") or "")[:8],
+                "head_sha": (_sha := r.get("head_sha")) and str(_sha)[:8] or "",
             }
             for r in runs
         ]
@@ -180,19 +182,21 @@ class GitHubActionsBackend:
         url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}"
         resp = await self._http.get(url, headers=self._auth_headers())
         self._check_response(resp, f"get_workflow_status {owner}/{repo} run={run_id}")
-        r = orjson.loads(resp.content)
+        r = parse_http_json(resp)
+        head_sha_raw = r.get("head_sha")
+        head_sha = str(head_sha_raw)[:8] if head_sha_raw else ""
         result = {
-            "id": r.get("id"),
-            "name": r.get("name"),
-            "status": r.get("status"),
-            "conclusion": r.get("conclusion"),
+            "id": cast(int | None, r.get("id")),
+            "name": cast(str | None, r.get("name")),
+            "status": cast(str | None, r.get("status")),
+            "conclusion": cast(str | None, r.get("conclusion")),
             "workflow_id": r.get("workflow_id"),
             "created_at": r.get("created_at"),
             "updated_at": r.get("updated_at"),
             "run_started_at": r.get("run_started_at"),
             "html_url": r.get("html_url"),
             "head_branch": r.get("head_branch"),
-            "head_sha": (r.get("head_sha") or "")[:8],
+            "head_sha": head_sha,
             "event": r.get("event"),
             "run_attempt": r.get("run_attempt"),
         }

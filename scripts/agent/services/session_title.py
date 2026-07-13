@@ -11,9 +11,9 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-import orjson
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.models import SessionTitleResult
+from shared.json_utils import extract_llm_content, parse_http_json
 from shared.llm_client import build_llm_url
 
 if TYPE_CHECKING:
@@ -50,24 +50,8 @@ class SessionTitleService:
                 },
             )
             resp.raise_for_status()
-            data = orjson.loads(resp.content)
-            choices = data.get("choices")
-            if not isinstance(choices, list) or not choices:
-                raise SessionTitleGenerationError("LLM response has no choices")
-            first = choices[0]
-            if not isinstance(first, dict):
-                raise SessionTitleGenerationError("LLM choices[0] is not a dict")
-            message = first.get("message")
-            if not isinstance(message, dict):
-                raise SessionTitleGenerationError(
-                    "LLM choices[0].message is not a dict"
-                )
-            content_raw = message.get("content")
-            if not isinstance(content_raw, str):
-                raise SessionTitleGenerationError(
-                    f"LLM title content must be str, got {type(content_raw).__name__}"
-                )
-            title = content_raw.strip()
+            data = parse_http_json(resp)
+            title = extract_llm_content(data)
             if not title:
                 raise SessionTitleGenerationError("LLM returned empty title")
             ctx.session.set_title(title)
@@ -77,7 +61,7 @@ class SessionTitleService:
             raise
         except (httpx.HTTPStatusError, httpx.RequestError) as e:
             raise SessionTitleGenerationError(str(e)) from e
-        except (orjson.JSONDecodeError, KeyError) as e:
+        except ValueError as e:
             raise SessionTitleGenerationError(f"Response parse error: {e}") from e
         except (RuntimeError, OSError) as e:
             raise SessionTitleGenerationError(f"Unexpected error: {e}") from e

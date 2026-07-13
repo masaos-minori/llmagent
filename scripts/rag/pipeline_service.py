@@ -11,8 +11,8 @@ import time
 from collections.abc import Callable
 
 import httpx
-import orjson
 from rag.models_data import TwoStageFetchResult
+from shared.json_utils import parse_http_json
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ async def call_rag_service(
             elapsed_ms = (time.perf_counter() - t0) * 1000
             status_code = resp.status_code
             resp.raise_for_status()
-            body = orjson.loads(resp.content)
+            body = parse_http_json(resp)
             result_raw = body.get("result")
             if result_raw is None:
                 return "", status_code, elapsed_ms
@@ -147,7 +147,7 @@ async def call_rag_service(
             _log_retry(rag_url, attempt, e)
         except httpx.TransportError as e:
             _log_retry(rag_url, attempt, e)
-        except (orjson.JSONDecodeError, ValueError) as e:
+        except ValueError as e:
             logger.warning(
                 "RAG service parse error (%s), falling back to in-process: %s",
                 rag_url,

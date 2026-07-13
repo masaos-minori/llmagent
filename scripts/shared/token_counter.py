@@ -23,9 +23,8 @@ counts.
 import logging
 
 import httpx
-import orjson
 from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import tool_call_serialized_length
+from shared.json_utils import parse_http_json, tool_call_serialized_length
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
 
@@ -108,14 +107,12 @@ async def _fetch_token_count(
     """POST to /tokenize and extract n_tokens from the response."""
     resp = await http.post(
         tokenize_url,
-        content=orjson.dumps({"content": text}),
+        content=_json_dumps({"content": text}).encode(),
         headers={"Content-Type": "application/json"},
         timeout=timeout,
     )
     resp.raise_for_status()
-    data = orjson.loads(resp.content)
-    if not isinstance(data, dict):
-        raise ValueError(f"/tokenize returned non-dict: {type(data).__name__}")
+    data = parse_http_json(resp)
     n_tokens_raw = data.get("n_tokens")
     tokens_raw = data.get("tokens")
     if isinstance(n_tokens_raw, int) and n_tokens_raw > 0:
