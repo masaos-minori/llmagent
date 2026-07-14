@@ -36,9 +36,11 @@ source:
 | `config/agent.toml` → `mcp_watchdog_max_restarts` | Watchdog max restart count |
 
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
-runtime — MCP server definition changes (URL, auth token, startup mode,
+runtime — MCP server definition changes (URL, startup mode,
 transport, command, environment) are always reported as restart-required
-and require a full agent restart to take effect. The watchdog
+and require a full agent restart to take effect. Authentication tokens
+are resolved from secrets (env vars or secret files), not from config files.
+The watchdog
 (`mcp_watchdog_interval`, `mcp_watchdog_max_restarts` above) restarts a
 *failed* subprocess using its existing startup config; it does not read or
 apply any pending `/reload` config change. See

@@ -44,8 +44,7 @@ source:
 
 ## WorkflowEngineとの統合
 
-`Orchestrator.handle_turn()`は、`config/workflows/default.json`が存在しworkflow DBが利用可能な場合、
-`WorkflowEngine`経由で実行される。ワークフロー状態が主たる実行モデルであり、
+`Orchestrator.handle_turn()`は、常に`WorkflowEngine`経由で実行される。ワークフロー定義(`config/workflows/default.json`)は起動時に無条件にロードされ、存在しない・不正な場合は起動前に`RuntimeError`で中断する。ワークフロー状態が主たる実行モデルであり、
 会話履歴は従属的な関心事として維持される。
 
 各ターンは`workflow.sqlite`に`task` / `attempt` / `processed_event`レコードを作成する:

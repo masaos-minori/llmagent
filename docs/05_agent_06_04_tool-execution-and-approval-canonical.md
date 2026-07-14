@@ -40,12 +40,13 @@ related:
 | Granularity | ツール呼び出しごと | タスクごと (execute→verify間) |
 | State | 一時的 (メモリ上) | DB永続化 (`approvals`) |
 | Resolution | 標準入力による対話 | `/approve` / `/reject` |
-| Currently active | 常に有効 | 無効 (`require_approval=False`) |
+| Currently active | 常に有効 | 無効 (デフォルトのワークフロー定義では `require_approval=false`) |
 
   ワークフローレベルの承認ゲートはワークフロー定義ファイル（`config/workflows/*.json`）の
-`require_approval` フィールド（デフォルト`false`）によって制御される。有効にするにはワークフロー定義で
-`"require_approval": true`を設定する。フィールドリファレンスについては
-[Workflow Definition Schema](05_agent_08_01_configuration-loading-agent-config-part1.md#workflow-definition-schema)を参照。
+ `require_approval` フィールド（デフォルト`false`）によって制御される。有効にするにはワークフロー定義で
+ `"require_approval": true`を設定する。フィールドリファレンスについては
+ [Workflow Definition Schema](05_agent_08_01_configuration-loading-agent-config-part1.md#workflow-definition-schema)を参照。
+   現在の実装では、標準デプロイのワークフロー定義（`config/workflows/default.json`）に `require_approval` フィールドが含まれていないため、ワークフローレベルの承認ゲートはデフォルトで発火しない。
 
 ### 共存ルール
 

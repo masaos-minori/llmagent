@@ -13,16 +13,28 @@ source:
 
 # McpServerConfig Fields (agent.toml `[mcp_servers.*]`)
 
-## McpServerConfig Fields (agent.toml `[mcp_servers.*]`)
+**所有権:** このファイルに記載のフィールドは `config/agent.toml` のみで定義される。
+各MCPサーバーのアプリケーション設定は対応する `*_mcp_server.toml` に記述する。
+
+## Agent-side MCP fields (agent.toml `[mcp_servers.*]`)
+
+以下の5つのフィールドのみが agent.toml に含まれる:
 
 | フィールド | 型 | デフォルト | 説明 |
 |---|---|---|---|
+| `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
 | `transport` | `TransportType` | 必須 | `TransportType.HTTP`（`"http"`）；TOMLの文字列値はconfig loaderによって変換される（実行時ではない） |
 | `url` | `str` | 必須 | HTTPサーバのベースURL |
-| `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
-| `cmd` | `list[str]` | `[]` | `startup_mode=subprocess` 用の起動コマンド；subprocessモード使用時は空であってはならない |
-| `env` | `dict[str, str]` | `{}` | subprocessに渡す追加の環境変数 |
 | `healthcheck_mode` | `str` | *(自動導出)* | `"http"` — 現時点で唯一のtransport/healthcheckモード；キーを省略すると自動的に導出される。指定する場合は厳密に `"http"` でなければならない。 |
+| `cmd` | `list[str]` | `[]` | `startup_mode=subprocess` 用の起動コマンド；subprocessモード使用時は空であってはならない |
+
+## Additional agent.toml fields (optional)
+
+以下のフィールドは agent.toml に含まれる場合があるが、必須ではない:
+
+| フィールド | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `env` | `dict[str, str]` | `{}` | subprocessに渡す追加の環境変数 |
 | `startup_timeout_sec` | `int` | `30` | subprocessモード: ヘルスポーリングのタイムアウト |
 | `call_timeout_sec` | `float` | `60.0` | HttpTransportの呼び出しごとのタイムアウト；0 = タイムアウトなし |
 | `tool_names` | `list[str]` | `[]` | 検証用のヒント（任意）；registryはこれに関わらずルーティングする。空 = 検証なし。[Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md#routing-source-of-truth) を参照。 |
@@ -44,15 +56,6 @@ tool_names = []
 cmd = ["..."]
 tool_names = ["read_text_file", "list_directory"]
 ```
-| `auth_token` | `str` | `""` | 認証用のBearerトークン（空 = 認証なし） |
-
-> `auth_token=""`（Bearer認証なし）は
-> `security_profile="local"` の場合にのみ許可される；
-> `security_profile="production"` では起動時に拒否される。
-> local/productionの区別とその強制箇所の詳細は
-> [04_mcp_05 §Authentication](04_mcp_05_02_auth-profiles-and-sandboxing.md#authentication-auth_token)
-> および [§Security Profile](04_mcp_05_02_auth-profiles-and-sandboxing.md#security-profile-security_profile)
-> を参照。
 
 **廃止に関する注記:** 以前のバージョンでは、`healthcheck_mode=""` を自動推論の明示的リクエストとして受け付けていた（本フィールド導入以前のconfigとの互換性のため）。この空文字列によるsentinelは廃止された — キーを完全に省略して自動導出させるか、厳密な文字列 `"http"` を設定すること。明示的な空文字列は、他の未知の文字列と同様に無効な値として拒否される。
 

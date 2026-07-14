@@ -22,19 +22,40 @@ source:
 
 ## MCPConfig (`cfg.mcp.*`)
 
-Source: `config/*_mcp_server.toml` (各ファイルの`[mcp_servers.<key>]`セクション)
+**所有権:** `config/agent.toml` はエージェントプロセスのMCPライフサイクルおよびトランスポート設定のみを含む。
+`config/*_mcp_server.toml` は各MCPサーバーのアプリケーション設定を所有する。
+
+### Agent-side MCP fields (agent.toml `[mcp_servers.<key>]`)
+
+以下の5つのフィールドのみが agent.toml に含まれる:
 
 | Field | Default | Description |
 |---|---|---|
-| `mcp_servers` | `{}` | サーバーキーごとの`McpServerConfig`のdict |
-| `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | ウォッチドッグのポーリング間隔 (秒; 0=無効); プロファイルに応じたデフォルト |
-| `mcp_watchdog_max_restarts` | `3` | ウォッチドッグの最大再起動試行回数 |
+| `startup_mode` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
+| `transport` | 必須 | `TransportType.HTTP`（`"http"`） |
+| `url` | 必須 | HTTPサーバのベースURL |
+| `healthcheck_mode` | *(自動導出)* | `"http"` — 現時点で唯一のモード |
+| `cmd` | `[]` | subprocess起動コマンド |
+
+### Server-local application config (*_mcp_server.toml)
+
+各MCPサーバーのアプリケーション設定は対応する `*_mcp_server.toml` ファイルに記述する:
+
+- allowlists / denylists
+- リソース制限
+- 監査パス
+- GitHub `allowed_repos` / `allowed_repos_mode`
+- shell `command_allowlist`
+- file server `allowed_dirs`
+- シークレット参照 (`auth_token_env`, `auth_token_file`)
+
+**プロセス分離:** 各MCPサーバーは独立したプロセスであり、自身の設定ファイルのみを読み込む。`agent.toml` は読み込まない。
 
 GitHub MCPエンドポイントは`mcp_servers.github.url` (`McpServerConfig`のエントリ) のみを
 通じて設定される — レガシーなトップレベルの`github_server_url`キーは削除されており、
 存在する場合`build_agent_config()`によって`ConfigLoadError`で拒否される。
 
-`McpServerConfig`のフィールドについては[04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)を参照。
+`McpServerConfig`のフィールドについては[04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)を参照。
 
 ---
 

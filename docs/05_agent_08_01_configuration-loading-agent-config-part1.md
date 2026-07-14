@@ -39,7 +39,7 @@ source:
 |---|---|
 | `config/agent.toml` | すべてのサブ設定 (LLMConfig, RAGConfig, DbConfig, ToolConfig, MemoryConfig, ObservabilityConfig, ApprovalConfig, MCPConfig) |
 
-過去の経緯: 以前のバージョンでは12個の個別ファイル (`common.toml`, `llm.toml`, `http.toml`, `context.toml`, `rag.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `tools_definitions.toml`、加えてサーバーごとの`*_mcp_server.toml`) を読み込んでいた。これらは`agent.toml`に統合され、分割されたファイルはもはや存在しない。
+過去の経緯: 以前のバージョンでは複数の個別ファイル (`common.toml`, `llm.toml`, `http.toml`, `context.toml`, `rag.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `tools_definitions.toml`、加えてサーバーごとの`*_mcp_server.toml`) を読み込んでいた。これらは`agent.toml`に統合され、分割されたファイルはもはや存在しない。
 
 正準の設定所有関係表 (ファイルごとの所有レイヤー) については、
 [90_shared_03 §2a Config Ownership](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-config-ownership)を参照。
@@ -90,10 +90,10 @@ source:
   `use_memory_layer`, `plugin_strict`と共に3フィールドを比較する。根拠: Explicit in code —
   `agent/services/config_reload.py::_detect_startup_only()`)
 
-**削除されたキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
+**無効なキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
 `build_agent_config()`の`_FORBIDDEN_KEYS`参照): `workflow_mode`, `workflow_require_approval`,
-`use_tool_summarize`, `tool_summarize_threshold`。これらはもはや一切有効な設定キーではない —
-単にホットリロードできない起動時のみの設定というわけではない。
+`use_tool_summarize`, `tool_summarize_threshold`。これらは有効な設定キーではなく、
+設定ファイルに含めると即座に拒否される。
 
 さらに、`github_server_url`キーも単独のチェックで拒否される
 (`_FORBIDDEN_KEYS`とは別の`if "github_server_url" in cfg:`分岐、
@@ -125,6 +125,59 @@ source:
 フィールド単位の完全なマッピングについては`agent/services/config_reload.py`を参照。
 
 ---
+
+## Workflow Definition Schema
+
+ワークフロー定義は `config/workflows/<name>.json` に配置される。ファイル名がワークフロー名になる。
+
+### スキーマ
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `name` | string | Yes | — | ワークフローの名前（ファイル名と一致） |
+| `version` | string | Yes | — | ワークフローのバージョン（文字列） |
+| `stages` | array[Stage] | Yes | — | ステージ定義の配列。必須ステージ: `plan`, `execute`, `verify` |
+| `retry_policy` | RetryPolicy | Yes | — | リトライポリシー |
+| `require_approval` | boolean | No | `false` | execute→verify間に人間承認ゲートを有効化 |
+
+### Stage
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `id` | string | Yes | — | ステージID（一意） |
+| `description` | string | Yes | — | ステージの説明 |
+| `timeout_sec` | integer | Yes | — | タイムアウト秒数 |
+| `retryable` | boolean | Yes | — | リトライ可能かどうか |
+
+### RetryPolicy
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `max_attempts` | integer | Yes | — | 最大試行回数（>= 1） |
+| `backoff` | string | Yes | — | バックオフ方式（現在サポート: `fixed`のみ） |
+| `backoff_sec` | integer | Yes | — | バックオフ秒数（>= 0） |
+
+### 検証ルール
+
+- 必須キー（`name`, `version`, `stages`, `retry_policy`）のいずれかが欠如するとエラー
+- `stages` は空でないリストである必要があり、重複したステージIDは許されない
+- 必須ステージ（`plan`, `execute`, `verify`）のすべてが含まれている必要がある
+- 各ステージは `id`, `description`, `timeout_sec`, `retryable` のすべてのキーを持つ必要がある
+- `retry_policy` は `max_attempts`, `backoff`, `backoff_sec` のすべてのキーを持つ必要がある
+- `max_attempts` は 1 以上、`backoff_sec` は 0 以上である必要がある
+- `backoff` は `fixed` のみサポート
+
+### 承認ゲートについて
+
+`require_approval=true` を設定すると、ワークフローエンジンは execute ステージ完了後、verify ステージの前に承認ゲートを挿入する。この状態は `workflow.sqlite` の `approvals` テーブルに永続化され、エージェント再起動後も復元される。承認は `/approve <approval_id>` または `/reject <approval_id>` コマンドで解決する。
+
+標準デプロイでは、`config/workflows/default.json` に `require_approval` フィールドが含まれていないため、デフォルトで承認ゲートは発火しない。
+
+### Related Documents
+
+- `05_agent_06_04_tool-execution-and-approval-canonical.md` — ツールレベルとワークフローレベルの承認の境界
+- `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` — `/approve`/`/reject` コマンド
+- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md` — ワークフローエンジンによる承認ゲートの実装
 
 ## Related Documents
 

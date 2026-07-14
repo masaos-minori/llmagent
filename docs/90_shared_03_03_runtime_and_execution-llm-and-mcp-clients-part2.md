@@ -93,7 +93,7 @@ build_agent_config()
   → ConfigLoader().load_all()     [_BASE_CONFIG_FILES = ("agent.toml",) の1ファイルのみ — 詳細は90_shared_03_01 §2aを参照]
 ```
 
-**実装上の補足:** 旧版は「agent.toml含む12ファイル」と記載していたが、`shared/config_loader.py::_BASE_CONFIG_FILES` は `("agent.toml",)` の1件のみである。他の設定(crawler.toml、chunk_splitter.toml、ingester.toml、各`*_mcp_server.toml`等)はプロセス分離方針により各プロセスが個別にロードし、エージェントの`load_all()`には含まれない(Explicit in code)。
+**実装上の補足:** 他の設定(crawler.toml、chunk_splitter.toml、ingester.toml、各`*_mcp_server.toml`等)はプロセス分離方針により各プロセスが個別にロードし、エージェントの`load_all()`には含まれない(Explicit in code)。
 
 **プラグインの読み込み:**
 ```

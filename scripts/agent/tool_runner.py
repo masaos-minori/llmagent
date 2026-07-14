@@ -470,8 +470,9 @@ async def _run_approval_gate(
 ) -> tuple[list[dict], list[str]]:
     """Run approval checks and return (approved_calls, denied_ids).
 
-    When workflow-level approval is active (ctx.cfg.workflow_require_approval=True
-    and no pending approval), per-tool approval is skipped to avoid double-prompting.
+    When the workflow definition sets require_approval=true, workflow-level approval
+    gates are inserted between execute and verify stages. In this case, per-tool
+    approval is skipped during the execute stage to avoid double-prompting.
     """
     from agent.tool_approval import run_approval_checks  # noqa: PLC0415
 
