@@ -1,4 +1,5 @@
 """agent/tool_models.py
+
 Immutable DTO models for the tool execution subsystem.
 """
 

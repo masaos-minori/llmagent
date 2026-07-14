@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """pipeline_utils.py
+
 Shared I/O utilities for the RAG ingestion pipeline.
 """
 

@@ -1,4 +1,5 @@
 """agent/tool_loop_guard.py
+
 Tool-loop guard: duplicate call detection, cycle detection, retry suppression,
 and consecutive error limiting.
 

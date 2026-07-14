@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/service_pull_requests.py
+
 Pull request, update, merge, and search PR operations for GitHubService.
 
 Dependency direction: service_pull_requests → service_security, models

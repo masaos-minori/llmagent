@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "Documentation Sync Report"
 category: meta
@@ -107,13 +108,33 @@ source:
 
 ## 未対応・追加調査を推奨する領域
 
-- **`mcp/` 旧パッケージ名の残存箇所**: 今回は 90_shared 系の数箇所のみ修正した。`04_mcp_*`, `05_agent_08_01` 等にも `mcp/<name>/server.py` 等の literal path 表記が広範囲に残っている可能性が高く(grep で日本語プローズ中の `mcp/<server>.field` 形式のログ文字列表記と混在しているため要注意)、専用の一括棚卸しを推奨。
+- **`mcp/` 旧パッケージ名の残存箇所**: 90_shared 系に加え、`04_mcp_*`, `05_agent_08_01` 等の literal path 表記も修正完了。ただし、`mcp/<server>.field` 形式のログ文字列表記が一部に残る可能性があるため、再度の確認を推奨。
 - `05_agent_90_inconsistencies_and_known_issues.md` および `04_mcp_90_inconsistencies_and_known_issues.md` は現時点でほぼ解消済みの記載のみで、新規の恒久的な既知課題エントリは今回追加していない(発見した問題はその場で本文修正、または `06_eventbus_90` にのみ正式追加)。
 
 ## 整合性チェックツールの実行結果(2026-07-13、修正後)
 
 - `python tools/check_docs_consistency.py`: 全チェック通過
 - `python tools/check_mcp_docs_consistency.py`: **No issues found**(`_SERVER_TOOLS_MAP["github-mcp"]` の修正後)
+
+## memo-doc.md 実行記録 (最新)
+
+プライベートメソッド参照の削除:
+
+| ファイル | 変更内容 | 証拠分類 |
+|---|---|---|
+| `docs/05_agent_08_01_configuration-loading-agent-config-part2.md` | `_check_workflow_definition()` を機能説明に置換 | コード上の明示 |
+| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md` | `_check_workflow_definition()` ×2 を `_initialize()` / 機能説明に置換 | コード上の明示 |
+| `docs/05_agent_07_11_cli-and-commands-slash-commands-memory-other.md` | `_sync_system_prompt()` を汎用説明に置換 | コード上の明示 |
+
+グループ別サマリー:
+
+| グループ | Pythonファイル数 | プライベートメソッド | ドキュメント記載 | アクション |
+|---|---|---|---|---|
+| rag → docs/03_*.md | ~15 | 58 | なし | なし |
+| mcp_servers → docs/04_*.md | ~20 | 50 | なし | なし |
+| agent → docs/05_*.md | ~35 | 70 | 3件 | 3件削除 |
+| eventbus → docs/06_*.md | ~9 | 9 | なし | なし |
+| db+shared → docs/90_*.md | ~13 | 22 | なし | なし |
 
 ## ドメイン別内訳
 

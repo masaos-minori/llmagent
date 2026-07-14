@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/delete_tools.py
+
 MCP tool schema definitions for file-delete-mcp server (inputSchema format).
 """
 

@@ -1,4 +1,5 @@
 """mcp_servers/github/formatter.py
+
 Presentation helpers extracted from service.py.
 
 dry_run_preview: formats a dry-run operation preview string.

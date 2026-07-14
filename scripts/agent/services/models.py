@@ -1,4 +1,5 @@
 """agent/services/models.py
+
 Immutable DTO models for the agent/services subsystem.
 
 Imports only from agent.services.enums to avoid circular dependencies.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_config_stats.py
+
 Stats collection and display for _ConfigMixin.
 
 Provides:
@@ -15,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import LatencySnapshot, StatsViewModel
+from agent.services.context_view import _int_safe
 
 if TYPE_CHECKING:
     pass
@@ -23,22 +25,6 @@ if TYPE_CHECKING:
 def _safe[T](obj: object | None, attr: str, default: T) -> T:
     """Return getattr(obj, attr) if obj is not None, else default."""
     return getattr(obj, attr) if obj is not None else default
-
-
-def _int_safe(obj: object | None, attr: str, default: int = 0) -> int:
-    """Return int(getattr(obj, attr)) if obj is not None, else default.
-
-    Handles MagicMock and other non-numeric types gracefully.
-    """
-    if obj is None:
-        return default
-    val = getattr(obj, attr, None)
-    if val is None:
-        return default
-    # Only accept actual int values; reject MagicMock, float, etc.
-    if not isinstance(val, int):
-        return default
-    return val
 
 
 def _get_mem_circuit_open(ctx) -> bool:

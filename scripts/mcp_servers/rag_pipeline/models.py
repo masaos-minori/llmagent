@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers.rag_pipeline.models
+
 Pydantic request/response models and config adapter for rag-pipeline-mcp.
 
 Dependency direction: mcp_servers.rag_pipeline.models → mcp_servers.rag_pipeline.service → mcp_servers.rag_pipeline.server

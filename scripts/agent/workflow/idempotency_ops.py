@@ -33,6 +33,7 @@ def begin_stage_if_new(
             return None
         db.execute(
             """
+
             INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
             VALUES (?, ?, ?, 'running', ?)
             """,
@@ -40,6 +41,7 @@ def begin_stage_if_new(
         )
         db.execute(
             """
+
             INSERT INTO processed_events (event_id, task_id, stage_id, recorded_at, workflow_id)
             VALUES (?, ?, ?, ?, ?)
             """,

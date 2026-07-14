@@ -1,4 +1,5 @@
 """agent/services/io_ports.py
+
 I/O port Protocols for the agent/services subsystem.
 
 No agent/* imports to prevent circular dependencies.

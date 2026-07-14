@@ -1,4 +1,5 @@
 """agent/commands/cmd_plugins.py
+
 /plugin slash command: show plugin load status.
 """
 

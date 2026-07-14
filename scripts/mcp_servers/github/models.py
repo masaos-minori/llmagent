@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/models.py
+
 Re-export stub for github-mcp server models.
 
 Split layout (single-responsibility modules):

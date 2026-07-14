@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/git/server.py
+
 Local git operations MCP server (port 8014).
 
 Provides an HTTP API via FastAPI for safe git operations against allowlisted repositories.

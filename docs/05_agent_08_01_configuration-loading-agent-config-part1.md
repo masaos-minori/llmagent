@@ -79,8 +79,8 @@ source:
 **再起動必須の設定** (`ConfigReloadOutcome`内の`needs_restart`):
 - `McpServerConfig`のフィールド変更、新規サーバー、削除されたサーバー、
   リネーム (旧サーバーの削除+新規追加) はすべて該当する。例:
-  `mcp/<server>.url`, `mcp/<server>.auth_token`, `mcp/<server>.startup_mode`,
-  `mcp/<server>.cmd`, `mcp/<server>.env`。
+  `mcp_servers/<server>.url`, `mcp_servers/<server>.auth_token`, `mcp_servers/<server>.startup_mode`,
+  `mcp_servers/<server>.cmd`, `mcp_servers/<server>.env`。
 
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
 - `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする

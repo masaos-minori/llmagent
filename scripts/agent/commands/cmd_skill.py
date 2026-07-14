@@ -1,4 +1,5 @@
 """agent/commands/cmd_skill.py
+
 /skill slash command: list skills or inject a skill's SKILL.md as ephemeral system context.
 """
 

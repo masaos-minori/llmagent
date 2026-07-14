@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/web_search/models.py
+
 Config loading, Pydantic models, and domain exceptions for web-search-mcp.
 """
 

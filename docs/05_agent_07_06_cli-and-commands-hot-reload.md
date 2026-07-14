@@ -37,9 +37,9 @@ Config reloaded — some changes require restart
 WARNING: Some settings require restart to take effect.
 Restart required: [4 items]
   [RESTART] - server1
-  [RESTART] - mcp/server.url
-  [RESTART] - mcp/server.startup_mode
-  [RESTART] - mcp/server2.auth_token
+  [RESTART] - mcp_servers/github.url
+  [RESTART] - mcp_servers/github.startup_mode
+  [RESTART] - mcp_servers/server2.auth_token
 Applied (runtime): [3 items]
   [OK] - llm
   [OK] - hist_mgr
@@ -47,6 +47,8 @@ Applied (runtime): [3 items]
 Startup-only (ignored): [1 items]
   [STARTUP-ONLY] - use_memory_layer
 ```
+
+`[RESTART] - mcp_servers/server.url` の部分はプレースホルダで、実際の出力では `{server_key}` に置き換わる（例: `mcp_servers/github.url`）。
 
 何も変更がない場合: `No changes detected.`
 すべての変更が適用された場合: `Config reloaded — all changes applied`

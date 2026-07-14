@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """web_search_mcp_server.py
+
 FastAPI server that exposes web search as an MCP (Model Context Protocol) tool.
 Listens on port 8004.
 

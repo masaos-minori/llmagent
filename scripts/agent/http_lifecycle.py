@@ -1,4 +1,5 @@
 """agent/http_lifecycle.py
+
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 
 Extracted from lifecycle.py. _ServerLifecycleRouter in factory.py delegates
@@ -47,7 +48,7 @@ class HttpServerLifecycleManager:
     """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown.
 
     When stderr log redirect is active (H-1), each subprocess writes stderr to a
-    per-server log file at /opt/llm/logs/mcp/{server_key}.stderr.log instead of a pipe.
+    per-server log file at /opt/llm/logs/mcp_servers/{server_key}.stderr.log instead of a pipe.
 
     When process group shutdown is active (H-8), subprocesses are started with
     start_new_session=True and terminated via os.killpg() to include child processes.
@@ -64,7 +65,7 @@ class HttpServerLifecycleManager:
 
     def _open_stderr_log(self, server_key: str) -> IO[bytes]:
         safe_key = re.sub(r"[^A-Za-z0-9_-]", "_", server_key)
-        log_dir = Path("/opt/llm/logs/mcp")
+        log_dir = Path("/opt/llm/logs/mcp_servers")
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"{safe_key}.stderr.log"
         fh = log_path.open("ab")

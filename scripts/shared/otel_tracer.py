@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """otel_tracer.py
+
 OpenTelemetry tracer initialisation for the agent pipeline.
 
 Design (R10):

@@ -1,4 +1,5 @@
 """agent/tool_runner.py
+
 Tool execution orchestration: single call dispatch, DAG/serial ordering,
 result collection and history injection.
 

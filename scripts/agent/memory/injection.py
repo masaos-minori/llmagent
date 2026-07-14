@@ -1,4 +1,5 @@
 """agent/memory/injection.py
+
 MemoryInjectionService — on_session_start / on_user_prompt lifecycle hooks.
 
 Reads from the memory store and injects relevant snippets into the LLM context.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """chunk_japanese.py
+
 ChunkJapaneseMixin: morphological-analysis-based chunking for Japanese text.
 
 Provides _chunk_japanese, _split_into_ja_sentences, _normalize_ja_sentence,

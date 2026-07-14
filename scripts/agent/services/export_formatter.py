@@ -1,4 +1,5 @@
 """agent/services/export_formatter.py
+
 Export formatter and I/O service for conversation history.
 
 Extracted from agent.commands.utils so the rendering and write logic

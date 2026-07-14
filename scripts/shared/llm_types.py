@@ -1,4 +1,5 @@
 """shared/llm_types.py
+
 Typed DTOs for LLM response handling.
 
 Defined separately from llm_client.py so callers can import the DTOs

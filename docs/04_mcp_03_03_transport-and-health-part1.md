@@ -29,10 +29,11 @@ result = await transport.call("tool_name", {"arg": "val"})
 - `cfg.auth_token` が空でない場合、`Authorization: Bearer <token>` を追加する
 - 全てのトランスポートレベルの障害（タイムアウト、HTTP 非 2xx、不正な形式のレスポンス、リトライ消尽）で `TransportError` を発生させる; `is_error=True` を直接返すことはない
 - トランスポートエラーハンドラーが `TransportError` を捕捉し、`ToolCallResult(error_type="transport")` に変換する
-- `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する
+- `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する（`ToolTransportInvoker` 経由）
 - **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。
 - **リトライ不可のエラー:** HTTP タイムアウト（`httpx.TimeoutException`）と、429/502/503/504 以外のステータスコードによる HTTPStatusError は、リトライなしで即時に伝播する。
 - **ツールレベルエラー vs トランスポートレベルエラー:** ツールレベルのエラー（`error_type == "tool"`）はトランスポート呼び出しの成功として扱われ、`record_success()` と `stat_tool_errors` カウンターのインクリメントをトリガーする。トランスポートレベルのエラーは `record_failure()` と `stat_transport_errors` カウンターのインクリメントをトリガーする。両カウンターは独立して追跡される。
+- **レスポンスパース:** `_handle_call_tool_response()` メソッド内で `parse_http_json(resp)` を使用して httpx.Response から JSON データをデコードする。`parse_http_json` は `shared/json_utils.py` で定義され、`resp.json()` のラッパーとして機能する。旧版では `orjson.loads(resp.content)` を直接使用していた。
 
 ---
 
@@ -40,7 +41,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 **注記:** クラス実体は `shared/mcp_health.py` に定義されている。`shared/mcp_config.py` はこれを `# noqa: F401` 付きで re-export しているのみである（Explicit in code）。両モジュールから同名でインポート可能なため実害はないが、正典モジュールは `shared/mcp_health.py` である。
 
-`_build_tool_executor()`（factory.py）内で作成され、`ToolExecutor`（`set_health_registry()` 経由）と
+`_build_tool_executor()`（factory.py）内で作成され、`ToolTransportInvoker`（`set_health_registry()` 経由）と
 `AppServices.health_registry` の間で共有される、サーバーごとの失敗トラッカー。
 両者は同一のオブジェクトを保持するため、`ToolExecutor` によって記録されたヘルス状態は
 `AppServices.health_registry` を通じて即座に可視化される。
@@ -77,7 +78,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 **コンストラクタ:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
 - `half_open_cooldown_sec`: `UNAVAILABLE` に入ってから試行ディスパッチが許可されるまでの秒数（デフォルト30秒、固定値 — 指数バックオフではない）
 
-**共有配線:** このレジストリは一度だけ作成され、2つの場所で消費される — `ToolExecutor` とウォッチドッグ。`agent/factory.py::_build_tool_executor()` で `McpServerHealthRegistry()` が1つ生成され、`ToolExecutor.set_health_registry()` 経由で `ToolExecutor` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。`ToolExecutor` のトランスポート失敗記録とウォッチドッグのプロブ記録はどちらもこの1つの共有オブジェクトを変更する。結果として、ディスパッチゲーティング（`is_unavailable()`）は両方のソースの影響を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、2つの消費者間の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
+**共有配線:** このレジストリは一度だけ作成され、2つの場所で消費される — `ToolTransportInvoker` とウォッチドッグ。`agent/factory.py::_build_tool_executor()` で `McpServerHealthRegistry()` が1つ生成され、`ToolTransportInvoker.set_health_registry()` 経由で `ToolTransportInvoker` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。`ToolExecutor` のトランスポート失敗記録とウォッチドッグのプロブ記録はどちらもこの1つの共有オブジェクトを変更する。結果として、ディスパッチゲーティング（`is_unavailable()`）は両方のソースの影響を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、2つの消費者間の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
 
 ---
 

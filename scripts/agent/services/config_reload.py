@@ -1,4 +1,5 @@
 """agent/services/config_reload.py
+
 ConfigReloadService — applies reloaded configuration to live service instances.
 
 Responsibilities:
@@ -73,6 +74,7 @@ class ConfigReloadOutcome:
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     """Fields intentionally ignored by /reload for reasons other than restart-
+
     required (e.g. unrecognized keys). MCP server definition changes are never
     reported here — see needs_restart instead."""
     source_files: list[str] = field(default_factory=list)
@@ -323,13 +325,13 @@ class ConfigReloadService:
         for key, new_srv in new_mcp.items():
             old_srv = old_mcp.get(key)
             if old_srv is None:
-                result.needs_restart.append(f"mcp/{key} (new server)")
+                result.needs_restart.append(f"mcp_servers/{key} (new server)")
                 continue
             for field_name in _diff_mcp_server_config(old_srv, new_srv):
-                result.needs_restart.append(f"mcp/{key}.{field_name}")
+                result.needs_restart.append(f"mcp_servers/{key}.{field_name}")
         for key in old_mcp:
             if key not in new_mcp:
-                result.needs_restart.append(f"mcp/{key} (removed server)")
+                result.needs_restart.append(f"mcp_servers/{key} (removed server)")
         return result
 
     def _apply_llm_prompt_params(

@@ -72,8 +72,8 @@ def test_watchdog_sees_unchanged_config_after_reload_classification() -> None:
     assert watchdog_visible is old_srv
     assert watchdog_visible.url == "http://localhost:8080"
     assert watchdog_visible.startup_mode == StartupMode.SUBPROCESS
-    assert "mcp/svc.url" in outcome.needs_restart
-    assert "mcp/svc.startup_mode" in outcome.needs_restart
+    assert "mcp_servers/svc.url" in outcome.needs_restart
+    assert "mcp_servers/svc.startup_mode" in outcome.needs_restart
 
 
 # ── _watchdog_check_http() ────────────────────────────────────────────────────

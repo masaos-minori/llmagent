@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_rag_export.py
+
 Export, compact, and RAG search mixin for CommandRegistry.
 
 Provides _RagExportMixin with:

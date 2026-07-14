@@ -13,6 +13,7 @@ def start_attempt(db: SQLiteHelper, task_id: str, stage_id: str) -> AttemptRecor
     now = _now()
     db.execute(
         """
+
         INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
         VALUES (?, ?, ?, 'running', ?)
         """,

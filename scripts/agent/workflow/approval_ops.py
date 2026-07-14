@@ -16,6 +16,7 @@ def request_approval(
     now = _now()
     db.execute(
         """
+
         INSERT INTO approvals (approval_id, task_id, workflow_id, stage_id, status, created_at)
         VALUES (?, ?, ?, ?, 'pending', ?)
         """,
@@ -78,6 +79,7 @@ def find_pending_approval_by_session(
     """Return (task_id, approval) for the most recent pending-approval task in this session, or None."""
     rows = db.fetchall(
         """
+
         SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id
@@ -108,6 +110,7 @@ def count_pending_approvals(db: SQLiteHelper) -> int:
     """Return the count of globally pending approvals."""
     rows = db.fetchall(
         """
+
         SELECT COUNT(*)
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id
@@ -144,6 +147,7 @@ def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord]
     """Return (task_id, approval) for the most recent globally pending approval, or None."""
     rows = db.fetchall(
         """
+
         SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id

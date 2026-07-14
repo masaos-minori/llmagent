@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_mcp.py
+
 MCP server management mixin for CommandRegistry.
 
 Thin dispatcher that delegates to:

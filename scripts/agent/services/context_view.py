@@ -1,4 +1,5 @@
 """agent/services/context_view.py
+
 Context state aggregation service for /context command.
 
 Extracted from cmd_context._ContextMixin so the data collection logic

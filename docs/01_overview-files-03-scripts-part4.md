@@ -25,7 +25,7 @@ related:
 
 
 ```
-│   ├─ mcp/                                 # MCP サーバパッケージ
+│   ├─ mcp_servers/                           # MCP サーバパッケージ
 │   │   └─ __init__.py                      # MCP パッケージ初期化
 │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
 │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス

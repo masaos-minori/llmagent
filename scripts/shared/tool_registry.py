@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/tool_registry.py
+
 Primary source of truth for MCP tool ownership and routing.
 
 Ownership model:

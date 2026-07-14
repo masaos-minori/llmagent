@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/route_resolver.py
+
 Tool-name to server-key resolution for ToolExecutor.
 
 Routing priority:
@@ -54,6 +55,7 @@ def build_discovery_map(
 
 class ToolRouteResolver:
     """Map tool_name → server_key using ToolRegistry as the sole routing authority.
+
     Raises ValueError when the tool is not in the registry.
     """
 

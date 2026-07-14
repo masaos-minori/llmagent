@@ -1,4 +1,5 @@
 """shared/llm_client.py
+
 LLM communication layer with robust SSE streaming.
 
 Key components:

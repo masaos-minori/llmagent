@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/models_pull_requests.py
+
 Pydantic request/response models for pull request operations.
 
 Dependency direction: mcp_servers.github.models_pull_requests → (no local deps)

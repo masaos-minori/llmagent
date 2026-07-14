@@ -1,4 +1,5 @@
 """agent/memory/ingestion.py
+
 MemoryIngestionService — on_session_stop / write_* / dedup policy.
 
 Extracts memory from conversation history, deduplicates via embedding KNN,

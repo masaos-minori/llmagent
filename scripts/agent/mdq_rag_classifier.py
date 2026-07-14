@@ -1,4 +1,5 @@
 """agent/mdq_rag_classifier.py
+
 Lightweight query classifier for MDQ vs RAG tool selection.
 Operates on query strings only; no I/O, no LLM calls.
 """

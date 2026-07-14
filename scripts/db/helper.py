@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/helper.py
+
 SQLite connection manager for RAG, session, workflow, and eventbus databases.
 
 Provides open/close lifecycle with optional sqlite-vec extension and WAL setup.

@@ -1,4 +1,5 @@
 """agent/commands/utils.py
+
 Shared utilities for command mixins.
 
 These helpers are used by multiple mixins and must not create circular imports.

@@ -29,7 +29,7 @@ related:
 
 | 層 | DB | 機構 | コンテキスト |
 |---|---|---|---|
-| `mcp/mdq/` | `mdq.sqlite` | 自身のサービス | 通常運用 |
+| `mcp_servers/mdq/` | `mdq.sqlite` | 自身のサービス | 通常運用 |
 | `scripts/mcp_servers/rag_pipeline/` | `rag.sqlite` | 自身のサービス | 通常運用 |
 | エージェント層 | `session.sqlite` | `SQLiteHelper("session")` | 通常運用 |
 | エージェント層 | `workflow.sqlite` | `SQLiteHelper("workflow")` | 通常運用 |
@@ -39,7 +39,7 @@ related:
 
 | 層 | DB | 理由 |
 |---|---|---|
-| `mcp/mdq/` | `rag.sqlite` | クロス DB 依存 |
+| `mcp_servers/mdq/` | `rag.sqlite` | クロス DB 依存 |
 | `scripts/mcp_servers/rag_pipeline/` | `mdq.sqlite` | クロス DB 依存 |
 | エージェント層（通常時） | `mdq.sqlite` または `rag.sqlite` | 直接 DB アクセスではなく MCP ツールを使用すること |
 

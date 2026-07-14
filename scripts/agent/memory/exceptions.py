@@ -1,4 +1,5 @@
 """agent/memory/exceptions.py
+
 Domain exceptions for the persistent memory layer.
 """
 

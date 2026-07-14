@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """tool_executor.py
+
 MCP tool execution layer.
 
 Provides HttpTransport implementation for POST /v1/call_tool over httpx.

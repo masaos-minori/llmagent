@@ -28,7 +28,7 @@ External Libraries
         ↑
        db/           ← shared/ のみに依存
         ↑
-  rag/ | mcp/        ← db/ と shared/ に依存
+  rag/ | mcp_servers/   ← db/ と shared/ に依存
         ↑
     agent/           ← 全レイヤーに依存
 ```
@@ -55,7 +55,7 @@ External Libraries
 | `route_resolver.py` | `ToolRouteResolver` — ツール名 → サーバキー |
 | `mcp_config.py` | `McpServerConfig`、`TransportType`/`StartupMode`/`HealthcheckMode`/`SecurityProfile` enum、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
 | `mcp_health.py` | `McpServerHealthState` enum（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）、`McpServerHealthRegistry` — ディスパッチ判定用のヘルス追跡 |
-| `tool_executor.py` | `ToolExecutor`、`HttpTransport` |
+| `tool_executor.py` | `ToolExecutor` |
 | `http_transport.py` | `TransportError`、`HttpTransport` — HTTPトランスポート層（/v1/call_toolを呼ぶ） |
 | `llm_client.py` | `LLMClient` — HTTPリトライ、ペイロード構築、再接続対応SSEストリーミングを束ねるLLM通信層。`build_llm_url()`/`build_embed_url()` ヘルパー |
 | `plugin_registry.py` | 動的プラグイン読込とツール/コマンド登録 |

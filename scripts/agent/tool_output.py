@@ -1,4 +1,5 @@
 """agent/tool_output.py
+
 CLI output helpers for the tool execution subsystem.
 
 Centralises tool-related output so callers receive an OutputPort and

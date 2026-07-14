@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/types.py
+
 RAG-pipeline-specific type definitions.
 """
 

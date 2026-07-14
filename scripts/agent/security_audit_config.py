@@ -1,4 +1,5 @@
 """agent/security_audit_config.py
+
 Narrow API for security audit access to MCP server config models.
 
 This is the ONLY agent module permitted to import from MCP server config models.

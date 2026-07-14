@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """cli_view.py
+
 CLI presentation layer: readline setup, multiline continuation input,
 and progress display.
 
@@ -53,6 +54,7 @@ class Reader(Protocol):
 
 class CLIView:
     """Manages terminal I/O: readline history, tab completion, multiline
+
     continuation input, and progress status line.
     """
 

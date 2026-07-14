@@ -1,4 +1,5 @@
 """agent/factory.py
+
 AgentContext assembly factory.
 Service injection into ctx.services is separated from AgentREPL to enable testing.
 CommandRegistry and Orchestrator remain on AgentREPL because they reference

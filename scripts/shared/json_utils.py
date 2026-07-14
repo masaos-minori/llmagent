@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/json_utils.py
+
 String-producing JSON serialization helpers.
 
 orjson.dumps() returns bytes; this module provides convenience functions

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/models_repository.py
+
 Pydantic request/response models for repository/branch/commit operations.
 
 Dependency direction: mcp_servers.github.models_repository → mcp_servers.github.models_config

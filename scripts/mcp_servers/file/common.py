@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """file_mcp_common.py
+
 Shared security helpers for file-read-mcp, file-write-mcp, and file-delete-mcp.
 All functions raise domain exceptions on policy violations.
 """

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/file/read_tools.py
+
 MCP tool schema definitions for file-read-mcp server (inputSchema format).
 
 Schemas are derived from the Pydantic request models in read_models.py via

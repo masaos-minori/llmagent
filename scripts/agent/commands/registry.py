@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """registry.py
+
 Slash-command registry for AgentREPL.
 
 CommandRegistry inherits command groups from mixin classes.

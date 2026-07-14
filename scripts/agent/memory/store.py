@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/memory/store.py
+
 Read-only CRUD layer for the memories / memories_fts / memories_vec SQLite tables.
 
 Write operations (add, upsert, delete, clear_by_session) are in write_ops module.

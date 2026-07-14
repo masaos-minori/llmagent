@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/context.py
+
 Shared mutable runtime state injected into AgentREPL and CommandRegistry
 via dependency injection.
 

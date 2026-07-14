@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/store.py
+
 Stable public import surface for the DB store layer.
 
 ALWAYS import from this module — do NOT import from store_protocols.py or

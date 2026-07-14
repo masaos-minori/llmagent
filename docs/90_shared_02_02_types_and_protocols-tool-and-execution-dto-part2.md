@@ -106,7 +106,7 @@ class RetryEvent(TypedDict):
 | Field | Type | Purpose |
 |---|---|---|
 | `event_id` | str | UUID v7 — イベントごとの一意識別子 |
-| `source` | str | 発行元モジュール (例: `"mcp/github"`) |
+| `source` | str | 発行元モジュール (例: `"mcp_servers/github"`) |
 | `timestamp` | str | ISO-8601 UTC — 既にフィールドとして存在 |
 | `correlation_id` | str | 関連イベントを結びつけるトレース ID |
 

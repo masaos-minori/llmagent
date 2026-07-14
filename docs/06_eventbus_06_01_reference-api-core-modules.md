@@ -92,6 +92,48 @@ DDL は `scripts/eventbus/schema.sql` で定義されている。`events` テー
 
 **注記**: このモジュールには `promote_to_dlq()` も存在し、`sweep_orphans()` とほぼ同一のロジックを持つが、`scripts/eventbus/` 内のどこからも呼び出されていない。デッドコードと見られる。
 
+---
+
+## scripts/eventbus/route_helpers.py
+
+ルートハンドラの共通ヘルパー関数をまとめたモジュール。各ルートの重複コードを排除するために導入された。
+
+#### HTTP リクエストヘルパー
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `get_db` | `(request: Request) -> Any` | `request.app.state.db` を取得。None の場合は RuntimeError |
+| `get_config` | `(request: Request) -> Any` | `request.app.state.config` を取得。None の場合は RuntimeError |
+| `get_broker` | `(request: Request) -> "EventBroker"` | `request.app.state.broker` を取得。None の場合は RuntimeError |
+
+#### アプリケーションステートヘルパー（Request なし）
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `app_get_db` | `(app: Any) -> Any` | `app.state.db` を取得。None の場合は RuntimeError |
+| `app_get_config` | `(app: Any) -> Any` | `app.state.config` を取得。None の場合は RuntimeError |
+| `app_get_broker` | `(app: Any) -> "EventBroker"` | `app.state.broker` を取得。None の場合は RuntimeError |
+
+#### DB ロック実行ヘルパー
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `run_with_db_lock` | `(func: Any) -> Any` | `asyncio.to_thread` で `get_db_lock()` コンテキスト内で関数を実行 |
+
+#### イベント行ヘルパー
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `_row_to_dict` | `(row: Any) -> dict[str, Any]` | SQLite Row を辞書に変換。`orjson.loads(row["payload"])` でペイロードをデコード |
+
+#### エラーメッセージ定数
+
+| 定数 | 値 |
+|---|---|
+| `ERR_EVENT_NOT_FOUND` | `"event not found"` |
+| `ERR_EVENT_ID_REQUIRED` | `"event_id is required"` |
+| `ERR_EVENT_NOT_IN_DLQ` | `"event is not in DLQ"` |
+
 ## Related Documents
 
 - `06_eventbus_06_02_reference-api-route-handlers.md`
@@ -106,3 +148,4 @@ app-py
 config-py
 db-py
 dlq-py
+route-helpers

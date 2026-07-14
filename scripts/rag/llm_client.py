@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """rag/llm_client.py
+
 RagLLM class and module-level LLM functions for the RAG pipeline.
 
 Provides:
@@ -243,6 +244,7 @@ async def get_embedding(
     text: str, client: httpx.AsyncClient, embed_url: str
 ) -> list[float]:
     """Convert text to a 384-dimensional float embedding vector.
+
     E5 model requires "query: " prefix for query input.
     (Ingestion uses "passage: " prefix)
     """

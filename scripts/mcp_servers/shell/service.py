@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/shell/service.py
+
 ShellService business logic and lazy singleton proxy for shell-mcp.
 
 Dependency direction: shell_mcp_models -> shell_mcp_service -> shell_mcp_server

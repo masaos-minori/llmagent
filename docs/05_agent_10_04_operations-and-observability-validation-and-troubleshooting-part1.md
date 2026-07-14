@@ -38,7 +38,7 @@ source:
 (`workflow_mode` が拒否キーであるため `ConfigLoadError` となる)。
 
 このプリフライトチェック(`agent/startup.py` の
-`StartupOrchestrator._check_workflow_definition()`。`agent/repl_health.py` の
+`StartupOrchestrator._initialize()`。`agent/repl_health.py` の
 `check_workflow_definition()` をラップ)は `Orchestrator.__init__()` の前に実行され、
 期待されるファイルパスを含まない可能性のある分かりにくい `WorkflowLoadError` ではなく、
 明確なエラーメッセージを生成する。`Orchestrator.__init__()` 自体も、プリフライトチェックを
@@ -146,7 +146,7 @@ bash deploy/init_db.sh   # applies pending migrations and records the current ve
 
 **Symptom:** A new `config/workflows/default.json` was deployed, but the running agent does not pick it up.
 
-**Explanation:** The workflow definition is validated and loaded exactly once, at agent boot (`StartupOrchestrator._check_workflow_definition()` in `agent/startup.py`, then `Orchestrator.__init__()`). It is **not** a hot-reloadable setting — `/reload` does not apply to it.
+**Explanation:** The workflow definition is validated and loaded exactly once, at agent boot (`StartupOrchestrator._initialize()` in `agent/startup.py`, then `Orchestrator.__init__()`). It is **not** a hot-reloadable setting — `/reload` does not apply to it.
 
 **Recovery:** Deploy the new definition (`deploy.sh`), then fully restart the agent process. There is no partial-update path.
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """mcp_servers/github/service_business.py
+
 GitHubService: core business operations assembled from domain modules.
 
 Combines GitHubSecurityGuards (security mixin) with all domain operation

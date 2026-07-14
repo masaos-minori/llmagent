@@ -1,4 +1,5 @@
 """agent/services/session_restore.py
+
 Session restore service — rebuild history and switch the active session.
 
 Extracted from cmd_session._SessionMixin so the restore logic can be

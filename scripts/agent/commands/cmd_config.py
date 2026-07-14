@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_config.py
+
 Configuration and statistics mixin for CommandRegistry.
 
 Split into sub-modules for single-responsibility:

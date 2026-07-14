@@ -20,6 +20,7 @@ def record_artifact(
     now = _now()
     db.execute(
         """
+
         INSERT INTO artifacts (artifact_id, task_id, stage_id, uri, created_at, workflow_id, attempt_number)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,

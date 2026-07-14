@@ -190,7 +190,7 @@ class TestMcpServerChangeClassification:
         )
         result = self._run(svc, {"svc": new_srv})
 
-        assert "mcp/svc.url" in result.needs_restart
+        assert "mcp_servers/svc.url" in result.needs_restart
         assert old_srv.url == "http://localhost:8080"
         assert not any("url" in item for item in result.applied)
 
@@ -206,7 +206,7 @@ class TestMcpServerChangeClassification:
         )
         result = self._run(svc, {"svc": new_srv})
 
-        assert "mcp/svc.auth_token" in result.needs_restart
+        assert "mcp_servers/svc.auth_token" in result.needs_restart
         assert not any("auth_token" in item for item in result.applied)
         assert old_srv.auth_token == "old_token"
 
@@ -232,7 +232,7 @@ class TestMcpServerChangeClassification:
         )
         result = self._run(svc, {"svc": new_srv})
 
-        assert "mcp/svc.startup_mode" in result.needs_restart
+        assert "mcp_servers/svc.startup_mode" in result.needs_restart
         assert not any("startup_mode" in item for item in result.applied)
         assert old_srv.startup_mode == old_mode
 
@@ -240,7 +240,7 @@ class TestMcpServerChangeClassification:
         svc, old_srv = self._make_svc()
         result = self._run(svc, {})  # new config has no servers at all
 
-        assert "mcp/svc (removed server)" in result.needs_restart
+        assert "mcp_servers/svc (removed server)" in result.needs_restart
         assert result.skipped == []
 
     def test_rename_reports_remove_and_add(self) -> None:
@@ -252,8 +252,8 @@ class TestMcpServerChangeClassification:
         )
         result = self._run(svc, {"renamed_key": renamed_srv})
 
-        assert "mcp/svc (removed server)" in result.needs_restart
-        assert "mcp/renamed_key (new server)" in result.needs_restart
+        assert "mcp_servers/svc (removed server)" in result.needs_restart
+        assert "mcp_servers/renamed_key (new server)" in result.needs_restart
 
     # --- no duplicate skip/restart classification (M-2) ---
 

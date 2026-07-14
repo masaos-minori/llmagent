@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """shared/events.py
+
 Typed event definitions for agent lifecycle and artifact notifications.
 
 ArtifactEvent is a pure data structure (TypedDict). It has no delivery system,
@@ -9,7 +10,7 @@ ArtifactEvent instance triggers any action.
 
 Future event-envelope fields (aspirational, not implemented):
     event_id: str        # UUID v7
-    source: str          # module name (e.g. "mcp/github")
+    source: str          # module name (e.g. "mcp_servers/github")
     timestamp: str       # ISO-8601 UTC (already present)
     correlation_id: str  # trace ID linking related events
 These fields are documented here as design direction only; they are not required

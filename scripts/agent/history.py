@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """agent/history.py
+
 Conversation history compression layer extracted from REPLAgent.
 Monitors total history size and summarises old turns via the chat LLM
 when the character limit is exceeded.

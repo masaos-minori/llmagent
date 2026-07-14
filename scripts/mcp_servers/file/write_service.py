@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """file_write_mcp_service.py
+
 WriteFileService business logic and lazy singleton proxy for file-write-mcp.
 
 Dependency direction: file_write_mcp_models → file_write_mcp_service → file_write_mcp_server
@@ -105,6 +106,7 @@ class WriteFileService(FileSecurityMixin):
         dry_run: bool,
     ) -> tuple[str, bool]:
         """Generate a unified diff and write the file if changed and not a dry run.
+
         Returns (diff_text, applied).
         """
         diff = WriteFileService._generate_diff(target, original, modified)

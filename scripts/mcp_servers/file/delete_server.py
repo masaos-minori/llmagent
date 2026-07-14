@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """file_delete_mcp_server.py
+
 MCP server for delete filesystem operations (port 8008).
 
 Provides an HTTP API via FastAPI for deleting files and directories.

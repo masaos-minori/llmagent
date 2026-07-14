@@ -15,14 +15,14 @@ related:
 
 ## 正規のエクスポート名: `TOOL_LIST`
 
-すべてのMCPサーバーのツールスキーマモジュール(`mcp/<name>/tools.py`)は、正規のツールリストを`TOOL_LIST`としてエクスポートしなければならない。
+すべてのMCPサーバーのツールスキーマモジュール(`mcp_servers/<name>/tools.py`)は、正規のツールリストを`TOOL_LIST`としてエクスポートしなければならない。
 
 関連: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry の所有権・ルーティングの役割について説明している（本ドキュメントのスキーマエクスポートの役割とは異なる）。
 
 ### 根拠
 
 - `TOOL_LIST`はプレフィックスのないパブリックな名前であり、これがメインのエクスポートであることを明確に示す。
-- GitHub MCPは既に`TOOL_LIST`を正規名として使用している(`mcp/github/tools.py`を参照)。
+- GitHub MCPは既に`TOOL_LIST`を正規名として使用している(`mcp_servers/github/tools.py`を参照)。
 
 ### 移行履歴
 

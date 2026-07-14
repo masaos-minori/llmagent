@@ -1,4 +1,5 @@
 """agent/shared/
+
 Cross-cutting enums, exceptions, and models for the agent layer.
 
 Import rules:

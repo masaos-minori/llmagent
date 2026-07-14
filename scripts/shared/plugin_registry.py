@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """plugin_registry.py
+
 Plugin registration decorators and auto-discovery for Agent extensions.
 
 Three extension points are provided:

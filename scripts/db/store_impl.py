@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """db/store_impl.py
+
 SQLite-backed implementations for the RAG pipeline store Protocols.
 
 Classes:

@@ -28,14 +28,14 @@ source:
 `healthcheck_mode`、`call_timeout_sec`、`startup_timeout_sec`、`tool_names`、
 `auth_token`、`role`、`cmd`、`env`)は再起動時点のスナップショットである。`/reload`
 は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告する
-(`[RESTART] - mcp/<server>.<field>`)が、稼働中のプロセスには一切適用しない。
+(`[RESTART] - mcp_servers/<server>.<field>`)が、稼働中のプロセスには一切適用しない。
 `/mcp` / `/mcp status` は常に稼働中(再起動前)のサーバ設定を反映し、保留中の
 `/reload` の変更は反映しない。ウォッチドッグによる再起動(`watchdog_loop()`)は、
 失敗したサブプロセスを*現在*の起動設定で再起動する — これはヘルス駆動の復旧であり、
 設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
 変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
 
-**実装補足(`agent/services/config_reload.py _classify_mcp_server_changes()`):** 上記のフィールド単位の差分検出に加え、`config/*.toml` に新規追加されたサーバは `mcp/<server> (new server)`、削除されたサーバは `mcp/<server> (removed server)` として `needs_restart` に計上される。いずれも `ctx.cfg.mcp.mcp_servers` を書き換えず比較のみを行う関数であり、この点は既存の「稼働中のプロセスには一切適用しない」という記述と整合する(根拠: Explicit in code)。
+**実装補足(`agent/services/config_reload.py _classify_mcp_server_changes()`):** 上記のフィールド単位の差分検出に加え、`config/*.toml` に新規追加されたサーバは `mcp_servers/<server> (new server)`、削除されたサーバは `mcp_servers/<server> (removed server)` として `needs_restart` に計上される。いずれも `ctx.cfg.mcp.mcp_servers` を書き換えず比較のみを行う関数であり、この点は既存の「稼働中のプロセスには一切適用しない」という記述と整合する(根拠: Explicit in code)。
 
 ---
 
