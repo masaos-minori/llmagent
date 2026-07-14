@@ -31,6 +31,7 @@
   - config/agent.json: skill_paths キー追加。
   - skills/<name>/SKILL.md: 手順テンプレート定義。
 
+
 ## /diff コマンド（変更差分表示）
 - 課題: エージェントがセッション中に行ったファイル変更を一覧で確認する手段がない。
 - 改善案: エージェントが書き込んだファイルのパスを追跡し、/diff で git diff または内部 diff を表示する。
