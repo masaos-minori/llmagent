@@ -56,6 +56,7 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 |---|---|
 | System-wide architecture overview | `docs/01_overview.md` (indexes `01_overview-arch-*.md`) |
 | File / module layout | `docs/01_overview.md` (indexes `01_overview-files-*.md`) |
+| `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/01_overview.md` |
 | Documentation set index / navigation | `docs/index.md` |
 | Deployment / env setup | `docs/02_deployment-part1.md` + `rules/env.md` |
 

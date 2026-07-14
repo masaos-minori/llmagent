@@ -14,24 +14,6 @@
   - worker runtime
   - event bus replication
 
-## Skills 読み込み機構
-- 課題: 「コードレビュー」「テスト生成」「移行ガイド」など定型手順を毎回会話で指示するのはコスト高。
-- 改善案: skills/<name>/SKILL.md に手順テンプレートを定義し、/skill <name> [args] で呼び出せるようにする。
-- 効果:
-  - 定型手順の再利用により、指示の反復とトークン消費を削減。
-  - 手順の標準化により、品質のばらつきを低減し再現性を向上。
-  - プロジェクト / 個人スコープ分離により、運用拡張が容易。
-- 難易度: 高
-- 実装方式:
-  - agent_commands.py: _cmd_skill(args) 新規。
-  - agent_repl.py: 一時システム追記を渡せる extra_system_prompt 経路追加（必要なら）。
-  - config/agent.json: skill_paths 追加。
-- 実装対象:
-  - agent_repl.py: extra_system_prompt 経路追加（一時システム追記）。
-  - config/agent.json: skill_paths キー追加。
-  - skills/<name>/SKILL.md: 手順テンプレート定義。
-
-
 ## /diff コマンド（変更差分表示）
 - 課題: エージェントがセッション中に行ったファイル変更を一覧で確認する手段がない。
 - 改善案: エージェントが書き込んだファイルのパスを追跡し、/diff で git diff または内部 diff を表示する。
