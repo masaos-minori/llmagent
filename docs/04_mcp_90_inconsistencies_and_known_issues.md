@@ -25,9 +25,9 @@ related:
 
 ---
 
-## SPEC-01: `04_mcp_06_11` からの `04_mcp_90 §SPEC-01` 参照が本ファイル内に存在しない
+## SPEC-01: `04_mcp_06_11` からの `04_mcp_90 §SPEC-01` 参照が本ファイル内に存在しない（解決済み）
 
-- **Type:** `Document inconsistency`
+- **Type:** `Document inconsistency` — **Resolved**(本エントリの追加によりリンク切れは解消済み)
 - **Impact scope:** `docs/04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md` から本ファイルへのリンク（ドキュメント内リンクの整合性のみ。実装動作には影響しない）
 - **Statement A:** `04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md` の冒頭注記は「ルーティングのドリフト検出（`route_resolver.py` の `validate_routing_against_live`）と tool definitions チェック（`repl_health.py`）は異なる機能である — `04_mcp_90 §SPEC-01` も参照」と記載している。
 - **Statement B:** 本ファイル（`04_mcp_90_inconsistencies_and_known_issues.md`）には `SPEC-01` という見出し・エントリは（本エントリを追記する前の時点で）存在しなかった。参照先が実体を欠いた壊れた内部リンクになっていた。
