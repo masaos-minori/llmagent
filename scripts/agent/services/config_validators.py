@@ -81,23 +81,6 @@ def validate_llm_sse_reconnect_max(cfg: LLMConfig) -> None:
         raise ValueError(f"sse_reconnect_max must be >= 0, got {cfg.sse_reconnect_max}")
 
 
-def validate_rag_top_k_search(cfg: RAGConfig) -> None:
-    if cfg.top_k_search < 1:
-        raise ValueError(f"top_k_search must be >= 1, got {cfg.top_k_search}")
-
-
-def validate_rag_top_k_rerank(cfg: RAGConfig) -> None:
-    if cfg.top_k_rerank < 1:
-        raise ValueError(f"top_k_rerank must be >= 1, got {cfg.top_k_rerank}")
-
-
-def validate_rag_max_chunks_per_doc(cfg: RAGConfig) -> None:
-    if cfg.max_chunks_per_doc < 1:
-        raise ValueError(
-            f"max_chunks_per_doc must be >= 1, got {cfg.max_chunks_per_doc}"
-        )
-
-
 def validate_rag_refiner_max_tokens(cfg: RAGConfig) -> None:
     if cfg.refiner_max_tokens < 1:
         raise ValueError(
@@ -116,11 +99,6 @@ def validate_rag_refiner_max_chars_per_chunk(cfg: RAGConfig) -> None:
             f"refiner_max_chars_per_chunk must be >= 1,"
             f" got {cfg.refiner_max_chars_per_chunk}"
         )
-
-
-def validate_rag_rrf_k(cfg: RAGConfig) -> None:
-    if cfg.rrf_k < 1:
-        raise ValueError(f"rrf_k must be >= 1, got {cfg.rrf_k}")
 
 
 def validate_tool_plugin_tool_override(cfg: ToolConfig) -> None:

@@ -152,9 +152,6 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     return RAGConfig(
-        top_k_search=int(cfg.get("top_k_search", 20)),
-        top_k_rerank=int(cfg.get("top_k_rerank", 15)),
-        max_chunks_per_doc=int(cfg.get("max_chunks_per_doc", 2)),
         web_search_url=cfg.get("web_search_url", ""),
         web_search_max_results=int(cfg.get("web_search_max_results", 5)),
         embed_url=cfg.get("embed_url", ""),
@@ -165,7 +162,6 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
         refiner_max_tokens=int(cfg.get("refiner_max_tokens", 512)),
         refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
         refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 300)),
-        rrf_k=int(cfg.get("rrf_k", 60)),
     )
 
 

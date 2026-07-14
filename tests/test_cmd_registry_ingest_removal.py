@@ -1,7 +1,7 @@
 """tests/test_cmd_registry_ingest_removal.py
 
-Tests that the removed `/ingest` command is no longer dispatched,
-while `/rag`, `/export`, and `/compact` remain functional.
+Tests that the removed `/ingest` and `/rag` commands are no longer dispatched,
+while `/export`, `/compact`, and `/mdq` remain functional.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from __future__ import annotations
 from agent.commands.registry import _COMMANDS
 
 
-class TestIngestCommandRemoved:
+class TestIngestRagCommandsRemoved:
     def test_ingest_not_in_built_in_commands(self) -> None:
         """Verify /ingest is NOT in the built-in command registry."""
         ingest_cmds = [c for c in _COMMANDS if c.name == "/ingest"]
@@ -17,11 +17,10 @@ class TestIngestCommandRemoved:
             "/ingest should not be registered as a built-in command"
         )
 
-    def test_rag_still_registered(self) -> None:
-        """Verify /rag is still in the built-in command registry."""
+    def test_rag_not_in_built_in_commands(self) -> None:
+        """Verify /rag is NOT in the built-in command registry."""
         rag_cmds = [c for c in _COMMANDS if c.name == "/rag"]
-        assert len(rag_cmds) == 1, "/rag should still be registered"
-        assert rag_cmds[0].prefix is True
+        assert len(rag_cmds) == 0, "/rag should not be registered"
 
     def test_export_still_registered(self) -> None:
         """Verify /export is still in the built-in command registry."""

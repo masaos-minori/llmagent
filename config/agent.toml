@@ -31,28 +31,12 @@ web_search_max_results = 5
 
 # ── RAG pipeline ──────────────────────────────────────────────────────────────
 
-top_k_search = 20
-top_k_rerank = 15
-mqe_n_queries = 3
-rrf_k = 60
-max_tool_turns = 5
-use_mqe = true
-use_search = true
-use_rrf = true
-use_rerank = true
-rag_top_k = 5
-rag_min_score = 2.0
-max_chunks_per_doc = 3
 # NOTE: use_two_stage_fetch / two_stage_max_docs were removed (2026-07-13). Neither
 # key appears anywhere in scripts/ (RagConfig Protocol in shared/types.py has no
 # matching fields, and grep for "two_stage"/"stage_fetch" across scripts/ is empty).
 # They still appear as boilerplate in several test fixture dicts, but those are
 # inline literals independent of this file. Re-add only alongside an actual
 # two-stage-fetch implementation.
-rag_service_url = "http://127.0.0.1:8010"
-use_semantic_cache = false
-semantic_cache_threshold = 0.92
-semantic_cache_max_size = 100
 
 # ── Context ───────────────────────────────────────────────────────────────────
 
@@ -66,6 +50,7 @@ context_compress_turns = 4
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
 
+max_tool_turns = 5
 tool_cache_ttl = 300
 serial_tool_calls = false
 tool_dedup_max_repeats = 3

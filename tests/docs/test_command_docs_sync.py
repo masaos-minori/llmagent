@@ -86,11 +86,6 @@ class TestCommandDocsSync:
         registered = self.get_registered_commands()
         assert "/mdq" in registered, "/mdq should be registered"
 
-    def test_rag_commands_in_registry(self) -> None:
-        """/rag is registered as a built-in command."""
-        registered = self.get_registered_commands()
-        assert "/rag" in registered, "/rag should be registered"
-
     def test_plugin_commands_in_registry(self) -> None:
         """/plugin is registered as a built-in command."""
         registered = self.get_registered_commands()

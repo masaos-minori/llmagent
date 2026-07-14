@@ -193,7 +193,6 @@ class _ConfigDisplayMixin(MixinBase):
 
     def _print_rag_config(self) -> None:
         """Print retrieval settings including DB path and search parameters."""
-        ctx = self._ctx
         self._out.write("Search settings:")
         from db.config import (
             build_db_config as _build_db_cfg,  # noqa: PLC0415 — lazy
@@ -206,9 +205,6 @@ class _ConfigDisplayMixin(MixinBase):
         except (ValueError, RuntimeError) as e:
             self._out.write(f"  rag_db_path         : (config error: {e})")
             self._out.write(f"  session_db_path     : (config error: {e})")
-        self._out.write(f"  top_k_search        : {ctx.cfg.rag.top_k_search}")
-        self._out.write(f"  top_k_rerank        : {ctx.cfg.rag.top_k_rerank}")
-        self._out.write(f"  max_chunks_per_doc  : {ctx.cfg.rag.max_chunks_per_doc}")
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""

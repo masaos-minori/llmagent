@@ -18,24 +18,6 @@ class DbHelpDisplay:
     def _db_help(self) -> None:
         """Print a help table for /db subcommands."""
         rows = [
-            ["rag stats", "RAG", "", "Document/chunk counts"],
-            ["rag urls", "RAG", "--lang --limit", "List document URLs"],
-            ["rag clean", "RAG", "<url>", "Delete a document"],
-            ["rag rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
-            ["rag vec-rebuild", "RAG", "", "Rebuild vector index"],
-            [
-                "rag reconcile-url",
-                "RAG",
-                "<url>",
-                "Rebuild FTS/vec for a single URL",
-            ],
-            [
-                "rag recover",
-                "RAG",
-                "[backup-path]",
-                "(admin) Integrity check / restore",
-            ],
-            ["rag consistency", "RAG", "", "Chunks/FTS/vec sync check"],
             ["session stats", "Session", "", "Session/message counts"],
             ["session health", "Session", "", "(admin) Integrity check / size"],
             ["session checkpoint", "Session", "[MODE]", "(admin) WAL checkpoint"],
@@ -59,23 +41,6 @@ class DbHelpDisplay:
         )
         self._out.write(
             "Note: /db does not expose direct workflow maintenance commands; workflow state is managed by the WorkflowEngine."
-        )
-
-    def _db_help_rag(self) -> None:
-        """Print help for /db rag subcommands."""
-        rows = [
-            ["stats", "", "Document/chunk counts"],
-            ["urls", "--lang --limit", "List document URLs"],
-            ["clean", "<url>", "Delete a document"],
-            ["rebuild-fts", "", "Rebuild FTS5 index"],
-            ["vec-rebuild", "", "Rebuild vector index"],
-            ["reconcile-url", "<url>", "Rebuild FTS/vec for a single URL"],
-            ["recover", "[backup-path]", "(admin) Integrity check / restore"],
-            ["consistency", "", "Chunks/FTS/vec sync check"],
-        ]
-        self._out.write_table(
-            ["Subcommand (/db rag ...)", "Arguments", "Description"],
-            rows,
         )
 
     def _db_help_session(self) -> None:

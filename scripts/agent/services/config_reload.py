@@ -236,17 +236,6 @@ class ConfigReloadService:
 
     def _apply_rag_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
         """Apply RAG (retrieval-augmented generation) settings."""
-        _apply_int(
-            new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v)
-        )
-        _apply_int(
-            new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v)
-        )
-        _apply_int(
-            new_cfg,
-            "max_chunks_per_doc",
-            lambda v: setattr(cfg.rag, "max_chunks_per_doc", v),
-        )
         _apply_bool(
             new_cfg,
             "use_semantic_cache",

@@ -60,9 +60,6 @@ from agent.services.config_validators import (
     validate_memory_rrf_k as _v_mem_rrf,
 )
 from agent.services.config_validators import (
-    validate_rag_max_chunks_per_doc as _v_rag_mcd,
-)
-from agent.services.config_validators import (
     validate_rag_refiner_max_chars_per_chunk as _v_rag_rmcc,
 )
 from agent.services.config_validators import (
@@ -70,15 +67,6 @@ from agent.services.config_validators import (
 )
 from agent.services.config_validators import (
     validate_rag_refiner_timeout as _v_rag_rt,
-)
-from agent.services.config_validators import (
-    validate_rag_rrf_k as _v_rag_rrf,
-)
-from agent.services.config_validators import (
-    validate_rag_top_k_rerank as _v_rag_tkr,
-)
-from agent.services.config_validators import (
-    validate_rag_top_k_search as _v_rag_tks,
 )
 from agent.services.config_validators import (
     validate_tool_cache_max_size as _v_tool_cms,
@@ -149,9 +137,6 @@ class LLMConfig:
 class RAGConfig:
     """RAG pipeline and vector search settings."""
 
-    top_k_search: int = 20
-    top_k_rerank: int = 15
-    max_chunks_per_doc: int = 2
     web_search_url: str = ""
     web_search_max_results: int = 5
     embed_url: str = ""
@@ -162,17 +147,11 @@ class RAGConfig:
     refiner_max_tokens: int = 512
     refiner_timeout: float = 30.0
     refiner_max_chars_per_chunk: int = 300
-    # RRF fusion constant for RAG pipeline
-    rrf_k: int = 60
 
     def __post_init__(self) -> None:
-        _v_rag_tks(self)
-        _v_rag_tkr(self)
-        _v_rag_mcd(self)
         _v_rag_rmt(self)
         _v_rag_rt(self)
         _v_rag_rmcc(self)
-        _v_rag_rrf(self)
 
 
 @dataclass
@@ -415,7 +394,7 @@ class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
     Composes 7 domain-specific sub-configs.
-    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
+    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.use_semantic_cache, etc.
     security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
 

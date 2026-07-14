@@ -89,13 +89,6 @@ _COMMANDS: list[CommandDef] = [
         "Reset conversation history; 'new' also starts a new session",
     ),
     CommandDef(
-        "/rag",
-        True,
-        True,
-        "_cmd_rag",
-        "search <query> [--debug]  Search the RAG knowledge base",
-    ),
-    CommandDef(
         "/export",
         True,
         False,

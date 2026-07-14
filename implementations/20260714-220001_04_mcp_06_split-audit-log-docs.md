@@ -1,0 +1,136 @@
+# Implementation Procedure: Split Audit Log Documentation by Agent-Side, Shared MCP, and Per-Server Logs
+
+## Goal
+
+Reconcile conflicting statements about MCP and agent audit logging by clearly separating three distinct layers: agent-side audit logs, shared MCP server audit logs, and per-server audit logs. Eliminate ambiguity about which logs exist, their formats, and cross-log correlation capabilities.
+
+## Scope
+
+### In-Scope
+- Document agent-side audit log (`/opt/llm/logs/audit.log`, JSON-lines, `tool_exec` events)
+- Document shared MCP server audit log (`/opt/llm/logs/audit.log`, JSON-lines, `mcp_tool_exec` events) — only for servers that actually use it
+- Document per-server audit logs separately (GitHub, shell, file-delete, MDQ)
+- Clarify cross-log correlation limitations (which fields are available where)
+- Document git-mcp audit config key as reserved/not implemented
+
+### Out-of-Scope
+- Implementing missing audit writers (Non-Goal)
+- Changing audit event schema (Non-Goal)
+- Removing existing per-server audit logs (Non-Goal)
+
+## Assumptions
+
+1. The requirement `requires/20260714_11_require.md` is the canonical specification.
+2. This is a documentation-only task; no source code changes are required.
+3. The current implementation already has three distinct audit logging paths, but documentation conflates them.
+
+## Unknowns (to be resolved during inspection)
+
+1. Which MCP servers actually write to the shared `/opt/llm/logs/audit.log`? Need to verify which ones call the shared MCP audit writer vs only writing per-server logs.
+2. What is the exact format of the shared MCP audit log? Need to confirm the `mcp_tool_exec` event structure.
+3. Does any server currently write to both shared and per-server audit logs simultaneously?
+
+## Affected areas
+
+- MCP protocol and transport documentation
+- MCP audit log reading guide
+- End-to-end tool call tracing documentation
+- MCP server catalog documentation
+
+## Implementation
+
+### Procedure
+
+#### Step 1: Inspect actual audit logging behavior
+
+Verify which servers write to which audit logs by inspecting:
+
+1. **Shared MCP audit writer**: Find the shared audit log function that writes `mcp_tool_exec` records to `/opt/llm/logs/audit.log`. Determine which servers call this function.
+
+2. **Per-server audit logs** (confirmed from grep results):
+   - **file-delete-mcp**: Writes to `/opt/llm/logs/delete_audit.log` via `delete_service.py::build_service()` — hardcoded path, not using `audit_log_path` config key (bug noted in catalog doc)
+   - **shell-mcp**: Writes to `/opt/llm/logs/shell_audit.log` via `service.py` — uses `policy.audit_log_path` config key
+   - **github-mcp**: Writes to configured `audit_log_path` via `service_security.py::_append_audit_log()` — raises `GitHubAuditError` on failure
+   - **MDQ**: Has `audit_log_path` config field pointing to `/opt/llm/logs/mdq_audit.log` — verify if it's actually used
+
+3. **git-mcp audit status**: Confirm `GitConfig.audit_log_path` exists but is never written to (already documented in catalog). Mark as "reserved/not implemented".
+
+4. **Agent-side audit**: Verify `/opt/llm/logs/audit.log` receives `tool_exec` events from agent-side execution layer.
+
+#### Step 2: Create clear three-layer audit documentation
+
+Restructure audit documentation into three distinct sections:
+
+##### Layer 1: Agent-side audit log
+- Path: `/opt/llm/logs/audit.log`
+- Format: JSON-lines
+- Event type: `tool_exec`
+- Source: Agent-side execution/audit layer
+- Correlation fields: `session_id`, `request_id`
+
+##### Layer 2: Shared MCP server audit log
+- Path: `/opt/llm/logs/audit.log` (same file as agent-side, different event type)
+- Format: JSON-lines
+- Event type: `mcp_tool_exec`
+- Source: Only servers that explicitly call the shared MCP audit writer
+- Correlation fields: `session_id`, `request_id`, `server_key`, `error_type`
+- List which servers actually write here
+
+##### Layer 3: Per-server audit logs
+
+Create a table listing each server with its own audit log:
+
+| Server | Audit Log Path | Format | Correlation Fields | Notes |
+|--------|---------------|--------|-------------------|-------|
+| github-mcp | Configured `audit_log_path` | ISO8601 + op + repo/command | None | Raises error on write failure |
+| shell-mcp | Configured `audit_log_path` | ISO8601 + op + command | None | Uses policy.audit_log_path |
+| file-delete-mcp | Hardcoded `/opt/llm/logs/delete_audit.log` | ISO8601 + op + path | None | Bug: ignores config key |
+| mdq | Configured `audit_log_path` | ? | ? | Verify if actually used |
+| git-mcp | Configured `audit_log_path` | Not implemented | N/A | Reserved, not implemented |
+
+#### Step 3: Update target documents
+
+1. **`04_mcp_02_protocol_and_transport.md`**:
+   - Restructure audit section to clearly separate the three layers
+   - Remove statement that "every POST /v1/call_tool emits a JSON-lines audit record" unless qualified
+   - Add correlation field availability per layer
+
+2. **`04_mcp_06_reading-audit-logs.md`**:
+   - Restructure into three sections matching the layers above
+   - Clarify which log files to read for which purpose
+   - Document correlation limitations between layers
+
+3. **`04_mcp_06_end-to-end-tool-call-tracing.md`**:
+   - Update tracing guidance to reflect actual correlation capabilities
+   - Note that cross-layer correlation requires matching session/request IDs
+   - Document which layers support which correlation fields
+
+4. **`04_mcp_04_server_catalog.md`** (and individual server catalog files):
+   - Add per-server audit log path to each server's configuration section
+   - For git-mcp: mark `audit_log_path` as "reserved/not implemented"
+   - For file-delete-mcp: note the hardcoded path bug
+
+#### Step 4: Cross-document consistency verification
+
+After updates, verify:
+- No document says every server always writes shared JSON-lines audit records
+- Three-layer distinction is consistent across all documents
+- Correlation field availability is accurate per layer
+- git-mcp audit status is accurately described everywhere
+
+## Method
+
+- Pattern-based search followed by targeted text replacement via file edit.
+- Preserve surrounding context and formatting.
+- Use consistent terminology across all documents.
+
+## Validation plan
+
+- Search for remaining instances of conflated audit statements using grep patterns like `every.*server.*audit` or `always.*writes.*audit`
+- Verify each server's audit log path matches what implementation actually does
+- Ensure git-mcp audit is consistently marked as "not implemented" across all docs
+
+## Risks
+
+- Finding that some servers' audit behavior is more complex than documented (e.g., conditional writes based on config)
+- Missing one of the many overlapping documents that needs updating

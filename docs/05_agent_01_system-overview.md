@@ -130,7 +130,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | プラン | `/plan` |
 | ワークフロー | `/approve <approval_id> [reason]`, `/reject <approval_id> [reason]` |
 | デバッグ/監査 | `/debug`, `/audit` |
-| RAG/エクスポート | `/rag search`, `/export`, `/compact` |
+| エクスポート/コンパクト | `/export`, `/compact` |
 | メモリ | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
 | プラグイン | `/plugin status` |
 | MDQ | `/mdq status\|index\|refresh\|search\|outline\|get\|grep` |
@@ -142,7 +142,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 `scripts/agent/commands/command_defs_list.py`の`_COMMANDS`(単一の正本)には上記に加え、
 `_PluginsMixin`(`/plugin`)、`_MdqMixin`(`/mdq`)、`_SkillMixin`(`/skill`)が存在する。
 一方`agent/repl.py`の`AgentREPL.SLASH_COMMANDS`(readlineタブ補完用リスト)には
-`/plugin`、`/mdq`、`/skill`、`/rag`、`/memory`が含まれていない。タブ補完対象外という
+`/plugin`、`/mdq`、`/skill`、`/memory`が含まれていない。タブ補完対象外という
 挙動であり、コマンドとして無効という意味ではない。(Explicit in code)
 
 ---
