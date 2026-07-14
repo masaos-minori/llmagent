@@ -5,8 +5,8 @@ Tool-specific argument validators for high-risk MCP tools.
 Usage:
     @register_validator("my_tool")
     def _validate_my_tool(args: dict[str, object]) -> None:
-        if not args.get("required_field"):
-            raise ValueError("required_field must not be empty")
+        if not isinstance(args.get("required_field"), str) or not args.get("required_field", "").strip():
+            raise ValueError("required_field must not be blank")
 
 CallToolRequest.validate_args() calls validate_tool_args(name, args),
 which runs the registered validator (if any) and propagates ValueError.
@@ -42,6 +42,18 @@ def validate_tool_args(tool_name: str, args: dict[str, object]) -> None:
         fn(args)
 
 
+# ── Shared helpers ─────────────────────────────────────────────────────────────
+
+
+def _assert_absolute_path(value: object, tool_name: str) -> None:
+    """Raise if *value* is a non-empty string that does not start with '/'.
+
+    Used by git-related tool validators to enforce absolute paths.
+    """
+    if isinstance(value, str) and value and not value.startswith("/"):
+        raise ValueError(f"{tool_name}: repo_path must be absolute, got {value!r}")
+
+
 # ── High-risk tool validators ─────────────────────────────────────────────────
 
 
@@ -51,15 +63,13 @@ def _validate_git_commit(args: dict[str, object]) -> None:
     if not isinstance(message, str) or not message.strip():
         raise ValueError("git_commit: message must not be blank")
     repo_path = args.get("repo_path", "")
-    if isinstance(repo_path, str) and repo_path and not repo_path.startswith("/"):
-        raise ValueError(f"git_commit: repo_path must be absolute, got {repo_path!r}")
+    _assert_absolute_path(repo_path, "git_commit")
 
 
 @register_validator("git_push")
 def _validate_git_push(args: dict[str, object]) -> None:
     repo_path = args.get("repo_path", "")
-    if isinstance(repo_path, str) and repo_path and not repo_path.startswith("/"):
-        raise ValueError(f"git_push: repo_path must be absolute, got {repo_path!r}")
+    _assert_absolute_path(repo_path, "git_push")
     remote = args.get("remote", "origin")
     if not isinstance(remote, str) or not remote.strip():
         raise ValueError("git_push: remote must not be blank")

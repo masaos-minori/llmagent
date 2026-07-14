@@ -23,7 +23,7 @@ class CallToolRequest(BaseModel):
         """Reject blank tool names early so dispatch logic can assume non-empty."""
         stripped = value.strip()
         if not stripped:
-            raise ValueError("Tool name must not be blank.")
+            raise ValueError("Tool name must not be blank")
         return stripped
 
     def validate_args(self) -> None:
