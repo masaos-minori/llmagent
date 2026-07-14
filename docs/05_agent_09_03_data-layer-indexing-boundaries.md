@@ -58,7 +58,7 @@ with SQLiteHelper().open(write_mode=True, row_factory=True) as db:
 | `approvals` | 承認ゲート。status: `pending → approved \| rejected` |
 | `artifacts` | ステージコールバックが生成するURI |
 
-`config/workflows/default.json` が存在する場合に使用される。存在しない場合は直接実行にフォールバックする。
+`config/workflows/default.json` が存在する場合に使用される。存在しない場合は起動に失敗する（ワークフロー必須）。
 
 ---
 

@@ -83,8 +83,8 @@ User input (line)
 
 `Orchestrator.__init__`は`WorkflowLoader().load()`を呼び、失敗時（`config/workflows/default.json`が
 存在しない、または検証エラー）は`RuntimeError`を送出してOrchestratorの構築自体が失敗する。
-`handle_turn()`内でも`self._workflow_def is None`のケースは`_log_fallback()`が`RuntimeError`を送出する
-だけであり、旧来の直接実行フローへの実装上のフォールバック経路は存在しない。
+`handle_turn()`内でも`self._workflow_def is None`のケースは`RuntimeError`を送出する。
+ワークフロー必須であり、直接実行へのフォールバック経路は一切存在しない。
 上記フロー図の①〜⑥はすべて`WorkflowEngine.run()`のplan/execute/verify各ステージのコールバックとして
 実行される。ステージ構成の詳細は
 [05_agent_03_03_turn-processing-flow-workflow-engine-part1.md](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md)を参照。

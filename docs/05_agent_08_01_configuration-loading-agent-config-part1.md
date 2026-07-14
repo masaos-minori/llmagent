@@ -61,12 +61,12 @@ source:
 `/reload`はすべてのベース設定ファイルを読み込む — 起動時に読み込まれるものと同一の集合。
 `ConfigReloadService`は変更されたキーごとに4つのカテゴリのいずれかに分類する。
 
-すべての設定キーは`config/agent.toml`で定義されている。デフォルト値を提供する個別の`common.toml`や他の分割ファイルは存在しない。
+エージェントプロセスの設定は`config/agent.toml`に集約されている。デフォルト値を提供する個別の`common.toml`や他の分割ファイルは存在しない。
 
 | File | Purpose | Classification |
 |---|---|---|
-| `config/agent.toml` | すべてのサブ設定 | ホットリロード可能 (ほとんど); `use_memory_layer`, `plugin_strict`は起動時のみ |
-| `config/*_mcp_server.toml` | MCPサーバーのトランスポート/URL設定 (`[mcp_servers.<key>]`経由) | 再起動必須: 全フィールド (`transport`, `url`, `startup_mode`, `healthcheck_mode`, `call_timeout_sec`, `startup_timeout_sec`, `tool_names`, `auth_token`, `role`, `cmd`, `env`)、およびサーバーの追加/削除/リネーム |
+| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`, `plugin_strict`は起動時のみ |
+| `config/*_mcp_server.toml` | MCPサーバー固有のアプリケーション設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須: サーバーの追加/削除/リネーム |
 
 **分類の定義:**
 
@@ -99,8 +99,6 @@ source:
 (`_FORBIDDEN_KEYS`とは別の`if "github_server_url" in cfg:`分岐、
 `agent/config_builders.py`)。エラーメッセージは`[mcp_servers.github].url`を使うよう案内する
 (根拠: Explicit in code)。
-
-すべての設定キーは`config/agent.toml`で定義されている。デフォルト値を提供する個別の`common.toml`や他の分割ファイルは存在しない。
 
 ### リロード実行パイプライン
 

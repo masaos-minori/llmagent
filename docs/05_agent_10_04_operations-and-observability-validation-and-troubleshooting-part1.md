@@ -33,9 +33,7 @@ source:
 **期待されるパス:** `config/workflows/default.json`
 
 **対処方法:** 期待されるパスにワークフロー定義をデプロイすること。このチェックをスキップする
-設定トグルは存在しない — 以前 `workflow_mode = "disabled"` や `"auto"` を設定していた設定ファイルは、
-ワークフローチェックに到達する前に、設定読み込みそのものが完全に失敗する
-(`workflow_mode` が拒否キーであるため `ConfigLoadError` となる)。
+設定トグルは存在しない — ワークフロー必須であり、ワークフロー定義なしでの起動はできない。
 
 このプリフライトチェック(`agent/startup.py` の
 `StartupOrchestrator._initialize()`。`agent/repl_health.py` の

@@ -70,7 +70,7 @@ Source: `config/agent.toml`
 | `top_k_search` | `20` | ベクトル/FTS検索結果数 |
 | `top_k_rerank` | `15` | クロスエンコーダの候補数 |
 | `max_chunks_per_doc` | `2` | 結果内の文書ごとの最大チャンク数 |
-| `web_search_url` | `""` | Web検索APIエンドポイント |
+| ~~`web_search_url`~~ | ~~`""`~~ | ~~Web検索APIエンドポイント~~ (非推奨 — `mcp_servers.web_search.url` を使用) |
 | `web_search_max_results` | `5` | Web検索結果の最大件数 |
 | `embed_url` | `""` | 埋め込みAPIエンドポイント |
 | `use_semantic_cache` | `False` | RAG結果に対するセマンティックキャッシュを有効化 |
