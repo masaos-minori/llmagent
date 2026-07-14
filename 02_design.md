@@ -23,11 +23,10 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify the target plan file
 
-- Search for files matching `plans/*_plan.md`.
+- The target plan file is provided by the user (e.g. `plans/{filename}_plan.md`).
+- If no target file is specified, stop immediately and ask the user to specify one.
+- If the specified file does not exist, stop immediately and report.
 - Do not read files under `plans/done/`.
-- If no matching files exist, stop immediately and report.
-- Sort matching files by filename in ascending order.
-- Select the first file as the target plan file.
 
 #### Step 2: Read the target plan file
 

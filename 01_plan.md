@@ -23,11 +23,11 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify the target requirement file
 
-- Search for files matching `requires/*_require.md`.
+- The target requirement file is provided by the user (e.g. `requires/{filename}_require.md`).
+- If no target file is specified, stop immediately and ask the user to specify one.
+- If the specified file does not exist, stop immediately and report.
 - Do not read files under `requires/done/`.
-- If no matching files exist, stop immediately and report.
-- Sort matching files by filename in ascending order.
-- Select the first file as the target requirement file and read it.
+- Read the specified target requirement file.
 
 #### Step 2: Create a work plan file
 
