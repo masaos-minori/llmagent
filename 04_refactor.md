@@ -37,6 +37,10 @@ Read the target source files passed as arguments, then refactor them based on th
 
 Report progress at the start and end of each step.
 
+If multiple target files are specified, treat Steps 1-8 as one complete cycle per file:
+finish every step for the current file before starting Step 1 for the next file. Do not
+batch-read multiple target files up front, and do not interleave steps across files.
+
 #### Step 0: Load required files
 
 If not already loaded, read the following before starting:
@@ -47,8 +51,10 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify target files
 
-- Refactor the target files passed as arguments.
+- The target files are passed as arguments, e.g. a list of file paths. The user may specify one file or a list of multiple files.
 - If no arguments are given, stop and ask which files to refactor.
+- If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
+- Refactor strictly one file at a time, in the order given. Do not read or inspect files that will be processed in a later cycle.
 
 #### Step 2: Preparation
 

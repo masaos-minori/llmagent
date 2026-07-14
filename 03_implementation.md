@@ -11,6 +11,12 @@ Read the target plan file, then implement the feature according to the rules and
 
 Report progress at the start and end of each step.
 
+If multiple target plan files are specified, treat Steps 1-6 as one complete cycle per
+file: finish every step for the current file (through moving it to
+`implementations/done/` in Step 5 and updating documentation in Step 6) before starting
+Step 1 for the next file. Do not batch-read multiple target files up front, and do not
+interleave steps across files.
+
 #### Step 0: Load required files
 
 If not already loaded, read the following before starting:
@@ -18,11 +24,11 @@ If not already loaded, read the following before starting:
 - `rules/coding.md`
 - `rules/toolchain.md`
 
-#### Step 1: Identify the target plan file
+#### Step 1: Identify the target plan file(s)
 
-- The target plan file is provided by the user (e.g. `implementations/{filename}.md`).
-- If no target file is specified, stop immediately and ask the user to specify one.
-- If the specified file does not exist, stop immediately and report.
+- The target plan file(s) are provided by the user (e.g. `implementations/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
+- If no target file is specified, stop immediately and ask the user to specify one or more.
+- If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - Do not read files under `implementations/done/`.
 
 #### Step 2: Read the target plan file

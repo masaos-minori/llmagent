@@ -12,6 +12,11 @@ Read the target requirement file, then create a concrete work plan based on the 
 
 Report progress at the start and end of each step.
 
+If multiple target requirement files are specified, treat Steps 1-7 as one complete
+cycle per file: finish every step for the current file (through moving it to
+`requires/done/` in Step 7) before starting Step 1 for the next file. Do not batch-read
+multiple target files up front, and do not interleave steps across files.
+
 #### Step 0: Load required files
 
 If not already loaded, read the following before starting:
@@ -21,13 +26,13 @@ If not already loaded, read the following before starting:
 - `skills/python-issue-to-plan/SKILL.md`
 - `skills/python-issue-to-plan/workflow.md`
 
-#### Step 1: Identify the target requirement file
+#### Step 1: Identify the target requirement file(s)
 
-- The target requirement file is provided by the user (e.g. `requires/{filename}_require.md`).
-- If no target file is specified, stop immediately and ask the user to specify one.
-- If the specified file does not exist, stop immediately and report.
+- The target requirement file(s) are provided by the user (e.g. `requires/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
+- If no target file is specified, stop immediately and ask the user to specify one or more.
+- If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - Do not read files under `requires/done/`.
-- Read the specified target requirement file.
+- Read only the current target file (the first one, or the next one in sequence). Do not read ahead into files that will be processed in a later cycle.
 
 #### Step 2: Create a work plan file
 
