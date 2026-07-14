@@ -25,9 +25,7 @@ source:
 ## Workflow Startup Validation(ワークフロー起動時検証)
 
 エージェントは、オーケストレータを初期化する前に、ワークフロー定義ファイルが存在することを
-無条件に検証する — これを無効化・縮退させる設定は存在しない
-(2026-07-09に確認済み: `workflow_mode` は有効な設定キーではない — 詳細は
-[Configuration: AgentConfig Structure](05_agent_08_01_configuration-loading-agent-config-part1.md#agentconfig-structure) を参照)。
+無条件に検証する — これを無効化・縮退させる設定は存在しない。
 ファイルが存在しない場合、実用的なガイダンスを伴う `RuntimeError` が発生する。
 
 **期待されるパス:** `config/workflows/default.json`

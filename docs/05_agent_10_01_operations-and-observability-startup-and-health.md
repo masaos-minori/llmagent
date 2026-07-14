@@ -54,7 +54,7 @@ agent[:#1]>
 
 **Memoryの行:** `CliView.write_startup_banner()`(`cli_view.py`)は引数 `memory_mode: str | None = None` を受け取り、`None` でない場合のみ `Memory: <mode>` 行を表示する。`repl.py` の `_print_startup_banner()` は常に `ctx.cfg.memory.use_memory_layer` から `"enabled"`/`"disabled"` を計算して渡すため、この行は常に表示される。
 
-**Workflowの行:** `write_startup_banner()` は `workflow_status` が空文字でない場合のみ `Workflow: <status>` 行を追加表示する。`_get_workflow_status()` は `self._orchestrator is None` なら `"unknown"`、`orchestrator.workflow_status()["tracking"] == "enabled"` なら `"enabled"`、それ以外は `"not loaded"` を返す。上記の期待バナー例は workflow 追跡が無効な場合の表示であり、有効時は3行目に `Workflow: enabled` が追加される。
+**Workflowの行:** `write_startup_banner()` は `workflow_status` が空文字でない場合のみ `Workflow: <status>` 行を追加表示する。`_get_workflow_status()` は `self._orchestrator is None` なら `"unknown"`、`orchestrator.workflow_status()["tracking"] == "enabled"` なら `"enabled"` を返す。ワークフロー定義は起動時に必ずロードされるため、本番環境では常に `"enabled"` が表示される。
 
 **終了案内の文言:** 最終行は実装上 `"Type /help for commands, /exit to quit."` の固定文字列であり、"Ctrl-C or Ctrl-D" という文言はバナーには含まれない(旧記載は誤り)。ただし実際の終了経路としては `/exit` に加え、`repl.py` の `_read_input()` が `EOFError`(Ctrl-D)・`KeyboardInterrupt`(Ctrl-C)を捕捉して `None` を返し、`_repl_loop()` がそれを見てループを終了するため、Ctrl-C/Ctrl-Dによる終了自体は現在も機能する(根拠: Explicit in code)。
 

@@ -68,8 +68,7 @@ source:
 
 `WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
 
-フォールバック: `config/workflows/default.json`が存在しない、またはworkflow DBが利用不可の場合、
-従来の直接実行フローが使用される。
+
 
 ワークフローパッケージ: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine)。
 
@@ -81,8 +80,8 @@ source:
 ### ワークフローステータス
 
 `Orchestrator.workflow_status()`は2つのキーを持つdictを返す:
-- `mode`: "auto" | "required" | "disabled" — ワークフローポリシーに基づく
-- `tracking`: "enabled" | "not_loaded" — ワークフロー定義が設定されていれば"enabled"、そうでなければ"not_loaded"
+- `mode`: "required" — ワークフローは常に必須
+- `tracking`: "enabled" — ワークフロー定義は起動時に必ずロードされる
 
 ### 承認ゲート
 

@@ -42,11 +42,9 @@ class AgentConfig:
 
 **`workflow_mode`と`workflow_require_approval`はもはや存在しない** (2026-07-09に
 `scripts/agent/config_dataclasses.py::AgentConfig`に対して検証済み — いずれのフィールドも存在しない)。
-両キーとも設定読み込み時に拒否されるようになった: マージされた設定のどこかに
-いずれかが出現した場合、`build_agent_config()`は`ConfigLoadError`を発生させる
-(`_FORBIDDEN_KEYS = {"workflow_mode", "workflow_require_approval", "use_tool_summarize",
-"tool_summarize_threshold"}`)。"auto" / "disabled"の縮退モードは存在せず、
-ワークフローレベルの承認ゲートの切り替えも存在しない — 次節を参照。
+両キーとも設定読み込み時に拒否される: `_FORBIDDEN_KEYS`に含まれ、マージされた設定に
+いずれかが出現すると`ConfigLoadError`が発生する (`_FORBIDDEN_KEYS = {"workflow_mode",
+"workflow_require_approval", "use_tool_summarize", "tool_summarize_threshold"}`)。
 
 **現在の挙動:** エージェントは無条件に有効なワークフロー定義を要求する。
 `StartupOrchestrator._initialize()`は、`Orchestrator.__init__()`の**前**に
