@@ -26,6 +26,7 @@ from agent.config_dataclasses import (
     RAGConfig,
     ToolConfig,
 )
+from shared.config_errors import ConfigLoadError
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import (
     SecurityProfile,  # noqa: F401 — used by build_agent_config
@@ -41,17 +42,13 @@ _CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 # ---------------------------------------------------------------------------
 
 
-class ConfigLoadError(RuntimeError):
-    """Raised when configuration files cannot be loaded."""
-
-
 def load_config() -> dict[str, Any]:
     """Load configuration from files.  No module-level cache — always fresh."""
     try:
         config: dict[str, Any] = ConfigLoader().load_all()
         return config
     except (OSError, ValueError, TypeError) as e:
-        raise ConfigLoadError(f"Config load failed: {e}") from e
+        raise ConfigLoadError(f"Config load failed: {e}", cause=e) from e
 
 
 # ---------------------------------------------------------------------------
