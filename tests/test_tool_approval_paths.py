@@ -56,7 +56,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
-            "web_search_url": "http://127.0.0.1:8004",
             "mcp_servers": {
                 "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
             },

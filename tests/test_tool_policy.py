@@ -52,7 +52,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "",
-        "web_search_url": "http://127.0.0.1:8004",
         "mcp_servers": {
             "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
         },
