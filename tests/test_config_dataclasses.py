@@ -85,25 +85,15 @@ class TestLLMConfigValidation:
 class TestRAGConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = RAGConfig()
-        assert cfg.top_k_search == 20
-        assert cfg.rrf_k == 60
+        assert cfg.web_search_max_results == 5
+        assert cfg.embed_url == ""
+        assert cfg.use_semantic_cache is False
+        assert cfg.semantic_cache_threshold == 0.92
+        assert cfg.semantic_cache_max_size == 100
         assert cfg.use_refiner is False
-
-    def test_top_k_search_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="top_k_search"):
-            RAGConfig(top_k_search=0)
-
-    def test_top_k_rerank_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="top_k_rerank"):
-            RAGConfig(top_k_rerank=0)
-
-    def test_max_chunks_per_doc_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="max_chunks_per_doc"):
-            RAGConfig(max_chunks_per_doc=0)
-
-    def test_rrf_k_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="rrf_k"):
-            RAGConfig(rrf_k=0)
+        assert cfg.refiner_max_tokens == 512
+        assert cfg.refiner_timeout == 30.0
+        assert cfg.refiner_max_chars_per_chunk == 300
 
     def test_refiner_timeout_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="refiner_timeout"):

@@ -38,7 +38,6 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_llm_settings(self, ctx: AgentContext) -> None:
         self._out.write("Settings:")
         self._out.write(f"  llm_url             : {ctx.cfg.llm.llm_url}")
-        self._out.write(f"  web_search_url      : {ctx.cfg.rag.web_search_url}")
         self._out.write(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
         self._out.write(f"  http_timeout        : {ctx.cfg.llm.http_timeout}s")
         self._out.write(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")

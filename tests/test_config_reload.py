@@ -282,11 +282,6 @@ class TestStartupOnlyDetection:
         ctx.cfg.tool.plugin_strict = plugin_strict
         return ConfigReloadService(ctx)
 
-    def test_use_memory_layer_change_populates_startup_only(self) -> None:
-        svc = self._make_svc(use_memory_layer=False)
-        result = svc._detect_startup_only({"use_memory_layer": True})
-        assert "use_memory_layer" in result
-
     def test_plugin_strict_change_populates_startup_only(self) -> None:
         svc = self._make_svc(plugin_strict=False)
         result = svc._detect_startup_only({"plugin_strict": True})
@@ -309,5 +304,4 @@ class TestStartupOnlyDetection:
         result = svc._detect_startup_only(
             {"use_memory_layer": True, "plugin_strict": True}
         )
-        assert "use_memory_layer" in result
         assert "plugin_strict" in result

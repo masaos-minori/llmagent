@@ -45,7 +45,6 @@ def svc(ctx: MagicMock) -> ConfigReloadService:
 @pytest.mark.parametrize(
     "key,new_val",
     [
-        ("use_memory_layer", True),
         ("plugin_strict", True),
     ],
 )
@@ -59,7 +58,6 @@ def test_detect_startup_only_changed_field(
 @pytest.mark.parametrize(
     "key,val",
     [
-        ("use_memory_layer", False),
         ("plugin_strict", False),
     ],
 )
@@ -81,17 +79,6 @@ def test_detect_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) 
 
 
 # --- Integration: apply_config_dict correctly classifies fields ---
-
-
-def test_apply_config_dict_use_memory_layer_in_startup_only(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.memory.use_memory_layer = False
-    with patch.object(
-        svc, "_classify_mcp_server_changes", return_value=ConfigReloadOutcome()
-    ):
-        outcome = svc.apply_config_dict({"use_memory_layer": True})
-    assert "use_memory_layer" in outcome.startup_only
 
 
 def test_apply_config_dict_plugin_strict_in_startup_only(

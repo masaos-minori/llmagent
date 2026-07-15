@@ -193,12 +193,12 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
 
 def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
     return MemoryConfig(
-        use_memory_layer=bool(cfg.get("use_memory_layer", False)),
-        memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
+        # REMOVED: use_memory_layer=bool(cfg.get("use_memory_layer", False)),
+        # REMOVED: memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
         memory_max_inject_semantic=int(cfg.get("memory_max_inject_semantic", 5)),
         memory_max_inject_episodic=int(cfg.get("memory_max_inject_episodic", 3)),
         memory_min_importance=float(cfg.get("memory_min_importance", 0.3)),
-        memory_embed_enabled=bool(cfg.get("memory_embed_enabled", False)),
+        # REMOVED: memory_embed_enabled=bool(cfg.get("memory_embed_enabled", False)),
         memory_embed_dim=int(cfg.get("memory_embed_dim", 384)),
         memory_dedup_threshold=float(cfg.get("memory_dedup_threshold", 0.3)),
         memory_max_content_chars=int(cfg.get("memory_max_content_chars", 500)),
@@ -237,10 +237,8 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
             cfg.get("approval_github_allowed_repos", []),
         ),
         gitops_push_blocked=bool(cfg.get("gitops_push_blocked", False)),
-        gitops_force_push_blocked=bool(cfg.get("gitops_force_push_blocked", True)),
-        gitops_protected_branches=list(
-            cfg.get("gitops_protected_branches", ["main", "master"])
-        ),
+        # REMOVED: gitops_force_push_blocked=bool(cfg.get("gitops_force_push_blocked", True)),
+        # REMOVED: gitops_protected_branches=list(cfg.get("gitops_protected_branches", ["main", "master"])),
     )
 
 
@@ -257,6 +255,12 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
         "use_tool_summarize",
         "tool_summarize_threshold",
         "web_search_url",
+        # Removed keys — reject at load time
+        "use_memory_layer",
+        "memory_jsonl_dir",
+        "memory_embed_enabled",
+        "gitops_force_push_blocked",
+        "gitops_protected_branches",
     }
     found = _FORBIDDEN_KEYS & set(cfg.keys())
     if found:

@@ -66,15 +66,22 @@ class TestBuildLLMConfig:
 class TestBuildRAGConfig:
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_rag_config({})
-        assert cfg.top_k_search == 20
-        assert cfg.top_k_rerank == 15
-        assert cfg.rrf_k == 60
+        assert cfg.web_search_max_results == 5
+        assert cfg.embed_url == ""
         assert cfg.use_semantic_cache is False
+        assert cfg.semantic_cache_threshold == 0.92
+        assert cfg.semantic_cache_max_size == 100
+        assert cfg.use_refiner is False
+        assert cfg.refiner_max_tokens == 512
+        assert cfg.refiner_timeout == 30.0
+        assert cfg.refiner_max_chars_per_chunk == 300
 
     def test_overrides_are_applied(self) -> None:
-        cfg = _build_rag_config({"top_k_search": 5, "rrf_k": 30})
-        assert cfg.top_k_search == 5
-        assert cfg.rrf_k == 30
+        cfg = _build_rag_config(
+            {"web_search_max_results": 10, "use_semantic_cache": True}
+        )
+        assert cfg.web_search_max_results == 10
+        assert cfg.use_semantic_cache is True
 
 
 # ── _build_tool_config ────────────────────────────────────────────────────────
@@ -130,7 +137,7 @@ class TestBuildAgentConfig:
     def test_llm_defaults_reflected(self) -> None:
         cfg = build_agent_config(_MIN_CFG)
         assert cfg.llm.llm_url == ""
-        assert cfg.rag.top_k_search == 20
+        assert cfg.rag.web_search_max_results == 5
 
     def test_security_profile_production_sets_watchdog(self) -> None:
         cfg = build_agent_config(_PROD_CFG)

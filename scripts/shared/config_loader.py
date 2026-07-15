@@ -27,6 +27,16 @@ _BASE_CONFIG_FILES: tuple[str, ...] = ("agent.toml",)
 
 _REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(("agent.toml",))
 
+_REMOVED_KEYS: frozenset[str] = frozenset(
+    (
+        "use_memory_layer",
+        "memory_jsonl_dir",
+        "memory_embed_enabled",
+        "gitops_force_push_blocked",
+        "gitops_protected_branches",
+    )
+)
+
 
 class ConfigLoader:
     """Load and merge TOML or JSON config files from the config/ directory."""
@@ -65,7 +75,10 @@ class ConfigLoader:
                     )
         merged: dict[str, Any] = {}
         for name in names:
-            merged.update(self._filter_meta_keys(self._load_single(name)))
+            filtered = self._filter_removed_keys(
+                self._filter_meta_keys(self._load_single(name))
+            )
+            merged.update(filtered)
         return merged
 
     def load_all(self, strict: bool = False) -> dict[str, Any]:
@@ -90,7 +103,9 @@ class ConfigLoader:
         merged: dict[str, Any] = {}
         for name in _BASE_CONFIG_FILES:
             try:
-                data = self._filter_meta_keys(self._load_single(name))
+                data = self._filter_removed_keys(
+                    self._filter_meta_keys(self._load_single(name))
+                )
                 for key, val in data.items():
                     if isinstance(val, dict) and isinstance(merged.get(key), dict):
                         merged[key] = {**merged[key], **val}
@@ -142,3 +157,8 @@ class ConfigLoader:
     @staticmethod
     def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
         return {k: v for k, v in data.items() if not k.startswith("_")}
+
+    @staticmethod
+    def _filter_removed_keys(data: dict[str, Any]) -> dict[str, Any]:
+        """Remove deprecated keys that are no longer part of the schema."""
+        return {k: v for k, v in data.items() if k not in _REMOVED_KEYS}

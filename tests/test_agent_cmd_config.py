@@ -474,7 +474,7 @@ class TestCmdReload:
             cmd._cmd_reload()
 
         out = capsys.readouterr().out
-        assert "[RESTART] - mcp/svc.auth_token" in out
+        assert "[RESTART] - mcp_servers/svc.auth_token" in out
         assert "[DEFER]" not in out
 
     def test_reload_shows_skipped_items(self, capsys: Any) -> None:
