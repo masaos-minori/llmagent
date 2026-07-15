@@ -48,6 +48,7 @@ related:
 **ヘルス:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
 **エラーハンドリング:** 全プロバイダ（DuckDuckGo）が失敗すると `WebSearchUpstreamError` を送出し、HTTP 502 を返す（`search_provider.py::search_duckduckgo` が `RuntimeError`/`TimeoutError` を捕捉して変換）。[Explicit in code]
 **ログ:** `/opt/llm/logs/web-search-mcp.log`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): なし
 **使用場面:** RAG インデックスにないリアルタイム情報; 最新リリース; ニュース。
 
 ---
@@ -82,6 +83,7 @@ related:
 **ヘルス:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
 **エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **ログ:** `/opt/llm/logs/file-read-mcp.log`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 **追加エンドポイント:** `GET /list_allowed_directories`（MCP ツールではない）
 
 ### 実装上の補足（Current behavior）
@@ -127,7 +129,7 @@ related:
 
 **ヘルス:** トークン設定時は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定時は `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}` — ready 時は HTTP 200、degraded 時は 503。
 **ログ:** `/opt/llm/logs/github-mcp.log`
-**Audit ログ:** `config/github_mcp_server.toml::audit_log_path`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): github_audit.log
 
 ### 実装上の補足（Current behavior）
 

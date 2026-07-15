@@ -58,6 +58,7 @@ related:
 **ヘルス:** embed_url が設定されている場合は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定の場合は `"status":"degraded","ready":false,"dependencies":{"embed_url":"not configured"}}` または `"dependencies":{"config":"check failed"}}` — ready 時は HTTP 200、degraded 時は 503。
 **設計上の注記:** HTTP ループを防ぐため、`build_rag_cfg_adapter()` では `rag_service_url = ""` がハードコードされている。
 **ログ:** `/opt/llm/logs/rag-mcp.log`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 **使用場面:** 全ての RAG 検索; `/rag search` コマンドはこのサーバーを経由する。
 
 **ツールステータス:** 全4ツールとも `"production"`（stub/experimental ではない）。
@@ -89,6 +90,7 @@ related:
 
 **ヘルス:** トークン設定時は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定時は `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}}` または `"dependencies":{"config":"check failed"}}` — ready 時は HTTP 200、degraded 時は 503。
 **ログ上限:** 最大5ジョブ、`max_log_size_kb` で設定可能（デフォルト: 合計256 KB）
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): なし — `_audit_log()` 経由で共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録
 **アーキテクチャ:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
 **注記:** `CiBackend` Protocol は将来的な GitLab CI / Jenkins バックエンドへの対応を可能にする。
 

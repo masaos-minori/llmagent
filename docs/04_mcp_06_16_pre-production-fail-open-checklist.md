@@ -17,7 +17,7 @@ source:
 
 本番環境へのデプロイ前に、以下を確認する。
 
-- [ ] `tool_definitions_strict = true`(スキーマ不整合時に致命的エラーとする)
+- [ ] `tool_definitions_strict = true` (デフォルトは `false`; スキーマ不整合時に致命的エラーとするには本番で明示的に有効化)
 - [ ] `routing_drift_strict = true`(ルーティングのドリフト発生時に致命的エラーとする)
 - [ ] `plugin_strict = true`(プラグインエラー時にfail-fastとする)
 - [ ] `serial_tool_calls = false`(デフォルト; DAGスケジューリングが常時有効になる。`true`はレガシーな逐次/並列判定モードに切り替える。`use_tool_dag`という設定フィールドは存在しない — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)
@@ -25,7 +25,7 @@ source:
 - [ ] 登録済みのすべてのツールが`tool_safety_tiers`にエントリを持つ(ティア欠落 → 本番では致命的エラー)
 - [ ] `tool_safety_tiers`に未知のキーがない(未知のキー → 本番では致命的エラー)
 - [ ] shell-mcp: `shell_sandbox_backend = "firejail"`(`"none"`ではない)であり、firejailバイナリがインストールされている
-- [ ] `cicd-mcp`: `workflow_allowlist`が明示的に設定されている(空 = fail-closed: すべて拒否)
+- [ ] `cicd-mcp`: `workflow_allowlist`が明示的に設定されている(空 = startup時に RuntimeError/CicdAuthorizationError で起動失敗する。fail-closed動作)
 - [ ] `config/agent.toml`で`security_profile = "production"`(起動時の強制チェックを有効化する)
 - [ ] `mcp_watchdog_interval = 30.0`(自動再起動が有効)
 - [ ] ヘルスチェックのしきい値(`startup_timeout_sec`、`mcp_watchdog_max_restarts`)を見直し済み

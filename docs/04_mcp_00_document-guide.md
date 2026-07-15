@@ -40,7 +40,7 @@ related:
 | どのMCPサーバが存在し、何をするのか。ポート・起動モードは | `04_mcp_01` |
 | `/v1/call_tool`・Bearer認証・audit logフォーマットは | `04_mcp_02` |
 | toolのルーティング、ToolExecutor、watchdog、新規サーバ追加は | `04_mcp_03`(config defaultsは`04_mcp_06`§Major Default Values) |
-| web-search/github/shell/mdq各mcpが提供するtoolは。mdq-mcpは本番稼働可能か | `04_mcp_04`(mdq-mcpは実装済み) |
+| web-search/github/shell/mdq各mcpが提供するtoolは。mdq-mcpのFTS5検索は本番稼働可能、ハイブリッド検索は未実装 | `04_mcp_04`(mdq-mcpはFTS5検索のみ実装済み) |
 | allowed_dirs/allowed_repos、fail-closed/fail-open、dry_run、リスクティア、MDQ/RAG境界は | `04_mcp_05` |
 | configファイル一覧、健全性検証、デフォルト値、起動時警告、障害診断は | `04_mcp_06` |
 | tool schemaモジュールの命名、TOOL_LISTエクスポート、_MCP_TOOLS参照のクリーンアップは | `04_mcp_07` |

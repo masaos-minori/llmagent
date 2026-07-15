@@ -44,7 +44,7 @@ source:
 - allowlists / denylists
 - リソース制限
 - 監査パス
-- GitHub `allowed_repos` / `allowed_repos_mode`
+- GitHub `allowed_repos`
 - shell `command_allowlist`
 - file server `allowed_dirs`
 - シークレット参照 (`auth_token_env`, `auth_token_file`)

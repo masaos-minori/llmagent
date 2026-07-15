@@ -108,6 +108,10 @@ class RagPipelineMCPService:
             raise RuntimeError("RagPipelineMCPService not started — call start() first")
         return self._pipeline
 
+    def invalidate_cache(self) -> None:
+        pipeline = self._pipeline_or_raise()
+        pipeline.invalidate_cache()
+
     @staticmethod
     def _make_capture_fn() -> tuple[
         Callable[[list[str], list[list[RagHit]], list[RagHit], list[RagHit]], None],

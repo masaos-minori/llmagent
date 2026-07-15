@@ -40,6 +40,7 @@ related:
 **設定:** `max_write_bytes`（デフォルト 1 MB; UTF-8 バイト数として強制）
 **エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **ログ:** `/opt/llm/logs/file-write-mcp.log`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 
 ### 実装上の補足（Current behavior）
 
@@ -67,6 +68,7 @@ related:
 
 **ヘルス:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
 **削除 audit ログ:** `/opt/llm/logs/delete_audit.log`（ISO8601 UTC + op + path + user）
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): delete_audit.log
 **エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **ログ:** `/opt/llm/logs/file-delete-mcp.log`
 
@@ -106,6 +108,7 @@ related:
 
 **ヘルス:** sh が見つかる場合は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"sandbox_backend":"firejail"/"none"}}`; 見つからない場合は `"status":"degraded","ready":false,"dependencies":{"shell":"sh not found in PATH"/"check failed"}}` — ready 時は HTTP 200、degraded 時は 503。
 **ログ:** `/opt/llm/logs/shell-mcp.log`
+**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): shell_audit.log
 
 | sandbox_backend | 意味 | 使用場面 |
 |---|---|---|

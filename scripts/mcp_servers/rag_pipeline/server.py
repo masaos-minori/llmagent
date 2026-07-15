@@ -130,6 +130,22 @@ async def health() -> JSONResponse:
     return result
 
 
+@app.post("/rag_invalidate_cache")
+async def rag_invalidate_cache() -> JSONResponse:
+    """Invalidate the semantic cache of the RAG pipeline."""
+    try:
+        await _service.invalidate_cache()
+        return JSONResponse(
+            content={"status": "ok", "message": "Semantic cache invalidated"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to invalidate cache: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)},
+        )
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # MCP standard endpoints
 # ──────────────────────────────────────────────────────────────────────────────

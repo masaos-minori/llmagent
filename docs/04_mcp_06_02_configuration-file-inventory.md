@@ -23,17 +23,18 @@ source:
 
 → 詳細: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
 
-### Agent-level (agent.toml のみが読み込む設定)
+### レイヤー1 — エージェントプロセス設定 (`config/agent.toml`)
 
 `config/agent.toml` はエージェントプロセスのみが `ConfigLoader().load_all()` で読み込む。
 
-| File | Affects |
+| キー | 影響範囲 |
 |---|---|
-| `config/agent.toml` → `[mcp_servers.*]` | All server transport settings (`McpServerConfig`) — エージェントが MCP サーバーへの接続を管理するために使用 |
-| `config/agent.toml` → `tool_definitions` | Tool names exposed to LLM |
-| `config/agent.toml` → `tool_safety_tiers` | Per-tool risk tier (READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN) |
-| `config/agent.toml` → `mcp_watchdog_interval` | Watchdog poll interval (0 = disabled) |
-| `config/agent.toml` → `mcp_watchdog_max_restarts` | Watchdog max restart count |
+| `config/agent.toml` → `[mcp_servers.*]` | 全サーバーのトランスポート設定（`McpServerConfig`）— エージェントが MCP サーバーへの接続を管理するために使用 |
+| `config/agent.toml` → `tool_definitions` | LLM に公開されるツール名 |
+| `config/agent.toml` → `tool_safety_tiers` | ツールごとのリスクティア（READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN） |
+| `config/agent.toml` → `mcp_watchdog_interval` | ウォッチドッグポーリング間隔（0 = 無効） |
+| `config/agent.toml` → `mcp_watchdog_max_restarts` | ウォッチドッグ最大再起動数 |
+| `config/agent.toml` → `security_profile` | エージェント全体のセキュリティプロファイル（`local` / `production`） |
 
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
 runtime — MCP server definition changes (URL, startup mode,
@@ -47,7 +48,7 @@ apply any pending `/reload` config change. See
 [Agent Operations: MCP restart requirement](05_agent_10_01_operations-and-observability-startup-and-health.md)
 for the full explanation.
 
-### Per-server config files
+### レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)
 
 | Server | Config file |
 |---|---|

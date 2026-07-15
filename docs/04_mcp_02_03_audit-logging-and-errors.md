@@ -33,7 +33,7 @@ related:
 | `server_key` | サーバー識別子（例: `"file_read"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`） | Yes | `""` |
 | `error_type` | トランスポート障害のエラー分類 | Yes | `""` |
 
-**注記:** サーバーごとの audit ログ（shell-mcp, file-delete-mcp, github-mcp）は異なる形式を使用する — ISO8601 タイムスタンプ + `op=<operation>` + path/repo/command。これらは X-Session-Id や X-Request-Id の相関フィールドを持たない; ログ間の相関はエージェント側の audit ログを基準として使用する必要がある。
+**注記:** github-mcp、shell-mcp は共有と両方の audit ログに書き込む。file-delete-mcp のみ専用 audit ログを使用する。ファイル読み込み・書き込み MCP サーバーは audit ログを書かない。github-mcp、shell-mcp の専用 audit ログは ISO8601 タイムスタンプ + op=<operation> + path/repo/command を使用する。これらは X-Session-Id や X-Request-Id の相関フィールドを持たない。ログ間の相関はエージェント側の audit ログを基準として使用する必要がある。
 
 各サーバーのディスパッチハンドラーから呼び出される audit ログ関数によって実装されている。
 

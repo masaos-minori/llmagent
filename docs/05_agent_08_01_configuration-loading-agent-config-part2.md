@@ -40,11 +40,9 @@ class AgentConfig:
 
 `security_lockdown_enabled`は、意図的なロックダウン運用のためDENY-ALL承認警告を抑制する。
 
-**`workflow_mode`と`workflow_require_approval`は有効なキーではない** (2026-07-09に
-`scripts/agent/config_dataclasses.py::AgentConfig`に対して検証済み — いずれのフィールドも存在しない)。
+**`workflow_mode`と`workflow_require_approval`は有効なキーではない**。
 両キーとも設定読み込み時に拒否される: `_FORBIDDEN_KEYS`に含まれ、マージされた設定に
-いずれかが出現すると`ConfigLoadError`が発生する (`_FORBIDDEN_KEYS = {"workflow_mode",
-"workflow_require_approval", "use_tool_summarize", "tool_summarize_threshold"}`)。
+いずれかが出現すると`ConfigLoadError`が発生する。
 
 **現在の挙動:** エージェントは無条件に有効なワークフロー定義を要求する。
 `StartupOrchestrator._initialize()`は、`Orchestrator.__init__()`の**前**に

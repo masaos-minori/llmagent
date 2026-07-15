@@ -126,6 +126,15 @@ class RagIngester:
             total_skipped,
             extra={"stage_name": "ingester"},
         )
+        # Invalidate RAG pipeline semantic cache after ingestion
+        cfg = ConfigLoader().load("ingester.toml")
+        url = cfg.get("rag_pipeline_service_url", "")
+        if url:
+            try:
+                resp = self._client.post(url + "/rag_invalidate_cache")
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                logger.warning(f"Cache invalidation failed: {e}")
         return doc_mgr.check_consistency(
             embed_failed=total_embed_failed,
             on_ingest_complete=on_ingest_complete,

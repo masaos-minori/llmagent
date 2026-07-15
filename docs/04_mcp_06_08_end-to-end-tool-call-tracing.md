@@ -36,6 +36,8 @@ source:
 
 ### Audit Log内のエラー種別の区別（Agent側）
 
+**クロスレイヤー相関について:** per-server audit logs（github_audit.log, shell_audit.log, delete_audit.log）は X-Session-Id や X-Request-Id のような相関フィールドを持たない。これらのログ間の相関はエージェント側の audit ログを基準として使用する必要がある。
+
 agent側のaudit eventには `error_type` フィールドが含まれる:
 
 | error_type | 意味 | 発生原因の例 |

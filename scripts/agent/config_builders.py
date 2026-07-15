@@ -152,7 +152,6 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     return RAGConfig(
-        web_search_url=cfg.get("web_search_url", ""),
         web_search_max_results=int(cfg.get("web_search_max_results", 5)),
         embed_url=cfg.get("embed_url", ""),
         use_semantic_cache=bool(cfg.get("use_semantic_cache", False)),
@@ -260,6 +259,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
         "workflow_require_approval",
         "use_tool_summarize",
         "tool_summarize_threshold",
+        "web_search_url",
     }
     found = _FORBIDDEN_KEYS & set(cfg.keys())
     if found:

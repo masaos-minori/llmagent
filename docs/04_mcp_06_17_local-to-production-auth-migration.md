@@ -21,11 +21,11 @@ source:
 
 1. `config/agent.toml`で`security_profile`を`local`から`production`に切り替える
    - これにより起動時の認証要件の強制チェックが有効になる
-   - `security_profile="local"`では空の`auth_token=""`が許容されるが、`security_profile="production"`では起動時に拒否される
+   - `security_profile="local"`では空の`auth_token_env=""`が許容されるが、`security_profile="production"`では起動時に拒否される
 
-2. すべてのHTTP MCPサーバーに空でない`auth_token`を設定する
-   - `config/agent.toml`内の`transport="http"`を使用する各`[mcp_servers.*]`エントリには、空でない`auth_token`が必須である
-   - 環境変数による注入やシークレット管理(例: `/etc/conf.d/`配下のファイル)を使用し、設定ファイルにシークレットをハードコードしないこと
+2. すべてのHTTP MCPサーバーに空でない認証シークレットを設定する
+    - `config/agent.toml`内の`transport="http"`を使用する各`[mcp_servers.*]`エントリには、空でない`auth_token_env`または`auth_token_file`が必須である
+    - 環境変数による注入やシークレット管理(例: `/etc/conf.d/`配下のファイル)を使用し、設定ファイルにシークレットをハードコードしないこと
 
 3. エージェントプロセスを再起動する(`/reload`は使用しないこと)
    - `/reload`は実行時に`[mcp_servers.*]`を変更しない — MCPサーバー定義の変更にはエージェントの完全な再起動が必要である
@@ -41,13 +41,13 @@ source:
 
 ### トラブルシューティング
 
-#### `auth_token`が空
+#### `auth_token_env` / `auth_token_file` が空
 
 症状: `security_profile="production"`の状態で、エージェントが認証エラーにより起動に失敗する。
 
-原因: `security_profile="production"`であるにもかかわらず、少なくとも1つのHTTP MCPサーバーで`auth_token=""`になっている。
+原因: `security_profile="production"`であるにもかかわらず、少なくとも1つのHTTP MCPサーバーで`auth_token_env=""`または`auth_token_file`が未設定になっている。
 
-対処: `config/agent.toml`で該当する各サーバーに有効な`auth_token`を設定する。
+対処: `config/agent.toml`で該当する各サーバーに有効な`auth_token_env`または`auth_token_file`を設定する。
 
 #### 環境変数によるシークレットの欠落
 
@@ -59,7 +59,7 @@ source:
 
 #### Bearerトークンの不一致
 
-症状: `auth_token`が設定されているにもかかわらず、ツール呼び出しが認証エラーを返す。
+症状: `auth_token_env`または`auth_token_file`が設定されているにもかかわらず、ツール呼び出しが認証エラーを返す。
 
 原因: Bearerトークンの値がMCPサーバーの期待値と一致していない。
 
@@ -67,7 +67,7 @@ source:
 
 #### `/reload`とフル再起動の違い
 
-症状: 設定内の`auth_token`を変更した後、`/reload`を実行しても効果が反映されない。
+症状: 設定内の`auth_token_env`または`auth_token_file`を変更した後、`/reload`を実行しても効果が反映されない。
 
 原因: `/reload`は実行時に`[mcp_servers.*]`を変更することは一切ない。MCPサーバー定義(URL、認証トークン、起動モード、トランスポート、コマンド、環境)の変更には、常にエージェントの完全な再起動が必要である。
 

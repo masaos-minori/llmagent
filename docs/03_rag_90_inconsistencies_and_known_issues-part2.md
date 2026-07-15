@@ -28,18 +28,16 @@ source:
 
 ### OPEN-01: CLIによる取り込みはセマンティックキャッシュを無効化しない
 
-**Status:** 未解決の設計上の疑問点 (実装に対して2026-07-12に再検証済み。事象は引き続き現行コードで再現する)
-**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()`が619行目で
-`ingester.ingest_all(args.force)`を呼び出す
-**Impact:** CLIの`rag-ingest`実行後、稼働中の`RagPipeline`インスタンス (例: MCPサーバー内) は
-古いセマンティックキャッシュエントリを保持し続ける。以降のクエリは、更新されたドキュメント群を
-反映していないキャッシュ結果を返す可能性がある。
+**Status:** 解決済み (2026-07-14に`scripts/rag/ingestion/ingester.py`の`ingest_all()`へ
+`POST /rag_invalidate_cache`呼び出しを追加して解消)
+**Affected code:** `scripts/rag/ingestion/ingester.py` — `ingest_all()`完了後
+**Resolution:** `ingest_all()`完了後に`rag_pipeline_service_url`を取得し、
+MCPサーバーの`/rag_invalidate_cache`エンドポイントへHTTP POSTを送信。
+失敗時はWARNINGをログ出力して継続。
 **Root cause:** `main()`は`on_ingest_complete`コールバックを渡さずに
 `ingester.ingest_all(args.force)`を呼び出している。`RagIngester.ingest_all()`は
 `on_ingest_complete: Callable[[], None] | None = None` (93行目) を受け付け、それを転送する (130行目)。
 このコールバックが取り込み後のキャッシュ無効化を行う唯一の仕組みである。
-**Recommended action:** 取り込み直後に最新の結果を必要とする呼び出し元では、
-`on_ingest_complete`に`pipeline.semantic_cache.invalidate`を渡すこと。
 
 **根拠分類:** Explicit in code (`scripts/rag/ingestion/ingester.py` 90-130行目の`ingest_all()`定義、604-619行目の`main()`実装を確認。`on_ingest_complete`を渡す呼び出しは存在しない)。
 

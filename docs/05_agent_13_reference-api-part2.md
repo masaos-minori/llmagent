@@ -83,7 +83,7 @@ source:
 - **主要な API:** `build_agent_config(cfg_override=None) -> AgentConfig`
 - **呼び出し元:** セッション初期化、設定の再読み込み
 - **呼び出し先:** `ConfigLoader.load_all()`
-- **設定:** `config/` 内のすべての TOML ファイル
+- **設定:** `config/agent.toml`
 - **失敗時:** ファイルの読み込み／パース失敗時に `ConfigLoadError`
 
 完全な詳細: [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md)
