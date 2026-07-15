@@ -3,6 +3,7 @@ Shared pytest fixtures for the llmagent test suite.
 Adds scripts/ to sys.path so all project modules are importable without installation.
 """
 
+import datetime
 import sys
 from pathlib import Path
 
@@ -16,8 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 _VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
 
 # ── Test case logging: track which test was running when SSH disconnects ──
-
-import datetime
 
 _LOG_PATH = Path("/tmp/test_lifecycle_crash.log")
 
@@ -41,4 +40,6 @@ def pytest_runtest_teardown(item, nextitem):
 def pytest_sessionfinish(session, exitstatus):
     """Log session end status."""
     with open(_LOG_PATH, "a", encoding="utf-8") as f:
-        f.write(f"[{_ts()}] SESSION END   exit={exitstatus} ({session.testscollected} tests)\n")
+        f.write(
+            f"[{_ts()}] SESSION END   exit={exitstatus} ({session.testscollected} tests)\n"
+        )

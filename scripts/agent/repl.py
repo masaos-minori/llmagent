@@ -27,6 +27,7 @@ import json
 import signal
 import sqlite3
 import time
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from agent.cli_view import CLIView
@@ -44,6 +45,25 @@ if TYPE_CHECKING:
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
+_REPL_RESERVED_COMMANDS = frozenset(["/exit"])
+
+
+def builtin_command_names() -> frozenset[str]:
+    """Return names of all built-in commands from _COMMANDS."""
+    from agent.commands.command_defs_list import _COMMANDS
+
+    return frozenset(cmd.name for cmd in _COMMANDS)
+
+
+def reserved_repl_command_names() -> frozenset[str]:
+    """Return names of REPL-reserved commands."""
+    return _REPL_RESERVED_COMMANDS
+
+
+def completion_command_names() -> frozenset[str]:
+    """Return all commands available for tab completion."""
+    return builtin_command_names() | reserved_repl_command_names()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # REPLAgent: thin coordinator over AgentContext components
@@ -58,31 +78,14 @@ class AgentREPL:
     All persistent session state is held in self._ctx (AgentContext).
     """
 
-    SLASH_COMMANDS = [
-        "/help",
-        "/mcp",
-        "/config",
-        "/stats",
-        "/context",
-        "/compact",
-        "/clear",
-        "/session",
-        "/debug",
-        "/export",
-        "/undo",
-        "/history",
-        "/system",
-        "/db",
-        "/set",
-        "/reload",
-        "/approve",
-        "/reject",
-        "/exit",
-    ]
+    @cached_property
+    def SLASH_COMMANDS(self) -> frozenset[str]:
+        """Tab completion candidates derived from _COMMANDS + REPL-reserved commands."""
+        return completion_command_names()
 
     def __init__(self) -> None:
         self._ctx = AgentContext()
-        self._view = CLIView(AgentREPL.SLASH_COMMANDS)
+        self._view = CLIView(list(self.SLASH_COMMANDS))
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
         self._diagnostic_store = DiagnosticStore()

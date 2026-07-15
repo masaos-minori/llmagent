@@ -117,6 +117,9 @@ class CommandRegistry(
         for cmd in _COMMANDS:
             self._out.write(f"  {cmd.name:<22} {cmd.help}")
         self._out.write("")
+        self._out.write("REPL control commands:")
+        self._out.write("  /exit                       Exit the REPL")
+        self._out.write("")
         self._out.write(f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}")
 
     async def dispatch(self, line: str) -> bool:
