@@ -61,10 +61,10 @@ class TestCommandDocsSync:
         registered = self.get_registered_commands()
         assert "/mcp" in registered, "/mcp should be registered"
 
-    def test_db_commands_in_registry(self) -> None:
-        """/db is registered as a built-in command."""
+    def test_db_commands_not_in_registry(self) -> None:
+        """/db is no longer registered as a built-in command."""
         registered = self.get_registered_commands()
-        assert "/db" in registered, "/db should be registered"
+        assert "/db" not in registered, "/db should not be registered"
 
     def test_debug_commands_in_registry(self) -> None:
         """/debug is registered as a built-in command."""

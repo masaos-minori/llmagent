@@ -4,7 +4,7 @@
 Session management mixin for CommandRegistry.
 
 Provides _SessionMixin with:
-  _cmd_session             — /session dispatcher
+  _cmd_session             — /session dispatcher (list/load/rename/delete/export/stats/health/checkpoint/vacuum/purge/recover)
   _generate_session_title  — background task: LLM-generated short title (delegates to SessionTitleService)
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
@@ -12,10 +12,14 @@ Provides _SessionMixin with:
 """
 
 import logging
+from collections.abc import Callable
 
+from agent.commands.db_session_ops import DbSessionOps
 from agent.commands.mixin_base import MixinBase
 from agent.commands.session_title import SessionTitleGen
 from agent.commands.utils import parse_command_args
+from agent.services.db_maintenance_service import DbMaintenanceService
+from agent.services.export_formatter import render_export, write_export
 from agent.services.models import SessionRow
 
 logger = logging.getLogger(__name__)
@@ -27,6 +31,7 @@ class _SessionMixin(MixinBase):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._title_gen = SessionTitleGen(self._ctx, self._out)
+        self._db_session_ops = DbSessionOps(self._ctx, self._out)
 
     async def _generate_session_title(self, first_input: str) -> None:
         """Generate and persist a session title via LLM (background task)."""
@@ -118,8 +123,40 @@ class _SessionMixin(MixinBase):
             )
         self._out.write_table(["ID  ", "Title", "Created"], table_rows)
 
+    def _db_session_stats(self) -> None:
+        """Print session/message counts from the Session database."""
+        result = DbMaintenanceService().stats()
+        self._out.write_kv(
+            [
+                ("sessions", f"{result.sessions:,}"),
+                ("messages", f"{result.messages:,}"),
+                ("target", "Session"),
+            ]
+        )
+
+    def _session_export(self, args: str) -> None:
+        """Export the current conversation history to Markdown or JSON.
+
+        Usage: /session export [markdown|json] [filename]
+        """
+        ctx = self._ctx
+        parts = args.strip().split()
+        fmt = "md"
+        outfile: str | None = None
+        for part in parts:
+            if part in ("markdown", "md"):
+                fmt = "md"
+            elif part == "json":
+                fmt = "json"
+            else:
+                outfile = part
+        content = render_export(ctx.conv.history, fmt)
+        write_export(content, outfile, len(ctx.conv.history))
+
     def _cmd_session(self, args: str) -> None:
-        """Handle /session list [n] | load <id> | rename <title> | delete <id>."""
+        """Handle /session list [n] | load <id> | rename <title> | delete <id>
+        | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover.
+        """
         parsed = parse_command_args(args.strip().split())
         sub = parsed.subcommand or "list"
 
@@ -146,9 +183,28 @@ class _SessionMixin(MixinBase):
             self._session_delete(arg)
             return
 
+        rest = args.strip()[len(sub) :].strip()
+        db_dispatch: dict[str, Callable[[], None]] = {
+            "export": lambda: self._session_export(rest),
+            "stats": self._db_session_stats,
+            "health": self._db_session_ops.health,
+            "checkpoint": lambda: self._db_session_ops.checkpoint(
+                rest.strip().upper() or None
+            ),
+            "vacuum": self._db_session_ops.vacuum,
+            "purge": lambda: self._db_session_ops.purge(rest),
+            "recover": lambda: self._db_session_ops.recover(rest.strip() or None),
+        }
+        handler = db_dispatch.get(sub)
+        if handler is not None:
+            handler()
+            return
+
         self._out.write_validation_error(
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
+            " | /session export markdown|json [file]"
+            " | /session stats|health|checkpoint|vacuum|purge|recover"
         )
 
     def _load_session(self, session_id: int) -> None:

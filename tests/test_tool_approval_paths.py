@@ -14,6 +14,7 @@ import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval
+from shared.transport_dto import ToolCallResult
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,15 @@ class TestCheckApprovalAllowedRoot:
         ctx = _make_ctx(cfg=cfg)
         audit = MagicMock()
         ctx.services_required.audit_logger = audit
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /etc/passwd [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
 
         result = await check_approval(ctx, "write_file", {"path": "/etc/passwd"})
 
@@ -131,6 +141,15 @@ class TestCheckApprovalAllowedRoot:
         root = tempfile.mkdtemp()
         cfg = _make_cfg(allowed_root=root)
         ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=f"Dry-run: {root}/file.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
 
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(
@@ -145,6 +164,15 @@ class TestCheckApprovalAllowedRoot:
         outside = str(tmp_path / "outside.txt")
         cfg = _make_cfg(allowed_root="", approval_protected_paths=[])
         ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output=f"Dry-run: {outside} [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
 
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(ctx, "write_file", {"path": outside})

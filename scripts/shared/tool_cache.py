@@ -30,6 +30,7 @@ class CacheEntry:
     output: str
     is_error: bool
     cached_at: float
+    server_key: str = ""
 
 
 class ToolResultCache:
@@ -58,7 +59,8 @@ class ToolResultCache:
             output=cached.output,
             is_error=cached.is_error,
             request_id="",
-            server_key="",
+            server_key=cached.server_key,
+            source="cache",
             error_type="tool" if cached.is_error else "",
         )
 
@@ -67,7 +69,10 @@ class ToolResultCache:
         if result.is_error:
             return
         self._cache[key] = CacheEntry(
-            output=result.output, is_error=result.is_error, cached_at=time.time()
+            output=result.output,
+            is_error=result.is_error,
+            cached_at=time.time(),
+            server_key=result.server_key,
         )
         if self._max_size > 0 and len(self._cache) > self._max_size:
             self._cache.popitem(last=False)

@@ -5,10 +5,13 @@ import hashlib
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import (
+    CICD_WRITE_TOOLS,
     DELETE_TOOLS,
     GIT_WRITE_TOOLS,
     GITHUB_DANGEROUS_TOOLS,
     GITHUB_WRITE_TOOLS,
+    MDQ_WRITE_TOOLS,
+    RAG_WRITE_TOOLS,
     WRITE_TOOLS,
 )
 from shared.transport_dto import TransportErrorInfo
@@ -22,6 +25,9 @@ _SIDE_EFFECT_TOOLS: frozenset[str] = (
     | GIT_WRITE_TOOLS
     | GITHUB_WRITE_TOOLS
     | GITHUB_DANGEROUS_TOOLS
+    | CICD_WRITE_TOOLS
+    | RAG_WRITE_TOOLS
+    | MDQ_WRITE_TOOLS
 )
 
 

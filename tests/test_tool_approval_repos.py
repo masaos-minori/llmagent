@@ -187,6 +187,44 @@ class TestGitopsGuards:
         assert result is True
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tool_name",
+        [
+            "github_push_files",
+            "github_create_or_update_file",
+            "github_delete_file",
+            "github_merge_pull_request",
+            "github_create_branch",
+            "github_create_pull_request",
+            "github_update_pull_request",
+        ],
+    )
+    async def test_gitops_blocks_all_mutation_tools(self, tool_name: str) -> None:
+        """gitops_push_blocked=True denies every repo/PR-mutating GitHub tool."""
+        cfg = _make_cfg(gitops_push_blocked=True)
+        ctx = _make_ctx(cfg)
+        result = await check_approval(ctx, tool_name, {})
+        assert result is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tool_name", ["github_create_issue", "github_add_issue_comment"]
+    )
+    async def test_gitops_does_not_block_issue_tools(self, tool_name: str) -> None:
+        """gitops_push_blocked=True does not block issue-tracker mutations."""
+        cfg = _make_cfg(
+            gitops_push_blocked=True, approval_github_allowed_repos=["any/issue"]
+        )
+        ctx = _make_ctx(cfg)
+        with patch(
+            "agent.tool_approval._prompt_user_approval", AsyncMock(return_value=True)
+        ):
+            result = await check_approval(
+                ctx, tool_name, {"owner": "any", "repo": "issue"}
+            )
+        assert result is True
+
+    @pytest.mark.asyncio
     async def test_allowed_repos_rejects_unlisted_repo(self) -> None:
         """approval_github_allowed_repos non-empty: unlisted owner/repo is denied."""
         cfg = _make_cfg(approval_github_allowed_repos=["myorg/allowed-repo"])

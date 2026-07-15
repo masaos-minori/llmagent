@@ -12,6 +12,7 @@ import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_runner import (
+    _build_tool_meta,
     _compute_serial_overhead,
     _estimate_parallel_time,
     _execute_with_dag,
@@ -88,6 +89,80 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
 
 def _tc(name: str, args: str = "{}") -> dict:
     return {"id": f"call_{name}", "function": {"name": name, "arguments": args}}
+
+
+class TestBuildToolMeta:
+    def test_trigger_workflow_generates_write_toolspec(self) -> None:
+        meta = _build_tool_meta([{"function": {"name": "trigger_workflow"}}])
+        spec = meta["trigger_workflow"]
+        assert spec.is_write is True
+        assert spec.resource_scope == "trigger_workflow"
+
+    def test_rag_delete_document_generates_write_toolspec(self) -> None:
+        meta = _build_tool_meta([{"function": {"name": "rag_delete_document"}}])
+        spec = meta["rag_delete_document"]
+        assert spec.is_write is True
+        assert spec.resource_scope == "rag_delete_document"
+
+    def test_fts_rebuild_generates_write_toolspec(self) -> None:
+        meta = _build_tool_meta([{"function": {"name": "fts_rebuild"}}])
+        spec = meta["fts_rebuild"]
+        assert spec.requires_serial is False
+        assert spec.is_write is True
+
+    def test_index_paths_and_refresh_index_generate_write_toolspec(self) -> None:
+        meta = _build_tool_meta(
+            [
+                {"function": {"name": "index_paths"}},
+                {"function": {"name": "refresh_index"}},
+            ]
+        )
+        assert meta["index_paths"].is_write is True
+        assert meta["index_paths"].requires_serial is False
+        assert meta["refresh_index"].is_write is True
+        assert meta["refresh_index"].requires_serial is False
+
+    def test_github_write_tools_do_not_enter_parallel_read_group(self) -> None:
+        meta = _build_tool_meta(
+            [
+                {"function": {"name": "github_create_pull_request"}},
+                {"function": {"name": "github_delete_file"}},
+            ]
+        )
+        assert meta["github_create_pull_request"].is_write is True
+        assert meta["github_delete_file"].is_write is True
+
+    def test_git_write_tools_do_not_enter_parallel_read_group(self) -> None:
+        meta = _build_tool_meta([{"function": {"name": "git_commit"}}])
+        assert meta["git_commit"].is_write is True
+
+    def test_read_only_tools_remain_parallel(self) -> None:
+        meta = _build_tool_meta(
+            [
+                {"function": {"name": "search_docs"}},
+                {"function": {"name": "get_workflow_status"}},
+                {"function": {"name": "rag_run_pipeline"}},
+            ]
+        )
+        for name in ("search_docs", "get_workflow_status", "rag_run_pipeline"):
+            assert meta[name].is_write is False
+            assert meta[name].requires_serial is False
+
+    def test_explicit_tool_definition_metadata_is_respected(self) -> None:
+        meta = _build_tool_meta(
+            [
+                {
+                    "function": {
+                        "name": "trigger_workflow",
+                        "resource_scope": "custom_scope",
+                        "is_write": False,
+                    }
+                }
+            ]
+        )
+        spec = meta["trigger_workflow"]
+        assert spec.resource_scope == "custom_scope"
+        assert spec.is_write is False
 
 
 class TestExecuteWithDag:

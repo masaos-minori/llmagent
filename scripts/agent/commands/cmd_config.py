@@ -6,7 +6,6 @@ Configuration and statistics mixin for CommandRegistry.
 Split into sub-modules for single-responsibility:
   cmd_config_stats   — _collect_stats, _cmd_stats
   cmd_config_display — all _print_* helpers, _cmd_config
-  cmd_config_set     — _set_temperature, _set_max_tokens, _cmd_set
 
 This file provides _ConfigMixin that inherits from all sub-mixins
 and adds _cmd_reload (config reload at runtime).
@@ -20,7 +19,6 @@ import logging
 from typing import Any
 
 from agent.commands.cmd_config_display import _ConfigDisplayMixin  # noqa: E402
-from agent.commands.cmd_config_set import _ConfigSetMixin  # noqa: E402
 from agent.commands.cmd_config_stats import _ConfigStatsMixin  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -29,7 +27,6 @@ logger = logging.getLogger(__name__)
 class _ConfigMixin(
     _ConfigStatsMixin,
     _ConfigDisplayMixin,
-    _ConfigSetMixin,
 ):
     """Configuration and statistics slash-command handlers."""
 

@@ -64,14 +64,6 @@ def test_is_side_effect_shell_tools() -> None:
     assert is_side_effect("shell_run") is True
 
 
-def test_is_side_effect_non_side_effect_tools() -> None:
-    """Test that non-side-effect tools are correctly identified."""
-    # Test various read-only tools
-    read_only_tools = ["read_file", "list_files", "search_files", "get_metadata"]
-    for tool_name in read_only_tools:
-        assert is_side_effect(tool_name) is False
-
-
 def test_is_side_effect_unknown_tool() -> None:
     """Test that unknown tools default to non-side-effect."""
     # Unknown tools should return False
@@ -100,6 +92,46 @@ def test_is_side_effect_github_dangerous_tools() -> None:
 
     for tool_name in GITHUB_DANGEROUS_TOOLS:
         assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_cicd_write_tools() -> None:
+    """Test that CI/CD write tools are correctly identified as side effect tools."""
+    from shared.tool_constants import CICD_WRITE_TOOLS
+
+    for tool_name in CICD_WRITE_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_rag_write_tools() -> None:
+    """Test that RAG write tools are correctly identified as side effect tools."""
+    from shared.tool_constants import RAG_WRITE_TOOLS
+
+    for tool_name in RAG_WRITE_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_mdq_write_tools() -> None:
+    """Test that MDQ write/admin tools are correctly identified as side effect tools."""
+    from shared.tool_constants import MDQ_WRITE_TOOLS
+
+    for tool_name in MDQ_WRITE_TOOLS:
+        assert is_side_effect(tool_name) is True
+
+
+def test_is_side_effect_non_side_effect_tools() -> None:
+    """Test that non-side-effect tools are correctly identified."""
+    # Test various read-only tools
+    read_only_tools = [
+        "read_file",
+        "list_files",
+        "search_files",
+        "get_metadata",
+        "search_docs",
+        "rag_run_pipeline",
+        "get_workflow_status",
+    ]
+    for tool_name in read_only_tools:
+        assert is_side_effect(tool_name) is False
 
 
 def test_format_transport_error_summary_includes_all_fields() -> None:

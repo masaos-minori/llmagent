@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """agent/commands/cmd_rag_export.py
 
-Export and compact mixin for CommandRegistry.
+Compact mixin for CommandRegistry.
 
 Provides _RagExportMixin with:
-  _cmd_export            — /export: dump conversation to Markdown or JSON
   _cmd_compact           — /compact: force immediate context compression
 """
 
@@ -13,7 +12,6 @@ from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.history import HistoryCompressionError
-from agent.services.export_formatter import render_export, write_export
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +21,6 @@ class _RagExportMixin(MixinBase):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-
-    def _cmd_export(self, args: str) -> None:
-        """Export the current conversation history to Markdown or JSON.
-
-        Usage: /export [md|json] [filename]
-        """
-        ctx = self._ctx
-        parts = args.strip().split()
-        fmt = "md"
-        outfile: str | None = None
-        for part in parts:
-            if part in ("md", "json"):
-                fmt = part
-            else:
-                outfile = part
-        content = render_export(ctx.conv.history, fmt)
-        write_export(content, outfile, len(ctx.conv.history))
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.

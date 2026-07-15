@@ -10,11 +10,13 @@ from typing import Any
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
     check_allowed_repo,
     check_allowed_root,
     check_preflight,
+    classify_operation_type,
     classify_risk,
 )
 
@@ -58,6 +60,18 @@ def _cfg(**overrides: Any) -> AgentConfig:
     }
     defaults.update(overrides)
     return build_agent_config(defaults)
+
+
+class TestClassifyOperationType:
+    def test_github_mutation_tools_classified_as_api_write(self) -> None:
+        from shared.tool_constants import (
+            GITHUB_DANGEROUS_TOOLS,
+            GITHUB_WRITE_TOOLS,
+        )
+
+        mutation_set = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
+        for tool_name in mutation_set:
+            assert classify_operation_type(tool_name) == OperationType.API_WRITE
 
 
 class TestClassifyRisk:

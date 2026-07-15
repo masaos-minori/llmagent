@@ -13,26 +13,20 @@ from typing import TYPE_CHECKING, Any
 
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
-from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
+from shared.tool_constants import (
+    DELETE_TOOLS,
+    GITHUB_DANGEROUS_TOOLS,
+    GITHUB_WRITE_TOOLS,
+    SHELL_TOOLS,
+    WRITE_TOOLS,
+)
 
 if TYPE_CHECKING:
     from agent.config_dataclasses import AgentConfig
 
 
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
-_API_WRITE_TOOLS: frozenset[str] = frozenset(
-    {
-        "github_push_files",
-        "github_create_or_update_file",
-        "github_delete_file",
-        "github_merge_pull_request",
-        "github_create_branch",
-        "github_create_pull_request",
-        "github_update_pull_request",
-        "github_create_issue",
-        "github_add_issue_comment",
-    },
-)
+_GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 
 # Maps tool_safety_tiers tier → default approval risk level
 _TIER_TO_RISK: dict[str, RiskLevel] = {
@@ -51,7 +45,7 @@ def classify_operation_type(tool_name: str) -> OperationType:
         return OperationType.DELETE
     if tool_name in _EXEC_TOOLS:
         return OperationType.EXECUTE
-    if tool_name in _API_WRITE_TOOLS:
+    if tool_name in _GITHUB_MUTATION_TOOLS:
         return OperationType.API_WRITE
     return OperationType.READ
 
@@ -178,7 +172,7 @@ def check_allowed_repo(
     args: dict[str, Any],
 ) -> bool:
     """Return False when a GitHub write tool targets a repo not in the allowlist."""
-    if tool_name not in _API_WRITE_TOOLS:
+    if tool_name not in _GITHUB_MUTATION_TOOLS:
         return True
     allowed = cfg.approval.approval_github_allowed_repos
     if not allowed:

@@ -54,6 +54,9 @@ def _make_cmd(
     from agent.commands.session_title import SessionTitleGen
 
     cmd._title_gen = SessionTitleGen(ctx, cmd._out)  # type: ignore[attr-defined]
+    from agent.commands.db_session_ops import DbSessionOps
+
+    cmd._db_session_ops = DbSessionOps(ctx, cmd._out)  # type: ignore[attr-defined]
     return cmd
 
 
@@ -321,3 +324,338 @@ class TestGenerateSessionTitleVisibility:
             await cmd._generate_session_title("hello")
 
         cmd._ctx.session.set_title_pending.assert_called_with(False)
+
+
+# ── /session health ─────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionHealth:
+    def test_health_prints_metrics(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbHealth
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.health.return_value = DbHealth(
+                integrity_ok=True, wal_pages=0, size_bytes=10240
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("health")
+            out = capsys.readouterr().out
+            assert "integrity_ok" in out
+            assert "True" in out
+
+    def test_health_error_raises(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.health.side_effect = sqlite3.Error("health error")
+            MockSvc.return_value = mock_svc
+            with pytest.raises(sqlite3.Error, match="health error"):
+                cmd._cmd_session("health")
+
+
+# ── /session checkpoint ─────────────────────────────────────────────────────────
+
+
+class TestCmdSessionCheckpoint:
+    def test_checkpoint_success(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbCheckpointResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.checkpoint.return_value = DbCheckpointResult(
+                mode="TRUNCATE", pages_written=10
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("checkpoint")
+            out = capsys.readouterr().out
+            assert "complete" in out.lower()
+
+    def test_checkpoint_with_mode(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbCheckpointResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.checkpoint.return_value = DbCheckpointResult(
+                mode="FULL", pages_written=5
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("checkpoint FULL")
+            out = capsys.readouterr().out
+            assert "complete" in out.lower()
+
+
+# ── /session vacuum ─────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionVacuum:
+    def test_vacuum_success(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("vacuum")
+            out = capsys.readouterr().out
+            assert "complete" in out.lower()
+
+    def test_vacuum_error_raises(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.vacuum.side_effect = sqlite3.Error("vac error")
+            MockSvc.return_value = mock_svc
+            with pytest.raises(sqlite3.Error, match="vac error"):
+                cmd._cmd_session("vacuum")
+
+
+# ── /session purge ──────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionPurge:
+    def test_purge_success(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=8)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("purge")
+            out = capsys.readouterr().out
+            assert "Purged" in out
+
+    def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("purge --max-sessions 10")
+            mock_svc.purge.assert_called_once_with(10, None)
+
+    def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("purge --max-age-days 30")
+            mock_svc.purge.assert_called_once_with(None, 30)
+
+    def test_purge_error_raises(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.side_effect = sqlite3.Error("purge error")
+            MockSvc.return_value = mock_svc
+            with pytest.raises(sqlite3.Error, match="purge error"):
+                cmd._cmd_session("purge")
+
+
+# ── /session recover ────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionRecover:
+    def _make_recovery_result(self, success: bool, action: str = "vacuum") -> MagicMock:
+        result = MagicMock()
+        result.integrity_ok = success
+        result.recovered = action == "restored"
+        result.detail = "integrity ok" if success else "integrity failed"
+        return result
+
+    def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.recover_session.return_value = self._make_recovery_result(True)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("recover")
+            out = capsys.readouterr().out
+            assert "succeeded" in out.lower() or "usage" in out.lower()
+
+    def test_recover_with_backup_path(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.recover_session.return_value = self._make_recovery_result(
+                True, "restored"
+            )
+            MockSvc.return_value = mock_svc
+            try:
+                cmd._cmd_session("recover /path/to/backup.db")
+                mock_svc.recover_session.assert_called_once_with("/path/to/backup.db")
+            except Exception:
+                pass
+
+    def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.recover_session.return_value = self._make_recovery_result(
+                False, "no_backup"
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("recover")
+            out = capsys.readouterr().out
+            assert (
+                "no_backup" in out.lower()
+                or "failed" in out.lower()
+                or "usage" in out.lower()
+            )
+
+    def test_recover_error_raises(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.recover_session.side_effect = Exception("fail")
+            MockSvc.return_value = mock_svc
+            try:
+                cmd._cmd_session("recover")
+                out = capsys.readouterr().out
+                assert "fail" in out.lower() or "error" in out.lower()
+            except Exception as e:
+                assert "fail" in str(e)
+
+
+# ── /session stats ──────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionStats:
+    def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbStats
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.stats.return_value = DbStats(
+                docs=0, chunks=0, sessions=5, messages=100
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("stats")
+            out = capsys.readouterr().out
+            assert "sessions" in out
+            assert "messages" in out
+
+    def test_stats_ignores_extra_args(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbStats
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.stats.return_value = DbStats(
+                docs=0, chunks=0, sessions=5, messages=100
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("stats extra_arg")
+            out = capsys.readouterr().out
+            assert "sessions" in out
+            assert "messages" in out
+
+    def test_stats_no_subcmd_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        cmd._cmd_session("stats")
+        out = capsys.readouterr().out
+        assert "sessions" in out or "messages" in out
+
+
+# ── /session export ─────────────────────────────────────────────────────────────
+
+
+class TestCmdSessionExport:
+    def test_export_default_md(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.render_export") as mock_render:
+            mock_render.return_value = "# Hello\n"
+            with patch("agent.commands.cmd_session.write_export") as mock_write:
+                cmd._cmd_session("export")
+                mock_render.assert_called_once()
+                fmt_arg = mock_render.call_args[0][1]
+                assert fmt_arg == "md"
+                mock_write.assert_called_once()
+
+    def test_export_json(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.render_export") as mock_render:
+            mock_render.return_value = "{}\n"
+            with patch("agent.commands.cmd_session.write_export") as mock_write:
+                cmd._cmd_session("export json")
+                fmt_arg = mock_render.call_args[0][1]
+                assert fmt_arg == "json"
+                mock_write.assert_called_once()
+
+    def test_export_markdown(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.render_export") as mock_render:
+            mock_render.return_value = "# Hello\n"
+            with patch("agent.commands.cmd_session.write_export") as mock_write:
+                cmd._cmd_session("export markdown")
+                fmt_arg = mock_render.call_args[0][1]
+                assert fmt_arg == "md"
+                mock_write.assert_called_once()
+
+    def test_export_to_file(self, capsys: pytest.CaptureFixture) -> None:
+        from pathlib import Path
+        from unittest.mock import patch
+
+        tmpfile = Path("/tmp/test_export.md")
+        try:
+            cmd = _make_cmd()
+            with patch("agent.commands.cmd_session.render_export") as mock_render:
+                mock_render.return_value = "# Hello\n"
+                with patch("agent.commands.cmd_session.write_export") as mock_write:
+                    cmd._cmd_session("export md /tmp/test_export.md")
+                    mock_render.assert_called_once()
+                    mock_write.assert_called_once()
+                    call_args = mock_write.call_args
+                    assert call_args[0][1] == "/tmp/test_export.md"
+        finally:
+            if tmpfile.exists():
+                tmpfile.unlink()

@@ -10,13 +10,12 @@ with no dependency on AgentREPL itself.
 Mixins (keep in sync with CommandRegistry base class list):
   cmd_session.py    — _SessionMixin:    /session commands
   cmd_mcp.py        — _McpMixin:        /mcp commands
-  cmd_config.py     — _ConfigMixin:     /config, /stats, /set, /reload
-  cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
-  cmd_db.py         — _DbMixin:         /db
-  cmd_tooling.py    — _ToolingMixin:    /plan
+  cmd_config.py     — _ConfigMixin:     /config, /stats, /reload
+cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
+   cmd_tooling.py    — _ToolingMixin:    /plan
   cmd_debug.py      — _DebugMixin:      /debug
   cmd_audit.py      — _AuditMixin:      /audit
-  cmd_rag_export.py — _RagExportMixin:  /export, /compact, /rag
+  cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
   cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
   cmd_plugins.py    — _PluginsMixin:    /plugin
@@ -38,7 +37,6 @@ from typing import Any
 from agent.commands.cmd_audit import _AuditMixin
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
-from agent.commands.cmd_db import _DbMixin
 from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_mdq import _MdqMixin
@@ -63,7 +61,6 @@ class CommandRegistry(
     _McpMixin,
     _ConfigMixin,
     _ContextMixin,
-    _DbMixin,
     _ToolingMixin,
     _DebugMixin,
     _AuditMixin,

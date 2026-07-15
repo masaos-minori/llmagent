@@ -39,24 +39,24 @@ related:
 
 `/debug audit`(audit.logの末尾表示)は削除された。監査ログの参照は`/audit`コマンド(`tail N | turn <task_id> | tool <name>`)を使う。`/debug`は未知のサブコマンドを明示的に拒否する(根拠: Explicit in code — `cmd_debug.py`)。
 
-### `/db`フラットエイリアス(削除)
+### `/db`コマンド(完全削除)
 
-以下のスコープなしフラット形式は廃止され、`/db rag <subcmd>`または`/db session <subcmd>`のスコープ付き形式のみが有効である。
+`/db`は、そのフラットエイリアス形式・`/db rag <subcmd>`形式・`/db session <subcmd>`形式のすべてを含めて廃止された。旧`/db session <subcmd>`の機能は`/session <subcmd>`へ移管されている。旧`/db rag <subcmd>`の機能に対する後継コマンドは提供されない。
 
-| 廃止された形式 | 置き換え |
+| 廃止された形式 | 現在の状態 |
 |---|---|
-| `/db urls [--lang] [--limit]` | `/db rag urls [--lang] [--limit]` |
-| `/db clean <url>` | `/db rag clean <url>` |
-| `/db rebuild-fts` | `/db rag rebuild-fts` |
-| `/db recover [backup-path]` | `/db rag recover [backup-path]` または `/db session recover [backup-path]` |
-| `/db stats` | `/db rag stats` または `/db session stats` |
-| `/db health` | `/db session health` |
-| `/db checkpoint [MODE]` | `/db session checkpoint [MODE]` |
-| `/db vacuum` | `/db session vacuum` |
-| `/db purge [--max-sessions N] [--max-age-days N]` | `/db session purge [--max-sessions N] [--max-age-days N]` |
-| `/db consistency` | `/db rag consistency` |
+| `/db urls [--lang] [--limit]` | 後継コマンドなし(RAGパイプライン側のMCPツールを直接利用) |
+| `/db clean <url>` | 後継コマンドなし |
+| `/db rebuild-fts` | 後継コマンドなし |
+| `/db recover [backup-path]` | `/session recover [backup-path]` |
+| `/db stats` | `/session stats` |
+| `/db health` | `/session health` |
+| `/db checkpoint [MODE]` | `/session checkpoint [MODE]` |
+| `/db vacuum` | `/session vacuum` |
+| `/db purge [--max-sessions N] [--max-age-days N]` | `/session purge [--max-sessions N] [--max-age-days N]` |
+| `/db consistency` | 後継コマンドなし |
 
-フラット形式を入力すると使用方法(usage)メッセージが表示され、実行はされない(根拠: Explicit in code — `tests/test_agent_cmd_db.py`のフラットエイリアス無効テスト群)。後方互換は提供されていない。
+`/db`はいかなる形式(フラット・`rag`スコープ・`session`スコープ)でももはや認識されるコマンドではなく、未知のスラッシュコマンドとして扱われる(根拠: Explicit in code — `agent/commands/command_defs_list.py`に`/db`の`CommandDef`が存在しない、および`tests/test_cmd_registry_ingest_removal.py`/`tests/test_command_def_sync.py`の回帰テスト)。後方互換は提供されていない。
 
 ## Related Documents
 
@@ -78,4 +78,4 @@ migration notes
 /note removal
 /ingest removal
 /debug audit removal
-/db flat alias removal
+/db removed entirely

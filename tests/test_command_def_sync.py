@@ -18,8 +18,6 @@ from agent.commands.registry import CommandRegistry
 # Internal sub-dispatch helpers intentionally absent from _COMMANDS
 INTENTIONAL_HANDLER_EXCLUSIONS: frozenset[str] = frozenset(
     {
-        "_cmd_db_rag",
-        "_cmd_db_session",
         "_cmd_mcp_status",
         "_cmd_mdq_get",
         "_cmd_mdq_grep",

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections import OrderedDict
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -55,9 +56,9 @@ class TestCacheStampede:
         executor._raw_execute = _fake_raw_execute
 
         results = await asyncio.gather(
-            executor._execute_with_cache("write_file", {"path": "a"}),
-            executor._execute_with_cache("write_file", {"path": "a"}),
-            executor._execute_with_cache("write_file", {"path": "a"}),
+            executor._execute_with_cache("read_text_file", {"path": "a"}),
+            executor._execute_with_cache("read_text_file", {"path": "a"}),
+            executor._execute_with_cache("read_text_file", {"path": "a"}),
         )
         assert call_count == 1  # only one actual execution
         assert all(r.output == "ok" for r in results)
@@ -85,9 +86,9 @@ class TestCacheStampede:
         executor.stat_cache_hits = 0
         executor._raw_execute = _fake_raw_execute
 
-        await executor._execute_with_cache("write_file", {"path": "a"})
+        await executor._execute_with_cache("read_text_file", {"path": "a"})
         assert call_count == 1
-        assert "write_file:" not in executor._inflight
+        assert "read_text_file:" not in executor._inflight
 
     @pytest.mark.asyncio
     async def test_raw_execute_exception_releases_concurrent_waiter(self) -> None:
@@ -759,7 +760,7 @@ class TestToolExecutorErrorClassification:
         result = await ex._execute_with_cache("read_text_file", {})
 
         assert result.request_id == ""
-        assert result.source == ""
+        assert result.source == "cache"
         assert ex.stat_cache_hits == 1
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
 
@@ -852,3 +853,121 @@ class TestEnsureReadyFailureHandling:
         result = await executor._raw_execute("test_tool", {})
         assert result.is_error is False
         mock_transport.call.assert_awaited_once()
+
+
+class TestExecuteCacheBypass:
+    def _make_bare_executor(self) -> ToolExecutor:
+        executor = ToolExecutor.__new__(ToolExecutor)
+        executor._cache = OrderedDict()
+        executor._cache_ttl = 60.0
+        executor._cache_max_size = 100
+        executor._inflight = {}
+        executor.stat_cache_hits = 0
+        executor._plugin_invoker = PluginToolInvoker()
+        return executor
+
+    @pytest.mark.asyncio
+    async def test_side_effect_tool_bypasses_cache(self) -> None:
+        call_count = 0
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            nonlocal call_count
+            call_count += 1
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="file_write"
+            )
+
+        executor = self._make_bare_executor()
+        executor._raw_execute = _fake_raw_execute
+
+        await executor.execute("write_file", {"path": "a"})
+        await executor.execute("write_file", {"path": "a"})
+
+        assert call_count == 2
+        assert executor._cache == {}
+
+    @pytest.mark.asyncio
+    async def test_trigger_workflow_bypasses_cache(self) -> None:
+        call_count = 0
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            nonlocal call_count
+            call_count += 1
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="cicd"
+            )
+
+        executor = self._make_bare_executor()
+        executor._raw_execute = _fake_raw_execute
+
+        await executor.execute("trigger_workflow", {"workflow": "ci"})
+        await executor.execute("trigger_workflow", {"workflow": "ci"})
+
+        assert call_count == 2
+        assert executor._cache == {}
+
+    @pytest.mark.asyncio
+    async def test_fts_rebuild_bypasses_cache(self) -> None:
+        call_count = 0
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            nonlocal call_count
+            call_count += 1
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="mdq"
+            )
+
+        executor = self._make_bare_executor()
+        executor._raw_execute = _fake_raw_execute
+
+        await executor.execute("fts_rebuild", {})
+        await executor.execute("fts_rebuild", {})
+
+        assert call_count == 2
+        assert executor._cache == {}
+
+    @pytest.mark.asyncio
+    async def test_read_text_file_uses_cache(self) -> None:
+        call_count = 0
+
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            nonlocal call_count
+            call_count += 1
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="file_read"
+            )
+
+        executor = self._make_bare_executor()
+        executor._raw_execute = _fake_raw_execute
+
+        await executor.execute("read_text_file", {"path": "a"})
+        await executor.execute("read_text_file", {"path": "a"})
+
+        assert call_count == 1
+        assert executor.stat_cache_hits == 1
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_preserves_server_key(self) -> None:
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="rag_pipeline"
+            )
+
+        executor = self._make_bare_executor()
+        executor._raw_execute = _fake_raw_execute
+
+        await executor.execute("rag_run_pipeline", {})
+        second = await executor.execute("rag_run_pipeline", {})
+
+        assert second.server_key == "rag_pipeline"
+        assert second.source == "cache"

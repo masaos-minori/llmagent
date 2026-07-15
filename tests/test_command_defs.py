@@ -68,7 +68,7 @@ class TestCommandsList:
 
     def test_known_commands_present(self) -> None:
         names = {cmd.name for cmd in _COMMANDS}
-        for expected in ("/help", "/config", "/mcp", "/db", "/memory"):
+        for expected in ("/help", "/config", "/mcp", "/memory"):
             assert expected in names, f"Expected {expected} in _COMMANDS"
 
     def test_async_commands_have_async_flag(self) -> None:
@@ -78,7 +78,7 @@ class TestCommandsList:
 
     def test_prefix_commands_have_prefix_flag(self) -> None:
         prefix_names = {cmd.name for cmd in _COMMANDS if cmd.prefix}
-        for name in ("/mcp", "/session", "/db"):
+        for name in ("/mcp", "/session"):
             assert name in prefix_names, f"{name} should be prefix command"
 
     def test_exact_commands_no_prefix_flag(self) -> None:

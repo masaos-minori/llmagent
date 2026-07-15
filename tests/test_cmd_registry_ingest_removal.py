@@ -1,7 +1,8 @@
 """tests/test_cmd_registry_ingest_removal.py
 
-Tests that the removed `/ingest` and `/rag` commands are no longer dispatched,
-while `/export`, `/compact`, and `/mdq` remain functional.
+Tests that the removed `/ingest`, `/rag`, and standalone `/export` commands are
+no longer dispatched, while `/compact` and `/mdq` remain functional and `/export`
+is documented as a `/session` subcommand.
 """
 
 from __future__ import annotations
@@ -22,11 +23,18 @@ class TestIngestRagCommandsRemoved:
         rag_cmds = [c for c in _COMMANDS if c.name == "/rag"]
         assert len(rag_cmds) == 0, "/rag should not be registered"
 
-    def test_export_still_registered(self) -> None:
-        """Verify /export is still in the built-in command registry."""
+    def test_export_not_registered_as_standalone(self) -> None:
+        """Verify /export is no longer a standalone command (folded into /session)."""
         export_cmds = [c for c in _COMMANDS if c.name == "/export"]
-        assert len(export_cmds) == 1, "/export should still be registered"
-        assert export_cmds[0].prefix is True
+        assert len(export_cmds) == 0, (
+            "/export should not be registered as a standalone command"
+        )
+
+    def test_session_help_mentions_export(self) -> None:
+        """Verify /session's CommandDef help text documents the export subcommand."""
+        session_cmds = [c for c in _COMMANDS if c.name == "/session"]
+        assert len(session_cmds) == 1, "/session should be registered"
+        assert "export" in session_cmds[0].help
 
     def test_compact_still_registered(self) -> None:
         """Verify /compact is still in the built-in command registry."""

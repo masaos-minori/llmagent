@@ -26,6 +26,17 @@ class ApprovalPreviewError(RuntimeError):
     """Raised when dry-run preview execution fails."""
 
 
+class ApprovalPreviewBlockingError(ApprovalPreviewError):
+    """Raised when dry-run preview returns an explicit error result.
+
+    Distinct from the base ApprovalPreviewError (which also covers
+    dry-run being unsupported or unreachable) so callers can deny
+    approval outright for HIGH-risk tools on an explicit dry-run
+    failure, while still falling back to a text-only preview for the
+    unsupported/connection-failure case.
+    """
+
+
 class AuditUnavailableError(RuntimeError):
     """Defined for completeness; not raised — silent return is the policy
 

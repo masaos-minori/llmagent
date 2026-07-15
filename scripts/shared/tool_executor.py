@@ -26,6 +26,7 @@ from shared.mcp_config import (
 from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
+from shared.tool_executor_helpers import is_side_effect
 from shared.tool_lifecycle import LifecycleProtocol
 from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
@@ -142,7 +143,8 @@ class ToolExecutor(ToolTransportInvoker):
                     output=cached.output,
                     is_error=cached.is_error,
                     request_id="",
-                    server_key="",
+                    server_key=cached.server_key,
+                    source="cache",
                     error_type="tool" if cached.is_error else "",
                 )
             del self._cache[cache_key]
@@ -189,7 +191,10 @@ class ToolExecutor(ToolTransportInvoker):
     def _store_and_evict(self, cache_key: str, result: ToolCallResult) -> None:
         """Store a non-error result in the cache and evict LRU entry if needed."""
         self._cache[cache_key] = CacheEntry(
-            output=result.output, is_error=result.is_error, cached_at=time.time()
+            output=result.output,
+            is_error=result.is_error,
+            cached_at=time.time(),
+            server_key=result.server_key,
         )
         if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
             evicted_key, _ = self._cache.popitem(last=False)
@@ -200,10 +205,13 @@ class ToolExecutor(ToolTransportInvoker):
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
+        """Execute a tool. Plugin tools bypass cache and MCP routing; side-effecting
+        tools bypass the cache and always re-execute; other tools use the cache."""
         plugin_result = await self._plugin_invoker.try_execute(tool_name, args)
         if plugin_result is not None:
             return plugin_result
+        if is_side_effect(tool_name):
+            return await self._raw_execute(tool_name, args)
         return await self._execute_with_cache(tool_name, args)
 
     def clear_cache(self) -> None:

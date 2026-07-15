@@ -14,9 +14,7 @@ class ToolCallResult:
     )
     request_id: str  # x-request-id from HTTP transport; "" for plugin/cache
     server_key: str  # server key that handled the call; "" for plugin tools
-    source: str = (
-        ""  # "mcp" for MCP tools, "plugin" for plugin tools, "" for cache/error paths
-    )
+    source: str = ""  # "mcp" for MCP tools, "plugin" for plugin tools, "cache" for cache hits, "" for error paths
     error_type: str = (
         ""  # "transport" | "tool" | "plugin_contract" | "" (empty on success)
     )

@@ -27,10 +27,7 @@ def reset_plugins() -> None:
 @pytest.mark.parametrize(
     "input_line, expected_args",
     [
-        ("/db help", "help"),
-        ("/db  help", "help"),
         ("/mcp", ""),
-        ("/db", ""),
     ],
 )
 async def test_builtin_dispatch_strips_args(
@@ -38,7 +35,7 @@ async def test_builtin_dispatch_strips_args(
     input_line: str,
     expected_args: str,
 ) -> None:
-    handler_name = "_cmd_db" if input_line.startswith("/db") else "_cmd_mcp"
+    handler_name = "_cmd_mcp"
     mock = AsyncMock()
     setattr(registry, handler_name, mock)
     await registry.dispatch(input_line)

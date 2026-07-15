@@ -16,6 +16,7 @@ import orjson
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
+    ApprovalPreviewBlockingError,
     ApprovalPreviewError,
     PolicyViolationError,
 )
@@ -28,6 +29,7 @@ from agent.tool_output import (
 from agent.tool_policy import check_preflight, classify_risk
 from agent.tool_result_formatter import build_preview, mask_args
 from shared.json_utils import dumps as _json_dumps
+from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -35,17 +37,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-_GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
-    {
-        "github_push_files",
-        "github_create_or_update_file",
-        "github_delete_file",
-        "github_merge_pull_request",
-        "github_create_pull_request",
-        "github_update_pull_request",
-        "github_create_branch",
-    }
-)
+_GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
+
+# gitops_push_blocked guards repository-content and PR mutations.
+# Issue-tracker mutations are intentionally excluded — see
+# docs/05_agent_06_01_tool-execution-and-approval-execution.md.
+_GITOPS_BLOCKABLE_TOOLS: frozenset[str] = _GITHUB_MUTATION_TOOLS - {
+    "github_create_issue",
+    "github_add_issue_comment",
+}
 
 
 async def _build_preview_with_dry_run(
@@ -74,7 +74,7 @@ async def _build_preview_with_dry_run(
         is_error = result.is_error
         _x_req = result.request_id
         if is_error:
-            raise ApprovalPreviewError(
+            raise ApprovalPreviewBlockingError(
                 f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
             )
         preview += f"\n  Dry-run: {dry_text[:300]}"
@@ -114,7 +114,7 @@ async def check_approval(
     than failing the entire approval, to avoid blocking approvals when the
     MCP server has a connection issue.
     """
-    if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITHUB_WRITE_TOOLS:
+    if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITOPS_BLOCKABLE_TOOLS:
         msg = f"  [DENIED] {tool_name}: gitops_push_blocked is set; write operations are disabled"
         audit_approval(
             ctx, tool_name, RiskLevel.HIGH, args, "denied_gitops_push_blocked"
@@ -139,6 +139,14 @@ async def check_approval(
 
     try:
         preview = await _build_preview_with_dry_run(ctx, tool_name, args)
+    except ApprovalPreviewBlockingError as e:
+        if risk == RiskLevel.HIGH:
+            msg = f"  [DENIED] {tool_name}: dry-run reported an error: {e}"
+            audit_approval(ctx, tool_name, risk, args, "denied_dry_run_error")
+            emit_denied(tool_name, msg)
+            return False
+        logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
+        preview = build_preview(tool_name, args)
     except ApprovalPreviewError as e:
         logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
         preview = build_preview(tool_name, args)

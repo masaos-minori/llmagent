@@ -39,7 +39,20 @@ related:
 | `/clear [new]` | 履歴をリセット、統計情報とキャッシュをクリア | `new` → 新しいDBセッションを開始 |
 | `/undo` | 履歴+DBから直近のuser+assistantターンをpop | メモリ注入も削除される |
 | `/history [n]` | なし | 直近N件のuser/assistantメッセージを表示 |
-| `/export [md\|json] [file]` | ファイル書き込み(ファイル名指定時) | なし |
+| `/session export markdown\|json [file]` | ファイル書き込み(ファイル名指定時) | なし |
+
+#### Session DB操作サブコマンド
+
+旧`/db session <subcmd>`サブコマンドはすべて`/session <subcmd>`へ移管された。これらのコマンドの詳細な動作は`05_agent_07_09_cli-and-commands-slash-commands-context-db.md`を参照。
+
+| Command | 副作用 | Notes |
+|---|---|---|
+| `/session stats` | なし | セッション/メッセージ数 |
+| `/session health` | なし | 整合性チェック結果(`integrity_ok`)とDBファイルサイズ |
+| `/session checkpoint [MODE]` | WALチェックポイント | WALをメインDBにフラッシュ |
+| `/session vacuum` | VACUUM | 空きページを回収 |
+| `/session purge [--max-sessions N] [--max-age-days N]` | 古いセッションをDELETE | 件数または経過日数に基づく |
+| `/session recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | Sessionのみ |
 
 ### MCPカテゴリ
 
@@ -65,8 +78,6 @@ related:
 |---|---|---|
 | `/config` | なし | 設定ファイルのパスと値を表示 |
 | `/stats` | なし | セッションのメトリクスを表示 |
-| `/set temperature <f>` | `ctx.cfg.llm.llm_temperature`とLLMサービス内部のtemperatureフィールドを更新 | LLMに即座に反映 |
-| `/set max_tokens <n>` | `ctx.cfg.llm.llm_max_tokens`を更新 | LLMに即座に反映 |
 | `/reload` | すべての設定ファイルをリロード | `ctx.cfg`を更新しサービスに同期 |
 
 ## Related Documents
@@ -87,6 +98,7 @@ related:
 
 slash command reference
 session category
+session db ops
 mcp watchdog status
 serialization events
 MCP category

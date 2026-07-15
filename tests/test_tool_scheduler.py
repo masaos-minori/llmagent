@@ -288,6 +288,40 @@ class TestConcurrentGroups:
         # write_first and parallel must be in separate batches
         assert len(metadata.concurrent_groups) == 2
         assert metadata.concurrent_groups[0].groups == [[tc_write]]
+        assert metadata.concurrent_groups[0].serialize_flags == [True]
+
+    def test_write_first_group_is_serialized(self) -> None:
+        tc_write_a = _tc("write_file")
+        tc_write_b = _tc("delete_file")
+        _groups, metadata = build_execution_groups(
+            [tc_write_a, tc_write_b],
+            {
+                "write_file": _meta(resource_scope="", is_write=True),
+                "delete_file": _meta(resource_scope="", is_write=True),
+            },
+        )
+        write_first_batch = metadata.concurrent_groups[0]
+        assert write_first_batch.groups == [[tc_write_a, tc_write_b]]
+        assert write_first_batch.serialize_flags == [True]
+
+    def test_fts_rebuild_does_not_serialize_unrelated_reads(self) -> None:
+        tc_rebuild = _tc("fts_rebuild")
+        tc_read_a = _tc("search_docs")
+        tc_read_b = _tc("get_chunk")
+        _groups, metadata = build_execution_groups(
+            [tc_rebuild, tc_read_a, tc_read_b],
+            {
+                "fts_rebuild": _meta(requires_serial=True, is_write=True),
+                "search_docs": _meta(),
+                "get_chunk": _meta(),
+            },
+        )
+        barrier_batch = metadata.concurrent_groups[0]
+        assert barrier_batch.groups == [[tc_rebuild]]
+        read_batch = metadata.concurrent_groups[-1]
+        assert tc_read_a in read_batch.groups[-1]
+        assert tc_read_b in read_batch.groups[-1]
+        assert read_batch.serialize_flags[-1] is False
 
     def test_empty_calls_empty_concurrent_groups(self) -> None:
         _groups, metadata = build_execution_groups([], {})

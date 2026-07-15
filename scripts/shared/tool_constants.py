@@ -63,6 +63,12 @@ CICD_TOOLS: frozenset[str] = frozenset(
     },
 )
 
+CICD_WRITE_TOOLS: frozenset[str] = frozenset({"trigger_workflow"})
+CICD_READ_TOOLS: frozenset[str] = CICD_TOOLS - CICD_WRITE_TOOLS
+
+RAG_WRITE_TOOLS: frozenset[str] = frozenset({"rag_delete_document"})
+RAG_READ_TOOLS: frozenset[str] = RAG_TOOLS - RAG_WRITE_TOOLS
+
 # Markdown Context Compression Engine tools
 MDQ_TOOLS: frozenset[str] = frozenset(
     {
@@ -76,6 +82,10 @@ MDQ_TOOLS: frozenset[str] = frozenset(
         "fts_consistency_check",
         "fts_rebuild",
     },
+)
+
+MDQ_WRITE_TOOLS: frozenset[str] = frozenset(
+    {"fts_rebuild", "index_paths", "refresh_index"}
 )
 
 # Local git operation tools (git-mcp, port 8014)

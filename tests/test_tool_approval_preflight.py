@@ -127,6 +127,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_medium_risk_y_approved(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -134,6 +143,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_medium_risk_n_denied(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is False
@@ -141,6 +159,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_high_risk_yes_approved(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -149,6 +176,15 @@ class TestCheckApproval:
     async def test_high_risk_y_is_insufficient(self) -> None:
         # 'y' alone must NOT approve a high-risk operation
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
@@ -158,6 +194,15 @@ class TestCheckApproval:
         ctx = _make_ctx()
         audit = MagicMock()
         ctx.services_required.audit_logger = audit
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         audit.info.assert_called_once()
@@ -166,10 +211,19 @@ class TestCheckApproval:
         assert "approved" in logged
 
     @pytest.mark.asyncio
-    async def test_audit_log_written_on_denial(self) -> None:
+    async def test_audit_log_written_on_rejection(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
         ctx.services_required.audit_logger = audit
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         logged = audit.info.call_args[0][0]
@@ -189,6 +243,15 @@ class TestCheckApproval:
     async def test_audit_log_skipped_when_no_logger(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.audit_logger = None
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         # Should not raise even with no audit logger
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
@@ -211,6 +274,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_high_risk_empty_input_denied(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
@@ -218,6 +290,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_high_risk_input_with_whitespace_approved(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value=" yes ")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -226,6 +307,15 @@ class TestCheckApproval:
     async def test_audit_log_skipped_when_no_logger_high_risk(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.audit_logger = None
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -236,6 +326,15 @@ class TestCheckApproval:
         audit = MagicMock()
         ctx.services_required.audit_logger = audit
         audit.info.side_effect = RuntimeError("audit error")
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             with pytest.raises(RuntimeError, match="audit error"):
                 await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
@@ -243,6 +342,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_medium_risk_uppercase_y_approved(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would write]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="Y")):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -250,6 +358,15 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_high_risk_uppercase_yes_approved(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f.txt [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
         with patch("asyncio.to_thread", new=AsyncMock(return_value="YES")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True

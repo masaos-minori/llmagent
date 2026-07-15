@@ -10,8 +10,10 @@ from shared.tool_cache import ToolResultCache
 from shared.transport_dto import ToolCallResult
 
 
-def _ok_result(output: str = "ok") -> ToolCallResult:
-    return ToolCallResult(output=output, is_error=False, request_id="", server_key="")
+def _ok_result(output: str = "ok", server_key: str = "") -> ToolCallResult:
+    return ToolCallResult(
+        output=output, is_error=False, request_id="", server_key=server_key
+    )
 
 
 def _err_result() -> ToolCallResult:
@@ -41,6 +43,16 @@ class TestToolResultCache:
         assert hit.output == "cached_output"
         assert hit.is_error is False
         assert hit.request_id == ""
+
+    def test_cache_hit_preserves_server_key(self) -> None:
+        cache = ToolResultCache(ttl=60.0)
+        key = cache.make_key("rag_run_pipeline", {})
+        result = _ok_result("cached_output", server_key="rag_pipeline")
+        cache.store_if_success(key, result)
+        hit = cache.get_result(key)
+        assert hit is not None
+        assert hit.server_key == "rag_pipeline"
+        assert hit.source == "cache"
 
     def test_ttl_expiry_returns_none(self) -> None:
         cache = ToolResultCache(ttl=0.001)

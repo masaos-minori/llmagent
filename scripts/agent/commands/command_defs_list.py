@@ -79,7 +79,8 @@ _COMMANDS: list[CommandDef] = [
         True,
         False,
         "_cmd_session",
-        "list [n] | load <id> | rename <title> | delete <id>",
+        "list [n] | load <id> | rename <title> | delete <id>"
+        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover",
     ),
     CommandDef(
         "/clear",
@@ -87,13 +88,6 @@ _COMMANDS: list[CommandDef] = [
         False,
         "_cmd_clear",
         "Reset conversation history; 'new' also starts a new session",
-    ),
-    CommandDef(
-        "/export",
-        True,
-        False,
-        "_cmd_export",
-        "[md|json] [file]  Export conversation history (default: md to stdout)",
     ),
     CommandDef(
         "/history",
@@ -108,20 +102,6 @@ _COMMANDS: list[CommandDef] = [
         False,
         "_cmd_system",
         "[name]  Switch system prompt preset; list presets if no name given",
-    ),
-    CommandDef(
-        "/db",
-        True,
-        True,
-        "_cmd_db",
-        "rag stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url|recover|consistency; session stats|health|checkpoint|vacuum|purge|recover",
-    ),
-    CommandDef(
-        "/set",
-        True,
-        False,
-        "_cmd_set",
-        "temperature <f> | max_tokens <n>  Set LLM generation parameters",
     ),
     CommandDef(
         "/memory",

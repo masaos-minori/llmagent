@@ -26,7 +26,7 @@ from agent.tool_result_formatter import (
 from agent.tool_scheduler import build_execution_groups
 from shared.json_utils import dumps as _json_dumps
 from shared.json_utils import now_iso_raw
-from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
+from shared.tool_constants import SHELL_TOOLS
 from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 
@@ -58,14 +58,15 @@ def _build_tool_meta(
         fn = td.get("function", {})
         name = fn.get("name", "")
         if name:
-            _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
+            _is_write = is_side_effect(name)
+            _requires_serial = fn.get("requires_serial", False) or name in SHELL_TOOLS
             _default_scope = name if _is_write else ""
             tool_meta[name] = ToolSpec(
                 call_id="",
                 name=name,
                 resource_scope=fn.get("resource_scope", _default_scope),
-                requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
-                is_write=_is_write,
+                requires_serial=_requires_serial,
+                is_write=fn.get("is_write", _is_write),
             )
     return tool_meta
 
