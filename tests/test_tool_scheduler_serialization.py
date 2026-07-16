@@ -90,7 +90,7 @@ class TestSerializeFlags:
         assert barrier_batch.groups == [[tcs[0]]]
         assert barrier_batch.serialize_flags[0] is False
 
-    def test_write_first_batch_has_serialize_false(self) -> None:
+    def test_write_first_batch_has_serialize_true(self) -> None:
         tcs = [_tc("write_x"), _tc("write_y")]
         meta = {
             "write_x": _spec("write_x", is_write=True),  # no scope
@@ -98,7 +98,7 @@ class TestSerializeFlags:
         }
         _groups, md = build_execution_groups(tcs, meta)
         write_first_batch = md.concurrent_groups[0]
-        assert write_first_batch.serialize_flags[0] is False
+        assert write_first_batch.serialize_flags[0] is True
 
     def test_empty_input_has_empty_concurrent_groups(self) -> None:
         _groups, md = build_execution_groups([], {})

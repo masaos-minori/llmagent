@@ -4,72 +4,37 @@ Regression tests for removed slash commands — ensures they stay removed.
 
 from __future__ import annotations
 
-import asyncio
-
 
 class TestRemovedDbAliases:
-    """Verify flat /db aliases are rejected."""
+    """Verify flat /db aliases are not registered as commands."""
 
-    def test_db_urls_rejected(self) -> None:
-        """/db urls is not a valid subcommand."""
-        from agent.commands.cmd_db import _DbMixin
+    def test_db_urls_not_registered(self) -> None:
+        """/db urls is not a registered command."""
+        from agent.commands.registry import _COMMANDS
 
-        mixin = _DbMixin.__new__(_DbMixin)
-        mixin._ctx = type(
-            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
-        )()
-        mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/db" not in command_names, "/db should not be a registered command"
 
-        # Should write a validation error, not execute any subcommand
-        try:
-            asyncio.get_event_loop().run_until_complete(mixin._cmd_db("urls"))
-        except Exception:
-            pass  # May raise if no event loop — just check it doesn't silently succeed
+    def test_db_clean_not_registered(self) -> None:
+        """/db clean is not a registered command."""
+        from agent.commands.registry import _COMMANDS
 
-    def test_db_clean_rejected(self) -> None:
-        """/db clean is not a valid subcommand."""
-        from agent.commands.cmd_db import _DbMixin
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/db" not in command_names, "/db should not be a registered command"
 
-        mixin = _DbMixin.__new__(_DbMixin)
-        mixin._ctx = type(
-            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
-        )()
-        mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
+    def test_db_rebuild_fts_not_registered(self) -> None:
+        """/db rebuild-fts is not a registered command."""
+        from agent.commands.registry import _COMMANDS
 
-        try:
-            asyncio.get_event_loop().run_until_complete(mixin._cmd_db("clean"))
-        except Exception:
-            pass
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/db" not in command_names, "/db should not be a registered command"
 
-    def test_db_rebuild_fts_rejected(self) -> None:
-        """/db rebuild-fts is not a valid subcommand."""
-        from agent.commands.cmd_db import _DbMixin
+    def test_db_recover_not_registered(self) -> None:
+        """/db recover is not a registered command."""
+        from agent.commands.registry import _COMMANDS
 
-        mixin = _DbMixin.__new__(_DbMixin)
-        mixin._ctx = type(
-            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
-        )()
-        mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
-
-        try:
-            asyncio.get_event_loop().run_until_complete(mixin._cmd_db("rebuild-fts"))
-        except Exception:
-            pass
-
-    def test_db_recover_rejected(self) -> None:
-        """/db recover is not a valid subcommand."""
-        from agent.commands.cmd_db import _DbMixin
-
-        mixin = _DbMixin.__new__(_DbMixin)
-        mixin._ctx = type(
-            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
-        )()
-        mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
-
-        try:
-            asyncio.get_event_loop().run_until_complete(mixin._cmd_db("recover"))
-        except Exception:
-            pass
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/db" not in command_names, "/db should not be a registered command"
 
 
 class TestRemovedNoteCommand:
