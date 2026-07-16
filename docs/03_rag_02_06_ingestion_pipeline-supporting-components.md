@@ -51,8 +51,6 @@ source:
 | `embed_workers` | 4 | ThreadPoolExecutorによる最大並行埋め込みスレッド数 |
 | `embedding_dims` | 384 | 想定される埋め込みベクトルの次元数；APIレスポンスと照合して検証される |
 
-**注記（2026-07-13）:** `strict_artifact_validation` は `config/ingester.toml` から削除した。`RagIngester.__init__` はこのキーを一切読み込んでおらず、`_validate_artifact()` の呼び出し箇所2箇所とも `strict` 引数を省略しているため、Pythonのデフォルト `strict=True`（`schema_version`/`artifact_type`/`created_by` を必須とする）が設定に関わらず常時適用される。
-
 [03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md) を参照。
 
 ---

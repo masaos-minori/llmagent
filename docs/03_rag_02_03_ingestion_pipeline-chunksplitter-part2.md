@@ -96,8 +96,6 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 | ファイル単位の失敗 | `ERROR` ログ（トレースバック付き、`logger.exception`）；次のファイルへ継続 |
 | 既存チャンク（`{stem}-0000.json`） | `--force` がない限りスキップ |
 
-> 根拠: Explicit in code — `scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence()` は Sudachi の `RuntimeError` を捕捉して `TokenizationError` に変換し再送出する（`""` を返す実装にはなっていない）。`scripts/rag/ingestion/chunk_splitter.py::process_all()` は `except (OSError, RuntimeError, ValueError)` でこれを受け止め、`process_file failed: %s: %s` としてログ後、次のファイルへ進む。旧記載「そのチャンクをスキップ」は実装と矛盾するため訂正した。
-
 ### 3.6 ロギング
 
 - **ファイル:** `/opt/llm/logs/chunk.log` + stderr

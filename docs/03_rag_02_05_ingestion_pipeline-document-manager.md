@@ -46,11 +46,6 @@ source:
 **コードから推測される意図:**
 - `handle_existing_document` は `url.startswith("file://")` を直接チェックするのではなく `is_file_url` をcallableとして受け取る。これによりモック実装でのテスト容易性を確保している
 
-**現在の実装挙動（docsとコードの矛盾点）:**
-- `handle_existing_document` は `existing_doc_id` を受け取るが、非file:// URLの更新パスにはこの値が渡されていない。ETagManager は `doc_id=0` を固定で生成しており、`existing_doc_id` を使っていない（`document_manager.py` 46-101行）。
-- `ETagManager.update()` が発行するSQLはすべて `WHERE doc_id = ?` で `doc_id=0` を束縛するため、`doc_id=0` の行が存在しない限り更新は0件ヒットでサイレントに終わる（例外は発生しない）。結果として、force=Falseで既存の非file://ドキュメントを再取得した場合、ETag/Last-Modifiedの更新が実質的に無効化されている可能性が高い。
-- 本挙動を裏付ける自動テストは `scripts/tests/` 配下に見当たらない。意図的な仕様か実装漏れか不明のため **Needs confirmation**。
-
 **CLIエントリポイント:**
 
 ```bash
