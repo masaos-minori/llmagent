@@ -18,7 +18,7 @@ source:
 > **正典となる仕様。** 本セクションは `repl_health.py` におけるtool definitionsチェックについて記述する。
 > ルーティングのドリフト検出（`route_resolver.py` の `validate_routing_against_live`）については
 > [04_mcp_03 §Drift validation](04_mcp_03_02_tool-registry.md#drift-validation) を参照。
-> これらは異なる機能である — `04_mcp_90 §SPEC-01` も参照。
+> これらは異なる機能である。
 
 tool definitionsチェックはagentの起動時に実行され、`config/agent.toml` の `tool_definitions` を、実際の `/v1/tools` レスポンスと比較する。挙動はサーバへの到達可能性と `tool_definitions_strict` の設定によって変わる:
 

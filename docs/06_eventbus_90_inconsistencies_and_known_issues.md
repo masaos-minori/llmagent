@@ -25,8 +25,6 @@ source:
 
 これらの項目は、実装変更を要する未解決の問題、またはユーザーに実際の影響を与えている問題を示す。
 
-*(2026-07-13: `_dlq_loop` のクラッシュ不具合は修正済みのため削除。`scripts/eventbus/app.py` の `_dlq_loop()` が `route_helpers` の app 引数版ヘルパー(`app_get_config`/`app_get_db`、`get_config`/`get_db` としてエイリアスインポート)をダミーの `Req` ラッパー越しに誤って呼び出しており、`AttributeError` で毎ティッククラッシュしていた。呼び出しを `get_config(app)`/`get_db(app)` に修正し、`uv run pytest tests/test_eventbus*.py` で148件全て成功することを確認済み。詳細は [06_eventbus_05_07_validation-status.md](06_eventbus_05_07_validation-status.md) を参照。)*
-
 ### Ack オフセットの単調性が保証されていない
 
 | 項目 | 安全な解釈 | 推奨される対応 |
