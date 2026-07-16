@@ -97,7 +97,7 @@ source:
 ## Related Documents
 
 - [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
-- [shared/types.py の `RagConfig` Protocol](../scripts/shared/types.py) — 実行時に実際に使われる設定コントラクト
+- `shared/types.py` の `RagConfig` Protocol — 実行時に実際に使われる設定コントラクト
 
 ## Keywords
 

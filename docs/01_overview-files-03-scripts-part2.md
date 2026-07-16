@@ -27,7 +27,7 @@ related:
 ```
 │   │   ├─ commands/
 │   │   │   └─ __init__.py                  # commands パッケージ初期化
-│   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (14 mixins)
+│   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (15 mixins)
 │   │   │   ├─ command_defs.py              # CommandDef / SubcommandSpec データクラス (データクラス定義のみ; _COMMANDS は持たない)
 │   │   │   ├─ command_defs_list.py         # _COMMANDS: 全組み込みスラッシュコマンドの単一ソース (コマンド追加はここへ)
 │   │   │   ├─ mixin_base.py                # MixinBase: 全 mixin の共通基底クラス

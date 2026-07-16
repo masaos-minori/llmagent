@@ -47,7 +47,7 @@ agent/__main__.py
        │         ├─ audit_logger         — JSON-lines audit.log writer
        │         └─ MemoryServices?      — optional semantic memory layer
        ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
-       ├─ CommandRegistry                — all /cmd dispatch (10 mixins)
+       ├─ CommandRegistry                — all /cmd dispatch (15 mixins)
        └─ Orchestrator (agent/orchestrator.py) — turn-level facade
             ├─ LLMTurnRunner             — SSE stream + inner tool-call loop
             ├─ ToolLoopGuard             — dedup/cycle/retry/error guards

@@ -43,10 +43,10 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 
 エージェント側でMCPサーバーのライフサイクルとトランスポートを管理するための設定:
 - `mcp_servers.<key>.startup_mode` — subprocess / persistent / none
-- `mcp_servers.<key>.transport` — stdio / http
-- `mcp_servers.<key>.url` — HTTPエンドポイント（httpトランスポート用）
+- `mcp_servers.<key>.transport` — http
+- `mcp_servers.<key>.url` — HTTPエンドポイント
 - `mcp_servers.<key>.healthcheck_mode` — probe / manual
-- `mcp_servers.<key>.cmd` — サブプロセス起動コマンド（stdio用）
+- `mcp_servers.<key>.cmd` — サブプロセス起動コマンド
 
 **レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)**
 

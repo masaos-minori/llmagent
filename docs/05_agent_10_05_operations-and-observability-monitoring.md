@@ -26,7 +26,7 @@ source:
 | Condition | 検出方法 | Action |
 |---|---|---|
 | LLMストリームの中断(部分完了) | `/stats` で `partials > 0` と表示される。エージェントログ: `WARNING Partial LLM completion saved: {kind}` | 詳細は `session_diagnostics`(`kind=partial_completion`)を確認する。LLMエンドポイントの安定性を確認する |
-| コンテキスト圧縮(HistoryManager) | `/stats` で `Compress: N > 0` と表示される。エージェントログ: `INFO Compressed history` | `compression_char_threshold` を増やす、またはコンテキストサイズを削減する |
+| コンテキスト圧縮(HistoryManager) | `/stats` で `Compress: N > 0` と表示される。エージェントログ: `INFO Compressed history` | `context_char_limit` を増やす、またはコンテキストサイズを削減する |
 | 最大ツールターン数に到達 | エージェントログ: `WARNING max_tool_turns=N reached` | `config/agent.toml` の `max_tool_turns` を増やす |
 
 正式な部分完了モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)。

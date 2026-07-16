@@ -173,3 +173,4 @@ source:
 | `docs/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md` | `_ensure_semaphores()` の記載を削除 |
 | `docs/90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md` | `_execute_with_cache()`, `_store_and_evict()` の記載を削除 |
 | `docs/04_mcp_02_01_endpoints-and-transport.md` | `_health()` の記載を削除 |
+| `docs/05_agent_10_05_operations-and-observability-monitoring.md` | `compression_char_threshold` を `context_char_limit` に修正（設定キーの誤記） |
