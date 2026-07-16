@@ -133,7 +133,7 @@ REPL loop
 | `_McpMixin` | `/mcp` |
 | `_ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
 | `_ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
-| `_DbMixin` | `/db` |
+
 | `_ToolingMixin` | `/plan` |
 | `_DebugMixin` | `/debug` |
 | `_AuditMixin` | `/audit` |

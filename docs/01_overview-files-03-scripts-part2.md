@@ -40,10 +40,10 @@ related:
 │   │   │   ├─ cmd_mcp.py                   # /mcp コマンド (_McpMixin)
 │   │   │   ├─ cmd_config.py                # /config, /reload コマンド (_ConfigMixin)
 │   │   │   ├─ cmd_config_display.py        # /config 表示 (_ConfigMixin)
-│   │   │   ├─ cmd_config_set.py            # /set コマンド (_ConfigMixin)
+
 │   │   │   ├─ cmd_config_stats.py          # /stats コマンド (_ConfigMixin)
 │   │   │   ├─ cmd_context.py               # /context, /clear, /undo, /history, /system コマンド (_ContextMixin)
-│   │   │   ├─ cmd_db.py                    # /db コマンド (_DbMixin)
+
 │   │   │   ├─ cmd_tooling.py               # /tool, /plan コマンド (_ToolingMixin)
 │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
 │   │   │   ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)

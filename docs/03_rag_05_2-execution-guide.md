@@ -114,8 +114,7 @@ with SQLiteHelper("rag").open() as db:
 | `affected_orphan_chunk_ids` | `chunks`に対応する行がない`chunks_vec`のchunk_id (最大10件) |
 | `affected_orphan_urls` | 孤立したvec行を持つドキュメントのURL (最大10件。親ドキュメントが解決できない場合は`None`) |
 
-**CLI:** `/db consistency`はREPLから同じチェックを実行し、問題点を表示する
-(実装: `scripts/agent/commands/cmd_db.py`)。
+**CLI:** `/db consistency`はREPLから同じチェックを実行し、問題点を表示する（廃止済み）。
 
 **取り込み後の警告:** `ingester.py`は`ingest_all()`完了後に`DocumentManager.check_consistency()`
 (`scripts/rag/ingestion/document_manager.py`) 経由で非ブロッキングの整合性チェックを実行する。
