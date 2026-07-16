@@ -64,8 +64,8 @@ config/crawler.toml [target_urls]
 | 1. MQE | `MqeStage` | 再現率向上のためクエリをN個のバリアントに展開する |
 | 2. Search | `SearchStage` | 各クエリバリアントに対しKNN（sqlite-vec）+ BM25（FTS5）を実行する |
 | 3. Fusion | `FusionStage` | RRF（Σ 1/(rrf_k+rank)）を用いて複数クエリの結果を統合する。`rrf_k` は設定で変更可能（デフォルト: 60） |
-| 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にURL単位で重複排除する |
-| 5. PluginHooks | 登録済みフック | リランク後のプラグインステージ。RerankStageの後、AugmentStageの前に実行される。エラーは分離される（失敗はログに記録されスキップされる）。`run()` の `hook_strict` で挙動を設定可能 |
+| 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にchunk_id単位で重複排除する |
+| 5. PluginHooks | 登録済みフック | リランク後のプラグインステージ。RerankStageの後、AugmentStageの前に実行される。PipelineStageを実装しないため独自の実行パス。エラーは分離される（失敗はログに記録されスキップされる）。`hook_strict` で挙動を設定可能 |
 | 6. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
 
 **エントリポイント:** `RagPipeline.augment(query) -> str`
@@ -74,7 +74,7 @@ config/crawler.toml [target_urls]
 ### セマンティックキャッシュ
 
 `use_semantic_cache=True` の場合、クエリ埋め込みのコサイン類似度が `semantic_cache_threshold`
-（デフォルト0.92）以上であれば、パイプラインをスキップしてキャッシュ済みのコンテキストブロックを返す。`threading.RLock` によりスレッドセーフである。FIFOキャッシュ（最古のエントリから削除）で、最大サイズは `semantic_cache_max_size`（デフォルト100件）。
+（デフォルト0.92）以上であれば、パイプラインをスキップしてキャッシュ済みのコンテキストブロックを返す。`threading.RLock` によりスレッドセーフである。FIFOキャッシュ（最古のエントリから削除）で、最大サイズは `semantic_cache_max_size`（コードデフォルト128件、運用設定では100件）。
 
 ---
 
@@ -94,11 +94,11 @@ config/crawler.toml [target_urls]
 | 制約 | 値 | ソース |
 |---|---|---|
 | 言語判定 | CJK比率 ≥ 0.10 → `ja`; それ以外は `en`; 100文字未満はヒントへのフォールバック | `crawler.py` |
-| チャンクサイズ | 最小40文字、最大500文字 | `rag_pipeline.toml` |
-| チャンクの重複 | 50文字のスライディングウィンドウ | `rag_pipeline.toml` |
+| チャンクサイズ | 最小40文字、最大500文字 | `config/chunk_splitter.toml` |
+| チャンクの重複 | 50文字のスライディングウィンドウ | `config/chunk_splitter.toml` |
 | 埋め込み次元 | 384（本番環境、`config/agent.toml:43`）。dataclassのデフォルト値はなく、設定ファイルでのみ定義される。float32リトルエンディアンBLOB | `config/agent.toml` — `03_rag_90` DOC-03を参照 |
-| クロール深度 | 開始URLから最大6ホップ | `rag_pipeline.toml` |
-| クロールページ数上限 | サイトあたり最大500ページ | `rag_pipeline.toml` |
+| クロール深度 | 開始URLから最大6ホップ | `config/crawler.toml` |
+| クロールページ数上限 | サイトあたり最大500ページ | `config/crawler.toml` |
 | DB | SQLiteシングルノードのみ | アーキテクチャ |
 
 ---

@@ -57,6 +57,11 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 > `fts_errors` カウンタに計上されるのみで、例外として呼び出し元（`RagPipeline._run_stage()`）へは
 > 伝播しない。1クエリの検索失敗は残りのクエリの処理を止めない
 > (根拠分類: Explicit in code — `scripts/rag/stages/search.py:56-65`)。
+>
+> **注記（2026-07-13）:** `RagPipeline.search_queries()` と `RagPipeline.rerank_candidates()` メソッドは
+> `pipeline.py` に定義されているが、いずれも呼び出し側が存在しない（デッドコード）。
+> 実際の検索・リランク処理は `SearchStage.run()` → `_search_all_queries()` および
+> `RerankStage.run()` → `_rerank()` で実行される。
 
 #### 失敗時の意図 (Failure behavior)
 
