@@ -11,7 +11,7 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_session.py    — _SessionMixin:    /session commands
   cmd_mcp.py        — _McpMixin:        /mcp commands
   cmd_config.py     — _ConfigMixin:     /config, /stats, /reload
-cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
+   cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
    cmd_tooling.py    — _ToolingMixin:    /plan
   cmd_debug.py      — _DebugMixin:      /debug
   cmd_audit.py      — _AuditMixin:      /audit
