@@ -14,7 +14,7 @@ import asyncio
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, cast
+from typing import Any
 
 import httpx
 from shared.http_transport import TransportError
@@ -220,4 +220,4 @@ class ToolExecutor(ToolTransportInvoker):
 
     def get_error_counters(self) -> dict[str, dict[str, int]]:
         """Return per-server error counters: {server_key: {"transport": N, "tool": N}}."""
-        return cast(dict[str, dict[str, int]], super().get_error_counters())
+        return super().get_error_counters()
