@@ -95,6 +95,7 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.13"
 files = ["scripts/"]
+mypy_path = "scripts"
 exclude = ["scripts/agent\\.py"]
 ignore_missing_imports = true
 warn_return_any = true

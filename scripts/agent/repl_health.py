@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
+from shared.logger import Logger
+from shared.mcp_config import StartupMode, TransportType
+from shared.production_config_validator import ProductionConfigValidator
+
 from agent.context import AgentContext
 from agent.security_audit_config import (
     load_cicd_audit_config,
@@ -26,9 +30,6 @@ from agent.shared.health_models import (
     McpHealthProbeResult,
     ServiceWarning,
 )
-from shared.logger import Logger
-from shared.mcp_config import StartupMode, TransportType
-from shared.production_config_validator import ProductionConfigValidator
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig

@@ -11,8 +11,9 @@ import time
 from collections.abc import Callable
 
 import httpx
-from rag.models_data import TwoStageFetchResult
 from shared.json_utils import parse_http_json
+
+from rag.models_data import TwoStageFetchResult
 
 logger = logging.getLogger(__name__)
 

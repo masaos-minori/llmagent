@@ -14,9 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from shared.mcp_config import McpServerConfig
+
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
-from shared.mcp_config import McpServerConfig
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

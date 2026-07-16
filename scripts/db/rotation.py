@@ -6,8 +6,9 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from db.config import build_db_config
 from shared.config_loader import ConfigLoader
+
+from db.config import build_db_config
 
 logger = logging.getLogger(__name__)
 

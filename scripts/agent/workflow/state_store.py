@@ -10,9 +10,10 @@ import logging
 import uuid
 from typing import Any
 
-from agent.workflow.models import AttemptRecord, TaskRecord
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
+
+from agent.workflow.models import AttemptRecord, TaskRecord
 
 logger = logging.getLogger(__name__)
 

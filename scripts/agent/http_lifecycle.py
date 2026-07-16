@@ -21,8 +21,9 @@ from pathlib import Path
 from typing import IO
 
 import httpx
-from agent.services.models import ProcessInfoSnapshot
 from shared.mcp_config import McpServerConfig
+
+from agent.services.models import ProcessInfoSnapshot
 
 logger = logging.getLogger(__name__)
 

@@ -19,6 +19,15 @@ from typing import Any
 
 import httpx
 import orjson
+from shared.config_loader import ConfigLoader
+from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import extract_llm_content, parse_http_json
+from shared.llm_client import build_embed_url, build_llm_url
+from shared.types import (
+    LLMMessage,
+    RagHit,  # noqa: F401 — imported for use in this module
+)
+
 from rag.llm_prompts import (
     _MQE_MAX_TOKENS,
     _MQE_TEMPERATURE,
@@ -37,14 +46,6 @@ from rag.llm_prompts import (
     _build_rerank_prompt,
     _mqe_prompt,
     _parse_mqe_response,
-)
-from shared.config_loader import ConfigLoader
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import extract_llm_content, parse_http_json
-from shared.llm_client import build_embed_url, build_llm_url
-from shared.types import (
-    LLMMessage,
-    RagHit,  # noqa: F401 — imported for use in this module
 )
 
 logger = logging.getLogger(__name__)

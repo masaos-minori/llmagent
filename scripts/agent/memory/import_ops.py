@@ -3,8 +3,9 @@
 
 import logging
 
-from agent.memory.write_ops import add
 from db.helper import SQLiteHelper
+
+from agent.memory.write_ops import add
 
 logger = logging.getLogger(__name__)
 

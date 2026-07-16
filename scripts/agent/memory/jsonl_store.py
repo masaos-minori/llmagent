@@ -21,11 +21,12 @@ from dataclasses import asdict
 from pathlib import Path
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
+
 from agent.memory.enums import RETENTION_DAYS, MemoryType
 from agent.memory.exceptions import JsonlFormatError
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry
-from shared.json_utils import dumps as _json_dumps
 
 logger = logging.getLogger(__name__)
 

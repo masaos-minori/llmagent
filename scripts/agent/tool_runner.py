@@ -16,6 +16,13 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import now_iso_raw
+from shared.tool_constants import SHELL_TOOLS
+from shared.tool_executor_helpers import is_side_effect, tool_hash_key
+from shared.tool_spec import ToolSpec
+from shared.types import LLMMessage
+
 from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
@@ -24,11 +31,6 @@ from agent.tool_result_formatter import (
     mask_args,
 )
 from agent.tool_scheduler import build_execution_groups
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import now_iso_raw
-from shared.tool_constants import SHELL_TOOLS
-from shared.tool_executor_helpers import is_side_effect, tool_hash_key
-from shared.tool_spec import ToolSpec
 
 _serialization_stats: dict[str, int] = {
     "total_events": 0,
@@ -485,18 +487,18 @@ async def _run_approval_gate(
 
 def _build_denied_messages(
     denied_ids: list[str],
-) -> tuple[list[dict], list[tuple[str, str, None, str]]]:
+) -> tuple[list[LLMMessage], list[tuple[str, str, None, str]]]:
     """Build history entries and tool_msgs for denied tool calls."""
     denied_text = "Tool execution denied by user."
-    history_entries: list[dict] = []
+    history_entries: list[LLMMessage] = []
     messages: list[tuple[str, str, None, str]] = []
     for denied_id in denied_ids:
         history_entries.append(
-            {
-                "role": "tool",
-                "tool_call_id": denied_id,
-                "content": denied_text,
-            },
+            LLMMessage(
+                role="tool",
+                tool_call_id=denied_id,
+                content=denied_text,
+            ),
         )
         messages.append(("tool", denied_text, None, denied_id))
     return history_entries, messages

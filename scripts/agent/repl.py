@@ -30,6 +30,9 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from db.helper import SQLiteHelper
+from shared.logger import Logger
+
 from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
@@ -37,8 +40,6 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
 from agent.repl_health import watchdog_loop
 from agent.services.rag_maintenance_service import RagMaintenanceService
-from db.helper import SQLiteHelper
-from shared.logger import Logger
 
 if TYPE_CHECKING:
     from agent.orchestrator import Orchestrator

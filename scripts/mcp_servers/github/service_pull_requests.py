@@ -12,6 +12,7 @@ import itertools
 from typing import Any
 
 from github import Github
+
 from mcp_servers.github.mapper import issue_to_info, pr_to_info
 from mcp_servers.github.models_config import GitHubAuthorizationError
 from mcp_servers.github.models_pull_requests import (

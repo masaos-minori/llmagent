@@ -12,6 +12,7 @@ import itertools
 from typing import Any
 
 from github import Github
+
 from mcp_servers.github.mapper import issue_to_info
 from mcp_servers.github.models_issues import (
     AddIssueCommentRequest,

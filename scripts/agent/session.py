@@ -6,10 +6,11 @@ AgentSession facade — delegates to domain-specific repository modules.
 
 import logging
 
-from agent.diagnostic_store import DiagnosticStore
-from agent.session_message_repo import SessionMessageRepository
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
+
+from agent.diagnostic_store import DiagnosticStore
+from agent.session_message_repo import SessionMessageRepository
 
 logger = logging.getLogger(__name__)
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 
 from duckduckgo_search import DDGS
+
 from mcp_servers.web_search.models import (
     SearchResult,
     WebSearchUpstreamError,

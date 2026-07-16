@@ -90,6 +90,7 @@ Format:
 - Add Keywords.
 - Structure content for LLM/RAG/coding-agent consumption.
 - Preserve existing navigation and cross-references.
+- Document file size must stay at or under 8KB. If an update would exceed this, split the content into multiple linked documents instead of exceeding the limit.
 
 Style:
 - Write in Japanese.

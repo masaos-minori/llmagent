@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from agent.context import AgentContext
-from agent.diagnostic_store import DiagnosticStore
 from shared.json_utils import dumps, now_iso_raw
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
+
+from agent.context import AgentContext
+from agent.diagnostic_store import DiagnosticStore
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 

@@ -17,6 +17,8 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from shared.json_utils import now_iso_raw
+
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileSecurityMixin,
@@ -31,7 +33,6 @@ from mcp_servers.file.delete_models import (
     FileDeleteConfig,
 )
 from mcp_servers.server import ToolArgs
-from shared.json_utils import now_iso_raw
 
 # Standard library logger; log path is owned by file_delete_mcp_server.py
 logger = logging.getLogger(__name__)

@@ -6,8 +6,6 @@ from __future__ import annotations
 import typing
 from collections.abc import Callable
 
-from shared.types import RagHit
-
 _F = typing.TypeVar("_F", bound=Callable[..., typing.Any])
 
 
@@ -23,7 +21,7 @@ _commands: dict[str, tuple[Callable[..., typing.Any], bool, str]] = {}
 # Stores (handler, module_name) per tool name. Cleared only by _reset_for_testing().
 _tools: dict[str, tuple[Callable[..., typing.Any], str]] = {}
 # Pipeline hooks registered via @register_pipeline_stage(when="post"). Cleared only by _reset_for_testing().
-_pipeline_post: list[RagHit] = []
+_pipeline_post: list[Callable[..., typing.Any]] = []
 
 # Mutable wrappers for values that need to be shared across modules (immutable types
 # like str/frozenset can't be updated in-place, so we use mutable containers).

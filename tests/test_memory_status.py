@@ -189,7 +189,6 @@ class TestBuildStatusTableModeLabels:
     def test_hybrid_mode_label(self, config: EmbeddingClientConfig) -> None:
         from agent.commands.memory_status import MemoryStatus, build_status_table
 
-        ec = EmbeddingClient(config, enabled=True)
         status = MemoryStatus(
             memory_layer_enabled=True,
             embedding_enabled=True,
@@ -217,7 +216,6 @@ class TestBuildStatusTableModeLabels:
     def test_fts_only_label(self, config: EmbeddingClientConfig) -> None:
         from agent.commands.memory_status import MemoryStatus, build_status_table
 
-        ec = EmbeddingClient(config, enabled=True)
         status = MemoryStatus(
             memory_layer_enabled=True,
             embedding_enabled=False,

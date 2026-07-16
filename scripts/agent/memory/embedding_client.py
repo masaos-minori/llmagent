@@ -11,8 +11,9 @@ import time
 from dataclasses import dataclass
 
 import httpx
-from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
 from shared.json_utils import parse_http_json
+
+from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
 
 logger = logging.getLogger(__name__)
 

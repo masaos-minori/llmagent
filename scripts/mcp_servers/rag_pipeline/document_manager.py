@@ -10,6 +10,7 @@ Import from here:  from mcp_servers.rag_pipeline.document_manager import Documen
 from __future__ import annotations
 
 from db.helper import SQLiteHelper
+
 from mcp_servers.rag_pipeline.models import (
     DocumentItem,
 )

@@ -19,8 +19,9 @@ from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
-from mcp_servers.github.models_config import GitHubConfig
 from shared.json_utils import now_iso_raw
+
+from mcp_servers.github.models_config import GitHubConfig
 
 logger = logging.getLogger(__name__)
 

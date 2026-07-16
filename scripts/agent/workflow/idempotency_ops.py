@@ -3,9 +3,10 @@
 
 import uuid
 
-from agent.workflow.models import AttemptRecord
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
+
+from agent.workflow.models import AttemptRecord
 
 
 def is_event_processed(db: SQLiteHelper, event_id: str) -> bool:

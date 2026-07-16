@@ -5,10 +5,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from eventbus.route_helpers import _row_to_dict, get_broker, get_db, run_with_db_lock
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 from shared.json_utils import dumps as json_dumps
+
+from eventbus.route_helpers import _row_to_dict, get_broker, get_db, run_with_db_lock
 
 if TYPE_CHECKING:
     from eventbus.config import EventBusConfig  # noqa: F401

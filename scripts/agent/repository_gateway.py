@@ -15,17 +15,19 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from agent.tool_enums import OperationType, RiskLevel
-from agent.tool_exceptions import PolicyViolationError
-from agent.tool_policy import check_preflight, classify_operation_type, classify_risk
 from shared.json_utils import dumps as json_dumps
 from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
+from agent.tool_enums import OperationType, RiskLevel
+from agent.tool_exceptions import PolicyViolationError
+from agent.tool_policy import check_preflight, classify_operation_type, classify_risk
+
 if TYPE_CHECKING:
+    from shared.logger import Logger
+
     from agent.config_dataclasses import AgentConfig
     from agent.context import AgentContext
-    from shared.logger import Logger
 
 logger = logging.getLogger(__name__)
 

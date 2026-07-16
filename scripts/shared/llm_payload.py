@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """shared/llm_payload.py — LLM request/response payload construction."""
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 import orjson
+
 from shared.llm_sse_helpers import LlmSseHelpers
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage
@@ -35,7 +37,7 @@ class LlmPayloadHandler:
     @staticmethod
     def parse_response(
         raw: dict[str, Any],
-        on_usage: object | None = None,
+        on_usage: Callable[[int, int], None] | None = None,
     ) -> LLMResponse:
         """Validate and parse raw LLM JSON into LLMResponse DTO; raises ValueError on schema mismatch."""
         choices = raw.get("choices")
@@ -52,14 +54,14 @@ class LlmPayloadHandler:
             finish_reason = None
         usage = LlmSseHelpers.parse_usage(raw, on_usage)
         return LLMResponse(
-            message=message_raw,
+            message=cast(LLMMessage, message_raw),
             finish_reason=finish_reason,
             usage=usage,
         )
 
     @staticmethod
     def parse_non_stream_response(
-        content: bytes, on_usage: object | None = None
+        content: bytes, on_usage: Callable[[int, int], None] | None = None
     ) -> LLMResponse:
         """Parse a non-streaming LLM response body into LLMResponse."""
         raw = orjson.loads(content)

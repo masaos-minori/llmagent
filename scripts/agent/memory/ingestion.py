@@ -15,6 +15,9 @@ import logging
 import sqlite3
 import uuid
 
+from db.helper import SQLiteHelper
+from shared.json_utils import now_iso
+
 from agent.memory.embedding_client import (
     EmbeddingClient,
     EmbeddingErrorKind,
@@ -28,8 +31,6 @@ from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 from agent.memory.write_ops import upsert as write_upsert
-from db.helper import SQLiteHelper
-from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 

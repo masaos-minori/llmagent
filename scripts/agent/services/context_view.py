@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agent.services.exceptions import ContextStateBuildError
-from agent.services.models import ContextBudget, ContextStateView
 from shared.git_helper import get_repo_info
 from shared.json_utils import serialized_length, tool_call_serialized_length
 from shared.types import LLMMessage
+
+from agent.services.exceptions import ContextStateBuildError
+from agent.services.models import ContextBudget, ContextStateView
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

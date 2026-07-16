@@ -27,6 +27,8 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
+
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
@@ -39,7 +41,6 @@ from mcp_servers.rag_pipeline.models import (
 from mcp_servers.rag_pipeline.service import RagPipelineMCPService, _service
 from mcp_servers.rag_pipeline.tools import TOOL_LIST
 from mcp_servers.server import MCPServer, ToolArgs
-from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +135,7 @@ async def health() -> JSONResponse:
 async def rag_invalidate_cache() -> JSONResponse:
     """Invalidate the semantic cache of the RAG pipeline."""
     try:
-        await _service.invalidate_cache()
+        _service.invalidate_cache()
         return JSONResponse(
             content={"status": "ok", "message": "Semantic cache invalidated"}
         )

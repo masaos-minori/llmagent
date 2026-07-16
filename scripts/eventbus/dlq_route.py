@@ -4,6 +4,8 @@
 import logging
 from typing import Any
 
+from fastapi import HTTPException, Query, Request
+
 from eventbus.db import count_dlq, fetch_dlq, requeue_event
 from eventbus.route_helpers import (
     ERR_EVENT_NOT_FOUND,
@@ -12,7 +14,6 @@ from eventbus.route_helpers import (
     get_db,
     run_with_db_lock,
 )
-from fastapi import HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
 

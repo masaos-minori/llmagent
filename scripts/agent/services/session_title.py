@@ -12,10 +12,11 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-from agent.services.exceptions import SessionTitleGenerationError
-from agent.services.models import SessionTitleResult
 from shared.json_utils import extract_llm_content, parse_http_json
 from shared.llm_client import build_llm_url
+
+from agent.services.exceptions import SessionTitleGenerationError
+from agent.services.models import SessionTitleResult
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

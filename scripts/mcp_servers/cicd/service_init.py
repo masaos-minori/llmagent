@@ -12,6 +12,7 @@ import logging
 import os
 
 import httpx
+
 from mcp_servers.cicd.models import CicdConfig
 
 from .service_business import CiCdService

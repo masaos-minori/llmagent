@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+
 from shared.config_errors import (
     ConfigMissingError,
     ConfigParseError,

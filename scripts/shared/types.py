@@ -23,6 +23,11 @@ class LLMMessage(_LLMMessageRequired, total=False):
     name: str  # tool result messages: name of the called tool
     importance: float  # message importance score for compression
     pinned: bool  # whether message should be preserved during compression
+    _ephemeral: (
+        bool  # excluded from persistence/compression; dropped before the next turn
+    )
+    _skill_ephemeral: bool  # like _ephemeral, but scoped to skill-injected messages
+    _memory_injected: bool  # marks a message as memory-layer injected context
 
 
 class ToolCallFunction(TypedDict):

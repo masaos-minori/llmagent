@@ -12,10 +12,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 
+from shared.json_utils import dumps as _json_dumps
+
 from mcp_servers.cicd.models import CicdConfig
 from mcp_servers.cicd.service_defs import CiBackend
 from mcp_servers.server import ToolArgs
-from shared.json_utils import dumps as _json_dumps
 
 from .service_guards import CiCdGuards
 

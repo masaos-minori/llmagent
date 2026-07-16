@@ -16,6 +16,11 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
+from shared.json_utils import dumps
+from shared.json_utils import dumps as _json_dumps
+from shared.llm_exceptions import LLMTransportError
+from shared.logger import Logger
+
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_transport_errors import handle_llm_transport_error
@@ -31,6 +36,7 @@ from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from agent.workflow import (
     StateStore,
+    TaskRecord,
     WorkflowDef,
     WorkflowEngine,
     WorkflowHaltError,
@@ -40,10 +46,6 @@ from agent.workflow import (
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
-from shared.json_utils import dumps
-from shared.json_utils import dumps as _json_dumps
-from shared.llm_exceptions import LLMTransportError
-from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -207,7 +209,7 @@ class Orchestrator:
                 elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
                 audit_stage_completed(
                     ctx,
-                    task.task_id,  # type: ignore[attr-defined]
+                    task.task_id,
                     "execute",
                     elapsed_ms,
                     workflow_id=workflow_id,
@@ -232,7 +234,7 @@ class Orchestrator:
 
     def _init_workflow_task(
         self, ctx: AgentContext, session_id: str, existing_task_id: str | None = None
-    ) -> tuple[str, object]:
+    ) -> tuple[str, TaskRecord]:
         """Create a workflow task and audit its start.
 
         If existing_task_id is provided, use that task instead of creating a new one.
@@ -268,10 +270,10 @@ class Orchestrator:
             store.close()
         return workflow_id, task
 
-    def _activate_workflow(self, ctx: AgentContext, task: object) -> None:
+    def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
         """Set workflow state to active."""
-        ctx.workflow.current_task_id = task.task_id  # type: ignore[attr-defined]
-        ctx.workflow.workflow_id = task.workflow_id  # type: ignore[attr-defined]
+        ctx.workflow.current_task_id = task.task_id
+        ctx.workflow.workflow_id = task.workflow_id
         ctx.workflow.current_workflow_version = self._workflow_def.version  # type: ignore[union-attr]
         ctx.workflow.active = True
 

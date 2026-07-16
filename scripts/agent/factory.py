@@ -10,18 +10,11 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import httpx
-from agent.cli_view import CLIView
-from agent.context import AgentContext, AppServices
-from agent.history import HistoryManager
-from agent.http_lifecycle import HttpServerLifecycleManager
-from agent.lifecycle import LifecycleState, assert_valid_transition
-from agent.lifecycle_protocol import LifecycleManagerProtocol
-from agent.repository_gateway import RepositoryGateway
-from agent.services.models import ProcessInfoSnapshot
 from shared import plugin_registry
 from shared.git_helper import get_repo_info
 from shared.llm_client import LLMClient, build_embed_url, build_llm_url
@@ -30,6 +23,15 @@ from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry
 from shared.otel_tracer import build_tracer
 from shared.tool_executor import ToolExecutor
+
+from agent.cli_view import CLIView
+from agent.context import AgentContext, AppServices
+from agent.history import HistoryManager
+from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.lifecycle import LifecycleState, assert_valid_transition
+from agent.lifecycle_protocol import LifecycleManagerProtocol
+from agent.repository_gateway import RepositoryGateway
+from agent.services.models import ProcessInfoSnapshot
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -336,11 +338,12 @@ def _build_embedding_client(
     return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
 
 
-def _build_retriever(
-    ctx: AgentContext, retriever_cls: type, *, embed_client: object = None
-) -> object:
+def _build_retriever[T](
+    ctx: AgentContext, retriever_cls: type[T], *, embed_client: object = None
+) -> T:
     """Build and return the hybrid retriever instance."""
-    return retriever_cls(
+    ctor = cast("Callable[..., T]", retriever_cls)
+    return ctor(
         fts_limit=ctx.cfg.memory.memory_fts_limit,
         rrf_k=ctx.cfg.memory.memory_rrf_k,
         recency_days=ctx.cfg.memory.memory_recency_days,
@@ -353,21 +356,22 @@ def _build_jsonl_store(ctx: AgentContext, jsonl_cls: type) -> object:
     return jsonl_cls(Path(ctx.cfg.memory.memory_jsonl_dir) / "memories.jsonl")
 
 
-def _build_injection_service(
+def _build_injection_service[T](
     embed_client: object,
     retriever: object,
     ctx: AgentContext,
     policy_cls: type,
-    service_cls: type,
+    service_cls: type[T],
     branch: str = "",
-) -> object:
+) -> T:
     """Build and return the memory injection service."""
     policy = policy_cls(
         max_semantic=ctx.cfg.memory.memory_max_inject_semantic,
         max_episodic=ctx.cfg.memory.memory_max_inject_episodic,
         min_importance=ctx.cfg.memory.memory_min_importance,
     )
-    return service_cls(
+    ctor = cast("Callable[..., T]", service_cls)
+    return ctor(
         policy=policy,
         retriever=retriever,
         embed_client=embed_client,
@@ -375,19 +379,20 @@ def _build_injection_service(
     )
 
 
-def _build_ingestion_service(
+def _build_ingestion_service[T](
     store: object,
     jsonl: object,
     retriever: object,
     embed_client: object,
     ctx: AgentContext,
     dedup_cls: type,
-    service_cls: type,
+    service_cls: type[T],
     branch: str = "",
-) -> object:
+) -> T:
     """Build and return the memory ingestion service."""
     dedup_policy = dedup_cls(threshold=ctx.cfg.memory.memory_dedup_threshold)
-    return service_cls(
+    ctor = cast("Callable[..., T]", service_cls)
+    return ctor(
         store=store,
         jsonl=jsonl,
         retriever=retriever,

@@ -12,10 +12,6 @@ from dataclasses import dataclass
 from typing import cast
 
 import httpx
-from agent.history_selection_policy import (
-    HistorySelectionPolicy,
-    SelectionResult,
-)
 from shared.json_utils import (
     extract_llm_content,
     parse_http_json,
@@ -24,6 +20,11 @@ from shared.json_utils import (
 from shared.token_counter import _WarnOnce, get_token_count
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
+
+from agent.history_selection_policy import (
+    HistorySelectionPolicy,
+    SelectionResult,
+)
 
 logger = logging.getLogger(__name__)
 

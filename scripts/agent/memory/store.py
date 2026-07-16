@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import logging
 
+from db.helper import SQLiteHelper
+
 from agent.memory.mapper import row_to_entry
 from agent.memory.models import ConsistencyReport
 from agent.memory.sql_constants import _count_fts
 from agent.memory.types import MemoryEntry
-from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 

@@ -21,10 +21,11 @@ import sqlite3
 from dataclasses import dataclass
 from enum import StrEnum
 
+from shared.config_loader import ConfigLoader
+
 from db.helper import SQLiteHelper
 from db.models import WalCheckpointCounts
 from db.store_impl import SQLiteMemoryDeleteStore
-from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 

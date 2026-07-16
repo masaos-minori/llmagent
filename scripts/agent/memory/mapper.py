@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 import orjson
+
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.types import MemoryEntry, SourceType
@@ -60,6 +61,30 @@ def _require(d: Mapping[str, object], key: str) -> object:
         return d[key]
     except KeyError:
         raise MemorySchemaError(f"Memory row missing required field: {key!r}")
+
+
+def _opt_int(d: Mapping[str, object], key: str) -> int | None:
+    """Return int value for key, or None if absent or None; raises MemorySchemaError on wrong type."""
+    v = d.get(key)
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, int):
+        raise MemorySchemaError(
+            f"Field {key!r} must be int or None, got {type(v).__name__}"
+        )
+    return v
+
+
+def _opt_str_or_none(d: Mapping[str, object], key: str) -> str | None:
+    """Return string value for key, or None if absent; raises MemorySchemaError on wrong type."""
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        raise MemorySchemaError(
+            f"Field {key!r} must be str or None, got {type(v).__name__}"
+        )
+    return v
 
 
 def _parse_tags(raw: object) -> list[str]:
@@ -125,21 +150,20 @@ def row_to_entry(row: sqlite3.Row | Mapping[str, object]) -> MemoryEntry:
     if not isinstance(_content, str):
         raise MemorySchemaError(f"content must be str, got {type(_content).__name__}")
 
-    required = {
-        "memory_id": _mid,
-        "memory_type": _parse_memory_type(d),
-        "source_type": _parse_source_type(d.get("source_type")),
-        "session_id": d.get("session_id"),
-        "turn_id": d.get("turn_id"),
-        "project": _opt_str(d, "project"),
-        "repo": _opt_str(d, "repo"),
-        "branch": _opt_str(d, "branch"),
-        "content": _content,
-        "summary": _opt_str(d, "summary"),
-        "tags": _parse_tags(d.get("tags", "[]")),
-        "importance": _parse_importance(d),
-        "pinned": bool(d["pinned"]) if d.get("pinned") is not None else False,
-        "created_at": _opt_str(d, "created_at"),
-        "updated_at": _opt_str(d, "updated_at"),
-    }
-    return MemoryEntry(**required)
+    return MemoryEntry(
+        memory_id=_mid,
+        memory_type=_parse_memory_type(d),
+        source_type=_parse_source_type(d.get("source_type")),
+        session_id=_opt_int(d, "session_id"),
+        turn_id=_opt_str_or_none(d, "turn_id"),
+        project=_opt_str(d, "project"),
+        repo=_opt_str(d, "repo"),
+        branch=_opt_str(d, "branch"),
+        content=_content,
+        summary=_opt_str(d, "summary"),
+        tags=_parse_tags(d.get("tags", "[]")),
+        importance=_parse_importance(d),
+        pinned=bool(d["pinned"]) if d.get("pinned") is not None else False,
+        created_at=_opt_str(d, "created_at"),
+        updated_at=_opt_str(d, "updated_at"),
+    )

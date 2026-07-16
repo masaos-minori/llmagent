@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from shared.logger import Logger
+from shared.mcp_config import SecurityProfile, StartupMode, TransportType
+
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
@@ -26,8 +29,6 @@ from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_latest_pending_approval
 from agent.workflow.state_store import StateStore
-from shared.logger import Logger
-from shared.mcp_config import SecurityProfile, StartupMode, TransportType
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView

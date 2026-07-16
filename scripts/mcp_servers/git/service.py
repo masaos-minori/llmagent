@@ -17,6 +17,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 import git
+
 from mcp_servers.git.models import (
     GitAddRequest,
     GitBranchRequest,

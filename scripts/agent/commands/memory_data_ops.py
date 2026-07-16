@@ -188,9 +188,10 @@ class MemoryDataOps:
         self, mem: MemoryServices, ctx: AgentContext, args: list[str]
     ) -> None:
         """Delete entries older than N days."""
-        from agent.memory.count_ops import count_prunable
         from db.helper import SQLiteHelper
         from db.maintenance import prune_old_memories
+
+        from agent.memory.count_ops import count_prunable
 
         dry_run = "--dry-run" in args
         day_str = next((a for a in args if a != "--dry-run"), None)

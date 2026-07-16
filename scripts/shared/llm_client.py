@@ -13,6 +13,7 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
+
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_hot_config import LlmHotConfigHandler
 from shared.llm_payload import LlmPayloadHandler
@@ -83,6 +84,7 @@ class LLMClient:
         self._heartbeat_timeout_counter: int = 0
 
         self.stat_parse_errors: int = 0
+        self.stat_partial_completions: int = 0
 
     def apply_config(
         self,

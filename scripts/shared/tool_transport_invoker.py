@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 import httpx
+
 from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import (
     McpServerConfig,

@@ -20,12 +20,13 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from shared.json_utils import dumps
+
 from agent.commands.enums import MemoryAction
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.memory_status import build_memory_status, build_status_table
 from agent.commands.mixin_base import MixinBase
 from agent.memory.services import MemoryServices
-from shared.json_utils import dumps
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

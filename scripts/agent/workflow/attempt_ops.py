@@ -3,9 +3,10 @@
 
 import uuid
 
-from agent.workflow.models import AttemptRecord
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
+
+from agent.workflow.models import AttemptRecord
 
 
 def start_attempt(db: SQLiteHelper, task_id: str, stage_id: str) -> AttemptRecord:

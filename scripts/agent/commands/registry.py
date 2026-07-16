@@ -34,6 +34,8 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
+from shared import plugin_registry
+
 from agent.commands.cmd_audit import _AuditMixin
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
@@ -51,7 +53,6 @@ from agent.commands.command_defs import CommandDef
 from agent.commands.command_defs_list import _COMMANDS
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
-from shared import plugin_registry
 
 __all__ = ["CommandRegistry"]
 

@@ -18,12 +18,13 @@ import time
 from typing import Any
 
 from db.helper import SQLiteHelper
-from rag.utils import floats_to_blob
 from shared.types import (
     MergedHit,
     RagHit,  # noqa: F401 — imported for use in this module
     RawHit,
 )
+
+from rag.utils import floats_to_blob
 
 logger = logging.getLogger(__name__)
 

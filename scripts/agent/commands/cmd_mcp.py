@@ -12,12 +12,13 @@ Formatting (table, next-steps) is handled in this module — not in the services
 import logging
 from typing import Any
 
+from shared.mcp_health import McpServerHealthState
+
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.services.enums import McpAvailability
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
-from shared.mcp_health import McpServerHealthState
 
 logger = logging.getLogger(__name__)
 

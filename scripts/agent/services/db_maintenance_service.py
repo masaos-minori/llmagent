@@ -8,13 +8,6 @@ independently of the REPL command layer.
 
 from __future__ import annotations
 
-from agent.services.models import (
-    DbCheckpointResult,
-    DbHealth,
-    DbPurgeResult,
-    DbRecoverResult,
-    DbStats,
-)
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
@@ -24,6 +17,14 @@ from db.maintenance import (
 )
 from db.recovery import recover_corruption
 from shared.db_maintenance import count_table
+
+from agent.services.models import (
+    DbCheckpointResult,
+    DbHealth,
+    DbPurgeResult,
+    DbRecoverResult,
+    DbStats,
+)
 
 
 class DbMaintenanceService:

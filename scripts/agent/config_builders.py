@@ -16,6 +16,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shared.config_errors import ConfigLoadError
+from shared.config_loader import ConfigLoader
+from shared.mcp_config import (
+    SecurityProfile,  # noqa: F401 — used by build_agent_config
+    _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
+)
+from shared.production_config_validator import ProductionConfigValidator
+
 from agent.config_dataclasses import (
     AgentConfig,
     ApprovalConfig,
@@ -26,13 +34,6 @@ from agent.config_dataclasses import (
     RAGConfig,
     ToolConfig,
 )
-from shared.config_errors import ConfigLoadError
-from shared.config_loader import ConfigLoader
-from shared.mcp_config import (
-    SecurityProfile,  # noqa: F401 — used by build_agent_config
-    _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
-)
-from shared.production_config_validator import ProductionConfigValidator
 
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 

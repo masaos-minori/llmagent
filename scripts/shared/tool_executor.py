@@ -17,6 +17,7 @@ from collections import OrderedDict
 from typing import Any
 
 import httpx
+
 from shared.http_transport import TransportError
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (

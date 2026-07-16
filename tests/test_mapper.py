@@ -18,7 +18,7 @@ class TestRowToEntry:
             "memory_type": "episodic",
             "source_type": "conversation",
             "session_id": 42,
-            "turn_id": 3,
+            "turn_id": "3",
             "project": "myproject",
             "repo": "myrepo",
             "branch": "main",
@@ -35,7 +35,7 @@ class TestRowToEntry:
         assert entry.memory_type == "episodic"
         assert entry.source_type == SourceType.CONVERSATION
         assert entry.session_id == 42
-        assert entry.turn_id == 3
+        assert entry.turn_id == "3"
         assert entry.project == "myproject"
         assert entry.repo == "myrepo"
         assert entry.branch == "main"
@@ -138,13 +138,13 @@ class TestRowToEntry:
         conn.row_factory = sqlite3.Row
         conn.execute(
             "CREATE TABLE t (memory_id INT, memory_type TEXT,"
-            " source_type TEXT, session_id INT, turn_id INT,"
+            " source_type TEXT, session_id INT, turn_id TEXT,"
             " project TEXT, repo TEXT, branch TEXT, content TEXT,"
             " summary TEXT, tags TEXT, importance REAL, pinned INT,"
             " created_at TEXT, updated_at TEXT)",
         )
         conn.execute(
-            "INSERT INTO t VALUES (10, 'episodic', 'conversation', 1, 2,"
+            "INSERT INTO t VALUES (10, 'episodic', 'conversation', 1, '2',"
             " 'p', 'r', 'b', 'content', 'summary',"
             ' \'["x"]\', 0.9, 1, "2024-01-01T00:00:00Z", "2024-01-02T00:00:00Z")',
         )

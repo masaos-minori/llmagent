@@ -1,9 +1,10 @@
 """Rerank stage for RAG pipeline."""
 
+from shared.types import RagConfig
+
 from rag.llm_client import RagLLM
 from rag.repository import RagHit, deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
-from shared.types import RagConfig
 
 
 async def _rerank(

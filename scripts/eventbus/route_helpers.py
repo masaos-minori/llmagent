@@ -2,7 +2,7 @@
 """eventbus/route_helpers.py — Shared helpers for route handlers."""
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Request
 
@@ -39,7 +39,7 @@ def get_config(request: Request) -> Any:
 
 def get_broker(request: Request) -> "EventBroker":
     """Return the app state broker or raise RuntimeError."""
-    return _require_state(request.app, "broker")
+    return cast("EventBroker", _require_state(request.app, "broker"))
 
 
 # -- Background-task helpers (no Request available) --------------------------
@@ -57,7 +57,7 @@ def app_get_config(app: Any) -> Any:
 
 def app_get_broker(app: Any) -> "EventBroker":
     """Return app.state.broker or raise RuntimeError."""
-    return _require_state(app, "broker")
+    return cast("EventBroker", _require_state(app, "broker"))
 
 
 # -- Common patterns ---------------------------------------------------------

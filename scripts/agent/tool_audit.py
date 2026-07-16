@@ -11,12 +11,13 @@ import dataclasses
 import time
 from typing import TYPE_CHECKING
 
+from shared.json_utils import dumps as _json_dumps
+
 from agent.shared.models import ApprovalDecisionEvent, ToolApprovalEvent, ToolExecEvent
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
 from agent.tool_policy import classify_operation_type
 from agent.tool_result_formatter import mask_args
-from shared.json_utils import dumps as _json_dumps
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

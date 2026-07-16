@@ -4,6 +4,9 @@
 import logging
 from typing import Any
 
+from fastapi import HTTPException, Query, Request
+from shared.json_utils import now_iso
+
 from eventbus.db import ack_event as _ack_event
 from eventbus.db import nack_event as _nack_event
 from eventbus.offsets import write_offset
@@ -14,8 +17,6 @@ from eventbus.route_helpers import (
     get_db,
     run_with_db_lock,
 )
-from fastapi import HTTPException, Query, Request
-from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 

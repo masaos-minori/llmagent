@@ -11,12 +11,13 @@ import logging
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
-from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
-from agent.tool_runner import execute_all_tool_calls
-from agent.turn_result import TurnResult
 from shared.json_utils import dumps, now_iso_raw
 from shared.llm_exceptions import LLMTransportError
 from shared.types import LLMMessage
+
+from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
+from agent.tool_runner import execute_all_tool_calls
+from agent.turn_result import TurnResult
 
 if TYPE_CHECKING:
     from agent.context import AgentContext

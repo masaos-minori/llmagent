@@ -3,9 +3,10 @@
 
 import uuid
 
-from agent.workflow.models import ApprovalRecord
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
+
+from agent.workflow.models import ApprovalRecord
 
 
 def request_approval(

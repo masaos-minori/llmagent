@@ -27,6 +27,18 @@ from typing import Literal
 
 import httpx
 from db.helper import SQLiteHelper
+from shared.config_loader import ConfigLoader
+from shared.config_validator import RagConfigValidator
+from shared.llm_client import build_embed_url, build_llm_url
+from shared.plugin_registry import (
+    get_pipeline_post_stages,
+    run_pipeline_stages,
+)
+from shared.types import (
+    RagConfig,
+    RagHit,
+)
+
 from rag.cache import SemanticCache
 from rag.http_augment import HttpAugment
 from rag.llm_client import RagLLM, get_embedding
@@ -45,17 +57,6 @@ from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
 from rag.types import PipelineRunResult
-from shared.config_loader import ConfigLoader
-from shared.config_validator import RagConfigValidator
-from shared.llm_client import build_embed_url, build_llm_url
-from shared.plugin_registry import (
-    get_pipeline_post_stages,
-    run_pipeline_stages,
-)
-from shared.types import (
-    RagConfig,
-    RagHit,
-)
 
 logger = logging.getLogger(__name__)
 

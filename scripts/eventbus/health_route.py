@@ -4,10 +4,11 @@
 import logging
 from typing import TYPE_CHECKING
 
-from eventbus.db import check_db
-from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+from eventbus.db import check_db
+from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
 
 if TYPE_CHECKING:
     pass

@@ -1,8 +1,9 @@
 """MQE stage for RAG pipeline."""
 
+from shared.types import RagConfig
+
 from rag.llm_client import RagLLM
 from rag.stage import PipelineContext, PipelineStage
-from shared.types import RagConfig
 
 
 async def _run_mqe(query: str, cfg: RagConfig, llm: RagLLM) -> list[str]:

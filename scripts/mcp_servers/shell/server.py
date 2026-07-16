@@ -22,6 +22,8 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
+
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
@@ -36,7 +38,6 @@ from mcp_servers.shell.models import (
 )
 from mcp_servers.shell.service import ShellService, build_service
 from mcp_servers.shell.tools import TOOL_LIST
-from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 

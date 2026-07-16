@@ -17,13 +17,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from db.helper import SQLiteHelper
+
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.fts_query import build_fts_query
 from agent.memory.mapper import _floats_to_blob, row_to_entry
 from agent.memory.rrf import RRF_K, rrf_merge
 from agent.memory.scoring import score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
-from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 

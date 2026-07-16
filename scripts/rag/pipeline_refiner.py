@@ -13,8 +13,9 @@ import logging
 from collections.abc import Callable
 
 import httpx
-from rag.llm_client import RagLLM
 from shared.types import MergedHit, RankedHit, RawHit
+
+from rag.llm_client import RagLLM
 
 logger = logging.getLogger(__name__)
 

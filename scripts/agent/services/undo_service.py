@@ -49,7 +49,7 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
     logger.info("Undo: removed %s messages from history", removed)
     warning: str | None = None
     if any(
-        m.get("content", "").startswith("[Conversation summary]")
+        (m.get("content") or "").startswith("[Conversation summary]")
         for m in removed_messages
     ):
         warning = "/undo is targeting a compressed session summary; previous messages may not be recoverable."

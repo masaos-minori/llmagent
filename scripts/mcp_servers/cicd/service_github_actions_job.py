@@ -14,8 +14,9 @@ from typing import cast
 
 import httpx
 import orjson
-from mcp_servers.cicd.models import CicdUpstreamError
 from shared.json_utils import parse_http_json
+
+from mcp_servers.cicd.models import CicdUpstreamError
 
 from .service_defs import _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS, build_auth_headers
 

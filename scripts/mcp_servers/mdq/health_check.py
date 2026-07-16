@@ -14,8 +14,9 @@ from pathlib import Path
 
 from db.helper import apply_connection_pragmas
 from fastapi.responses import JSONResponse
-from mcp_servers.health_response import make_health_response
 from shared.config_loader import ConfigLoader
+
+from mcp_servers.health_response import make_health_response
 
 
 def _degraded_response(

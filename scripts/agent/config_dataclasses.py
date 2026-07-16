@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from shared.mcp_config import McpServerConfig, SecurityProfile
+
 from agent.services.config_validators import (
     validate_approval_risk_rules as _v_app_risk,
 )
@@ -92,7 +94,6 @@ from agent.services.config_validators import (
 from agent.services.config_validators import (
     validate_tool_safety_tiers as _v_app_tier,
 )
-from shared.mcp_config import McpServerConfig, SecurityProfile
 
 LLM_TEMPERATURE_MAX = 2.0
 

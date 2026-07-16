@@ -12,8 +12,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rag.stage import StageResult
 
-from rag.models_result import SearchDiagnostics
 from shared.types import RagHit, RawHit
+
+from rag.models_result import SearchDiagnostics
 
 __all__ = [
     "PipelineRunResult",

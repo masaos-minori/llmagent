@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 from db.helper import apply_connection_pragmas
+
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_grep import grep_docs
 from mcp_servers.mdq.db_schema import create_production_tables

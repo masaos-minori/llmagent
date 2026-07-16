@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+from fastapi import FastAPI, Query, Request
+from fastapi.responses import JSONResponse
+
 from eventbus.ack_route import ack_event as ack_event_route
 from eventbus.ack_route import nack as nack_route
 from eventbus.broker import EventBroker
@@ -28,8 +31,6 @@ from eventbus.route_helpers import app_get_config as get_config
 from eventbus.route_helpers import app_get_db as get_db
 from eventbus.route_helpers import run_with_db_lock
 from eventbus.subscribe_route import subscribe as subscribe_route
-from fastapi import FastAPI, Query, Request
-from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 

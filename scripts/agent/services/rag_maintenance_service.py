@@ -6,7 +6,6 @@ Operates exclusively on rag.sqlite.
 
 from __future__ import annotations
 
-from agent.services.models import DbRecoverResult, RagConsistencyResult
 from db.helper import SQLiteHelper
 from db.rag_consistency import (
     check_rag_consistency,
@@ -15,6 +14,8 @@ from db.rag_consistency import (
 )
 from db.recovery import recover_corruption
 from shared.db_maintenance import count_table
+
+from agent.services.models import DbRecoverResult, RagConsistencyResult
 
 
 class RagMaintenanceService:

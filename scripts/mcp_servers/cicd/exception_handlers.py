@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi.responses import JSONResponse
+
 from mcp_servers.cicd.models import (
     CicdAuthorizationError,
     CicdNotFoundError,

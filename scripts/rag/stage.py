@@ -8,11 +8,12 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Literal, Protocol, TypedDict
 
-from rag.models_result import SearchDiagnostics
 from shared.types import (
     RagHit,  # noqa: F401 — imported for use in this module
     RawHit,
 )
+
+from rag.models_result import SearchDiagnostics
 
 __all__ = [
     "PipelineContext",

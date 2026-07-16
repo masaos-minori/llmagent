@@ -16,8 +16,9 @@ from shared.json_utils import dumps, now_iso_raw
 from shared.tool_executor_helpers import format_transport_error
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
     from shared.llm_exceptions import LLMTransportError
+
+    from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 

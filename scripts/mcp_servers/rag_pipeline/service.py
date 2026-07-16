@@ -15,6 +15,9 @@ from typing import Any, Protocol, cast
 
 import httpx
 import orjson
+from shared.llm_client import build_embed_url, build_llm_url
+from shared.types import RagHit
+
 from mcp_servers.rag_pipeline.document_manager import DocumentManager
 from mcp_servers.rag_pipeline.models import (
     PipelineCapture,
@@ -25,8 +28,6 @@ from mcp_servers.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp_servers.server import ToolArgs
-from shared.llm_client import build_embed_url, build_llm_url
-from shared.types import RagHit
 
 logger = logging.getLogger(__name__)
 

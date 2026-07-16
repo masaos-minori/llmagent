@@ -25,6 +25,8 @@ import time
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
+
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.git.models import GitConfig, GitServiceError
@@ -33,7 +35,6 @@ from mcp_servers.git.tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import MCPServer, ToolArgs, attach_auth_middleware
-from shared.formatters import fmt_kvlog
 
 logger = logging.getLogger(__name__)
 

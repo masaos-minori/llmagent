@@ -24,10 +24,11 @@ import re
 import uuid
 from dataclasses import dataclass
 
+from shared.json_utils import now_iso
+
 from agent.memory.enums import MemoryType
 from agent.memory.models import HistoryMessage
 from agent.memory.types import MemoryEntry, SourceType
-from shared.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 

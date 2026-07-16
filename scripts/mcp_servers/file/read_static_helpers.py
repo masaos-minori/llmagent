@@ -11,8 +11,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from mcp_servers.file.read_models import FileEntry, TreeNode
 from shared.formatters import fmt_size
+
+from mcp_servers.file.read_models import FileEntry, TreeNode
 
 logger = logging.getLogger(__name__)
 
