@@ -13,17 +13,14 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.0
-    hooks:
-      - id: mypy
-        pass_filenames: false
-        additional_dependencies:
-          - types-requests>=2.32
-          - types-beautifulsoup4>=4.12
-          - orjson>=3.9
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy --no-incremental
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: docs-consistency
         name: Check RAG documentation consistency
         entry: python -m tools.check_docs_consistency
