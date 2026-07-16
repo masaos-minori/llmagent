@@ -62,7 +62,7 @@ if [[ ! -f "${WORKFLOW_JSON}" ]]; then
     exit 1
 fi
 
-if ! PYTHONPATH="${PYTHONPATH}" uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH="${PYTHONPATH}" UV_NATIVE_TLS=true uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
     echo "[FATAL] Workflow definition validation failed." >&2
     exit 1
 fi
@@ -73,4 +73,4 @@ echo "=== AgentREPL 起動中 ==="
 echo "Ctrl+C で停止"
 echo ""
 
-PYTHONPATH="${PYTHONPATH}" uv run python -m agent.repl
+PYTHONPATH="${PYTHONPATH}" UV_NATIVE_TLS=true uv run python -m agent.repl

@@ -21,7 +21,7 @@ if [[ ! -f "${REPO_ROOT}/config/workflows/default.json" ]]; then
 fi
 
 # Workflow: content validation (parseable JSON, required fields/stages/retry-policy)
-if ! PYTHONPATH="${REPO_ROOT}/scripts" uv run python -m agent.workflow.validate \
+if ! PYTHONPATH="${REPO_ROOT}/scripts" UV_NATIVE_TLS=true uv run python -m agent.workflow.validate \
      "${REPO_ROOT}/config/workflows/default.json"; then
   echo "[FATAL] Workflow definition failed validation; aborting deployment." >&2
   exit 1
@@ -30,7 +30,7 @@ fi
 echo "Workflow definition:"
 echo "Source   : config/workflows/default.json"
 echo "Deployed : /opt/llm/config/workflows/default.json"
-PYTHONPATH="${REPO_ROOT}/scripts" uv run python -m agent.workflow.validate \
+PYTHONPATH="${REPO_ROOT}/scripts" UV_NATIVE_TLS=true uv run python -m agent.workflow.validate \
   --print-metadata "${REPO_ROOT}/config/workflows/default.json"
 SOURCE_SHA256=$(sha256sum "${REPO_ROOT}/config/workflows/default.json" | awk '{print $1}')
 echo "SHA256 (source)   : ${SOURCE_SHA256}"

@@ -25,7 +25,7 @@ if [ ! -f "${WORKFLOW_JSON}" ]; then
   exit 1
 fi
 
-if ! PYTHONPATH=/opt/llm/scripts uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH=/opt/llm/scripts UV_NATIVE_TLS=true uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
   echo "[FATAL] Deployed workflow definition failed validation: ${WORKFLOW_JSON}" >&2
   echo "Run the workflow schema initialization step before starting the agent." >&2
   exit 1
@@ -53,7 +53,7 @@ if [ -n "${MISSING_TABLES}" ]; then
   exit 1
 fi
 
-EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts uv run python -c \
+EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts UV_NATIVE_TLS=true uv run python -c \
   "from db.schema_sql import WORKFLOW_SCHEMA_VERSION; print(WORKFLOW_SCHEMA_VERSION)")
 ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
   "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;")
@@ -109,6 +109,6 @@ echo "  curl -s http://127.0.0.1:8001/health  # agent-llm"
 echo ""
 echo "  # ドキュメント収集・投入 (uv run を使用)"
 echo "  cd /opt/llm"
-echo "  cd /opt/llm && uv run python -m rag.ingestion.crawler"
-echo "  cd /opt/llm && uv run python -m rag.ingestion.chunk_splitter"
-echo "  cd /opt/llm && uv run python -m rag.ingestion.ingester"
+echo "  cd /opt/llm && UV_NATIVE_TLS=true uv run python -m rag.ingestion.crawler"
+echo "  cd /opt/llm && UV_NATIVE_TLS=true uv run python -m rag.ingestion.chunk_splitter"
+echo "  cd /opt/llm && UV_NATIVE_TLS=true uv run python -m rag.ingestion.ingester"
