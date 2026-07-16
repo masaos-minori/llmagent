@@ -33,19 +33,19 @@ source:
 **対処方法:** 期待されるパスにワークフロー定義をデプロイすること。このチェックをスキップする
 設定トグルは存在しない — ワークフロー必須であり、ワークフロー定義なしでの起動はできない。
 
-このプリフライトチェック(`agent/startup.py` の
-`StartupOrchestrator._initialize()`。`agent/repl_health.py` の
-`check_workflow_definition()` をラップ)は `Orchestrator.__init__()` の前に実行され、
+このプリフライトチェック（`agent/startup.py` の
+`StartupOrchestrator` の初期化処理。`agent/repl_health.py` の
+`check_workflow_definition()` をラップ）は `Orchestrator.__init__()` の前に実行され、
 期待されるファイルパスを含まない可能性のある分かりにくい `WorkflowLoadError` ではなく、
 明確なエラーメッセージを生成する。`Orchestrator.__init__()` 自体も、プリフライトチェックを
 通過した後に `WorkflowLoader().load()` が何らかの理由で失敗した場合、無条件に `RuntimeError` を発生させる。
 
-**補足(起動シーケンス):** `StartupOrchestrator._initialize()` の実際の呼び出し順は
+**補足(起動シーケンス):** `StartupOrchestrator` の初期化処理の実際の呼び出し順は
 `_init_command_registry()` → `_check_workflow_definition()` → `_check_workflow_schema()` →
 `_init_orchestrator()` である。つまりワークフロー定義ファイルの存在検証
 (`check_workflow_definition()`)の直後に、`workflow.sqlite` の必須テーブル・必須カラム・
 `workflow_schema_version` の一致を検証する `check_workflow_schema()`(`agent/repl_health.py`)が
-同じ `_initialize()` 内で連続実行され、いずれも `Orchestrator.__init__()` より前に完了する。
+同じ初期化処理内で連続実行され、いずれも `Orchestrator.__init__()` より前に完了する。
 どちらも失敗時は `RuntimeError` を送出し、`StartupOrchestrator.run()` 側で捕捉されずに
 起動そのものを中断させる(根拠: Explicit in code)。
 
@@ -142,7 +142,7 @@ bash deploy/init_db.sh   # applies pending migrations and records the current ve
 
 **Symptom:** A new `config/workflows/default.json` was deployed, but the running agent does not pick it up.
 
-**Explanation:** The workflow definition is validated and loaded exactly once, at agent boot (`StartupOrchestrator._initialize()` in `agent/startup.py`, then `Orchestrator.__init__()`). It is **not** a hot-reloadable setting — `/reload` does not apply to it.
+**Explanation:** The workflow definition is validated and loaded exactly once, at agent boot (`StartupOrchestrator` の初期化処理 in `agent/startup.py`, then `Orchestrator.__init__()`). It is **not** a hot-reloadable setting — `/reload` does not apply to it.
 
 **Recovery:** Deploy the new definition (`deploy.sh`), then fully restart the agent process. There is no partial-update path.
 

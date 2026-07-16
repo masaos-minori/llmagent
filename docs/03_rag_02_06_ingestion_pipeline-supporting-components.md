@@ -40,7 +40,7 @@ source:
 
 **境界条件:**
 - 古さ判定（`_is_stale_update`）は `new_fetched_at` と保存済み `fetched_at` を文字列比較で行う（ISO 8601形式であることを前提とする）。値がNone、または保存済み行が存在しない場合は「古くない」とみなして更新を進める。(Explicit in code)
-- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。[03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) に記載の通り、`DocumentManager._update_etag` は `existing_doc_id` ではなく固定値 `0` を渡しており、既存ドキュメント再取得時のETag更新が意図通り機能しない可能性がある（Needs confirmation）。
+- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。[03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) に記載の通り、`DocumentManager` のETag更新処理は `existing_doc_id` ではなく固定値 `0` を渡しており、既存ドキュメント再取得時のETag更新が意図通り機能しない可能性がある（Needs confirmation）。
 
 ## 4.9 設定（`config/ingester.toml`）
 

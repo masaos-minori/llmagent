@@ -141,9 +141,35 @@ source:
 | ドメイン | 対象ファイル数 | 更新 | 変更不要(確認済み) |
 |---|---|---|---|
 | 01_overview / 02_deployment | 18 | 11 | 7 |
-| 03_rag | 41 | 28 | 13 |
-| 04_mcp | 41 | 20 | 21 |
-| 05_agent | 59 | 40 | 19 |
-| 06_eventbus | 20 | 14 | 6 |
-| 90_shared | 23 | 18 | 5 |
-| **合計** | **202** | **153** (概算、一部ファイルはPart横断のためタスク番号のみ集計) | **49** |
+| 03_rag | 41 | 32 | 9 |
+| 04_mcp | 41 | 26 | 15 |
+| 05_agent | 59 | 45 | 14 |
+| 06_eventbus | 20 | 17 | 3 |
+| 90_shared | 23 | 23 | 0 |
+| **合計** | **202** | **154** (概算、一部ファイルはPart横断のためタスク番号のみ集計) | **48** |
+
+## 2026-07-16 プライベートメソッド名参照の削除（追加）
+
+プライベートメソッド名の記載をドキュメントから削除:
+
+| ファイル | 変更内容 |
+|---|---|
+| `docs/03_rag_02_03_ingestion_pipeline-chunksplitter-part2.md` | `_chunk_markdown_by_heading()`, `_chunk_english()`, `_build_text_triples()` の記載を削除 |
+| `docs/03_rag_02_05_ingestion_pipeline-document-manager.md` | `_update_etag` の記載を削除 |
+| `docs/03_rag_02_06_ingestion_pipeline-supporting-components.md` | `_update_etag` の記載を削除 |
+| `docs/03_rag_05_3-logging.md` | `_configure_logger()` の記載を削除 |
+| `docs/04_mcp_03_01_dispatch-and-routing.md` | `_execute_with_stampede_protection`, `_check_startup_mode`, `_check_health` の記載を削除 |
+| `docs/04_mcp_03_04_tool-call-tracing-and-watchdog.md` | `_raw_execute()`, `_check_startup_mode` の記載を削除 |
+| `docs/04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md` | `_check_startup_mode()` の記載を削除 |
+| `docs/04_mcp_06_09_mcp-failure-diagnosis.md` | `_raw_execute()`, `_check_health()` の記載を削除 |
+| `docs/05_agent_13_reference-api-part1.md` | `_log_routing_coverage()` の記載を削除 |
+| `docs/05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md` | `_initialize()`, `_check_workflow_definition()` の記載を削除 |
+| `docs/05_agent_08_01_configuration-loading-agent-config-part2.md` | `_initialize()` の記載を削除 |
+| `docs/06_eventbus_06_01_reference-api-core-modules.md` | `_main()` の記載を削除 |
+| `docs/06_eventbus_03_persistence_schema_and_replay.md` | `_migrate()` の記載を削除 |
+| `docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md` | `_execute_with_cache()`, `_store_and_evict()` の記載を削除 |
+| `docs/90_shared_03_01_runtime_and_execution-config-and-logging.md` | `_configure_logger` の記載を削除 |
+| `docs/90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md` | `_log_routing_coverage()` の記載を削除 |
+| `docs/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md` | `_ensure_semaphores()` の記載を削除 |
+| `docs/90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md` | `_execute_with_cache()`, `_store_and_evict()` の記載を削除 |
+| `docs/04_mcp_02_01_endpoints-and-transport.md` | `_health()` の記載を削除 |

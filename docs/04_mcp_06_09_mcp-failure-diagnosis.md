@@ -85,7 +85,7 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 
 根拠: Explicit in code（`shared/mcp_health.py`）。この機構はwatchdogの再起動ループ
 （`repl_health.py` の `watchdog_loop()`／`mcp_watchdog_max_restarts`）とは独立しており、
-`ToolExecutor._raw_execute()` 内の `_check_health()` がディスパッチ前のゲートとして参照する
+`ToolExecutor` の実行処理内のヘルスチェックがディスパッチ前のゲートとして参照する
 （本ドキュメントの他のwatchdog関連記述と混同しないこと）。
 
 

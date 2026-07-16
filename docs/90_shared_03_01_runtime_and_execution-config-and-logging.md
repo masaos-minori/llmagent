@@ -174,7 +174,7 @@ class Logger:
 - コンストラクタ第2引数名は `log_file` (実装名。旧記載の `filepath` は誤り)
 - `name` / `log_file` はいずれも非空文字列であることが必須で、違反時は `ValueError` を送出する (`_require_str`)
 - `FileHandler` + `StreamHandler` を自動設定する (`propagate=False` により重複を防止)
-- 同一 `name` のロガーに既にハンドラが設定済みの場合、`_configure_logger` は何もせず即座に return する (二重登録防止; 同名 `Logger` を複数回生成しても安全)
+- 同一 `name` のロガーに既にハンドラが設定済みの場合、ロガー初期化処理は何もせず即座に return する (二重登録防止; 同名 `Logger` を複数回生成しても安全)
 - `structured_log=True` → ログファイルは JSON Lines 形式になる (`_JsonFormatter`; フィールドは `ts`/`level`/`func`/`msg` に加え `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` が値のあるもののみ出力される)
 - コンテキスト注入: `set_context(turn_id="T001", session_id=42)` により、以降のすべてのログ行にフィールドが追加される。`_ContextFilter` は `contextvars.ContextVar` を使うため、同一ロガーを共有する並行 asyncio タスク間でコンテキストが混線しない
 - ファイル書き込みエラー (`OSError`) → `shared.logger.fallback` ロガー経由で WARNING がログされ (stderr に表示される)、StreamHandler のみにフォールバックする; 例外は発生しない

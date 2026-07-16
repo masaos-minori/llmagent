@@ -22,7 +22,7 @@ related:
 
 
 ```
-│   └─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
+│   ├─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
 │       ├─ __init__.py                      # shared パッケージ初期化
 │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
 │       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)

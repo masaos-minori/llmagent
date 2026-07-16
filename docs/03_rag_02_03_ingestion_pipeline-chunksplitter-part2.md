@@ -38,7 +38,7 @@ source:
 
 Markdownの見出し（# から ######）でテキストを分割する。`md_snippet_max_chars` 文字を超えるセクションは、さらに文単位のチャンク化で分割される。
 
-> 根拠: Explicit in code — `_chunk_markdown_by_heading()`（`chunk_splitter.py`）は超過セクションを常に `_chunk_english()`（英語の文境界分割）にフォールバックする。`lang` が `"ja"` であっても日本語形態素解析（Sudachi）は適用されず、`normalized_content` は生成されない（見出しチャンク全体で `normalized_content` は常に空扱い、後述の通り）。
+> 根拠: Explicit in code — Markdown見出しチャンク化は超過セクションを英語の文境界分割にフォールバックする。`lang` が `"ja"` であっても日本語形態素解析（Sudachi）は適用されず、`normalized_content` は生成されない（見出しチャンク全体で `normalized_content` は常に空扱い、後述の通り）。
 
 ### 3.2 分割戦略
 
@@ -55,7 +55,7 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 - `chunk_type`: `"text"` または `"code"`
 - `chunking_strategy`: `"text"` または `"heading"`
 
-> 根拠: Explicit in code — 見出しチャンク化（`chunking_strategy="heading"`）は `lang` に関わらず `normalized_content` を常に `null` にする（`_build_text_triples()` が見出し分岐で正規化形を生成しない）。すなわち日本語のMarkdownソースは見出しチャンク化が優先され、Sudachi正規化はスキップされる。FTS5は `COALESCE(normalized_content, content)` により元テキスト（`content`）をそのままインデックス化する。
+> 根拠: Explicit in code — 見出しチャンク化（`chunking_strategy="heading"`）は `lang` に関わらず `normalized_content` を常に `null` にする。すなわち日本語のMarkdownソースは見出しチャンク化が優先され、Sudachi正規化はスキップされる。FTS5は `COALESCE(normalized_content, content)` により元テキスト（`content`）をそのままインデックス化する。
 
 ### 3.3 CLI引数
 

@@ -67,8 +67,8 @@ for the full explanation.
 
 | File | Key |
 |---|---|
-| `/etc/conf.d/github-mcp` | `GITHUB_TOKEN` |
-| `/etc/conf.d/cicd-mcp` | `GITHUB_TOKEN` |
+| `conf.d/github-mcp` | `GITHUB_TOKEN` |
+| `conf.d/cicd-mcp` | `GITHUB_TOKEN` |
 
 ---
 

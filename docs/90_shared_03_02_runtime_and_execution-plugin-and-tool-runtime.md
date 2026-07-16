@@ -218,7 +218,7 @@ class ToolRouteResolver:
 
 **Current behavior (Explicit in code):**
 - `server_configs` はコンストラクタで受け取るが一切読み取られず保存もされない (後方互換性のためだけの引数)
-- `discovery_map` は `_log_routing_coverage()` という現状どこからも呼ばれない診断メソッド専用で、`resolve()` の判断には一切使われない
+- `discovery_map` はルーティングカバレッジ診断という現状どこからも呼ばれない診断機能専用で、`resolve()` の判断には一切使われない
 - `known_tools` を渡す本番呼び出しは `tool_executor.py` を含め存在しない (2026-07時点)。このため起動時カバレッジログ機能は実質的に到達しないコード
 
 ```python

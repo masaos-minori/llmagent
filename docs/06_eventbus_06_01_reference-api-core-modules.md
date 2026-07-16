@@ -22,7 +22,7 @@ source:
 
 ## scripts/eventbus/app.py
 
-モジュールレベル変数(`db`、`broker`、`config`、`envelope_schema`)は、FastAPI の `lifespan` コンテキストマネージャ内で `app.state` に設定される。`app.py` 自体には、`_main()`(CLI エントリポイント、private)以外のルートロジックやヘルパー関数は定義されていない。ルートハンドラは専用の `*_route.py` モジュールに存在する(`06_eventbus_06_02_reference-api-route-handlers.md` を参照)。JSONL アーカイブへの追記(publish 時)とその `OSError` ハンドリングは、`app.py` ではなく `publish_route.py::publish()` にインラインで実装されている。
+モジュールレベル変数（`db`、`broker`、`config`、`envelope_schema`）は、FastAPI の `lifespan` コンテキストマネージャ内で `app.state` に設定される。`app.py` 自体には、CLI エントリポイント（private）以外のルートロジックやヘルパー関数は定義されていない。ルートハンドラは専用の `*_route.py` モジュールに存在する（`06_eventbus_06_02_reference-api-route-handlers.md` を参照）。JSONL アーカイブへの追記（publish 時）とその `OSError` ハンドリングは、`app.py` ではなく `publish_route.py::publish()` にインラインで実装されている。
 
 ---
 

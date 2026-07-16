@@ -72,7 +72,7 @@ ToolExecutor.execute(tool_name, args) -> ToolCallResult
 
 **同時実行の挙動:**
 - `concurrency_limits` 辞書は server_key → 最大同時呼び出し数 をマッピングする
-- ツール実行層でのセマフォベースのスロットリング(`ToolTransportInvoker._ensure_semaphores()`)
+- ツール実行層でのセマフォベースのスロットリング（`ToolTransportInvoker` のセマフォ初期化処理）
 - `execute_all_tool_calls()`(`agent/tool_runner.py`)が副作用のあるツールを検出すると、`serial_tool_calls` の設定に関わらずそのラウンドの全呼び出しが直列化される
 
 **副作用の検出:**

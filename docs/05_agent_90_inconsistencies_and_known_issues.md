@@ -25,19 +25,6 @@ related:
 
 ---
 
-## 未文書化領域
-
-*（現在追跡中の未文書化領域はない。UNDOC-02「プラグインツールの戻り値の
-規約が登録時に強制されていない」は 2026-07-09 に削除された。
-`05_agent_11_01_extension-points-plugin-command.md` の §`@register_tool` は現在、
-`ToolExecutor.execute()` における実行時の値検証に加えて、登録時の fail-fast な
-戻り値アノテーション検証（欠落または誤りの場合に `ValueError`、
-`shared/plugin_registry.py::register_tool()` で確認済み）を文書化している。
-両方の層が強制されかつ文書化されており、このエントリが追跡していたギャップはもはや
-存在しない。）*
-
----
-
 ## Related Documents
 
 - `05_agent_00_document-guide.md`

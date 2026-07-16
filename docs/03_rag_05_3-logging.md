@@ -27,8 +27,8 @@ source:
 
 - 上記3スクリプトはいずれも `shared/logger.py` の `Logger` クラスを
   `Logger(__name__, "<path>.log")` の形で使用する。ログレベルはコンストラクタでは
-  変更不可であり、常に `logging.INFO` に固定される (`_configure_logger()`内で
-  `self._logger.setLevel(logging.INFO)`)。
+  変更不可であり、常に `logging.INFO` に固定される（ロガー初期化処理内で
+   `setLevel(logging.INFO)` が実行される）。
   [Explicit in code]
 - 出力先はファイルハンドラ (`FileHandler`) と `stderr` への `StreamHandler` の両方。
   ログファイルのオープンに失敗した場合 (`OSError`) は、フォールバックの

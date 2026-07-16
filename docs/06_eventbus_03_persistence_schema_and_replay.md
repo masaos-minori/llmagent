@@ -58,16 +58,16 @@ CREATE TABLE IF NOT EXISTS events (
 | `dlq_requeue_count` | DLQ requeue時にインクリメントされる。`delivery_failure_count` はリセットしない |
 | `dlq_at` | DLQに昇格した時刻のISO-8601タイムスタンプ。有効なイベントではNULL |
 
-**注記（2026-07-10）:** `retry_count` は削除された（どのコードパスからも更新されておらず、スキーマ上の残存物にすぎなかった）。`scripts/eventbus/db.py` の `_migrate()` は、既存のデータベースに対して `ALTER TABLE events DROP COLUMN retry_count` によりこのカラムを冪等に削除する。このフィールドには意味のあるデータが入っていなかったため、データ移行は不要である。
+**注記（2026-07-10）:** `retry_count` は削除された（どのコードパスからも更新されておらず、スキーマ上の残存物にすぎなかった）。`scripts/eventbus/db.py` のマイグレーション処理は、既存のデータベースに対して `ALTER TABLE events DROP COLUMN retry_count` によりこのカラムを冪等に削除する。このフィールドには意味のあるデータが入っていなかったため、データ移行は不要である。
 
 ### 初期化とマイグレーションの経路
 
 `open_db()` は起動時に `_init_schema()` を呼び出す。このとき2つの経路に分岐する（`scripts/eventbus/db.py`）。
 
 - **新規DB**: `events` テーブルが存在しない場合、`schema.sql` をそのまま `executescript()` する。上記のスキーマ定義とインデックス4種が一度に作成される。
-- **既存DB**: `events` テーブルが存在する場合、`schema.sql` は実行されず、代わりに `_migrate()` が加算的マイグレーションを行う。具体的には `delivery_failure_count` / `dlq_requeue_count` カラムをALTER TABLEで追加（`duplicate column name` エラーは無視して冪等化）、`retry_count` カラムをDROP COLUMN（`no such column` エラーは無視）、`idx_events_dlq_at` / `idx_events_dlq_seq` インデックスを `CREATE INDEX IF NOT EXISTS` で追加する。
+- **既存DB**: `events` テーブルが存在する場合、`schema.sql` は実行されず、代わりにマイグレーション処理が加算的マイグレーションを行う。具体的には `delivery_failure_count` / `dlq_requeue_count` カラムをALTER TABLEで追加（`duplicate column name` エラーは無視して冪等化）、`retry_count` カラムをDROP COLUMN（`no such column` エラーは無視）、`idx_events_dlq_at` / `idx_events_dlq_seq` インデックスを `CREATE INDEX IF NOT EXISTS` で追加する。
 
-根拠分類: Explicit in code（`scripts/eventbus/db.py` の `_init_schema()` / `_migrate()`）。
+根拠分類: Explicit in code（`scripts/eventbus/db.py` のスキーマ初期化処理 / マイグレーション処理）。
 
 ### インデックス
 

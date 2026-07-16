@@ -34,7 +34,7 @@ source:
 
 **`startup_mode="none"`:** このサーバはsubprocessとして起動されず、起動時のヘルスチェックも行われない。
 このサーバへルーティングされるすべてのtool callは、ネットワークへのアクセスを試みる前に
-`ToolExecutor._check_startup_mode()` によって即座に `"disabled (startup_mode=none)"` エラーで拒否される。
+`ToolExecutor` の startup_mode チェック処理によって即座に `"disabled (startup_mode=none)"` エラーで拒否される。
 これはconfigで `startup_mode` を省略した場合のデフォルトである —
 サーバを利用可能にするには `"persistent"` または `"subprocess"` を明示的に指定する必要がある。
 

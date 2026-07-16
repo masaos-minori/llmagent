@@ -189,7 +189,7 @@ bash deploy/start_agent.sh
 
 > API キーの設定:
 > - Web 検索: DuckDuckGo — API キー不要
-> - GitHub 操作: `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定
+> - GitHub 操作: `GITHUB_TOKEN` を `conf.d/github-mcp` に設定
 
 ### 2.4 MCP サーバの確認
 

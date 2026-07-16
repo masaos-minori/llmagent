@@ -123,7 +123,7 @@ source:
 > 旧版は「4層カスケード（live discovery > ToolRegistry > config `tool_names` > 静的定数）」
 > および失敗時 `KeyError` と記載していたが、`shared/route_resolver.py::ToolRouteResolver.resolve()`
 > の実装は `ToolRegistry` のみを参照し、一致しない場合は `ValueError` を送出する。
-> live discovery（`/v1/tools`）は起動時のドリフト検証専用（`_log_routing_coverage()`、現状どの本番呼び出しからも渡されない未使用経路）、
+> live discovery（`/v1/tools`）は起動時のドリフト検証専用（ルーティングカバレッジ診断機能、現状どの本番呼び出しからも渡されない未使用経路）、
 > config `tool_names` はドリフト検証メタデータに過ぎず、いずれもルーティングの入力ではない。
 > `04_mcp_03_01_dispatch-and-routing.md` §ルーティングの信頼できる情報源 は既にこの実装内容に追随済みであり、
 > 本ファイルのみ旧記述が残っていたため修正した。

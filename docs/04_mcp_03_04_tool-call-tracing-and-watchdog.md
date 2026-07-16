@@ -106,9 +106,9 @@ AgentREPL.run()
        → startup_mode="persistent" (http): no lifecycle action needed
        → startup_mode="none": no subprocess spawn, no health check — server is disabled
    → [REPL loop]
-        → tool call → ToolExecutor._raw_execute()
-             → _check_startup_mode(server_key): startup_mode="none" rejects immediately
-                  with a "disabled" tool error, before health check or transport
+   → tool call → ToolExecutor raw execute
+         → startup_mode="none" rejects immediately
+              with a "disabled" tool error, before health check or transport
              → ensure_ready(server_key):
                   if _shutting_down: return immediately (shutdown guard)
                   if subprocess-mode and not running: start() [auto-restart on demand]
