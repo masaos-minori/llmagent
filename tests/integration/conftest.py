@@ -79,3 +79,65 @@ def hold_write_lock(db_path: str, duration_sec: float) -> threading.Thread:
     t = threading.Thread(target=_lock, daemon=True)
     t.start()
     return t
+
+
+@pytest.fixture
+async def hanging_stdio_process():
+    """Subprocess that reads one line from stdin, then sleeps forever.
+
+    Used to test bounded-timeout reads against a wedged MCP server
+    subprocess (see tests/integration/test_mcp_transport_crash.py).
+    """
+    script = "import sys, time\nsys.stdin.readline()\ntime.sleep(3600)\n"
+    proc = await asyncio.create_subprocess_exec(
+        "python",
+        "-c",
+        script,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+    )
+    yield proc
+    if proc.returncode is None:
+        proc.kill()
+        await proc.wait()
+
+
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone()
+    return row is not None
+
+
+@pytest.fixture
+def corrupt_wal_db(tmp_path: Path) -> str:
+    """A WAL-mode session-schema SQLite DB, byte-truncated to fail
+    PRAGMA integrity_check while still opening successfully via
+    sqlite3.connect() (header intact, b-tree pages corrupted).
+
+    Used by tests/integration/test_session_recovery.py.
+    """
+    from db.schema_sql import build_session_schema_sql
+
+    db_path = str(tmp_path / "corrupt.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        conn.executescript(build_session_schema_sql(4))
+    except Exception:
+        pass  # memories_vec may be unavailable without sqlite-vec; ignore
+    if _has_table(conn, "sessions"):
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+    conn.commit()
+    conn.close()
+
+    # Byte-level truncation: corrupts b-tree pages while preserving the
+    # SQLite header (first 16 bytes), so sqlite3.connect() still succeeds
+    # but PRAGMA integrity_check fails. Offset confirmed empirically
+    # during implementation (see plan UNK-02 resolution).
+    size = Path(db_path).stat().st_size
+    with open(db_path, "r+b") as f:
+        f.seek(size // 2)
+        f.truncate()
+
+    return db_path
