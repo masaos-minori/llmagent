@@ -76,7 +76,7 @@ LLM returns tool_call
 | `GITHUB_TOOLS` (github_search_repositories, github_get_file_contents) | `github` |
 | `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
-| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild) | `mdq` |
+| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
 | 一致なし | `ValueError` |
 
@@ -86,6 +86,18 @@ LLM returns tool_call
 resolver = ToolRouteResolver(server_configs)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
+
+**MDQ ツール定義の4層責務:** MDQ (`mdq`) のツール定義は4つの独立したファイル
+に分散しており、それぞれが単一の責務を持つ。いずれか1つを変更する際は、
+他の3つも同期して更新する必要がある（`tests/test_mdq_tool_layer_consistency.py`
+がこの整合性を検証する）。
+
+| レイヤー | ファイル・シンボル | 責務 |
+|---|---|---|
+| スキーマ定義 | `scripts/mcp_servers/mdq/tools.py::TOOL_LIST` | LLM に公開するツール名・入力スキーマ・ステータス |
+| 実行時ディスパッチ | `scripts/mcp_servers/mdq/server.py::_DISPATCH_TABLE` | ツール名 → ハンドラ関数のマッピング |
+| レジストリ登録 | `scripts/shared/tool_constants.py::MDQ_TOOLS` | `ToolRegistry` にツールを登録するための正典集合 |
+| デプロイ許可リスト | `config/agent.toml` の `[mcp_servers.mdq].tool_names` | 実際に起動・利用可能なツール名の一覧 |
 
 ---
 

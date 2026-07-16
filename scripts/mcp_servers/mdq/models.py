@@ -6,7 +6,7 @@ Pydantic models, and domain exceptions for mdq-mcp.
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from pydantic import BaseModel
 
@@ -39,14 +39,6 @@ class ChunkRecord(TypedDict):
     content_hash: str
     tags_json: str | None
     indexed_at: float | None
-
-
-class ChunkSummary(TypedDict):
-    chunk_id: str
-    summary: str
-    summary_model: str
-    content_hash: str
-    created_at: str
 
 
 class ParsedSectionRequest(TypedDict):
@@ -93,7 +85,7 @@ class ParseMarkdownRequest(BaseModel):
 class SearchDocsRequest(BaseModel):
     query: str
     limit: int | None = 10
-    mode: str | None = "bm25"
+    mode: Literal["bm25"] | None = "bm25"
     path_prefix: str | None = None
     tag_filter: list[str] | None = None
     heading_prefix: str | None = None
@@ -105,7 +97,6 @@ class GetChunkRequest(BaseModel):
     chunk_id: str
     with_neighbors: bool | None = False
     max_chars_per_chunk: int | None = None
-    use_summary: bool = False
 
 
 class OutlineRequest(BaseModel):
@@ -154,15 +145,6 @@ class SearchDocsResponse(BaseModel):
 
 class GetChunkResponse(BaseModel):
     chunk: str
-    headings: list[str]
-
-
-class GetChunkSummaryResponse(BaseModel):
-    chunk_id: str
-    summary: str
-    summary_model: str
-    content_hash: str
-    created_at: str
     headings: list[str]
 
 
@@ -218,23 +200,3 @@ class SearchResultResult(TypedDict):
     query: str | None
     results: list[SearchResultItem]
     total: int
-
-
-class FtsConsistencyCheckRequest(BaseModel):
-    pass
-
-
-class FtsConsistencyCheckResponse(BaseModel):
-    consistent: bool
-    chunks_count: int
-    chunks_fts_count: int
-
-
-class FtsRebuildRequest(BaseModel):
-    pass
-
-
-class EmbeddingResult(TypedDict):
-    chunk_id: str
-    embedding_score: float
-    rank: int

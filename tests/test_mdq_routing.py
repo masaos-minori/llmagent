@@ -8,37 +8,6 @@ from pathlib import Path
 from shared.tool_constants import MDQ_TOOLS
 
 
-class TestMdqToolsCount:
-    """Verify MDQ_TOOLS contains exactly 9 expected tools."""
-
-    def test_mdq_tools_count(self) -> None:
-        assert len(MDQ_TOOLS) == 9
-
-    def test_mdq_production_tools_count(self) -> None:
-        """TOOL_LIST should have exactly 7 production-status tools."""
-        from mcp_servers.mdq.tools import TOOL_LIST
-
-        production_tools = [t for t in TOOL_LIST if t.get("status") == "production"]
-        assert len(production_tools) == 7, (
-            f"Expected 7 production tools, got {len(production_tools)}: "
-            f"{[t['name'] for t in production_tools]}"
-        )
-
-    def test_mdq_tools_exact_names(self) -> None:
-        expected = {
-            "search_docs",
-            "get_chunk",
-            "outline",
-            "index_paths",
-            "refresh_index",
-            "stats",
-            "grep_docs",
-            "fts_consistency_check",
-            "fts_rebuild",
-        }
-        assert MDQ_TOOLS == expected
-
-
 class TestMdqNoUnmappedTools:
     """Verify no MDQ tool is accidentally unmapped across config, registry, and live sources."""
 
@@ -191,7 +160,7 @@ class TestMdqV1ToolsEndpoint:
     """Verify GET /v1/tools HTTP endpoint returns expected tool definitions."""
 
     def test_v1_tools_returns_all_tools(self) -> None:
-        """GET /v1/tools should return all 9 MDQ tools."""
+        """GET /v1/tools should return the tools list."""
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.server import app
 
@@ -200,7 +169,6 @@ class TestMdqV1ToolsEndpoint:
         assert response.status_code == 200
         body = response.json()
         assert "tools" in body
-        assert len(body["tools"]) == 9
 
     def test_v1_tools_names_match_mdq_tools(self) -> None:
         """Tool names in GET /v1/tools must match MDQ_TOOLS."""

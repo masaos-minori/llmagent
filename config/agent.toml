@@ -237,10 +237,8 @@ get_chunk                = "READ_ONLY"
 outline                  = "READ_ONLY"
 stats                    = "READ_ONLY"
 grep_docs                = "READ_ONLY"
-fts_consistency_check    = "READ_ONLY"   # Needs confirmation — see UNK-01
 index_paths              = "WRITE_SAFE"
 refresh_index            = "WRITE_SAFE"
-fts_rebuild              = "WRITE_DANGEROUS"
 rag_run_pipeline         = "READ_ONLY"
 rag_debug_pipeline       = "READ_ONLY"
 get_file_info            = "READ_ONLY"
@@ -384,7 +382,7 @@ auth_token       = ""
 role             = "query"
 tool_names       = [
   "search_docs", "get_chunk", "outline", "index_paths", "refresh_index",
-  "stats", "grep_docs", "fts_consistency_check", "fts_rebuild",
+  "stats", "grep_docs",
 ]
 cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/mdq/server.py"]
 

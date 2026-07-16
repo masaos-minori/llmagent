@@ -23,7 +23,7 @@ related:
 **起動モード:** persistent（HTTP）
 **設定:** `config/file_write_mcp_server.toml`
 
-**ツール（4個）:** `write_file`, `edit_file`, `create_directory`, `move_file`
+**ツール:** `write_file`, `edit_file`, `create_directory`, `move_file`
 
 全ツールとも config を必要としない（`requires_config: false`）。
 
@@ -55,7 +55,7 @@ related:
 **起動モード:** persistent（HTTP）
 **設定:** `config/file_delete_mcp_server.toml`
 
-**ツール（2個）:** `delete_file`, `delete_directory`
+**ツール:** `delete_file`, `delete_directory`
 
 全ツールとも config を必要としない（`requires_config: false`）。
 
@@ -87,7 +87,7 @@ related:
 **起動モード:** persistent（HTTP）
 **設定:** `config/shell_mcp_server.toml`
 
-**ツール（1個）:** `shell_run`
+**ツール:** `shell_run`
 
 | キー | デフォルト | 説明 |
 |---|---|---|

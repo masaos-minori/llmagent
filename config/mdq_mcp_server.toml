@@ -14,9 +14,6 @@ db_path = "/opt/llm/db/mdq.sqlite"
 include_globs = ["*.md"]
 exclude_globs = [".git/**", "__pycache__/**"]
 
-# Maximum number of results to return from search
-max_search_results = 100
-
 # Maximum number of characters to include in a snippet
 max_snippet_chars = 500
 
@@ -47,10 +44,9 @@ max_grep_matches = 200
 # Maximum number of seconds to wait for a search operation
 search_timeout_sec = 30
 
-# Enable refresh_index tool (controls whether manual index refresh is allowed)
-enable_refresh = true
-
-# Enable grep_docs tool (when false, grep_docs returns MdqValidationError)
+# Enable grep_docs tool (when false, grep_docs returns MdqValidationError).
+# Unlike the removed enable_refresh, this flag is actually enforced in
+# MdqService.grep_docs() -- see docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md.
 enable_grep = true
 
 # NOTE: audit_log_path was removed (2026-07-13). MdqService.audit_log_path was
@@ -65,13 +61,31 @@ enable_grep = true
 # value (see docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md). Re-add only
 # alongside an implementation that actually reads it.
 
-# Summary cache for large chunks (reduces token usage by returning summaries)
-summary_cache_enabled = false
-summary_threshold = 5000
-summary_model = "default"
+# NOTE: max_search_results was removed (2026-07-16). It was parsed but never read
+# anywhere in scripts/mcp_servers/mdq/ -- max_results_limit is the sole enforced
+# result-count key (see docs/04_mcp_04_04_mdq.md). Re-add only alongside an
+# implementation that actually reads this key.
 
-# Embedding/hybrid search mode (disabled by default — FTS5-only is production baseline)
-use_embedding = false
-embedding_dims = 384
-vector_table = "chunks_vec"
-embedding_model = "default"
+# NOTE: use_embedding, embedding_dims, vector_table, and embedding_model were
+# removed (2026-07-16). Hybrid/semantic search was never functionally implemented
+# -- _search_vector() in search.py always returned an empty list. FTS5 (BM25) is
+# the only supported search mode; use the RAG pipeline (rag-pipeline-mcp) for
+# semantic search. See docs/04_mcp_04_04_mdq.md and
+# docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md. Re-add only alongside a real
+# embedding-search implementation.
+
+# NOTE: summary_cache_enabled, summary_threshold, and summary_model were
+# removed (2026-07-16). The summary-cache feature never generated a real
+# summary -- _generate_and_cache_summary() always returned None for the only
+# supported summary_model value ("default"), and the indexer wrote a
+# truncated verbatim copy of the raw chunk content into chunk_summaries, not
+# an actual summary. get_chunk() now always returns raw (optionally
+# truncated) content. See docs/04_mcp_04_04_mdq.md. Re-add only alongside a
+# real LLM-based summarization implementation.
+
+# NOTE: enable_refresh was removed (2026-07-16). It was parsed but never
+# enforced -- refresh_index() had no gate check on it and always ran
+# regardless of this flag's value. Index/refresh serialization (a separate
+# concern) is achieved via MdqService._index_lock, independent of any config
+# value. See docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md. Re-add only
+# alongside an implementation that actually reads and enforces it.

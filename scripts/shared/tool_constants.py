@@ -79,14 +79,10 @@ MDQ_TOOLS: frozenset[str] = frozenset(
         "refresh_index",
         "stats",
         "grep_docs",
-        "fts_consistency_check",
-        "fts_rebuild",
     },
 )
 
-MDQ_WRITE_TOOLS: frozenset[str] = frozenset(
-    {"fts_rebuild", "index_paths", "refresh_index"}
-)
+MDQ_WRITE_TOOLS: frozenset[str] = frozenset({"index_paths", "refresh_index"})
 
 # Local git operation tools (git-mcp, port 8014)
 GIT_READ_TOOLS: frozenset[str] = frozenset(

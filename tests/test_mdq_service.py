@@ -66,6 +66,15 @@ def md_dir(tmp_path: Path) -> Path:
     return d
 
 
+# ── service construction ──────────────────────────────────────────────────────
+
+
+class TestServiceConstruction:
+    def test_service_has_no_audit_log_path_attribute(self, service: MdqService) -> None:
+        """audit_log_path was a dead config field; MdqService must not carry it."""
+        assert not hasattr(service, "audit_log_path")
+
+
 # ── models ────────────────────────────────────────────────────────────────────
 
 

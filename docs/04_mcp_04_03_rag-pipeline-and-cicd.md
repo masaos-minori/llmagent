@@ -22,7 +22,7 @@ related:
 **起動モード:** persistent（HTTP）
 **設定:** `config/rag_pipeline_mcp_server.toml`
 
-**ツール（4個）:**
+**ツール:**
 
 | ツール | 入力 | 出力 |
 |---|---|---|
@@ -72,7 +72,7 @@ related:
 **設定:** `config/cicd_mcp_server.toml`
 **認証:** `GITHUB_TOKEN`（`conf.d/cicd-mcp` 経由）
 
-**ツール（4個）:**
+**ツール:**
 
 | ツール | ティア | 入力 | `requires_config` |
 |---|---|---|---|

@@ -18,7 +18,6 @@ from mcp_servers.mdq.index_delete import delete_file_from_index
 from mcp_servers.mdq.models import (
     IndexPathsRequest,
     MdqAuthorizationError,
-    ParsedSection,
     ParseMarkdownRequest,
     RefreshIndexRequest,
 )
@@ -122,10 +121,6 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     indexed_at,
                 ),
             )
-
-        # Generate summaries for large chunks if enabled
-        if service.summary_cache_enabled:
-            _generate_summaries(service, conn, doc_id, sections, path)
 
         conn.execute("COMMIT")
     except sqlite3.Error as e:
@@ -310,32 +305,3 @@ async def refresh_paths(
         }
     finally:
         conn.close()
-
-
-def _generate_summaries(
-    service: MdqService,
-    conn: sqlite3.Connection,
-    doc_id: str,
-    sections: list[ParsedSection],
-    path: Path,
-) -> None:
-    """Generate summaries for large chunks if enabled."""
-    normalized_path = path.resolve().as_posix()
-    for section in sections:
-        content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
-        if len(section["content"]) > service.summary_threshold:
-            chunk_id = generate_chunk_id(
-                normalized_path,
-                section.get("heading_path", ""),
-                section.get("ordinal", 0),
-                content_hash,
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
-                (
-                    chunk_id,
-                    section["content"][: service.summary_threshold],
-                    service.summary_model,
-                    content_hash,
-                ),
-            )

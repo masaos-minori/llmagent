@@ -59,7 +59,7 @@ related:
 **起動モード:** persistent（HTTP）
 **設定:** `config/file_read_mcp_server.toml`
 
-**ツール（9個）:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
+**ツール:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
 `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
 
 全ツールとも config を必要としない（`requires_config: false`）。
@@ -100,7 +100,7 @@ related:
 **設定:** `config/github_mcp_server.toml`
 **認証:** `GITHUB_TOKEN` 環境変数（PAT）; 未設定の場合は匿名で 60 req/hour
 
-**ツール（21個）:** 全て `github_` 接頭辞: `github_search_repositories`, `github_get_file_contents`,
+**ツール:** 全て `github_` 接頭辞: `github_search_repositories`, `github_get_file_contents`,
 `github_push_files`, `github_delete_file`, `github_list_branches`, `github_get_commit`, `github_list_issues`, `github_get_issue`,
 `github_create_issue`, `github_search_issues`, `github_list_pull_requests`, `github_get_pull_request`,
 `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`,

@@ -911,7 +911,7 @@ class TestExecuteCacheBypass:
         assert executor._cache == {}
 
     @pytest.mark.asyncio
-    async def test_fts_rebuild_bypasses_cache(self) -> None:
+    async def test_index_paths_bypasses_cache(self) -> None:
         call_count = 0
 
         async def _fake_raw_execute(
@@ -926,8 +926,8 @@ class TestExecuteCacheBypass:
         executor = self._make_bare_executor()
         executor._raw_execute = _fake_raw_execute
 
-        await executor.execute("fts_rebuild", {})
-        await executor.execute("fts_rebuild", {})
+        await executor.execute("index_paths", {})
+        await executor.execute("index_paths", {})
 
         assert call_count == 2
         assert executor._cache == {}

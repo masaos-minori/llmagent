@@ -27,6 +27,6 @@ def extract_audit_target(tool_name: str, args: dict[str, Any]) -> str:
         return str(paths[0])[:80] if paths else ""
     if tool_name == "grep_docs":
         return str(args.get("pattern", ""))[:80]
-    if tool_name in ("stats", "fts_consistency_check", "fts_rebuild"):
+    if tool_name in ("stats",):
         return "mdq-mcp"
     return ""

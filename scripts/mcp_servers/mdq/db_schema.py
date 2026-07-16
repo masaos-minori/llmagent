@@ -21,9 +21,6 @@ logger = logging.getLogger(__name__)
 def create_production_tables(
     conn: sqlite3.Connection,
     db_path: str,
-    use_embedding: bool,
-    vector_table: str,
-    embedding_dims: int,
     sqlite_busy_timeout: int,
 ) -> None:
     """Create production tables and migrate from legacy schema if needed."""
@@ -122,40 +119,6 @@ def create_production_tables(
             )
         """)
 
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chunk_summaries (
-                chunk_id TEXT PRIMARY KEY,
-                summary TEXT NOT NULL,
-                summary_model TEXT NOT NULL,
-                content_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Create vector table conditionally based on use_embedding config
-        if use_embedding:
-            vec0_path: str = "/opt/llm/sqlite-vec/vec0.so"
-            try:
-                conn.enable_load_extension(True)
-                try:
-                    conn.load_extension(vec0_path)
-                except sqlite3.OperationalError as inner:
-                    # Some SQLite builds auto-append .so, causing .so.so
-                    if ".so.so" in str(inner) and vec0_path.endswith(".so"):
-                        conn.load_extension(vec0_path[:-3])
-                    else:
-                        raise
-                conn.enable_load_extension(False)
-            except sqlite3.OperationalError as e:
-                conn.enable_load_extension(False)
-                logger.error("Failed to load sqlite-vec extension: %s", e)
-                raise
-            conn.execute(f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS {vector_table} USING vec0(
-                    chunk_id TEXT PRIMARY KEY,
-                    embedding float[{embedding_dims}]
-                )
-            """)
         conn.commit()
     except sqlite3.OperationalError as e:
         logger.error("Failed to create production tables: %s", e)

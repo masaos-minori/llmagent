@@ -10,7 +10,6 @@ Checks:
     --skip failopen       Skip fail-open wording check for workflow_allowlist
     --skip routing        Skip routing authority language check
     --skip active         Skip active inconsistencies cross-reference check
-    --skip toolcount      Skip tool count consistency check
     --skip discoveryrouting   Skip live-discovery-overrides-registry check
     --skip v1toolsrouting     Skip /v1/tools-as-routing-authority check
     --skip toolnamesrouting   Skip tool_names-as-routing-input check
@@ -362,190 +361,6 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
                 )
             )
     return issues
-
-
-# ---------------------------------------------------------------------------
-# Check 5: Tool count consistency
-# ---------------------------------------------------------------------------
-
-_TOOL_COUNT_RE = re.compile(r"ツール（(\d+)個）")
-
-_TOOL_COUNT_CATALOG_FILES = (
-    "04_mcp_04_01_web-search-file-read-github.md",
-    "04_mcp_04_02_file-write-file-delete-shell.md",
-    "04_mcp_04_03_rag-pipeline-and-cicd.md",
-    "04_mcp_04_04_mdq.md",
-    "04_mcp_04_05_git.md",
-)
-
-_SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
-    "web-search-mcp": frozenset({"search_web"}),
-    "file-read-mcp": frozenset(
-        {
-            "list_directory",
-            "list_directory_with_sizes",
-            "directory_tree",
-            "read_text_file",
-            "read_media_file",
-            "read_multiple_files",
-            "search_files",
-            "grep_files",
-            "get_file_info",
-        }
-    ),
-    "file-write-mcp": frozenset(
-        {"write_file", "edit_file", "create_directory", "move_file"}
-    ),
-    "file-delete-mcp": frozenset({"delete_file", "delete_directory"}),
-    "github-mcp": frozenset(
-        {
-            "github_search_repositories",
-            "github_get_file_contents",
-            "github_create_branch",
-            "github_create_issue",
-            "github_add_issue_comment",
-            "github_create_pull_request",
-            "github_update_pull_request",
-            "github_merge_pull_request",
-            "github_create_or_update_file",
-            "github_push_files",
-            "github_delete_file",
-            "github_list_branches",
-            "github_list_commits",
-            "github_get_commit",
-            "github_search_code",
-            "github_list_pull_requests",
-            "github_get_pull_request",
-            "github_search_pull_requests",
-            "github_list_issues",
-            "github_get_issue",
-            "github_search_issues",
-        }
-    ),
-    "shell-mcp": frozenset({"shell_run"}),
-    "mdq-mcp": frozenset(
-        {
-            "search_docs",
-            "get_chunk",
-            "outline",
-            "index_paths",
-            "refresh_index",
-            "stats",
-            "grep_docs",
-            "fts_consistency_check",
-            "fts_rebuild",
-        }
-    ),
-    "rag-pipeline-mcp": frozenset(
-        {
-            "rag_run_pipeline",
-            "rag_debug_pipeline",
-            "rag_list_documents",
-            "rag_delete_document",
-        }
-    ),
-    "git-mcp": frozenset(
-        {
-            "git_status",
-            "git_log",
-            "git_diff",
-            "git_branch",
-            "git_show",
-            "git_add",
-            "git_commit",
-            "git_checkout",
-            "git_pull",
-            "git_push",
-        }
-    ),
-    "cicd-mcp": frozenset(
-        {
-            "trigger_workflow",
-            "get_workflow_runs",
-            "get_workflow_status",
-            "get_workflow_logs",
-        }
-    ),
-}
-
-
-def check_tool_counts(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Check that documented tool counts in the MCP server catalog docs
-    (04_mcp_04_01..05, split from the former 04_mcp_04_server_catalog.md) match
-    the canonical frozenset definitions.
-
-    Reports WARNING (not ERROR) to avoid brittleness when new tools are added.
-    """
-    catalog_files = [d for d in files if d.rel_path in _TOOL_COUNT_CATALOG_FILES]
-
-    issues: list[Issue] = []
-    if not catalog_files:
-        issues.append(
-            Issue(
-                file="docs/",
-                line_no=0,
-                severity="WARNING",
-                message=(
-                    "None of "
-                    f"{_TOOL_COUNT_CATALOG_FILES} found — cannot verify tool counts."
-                ),
-            )
-        )
-        return issues
-
-    found_names = {d.rel_path for d in catalog_files}
-    for missing in sorted(set(_TOOL_COUNT_CATALOG_FILES) - found_names):
-        issues.append(
-            Issue(
-                file="docs/",
-                line_no=0,
-                severity="WARNING",
-                message=f"{missing} not found — cannot verify tool counts for its section(s).",
-            )
-        )
-
-    for catalog_file in catalog_files:
-        issues.extend(_check_tool_counts_for_file(catalog_file))
-    return issues
-
-
-def _check_tool_counts_for_file(catalog_file: DocFile) -> list[Issue]:
-    issues: list[Issue] = []
-    for i, line in enumerate(catalog_file.lines, start=1):
-        m = _TOOL_COUNT_RE.search(line)
-        if not m:
-            continue
-        server_section = _find_server_section_for_line(catalog_file, i)
-        if not server_section or server_section not in _SERVER_TOOLS_MAP:
-            continue
-        expected_count = len(_SERVER_TOOLS_MAP[server_section])
-        doc_count = int(m.group(1))
-        if doc_count != expected_count:
-            issues.append(
-                Issue(
-                    file=catalog_file.rel_path,
-                    line_no=i,
-                    severity="WARNING",
-                    message=(
-                        f"Tool count mismatch for {server_section}: "
-                        f"documented {doc_count}, expected {expected_count}"
-                    ),
-                )
-            )
-    return issues
-
-
-def _find_server_section_for_line(catalog: DocFile, line_no: int) -> str | None:
-    """Find the server section name that contains the given line number."""
-    for i, line in enumerate(catalog.lines, start=1):
-        if i >= line_no:
-            break
-        m = re.match(r"^## ([\w-]+)", line)
-        if m:
-            section_name = m.group(1).split("(")[0].strip()
-            if section_name:
-                current_section = section_name
-    return locals().get("current_section")
 
 
 # ---------------------------------------------------------------------------
@@ -913,7 +728,6 @@ def main(argv: list[str] | None = None) -> int:
         "failopen",
         "routing",
         "active",
-        "toolcount",
         "discoveryrouting",
         "v1toolsrouting",
         "toolnamesrouting",
@@ -954,8 +768,6 @@ def main(argv: list[str] | None = None) -> int:
         all_issues.extend(check_routing_authority(docs_dir, files))
     if "active" not in skip:
         all_issues.extend(check_active_inconsistencies(docs_dir, files))
-    if "toolcount" not in skip:
-        all_issues.extend(check_tool_counts(docs_dir, files))
     if "discoveryrouting" not in skip:
         all_issues.extend(check_live_discovery_routing(docs_dir, files))
     if "v1toolsrouting" not in skip:

@@ -104,12 +104,6 @@ class TestBuildToolMeta:
         assert spec.is_write is True
         assert spec.resource_scope == "rag_delete_document"
 
-    def test_fts_rebuild_generates_write_toolspec(self) -> None:
-        meta = _build_tool_meta([{"function": {"name": "fts_rebuild"}}])
-        spec = meta["fts_rebuild"]
-        assert spec.requires_serial is False
-        assert spec.is_write is True
-
     def test_index_paths_and_refresh_index_generate_write_toolspec(self) -> None:
         meta = _build_tool_meta(
             [

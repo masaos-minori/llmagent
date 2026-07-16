@@ -32,7 +32,7 @@ TOOL_LIST: list[MCPToolSchema] = [
                 },
                 "mode": {
                     "type": "string",
-                    "description": "Search mode: bm25/grep (hybrid is not yet supported)",
+                    "description": "Search mode: bm25 (only supported value)",
                 },
                 "path_prefix": {
                     "type": "string",
@@ -158,18 +158,6 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["pattern"],
         },
         "status": "production",
-    },
-    {
-        "name": "fts_consistency_check",
-        "description": "Check FTS5 index consistency between chunks and chunks_fts tables. Admin operation.",
-        "inputSchema": {"type": "object", "properties": {}, "required": []},
-        "status": "admin",
-    },
-    {
-        "name": "fts_rebuild",
-        "description": "Rebuild the FTS5 index. Admin operation — may take time on large datasets.",
-        "inputSchema": {"type": "object", "properties": {}, "required": []},
-        "status": "admin",
     },
 ]
 

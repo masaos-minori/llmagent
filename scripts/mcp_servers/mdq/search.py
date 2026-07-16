@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """mcp_servers/mdq/search.py
 
-Search functionality using FTS5 and optional embedding/hybrid search.
+Search functionality using FTS5 (BM25).
 """
 
 from __future__ import annotations
@@ -20,9 +20,6 @@ if TYPE_CHECKING:
     from mcp_servers.mdq.service import MdqService
 
 logger = logging.getLogger(__name__)
-
-# RRF constant for hybrid search merge
-_RRF_K = 60
 
 
 async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
@@ -85,9 +82,6 @@ def _search_docs_structured(
 
     limit = getattr(req, "limit", 10) or 10
 
-    # Determine search mode
-    mode = getattr(req, "mode", None) or "bm25"
-
     conn = service._get_db_connection()
     try:
         where_clauses, params = _build_search_where(req)
@@ -122,12 +116,7 @@ def _search_docs_structured(
             for row in rows
         ]
 
-        # Hybrid search: also run vector search and merge with RRF
-        if mode == "hybrid" and service.use_embedding:
-            vector_results = _search_vector(service, conn, req)
-            results = _merge_hybrid(fts_results, vector_results)
-        else:
-            results = fts_results
+        results = fts_results
 
     except sqlite3.OperationalError as e:
         if "no such table: chunks_fts" in str(e) or "corrupt" in str(e).lower():
@@ -146,51 +135,6 @@ def _search_docs_structured(
         conn.close()
 
     return SearchResultResult(query=req.query, results=results, total=len(results))
-
-
-def _search_vector(
-    service: MdqService, conn: sqlite3.Connection, req: SearchDocsRequest
-) -> list[SearchResultItem]:
-    """Run vector similarity search on the vector table."""
-    # Placeholder: actual embedding generation and search would require an LLM API call
-    # For now, return empty results — hybrid search requires embedding model integration
-    logger.info("MDQ hybrid search mode requested but embeddings not yet implemented")
-    return []
-
-
-def _merge_hybrid(
-    fts_results: list[SearchResultItem], vector_results: list[SearchResultItem]
-) -> list[SearchResultItem]:
-    """Merge FTS5 and vector results using Reciprocal Rank Fusion (RRF)."""
-    if not fts_results and not vector_results:
-        return []
-
-    # Build rank maps from each source
-    rank_map: dict[str, float] = {}
-
-    for i, r in enumerate(fts_results):
-        rank_map[r.chunk_id] = rank_map.get(r.chunk_id, 0) + 1.0 / (_RRF_K + (i + 1))
-
-    for i, r in enumerate(vector_results):
-        rank_map[r.chunk_id] = rank_map.get(r.chunk_id, 0) + 1.0 / (_RRF_K + (i + 1))
-
-    # Sort by combined RRF score
-    merged = sorted(rank_map.items(), key=lambda x: x[1], reverse=True)
-
-    # Build result items with merged scores
-    results: list[SearchResultItem] = []
-    for chunk_id, rrf_score in merged:
-        # Find original item from either source
-        item = None
-        for r in fts_results + vector_results:
-            if r.chunk_id == chunk_id:
-                item = r
-                break
-        if item:
-            item.score = rrf_score
-            results.append(item)
-
-    return results
 
 
 def _build_search_where(req: SearchDocsRequest) -> tuple[list[str], list]:

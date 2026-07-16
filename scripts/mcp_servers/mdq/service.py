@@ -14,15 +14,12 @@ from pathlib import Path
 
 from db.helper import apply_connection_pragmas
 from mcp_servers.mdq.auth import authorize_path
-from mcp_servers.mdq.db_fts import fts_consistency_check, fts_rebuild
 from mcp_servers.mdq.db_grep import grep_docs
 from mcp_servers.mdq.db_schema import create_production_tables
 from mcp_servers.mdq.indexer import RefreshSummary
 from mcp_servers.mdq.indexer import index_paths as _index_paths
 from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
 from mcp_servers.mdq.models import (
-    FtsConsistencyCheckRequest,
-    FtsRebuildRequest,
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
@@ -57,16 +54,11 @@ class MdqService:
         self.exclude_globs: list[str] = mdq_cfg.get(
             "exclude_globs", [".git/**", "__pycache__/**"]
         )
-        self.max_search_results: int = mdq_cfg.get("max_search_results", 100)
         self.max_snippet_chars: int = mdq_cfg.get("max_snippet_chars", 500)
         self.max_chunk_chars: int = mdq_cfg.get("max_chunk_chars", 10000)
         self.max_file_chars: int = mdq_cfg.get("max_file_chars", 100000)
         self.search_timeout_sec: int = mdq_cfg.get("search_timeout_sec", 30)
-        self.enable_refresh: bool = mdq_cfg.get("enable_refresh", True)
         self.enable_grep: bool = mdq_cfg.get("enable_grep", True)
-        self.audit_log_path: str | None = mdq_cfg.get(
-            "audit_log_path", "/opt/llm/logs/mdq_audit.log"
-        )
         self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
         self.max_chars_per_match: int = mdq_cfg.get("max_chars_per_match", 500)
         self.context_before: int = mdq_cfg.get("context_before", 2)
@@ -79,17 +71,6 @@ class MdqService:
         self.max_outline_items: int = mdq_cfg.get("max_outline_items", 500)
         self.max_outline_depth: int = mdq_cfg.get("max_outline_depth", 6)
         self.sqlite_busy_timeout: int = mdq_cfg.get("sqlite_busy_timeout", 5000)
-
-        # Summary cache for large chunks
-        self.summary_cache_enabled: bool = mdq_cfg.get("summary_cache_enabled", False)
-        self.summary_threshold: int = mdq_cfg.get("summary_threshold", 5000)
-        self.summary_model: str = mdq_cfg.get("summary_model", "default")
-
-        # Embedding/hybrid search mode
-        self.use_embedding: bool = mdq_cfg.get("use_embedding", False)
-        self.vector_table: str = mdq_cfg.get("vector_table", "chunks_vec")
-        self.embedding_model: str = mdq_cfg.get("embedding_model", "default")
-        self.embedding_dims: int = mdq_cfg.get("embedding_dims", 384)
 
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
@@ -118,9 +99,6 @@ class MdqService:
             create_production_tables(
                 conn,
                 self.db_path,
-                self.use_embedding,
-                self.vector_table,
-                self.embedding_dims,
                 self.sqlite_busy_timeout,
             )
         finally:
@@ -149,29 +127,6 @@ class MdqService:
             )
         return result
 
-    async def _generate_and_cache_summary(
-        self, chunk_id: str, content: str, content_hash: str
-    ) -> str | None:
-        """Generate a summary for chunk_id and cache it in chunk_summaries.
-
-        Returns the generated summary on success, or None on failure/stub.
-        When summary_model == "default", no LLM integration is available — returns None.
-        """
-        try:
-            if self.summary_model == "default":
-                return None
-            # Future: replace with actual LLM call
-            # summary = await self._call_llm_for_summary(content)
-            # conn = self._get_db_connection()
-            # try:
-            #     conn.execute("INSERT OR REPLACE INTO chunk_summaries ...", ...)
-            #     conn.commit()
-            # finally:
-            #     conn.close()
-            return None
-        except Exception:
-            return None
-
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
         request_limit = req.max_chars_per_chunk
@@ -188,35 +143,6 @@ class MdqService:
             if row is None:
                 raise MdqNotFoundError(f"Chunk {req.chunk_id} not found")
             content = row["content"]
-
-            # Check summary cache if use_summary is enabled and chunk exceeds threshold
-            if (
-                req.use_summary
-                and self.summary_cache_enabled
-                and len(content) > self.summary_threshold
-            ):
-                cached = conn.execute(
-                    "SELECT summary, summary_model, content_hash FROM chunk_summaries WHERE chunk_id = ?",
-                    (req.chunk_id,),
-                ).fetchone()
-                if cached is not None and cached["content_hash"] == row["content_hash"]:
-                    try:
-                        return f"## {row['heading']}\n\n[Summary — {len(content)} chars]\n\n{cached['summary']}"
-                    except Exception:
-                        logger.warning(
-                            "Failed to retrieve cached summary for chunk %s",
-                            req.chunk_id,
-                        )
-                elif cached is None:
-                    # Cache miss: fire background summary generation (non-blocking)
-                    import asyncio as _asyncio
-
-                    _asyncio.create_task(
-                        self._generate_and_cache_summary(
-                            req.chunk_id, content, row["content_hash"]
-                        )
-                    )
-
             truncated = False
             if len(content) > max_chars:
                 content = content[:max_chars]
@@ -421,27 +347,6 @@ class MdqService:
                 ctx_before,
                 ctx_after,
             )
-            return result
-        finally:
-            conn.close()
-
-    async def fts_consistency_check(self, req: FtsConsistencyCheckRequest) -> str:
-        """Check FTS5 consistency between chunks and chunks_fts tables."""
-        conn = self._get_db_connection()
-        try:
-            result: str = fts_consistency_check(conn)
-            return result
-        finally:
-            conn.close()
-
-    async def fts_rebuild(self, req: FtsRebuildRequest) -> str:
-        """Rebuild the FTS5 index."""
-        conn = self._get_db_connection()
-        try:
-            chunks_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM chunks"
-            ).fetchone()["cnt"]
-            result: str = fts_rebuild(conn, chunks_count)
             return result
         finally:
             conn.close()

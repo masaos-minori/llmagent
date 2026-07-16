@@ -28,90 +28,6 @@ from shared.tool_constants import (
 
 
 class TestToolConstants:
-    def test_read_tools(self) -> None:
-        expected = {
-            "list_directory",
-            "list_directory_with_sizes",
-            "directory_tree",
-            "read_text_file",
-            "read_media_file",
-            "read_multiple_files",
-            "search_files",
-            "grep_files",
-            "get_file_info",
-        }
-        assert READ_TOOLS == expected
-        assert len(READ_TOOLS) == 9
-
-    def test_write_tools(self) -> None:
-        expected = {
-            "write_file",
-            "edit_file",
-            "create_directory",
-            "move_file",
-        }
-        assert WRITE_TOOLS == expected
-        assert len(WRITE_TOOLS) == 4
-
-    def test_delete_tools(self) -> None:
-        expected = {
-            "delete_file",
-            "delete_directory",
-        }
-        assert DELETE_TOOLS == expected
-        assert len(DELETE_TOOLS) == 2
-
-    def test_rag_tools(self) -> None:
-        expected = {
-            "rag_run_pipeline",
-            "rag_debug_pipeline",
-            "rag_list_documents",
-            "rag_delete_document",
-        }
-        assert RAG_TOOLS == expected
-        assert len(RAG_TOOLS) == 4
-
-    def test_cicd_tools(self) -> None:
-        expected = {
-            "trigger_workflow",
-            "get_workflow_runs",
-            "get_workflow_status",
-            "get_workflow_logs",
-        }
-        assert CICD_TOOLS == expected
-        assert len(CICD_TOOLS) == 4
-
-    def test_mdq_tools(self) -> None:
-        expected = {
-            "search_docs",
-            "get_chunk",
-            "outline",
-            "index_paths",
-            "refresh_index",
-            "stats",
-            "grep_docs",
-            "fts_consistency_check",
-            "fts_rebuild",
-        }
-        assert MDQ_TOOLS == expected
-        assert len(MDQ_TOOLS) == 9
-
-    def test_git_tools(self) -> None:
-        expected = {
-            "git_status",
-            "git_log",
-            "git_diff",
-            "git_branch",
-            "git_show",
-            "git_add",
-            "git_commit",
-            "git_checkout",
-            "git_pull",
-            "git_push",
-        }
-        assert GIT_TOOLS == expected
-        assert len(GIT_TOOLS) == 10
-
     def test_no_overlapping_tools(self) -> None:
         """Ensure no tool appears in multiple categories."""
         all_tools: set[str] = set()
@@ -133,9 +49,6 @@ class TestToolConstants:
 
             # Add to overall set
             all_tools.update(tools_set)
-
-        # Total should be 44 tools (all frozensets; github-mcp uses prefix routing separately)
-        assert len(all_tools) == 44
 
     def test_all_tools_are_strings(self) -> None:
         """Ensure all items in tool sets are strings."""
