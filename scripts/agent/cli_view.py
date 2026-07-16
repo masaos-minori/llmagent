@@ -113,7 +113,7 @@ class CLIView:
 
     def write_llm_error(self, e: Exception) -> None:
         """Notify the user of an LLM request failure."""
-        print(f"\nError: {e}\n")
+        print(f"\n[error] {e}\n")
 
     def write_progress(self, msg: str) -> None:
         """Overwrite the current line with a progress indicator."""

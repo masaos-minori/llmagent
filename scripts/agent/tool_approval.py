@@ -13,6 +13,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
+from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
+
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
@@ -28,8 +31,6 @@ from agent.tool_output import (
 )
 from agent.tool_policy import check_preflight, classify_risk
 from agent.tool_result_formatter import build_preview, mask_args
-from shared.json_utils import dumps as _json_dumps
-from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -77,7 +78,7 @@ async def _build_preview_with_dry_run(
             raise ApprovalPreviewBlockingError(
                 f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
             )
-        preview += f"\n  Dry-run: {dry_text[:300]}"
+        preview += f"\n    dry-run: {dry_text[:300]}"
     except ApprovalPreviewError:
         raise
     except (RuntimeError, OSError) as e:
@@ -115,11 +116,12 @@ async def check_approval(
     MCP server has a connection issue.
     """
     if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITOPS_BLOCKABLE_TOOLS:
-        msg = f"  [DENIED] {tool_name}: gitops_push_blocked is set; write operations are disabled"
         audit_approval(
             ctx, tool_name, RiskLevel.HIGH, args, "denied_gitops_push_blocked"
         )
-        emit_denied(tool_name, msg)
+        emit_denied(
+            f"{tool_name}: gitops_push_blocked is set; write operations are disabled"
+        )
         return False
 
     try:
@@ -128,7 +130,7 @@ async def check_approval(
         audit_approval(
             ctx, tool_name, RiskLevel.HIGH, args, preflight_exc.audit_decision
         )
-        emit_denied(tool_name, str(preflight_exc))
+        emit_denied(str(preflight_exc))
         return False
 
     risk = classify_risk(ctx.cfg, tool_name, args)
@@ -141,9 +143,8 @@ async def check_approval(
         preview = await _build_preview_with_dry_run(ctx, tool_name, args)
     except ApprovalPreviewBlockingError as e:
         if risk == RiskLevel.HIGH:
-            msg = f"  [DENIED] {tool_name}: dry-run reported an error: {e}"
             audit_approval(ctx, tool_name, risk, args, "denied_dry_run_error")
-            emit_denied(tool_name, msg)
+            emit_denied(f"{tool_name}: dry-run reported an error: {e}")
             return False
         logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
         preview = build_preview(tool_name, args)
@@ -197,7 +198,6 @@ async def run_approval_checks(
             denied_ids.append(tc["id"])
             continue
         if not await check_approval(ctx, tc_name, args_preview):
-            emit_denied(tc_name, _json_dumps(masked_preview))
             denied_ids.append(tc["id"])
             continue
         approved_calls.append(tc)

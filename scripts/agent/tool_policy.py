@@ -11,8 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from agent.tool_enums import OperationType, RiskLevel
-from agent.tool_exceptions import PolicyViolationError
 from shared.tool_constants import (
     DELETE_TOOLS,
     GITHUB_DANGEROUS_TOOLS,
@@ -20,6 +18,9 @@ from shared.tool_constants import (
     SHELL_TOOLS,
     WRITE_TOOLS,
 )
+
+from agent.tool_enums import OperationType, RiskLevel
+from agent.tool_exceptions import PolicyViolationError
 
 if TYPE_CHECKING:
     from agent.config_dataclasses import AgentConfig
@@ -196,15 +197,15 @@ def check_preflight(
     if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
         raise PolicyViolationError(
             "denied_allowed_tools",
-            f"  [DENIED] {tool_name}: not in allowed_tools for this session",
+            f"{tool_name}: not in allowed_tools for this session",
         )
     if not check_allowed_root(cfg, tool_name, args):
         raise PolicyViolationError(
             "denied_root_jail",
-            f"  [DENIED] {tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",
+            f"{tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",
         )
     if not check_allowed_repo(cfg, tool_name, args):
         raise PolicyViolationError(
             "denied_repo_allowlist",
-            f"  [DENIED] {tool_name}: repo not in approval_github_allowed_repos",
+            f"{tool_name}: repo not in approval_github_allowed_repos",
         )

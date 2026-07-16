@@ -22,7 +22,7 @@ def emit_tool_call(name: str, args_json: str, output: OutputPort | None = None) 
 def emit_tool_result(name: str, display: str, output: OutputPort | None = None) -> None:
     """Write a tool result summary line."""
     out = output if output is not None else _DEFAULT_OUT
-    out.write(f"  [tool] {name} → {display}")
+    out.write(f"  [tool] {name}: {display}")
 
 
 def emit_approval_prompt(
@@ -30,16 +30,14 @@ def emit_approval_prompt(
 ) -> None:
     """Write the approval prompt header and preview."""
     out = output if output is not None else _DEFAULT_OUT
-    out.write(f"\n[{risk} risk] {tool_name}")
-    out.write(f"  Preview: {preview}")
+    out.write(f"[approval] {risk} risk: {tool_name}")
+    out.write(f"    preview: {preview}")
 
 
-def emit_denied(
-    tool_name: str, args_json: str, output: OutputPort | None = None
-) -> None:
-    """Write the args line shown when a tool call is denied."""
+def emit_denied(reason: str, output: OutputPort | None = None) -> None:
+    """Write the denial line for a tool call. `reason` must include the tool name."""
     out = output if output is not None else _DEFAULT_OUT
-    out.write(f"  args: {args_json}")
+    out.write(f"[denied] {reason}")
 
 
 def emit_plan_blocked(
@@ -47,14 +45,14 @@ def emit_plan_blocked(
 ) -> None:
     """Write plan-mode block notification."""
     out = output if output is not None else _DEFAULT_OUT
-    out.write(f"  [plan mode] Blocked: {tool_name}")
-    out.write(f"  args: {args_json}")
+    out.write(f"[plan-blocked] {tool_name}")
+    out.write(f"    args: {args_json}")
 
 
 def emit_skipped(tool_name: str, output: OutputPort | None = None) -> None:
     """Write the 'skipped' confirmation after user denies a tool call."""
     out = output if output is not None else _DEFAULT_OUT
-    out.write(f"  Skipped: {tool_name}")
+    out.write(f"[skipped] {tool_name}")
 
 
 def emit_approval_pending_notice(
@@ -65,6 +63,6 @@ def emit_approval_pending_notice(
     """Write a visible terminal notice when a workflow turn is suspended for approval."""
     out = output if output is not None else _DEFAULT_OUT
     out.write(
-        f"\n[APPROVAL PENDING] Workflow task '{task_id}' is waiting for approval."
+        f"\n[approval-pending] task '{task_id}' is waiting for approval."
         f" Use /approve [reason] or /reject [reason]. (id: {approval_id})"
     )
