@@ -53,7 +53,7 @@ External Libraries
 | `protocols/shell.py` | `ShellPolicy` データクラス — シェル実行ポリシー |
 | `tool_constants.py` | frozensetの分類テーブル: `READ_TOOLS`、`WRITE_TOOLS` 等（レジストリのシードのみで、ルーティング入力ではない） |
 | `route_resolver.py` | `ToolRouteResolver` — ツール名 → サーバキー |
-| `mcp_config.py` | `McpServerConfig`、`TransportType`/`StartupMode`/`HealthcheckMode`/`SecurityProfile` enum、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
+| `mcp_config.py` | `McpServerConfig`、`TransportType`/`StartupMode`/`SecurityProfile` enum（`HealthcheckMode`は2026-07-17に削除）、mcp_health.py の McpServerHealthState/McpServerHealthRegistry を再エクスポート |
 | `mcp_health.py` | `McpServerHealthState` enum（HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN）、`McpServerHealthRegistry` — ディスパッチ判定用のヘルス追跡 |
 | `tool_executor.py` | `ToolExecutor` |
 | `http_transport.py` | `TransportError`、`HttpTransport` — HTTPトランスポート層（/v1/call_toolを呼ぶ） |

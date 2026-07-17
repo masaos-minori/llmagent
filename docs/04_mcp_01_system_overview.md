@@ -45,8 +45,9 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 - `mcp_servers.<key>.startup_mode` — subprocess / persistent / none
 - `mcp_servers.<key>.transport` — http
 - `mcp_servers.<key>.url` — HTTPエンドポイント
-- `mcp_servers.<key>.healthcheck_mode` — probe / manual
 - `mcp_servers.<key>.cmd` — サブプロセス起動コマンド
+
+（`healthcheck_mode`は2026-07-17に削除 — HTTPが唯一のtransportであり、常に`"http"`に自動導出される不要な配線だった）
 
 **レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)**
 

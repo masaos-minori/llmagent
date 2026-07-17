@@ -40,7 +40,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(f"  llm_url             : {ctx.cfg.llm.llm_url}")
         self._out.write(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
         self._out.write(f"  http_timeout        : {ctx.cfg.llm.http_timeout}s")
-        self._out.write(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")
         self._out.write(f"  context_char_limit  : {ctx.cfg.llm.context_char_limit}")
         self._out.write(
             f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs",

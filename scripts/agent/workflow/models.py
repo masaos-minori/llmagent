@@ -57,7 +57,6 @@ class ArtifactRef:
 @dataclass
 class StageDefinition:
     id: str
-    description: str
     timeout_sec: int
     retryable: bool
 
@@ -65,7 +64,6 @@ class StageDefinition:
 @dataclass
 class RetryPolicy:
     max_attempts: int
-    backoff: str  # "fixed"
     backoff_sec: int
 
 
@@ -75,9 +73,7 @@ class WorkflowDef:
     version: str
     stages: list[StageDefinition] = field(default_factory=list)
     retry_policy: RetryPolicy = field(
-        default_factory=lambda: RetryPolicy(
-            max_attempts=3, backoff="fixed", backoff_sec=1
-        )
+        default_factory=lambda: RetryPolicy(max_attempts=3, backoff_sec=1)
     )
     require_approval: bool = False
 

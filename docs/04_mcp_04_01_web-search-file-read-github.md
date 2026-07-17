@@ -45,6 +45,8 @@ related:
 | `default_max_results` | `5` | デフォルトの結果件数 |
 | `max_results_limit` | `20` | サーバー側の上限 |
 
+**注記(2026-07-17):** 上記2キーは`mcp_servers/web_search/models.py`の`SearchRequest.max_results`（Pydantic `Field`の`ge`/`le`/デフォルト値）に、モジュールインポート時にロードされる`WebSearchConfig.load()`経由で直接反映される（`server.py`の既存の`_cfg: WebSearchConfig = WebSearchConfig.load()`パターンを踏襲）。以前はこれらのモジュール定数（`DEFAULT_MAX_RESULTS=5`, `MAX_RESULTS_LIMIT=20`）がハードコードされたバリデーション境界として使われており、config値と一致してはいたが読み込まれていなかった。
+
 **ヘルス:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
 **エラーハンドリング:** 全プロバイダ（DuckDuckGo）が失敗すると `WebSearchUpstreamError` を送出し、HTTP 502 を返す（`search_provider.py::search_duckduckgo` が `RuntimeError`/`TimeoutError` を捕捉して変換）。[Explicit in code]
 **ログ:** `/opt/llm/logs/web-search-mcp.log`

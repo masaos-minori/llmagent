@@ -6,6 +6,7 @@ Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import logging
 import sqlite3
@@ -27,6 +28,51 @@ if TYPE_CHECKING:
     from mcp_servers.mdq.service import MdqService
 
 logger = logging.getLogger(__name__)
+
+
+def _matches_any_glob(rel_posix: str, patterns: list[str]) -> bool:
+    """Return True if rel_posix matches any of patterns, at any path depth.
+
+    pathlib.Path.match() was tried first and rejected: it right-aligns only
+    as many path segments as the pattern has, so ".git/**" (2 segments) does
+    not match ".git/objects/pack/file.pack" (4 segments) -- verified
+    empirically against this module's default exclude_globs value
+    ([".git/**", "__pycache__/**"]) on a real directory tree before choosing
+    this implementation.
+
+    fnmatch against the full relative path handles root-anchored occurrences
+    (e.g. ".git/objects/pack/file.pack" against ".git/**") but still misses
+    nested occurrences that don't start at the path root (e.g.
+    "src/__pycache__/nested/a.pyc" against "__pycache__/**"). To catch both,
+    fnmatch is applied against every path suffix (the substring starting at
+    each path component), not just the full path.
+    """
+    parts = rel_posix.split("/")
+    for i in range(len(parts)):
+        suffix = "/".join(parts[i:])
+        if any(fnmatch.fnmatch(suffix, pattern) for pattern in patterns):
+            return True
+    return False
+
+
+def _iter_indexable_files(service: MdqService, directory: Path) -> list[Path]:
+    """Return indexable files under directory per service.include_globs/exclude_globs.
+
+    Replaces hardcoded rglob("*.md") call sites so indexing honors the
+    configured include_globs / exclude_globs (config/mdq_mcp_server.toml).
+    """
+    include_globs = service.include_globs
+    exclude_globs = service.exclude_globs
+    matched: dict[str, Path] = {}
+    for pattern in include_globs:
+        for f in directory.rglob(pattern):
+            if not f.is_file():
+                continue
+            rel_posix = f.relative_to(directory).as_posix()
+            if _matches_any_glob(rel_posix, exclude_globs):
+                continue
+            matched[str(f)] = f
+    return sorted(matched.values())
 
 
 class RefreshSummary(TypedDict):
@@ -54,6 +100,16 @@ def generate_chunk_id(
 async def _index_single_file(service: MdqService, path: Path) -> None:
     """Index a single Markdown file into the service DB."""
     logger.info("Indexing file: %s", path)
+
+    file_size = path.stat().st_size
+    if file_size > service.max_file_chars:
+        logger.warning(
+            "Skipping %s: file size %d exceeds max_file_chars=%d",
+            path,
+            file_size,
+            service.max_file_chars,
+        )
+        return
 
     try:
         sections = await parse_markdown(service, ParseMarkdownRequest(path=str(path)))
@@ -89,6 +145,8 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
         )
 
         for section in sections:
+            if len(section["content"]) > service.max_chunk_chars:
+                section["content"] = section["content"][: service.max_chunk_chars]
             content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
             normalized_content = " ".join(section["content"].split())
             char_count = len(section["content"])
@@ -134,10 +192,9 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
 
 async def _index_directory(service: MdqService, path: Path) -> None:
-    """Recursively index all Markdown files under a directory."""
-    for child in sorted(path.rglob("*.md")):
-        if child.is_file():
-            await _index_single_file(service, child)
+    """Recursively index all indexable files under a directory."""
+    for child in _iter_indexable_files(service, path):
+        await _index_single_file(service, child)
 
 
 async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
@@ -215,12 +272,14 @@ async def refresh_paths(
                         await _index_single_file(service, p)
                         indexed_count += 1
                     elif p.is_dir():
-                        md_files = [f for f in sorted(p.rglob("*.md")) if f.is_file()]
+                        md_files = _iter_indexable_files(service, p)
                         if md_files:
                             await _index_directory(service, p)
                             indexed_count += 1
                         else:
-                            logger.info("No .md files found in directory: %s", path_str)
+                            logger.info(
+                                "No indexable files found in directory: %s", path_str
+                            )
                     else:
                         logger.warning("Path is not a file or directory: %s", path_str)
                 except Exception as e:
@@ -251,9 +310,9 @@ async def refresh_paths(
                     failed_count += 1
 
             elif p.is_dir():
-                # For directories, scan for changes in all .md files
+                # For directories, scan for changes in all indexable files
                 try:
-                    md_files = [f for f in sorted(p.rglob("*.md")) if f.is_file()]
+                    md_files = _iter_indexable_files(service, p)
                     for md_file in md_files:
                         state_key = f"mtime:{str(md_file)}"
                         current_mtime = str(md_file.stat().st_mtime_ns)
@@ -278,9 +337,9 @@ async def refresh_paths(
         # Detect deleted files within scanned directories
         for dir_path in dirs_to_scan:
             try:
-                current_md_files = set(
-                    str(f) for f in dir_path.rglob("*.md") if f.is_file()
-                )
+                current_md_files = {
+                    str(f) for f in _iter_indexable_files(service, dir_path)
+                }
                 for path_str_key, mtime_val in list(current_state.items()):
                     if not path_str_key.startswith("mtime:"):
                         continue

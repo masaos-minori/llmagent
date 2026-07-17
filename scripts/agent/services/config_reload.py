@@ -43,7 +43,6 @@ _MCP_SERVER_FIELDS = (
     "transport",
     "url",
     "startup_mode",
-    "healthcheck_mode",
     "call_timeout_sec",
     "startup_timeout_sec",
     "tool_names",
@@ -347,11 +346,6 @@ class ConfigReloadService:
         _apply_str(new_cfg, "embed_url", lambda v: setattr(cfg.rag, "embed_url", v))
         _apply_float(
             new_cfg, "http_timeout", lambda v: setattr(cfg.llm, "http_timeout", v)
-        )
-        _apply_int(
-            new_cfg,
-            "web_search_max_results",
-            lambda v: setattr(cfg.rag, "web_search_max_results", v),
         )
         _apply_int(
             new_cfg, "max_tool_turns", lambda v: setattr(cfg.tool, "max_tool_turns", v)

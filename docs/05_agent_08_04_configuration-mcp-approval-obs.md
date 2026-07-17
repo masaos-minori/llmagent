@@ -27,15 +27,16 @@ source:
 
 ### Agent-side MCP fields (agent.toml `[mcp_servers.<key>]`)
 
-以下の5つのフィールドのみが agent.toml に含まれる:
+以下の4つのフィールドのみが agent.toml に含まれる:
 
 | Field | Default | Description |
 |---|---|---|
 | `startup_mode` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
 | `transport` | 必須 | `TransportType.HTTP`（`"http"`） |
 | `url` | 必須 | HTTPサーバのベースURL |
-| `healthcheck_mode` | *(自動導出)* | `"http"` — 現時点で唯一のモード |
 | `cmd` | `[]` | subprocess起動コマンド |
+
+**注記(2026-07-17):** `healthcheck_mode`（および`HealthcheckMode` enum）は削除された。HTTPが唯一サポートされるtransportであり、`healthcheck_mode`は設定値に関わらず常に`_derive_healthcheck_mode()`によって`"http"`に導出されていた — 実装されたことのない第2のヘルスチェック方式のための不要な配線だった。
 
 ### Server-local application config (*_mcp_server.toml)
 

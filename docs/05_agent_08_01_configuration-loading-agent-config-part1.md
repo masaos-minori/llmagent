@@ -145,27 +145,28 @@ source:
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `id` | string | Yes | — | ステージID（一意） |
-| `description` | string | Yes | — | ステージの説明 |
 | `timeout_sec` | integer | Yes | — | タイムアウト秒数 |
-| `retryable` | boolean | Yes | — | リトライ可能かどうか |
+| `retryable` | boolean | Yes | — | リトライ可能かどうか。`WorkflowEngine._run_stage_with_retry()`がこのフラグを見て、ステージごとにリトライループを適用するか単発実行にするかを決定する（enforced; 単なる宣言値ではない） |
+
+**注記(2026-07-17):** `description`フィールドは削除された。`StageDefinition.description`はどのコードパスからも読み取られておらず、`config/workflows/default.json`のインラインコメントとしての役割しか持たなかった。ステージの説明は本ドキュメントおよびソースコードのコメントを参照すること。
 
 ### RetryPolicy
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `max_attempts` | integer | Yes | — | 最大試行回数（>= 1） |
-| `backoff` | string | Yes | — | バックオフ方式（現在サポート: `fixed`のみ） |
 | `backoff_sec` | integer | Yes | — | バックオフ秒数（>= 0） |
+
+**注記(2026-07-17):** `backoff`フィールドは削除された。バックオフ戦略は"fixed"（`backoff_sec`秒の固定遅延）のみが実装されており、他の戦略を選択する余地がなかったため、この文字列フィールドは実質的に定数だった。将来、`"fixed"`以外のバックオフ戦略を実装する際に再度検討する。
 
 ### 検証ルール
 
 - 必須キー（`name`, `version`, `stages`, `retry_policy`）のいずれかが欠如するとエラー
 - `stages` は空でないリストである必要があり、重複したステージIDは許されない
 - 必須ステージ（`plan`, `execute`, `verify`）のすべてが含まれている必要がある
-- 各ステージは `id`, `description`, `timeout_sec`, `retryable` のすべてのキーを持つ必要がある
-- `retry_policy` は `max_attempts`, `backoff`, `backoff_sec` のすべてのキーを持つ必要がある
+- 各ステージは `id`, `timeout_sec`, `retryable` のすべてのキーを持つ必要がある
+- `retry_policy` は `max_attempts`, `backoff_sec` のすべてのキーを持つ必要がある
 - `max_attempts` は 1 以上、`backoff_sec` は 0 以上である必要がある
-- `backoff` は `fixed` のみサポート
 
 ### 承認ゲートについて
 

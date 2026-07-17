@@ -4,7 +4,6 @@ Unit tests for shared.mcp_config.McpServerConfig validation and _build_mcp_serve
 
 import pytest
 from shared.mcp_config import (
-    HealthcheckMode,
     McpServerConfig,
     SecurityProfile,
     StartupMode,
@@ -18,7 +17,6 @@ class TestMcpServerConfigValidation:
         cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
         assert cfg.transport == TransportType.HTTP
         assert cfg.startup_mode == StartupMode.NONE
-        assert cfg.healthcheck_mode == HealthcheckMode.HTTP
 
     def test_http_transport_requires_url(self) -> None:
         with pytest.raises(ValueError, match="url"):
@@ -52,14 +50,6 @@ class TestMcpServerConfigValidation:
         with pytest.raises(ValueError):
             McpServerConfig(
                 TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=""
-            )
-
-    def test_invalid_healthcheck_mode_raises(self) -> None:
-        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
-            McpServerConfig(
-                TransportType.HTTP,
-                "http://127.0.0.1:8000",
-                healthcheck_mode="unknown",
             )
 
     def test_tool_names_default_empty(self) -> None:
@@ -101,13 +91,6 @@ class TestMcpServerConfigValidation:
                 TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="always"
             )
 
-    def test_direct_runtime_invalid_healthcheck_mode_raises(self) -> None:
-        """Direct runtime construction with invalid healthcheck_mode must fail."""
-        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
-            McpServerConfig(
-                TransportType.HTTP, "http://127.0.0.1:8000", healthcheck_mode="unknown"
-            )
-
     def test_stdio_transport_rejected(self) -> None:
         """transport='stdio' must be rejected as a removed enum value."""
         with pytest.raises(ValueError, match="not a valid TransportType"):
@@ -118,15 +101,6 @@ class TestMcpServerConfigValidation:
         with pytest.raises(ValueError, match="not a valid StartupMode"):
             McpServerConfig(
                 TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="ondemand"
-            )
-
-    def test_ping_tool_healthcheck_rejected(self) -> None:
-        """healthcheck_mode='ping_tool' must be rejected as a removed enum value."""
-        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
-            McpServerConfig(
-                TransportType.HTTP,
-                "http://127.0.0.1:8000",
-                healthcheck_mode="ping_tool",
             )
 
 
@@ -168,7 +142,6 @@ class TestBuildMcpServers:
         s = result["minimal"]
         assert s.transport == TransportType.HTTP
         assert s.startup_mode == StartupMode.NONE
-        assert s.healthcheck_mode == HealthcheckMode.HTTP
         assert s.call_timeout_sec == 60.0
         assert s.startup_timeout_sec == 30
         assert s.tool_names == []
@@ -282,18 +255,3 @@ def test_valid_string_transport_rejected() -> None:
     """'http' is a valid transport string value but not a TransportType instance — must be rejected."""
     with pytest.raises(ValueError):
         McpServerConfig("http", "http://127.0.0.1:8000")
-
-
-def test_explicit_empty_healthcheck_mode_now_raises() -> None:
-    """Explicit healthcheck_mode="" is no longer a valid auto-infer sentinel."""
-    cfg = {
-        "mcp_servers": {
-            "svc": {
-                "transport": "http",
-                "url": "http://127.0.0.1:8000",
-                "healthcheck_mode": "",
-            }
-        }
-    }
-    with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
-        _build_mcp_servers(cfg)

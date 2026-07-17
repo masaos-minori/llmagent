@@ -57,7 +57,6 @@ class TestBuildLLMConfig:
 class TestBuildRAGConfig:
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_rag_config({})
-        assert cfg.web_search_max_results == 5
         assert cfg.embed_url == ""
         assert cfg.use_semantic_cache is False
         assert cfg.semantic_cache_threshold == 0.92
@@ -68,10 +67,7 @@ class TestBuildRAGConfig:
         assert cfg.refiner_max_chars_per_chunk == 300
 
     def test_overrides_are_applied(self) -> None:
-        cfg = _build_rag_config(
-            {"web_search_max_results": 10, "use_semantic_cache": True}
-        )
-        assert cfg.web_search_max_results == 10
+        cfg = _build_rag_config({"use_semantic_cache": True})
         assert cfg.use_semantic_cache is True
 
 
@@ -128,7 +124,6 @@ class TestBuildAgentConfig:
     def test_llm_defaults_reflected(self) -> None:
         cfg = build_agent_config(_MIN_CFG)
         assert cfg.llm.llm_url == ""
-        assert cfg.rag.web_search_max_results == 5
 
     def test_none_cfg_override_calls_load_config(self) -> None:
         with patch("agent.config_builders.ConfigLoader") as MockLoader:

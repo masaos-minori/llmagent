@@ -1,7 +1,5 @@
 # Markdown Context Compression Engine MCP Server Configuration
 
-status = "production"
-
 # Directories that mdq-mcp is allowed to read from.
 # Default: [] (deny-all — no paths are allowed until explicitly configured).
 # Production example: allowed_dirs = ["/opt/llm/docs"]
@@ -89,3 +87,9 @@ enable_grep = true
 # concern) is achieved via MdqService._index_lock, independent of any config
 # value. See docs/04_mcp_05_05_mdq-enforcement-and-lockdown.md. Re-add only
 # alongside an implementation that actually reads and enforces it.
+
+# NOTE: status was removed (2026-07-17). It was a free-text label ("production")
+# never read by MdqService or any other Python code in scripts/mcp_servers/mdq/ --
+# tools.py's per-tool "status": "production" strings are unrelated hardcoded
+# tool-metadata literals, not derived from this config key. Re-add only
+# alongside an implementation that actually reads and acts on this value.

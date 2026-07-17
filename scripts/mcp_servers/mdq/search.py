@@ -6,11 +6,13 @@ Search functionality using FTS5 (BM25).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
 from typing import TYPE_CHECKING
 
 from mcp_servers.mdq.models import (
+    MdqConsistencyError,
     SearchDocsRequest,
     SearchResultItem,
     SearchResultResult,
@@ -24,7 +26,15 @@ logger = logging.getLogger(__name__)
 
 async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     """Search indexed Markdown sections by query; returns formatted results."""
-    result = _search_docs_structured(service, req)
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_search_docs_structured, service, req),
+            timeout=service.search_timeout_sec,
+        )
+    except TimeoutError as e:
+        raise MdqConsistencyError(
+            f"Search timed out after {service.search_timeout_sec}s: {req.query!r}"
+        ) from e
     if not result["results"]:
         return f"No results found for: {req.query!r}"
 
@@ -111,7 +121,7 @@ def _search_docs_structured(
                 start_line=row["start_line"],
                 end_line=row["end_line"],
                 token_count=row["token_count"],
-                snippet=row["content"][:150],
+                snippet=row["content"][: service.max_snippet_chars],
             )
             for row in rows
         ]
@@ -121,15 +131,11 @@ def _search_docs_structured(
     except sqlite3.OperationalError as e:
         if "no such table: chunks_fts" in str(e) or "corrupt" in str(e).lower():
             logger.error("MDQ FTS5 search failed: %s", e)
-            from mcp_servers.mdq.models import MdqConsistencyError
-
             raise MdqConsistencyError(f"FTS5 index inconsistency: {e}") from e
         logger.warning("MDQ FTS5 search failed: %s", e)
         results = []
     except sqlite3.Error as e:
         logger.error("MDQ database error during search: %s", e)
-        from mcp_servers.mdq.models import MdqConsistencyError
-
         raise MdqConsistencyError(f"FTS5 index inconsistency: {e}") from e
     finally:
         conn.close()

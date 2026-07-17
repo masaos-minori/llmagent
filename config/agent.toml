@@ -26,7 +26,13 @@ llm_retry_base_delay = 1.0
 # ── HTTP ──────────────────────────────────────────────────────────────────────
 
 http_timeout = 120.0
-web_search_max_results = 5
+
+# NOTE: web_search_max_results was removed (2026-07-17). It was parsed into
+# RAGConfig.web_search_max_results but never read anywhere in scripts/ — the
+# web-search MCP server's own default_max_results/max_results_limit
+# (config/web_search_mcp_server.toml) are the sole enforced result-count
+# knobs for search_web. Re-add only alongside an implementation that actually
+# reads RAGConfig.web_search_max_results.
 
 # ── RAG pipeline ──────────────────────────────────────────────────────────────
 
@@ -270,11 +276,18 @@ mdq                      = "WRITE_DANGEROUS"
 
 # ── MCP server transport entries ──────────────────────────────────────────────
 
+# NOTE: healthcheck_mode was removed (2026-07-17) from every [mcp_servers.*]
+# block below. HTTP is the only supported transport, and healthcheck_mode was
+# always derived as "http" via _derive_healthcheck_mode() regardless of any
+# configured value -- the HealthcheckMode enum, the field, and its validation
+# branch were all dead plumbing for a second healthcheck transport that was
+# never implemented. Re-add only alongside an actual second healthcheck
+# strategy (e.g. a tool-ping probe).
+
 [mcp_servers.shell]
 transport        = "http"
 url              = "http://127.0.0.1:8009"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "execute"
 tool_names       = ["shell_run"]
@@ -284,7 +297,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8014"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_write"
 tool_names       = [
@@ -297,7 +309,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8004"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "search"
 tool_names       = ["search_web"]
@@ -307,7 +318,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8008"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_delete"
 tool_names       = ["delete_file", "delete_directory"]
@@ -317,7 +327,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8007"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_write"
 tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]
@@ -327,7 +336,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8005"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "file_read"
 tool_names       = ["read_text_file", "list_directory", "directory_tree", "search_files", "grep_files", "list_directory_with_sizes", "read_media_file", "read_multiple_files", "get_file_info"]
@@ -337,7 +345,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8006"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "search"
 tool_names       = [
@@ -355,7 +362,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8012"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
 tool_names       = ["trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"]
@@ -365,7 +371,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8010"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
 tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]
@@ -375,7 +380,6 @@ cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/
 transport        = "http"
 url              = "http://127.0.0.1:8013"
 startup_mode     = "subprocess"
-healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
 tool_names       = [

@@ -153,7 +153,6 @@ class TestPrintConfigValues:
         ctx.cfg.rag.web_search_url = "http://ws"
         ctx.cfg.tool.max_tool_turns = 5
         ctx.cfg.llm.http_timeout = 30.0
-        ctx.cfg.rag.web_search_max_results = 10
         ctx.cfg.llm.context_char_limit = 8000
         ctx.cfg.llm.context_compress_turns = 4
         ctx.cfg.tool.tool_cache_ttl = 300.0

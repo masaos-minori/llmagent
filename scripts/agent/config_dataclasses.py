@@ -138,7 +138,6 @@ class LLMConfig:
 class RAGConfig:
     """RAG pipeline and vector search settings."""
 
-    web_search_max_results: int = 5
     embed_url: str = ""
     use_semantic_cache: bool = False
     semantic_cache_threshold: float = 0.92

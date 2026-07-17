@@ -17,7 +17,6 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 
 class _RetryPolicyJson(TypedDict):
     max_attempts: int
-    backoff: str
     backoff_sec: int
 
 
@@ -31,7 +30,6 @@ class _WorkflowJson(TypedDict, total=False):
 
 class _StageJson(TypedDict):
     id: str
-    description: str
     timeout_sec: int
     retryable: bool
 
@@ -44,10 +42,9 @@ logger = logging.getLogger(__name__)
 WORKFLOWS_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent / "config" / "workflows"
 )
-_REQUIRED_STAGE_KEYS = {"id", "description", "timeout_sec", "retryable"}
-_REQUIRED_POLICY_KEYS = {"max_attempts", "backoff", "backoff_sec"}
+_REQUIRED_STAGE_KEYS = {"id", "timeout_sec", "retryable"}
+_REQUIRED_POLICY_KEYS = {"max_attempts", "backoff_sec"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}
-_SUPPORTED_BACKOFF = {"fixed"}
 
 
 class WorkflowLoadError(Exception):
@@ -85,11 +82,6 @@ def _validate(data: _WorkflowJson) -> None:
     max_attempts = int(policy["max_attempts"])
     if max_attempts < 1:
         raise WorkflowLoadError("retry_policy.max_attempts must be >= 1")
-    backoff = str(policy["backoff"])
-    if backoff not in _SUPPORTED_BACKOFF:
-        raise WorkflowLoadError(
-            f"retry_policy.backoff must be one of: {', '.join(sorted(_SUPPORTED_BACKOFF))}"
-        )
     backoff_sec = int(policy["backoff_sec"])
     if backoff_sec < 0:
         raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
@@ -117,7 +109,6 @@ class WorkflowLoader:
         stages = [
             StageDefinition(
                 id=s["id"],
-                description=s["description"],
                 timeout_sec=int(s["timeout_sec"]),
                 retryable=bool(s["retryable"]),
             )
@@ -126,7 +117,6 @@ class WorkflowLoader:
         policy_data = data["retry_policy"]
         policy = RetryPolicy(
             max_attempts=int(policy_data["max_attempts"]),
-            backoff=str(policy_data["backoff"]),
             backoff_sec=int(policy_data["backoff_sec"]),
         )
         wdef = WorkflowDef(

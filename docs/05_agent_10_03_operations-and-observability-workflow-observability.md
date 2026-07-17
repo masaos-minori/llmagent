@@ -60,9 +60,9 @@ tail -f /opt/llm/logs/agent.log | grep '"name":'
 | `workflow.run` | `WorkflowEngine.run()` | `workflow.task_id`, `workflow.version`, `workflow.workflow_id`, `workflow.session_id` |
 | `workflow.stage` | `WorkflowEngine._run_stage()` | `workflow.stage_id`, `workflow.attempt`, `workflow.workflow_id` |
 | `workflow.approval` | `WorkflowEngine._gate_approval()` | `workflow.workflow_id`, `workflow.approval_id`, `workflow.approval_status` |
-| `workflow.retry` | `WorkflowEngine._run_execute_with_retry()` | `workflow.workflow_id`, `workflow.task_id`, `retry.attempt`, `retry.max_attempts`, `retry.error_type` |
+| `workflow.retry` | `WorkflowEngine._run_stage_with_retry()` | `workflow.workflow_id`, `workflow.task_id`, `workflow.stage_id`, `retry.attempt`, `retry.max_attempts`, `retry.error_type` |
 
-上記3行(`workflow.stage`、`workflow.approval`、`workflow.retry`)は本表に未記載だったため追記。`workflow.approval` は承認ゲート通過時(既存approvalの再評価時)にも発行され、`workflow.retry` はexecuteステージが失敗しリトライ待機(`asyncio.sleep`)に入る直前に発行される(`workflow_engine.py`)(根拠: Explicit in code)。
+上記3行(`workflow.stage`、`workflow.approval`、`workflow.retry`)は本表に未記載だったため追記。`workflow.approval` は承認ゲート通過時(既存approvalの再評価時)にも発行され、`workflow.retry` はリトライ可能なステージ(`stage_def.retryable == True`; デフォルト設定では`execute`のみ)が失敗しリトライ待機(`asyncio.sleep`)に入る直前に発行される(`workflow_engine.py`)。`_run_stage_with_retry()`は2026-07-17に、旧`_run_execute_with_retry()`を一般化したもの — `plan`/`execute`/`verify`すべてが同じ関数を経由し、`stage_def.retryable`に応じて単発実行かリトライループかが決まる(根拠: Explicit in code)。
 
 トレーサーは `Orchestrator` → `WorkflowEngine` へと伝播するため、すべてのワークフロースパンは、それを包含する `llm` スパンと同じトレースコンテキストを共有する。補足: 実装上は `Orchestrator._handle_llm_turn()` が `llm` スパンを開始する呼び出しが `execute` ステージのコールバック(`execute_fn`)から呼ばれるため、`llm` スパンは `workflow.run` → `workflow.stage`(stage_id="execute")のネスト内の子スパンとして生成される。`workflow.approval` と `workflow.retry` は `llm` スパンとは別のタイミング(承認ゲート通過時・リトライ待機時)で発行される兄弟スパンである(根拠: Explicit in code, `orchestrator.py` の `_handle_llm_turn`/`_handle_workflow_engine` および `llm_turn_runner.py` の `_span_ctx`)。
 

@@ -61,9 +61,8 @@ source:
 
 各ステージは`StageDefinition`を持つ:
 - `id` — 一意のステージ識別子 (例: "plan", "execute")
-- `description` — 人間が読める説明
 - `timeout_sec` — 最大実行時間 (秒)
-- `retryable` — 失敗時にステージをリトライ可能かどうか
+- `retryable` — 失敗時にステージをリトライ可能かどうか。`_run_stage_with_retry()`が`stage_def.retryable`を見て、`plan`/`execute`/`verify`すべてに対しリトライループを適用するか単発実行にするかを一様に決定する (`description`フィールドは2026-07-17に削除 — どのコードパスからも読まれていなかった)
 
 `WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
 
@@ -73,8 +72,9 @@ source:
 
 デフォルトのリトライポリシー (`default.json`に`retry_policy`が定義されていない場合に適用):
 - `max_attempts`: 3
-- `backoff`: "fixed"
 - `backoff_sec`: 1
+
+(`backoff`フィールドは2026-07-17に削除 — "fixed"以外の戦略が実装されたことがなく実質的に定数だった)
 
 ### ワークフローステータス
 
@@ -113,10 +113,13 @@ verifyステージ実行前に一時停止する:
 
 ### リトライメカニズム
 
-ステージが`retryable: true`の場合、エンジンはリトライポリシーを使用してリトライ挙動を決定する:
+`plan`/`execute`/`verify`はすべて同一の`_run_stage_with_retry()`を経由する。`stage_def.retryable`が
+`false`のステージ (`config/workflows/default.json`では`plan`と`verify`) は単発実行され、失敗時に
+即座に例外を送出する。`retryable: true`のステージ (デフォルトでは`execute`のみ) はリトライポリシーを
+使用してリトライ挙動を決定する:
 - `max_attempts`: 最大試行回数 (デフォルト3)
-- `backoff`: リトライ戦略 — "fixed"のみサポート
-- `backoff_sec`: リトライ間の遅延秒数 (デフォルト1; fixedバックオフではこの値がそのまま適用される)
+- バックオフ戦略は"fixed"のみ実装 (`backoff`フィールドは2026-07-17に削除)
+- `backoff_sec`: リトライ間の遅延秒数 (デフォルト1; この値がそのまま適用される)
 
 ### ワークフローローダーの検証ルール
 
@@ -125,9 +128,8 @@ verifyステージ実行前に一時停止する:
 - `stages`は空でないリストである必要がある
 - ステージIDの重複は不可
 - 必須ステージ: `plan`, `execute`, `verify` (すべて存在する必要がある)
-- 各ステージは以下を持つ必要がある: `id`, `description`, `timeout_sec`, `retryable`
+- 各ステージは以下を持つ必要がある: `id`, `timeout_sec`, `retryable`
 - `retry_policy.max_attempts`は1以上である必要がある
-- `retry_policy.backoff`は"fixed"である必要がある
 - `retry_policy.backoff_sec`は0以上である必要がある
 
 See also: [02_deployment-part1.md](02_deployment-part1.md) for deploy-time validation of these same rules,

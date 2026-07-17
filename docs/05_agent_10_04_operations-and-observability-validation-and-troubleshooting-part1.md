@@ -106,19 +106,21 @@ PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/def
 
 **Symptom:** The validator reports `required stages missing: <names>`.
 
-**Recovery:** Ensure the workflow definition's `stages` array includes objects with `id` values `plan`, `execute`, and `verify` (each also carrying `description`, `timeout_sec`, `retryable`).
+**Recovery:** Ensure the workflow definition's `stages` array includes objects with `id` values `plan`, `execute`, and `verify` (each also carrying `timeout_sec`, `retryable`).
 
 ### Invalid retry policy
 
-**Symptom:** The validator reports one of: `retry_policy.max_attempts must be >= 1`, `retry_policy.backoff must be one of: exponential, fixed`, or `retry_policy.backoff_sec must be >= 0`.
+**Symptom:** The validator reports one of: `retry_policy.max_attempts must be >= 1` or `retry_policy.backoff_sec must be >= 0`.
 
 **Recovery:** Correct the named `retry_policy` field per the message, then re-validate.
 
-> **矛盾(要修正):** 上記の `retry_policy.backoff must be one of: exponential, fixed` というメッセージ例は現在の実装と一致しない。
-> `scripts/agent/workflow/workflow_loader.py` の `_SUPPORTED_BACKOFF` は `{"fixed"}` のみを定義しており、
-> `"exponential"` は現時点でサポート対象に含まれない。実際に発生するメッセージは
-> `retry_policy.backoff must be one of: fixed` である。`backoff` に `"exponential"` を指定した場合も
-> この同じメッセージで拒否される(根拠: Explicit in code)。
+> **注記(2026-07-17):** `retry_policy.backoff` and `stages[].description` were removed from the schema.
+> `backoff` was always `"fixed"` in practice — no other backoff strategy was ever implemented
+> (`_SUPPORTED_BACKOFF` previously enforced this, but the field itself carried no other information) —
+> and `description` was never read by any code path. The stale `retry_policy.backoff must be one of:
+> exponential, fixed` example message this note used to flag as a documentation/implementation
+> mismatch no longer applies, since the `backoff` validation branch itself was removed along with
+> the field.
 
 ### Missing or incomplete `workflow.sqlite`
 

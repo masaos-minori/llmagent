@@ -7,11 +7,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from tempfile import mkstemp
+from unittest.mock import patch
 
 import pytest
 from mcp_servers.mdq.indexer import (
     _index_directory,
     _index_single_file,
+    _iter_indexable_files,
     generate_chunk_id,
     index_paths,
 )
@@ -64,6 +66,125 @@ def md_dir(tmp_path: Path) -> Path:
     (d / "b.md").write_text("# B\n\nBeta.", encoding="utf-8")
     (d / "ignore.txt").write_text("not markdown", encoding="utf-8")
     return d
+
+
+# ── include_globs / exclude_globs wiring ──────────────────────────────────────
+
+
+class TestIterIndexableFiles:
+    def test_exclude_globs_skips_matching_files(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A file under a directory matching exclude_globs is not returned."""
+        (tmp_path / ".git").mkdir()
+        (tmp_path / ".git" / "config.md").write_text("# git config", encoding="utf-8")
+        (tmp_path / "keep.md").write_text("# Keep", encoding="utf-8")
+
+        files = _iter_indexable_files(service, tmp_path)
+        names = {f.name for f in files}
+        assert "keep.md" in names
+        assert "config.md" not in names
+
+    def test_exclude_globs_skips_nested_pycache(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """__pycache__/** excludes files nested arbitrarily deep, not just at root."""
+        nested = tmp_path / "src" / "__pycache__" / "inner"
+        nested.mkdir(parents=True)
+        (tmp_path / "src" / "keep.md").write_text("# Keep", encoding="utf-8")
+        (nested / "ignored.md").write_text("# Ignored", encoding="utf-8")
+
+        files = _iter_indexable_files(service, tmp_path)
+        names = {f.name for f in files}
+        assert "keep.md" in names
+        assert "ignored.md" not in names
+
+    def test_custom_include_globs_matches_non_md_files(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A non-.md file matching a customized include_globs is indexed."""
+        service.include_globs = ["*.txt"]
+        (tmp_path / "notes.txt").write_text("plain text notes", encoding="utf-8")
+        (tmp_path / "ignored.md").write_text("# Ignored", encoding="utf-8")
+
+        files = _iter_indexable_files(service, tmp_path)
+        names = {f.name for f in files}
+        assert "notes.txt" in names
+        assert "ignored.md" not in names
+
+
+class TestMaxFileCharsEnforcement:
+    def test_oversized_file_is_skipped_with_warning(
+        self,
+        service: MdqService,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A file exceeding max_file_chars is skipped entirely, with a warning log."""
+        import logging
+
+        service.max_file_chars = 10
+        big = tmp_path / "big.md"
+        big.write_text("# Title\n\n" + ("X" * 100), encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
+            asyncio.run(_index_single_file(service, big))
+
+        assert "exceeds max_file_chars" in caplog.text
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE source_path = ?",
+                (str(big),),
+            ).fetchone()
+            assert row["cnt"] == 0
+        finally:
+            conn.close()
+
+    def test_file_within_limit_is_indexed(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        service.max_file_chars = 100000
+        f = tmp_path / "small.md"
+        f.write_text("# Title\n\nSmall content.", encoding="utf-8")
+        asyncio.run(_index_single_file(service, f))
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE source_path = ?",
+                (str(f),),
+            ).fetchone()
+            assert row["cnt"] == 1
+        finally:
+            conn.close()
+
+
+class TestMaxChunkCharsEnforcement:
+    def test_oversized_chunk_is_truncated_and_hash_matches_stored_content(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A section exceeding max_chunk_chars is truncated before storage, and
+        content_hash is computed from the truncated (stored) content, not the
+        original."""
+        import hashlib
+
+        service.max_chunk_chars = 20
+        f = tmp_path / "big_chunk.md"
+        f.write_text("# Title\n\n" + ("Y" * 500), encoding="utf-8")
+        asyncio.run(_index_single_file(service, f))
+
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute(
+                "SELECT content, content_hash FROM chunks WHERE source_path = ?",
+                (str(f),),
+            ).fetchone()
+            assert row is not None
+            assert len(row["content"]) <= 20
+            expected_hash = hashlib.sha256(row["content"].encode()).hexdigest()
+            assert row["content_hash"] == expected_hash
+        finally:
+            conn.close()
 
 
 # ── service construction ──────────────────────────────────────────────────────
@@ -349,6 +470,42 @@ class TestSearchDocs:
         with caplog.at_level(logging.INFO, logger="mcp_servers.mdq.search"):
             asyncio.run(search_docs(service, req))
         assert "foo bar" in caplog.text
+
+    def test_snippet_length_respects_max_snippet_chars(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """snippet length in results is bounded by service.max_snippet_chars."""
+        from mcp_servers.mdq.search import _search_docs_structured
+
+        service.max_snippet_chars = 10
+        f = tmp_path / "long.md"
+        f.write_text("# Title\n\n" + ("Keyword content " * 20), encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        result = _search_docs_structured(service, SearchDocsRequest(query="Keyword"))
+        assert len(result["results"]) > 0
+        for item in result["results"]:
+            assert len(item.snippet) <= 10
+
+    def test_search_timeout_raises_mdq_consistency_error(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A search exceeding search_timeout_sec raises MdqConsistencyError."""
+        import time as _time
+
+        from mcp_servers.mdq.models import MdqConsistencyError
+
+        f = tmp_path / "slow.md"
+        f.write_text("# Title\n\nKeyword content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.search_timeout_sec = 0.01
+
+        def _slow_search(_service: MdqService, _req: SearchDocsRequest):
+            _time.sleep(0.2)
+            return {"query": _req.query, "results": [], "total": 0}
+
+        with patch("mcp_servers.mdq.search._search_docs_structured", _slow_search):
+            with pytest.raises(MdqConsistencyError, match="timed out"):
+                asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
 
 
 # ── service ───────────────────────────────────────────────────────────────────

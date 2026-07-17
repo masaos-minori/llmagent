@@ -58,6 +58,12 @@ class WebSearchConfig:
 # Pydantic schema definitions
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Module-level singleton, mirroring server.py's own _cfg pattern. No circular
+# import: server.py imports from models.py, not the reverse, so loading config
+# here at module-import time is safe. Config is fail-fast-loaded once at
+# process startup (not hot-reloaded per request), consistent with server.py.
+_cfg: WebSearchConfig = WebSearchConfig.load()
+
 
 class SearchRequest(BaseModel):
     """Request schema for POST /search"""
@@ -69,10 +75,10 @@ class SearchRequest(BaseModel):
         description="Search query string",
     )
     max_results: int = Field(
-        DEFAULT_MAX_RESULTS,
+        _cfg.default_max_results,
         ge=1,
-        le=MAX_RESULTS_LIMIT,
-        description="Maximum number of results to return (max 20)",
+        le=_cfg.max_results_limit,
+        description="Maximum number of results to return",
     )
 
 

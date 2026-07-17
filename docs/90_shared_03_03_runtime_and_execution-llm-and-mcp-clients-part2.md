@@ -79,7 +79,7 @@ class LLMClient:
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
 - `McpServerHealthRegistry`: 連続失敗を追跡する;`UNAVAILABLE` はディスパッチをブロックする;`record_degraded(key, reason)` / `get_degraded_reason(key)` は失敗カウントを増やさずに「到達可能だが劣化している」サーバを追跡する
 
-> **注記:** `McpServerConfig.transport` は(単純な`str`ではなく)`TransportType` enum を使用する。同モジュール内の関連enum: `StartupMode`(`none`/`persistent`/`subprocess`）、`HealthcheckMode`(`http`）、`SecurityProfile`(`local`/`production`、MCP認証強制を制御）。
+> **注記:** `McpServerConfig.transport` は(単純な`str`ではなく)`TransportType` enum を使用する。同モジュール内の関連enum: `StartupMode`(`none`/`persistent`/`subprocess`）、`SecurityProfile`(`local`/`production`、MCP認証強制を制御）。`HealthcheckMode` enumは2026-07-17に削除された — HTTPが唯一のtransportであり、healthcheck方式は常に`"http"`だったため、実装されたことのない第2の方式のための不要な配線だった。
 
 `shared/route_resolver.py` の `build_discovery_map(server_tool_lists)` は現在 `tuple[dict[str, str], dict[str, list[str]]]` を返す: `(route_map, duplicates)` であり、`duplicates` は複数サーバから要求されたツール名を、要求元サーバキーの一覧にマッピングする。
 

@@ -35,12 +35,6 @@ class StartupMode(StrEnum):
     SUBPROCESS = "subprocess"
 
 
-class HealthcheckMode(StrEnum):
-    """MCP server health-check strategy."""
-
-    HTTP = "http"
-
-
 class SecurityProfile(StrEnum):
     """Deployment security profile for MCP auth enforcement."""
 
@@ -55,9 +49,6 @@ class McpServerConfig:
     transport: TransportType
     url: str  # base URL (transport=HTTP)
     startup_mode: StartupMode = StartupMode.NONE
-    healthcheck_mode: HealthcheckMode = (
-        HealthcheckMode.HTTP
-    )  # resolved in __post_init__
     call_timeout_sec: float = 60.0  # per-call timeout for HttpTransport; 0 = no timeout
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     tool_names: list[str] = field(default_factory=list)
@@ -82,12 +73,6 @@ class McpServerConfig:
             self.startup_mode, StartupMode
         ):
             raise ValueError(f"{self.startup_mode!r} is not a valid StartupMode")
-        if self.healthcheck_mode is not None and not isinstance(
-            self.healthcheck_mode, HealthcheckMode
-        ):
-            raise ValueError(
-                f"{self.healthcheck_mode!r} is not a valid HealthcheckMode"
-            )
 
     def _validate_cross_fields(self) -> None:
         key_prefix = f"McpServerConfig[{self.key!r}]" if self.key else "McpServerConfig"
@@ -149,16 +134,6 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     return {key: _build_single_server(key, v) for key, v in raw.items()}
 
 
-def _derive_healthcheck_mode(transport: TransportType) -> HealthcheckMode:
-    """Derive the healthcheck mode from transport type.
-
-    HTTP is currently the only supported transport, so this always
-    returns HealthcheckMode.HTTP. Kept as its own function (rather than a
-    literal) so a future second transport has one place to add a mapping.
-    """
-    return HealthcheckMode.HTTP
-
-
 def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     """Construct McpServerConfig from a raw dict, applying defaults.
 
@@ -172,25 +147,12 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         raise ValueError(
             f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
         )
-    # healthcheck_mode: derive from transport when the key is absent.
-    # An explicitly-present value (including "") is parsed strictly — the
-    # historical empty-string auto-inference sentinel is removed.
-    if "healthcheck_mode" not in v:
-        healthcheck_mode = _derive_healthcheck_mode(TransportType(transport))
-    else:
-        raw_hc = v["healthcheck_mode"]
-        if not isinstance(raw_hc, str):
-            raise ValueError(
-                f"mcp_servers[{key!r}].healthcheck_mode must be str, got {type(raw_hc).__name__}"
-            )
-        healthcheck_mode = HealthcheckMode(raw_hc)
     cmd = list(v.get("cmd", []))
     env = dict(v.get("env", {}))
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
         startup_mode=StartupMode(v.get("startup_mode", "none")),
-        healthcheck_mode=healthcheck_mode,
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
         tool_names=list(v.get("tool_names", [])),
         auth_token=v.get("auth_token", ""),

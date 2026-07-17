@@ -45,13 +45,11 @@ def _make_wdef(
     max_attempts: int = 3, backoff_sec: int = 0, require_approval: bool = False
 ) -> WorkflowDef:
     stages = [
-        StageDefinition(id="plan", description="d", timeout_sec=5, retryable=False),
-        StageDefinition(id="execute", description="d", timeout_sec=5, retryable=True),
-        StageDefinition(id="verify", description="d", timeout_sec=5, retryable=False),
+        StageDefinition(id="plan", timeout_sec=5, retryable=False),
+        StageDefinition(id="execute", timeout_sec=5, retryable=True),
+        StageDefinition(id="verify", timeout_sec=5, retryable=False),
     ]
-    policy = RetryPolicy(
-        max_attempts=max_attempts, backoff="fixed", backoff_sec=backoff_sec
-    )
+    policy = RetryPolicy(max_attempts=max_attempts, backoff_sec=backoff_sec)
     return WorkflowDef(
         name="default",
         version="1.0.0",
@@ -180,15 +178,11 @@ class TestWorkflowEngineTimeout:
     @pytest.mark.asyncio
     async def test_timeout_raises_workflow_timeout_error(self, store) -> None:
         stages = [
-            StageDefinition(id="plan", description="d", timeout_sec=5, retryable=False),
-            StageDefinition(
-                id="execute", description="d", timeout_sec=1, retryable=True
-            ),
-            StageDefinition(
-                id="verify", description="d", timeout_sec=5, retryable=False
-            ),
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, backoff="fixed", backoff_sec=0)
+        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
         wdef = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -372,3 +366,75 @@ class TestWorkflowEngineRetryStageRegression:
                 assert stage_id != "retry", (
                     "_run_stage was called with stage_id='retry' which should never happen"
                 )
+
+
+class TestRunStageWithRetryGeneralization:
+    """_run_stage_with_retry gates retries on stage_def.retryable, not on stage_id.
+
+    config/workflows/default.json declares retryable=false for plan/verify and
+    retryable=true for execute — these tests lock that behavior in under the
+    generalized wrapper (replacing the old hardcoded _run_execute_with_retry).
+    """
+
+    @pytest.mark.asyncio
+    async def test_non_retryable_plan_stage_does_not_retry_on_failure(
+        self, store
+    ) -> None:
+        """A retryable=false stage (plan) must fail on the first attempt, no retry loop."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def failing_plan() -> str | None:
+            calls["n"] += 1
+            raise RuntimeError("plan always fails")
+
+        with pytest.raises(RuntimeError, match="plan always fails"):
+            await engine.run(task, failing_plan, _noop, _noop)
+
+        assert calls["n"] == 1, "non-retryable stage must not be retried"
+        assert count_attempts(store._db, task.task_id, "plan") == 1
+
+    @pytest.mark.asyncio
+    async def test_non_retryable_verify_stage_does_not_retry_on_failure(
+        self, store
+    ) -> None:
+        """A retryable=false stage (verify) must fail on the first attempt, no retry loop."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def failing_verify() -> str | None:
+            calls["n"] += 1
+            raise RuntimeError("verify always fails")
+
+        with pytest.raises(RuntimeError, match="verify always fails"):
+            await engine.run(task, _noop, _noop, failing_verify)
+
+        assert calls["n"] == 1, "non-retryable stage must not be retried"
+        assert count_attempts(store._db, task.task_id, "verify") == 1
+
+    @pytest.mark.asyncio
+    async def test_execute_retry_behavior_unchanged_under_generalized_wrapper(
+        self, store
+    ) -> None:
+        """execute (retryable=true) still retries up to max_attempts via the shared wrapper."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        calls = {"n": 0}
+
+        async def flaky_execute() -> str | None:
+            calls["n"] += 1
+            if calls["n"] < 2:
+                raise RuntimeError("first attempt fails")
+            return None
+
+        await engine.run(task, _noop, flaky_execute, _noop)
+        assert calls["n"] == 2
+        assert count_attempts(store._db, task.task_id, "execute") == 2

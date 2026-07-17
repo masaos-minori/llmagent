@@ -150,7 +150,6 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     return RAGConfig(
-        web_search_max_results=int(cfg.get("web_search_max_results", 5)),
         embed_url=cfg.get("embed_url", ""),
         use_semantic_cache=bool(cfg.get("use_semantic_cache", False)),
         semantic_cache_threshold=float(cfg.get("semantic_cache_threshold", 0.92)),

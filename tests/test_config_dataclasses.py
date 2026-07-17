@@ -85,7 +85,6 @@ class TestLLMConfigValidation:
 class TestRAGConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = RAGConfig()
-        assert cfg.web_search_max_results == 5
         assert cfg.embed_url == ""
         assert cfg.use_semantic_cache is False
         assert cfg.semantic_cache_threshold == 0.92

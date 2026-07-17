@@ -70,7 +70,6 @@ Source: `config/agent.toml`
 | `top_k_search` | `20` | ベクトル/FTS検索結果数 |
 | `top_k_rerank` | `15` | クロスエンコーダの候補数 |
 | `max_chunks_per_doc` | `2` | 結果内の文書ごとの最大チャンク数 |
-| `web_search_max_results` | `5` | Web検索結果の最大件数 |
 | `embed_url` | `""` | 埋め込みAPIエンドポイント |
 | `use_semantic_cache` | `False` | RAG結果に対するセマンティックキャッシュを有効化 |
 | `semantic_cache_threshold` | `0.92` | キャッシュヒットのコサイン類似度閾値 |
@@ -91,6 +90,8 @@ Source: `config/agent.toml`
 | `validate_rag_refiner_max_tokens()` | `refiner_max_tokens >= 1` |
 | `validate_rag_refiner_timeout()` | `refiner_timeout > 0` |
 | `validate_rag_refiner_max_chars_per_chunk()` | `refiner_max_chars_per_chunk >= 1` |
+
+**注記(2026-07-17):** `web_search_max_results`（`agent.toml`, `RAGConfig`）は削除された。`RAGConfig.web_search_max_results`はどのコードパスからも読み取られておらず、web検索の結果件数上限は`config/web_search_mcp_server.toml`の`default_max_results`/`max_results_limit`（`WebSearchConfig`、`search_web` MCPサーバー側で実際に enforced）が唯一の実効設定である。
 | `validate_rag_rrf_k()` | `rrf_k >= 1` |
 
 > **矛盾の記録:** 旧版では`top_k_search`のデフォルトを`10`、`embed_url`のデフォルトを

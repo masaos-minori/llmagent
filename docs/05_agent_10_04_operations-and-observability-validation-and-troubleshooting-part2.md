@@ -26,7 +26,7 @@ source:
 ## MCP Server Reload and Restart Semantics(MCPサーバのリロードと再起動のセマンティクス)
 
 **注記:** MCPサーバ定義(`transport`、`url`、`startup_mode`、
-`healthcheck_mode`、`call_timeout_sec`、`startup_timeout_sec`、`tool_names`、
+`call_timeout_sec`、`startup_timeout_sec`、`tool_names`、
 `auth_token`、`role`、`cmd`、`env`)は再起動時点のスナップショットである。`/reload`
 は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告する
 (`[RESTART] - mcp_servers/<server>.<field>`)が、稼働中のプロセスには一切適用しない。

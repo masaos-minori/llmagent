@@ -124,11 +124,11 @@ class WorkflowEngine:
             span.set_attribute("workflow.session_id", task.session_id or "")
             self._store.update_task_status(task.task_id, "running")
             try:
-                await self._run_stage(task, "plan", plan_fn)
-                await self._run_execute_with_retry(task, execute_fn)
+                await self._run_stage_with_retry(task, "plan", plan_fn)
+                await self._run_stage_with_retry(task, "execute", execute_fn)
                 if self._wdef.require_approval:
                     await self._gate_approval(task)
-                await self._run_stage(task, "verify", verify_fn)
+                await self._run_stage_with_retry(task, "verify", verify_fn)
             except WorkflowPendingApprovalError:
                 raise
             except (WorkflowHaltError, WorkflowTimeoutError):
@@ -172,34 +172,45 @@ class WorkflowEngine:
                 self._store.update_task_status(task.task_id, "halted")
                 raise WorkflowHaltError(f"approval rejected: {existing.reason}")
 
-    async def _run_execute_with_retry(
-        self, task: TaskRecord, execute_fn: StageCallback
+    async def _run_stage_with_retry(
+        self, task: TaskRecord, stage_id: str, fn: StageCallback
     ) -> None:
-        """Run execute stage; retry up to max_attempts on failure."""
+        """Run a stage once, or with retry up to max_attempts on failure.
+
+        Whether retries apply is gated on the stage's own `retryable` flag
+        (config/workflows/*.json), not hardcoded to a specific stage_id.
+        """
+        stage_def = self._wdef.get_stage(stage_id)
+        if stage_def is None or not stage_def.retryable:
+            await self._run_stage(task, stage_id, fn)
+            return
+
         policy = self._wdef.retry_policy
         attempt = 0
         while True:
             attempt += 1
             try:
-                await self._run_stage(task, "execute", execute_fn, attempt=attempt)
+                await self._run_stage(task, stage_id, fn, attempt=attempt)
                 return
             except WorkflowTimeoutError:
                 raise
             except Exception as exc:  # noqa: BLE001 — catch-all to apply retry/halt logic before re-raising
                 if attempt >= policy.max_attempts:
                     logger.error(
-                        "Task %s: execute halted after %d attempts: %s",
+                        "Task %s: %s halted after %d attempts: %s",
                         task.task_id,
+                        stage_id,
                         attempt,
                         exc,
                     )
                     raise WorkflowHaltError(
-                        f"execute stage halted after {attempt} attempts"
+                        f"{stage_id} stage halted after {attempt} attempts"
                     ) from exc
                 wait = policy.backoff_sec
                 logger.warning(
-                    "Task %s: execute attempt %d failed, retrying in %ds: %s",
+                    "Task %s: %s attempt %d failed, retrying in %ds: %s",
                     task.task_id,
+                    stage_id,
                     attempt,
                     wait,
                     exc,
@@ -209,6 +220,7 @@ class WorkflowEngine:
                         "workflow.workflow_id", task.workflow_id or ""
                     )
                     retry_span.set_attribute("workflow.task_id", task.task_id)
+                    retry_span.set_attribute("workflow.stage_id", stage_id)
                     retry_span.set_attribute("retry.attempt", attempt)
                     retry_span.set_attribute("retry.max_attempts", policy.max_attempts)
                     retry_span.set_attribute("retry.error_type", type(exc).__name__)
