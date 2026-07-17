@@ -14,6 +14,8 @@ from .models_base import IssueInfo
 
 
 class ListIssuesRequest(BaseModel):
+    """Request model for listing issues."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     state: str = Field(
@@ -25,20 +27,28 @@ class ListIssuesRequest(BaseModel):
 
 
 class ListIssuesResponse(BaseModel):
+    """Response containing a list of issues."""
+
     issues: list[IssueInfo]
 
 
 class GetIssueRequest(BaseModel):
+    """Request model for getting a single issue."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     issue_number: int = Field(..., description="Issue number")
 
 
 class GetIssueResponse(BaseModel):
+    """Response containing a single issue."""
+
     issue: IssueInfo
 
 
 class CreateIssueRequest(BaseModel):
+    """Request model for creating a new issue."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     title: str = Field(..., description="Issue title")
@@ -54,10 +64,14 @@ class CreateIssueRequest(BaseModel):
 
 
 class CreateIssueResponse(BaseModel):
+    """Response containing the created issue."""
+
     issue: IssueInfo
 
 
 class AddIssueCommentRequest(BaseModel):
+    """Request model for adding a comment to an issue."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     issue_number: int = Field(..., description="Issue number to add the comment to")
@@ -68,11 +82,15 @@ class AddIssueCommentRequest(BaseModel):
 
 
 class AddIssueCommentResponse(BaseModel):
+    """Response containing the result of adding a comment."""
+
     issue_number: int
     comment_url: str
 
 
 class SearchIssuesRequest(BaseModel):
+    """Request model for searching issues via GitHub API."""
+
     query: str = Field(
         ...,
         description="GitHub search query (e.g. 'repo:owner/repo is:issue label:bug')",
@@ -81,5 +99,7 @@ class SearchIssuesRequest(BaseModel):
 
 
 class SearchIssuesResponse(BaseModel):
+    """Response containing search results for issues."""
+
     query: str
     results: list[IssueInfo]
