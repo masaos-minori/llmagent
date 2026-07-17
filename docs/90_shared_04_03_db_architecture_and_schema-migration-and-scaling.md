@@ -30,12 +30,12 @@ create_schema()
 ```
 
 - すべてのDDLは`IF NOT EXISTS`を使用する — べき等であり、何度実行しても安全
-- **互換マイグレーションは非対応。** rag/session/eventbusスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。
+- **rag.sqlite/session.sqlite/eventbus.sqliteは互換マイグレーションに非対応。** これらのスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。workflow.sqlite（§8a）とmdq.sqlite（§8c）はそれぞれ異なる方式のマイグレーション/自動スキーマ更新機構を持つ — 詳細は各節を参照。
 - `embedding_dims`は実行時にconfigから動的に置換される（デフォルト384）
 
 ### 8a. workflow.sqlite限定の増分マイグレーション (Explicit in code)
 
-**矛盾（要修正）:** 上記「互換マイグレーションは非対応」の原則には例外がある。`db/schema_sql.py`は`workflow.sqlite`専用の増分マイグレーション機構を実装している。
+上記の「rag/session/eventbusは互換マイグレーションに非対応」という原則は、この3つのDBに限定したものである。`workflow.sqlite`はその対象外であり、`db/schema_sql.py`が専用の増分マイグレーション機構を実装している。
 
 - `_WORKFLOW_MIGRATIONS: list[tuple[str, str]]` — マイグレーションID文字列と`ALTER TABLE ... ADD COLUMN`のSQL文のペアのリスト（例: `error_kind`/`error_detail`列を`attempts`に追加、`workflow_id`/`attempt_number`列を`artifacts`に追加等）
 - `apply_workflow_migrations(conn)` — リストを順に適用する。`sqlite3.OperationalError`のうち文字列に`"duplicate column name"`を含むものだけ握りつぶし（既に適用済みとみなしてログに記録）、それ以外のエラーは再送出する
@@ -47,6 +47,18 @@ rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレー
 ### 8b. RAG整合性検証 (Explicit in code)
 
 `db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`（正確には`chunks_fts_docsize`カウント用の内部テーブル経由）/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用の検証関数である。`is_consistent()`は`fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`を満たす場合に整合とみなす。`summarize_issues()`は検出した不整合ごとに`[WARNING]`/`[CRITICAL]`のプレフィックス付きメッセージと復旧コマンド（`/db rag rebuild-fts`、`ingester.py --force`）を生成する。
+
+### 8c. mdq.sqlite限定の自動レガシースキーマ検出 (Explicit in code)
+
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`（21-44行目）は、MDQサービスの起動のたびに自動実行される、rag/session/eventbusともworkflowとも異なる第三のスキーマ更新パターンである。
+
+- **トリガー:** MDQサービス起動ごとに毎回呼び出される（明示的なマイグレーションコマンドは不要）
+- **検出:** `PRAGMA table_info(chunks)`で`chunks`テーブルの先頭カラムを調べ、旧スキーマ（`id INTEGER PRIMARY KEY` + `chunk_id TEXT UNIQUE`）かどうかを判定する
+- **アクション:** 旧スキーマを検出した場合、`chunks`/`chunks_fts`テーブルおよび関連トリガーを無条件に`DROP`し、直後の`CREATE TABLE IF NOT EXISTS`が現行スキーマ（`chunk_id TEXT PRIMARY KEY`）で再作成する
+- **対比:** 8aのworkflow.sqliteのようなバージョン管理カラムや明示的なALTER TABLEマイグレーションリストは存在しない — 起動時に毎回スキーマ形状を検査し、古ければ黙って作り直すだけの機構である
+- **データ損失に関する注意:** 旧スキーマ検出時の`DROP`は無条件であり、`chunks`/`chunks_fts`の既存データは再作成後に失われる
+
+rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/schema_sql.py`）はMDQのスキーマ/ハイブリッド検索クリーンアップ作業とは無関係であり、影響を受けない。
 
 ---
 
@@ -88,6 +100,7 @@ rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレー
 | DB接続ヘルパー | `db/helper.py::SQLiteHelper` |
 | DBファイル | `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite` |
 | Event Busスキーマ（DDLのみ） | `scripts/eventbus/schema.sql` |
+| `mdq.sqlite`スキーマ/自動更新ソース | `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`（§8c参照） |
 | 削除済みエントリポイント | `db/workflow_schema.py` — plan 54で削除 |
 
 **注記:** Event Busランタイム（publisher/subscriber/dispatcher/DLQワーカー）は本クリーンアップの対象外である。今後のEvent Bus書き込み処理はISO-8601 UTC Zサフィックス形式のタイムスタンプを使用しなければならない。
@@ -149,6 +162,19 @@ rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレー
 > **注記:** 上記の数値閾値はすべて計画上の見積もりであり、ベンチマークによって保証されたものではない。
 > 実際の限界はハードウェア、埋め込み次元数、クエリパターン、コーパスの特性に依存する。
 > いずれの閾値も確定的なものとして扱う前に、個別のデプロイ環境で検証すること。
+
+## 12. スキーマ変更チェックリスト
+
+スキーマを変更するタスクでは、以下すべてに回答すること:
+
+- [ ] どのDBが影響を受けるか？（rag/session/workflow/eventbus/mdq）
+- [ ] どのスキーマソースファイルが影響を受けるか？
+- [ ] 新規インストール専用のDDL変更か？
+- [ ] 既存DBに対するマイグレーションが必要か？
+- [ ] マイグレーションを提供しない場合、DBの再作成が必要か？
+- [ ] データ損失の可能性はあるか？
+- [ ] スキーマの挙動を反映するようテストは更新されているか？
+- [ ] RAG、session、workflow、eventbus、MDQのいずれに影響するか？
 
 ## Related Documents
 
