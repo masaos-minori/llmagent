@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def read_offset(offsets_dir: str, consumer_id: str) -> int:
+    """Read the last committed sequence offset for a consumer from disk."""
     safe_id = _sanitize_consumer_id(consumer_id)
     path = Path(offsets_dir) / safe_id
     try:
@@ -16,6 +17,7 @@ def read_offset(offsets_dir: str, consumer_id: str) -> int:
 
 
 def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
+    """Write the current sequence offset for a consumer to disk."""
     safe_id = _sanitize_consumer_id(consumer_id)
     dir_path = Path(offsets_dir)
     dir_path.mkdir(parents=True, exist_ok=True)

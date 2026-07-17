@@ -14,12 +14,16 @@ from rag.enums import MqeStatus
 
 
 class ResultSource(StrEnum):
+    """Source of an HTTP response in RAG pipeline stages."""
+
     REMOTE = "remote"
     LOCAL = "local"
     FALLBACK = "fallback"
 
 
 class HttpResultKind(StrEnum):
+    """Outcome classification for HTTP responses in RAG pipeline stages."""
+
     SUCCESS = "success"
     EMPTY = "empty"
     ERROR = "error"

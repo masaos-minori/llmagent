@@ -25,6 +25,7 @@ class CiCdGuards:
         repo_allowlist: list[str],
         workflow_allowlist: list[str],
     ) -> None:
+        """Initialize the CI/CD guard mixin with backend and allowlists for repos and workflows."""
         self._backend = backend
         # Empty allowlist = deny all (fail-closed, U-3)
         self._repo_allowlist: list[str] = list(repo_allowlist)

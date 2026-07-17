@@ -23,6 +23,7 @@ async def search_duckduckgo(query: str, max_results: int) -> list[SearchResult]:
     """Execute a text search using DuckDuckGo. No API key required."""
 
     def _sync_search() -> list[dict]:
+        """Run the synchronous DuckDuckGo search within a thread pool."""
         with DDGS() as ddgs:
             return list(ddgs.text(query, max_results=max_results))
 

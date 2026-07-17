@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 async def publish(request: Request) -> dict[str, Any]:
+    """Publish an event after validating its envelope against the configured schema."""
     body: dict[str, Any] = await request.json()
     try:
         jsonschema.validate(body, request.app.state.envelope_schema)
@@ -33,6 +34,7 @@ async def publish(request: Request) -> dict[str, Any]:
     broker = get_broker(request)
 
     def _insert() -> tuple[int, bool]:
+        """Insert the event into the database under the DB lock."""
         insert_result: tuple[int, bool] = insert_event(
             db,
             event_id,

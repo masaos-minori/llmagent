@@ -29,6 +29,7 @@ class DispatchResult:
 
     @property
     def outcome(self) -> str:
+        """Return 'error' if is_error, otherwise 'ok'."""
         return "error" if self.is_error else "ok"
 
 

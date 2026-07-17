@@ -150,6 +150,7 @@ class _ConsoleProcessor:
     """Thin wrapper that delegates to SimpleSpanProcessor(ConsoleSpanExporter())."""
 
     def __init__(self) -> None:
+        """Initialize by creating the underlying OpenTelemetry processor."""
         from opentelemetry.sdk.trace.export import (  # noqa: PLC0415
             ConsoleSpanExporter,
             SimpleSpanProcessor,

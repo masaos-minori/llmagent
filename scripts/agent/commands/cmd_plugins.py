@@ -11,7 +11,10 @@ from agent.commands.mixin_base import MixinBase
 
 
 class _PluginsMixin(MixinBase):
+    """Slash-command handler for plugin management (/plugin status, /plugin reload)."""
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the plugins mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _cmd_plugin(self, args: str = "") -> None:

@@ -53,6 +53,7 @@ class ToolExecutor(ToolTransportInvoker):
         lifecycle: LifecycleProtocol | None = None,
         discovery_map: dict[str, str] | None = None,
     ) -> None:
+        """Initialize with HTTP client, cache settings, and server configurations."""
         super().__init__(http, server_configs, concurrency_limits, lifecycle)
         self._cache_ttl = cache_ttl
         self._cache_max_size = cache_max_size

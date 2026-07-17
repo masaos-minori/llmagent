@@ -12,12 +12,17 @@ _SLOW_CONSUMER_THRESHOLD = 100
 
 @dataclass
 class _Subscriber:
+    """Internal subscriber record holding its delivery queue and topic filter."""
+
     queue: asyncio.Queue[dict[str, Any] | None]
     topics: list[str]  # empty = all topics
 
 
 class EventBroker:
+    """In-memory pub/sub broker with per-subscriber queues and topic filtering."""
+
     def __init__(self) -> None:
+        """Initialize with empty subscriber list."""
         self._subscribers: list[_Subscriber] = []
 
     def subscribe(self, topics: list[str]) -> _Subscriber:
@@ -62,13 +67,16 @@ class EventBroker:
                 pass
 
     def subscriber_count(self) -> int:
+        """Return the number of active subscribers."""
         return len(self._subscribers)
 
     def max_queue_depth(self) -> int:
+        """Return the maximum queue depth across all subscribers."""
         subs = list(self._subscribers)
         return max((sub.queue.qsize() for sub in subs), default=0)
 
     def slow_consumer_count(self) -> int:
+        """Count subscribers whose queue depth exceeds the slow consumer threshold."""
         return sum(
             1
             for sub in list(self._subscribers)

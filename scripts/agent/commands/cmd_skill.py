@@ -12,7 +12,10 @@ from agent.commands.mixin_base import MixinBase
 
 
 class _SkillMixin(MixinBase):
+    """Slash-command handler for skill listing (/skill)."""
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the skill mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _skills_dir(self) -> Path:

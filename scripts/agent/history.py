@@ -70,6 +70,7 @@ class HistoryManager:
         token_limit: int = 0,
         tokenize_url: str = "",
     ) -> None:
+        """Initialize the history compression service with LLM and configuration parameters."""
         self._http = http
         self._llm_url = llm_url
         self._char_limit = char_limit

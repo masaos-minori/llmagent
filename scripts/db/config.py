@@ -31,6 +31,7 @@ class DbConfig:
     embedding_dims: int = 384
 
     def __post_init__(self) -> None:
+        """Validate all database paths and configuration values after initialization."""
         if not self.rag_db_path:
             raise ValueError("rag_db_path must not be empty")
         if not self.session_db_path:

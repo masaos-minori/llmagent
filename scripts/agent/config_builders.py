@@ -121,6 +121,7 @@ _DEFAULT_DRY_RUN_TOOLS: list[str] = [
 
 
 def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
+    """Build LLMConfig from a raw config dict."""
     return LLMConfig(
         llm_url=cfg.get("llm_url", ""),
         http_timeout=float(cfg.get("http_timeout", 30.0)),
@@ -149,6 +150,7 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
 
 
 def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
+    """Build RAGConfig from a raw config dict."""
     return RAGConfig(
         embed_url=cfg.get("embed_url", ""),
         use_semantic_cache=bool(cfg.get("use_semantic_cache", False)),
@@ -162,6 +164,7 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
 
 
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
+    """Build ToolConfig from a raw config dict and system prompt template."""
     return ToolConfig(
         tool_cache_ttl=float(cfg.get("tool_cache_ttl", 300)),
         tool_cache_max_size=int(cfg.get("tool_cache_max_size", 200)),
@@ -192,6 +195,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
 
 
 def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
+    """Build MemoryConfig from a raw config dict."""
     return MemoryConfig(
         # REMOVED: use_memory_layer=bool(cfg.get("use_memory_layer", False)),
         # REMOVED: memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
@@ -212,6 +216,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
 
 
 def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
+    """Build ApprovalConfig from a raw config dict."""
     return ApprovalConfig(
         approval_risk_rules=dict(
             cfg.get("approval_risk_rules", _DEFAULT_APPROVAL_RISK_RULES),

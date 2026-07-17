@@ -97,6 +97,7 @@ class WorkflowLoader:
     """Loads a WorkflowDef from a JSON file in config/workflows/."""
 
     def __init__(self, workflows_dir: Path | None = None) -> None:
+        """Initialize the workflow loader with the directory containing workflow JSON definitions."""
         self._dir = workflows_dir or WORKFLOWS_DIR
 
     def load(self, name: str = "default") -> WorkflowDef:

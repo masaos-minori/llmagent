@@ -33,6 +33,7 @@ class GitHubService(
     """GitHubService: security + all domain operations."""
 
     def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config, inheriting security guards and domain ops."""
         super().__init__(gh, cfg)
 
     # ── Static formatters (defined on base class for dispatch access) ──

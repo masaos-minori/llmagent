@@ -10,6 +10,8 @@ from enum import StrEnum
 
 
 class MdqRagMode(StrEnum):
+    """Mode for selecting between MDQ and RAG search strategies."""
+
     AUTO = "auto"
     MDQ = "mdq"
     RAG = "rag"

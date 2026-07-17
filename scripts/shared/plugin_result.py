@@ -6,12 +6,16 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PluginFailure:
+    """Result of a plugin load failure with its path and error message."""
+
     path: str
     error: str
 
 
 @dataclass(frozen=True)
 class PluginLoadResult:
+    """Aggregate result of plugin loading including counts and failures."""
+
     loaded_count: int
     failed: tuple[PluginFailure, ...]
     tool_conflicts_shadowed: int = 0

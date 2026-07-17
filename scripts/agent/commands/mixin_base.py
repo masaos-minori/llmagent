@@ -42,4 +42,5 @@ class MixinBase:
     _out: OutputPort = CliOutputPort()  # overridden by CommandRegistry.__init__
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """No-op initializer; subclasses forward to this base via super().__init__()."""
         pass

@@ -36,6 +36,7 @@ class _ContextMixin(MixinBase, TokenDisplay):
     """Context, history, and database slash-command handlers."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the context mixin via MixinBase and TokenDisplay constructors."""
         super().__init__(*args, **kwargs)
 
     def _cmd_context(self) -> None:

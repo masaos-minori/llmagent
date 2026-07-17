@@ -38,10 +38,12 @@ class _SudachiTokenizer:
     """Lazy wrapper around sudachipy Tokenizer — loaded on first use."""
 
     def __init__(self) -> None:
+        """Initialize with uninitialized tokenizer state."""
         self._tkn: object = None
         self._mode: object = None
 
     def _ensure_loaded(self) -> None:
+        """Lazily initialize the Sudachi tokenizer on first use."""
         if self._tkn is None:
             from sudachipy import (  # noqa: PLC0415
                 dictionary as _sd_dict,
@@ -100,7 +102,7 @@ def _build_fts_query(text: str) -> str:
 
 
 class RagRepository:
-    """SQL-based chunk retrieval. All SQL is confined to this class.
+    """BM25 + vector (KNN) retrieval over SQLite FTS5 and sqlite-vec; scorer normalizes BM25 scores to [0,1].
 
     Logs query / fts_query / top_k / elapsed_ms on every call for observability.
     """
@@ -126,6 +128,7 @@ class RagRepository:
     """
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     @staticmethod

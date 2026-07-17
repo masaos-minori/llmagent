@@ -52,4 +52,6 @@ class PipelineContext:
 class PipelineStage(Protocol):
     """Synchronous or async pipeline stage — run modifies ctx in-place."""
 
-    async def run(self, ctx: PipelineContext, **kwargs: Any) -> None: ...
+    async def run(self, ctx: PipelineContext, **kwargs: Any) -> None:
+        """Execute this pipeline stage, modifying context in-place."""
+        ...

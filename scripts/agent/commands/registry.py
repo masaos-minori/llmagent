@@ -79,6 +79,7 @@ class CommandRegistry(
     """
 
     def __init__(self, ctx: AgentContext, out: OutputPort | None = None) -> None:
+        """Initialize the command registry with context, output port, and handler validation."""
         self._ctx = ctx
         self._out: OutputPort = out if out is not None else CliOutputPort()
         super().__init__(ctx, out)

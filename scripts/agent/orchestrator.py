@@ -108,6 +108,7 @@ class Orchestrator:
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
     ) -> None:
+        """Initialize the orchestrator with context, callbacks, and diagnostic storage."""
         self._ctx = ctx
         self._allowed_tools: list[str] | None = allowed_tools
         self._on_first_turn = on_first_turn

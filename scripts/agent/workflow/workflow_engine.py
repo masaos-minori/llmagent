@@ -86,6 +86,7 @@ class WorkflowPendingApprovalError(Exception):
     """Raised when a task is suspended waiting for human approval."""
 
     def __init__(self, approval_id: str, task_id: str) -> None:
+        """Initialize the pending approval exception with approval and task identifiers."""
         self.approval_id = approval_id
         self.task_id = task_id
         super().__init__(f"task {task_id} awaiting approval {approval_id}")
@@ -111,6 +112,7 @@ class WorkflowEngine:
         store: StateStore,
         tracer: _Span | None = None,
     ) -> None:
+        """Initialize the workflow engine with its definition, state store, and optional tracer."""
         self._wdef = workflow_def
         self._store = store
         self._tracer = tracer

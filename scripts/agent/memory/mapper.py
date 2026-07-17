@@ -57,6 +57,7 @@ def _opt_str(d: Mapping[str, object], key: str) -> str:
 
 
 def _require(d: Mapping[str, object], key: str) -> object:
+    """Retrieve a required field from the mapping, raising MemorySchemaError if missing."""
     try:
         return d[key]
     except KeyError:

@@ -47,6 +47,7 @@ class ShellService:
     """Encapsulates sandboxed shell command execution with allowlist and resource limits."""
 
     def __init__(self, policy: ShellPolicy) -> None:
+        """Initialize with shell policy including commands, paths, and resource limits."""
         self._policy = policy
         # Normalize allowlist to base names only for consistent comparison
         self._allowlist: set[str] = {
@@ -291,6 +292,7 @@ class ShellService:
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_run_command(self, args: ToolArgs) -> str:
+        """Execute a shell command via the service and format the result as plain text."""
         req = ShellRunRequest(**args)
         if req.dry_run:
             cwd = req.cwd or "(default)"

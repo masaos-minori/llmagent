@@ -37,6 +37,7 @@ class LLMTransportError(Exception):
         partial_text: str = "",
         detail: str = "",
     ) -> None:
+        """Initialize with error kind, phase, URL, and optional metadata."""
         super().__init__(f"{kind} phase={phase} retryable={retryable}")
         self.kind: LLMErrorKind = kind
         self.phase: Literal["pre_stream", "in_stream"] = phase

@@ -102,6 +102,7 @@ class RagPipeline:
         on_status: Callable[[str], None] | None = None,
         on_clear: Callable[[], None] | None = None,
     ) -> None:
+        """Initialize with HTTP client, config, and optional status/clear callbacks."""
         self._http = http
         self._cfg = cfg
         self._on_status = on_status or (lambda _: None)
@@ -160,6 +161,7 @@ class RagPipeline:
     def _get_stage_status(
         self, stage: PipelineStage, ctx: PipelineContext
     ) -> tuple[Literal["success", "fallback", "failure"], str | None]:
+        """Return the execution status of a pipeline stage with an optional reason string."""
         name = type(stage).__name__
         if name == "MqeStage":
             return self._mqe_status()
@@ -172,6 +174,7 @@ class RagPipeline:
         return "success", None
 
     def _mqe_status(self) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine MQE stage status based on configuration."""
         if not self._cfg.use_mqe:
             return "fallback", "use_mqe=False"
         return "success", None
@@ -179,16 +182,19 @@ class RagPipeline:
     def _search_status(
         self, ctx: PipelineContext
     ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine search stage status based on whether results were produced."""
         if not ctx.search_results:
             return "fallback", "no search results"
         return "success", None
 
     def _fusion_status(self) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine RRF fusion stage status based on configuration."""
         if not self._cfg.use_rrf:
             return "fallback", "use_rrf=False"
         return "success", None
 
     def _rerank_status(self) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine rerank stage status based on configuration."""
         if not self._cfg.use_rerank:
             return "fallback", "use_rerank=False"
         return "success", None
@@ -232,7 +238,11 @@ class RagPipeline:
         queries: list[str],
         db: SQLiteHelper,
     ) -> list[list[RagHit]]:
-        """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
+        """Fetch embeddings concurrently then perform vector + FTS searches sequentially.
+
+        Sequential DB execution avoids shared-connection conflicts across queries.
+        Returns an empty list when all embedding fetches fail.
+        """
         raw = await asyncio.gather(
             *(get_embedding(q, self._http, self._embed_url) for q in queries),
             return_exceptions=True,
@@ -263,6 +273,8 @@ class RagPipeline:
 
     async def rerank_candidates(self, query: str, merged: list[RagHit]) -> list[RagHit]:
         """Apply Cross-Encoder rerank then dedup.
+
+        When ``use_rerank=False``, returns the top-k merged hits without reranking.
 
         Raises RagRerankError on LLM failure when use_rerank=True.
         """

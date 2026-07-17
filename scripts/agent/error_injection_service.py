@@ -27,6 +27,7 @@ class ErrorInjectionService:
     """Service for handling synthetic error injection in agent turns."""
 
     def __init__(self, ctx: AgentContext) -> None:
+        """Initialize the error injection service with the agent context."""
         self._ctx = ctx
 
     def inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:

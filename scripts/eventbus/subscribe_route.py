@@ -20,6 +20,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
+    """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.offsets import read_offset  # noqa: PLC0415
 
     cfg = request.app.state.config
@@ -32,6 +33,7 @@ async def subscribe(
         start_seq = read_offset(cfg.offsets_dir, consumer_id)
 
     async def _sse_gen() -> Any:
+        """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
         # Step 1: register with broker BEFORE replay to capture events published during replay
         sub = broker.subscribe(list(topic))
         try:

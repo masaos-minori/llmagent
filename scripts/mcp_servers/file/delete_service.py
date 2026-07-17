@@ -49,6 +49,7 @@ class DeleteFileService(FileSecurityMixin):
         allowed_dirs: list[Path],
         audit_log_path: str,
     ) -> None:
+        """Initialize the delete file service with allowed directories and audit log path."""
         self._allowed_dirs = allowed_dirs
         self._audit_log_path = audit_log_path
 
@@ -172,6 +173,7 @@ class DeleteFileService(FileSecurityMixin):
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
+        """Delete a single file and format the result as plain text."""
         result = await asyncio.to_thread(
             lambda: self.delete_file(DeleteFileRequest(**args)),
         )
@@ -179,6 +181,7 @@ class DeleteFileService(FileSecurityMixin):
         return formatted
 
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
+        """Delete a directory recursively and format the result as plain text."""
         result = await asyncio.to_thread(
             lambda: self.delete_directory(DeleteDirectoryRequest(**args)),
         )

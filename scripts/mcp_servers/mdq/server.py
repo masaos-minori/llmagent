@@ -321,6 +321,7 @@ class MdqMCPServer(MCPServer):
     server_key = "mdq"
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Route an MDQ tool call to the appropriate handler."""
         return await _dispatch_mdq_tool(name, args)
 
 

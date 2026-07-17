@@ -35,6 +35,7 @@ class HistorySelectionPolicy:
     """Determines which messages to compress based on importance scoring."""
 
     def __init__(self, compress_turns: int, protect_turns: int) -> None:
+        """Initialize the policy with compression and protection turn counts."""
         self._compress_turns = compress_turns
         self._protect_turns = protect_turns
 

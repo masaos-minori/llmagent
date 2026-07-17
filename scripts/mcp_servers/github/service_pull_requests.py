@@ -38,6 +38,7 @@ class PullRequestOps(GitHubSecurityGuards):
     """Pull request management operations."""
 
     def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 
     async def list_pull_requests(
@@ -48,6 +49,7 @@ class PullRequestOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[PullRequestInfo]:
+            """Synchronously fetch pull requests from GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             prs_slice = itertools.islice(repo.get_pulls(state=req.state), per_page)
             return [pr_to_info(pr) for pr in prs_slice]
@@ -62,6 +64,7 @@ class PullRequestOps(GitHubSecurityGuards):
         """Retrieve a specific pull request by number."""
 
         def _sync() -> PullRequestInfo:
+            """Synchronously fetch a single pull request from GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             return pr_to_info(repo.get_pull(number=req.pr_number))
 
@@ -76,6 +79,7 @@ class PullRequestOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
 
         def _sync() -> PullRequestInfo:
+            """Synchronously create a pull request via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.create_pull(
                 title=req.title,
@@ -104,7 +108,7 @@ class PullRequestOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[IssueInfo]:
-            # Append is:pr automatically to filter for pull requests only
+            """Synchronously search for pull requests via GitHub search API."""
             query = req.query if "is:pr" in req.query else f"{req.query} is:pr"
             issues_slice = itertools.islice(
                 self._gh.search_issues(query=query),
@@ -123,9 +127,9 @@ class PullRequestOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
 
         def _sync() -> PullRequestInfo:
+            """Synchronously update a pull request via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.get_pull(number=req.pr_number)
-            # Build edit kwargs only for fields that were explicitly provided
             kwargs: dict[str, object] = {}
             if req.title is not None:
                 kwargs["title"] = req.title
@@ -151,31 +155,27 @@ class PullRequestOps(GitHubSecurityGuards):
     ) -> MergePullRequestResponse:
         """Merge a pull request using the specified merge method."""
         self._assert_allowed_repo(req.owner, req.repo)
-        # Block rebase merge when allow_force_push is false (rebase rewrites history)
         if not self._cfg.allow_force_push and req.merge_method == "rebase":
             raise GitHubAuthorizationError(
                 "Rebase merge is disabled (allow_force_push=false)"
             )
 
         def _sync() -> MergePullRequestResponse:
+            """Synchronously merge a pull request via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.get_pull(number=req.pr_number)
-            # Block merge into protected base branch
             self._assert_allowed_branch(req.owner, req.repo, pr.base.ref)
-            # Require at least one approved review when require_pr_review is true
             if self._cfg.require_pr_review:
                 reviews = pr.get_reviews()
                 if not any(r.state == "APPROVED" for r in reviews):
                     raise GitHubAuthorizationError(
                         f"PR #{req.pr_number} has no approved review (require_pr_review=true)"
                     )
-            # Build merge kwargs; title/message are optional overrides
             kwargs: dict[str, object] = {"merge_method": req.merge_method}
             if req.commit_title:
                 kwargs["commit_title"] = req.commit_title
             if req.commit_message:
                 kwargs["commit_message"] = req.commit_message
-            # merge() returns a MergedStatus object
             status = pr.merge(**kwargs)
             return MergePullRequestResponse(
                 pr_number=req.pr_number,

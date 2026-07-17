@@ -27,6 +27,7 @@ class CiCdService(CiCdGuards):
     """CiCdService: repo/workflow allowlist guards + dispatch handlers."""
 
     def __init__(self, cfg: CicdConfig, backend: CiBackend) -> None:
+        """Initialize with CI/CD configuration and backend implementation."""
         super().__init__(backend, cfg.repo_allowlist, cfg.workflow_allowlist)
 
     @staticmethod
@@ -52,6 +53,7 @@ class CiCdService(CiCdGuards):
     # ── Dispatch handlers ──────────────────────────────────────────────────────
 
     async def handle_trigger_workflow(self, args: ToolArgs) -> str:
+        """Trigger a CI/CD workflow run with optional dry-run support."""
         from mcp_servers.cicd.models import TriggerWorkflowRequest  # noqa: PLC0415
 
         req = TriggerWorkflowRequest(**args)
@@ -74,6 +76,7 @@ class CiCdService(CiCdGuards):
         return result2
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
+        """Retrieve the list of workflow runs for a given workflow."""
         from mcp_servers.cicd.models import GetWorkflowRunsRequest  # noqa: PLC0415
 
         req = GetWorkflowRunsRequest(**args)
@@ -87,6 +90,7 @@ class CiCdService(CiCdGuards):
         return result3
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
+        """Get the status of a specific workflow run."""
         from mcp_servers.cicd.models import GetWorkflowStatusRequest  # noqa: PLC0415
 
         req = GetWorkflowStatusRequest(**args)
@@ -95,6 +99,7 @@ class CiCdService(CiCdGuards):
         return result4
 
     async def handle_get_workflow_logs(self, args: ToolArgs) -> str:
+        """Retrieve the logs for a specific workflow run."""
         from mcp_servers.cicd.models import GetWorkflowLogsRequest  # noqa: PLC0415
 
         req = GetWorkflowLogsRequest(**args)
@@ -105,6 +110,7 @@ class CiCdService(CiCdGuards):
     def get_dispatch_table(
         self,
     ) -> dict[str, Callable[[ToolArgs], Awaitable[str]]]:
+        """Return the mapping of tool names to their handler methods."""
         return {
             "trigger_workflow": self.handle_trigger_workflow,
             "get_workflow_runs": self.handle_get_workflow_runs,

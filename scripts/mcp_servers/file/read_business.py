@@ -63,6 +63,7 @@ class ReadFileService(ReadSecurityGuards):
         max_tree_depth: int,
         max_search_results: int,
     ) -> None:
+        """Initialize the read file service with security guards and operation limits."""
         ReadSecurityGuards.__init__(self, allowed_dirs, max_read_bytes)
         self._max_tree_depth = max_tree_depth
         self._max_search_results = max_search_results

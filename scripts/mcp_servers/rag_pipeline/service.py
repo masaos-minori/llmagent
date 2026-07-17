@@ -40,12 +40,16 @@ class RagPipelineLike(Protocol):
         query: str,
         debug_fn: Callable[..., None] | None = ...,
         history_context: str = ...,
-    ) -> str: ...
+    ) -> str:
+        """Augment the query with relevant context from the document store."""
+        ...
 
     last_fetch_result: Any  # TwoStageFetchResult
     last_timings: dict[str, float]
 
-    def invalidate_cache(self) -> None: ...
+    def invalidate_cache(self) -> None:
+        """Invalidate the semantic cache for this pipeline."""
+        ...
 
 
 def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
@@ -64,6 +68,7 @@ class RagPipelineMCPService:
     """
 
     def __init__(self) -> None:
+        """Initialize with no active HTTP client or pipeline."""
         self._http: httpx.AsyncClient | None = None
         self._pipeline: RagPipelineLike | None = None
         self._doc_mgr: DocumentManager = DocumentManager()

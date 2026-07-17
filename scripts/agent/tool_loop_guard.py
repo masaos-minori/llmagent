@@ -65,6 +65,7 @@ class ToolLoopGuard:
     """
 
     def __init__(self, ctx: AgentContext) -> None:
+        """Initialize the tool loop guard with the agent context for diagnostic tracking."""
         self._ctx = ctx
 
     # ── Diagnostic save helper ────────────────────────────────────────────────

@@ -31,6 +31,7 @@ async def get_file_contents(
     req: GetFileContentsRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> GetFileContentsResponse:
+    """Retrieve the contents of a file from a repository."""
     t0 = time.perf_counter()
     result = await svc.get_file_contents(req)
     _info(
@@ -47,6 +48,7 @@ async def create_or_update_file(
     req: CreateOrUpdateFileRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> CreateOrUpdateFileResponse:
+    """Create or update a single file in a repository."""
     t0 = time.perf_counter()
     result = await svc.create_or_update_file(req)
     _info(
@@ -64,6 +66,7 @@ async def push_files(
     req: PushFilesRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> PushFilesResponse:
+    """Push multiple files to a repository in a single commit."""
     t0 = time.perf_counter()
     result = await svc.push_files(req)
     _info(
@@ -81,6 +84,7 @@ async def delete_repo_file(
     req: DeleteRepoFileRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> DeleteRepoFileResponse:
+    """Delete a file from a repository."""
     t0 = time.perf_counter()
     result = await svc.delete_repo_file(req)
     _info(

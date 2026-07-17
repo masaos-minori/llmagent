@@ -24,6 +24,7 @@ class SQLiteVectorStore:
     """SQLite-backed VectorStore using the sqlite-vec chunks_vec virtual table."""
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     def vec_insert(self, chunk_id: int, embedding: bytes) -> None:
@@ -59,6 +60,7 @@ class SQLiteDocumentStore:
     """SQLite-backed DocumentStore over the documents + chunks tables."""
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     def doc_upsert(
@@ -166,6 +168,7 @@ class SQLiteSessionStore:
     """SQLite-backed SessionStore over the sessions + messages tables."""
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     def session_create(self) -> int:
@@ -236,6 +239,7 @@ class SQLiteMemoryDeleteStore:
     """SQLite-backed MemoryDeleteStore; all deletions are atomic."""
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:

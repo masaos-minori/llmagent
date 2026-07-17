@@ -58,6 +58,7 @@ def create_task(
 
 
 def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
+    """Update the status of a task record in the database."""
     db.execute(
         "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
         (status, _now(), task_id),
@@ -66,6 +67,7 @@ def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
 
 
 def _row_to_task(r: Any) -> TaskRecord:
+    """Convert a database row into a TaskRecord dataclass instance."""
     row = dict(r)
     return TaskRecord(
         task_id=row["task_id"],
@@ -89,6 +91,7 @@ def get_task_by_id(db: SQLiteHelper, task_id: str) -> TaskRecord | None:
 
 
 def get_task_by_idempotency_key(db: SQLiteHelper, key: str) -> TaskRecord | None:
+    """Look up a task by its idempotency key; returns None if not found."""
     rows = db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
     if not rows:
         return None

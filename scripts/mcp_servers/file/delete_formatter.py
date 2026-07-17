@@ -20,12 +20,14 @@ class DeleteFileFormatter:
 
     @staticmethod
     def format_file_result(result: DeleteFileResponse) -> str:
+        """Return a human-readable string describing the file deletion outcome."""
         if not result.deleted:
             return f"Dry-run: {result.path} ({result.file_info})"
         return f"Deleted: {result.path}"
 
     @staticmethod
     def format_directory_result(result: DeleteDirectoryResponse) -> str:
+        """Return a human-readable string describing the directory deletion outcome."""
         if not result.deleted:
             return f"Dry-run: {result.path} ({result.dir_info})"
         return f"Directory deleted: {result.path}"

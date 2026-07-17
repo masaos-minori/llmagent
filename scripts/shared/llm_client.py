@@ -62,6 +62,7 @@ class LLMClient:
         llm_stream_retry_on_heartbeat_timeout: bool = True,
         llm_stream_retry_on_malformed_chunk: bool = False,
     ) -> None:
+        """Initialize with HTTP client, retry settings, and optional callbacks."""
         self._http = http
         self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay

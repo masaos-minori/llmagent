@@ -52,9 +52,11 @@ class McpStatusService:
     """Probe all configured MCP servers and format their status table."""
 
     def __init__(self, ctx: AgentContext) -> None:
+        """Initialize the MCP status service with the agent context."""
         self._ctx = ctx
 
     async def probe_all(self) -> list[McpProbeResult]:
+        """Probe every configured MCP server and collect health statuses."""
         ctx = self._ctx
         tiers: dict[str, str] = ctx.cfg.approval.tool_safety_tiers
         results: list[McpProbeResult] = []
@@ -147,6 +149,7 @@ class McpStatusService:
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str
     ) -> tuple[McpAvailability, str, bool, bool, str]:
+        """Probe the MCP server health endpoint and return availability with details."""
         if not url:
             return McpAvailability.NO_URL, "", False, False, ""
         probe_result = await _probe_mcp_health_detail(probe, url)

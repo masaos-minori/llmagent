@@ -29,6 +29,7 @@ class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
 
     def __init__(self, *args, **kwargs) -> None:
+        """Initialize the session mixin via MixinBase constructor and sub-components."""
         super().__init__(*args, **kwargs)
         self._title_gen = SessionTitleGen(self._ctx, self._out)
         self._db_session_ops = DbSessionOps(self._ctx, self._out)

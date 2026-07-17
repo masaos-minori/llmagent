@@ -20,6 +20,7 @@ class DiagnosticStore:
     """Dedicated store for diagnostic messages, separate from conversation history."""
 
     def __init__(self, session_id: int | None = None) -> None:
+        """Initialize the diagnostic store with an optional session ID."""
         self.session_id = session_id
 
     def save(

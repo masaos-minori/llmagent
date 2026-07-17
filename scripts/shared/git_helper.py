@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class FailureReason(StrEnum):
+    """Reason why git repository inspection failed."""
+
     GITPYTHON_NOT_INSTALLED = "gitpython_not_installed"
     NOT_A_GIT_REPO = "not_a_git_repo"
     PERMISSION_DENIED = "permission_denied"
@@ -24,6 +26,8 @@ class FailureReason(StrEnum):
 
 @dataclass(frozen=True)
 class RepoInfoResult:
+    """Result of git repository inspection containing success flag and optional data."""
+
     success: bool
     data: dict[str, str] | None = None
     failure_reason: FailureReason | None = None

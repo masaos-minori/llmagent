@@ -19,6 +19,7 @@ class _ToolingMixin(MixinBase):
     """Plan-mode slash-command handler."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the tooling mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _cmd_plan(self) -> None:

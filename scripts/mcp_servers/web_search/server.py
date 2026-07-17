@@ -41,6 +41,7 @@ app = FastAPI(title="web-search-mcp", version="3.0.0")
 async def _handle_web_search_error(
     _req: Any, exc: WebSearchUpstreamError
 ) -> JSONResponse:
+    """Handle upstream web search errors with a 502 Bad Gateway response."""
     return JSONResponse(
         status_code=502,
         content={"error": str(exc)},
@@ -117,6 +118,7 @@ class WebSearchMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Route a web search tool call to the appropriate handler."""
         return await _dispatch_web_tool(name, args)
 
 

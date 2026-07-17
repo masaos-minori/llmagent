@@ -68,6 +68,7 @@ async def run_with_db_lock(func: Any) -> Any:
     from eventbus.db import get_db_lock  # noqa: PLC0415
 
     def _locked() -> Any:
+        """Execute func while holding the DB lock."""
         with get_db_lock():
             return func()
 
@@ -78,6 +79,7 @@ async def run_with_db_lock(func: Any) -> Any:
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
+    """Convert a SQLite row proxy to a dictionary mapping column names to values."""
     import orjson  # noqa: PLC0415
 
     return {

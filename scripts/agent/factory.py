@@ -58,6 +58,7 @@ class _ServerLifecycleRouter:
         server_configs: dict[str, McpServerConfig],
         tool_executor: ToolExecutor,
     ) -> None:
+        """Initialize the lifecycle router with MCP server configurations."""
         self._server_configs = server_configs
         self._http_mgr = HttpServerLifecycleManager()
         self._shutting_down: bool = False

@@ -32,6 +32,7 @@ class ToolTransportInvoker:
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
     ) -> None:
+        """Initialize with HTTP client, server configs, and optional concurrency limits."""
         self._lifecycle = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
         self.stat_tool_errors: dict[str, int] = {}

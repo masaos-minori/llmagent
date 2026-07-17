@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def health_check(request: Request) -> JSONResponse:
+    """Return DB/broker/DLQ task health status as a JSON response."""
     db = get_db(request)
     broker = get_broker(request)
 

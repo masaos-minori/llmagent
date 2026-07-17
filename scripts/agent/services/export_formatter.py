@@ -57,9 +57,11 @@ class _CliExportOutput:
     """Default CLI implementation of ExportOutputPort used when no port is supplied."""
 
     def write(self, content: str) -> None:
+        """Write content to stdout with a trailing newline."""
         sys.stdout.write(content + "\n")
 
     def write_file(self, content: str, path: str, n_messages: int) -> None:
+        """Confirm file export by writing status message to stdout."""
         sys.stdout.write(
             f"Exported {n_messages} messages to {path} ({len(content)} chars)\n"
         )

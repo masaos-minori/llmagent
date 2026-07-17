@@ -11,10 +11,12 @@ _DEFAULT_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
 
 
 def get_config_path() -> Path:
+    """Return the path to the Event Bus TOML configuration file."""
     return Path(os.environ.get("EVENTBUS_CONFIG_PATH", _DEFAULT_CONFIG_PATH))
 
 
 def get_schema_path() -> Path:
+    """Return the path to the Event Envelope JSON schema file."""
     return Path(os.environ.get("EVENTBUS_SCHEMA_PATH", _DEFAULT_SCHEMA_PATH))
 
 
@@ -34,6 +36,12 @@ def _is_public_host(host: str) -> bool:
 
 @dataclass(frozen=True)
 class EventBusConfig:
+    """Immutable configuration for the Event Bus service.
+
+    Validates port range, retry count, and prevents binding to public addresses
+    unless explicitly allowed via allow_public_bind.
+    """
+
     port: int
     db_path: str
     storage_dir: str
@@ -44,6 +52,7 @@ class EventBusConfig:
     allow_public_bind: bool = False
 
     def __post_init__(self) -> None:
+        """Validate configuration values after initialization."""
         if not 1024 <= self.port <= 65535:
             raise ValueError(f"port must be 1024-65535, got {self.port}")
         if self.max_retry < 1:
@@ -59,6 +68,7 @@ _REMOVED_CONFIG_KEYS = ("poll_interval_ms", "offset_checkpoint_interval")
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
+    """Load and validate the EventBus TOML configuration file."""
     p = path or _DEFAULT_CONFIG_PATH
     with p.open("rb") as f:
         data = tomllib.load(f)

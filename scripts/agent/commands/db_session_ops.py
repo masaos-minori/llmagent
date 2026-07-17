@@ -12,6 +12,7 @@ class DbSessionOps:
     """Handles session database operations: health, checkpoint, vacuum, purge, recover."""
 
     def __init__(self, ctx: Any, out: Any) -> None:
+        """Initialize the database session operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
 

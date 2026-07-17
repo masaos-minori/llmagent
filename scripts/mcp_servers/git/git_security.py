@@ -24,6 +24,7 @@ class GitSecurityGuards:
     """
 
     def __init__(self, allowed_repo_paths: list[str], read_only: bool) -> None:
+        """Initialize the security mixin with allowed repository paths and read-only flag."""
         self._allowed: list[Path] = [Path(p).resolve() for p in allowed_repo_paths]
         self._read_only = read_only
 

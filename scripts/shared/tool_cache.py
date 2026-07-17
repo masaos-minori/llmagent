@@ -37,6 +37,7 @@ class ToolResultCache:
     """LRU cache for tool call results with TTL expiry and optional max-size eviction."""
 
     def __init__(self, ttl: float, max_size: int = 0) -> None:
+        """Initialize with TTL duration and optional maximum cache size."""
         self._ttl = ttl
         self._max_size = max_size
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()

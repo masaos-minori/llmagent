@@ -85,7 +85,9 @@ class PipelineHook(Protocol):
     strict=False: exception logged as WARNING; original hits returned
     """
 
-    async def __call__(self, hits: list[RagHit], query: str) -> list[RagHit]: ...
+    async def __call__(self, hits: list[RagHit], query: str) -> list[RagHit]:
+        """Apply the hook to hits and return modified hits."""
+        ...
 
 
 # Type alias for registered tool handlers: async function (args dict) → (output, is_error)
@@ -99,6 +101,7 @@ def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
     """Register a slash-command plugin; name includes the leading slash; prefix=True allows trailing args."""
 
     def decorator(fn: _F) -> _F:
+        """Wrap the command function and register it under the given name."""
         _commands[name] = (fn, prefix, _current_loading_module[0])
         logger.debug("[plugin] command registered: %s", name)
         return fn
@@ -110,6 +113,7 @@ def register_tool(name: str) -> Callable[[_F], _F]:
     """Register a local async function as a tool handler; bypasses MCP entirely."""
 
     def decorator(fn: _F) -> _F:
+        """Validate and wrap the tool handler, then register it under the given name."""
         if not inspect.iscoroutinefunction(fn):
             raise ValueError(
                 f"[plugin] tool contract violation: '{name}' handler must be "
@@ -140,6 +144,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
         )
 
     def decorator(fn: _F) -> _F:
+        """Append this function to the post-rerank pipeline stage list."""
         _pipeline_post.append(fn)
         logger.debug("Pipeline post-stage registered: %r", fn.__name__)
         return fn

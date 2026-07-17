@@ -20,9 +20,11 @@ class DocumentManager:
     """Manages document CRUD operations for rag_pipeline MCP service."""
 
     def __init__(self, rag_db_path: str = "") -> None:
+        """Initialize with optional database path override."""
         self._rag_db_path = rag_db_path
 
     def _make_helper(self) -> SQLiteHelper:
+        """Create and return a SQLiteHelper using the configured or default DB path."""
         if self._rag_db_path:
             return SQLiteHelper(db_path=self._rag_db_path)
         return SQLiteHelper("rag")
@@ -30,6 +32,7 @@ class DocumentManager:
     def list_documents(
         self, lang: str | None = None, limit: int = 20
     ) -> list[DocumentItem]:
+        """Return a paginated list of indexed documents, optionally filtered by language."""
         sql = (
             "SELECT d.url, d.title, d.lang, d.fetched_at, d.chunking_strategy,"
             " COUNT(c.chunk_id) AS n"
@@ -57,6 +60,7 @@ class DocumentManager:
         ]
 
     def delete_document(self, url: str) -> bool:
+        """Delete a document and its associated chunks by URL; returns True if deleted, False if not found."""
         with self._make_helper().open(write_mode=True) as db:
             row = db.execute(
                 "SELECT doc_id FROM documents WHERE url = ?", (url,)

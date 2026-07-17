@@ -100,6 +100,7 @@ class ConfigReloadService:
     """
 
     def __init__(self, ctx: AgentContext) -> None:
+        """Initialize the config reload handler with the agent context for service updates."""
         self._ctx = ctx
 
     # ── Public entry point ────────────────────────────────────────────────────

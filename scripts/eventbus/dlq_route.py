@@ -23,6 +23,7 @@ async def dlq_list(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
+    """List dead-letter queue entries with pagination support."""
     db = get_db(request)
 
     def _dlq_count() -> int:
@@ -46,6 +47,7 @@ async def dlq_list(
 
 
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+    """Requeue a dead-letter queue entry back into the active event queue."""
     db = get_db(request)
     cfg = get_config(request)
 

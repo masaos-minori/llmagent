@@ -45,6 +45,7 @@ class StartupOrchestrator:
     """
 
     def __init__(self, ctx: AgentContext, view: CLIView) -> None:
+        """Initialize with agent context and REPL view for output."""
         self._ctx = ctx
         self._view = view
         self._cmds: CommandRegistry | None = None
@@ -89,6 +90,7 @@ class StartupOrchestrator:
         self._init_orchestrator()
 
     def _init_command_registry(self) -> None:
+        """Build the command registry from the context."""
         from agent.commands.registry import (
             CommandRegistry,  # noqa: PLC0415 — lazy: deferred to avoid circular import at module level
         )
@@ -96,6 +98,7 @@ class StartupOrchestrator:
         self._cmds = CommandRegistry(self._ctx)
 
     def _init_orchestrator(self) -> None:
+        """Construct the Orchestrator with command registry, view, and tracing."""
         if self._cmds is None:
             raise RuntimeError("_init_orchestrator requires _cmds to be set first")
         tracer = init_tracer(self._ctx)
@@ -289,6 +292,7 @@ class StartupOrchestrator:
             raise RuntimeError(f"Startup validation failed: {fatal_str}")
 
     def _display_pipeline_results(self, pipeline: StartupValidationResult) -> None:
+        """Display startup validation warnings and fatal errors via the CLI view."""
         for outcome in pipeline.outcomes:
             if outcome.status == StartupCheckStatus.WARNING:
                 self._view.write_warning(f"[non-fatal] {outcome.message}")

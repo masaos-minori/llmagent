@@ -87,6 +87,7 @@ class _MemoryMixin(MixinBase):
     """Slash-command handlers for /memory."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the memory mixin via MixinBase constructor and data/rebuild operations."""
         super().__init__(*args, **kwargs)
         from agent.commands.memory_data_ops import MemoryDataOps  # noqa: PLC0415
         from agent.commands.memory_rebuild_ops import MemoryRebuildOps  # noqa: PLC0415
@@ -95,6 +96,7 @@ class _MemoryMixin(MixinBase):
         self._rebuild_ops = MemoryRebuildOps(self._ctx, self._out)
 
     def _cmd_memory(self, args: str) -> None:
+        """Dispatch memory subcommands: status, pin, unpin, flush, rebuild."""
         ctx = self._ctx
         raw_tokens = args.strip().split()
         sub = raw_tokens[0] if raw_tokens else ""

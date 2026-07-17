@@ -72,12 +72,15 @@ async def _search_all_queries(
 
 
 class SearchStage(PipelineStage):
+    """Semantic + BM25 hybrid search stage across all expanded queries."""
+
     def __init__(
         self,
         cfg: RagConfig,
         http: httpx.AsyncClient | None = None,
         embed_url: str = "",
     ) -> None:
+        """Initialize with RAG config, optional HTTP client, and embedding URL."""
         self._cfg = cfg
         self._http = http
         self._embed_url = embed_url
@@ -85,6 +88,7 @@ class SearchStage(PipelineStage):
     async def run(
         self, ctx: PipelineContext, db: SQLiteHelper | None = None, **kwargs: Any
     ) -> None:
+        """Execute hybrid search for all queries and store results in context."""
         if db is None:
             logger.warning("SearchStage.run: db is None, returning empty results")
             ctx.search_results = []

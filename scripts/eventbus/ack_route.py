@@ -63,6 +63,7 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
     cfg = get_config(request)
     return await _do_ack(db, cfg, event_id, consumer_id)
@@ -72,6 +73,7 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 

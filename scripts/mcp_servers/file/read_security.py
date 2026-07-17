@@ -27,6 +27,7 @@ class ReadSecurityGuards(FileSecurityMixin):
         allowed_dirs: list[Path],
         max_read_bytes: int,
     ) -> None:
+        """Initialize the read security guards with allowed directories and byte limit."""
         self._allowed_dirs = allowed_dirs
         self._max_read_bytes = max_read_bytes
 
@@ -43,6 +44,7 @@ class ReadSecurityGuards(FileSecurityMixin):
     # ── Read-specific security helper ──
 
     def _check_size_limit(self, target: Path) -> int:
+        """Validate that target file does not exceed the configured maximum read size; returns file size."""
         size: int = check_size_limit(target, self._max_read_bytes)
         return size
 

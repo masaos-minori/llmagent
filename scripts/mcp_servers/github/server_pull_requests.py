@@ -35,6 +35,7 @@ async def list_pull_requests(
     req: ListPullRequestsRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> ListPullRequestsResponse:
+    """List pull requests for a given repository."""
     t0 = time.perf_counter()
     result = await svc.list_pull_requests(req)
     _info(
@@ -52,6 +53,7 @@ async def get_pull_request(
     req: GetPullRequestRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> GetPullRequestResponse:
+    """Retrieve details of a specific pull request."""
     t0 = time.perf_counter()
     result = await svc.get_pull_request(req)
     _info(
@@ -68,6 +70,7 @@ async def create_pull_request(
     req: CreatePullRequestRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> CreatePullRequestResponse:
+    """Create a new pull request on GitHub."""
     t0 = time.perf_counter()
     result = await svc.create_pull_request(req)
     _info(
@@ -84,6 +87,7 @@ async def search_pull_requests(
     req: SearchPullRequestsRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> SearchPullRequestsResponse:
+    """Search pull requests across repositories."""
     t0 = time.perf_counter()
     result = await svc.search_pull_requests(req)
     _info(
@@ -100,6 +104,7 @@ async def update_pull_request(
     req: UpdatePullRequestRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> UpdatePullRequestResponse:
+    """Update a pull request's title or state."""
     t0 = time.perf_counter()
     result = await svc.update_pull_request(req)
     _info(
@@ -116,6 +121,7 @@ async def merge_pull_request(
     req: MergePullRequestRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> MergePullRequestResponse:
+    """Merge a pull request into its target branch."""
     t0 = time.perf_counter()
     result = await svc.merge_pull_request(req)
     _info(

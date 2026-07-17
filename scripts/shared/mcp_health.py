@@ -26,6 +26,7 @@ class McpServerHealthRegistry:
         failure_threshold: int = 3,
         half_open_cooldown_sec: float = 30.0,
     ) -> None:
+        """Initialize with failure threshold and half-open cooldown duration."""
         self._states: dict[str, McpServerHealthState] = {}
         self._failure_counts: dict[str, int] = {}
         self._failure_threshold = failure_threshold
@@ -34,6 +35,7 @@ class McpServerHealthRegistry:
         self._degraded_reasons: dict[str, str] = {}
 
     def record_failure(self, server_key: str) -> McpServerHealthState:
+        """Record a failure for the given server and update its health state."""
         was_half_open = self.get_state(server_key) == McpServerHealthState.HALF_OPEN
         count = self._failure_counts.get(server_key, 0) + 1
         self._failure_counts[server_key] = count
@@ -103,6 +105,7 @@ class McpServerHealthRegistry:
             logger.info("Health: %r trial probe succeeded → HEALTHY", server_key)
 
     def get_state(self, server_key: str) -> McpServerHealthState:
+        """Get the current health state for a server, defaulting to HEALTHY."""
         return self._states.get(server_key, McpServerHealthState.HEALTHY)
 
     def is_unavailable(self, server_key: str) -> bool:

@@ -48,6 +48,7 @@ class WriteFileService(FileSecurityMixin):
         allowed_dirs: list[Path],
         max_write_bytes: int,
     ) -> None:
+        """Initialize with allowed directories and maximum write byte limit."""
         self._allowed_dirs = allowed_dirs
         self._max_write_bytes = max_write_bytes
 
@@ -255,6 +256,7 @@ class WriteFileService(FileSecurityMixin):
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_write_file(self, args: ToolArgs) -> str:
+        """Format write_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
             lambda: self.write_file(WriteFileRequest(**args)),
         )
@@ -262,6 +264,7 @@ class WriteFileService(FileSecurityMixin):
         return formatted
 
     async def fmt_edit_file(self, args: ToolArgs) -> str:
+        """Format edit_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
             lambda: self.edit_file(EditFileRequest(**args)),
         )
@@ -269,6 +272,7 @@ class WriteFileService(FileSecurityMixin):
         return formatted
 
     async def fmt_create_directory(self, args: ToolArgs) -> str:
+        """Format create_directory result as plain text via thread executor."""
         result = await asyncio.to_thread(
             lambda: self.create_directory(CreateDirectoryRequest(**args)),
         )
@@ -276,6 +280,7 @@ class WriteFileService(FileSecurityMixin):
         return formatted
 
     async def fmt_move_file(self, args: ToolArgs) -> str:
+        """Format move_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
             lambda: self.move_file(MoveFileRequest(**args)),
         )

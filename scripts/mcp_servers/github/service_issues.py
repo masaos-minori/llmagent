@@ -34,6 +34,7 @@ class IssuesOps(GitHubSecurityGuards):
     """Issues, comments, and search operations."""
 
     def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 
     async def list_issues(self, req: ListIssuesRequest) -> ListIssuesResponse:
@@ -41,6 +42,7 @@ class IssuesOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[IssueInfo]:
+            """Synchronously fetch issues via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             issues_slice = itertools.islice(repo.get_issues(state=req.state), per_page)
             return [issue_to_info(i) for i in issues_slice]
@@ -52,6 +54,7 @@ class IssuesOps(GitHubSecurityGuards):
         """Retrieve a specific issue by number."""
 
         def _sync() -> IssueInfo:
+            """Synchronously fetch a single issue via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             return issue_to_info(repo.get_issue(number=req.issue_number))
 
@@ -63,6 +66,7 @@ class IssuesOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
 
         def _sync() -> IssueInfo:
+            """Synchronously create an issue via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             issue = repo.create_issue(
                 title=req.title,
@@ -86,6 +90,7 @@ class IssuesOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[IssueInfo]:
+            """Synchronously search issues via GitHub API."""
             issues_slice = itertools.islice(
                 self._gh.search_issues(query=req.query),
                 per_page,
@@ -103,6 +108,7 @@ class IssuesOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
 
         def _sync() -> AddIssueCommentResponse:
+            """Synchronously post a comment via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             comment = repo.get_issue(number=req.issue_number).create_comment(req.body)
             return AddIssueCommentResponse(

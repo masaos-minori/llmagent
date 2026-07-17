@@ -123,6 +123,7 @@ class LLMConfig:
     budget_warn_ratio: float = 0.8
 
     def __post_init__(self) -> None:
+        """Validate LLM configuration fields after initialization."""
         _v_llm_ccl(self)
         _v_llm_bwr(self)
         _v_llm_mr(self)
@@ -148,6 +149,7 @@ class RAGConfig:
     refiner_max_chars_per_chunk: int = 300
 
     def __post_init__(self) -> None:
+        """Validate RAG configuration fields after initialization."""
         _v_rag_rmt(self)
         _v_rag_rt(self)
         _v_rag_rmcc(self)
@@ -205,6 +207,7 @@ class ToolConfig:
     plugin_strict: bool = False
 
     def __post_init__(self) -> None:
+        """Validate tool configuration fields after initialization."""
         _v_tool_dm(self)
         _v_tool_cdw(self)
         _v_tool_emc(self)
@@ -245,6 +248,7 @@ class MemoryConfig:
     memory_local_only: bool = False
 
     def __post_init__(self) -> None:
+        """Validate memory configuration fields after initialization."""
         _v_mem_fts(self)
         _v_mem_rrf(self)
         _v_mem_rec(self)
@@ -261,6 +265,7 @@ class MCPConfig:
     security_lockdown_enabled: bool = False
 
     def __post_init__(self) -> None:
+        """Coerce security_profile to SecurityProfile enum if needed."""
         if not isinstance(self.security_profile, SecurityProfile):
             self.security_profile = SecurityProfile(self.security_profile)
 
@@ -362,6 +367,7 @@ class ApprovalConfig:
     )
 
     def __post_init__(self) -> None:
+        """Validate approval configuration fields after initialization."""
         _v_app_risk(self)
         _v_app_tier(self)
 
@@ -404,6 +410,7 @@ class AgentConfig:
     security_lockdown_enabled: bool = False
 
     def __post_init__(self) -> None:
+        """Validate cross-field dependencies between sub-configs."""
         self._validate_cross_field()
 
     def _validate_cross_field(self) -> None:
@@ -413,18 +420,21 @@ class AgentConfig:
         self._validate_memory_embed_url()
 
     def _validate_semantic_cache_url(self) -> None:
+        """Raise ValueError when semantic cache is enabled but embed_url is missing."""
         if self.rag.use_semantic_cache and not self.rag.embed_url:
             raise ValueError(
                 "use_semantic_cache=True requires embed_url to be non-empty",
             )
 
     def _validate_memory_jsonl_dir(self) -> None:
+        """Raise ValueError when memory layer is enabled but memory_jsonl_dir is missing."""
         if self.memory.use_memory_layer and not self.memory.memory_jsonl_dir:
             raise ValueError(
                 "use_memory_layer=True requires memory_jsonl_dir to be non-empty",
             )
 
     def _validate_memory_embed_url(self) -> None:
+        """Raise ValueError when memory embedding is enabled but rag embed_url is missing."""
         if self.memory.memory_embed_enabled and not self.rag.embed_url:
             raise ValueError(
                 "memory_embed_enabled=True requires embed_url to be non-empty",

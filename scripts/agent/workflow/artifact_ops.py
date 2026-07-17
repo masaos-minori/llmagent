@@ -17,6 +17,7 @@ def record_artifact(
     workflow_id: str | None = None,
     attempt_number: int | None = None,
 ) -> ArtifactRef:
+    """Insert an artifact reference into the database and return it."""
     artifact_id = str(uuid.uuid4())
     now = _now()
     db.execute(

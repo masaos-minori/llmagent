@@ -29,6 +29,7 @@ async def replay(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
+    """Replay events from a given sequence number via SSE or JSON response."""
     db = get_db(request)
 
     def _fetch() -> list:

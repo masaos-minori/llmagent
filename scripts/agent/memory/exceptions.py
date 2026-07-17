@@ -14,6 +14,7 @@ class UnknownMemoryTypeError(MemorySchemaError):
     """Raised when an unrecognized memory_type value is encountered."""
 
     def __init__(self, memory_type: str) -> None:
+        """Initialize with the unknown memory type name."""
         super().__init__(f"Unknown memory type: {memory_type!r}")
 
 

@@ -21,6 +21,7 @@ _MAX_ATTEMPTS = 3
 
 
 def _log_retry(rag_url: str, attempt: int, error: Exception) -> None:
+    """Log a warning message when an RAG service call fails during retry."""
     logger.warning(
         "RAG service call failed (%s) attempt %d/%d: %s",
         rag_url,

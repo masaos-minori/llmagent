@@ -57,6 +57,7 @@ class RagIngester:
     """Embeds chunk files produced by ChunkSplitter and inserts them into SQLite; chunks are grouped by URL and moved to registered/ after ingestion."""
 
     def __init__(self, config: dict | None = None) -> None:
+        """Initialize with optional config override and load ingester settings."""
         cfg: dict = config or ConfigLoader().load("ingester.toml")
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
@@ -79,6 +80,7 @@ class RagIngester:
         self._client.close()
 
     def __del__(self) -> None:
+        """Ensure the HTTP client is closed during garbage collection."""
         try:
             client = getattr(self, "_client", None)
             if client is not None:
@@ -610,6 +612,7 @@ class RagIngester:
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
+    """CLI entry point for embedding generation and database ingestion."""
     parser = argparse.ArgumentParser(
         description=(
             "Embedding generation and DB ingestion: rag-src/chunk/*.json → SQLite → rag-src/registered/"

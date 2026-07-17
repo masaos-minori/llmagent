@@ -100,6 +100,7 @@ class RagLLM:
         llm_url: str,
         cfg: Mapping[str, object] | None = None,
     ) -> None:
+        """Initialize with HTTP client, LLM URL, and optional config mapping."""
         self._client = client
         self._llm_url = llm_url
         self._cfg: Mapping[str, object] = cfg if cfg is not None else {}

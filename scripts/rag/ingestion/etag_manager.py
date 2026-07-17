@@ -12,6 +12,7 @@ class ETagManager:
     """Manages ETag/Last-Modified updates for existing documents."""
 
     def __init__(self, db: SQLiteHelper, doc_id: int) -> None:
+        """Initialize with database helper and document ID."""
         self._db = db
         self._doc_id = doc_id
 

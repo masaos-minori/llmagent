@@ -35,7 +35,9 @@ MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 class _FastAPIApp(Protocol):
     """Minimal FastAPI app interface for middleware attachment."""
 
-    def middleware(self, type_: str) -> Callable[[Callable], Callable]: ...
+    def middleware(self, type_: str) -> Callable[[Callable], Callable]:
+        """Attach a middleware function to the FastAPI application."""
+        ...
 
 
 @dataclasses.dataclass(frozen=True)
@@ -84,6 +86,7 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
 
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
+        """Authenticate requests by validating Bearer token header."""
         req_id = str(uuid.uuid4())
         request.state.request_id = req_id
         if token:

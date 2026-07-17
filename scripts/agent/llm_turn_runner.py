@@ -29,9 +29,11 @@ class _NoOpSpan:
     """No-op OTel span returned by _span_ctx when no tracer is configured."""
 
     def set_attribute(self, key: str, value: object) -> None:
+        """No-op: set an attribute on the span."""
         pass
 
     def record_exception(self, exc: BaseException) -> None:
+        """No-op: record an exception on the span."""
         pass
 
 
@@ -49,6 +51,7 @@ class LLMTurnRunner:
         *,
         tracer: Any = None,
     ) -> None:
+        """Initialize the LLM turn runner with context and loop guard."""
         self._ctx = ctx
         self._guard = guard
         self._tracer = tracer

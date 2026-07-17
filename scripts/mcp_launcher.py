@@ -67,6 +67,7 @@ def port_is_responding(port: int, timeout: float = 0.5) -> bool:
 
 
 def main() -> None:
+    """Entry point for launching MCP servers from the CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "server_key", nargs="?", help="Server key to launch (see --list)"

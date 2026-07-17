@@ -21,6 +21,7 @@ class MemoryDataOps:
     """Handles memory data operations: list, search, show, pin, delete, prune."""
 
     def __init__(self, ctx: AgentContext, out: Any) -> None:
+        """Initialize the memory data operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
 

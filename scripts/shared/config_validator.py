@@ -8,16 +8,22 @@ from typing import Any
 
 @dataclasses.dataclass
 class ConfigValidationResult:
+    """Result of RAG configuration validation containing errors and warnings."""
+
     errors: list[str]
     warnings: list[str]
 
     @property
     def ok(self) -> bool:
+        """Return True when there are no validation errors."""
         return len(self.errors) == 0
 
 
 class RagConfigValidator:
+    """Validate RAG configuration for cross-file consistency."""
+
     def validate(self, cfg: dict[str, Any]) -> ConfigValidationResult:
+        """Validate RAG configuration and return results with errors and warnings."""
         errors: list[str] = []
         warnings: list[str] = []
 

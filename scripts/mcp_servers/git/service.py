@@ -82,6 +82,7 @@ class GitService(GitSecurityGuards):
         read_only: bool = True,
         max_log_entries: int = 50,
     ) -> None:
+        """Initialize with security guards and configuration parameters."""
         GitSecurityGuards.__init__(self, allowed_repo_paths, read_only)
         self._max_log_entries = max_log_entries
 

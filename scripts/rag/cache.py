@@ -20,19 +20,22 @@ logger = logging.getLogger(__name__)
 class CacheService(Protocol):
     """Protocol for semantic embedding cache implementations."""
 
-    def lookup(
-        self, embedding: list[float], history_context: str = ""
-    ) -> str | None: ...
+    def lookup(self, embedding: list[float], history_context: str = "") -> str | None:
+        """Look up a cached context by embedding similarity."""
+        ...
 
     def put(
         self, embedding: list[float], history_context: str, context_str: str
-    ) -> None: ...
+    ) -> None:
+        """Store an embedding-context pair in the cache."""
+        ...
 
 
 class SemanticCache:
     """In-memory nearest-neighbour cache with FIFO eviction (oldest entry removed first when size > max_size)."""
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
+        """Initialize with maximum cache size and similarity threshold."""
         self._entries: list[CacheEntry] = []
         self._max_size = max_size
         self._threshold = threshold
@@ -101,6 +104,7 @@ class SemanticCache:
 
     @property
     def size(self) -> int:
+        """Return the current number of cached entries."""
         with self._lock:
             return len(self._entries)
 
@@ -112,5 +116,6 @@ class SemanticCache:
 
     @property
     def generation(self) -> int:
+        """Return the current generation counter."""
         with self._lock:
             return self._generation

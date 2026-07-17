@@ -116,6 +116,7 @@ def get_last_load_result() -> PluginLoadResult | None:
 
 
 def _set_last_load_result(result: PluginLoadResult) -> None:
+    """Update the module-level last-load result cache."""
     global _last_load_result
     _last_load_result = result
 

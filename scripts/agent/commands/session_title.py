@@ -18,6 +18,7 @@ class SessionTitleGen:
     """Handles session title generation (LLM-based with fallback)."""
 
     def __init__(self, ctx: Any, out: Any) -> None:
+        """Initialize the session title generator with context and output port."""
         self._ctx = ctx
         self._out = out
 

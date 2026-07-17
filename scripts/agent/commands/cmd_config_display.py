@@ -33,6 +33,7 @@ class _ConfigDisplayMixin(MixinBase):
     """Config display helpers for slash commands."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the config display mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _print_llm_settings(self, ctx: AgentContext) -> None:

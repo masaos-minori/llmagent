@@ -84,6 +84,7 @@ class AgentREPL:
         return completion_command_names()
 
     def __init__(self) -> None:
+        """Initialize REPL agent with empty context and view."""
         self._ctx = AgentContext()
         self._view = CLIView(list(self.SLASH_COMMANDS))
         self._cmds: CommandRegistry | None = None
@@ -94,6 +95,7 @@ class AgentREPL:
 
     @property
     def _prompt(self) -> str:
+        """REPL input prompt string."""
         return "> "
 
     @property
@@ -310,12 +312,14 @@ class AgentREPL:
         if shutdown_event is not None:
 
             async def _input_task() -> str:
+                """Read one line of user input via executor."""
                 return await loop.run_in_executor(None, lambda: input(self._prompt))
 
             input_coro = asyncio.ensure_future(_input_task())
             shutdown_done = False
 
             async def _shutdown_watcher() -> None:
+                """Wait for shutdown event and signal completion."""
                 nonlocal shutdown_done
                 await shutdown_event.wait()
                 shutdown_done = True
@@ -441,6 +445,7 @@ class AgentREPL:
         self._shutdown_event = asyncio.Event()
 
         def _sigterm_handler() -> None:
+            """Handle SIGTERM by setting shutdown flag on context and event."""
             self._ctx.conv.shutdown_requested = True
             if self._shutdown_event is not None:
                 self._shutdown_event.set()

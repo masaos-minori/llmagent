@@ -13,17 +13,23 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ShellAuditConfig:
+    """Security audit configuration for shell command execution."""
+
     sandbox_backend: str
     command_allowlist: list[str]
 
 
 @dataclass(frozen=True)
 class GitAuditConfig:
+    """Security audit configuration for git operations."""
+
     allowed_repo_paths: list[str]
 
 
 @dataclass(frozen=True)
 class GitHubAuditConfig:
+    """Security audit configuration for GitHub API operations."""
+
     allowed_repos: list[str]
     allow_force_push: bool
     require_pr_review: bool
@@ -31,6 +37,8 @@ class GitHubAuditConfig:
 
 @dataclass(frozen=True)
 class CicdAuditConfig:
+    """Security audit configuration for CI/CD pipeline operations."""
+
     workflow_allowlist: list[str]
 
 

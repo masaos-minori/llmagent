@@ -59,6 +59,7 @@ class _ConfigStatsMixin(MixinBase):
     """Stats collection and display for slash commands."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the config stats mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _collect_stats(self) -> StatsViewModel:
@@ -105,6 +106,7 @@ class _ConfigStatsMixin(MixinBase):
         stats = self._collect_stats()
 
         def _fmt_tokens(v: int | None) -> str:
+            """Format an integer with comma separators, or 'N/A' for None values."""
             return f"{v:,}" if v is not None else "N/A"
 
         self._out.write("Session statistics:")

@@ -18,6 +18,7 @@ class PolicyViolationError(RuntimeError):
     """Raised when a pre-flight policy check denies the tool call."""
 
     def __init__(self, audit_decision: str, message: str) -> None:
+        """Initialize the policy violation exception with audit decision and error message."""
         super().__init__(message)
         self.audit_decision = audit_decision
 

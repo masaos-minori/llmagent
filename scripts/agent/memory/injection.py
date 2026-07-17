@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class InjectionPolicy:
+    """Controls how many semantic/episodic memories are injected per turn."""
+
     max_semantic: int = 5
     max_episodic: int = 3
     min_importance: float = 0.5
@@ -42,6 +44,7 @@ class MemoryInjectionService:
         repo: str = "",
         branch: str = "",
     ) -> None:
+        """Initialize the memory injection service with its dependencies."""
         self._policy = policy
         self._retriever = retriever
         self._embed_client = embed_client
@@ -50,8 +53,7 @@ class MemoryInjectionService:
         self._branch = branch
 
     def on_session_start(self) -> list[MemorySnippet]:
-        # Injects pinned and high-importance semantic memories only (importance >= min_importance).
-        # Task-specific retrieval happens at on_user_prompt() — do not broaden this call.
+        """Retrieve pinned and high-importance semantic memories when a new session starts."""
         entries = self._retriever.top_semantic(
             limit=self._policy.max_semantic,
             min_importance=self._policy.min_importance,
@@ -110,6 +112,7 @@ class MemoryInjectionService:
         query: str,
         session_id: int | None,
     ) -> list[MemorySnippet]:
+        """Perform query-based hybrid retrieval for semantic memory injection."""
         # Primary task-specific restoration path. Performs query-based hybrid retrieval.
         if not query.strip():
             raise InjectionValidationError("on_user_prompt query must not be empty")

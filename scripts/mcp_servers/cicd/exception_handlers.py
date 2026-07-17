@@ -28,20 +28,24 @@ def setup_exception_handlers(app: object) -> None:
     async def _on_cicd_auth_error(
         _req: Any, exc: CicdAuthorizationError
     ) -> JSONResponse:
+        """Return 403 JSON response for CICD authorization errors."""
         return JSONResponse({"detail": str(exc)}, status_code=403)
 
     @app.exception_handler(CicdNotFoundError)  # type: ignore[attr-defined]
     async def _on_cicd_not_found(_req: Any, exc: CicdNotFoundError) -> JSONResponse:
+        """Return 404 JSON response for CICD not found errors."""
         return JSONResponse({"detail": str(exc)}, status_code=404)
 
     @app.exception_handler(CicdValidationError)  # type: ignore[attr-defined]
     async def _on_cicd_validation_error(
         _req: Any, exc: CicdValidationError
     ) -> JSONResponse:
+        """Return 422 JSON response for CICD validation errors."""
         return JSONResponse({"detail": str(exc)}, status_code=422)
 
     @app.exception_handler(CicdUpstreamError)  # type: ignore[attr-defined]
     async def _on_cicd_upstream_error(
         _req: Any, exc: CicdUpstreamError
     ) -> JSONResponse:
+        """Return 502 JSON response for CICD upstream errors."""
         return JSONResponse({"detail": str(exc)}, status_code=502)

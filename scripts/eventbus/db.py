@@ -44,6 +44,7 @@ def open_db(db_path: str) -> sqlite3.Connection:
 
 
 def _init_schema(conn: sqlite3.Connection) -> None:
+    """Create or migrate the events table schema."""
     # First check if the table exists at all
     cur = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='events'"

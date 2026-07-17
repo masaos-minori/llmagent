@@ -27,6 +27,7 @@ class HttpAugmentResult:
             "remote_nonempty", "remote_empty", "in_process_fallback"
         ],
     ) -> None:
+        """Initialize with result content, HTTP status, latency, and kind classification."""
         self.result = result
         self.status_code = status_code
         self.latency_ms = latency_ms
@@ -48,6 +49,7 @@ class HttpAugment:
         set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
     ) -> None:
+        """Initialize with HTTP client, RAG URL, optional auth token, and callbacks."""
         self._http = http
         self._rag_url = rag_url
         self._auth_token = auth_token or ""
