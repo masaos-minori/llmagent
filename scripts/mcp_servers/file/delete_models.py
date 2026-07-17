@@ -45,6 +45,8 @@ class FileDeleteConfig:
 
 
 class DeleteFileRequest(BaseModel):
+    """Request model for deleting a single file."""
+
     path: str = Field(..., description="Absolute path of the file to delete")
     dry_run: bool = Field(
         default=False,
@@ -53,12 +55,16 @@ class DeleteFileRequest(BaseModel):
 
 
 class DeleteFileResponse(BaseModel):
+    """Response indicating whether a file was deleted."""
+
     path: str
     deleted: bool
     file_info: str = ""
 
 
 class DeleteDirectoryRequest(BaseModel):
+    """Request model for deleting a directory."""
+
     path: str = Field(..., description="Absolute path of the directory to delete")
     # recursive=True: remove contents recursively
     # False (default): only empty directories can be deleted
@@ -73,6 +79,8 @@ class DeleteDirectoryRequest(BaseModel):
 
 
 class DeleteDirectoryResponse(BaseModel):
+    """Response indicating whether a directory was deleted."""
+
     path: str
     deleted: bool
     dir_info: str = ""
