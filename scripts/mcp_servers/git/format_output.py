@@ -26,6 +26,7 @@ GIT_SHOW_OUTPUT_MAX_CHARS = 8000
 
 
 def format_status(repo: git.Repo) -> str:
+    """Format repository status including branches, dirty state, and untracked files."""
     lines: list[str] = []
     lines.append(f"On branch {repo.active_branch.name}")
     if repo.is_dirty(untracked_files=True):
@@ -42,6 +43,7 @@ def format_status(repo: git.Repo) -> str:
 
 
 def format_log(repo: git.Repo, req: GitLogRequest, max_log_entries: int) -> str:
+    """Format recent commit log entries."""
     limit = min(req.max_entries, max_log_entries)
     rev = req.branch or repo.head.commit
     commits = list(repo.iter_commits(rev=rev, max_count=limit))
@@ -60,6 +62,7 @@ def format_log(repo: git.Repo, req: GitLogRequest, max_log_entries: int) -> str:
 
 
 def format_diff(repo: git.Repo, req: GitDiffRequest) -> str:
+    """Format diff between working tree and index or two commits."""
     if req.commit:
         diff = repo.git.diff(req.commit)
     elif req.staged:
@@ -70,6 +73,7 @@ def format_diff(repo: git.Repo, req: GitDiffRequest) -> str:
 
 
 def format_branch(repo: git.Repo) -> str:
+    """Format list of branches with the current one marked."""
     current = repo.active_branch.name
     branches = [
         f"* {b.name}" if b.name == current else f"  {b.name}" for b in repo.branches
@@ -78,6 +82,7 @@ def format_branch(repo: git.Repo) -> str:
 
 
 def format_show(repo: git.Repo, req: GitShowRequest) -> str:
+    """Format details of a commit, blob, or tree object."""
     output: str = repo.git.show(req.ref, "--stat", "--patch")
     if len(output) > GIT_SHOW_OUTPUT_MAX_CHARS:
         return output[:GIT_SHOW_OUTPUT_MAX_CHARS]
@@ -85,6 +90,7 @@ def format_show(repo: git.Repo, req: GitShowRequest) -> str:
 
 
 def format_add(repo: git.Repo, req: GitAddRequest) -> str:
+    """Format output for staging files."""
     if req.dry_run:
         untracked = {p for p in repo.untracked_files if p in req.paths}
         modified = {i.a_path for i in repo.index.diff(None) if i.a_path in req.paths}
@@ -95,6 +101,7 @@ def format_add(repo: git.Repo, req: GitAddRequest) -> str:
 
 
 def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
+    """Format output for creating a new commit."""
     staged = [i.a_path for i in repo.index.diff("HEAD")]
     if req.dry_run:
         return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
@@ -107,6 +114,7 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
 
 
 def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
+    """Format output for switching branches."""
     if req.dry_run:
         action = (
             f"create and checkout '{req.branch}'"
@@ -123,6 +131,7 @@ def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
 
 
 def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
+    """Format output for fetching and merging remote changes."""
     if req.dry_run:
         fetch_info = repo.git.fetch("--dry-run", req.remote)
         return (
@@ -136,6 +145,7 @@ def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
 
 
 def format_push(repo: git.Repo, req: GitPushRequest) -> str:
+    """Format output for pushing local commits to a remote."""
     branch = req.branch or repo.active_branch.name
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
