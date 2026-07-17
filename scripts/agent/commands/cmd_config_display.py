@@ -36,6 +36,7 @@ class _ConfigDisplayMixin(MixinBase):
         super().__init__(*args, **kwargs)
 
     def _print_llm_settings(self, ctx: AgentContext) -> None:
+        """Print LLM endpoint and core settings."""
         self._out.write("Settings:")
         self._out.write(f"  llm_url             : {ctx.cfg.llm.llm_url}")
         self._out.write(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
@@ -51,6 +52,7 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(f"  llm_max_tokens      : {ctx.cfg.llm.llm_max_tokens}")
 
     def _print_sse_settings(self, ctx: AgentContext) -> None:
+        """Print SSE streaming settings."""
         self._out.write("SSE stream settings:")
         self._out.write(
             f"  sse_heartbeat_timeout              : {ctx.cfg.llm.sse_heartbeat_timeout}s",
@@ -69,10 +71,12 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
     def _print_execution_settings(self, ctx: AgentContext) -> None:
+        """Print execution settings."""
         self._out.write("Execution settings:")
         self._out.write(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
 
     def _print_semantic_cache_settings(self, ctx: AgentContext) -> None:
+        """Print semantic cache settings."""
         self._out.write("Semantic cache:")
         self._out.write(f"  use_semantic_cache  : {ctx.cfg.rag.use_semantic_cache}")
         self._out.write(
@@ -83,12 +87,14 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
     def _print_mcp_settings(self, ctx: AgentContext) -> None:
+        """Print MCP and security settings."""
         self._out.write("MCP / security settings:")
         self._out.write(
             f"  tool_def_strict     : {ctx.cfg.tool.tool_definitions_strict}"
         )
 
     def _print_approval_settings(self, ctx: AgentContext) -> None:
+        """Print approval and risk rule settings."""
         self._out.write("Approval settings:")
         rules = ctx.cfg.approval.approval_risk_rules
         if rules:
@@ -108,6 +114,7 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(f"  masked_fields       : {masked or '(none)'}")
 
     def _print_tool_safety_settings(self, ctx: AgentContext) -> None:
+        """Print tool safety and allowed-tools settings."""
         self._out.write("Security settings (tool safety):")
         allowed_root = ctx.cfg.approval.allowed_root
         self._out.write(
@@ -138,6 +145,7 @@ class _ConfigDisplayMixin(MixinBase):
             self._out.write("  plan_blocked_tools  : (none)")
 
     def _print_memory_settings(self, ctx: AgentContext) -> None:
+        """Print memory layer configuration settings."""
         self._out.write("Memory layer settings:")
         self._out.write(f"  use_memory_layer    : {ctx.cfg.memory.use_memory_layer}")
         self._out.write(
@@ -157,6 +165,7 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
     def _print_plugin_settings(self, ctx: AgentContext) -> None:
+        """Print plugin configuration settings."""
         self._out.write("Plugin settings:")
         self._out.write(f"  plugin_strict        : {ctx.cfg.tool.plugin_strict}")
         self._out.write(f"  plugin_tool_override : {ctx.cfg.tool.plugin_tool_override}")
