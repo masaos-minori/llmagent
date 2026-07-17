@@ -170,6 +170,25 @@ class TestClassifyOperationType:
         for name in ("write_file", "edit_file", "create_directory", "move_file"):
             assert classify_operation_type(name) == "write"
 
+    def test_mdq_write_tools(self) -> None:
+        # MDQ_WRITE_TOOLS (shared/tool_constants.py) must classify as write,
+        # not fall through to the default "read".
+        for name in ("index_paths", "refresh_index"):
+            assert classify_operation_type(name) == "write"
+
+    def test_rag_write_tools(self) -> None:
+        # RAG_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
+        assert classify_operation_type("rag_delete_document") == "write"
+
+    def test_cicd_write_tools(self) -> None:
+        # CICD_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
+        assert classify_operation_type("trigger_workflow") == "write"
+
+    def test_git_write_tools(self) -> None:
+        # GIT_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
+        for name in ("git_add", "git_commit", "git_checkout", "git_pull", "git_push"):
+            assert classify_operation_type(name) == "write"
+
     def test_delete_tools(self) -> None:
         assert classify_operation_type("delete_file") == "delete"
         assert classify_operation_type("delete_directory") == "delete"

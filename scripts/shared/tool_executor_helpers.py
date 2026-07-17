@@ -18,6 +18,19 @@ from shared.transport_dto import TransportErrorInfo
 
 # Tools with side effects: writes, deletes, shell, or git/GitHub mutations.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
+#
+# NOTE — two distinct, intentionally-separate serialization mechanisms exist in
+# this codebase:
+#   1. is_side_effect() (this module): a batch-level downgrade. When any tool
+#      call in a batch has a side effect, execute_all_tool_calls() falls back
+#      to serial execution for that whole batch instead of running calls
+#      concurrently.
+#   2. ToolSpec.requires_serial (agent/tool_scheduler.py): a per-tool flag
+#      consumed by build_execution_groups() to force a single tool into its
+#      own serial barrier group, independent of batch-wide side-effect state.
+# They are not unified today, and whether they should be is an open follow-up
+# design question — not resolved as part of this change. Do not conflate them
+# when reasoning about tool-call concurrency.
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
     WRITE_TOOLS
     | DELETE_TOOLS

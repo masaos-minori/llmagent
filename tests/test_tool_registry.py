@@ -6,6 +6,7 @@ Unit tests for shared.tool_registry — registry drift validation.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -296,3 +297,42 @@ class TestGetToolNamesOrdering:
         registry.register(ToolDefinition(name="apple", server_key="s1"))
         registry.register(ToolDefinition(name="mango", server_key="s1"))
         assert registry.get_tool_names("s1") == ["apple", "mango", "zebra"]
+
+
+class TestValidateRoutingAgainstRealConfig:
+    """validate_routing_against_config exercised against the real production config.
+
+    Every other test in this module uses a synthetic ToolRegistry and a
+    MagicMock(spec=McpServerConfig) server_configs mapping. None of them load
+    config/agent.toml's actual [mcp_servers.<key>] tool_names, so a drift bug
+    that only manifests against the real file (e.g. a server key present in
+    tool_constants.py but missing/misspelled in agent.toml, or vice versa)
+    would go undetected. This exercises all 10 registry keys (8 MCP servers;
+    file[read/write/delete] register separately) against the real file.
+    """
+
+    def test_no_drift_against_real_agent_toml(self) -> None:
+        import tomllib
+
+        from shared.mcp_config import _build_mcp_servers
+
+        agent_toml_path = Path(__file__).parent.parent / "config" / "agent.toml"
+        with open(agent_toml_path, "rb") as f:
+            raw_cfg = tomllib.load(f)
+
+        server_configs = _build_mcp_servers(raw_cfg)
+        result = validate_routing_against_config(server_configs=server_configs)
+        assert result == {}
+
+    def test_real_agent_toml_covers_all_registry_server_keys(self) -> None:
+        import tomllib
+
+        from shared.mcp_config import _build_mcp_servers
+
+        agent_toml_path = Path(__file__).parent.parent / "config" / "agent.toml"
+        with open(agent_toml_path, "rb") as f:
+            raw_cfg = tomllib.load(f)
+
+        server_configs = _build_mcp_servers(raw_cfg)
+        registry = get_registry()
+        assert set(registry.get_servers()) <= set(server_configs)

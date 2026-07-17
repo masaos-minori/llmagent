@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shared.tool_constants import (
+    CICD_WRITE_TOOLS,
     DELETE_TOOLS,
+    GIT_WRITE_TOOLS,
     GITHUB_DANGEROUS_TOOLS,
     GITHUB_WRITE_TOOLS,
+    MDQ_WRITE_TOOLS,
+    RAG_WRITE_TOOLS,
     SHELL_TOOLS,
     WRITE_TOOLS,
 )
@@ -29,6 +33,13 @@ if TYPE_CHECKING:
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
 _GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 
+# Per-server write-tool sets not covered by the generic WRITE_TOOLS frozenset
+# (which only lists the file[read/write/delete] server's write tools).
+# See shared/tool_constants.py for the source of each set.
+_ALL_WRITE_TOOLS: frozenset[str] = (
+    WRITE_TOOLS | MDQ_WRITE_TOOLS | RAG_WRITE_TOOLS | CICD_WRITE_TOOLS | GIT_WRITE_TOOLS
+)
+
 # Maps tool_safety_tiers tier → default approval risk level
 _TIER_TO_RISK: dict[str, RiskLevel] = {
     "READ_ONLY": RiskLevel.NONE,
@@ -40,7 +51,7 @@ _TIER_TO_RISK: dict[str, RiskLevel] = {
 
 def classify_operation_type(tool_name: str) -> OperationType:
     """Return the operation type for a tool."""
-    if tool_name in WRITE_TOOLS:
+    if tool_name in _ALL_WRITE_TOOLS:
         return OperationType.WRITE
     if tool_name in DELETE_TOOLS:
         return OperationType.DELETE

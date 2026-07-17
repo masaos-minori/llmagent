@@ -7,6 +7,19 @@ Groups tool calls so that:
   - tools with the same non-empty resource_scope and is_write=True are serialized
   - write tools without resource_scope go into a write-first group
   - all remaining tools run in parallel in the final group
+
+NOTE — two distinct, intentionally-separate serialization mechanisms exist in
+this codebase:
+  1. ToolSpec.requires_serial (this module): a per-tool flag consumed by
+     build_execution_groups() to force a single tool into its own serial
+     barrier group within a batch's group scheduling.
+  2. is_side_effect() (shared/tool_executor_helpers.py): a batch-level
+     downgrade. When any tool call in a batch has a side effect,
+     execute_all_tool_calls() falls back to serial execution for the whole
+     batch instead of running calls concurrently.
+They are not unified today, and whether they should be is an open follow-up
+design question — not resolved as part of this change. Do not conflate them
+when reasoning about tool-call concurrency.
 """
 
 from __future__ import annotations

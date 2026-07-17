@@ -298,6 +298,26 @@ class TestClassifyOperationType:
         for name in ("write_file", "edit_file", "create_directory", "move_file"):
             assert _classify_operation_type(name) == "write"
 
+    def test_mdq_rag_cicd_git_write_tools(self) -> None:
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
+
+        # Previously-unclassified per-server write-tool sets (MDQ/RAG/CICD/Git)
+        # fell through to the default "read" before this fix.
+        for name in (
+            "index_paths",
+            "refresh_index",
+            "rag_delete_document",
+            "trigger_workflow",
+            "git_add",
+            "git_commit",
+            "git_checkout",
+            "git_pull",
+            "git_push",
+        ):
+            assert _classify_operation_type(name) == "write"
+
     def test_delete_tools(self) -> None:
         from agent.tool_policy import (
             classify_operation_type as _classify_operation_type,

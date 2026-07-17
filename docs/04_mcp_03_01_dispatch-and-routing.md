@@ -99,6 +99,60 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 | レジストリ登録 | `scripts/shared/tool_constants.py::MDQ_TOOLS` | `ToolRegistry` にツールを登録するための正典集合 |
 | デプロイ許可リスト | `config/agent.toml` の `[mcp_servers.mdq].tool_names` | 実際に起動・利用可能なツール名の一覧 |
 
+**全8サーバーへの一般化:** 上記の4層整合性ガードレールは MDQ 専用だったが、
+`tests/test_tool_server_layer_consistency.py` が同じ検証を8つの MCP サーバー
+全て（mdq, github, shell, git, cicd, rag_pipeline, file[read/write/delete],
+web_search）に一般化している。ディスパッチテーブルの実体は2パターンに分かれる
+（file は read/write/delete の3サーバーに分かれるため、レジストリキーは
+10個になる）:
+
+| ディスパッチ形態 | 該当サーバー |
+|---|---|
+| モジュールレベルの辞書（`_DISPATCH_TABLE` 相当） | `mdq`（`server.py::_DISPATCH_TABLE`）、`web_search`（`formatters.py::_WEB_DISPATCH`） |
+| サービスインスタンスの `get_dispatch_table()` | `github`, `shell`, `git`, `cicd`, `rag_pipeline`, `file_read`, `file_write`, `file_delete` |
+
+---
+
+## ツールのライフサイクル全体像（schema → dispatch → registry → side-effect → risk → audit）
+
+1つの MCP ツールは、呼び出しから監査記録まで以下の層を必ず一貫して通過する。
+いずれかの層だけを更新して他を放置すると、ドリフト（層間の不整合）が発生する。
+
+```
+① スキーマ定義        各サーバーの tools.py::TOOL_LIST — LLM に公開する名前・入力スキーマ
+② 実行時ディスパッチ    server.py の _DISPATCH_TABLE、または service.get_dispatch_table()
+③ レジストリ登録       shared/tool_constants.py の frozenset → shared/tool_registry.py（唯一のルーティング権威）
+④ 副作用検出          shared/tool_executor_helpers.py::is_side_effect() — バッチ実行の並列/直列判定に使用
+⑤ リスク分類・承認    agent/tool_policy.py::classify_operation_type() / classify_risk()
+                     — 優先順位: approval_risk_rules → tool_safety_tiers → tool_constants.py 分類
+⑥ 監査ログ           agent/tool_audit.py — classify_operation_type() の結果を operation_type として記録
+```
+
+**層③〜⑤は互いに独立したソースを参照する。** ③はレジストリ登録（所有権）、
+④はバッチ実行時の並列/直列制御、⑤は承認リスク判定と監査分類であり、いずれも
+`shared/tool_constants.py` の frozenset を参照するが、参照漏れがあると各層が
+個別にドリフトしうる。`agent/tool_policy.py::classify_operation_type()` は
+以前 `WRITE_TOOLS`/`DELETE_TOOLS`/GitHub 系集合のみを参照しており、
+`MDQ_WRITE_TOOLS`・`RAG_WRITE_TOOLS`・`CICD_WRITE_TOOLS`・`GIT_WRITE_TOOLS`
+に属するツール（`index_paths`, `refresh_index`, `rag_delete_document`,
+`trigger_workflow`, `git_add` など）を全て `read` として誤分類していた
+（現在は修正済み）。`tests/test_tool_policy_comprehensive.py` と
+`tests/test_tool_approval_risk.py` がこの分類の回帰を検証する。
+
+### 直列化メカニズムは2つ存在する（未統合）
+
+バッチ内のツール呼び出しを直列実行に倒す仕組みは、意図的に**2つの独立した
+メカニズム**として存在する。混同しないこと:
+
+| メカニズム | 所在 | 粒度 |
+|---|---|---|
+| `is_side_effect()` によるバッチ単位のダウングレード | `shared/tool_executor_helpers.py` | バッチ内に副作用ツールが1つでもあれば、バッチ全体を並列実行から直列実行にフォールバックする |
+| `ToolSpec.requires_serial` によるツール単位のフラグ | `agent/tool_scheduler.py::build_execution_groups()` | 個々のツール（現状は MDQ の `index_paths`/`refresh_index` のみ）を単独のシリアルバリアグループとして強制する |
+
+この2つを1つのメカニズムに統合すべきかどうかは、本ドキュメント更新の時点では
+**未解決のオープンな設計課題**である。統合する/しないの判断は別タスクとして
+検討する対象であり、本ドキュメントは現状の2メカニズム併存を記述するに留める。
+
 ---
 
 ## ルーティングの信頼できる情報源
