@@ -16,8 +16,12 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import orjson
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import now_iso_raw
+from shared.json_utils import (
+    dumps as _json_dumps,
+)
+from shared.json_utils import (
+    now_iso_raw,
+)
 from shared.tool_constants import SHELL_TOOLS
 from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec

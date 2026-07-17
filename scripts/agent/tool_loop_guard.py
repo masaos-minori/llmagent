@@ -15,8 +15,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import orjson
-from shared.json_utils import dumps as json_dumps
-from shared.json_utils import now_iso_raw
+from shared.json_utils import (
+    dumps as json_dumps,
+)
+from shared.json_utils import (
+    now_iso_raw,
+)
 from shared.tool_executor_helpers import tool_hash_key
 from shared.types import LLMMessage
 

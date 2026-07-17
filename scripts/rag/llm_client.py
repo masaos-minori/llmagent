@@ -20,8 +20,13 @@ from typing import Any
 import httpx
 import orjson
 from shared.config_loader import ConfigLoader
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import extract_llm_content, parse_http_json
+from shared.json_utils import (
+    dumps as _json_dumps,
+)
+from shared.json_utils import (
+    extract_llm_content,
+    parse_http_json,
+)
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,

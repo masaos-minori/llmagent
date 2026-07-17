@@ -6,8 +6,6 @@ import asyncio
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
-from shared.types import RagConfig
-
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
 
@@ -16,7 +14,7 @@ if TYPE_CHECKING:
     from db.helper import SQLiteHelper
 
 from shared.logger import Logger
-from shared.types import RawHit
+from shared.types import RagConfig, RawHit
 
 from rag.models_result import SearchDiagnostics
 

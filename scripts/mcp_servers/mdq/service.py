@@ -17,9 +17,15 @@ from db.helper import apply_connection_pragmas
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_grep import grep_docs
 from mcp_servers.mdq.db_schema import create_production_tables
-from mcp_servers.mdq.indexer import RefreshSummary
-from mcp_servers.mdq.indexer import index_paths as _index_paths
-from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
+from mcp_servers.mdq.indexer import (
+    RefreshSummary,
+)
+from mcp_servers.mdq.indexer import (
+    index_paths as _index_paths,
+)
+from mcp_servers.mdq.indexer import (
+    refresh_paths as _refresh_paths,
+)
 from mcp_servers.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,

@@ -27,9 +27,15 @@ from eventbus.dlq_route import dlq_requeue as dlq_requeue_route
 from eventbus.health_route import health_check
 from eventbus.publish_route import publish as publish_route
 from eventbus.replay_route import replay as replay_route
-from eventbus.route_helpers import app_get_config as get_config
-from eventbus.route_helpers import app_get_db as get_db
-from eventbus.route_helpers import run_with_db_lock
+from eventbus.route_helpers import (
+    app_get_config as get_config,
+)
+from eventbus.route_helpers import (
+    app_get_db as get_db,
+)
+from eventbus.route_helpers import (
+    run_with_db_lock,
+)
 from eventbus.subscribe_route import subscribe as subscribe_route
 
 logger = logging.getLogger(__name__)
