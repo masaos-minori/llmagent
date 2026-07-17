@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 
 class ParsedSection(TypedDict):
+    """Parsed markdown section with heading hierarchy and content."""
+
     heading: str
     heading_level: int
     heading_path: str
@@ -23,6 +25,8 @@ class ParsedSection(TypedDict):
 
 
 class ChunkRecord(TypedDict):
+    """Chunk record containing document metadata and content hash."""
+
     chunk_id: str
     doc_id: str
     source_path: str
@@ -42,6 +46,8 @@ class ChunkRecord(TypedDict):
 
 
 class ParsedSectionRequest(TypedDict):
+    """Request to parse a markdown file into sections."""
+
     path: str
 
 
@@ -79,10 +85,14 @@ class MdqConsistencyError(MdqServiceError):
 
 
 class ParseMarkdownRequest(BaseModel):
+    """Pydantic model for parsing a markdown file into sections."""
+
     path: str
 
 
 class SearchDocsRequest(BaseModel):
+    """Pydantic model for searching documents via BM25."""
+
     query: str
     limit: int | None = 10
     mode: Literal["bm25"] | None = "bm25"
@@ -94,31 +104,43 @@ class SearchDocsRequest(BaseModel):
 
 
 class GetChunkRequest(BaseModel):
+    """Pydantic model for retrieving a single chunk by ID."""
+
     chunk_id: str
     with_neighbors: bool | None = False
     max_chars_per_chunk: int | None = None
 
 
 class OutlineRequest(BaseModel):
+    """Pydantic model for generating an outline from a markdown file."""
+
     path: str
     max_depth: int | None = 6
     max_outline_items: int | None = 500
 
 
 class IndexPathsRequest(BaseModel):
+    """Pydantic model for indexing specified paths."""
+
     paths: list[str]
 
 
 class RefreshIndexRequest(BaseModel):
+    """Pydantic model for refreshing the index for specified paths."""
+
     paths: list[str]
     force: bool = False
 
 
 class StatsRequest(BaseModel):
+    """Pydantic model for requesting index statistics (no parameters)."""
+
     pass
 
 
 class GrepDocsRequest(BaseModel):
+    """Pydantic model for grep-style text search across indexed documents."""
+
     pattern: str
     paths: list[str] | None = None
     max_grep_matches: int | None = 200
@@ -128,6 +150,8 @@ class GrepDocsRequest(BaseModel):
 
 
 class SearchResultItem(BaseModel):
+    """A single search result item with score and snippet."""
+
     chunk_id: str
     source_path: str
     heading: str
@@ -140,15 +164,21 @@ class SearchResultItem(BaseModel):
 
 
 class SearchDocsResponse(BaseModel):
+    """Response containing a list of search results."""
+
     results: list[SearchResultItem]
 
 
 class GetChunkResponse(BaseModel):
+    """Response containing a chunk string and its heading hierarchy."""
+
     chunk: str
     headings: list[str]
 
 
 class OutlineHeading(BaseModel):
+    """A single heading entry in an outline response."""
+
     heading: str
     level: int
     heading_path: str
@@ -158,15 +188,21 @@ class OutlineHeading(BaseModel):
 
 
 class OutlineResponse(BaseModel):
+    """Response containing document outline headings and optional staleness warning."""
+
     headings: list[OutlineHeading]
     stale_warning: str | None = None
 
 
 class IndexPathsResponse(BaseModel):
+    """Response confirming index paths were processed."""
+
     message: str
 
 
 class RefreshIndexResponse(BaseModel):
+    """Response containing refresh operation counts and elapsed time."""
+
     indexed_count: int
     skipped_count: int
     deleted_count: int
@@ -175,16 +211,22 @@ class RefreshIndexResponse(BaseModel):
 
 
 class IndexMetadata(BaseModel):
+    """Placeholder for future index metadata fields."""
+
     pass
 
 
 class StatsResponse(BaseModel):
+    """Response containing index statistics including document/chunk counts and metadata."""
+
     document_count: int
     chunk_count: int
     index_metadata: IndexMetadata
 
 
 class GrepDocMatch(BaseModel):
+    """A single grep match result with source location and matched text."""
+
     chunk_id: str
     source_path: str
     heading_path: str
@@ -193,10 +235,14 @@ class GrepDocMatch(BaseModel):
 
 
 class GrepDocsResponse(BaseModel):
+    """Response containing a list of grep match results."""
+
     results: list[GrepDocMatch]
 
 
 class SearchResultResult(TypedDict):
+    """Search result wrapper containing query and result items."""
+
     query: str | None
     results: list[SearchResultItem]
     total: int
