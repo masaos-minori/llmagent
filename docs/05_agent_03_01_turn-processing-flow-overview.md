@@ -83,10 +83,14 @@ User input (line)
 
 `Orchestrator.__init__`は`WorkflowLoader().load()`を呼び、失敗時（`config/workflows/default.json`が
 存在しない、または検証エラー）は`RuntimeError`を送出してOrchestratorの構築自体が失敗する。
-`handle_turn()`内でも`self._workflow_def is None`のケースは`RuntimeError`を送出する。
+そのため`handle_turn()`が呼ばれる時点で`self._workflow_def`は非`None`であることが保証されており
+（`handle_turn()`側にこれを再チェックするコードは存在しない — 保証はコメントとして明記されている）、
 ワークフロー必須であり、直接実行へのフォールバック経路は一切存在しない。
 上記フロー図の①〜⑥はすべて`WorkflowEngine.run()`のplan/execute/verify各ステージのコールバックとして
-実行される。ステージ構成の詳細は
+実行される。`plan_fn`自体は意図的に無処理(no-op)であり、①のターン開始処理（`current_turn_id`生成、
+`turn_start`監査ログ発行）が計画相当の作業として既に完了しているためである
+(根拠: `agent/orchestrator.py`の`_handle_workflow_engine()`内`plan_fn`定義コメント)。
+ステージ構成の詳細は
 [05_agent_03_03_turn-processing-flow-workflow-engine-part1.md](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md)を参照。
 
 ---

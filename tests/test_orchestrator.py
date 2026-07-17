@@ -124,6 +124,44 @@ def _make_err(
     )
 
 
+# ── handle_turn: mandatory WorkflowEngine.run() invocation ───────────────────
+
+
+class TestHandleTurnInvokesWorkflowEngine:
+    @pytest.mark.asyncio
+    async def test_handle_turn_calls_workflow_engine_run_once(self) -> None:
+        """handle_turn() always drives execution through WorkflowEngine.run() — there is
+        no fallback path that bypasses the engine. This is an explicit, dedicated assertion
+        independent of the autouse _patch_workflow_loader fixture's implicit exercise of
+        the same call (that fixture patches WorkflowEngine but never asserts on it).
+        """
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        async def _engine_run(task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any) -> None:
+            await plan_fn()
+            await execute_fn()
+            await verify_fn()
+
+        mock_engine_instance = MagicMock()
+        mock_engine_instance.run = AsyncMock(side_effect=_engine_run)
+
+        with (
+            patch(
+                "agent.orchestrator.WorkflowEngine",
+                return_value=mock_engine_instance,
+            ),
+            patch.object(
+                orch._llm_runner,
+                "run",
+                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
+            ),
+        ):
+            await orch.handle_turn("hello")
+
+        mock_engine_instance.run.assert_called_once()
+
+
 # ── handle_turn: LLMTransportError paths ─────────────────────────────────────
 
 

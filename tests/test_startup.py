@@ -7,9 +7,17 @@ _start_subprocess_servers was moved to StartupOrchestrator._start_servers().
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.shared.health_models import (
+    HealthCheckResult,
+    ServiceWarning,
+    StartupCheckOutcome,
+    StartupCheckStatus,
+    StartupValidationResult,
+)
 from agent.startup import StartupOrchestrator
 from shared.mcp_config import (
     McpServerConfig,
@@ -426,3 +434,404 @@ class TestStartupRollback:
             await orch.run()
 
         mock_lifecycle.shutdown_all.assert_not_awaited()
+
+
+# ── StartupOrchestrator._check_services() severity classification ───────────
+#
+# Cross-reference for docs/05_agent_10_01_operations-and-observability-startup-and-health.md's
+# severity-mapping table. Proves each documented severity is actually produced under its
+# documented condition, for all 8 checks run by _check_services():
+# security_audit, embedding_dimensions, readiness, tool_definitions, routing_drift,
+# routing_safety_tiers, routing_drift_live, rag_consistency.
+
+
+def _make_startup_ctx(
+    *,
+    production_mode: bool = False,
+    memory_embed_dim: int = 768,
+    tool_definitions_strict: bool = False,
+) -> MagicMock:
+    """Return a ctx MagicMock configured for _check_services() tests."""
+    ctx = MagicMock()
+    ctx.cfg.mcp.security_profile = (
+        SecurityProfile.PRODUCTION if production_mode else SecurityProfile.LOCAL
+    )
+    ctx.cfg.memory.memory_embed_dim = memory_embed_dim
+    ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
+    return ctx
+
+
+async def _run_check_services(
+    ctx: MagicMock,
+    *,
+    embedding_dims: int | None = None,
+    **overrides: object,
+) -> tuple[StartupValidationResult, Exception | None]:
+    """Run StartupOrchestrator._check_services() with clean-pass mocks for all 8 checks,
+    overridden per-test via kwargs (named after the agent.startup import site), and return
+    (captured pipeline outcomes, exception raised by _check_services() or None).
+    """
+    consistent_rag = MagicMock()
+    consistent_rag.consistency.return_value = MagicMock(is_consistent=True, issues=[])
+    mocks: dict[str, object] = {
+        "audit_security_defaults": MagicMock(return_value=[]),
+        "check_readiness": AsyncMock(return_value=HealthCheckResult()),
+        "check_tool_definitions_startup": AsyncMock(return_value=HealthCheckResult()),
+        "check_routing_drift": MagicMock(return_value=[]),
+        "check_routing_safety_tiers": MagicMock(return_value=[]),
+        "check_routing_drift_vs_live": AsyncMock(return_value=HealthCheckResult()),
+        "RagMaintenanceService": MagicMock(return_value=consistent_rag),
+    }
+    mocks.update(overrides)
+
+    if embedding_dims is None:
+        embedding_dims = ctx.cfg.memory.memory_embed_dim  # clean pass: dims match by default
+
+    captured: dict[str, StartupValidationResult] = {}
+
+    def _new_pipeline() -> StartupValidationResult:
+        pipeline = StartupValidationResult()
+        captured["pipeline"] = pipeline
+        return pipeline
+
+    startup = StartupOrchestrator(ctx, MagicMock())
+    exc: Exception | None = None
+    with ExitStack() as stack:
+        for name, mock_obj in mocks.items():
+            stack.enter_context(patch(f"agent.startup.{name}", mock_obj))
+        stack.enter_context(
+            patch("agent.startup.StartupValidationResult", side_effect=_new_pipeline)
+        )
+        stack.enter_context(
+            patch(
+                "db.config.build_db_config",
+                return_value=MagicMock(embedding_dims=embedding_dims),
+            )
+        )
+        try:
+            await startup._check_services()
+        except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
+            exc = e
+    return captured["pipeline"], exc
+
+
+class TestCheckServicesSeverityClassification:
+    """Regression tests proving each check's documented severity is actually produced
+    under its documented condition — see docs/05_agent_10_01_...startup-and-health.md's
+    severity-mapping table for the full narrative this cross-references."""
+
+    # ── security_audit ───────────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_security_audit_fatal_when_audit_raises(self) -> None:
+        """FATAL when audit_security_defaults() raises RuntimeError (e.g. production_mode
+        with a missing auth_token)."""
+        ctx = _make_startup_ctx(production_mode=True)
+        pipeline, exc = await _run_check_services(
+            ctx,
+            audit_security_defaults=MagicMock(
+                side_effect=RuntimeError("no auth_token configured on server 'web'")
+            ),
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "security_audit"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_security_audit_warning_and_ok_both_recorded_when_non_fatal(
+        self,
+    ) -> None:
+        """WARNING per issue AND an unconditional OK are both recorded when
+        audit_security_defaults() returns warnings without raising — OK here does not
+        mean 'no issues', only 'the audit function completed without raising'."""
+        ctx = _make_startup_ctx(production_mode=False)
+        pipeline, exc = await _run_check_services(
+            ctx,
+            audit_security_defaults=MagicMock(
+                return_value=["Security: no auth_token configured (auth disabled)"]
+            ),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "security_audit"]
+        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
+        assert any(o.status == StartupCheckStatus.OK for o in outcomes)
+
+    # ── embedding_dimensions ─────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_embedding_dimensions_fatal_on_mismatch(self) -> None:
+        ctx = _make_startup_ctx(memory_embed_dim=768)
+        pipeline, exc = await _run_check_services(ctx, embedding_dims=384)
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "embedding_dimensions"]
+        assert outcomes == [
+            StartupCheckOutcome(
+                "embedding_dimensions",
+                StartupCheckStatus.FATAL,
+                "Embedding dimension mismatch: memory=768, db=384",
+            )
+        ]
+
+    @pytest.mark.asyncio
+    async def test_embedding_dimensions_ok_on_match(self) -> None:
+        ctx = _make_startup_ctx(memory_embed_dim=768)
+        pipeline, exc = await _run_check_services(ctx, embedding_dims=768)
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "embedding_dimensions"]
+        assert outcomes == [
+            StartupCheckOutcome("embedding_dimensions", StartupCheckStatus.OK)
+        ]
+
+    # ── readiness ────────────────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_readiness_fatal_via_production_mode_raise(self) -> None:
+        """FATAL is produced via the production_mode raise + generic except catch — the
+        message carries the 'Readiness check failed:' prefix added by that except clause,
+        proving it did NOT come from the (unreachable) result.error_messages() loop, which
+        would add the raw message with no such prefix."""
+        ctx = _make_startup_ctx(production_mode=True)
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_readiness=AsyncMock(
+                side_effect=RuntimeError(
+                    "Startup readiness check failed (required services unavailable): "
+                    "llm: unreachable"
+                )
+            ),
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "readiness"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.FATAL
+        assert outcomes[0].message.startswith("Readiness check failed:")
+
+    @pytest.mark.asyncio
+    async def test_readiness_warning_when_issues_and_not_production(self) -> None:
+        ctx = _make_startup_ctx(production_mode=False)
+        result = HealthCheckResult(
+            warnings=[
+                ServiceWarning(
+                    label="llm", url="http://x/health", message="llm unreachable"
+                )
+            ]
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, check_readiness=AsyncMock(return_value=result)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "readiness"]
+        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
+        assert not any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_readiness_ok_when_no_issues(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx, check_readiness=AsyncMock(return_value=HealthCheckResult())
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "readiness"]
+        assert outcomes == [StartupCheckOutcome("readiness", StartupCheckStatus.OK)]
+
+    # ── tool_definitions ─────────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_tool_definitions_warning_on_mismatch(self) -> None:
+        ctx = _make_startup_ctx()
+        result = HealthCheckResult(
+            warnings=[
+                ServiceWarning(label="tool_definitions", url="", message="missing tool X")
+            ]
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, check_tool_definitions_startup=AsyncMock(return_value=result)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
+        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
+        assert not any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_tool_definitions_never_fatal_even_on_strict_mode_raise(self) -> None:
+        """A strict-mode RuntimeError from check_tool_definitions_startup() (e.g. all
+        servers unreachable, or a mismatch detected in strict mode) is caught by the
+        generic except clause and downgraded to WARNING — tool_definitions has no FATAL
+        path in _check_services()."""
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_tool_definitions_startup=AsyncMock(
+                side_effect=RuntimeError(
+                    "Strict mode: tool definition mismatch detected."
+                )
+            ),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_tool_definitions_ok_when_clean(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_tool_definitions_startup=AsyncMock(return_value=HealthCheckResult()),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
+        assert outcomes == [
+            StartupCheckOutcome("tool_definitions", StartupCheckStatus.OK)
+        ]
+
+    # ── routing_drift (static) ───────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_warning_on_messages(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_routing_drift=MagicMock(
+                return_value=["Routing drift [web]: extra tool 'foo'"]
+            ),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_emits_no_outcome_when_clean(self) -> None:
+        """routing_drift never emits an OK outcome — a clean result produces zero
+        recorded outcomes for this source (no pipeline.add_ok('routing_drift') call
+        exists anywhere in _check_services())."""
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_drift=MagicMock(return_value=[])
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert outcomes == []
+
+    # ── routing_safety_tiers ─────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_routing_safety_tiers_warning_on_messages(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_routing_safety_tiers=MagicMock(
+                return_value=["tool 'foo' has no declared safety tier"]
+            ),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_routing_safety_tiers_emits_no_outcome_when_clean(self) -> None:
+        """Same no-OK behavior as routing_drift: no add_ok call exists for this source."""
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_safety_tiers=MagicMock(return_value=[])
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
+        assert outcomes == []
+
+    # ── routing_drift_live ───────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_live_ok_when_clean(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_routing_drift_vs_live=AsyncMock(return_value=HealthCheckResult()),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        assert outcomes == [
+            StartupCheckOutcome("routing_drift_live", StartupCheckStatus.OK)
+        ]
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_live_warning_when_non_strict_drift(self) -> None:
+        ctx = _make_startup_ctx(tool_definitions_strict=False)
+        result = HealthCheckResult(
+            warnings=[
+                ServiceWarning(
+                    label="web", url="", message="Live routing drift [web]: extra tool"
+                )
+            ]
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_drift_vs_live=AsyncMock(return_value=result)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_live_skipped_on_exception(self) -> None:
+        """The strict-mode drift/duplicate scenario always raises inside
+        check_routing_drift_vs_live() before it can return (confirmed by reading
+        repl_health.py in full), so it is caught by the blanket except clause and
+        reported as SKIPPED. The `if strict: pipeline.add_fatal(...)` line in
+        _check_services() can never actually fire in practice: drift_result.warning_messages()
+        is only non-empty when the function returns normally, and under strict=True it only
+        returns normally when there is no drift/duplicates (i.e. empty warnings)."""
+        ctx = _make_startup_ctx(tool_definitions_strict=True)
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_routing_drift_vs_live=AsyncMock(
+                side_effect=RuntimeError("Strict mode: live routing drift detected.")
+            ),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.SKIPPED
+
+    # ── rag_consistency ──────────────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_rag_consistency_ok(self) -> None:
+        ctx = _make_startup_ctx()
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(is_consistent=True, issues=[])
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert outcomes == [StartupCheckOutcome("rag_consistency", StartupCheckStatus.OK)]
+
+    @pytest.mark.asyncio
+    async def test_rag_consistency_warning_per_issue(self) -> None:
+        ctx = _make_startup_ctx()
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(
+            is_consistent=False, issues=["orphaned chunk 123"]
+        )
+        pipeline, exc = await _run_check_services(
+            ctx, RagMaintenanceService=MagicMock(return_value=rag_service)
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_rag_consistency_skipped_on_exception(self) -> None:
+        ctx = _make_startup_ctx()
+        pipeline, exc = await _run_check_services(
+            ctx,
+            RagMaintenanceService=MagicMock(side_effect=RuntimeError("db locked")),
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.SKIPPED

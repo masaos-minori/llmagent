@@ -136,9 +136,6 @@ class Orchestrator:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def _log_fallback(self, reason: str) -> None:
-        raise RuntimeError(f"[workflow] Workflow unavailable: {reason}.")
-
     def workflow_status(self) -> dict[str, str]:
         """Return public workflow status for display purposes."""
         return {
@@ -168,8 +165,9 @@ class Orchestrator:
 
         await self._handle_turn_start(line)
 
-        if self._workflow_def is None:
-            self._log_fallback("workflow definition not loaded")
+        # self._workflow_def is guaranteed non-None here: __init__() already raised
+        # RuntimeError if WorkflowLoader().load() failed, so handle_turn() can only be
+        # reached with a successfully loaded workflow definition.
         await self._handle_workflow_engine(line, ctx, turn_started_at)
 
     async def _handle_workflow_engine(
@@ -199,7 +197,11 @@ class Orchestrator:
             )
 
             async def plan_fn() -> str | None:
-                return None  # _handle_turn_start already completed
+                # Intentional no-op: _handle_turn_start() (called earlier in handle_turn())
+                # already performs the planning-equivalent work (turn-id assignment, audit
+                # logging). WorkflowEngine.run() still invokes plan_fn() for stage sequencing
+                # and observability parity; there is no separate planning behavior to run here.
+                return None
 
             async def execute_fn() -> str | None:
                 nonlocal answer, error_kind, is_partial
