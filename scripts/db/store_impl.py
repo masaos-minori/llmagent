@@ -27,6 +27,7 @@ class SQLiteVectorStore:
         self._db = db
 
     def vec_insert(self, chunk_id: int, embedding: bytes) -> None:
+        """Insert an embedding vector into chunks_vec."""
         validate_embedding_blob(embedding)
         self._db.execute(
             "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
@@ -34,6 +35,7 @@ class SQLiteVectorStore:
         )
 
     def vec_search(self, embedding: bytes, k: int) -> list[tuple[int, float]]:
+        """Search for k nearest neighbors by cosine distance."""
         validate_embedding_blob(embedding)
         if k < 1:
             return []
@@ -44,9 +46,11 @@ class SQLiteVectorStore:
         return [(int(row[0]), float(row[1])) for row in rows]
 
     def vec_delete(self, chunk_id: int) -> None:
+        """Delete an embedding vector by chunk_id."""
         self._db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (chunk_id,))
 
     def vec_count(self) -> int:
+        """Return the number of vectors stored in chunks_vec."""
         rows = self._db.fetchall("SELECT count(*) FROM chunks_vec")
         return int(rows[0][0]) if rows else 0
 
@@ -65,6 +69,7 @@ class SQLiteDocumentStore:
         etag: str | None,
         last_modified: str | None,
     ) -> int:
+        """Insert or update a document and return its doc_id."""
         cur = self._db.execute(
             "INSERT INTO documents (url, title, lang, etag, last_modified)"
             " VALUES (?, ?, ?, ?, ?)"
@@ -83,6 +88,7 @@ class SQLiteDocumentStore:
         return int(row[0])
 
     def doc_get(self, url: str) -> DocumentRow | None:
+        """Retrieve a single document by URL."""
         rows = self._db.fetchall(
             "SELECT doc_id, url, title, lang, fetched_at FROM documents WHERE url = ?",
             (url,),
@@ -99,6 +105,7 @@ class SQLiteDocumentStore:
         )
 
     def doc_list(self, lang: str | None, limit: int) -> list[DocumentRow]:
+        """List documents optionally filtered by language."""
         if lang:
             rows = self._db.fetchall(
                 "SELECT doc_id, url, title, lang, fetched_at FROM documents"
@@ -122,6 +129,7 @@ class SQLiteDocumentStore:
         ]
 
     def doc_delete(self, url: str) -> bool:
+        """Delete a document by URL; returns True if deleted."""
         row = self._db.fetchall("SELECT doc_id FROM documents WHERE url = ?", (url,))
         if not row:
             return False
@@ -138,6 +146,7 @@ class SQLiteDocumentStore:
         chunk_type: str = "",
         source_file: str = "",
     ) -> int:
+        """Insert a chunk and return its auto-generated ID."""
         cur = self._db.execute(
             "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
             " VALUES (?, ?, ?, ?, ?, ?)",
@@ -148,6 +157,7 @@ class SQLiteDocumentStore:
         return int(cur.lastrowid)
 
     def chunk_count(self) -> int:
+        """Return the number of chunks stored."""
         rows = self._db.fetchall("SELECT count(*) FROM chunks")
         return int(rows[0][0]) if rows else 0
 
@@ -159,12 +169,14 @@ class SQLiteSessionStore:
         self._db = db
 
     def session_create(self) -> int:
+        """Create a new empty session and return its ID."""
         cur = self._db.execute("INSERT INTO sessions (title) VALUES (NULL)")
         if cur.lastrowid is None:
             raise RuntimeError("session_create: INSERT did not produce a lastrowid")
         return int(cur.lastrowid)
 
     def session_list(self, limit: int) -> list[SessionRow]:
+        """List recent sessions ordered by creation time descending."""
         rows = self._db.fetchall(
             "SELECT session_id, created_at, title FROM sessions ORDER BY created_at DESC LIMIT ?",
             (limit,),
@@ -179,12 +191,14 @@ class SQLiteSessionStore:
         ]
 
     def session_rename(self, session_id: int, title: str) -> None:
+        """Rename a session's title."""
         self._db.execute(
             "UPDATE sessions SET title = ? WHERE session_id = ?",
             (title, session_id),
         )
 
     def session_delete(self, session_id: int) -> None:
+        """Delete a session by ID."""
         self._db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
 
     def message_save(
@@ -195,12 +209,14 @@ class SQLiteSessionStore:
         tool_calls: str | None,
         tool_call_id: str | None = None,
     ) -> None:
+        """Save a message into the messages table."""
         self._db.execute(
             "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
             (session_id, role, content, tool_calls, tool_call_id),
         )
 
     def message_list(self, session_id: int) -> list[MessageRow]:
+        """List all messages for a session ordered by insertion order."""
         rows = self._db.fetchall(
             "SELECT role, content, tool_calls, tool_call_id FROM messages WHERE session_id = ? ORDER BY message_id",
             (session_id,),
@@ -223,6 +239,7 @@ class SQLiteMemoryDeleteStore:
         self._db = db
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
+        """Delete memories older than N days atomically across all memory tables."""
         rows = self._db.fetchall(
             "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
             (f"-{older_than_days} days",),
