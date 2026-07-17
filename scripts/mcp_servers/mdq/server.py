@@ -60,6 +60,7 @@ _service: MdqService = MdqService()
 def _mdq_error_handler(
     request: Request, exc: Exception, status_code: int, error_kind: str
 ) -> JSONResponse:
+    """Format an MDQ error into a JSONResponse with consistent structure."""
     logger.info("MDQ %s error: %s", error_kind, exc)
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
@@ -82,6 +83,7 @@ def _mdq_error_handler(
 async def _on_mdq_validation_error(
     request: Request, exc: MdqValidationError
 ) -> JSONResponse:
+    """Handle validation errors with HTTP 400 response."""
     return _mdq_error_handler(request, exc, 400, "validation_error")
 
 
@@ -89,6 +91,7 @@ async def _on_mdq_validation_error(
 async def _on_mdq_authorization_error(
     request: Request, exc: MdqAuthorizationError
 ) -> JSONResponse:
+    """Handle authorization errors with HTTP 403 response."""
     return _mdq_error_handler(request, exc, 403, "authorization_error")
 
 
@@ -96,6 +99,7 @@ async def _on_mdq_authorization_error(
 async def _on_mdq_not_found_error(
     request: Request, exc: MdqNotFoundError
 ) -> JSONResponse:
+    """Handle not found errors with HTTP 404 response."""
     return _mdq_error_handler(request, exc, 404, "not_found_error")
 
 
@@ -103,6 +107,7 @@ async def _on_mdq_not_found_error(
 async def _on_mdq_index_not_ready_error(
     request: Request, exc: MdqIndexNotReadyError
 ) -> JSONResponse:
+    """Handle index-not-ready errors with HTTP 503 response."""
     return _mdq_error_handler(request, exc, 503, "index_not_ready_error")
 
 
@@ -110,6 +115,7 @@ async def _on_mdq_index_not_ready_error(
 async def _on_mdq_database_error(
     request: Request, exc: MdqDatabaseError
 ) -> JSONResponse:
+    """Handle database errors with HTTP 503 response."""
     return _mdq_error_handler(request, exc, 503, "database_error")
 
 
@@ -117,11 +123,13 @@ async def _on_mdq_database_error(
 async def _on_mdq_consistency_error(
     request: Request, exc: MdqConsistencyError
 ) -> JSONResponse:
+    """Handle consistency errors with HTTP 500 response."""
     return _mdq_error_handler(request, exc, 500, "consistency_error")
 
 
 @app.exception_handler(MdqServiceError)
 async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONResponse:
+    """Handle generic service errors with HTTP 500 response."""
     return _mdq_error_handler(request, exc, 500, "service_error")
 
 
@@ -131,36 +139,43 @@ async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONR
 
 
 async def _handle_search_docs(args: ToolArgs) -> str:
+    """Dispatch search_docs tool call to the mdq service."""
     result: str = await _service.search_docs(SearchDocsRequest(**args))
     return result
 
 
 async def _handle_get_chunk(args: ToolArgs) -> str:
+    """Dispatch get_chunk tool call to the mdq service."""
     result: str = await _service.get_chunk(GetChunkRequest(**args))
     return result
 
 
 async def _handle_outline(args: ToolArgs) -> str:
+    """Dispatch outline tool call to the mdq service."""
     result: str = await _service.outline(OutlineRequest(**args))
     return result
 
 
 async def _handle_index_paths(args: ToolArgs) -> str:
+    """Dispatch index_paths tool call to the mdq service."""
     result: str = await _service.index_paths(IndexPathsRequest(**args))
     return result
 
 
 async def _handle_refresh_index(args: ToolArgs) -> str:
+    """Dispatch refresh_index tool call to the mdq service."""
     result: str = await _service.refresh_index(RefreshIndexRequest(**args))
     return result
 
 
 async def _handle_stats(args: ToolArgs) -> str:
+    """Dispatch stats tool call to the mdq service."""
     result: str = await _service.stats(StatsRequest(**args))
     return result
 
 
 async def _handle_grep_docs(args: ToolArgs) -> str:
+    """Dispatch grep_docs tool call to the mdq service."""
     result: str = await _service.grep_docs(GrepDocsRequest(**args))
     return result
 
@@ -177,6 +192,7 @@ _DISPATCH_TABLE = {
 
 
 async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Route a tool call through the shared dispatch mechanism."""
     return await dispatch_tool(_DISPATCH_TABLE, name, args)
 
 
@@ -187,6 +203,7 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """Return the MCP tool list with server_key appended."""
     return {
         "tools": [{**t, "server_key": "mdq"} for t in TOOL_LIST],
     }
@@ -194,6 +211,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    """Handle MCP call_tool requests with audit logging and error handling."""
     import re as _re
 
     t0 = time.perf_counter()
@@ -274,6 +292,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Return health check status."""
     result: JSONResponse = check_health()
     return result
 
