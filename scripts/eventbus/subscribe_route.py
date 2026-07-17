@@ -37,6 +37,7 @@ async def subscribe(
         try:
             # Step 2: replay from SQLite
             def _fetch_replay() -> list[Any]:
+                """Fetch replay events from SQLite filtered by topic and sequence."""
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
                     return list(

@@ -17,6 +17,7 @@ async def health_check(request: Request) -> JSONResponse:
     broker = get_broker(request)
 
     def _check() -> bool:
+        """Check database connectivity and return whether it's available."""
         ok: bool = check_db(db)
         return ok
 

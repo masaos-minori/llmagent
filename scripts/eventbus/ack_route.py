@@ -32,6 +32,7 @@ async def _do_ack(
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
+        """Acknowledge an event and write consumer offset if newly acked."""
         now = now_iso()
         found, newly_acked = _ack_event(db, event_id, now)
         seq: int | None = None
@@ -78,6 +79,7 @@ async def nack(
     cfg = get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
+        """Nack an event and promote to DLQ if max retries exceeded."""
         failure_count = _nack_event(db, event_id)
         if failure_count == -1:
             return (-1, False)
