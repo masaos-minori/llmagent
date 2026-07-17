@@ -40,11 +40,15 @@ class ProcessInfoSnapshot:
 
 @dataclass(frozen=True)
 class SessionTitleResult:
+    """Result of generating a session title."""
+
     title: str
 
 
 @dataclass(frozen=True)
 class McpProbeResult:
+    """Result of probing an MCP server's health status."""
+
     key: str
     transport: str
     startup_mode: str
@@ -70,24 +74,32 @@ class McpProbeResult:
 
 @dataclass(frozen=True)
 class SessionRestoreResult:
+    """Result of restoring a session from the database."""
+
     session_id: int
     n_messages: int
 
 
 @dataclass(frozen=True)
 class UndoResult:
+    """Result of undoing a conversation action."""
+
     n_removed: int
     warning: str | None = None
 
 
 @dataclass(frozen=True)
 class ConversationActionResult:
+    """Result of executing a conversation action."""
+
     action: ConversationActionType
     message: str
 
 
 @dataclass(frozen=True)
 class ContextStateView:
+    """Current context state view including character/token budgets and compression info."""
+
     total_chars: int
     compress_limit: int
     n_msgs: int
@@ -109,6 +121,8 @@ class ContextStateView:
 
 @dataclass(frozen=True)
 class DbStats:
+    """Database statistics including document, chunk, session, and message counts."""
+
     docs: int
     chunks: int
     sessions: int
@@ -117,6 +131,8 @@ class DbStats:
 
 @dataclass(frozen=True)
 class DbHealth:
+    """Database health check result including integrity, WAL pages, and size."""
+
     integrity_ok: bool
     wal_pages: int
     size_bytes: int
@@ -124,17 +140,23 @@ class DbHealth:
 
 @dataclass(frozen=True)
 class DbCheckpointResult:
+    """Result of a database checkpoint operation."""
+
     mode: str
     pages_written: int
 
 
 @dataclass(frozen=True)
 class DbPurgeResult:
+    """Result of purging old sessions from the database."""
+
     sessions_removed: int
 
 
 @dataclass(frozen=True)
 class DbRecoverResult:
+    """Result of a database recovery attempt."""
+
     integrity_ok: bool
     recovered: bool
     detail: str
@@ -142,6 +164,8 @@ class DbRecoverResult:
 
 @dataclass(frozen=True)
 class RagConsistencyResult:
+    """RAG consistency check result with issues and detailed report."""
+
     is_consistent: bool
     issues: list[str]
     report: RagConsistencyReport
@@ -149,6 +173,8 @@ class RagConsistencyResult:
 
 @dataclass(frozen=True)
 class ExportResult:
+    """Result of exporting session data in a specific format."""
+
     n_messages: int
     content: str
     format: ExportFormat
