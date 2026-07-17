@@ -76,6 +76,8 @@ def _iter_indexable_files(service: MdqService, directory: Path) -> list[Path]:
 
 
 class RefreshSummary(TypedDict):
+    """Summary of an incremental index refresh operation."""
+
     indexed_count: int
     skipped_count: int
     deleted_count: int
