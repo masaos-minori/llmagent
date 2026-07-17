@@ -60,17 +60,21 @@ class ToolTransportInvoker:
             )
 
     def set_lifecycle(self, lifecycle: LifecycleProtocol | None) -> None:
+        """Attach a lifecycle protocol for pre-call readiness checks."""
         self._lifecycle = lifecycle
 
     def set_health_registry(self, registry: McpServerHealthRegistry | None) -> None:
+        """Attach a health registry for post-call success/failure tracking."""
         self._health_registry = registry
 
     def set_session_id(self, session_id: str) -> None:
+        """Propagate the current session ID to all transports."""
         for transport in self._transports.values():
             if isinstance(transport, HttpTransport):
                 transport.set_session_id(session_id)
 
     def get_error_counters(self) -> dict[str, dict[str, int]]:
+        """Return per-server transport and tool error counts."""
         all_keys = set(self.stat_transport_errors) | set(self.stat_tool_errors)
         return {
             k: {
@@ -81,6 +85,7 @@ class ToolTransportInvoker:
         }
 
     def _ensure_semaphores(self) -> None:
+        """Lazily create concurrency semaphores from configuration limits."""
         if self._semaphores is None and self._concurrency_limits:
             self._semaphores = {
                 key: asyncio.Semaphore(n)
@@ -92,11 +97,13 @@ class ToolTransportInvoker:
     def _maybe_semaphore(
         sem: asyncio.Semaphore | None,
     ) -> contextlib.AbstractAsyncContextManager[None]:
+        """Return the semaphore as an async context manager, or nullcontext if None."""
         if sem is not None:
             return sem
         return contextlib.nullcontext()
 
     def _transport_missing_msg(self, server_key: str) -> str:
+        """Build an error message for a missing transport by server key."""
         return f"No transport configured for server {server_key!r}"
 
     def _error_result(
@@ -105,6 +112,7 @@ class ToolTransportInvoker:
         output: str,
         error_type: str = "tool",
     ) -> ToolCallResult:
+        """Construct a ToolCallResult indicating a tool-level error."""
         return ToolCallResult(
             output=output,
             is_error=True,
@@ -115,6 +123,7 @@ class ToolTransportInvoker:
         )
 
     def _check_health(self, server_key: str) -> ToolCallResult | None:
+        """Check MCP server health before dispatching; returns error result if unavailable."""
         if self._health_registry is None:
             return None
         state = self._health_registry.get_state(server_key)
@@ -128,6 +137,7 @@ class ToolTransportInvoker:
         return None
 
     def _record_success(self, server_key: str, result: ToolCallResult) -> None:
+        """Record a successful call for health tracking; increment tool error counter on tool errors."""
         if self._health_registry is not None:
             self._health_registry.record_success(server_key)
         if result.is_error and result.error_type == "tool":
@@ -138,6 +148,7 @@ class ToolTransportInvoker:
     def _record_transport_error(
         self, server_key: str, e: TransportError
     ) -> ToolCallResult:
+        """Record a transport-layer error and update health state accordingly."""
         self.stat_transport_errors[server_key] = (
             self.stat_transport_errors.get(server_key, 0) + 1
         )
@@ -162,6 +173,7 @@ class ToolTransportInvoker:
         args: dict[str, Any],
         sem: asyncio.Semaphore | None,
     ) -> ToolCallResult:
+        """Execute a transport call under optional concurrency semaphore."""
         async with self._maybe_semaphore(sem):
             return await transport.call(tool_name, args)
 
