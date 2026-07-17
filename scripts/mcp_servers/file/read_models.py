@@ -60,15 +60,21 @@ class FileEntry(BaseModel):
 
 
 class ListDirectoryRequest(BaseModel):
+    """Request model for listing directory entries."""
+
     path: str = Field(..., description="Absolute path of the directory to list")
 
 
 class ListDirectoryResponse(BaseModel):
+    """Response containing a list of directory entries."""
+
     path: str
     entries: list[FileEntry]
 
 
 class DirectoryTreeRequest(BaseModel):
+    """Request model for building a directory tree structure."""
+
     path: str = Field(..., description="Absolute path of the root directory")
     depth: int = Field(
         default=3,
@@ -90,10 +96,14 @@ class TreeNode(BaseModel):
 
 
 class DirectoryTreeResponse(BaseModel):
+    """Response containing a recursive directory tree."""
+
     root: TreeNode
 
 
 class ReadTextFileRequest(BaseModel):
+    """Request model for reading a text file with optional head/tail filtering."""
+
     path: str = Field(..., description="Absolute path of the file to read")
     head: int | None = Field(
         default=None,
@@ -108,6 +118,7 @@ class ReadTextFileRequest(BaseModel):
 
     @model_validator(mode="after")
     def _check_head_tail_exclusive(self) -> ReadTextFileRequest:
+        """Validate that head and tail are not both specified simultaneously."""
         # head and tail are mutually exclusive; disallow both being set simultaneously
         if self.head is not None and self.tail is not None:
             raise ValueError("head and tail cannot be specified at the same time")
@@ -123,6 +134,8 @@ class ReadTextFileResponse(BaseModel):
 
 
 class ReadMediaFileRequest(BaseModel):
+    """Request model for reading a binary/media file."""
+
     path: str = Field(..., description="Absolute path of the media file to read")
 
 
@@ -136,6 +149,8 @@ class ReadMediaFileResponse(BaseModel):
 
 
 class ReadMultipleFilesRequest(BaseModel):
+    """Request model for batch-reading multiple files."""
+
     paths: list[str] = Field(..., description="List of absolute file paths to read")
 
 
@@ -149,20 +164,28 @@ class FileResult(BaseModel):
 
 
 class ReadMultipleFilesResponse(BaseModel):
+    """Response containing results from reading multiple files."""
+
     results: list[FileResult]
 
 
 class SearchFilesRequest(BaseModel):
+    """Request model for searching files by glob pattern."""
+
     path: str = Field(..., description="Absolute path of the base directory to search")
     pattern: str = Field(..., description="Glob pattern (e.g. *.py, **/*.json)")
 
 
 class SearchFilesResponse(BaseModel):
+    """Response containing file paths matching a glob pattern."""
+
     pattern: str
     matches: list[str]
 
 
 class GrepFilesRequest(BaseModel):
+    """Request model for searching file contents by regex pattern."""
+
     path: str = Field(..., description="Absolute path of the base directory to search")
     pattern: str = Field(..., description="Search pattern (Python regular expression)")
     file_pattern: str = Field(
@@ -186,12 +209,16 @@ class GrepMatch(BaseModel):
 
 
 class GrepFilesResponse(BaseModel):
+    """Response containing grep match results."""
+
     pattern: str
     matches: list[GrepMatch]
     truncated: bool  # true if results were cut off because max_matches was reached
 
 
 class GetFileInfoRequest(BaseModel):
+    """Request model for getting file metadata."""
+
     path: str = Field(
         ...,
         description="Absolute path of the file or directory to inspect",
@@ -211,4 +238,6 @@ class FileInfo(BaseModel):
 
 
 class GetFileInfoResponse(BaseModel):
+    """Response containing file metadata."""
+
     info: FileInfo
