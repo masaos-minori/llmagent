@@ -100,16 +100,19 @@ class RagPipelineMCPService:
         logger.info("RagPipelineMCPService started")
 
     async def stop(self) -> None:
+        """Shutdown shared resources; must be called once before process exit."""
         if self._http is not None:
             await self._http.aclose()
         logger.info("RagPipelineMCPService stopped")
 
     def _pipeline_or_raise(self) -> RagPipelineLike:
+        """Return the pipeline instance or raise if not yet started."""
         if self._pipeline is None:
             raise RuntimeError("RagPipelineMCPService not started — call start() first")
         return self._pipeline
 
     def invalidate_cache(self) -> None:
+        """Invalidate the semantic cache by delegating to the underlying pipeline."""
         pipeline = self._pipeline_or_raise()
         pipeline.invalidate_cache()
 
@@ -131,6 +134,7 @@ class RagPipelineMCPService:
             merged: list[RagHit],
             reranked: list[RagHit],
         ) -> None:
+            """Capture intermediate pipeline stage outputs into the captured dict."""
             captured["queries"] = [q for q in queries]
             captured["merged"] = [_hit_to_dict(h) for h in merged]
             captured["reranked"] = [_hit_to_dict(h) for h in reranked]
@@ -195,6 +199,7 @@ class RagPipelineMCPService:
         return text
 
     async def fmt_list_documents(self, args: ToolArgs) -> str:
+        """Format list_documents MCP tool result as plain text for LLM tool result."""
         lang = args.get("lang")
         limit = int(args.get("limit", 20))
         rows = self._doc_mgr.list_documents(
@@ -207,6 +212,7 @@ class RagPipelineMCPService:
         )
 
     async def fmt_delete_document(self, args: ToolArgs) -> str:
+        """Format delete_document MCP tool result as plain text for LLM tool result."""
         raw_url = args.get("url")
         if not isinstance(raw_url, str):
             return "Error: url must be a string."
@@ -240,6 +246,7 @@ class RagPipelineMCPService:
     def get_dispatch_table(
         self,
     ) -> dict[str, Callable[[ToolArgs], Awaitable[str]]]:
+        """Return the dispatch table mapping rag-mcp tool names to handler methods."""
         return {
             "rag_run_pipeline": self.fmt_run_pipeline,
             "rag_debug_pipeline": self.fmt_debug_pipeline,
