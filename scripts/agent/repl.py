@@ -38,7 +38,6 @@ from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
-from agent.repl_health import watchdog_loop
 from agent.services.rag_maintenance_service import RagMaintenanceService
 
 if TYPE_CHECKING:
@@ -110,33 +109,6 @@ class AgentREPL:
         except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.debug("Failed to get chunk count: %s", e)
             return "?"
-
-    # ── Watchdog — delegated to agent_repl_health ─────────────────────────────
-
-    async def _watchdog_loop(self) -> None:
-        await watchdog_loop(self._ctx)
-
-    async def _start_watchdog(self, ctx: AgentContext) -> "asyncio.Task | None":
-        """Create the watchdog task if watchdog_interval > 0."""
-        watchdog_interval = ctx.cfg.mcp.mcp_watchdog_interval
-        if watchdog_interval > 0:
-            logger.info(
-                "Watchdog enabled: interval=%ss, max_restarts=%s",
-                watchdog_interval,
-                ctx.cfg.mcp.mcp_watchdog_max_restarts,
-            )
-            return asyncio.create_task(self._watchdog_loop())
-        logger.info("Watchdog disabled (mcp_watchdog_interval=0)")
-        return None
-
-    async def _stop_watchdog(self, task: "asyncio.Task | None") -> None:
-        """Cancel and await the watchdog task, suppressing CancelledError."""
-        if task is not None:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
 
     async def _persist_session_memories(self, ctx: AgentContext) -> None:
         """Extract and persist session memories before compression or resource close."""
@@ -436,9 +408,8 @@ class AgentREPL:
         )
 
     async def _run_repl_loop(self) -> None:
-        """Run the main REPL loop with watchdog if enabled."""
+        """Run the main REPL loop."""
         ctx = self._ctx
-        _watchdog_task = await self._start_watchdog(ctx)
         try:
             self._print_startup_banner()
             ctx.session.start()
@@ -454,7 +425,6 @@ class AgentREPL:
         finally:
             self._persist_session_diagnostics(ctx)
             await self._persist_session_memories(ctx)
-            await self._stop_watchdog(_watchdog_task)
             await self._close_resources()
 
     async def run(self) -> None:

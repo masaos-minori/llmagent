@@ -24,7 +24,6 @@ source:
 | `allowed_repo_paths` = `[]` | すべてのgit-mcpアクセスが拒否される |
 | `read_only = true`（git-mcp） | `allowed_repo_paths` が設定されていてもgitの書き込みがブロックされる |
 | `tool_definitions_strict = true` | tool名の不一致でagentの起動が中断される |
-| `mcp_watchdog_interval = 0` | 失敗したsubprocessサーバの自動再起動が行われない（LOCALプロファイルのデフォルト；PRODUCTIONのデフォルトは30.0） |
 
 ---
 

@@ -8,7 +8,7 @@ Defines:
   RAGConfig       - RAG pipeline and vector search settings
   ToolConfig      - Tool execution, caching, approval policy, and prompt settings
   MemoryConfig    - Persistent semantic memory layer settings
-  MCPConfig       - MCP server lifecycle and watchdog settings
+  MCPConfig       - MCP server lifecycle settings
   ApprovalConfig  - Risk-based tool approval policy settings
   ObservabilityConfig - OpenTelemetry tracing, audit logging, and structured log settings
   AgentConfig     - Composite: composes 7 domain-specific sub-configs
@@ -253,12 +253,9 @@ class MemoryConfig:
 
 @dataclass
 class MCPConfig:
-    """MCP server lifecycle and watchdog settings."""
+    """MCP server lifecycle settings."""
 
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
-    # Probe interval in seconds; 0 disables watchdog. Default 30s for production self-healing.
-    mcp_watchdog_interval: float = 30.0
-    mcp_watchdog_max_restarts: int = 3
     # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
     security_profile: SecurityProfile = SecurityProfile.LOCAL
     # Set to True to suppress deny-all startup warnings when deny-all is intentional.

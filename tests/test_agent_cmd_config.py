@@ -171,8 +171,6 @@ class TestPrintConfigValues:
         ctx.cfg.rag.semantic_cache_threshold = 0.92
         ctx.cfg.rag.semantic_cache_max_size = 100
         ctx.cfg.tool.tool_definitions_strict = False
-        ctx.cfg.mcp.mcp_watchdog_interval = 0.0
-        ctx.cfg.mcp.mcp_watchdog_max_restarts = 3
         ctx.cfg.approval.approval_risk_rules = {}
         ctx.cfg.approval.approval_protected_paths = []
         ctx.cfg.approval.approval_high_risk_branches = []

@@ -157,13 +157,6 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | LLMリトライ上限 | `llm_max_retries` (default 3) |
 | ツール結果キャッシュのTTL | `tool_cache_ttl` (default 300 sec) |
 
-### Current behavior (MCP watchdog)
-
-`ctx.cfg.mcp.mcp_watchdog_interval`が0より大きい場合、`AgentREPL`はバックグラウンドで
-watchdogタスク(`agent/repl_health.py`の`watchdog_loop`)を起動する。0の場合はwatchdog無効。
-本表には未記載の起動時パラメータであり、`mcp_watchdog_max_restarts`と併用される。
-(Explicit in code — 挙動の詳細はrepl_health.pyの管轄)
-
 ---
 
 ## Related Chapters

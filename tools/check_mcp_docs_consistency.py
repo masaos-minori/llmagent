@@ -16,7 +16,6 @@ Checks:
     --skip auditformat        Skip audit log format check
     --skip transportiserror   Skip HttpTransport is_error=True check
     --skip stdiotransport     Skip stdio active transport reference check
-    --skip watchdogrestart    Skip watchdog-restarts-on-dependency-failure check
     --skip strictskip         Skip strict-validation-skips-unreachable check
 
 Usage:
@@ -639,40 +638,6 @@ def check_stdio_active_transport(docs_dir: Path, files: list[DocFile]) -> list[I
 
 
 # ---------------------------------------------------------------------------
-# Check 12: Watchdog restarts on dependency failure
-# ---------------------------------------------------------------------------
-
-_WATCHDOG_RESTART_RE = re.compile(
-    r"watchdog.*restart.*dependency|dependency.*failure.*watchdog.*restart",
-    re.IGNORECASE,
-)
-
-
-def check_watchdog_restarts_on_dependency_failure(
-    docs_dir: Path, files: list[DocFile]
-) -> list[Issue]:
-    """Detect stale language claiming watchdog restarts on dependency failure."""
-    issues: list[Issue] = []
-    for doc in files:
-        for i, line in enumerate(doc.lines, start=1):
-            if _WATCHDOG_RESTART_RE.search(line):
-                if _is_historical_context(doc.lines, i - 1):
-                    continue
-                issues.append(
-                    Issue(
-                        file=doc.rel_path,
-                        line_no=i,
-                        severity="ERROR",
-                        message=(
-                            "Stale language: watchdog does not restart on dependency failure alone. "
-                            "Restart is gated on restart_recommended=true in the /health body."
-                        ),
-                    )
-                )
-    return issues
-
-
-# ---------------------------------------------------------------------------
 # Check 13: strict validation skips unreachable
 # ---------------------------------------------------------------------------
 
@@ -734,7 +699,6 @@ def main(argv: list[str] | None = None) -> int:
         "auditformat",
         "transportiserror",
         "stdiotransport",
-        "watchdogrestart",
         "strictskip",
     ]
     group.add_argument(
@@ -780,10 +744,6 @@ def main(argv: list[str] | None = None) -> int:
         all_issues.extend(check_transport_error_is_error(docs_dir, files))
     if "stdiotransport" not in skip:
         all_issues.extend(check_stdio_active_transport(docs_dir, files))
-    if "watchdogrestart" not in skip:
-        all_issues.extend(
-            check_watchdog_restarts_on_dependency_failure(docs_dir, files)
-        )
     if "strictskip" not in skip:
         all_issues.extend(check_strict_validation_skips_unreachable(docs_dir, files))
 

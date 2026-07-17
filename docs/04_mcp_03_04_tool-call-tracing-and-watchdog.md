@@ -1,10 +1,9 @@
 ---
-title: "Transport Error Tracing, Watchdog, and Lifecycle Flow"
+title: "Transport Error Tracing and Lifecycle Flow"
 category: mcp
 tags:
   - mcp
   - tracing
-  - watchdog
   - lifecycle
 related:
   - 04_mcp_00_document-guide.md
@@ -13,9 +12,14 @@ related:
   - 04_mcp_03_03_transport-and-health-part1.md
   - 04_mcp_03_03_transport-and-health-part2.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
-# トランスポートエラー追跡、ウォッチドッグ、ライフサイクルフロー
+# トランスポートエラー追跡とライフサイクルフロー
+
+> **注記:** 本ドキュメントのファイル名には歴史的経緯により `watchdog` の語が残っているが、
+> MCP watchdog(自動ヘルスポーリング・自動再起動ループ)は2026-07-16に削除された。
+> 詳細は [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照。
 
 ### 失敗パスの例（トランスポートエラー）
 
@@ -37,10 +41,12 @@ related:
     audit log (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"","is_error":true,"error_type":"transport","ts":...}
     Note: mcp_request_id="" because no response was received.
 
-7. Watchdog (next interval):
-   repl_health.watchdog_loop() polls file-read-mcp /health
-   → if alive: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
-   → if dead: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
+7. Next real tool call to "file_read" (ToolExecutor._raw_execute):
+   ensure_ready() attempts recovery (subprocess mode only), then dispatch proceeds.
+   → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
+   → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
+   No background poller retries this automatically; see
+   04_mcp_06_12_watchdog-configuration-monitoring.md for the removed watchdog.
 ```
 
 ---
@@ -63,37 +69,6 @@ related:
 
 ---
 
-## ウォッチドッグ
-
-MCP 障害の診断手順については `04_mcp_06` §MCP Failure Diagnosis を参照。
-
-asyncio のバックグラウンドタスクとして実行される。`mcp_watchdog_interval > 0` の場合に有効化される。
-
-**プロファイルに応じたデフォルト値:**
-
-| `security_profile` | `mcp_watchdog_interval` のデフォルト |
-|---|---|
-| `local`（デフォルト） | `0.0` — ウォッチドッグ無効 |
-| `production` | `30.0` — ウォッチドッグ有効 |
-
-プロファイルのデフォルト値を上書きするには、`config/agent.toml` で `mcp_watchdog_interval` を明示的に設定する。
-
-起動時、エージェントは以下のいずれかをログに記録する。
-- `Watchdog enabled: interval=<N>s, max_restarts=<M>` — interval > 0 の場合
-- `Watchdog disabled (mcp_watchdog_interval=0)` — interval が 0 の場合
-
-- `mcp_watchdog_interval` 秒ごとにポーリングする
-- HTTP サーバーに対して `GET /health` を呼び出す（subprocess、persistent、外部管理の全モード）
-- **再起動は `restart_recommended` の本文フィールドによって制御される:**
-  - `reachable=False`（HTTP レスポンスなし）: `mcp_watchdog_max_restarts` 未満であれば subprocess モードのサーバーの再起動を試みる
-  - `reachable=True` かつ `restart_recommended=true`: 上記と同様に再起動を試みる
-  - `reachable=True` かつ `restart_recommended=false`: 再起動なし; `operator_action_required=true` の場合は WARNING をログに記録（認証情報の欠落、バイナリの欠落など）
-- 再起動時: subprocess を終了させ（`proc.terminate()`）、3秒待機し、必要であれば kill する; その後新しい HTTP subprocess を起動し `/health` をポーリングする
-- 外部管理サーバー（非subprocess）: warning のみをログに記録し、再起動は行わない
-- 最大再起動回数: `mcp_watchdog_max_restarts`（デフォルト3）
-
----
-
 ## ライフサイクルフロー
 
 ツール定義の起動時バリデーション動作については `04_mcp_06` §Startup Validation Behavior を参照。
@@ -112,7 +87,6 @@ AgentREPL.run()
              → ensure_ready(server_key):
                   if _shutting_down: return immediately (shutdown guard)
                   if subprocess-mode and not running: start() [auto-restart on demand]
-        → watchdog task: health check + restart on failure
    → finally: lifecycle.shutdown_all()
                   sets _shutting_down=True (blocks further start/restart calls)
                 + close stderr log file handles
@@ -135,13 +109,13 @@ AgentREPL.run()
 - `04_mcp_03_03_transport-and-health-part1.md`
 - `04_mcp_03_03_transport-and-health-part2.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 
 mcp
 tool error
 transport error
-watchdog
 lifecycle flow
 health check
 restart

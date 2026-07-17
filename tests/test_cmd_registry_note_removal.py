@@ -22,8 +22,6 @@ class _Ctx:
         self.cfg.tool = SimpleNamespace()
         self.cfg.tool.tool_definitions = []
         self.cfg.mcp = SimpleNamespace()
-        self.cfg.mcp.mcp_watchdog_interval = 0.0
-        self.cfg.mcp.mcp_watchdog_max_restarts = 3
         self.cfg.mcp.mcp_servers = {}
         self.cfg.approval = SimpleNamespace()
         self.cfg.approval.tool_safety_tiers = {}

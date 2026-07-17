@@ -91,10 +91,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(
             f"  tool_def_strict     : {ctx.cfg.tool.tool_definitions_strict}"
         )
-        self._out.write(f"  watchdog_interval   : {ctx.cfg.mcp.mcp_watchdog_interval}s")
-        self._out.write(
-            f"  watchdog_max_restart: {ctx.cfg.mcp.mcp_watchdog_max_restarts}"
-        )
 
     def _print_approval_settings(self, ctx: AgentContext) -> None:
         self._out.write("Approval settings:")

@@ -79,21 +79,6 @@ class McpServerHealthRegistry:
             "Health: %r is DEGRADED (reason=%s)", server_key, reason or "unknown"
         )
 
-    def record_restart_exhausted(self, server_key: str) -> None:
-        """Record that the watchdog exhausted its restart attempts for server_key.
-
-        Does not change state (the server is expected to already be UNAVAILABLE
-        from the record_failure() calls made during the preceding restart
-        attempts) — only tags the reason so operators can distinguish "still
-        cycling" from "watchdog gave up; needs manual intervention" in /mcp
-        status.
-        """
-        self._degraded_reasons[server_key] = "restart_limit_reached"
-        logger.warning(
-            "Health: %r restart limit reached — manual intervention required",
-            server_key,
-        )
-
     def get_degraded_reason(self, server_key: str) -> str | None:
         """Return the last recorded degraded reason for a server, or None."""
         return self._degraded_reasons.get(server_key)

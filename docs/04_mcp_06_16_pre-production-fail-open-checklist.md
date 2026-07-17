@@ -27,8 +27,8 @@ source:
 - [ ] shell-mcp: `shell_sandbox_backend = "firejail"`(`"none"`ではない)であり、firejailバイナリがインストールされている
 - [ ] `cicd-mcp`: `workflow_allowlist`が明示的に設定されている(空 = startup時に RuntimeError/CicdAuthorizationError で起動失敗する。fail-closed動作)
 - [ ] `config/agent.toml`で`security_profile = "production"`(起動時の強制チェックを有効化する)
-- [ ] `mcp_watchdog_interval = 30.0`(自動再起動が有効)
-- [ ] ヘルスチェックのしきい値(`startup_timeout_sec`、`mcp_watchdog_max_restarts`)を見直し済み
+- [ ] ヘルスチェックのしきい値(`startup_timeout_sec`、`McpServerHealthRegistry.failure_threshold`)を見直し済み
+- [ ] MCP watchdog(自動ヘルスポーリング＋自動再起動ループ)は2026-07-16に削除された。subprocessモードのMCPサーバーがクラッシュした場合の復旧は、次回のtool dispatch時の`ensure_ready()`による再起動試行、またはエージェントプロセス自体の手動再起動に限られる — 外部のプロセス監視(systemd等)による死活監視・再起動運用を用意しておくこと
 - [ ] 監査ログのパスが設定され、書き込み可能である
 - [ ] APIキー(`github_token`、`auth_token`)が環境変数経由で設定されており、設定ファイルにハードコードされていない
 - [ ] `cicd_mcp_server.toml`の`repo_allowlist`が空でない(空 = すべてのリポジトリを拒否)

@@ -27,8 +27,6 @@ class _Ctx:
     ) -> None:
         self.cfg = MagicMock()
         self.cfg.tool.tool_definitions = tool_defs or []
-        self.cfg.mcp.mcp_watchdog_interval = 0.0
-        self.cfg.mcp.mcp_watchdog_max_restarts = 3
         self.cfg.mcp.mcp_servers = mcp_servers or {}
         self.cfg.approval.tool_safety_tiers = (
             tool_safety_tiers if tool_safety_tiers is not None else {}

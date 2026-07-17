@@ -7,6 +7,7 @@ tags:
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_06_02_configuration-file-inventory.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 source:
   - 04_mcp_06_02_configuration-file-inventory.md
 ---
@@ -27,11 +28,14 @@ source:
    NO (timeout or silent fail) → continue
 
 3. Has server health status changed?
-   YES → See §Watchdog Behavior. Check health transition timestamp.
+   YES → Check `/mcp status` for the current DEGRADED/UNAVAILABLE state and health_reason.
    NO  → continue
 
-4. Has the watchdog taken action (restart / circuit-break)?
-   YES → See §Watchdog Behavior.
+4. Has the circuit breaker tripped (UNAVAILABLE)?
+   YES → No automatic restart will happen (the MCP watchdog was removed on 2026-07-16;
+         see 04_mcp_06_12_watchdog-configuration-monitoring.md). Manual recovery required —
+         either wait for the next tool call to trigger ensure_ready(), or restart the
+         server/agent process manually.
    NO  → Check serialization. See §Serialization in Tool Execution.
 ```
 
@@ -54,9 +58,10 @@ except Exception:                               # any startup failure
     raise                                       # propagate up so caller sees the failure
 ```
 
-つまり、watchdogが自動再起動を諦めた後（max_restartsを超えた後）であっても、
-まだ自身のcircuit-breakの閾値に達していない個々のtool callは、`ensure_ready()` を通じて
-回復を試みることができる。
+つまり、サーバーが繰り返しクラッシュしていても、まだ自身のcircuit-breakの閾値に
+達していない個々のtool callは、`ensure_ready()` を通じて回復を試みることができる。
+これが現在唯一の自動復旧経路である（旧MCP watchdogによる周期的なポーリング＋自動再起動は
+2026-07-16に削除された。[04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照）。
 
 > **実装上の補足 (Explicit in code):** `ensure_ready()` は `shared/tool_executor.py` にはなく、
 > `agent/factory.py` の `_ServerLifecycleRouter` クラスに実装されている。実際のsubprocess起動/停止は
@@ -72,7 +77,7 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 
 #### Tool実行層のcircuit breaker（`McpServerHealthRegistry`）
 
-`shared/mcp_health.py` の `McpServerHealthRegistry` は、watchdogとは別に、サーバーごとの
+`shared/mcp_health.py` の `McpServerHealthRegistry` は、サーバーごとの
 連続失敗をトラッキングしディスパッチをゲートする独立したcircuit breakerである。
 
 - `record_failure()` は失敗カウントをインクリメントし、`failure_threshold`(デフォルト3)に達すると
@@ -83,15 +88,14 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 - `HALF_OPEN` 中の失敗は即座に `UNAVAILABLE` に戻り、cooldownがリセットされる。
 - `record_success()` は状態を `HEALTHY` に戻し、失敗カウント・degraded理由をクリアする。
 
-根拠: Explicit in code（`shared/mcp_health.py`）。この機構はwatchdogの再起動ループ
-（`repl_health.py` の `watchdog_loop()`／`mcp_watchdog_max_restarts`）とは独立しており、
-`ToolExecutor` の実行処理内のヘルスチェックがディスパッチ前のゲートとして参照する
-（本ドキュメントの他のwatchdog関連記述と混同しないこと）。
+根拠: Explicit in code（`shared/mcp_health.py`）。`ToolExecutor` の実行処理内の
+ヘルスチェックがディスパッチ前のゲートとしてこの機構を参照する。
 
 
 ## Related Documents
 
 - [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
+- [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)
 
 ## Keywords
 

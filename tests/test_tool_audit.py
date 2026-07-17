@@ -40,8 +40,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "semantic_cache_threshold": 0.92,
             "semantic_cache_max_size": 100,
             "tool_definitions_strict": False,
-            "mcp_watchdog_interval": 0.0,
-            "mcp_watchdog_max_restarts": 3,
             "masked_fields": [],
             "plan_blocked_tools": [],
             "llm_temperature": 0.2,

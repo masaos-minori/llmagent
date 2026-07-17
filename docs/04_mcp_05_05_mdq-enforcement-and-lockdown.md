@@ -247,7 +247,6 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 | `workflow_allowlist`（cicd-mcp） | `[]` | `[]` = 全トリガーを拒否（fail-closed） | 許可するワークフローを明示的に列挙する |
 | `command_allowlist`（shell-mcp） | `[]` | `[]` = 全コマンドを拒否（fail-closed） | 許可するコマンドを列挙する |
 | `allowed_dirs`（mdq-mcp） | `[]` | `[]` = 全パスアクセスを拒否（fail-closed）; ただし起動時 audit の対象外(Explicit in code) | 読み取りを許可するディレクトリを明示的に列挙する |
-| `mcp_watchdog_interval` | `0`（local） / `30.0`（prod） | `0` = 自動再起動なし | 本番環境では `30.0` を使用する |
 
 ## Related Documents
 

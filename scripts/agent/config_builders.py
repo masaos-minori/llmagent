@@ -276,9 +276,6 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
         )
     system_prompt_tool = cfg.get("system_prompt_tool", "")
     security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))
-    watchdog_interval_default = (
-        30.0 if security_profile_val == SecurityProfile.PRODUCTION else 0.0
-    )
     # Production config validation (before REPL becomes available)
     results = ProductionConfigValidator().validate(
         cfg,
@@ -302,10 +299,6 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
         memory=_build_memory_config(cfg),
         mcp=MCPConfig(
             mcp_servers=_build_mcp_servers(cfg),
-            mcp_watchdog_interval=float(
-                cfg.get("mcp_watchdog_interval", watchdog_interval_default)
-            ),
-            mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
             security_profile=security_profile_val,
             security_lockdown_enabled=bool(cfg.get("security_lockdown_enabled", False)),
         ),

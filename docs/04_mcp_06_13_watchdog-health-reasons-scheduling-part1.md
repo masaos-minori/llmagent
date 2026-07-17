@@ -1,18 +1,18 @@
 ---
-title: "Watchdog Behavior — Health Reasons and Scheduling (Part 1)"
+title: "MCP Health Reasons and Scheduling (Part 1)"
 category: mcp
 tags:
   - mcp
-  - watchdog
   - health-reasons
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_06_02_configuration-file-inventory.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 source:
   - 04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md
 ---
 
-# Watchdog Behavior — Health Reasons and Scheduling
+# MCP Health Reasons and Scheduling
 
 
 ### ヘルス理由の優先順位
@@ -61,22 +61,6 @@ registry.record_failure(reason=str(body_reason))
 # - Global table column: McpProbeResult.health_reason derived below
 ```
 
-#### watchdogのロギング動作
-
-watchdogが`_watchdog_check_http()`経由で問題を検出した場合:
-
-```python
-# In _probe_mcp_health_detail():
-if not probe.reachable or probe.status_code != HTTPStatus.OK:
-    # Unreachable/degraded: no restart attempt; log WARNING with details
-elif probe.restart_recommended:
-    # Proactive restart recommended: proceed with subprocess shutdown/startup
-else:
-    # No issue detected: normal operation continues
-```
-
-`reachable=True`だが`status_code=503`(degraded)のサーバーの場合、`restart_recommended=false`であるため、watchdogは自動的に再起動しない。代わりに`probe.body["reason"]`または`probe.body["message"]`のボディ理由を含む警告をログに記録する。`operator_action_required=true`の場合も同様のロジックが適用される — 自動再起動はせず、手動対応が必要な旨のWARNINGのみを出す。
-
 #### degraded の理由一覧
 
 `McpServerHealthRegistry.get_degraded_reason()` が返す値:
@@ -84,9 +68,7 @@ else:
 | 理由 | 設定元 | 発生条件 |
 |------|--------|----------|
 | ボディ理由 (`details.reason` / `message`) | `record_failure()` / `record_degraded()` | `/health` レスポンスのボディから抽出 |
-| `restart_limit_reached` | `record_restart_exhausted()` | ウォッチドッグの再起動試行回数が `max_restarts` に到達（`startup_mode=subprocess` のみ） |
 
-- `restart_limit_reached` は状態を変更しない — サーバーは既に `UNAVAILABLE` であり、この理由は単に「まだ循環中」から「ウォッチドッグが中断; 手動介入が必要」を区別するためにつけられる。
 - すべての degraded 理由は、`record_success()` によってクリアされる。
 
 ---
@@ -96,9 +78,9 @@ else:
 - `04_mcp_00_document-guide.md`
 - `04_mcp_06_02_configuration-file-inventory.md`
 - `04_mcp_06_13_watchdog-health-reasons-scheduling-part2.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 
-watchdog
 health-reasons
 scheduling

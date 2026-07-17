@@ -120,13 +120,6 @@ class _McpMixin(MixinBase):
                 reason = registry.get_degraded_reason(key) if registry else None
                 reason_str = f": {reason}" if reason else ""
                 self._out.write(f"    [UNAVAILABLE] {key}{reason_str}")
-        wd_interval = ctx.cfg.mcp.mcp_watchdog_interval
-        wd_max = ctx.cfg.mcp.mcp_watchdog_max_restarts
-        if wd_interval > 0:
-            wd_status = f"enabled (interval={wd_interval:.0f}s, max_restarts={wd_max})"
-        else:
-            wd_status = "disabled (interval=0) — no auto-restart"
-        self._out.write(f"  Watchdog    {wd_status}")
         from agent.tool_runner import get_serialization_stats
 
         stats = get_serialization_stats()

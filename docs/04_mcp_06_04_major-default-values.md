@@ -21,7 +21,6 @@ source:
 | call_timeout_sec | 60.0秒 | — | `McpServerConfig.call_timeout_sec`（`shared/mcp_config.py`） |
 | Toolキャッシュ TTL | 300秒 | — | `config/agent.toml::tool_cache_ttl`（`ToolConfig.tool_cache_ttl` のデフォルトも同値） |
 | Toolキャッシュ最大サイズ | 200エントリ | — | `config/agent.toml::tool_cache_max_size`（`ToolConfig.tool_cache_max_size` のデフォルトも同値） |
-| Watchdog間隔 | `0`（無効、LOCALのデフォルト；PRODUCTIONのデフォルトは `30.0`） | `30.0`（PRODUCTION） | `config/agent.toml::mcp_watchdog_interval`（`agent/config_builders.py` の `build_agent_config()` が `security_profile` に応じてデフォルトを切替） |
 | ヘルスレジストリの閾値 | 3回失敗 | — | `shared/mcp_health.py`（`McpServerHealthRegistry.__init__` の `failure_threshold` 引数）にハードコード；`shared/mcp_config.py` は当該クラスを re-export するのみ (Explicit in code) |
 | startup_timeout_sec | 30秒 | — | `McpServerConfig.startup_timeout_sec`（`shared/mcp_config.py`） |
 | github default_per_page | 10（モジュール定数 `DEFAULT_PER_PAGE`、`models_config.py`） | — | ハードコード。`config/github_mcp_server.toml::default_per_page` は2026-07-13に削除済み（未参照のデッド設定だったため。詳細: [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md)） |

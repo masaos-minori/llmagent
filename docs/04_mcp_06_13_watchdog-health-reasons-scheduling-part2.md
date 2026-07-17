@@ -1,18 +1,18 @@
 ---
-title: "Watchdog Behavior — Health Reasons and Scheduling (Part 2)"
+title: "MCP Health Reasons and Scheduling (Part 2)"
 category: mcp
 tags:
   - mcp
-  - watchdog
   - health-reasons
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_06_02_configuration-file-inventory.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 source:
   - 04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md
 ---
 
-# Watchdog Behavior — Health Reasons and Scheduling
+# MCP Health Reasons and Scheduling
 
 
 ### ツールエラーの監視
@@ -24,7 +24,7 @@ source:
 | トランスポートエラー | `error_type=transport` | ネットワーク障害、タイムアウト、サーバー到達不能 |
 | ツールエラー | `error_type=tool` | サーバーは到達可能だが、ツール実行が`is_error=true`を返した |
 
-トランスポートエラーはMCPサーバーのヘルス状態に影響し、watchdogの再起動をトリガーする可能性がある。
+トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。
 ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗した
 (例: 不正な引数、上流APIのエラー)。
 
@@ -51,7 +51,8 @@ WARNING repeated tool errors from 'rag_pipeline': 3 failures (error_type=tool)
 ```
 
 このしきい値は`ToolExecutor`の構築時に設定可能である。カウンタはプロセス再起動時にリセットされる。
-ツールエラーによるサーバーの自動再起動は行われない(watchdogをトリガーするのはトランスポート障害のみ)。
+ツールエラーはサーバーの自動再起動を引き起こさない — 自動的な復旧経路は存在しない
+([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。
 
 #### 監視用のgrepパターン
 
@@ -129,9 +130,9 @@ INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
 - `04_mcp_00_document-guide.md`
 - `04_mcp_06_02_configuration-file-inventory.md`
 - `04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 
-watchdog
 health-reasons
 scheduling

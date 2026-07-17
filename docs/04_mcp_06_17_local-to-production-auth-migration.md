@@ -29,7 +29,7 @@ source:
 
 3. エージェントプロセスを再起動する(`/reload`は使用しないこと)
    - `/reload`は実行時に`[mcp_servers.*]`を変更しない — MCPサーバー定義の変更にはエージェントの完全な再起動が必要である
-   - watchdog(`mcp_watchdog_interval`、`mcp_watchdog_max_restarts`)も、保留中の`/reload`設定変更を適用しない
+   - subprocessモードサーバーの自動再起動(`ensure_ready()`、次回のtool dispatch時)も既存の起動時設定を使うのみで、保留中の`/reload`設定変更は適用しない
 
 4. `/mcp status`で確認する
    - すべてのサーバーが`OK`ステータスを示していることを確認する

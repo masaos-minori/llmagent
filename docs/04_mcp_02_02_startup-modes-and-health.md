@@ -10,6 +10,7 @@ related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_02_01_endpoints-and-transport.md
   - 04_mcp_02_03_audit-logging-and-errors.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
 # MCP プロトコルとトランスポート: 起動モード・認証・ヘルスチェック
@@ -55,11 +56,12 @@ related:
 
 **依存関係の値**: 空でない依存関係の値（`"not configured"`, `"not_set"`, `"check failed"` など）はいずれも degraded 状態を構成する — 全ての依存関係が満たされるまでサーバーは健全ではない。これらの値は単なる情報提供ではなく、常に実際の欠落または失敗した依存関係を示す。
 
-**ウォッチドッグの挙動**: ウォッチドッグ（`agent/repl_health.py`）は HTTP ステータスコードと `restart_recommended` の本文フィールドの両方を検査する。再起動は `restart_recommended` によって制御される。
-- `reachable=False`（HTTP レスポンスなし）: 再起動を試みる（subprocess モード、max_restarts 制限内）
-- `reachable=True` かつ `restart_recommended=true`: 上記と同様に再起動を試みる
-- `reachable=True` かつ `restart_recommended=false`: 再起動なし; `operator_action_required=true` の場合は WARNING をログに記録; さらに `HealthRegistry.record_degraded(server_key, reason=...)` を呼び出し、状態を `DEGRADED` として記録する（現在 `UNAVAILABLE`/`HALF_OPEN` の場合は no-op）（Explicit in code）
-- 再起動試行が `mcp_watchdog_max_restarts` に到達した場合: `HealthRegistry.record_restart_exhausted(server_key)` を呼び出す。状態そのものは変更しないが、`/mcp status` 等で「再起動上限到達・要手動対応」と「まだ再起動サイクル中」を区別するための理由文字列を記録する（Explicit in code）
+**`/mcp status` での解釈**: `McpStatusService.probe_all()`（`agent/services/mcp_status.py`）は HTTP ステータスコードと本文の `restart_recommended`/`operator_action_required` フィールドを読み取り、`/mcp status` の `health_reason` 列に反映する。これは表示のみの処理であり、自動的な再起動やサーバー状態の変更は行わない（Explicit in code）。
+- `reachable=False`（HTTP レスポンスなし）または `restart_recommended=true`: `health_reason` に反映される
+- `operator_action_required=true`: `health_reason` に `operator_action_required` として反映される
+- ツール実行層の `HealthRegistry.record_degraded(server_key, reason=...)` はこれとは別経路（`shared/tool_executor.py` のディスパッチ結果）から呼び出される（現在 `UNAVAILABLE`/`HALF_OPEN` の場合は no-op）
+
+自動再起動(旧MCP watchdog)は2026-07-16に削除された。詳細と手動リカバリの手順は [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照。
 
 **健全なレスポンスの例**:
 ```json
@@ -142,6 +144,7 @@ related:
 - `04_mcp_00_document-guide.md`
 - `04_mcp_02_01_endpoints-and-transport.md`
 - `04_mcp_02_03_audit-logging-and-errors.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 
@@ -152,5 +155,4 @@ auth
 bearer
 health
 truncation
-watchdog
 repl_health

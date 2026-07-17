@@ -28,15 +28,6 @@ _MIN_CFG: dict = {
     }
 }
 
-_PROD_CFG: dict = {
-    **_MIN_CFG,
-    "security_profile": "production",
-    "plugin_strict": True,
-    "tool_definitions_strict": True,
-    "routing_drift_strict": True,
-}
-
-
 # ── _build_llm_config ─────────────────────────────────────────────────────────
 
 
@@ -138,23 +129,6 @@ class TestBuildAgentConfig:
         cfg = build_agent_config(_MIN_CFG)
         assert cfg.llm.llm_url == ""
         assert cfg.rag.web_search_max_results == 5
-
-    def test_security_profile_production_sets_watchdog(self) -> None:
-        cfg = build_agent_config(_PROD_CFG)
-        assert cfg.mcp.mcp_watchdog_interval == 30.0
-
-    def test_security_profile_local_disables_watchdog(self) -> None:
-        cfg = build_agent_config({**_MIN_CFG, "security_profile": "local"})
-        assert cfg.mcp.mcp_watchdog_interval == 0.0
-
-    def test_mcp_watchdog_interval_override_respected(self) -> None:
-        cfg = build_agent_config(
-            {
-                **_PROD_CFG,
-                "mcp_watchdog_interval": 60.0,
-            }
-        )
-        assert cfg.mcp.mcp_watchdog_interval == 60.0
 
     def test_none_cfg_override_calls_load_config(self) -> None:
         with patch("agent.config_builders.ConfigLoader") as MockLoader:

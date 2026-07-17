@@ -2,20 +2,18 @@
 
 Standalone async functions taking AgentContext as first argument.
 Extracted from agent/repl.py to allow targeted loading when modifying
-health check or watchdog behaviour.
+health check behaviour.
 """
 
 from __future__ import annotations
 
-import asyncio
 from http import HTTPStatus
 from pathlib import Path
-from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
 from shared.logger import Logger
-from shared.mcp_config import StartupMode, TransportType
+from shared.mcp_config import TransportType
 from shared.production_config_validator import ProductionConfigValidator
 
 from agent.context import AgentContext
@@ -30,10 +28,6 @@ from agent.shared.health_models import (
     McpHealthProbeResult,
     ServiceWarning,
 )
-
-if TYPE_CHECKING:
-    from shared.mcp_config import McpServerConfig
-
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -77,28 +71,6 @@ async def _probe_mcp_health_detail(
         operator_action_required=operator_action_required,
         body=body,
     )
-
-
-def _classify_health_failure(probe: McpHealthProbeResult) -> str:
-    """Classify a non-fully-healthy McpHealthProbeResult into a short diagnostic label.
-
-    Diagnostic/logging use only — does not affect any restart/degrade decision.
-    Evaluated in fixed priority order (first match wins):
-      1. unreachable (no status code available)
-      2. malformed JSON body (may still arrive with status_code == 200)
-      3. non-200 status
-      4. degraded, restart recommended
-      5. degraded, restart not recommended
-    """
-    if not probe.reachable:
-        return "unreachable"
-    if probe.parse_failed:
-        return f"malformed JSON ({probe.parse_error})"
-    if probe.status_code != HTTPStatus.OK:
-        return f"non-200 (status={probe.status_code})"
-    if probe.restart_recommended:
-        return "degraded (restart_recommended=true)"
-    return "degraded (restart_recommended=false)"
 
 
 async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
@@ -566,161 +538,6 @@ def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
     tool_safety_tiers = getattr(ctx.cfg.approval, "tool_safety_tiers", {})
     warnings: list[str] = check_tool_safety_tiers(tool_safety_tiers=tool_safety_tiers)
     return warnings
-
-
-async def _watchdog_check_http(
-    ctx: AgentContext,
-    key: str,
-    srv_cfg: McpServerConfig,
-    restart_counts: dict[str, int],
-    max_restarts: int,
-) -> None:
-    """Probe one HTTP server and restart via lifecycle manager when health check fails.
-
-    Decision logic (in order):
-    - probe.reachable=True and status_code=200 → fully healthy; reset count, record success.
-    - probe.reachable=True and restart_recommended=False → degraded but not restartable;
-      reset count, log warning if operator_action_required=True.
-    - probe.reachable=False or restart_recommended=True → attempt restart if under limit.
-
-    For startup_mode="subprocess" servers, restart is delegated to
-    ctx.services_required.lifecycle.restart().  Other modes (externally-managed) only
-    log a warning because the agent does not own those processes.
-    """
-    if ctx.services_required.http is None:
-        raise RuntimeError("http service not initialized")
-    if not srv_cfg.url:
-        return
-    probe = await _probe_mcp_health_detail(ctx.services_required.http, srv_cfg.url)
-
-    if (
-        probe.reachable
-        and probe.status_code == HTTPStatus.OK
-        and not probe.parse_failed
-    ):
-        # Fully healthy
-        restart_counts[key] = 0
-        if ctx.services_required.health_registry:
-            ctx.services_required.health_registry.record_success(key)
-        return
-
-    if probe.reachable and not probe.restart_recommended:
-        # Reachable but degraded; restart will not help
-        restart_counts[key] = 0
-        logger.warning(
-            "Watchdog: %r (%s) -- %s",
-            key,
-            srv_cfg.url,
-            _classify_health_failure(probe),
-        )
-        if probe.operator_action_required:
-            logger.warning(
-                "Watchdog: %r requires operator action: %s",
-                key,
-                probe.body,
-            )
-        if ctx.services_required.health_registry is not None:
-            if probe.parse_failed:
-                ctx.services_required.health_registry.record_degraded(
-                    key, reason="malformed_health_response"
-                )
-            else:
-                body: dict = probe.body or {}
-                reason_raw = body.get("reason") or body.get("message")
-                reason = str(reason_raw) if reason_raw is not None else None
-                ctx.services_required.health_registry.record_degraded(
-                    key, reason=reason
-                )
-        return
-
-    # Either unreachable (probe.reachable=False) or restart_recommended=True
-    count = restart_counts.get(key, 0)
-    if count >= max_restarts:
-        logger.warning(
-            "Watchdog: %r (%s) -- %s",
-            key,
-            srv_cfg.url,
-            _classify_health_failure(probe),
-        )
-        logger.warning(
-            "Watchdog: %r unreachable; restart limit reached (%s)",
-            key,
-            max_restarts,
-        )
-        if ctx.services_required.health_registry is not None:
-            ctx.services_required.health_registry.record_restart_exhausted(key)
-        return
-    logger.warning(
-        "Watchdog: %r (%s) -- %s",
-        key,
-        srv_cfg.url,
-        _classify_health_failure(probe),
-    )
-    logger.warning(
-        "Watchdog: %r health check failed, restarting (attempt %s/%s)",
-        key,
-        count + 1,
-        max_restarts,
-    )
-    # Delegate restart to lifecycle manager
-    if (
-        srv_cfg.startup_mode == StartupMode.SUBPROCESS
-        and ctx.services_required.lifecycle is not None
-    ):
-        try:
-            await ctx.services_required.lifecycle.restart(key)
-            restart_counts[key] = count + 1
-        except (OSError, RuntimeError) as e:
-            logger.error("Watchdog: failed to restart %r: %s", key, e)
-    else:
-        logger.warning(
-            "Watchdog: %r is not a subprocess-mode server;"
-            " manual intervention required",
-            key,
-        )
-    if ctx.services_required.health_registry:
-        ctx.services_required.health_registry.record_failure(key)
-
-
-async def watchdog_loop(ctx: AgentContext) -> None:
-    """Periodically probe MCP server health and restart via lifecycle manager on failure.
-
-    Runs until cancelled (e.g. when the REPL exits).
-    Restart attempts per server are capped at mcp_watchdog_max_restarts to
-    prevent infinite restart loops.
-
-    Reads `ctx.cfg.mcp.mcp_servers` directly on every iteration. MCP server
-    definitions are restart-time snapshots (see ConfigReloadService); `/reload`
-    never mutates this dict, so the watchdog always observes the startup-time
-    URL and startup_mode, never a pending-restart value.
-    """
-    interval = ctx.cfg.mcp.mcp_watchdog_interval
-    max_restarts = ctx.cfg.mcp.mcp_watchdog_max_restarts
-    restart_counts: dict[str, int] = {}
-    if interval <= 0:
-        logger.warning(
-            "Watchdog: disabled (interval=%.0f) — failed servers will not be auto-restarted",
-            interval,
-        )
-        return
-    logger.info(
-        "Watchdog: enabled (interval=%.0fs, max_restarts=%d)",
-        interval,
-        max_restarts,
-    )
-    while True:
-        await asyncio.sleep(interval)
-        for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
-            if srv_cfg.transport == TransportType.HTTP:
-                await _watchdog_check_http(
-                    ctx,
-                    key,
-                    srv_cfg,
-                    restart_counts,
-                    max_restarts,
-                )
-        if ctx.services_required.lifecycle is not None:
-            await ctx.services_required.lifecycle.shutdown_idle()
 
 
 def audit_security_defaults(

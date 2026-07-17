@@ -96,7 +96,7 @@ Agent ToolExecutor
 ### Transport Selection Guide
 
 > **本番環境のデフォルト: 常にHTTPを使用する（`transport = "http"`。agent管理下のHTTPサーバ（agentがuvicornを起動する場合）は `startup_mode = "subprocess"`、既存のHTTPサーバ（agentは接続のみ）は `startup_mode = "persistent"`）。**
-> HTTPはwatchdog、ヘルスチェック、並行リクエスト、リモート監視をサポートする。
+> HTTPはヘルスチェック、並行リクエスト、リモート監視をサポートする。
 
 ---
 

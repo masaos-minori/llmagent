@@ -22,7 +22,6 @@ from check_mcp_docs_consistency import (
     check_strict_validation_skips_unreachable,
     check_tool_names_routing_input,
     check_transport_error_is_error,
-    check_watchdog_restarts_on_dependency_failure,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -481,30 +480,6 @@ class TestCheckStdioActiveTransport:
         )
         issues = check_stdio_active_transport(Path("/fake"), [doc])
         assert not issues
-
-
-# ── check_watchdog_restarts_on_dependency_failure ────────────────────────────
-
-
-class TestCheckWatchdogRestartsOnDependencyFailure:
-    def test_no_stale_language_no_issue(self) -> None:
-        """Clean line should not produce issues."""
-        doc = _mk_file(
-            "04_mcp_06_configuration.md",
-            ["The watchdog monitors HTTP status codes."],
-        )
-        issues = check_watchdog_restarts_on_dependency_failure(Path("/fake"), [doc])
-        assert not issues
-
-    def test_stale_language_triggers_error(self) -> None:
-        """watchdog-restarts-on-dependency-failure language should produce ERROR."""
-        doc = _mk_file(
-            "04_mcp_06_configuration.md",
-            ["watchdog restarts on every dependency failure"],
-        )
-        issues = check_watchdog_restarts_on_dependency_failure(Path("/fake"), [doc])
-        assert len(issues) == 1
-        assert issues[0].severity == "ERROR"
 
 
 # ── check_strict_validation_skips_unreachable ────────────────────────────────

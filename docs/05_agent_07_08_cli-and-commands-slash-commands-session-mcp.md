@@ -18,6 +18,7 @@ related:
   - 05_agent_07_06_cli-and-commands-hot-reload.md
   - 05_agent_07_07_cli-and-commands-migration-notes.md
   - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
   - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
   - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
@@ -66,11 +67,13 @@ related:
 `/reload`が`[RESTART]`項目を報告した後も、`/mcp`はエージェントが実際に
 再起動されるまで、リロード前のサーバー・URL・認証状態を表示し続ける。
 
-`/mcp status`の出力にはサーバー一覧テーブルに加え、Watchdogの有効/無効状態
-(`mcp_watchdog_interval`, `mcp_watchdog_max_restarts`)、DEGRADED/UNAVAILABLE状態の
+`/mcp status`の出力にはサーバー一覧テーブルに加え、DEGRADED/UNAVAILABLE状態の
 サーバー一覧(`ServerHealthRegistry`経由)、直列化(serialization)イベント統計
 (発生回数・平均影響ツール数・理由別内訳・上位トリガー)が含まれる
 (根拠: Explicit in code — `agent/commands/cmd_mcp.py::_cmd_mcp_status()`)。
+MCP watchdog(バックグラウンドの自動ヘルスポーリング・自動再起動ループ)は2026-07-16に
+削除されたため、Watchdogの有効/無効状態は表示されない
+([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。
 
 ### Config / statsカテゴリ
 
@@ -91,6 +94,7 @@ related:
 - `05_agent_07_06_cli-and-commands-hot-reload.md`
 - `05_agent_07_07_cli-and-commands-migration-notes.md`
 - `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 - `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
 - `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
@@ -99,7 +103,7 @@ related:
 slash command reference
 session category
 session db ops
-mcp watchdog status
+mcp status
 serialization events
 MCP category
 config/stats category

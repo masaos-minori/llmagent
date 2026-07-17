@@ -160,7 +160,6 @@ Embed skip count        8
 - `finally` ブロック:
   - セッション診断の永続化 → `DiagnosticStore.save(kind="session_summary")` 経由で `session_diagnostics` テーブルにランタイムサマリーを書き込む
   - `memory.on_session_stop()` → メモリの抽出と永続化
-  - `watchdog_task.cancel()`
   - リソースのクリーンアップ → readline history の保存、`lifecycle.shutdown_all()`、HTTP クライアントのクローズ
 - `shutdown_all()` は実行中、追加の `SIGINT`(2回目のCtrl-C等)を一時的に吸収し、全MCPサブプロセスの終了処理が中断されずに完了することを保証する(完了後は通常の割り込み処理に戻る)
 

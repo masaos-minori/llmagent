@@ -32,8 +32,6 @@ source:
 | `config/agent.toml` → `[mcp_servers.*]` | 全サーバーのトランスポート設定（`McpServerConfig`）— エージェントが MCP サーバーへの接続を管理するために使用 |
 | `config/agent.toml` → `tool_definitions` | LLM に公開されるツール名 |
 | `config/agent.toml` → `tool_safety_tiers` | ツールごとのリスクティア（READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN） |
-| `config/agent.toml` → `mcp_watchdog_interval` | ウォッチドッグポーリング間隔（0 = 無効） |
-| `config/agent.toml` → `mcp_watchdog_max_restarts` | ウォッチドッグ最大再起動数 |
 | `config/agent.toml` → `security_profile` | エージェント全体のセキュリティプロファイル（`local` / `production`） |
 
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
@@ -41,10 +39,11 @@ runtime — MCP server definition changes (URL, startup mode,
 transport, command, environment) are always reported as restart-required
 and require a full agent restart to take effect. Authentication tokens
 are resolved from secrets (env vars or secret files), not from config files.
-The watchdog
-(`mcp_watchdog_interval`, `mcp_watchdog_max_restarts` above) restarts a
-*failed* subprocess using its existing startup config; it does not read or
-apply any pending `/reload` config change. See
+There is no background auto-restart process (the MCP watchdog was removed;
+see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)).
+A crashed subprocess-mode server is retried automatically only on the next
+tool dispatch via `ensure_ready()` (`agent/factory.py`); it does not read or
+apply any pending `/reload` config change either. See
 [Agent Operations: MCP restart requirement](05_agent_10_01_operations-and-observability-startup-and-health.md)
 for the full explanation.
 

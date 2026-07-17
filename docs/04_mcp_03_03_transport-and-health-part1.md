@@ -68,8 +68,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 | メソッド | 説明 |
 |---|---|
 | `record_failure(server_key)` | 失敗回数をインクリメント; `HALF_OPEN → UNAVAILABLE`（クールダウンリセット); しきい値到達時 → `UNAVAILABLE` |
-| `record_degraded(server_key, reason)` | オプションの理由文字列とともに、状態を `DEGRADED` に設定する; 到達可能だが再起動不可なサーバーに対してウォッチドッグから呼び出される。現在の状態が `UNAVAILABLE` または `HALF_OPEN` の場合は no-op（debug ログのみ記録し、状態・理由は変更しない）— circuit breaker のディスパッチゲーティングとシングルトライアル窓を維持するためのガード |
-| `record_restart_exhausted(server_key)` | ウォッチドッグが `mcp_watchdog_max_restarts` に到達し再起動を諦めたことを記録する。状態（`_states`）は変更しない（直前の `record_failure()` 呼び出し列によりすでに `UNAVAILABLE` になっている想定）。`_degraded_reasons[server_key] = "restart_limit_reached"` を設定するのみで、「再起動サイクル継続中」と「再起動上限到達・要手動対応」を運用側（`/mcp status` 等）が区別できるようにする（Explicit in code） |
+| `record_degraded(server_key, reason)` | オプションの理由文字列とともに、状態を `DEGRADED` に設定する; 到達可能だが健全とは言えないサーバーを報告するためのAPI。現在の状態が `UNAVAILABLE` または `HALF_OPEN` の場合は no-op（debug ログのみ記録し、状態・理由は変更しない）— circuit breaker のディスパッチゲーティングとシングルトライアル窓を維持するためのガード |
 | `get_degraded_reason(server_key)` | 最後に記録された degraded の理由文字列を返す。設定されていない場合は `None` |
 | `record_success(server_key)` | 失敗回数、unavailable タイムスタンプ、degraded の理由をリセット; `HALF_OPEN → HEALTHY` |
 | `get_state(server_key)` | 現在の状態; 未知のキーの場合は `HEALTHY` を返す |
@@ -78,7 +77,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 **コンストラクタ:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
 - `half_open_cooldown_sec`: `UNAVAILABLE` に入ってから試行ディスパッチが許可されるまでの秒数（デフォルト30秒、固定値 — 指数バックオフではない）
 
-**共有配線:** このレジストリは一度だけ作成され、2つの場所で消費される — `ToolTransportInvoker` とウォッチドッグ。`agent/factory.py::_build_tool_executor()` で `McpServerHealthRegistry()` が1つ生成され、`ToolTransportInvoker.set_health_registry()` 経由で `ToolTransportInvoker` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。`ToolExecutor` のトランスポート失敗記録とウォッチドッグのプロブ記録はどちらもこの1つの共有オブジェクトを変更する。結果として、ディスパッチゲーティング（`is_unavailable()`）は両方のソースの影響を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、2つの消費者間の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
+**共有配線:** このレジストリは一度だけ作成され、複数の場所で消費される — 書き込み側は `ToolTransportInvoker`（`record_failure`/`record_success`）、読み取り側は `/mcp status`（`McpStatusService.probe_all()`、`get_state`/`get_degraded_reason`）。`agent/factory.py::_build_tool_executor()` で `McpServerHealthRegistry()` が1つ生成され、`ToolTransportInvoker.set_health_registry()` 経由で `ToolTransportInvoker` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。結果として、ディスパッチゲーティング（`is_unavailable()`）はトランスポート層の失敗記録を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、書き込み側と読み取り側の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
 
 ---
 

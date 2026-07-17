@@ -147,7 +147,6 @@ class TestPrintConfigValues:
             "  sem_cache_threshold : 0.92",
             "MCP / security settings:",
             "  tool_def_strict     : False",
-            "  watchdog_interval   : 30.0s",
             "Approval settings:",
             "  risk_rules          : ",
             "  protected_paths     :",

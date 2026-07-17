@@ -210,13 +210,12 @@ class ConfigReloadService:
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> None:
-        """Apply tool cache, LLM retry, refiner, and watchdog settings (diff-apply)."""
+        """Apply tool cache, LLM retry, and refiner settings (diff-apply)."""
         cfg = ctx.cfg
         self._apply_llm_context_params(cfg, new_cfg)
         self._apply_tool_params(cfg, new_cfg)
         self._apply_rag_params(cfg, new_cfg)
         self._apply_llm_retry_params(cfg, new_cfg)
-        self._apply_mcp_watchdog_params(cfg, new_cfg)
 
     def _apply_llm_context_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
         """Apply LLM context window settings."""
@@ -295,19 +294,6 @@ class ConfigReloadService:
             new_cfg,
             "llm_retry_base_delay",
             lambda v: setattr(cfg.llm, "llm_retry_base_delay", v),
-        )
-
-    def _apply_mcp_watchdog_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
-        """Apply MCP watchdog settings."""
-        _apply_float(
-            new_cfg,
-            "mcp_watchdog_interval",
-            lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v),
-        )
-        _apply_int(
-            new_cfg,
-            "mcp_watchdog_max_restarts",
-            lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v),
         )
 
     def _classify_mcp_server_changes(

@@ -14,6 +14,7 @@ related:
   - 05_agent_10_03_operations-and-observability-workflow-observability.md
   - 05_agent_10_05_operations-and-observability-monitoring.md
   - 05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+  - 04_mcp_06_12_watchdog-configuration-monitoring.md
 source:
   - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md
 ---
@@ -30,9 +31,12 @@ source:
 は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告する
 (`[RESTART] - mcp_servers/<server>.<field>`)が、稼働中のプロセスには一切適用しない。
 `/mcp` / `/mcp status` は常に稼働中(再起動前)のサーバ設定を反映し、保留中の
-`/reload` の変更は反映しない。ウォッチドッグによる再起動(`watchdog_loop()`)は、
-失敗したサブプロセスを*現在*の起動設定で再起動する — これはヘルス駆動の復旧であり、
-設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
+`/reload` の変更は反映しない。MCP watchdog(バックグラウンドの自動ヘルスポーリング・
+自動再起動ループ)は2026-07-16に削除された
+([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。
+サブプロセスモードで失敗したサーバーは、次回のtool dispatch時に `ensure_ready()`
+(`agent/factory.py`)が*現在*の起動設定で再起動を試みるのみであり — これはヘルス駆動の
+復旧であって設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
 変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
 
 **実装補足(`agent/services/config_reload.py _classify_mcp_server_changes()`):** 上記のフィールド単位の差分検出に加え、`config/*.toml` に新規追加されたサーバは `mcp_servers/<server> (new server)`、削除されたサーバは `mcp_servers/<server> (removed server)` として `needs_restart` に計上される。いずれも `ctx.cfg.mcp.mcp_servers` を書き換えず比較のみを行う関数であり、この点は既存の「稼働中のプロセスには一切適用しない」という記述と整合する(根拠: Explicit in code)。
@@ -103,6 +107,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 - `05_agent_10_05_operations-and-observability-monitoring.md`
 - `05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 - `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
+- `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
 ## Keywords
 

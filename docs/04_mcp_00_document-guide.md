@@ -39,7 +39,7 @@ related:
 |---|---|
 | どのMCPサーバが存在し、何をするのか。ポート・起動モードは | `04_mcp_01` |
 | `/v1/call_tool`・Bearer認証・audit logフォーマットは | `04_mcp_02` |
-| toolのルーティング、ToolExecutor、watchdog、新規サーバ追加は | `04_mcp_03`(config defaultsは`04_mcp_06`§Major Default Values) |
+| toolのルーティング、ToolExecutor、新規サーバ追加は | `04_mcp_03`(config defaultsは`04_mcp_06`§Major Default Values) |
 | web-search/github/shell/mdq各mcpが提供するtoolは。mdq-mcpのFTS5検索は本番稼働可能、ハイブリッド検索は未実装 | `04_mcp_04`(mdq-mcpはFTS5検索のみ実装済み) |
 | allowed_dirs/allowed_repos、fail-closed/fail-open、dry_run、リスクティア、MDQ/RAG境界は | `04_mcp_05` |
 | configファイル一覧、健全性検証、デフォルト値、起動時警告、障害診断は | `04_mcp_06` |
@@ -86,8 +86,8 @@ related:
 | [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md) | 障害診断 |
 | [04_mcp_06_10_settings-with-high-operational-impact.md](04_mcp_06_10_settings-with-high-operational-impact.md) | 運用上重要な設定 |
 | [04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | 起動時検証 |
-| [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | watchdog設定 |
-| [04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md](04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md) | watchdogヘルス |
+| [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | watchdog削除note(2026-07-16) |
+| [04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md](04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md) | health_reason / HealthRegistry |
 | [04_mcp_06_14_new-tool-registration-procedure.md](04_mcp_06_14_new-tool-registration-procedure.md) | 新規tool登録 |
 | [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | 新規サーバ追加チェックリスト |
 | [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | 本番投入前チェックリスト |
