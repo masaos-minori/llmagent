@@ -51,7 +51,7 @@ related:
 | `write_history()` | readlineの履歴を`~/.agent_history`に保存(最大1000件) |
 | `async read_multiline(loop, first_line)` | `\`で終わる行を収集し、`\n`で連結 |
 | `async start_spinner(msg="Thinking")` / `stop_spinner()` | 非同期スピナー(`⠋⠙⠹...`)をその場でアニメーション表示・停止 |
-| `write_debug_rag(data)` | RAGパイプラインのデバッグ情報(RRF設定・MQEクエリ・マージ結果・リランク結果)を構造化表示。`/rag ... --debug`から利用 |
+| `write_debug_rag(data)` | RAGパイプラインのデバッグ情報(RRF設定・MQEクエリ・マージ結果・リランク結果)を構造化表示するメソッドとして定義されているが、現行コードに呼び出し箇所は存在しない(未使用)。RAGデバッグ表示の実際のトリガーは`_cmd_debug`(`/debug`コマンド、`ctx.conv.debug_mode`のトグル)であり、独立したRAG専用スラッシュコマンドは存在しない。(Explicit in code — 2026-07-17時点で直接確認済み) |
 
 ### 実装上の補足 (Current behavior)
 

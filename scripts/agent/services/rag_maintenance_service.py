@@ -107,8 +107,7 @@ class RagMaintenanceService:
                         )
             for cid in chunk_ids:
                 row = db.execute(
-                    "SELECT content, normalized_content, embedding"
-                    " FROM chunks WHERE chunk_id = ?",
+                    "SELECT content, normalized_content, embedding FROM chunks WHERE chunk_id = ?",
                     (cid,),
                 ).fetchone()
                 if row:

@@ -46,7 +46,7 @@ StartupOrchestrator.run()
 REPL loop
 ```
 
-### Current behavior (シャットダウン)
+### シャットダウン
 
 - `AgentREPL.run()`は`SIGTERM`ハンドラを登録し、受信すると`ctx.conv.shutdown_requested = True`を
   設定して`asyncio.Event`をセットする。これによりREPLループが次の入力待ち/ターン完了後に終了する
@@ -56,7 +56,7 @@ REPL loop
   `http.aclose()`を呼ぶ。`HttpServerLifecycleManager.shutdown_all()`は実行中に届いた2回目の
   SIGINTを一時的に吸収し、クリーンアップの完了を保証する。(Explicit in code)
 
-### Current behavior (StartupOrchestrator検証パイプライン)
+### StartupOrchestrator検証パイプライン
 
 `_check_services()`は`StartupValidationResult`に各チェックの結果(OK/WARNING/FATAL/SKIPPED)を
 蓄積し、FATALが1件でもあれば`RuntimeError`で起動を中断する。`_start_servers()`実行後に例外が
@@ -80,7 +80,7 @@ REPL loop
 |---|---|
 | `handle_turn(line)` | 最上位のターンハンドラー |
 
-**Current behavior:** `handle_turn()`は上記の流れを`WorkflowEngine`のplan/execute/verifyステージに
+`handle_turn()`は上記の流れを`WorkflowEngine`のplan/execute/verifyステージに
 乗せて実行する(`plan_fn`は現状no-op、`execute_fn`がLLMターン本体、`verify_fn`がturn_end処理)。
 `ctx.workflow.approval_pending`がTrueの間は新規ターンを拒否する。(Explicit in code — 詳細は
 `05_agent_03`系の管轄)
@@ -166,7 +166,7 @@ REPL loop
 
 `assert_valid_transition(from_state, to_state)`は、遷移が不正な場合に`ValueError`を発生させる。
 
-### Current behavior (Lifecycle実装の所在)
+### Lifecycle実装の所在
 
 `LifecycleManagerProtocol`(`agent/lifecycle_protocol.py`)が`ensure_ready`/`shutdown_all`/`restart`/
 `shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot`を定義する

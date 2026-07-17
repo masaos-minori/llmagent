@@ -28,8 +28,7 @@ def _coerce_str_enum(value: object, enum_cls: type[StrEnum]) -> StrEnum:
         return enum_cls(value)
     except ValueError:
         raise ValueError(
-            f"{enum_cls.__name__} must be one of {[m.value for m in enum_cls]}; "
-            f"got {value!r}"
+            f"{enum_cls.__name__} must be one of {[m.value for m in enum_cls]}; got {value!r}"
         )
 
 

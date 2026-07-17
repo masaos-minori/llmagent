@@ -39,13 +39,7 @@ async def _hanging_stdio_server() -> asyncio.subprocess.Process:
 @pytest.mark.asyncio
 async def test_d01_stdio_killed_mid_response_yields_eof() -> None:
     """Subprocess killed mid-response -- reader must see EOF, not a hang or exception."""
-    script = (
-        "import sys, time\n"
-        "sys.stdin.readline()\n"
-        "sys.stdout.write('partial')\n"
-        "sys.stdout.flush()\n"
-        "time.sleep(3600)\n"
-    )
+    script = "import sys, time\nsys.stdin.readline()\nsys.stdout.write('partial')\nsys.stdout.flush()\ntime.sleep(3600)\n"
     proc = await asyncio.create_subprocess_exec(
         "python",
         "-c",

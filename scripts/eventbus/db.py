@@ -130,8 +130,7 @@ def nack_event(conn: sqlite3.Connection, event_id: str) -> int:
     Returns the new delivery_failure_count, or -1 if the event was not found.
     """
     cur = conn.execute(
-        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1"
-        " WHERE event_id = ?",
+        "UPDATE events SET delivery_failure_count = delivery_failure_count + 1 WHERE event_id = ?",
         (event_id,),
     )
     conn.commit()
@@ -162,8 +161,7 @@ def insert_event(
 ) -> tuple[int, bool]:
     """INSERT OR IGNORE. Returns (seq, inserted). seq is lastrowid or fetched if duplicate."""
     cur = conn.execute(
-        "INSERT OR IGNORE INTO events (event_id, topic, payload, producer, published_at)"
-        " VALUES (?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
         (event_id, topic, payload_str, producer, published_at),
     )
     conn.commit()
@@ -198,10 +196,7 @@ def fetch_events_since(
         )
         params = (since_seq,) + tuple(topics)
     else:
-        sql = (
-            "SELECT seq, event_id, topic, payload, producer, published_at"
-            " FROM events WHERE seq > ? ORDER BY seq"
-        )
+        sql = "SELECT seq, event_id, topic, payload, producer, published_at FROM events WHERE seq > ? ORDER BY seq"
         params = (since_seq,)
     if limit is not None and offset is not None:
         sql += f" LIMIT {limit} OFFSET {offset}"

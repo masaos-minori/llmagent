@@ -32,8 +32,7 @@ class TestAckEvent:
 
         ev = _event()
         db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
             (
                 ev["event_id"],
                 ev["topic"],
@@ -59,8 +58,7 @@ class TestAckEvent:
 
         ev = _event()
         db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
             (
                 ev["event_id"],
                 ev["topic"],
@@ -98,8 +96,7 @@ class TestAckEvent:
 
         ev = _event()
         db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at, acked_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO events (event_id, topic, payload, producer, published_at, acked_at) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 ev["event_id"],
                 ev["topic"],
@@ -189,8 +186,7 @@ class TestNackEvent:
 
         ev = _event()
         db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
             (
                 ev["event_id"],
                 ev["topic"],
@@ -215,8 +211,7 @@ class TestNackEvent:
 
         ev = _event()
         db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
             (
                 ev["event_id"],
                 ev["topic"],

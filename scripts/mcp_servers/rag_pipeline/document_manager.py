@@ -65,9 +65,7 @@ class DocumentManager:
                 return False
             doc_id = row[0]
             db.execute(
-                "DELETE FROM chunks_vec"
-                " WHERE chunk_id IN"
-                " (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
+                "DELETE FROM chunks_vec WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
                 (doc_id,),
             )
             db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))

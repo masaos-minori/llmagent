@@ -92,3 +92,51 @@ class TestCommandRegistryConsistency:
                 if not positional:
                     errors.append(cmd.handler)
         assert errors == [], f"Prefix handlers missing positional param: {errors}"
+
+
+class TestCompletionDriftGuard:
+    """Regression coverage for requires/20260716_16_require.md: SLASH_COMMANDS
+    (tab completion) and _COMMANDS (the command registry) must not drift
+    apart silently -- see docs/05_agent_01_system-overview.md
+    §Current behavior."""
+
+    def test_slash_commands_equals_registered_commands_plus_reserved(self) -> None:
+        from agent.repl import completion_command_names, reserved_repl_command_names
+
+        registered_names = frozenset(cmd.name for cmd in _COMMANDS)
+        expected = registered_names | reserved_repl_command_names()
+
+        assert completion_command_names() == expected
+
+
+class TestCommandRegistryMixinCount:
+    """Regression coverage for requires/20260716_16_require.md: the
+    documented CommandRegistry mixin count (13 direct + 2 nested via
+    _ConfigMixin = 15 total) must stay in sync with the actual MRO.
+
+    Limitation: this counts classes whose name ends in "Mixin" via
+    inspect.getmro() -- if a future mixin is renamed without the "Mixin"
+    suffix, this count would silently miss it. Keep the naming convention
+    consistent with the existing agent/commands/cmd_*.py mixins.
+    """
+
+    def test_total_mixin_count_matches_documented_total(self) -> None:
+        mixin_classes = [
+            cls
+            for cls in inspect.getmro(CommandRegistry)
+            if cls.__name__.endswith("Mixin")
+        ]
+        assert len(mixin_classes) == 15, (
+            f"Expected 15 *Mixin classes in CommandRegistry's MRO, found "
+            f"{len(mixin_classes)}: {[c.__name__ for c in mixin_classes]}"
+        )
+
+    def test_direct_base_mixin_count_is_13(self) -> None:
+        direct_mixins = [
+            base
+            for base in CommandRegistry.__bases__
+            if base.__name__.endswith("Mixin")
+        ]
+        assert len(direct_mixins) == 13, (
+            f"Expected 13 direct *Mixin base classes, found {len(direct_mixins)}: {[c.__name__ for c in direct_mixins]}"
+        )

@@ -432,11 +432,7 @@ class TestLLMClientStream:
 
     @pytest.mark.asyncio
     async def test_stat_parse_errors_incremented(self) -> None:
-        bad_sse = (
-            b"data: {bad json}\n\n"
-            b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
-            b"data: [DONE]\n\n"
-        )
+        bad_sse = b'data: {bad json}\n\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
         client = _make_client(sse_reconnect_max=0, sse_malformed_retry=5)
 
         with respx.mock:
@@ -451,11 +447,7 @@ class TestLLMClientStream:
     @pytest.mark.asyncio
     async def test_unknown_sse_field_ignored(self) -> None:
         # "event:" and "id:" fields must be silently ignored (not payload)
-        sse_with_event_field = (
-            b"event: update\n"
-            b'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":null}]}\n\n'
-            b"data: [DONE]\n\n"
-        )
+        sse_with_event_field = b'event: update\ndata: {"choices":[{"delta":{"content":"hi"},"finish_reason":null}]}\n\ndata: [DONE]\n\n'
         client = _make_client(sse_reconnect_max=0)
 
         with respx.mock:
@@ -559,10 +551,7 @@ class TestLLMClientStream:
     async def test_stream_ends_mid_sse_frame(self) -> None:
         """Stream ends with partial SSE frame (no trailing newline) — treated as
         stream exhaustion; partial frame is discarded, no exception raised."""
-        partial_stream = (
-            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n'
-            b"data: {incomplete"
-        )
+        partial_stream = b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: {incomplete'
         client = _make_client(sse_reconnect_max=0)
 
         with respx.mock:

@@ -34,7 +34,8 @@ related:
 
 ### 実装上の補足 (Current behavior)
 
-- `_prompt`はセッションIDを含まない固定値`"> "`。session_idを埋め込む`agent[:#N]>`形式の表記はコード上に見当たらない。[Needs confirmation: 過去の実装からの変更か、doc側の誤記かは未確認]
+- `_prompt`(`repl.py:96-98`)はセッションIDを含まない固定値`"> "`を返すプロパティであり、動的な文字列生成は行わない。session_idを埋め込む`agent[:#N]>`形式の表記は現行コードに存在しない(Explicit in code — 2026-07-17時点で直接確認済み)。
+- `CLIView.read_multiline()`の複数行継続入力は`... `プロンプトを表示するが、これは`read_multiline`内部の継続専用プロンプト文字列であり、`AgentREPL._prompt`自体を書き換えるものではない — 通常入力に戻れば再び固定値`"> "`が使われる。
 - 入力待ち中の`KeyboardInterrupt`は`_read_input()`内で捕捉され、`write_turn_end()`を出力した上で`None`を返す。呼び出し元`_repl_loop`は`None`を受けてループを`break`するため、**入力待ち中のCtrl-CはEOFと同様にREPLを終了させる**(現在行のみを中断してプロンプトに戻る挙動ではない)。根拠: `repl.py`の`_read_input`/`_repl_loop`。(Explicit in code)
 - SIGTERM受信時は`shutdown_requested`と`_shutdown_event`をセットし、実行中のターンを最大10秒(`_GRACEFUL_TIMEOUT`)待ってから強制終了する(グレースフルシャットダウン)。根拠: `repl.py`の`run()`・`_repl_loop()`。(Explicit in code)
 - `/exit`は`_should_exit()`で判定され、`shutdown_requested`が立っている場合も同メソッドでループ終了と判定される。(Explicit in code)

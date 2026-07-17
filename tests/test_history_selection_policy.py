@@ -175,3 +175,36 @@ class TestSelectTurnsToCompress:
         policy = HistorySelectionPolicy(compress_turns=1, protect_turns=0)
         result = policy.select_turns_to_compress([_msg("system", "You are helpful.")])
         assert result is None
+
+    def test_ephemeral_and_memory_injected_messages_never_compressible(self) -> None:
+        """_ephemeral (mode hint) and _memory_injected (memory snippet)
+        messages are system-role, so they land in system_msgs -- never in
+        to_compress or remaining -- before classify() is ever applied
+        (requires/20260716_15_require.md)."""
+        policy = HistorySelectionPolicy(compress_turns=1, protect_turns=0)
+        ephemeral_msg: LLMMessage = {
+            "role": "system",
+            "content": "hint",
+            "_ephemeral": True,
+        }
+        memory_msg: LLMMessage = {
+            "role": "system",
+            "content": "mem",
+            "_memory_injected": True,
+        }
+        history = [
+            ephemeral_msg,
+            memory_msg,
+            _msg("user", "q1"),
+            _msg("assistant", "a1"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+        ]
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert ephemeral_msg in result.system_msgs
+        assert memory_msg in result.system_msgs
+        assert ephemeral_msg not in result.to_compress
+        assert memory_msg not in result.to_compress
+        assert ephemeral_msg not in result.remaining
+        assert memory_msg not in result.remaining

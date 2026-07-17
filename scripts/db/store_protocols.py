@@ -43,8 +43,7 @@ def validate_embedding_blob(blob: bytes) -> None:
     expected_dims = get_embedding_dims()
     if len(blob) != expected_bytes:
         raise ValueError(
-            f"Embedding BLOB must be {expected_bytes} bytes"
-            f" ({expected_dims} float32 dims), got {len(blob)}",
+            f"Embedding BLOB must be {expected_bytes} bytes ({expected_dims} float32 dims), got {len(blob)}",
         )
 
 

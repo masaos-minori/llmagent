@@ -28,8 +28,14 @@ class TestCommandDocsSync:
 
         found: list[str] = []
         for line in content.splitlines():
-            # Skip removed sections
+            # Skip removed-command sections/headings ...
             if "removed" in line.lower() and ("### /" in line or "## /" in line):
+                continue
+            # ... and prose lines explicitly marking a command as historical
+            # ("旧" = "former") -- the doc set's established convention for
+            # describing migrated/deprecated commands (see e.g.
+            # 05_agent_07_08's "旧`/db session <subcmd>`...へ移管された").
+            if "旧" in line:
                 continue
             # Match command references like /mcp, /db, /debug, etc.
             matches = re.findall(
@@ -42,9 +48,33 @@ class TestCommandDocsSync:
 
     def test_active_docs_match_registered_commands(self) -> None:
         """Active command docs only reference registered commands."""
+        # docs/05_agent_07_cli-and-commands.md was split into the 11
+        # 05_agent_07_NN_* files below; check the full active set rather than
+        # the removed monolith (which silently skipped this check entirely,
+        # since .exists() was False for every doc it should have covered).
         docs_files = [
             ROOT / "docs" / "05_agent_01_system-overview.md",
-            ROOT / "docs" / "05_agent_07_cli-and-commands.md",
+            ROOT / "docs" / "05_agent_07_01_cli-and-commands-cli-reference.md",
+            ROOT / "docs" / "05_agent_07_02_cli-and-commands-cliview.md",
+            ROOT / "docs" / "05_agent_07_03_cli-and-commands-command-registry.md",
+            ROOT / "docs" / "05_agent_07_04_cli-and-commands-purpose.md",
+            ROOT / "docs" / "05_agent_07_05_cli-and-commands-repl-io.md",
+            ROOT / "docs" / "05_agent_07_06_cli-and-commands-hot-reload.md",
+            # 05_agent_07_07 (migration-notes) intentionally excluded: its entire
+            # purpose is documenting removed commands (e.g. /db) as a historical
+            # record, not describing current active command surface.
+            ROOT
+            / "docs"
+            / "05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md",
+            ROOT
+            / "docs"
+            / "05_agent_07_09_cli-and-commands-slash-commands-context-db.md",
+            ROOT
+            / "docs"
+            / "05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md",
+            ROOT
+            / "docs"
+            / "05_agent_07_11_cli-and-commands-slash-commands-memory-other.md",
         ]
 
         for filepath in docs_files:

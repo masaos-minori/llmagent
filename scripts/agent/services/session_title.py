@@ -23,10 +23,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TITLE_PROMPT = (
-    "Summarise the following user message in one short phrase"
-    " (8 words max, no punctuation at the end): {text}"
-)
+_TITLE_PROMPT = "Summarise the following user message in one short phrase (8 words max, no punctuation at the end): {text}"
 
 
 class SessionTitleService:

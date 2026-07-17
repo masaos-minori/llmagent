@@ -10,8 +10,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_list_pull_requests",
         "description": (
-            "Retrieve the list of pull requests for a GitHub repository. "
-            "Use to check pending reviews or past PRs"
+            "Retrieve the list of pull requests for a GitHub repository. Use to check pending reviews or past PRs"
         ),
         "inputSchema": {
             "type": "object",
@@ -31,8 +30,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_get_pull_request",
         "description": (
-            "Retrieve a specific pull request from a GitHub repository. "
-            "Use to check PR details, branch info, and body"
+            "Retrieve a specific pull request from a GitHub repository. Use to check PR details, branch info, and body"
         ),
         "inputSchema": {
             "type": "object",
@@ -52,8 +50,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_create_pull_request",
         "description": (
-            "Create a pull request in a GitHub repository. "
-            "Use to request a review of branch changes"
+            "Create a pull request in a GitHub repository. Use to request a review of branch changes"
         ),
         "inputSchema": {
             "type": "object",
@@ -105,8 +102,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_update_pull_request",
         "description": (
-            "Update the title, body, or state of a GitHub pull request. "
-            "Use to reopen or close a PR"
+            "Update the title, body, or state of a GitHub pull request. Use to reopen or close a PR"
         ),
         "inputSchema": {
             "type": "object",

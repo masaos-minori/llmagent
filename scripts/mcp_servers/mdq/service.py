@@ -302,8 +302,7 @@ class MdqService:
                 "SELECT COUNT(*) as cnt FROM chunks_fts"
             ).fetchone()["cnt"]
             stale_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM documents"
-                " WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
             ).fetchone()["cnt"]
             rows = conn.execute("SELECT key, value FROM index_state").fetchall()
             index_metadata = dict((row["key"], row["value"]) for row in rows)

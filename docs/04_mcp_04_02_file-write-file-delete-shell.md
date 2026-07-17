@@ -42,7 +42,7 @@ related:
 **ログ:** `/opt/llm/logs/file-write-mcp.log`
 **Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 
-### 実装上の補足（Current behavior）
+### 実装上の補足
 
 - `max_write_bytes` の強制は Pydantic のフィールド制約ではなく、`write_service.py::WriteFileService.write_file` 内で `len(content.encode("utf-8")) > max_write_bytes` を手動チェックする実装である（超過時は `FileValidationError`）。[Explicit in code]
 - `write_file` は一時ファイル（`.tmp_<name>`）に書き込んでから `os.replace` で置換するアトミック書き込みを行う。書き込み失敗時は一時ファイルを削除してからエラーを送出する。[Explicit in code]
@@ -72,10 +72,10 @@ related:
 **エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **ログ:** `/opt/llm/logs/file-delete-mcp.log`
 
-### 実装上の補足（Current behavior）／矛盾点
+### 実装上の補足
 
-- **矛盾:** `config/file_delete_mcp_server.toml` には `audit_log_path` キーがあるが、`FileDeleteConfig`（`delete_models.py`）はこのキーを読み込んでいない。`delete_service.py::build_service` は audit ログパスを `"/opt/llm/logs/delete_audit.log"` に**ハードコード**しており、toml の `audit_log_path` を変更しても反映されない。[Explicit in code]
-- audit ログ書き込みが失敗しても例外は送出されず、エラーログのみ記録して削除処理自体は成功として返る（github-mcp の `GitHubAuditError` とは異なり、file-delete-mcp では audit 失敗は削除操作をブロックしない）。[Explicit in code]
+- `config/file_delete_mcp_server.toml`の`audit_log_path`キーは2026-07-13に削除済み(`FileDeleteConfig`は元々このキーを読み込んでおらず、`delete_service.py::build_service`が常に`"/opt/llm/logs/delete_audit.log"`をハードコードしていたため — git-mcpの`audit_log_path`削除と同じ理由による対応。設定ファイル側の`# NOTE:`コメント参照)。[Explicit in code]
+- audit ログ書き込みが失敗しても例外は送出されず、エラーログのみ記録して削除処理自体は成功として返る(github-mcp の `GitHubAuditError` とは異なり、file-delete-mcp では audit 失敗は削除操作をブロックしない)。[Explicit in code]
 - `delete_directory(recursive=true)` は、削除対象が `allowed_dirs` のいずれかのルートディレクトリそのものと一致する場合、`FileAuthorizationError` を送出して削除を拒否する（許可ディレクトリ配下の個々のファイル/サブディレクトリの削除は妨げない）。[Explicit in code]
 - dry_run 時のディレクトリスキャンは `_DRY_RUN_MAX_FILES = 1000` 件で打ち切られ、`dir_info` に `"<count>+ files"` として反映される。[Explicit in code]
 

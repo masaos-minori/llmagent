@@ -138,7 +138,9 @@ class TestHandleTurnInvokesWorkflowEngine:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
-        async def _engine_run(task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any) -> None:
+        async def _engine_run(
+            task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any
+        ) -> None:
             await plan_fn()
             await execute_fn()
             await verify_fn()
@@ -1037,3 +1039,94 @@ class TestInitWorkflowTaskResumeReuse:
                 ctx, "test-session", existing_task_id="existing-task-id"
             )
             mock_audit.assert_not_called()
+
+
+class TestEphemeralMessageLifecycle:
+    """Regression coverage for requires/20260716_15_require.md /
+    plans/20260717-001758_plan.md: _ephemeral (mode-classification hint) and
+    _memory_injected (memory snippet) system messages must reach the LLM call
+    for the turn they were created in, and be cleared before the *next*
+    turn's LLM call -- not stripped by _sync_system_prompt() before the same
+    turn's LLM call ever runs.
+    """
+
+    def _wire_memory_and_mode(self, ctx: MagicMock) -> None:
+        ctx.cfg.mdq_rag_mode = (
+            "rag"  # deterministic hint, bypasses classifier heuristics
+        )
+        ctx.conv.system_prompt_content = ""  # no system-prompt sync noise in this test
+        memory = AsyncMock()
+        snippet = MagicMock()
+        snippet.text = "remembered fact"
+        memory.on_user_prompt = AsyncMock(return_value=[snippet])
+        ctx.services_required.memory = memory
+        # LLMTurnRunner.run() requires non-empty workflow context.
+        ctx.workflow.workflow_id = "wf-test"
+        ctx.workflow.current_task_id = "task-test"
+        ctx.turn.current_turn_id = "turn-test"
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_and_memory_injected_present_in_same_turn_payload(
+        self,
+    ) -> None:
+        ctx = _make_ctx()
+        self._wire_memory_and_mode(ctx)
+        orch = _make_orchestrator(ctx)
+
+        seen_payloads: list[list[dict]] = []
+
+        async def _mock_stream(
+            _url: str, history: list, _tool_defs: list
+        ) -> LLMResponse:
+            seen_payloads.append(list(history))
+            return LLMResponse(
+                message={"role": "assistant", "content": "ok"}, finish_reason="stop"
+            )
+
+        ctx.services_required.llm.stream = _mock_stream
+
+        _answer, error_kind, _is_partial = await orch._process_turn(
+            "what headings are here?", ctx, 0.0
+        )
+
+        assert error_kind is None
+        assert len(seen_payloads) == 1
+        payload = seen_payloads[0]
+        ephemeral_msgs = [m for m in payload if m.get("_ephemeral")]
+        memory_msgs = [m for m in payload if m.get("_memory_injected")]
+        assert len(ephemeral_msgs) == 1
+        assert len(memory_msgs) == 1
+        assert "remembered fact" in memory_msgs[0]["content"]
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_and_memory_injected_not_duplicated_across_turns(
+        self,
+    ) -> None:
+        """Turn 2 gets its own fresh ephemeral/memory-injected messages (the
+        memory/mode mocks fire every turn) -- the invariant under test is
+        that turn 1's leftovers are cleared first, so turn 2's payload has
+        exactly one of each (no accumulation), not turn 1's plus turn 2's.
+        """
+        ctx = _make_ctx()
+        self._wire_memory_and_mode(ctx)
+        orch = _make_orchestrator(ctx)
+
+        seen_payloads: list[list[dict]] = []
+
+        async def _mock_stream(
+            _url: str, history: list, _tool_defs: list
+        ) -> LLMResponse:
+            seen_payloads.append(list(history))
+            return LLMResponse(
+                message={"role": "assistant", "content": "ok"}, finish_reason="stop"
+            )
+
+        ctx.services_required.llm.stream = _mock_stream
+
+        await orch._process_turn("what headings are here?", ctx, 0.0)
+        await orch._process_turn("second turn", ctx, 0.0)
+
+        assert len(seen_payloads) == 2
+        second_payload = seen_payloads[1]
+        assert sum(1 for m in second_payload if m.get("_ephemeral")) == 1
+        assert sum(1 for m in second_payload if m.get("_memory_injected")) == 1

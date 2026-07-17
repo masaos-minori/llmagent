@@ -81,8 +81,7 @@ class MemoryDataOps:
             pin_mark = "Y" if e.pinned else "-"
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
             self._out.write(
-                f"  {e.memory_id:36}  {e.memory_type:8}"
-                f"  {e.importance:.2f}  {pin_mark:3}  {summary}",
+                f"  {e.memory_id:36}  {e.memory_type:8}  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
     def memory_search(self, mem: MemoryServices, args: list[str]) -> None:
@@ -110,8 +109,7 @@ class MemoryDataOps:
             e = hit.entry
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
             self._out.write(
-                f"    [{hit.score:+.3f}] {e.memory_type:8}"
-                f"  {e.memory_id[:12]}…  {summary}",
+                f"    [{hit.score:+.3f}] {e.memory_type:8}  {e.memory_id[:12]}…  {summary}",
             )
 
     def memory_show(self, mem: MemoryServices, args: list[str]) -> None:

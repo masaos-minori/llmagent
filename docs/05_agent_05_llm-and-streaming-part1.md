@@ -47,7 +47,7 @@ LLMClient(
 )
 ```
 
-> **Current behavior**: `scripts/shared/llm_client.py`の実装では`http`/`max_retries`/`retry_base_delay`/`temperature`/`max_tokens`はデフォルト値を持たない必須引数である(デフォルト値を持つのは`sse_*`以降のみ)。上記シグネチャ例のデフォルト値表記は呼び出し側(`AgentConfig`等)が渡す値の目安であり、`LLMClient`自体の既定値ではない。(Explicit in code)
+> `scripts/shared/llm_client.py`の実装では`http`/`max_retries`/`retry_base_delay`/`temperature`/`max_tokens`はデフォルト値を持たない必須引数である(デフォルト値を持つのは`sse_*`以降のみ)。上記シグネチャ例のデフォルト値表記は呼び出し側(`AgentConfig`等)が渡す値の目安であり、`LLMClient`自体の既定値ではない。(Explicit in code)
 
 ### Hot-reloadable configuration
 
@@ -75,7 +75,7 @@ LLMClient(
 | `stat_heartbeat_timeouts` | HEARTBEAT_TIMEOUTイベントの発生回数 |
 | `stat_parse_errors` | 不正な形式のSSEフレーム数(スキップされたものも含む) |
 
-> **Current behavior**: `LLMClient`インスタンス自体には`stat_partial_completions`属性は存在しない。部分補完件数は`LlmReconnectHandler.stream()`の戻り値タプル(5要素目`partial_completions`)としてのみ返され、`LLMClient.stream()`はこの値を属性に保存せず呼び出し元へ伝播しない。ドキュメント旧記述との相違点。(Explicit in code)
+> `LLMClient`インスタンス自体には`stat_partial_completions`属性は存在しない。部分補完件数は`LlmReconnectHandler.stream()`の戻り値タプル(5要素目`partial_completions`)としてのみ返され、`LLMClient.stream()`はこの値を属性に保存せず呼び出し元へ伝播しない。ドキュメント旧記述との相違点。(Explicit in code)
 
 ---
 
@@ -112,7 +112,7 @@ OpenAI互換形式である。ツール定義は`AgentConfig.tool.tool_definitio
 6. usageチャンクが届いたら`on_usage()`を呼び出す
 7. `[DONE]` SSEマーカーで返る
 
-> **Current behavior**: `RobustSSEParser`本体は`shared/sse_parser.py`に実装されている
+> `RobustSSEParser`本体は`shared/sse_parser.py`に実装されている
 > (`shared/llm_client.py`には存在しない)。SSEチャンクの解析ロジック
 > (`process_sse_payloads`/`process_sse_chunk`/`parse_usage`/`merge_tool_call_delta`)は
 > `shared/llm_sse_helpers.py`の`LlmSseHelpers`に分離されている。(Explicit in code)

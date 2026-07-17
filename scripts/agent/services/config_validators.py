@@ -96,16 +96,14 @@ def validate_rag_refiner_timeout(cfg: RAGConfig) -> None:
 def validate_rag_refiner_max_chars_per_chunk(cfg: RAGConfig) -> None:
     if cfg.refiner_max_chars_per_chunk < 1:
         raise ValueError(
-            f"refiner_max_chars_per_chunk must be >= 1,"
-            f" got {cfg.refiner_max_chars_per_chunk}"
+            f"refiner_max_chars_per_chunk must be >= 1, got {cfg.refiner_max_chars_per_chunk}"
         )
 
 
 def validate_tool_plugin_tool_override(cfg: ToolConfig) -> None:
     if not isinstance(cfg.plugin_tool_override, bool):
         raise ValueError(
-            f"plugin_tool_override must be bool, "
-            f"got {type(cfg.plugin_tool_override).__name__}"
+            f"plugin_tool_override must be bool, got {type(cfg.plugin_tool_override).__name__}"
         )
 
 
@@ -133,8 +131,7 @@ def validate_tool_cycle_detect_window(cfg: ToolConfig) -> None:
 def validate_tool_error_max_consecutive(cfg: ToolConfig) -> None:
     if cfg.tool_error_max_consecutive < 0:
         raise ValueError(
-            "tool_error_max_consecutive must be >= 0,"
-            f" got {cfg.tool_error_max_consecutive}"
+            f"tool_error_max_consecutive must be >= 0, got {cfg.tool_error_max_consecutive}"
         )
 
 
@@ -174,8 +171,7 @@ def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:
     bad = {k: v for k, v in cfg.approval_risk_rules.items() if v not in _valid_risk}
     if bad:
         raise ValueError(
-            f"approval_risk_rules: invalid levels {bad};"
-            " must be 'none', 'medium', or 'high'"
+            f"approval_risk_rules: invalid levels {bad}; must be 'none', 'medium', or 'high'"
         )
 
 

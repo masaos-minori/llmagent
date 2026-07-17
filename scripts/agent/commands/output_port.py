@@ -90,15 +90,11 @@ class CliOutputPort:
         print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
         for c in merged[:5]:
             print(
-                f"    chunk_id={c.get('chunk_id')}"
-                f" rrf={c.get('rrf_score', 0):.4f}"
-                f" url={str(c.get('url', ''))[:60]}"
+                f"    chunk_id={c.get('chunk_id')} rrf={c.get('rrf_score', 0):.4f} url={str(c.get('url', ''))[:60]}"
             )
         print(f"  [debug] reranked top-{len(reranked)}:")
         for c in reranked:
             score = c.get("rerank_score", c.get("rrf_score", 0))
             print(
-                f"    chunk_id={c.get('chunk_id')}"
-                f" score={score:.4f}"
-                f" url={str(c.get('url', ''))[:60]}"
+                f"    chunk_id={c.get('chunk_id')} score={score:.4f} url={str(c.get('url', ''))[:60]}"
             )

@@ -18,8 +18,7 @@ class FusionStage(PipelineStage):
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         if not self._use_rrf:
             logger.info(
-                "FusionStage: dedup-only mode (use_rrf=False)"
-                " — rank signal disabled, MQE provides no ranking benefit"
+                "FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit"
             )
             ctx.merged = _dedup_hits(ctx.search_results)
             return

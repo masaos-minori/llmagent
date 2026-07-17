@@ -144,8 +144,7 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.get(server_key)
         if proc is None or proc.poll() is not None:
             logger.warning(
-                "Lifecycle: HTTP subprocess %r is not running;"
-                " it should have been started at agent init",
+                "Lifecycle: HTTP subprocess %r is not running; it should have been started at agent init",
                 server_key,
             )
             return False
@@ -314,8 +313,7 @@ class HttpServerLifecycleManager:
     @staticmethod
     def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
         logger.warning(
-            "Lifecycle: SIGINT received during shutdown_all(); "
-            "ignoring until cleanup completes"
+            "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
         )
 
     async def shutdown_all(self) -> None:

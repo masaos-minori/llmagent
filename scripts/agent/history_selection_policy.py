@@ -125,6 +125,12 @@ class HistorySelectionPolicy:
 
         Returns None when there are not enough turns to compress.
         """
+        # All system-role messages (including _ephemeral/_memory_injected ones)
+        # are pulled out here, before classify() ever runs on turn_msgs below.
+        # classify()'s "system" branch is therefore correctly unreachable from
+        # this method — do not wire it in to make ephemeral messages
+        # compressible; they must never be summarized (see
+        # requires/20260716_15_require.md).
         system_msgs = [m for m in history if m["role"] == "system"]
         turn_msgs = [m for m in history if m["role"] != "system"]
         n_protect = self._protect_turns * 2

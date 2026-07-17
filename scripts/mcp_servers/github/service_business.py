@@ -47,7 +47,4 @@ class GitHubService(
     def _fmt_pr_line(pr: PullRequestInfo) -> str:
         """Format one pull request with state, head→base branch, and URL."""
         draft_str = " [draft]" if pr.draft else ""
-        return (
-            f"#{pr.number} [{pr.state}]{draft_str} {pr.title}"
-            f" ({pr.head_ref}->{pr.base_ref})\n{pr.url}"
-        )
+        return f"#{pr.number} [{pr.state}]{draft_str} {pr.title} ({pr.head_ref}->{pr.base_ref})\n{pr.url}"

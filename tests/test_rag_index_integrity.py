@@ -132,8 +132,7 @@ def _insert_chunk(
     chunk_index: int = 0,
 ) -> int:
     cur = conn.execute(
-        "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"
-        " VALUES (?, ?, ?, ?)",
+        "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) VALUES (?, ?, ?, ?)",
         (doc_id, chunk_index, content, normalized_content),
     )
     conn.commit()
@@ -211,8 +210,7 @@ def test_delete_document_chain_no_orphan_vec(db: _FakeSQLiteHelper) -> None:
 
     # Verify no orphan vec rows exist
     orphan_count = db.execute(
-        "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN "
-        "(SELECT chunk_id FROM chunks)"
+        "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
     ).fetchone()[0]
     assert orphan_count == 0
 
@@ -251,8 +249,7 @@ def test_canonical_deletion_leaves_no_orphans_and_cascades_chunks(
 
     # Verify no orphan vec rows exist
     orphan_count = db.execute(
-        "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN "
-        "(SELECT chunk_id FROM chunks)"
+        "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
     ).fetchone()[0]
     assert orphan_count == 0
 

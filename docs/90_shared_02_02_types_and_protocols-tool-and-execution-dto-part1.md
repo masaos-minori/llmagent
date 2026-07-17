@@ -133,7 +133,7 @@ class ToolResultCache:
 - キャッシュキー: `(tool_name, serialized_args via json_utils.dumps)`
 - Import: `from shared.tool_cache import ToolResultCache`
 
-### Current behavior — 実運用では未使用
+### 実運用では未使用
 
 `ToolResultCache` は現在 `ToolExecutor` からは使われていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュを内部に持ち（キャッシュ処理とエビクション処理）、`ToolResultCache` にはない stampede 防止機構（`_inflight` future 共有）と密結合している。
 `ToolResultCache` は非推奨ではなく、stampede 防止が不要な将来の利用者向けにシンプルな LRU+TTL キャッシュとして残されている実装だが、現時点での正規キャッシュではない (Explicit in code: `scripts/shared/tool_cache.py` モジュールdocstring)。

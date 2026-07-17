@@ -13,8 +13,7 @@ def rebuild_fts() -> int:
         ).fetchall()
         for row in rows:
             db.execute(
-                "INSERT INTO memories_fts(memory_id, content, summary, tags)"
-                " VALUES (?,?,?,?)",
+                "INSERT INTO memories_fts(memory_id, content, summary, tags) VALUES (?,?,?,?)",
                 (row["memory_id"], row["content"], row["summary"], row["tags"]),
             )
         return len(rows)

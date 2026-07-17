@@ -312,8 +312,7 @@ class HistoryManager:
         dropped = len(history) - len(new_history)
         if self._is_over_char_limit(new_history):
             logger.warning(
-                "Fallback truncation could not bring context under limit:"
-                " chars=%d limit=%d",
+                "Fallback truncation could not bring context under limit: chars=%d limit=%d",
                 self.count_chars(new_history),
                 self._char_limit,
             )

@@ -12,8 +12,7 @@ TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "search_web",
         "description": (
-            "Search the web for the latest information. "
-            "Use when the local DB does not contain the needed information"
+            "Search the web for the latest information. Use when the local DB does not contain the needed information"
         ),
         "inputSchema": {
             "type": "object",

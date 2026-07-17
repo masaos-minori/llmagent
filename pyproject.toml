@@ -78,7 +78,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["scripts"]
+where = ["scripts", "."]
+include = ["agent*", "db*", "eventbus*", "mcp_servers*", "rag*", "shared*", "tools*"]
 
 [tool.ruff]
 line-length = 88
@@ -144,7 +145,8 @@ show_missing = true
 skip_covered = false
 
 [project.scripts]
-check-mcp-docs = "check_mcp_docs_consistency:main"
+check-mcp-docs = "tools.check_mcp_docs_consistency:main"
+check-agent-docs = "tools.check_agent_docs_consistency:main"
 
 [tool.pyright]
 pythonVersion = "3.13"

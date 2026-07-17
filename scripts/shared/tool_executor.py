@@ -75,10 +75,7 @@ class ToolExecutor(ToolTransportInvoker):
         """Return an error result if the server is disabled (startup_mode=none); None otherwise."""
         cfg = self._server_configs.get(server_key)
         if cfg is not None and cfg.startup_mode == StartupMode.NONE:
-            msg = (
-                f"MCP server {server_key!r} is disabled (startup_mode=none) "
-                "and cannot be used"
-            )
+            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
             logger.warning(msg)
             return self._error_result(server_key, msg, error_type="tool")
         return None

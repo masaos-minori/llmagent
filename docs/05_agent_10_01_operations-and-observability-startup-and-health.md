@@ -113,7 +113,7 @@ PY
 
 作成されるテーブル: `sessions`、`messages`、`memories`、`memories_fts`(FTS5仮想テーブル)、`memory_links`、`session_diagnostics`、`memories_vec`(vec0仮想テーブル)。
 
-**Current behavior:** `memory_links` テーブル(`src_id`/`dst_id` による関連メモリ間のリンク、`memories.memory_id` へのFK付き)は既存ドキュメントの一覧に含まれていなかった。根拠: `db/schema_sql.py` の `_SESSION_SCHEMA_TEMPLATE`(Explicit in code)。
+実装上の補足: `memory_links` テーブル(`src_id`/`dst_id` による関連メモリ間のリンク、`memories.memory_id` へのFK付き)は既存ドキュメントの一覧に含まれていなかった。根拠: `db/schema_sql.py` の `_SESSION_SCHEMA_TEMPLATE`(Explicit in code)。
 
 #### workflow.sqlite の初期化
 
@@ -129,7 +129,7 @@ PY
 
 作成されるテーブル: `tasks`、`attempts`、`processed_events`、`artifacts`、`approvals`、`workflow_schema_version`(適用済みマイグレーションのバージョン記録用)。
 
-**Current behavior:** `create_workflow_schema()` はテーブル作成後に `apply_workflow_migrations()`(`db/schema_sql.py`)を呼び出し、`attempts.error_kind`/`attempts.error_detail`/`artifacts.workflow_id`/`artifacts.attempt_number`/`processed_events.workflow_id` の列を `ALTER TABLE ... ADD COLUMN` で追加する。列が既に存在する場合の `duplicate column name` エラーのみ握りつぶし、それ以外の `OperationalError` は再送出される。最後に `workflow_schema_version` へ現在のスキーマバージョンを記録する(既存レコードと同一なら再挿入しない)。根拠: `db/schema_sql.py` の `apply_workflow_migrations()`、`db/create_schema.py` の `_record_workflow_schema_version()`(Explicit in code)。
+実装上の補足: `create_workflow_schema()` はテーブル作成後に `apply_workflow_migrations()`(`db/schema_sql.py`)を呼び出し、`attempts.error_kind`/`attempts.error_detail`/`artifacts.workflow_id`/`artifacts.attempt_number`/`processed_events.workflow_id` の列を `ALTER TABLE ... ADD COLUMN` で追加する。列が既に存在する場合の `duplicate column name` エラーのみ握りつぶし、それ以外の `OperationalError` は再送出される。最後に `workflow_schema_version` へ現在のスキーマバージョンを記録する(既存レコードと同一なら再挿入しない)。根拠: `db/schema_sql.py` の `apply_workflow_migrations()`、`db/create_schema.py` の `_record_workflow_schema_version()`(Explicit in code)。
 
 #### テーブルの検証
 

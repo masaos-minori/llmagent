@@ -110,8 +110,7 @@ class ToolLoopGuard:
         round_key = hashlib.md5(
             "|".join(
                 sorted(
-                    f"{tc.get('function', {}).get('name', '')}:"
-                    f"{tc.get('function', {}).get('arguments', '{}')}"
+                    f"{tc.get('function', {}).get('name', '')}:{tc.get('function', {}).get('arguments', '{}')}"
                     for tc in message["tool_calls"]
                 ),
             ).encode(),

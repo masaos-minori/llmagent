@@ -60,8 +60,7 @@ class ETagManager:
     ) -> None:
         """Overwrite ETag/Last-Modified when freshness is proven."""
         self._db.execute(
-            "UPDATE documents SET etag = ?, last_modified = ?,"
-            " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
+            "UPDATE documents SET etag = ?, last_modified = ?, fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
             (etag, last_modified, fetched_at, self._doc_id),
         )
         self._db.commit()

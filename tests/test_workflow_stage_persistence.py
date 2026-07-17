@@ -152,12 +152,10 @@ def test_migration_adds_columns_to_existing_db() -> None:
         " status TEXT, started_at TEXT, ended_at TEXT, error_msg TEXT)"
     )
     conn.execute(
-        "CREATE TABLE artifacts (artifact_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT,"
-        " uri TEXT, created_at TEXT)"
+        "CREATE TABLE artifacts (artifact_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT, uri TEXT, created_at TEXT)"
     )
     conn.execute(
-        "CREATE TABLE processed_events (event_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT,"
-        " recorded_at TEXT)"
+        "CREATE TABLE processed_events (event_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT, recorded_at TEXT)"
     )
     conn.commit()
     apply_workflow_migrations(conn)

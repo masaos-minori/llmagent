@@ -106,8 +106,7 @@ def _terminate_process(proc: subprocess.Popen, timeout: float) -> None:
             pass
 
     assert proc.poll() is not None, (
-        f"pid {proc.pid} still alive after terminate+kill — "
-        f"MCP server subprocess was not reaped"
+        f"pid {proc.pid} still alive after terminate+kill — MCP server subprocess was not reaped"
     )
 
 

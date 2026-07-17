@@ -130,8 +130,7 @@ async def call_rag_service(
                 return "", status_code, elapsed_ms
             if not isinstance(result_raw, str):
                 raise ValueError(
-                    f"RAG service 'result' field must be str,"
-                    f" got {type(result_raw).__name__}"
+                    f"RAG service 'result' field must be str, got {type(result_raw).__name__}"
                 )
             return result_raw, status_code, elapsed_ms
         except httpx.HTTPStatusError as e:

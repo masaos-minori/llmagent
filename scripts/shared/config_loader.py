@@ -71,8 +71,7 @@ class ConfigLoader:
                 _basename = Path(name).name
                 if _basename not in self._allowed_files:
                     raise ConfigPermissionError(
-                        f"This process is not permitted to load '{_basename}'. "
-                        f"Allowed: {sorted(self._allowed_files)}"
+                        f"This process is not permitted to load '{_basename}'. Allowed: {sorted(self._allowed_files)}"
                     )
         merged: dict[str, Any] = {}
         for name in names:

@@ -420,11 +420,7 @@ async def check_routing_drift_vs_live(
     if drift and strict:
         drift_str = "; ".join(f"{sk}: {msgs}" for sk, msgs in drift.items())
         unreachable_str = sorted(set(unreachable)) if unreachable else []
-        msg = (
-            f"Strict mode: live routing drift detected. "
-            f"Drift: {drift_str}. "
-            f"Unreachable servers: {unreachable_str}."
-        )
+        msg = f"Strict mode: live routing drift detected. Drift: {drift_str}. Unreachable servers: {unreachable_str}."
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -441,8 +437,7 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
     workflow_file = target_dir / "default.json"
     if not workflow_file.exists():
         raise RuntimeError(
-            f"Workflow definition file not found: {workflow_file}. "
-            "Deploy config/workflows/default.json to fix this."
+            f"Workflow definition file not found: {workflow_file}. Deploy config/workflows/default.json to fix this."
         )
 
 
@@ -473,8 +468,7 @@ def check_workflow_schema(db_path: str | None = None) -> None:
         for table, required_cols in REQUIRED_WORKFLOW_TABLES.items():
             if table not in tables:
                 raise RuntimeError(
-                    f"Workflow schema missing table {table!r}. "
-                    "Run create_workflow_schema() to initialize."
+                    f"Workflow schema missing table {table!r}. Run create_workflow_schema() to initialize."
                 )
             existing = {
                 row[1] for row in db.fetchall(f"PRAGMA table_info({table})", ())
@@ -482,8 +476,7 @@ def check_workflow_schema(db_path: str | None = None) -> None:
             for col in required_cols:
                 if col not in existing:
                     raise RuntimeError(
-                        f"Workflow schema missing column {table}.{col}. "
-                        "Reinitialize the workflow database."
+                        f"Workflow schema missing column {table}.{col}. Reinitialize the workflow database."
                     )
 
         rows = db.fetchall(
@@ -579,8 +572,7 @@ def audit_security_defaults(
     if production_mode and violations:
         servers_str = "; ".join(violations)
         raise RuntimeError(
-            f"Production mode requires auth_token on all HTTP MCP servers. "
-            f"Violations: {servers_str}"
+            f"Production mode requires auth_token on all HTTP MCP servers. Violations: {servers_str}"
         )
 
     for v in violations:

@@ -128,10 +128,7 @@ class HttpTransport:
                 last_exc = TransportError(msg)
                 break
             except (httpx.RequestError, ValueError) as e:
-                msg = (
-                    f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
-                    f" — check {self._base_url}/health"
-                )
+                msg = f"[{type(e).__name__}] tool={name} url={self._base_url}: {e} — check {self._base_url}/health"
                 logger.warning(msg)
                 last_exc = TransportError(msg)
                 break

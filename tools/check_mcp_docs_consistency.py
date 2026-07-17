@@ -171,8 +171,7 @@ def check_fail_open_workflow_allowlist(
                         line_no=i,
                         severity="ERROR",
                         message=(
-                            "workflow_allowlist is described as fail-open. "
-                            "It should be fail-closed (empty = deny all)."
+                            "workflow_allowlist is described as fail-open. It should be fail-closed (empty = deny all)."
                         ),
                     )
                 )
@@ -310,8 +309,7 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
                 line_no=0,
                 severity="WARNING",
                 message=(
-                    f"Known-issues file {MCP_KNOWN_ISSUES_FILE} not found in docs/ — "
-                    "cannot verify cross-references."
+                    f"Known-issues file {MCP_KNOWN_ISSUES_FILE} not found in docs/ — cannot verify cross-references."
                 ),
             )
         ]
@@ -354,8 +352,7 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
                     line_no=line_no,
                     severity="WARNING",
                     message=(
-                        f"Active inconsistency {issue_id} is not referenced in any "
-                        f"MCP documentation file."
+                        f"Active inconsistency {issue_id} is not referenced in any MCP documentation file."
                     ),
                 )
             )
@@ -483,8 +480,7 @@ def check_tool_names_routing_input(docs_dir: Path, files: list[DocFile]) -> list
                     line_no=i,
                     severity="ERROR",
                     message=(
-                        "Stale language: tool_names is not a routing input. "
-                        "It is drift validation metadata only."
+                        "Stale language: tool_names is not a routing input. It is drift validation metadata only."
                     ),
                 )
             )

@@ -48,8 +48,7 @@ TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "get_workflow_runs",
         "description": (
-            "List recent workflow runs for a repository. "
-            "Returns run status, conclusion, timestamps, and URLs."
+            "List recent workflow runs for a repository. Returns run status, conclusion, timestamps, and URLs."
         ),
         "inputSchema": {
             "type": "object",

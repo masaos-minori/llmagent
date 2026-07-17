@@ -84,8 +84,7 @@ class GitHubSecurityGuards:
         size_kb = len(content.encode("utf-8")) / 1024
         if size_kb > max_kb:
             raise GitHubValidationError(
-                f"File '{path}' exceeds max_file_size_kb:"
-                f" {size_kb:.1f} KB > {max_kb} KB"
+                f"File '{path}' exceeds max_file_size_kb: {size_kb:.1f} KB > {max_kb} KB"
             )
 
     def _write_github_audit_log(self, op: str, **kwargs: Any) -> None:
@@ -124,8 +123,7 @@ class GitHubSecurityGuards:
         for pattern in self._cfg.protected_branches:
             if fnmatch.fnmatch(branch, pattern):
                 raise GitHubAuthorizationError(
-                    f"Branch '{branch}' is protected in {owner}/{repo}"
-                    f" (matches pattern '{pattern}')"
+                    f"Branch '{branch}' is protected in {owner}/{repo} (matches pattern '{pattern}')"
                 )
 
     def _get_repo(self, owner: str, repo: str) -> Any:  # noqa: ANN401

@@ -485,7 +485,9 @@ async def _run_check_services(
     mocks.update(overrides)
 
     if embedding_dims is None:
-        embedding_dims = ctx.cfg.memory.memory_embed_dim  # clean pass: dims match by default
+        embedding_dims = (
+            ctx.cfg.memory.memory_embed_dim
+        )  # clean pass: dims match by default
 
     captured: dict[str, StartupValidationResult] = {}
 
@@ -595,8 +597,7 @@ class TestCheckServicesSeverityClassification:
             ctx,
             check_readiness=AsyncMock(
                 side_effect=RuntimeError(
-                    "Startup readiness check failed (required services unavailable): "
-                    "llm: unreachable"
+                    "Startup readiness check failed (required services unavailable): llm: unreachable"
                 )
             ),
         )
@@ -641,7 +642,9 @@ class TestCheckServicesSeverityClassification:
         ctx = _make_startup_ctx()
         result = HealthCheckResult(
             warnings=[
-                ServiceWarning(label="tool_definitions", url="", message="missing tool X")
+                ServiceWarning(
+                    label="tool_definitions", url="", message="missing tool X"
+                )
             ]
         )
         pipeline, exc = await _run_check_services(
@@ -807,7 +810,9 @@ class TestCheckServicesSeverityClassification:
         )
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
-        assert outcomes == [StartupCheckOutcome("rag_consistency", StartupCheckStatus.OK)]
+        assert outcomes == [
+            StartupCheckOutcome("rag_consistency", StartupCheckStatus.OK)
+        ]
 
     @pytest.mark.asyncio
     async def test_rag_consistency_warning_per_issue(self) -> None:

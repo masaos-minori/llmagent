@@ -471,16 +471,14 @@ def main() -> None:
         choices=["en", "ja", "auto"],
         default="en",
         help=(
-            "Hint language when --url is given (default: en). "
-            "'auto' detects per-page language by CJK character ratio."
+            "Hint language when --url is given (default: en). 'auto' detects per-page language by CJK character ratio."
         ),
     )
     parser.add_argument(
         "--targets-file",
         metavar="PATH",
         help=(
-            "Path to a TOML file containing target_urls = [[url, lang], ...] pairs. "
-            "Mutually exclusive with --url."
+            "Path to a TOML file containing target_urls = [[url, lang], ...] pairs. Mutually exclusive with --url."
         ),
     )
     args = parser.parse_args()

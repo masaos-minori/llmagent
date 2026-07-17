@@ -53,8 +53,7 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_sse_settings(self, ctx: AgentContext) -> None:
         self._out.write("SSE stream settings:")
         self._out.write(
-            f"  sse_heartbeat_timeout              :"
-            f" {ctx.cfg.llm.sse_heartbeat_timeout}s",
+            f"  sse_heartbeat_timeout              : {ctx.cfg.llm.sse_heartbeat_timeout}s",
         )
         self._out.write(
             f"  sse_malformed_retry                : {ctx.cfg.llm.sse_malformed_retry}",
@@ -63,12 +62,10 @@ class _ConfigDisplayMixin(MixinBase):
             f"  sse_reconnect_max                  : {ctx.cfg.llm.sse_reconnect_max}",
         )
         self._out.write(
-            f"  llm_stream_retry_on_heartbeat_timeout:"
-            f" {ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout}",
+            f"  llm_stream_retry_on_heartbeat_timeout: {ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout}",
         )
         self._out.write(
-            f"  llm_stream_retry_on_malformed_chunk  :"
-            f" {ctx.cfg.llm.llm_stream_retry_on_malformed_chunk}",
+            f"  llm_stream_retry_on_malformed_chunk  : {ctx.cfg.llm.llm_stream_retry_on_malformed_chunk}",
         )
 
     def _print_execution_settings(self, ctx: AgentContext) -> None:
@@ -114,8 +111,7 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write("Security settings (tool safety):")
         allowed_root = ctx.cfg.approval.allowed_root
         self._out.write(
-            f"  allowed_root        :"
-            f" {repr(allowed_root) if allowed_root else '(disabled)'}",
+            f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}",
         )
         allowed_repos = ctx.cfg.approval.approval_github_allowed_repos
         if allowed_repos:

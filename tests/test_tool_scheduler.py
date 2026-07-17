@@ -288,9 +288,9 @@ class TestConcurrentGroups:
         # write_first and parallel must be in separate batches
         assert len(metadata.concurrent_groups) == 2
         assert metadata.concurrent_groups[0].groups == [[tc_write]]
-        assert metadata.concurrent_groups[0].serialize_flags == [True]
+        assert metadata.concurrent_groups[0].serialize_flags == [False]
 
-    def test_write_first_group_is_serialized(self) -> None:
+    def test_write_first_group_is_gathered_concurrently(self) -> None:
         tc_write_a = _tc("write_file")
         tc_write_b = _tc("delete_file")
         _groups, metadata = build_execution_groups(
@@ -302,7 +302,7 @@ class TestConcurrentGroups:
         )
         write_first_batch = metadata.concurrent_groups[0]
         assert write_first_batch.groups == [[tc_write_a, tc_write_b]]
-        assert write_first_batch.serialize_flags == [True]
+        assert write_first_batch.serialize_flags == [False]
 
     def test_fts_rebuild_does_not_serialize_unrelated_reads(self) -> None:
         tc_rebuild = _tc("fts_rebuild")

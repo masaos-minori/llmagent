@@ -174,8 +174,7 @@ class StartupOrchestrator:
         db_dim = build_db_config().embedding_dims
         if memory_dim != db_dim:
             logger.error(
-                "Embedding dimension mismatch: memory=%d, db=%d. "
-                "Fix config/memory.toml or db/config.py.",
+                "Embedding dimension mismatch: memory=%d, db=%d. Fix config/memory.toml or db/config.py.",
                 memory_dim,
                 db_dim,
             )

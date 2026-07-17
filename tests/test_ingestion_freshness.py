@@ -136,8 +136,7 @@ def _make_fake_db(
     )
     conn.execute("CREATE TABLE chunks_vec (chunk_id INTEGER, embedding BLOB)")
     cur = conn.execute(
-        "INSERT INTO documents (url, title, lang, etag, last_modified, chunking_strategy)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO documents (url, title, lang, etag, last_modified, chunking_strategy) VALUES (?, ?, ?, ?, ?, ?)",
         (url, "title", "en", etag, last_modified, "text"),
     )
     conn.commit()

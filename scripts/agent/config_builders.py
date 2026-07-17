@@ -265,13 +265,11 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     found = _FORBIDDEN_KEYS & set(cfg.keys())
     if found:
         raise ConfigLoadError(
-            f"Config contains removed keys: {sorted(found)}. "
-            "Remove them from your config file."
+            f"Config contains removed keys: {sorted(found)}. Remove them from your config file."
         )
     if "github_server_url" in cfg:
         raise ConfigLoadError(
-            "Config contains removed key: github_server_url. "
-            "Use [mcp_servers.github].url instead."
+            "Config contains removed key: github_server_url. Use [mcp_servers.github].url instead."
         )
     system_prompt_tool = cfg.get("system_prompt_tool", "")
     security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))

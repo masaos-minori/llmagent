@@ -133,8 +133,7 @@ class AgentSession:
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
-                "SELECT session_id, created_at, title FROM sessions"
-                " ORDER BY session_id DESC LIMIT ?",
+                "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT ?",
                 (limit,),
             )
         return [
@@ -158,9 +157,7 @@ class AgentSession:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
             rows = db.fetchall(
-                "SELECT message_id FROM messages"
-                " WHERE session_id = ?"
-                " ORDER BY message_id DESC LIMIT 2",
+                "SELECT message_id FROM messages WHERE session_id = ? ORDER BY message_id DESC LIMIT 2",
                 (self.session_id,),
             )
             if not rows:
@@ -189,8 +186,7 @@ class AgentSession:
             return 0
         with SQLiteHelper("session").open(write_mode=True) as db:
             rows = db.fetchall(
-                "SELECT message_id, role FROM messages"
-                " WHERE session_id = ? ORDER BY message_id DESC",
+                "SELECT message_id, role FROM messages WHERE session_id = ? ORDER BY message_id DESC",
                 (self.session_id,),
             )
             if not rows:
@@ -203,8 +199,7 @@ class AgentSession:
             if last_user_id is None:
                 return 0
             deleted: int = db.execute(
-                "SELECT COUNT(*) FROM messages"
-                " WHERE session_id = ? AND message_id >= ?",
+                "SELECT COUNT(*) FROM messages WHERE session_id = ? AND message_id >= ?",
                 (self.session_id, last_user_id),
             ).fetchone()[0]
             db.execute(

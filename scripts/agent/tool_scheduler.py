@@ -116,7 +116,7 @@ def build_execution_groups(
     for tc in serial_barrier:
         cgr.append(ScheduledBatch(groups=[[tc]], serialize_flags=[False]))
     if write_first:
-        cgr.append(ScheduledBatch(groups=[write_first], serialize_flags=[True]))
+        cgr.append(ScheduledBatch(groups=[write_first], serialize_flags=[False]))
 
     has_concurrent = bool(resource_groups) or bool(parallel)
     if has_concurrent:

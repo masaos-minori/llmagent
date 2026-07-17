@@ -181,8 +181,7 @@ class AgentREPL:
                             max(0, int(rows[0]["cnt"]) - task_count) if rows else 0
                         )
                         art_rows = wdb.fetchall(
-                            "SELECT uri FROM artifacts"
-                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
+                            "SELECT uri FROM artifacts WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
                             (sid,),
                         )
                         artifacts = [

@@ -120,8 +120,7 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  HB timeouts   : {stats.llm_heartbeat_timeouts}")
         if stats.llm_partial_completions > 0:
             self._out.write(
-                f"  Partial compl : {stats.llm_partial_completions}"
-                "  (stored in session_diagnostics)"
+                f"  Partial compl : {stats.llm_partial_completions}  (stored in session_diagnostics)"
             )
         else:
             self._out.write("  Partial compl : 0")

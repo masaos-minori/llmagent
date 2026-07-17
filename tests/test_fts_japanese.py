@@ -120,8 +120,7 @@ def _insert_chunk(
     chunk_index: int = 0,
 ) -> int:
     cur = conn.execute(
-        "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"
-        " VALUES (?, ?, ?, ?)",
+        "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) VALUES (?, ?, ?, ?)",
         (doc_id, chunk_index, content, normalized_content),
     )
     conn.commit()

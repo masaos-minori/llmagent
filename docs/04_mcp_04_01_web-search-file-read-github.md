@@ -88,7 +88,7 @@ related:
 **Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 **追加エンドポイント:** `GET /list_allowed_directories`（MCP ツールではない）
 
-### 実装上の補足（Current behavior）
+### 実装上の補足
 
 - `FileReadConfig.from_dict`（`read_models.py`）は toml の `max_read_bytes` を **KB 換算で読み替えて** 保持する（`max_file_size_kb = max_read_bytes // 1024`）。デフォルト値 1,000,000 の場合、実効上限は `1,000,000 // 1024 * 1024 = 999,424` バイトとなり、toml の値と厳密には一致しない。[Explicit in code]
 - 読み取り専用系エラーは `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 または 422 で登録されるが、`read_server.py` では 422 ハンドラのみ登録)に加え、`read_text_file` の `head`/`tail` 同時指定は Pydantic のモデルバリデーションで拒否される（`model_validator` により ValueError → FastAPI 標準の 422）。[Explicit in code]
@@ -133,7 +133,7 @@ related:
 **ログ:** `/opt/llm/logs/github-mcp.log`
 **Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): github_audit.log
 
-### 実装上の補足（Current behavior）
+### 実装上の補足
 
 - ドメイン例外の HTTP ステータス対応（`exception_handlers.py`）: `GitHubAuthorizationError`→403, `GitHubNotFoundError`→404, `GitHubValidationError`→400, `GitHubConflictError`→409, `GitHubUpstreamError`→502, `GitHubAuditError`→500。[Explicit in code]
 - PyGithub の `GithubException` は `service_security.py::_handle_github_error` でステータスコードに応じてドメイン例外へ変換される（404→NotFound, 403→Authorization, 409→Conflict, 400/422→Validation、それ以外→Upstream）。[Explicit in code]

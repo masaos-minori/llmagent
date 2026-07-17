@@ -38,8 +38,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_create_or_update_file",
         "description": (
-            "Create or update a file in a GitHub repository. "
-            "Use to commit a file directly"
+            "Create or update a file in a GitHub repository. Use to commit a file directly"
         ),
         "inputSchema": {
             "type": "object",

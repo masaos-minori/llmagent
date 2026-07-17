@@ -279,13 +279,11 @@ class TestRagDbMaintenanceService:
         conn.execute("INSERT INTO documents(url, lang) VALUES('http://test', 'ja')")
         # Japanese chunk: normalized_content differs from content
         conn.execute(
-            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content)"
-            " VALUES(1, 0, '東京', 'とうきょう')"
+            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content) VALUES(1, 0, '東京', 'とうきょう')"
         )
         # English chunk: normalized_content is NULL
         conn.execute(
-            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content)"
-            " VALUES(1, 1, 'hello world', NULL)"
+            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content) VALUES(1, 1, 'hello world', NULL)"
         )
         conn.commit()
         # Manually corrupt FTS to force rebuild to matter

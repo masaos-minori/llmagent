@@ -51,14 +51,11 @@ class ShellPolicy:
     def __post_init__(self) -> None:
         if self.kill_policy not in self._VALID_KILL_POLICIES:
             raise ValueError(
-                f"kill_policy must be one of {sorted(self._VALID_KILL_POLICIES)!r},"
-                f" got {self.kill_policy!r}"
+                f"kill_policy must be one of {sorted(self._VALID_KILL_POLICIES)!r}, got {self.kill_policy!r}"
             )
         if self.sandbox_backend not in self._VALID_SANDBOX_BACKENDS:
             raise ValueError(
-                f"sandbox_backend must be one of"
-                f" {sorted(self._VALID_SANDBOX_BACKENDS)!r},"
-                f" got {self.sandbox_backend!r}"
+                f"sandbox_backend must be one of {sorted(self._VALID_SANDBOX_BACKENDS)!r}, got {self.sandbox_backend!r}"
             )
         if self.timeout_sec < 1:
             raise ValueError(f"timeout_sec must be >= 1, got {self.timeout_sec}")

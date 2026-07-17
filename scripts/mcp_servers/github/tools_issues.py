@@ -31,8 +31,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_get_issue",
         "description": (
-            "Retrieve a specific issue from a GitHub repository. "
-            "Use to check issue details, body, and state"
+            "Retrieve a specific issue from a GitHub repository. Use to check issue details, body, and state"
         ),
         "inputSchema": {
             "type": "object",
@@ -49,8 +48,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_create_issue",
         "description": (
-            "Create an issue in a GitHub repository. "
-            "Use to report bugs or request features"
+            "Create an issue in a GitHub repository. Use to report bugs or request features"
         ),
         "inputSchema": {
             "type": "object",

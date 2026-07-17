@@ -49,15 +49,13 @@ class TestMdqSafetyTiers:
     def test_mdq_read_only_tools(self) -> None:
         read_only = {"search_docs", "get_chunk", "outline", "stats", "grep_docs"}
         assert MDQ_TOOLS & read_only == read_only, (
-            f"Expected read-only tools not classified as READ_ONLY:\n"
-            f"  {read_only - MDQ_TOOLS}"
+            f"Expected read-only tools not classified as READ_ONLY:\n  {read_only - MDQ_TOOLS}"
         )
 
     def test_mdq_write_dangerous_tools(self) -> None:
         write_dangerous = {"index_paths", "refresh_index"}
         assert MDQ_TOOLS & write_dangerous == write_dangerous, (
-            f"Expected WRITE_DANGEROUS tools not classified:\n"
-            f"  {write_dangerous - MDQ_TOOLS}"
+            f"Expected WRITE_DANGEROUS tools not classified:\n  {write_dangerous - MDQ_TOOLS}"
         )
 
     def test_write_tools_contains_expected(self) -> None:

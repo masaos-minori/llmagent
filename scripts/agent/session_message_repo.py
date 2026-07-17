@@ -56,9 +56,7 @@ class SessionMessageRepository:
         tc_json = _json_dumps(tool_calls) if tool_calls else None
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
-                "INSERT INTO messages"
-                " (session_id, role, content, tool_calls, tool_call_id)"
-                " VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
                 (self.session_id, role, norm_content, tc_json, tool_call_id),
             )
             db.commit()
@@ -108,9 +106,7 @@ class SessionMessageRepository:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.executemany(
-                "INSERT INTO messages"
-                " (session_id, role, content, tool_calls, tool_call_id)"
-                " VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
                 rows,
             )
             db.commit()
@@ -139,9 +135,7 @@ class SessionMessageRepository:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
             if rows:
                 db.executemany(
-                    "INSERT INTO messages"
-                    " (session_id, role, content, tool_calls, tool_call_id)"
-                    " VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
                     rows,
                 )
             db.commit()

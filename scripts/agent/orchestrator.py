@@ -130,8 +130,7 @@ class Orchestrator:
             self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
         except (WorkflowLoadError, Exception) as exc:
             raise RuntimeError(
-                f"[workflow] WorkflowLoader failed: {exc}. "
-                f"Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
+                f"[workflow] WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
             ) from exc
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -443,6 +442,7 @@ class Orchestrator:
         if self._allowed_tools is not None:
             ctx.cfg.tool.allowed_tools = self._allowed_tools
         try:
+            self._clear_previous_turn_ephemeral_messages()
             await self._handle_memory_injection(line)
             classify_and_inject_mode(line, ctx)
             self._append_user_message(line)
@@ -502,18 +502,22 @@ class Orchestrator:
 
     # ── User message helpers ──────────────────────────────────────────────────
 
-    def _sync_system_prompt(self) -> None:
-        """Sync history[0] from ctx.conv.system_prompt_content before each turn.
-
-        Also removes ephemeral system messages injected in the previous turn.
+    def _clear_previous_turn_ephemeral_messages(self) -> None:
+        """Strip ephemeral/memory-injected system messages left over from the
+        previous turn. Must run before this turn's own injections
+        (_handle_memory_injection, classify_and_inject_mode) so it never
+        strips content just added for the current turn.
         """
         ctx = self._ctx
-        # Remove ephemeral entries from the previous turn before rebuilding prompt
         ctx.conv.history = [
             m
             for m in ctx.conv.history
             if not m.get("_ephemeral") and not m.get("_memory_injected")
         ]
+
+    def _sync_system_prompt(self) -> None:
+        """Sync history[0] from ctx.conv.system_prompt_content before each turn."""
+        ctx = self._ctx
         if not ctx.conv.system_prompt_content:
             return
         if ctx.conv.history and ctx.conv.history[0]["role"] == "system":

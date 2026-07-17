@@ -26,8 +26,7 @@ def delete_document_chain(db: SQLiteHelper, doc_id: int) -> None:
     """
     # 1. delete chunks_vec rows for this doc's chunks (no FK, must be explicit)
     db.execute(
-        "DELETE FROM chunks_vec"
-        " WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
+        "DELETE FROM chunks_vec WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
         (doc_id,),
     )
     # 2. delete documents row (CASCADE removes chunks automatically)

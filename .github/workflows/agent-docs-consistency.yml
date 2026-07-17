@@ -1,0 +1,35 @@
+name: Agent Docs Consistency
+
+on:
+  push:
+    paths:
+      - "docs/05_agent_*.md"
+      - "docs/90_shared_04_*.md"
+      - "tools/check_agent_docs_consistency.py"
+  pull_request:
+    paths:
+      - "docs/05_agent_*.md"
+      - "docs/90_shared_04_*.md"
+      - "tools/check_agent_docs_consistency.py"
+
+# Cancel in-progress runs for the same workflow + branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Agent Docs Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run Agent docs consistency checks
+        run: |
+          set -euo pipefail
+          python tools/check_agent_docs_consistency.py

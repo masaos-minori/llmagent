@@ -30,8 +30,7 @@ def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
     """Check for documents with mtime_ns > indexed_at."""
     try:
         result = conn.execute(
-            "SELECT COUNT(*) as cnt FROM documents"
-            " WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
         ).fetchone()
         return result["cnt"] if result is not None else 0
     except Exception:

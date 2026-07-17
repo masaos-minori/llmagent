@@ -152,8 +152,7 @@ def check_compat_patterns(
         for pattern_name, pattern in COMPAT_PATTERNS.items():
             if re.search(pattern, stripped):
                 issues.append(
-                    f"{filepath}:{i}: backward compatibility leftover — "
-                    f"'{pattern_name}': {stripped}"
+                    f"{filepath}:{i}: backward compatibility leftover — '{pattern_name}': {stripped}"
                 )
     return issues
 

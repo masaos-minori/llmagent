@@ -173,9 +173,7 @@ class CLIView:
         """Render structured RAG pipeline debug data to stdout."""
         rrf_config: dict = data.get("rrf_config", {})
         print(
-            f"  [debug] RRF config: "
-            f"use_rrf={rrf_config.get('use_rrf', True)} "
-            f"rrf_k={rrf_config.get('rrf_k', 60)}"
+            f"  [debug] RRF config: use_rrf={rrf_config.get('use_rrf', True)} rrf_k={rrf_config.get('rrf_k', 60)}"
         )
 
         queries: list[str] = data.get("queries", [])
@@ -189,9 +187,7 @@ class CLIView:
 
         total = sum(len(r) for r in all_results)
         print(
-            f"  [debug] search: "
-            f"{len(all_results)} result lists, "
-            f"{total} total candidates",
+            f"  [debug] search: {len(all_results)} result lists, {total} total candidates",
         )
 
         print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")

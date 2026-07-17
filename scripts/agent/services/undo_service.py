@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 def undo_last_turn(ctx: AgentContext) -> UndoResult:
     """Roll back the last user+assistant turn from history and DB.
 
-    Strips preceding memory injection markers (_memory_injected=True),
-    trims ctx.conv.history, decrements stat_turns, and calls session.undo_last_turn().
+    Strips preceding memory injection (_memory_injected=True) and ephemeral
+    mode-hint (_ephemeral=True) markers, trims ctx.conv.history, decrements
+    stat_turns, and calls session.undo_last_turn().
     Raises NothingToUndoError when no user message is found in history.
     """
     last_user_idx = next(
@@ -37,9 +38,13 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
     )
     if last_user_idx is None:
         raise NothingToUndoError("Nothing to undo.")
-    # Walk backwards from just before the user message to strip injected memory blocks.
+    # Walk backwards from just before the user message to strip turn-scoped
+    # artifacts (injected memory blocks and ephemeral mode hints).
     cut_idx = last_user_idx
-    while cut_idx > 0 and ctx.conv.history[cut_idx - 1].get("_memory_injected"):
+    while cut_idx > 0 and (
+        ctx.conv.history[cut_idx - 1].get("_memory_injected")
+        or ctx.conv.history[cut_idx - 1].get("_ephemeral")
+    ):
         cut_idx -= 1
     removed = len(ctx.conv.history) - cut_idx
     removed_messages = ctx.conv.history[cut_idx:]

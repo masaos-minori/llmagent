@@ -38,8 +38,7 @@ class SQLiteVectorStore:
         if k < 1:
             return []
         rows = self._db.fetchall(
-            "SELECT chunk_id, distance FROM chunks_vec"
-            " WHERE embedding MATCH ? ORDER BY distance LIMIT ?",
+            "SELECT chunk_id, distance FROM chunks_vec WHERE embedding MATCH ? ORDER BY distance LIMIT ?",
             (embedding, k),
         )
         return [(int(row[0]), float(row[1])) for row in rows]
@@ -108,8 +107,7 @@ class SQLiteDocumentStore:
             )
         else:
             rows = self._db.fetchall(
-                "SELECT doc_id, url, title, lang, fetched_at FROM documents"
-                " ORDER BY fetched_at DESC LIMIT ?",
+                "SELECT doc_id, url, title, lang, fetched_at FROM documents ORDER BY fetched_at DESC LIMIT ?",
                 (limit,),
             )
         return [
@@ -168,8 +166,7 @@ class SQLiteSessionStore:
 
     def session_list(self, limit: int) -> list[SessionRow]:
         rows = self._db.fetchall(
-            "SELECT session_id, created_at, title FROM sessions"
-            " ORDER BY created_at DESC LIMIT ?",
+            "SELECT session_id, created_at, title FROM sessions ORDER BY created_at DESC LIMIT ?",
             (limit,),
         )
         return [
@@ -199,15 +196,13 @@ class SQLiteSessionStore:
         tool_call_id: str | None = None,
     ) -> None:
         self._db.execute(
-            "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
             (session_id, role, content, tool_calls, tool_call_id),
         )
 
     def message_list(self, session_id: int) -> list[MessageRow]:
         rows = self._db.fetchall(
-            "SELECT role, content, tool_calls, tool_call_id FROM messages"
-            " WHERE session_id = ? ORDER BY message_id",
+            "SELECT role, content, tool_calls, tool_call_id FROM messages WHERE session_id = ? ORDER BY message_id",
             (session_id,),
         )
         return [

@@ -157,7 +157,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 ---
 
-### 実装上の補足（Current behavior）
+### 実装上の補足
 
 - `McpServerHealthRegistry` の状態遷移は単純な3値ではなく、`HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN` の5値。UNAVAILABLEになったサーバは既定30秒（`half_open_cooldown_sec`）経過後、`is_unavailable()` 呼び出し時に自動的に`HALF_OPEN`（1回だけ疎通を許可する試行状態）へ遷移する簡易サーキットブレーカーとして動作する（Explicit in code, `shared/mcp_health.py`）。
 - `record_degraded()` は現在の状態が`UNAVAILABLE`/`HALF_OPEN`の場合は上書きしない（サーキットブレーカーとトライアル窓を壊さないため）（Explicit in code）。

@@ -136,8 +136,7 @@ class _ServerLifecycleRouter:
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.startup_mode != StartupMode.SUBPROCESS:
             _logger.warning(
-                "Lifecycle: restart %r: not a subprocess-mode server;"
-                " manual restart required",
+                "Lifecycle: restart %r: not a subprocess-mode server; manual restart required",
                 server_key,
             )
             return

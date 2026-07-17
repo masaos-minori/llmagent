@@ -33,8 +33,7 @@ class DbSessionOps:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
         result = DbMaintenanceService().checkpoint(mode)
         self._out.write_success(
-            f"WAL checkpoint complete: mode={result.mode},"
-            f" pages_written={result.pages_written} [Session]"
+            f"WAL checkpoint complete: mode={result.mode}, pages_written={result.pages_written} [Session]"
         )
 
     def vacuum(self) -> None:

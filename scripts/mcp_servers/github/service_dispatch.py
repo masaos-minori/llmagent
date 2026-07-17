@@ -167,10 +167,7 @@ class GitHubService(_GitHubServiceCore):
         async def _execute() -> str:
             result = await self.push_files(req)
             sha_short = result.commit_sha[:8]
-            return (
-                f"Pushed: branch={result.branch}"
-                f" files={result.files_pushed} commit={sha_short}"
-            )
+            return f"Pushed: branch={result.branch} files={result.files_pushed} commit={sha_short}"
 
         return await self._execute_with_dry_run(
             req.owner,
@@ -271,11 +268,7 @@ class GitHubService(_GitHubServiceCore):
         async def _execute() -> str:
             result = await self.create_pull_request(req)
             pr = result.pull_request
-            return (
-                f"Created: #{pr.number} {pr.title}\n"
-                f"head: {pr.head_ref} → base: {pr.base_ref}\n"
-                f"URL: {pr.url}"
-            )
+            return f"Created: #{pr.number} {pr.title}\nhead: {pr.head_ref} → base: {pr.base_ref}\nURL: {pr.url}"
 
         return await self._execute_with_dry_run(
             req.owner,
@@ -322,10 +315,7 @@ class GitHubService(_GitHubServiceCore):
         async def _execute() -> str:
             result = await self.merge_pull_request(req)
             sha_short = result.sha[:8] if result.sha else "N/A"
-            return (
-                f"Merged: #{result.pr_number} merged={result.merged}"
-                f" sha={sha_short}\n{result.message}"
-            )
+            return f"Merged: #{result.pr_number} merged={result.merged} sha={sha_short}\n{result.message}"
 
         return await self._execute_with_dry_run(
             req.owner,

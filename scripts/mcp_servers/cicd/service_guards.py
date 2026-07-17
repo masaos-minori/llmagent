@@ -48,8 +48,7 @@ class CiCdGuards:
         if not self._repo_allowlist:
             raise CicdAuthorizationError(
                 (
-                    f"Repository '{repo}' is denied:"
-                    " repo_allowlist is empty (fail-closed mode)"
+                    f"Repository '{repo}' is denied: repo_allowlist is empty (fail-closed mode)"
                 ),
             )
         if repo not in self._repo_allowlist:

@@ -167,8 +167,7 @@ class PullRequestOps(GitHubSecurityGuards):
                 reviews = pr.get_reviews()
                 if not any(r.state == "APPROVED" for r in reviews):
                     raise GitHubAuthorizationError(
-                        f"PR #{req.pr_number} has no approved review"
-                        " (require_pr_review=true)"
+                        f"PR #{req.pr_number} has no approved review (require_pr_review=true)"
                     )
             # Build merge kwargs; title/message are optional overrides
             kwargs: dict[str, object] = {"merge_method": req.merge_method}

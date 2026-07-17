@@ -48,8 +48,7 @@ class SemanticCache:
         with self._lock:
             if self._dim is not None and len(embedding) != self._dim:
                 raise ValueError(
-                    f"SemanticCache dimension mismatch: expected {self._dim},"
-                    f" got {len(embedding)}",
+                    f"SemanticCache dimension mismatch: expected {self._dim}, got {len(embedding)}",
                 )
             best_sim = -1.0
             best_ctx: str | None = None
@@ -77,8 +76,7 @@ class SemanticCache:
                 self._dim = len(embedding)
             elif len(embedding) != self._dim:
                 raise ValueError(
-                    f"SemanticCache dimension mismatch: expected {self._dim},"
-                    f" got {len(embedding)}",
+                    f"SemanticCache dimension mismatch: expected {self._dim}, got {len(embedding)}",
                 )
             self._entries.append(
                 CacheEntry(

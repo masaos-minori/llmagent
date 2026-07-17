@@ -203,8 +203,7 @@ class MemoryIngestionService:
                 try:
                     with SQLiteHelper("session").open(write_mode=True) as db:
                         db.execute(
-                            "INSERT OR IGNORE INTO memory_links(src_id, dst_id)"
-                            " VALUES (?,?)",
+                            "INSERT OR IGNORE INTO memory_links(src_id, dst_id) VALUES (?,?)",
                             (memory_id, hit.entry.memory_id),
                         )
                         db.commit()

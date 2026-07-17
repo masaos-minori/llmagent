@@ -224,8 +224,7 @@ class RagIngester:
                     raise ValueError("missing or empty 'embedding' field in response")
                 if len(embedding) != self._expected_dims:
                     raise ValueError(
-                        f"embedding dimension mismatch: expected {self._expected_dims},"
-                        f" got {len(embedding)}"
+                        f"embedding dimension mismatch: expected {self._expected_dims}, got {len(embedding)}"
                     )
                 return embedding
             except (
@@ -362,8 +361,7 @@ class RagIngester:
         """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
         if not self._validate_lang(lang):
             raise ValueError(
-                f"unsupported lang value: {lang!r}"
-                f" (must be one of {sorted(_VALID_LANGS)})",
+                f"unsupported lang value: {lang!r} (must be one of {sorted(_VALID_LANGS)})",
             )
         existing_row = db.execute(
             "SELECT doc_id FROM documents WHERE url = ?",
@@ -614,8 +612,7 @@ class RagIngester:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Embedding generation and DB ingestion:"
-            " rag-src/chunk/*.json → SQLite → rag-src/registered/"
+            "Embedding generation and DB ingestion: rag-src/chunk/*.json → SQLite → rag-src/registered/"
         ),
     )
     parser.add_argument(

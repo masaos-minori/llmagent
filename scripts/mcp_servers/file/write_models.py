@@ -92,8 +92,7 @@ class EditFileResponse(BaseModel):
 class CreateDirectoryRequest(BaseModel):
     path: str = Field(
         ...,
-        description="Absolute path of the directory to create"
-        " (parent directories are created automatically)",
+        description="Absolute path of the directory to create (parent directories are created automatically)",
     )
     dry_run: bool = Field(
         default=False,

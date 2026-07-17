@@ -47,7 +47,7 @@ agent/__main__.py
        │         ├─ audit_logger         — JSON-lines audit.log writer
        │         └─ MemoryServices?      — optional semantic memory layer
        ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
-       ├─ CommandRegistry                — all /cmd dispatch (15 mixins)
+       ├─ CommandRegistry                — all /cmd dispatch (13 direct mixins + 2 nested via _ConfigMixin = 15 total)
        └─ Orchestrator (agent/orchestrator.py) — turn-level facade
             ├─ LLMTurnRunner             — SSE stream + inner tool-call loop
             ├─ ToolLoopGuard             — dedup/cycle/retry/error guards
@@ -55,7 +55,7 @@ agent/__main__.py
             └─ DiagnosticStore           — ctx.diagnosticsに束縛されるターン診断ストア
 ```
 
-### Current behavior (依存グラフの補足)
+### 依存グラフの補足
 
 - `Orchestrator.__init__()`は`WorkflowLoader().load()`で`WorkflowDef`を読み込み、失敗時は
   `RuntimeError`を送出する(起動が止まる)。各ターンは`WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`

@@ -10,8 +10,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_search_repositories",
         "description": (
-            "Search GitHub repositories. "
-            "Use to find OSS projects, libraries, and reference implementations"
+            "Search GitHub repositories. Use to find OSS projects, libraries, and reference implementations"
         ),
         "inputSchema": {
             "type": "object",
@@ -75,8 +74,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_list_commits",
         "description": (
-            "Retrieve the commit history for a GitHub repository. "
-            "Use to review change history and work progress"
+            "Retrieve the commit history for a GitHub repository. Use to review change history and work progress"
         ),
         "inputSchema": {
             "type": "object",
@@ -117,8 +115,7 @@ TOOL_LIST: list[dict] = [
     {
         "name": "github_search_code",
         "description": (
-            "Full-text search for code on GitHub. "
-            "Use to find implementation examples of specific functions or patterns"
+            "Full-text search for code on GitHub. Use to find implementation examples of specific functions or patterns"
         ),
         "inputSchema": {
             "type": "object",

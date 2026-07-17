@@ -46,7 +46,7 @@ related:
 | `command_defs_list.py` | 組み込みコマンド定義 | ディスパッチロジック |
 | `registry.py` | ディスパッチの挙動、`command_defs_list`からコマンドリストをインポート | コマンドリストの定義 |
 
-`CommandRegistry`は15個のmixinクラス(`_SessionMixin`, `_McpMixin`, `_ConfigMixin`, `_ContextMixin`, `_ToolingMixin`, `_DebugMixin`, `_AuditMixin`, `_RagExportMixin`, `_MemoryMixin`, `_WorkflowMixin`, `_PluginsMixin`, `_MdqMixin`, `_SkillMixin`, `_ConfigDisplayMixin`, `_ConfigStatsMixin`)を多重継承する。各mixinは対応する`agent/commands/cmd_*.py`ファイルに実装される。(Explicit in code)
+`CommandRegistry`は13個のmixinクラス(`_SessionMixin`, `_McpMixin`, `_ConfigMixin`, `_ContextMixin`, `_ToolingMixin`, `_DebugMixin`, `_AuditMixin`, `_RagExportMixin`, `_MemoryMixin`, `_WorkflowMixin`, `_PluginsMixin`, `_MdqMixin`, `_SkillMixin`)を直接多重継承する。さらに`_ConfigMixin`自体が`_ConfigDisplayMixin`と`_ConfigStatsMixin`の2つをネストして多重継承しているため、`CommandRegistry`の`inspect.getmro()`上には合計15個の`*Mixin`クラスが現れる。各mixinは対応する`agent/commands/cmd_*.py`ファイルに実装される。(Explicit in code)
 
 > **今後のコマンド追加:** `command_defs_list.py`にのみ新しい`CommandDef(...)`エントリを追加する。
 > 対応するハンドラは適切なmixinファイルに実装すること。

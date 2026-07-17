@@ -29,10 +29,7 @@ class RagDbMaintenanceService:
             # Drop and recreate FTS table (without content=chunks mapping so we can insert)
             db.execute("DROP TABLE IF EXISTS chunks_fts")
             db.execute(
-                "CREATE VIRTUAL TABLE chunks_fts USING fts5("
-                "  content,"
-                "  tokenize = 'unicode61'"
-                ")"
+                "CREATE VIRTUAL TABLE chunks_fts USING fts5(  content,  tokenize = 'unicode61')"
             )
             # Repopulate FTS with COALESCE(normalized_content, content)
             db.execute(

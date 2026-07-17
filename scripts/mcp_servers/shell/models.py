@@ -118,8 +118,7 @@ class ShellRunRequest(BaseModel):
     argv: list[str] | None = Field(
         default=None,
         description=(
-            "Explicit argv list; when provided, used instead of shlex.split(command)"
-            " to prevent shell injection"
+            "Explicit argv list; when provided, used instead of shlex.split(command) to prevent shell injection"
         ),
     )
     timeout_sec: int = Field(default=30, ge=1, le=3600)

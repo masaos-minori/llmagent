@@ -90,8 +90,7 @@ class _McpMixin(MixinBase):
         ok_count = sum(1 for r in rows if r.availability == McpAvailability.OK)
         unreachable_count = sum(1 for r in rows if r.availability in _UNREACHABLE)
         self._out.write(
-            f"\n  Servers     {len(rows)} configured"
-            f" ({ok_count} ok, {unreachable_count} unreachable)"
+            f"\n  Servers     {len(rows)} configured ({ok_count} ok, {unreachable_count} unreachable)"
         )
         registry = ctx.services_required.health_registry
         degraded_keys = [
@@ -138,8 +137,7 @@ class _McpMixin(MixinBase):
                 total_affected += e.get("affected_count", 0)
             avg_affected = total_affected / total_events if total_events > 0 else 0
             self._out.write(
-                f"  Serialization {total_events} events"
-                f" (avg {avg_affected:.1f} tools/event)"
+                f"  Serialization {total_events} events (avg {avg_affected:.1f} tools/event)"
             )
             if reason_counts:
                 reason_str = ", ".join(

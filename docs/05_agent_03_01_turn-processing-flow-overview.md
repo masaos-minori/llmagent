@@ -100,7 +100,8 @@ User input (line)
 - `AgentConfig.use_memory_layer=True`の場合、ステップ②でトリガーされる
 - `MemoryInjectionService.on_user_prompt()`が関連メモリを取得する (FTS5 + オプションでKNN)
 - ターンの先頭に`"system"`ロールメッセージとして注入される
-- `/undo`はこれらの注入メッセージをユーザー+アシスタントのターンと共に削除する
+- `/undo`はこれらの注入メッセージ(`_memory_injected`)およびモード分類の`_ephemeral`ヒントメッセージを、
+  ユーザー+アシスタントのターンと共に削除する(`agent/services/undo_service.py`)
 
 ---
 
@@ -114,8 +115,12 @@ User input (line)
 - MDQモードと判定されても`search_docs`ツールを持つMCPサーバーが利用不可の場合はRAGにフォールバックする
   (警告ログを出力)
 - 判定結果に応じたヒント文字列を`"system"`ロール・`_ephemeral: true`付きメッセージとして
-  `ctx.conv.history`に注入する。`_ephemeral`メッセージは次ターン開始時に
-  `Orchestrator._sync_system_prompt()`で除去される (毎ターン再評価される一時的なヒント)
+  `ctx.conv.history`に注入する。`_ephemeral`メッセージ(および`_memory_injected`メッセージ)は
+  `_process_turn()`の先頭、メモリ注入・モード分類より前に呼ばれる
+  `Orchestrator._clear_previous_turn_ephemeral_messages()`で、**前のターン**分のみが除去される
+  (毎ターン再評価される一時的なヒント)。この呼び出し順序により、当該ターンで注入した内容は
+  同一ターンのLLM呼び出しに正しく渡り、次ターン開始時にのみ除去される
+  (`_sync_system_prompt()`はシステムプロンプト本文の同期のみを担当し、この除去処理は行わない)
 
 ---
 

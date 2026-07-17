@@ -62,6 +62,10 @@ def _injected_msg() -> dict:
     return {"role": "user", "content": "[memory]", "_memory_injected": True}
 
 
+def _ephemeral_msg() -> dict:
+    return {"role": "system", "content": "[mode hint]", "_ephemeral": True}
+
+
 # ── _cmd_undo ─────────────────────────────────────────────────────────────────
 
 
@@ -99,6 +103,48 @@ class TestCmdUndo:
         cmd = _FakeCmd(ctx)
         cmd._cmd_undo()
         # injection marker + second user + second assistant must be removed
+        assert ctx.conv.history == [
+            _system_msg(),
+            _user_msg("first"),
+            _assistant_msg("first reply"),
+        ]
+        assert ctx.stats.stat_turns == 1
+
+    def test_undo_removes_ephemeral_hint_before_user(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            _system_msg(),
+            _user_msg("first"),
+            _assistant_msg("first reply"),
+            _ephemeral_msg(),
+            _user_msg("second"),
+            _assistant_msg("second reply"),
+        ]
+        ctx.stats.stat_turns = 2
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_undo()
+        # ephemeral hint + second user + second assistant must be removed
+        assert ctx.conv.history == [
+            _system_msg(),
+            _user_msg("first"),
+            _assistant_msg("first reply"),
+        ]
+        assert ctx.stats.stat_turns == 1
+
+    def test_undo_removes_both_ephemeral_and_memory_injected_before_user(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            _system_msg(),
+            _user_msg("first"),
+            _assistant_msg("first reply"),
+            _injected_msg(),
+            _ephemeral_msg(),
+            _user_msg("second"),
+            _assistant_msg("second reply"),
+        ]
+        ctx.stats.stat_turns = 2
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_undo()
         assert ctx.conv.history == [
             _system_msg(),
             _user_msg("first"),

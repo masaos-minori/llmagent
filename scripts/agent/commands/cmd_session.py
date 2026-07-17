@@ -219,8 +219,7 @@ class _SessionMixin(MixinBase):
         try:
             result = restore_session(self._ctx, session_id)
             self._out.write_success(
-                f"Session {result.session_id} loaded:"
-                f" {result.n_messages} messages restored."
+                f"Session {result.session_id} loaded: {result.n_messages} messages restored."
             )
         except SessionNotFoundError as e:
             self._out.write_no_data(str(e))

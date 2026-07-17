@@ -119,13 +119,11 @@ def register_tool(name: str) -> Callable[[_F], _F]:
         return_hint = hints.get("return")
         if return_hint is None:
             raise ValueError(
-                f"[plugin] tool contract violation: '{name}' missing return type annotation "
-                f"(expected tuple[str, bool])"
+                f"[plugin] tool contract violation: '{name}' missing return type annotation (expected tuple[str, bool])"
             )
         if return_hint != tuple[str, bool]:
             raise ValueError(
-                f"[plugin] tool contract violation: '{name}' expected return type "
-                f"'tuple[str, bool]', got {return_hint}"
+                f"[plugin] tool contract violation: '{name}' expected return type 'tuple[str, bool]', got {return_hint}"
             )
         _tools[name] = (fn, _current_loading_module[0])
         logger.debug("[plugin] tool registered: %s", name)

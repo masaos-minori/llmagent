@@ -24,11 +24,16 @@ source:
 
 ## RAG パイプライン診断
 
-### /rag search --debug の出力
+### RAGデバッグトレースの出力(現状未到達)
 
-`/rag search <query> --debug` を実行すると、結果の後に構造化されたデバッグトレースが出力される。
+以下の構造化デバッグトレースは`CLIView.write_debug_rag(data)`(`agent/cli_view.py`)として
+定義されているが、現行コードにこのメソッドの呼び出し箇所は存在しない。スラッシュコマンドとして
+`/rag`は登録されておらず、`/debug`がトグルする`ctx.conv.debug_mode`もRAGパイプライン側
+(`scripts/rag/`)のどこからも参照されていない — `/stats`出力での表示のみに使われる
+(`agent/commands/cmd_config_stats.py`)。したがって、この出力形式は現状どの操作からも
+到達不能である。(Explicit in code — 2026-07-17時点で直接確認済み)
 
-出力例。
+以下は`write_debug_rag()`が受け取るデータ構造を示す想定出力例。
 
 ```
   [debug] RRF config: use_rrf=True rrf_k=60

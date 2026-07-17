@@ -6,13 +6,13 @@ on:
       - "scripts/**/*.py"
       - "docs/**/*.md"
       - "tests/**/*.py"
-      - "scripts/checks/check_no_compat.py"
+      - "tools/check_no_compat.py"
   pull_request:
     paths:
       - "scripts/**/*.py"
       - "docs/**/*.md"
       - "tests/**/*.py"
-      - "scripts/checks/check_no_compat.py"
+      - "tools/check_no_compat.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -34,4 +34,4 @@ jobs:
       - name: Run backward compatibility check
         run: |
           set -euo pipefail
-          python scripts/checks/check_no_compat.py
+          python tools/check_no_compat.py

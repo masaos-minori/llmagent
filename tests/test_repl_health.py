@@ -817,12 +817,10 @@ def _create_workflow_db(
     conn = sqlite3.connect(db_path)
     schemas = {
         "tasks": (
-            "CREATE TABLE tasks "
-            "(task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
+            "CREATE TABLE tasks (task_id TEXT, session_id TEXT, workflow_id TEXT, status TEXT, created_at TEXT)"
         ),
         "attempts": (
-            "CREATE TABLE attempts "
-            "(attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT)"
+            "CREATE TABLE attempts (attempt_id TEXT, task_id TEXT, stage_id TEXT, status TEXT)"
         ),
         "processed_events": (
             "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"

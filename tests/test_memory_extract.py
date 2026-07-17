@@ -68,19 +68,13 @@ class TestExtractMemories:
         assert len(result) >= 1
 
     def test_passes_session_id_to_entry(self) -> None:
-        content = (
-            "The rule is that we should always follow the policy and constraint "
-            "decided by the team."
-        )
+        content = "The rule is that we should always follow the policy and constraint decided by the team."
         history = _hist(("user", "Q"), ("assistant", content))
         result = extract_memories(history, session_id=42)
         assert all(e.session_id == 42 for e in result)
 
     def test_passes_project_repo_branch(self) -> None:
-        content = (
-            "The rule is that we should always follow the policy and constraint "
-            "decided by the team."
-        )
+        content = "The rule is that we should always follow the policy and constraint decided by the team."
         history = _hist(("user", "Q"), ("assistant", content))
         result = extract_memories(history, project="p", repo="r", branch="b")
         for e in result:
@@ -89,10 +83,7 @@ class TestExtractMemories:
             assert e.branch == "b"
 
     def test_all_entries_have_valid_memory_id(self) -> None:
-        content = (
-            "The rule is that we should always follow the policy and constraint "
-            "decided by the team."
-        )
+        content = "The rule is that we should always follow the policy and constraint decided by the team."
         history = _hist(("user", "Q"), ("assistant", content))
         result = extract_memories(history)
         for e in result:
@@ -117,8 +108,8 @@ class TestExtractMemories:
                 HistoryMessage(
                     role="assistant",
                     content=(
-                        f"The rule is that we should always follow the policy {i} "
-                        "constraint decided. " * 5
+                        f"The rule is that we should always follow the policy {i} constraint decided. "
+                        * 5
                     ),
                 )
             )

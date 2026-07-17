@@ -58,10 +58,7 @@ class CiCdService(CiCdGuards):
         self._assert_allowed_repo(req.repo)
         self._assert_allowed_workflow(req.workflow)
         if req.dry_run:
-            preview = (
-                f"Would trigger workflow '{req.workflow}' on ref '{req.ref}'"
-                f" in repo '{req.repo}'"
-            )
+            preview = f"Would trigger workflow '{req.workflow}' on ref '{req.ref}' in repo '{req.repo}'"
             if req.inputs:
                 preview += f" with inputs={req.inputs}"
             result: str = _json_dumps({"preview": preview, "dry_run": True})

@@ -67,13 +67,11 @@ def parse_targets_file(path: Path) -> list[tuple[str, str]]:
         url, lang = str(entry[0]), str(entry[1])
         if not _validate_target_url(url):
             raise ValueError(
-                f"targets-file entry [{i}]: unsupported URL scheme in {url!r}"
-                " (must be http, https, or file)"
+                f"targets-file entry [{i}]: unsupported URL scheme in {url!r} (must be http, https, or file)"
             )
         if lang not in _VALID_HINT_LANGS:
             raise ValueError(
-                f"targets-file entry [{i}]: unsupported lang {lang!r}"
-                f" (must be one of {sorted(_VALID_HINT_LANGS)})"
+                f"targets-file entry [{i}]: unsupported lang {lang!r} (must be one of {sorted(_VALID_HINT_LANGS)})"
             )
         result.append((url, lang))
     return result
@@ -178,8 +176,7 @@ def parse_target_urls(target_raw: list[list[str]]) -> list[tuple[str, str]]:
             raise ValueError(f"Invalid URL in target_urls: {url!r}")
         if lang not in _VALID_HINT_LANGS:
             raise ValueError(
-                f"Unsupported lang {lang!r} in target_urls"
-                f" (must be one of {sorted(_VALID_HINT_LANGS)})",
+                f"Unsupported lang {lang!r} in target_urls (must be one of {sorted(_VALID_HINT_LANGS)})",
             )
         result.append((url, lang))
     return result
