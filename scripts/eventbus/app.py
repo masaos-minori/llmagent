@@ -22,8 +22,12 @@ from eventbus.config import (
 )
 from eventbus.db import open_db
 from eventbus.dlq import sweep_orphans
-from eventbus.dlq_route import dlq_list as dlq_list_route
-from eventbus.dlq_route import dlq_requeue as dlq_requeue_route
+from eventbus.dlq_route import (
+    dlq_list as dlq_list_route,
+)
+from eventbus.dlq_route import (
+    dlq_requeue as dlq_requeue_route,
+)
 from eventbus.health_route import health_check
 from eventbus.publish_route import publish as publish_route
 from eventbus.replay_route import replay as replay_route

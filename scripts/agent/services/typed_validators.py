@@ -9,10 +9,7 @@ Non-empty variants skip setter when value is None or empty collection.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from agent.services.exceptions import ConfigReloadValidationError
+from typing import Any
 
 # Import here to avoid circular import at module level
 from agent.services.exceptions import ConfigReloadValidationError

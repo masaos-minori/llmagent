@@ -50,8 +50,12 @@ from rag.repository import (
     deduplicate_chunks,
 )
 from rag.stage import PipelineContext, PipelineStage, StageResult
-from rag.stages.augment import AugmentStage
-from rag.stages.augment import _format_chunks as _augment_format_chunks
+from rag.stages.augment import (
+    AugmentStage,
+)
+from rag.stages.augment import (
+    _format_chunks as _augment_format_chunks,
+)
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
