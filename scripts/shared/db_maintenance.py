@@ -1,9 +1,6 @@
 """Shared database maintenance utilities."""
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 
 def count_table(db: Any, table: str) -> int:

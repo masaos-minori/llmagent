@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.session_title import SessionTitleService
