@@ -64,6 +64,7 @@ class _ServerLifecycleRouter:
         self._states: dict[str, LifecycleState] = {}
 
     def _set_state(self, server_key: str, new_state: LifecycleState) -> None:
+        """Transition the server state with validation."""
         current = self._states.get(server_key, LifecycleState.UNKNOWN)
         try:
             assert_valid_transition(current, new_state)
@@ -77,6 +78,7 @@ class _ServerLifecycleRouter:
         self._states[server_key] = new_state
 
     async def ensure_ready(self, server_key: str) -> None:
+        """Ensure the HTTP subprocess server is running; start it if needed."""
         if self._shutting_down:
             _logger.debug(
                 "Lifecycle: ensure_ready(%r) ignored — shutting down", server_key
@@ -103,6 +105,7 @@ class _ServerLifecycleRouter:
                 raise
 
     async def shutdown_all(self) -> None:
+        """Shut down all managed HTTP subprocess servers."""
         self._shutting_down = True
         await self._http_mgr.shutdown_all()
         for key in self._server_configs:
@@ -113,6 +116,7 @@ class _ServerLifecycleRouter:
         server_key: str,
         cfg: McpServerConfig,
     ) -> None:
+        """Start a single HTTP subprocess MCP server."""
         if self._shutting_down:
             _logger.debug(
                 "Lifecycle: start_http_subprocess(%r) ignored — shutting down",
@@ -128,6 +132,7 @@ class _ServerLifecycleRouter:
             raise
 
     async def restart(self, server_key: str) -> None:
+        """Restart a single HTTP subprocess MCP server."""
         if self._shutting_down:
             _logger.warning(
                 "Lifecycle: restart(%r) ignored — shutting down", server_key
@@ -149,11 +154,13 @@ class _ServerLifecycleRouter:
             raise
 
     async def shutdown_idle(self) -> None:
+        """No-op for idle shutdown — only applies to stdio servers."""
         if self._shutting_down:
             _logger.debug("Lifecycle: shutdown_idle ignored — shutting down")
             return
 
     def get_transport_state(self, server_key: str) -> LifecycleState:
+        """Return the current lifecycle state for a server."""
         return self._states.get(server_key, LifecycleState.UNKNOWN)
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
@@ -188,6 +195,7 @@ def _build_llm_client(
     """Build httpx.AsyncClient and LLMClient; return both."""
 
     def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
+        """Callback to accumulate token usage statistics."""
         ctx.stats.stat_input_tokens = (ctx.stats.stat_input_tokens or 0) + prompt_tokens
         ctx.stats.stat_output_tokens = (
             ctx.stats.stat_output_tokens or 0
