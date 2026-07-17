@@ -51,6 +51,7 @@ _DLQ_INTERVAL = 60.0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
+    """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
@@ -81,12 +82,14 @@ async def lifespan(app: FastAPI) -> Any:
 
 
 async def _dlq_loop(app: FastAPI) -> None:
+    """Periodically sweep orphaned events into the dead-letter queue directory."""
     while True:
         try:
             cfg = get_config(app)
             db = get_db(app)
 
             def _sweep() -> int:
+                """Sweep orphaned events from the DLQ table into the dead-letter directory."""
                 result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
                 return result
 
