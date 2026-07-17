@@ -16,7 +16,6 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from shared.json_utils import dumps
 from shared.json_utils import dumps as _json_dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
@@ -333,7 +332,7 @@ class Orchestrator:
         session_id = _format_session_id(ctx.session.session_id) or "none"
         if ctx.services_required.audit_logger is not None:
             ctx.services_required.audit_logger.info(
-                dumps(
+                _json_dumps(
                     {
                         "event": "turn_start",
                         "task_id": ctx.turn.current_turn_id,

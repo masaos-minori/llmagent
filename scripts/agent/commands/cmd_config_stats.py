@@ -12,14 +12,11 @@ Import from here:  from agent.commands.cmd_config_stats import _ConfigStatsMixin
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import LatencySnapshot, StatsViewModel
 from agent.services.context_view import _int_safe
-
-if TYPE_CHECKING:
-    pass
 
 
 def _safe[T](obj: object | None, attr: str, default: T) -> T:
