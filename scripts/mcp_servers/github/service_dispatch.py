@@ -105,6 +105,7 @@ class GitHubService(_GitHubServiceCore):
         from_b = req.from_branch or "(default branch)"
 
         async def _execute() -> str:
+            """Create a new branch on GitHub."""
             result = await self.create_branch(req)
             return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
 
@@ -153,6 +154,7 @@ class GitHubService(_GitHubServiceCore):
         branch = req.branch or "(default branch)"
 
         async def _execute() -> str:
+            """Create or update a file on GitHub."""
             result = await self.create_or_update_file(req)
             return (
                 f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
@@ -174,6 +176,7 @@ class GitHubService(_GitHubServiceCore):
         paths = [f.path for f in req.files]
 
         async def _execute() -> str:
+            """Push multiple files to a branch on GitHub."""
             result = await self.push_files(req)
             sha_short = result.commit_sha[:8]
             return f"Pushed: branch={result.branch} files={result.files_pushed} commit={sha_short}"
@@ -194,6 +197,7 @@ class GitHubService(_GitHubServiceCore):
         branch = req.branch or "(default branch)"
 
         async def _execute() -> str:
+            """Delete a file from a GitHub repository."""
             result = await self.delete_repo_file(req)
             return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
 
@@ -225,6 +229,7 @@ class GitHubService(_GitHubServiceCore):
         labels = f" labels={req.labels}" if req.labels else ""
 
         async def _execute() -> str:
+            """Create a new issue on GitHub."""
             result = await self.create_issue(req)
             i = result.issue
             return f"Created: #{i.number} {i.title}\n{i.url}"
@@ -250,6 +255,7 @@ class GitHubService(_GitHubServiceCore):
         req = AddIssueCommentRequest(**args)
 
         async def _execute() -> str:
+            """Post a comment on an existing GitHub issue."""
             result = await self.add_issue_comment(req)
             return f"Comment posted: #{result.issue_number} {result.comment_url}"
 
@@ -284,6 +290,7 @@ class GitHubService(_GitHubServiceCore):
         req = CreatePullRequestRequest(**args)
 
         async def _execute() -> str:
+            """Create a new pull request on GitHub."""
             result = await self.create_pull_request(req)
             pr = result.pull_request
             return f"Created: #{pr.number} {pr.title}\nhead: {pr.head_ref} → base: {pr.base_ref}\nURL: {pr.url}"
@@ -315,6 +322,7 @@ class GitHubService(_GitHubServiceCore):
         changes = ", ".join(fields) or "(no changes)"
 
         async def _execute() -> str:
+            """Update a pull request's title or state on GitHub."""
             result = await self.update_pull_request(req)
             pr = result.pull_request
             return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
@@ -334,6 +342,7 @@ class GitHubService(_GitHubServiceCore):
         req = MergePullRequestRequest(**args)
 
         async def _execute() -> str:
+            """Merge a pull request on GitHub."""
             result = await self.merge_pull_request(req)
             sha_short = result.sha[:8] if result.sha else "N/A"
             return f"Merged: #{result.pr_number} merged={result.merged} sha={sha_short}\n{result.message}"
