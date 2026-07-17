@@ -8,6 +8,18 @@ Read the target requirement file, then create a concrete work plan based on the 
 - Write all output documents (plans/, issues/) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+### Token efficiency
+
+- Delegate Step 3 (reading related source files) to a read-only sub-agent. Have it return
+  a concise summary of the relevant code, not full file contents, to the main context.
+- When multiple target files are specified, run each Steps 1-7 cycle as an isolated
+  sub-agent call so that source excerpts and analysis from one file's cycle do not
+  accumulate in the context used for the next file's cycle.
+- Read shared files in Step 0 only once per session; do not re-read them for later
+  cycles.
+- Keep start/end progress reports to one or two lines; do not restate the full plan
+  content in progress reports.
+
 ### Tasks
 
 Report progress at the start and end of each step.

@@ -8,6 +8,23 @@ Read the source code and the existing design documents, then update the design d
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+### Token efficiency
+
+- When reusing previously collected information across documents (per Step 2), keep a
+  short facts cache (extracted API signatures, config keys, behavior notes) rather than
+  retaining full raw file contents; reuse the cache, not the raw text.
+- Delegate each document's Step 2-3 (reading related source and comparing against the
+  doc) to a read-only sub-agent. Pass it the relevant facts cache entries plus the target
+  document, and have it return only the additions to make and any new facts to add to
+  the cache, not the raw source it read.
+- Locate related callers/callees via `rg`/`grep` first, then read only the relevant
+  range, rather than reading full files.
+- In Step 5, cite only the minimal code evidence (the relevant line or signature) needed
+  to support a classification, not full function bodies.
+- Read shared files in Step 0 only once per session.
+- In Step 6, aggregate the run summary from the per-file reports' key points; do not
+  re-quote full evidence already recorded there.
+
 ### Tasks
 
 Report progress at the start and end of each step.

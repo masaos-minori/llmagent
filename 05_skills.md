@@ -30,6 +30,23 @@ Shared Rules
 Execution
 ```
 
+### Token efficiency
+
+- Before reading full file contents, build a compact rule inventory in two stages:
+  delegate to sub-agent(s) to extract, per file (or per batch of files), a list of
+  rules/procedures as topic + one-line summary + file:line reference. Keep only this
+  inventory in the main context, not the raw text of every skill file.
+- In Step 1, detect duplication by comparing inventory entries first; only read the full
+  text of the specific matching sections (not entire files) to confirm a suspected
+  duplicate.
+- In Step 2, process one file at a time: read it, apply the move/edit, then move to the
+  next file; do not keep the full content of already-processed files in context.
+- Prefer surgical `Edit` moves (cut a section from the source file, paste it into the
+  destination) over rewriting entire files.
+- Read `routing.md`, `AGENTS.md`, and `skills/DESIGN.md` only once per session.
+- In Step 3, report which files changed and where content moved to; do not restate full
+  diffs or full before/after file content.
+
 ### Tasks
 
 Report progress at the start and end of each step.

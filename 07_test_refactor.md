@@ -16,6 +16,27 @@ The output must be practical enough to use directly as:
 - a refactoring / stabilization work plan,
 - a source for GitHub Issue creation.
 
+### Token efficiency
+
+- In Step 2, capture concise output from test/validation commands: use quiet/short-
+  traceback modes (e.g. `pytest -q --tb=short`) and read coverage from a summary
+  (`coverage.xml` or the summary line) rather than verbose per-line reports. Do not read
+  full output for passing runs.
+- In Step 3, keep stack trace summaries to the minimum lines needed to identify the
+  cause; do not paste full tracebacks.
+- Redirect each validation command's output to a file and extract only `FAIL`/`ERROR`
+  lines via `grep`, rather than reading the full raw stream.
+- Delegate Step 1 discovery (inspecting README/CI/config files) to a read-only sub-agent;
+  have it return only the identified commands and structure, not full file contents.
+- Delegate Step 4 and Step 5 gap analysis to isolated sub-agent calls split by layer
+  (agent, shared, mcp, rag, db — per the module grouping in `AGENTS.md`'s Test coverage
+  section). Each sub-agent should return only its findings list, not the source it read,
+  so one layer's investigation does not accumulate in the context used for the next
+  layer.
+- Read shared files in Step 0 only once per session.
+- In Step 6, reference findings by their ID from Steps 3-5 rather than re-quoting full
+  evidence or source excerpts already recorded there.
+
 ### Tasks
 
 Report progress at the start and end of each step.

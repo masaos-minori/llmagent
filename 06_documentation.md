@@ -20,6 +20,27 @@ Read the source code and the existing design documents, then restructure and upd
 - Write all documentation files (`docs/*.md`) in Japanese.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
 
+### Token efficiency
+
+- Process each of agent, mcp, rag, db, and shared as an isolated sub-agent cycle; do not
+  load source across all layers into a single context at once. Per the import layer
+  contract, `agent` may rely on the already-produced summaries of other layers instead of
+  re-reading their source.
+- Delegate source investigation for each layer to a read-only sub-agent, and have it
+  return only the facts needed for the chapter structure (Purpose, Scope, Constraints,
+  Functional Requirements, etc.), not full source dumps.
+- For "Public Interface Specification", extract only public (non-`_`-prefixed) function
+  and method signatures via `grep`/`ast-grep`; do not read full function bodies.
+- In Step 2, check alignment by comparing existing doc statements against the specific
+  code location located via `grep`, rather than re-reading entire docs and entire source
+  files.
+- In Step 3, quote only the minimal code evidence (the relevant line or signature) needed
+  to support a classification, not full function bodies.
+- Read shared files in Step 0 only once per session; do not re-read them for later
+  cycles.
+- Keep start/end progress reports to one or two lines; do not restate full document
+  content in progress reports.
+
 ### Tasks
 
 Report progress at the start and end of each step.

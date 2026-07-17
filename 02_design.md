@@ -8,6 +8,24 @@ Read the target plan file, then produce file-level implementation procedure docu
 - Write all output documents (implementations/) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+### Token efficiency
+
+- Read shared files in Step 0 only once per session; do not re-read them for later
+  cycles.
+- In Step 3, check "already implemented" status by matching `target_file_name` against
+  file names under `implementations/` and `implementations/done/`; do not read the
+  contents of those files.
+- In Step 3, delegate the per-item investigation (reading the related source file to
+  write Method/Details) to a read-only sub-agent, and read only the relevant sections of
+  the target source file (locate them with grep first, then read a limited range) rather
+  than the full file. Have the sub-agent return only what is needed for the procedure
+  document, not full file contents.
+- When multiple target plan files are specified, run each Steps 1-4 cycle as an isolated
+  sub-agent call so that source investigation from one file's cycle does not accumulate
+  in the context used for the next file's cycle.
+- Keep start/end progress reports to one or two lines; do not restate full document
+  content in progress reports.
+
 ### Tasks
 
 Report progress at the start and end of each step.

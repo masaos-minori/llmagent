@@ -7,6 +7,28 @@ Read the target plan file, then implement the feature according to the rules and
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+### Token efficiency
+
+- Read shared files in Step 0 only once per session; do not re-read them for later
+  cycles.
+- In Step 3, batch fixes across multiple lint/type/security errors before re-running the
+  full validation sequence; do not re-run the entire sequence after every single fix.
+  Capture only error output (e.g. via `--quiet` flags or grep for error lines), not full
+  successful-run output.
+- In Step 4, run only the targeted/affected tests during the fix iteration loop; run the
+  full test suite once at the end to confirm coverage and pass status.
+- Delegate root-cause investigation (`python-debug-root-cause`) to a read-only sub-agent
+  when it requires reading a broad range of source files; have it return only the
+  diagnosis and fix direction, not full file contents.
+- In Step 6, update only the specific `docs/*.md` sections affected by the change (using
+  the `routing.md` mapping to locate them) rather than reading and rewriting entire
+  documentation files.
+- When multiple target plan files are specified, run each Steps 1-6 cycle as an isolated
+  sub-agent call so that diffs, tool output, and test logs from one file's cycle do not
+  accumulate in the context used for the next file's cycle.
+- Keep start/end progress reports to one or two lines; do not restate full diffs or tool
+  output in progress reports.
+
 ### Tasks
 
 Report progress at the start and end of each step.

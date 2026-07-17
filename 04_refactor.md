@@ -33,6 +33,28 @@ Read the target source files passed as arguments, then refactor them based on th
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 
+### Token efficiency
+
+- Delegate Step 2 (preparation/investigation) to a read-only sub-agent. Have it run
+  `pydeps`, `rg`, `import-linter`, and `ast-grep`, and return only the resulting impact
+  scope table to the main context, not the raw tool output.
+- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g. via
+  `grep` for failures) rather than full successful-run output.
+- Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
+  possible, rather than the whole repository.
+- Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
+- In Step 6, run the full mypy/test/ruff check once per logical commit rather than after
+  every single `git add -p` hunk; use a lighter check (e.g. `ruff` only) between hunks.
+- In Step 7, prefer scoping `pre-commit` to the changed files over `--all-files` when the
+  CI gate does not require a full-repo run.
+- Read shared files in Step 0 only once per session; do not re-read them for later
+  cycles.
+- When multiple target files are specified, run each Steps 1-8 cycle as an isolated
+  sub-agent call so that tool output and investigation results from one file's cycle do
+  not accumulate in the context used for the next file's cycle.
+- Keep progress reports and Step 8 results concise; do not restate full diffs or raw tool
+  output.
+
 ### Tasks
 
 Report progress at the start and end of each step.
