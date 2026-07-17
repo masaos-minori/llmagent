@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class MqeConfig:
+    """Configuration for MQE (query expansion) feature."""
+
     use_mqe: bool = True
     mqe_url: str = ""
     mqe_timeout: float = 5.0
@@ -18,11 +20,15 @@ class MqeConfig:
 
 @dataclass
 class FusionConfig:
+    """Configuration for result fusion (RRF ranking)."""
+
     rrf_k: int = 60
 
 
 @dataclass
 class RerankConfig:
+    """Configuration for document reranking."""
+
     use_rerank: bool = True
     rerank_url: str = ""
     rerank_timeout: float = 10.0
@@ -31,6 +37,8 @@ class RerankConfig:
 
 @dataclass
 class SearchConfig:
+    """Configuration for semantic search."""
+
     use_search: bool = True
     embed_url: str = ""
     embed_timeout: float = 5.0
@@ -41,6 +49,8 @@ class SearchConfig:
 
 @dataclass
 class ChunkSplitterConfig:
+    """Configuration for text chunk splitting during ingestion."""
+
     chunk_size: int = 500
     chunk_overlap: int = 50
     lang: str = "en"
@@ -49,6 +59,8 @@ class ChunkSplitterConfig:
 
 @dataclass
 class IngesterConfig:
+    """Configuration for the RAG ingestion layer."""
+
     embed_url: str = ""
     embed_timeout: float = 5.0
     batch_size: int = 32
@@ -56,6 +68,8 @@ class IngesterConfig:
 
 @dataclass
 class PipelineConfig:
+    """Top-level configuration for the RAG pipeline."""
+
     mqe: MqeConfig = field(default_factory=MqeConfig)
     fusion: FusionConfig = field(default_factory=FusionConfig)
     rerank: RerankConfig = field(default_factory=RerankConfig)
