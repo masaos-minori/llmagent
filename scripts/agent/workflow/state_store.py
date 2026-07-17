@@ -26,6 +26,7 @@ class StateStore:
         self._db.open(write_mode=True, row_factory=True)
 
     def close(self) -> None:
+        """Close the underlying database connection."""
         self._db.close()
 
     # ── Task ─────────────────────────────────────────────────────────────────
