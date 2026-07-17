@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class TaskRecord:
+    """Database record for a workflow task execution."""
+
     task_id: str
     session_id: str | None
     turn_number: int | None
@@ -24,6 +26,8 @@ class TaskRecord:
 
 @dataclass
 class ApprovalRecord:
+    """Database record for a workflow approval gate."""
+
     approval_id: str
     task_id: str
     stage_id: str | None  # None = task-level gate
@@ -36,6 +40,8 @@ class ApprovalRecord:
 
 @dataclass
 class AttemptRecord:
+    """Database record for a single stage attempt within a task."""
+
     attempt_id: str
     task_id: str
     stage_id: str
@@ -47,6 +53,8 @@ class AttemptRecord:
 
 @dataclass
 class ArtifactRef:
+    """Reference to an artifact produced by a stage execution."""
+
     artifact_id: str
     task_id: str
     stage_id: str
@@ -56,6 +64,8 @@ class ArtifactRef:
 
 @dataclass
 class StageDefinition:
+    """A single stage in a workflow definition."""
+
     id: str
     timeout_sec: int
     retryable: bool
@@ -63,12 +73,16 @@ class StageDefinition:
 
 @dataclass
 class RetryPolicy:
+    """Retry policy configuration for a workflow."""
+
     max_attempts: int
     backoff_sec: int
 
 
 @dataclass
 class WorkflowDef:
+    """Workflow definition with stages and retry configuration."""
+
     name: str
     version: str
     stages: list[StageDefinition] = field(default_factory=list)
