@@ -2,16 +2,12 @@
 """eventbus/health_route.py — Health check endpoint handler."""
 
 import logging
-from typing import TYPE_CHECKING
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from eventbus.db import check_db
 from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
