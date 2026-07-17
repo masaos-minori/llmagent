@@ -73,10 +73,14 @@ class GitServiceError(RuntimeError):
 
 
 class GitStatusRequest(BaseModel):
+    """Request model for git_status — read-only status of a repository."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
 
 
 class GitLogRequest(BaseModel):
+    """Request model for git_log — recent commit log entries."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     max_entries: int = Field(
         default=20,
@@ -88,6 +92,8 @@ class GitLogRequest(BaseModel):
 
 
 class GitDiffRequest(BaseModel):
+    """Request model for git_diff — diff between working tree and index or two commits."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     staged: bool = Field(
         default=False,
@@ -100,10 +106,14 @@ class GitDiffRequest(BaseModel):
 
 
 class GitBranchRequest(BaseModel):
+    """Request model for git_branch — list branches in a repository."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
 
 
 class GitShowRequest(BaseModel):
+    """Request model for git_show — show details of a commit, blob, or tree object."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     ref: str = Field(default="HEAD", description="Commit ref or tag to show")
 
@@ -112,6 +122,8 @@ class GitShowRequest(BaseModel):
 
 
 class GitAddRequest(BaseModel):
+    """Request model for git_add — stage files for commit."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     paths: list[str] = Field(
         ...,
@@ -125,6 +137,8 @@ class GitAddRequest(BaseModel):
 
 
 class GitCommitRequest(BaseModel):
+    """Request model for git_commit — create a new commit from staged changes."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     message: str = Field(..., min_length=1, description="Commit message")
     dry_run: bool = Field(
@@ -134,6 +148,8 @@ class GitCommitRequest(BaseModel):
 
 
 class GitCheckoutRequest(BaseModel):
+    """Request model for git_checkout — switch branches or restore working tree files."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     branch: str = Field(..., description="Branch name to checkout or create")
     create: bool = Field(default=False, description="When True, create new branch (-b)")
@@ -144,6 +160,8 @@ class GitCheckoutRequest(BaseModel):
 
 
 class GitPullRequest(BaseModel):
+    """Request model for git_pull — fetch and merge changes from a remote repository."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(
@@ -157,6 +175,8 @@ class GitPullRequest(BaseModel):
 
 
 class GitPushRequest(BaseModel):
+    """Request model for git_push — push local commits to a remote repository."""
+
     repo_path: str = Field(..., description="Absolute path to the git repository")
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(default="", description="Branch name; empty = current branch")
