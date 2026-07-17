@@ -174,7 +174,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -197,7 +197,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -225,7 +225,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -252,7 +252,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -279,7 +279,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -299,7 +299,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with pytest.raises(TransportError) as exc_info:
@@ -322,7 +322,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with pytest.raises(TransportError):
@@ -342,7 +342,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
 

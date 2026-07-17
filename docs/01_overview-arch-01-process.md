@@ -43,7 +43,7 @@ related:
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (http)
+:8081 embed-LLM  :8080 agent-LLM   MCP サーバ群 (http)
 (RAG 検索時)                       11 サーバ (:8004〜:8014)
 ```
 
@@ -69,8 +69,8 @@ related:
 
 | サービス | ポート | モデル | 役割 |
 |---|---|---|---|
-| `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
-| `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
+| `agent-llm` | 8080 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
+| `embed-llm` | 8081 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
 | `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
 | `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
@@ -85,7 +85,7 @@ related:
 
 ### 実装上の補足(LLMサービスのURL/ポート)
 
-`agent-llm`/`embed-llm` の実際の接続先は `config/agent.toml` の `llm.llm_url` / `rag.embed_url` で個別ホスト・ポートとして設定するものであり、本表の `8001`/`8003` は代表値。稼働環境によっては別ホスト・別ポート(llama.cppのデフォルト`8080`系等)を指す場合がある。MCPサーバ群(`8004`〜`8015`)は `agent.toml` の `[mcp_servers.*].url` と一致する。(Explicit in code)
+`agent-llm`/`embed-llm` の実際の接続先は `config/agent.toml` の `llm.llm_url` / `rag.embed_url` で個別ホスト・ポートとして設定するものであり、本表の `8080`/`8081` は代表値。稼働環境によっては別ホスト・別ポート(llama.cppのデフォルト`8080`系等)を指す場合がある。MCPサーバ群(`8004`〜`8015`)は `agent.toml` の `[mcp_servers.*].url` と一致する。(Explicit in code)
 
 ## Related Documents
 

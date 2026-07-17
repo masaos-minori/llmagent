@@ -279,7 +279,7 @@ class TestCheckServiceHealth:
 
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = "http://localhost:8001/v1/embeddings"
+        ctx.cfg.rag.embed_url = "http://localhost:8080/v1/embeddings"
         resp = MagicMock()
         resp.status_code = 200
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -697,8 +697,8 @@ class TestCheckReadiness:
 
     def _make_ctx(self, mock_http: object) -> MagicMock:
         ctx = MagicMock()
-        ctx.cfg.llm.llm_url = "http://127.0.0.1:8001/v1/chat"
-        ctx.cfg.rag.embed_url = "http://127.0.0.1:8003/embedding"
+        ctx.cfg.llm.llm_url = "http://127.0.0.1:8080/v1/chat"
+        ctx.cfg.rag.embed_url = "http://127.0.0.1:8081/embedding"
         ctx.services_required.http = mock_http
         return ctx
 

@@ -154,8 +154,8 @@ curl -s http://127.0.0.1:8010/health   # rag-pipeline-mcp
 curl -s http://127.0.0.1:8012/health   # cicd-mcp
 curl -s http://127.0.0.1:8013/health   # mdq-mcp
 curl -s http://127.0.0.1:8014/health   # git-mcp
-curl -s http://127.0.0.1:8003/health   # embed-llm
-curl -s http://127.0.0.1:8001/health   # agent-llm
+curl -s http://127.0.0.1:8081/health   # embed-llm
+curl -s http://127.0.0.1:8080/health   # agent-llm
 ```
 
 #### MCP server health check (from agent REPL)

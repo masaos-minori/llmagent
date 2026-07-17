@@ -42,7 +42,7 @@ tail -f /opt/llm/logs/agent.log | grep '"name":'
 期待されるスパン:
 ```json
 {"name": "compress", ...}
-{"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8001/..."}, ...}
+{"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8080/..."}, ...}
 {"name": "workflow.run", "attributes": {"workflow.task_id": "...", "workflow.version": "1.0"}, ...}
 {"name": "workflow.stage", "attributes": {"workflow.stage_id": "execute", "workflow.attempt": 1}, ...}
 ```

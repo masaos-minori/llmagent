@@ -15,8 +15,8 @@ export PATH="$HOME/.local/bin:$PATH"
 
 | Service | Port |
 |---|---|
-| `llm` (agent-llm) | 8001 |
-| `embed` (embed-llm) | 8003 |
+| `llm` (agent-llm) | 8080 |
+| `embed` (embed-llm) | 8081 |
 | `web-search-mcp` | 8004 |
 | `file-mcp` | 8005 |
 | `github-mcp` | 8006 |

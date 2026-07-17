@@ -128,7 +128,7 @@ class TestHttpTransportRetry:
 
         transport = HttpTransport(
             http=_FakeClient(),  # type: ignore
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         # Patch sleep to avoid actual delay

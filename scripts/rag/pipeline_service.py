@@ -92,7 +92,7 @@ async def call_rag_service(
 
     Args:
         http: An initialized httpx.AsyncClient (caller manages lifecycle).
-        rag_url: Base URL of the RAG service (e.g. ``http://127.0.0.1:8003``).
+        rag_url: Base URL of the RAG service (e.g. ``http://127.0.0.1:8081``).
         query: The user query string to search for.
         history_context: Conversation history context appended to query.
         auth_token: Auth token sent as ``X-RAG-Token`` header; empty = no header.

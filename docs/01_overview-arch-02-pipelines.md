@@ -38,7 +38,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 ```
 ユーザー入力
   → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
-  → LLM (:8001) → tool_calls → MCP サーバ群 (:8004〜:8014)
+  → LLM (:8080) → tool_calls → MCP サーバ群 (:8004〜:8014)
   → 最終回答 (SSE ストリーミング)
 ```
 

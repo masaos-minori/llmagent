@@ -46,7 +46,7 @@ source:
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みAPIのエンドポイントURL |
+| `embed_url` | `http://127.0.0.1:8081/embedding` | 埋め込みAPIのエンドポイントURL |
 | `embed_retry` | 3 | 埋め込みAPI失敗時のリトライ上限（指数バックオフ） |
 | `embed_workers` | 4 | ThreadPoolExecutorによる最大並行埋め込みスレッド数 |
 | `embedding_dims` | 384 | 想定される埋め込みベクトルの次元数；APIレスポンスと照合して検証される |

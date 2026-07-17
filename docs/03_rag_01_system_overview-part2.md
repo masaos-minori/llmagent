@@ -27,7 +27,7 @@ source:
 |---|---|---|---|
 | `crawler.py` | クロール | URLまたはローカルパス | `rag-src/yyyymmddhhmmss-{slug}.json`（JSON） |
 | `chunk_splitter.py` | チャンク化 | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json`（JSON） |
-| `ingester.py` | 埋め込み | `rag-src/chunk/*.json` | 埋め込みAPI呼び出し（ポート8003） |
+| `ingester.py` | 埋め込み | `rag-src/chunk/*.json` | 埋め込みAPI呼び出し（ポート8081） |
 | `ingester.py` | 格納 | 埋め込みベクトル | SQLiteテーブル + `rag-src/registered/` |
 
 > **用語について:** 「3つのスクリプト」とは、3つの実行ファイル（`crawler.py`、`chunk_splitter.py`、`ingester.py`）を指す。
@@ -81,7 +81,7 @@ config/crawler.toml [target_urls]
 
 | 要件 | 確認コマンド |
 |---|---|
-| ポート8003で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8003/health` |
+| ポート8081で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8081/health` |
 | `sqlite-vec` 拡張がロード可能であること | `/opt/llm/sqlite-vec/vec0.so` が存在すること |
 | 設定ファイルが存在すること | `config/rag_pipeline.toml` |
 | インジェクション対象のURLまたはファイルが指定されていること | CLIの `--url`、または設定内の `target_urls` |

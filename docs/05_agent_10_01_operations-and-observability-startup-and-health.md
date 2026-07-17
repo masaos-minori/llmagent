@@ -77,13 +77,13 @@ agent[:#1]>
 ### LLMサービスの確認
 
 ```bash
-curl -s http://127.0.0.1:8001/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":5}' -H 'Content-Type: application/json'
+curl -s http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":5}' -H 'Content-Type: application/json'
 ```
 
 ### 埋め込みサービスの確認
 
 ```bash
-curl -s http://127.0.0.1:8003/health
+curl -s http://127.0.0.1:8081/health
 ```
 
 ### MCPサーバの状態

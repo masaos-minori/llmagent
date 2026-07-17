@@ -176,8 +176,8 @@ MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent 
 bash deploy/setup_services.sh
 
 # Health check (wait for each LLM service to complete model loading)
-curl -s http://127.0.0.1:8003/health   # embed-llm
-curl -s http://127.0.0.1:8001/health   # agent-llm
+curl -s http://127.0.0.1:8081/health   # embed-llm
+curl -s http://127.0.0.1:8080/health   # agent-llm
 
 # Start the agent after LLM services complete model loading
 bash deploy/start_agent.sh

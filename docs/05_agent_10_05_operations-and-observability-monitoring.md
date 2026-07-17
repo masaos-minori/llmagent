@@ -44,7 +44,7 @@ source:
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `embedding attempt 3/3` がすべて失敗する | embed-llmが起動していない、または過負荷 | `curl -s http://127.0.0.1:8003/health` を実行し、モデルのロードを待つ |
+| `embedding attempt 3/3` がすべて失敗する | embed-llmが起動していない、または過負荷 | `curl -s http://127.0.0.1:8081/health` を実行し、モデルのロードを待つ |
 | `AttributeError: enable_load_extension` | sqlite拡張サポートなしでPythonがビルドされている | `echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python && emerge dev-lang/python` |
 | `no such table: chunks_vec` | sqlite-vec拡張のロードに失敗 | `ls /opt/llm/sqlite-vec/vec0.so` |
 | FTS検索が0件を返す | `chunks_fts` が非同期状態 | `/db rag rebuild-fts` |
