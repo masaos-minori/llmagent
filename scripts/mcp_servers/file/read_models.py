@@ -51,6 +51,8 @@ class FileReadConfig:
 
 
 class FileEntry(BaseModel):
+    """A single file or directory entry returned by list_directory."""
+
     name: str
     path: str
     type: str  # "file" or "dir"
@@ -76,6 +78,8 @@ class DirectoryTreeRequest(BaseModel):
 
 
 class TreeNode(BaseModel):
+    """A node in a directory tree with optional recursive children."""
+
     name: str
     path: str
     type: str
@@ -111,6 +115,8 @@ class ReadTextFileRequest(BaseModel):
 
 
 class ReadTextFileResponse(BaseModel):
+    """Response containing the text content of a file."""
+
     path: str
     content: str
     size: int
@@ -121,6 +127,8 @@ class ReadMediaFileRequest(BaseModel):
 
 
 class ReadMediaFileResponse(BaseModel):
+    """Response containing base64-encoded binary file content."""
+
     path: str
     content_base64: str  # base64-encoded file content
     mime_type: str  # MIME type (e.g. image/png)
@@ -132,6 +140,8 @@ class ReadMultipleFilesRequest(BaseModel):
 
 
 class FileResult(BaseModel):
+    """Result of reading a single file from a multi-file read request."""
+
     path: str
     content: str | None  # None means an error occurred; see the error field
     error: str | None = None
@@ -168,6 +178,8 @@ class GrepFilesRequest(BaseModel):
 
 
 class GrepMatch(BaseModel):
+    """A single grep match result with source location and matched text."""
+
     file: str
     line_number: int
     line: str
@@ -187,6 +199,8 @@ class GetFileInfoRequest(BaseModel):
 
 
 class FileInfo(BaseModel):
+    """File metadata including path, size, timestamps, and permissions."""
+
     path: str
     name: str
     type: str  # "file" or "dir"
