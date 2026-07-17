@@ -33,10 +33,9 @@ related:
 LLM returns tool_call
    → ToolRouteResolver.resolve(tool_name) → server_key
    → ToolExecutor.execute(tool_name, args)
-        1. Plugin tool check (@register_tool)   — bypasses cache and MCP
-        2. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
+        1. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
            (cache miss: inflight future で同一キーの同時実行を1回に集約 — stampede protection)
-        3. MCP server dispatch (ToolExecutor._raw_execute)
+        2. MCP server dispatch (ToolExecutor._raw_execute)
              → startup_mode==none ゲート → 即時エラー ("disabled (startup_mode=none)")
              → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
                (HALF_OPEN の場合はトライアルディスパッチとして通過させる)

@@ -65,7 +65,7 @@ source:
 
 | File | Purpose | Classification |
 |---|---|---|
-| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`, `plugin_strict`は起動時のみ |
+| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`は起動時のみ |
 | `config/*_mcp_server.toml` | MCPサーバー固有のアプリケーション設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須: サーバーの追加/削除/リネーム |
 
 **分類の定義:**
@@ -84,10 +84,9 @@ source:
 
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
 - `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする
-- `plugin_strict` — 起動時にプラグインのインポートエラーでfail-fastを有効にする
 - `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
   (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`が
-  `use_memory_layer`, `plugin_strict`と共に3フィールドを比較する。根拠: Explicit in code —
+  `use_memory_layer`と共に2フィールドを比較する。根拠: Explicit in code —
   `agent/services/config_reload.py::_detect_startup_only()`)
 
 **無効なキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 

@@ -76,8 +76,6 @@ sse_malformed_retry = 2
 sse_reconnect_max = 3
 llm_stream_retry_on_heartbeat_timeout = true
 llm_stream_retry_on_malformed_chunk = false
-plugin_tool_override = false
-plugin_strict = false
 
 # ── Memory ────────────────────────────────────────────────────────────────────
 

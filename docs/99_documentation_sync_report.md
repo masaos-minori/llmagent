@@ -82,7 +82,7 @@ source:
 | 項目 | 内容 | 修正箇所 |
 |---|---|---|
 | `use_tool_dag` という存在しないフィールド | コードベース全体に存在しないにも関わらず、複数ファイルが有効な設定フィールドとして記載(デフォルト値・resource_scope規約付きで説明) | `05_agent_08_03`, `05_agent_06_01`(既存の正しい記述を確認済み), `04_mcp_06_13_part2`, `04_mcp_06_16` |
-| `config/tools_definitions.toml` という存在しない設定ファイル | 実際は `config/agent.toml` の `[[tool_definitions]]` に統合済み。複数ファイルに残存 | `04_mcp_03_05`, `04_mcp_03_02`, `04_mcp_06_14`, `04_mcp_06_15`, `05_agent_05`, `05_agent_11_03` |
+| `config/tools_definitions.toml` という存在しない設定ファイル | 実際は `config/agent.toml` の `[[tool_definitions]]` に統合済み。複数ファイルに残存 | `04_mcp_03_05`, `04_mcp_03_02`, `04_mcp_06_14`, `04_mcp_06_15`, `05_agent_05` |
 | `mcp_servers.<key>` トランスポートセクションの所在誤り | `config/<key>_mcp_server.toml` 内にあるかのような記載だったが、実際は `config/agent.toml` 側 | `04_mcp_03_05` |
 | ConfigLoader が読み込む「12個のベースファイル」という古い記述 | `_BASE_CONFIG_FILES = ("agent.toml",)` の1件のみ(プロセス分離方針導入後) | `90_shared_03_03_part2`, `90_shared_03_04_part2`, `90_shared_00`(rag_pipeline.toml関連の誤記も含む) |
 | Event Bus のポート番号誤記(8010 → 8015) | `06_eventbus_05_05` の curl 例が rag-pipeline-mcp のポート(8010)を使っていた。`06_eventbus_05_02` の TOML 例も同様 | `06_eventbus_05_02`, `06_eventbus_05_05` |

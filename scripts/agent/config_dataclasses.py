@@ -86,12 +86,6 @@ from agent.services.config_validators import (
     validate_tool_error_retry_max as _v_tool_erm,
 )
 from agent.services.config_validators import (
-    validate_tool_plugin_strict as _v_tool_ps,
-)
-from agent.services.config_validators import (
-    validate_tool_plugin_tool_override as _v_tool_pto,
-)
-from agent.services.config_validators import (
     validate_tool_safety_tiers as _v_app_tier,
 )
 
@@ -197,14 +191,6 @@ class ToolConfig:
     system_prompt_tool: str = ""
     # Empty = all tools allowed; non-empty = only listed tools allowed
     allowed_tools: list[str] = field(default_factory=list)
-    # Tools that shadow MCP tool names are rejected by default.
-    # true = allow shadowing with warning; false = reject (default)
-    # Recommended for production: False (fail-closed)
-    plugin_tool_override: bool = False
-    # Fail startup on first plugin import error.
-    # true = fail-fast (CI/production); false = fail-open (log and continue, dev)
-    # Recommended for production: True
-    plugin_strict: bool = False
 
     def __post_init__(self) -> None:
         """Validate tool configuration fields after initialization."""
@@ -213,8 +199,6 @@ class ToolConfig:
         _v_tool_emc(self)
         _v_tool_cms(self)
         _v_tool_erm(self)
-        _v_tool_pto(self)
-        _v_tool_ps(self)
 
 
 @dataclass

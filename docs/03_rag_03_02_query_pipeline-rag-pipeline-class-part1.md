@@ -73,7 +73,7 @@ RagPipeline(
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | MQE→search→RRF→rerank+PluginHooksを実行する；`PipelineRunResult`（queries、search_results、merged、reranked、stage_results、diagnostics）を返す；**`result_source` は設定しない** — ローカルモードでは常に `None`；`hook_strict=True` の場合は最初のプラグインフック失敗を再送出する（デフォルト: 警告をログに記録しスキップ）；`finally` で常に `on_clear()` を呼び出す |
+| `run` | `async (query, db, history_context="") -> PipelineRunResult` | MQE→search→RRF→rerankを実行する；`PipelineRunResult`（queries、search_results、merged、reranked、stage_results、diagnostics）を返す；**`result_source` は設定しない** — ローカルモードでは常に `None`；`finally` で常に `on_clear()` を呼び出す |
 | `augment` | `async (query, debug_fn=None, history_context="") -> str` | パイプライン全体 + Augmentステージを実行する；コンテキストブロック文字列または `""` を返す；DB失敗時は `RagPipelineError` を発生させる |
 | `search_queries` | `async (queries, db) -> list[list[RagHit]]` | 単独利用可能なヘルパー: 並列埋め込み + 逐次DB検索；`SearchDiagnostics` を記録するSearchStageとは異なり、**診断情報を記録しない** |
 | `rerank_candidates` | `async (query, merged) -> list[RagHit]` | 単独利用可能なヘルパー: クロスエンコーダ、またはスライス+重複排除によるフォールバック + 重複排除 |

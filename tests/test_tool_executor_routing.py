@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-import shared.plugin_registry as plugin_registry
 from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import (
     McpServerConfig,
@@ -291,38 +290,6 @@ class TestHttpTransportErrors:
 
 
 class TestToolExecutorExecute:
-    @pytest.fixture(autouse=True)
-    def _reset_plugin_registry(self):
-        plugin_registry._reset_for_testing()
-        yield
-        plugin_registry._reset_for_testing()
-
-    @pytest.mark.asyncio
-    async def test_plugin_tool_success_returns_empty_x_request_id(self) -> None:
-        @plugin_registry.register_tool("plugin_ok_tool")
-        async def _handler(args: dict) -> tuple[str, bool]:
-            return "plugin result", False
-
-        ex = _make_executor()
-        res = await ex.execute("plugin_ok_tool", {})
-        result, is_err, x_req = res.output, res.is_error, res.request_id
-        assert result == "plugin result"
-        assert not is_err
-        assert x_req == ""
-
-    @pytest.mark.asyncio
-    async def test_plugin_tool_error_returns_empty_x_request_id(self) -> None:
-        @plugin_registry.register_tool("plugin_bad_tool")
-        async def _bad_handler(args: dict) -> tuple[str, bool]:
-            raise RuntimeError("boom")
-
-        ex = _make_executor()
-        res = await ex.execute("plugin_bad_tool", {})
-        result, is_err, x_req = res.output, res.is_error, res.request_id
-        assert is_err
-        assert "[plugin error]" in result
-        assert x_req == ""
-
     @pytest.mark.asyncio
     async def test_cache_hit_returns_empty_x_request_id(self) -> None:
         ex = _make_executor()

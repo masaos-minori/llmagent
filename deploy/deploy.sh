@@ -72,12 +72,6 @@ rsync -av --delete \
   --exclude="*.pyo" \
   "${REPO_ROOT}/scripts/" "${DEPLOY_SCRIPTS}/"
 
-# ── プラグイン ────────────────────────────────────────────────────────────────
-echo "--- plugins/ → /opt/llm/plugins/ ---"
-mkdir -p /opt/llm/plugins
-# 既存ファイルを上書きしない (プロダクション固有プラグインを保護)
-cp -n "${REPO_ROOT}/plugins/"*.py /opt/llm/plugins/ 2>/dev/null || true
-
 # ── 設定ファイル ──────────────────────────────────────────────────────────────
 echo "--- config/*.toml → ${DEPLOY_CONFIG}/ ---"
 # Agent

@@ -25,7 +25,7 @@ source:
 目的、スコープ、依存関係、インポート制約、および永続データの全体像を扱う。
 
 **要点:**
-- `shared/` は横断的なインフラを提供する：設定ロード、ロギング、型、ツールルーティング、プラグイン、OTel、DTO
+- `shared/` は横断的なインフラを提供する：設定ロード、ロギング、型、ツールルーティング、OTel、DTO
 - `db/` は永続ストレージを提供する：SQLite接続管理、スキーマ作成、ストアプロトコル、メンテナンス
 - 両者はいずれも最下層の依存関係であり、他のすべてのレイヤー（`agent/`、`mcp_servers/`、`rag/`）から利用される
 
@@ -34,7 +34,7 @@ source:
 ## 2. Scope
 
 **対象範囲:**
-- All modules under `shared/`: `config_loader`, `config_errors`, `config_validator`, `logger`, `types`, `llm_types`, `transport_dto`, `action_result`, `events`, `protocols/shell`, `tool_constants`, `route_resolver`, `mcp_config`, `mcp_health`, `tool_executor`, `http_transport`, `llm_client`, `plugin_registry`, `plugin_registries`, `plugin_conflicts`, `plugin_auto_discover`, `plugin_result`, `production_config_validator`, `otel_tracer`, `otel_noop`, `token_counter`, `token_estimation`, `git_helper`, `formatters`, `json_utils`, `db_maintenance`, `llm_exceptions`, `llm_transport_errors`, `llm_sse_stream`, `llm_sse_helpers`, `llm_reconnect`, `llm_retry`, `llm_payload`, `llm_hot_config`, `sse_parser`, `tool_registry`, `tool_routing_validation`, `tool_transport_invoker`, `tool_lifecycle`, `tool_executor_helpers`, `tool_spec`, `tool_cache`, `plugin_tool_invoker`
+- All modules under `shared/`: `config_loader`, `config_errors`, `config_validator`, `logger`, `types`, `llm_types`, `transport_dto`, `action_result`, `events`, `protocols/shell`, `tool_constants`, `route_resolver`, `mcp_config`, `mcp_health`, `tool_executor`, `http_transport`, `llm_client`, `production_config_validator`, `otel_tracer`, `otel_noop`, `token_counter`, `token_estimation`, `git_helper`, `formatters`, `json_utils`, `db_maintenance`, `llm_exceptions`, `llm_transport_errors`, `llm_sse_stream`, `llm_sse_helpers`, `llm_reconnect`, `llm_retry`, `llm_payload`, `llm_hot_config`, `sse_parser`, `tool_registry`, `tool_routing_validation`, `tool_transport_invoker`, `tool_lifecycle`, `tool_executor_helpers`, `tool_spec`, `tool_cache`, `runtime_tool`, `runtime_tool_registry`
 - All modules under `db/`: `config.py`, `helper.py`, `create_schema.py`, `models.py`, `schema_sql.py`, `store.py`, `store_impl.py`, `store_protocols.py`, `maintenance.py`, `rotation.py`, `recovery.py`, `rag_consistency.py`
 - DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`
 

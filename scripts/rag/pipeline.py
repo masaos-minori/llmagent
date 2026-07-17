@@ -30,10 +30,6 @@ from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.config_validator import RagConfigValidator
 from shared.llm_client import build_embed_url, build_llm_url
-from shared.plugin_registry import (
-    get_pipeline_post_stages,
-    run_pipeline_stages,
-)
 from shared.types import (
     RagConfig,
     RagHit,
@@ -300,7 +296,6 @@ class RagPipeline:
         query: str,
         db: SQLiteHelper,
         history_context: str = "",
-        hook_strict: bool = False,
     ) -> PipelineRunResult:
         """Execute MQE→search→RRF→rerank on an open DB; returns PipelineRunResult; on_clear() called on exit."""
         try:
@@ -314,23 +309,6 @@ class RagPipeline:
             ]
             for stage in pre_augment_stages:
                 await self._run_stage(stage, ctx, db)
-
-            # Post-rerank plugin hooks (before AugmentStage)
-            if get_pipeline_post_stages():
-                t0 = time.perf_counter()
-                ctx.reranked = await run_pipeline_stages(
-                    get_pipeline_post_stages(), ctx.reranked, query, strict=hook_strict
-                )
-                elapsed = time.perf_counter() - t0
-                self.last_timings["PluginHooks"] = elapsed
-                ctx.stage_results.append(
-                    StageResult(
-                        stage_name="PluginHooks",
-                        status="success",
-                        elapsed_seconds=elapsed,
-                        fallback_reason=None,
-                    )
-                )
 
             augment_stage = AugmentStage()
             t0 = time.perf_counter()

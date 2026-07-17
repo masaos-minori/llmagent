@@ -158,8 +158,8 @@ GITHUB_TOOLS: frozenset[str] = (
 def get_all_mcp_tool_names() -> frozenset[str]:
     """Return all known MCP tool names for conflict checking.
 
-    This is the source of truth used by plugin_registry to detect
-    plugin tools that shadow MCP tools.
+    This is the source of truth for the full set of MCP tool names,
+    used to verify tool-name coverage and detect naming conflicts.
     """
     return frozenset(
         READ_TOOLS

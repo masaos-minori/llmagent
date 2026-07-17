@@ -32,7 +32,7 @@ source:
 
 > **用語について:** 「3つのスクリプト」とは、3つの実行ファイル（`crawler.py`、`chunk_splitter.py`、`ingester.py`）を指す。
 > 「4つの処理フェーズ」とは、4つの論理的なステップ（クロール、チャンク化、埋め込み、格納）を指し、そのうち2つは `ingester.py` の内部で実行される。
-> 「ステージ（Stage）」という語はクエリパイプラインのステージ（MQE、Search、Fusion、Rerank、PluginHooks、Augment）専用であり、インジェクションでは使用しない。
+> 「ステージ（Stage）」という語はクエリパイプラインのステージ（MQE、Search、Fusion、Rerank、Augment）専用であり、インジェクションでは使用しない。
 
 ### インジェクションのデータフロー（概要）
 
@@ -57,7 +57,7 @@ config/crawler.toml [target_urls]
 
 ## クエリパイプライン
 
-**エージェントの1ターンごとに実行される6つの論理ステージ**（固定5つ + PluginHooksは任意）
+**エージェントの1ターンごとに実行される5つの論理ステージ**
 
 | ステージ | クラス | 機能 |
 |---|---|---|
@@ -65,8 +65,7 @@ config/crawler.toml [target_urls]
 | 2. Search | `SearchStage` | 各クエリバリアントに対しKNN（sqlite-vec）+ BM25（FTS5）を実行する |
 | 3. Fusion | `FusionStage` | RRF（Σ 1/(rrf_k+rank)）を用いて複数クエリの結果を統合する。`rrf_k` は設定で変更可能（デフォルト: 60） |
 | 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にchunk_id単位で重複排除する |
-| 5. PluginHooks | 登録済みフック | リランク後のプラグインステージ。RerankStageの後、AugmentStageの前に実行される。PipelineStageを実装しないため独自の実行パス。エラーは分離される（失敗はログに記録されスキップされる）。`hook_strict` で挙動を設定可能 |
-| 6. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
+| 5. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
 
 **エントリポイント:** `RagPipeline.augment(query) -> str`
 **呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（MCP HTTP、ポート8010経由）

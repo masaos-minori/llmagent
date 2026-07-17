@@ -112,22 +112,6 @@ def validate_rag_refiner_max_chars_per_chunk(cfg: RAGConfig) -> None:
         )
 
 
-def validate_tool_plugin_tool_override(cfg: ToolConfig) -> None:
-    """Validate that plugin_tool_override is a boolean."""
-    if not isinstance(cfg.plugin_tool_override, bool):
-        raise ValueError(
-            f"plugin_tool_override must be bool, got {type(cfg.plugin_tool_override).__name__}"
-        )
-
-
-def validate_tool_plugin_strict(cfg: ToolConfig) -> None:
-    """Validate that plugin_strict is a boolean."""
-    if not isinstance(cfg.plugin_strict, bool):
-        raise ValueError(
-            f"plugin_strict must be bool, got {type(cfg.plugin_strict).__name__}"
-        )
-
-
 def validate_tool_dedup_max_repeats(cfg: ToolConfig) -> None:
     """Validate that tool_dedup_max_repeats is at least 1."""
     if cfg.tool_dedup_max_repeats < 1:

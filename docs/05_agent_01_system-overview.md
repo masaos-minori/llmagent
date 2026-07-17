@@ -126,7 +126,6 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | デバッグ/監査 | `/debug`, `/audit` |
 | エクスポート/コンパクト | `/export`, `/compact` |
 | メモリ | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
-| プラグイン | `/plugin status` |
 | MDQ | `/mdq status\|index\|refresh\|search\|outline\|get\|grep` |
 | スキル | `/skill [name] [args]` |
 | その他 | `/help` |
@@ -137,7 +136,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 正本であり、`agent/repl.py`の`AgentREPL.SLASH_COMMANDS`(readlineタブ補完用リスト、
 `cached_property`)は`builtin_command_names() | reserved_repl_command_names()`として
 `_COMMANDS`の全コマンド名に`/exit`(REPL予約コマンド)を加えたもので導出される。
-`/plugin`、`/mdq`、`/skill`、`/memory`を含め、現在タブ補完から除外されているコマンドは
+`/mdq`、`/skill`、`/memory`を含め、現在タブ補完から除外されているコマンドは
 存在しない。(Explicit in code — `repl.py:52-89`)
 
 ---
@@ -167,7 +166,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | 設定 | [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) |
 | データレイヤー | [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) |
 | 運用と可観測性 | [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) |
-| 拡張ポイント | [05_agent_11_01_extension-points-plugin-command.md](05_agent_11_01_extension-points-plugin-command.md) |
+| 拡張ポイント(削除済み 2026-07-18) | [05_agent_11_01_extension-points-plugin-command.md](05_agent_11_01_extension-points-plugin-command.md) |
 | APIリファレンス | [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md) |
 
 ## Related Documents

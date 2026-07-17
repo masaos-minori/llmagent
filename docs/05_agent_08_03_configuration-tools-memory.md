@@ -40,8 +40,6 @@ Source: `config/agent.toml`
 | `max_tool_turns` | `5` | `5` | メッセージごとの最大ツール呼び出しターン数 |
 | `tool_result_max_llm_chars` | `8000` | `8000` | LLMコンテキストに追加されるツール実行結果の最大文字数 |
 | `tool_results_turn_max_chars` | `50000` | `50000` | 1ターン中にLLMコンテキストへ追加されるツール実行結果の累積最大文字数。複数のツール出力によるターンあたりの過剰なコンテキスト増大を防ぐ。超過した場合、省略された結果はTURN_LIMIT_HINTに置き換えられる。 |
-| `plugin_strict` | `False` | `True` | 最初のプラグインインポートエラーで例外を発生させる (CI/CD向けfail-fast) |
-| `plugin_tool_override` | `False` | `False` | 名前が競合した場合、プラグインツールがMCPツールをシャドーすることを許可する |
 
 **実装上の補足(`use_tool_dag`は存在しない):** `use_tool_dag`という設定フィールドはコードベース全体(`agent/config_dataclasses.py`含む)のどこにも存在しない(Explicit in code — grep調査で確認)。DAGスケジューリング(下記resource_scope規約)は`serial_tool_calls=False`(デフォルト)の場合に常時有効であり、「レガシー動作」へ切り替える設定フラグは実装上存在しない。`serial_tool_calls=True`の場合は[05_agent_06_01](05_agent_06_01_tool-execution-and-approval-execution.md#並列実行と逐次実行)記載の`_execute_standard()`(副作用のあるツールが1つでもあれば逐次、なければ並列)が使われる。詳細: [05_agent_06_01 §並列実行と逐次実行](05_agent_06_01_tool-execution-and-approval-execution.md#並列実行と逐次実行)。
 

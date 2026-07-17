@@ -37,6 +37,7 @@ related:
 │   │   │   ├─ export_formatter.py          # エクスポートフォーマット
 │   │   │   ├─ io_ports.py                  # I/O ポート管理
 │   │   │   ├─ mcp_status.py                # MCP サーバステータス
+│   │   │   ├─ mcp_tool_discovery.py        # McpToolDiscoveryService: /v1/tools からのライブツール検出、RuntimeToolRegistry 構築（未配線 — startup.py からはまだ呼ばれない）
 │   │   │   ├─ rag_maintenance_service.py   # RAG 保守サービス
 │   │   │   ├─ session_restore.py           # セッション復元
 │   │   │   ├─ session_title.py             # セッションタイトル生成

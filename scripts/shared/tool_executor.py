@@ -24,7 +24,6 @@ from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
 )
-from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
 from shared.tool_executor_helpers import is_side_effect
@@ -65,7 +64,6 @@ class ToolExecutor(ToolTransportInvoker):
         self._resolver = ToolRouteResolver(
             server_configs, discovery_map=discovery_map or {}
         )
-        self._plugin_invoker = PluginToolInvoker()
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""
@@ -204,11 +202,8 @@ class ToolExecutor(ToolTransportInvoker):
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Execute a tool. Plugin tools bypass cache and MCP routing; side-effecting
-        tools bypass the cache and always re-execute; other tools use the cache."""
-        plugin_result = await self._plugin_invoker.try_execute(tool_name, args)
-        if plugin_result is not None:
-            return plugin_result
+        """Execute a tool. Side-effecting tools bypass the cache and always
+        re-execute; other tools use the cache."""
         if is_side_effect(tool_name):
             return await self._raw_execute(tool_name, args)
         return await self._execute_with_cache(tool_name, args)

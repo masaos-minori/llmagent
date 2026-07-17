@@ -38,9 +38,7 @@ class TestCommandDocsSync:
             if "旧" in line:
                 continue
             # Match command references like /mcp, /db, /debug, etc.
-            matches = re.findall(
-                r"/(?:mcp|db|debug|audit|memory|mdq|rag|plugin)\b", line
-            )
+            matches = re.findall(r"/(?:mcp|db|debug|audit|memory|mdq|rag)\b", line)
             for m in matches:
                 found.append(m)
 
@@ -115,8 +113,3 @@ class TestCommandDocsSync:
         """/mdq is registered as a built-in command."""
         registered = self.get_registered_commands()
         assert "/mdq" in registered, "/mdq should be registered"
-
-    def test_plugin_commands_in_registry(self) -> None:
-        """/plugin is registered as a built-in command."""
-        registered = self.get_registered_commands()
-        assert "/plugin" in registered, "/plugin should be registered"

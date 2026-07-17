@@ -114,7 +114,6 @@ class TestToolConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = ToolConfig()
         assert cfg.tool_dedup_max_repeats == 3
-        assert cfg.plugin_strict is False
 
     def test_tool_dedup_max_repeats_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="tool_dedup_max_repeats"):
@@ -131,14 +130,6 @@ class TestToolConfigValidation:
     def test_tool_cache_max_size_negative_raises(self) -> None:
         with pytest.raises(ValueError, match="tool_cache_max_size"):
             ToolConfig(tool_cache_max_size=-1)
-
-    def test_plugin_tool_override_non_bool_raises(self) -> None:
-        with pytest.raises(ValueError, match="plugin_tool_override"):
-            ToolConfig(plugin_tool_override="yes")  # type: ignore[arg-type]
-
-    def test_plugin_strict_non_bool_raises(self) -> None:
-        with pytest.raises(ValueError, match="plugin_strict"):
-            ToolConfig(plugin_strict=1)  # type: ignore[arg-type]
 
 
 # ── ApprovalConfig ────────────────────────────────────────────────────────────

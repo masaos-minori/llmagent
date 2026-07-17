@@ -9,13 +9,11 @@ REPL instance state directly.
 from __future__ import annotations
 
 import logging
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import httpx
-from shared import plugin_registry
 from shared.git_helper import get_repo_info
 from shared.llm_client import LLMClient, build_embed_url, build_llm_url
 from shared.logger import Logger
@@ -410,69 +408,6 @@ def _build_ingestion_service[T](
     )
 
 
-def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
-    """Load and register plugins from the plugins/ directory."""
-    from shared.tool_registry import get_registry
-
-    plugin_dir = Path(__file__).parent.parent.parent / "plugins"
-    override_policy = "allow" if ctx.cfg.tool.plugin_tool_override else "reject"
-
-    if ctx.cfg.tool.plugin_tool_override:
-        audit_logger.info(
-            "Plugin tool override policy: allow (shadowing MCP tools permitted)"
-        )
-
-    known_tools = (
-        get_registry().get_all_tool_names()
-        if override_policy == "reject"
-        else frozenset()
-    )
-    mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
-    audit_logger.info("Plugin loading mode: %s", mode_str)
-
-    # Route plugin INFO logs to stdout so diagnostics are visible at startup.
-    plugin_logger = logging.getLogger("shared.plugin_registry")
-    if not any(
-        isinstance(h, logging.StreamHandler) and h.stream is sys.stdout
-        for h in plugin_logger.handlers
-    ):
-        _stdout_handler = logging.StreamHandler(sys.stdout)
-        _stdout_handler.setFormatter(logging.Formatter("%(message)s"))
-        _stdout_handler.setLevel(logging.INFO)
-        plugin_logger.addHandler(_stdout_handler)
-
-    # Register builtin command names for conflict detection.
-    from agent.commands.command_defs_list import _COMMANDS
-
-    builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
-    plugin_registry.register_builtin_commands(builtin_names)
-
-    result = plugin_registry.load_plugins(
-        plugin_dir,
-        known_tools=known_tools,
-        override_policy=override_policy,
-        strict_mode=ctx.cfg.tool.plugin_strict,
-    )
-
-    if result.failed:
-        for failure in result.failed:
-            audit_logger.warning(
-                "[non-fatal] Plugin load failure: %s — %s", failure.path, failure.error
-            )
-
-    total_discovered = result.loaded_count + len(result.failed)
-    audit_logger.info(
-        "Plugin startup: discovered=%d, loaded=%d, skipped=%d,"
-        " tool_conflicts_shadowed=%d, tool_conflicts_allowed=%d, command_shadows=%d",
-        total_discovered,
-        result.loaded_count,
-        len(result.failed),
-        result.tool_conflicts_shadowed,
-        result.tool_conflicts_allowed,
-        result.command_shadows_rejected,
-    )
-
-
 def init_tracer(ctx: AgentContext) -> object:
     """Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False."""
     return build_tracer(
@@ -507,5 +442,3 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         gateway=gateway,
         health_registry=health_registry,
     )
-
-    _init_plugin_registry(ctx, audit_logger)

@@ -58,11 +58,6 @@ External Libraries
 | `tool_executor.py` | `ToolExecutor` |
 | `http_transport.py` | `TransportError`、`HttpTransport` — HTTPトランスポート層（/v1/call_toolを呼ぶ） |
 | `llm_client.py` | `LLMClient` — HTTPリトライ、ペイロード構築、再接続対応SSEストリーミングを束ねるLLM通信層。`build_llm_url()`/`build_embed_url()` ヘルパー |
-| `plugin_registry.py` | 動的プラグイン読込とツール/コマンド登録 |
-| `plugin_registries.py` | プラグインのコマンド/ツール/パイプラインフックの内部レジストリ（`_commands`/`_tools`/`_pipeline_post`）。`plugin_registry.py`・`plugin_conflicts.py` から共有される状態 |
-| `plugin_conflicts.py` | `validate_tool_conflicts()`、`validate_command_conflicts()` — プラグインのツール/コマンド名がMCPツールまたは組み込みコマンドと衝突する場合の検証・排除 |
-| `plugin_auto_discover.py` | `load_plugins()` — plugin_dir配下の全*.pyを競合検証しつつインポート |
-| `plugin_result.py` | `PluginFailure`、`PluginLoadResult` データクラス、`PluginLoadError` 例外 |
 | `production_config_validator.py` | `ProductionConfigValidator`、`ConfigValidationResult` — 本番セキュリティプロファイルでの strict キー未設定・`tool_safety_tiers` の過不足・`allowed_tools=[]` を検証 |
 | `otel_tracer.py` | OpenTelemetry用のプライベートTracerProvider |
 | `otel_noop.py` | トレーシング無効時のNoOpTracer/NoOpSpanスタブ |
@@ -87,7 +82,6 @@ External Libraries
 | `tool_executor_helpers.py` | `is_side_effect()`、`format_transport_error()`、`tool_hash_key()` ヘルパー関数群 |
 | `tool_spec.py` | `ToolSpec` データクラス — 単一ツール呼び出しの実行メタデータ（resource_scope、requires_serial、is_write） |
 | `tool_cache.py` | `CacheEntry` データクラス、`ToolResultCache` — TTL付きLRUキャッシュ(ツール呼び出し結果用) |
-| `plugin_tool_invoker.py` | `PluginToolInvoker` — プラグインツール実行層 |
 | `db_maintenance.py` | `count_table()` — テーブル行数を取得する薄いヘルパー（`db/maintenance.py` とは別モジュール。テーブル名は必ずハードコードされた識別子であることが前提） |
 
 ---

@@ -1,120 +1,70 @@
 ---
-title: "Agent Extension Points - Plugin Architecture and Commands"
+title: "Agent Extension Points — Removed (2026-07-18)"
 category: agent
 tags:
   - agent
   - extension-points
-  - plugin-architecture
-  - register-command
+  - removed-feature
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_11_02_extension-points-tool-registration-part1.md
-  - 05_agent_11_03_extension-points-registry-rules.md
+  - 04_mcp_06_15_new-mcp-server-addition-checklist.md
 source:
   - 05_agent_11_01_extension-points-plugin-command.md
 ---
 
-# Agent Extension Points
+# Agent Extension Points — Removed (2026-07-18)
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+The entire plugin subsystem (the `plugins/*.py` architecture, the `@register_command` /
+`@register_tool` / `@register_pipeline_stage` decorators, `shared/plugin_registry.py` and its
+supporting modules, `/plugin status`, and all associated configuration keys) was removed on
+2026-07-18. See `requires/done/20260717_01_require.md` and `plans/done/20260717-123416_plan.md`
+for the removal requirement and plan.
 
-## 目的
+This chapter was formerly split across four files. Three have been deleted outright as part of
+this removal (削除済み), since they had no inbound references once this note replaced the fourth:
+`05_agent_11_02_extension-points-tool-registration-part1.md` (削除済み),
+`05_agent_11_02_extension-points-tool-registration-part2.md` (削除済み), and
+`05_agent_11_03_extension-points-registry-rules.md` (削除済み). This file (the fourth) is kept as a
+removal note because it is still linked from `05_agent_00_document-guide.md` and
+`05_agent_01_system-overview.md`.
 
-プラグインアーキテクチャ、すべての `@register_*` デコレータ、拡張ルール、
-および組み込み機能と拡張機能の間の優先関係を文書化する。
+Removed with it:
 
----
+- `plugins/*.py` auto-discovery and loading (`shared/plugin_auto_discover.py`)
+- `@register_command`, `@register_tool`, `@register_pipeline_stage` decorators and their registries
+  (`shared/plugin_registry.py`, `shared/plugin_registries.py`)
+- Tool/command name conflict detection against MCP tools and built-in commands
+  (`shared/plugin_conflicts.py`)
+- `PluginFailure` / `PluginLoadResult` / `PluginLoadError` (`shared/plugin_result.py`)
+- `PluginToolInvoker` (`shared/plugin_tool_invoker.py`) and its call site in
+  `ToolExecutor.execute()`
+- The `plugin_strict` / `plugin_tool_override` config keys (`ToolConfig`, `config/agent.toml`),
+  their `/reload` handling, and their `/config` display lines
+- `/plugin status` (`scripts/agent/commands/cmd_plugins.py`, `_PluginsMixin`)
+- The `plugin_strict` entry in `ProductionConfigValidator._REQUIRED_STRICT_KEYS`
 
-## プラグインアーキテクチャ
+**Not affected** — these remain in place, unchanged by the plugin removal:
 
-プラグインは `plugins/*.py` にある Python ファイルである（プロジェクトルート直下、`scripts/` と同階層。`agent/factory.py` の `_init_plugin_registry()` が `Path(__file__).parent.parent.parent / "plugins"` として解決する — Explicit in code）。
+- MCP tool routing and dispatch (`ToolExecutor`, `ToolRegistry`, `ToolRouteResolver`) — see
+  [90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md](90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md)
+- `tool_safety_tiers` / `ProductionConfigValidator` — still validates every registered (MCP) tool;
+  see [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2b
+- The step-by-step procedure for adding a new MCP server — this chapter's old
+  "新しい MCP サーバーの追加" section was a duplicate summary; the canonical checklist is
+  [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md)
 
-**ロード:**
-1. プラグインレジストリの初期化時に、起動時に `plugin_registry.load_plugins(plugin_dir)` が呼び出される
-2. 各 `*.py` ファイルはアルファベット順にインポートされる
-3. `@register_*` デコレータはインポート時に実行され、ハンドラをグローバルに登録する
-4. ロード中のエラーは `[plugin] skipped: <filename> (<ErrorType>)` として個別にログ出力される
-5. config で `plugin_strict=true` の場合、すべてのプラグインが試行され、最後に集約された詳細を含む単一の `PluginLoadError` が発生する
-6. ロード後、サマリー行がログ出力される: `[plugin] loaded=N, skipped=M`
-7. ロード後、プラグインのツール名およびコマンド名が組み込み名と照合され、競合はそれぞれソースモジュール名とともにログ出力される
-8. ディレクトリが見つからない場合 → 0個のプラグインがロードされる（エラーなし）
-
-起動時ログ形式（個別スキップ）:
-`[plugin] skipped: <filename> (<ErrorType>)`
-
-起動時ログ形式（競合）:
-`[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected|allowed`
-
-起動時ログ形式（コマンドシャドウ）:
-`[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
-
-起動完了時、`agent/factory.py` の `_init_plugin_registry()` が発行する集約サマリー行（audit logger 経由）:
-`Plugin startup: discovered=%d, loaded=%d, skipped=%d, tool_conflicts_shadowed=%d, tool_conflicts_allowed=%d, command_shadows=%d`
-
-### 実装上の補足（設定キーとの対応）
-
-- `plugin_strict`（`ToolConfig.plugin_strict`, デフォルト `False`。CI環境では `os.getenv("CI")` により自動的に `True` になる — `agent/config_builders.py`）が本文中の `plugin_strict=true` に対応する。`/config` 表示は `cmd_config_display.py` の `plugin_strict` 行で確認できる。
-- ツール名の組み込み衝突ポリシーは `plugin_strict` ではなく別設定 `ToolConfig.plugin_tool_override` が決める: `True` なら `override_policy="allow"`（MCPツールをシャドウしても許可、`known_tools` チェック自体が空集合になりスキップされる）、`False`（デフォルト）なら `override_policy="reject"`（衝突したプラグインツールはロード後に登録解除される）。コマンド名の衝突は常に拒否（オプションA）のみで、`plugin_tool_override` の影響を受けない。
-  （Explicit in code: `scripts/agent/factory.py` `_init_plugin_registry()`）
-
-```python
-# plugins/my_plugin.py
-from shared.plugin_registry import register_command, register_tool, register_pipeline_stage
-
-@register_command("/ping")
-async def cmd_ping(ctx, args: str) -> None:
-    print("pong")
-
-@register_tool("echo")
-async def tool_echo(args: dict) -> tuple[str, bool]:
-    return str(args.get("text", "")), False
-
-@register_pipeline_stage(when="post")
-def post_rerank(hits, query):
-    return hits   # modify and return hits list
-```
-
----
-
-## `@register_command`
-
-```python
-@register_command(name: str, *, prefix: bool = False)
-handler(ctx: AgentContext, args: str) -> None  # sync or async
-```
-
-- `name`: `/` を含むスラッシュコマンド文字列（例: `"/ping"`）
-- `prefix=False`: 完全一致のみ
-- `prefix=True`: 後続の引数を受け付ける（`line.startswith(name + " ")`）
-- ディスパッチ優先度: 組み込みコマンドより**低い**（2番目にチェックされる）
-- アクセス: `plugin_registry.get_command(name)` → `(handler, is_prefix) | None`
-
-**組み込みとプラグインの優先度:**
-組み込みコマンドが最初にマッチングされる。組み込みにマッチしない場合、プラグインコマンドが試行される。組み込みコマンドと同名の
-プラグインコマンドは**ロード時に拒否される**（プラグインコマンドレジストリから削除される）。
-これらは `iter_commands()` に現れず、ディスパッチもされない。これは
-起動時の強制であり、ディスパッチ時の優先度ではない。
-
-#### コマンドシャドウポリシー
-
-組み込みコマンドと同名のプラグインコマンドは、**オプションA（拒否）**ポリシーの対象となる。
-
-- ロード時に、シャドウしているコマンドはコマンドレジストリから**削除**され、`iter_commands()` に現れず、ディスパッチもされない。
-- ログ: `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
-- `plugin_strict = true` の場合、すべてのプラグインのロード後に、`"Command builtin conflicts rejected: /help, /debug"`（拒否されたコマンド名のカンマ区切りリスト）を含むメッセージとともに `PluginLoadError` が発生する。
-- 非strictモード（デフォルト）では、拒否はログ行を出す以外は無音であり、起動は通常通り継続する。
-- `/plugin status` は `"Command shadows (rejected)"` のもとでこの件数を報告する。
-
----
+All tools are now provided exclusively by MCP servers.
 
 ## Related Documents
 
-- `05_agent_00_document-guide.md`
-- `05_agent_11_02_extension-points-tool-registration-part1.md`
-- `05_agent_11_03_extension-points-registry-rules.md`
+- [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
+- [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md)
 
 ## Keywords
 
-plugin architecture
-@register_command
-command shadow policy
+plugin
+removed
+extension points
+register_command
+register_tool
+register_pipeline_stage

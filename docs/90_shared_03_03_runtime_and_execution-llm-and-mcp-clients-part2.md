@@ -95,18 +95,10 @@ build_agent_config()
 
 **実装上の補足:** 他の設定(crawler.toml、chunk_splitter.toml、ingester.toml、各`*_mcp_server.toml`等)はプロセス分離方針により各プロセスが個別にロードし、エージェントの`load_all()`には含まれない(Explicit in code)。
 
-**プラグインの読み込み:**
-```
-プラグインレジストリの初期化
-  → plugin_registry.load_plugins(plugin_dir)
-  → plugins/*.py をアルファベット順にインポート
-  → @register_* デコレータがグローバルレジストリを構築
-```
-
 **ツール実行:**
 ```
 ToolExecutor.execute(tool_name, args)
-  → プラグイン優先 → ヘルスゲート → キャッシュ → 生のMCP呼び出し
+  → ヘルスゲート → キャッシュ → 生のMCP呼び出し
 ```
 
 ---

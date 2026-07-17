@@ -11,7 +11,6 @@ Provides:
   _print_mcp_settings          — MCP / security settings
   _print_approval_settings     — Approval settings
  _print_tool_safety_settings  — Tool safety settings
-   _print_plugin_settings          — Plugin settings
    _print_config_values         — Combined config display
   _print_rag_config            — Retrieval/DB settings
   _cmd_config                  — /config dispatcher
@@ -165,12 +164,6 @@ class _ConfigDisplayMixin(MixinBase):
             f"  min_importance      : {ctx.cfg.memory.memory_min_importance}"
         )
 
-    def _print_plugin_settings(self, ctx: AgentContext) -> None:
-        """Print plugin configuration settings."""
-        self._out.write("Plugin settings:")
-        self._out.write(f"  plugin_strict        : {ctx.cfg.tool.plugin_strict}")
-        self._out.write(f"  plugin_tool_override : {ctx.cfg.tool.plugin_tool_override}")
-
     def _print_config_values(self) -> None:
         """Print static endpoint/LLM settings and execution settings."""
         ctx = self._ctx
@@ -188,8 +181,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._print_tool_safety_settings(ctx)
         self._out.write("")
         self._print_memory_settings(ctx)
-        self._out.write("")
-        self._print_plugin_settings(ctx)
 
     def _print_rag_config(self) -> None:
         """Print retrieval settings including DB path and search parameters."""

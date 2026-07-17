@@ -1,5 +1,5 @@
 ---
-title: "Agent CLI and Commands - Slash Commands: Memory, MDQ, Plugin, Other"
+title: "Agent CLI and Commands - Slash Commands: Memory, MDQ, Other"
 category: agent
 tags:
   - agent
@@ -7,7 +7,6 @@ tags:
   - slash-commands
   - memory
   - mdq
-  - plugin
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_07_01_cli-and-commands-cli-reference.md
@@ -55,12 +54,6 @@ related:
 
 > **注記:** すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール(ポート8013)を呼び出す。MDQは`mdq.sqlite`(`rag.sqlite`とは別)を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
 
-### Pluginカテゴリ
-
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/plugin status` | なし | プラグインの読み込み結果(loaded、failed、conflicts)を表示 |
-
 ### Skillカテゴリ
 
 | Command | 副作用 | 関連する状態 |
@@ -96,5 +89,4 @@ related:
 
 memory category
 MDQ category
-plugin category
 other category

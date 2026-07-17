@@ -18,7 +18,6 @@ class ConfigValidationResult:
 
 # Strict keys that must be true in production (defaulting to false is an error)
 _REQUIRED_STRICT_KEYS = (
-    "plugin_strict",
     "tool_definitions_strict",
     "routing_drift_strict",
 )

@@ -9,15 +9,11 @@ class ToolCallResult:
     """Typed result from a single tool call execution."""
 
     output: str  # tool result text, or error message when is_error=True
-    is_error: (
-        bool  # True if the call failed (transport, tool, or plugin-contract error)
-    )
-    request_id: str  # x-request-id from HTTP transport; "" for plugin/cache
-    server_key: str  # server key that handled the call; "" for plugin tools
-    source: str = ""  # "mcp" for MCP tools, "plugin" for plugin tools, "cache" for cache hits, "" for error paths
-    error_type: str = (
-        ""  # "transport" | "tool" | "plugin_contract" | "" (empty on success)
-    )
+    is_error: bool  # True if the call failed (transport or tool error)
+    request_id: str  # x-request-id from HTTP transport; "" for cache hits
+    server_key: str  # server key that handled the call
+    source: str = ""  # "mcp" for MCP tools, "cache" for cache hits, "" for error paths
+    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 
     @classmethod
     def from_transport(

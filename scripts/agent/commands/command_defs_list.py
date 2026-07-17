@@ -139,13 +139,6 @@ _COMMANDS: list[CommandDef] = [
         "<approval_id> [reason]  Reject the pending workflow task",
     ),
     CommandDef(
-        "/plugin",
-        True,
-        False,
-        "_cmd_plugin",
-        "status  Show plugin load results (loaded, failed, conflicts)",
-    ),
-    CommandDef(
         "/skill",
         True,
         False,

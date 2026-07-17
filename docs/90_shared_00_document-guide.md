@@ -23,7 +23,7 @@ source:
 
 ## Purpose of This Document Set
 
-`shared/`レイヤー(共通型、設定、ロギング、プラグイン、OTel、ツールルーティング)と`db/`レイヤー(SQLite接続管理、スキーマ、ストアプロトコル、メンテナンス)をドキュメント化。
+`shared/`レイヤー(共通型、設定、ロギング、OTel、ツールルーティング)と`db/`レイヤー(SQLite接続管理、スキーマ、ストアプロトコル、メンテナンス)をドキュメント化。
 
 ---
 
@@ -44,7 +44,7 @@ source:
 |---|---|
 | `shared/`の用途・インポートルールは | `...purpose-and-scope.md` / `...constraints-and-reference.md` §7 |
 | `shared/types.py`の型、ツールfrozensetは | `...core-types.md` §3-4 / `...reference.md`(02) §10 |
-| `ConfigLoader.load_all()`は`agent.toml`を含むか、プラグインのロード方法は | `...config-and-logging.md` §2 / `...plugin-and-tool-runtime.md` §4 |
+| `ConfigLoader.load_all()`は`agent.toml`を含むか | `...config-and-logging.md` §2 |
 | `ToolExecutor`/`LLMClient`の動作は | `...llm-and-mcp-clients.md` §9/§10 |
 | SQLite DBの種類、`workflow.sqlite`対応、スキーマ、スケーリング上限は | `...overview-and-config.md`(04) / `...schema-reference.md` / `...migration-and-scaling.md` |
 | DB接続・モジュール境界・ストアプロトコルは | `...module-boundaries-and-helper.md` §2/§1a / `...protocol-and-backend.md` §3 |
@@ -80,7 +80,7 @@ source:
 | File | Description |
 |---|---|
 | [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md) | LLMMessage, RagConfig, RawHit/MergedHit/RankedHit/RagHit |
-| [90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md](90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md) | ToolCallResult, ActionResult, ToolSpec, CacheEntry, ArtifactEvent, ShellPolicy |
+| [90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md](90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md) | ToolCallResult, ActionResult, ToolSpec, CacheEntry, ArtifactEvent, ShellPolicy, RuntimeTool, RuntimeToolRegistry |
 | [90_shared_02_03_types_and_protocols-reference.md](90_shared_02_03_types_and_protocols-reference.md) | DbConfig、ツール定数、CallToolRequest/Response、Protocol と DTO の違い |
 
 ### Runtime and Execution（実行時とランタイム）
@@ -88,9 +88,9 @@ source:
 | File | Description |
 |---|---|
 | [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) | ConfigLoader、Config Isolation Policy、Logger |
-| [90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md](90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md) | plugin_registry, token_counter, otel_tracer, git_helper, formatters |
+| [90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md](90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md) | ToolExecutor, ToolRegistry, LifecycleProtocol, token_counter, otel_tracer, git_helper, formatters |
 | [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md) | ToolExecutor、LLMClient、McpServerConfig、実行フロー |
-| [90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md](90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md) | LlmRetryHandler, ToolResultCache, ToolSpec, PluginToolInvoker |
+| [90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md](90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md) | LlmRetryHandler, ToolResultCache, ToolSpec |
 
 ### DB Architecture and Schema（DBアーキテクチャとスキーマ）
 

@@ -51,8 +51,6 @@ source:
 | `TransportErrorInfo` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `shared/` (audit logs) |
 | `ToolSpec` | frozen dataclass | `shared/tool_spec.py` | `agent/` (DAG mode) |
 | `CacheEntry` | frozen dataclass | `shared/tool_cache.py` | `shared/` (ToolExecutor cache) |
-| `PluginFailure` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
-| `PluginLoadResult` | frozen dataclass | `shared/plugin_result.py` | `shared/`, `agent/` |
 | `ToolDefinition` | frozen dataclass | `shared/tool_registry.py` | `shared/`, `mcp_servers/` |
 
 ---
@@ -167,7 +165,7 @@ RagHit = RawHit | MergedHit | RankedHit
 - **実装上の補足 (Current behavior):** 実コードでは `MergedHit` / `RankedHit` も `distance` / `bm25_score` を保持し続ける(前段の値をそのまま引き継ぐ)。またすべてのフィールドにデフォルト値が設定されており、`chunk_id` と `content` 以外は省略可能。`rerank_score` のみ `None` を許容する (Explicit in code: `scripts/shared/types.py`)
 - **インポート:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
 - `scripts/rag/types.py` はこれらの名前をもはや再エクスポートしない — 後方互換用の再エクスポートは削除済み。`shared.types` から直接インポートすること
-- `rag/`、`agent/`、`shared/plugin_registry.py` から利用される
+- `rag/`、`agent/` から利用される
 
 ---
 

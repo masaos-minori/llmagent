@@ -17,8 +17,6 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
     """Build a ToolExecutor via __new__ with all mock dependencies."""
     executor = ToolExecutor.__new__(ToolExecutor)
 
-    mock_plugin = MagicMock()
-    mock_plugin.try_execute = AsyncMock(return_value=None)
     mock_resolver = MagicMock()
     mock_lifecycle = MagicMock()
     mock_lifecycle.ensure_ready = AsyncMock(return_value=None)
@@ -32,7 +30,6 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
         )
     )
 
-    executor._plugin_invoker = mock_plugin
     executor._resolver = mock_resolver
     executor._lifecycle = mock_lifecycle
     executor._health_registry = mock_health
@@ -49,36 +46,11 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
     executor.stat_transport_errors = {}
 
     return executor, {
-        "plugin": mock_plugin,
         "resolver": mock_resolver,
         "lifecycle": mock_lifecycle,
         "health": mock_health,
         "transport": mock_transport,
     }
-
-
-# --- plugin hit bypasses cache and MCP ---
-
-
-@pytest.mark.asyncio
-async def test_plugin_hit_bypasses_cache_and_mcp():
-    call_order: list[str] = []
-    executor, mocks = _make_executor()
-
-    plugin_result = ToolCallResult(
-        output="plugin_result", is_error=False, request_id="", server_key=""
-    )
-    mocks["plugin"].try_execute = AsyncMock(
-        side_effect=lambda n, a: _append_and_return(call_order, "plugin", plugin_result)
-    )
-    mocks["resolver"].resolve.side_effect = lambda n: _append_and_return(
-        call_order, "resolve", "srv1"
-    )
-
-    result = await executor.execute("plugin_tool", {})
-    assert "plugin" in call_order
-    assert "resolve" not in call_order
-    assert result.output == "plugin_result"
 
 
 # --- cache hit bypasses route/health/lifecycle/transport ---

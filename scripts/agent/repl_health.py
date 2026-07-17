@@ -664,7 +664,6 @@ def audit_security_defaults(
 
     result = ProductionConfigValidator().validate(
         {
-            "plugin_strict": getattr(tool_cfg, "plugin_strict", False),
             "tool_definitions_strict": getattr(
                 tool_cfg, "tool_definitions_strict", False
             ),

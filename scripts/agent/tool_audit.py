@@ -166,10 +166,7 @@ def audit_tool_exec(
     artifact_uri: str | None = None,
     source: str = "",
 ) -> None:
-    """Write a tool_exec event with mcp_request_id to the audit log.
-
-    Plugin tools bypass the mcp_request_id guard when source="plugin".
-    """
+    """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
     if not mcp_request_id and not source:
