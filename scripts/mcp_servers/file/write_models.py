@@ -49,6 +49,8 @@ class FileWriteConfig:
 
 
 class WriteFileRequest(BaseModel):
+    """Request model for writing or overwriting a file."""
+
     path: str = Field(..., description="Absolute path of the file to write")
     content: str = Field(..., description="Content to write (UTF-8 text)")
     dry_run: bool = Field(
@@ -58,6 +60,8 @@ class WriteFileRequest(BaseModel):
 
 
 class WriteFileResponse(BaseModel):
+    """Response indicating whether a file was written."""
+
     path: str
     size: int
     applied: bool = True
@@ -72,6 +76,8 @@ class EditOperation(BaseModel):
 
 
 class EditFileRequest(BaseModel):
+    """Request model for editing a file via string replacements."""
+
     path: str = Field(..., description="Absolute path of the file to edit")
     edits: list[EditOperation] = Field(
         ...,
@@ -84,12 +90,16 @@ class EditFileRequest(BaseModel):
 
 
 class EditFileResponse(BaseModel):
+    """Response containing the diff and result of an edit operation."""
+
     path: str
     diff: str  # diff text in unified diff format
     applied: bool  # true if the change was actually written to disk
 
 
 class CreateDirectoryRequest(BaseModel):
+    """Request model for creating a directory."""
+
     path: str = Field(
         ...,
         description="Absolute path of the directory to create (parent directories are created automatically)",
@@ -101,12 +111,16 @@ class CreateDirectoryRequest(BaseModel):
 
 
 class CreateDirectoryResponse(BaseModel):
+    """Response indicating whether a directory was created."""
+
     path: str
     created: bool  # true if newly created, false if it already existed
     dry_run_info: str = ""
 
 
 class MoveFileRequest(BaseModel):
+    """Request model for moving or renaming a file."""
+
     source: str = Field(..., description="Absolute path of the source")
     destination: str = Field(..., description="Absolute path of the destination")
     dry_run: bool = Field(
@@ -116,6 +130,8 @@ class MoveFileRequest(BaseModel):
 
 
 class MoveFileResponse(BaseModel):
+    """Response indicating the result of a move/rename operation."""
+
     source: str
     destination: str
     dry_run_info: str = ""
