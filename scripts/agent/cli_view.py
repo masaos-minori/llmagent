@@ -61,6 +61,7 @@ class CLIView:
     HISTORY_FILE = Path.home() / ".agent_history"
 
     def __init__(self, slash_commands: list[str]) -> None:
+        """Initialize with available slash commands for tab completion."""
         self._slash_commands = slash_commands
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
