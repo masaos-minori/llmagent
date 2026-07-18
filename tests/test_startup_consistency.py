@@ -29,7 +29,7 @@ async def test_write_warning_on_inconsistency():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
+        patch("agent.startup.McpToolDiscoveryService") as mock_mcp,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.return_value = MagicMock(
@@ -38,7 +38,9 @@ async def test_write_warning_on_inconsistency():
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_tools.return_value = MagicMock(warning_messages=lambda: [])
+        mock_mcp.return_value.discover_all.return_value = MagicMock(
+            registry=None, findings=[], unreachable=[]
+        )
 
         # Call only the consistency portion; other checks are mocked
         orch._check_embedding_dimensions = MagicMock()
@@ -56,14 +58,16 @@ async def test_no_warning_on_consistent():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
+        patch("agent.startup.McpToolDiscoveryService") as mock_mcp,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.return_value = MagicMock(is_consistent=True, issues=[])
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_tools.return_value = MagicMock(warning_messages=lambda: [])
+        mock_mcp.return_value.discover_all.return_value = MagicMock(
+            registry=None, findings=[], unreachable=[]
+        )
 
         orch._check_embedding_dimensions = MagicMock()
         await orch._check_services()
@@ -81,14 +85,16 @@ async def test_no_crash_on_exception():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
+        patch("agent.startup.McpToolDiscoveryService") as mock_mcp,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.side_effect = FileNotFoundError("rag.sqlite not found")
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_tools.return_value = MagicMock(warning_messages=lambda: [])
+        mock_mcp.return_value.discover_all.return_value = MagicMock(
+            registry=None, findings=[], unreachable=[]
+        )
 
         orch._check_embedding_dimensions = MagicMock()
         # Should not raise

@@ -20,9 +20,7 @@ from agent.repl_health import (
     audit_security_defaults,
     check_readiness,
     check_routing_drift,
-    check_routing_drift_vs_live,
     check_routing_safety_tiers,
-    check_tool_definitions_startup,
     check_workflow_definition,
 )
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
@@ -225,51 +223,7 @@ class StartupOrchestrator:
         except Exception as exc:  # noqa: BLE001
             pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
 
-        # 4. Tool definitions
-        try:
-            tool_result = await check_tool_definitions_startup(ctx)
-            for msg in tool_result.warning_messages():
-                pipeline.add_warning("tool_definitions", msg)
-            if not tool_result.has_issues:
-                pipeline.add_ok("tool_definitions")
-        except Exception as exc:  # noqa: BLE001
-            pipeline.add_warning(
-                "tool_definitions", f"Tool definition check failed: {exc}"
-            )
-
-        # 5. Routing drift (static)
-        try:
-            for msg in check_routing_drift(ctx):
-                pipeline.add_warning("routing_drift", msg)
-        except Exception as exc:  # noqa: BLE001
-            pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
-
-        # 5b. Routing safety tiers
-        try:
-            for msg in check_routing_safety_tiers(ctx):
-                pipeline.add_warning("routing_safety_tiers", msg)
-        except Exception as exc:  # noqa: BLE001
-            pipeline.add_warning(
-                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
-            )
-
-        # 6. Routing drift vs live
-        try:
-            strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
-            drift_result = await check_routing_drift_vs_live(ctx, strict=strict)
-            for msg in drift_result.warning_messages():
-                if strict:
-                    pipeline.add_fatal("routing_drift_live", msg)
-                else:
-                    pipeline.add_warning("routing_drift_live", msg)
-            if not drift_result.has_issues:
-                pipeline.add_ok("routing_drift_live")
-        except Exception as exc:  # noqa: BLE001
-            pipeline.add_skipped(
-                "routing_drift_live", f"Live routing check skipped: {exc}"
-            )
-
-        # 6b. MCP tool discovery / RuntimeToolRegistry population
+        # 4. MCP tool discovery and validation (consolidated)
         try:
             discovery = await McpToolDiscoveryService(ctx).discover_all()
             ctx.services_required.runtime_tools = discovery.registry
@@ -289,7 +243,23 @@ class StartupOrchestrator:
                 "mcp_tool_discovery", f"MCP tool discovery skipped: {exc}"
             )
 
-        # 7. RAG consistency
+        # 5. Routing drift (static)
+        try:
+            for msg in check_routing_drift(ctx):
+                pipeline.add_warning("routing_drift", msg)
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
+
+        # 5b. Routing safety tiers
+        try:
+            for msg in check_routing_safety_tiers(ctx):
+                pipeline.add_warning("routing_safety_tiers", msg)
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_warning(
+                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
+            )
+
+        # 6. RAG consistency
         try:
             rag_check = RagMaintenanceService().consistency()
             if rag_check.is_consistent:
