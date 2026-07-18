@@ -35,6 +35,7 @@ async def search_repositories(
     req: SearchRepositoriesRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> SearchRepositoriesResponse:
+    """Search for repositories on GitHub."""
     t0 = time.perf_counter()
     result = await svc.search_repositories(req)
     _info(
@@ -51,6 +52,7 @@ async def list_branches(
     req: ListBranchesRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> ListBranchesResponse:
+    """List branches for a given repository."""
     t0 = time.perf_counter()
     result = await svc.list_branches(req)
     _info(
@@ -67,6 +69,7 @@ async def create_branch(
     req: CreateBranchRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> CreateBranchResponse:
+    """Create a new branch in a repository."""
     t0 = time.perf_counter()
     result = await svc.create_branch(req)
     _info(
@@ -83,6 +86,7 @@ async def list_commits(
     req: ListCommitsRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> ListCommitsResponse:
+    """List commits for a given repository."""
     t0 = time.perf_counter()
     result = await svc.list_commits(req)
     _info(
@@ -99,6 +103,7 @@ async def get_commit(
     req: GetCommitRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> GetCommitResponse:
+    """Retrieve commit details by SHA."""
     t0 = time.perf_counter()
     result = await svc.get_commit(req)
     _info(
@@ -115,6 +120,7 @@ async def search_code(
     req: SearchCodeRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> SearchCodeResponse:
+    """Search code across GitHub repositories."""
     t0 = time.perf_counter()
     result = await svc.search_code(req)
     _info(

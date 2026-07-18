@@ -40,16 +40,20 @@ class _ContextFilter(logging.Filter):
     """
 
     def __init__(self) -> None:
+        """Initialize with an empty context variable."""
         super().__init__()
         self._cv: ContextVar[dict[str, Any]] = ContextVar("_log_context", default={})
 
     def set(self, **fields: Any) -> None:
+        """Set trace fields into the current context."""
         self._cv.set({k: v for k, v in fields.items() if v is not None})
 
     def clear(self) -> None:
+        """Clear all trace fields from the current context."""
         self._cv.set({})
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Add trace fields from context to the log record."""
         for k, v in self._cv.get().items():
             setattr(record, k, v)
         return True
@@ -61,6 +65,7 @@ class _JsonFormatter(logging.Formatter):
     _CONTEXT_KEYS = ("turn_id", "session_id", "rag_query_id", "workflow_id", "task_id")
 
     def format(self, record: logging.LogRecord) -> str:
+        """Format the log record as a JSON string with trace fields included."""
         entry: dict[str, Any] = {
             "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
             "level": record.levelname,
@@ -91,6 +96,7 @@ class Logger:
         *,
         structured_log: bool = False,
     ) -> None:
+        """Initialize the logger with a name, log file path, and optional structured logging mode."""
         _require_str(name, "Logger name")
         _require_str(log_file, "log_file")
         self._logger = logging.getLogger(name)
@@ -106,6 +112,7 @@ class Logger:
         self._filter.clear()
 
     def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the underlying stdlib logger."""
         return getattr(self._logger, name)
 
     def _configure_logger(self, log_file: str, structured_log: bool) -> None:

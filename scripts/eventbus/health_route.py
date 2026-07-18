@@ -2,7 +2,6 @@
 """eventbus/health_route.py — Health check endpoint handler."""
 
 import logging
-from typing import TYPE_CHECKING
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -10,17 +9,16 @@ from fastapi.responses import JSONResponse
 from eventbus.db import check_db
 from eventbus.route_helpers import get_broker, get_db, run_with_db_lock
 
-if TYPE_CHECKING:
-    pass
-
 logger = logging.getLogger(__name__)
 
 
 async def health_check(request: Request) -> JSONResponse:
+    """Return DB/broker/DLQ task health status as a JSON response."""
     db = get_db(request)
     broker = get_broker(request)
 
     def _check() -> bool:
+        """Check database connectivity and return whether it's available."""
         ok: bool = check_db(db)
         return ok
 

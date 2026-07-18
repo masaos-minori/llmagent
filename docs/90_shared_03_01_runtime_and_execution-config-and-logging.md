@@ -9,7 +9,7 @@ tags:
   - logger
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
   - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
 source:
@@ -23,7 +23,7 @@ source:
 ## 1. 目的
 
 `shared/` におけるランタイム基盤とユーティリティを文書化する: 設定読み込み、ロギング、
-プラグインレジストリ、トークンカウント、OTel トレーシング、git ヘルパー、フォーマッター、ToolExecutor、
+トークンカウント、OTel トレーシング、git ヘルパー、フォーマッター、ToolExecutor、
 および McpServerConfig。
 
 ---
@@ -150,7 +150,7 @@ class ProductionConfigValidator:
 
 - `security_profile == "production"` の場合のみ違反を error にする。それ以外 (local/development) は `[local/development]` 接頭辞付きの warning に降格される
 - 検証項目:
-  - `_REQUIRED_STRICT_KEYS = ("plugin_strict", "tool_definitions_strict", "routing_drift_strict")` が `False` (未設定含む)
+  - `_REQUIRED_STRICT_KEYS = ("tool_definitions_strict", "routing_drift_strict")` が `False` (未設定含む)
   - `tool_safety_tiers` と `tool_registry.get_registry().get_all_tool_names()` の双方向差分 (登録済みツールで tier 未設定 / tier に未登録キー)
   - `allowed_tools == []` (空リストは「全ツール許可」を意味するため警告/エラー対象)
 - `known_tools` 省略時は `shared.tool_registry.get_registry()` から動的取得を試み、例外時は当該チェックをスキップする (静かに空リスト扱い)
@@ -185,7 +185,7 @@ class Logger:
 ## Related Documents
 
 - `90_shared_00_document-guide.md`
-- `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`
+- `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
 - `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`
 - `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
 

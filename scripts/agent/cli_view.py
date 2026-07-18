@@ -23,22 +23,51 @@ _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇"
 class Writer(Protocol):
     """Output-side interface for LLM streaming and status messages."""
 
-    def write_token(self, token: str) -> None: ...
-    def write_compress_notice(self, n: int) -> None: ...
-    def write_turn_start(self) -> None: ...
-    def write_turn_end(self) -> None: ...
-    def write_llm_error(self, e: Exception) -> None: ...
-    def write_progress(self, msg: str) -> None: ...
-    def clear_progress(self) -> None: ...
-    def write_warning(self, msg: str) -> None: ...
-    def write_fatal(self, msg: str) -> None: ...
+    def write_token(self, token: str) -> None:
+        """Write one streaming token to stdout without a trailing newline."""
+        ...
+
+    def write_compress_notice(self, n: int) -> None:
+        """Notify the user that history was compressed."""
+        ...
+
+    def write_turn_start(self) -> None:
+        """Print a blank line before each LLM streaming turn."""
+        ...
+
+    def write_turn_end(self) -> None:
+        """Print a blank line after the final LLM answer."""
+        ...
+
+    def write_llm_error(self, e: Exception) -> None:
+        """Notify the user of an LLM request failure."""
+        ...
+
+    def write_progress(self, msg: str) -> None:
+        """Overwrite the current line with a progress indicator."""
+        ...
+
+    def clear_progress(self) -> None:
+        """Erase the progress line."""
+        ...
+
+    def write_warning(self, msg: str) -> None:
+        """Print a startup or runtime warning prefixed with [warn]."""
+        ...
+
+    def write_fatal(self, msg: str) -> None:
+        """Print a fatal error prefixed with [fatal]."""
+        ...
+
     def write_startup_banner(
         self,
         chunk_count: str,
         n_tools: int,
         workflow_status: str = "",
         memory_mode: str | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Print the agent startup line for display purposes."""
+        ...
 
 
 @runtime_checkable
@@ -49,7 +78,9 @@ class Reader(Protocol):
         self,
         loop: asyncio.AbstractEventLoop,
         first_line: str,
-    ) -> str: ...
+    ) -> str:
+        """Collect continuation lines when first_line ends with backslash."""
+        ...
 
 
 class CLIView:
@@ -61,6 +92,7 @@ class CLIView:
     HISTORY_FILE = Path.home() / ".agent_history"
 
     def __init__(self, slash_commands: list[str]) -> None:
+        """Initialize with available slash commands for tab completion."""
         self._slash_commands = slash_commands
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
@@ -80,6 +112,7 @@ class CLIView:
         cmds = self._slash_commands
 
         def _completer(text: str, state: int) -> str | None:
+            """Readline completer callback for slash commands."""
             options = [c for c in cmds if c.startswith(text)]
             return options[state] if state < len(options) else None
 
@@ -129,6 +162,7 @@ class CLIView:
         self._stop_spinner_event = asyncio.Event()
 
         async def _spin() -> None:
+            """Async spinner animation loop running on the current line."""
             assert self._stop_spinner_event is not None
             i = 0
             while not self._stop_spinner_event.is_set():

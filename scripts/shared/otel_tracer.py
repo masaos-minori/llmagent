@@ -26,15 +26,25 @@ logger = logging.getLogger(__name__)
 class SpanProtocol(Protocol):
     """Minimal protocol for OTel-compatible spans used by the agent pipeline."""
 
-    def __enter__(self) -> SpanProtocol: ...
-    def __exit__(self, *args: object) -> None: ...
-    def set_attribute(self, key: str, value: Any) -> None: ...
+    def __enter__(self) -> SpanProtocol:
+        """Enter the span context manager."""
+        ...
+
+    def __exit__(self, *args: object) -> None:
+        """Exit the span context manager."""
+        ...
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        """Set an attribute on the span."""
+        ...
 
 
 class TracerProtocol(Protocol):
     """Minimal protocol for OTel-compatible tracers used by the agent pipeline."""
 
-    def start_as_current_span(self, name: str, **kwargs: Any) -> SpanProtocol: ...
+    def start_as_current_span(self, name: str, **kwargs: Any) -> SpanProtocol:
+        """Start a new span with the given name."""
+        ...
 
 
 def build_tracer(
@@ -140,6 +150,7 @@ class _ConsoleProcessor:
     """Thin wrapper that delegates to SimpleSpanProcessor(ConsoleSpanExporter())."""
 
     def __init__(self) -> None:
+        """Initialize by creating the underlying OpenTelemetry processor."""
         from opentelemetry.sdk.trace.export import (  # noqa: PLC0415
             ConsoleSpanExporter,
             SimpleSpanProcessor,
@@ -148,14 +159,18 @@ class _ConsoleProcessor:
         self._processor = SimpleSpanProcessor(ConsoleSpanExporter())
 
     def on_start(self, span: Any, parent_context: Any = None) -> None:
+        """Delegate span-start callback to the underlying processor."""
         self._processor.on_start(span, parent_context)
 
     def on_end(self, *args: Any, **kwargs: Any) -> None:
+        """Delegate span-end callback to the underlying processor."""
         self._processor.on_end(*args, **kwargs)
 
     def shutdown(self, *args: Any, **kwargs: Any) -> None:
+        """Delegate shutdown callback to the underlying processor."""
         self._processor.shutdown(*args, **kwargs)
 
     def force_flush(self, *args: Any, **kwargs: Any) -> bool:
+        """Delegate force-flush callback to the underlying processor."""
         result = self._processor.force_flush(*args, **kwargs)
         return bool(result)

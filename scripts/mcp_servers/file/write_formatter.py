@@ -22,6 +22,7 @@ class WriteFileFormatter:
 
     @staticmethod
     def format_write_result(result: WriteFileResponse) -> str:
+        """Format write_file result with optional dry-run diff."""
         if not result.applied:
             info = f"Dry-run: {result.path} ({result.size} bytes)"
             if result.diff:
@@ -33,6 +34,7 @@ class WriteFileFormatter:
 
     @staticmethod
     def format_edit_result(result: EditFileResponse) -> str:
+        """Format edit_file result with optional dry-run diff."""
         if not result.diff:
             return "No changes."
         if result.applied:
@@ -41,6 +43,7 @@ class WriteFileFormatter:
 
     @staticmethod
     def format_directory_result(result: CreateDirectoryResponse) -> str:
+        """Format create_directory result with existence status."""
         if result.dry_run_info:
             return f"Dry-run: {result.path} [{result.dry_run_info}]"
         status = "created" if result.created else "already exists"
@@ -48,6 +51,7 @@ class WriteFileFormatter:
 
     @staticmethod
     def format_move_result(result: MoveFileResponse) -> str:
+        """Format move_file result with source and destination paths."""
         if result.dry_run_info:
             return f"Dry-run: {result.source} → {result.destination} [{result.dry_run_info}]"
         return f"Moved: {result.source} → {result.destination}"

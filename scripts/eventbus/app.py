@@ -22,14 +22,24 @@ from eventbus.config import (
 )
 from eventbus.db import open_db
 from eventbus.dlq import sweep_orphans
-from eventbus.dlq_route import dlq_list as dlq_list_route
-from eventbus.dlq_route import dlq_requeue as dlq_requeue_route
+from eventbus.dlq_route import (
+    dlq_list as dlq_list_route,
+)
+from eventbus.dlq_route import (
+    dlq_requeue as dlq_requeue_route,
+)
 from eventbus.health_route import health_check
 from eventbus.publish_route import publish as publish_route
 from eventbus.replay_route import replay as replay_route
-from eventbus.route_helpers import app_get_config as get_config
-from eventbus.route_helpers import app_get_db as get_db
-from eventbus.route_helpers import run_with_db_lock
+from eventbus.route_helpers import (
+    app_get_config as get_config,
+)
+from eventbus.route_helpers import (
+    app_get_db as get_db,
+)
+from eventbus.route_helpers import (
+    run_with_db_lock,
+)
 from eventbus.subscribe_route import subscribe as subscribe_route
 
 logger = logging.getLogger(__name__)
@@ -41,6 +51,7 @@ _DLQ_INTERVAL = 60.0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
+    """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
@@ -71,12 +82,14 @@ async def lifespan(app: FastAPI) -> Any:
 
 
 async def _dlq_loop(app: FastAPI) -> None:
+    """Periodically sweep orphaned events into the dead-letter queue directory."""
     while True:
         try:
             cfg = get_config(app)
             db = get_db(app)
 
             def _sweep() -> int:
+                """Sweep orphaned events from the DLQ table into the dead-letter directory."""
                 result: int = sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
                 return result
 
@@ -95,12 +108,14 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health(request: Request) -> JSONResponse:
+    """Health check endpoint for the event bus service."""
     result: JSONResponse = await health_check(request)
     return result
 
 
 @app.post("/publish")
 async def publish(request: Request) -> dict[str, Any]:
+    """Publish a new event to the event bus."""
     result: dict[str, Any] = await publish_route(request)
     return result
 
@@ -113,6 +128,7 @@ async def replay(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
+    """Replay events from a given sequence number via SSE or JSON."""
     return await replay_route(
         request, since_seq=since_seq, fmt=fmt, limit=limit, offset=offset
     )
@@ -125,6 +141,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
+    """Subscribe to events matching the specified topics via SSE."""
     return await subscribe_route(
         request, topic=topic, since_seq=since_seq, consumer_id=consumer_id
     )
@@ -136,12 +153,14 @@ async def dlq_list(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
+    """List dead-letter queue entries with pagination support."""
     result: dict[str, Any] = await dlq_list_route(request, limit=limit, offset=offset)
     return result
 
 
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+    """Requeue a dead-letter queue entry back into the active queue."""
     result: dict[str, Any] = await dlq_requeue_route(request, event_id)
     return result
 
@@ -152,6 +171,7 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Acknowledge an event as successfully processed by a consumer."""
     result: dict[str, Any] = await ack_event_route(
         request, event_id=event_id, consumer_id=consumer_id
     )
@@ -163,6 +183,7 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Negatively acknowledge an event, triggering retry logic."""
     result: dict[str, Any] = await nack_route(request, event_id=event_id)
     return result
 

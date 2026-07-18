@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 class MaintenanceMode(StrEnum):
+    """Mode controlling how database maintenance operations handle errors."""
+
     STRICT = "strict"
     BEST_EFFORT = "best_effort"
 

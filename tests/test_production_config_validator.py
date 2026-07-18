@@ -6,11 +6,11 @@ from shared.production_config_validator import ProductionConfigValidator
 
 
 class TestProductionConfigValidatorStrictKeys:
-    """Tests for strict key validation (plugin_strict, tool_definitions_strict, routing_drift_strict)."""
+    """Tests for strict key validation (tool_definitions_strict, routing_drift_strict)."""
 
     @pytest.mark.parametrize(
         "strict_key",
-        ["plugin_strict", "tool_definitions_strict", "routing_drift_strict"],
+        ["tool_definitions_strict", "routing_drift_strict"],
     )
     def test_strict_key_false_produces_error_in_production(
         self, strict_key: str
@@ -23,7 +23,7 @@ class TestProductionConfigValidatorStrictKeys:
 
     @pytest.mark.parametrize(
         "strict_key",
-        ["plugin_strict", "tool_definitions_strict", "routing_drift_strict"],
+        ["tool_definitions_strict", "routing_drift_strict"],
     )
     def test_strict_key_false_produces_warning_in_local(self, strict_key: str) -> None:
         config = {strict_key: False}
@@ -32,7 +32,7 @@ class TestProductionConfigValidatorStrictKeys:
 
     @pytest.mark.parametrize(
         "strict_key",
-        ["plugin_strict", "tool_definitions_strict", "routing_drift_strict"],
+        ["tool_definitions_strict", "routing_drift_strict"],
     )
     def test_strict_key_true_no_error_in_production(self, strict_key: str) -> None:
         config = {strict_key: True}
@@ -43,7 +43,6 @@ class TestProductionConfigValidatorStrictKeys:
 
     def test_all_strict_keys_true_no_errors_in_production(self) -> None:
         config = {
-            "plugin_strict": True,
             "tool_definitions_strict": True,
             "routing_drift_strict": True,
         }
@@ -52,17 +51,17 @@ class TestProductionConfigValidatorStrictKeys:
         )
         assert result.errors == []
 
-    def test_all_strict_keys_absent_produces_three_errors_in_production(self) -> None:
+    def test_all_strict_keys_absent_produces_two_errors_in_production(self) -> None:
         config: dict[str, bool] = {}
         result = ProductionConfigValidator().validate(
             config, security_profile="production"
         )
-        assert len(result.errors) == 3
+        assert len(result.errors) == 2
 
     def test_all_strict_keys_absent_produces_warnings_in_local(self) -> None:
         config: dict[str, bool] = {}
         result = ProductionConfigValidator().validate(config, security_profile="local")
-        assert len(result.warnings) == 3
+        assert len(result.warnings) == 2
         assert result.errors == []
 
 
@@ -190,18 +189,18 @@ class TestProductionConfigValidatorSecurityProfileEnum:
     """Tests using SecurityProfile enum values."""
 
     def test_production_enum_produces_error(self) -> None:
-        config = {"plugin_strict": False}
+        config = {"tool_definitions_strict": False}
         result = ProductionConfigValidator().validate(
             config, security_profile=SecurityProfile.PRODUCTION
         )
-        assert any("plugin_strict" in err for err in result.errors)
+        assert any("tool_definitions_strict" in err for err in result.errors)
 
     def test_local_enum_produces_warning(self) -> None:
-        config = {"plugin_strict": False}
+        config = {"tool_definitions_strict": False}
         result = ProductionConfigValidator().validate(
             config, security_profile=SecurityProfile.LOCAL
         )
-        assert any("plugin_strict" in warn for warn in result.warnings)
+        assert any("tool_definitions_strict" in warn for warn in result.warnings)
 
 
 class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:

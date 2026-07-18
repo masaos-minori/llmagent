@@ -19,9 +19,13 @@ async def _run_mqe(query: str, cfg: RagConfig, llm: RagLLM) -> list[str]:
 
 
 class MqeStage(PipelineStage):
+    """Multi-query expansion stage that generates alternative queries via LLM."""
+
     def __init__(self, cfg: RagConfig, llm: RagLLM) -> None:
+        """Initialize with RAG configuration and LLM client."""
         self._cfg = cfg
         self._llm = llm
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        """Execute multi-query expansion and store results in context."""
         ctx.queries = await _run_mqe(ctx.query, self._cfg, self._llm)

@@ -40,6 +40,7 @@ class DocumentManager:
     """
 
     def __init__(self, db: SQLiteHelper) -> None:
+        """Initialize with a database helper instance."""
         self._db = db
 
     def handle_existing_document(

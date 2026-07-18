@@ -14,6 +14,8 @@ from .models_base import IssueInfo, PullRequestInfo
 
 
 class ListPullRequestsRequest(BaseModel):
+    """Request model for listing pull requests."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     state: str = Field(default="open", pattern="^(open|closed|all)$")
@@ -21,20 +23,28 @@ class ListPullRequestsRequest(BaseModel):
 
 
 class ListPullRequestsResponse(BaseModel):
+    """Response containing a list of pull requests."""
+
     pull_requests: list[PullRequestInfo]
 
 
 class GetPullRequestRequest(BaseModel):
+    """Request model for getting a single pull request."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="Pull request number")
 
 
 class GetPullRequestResponse(BaseModel):
+    """Response containing a single pull request."""
+
     pull_request: PullRequestInfo
 
 
 class CreatePullRequestRequest(BaseModel):
+    """Request model for creating a new pull request."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     title: str = Field(..., description="Pull request title")
@@ -45,10 +55,14 @@ class CreatePullRequestRequest(BaseModel):
 
 
 class CreatePullRequestResponse(BaseModel):
+    """Response containing the created pull request."""
+
     pull_request: PullRequestInfo
 
 
 class UpdatePullRequestRequest(BaseModel):
+    """Request model for updating an existing pull request."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="Pull request number to update")
@@ -63,10 +77,14 @@ class UpdatePullRequestRequest(BaseModel):
 
 
 class UpdatePullRequestResponse(BaseModel):
+    """Response containing the updated pull request."""
+
     pull_request: PullRequestInfo
 
 
 class MergePullRequestRequest(BaseModel):
+    """Request model for merging a pull request."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="Pull request number to merge")
@@ -87,6 +105,8 @@ class MergePullRequestRequest(BaseModel):
 
 
 class MergePullRequestResponse(BaseModel):
+    """Response containing the result of a merge operation."""
+
     pr_number: int
     merged: bool
     sha: str
@@ -94,6 +114,8 @@ class MergePullRequestResponse(BaseModel):
 
 
 class SearchPullRequestsRequest(BaseModel):
+    """Request model for searching pull requests via GitHub API."""
+
     query: str = Field(
         ...,
         description="GitHub search query (is:pr is appended automatically)",
@@ -102,5 +124,7 @@ class SearchPullRequestsRequest(BaseModel):
 
 
 class SearchPullRequestsResponse(BaseModel):
+    """Response containing search results for pull requests."""
+
     query: str
     results: list[IssueInfo]  # Search API returns Issue objects

@@ -79,7 +79,6 @@ class TestBuildToolConfig:
         cfg = _build_tool_config({}, system_prompt_tool="")
         assert cfg.max_tool_turns == 5
         assert cfg.serial_tool_calls is False
-        assert cfg.plugin_strict is False
 
     def test_system_prompt_tool_is_set(self) -> None:
         cfg = _build_tool_config({}, system_prompt_tool="You are an assistant.")

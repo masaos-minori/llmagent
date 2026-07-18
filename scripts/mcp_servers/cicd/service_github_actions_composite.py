@@ -23,6 +23,7 @@ class GitHubActionsCompositeBackend(CiBackend):
         http: httpx.AsyncClient,
         max_log_size_kb: int = 256,
     ) -> None:
+        """Initialize with GitHub token, HTTP client, and optional log size limit."""
         from .service_github_actions import GitHubActionsBackend  # noqa: PLC0415
         from .service_github_actions_job import (  # noqa: PLC0415
             GitHubActionsJobBackend,
@@ -53,6 +54,7 @@ class GitHubActionsCompositeBackend(CiBackend):
         ref: str,
         inputs: dict[str, str],
     ) -> str:
+        """Trigger a workflow run on the specified repository and branch."""
         return await self._workflow.trigger_workflow(owner, repo, workflow, ref, inputs)
 
     async def get_workflow_runs(
@@ -62,10 +64,13 @@ class GitHubActionsCompositeBackend(CiBackend):
         workflow: str,
         limit: int,
     ) -> str:
+        """Retrieve the list of workflow runs for the given workflow."""
         return await self._workflow.get_workflow_runs(owner, repo, workflow, limit)
 
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str:
+        """Get the status of a specific workflow run by ID."""
         return await self._workflow.get_workflow_status(owner, repo, run_id)
 
     async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
+        """Retrieve the logs for a specific workflow run."""
         return await self._job.get_workflow_logs(owner, repo, run_id)

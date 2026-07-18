@@ -23,6 +23,7 @@ class AgentSession:
     """
 
     def __init__(self, *, strict_mode: bool = False) -> None:
+        """Initialize the session manager with optional strict mode and message repository."""
         self.session_id: int | None = None  # current session DB row ID
         self._strict_mode = strict_mode
         self._title_pending: bool = False

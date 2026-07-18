@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def _denied_result(reason: str) -> ToolCallResult:
+    """Create a ToolCallResult indicating the operation was denied by policy."""
     return ToolCallResult(
         output=reason,
         is_error=True,
@@ -56,6 +57,7 @@ class RepositoryGateway:
         cfg: AgentConfig,
         audit_logger: logging.Logger | Logger | None = None,
     ) -> None:
+        """Initialize the repository gateway with its executor, config, and optional audit logger."""
         self._executor = executor
         self._cfg = cfg
         self._audit_logger = audit_logger

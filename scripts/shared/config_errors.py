@@ -22,6 +22,7 @@ class ConfigLoadError(RuntimeError):
     """Raised when configuration files cannot be loaded."""
 
     def __init__(self, message: str, cause: Exception | None = None) -> None:
+        """Initialize with an optional chained exception cause."""
         if cause is not None:
             full_message = (
                 f"Config load failed ({type(cause).__name__}: {cause}): {message}"

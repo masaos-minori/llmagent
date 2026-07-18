@@ -23,13 +23,16 @@ async def dlq_list(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
+    """List dead-letter queue entries with pagination support."""
     db = get_db(request)
 
     def _dlq_count() -> int:
+        """Count total events in the dead letter queue."""
         count: int = count_dlq(db)
         return count
 
     def _dlq_fetch() -> list:
+        """Fetch paginated events from the dead letter queue."""
         rows: list = fetch_dlq(db, limit=limit, offset=offset)
         return rows
 
@@ -44,10 +47,12 @@ async def dlq_list(
 
 
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+    """Requeue a dead-letter queue entry back into the active event queue."""
     db = get_db(request)
     cfg = get_config(request)
 
     def _requeue() -> tuple[bool, int | None]:
+        """Requeue a single event from the dead letter queue and return its failure count."""
         found = requeue_event(db, event_id)
         if not found:
             return False, None

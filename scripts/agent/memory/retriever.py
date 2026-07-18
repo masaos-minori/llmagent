@@ -72,6 +72,7 @@ class FtsRetriever:
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
         recency_days: float = 7.0,
     ) -> None:
+        """Initialize FTS5 search with configurable candidate limit and recency window."""
         self._fts_limit = fts_limit
         self._recency_days = recency_days
 
@@ -199,6 +200,7 @@ class HybridRetriever:
         recency_days: float = 7.0,
         embed_client: EmbeddingClient | None = None,
     ) -> None:
+        """Initialize hybrid retrieval with FTS and optional vector search backends."""
         self._fts = FtsRetriever(fts_limit=fts_limit, recency_days=recency_days)
         self._vec = VectorRetriever()
         self._rrf_k = rrf_k

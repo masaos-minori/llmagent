@@ -167,7 +167,7 @@ def check_removed_file_references(docs_dir: Path, files: list[DocFile]) -> list[
 
 _COMMAND_DEF_RE = re.compile(r'CommandDef\(\s*"(/[a-z][a-z0-9_]*)"')
 _DOC_SLASH_COMMAND_RE = re.compile(
-    r"(?<![`/a-zA-Z0-9])/(mcp|db|debug|audit|memory|mdq|rag|plugin|help|config|"
+    r"(?<![`/a-zA-Z0-9])/(mcp|db|debug|audit|memory|mdq|rag|help|config|"
     r"stats|set|reload|context|compact|system|session|clear|undo|history|"
     r"export|plan|approve|reject|skill)\b"
 )

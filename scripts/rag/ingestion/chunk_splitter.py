@@ -91,6 +91,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     """Splits crawl output (rag-src/*.json JSON) into text and code chunks and writes them to rag-src/chunk/ for ingestion."""
 
     def __init__(self, config: dict | None = None) -> None:
+        """Initialize the chunk splitter with configuration from TOML file or provided dict."""
         cfg: dict = config or ConfigLoader().load("chunk_splitter.toml")
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
@@ -330,6 +331,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
+    """CLI entry point for chunking rag-src JSON files into document chunks."""
     parser = argparse.ArgumentParser(
         description="Chunking: rag-src/*.json → rag-src/chunk/{stem}-{idx:04d}.json",
     )

@@ -63,10 +63,12 @@ class McpServerConfig:
     )  # server key from config; compare=False keeps equality unaffected
 
     def __post_init__(self) -> None:
+        """Validate enum types and cross-field constraints after initialization."""
         self._validate_enum_types()
         self._validate_cross_fields()
 
     def _validate_enum_types(self) -> None:
+        """Ensure transport and startup_mode values are valid enum members."""
         if not isinstance(self.transport, TransportType):
             raise ValueError(f"{self.transport!r} is not a valid TransportType")
         if self.startup_mode is not None and not isinstance(
@@ -75,6 +77,7 @@ class McpServerConfig:
             raise ValueError(f"{self.startup_mode!r} is not a valid StartupMode")
 
     def _validate_cross_fields(self) -> None:
+        """Validate cross-field constraints such as required URLs and timeouts."""
         key_prefix = f"McpServerConfig[{self.key!r}]" if self.key else "McpServerConfig"
 
         if self.transport == TransportType.HTTP and not self.url:

@@ -32,7 +32,7 @@ source:
 
 ### 4.1 クラス概要
 
-`RagIngester` — チャンクファイルを読み込み、`embed-llm`（ポート8003）経由で埋め込みを生成し、
+`RagIngester` — チャンクファイルを読み込み、`embed-llm`（ポート8081）経由で埋め込みを生成し、
 SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済みチャンクは
 `rag-src/registered/` へ移動する。
 

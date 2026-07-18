@@ -120,7 +120,7 @@ REPL経由: `/audit [tail N | turn <id> | tool <name>]`
 |---|---|
 | `ToolApprovalEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
 | `ApprovalDecisionEvent` | `workflow_id: str = ""`, `session_id: str = ""` |
-| `ToolExecEvent` | `source: str = "agent"` (tool source: `"agent"` for MCP tools, `"plugin"` for plugin tools), `error_type: str = ""`, `workflow_id: str = ""`, `session_id: str = ""`, `artifact_uri: str \| None = None` |
+| `ToolExecEvent` | `source: str = "agent"` (tool source: `"agent"` for MCP tools), `error_type: str = ""`, `workflow_id: str = ""`, `session_id: str = ""`, `artifact_uri: str \| None = None` |
 
 ### Audit writers (`agent/tool_audit.py`)(監査ライター)
 
@@ -128,16 +128,7 @@ REPL経由: `/audit [tail N | turn <id> | tool <name>]`
 |---|---|
 | `log_approval_decision(ctx, outcome)` | 構造化されたapproval_decisionイベントを監査ログに書き込む |
 | `write_round_exec(ctx, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode)` | ラウンド全体の実行イベントを記録し、直列化による影響を捕捉する |
-| `audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri=None, source="")` | tool_execイベントを監査ログに書き込む。ガード条件は `if not mcp_request_id and not source: return`(`mcp_request_id` と `source` が両方とも空の場合のみ書き込みをスキップする)。プラグインツールは `source="plugin"` を渡すことでこのガードを回避する。根拠: `agent/tool_audit.py` の `audit_tool_exec()`(Explicit in code) |
-
-### Plugin tool audit events(プラグインツールの監査イベント)
-
-プラグインツールは、`source="plugin"`、`mcp_request_id=""`、空の `server_key` を伴う `tool_exec` イベントを発行する。MCPツールのイベントとは異なり、プラグインイベントはHTTP転送層を経由しないため `X-Request-Id` による関連付けを持たない。これは、プラグインツールの監査イベントがMCPサーバのアクセスログと関連付けできないことを意味する。
-
-プラグインツールの監査イベントの例:
-```json
-{"event":"tool_exec","task_id":"...","tool":"my_plugin_tool","operation_type":"","resource_scope":{},"mcp_request_id":"","is_error":false,"args_preview":{},"ts":1718600000.1,"source":"plugin","error_type":"","workflow_id":"","session_id":""}
-```
+| `audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri=None, source="")` | tool_execイベントを監査ログに書き込む。ガード条件は `if not mcp_request_id and not source: return`(`mcp_request_id` と `source` が両方とも空の場合のみ書き込みをスキップする)。根拠: `agent/tool_audit.py` の `audit_tool_exec()`(Explicit in code) |
 
 ---
 

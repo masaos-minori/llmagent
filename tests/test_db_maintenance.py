@@ -23,7 +23,7 @@ from db.recovery import recover_corruption
 from db.rotation import rotate_all_dbs, rotate_session_db, rotate_workflow_db
 from rag.maintenance import RagDbMaintenanceService
 
-_TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
+_TEST_EMBED_URL = "http://127.0.0.1:8081/embedding"
 
 # Minimal session schema for purge tests (no vec0 dependency).
 _SESSION_SCHEMA = """

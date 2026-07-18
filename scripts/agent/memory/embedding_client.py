@@ -29,6 +29,8 @@ _LOCAL_PREFIXES = (
 
 @dataclass
 class EmbeddingClientConfig:
+    """Configuration for the embedding client connection."""
+
     embed_url: str = ""
     timeout: float = 5.0
     max_retries: int = 2
@@ -43,6 +45,8 @@ class EmbeddingClientConfig:
 
 @dataclass(frozen=True)
 class EmbeddingClientStatus:
+    """Runtime health status of the embedding client."""
+
     enabled: bool
     circuit_open: bool
     fail_count: int
@@ -125,6 +129,7 @@ class EmbeddingClient:
         *,
         enabled: bool = False,
     ) -> None:
+        """Validate config and initialize the embedding HTTP client."""
         if config.local_only and config.embed_url:
             if not any(config.embed_url.startswith(p) for p in _LOCAL_PREFIXES):
                 raise ValueError(
@@ -138,6 +143,12 @@ class EmbeddingClient:
         self._circuit_opened_at: float | None = None
 
     def _is_circuit_open(self) -> bool:
+        """Return True when the circuit breaker is currently open.
+
+        If the circuit was never opened, returns False immediately.
+        When the configured reset interval has elapsed, the circuit auto-resets
+        by clearing ``_fail_count`` and ``_circuit_opened_at`` before returning False.
+        """
         if self._circuit_opened_at is None:
             return False
         elapsed = time.monotonic() - self._circuit_opened_at
@@ -149,6 +160,7 @@ class EmbeddingClient:
         return True
 
     def _record_failure(self) -> None:
+        """Increment the failure counter and open the circuit breaker if threshold reached."""
         self._fail_count += 1
         if self._fail_count >= self._config.circuit_open_after:
             self._circuit_opened_at = time.monotonic()

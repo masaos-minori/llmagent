@@ -48,7 +48,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8001/embed"
+        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = True
@@ -72,7 +72,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8001/embed"
+        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = False
@@ -96,7 +96,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8001/embed"
+        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = False  # explicitly set to False

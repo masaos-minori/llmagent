@@ -112,7 +112,7 @@ class TestCrawlFilePayload:
 def _make_ingester(tmp_path: Path) -> RagIngester:
     cfg: dict[str, Any] = {
         "rag_src_dir": str(tmp_path / "rag-src"),
-        "embed_url": "http://localhost:8003",
+        "embed_url": "http://localhost:8081",
         "embed_retry": 3,
     }
     return RagIngester(cfg)

@@ -87,7 +87,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -114,7 +114,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -141,7 +141,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with patch("asyncio.sleep", return_value=None):
@@ -161,7 +161,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with pytest.raises(TransportError) as exc_info:
@@ -184,7 +184,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
         with pytest.raises(TransportError):
@@ -204,7 +204,7 @@ Direct file edit — append new test methods after existing `test_retries_exhaus
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
-            base_url="http://localhost:8001",
+            base_url="http://localhost:8080",
             server_key="test",
         )
 

@@ -12,14 +12,11 @@ Import from here:  from agent.commands.cmd_config_stats import _ConfigStatsMixin
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import LatencySnapshot, StatsViewModel
 from agent.services.context_view import _int_safe
-
-if TYPE_CHECKING:
-    pass
 
 
 def _safe[T](obj: object | None, attr: str, default: T) -> T:
@@ -62,6 +59,7 @@ class _ConfigStatsMixin(MixinBase):
     """Stats collection and display for slash commands."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the config stats mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _collect_stats(self) -> StatsViewModel:
@@ -108,6 +106,7 @@ class _ConfigStatsMixin(MixinBase):
         stats = self._collect_stats()
 
         def _fmt_tokens(v: int | None) -> str:
+            """Format an integer with comma separators, or 'N/A' for None values."""
             return f"{v:,}" if v is not None else "N/A"
 
         self._out.write("Session statistics:")

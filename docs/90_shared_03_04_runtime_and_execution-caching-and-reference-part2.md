@@ -7,12 +7,11 @@ tags:
   - retry-handler
   - tool-cache
   - tool-spec
-  - plugin-invoker
   - ai-reference
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
 source:
   - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
@@ -22,7 +21,7 @@ source:
 
 - 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
-## 18. `McpServerHealthState` / `McpServerHealthRegistry` (`shared/mcp_health.py`)
+## 17. `McpServerHealthState` / `McpServerHealthRegistry` (`shared/mcp_health.py`)
 
 ```python
 class McpServerHealthState(Enum):
@@ -61,7 +60,7 @@ class McpServerHealthRegistry:
 
 ---
 
-## 19. `LlmPayloadHandler` (`shared/llm_payload.py`)
+## 18. `LlmPayloadHandler` (`shared/llm_payload.py`)
 
 ```python
 class LlmPayloadHandler:
@@ -84,7 +83,7 @@ class LlmPayloadHandler:
 
 ---
 
-## 20. `LlmHotConfigHandler` (`shared/llm_hot_config.py`)
+## 19. `LlmHotConfigHandler` (`shared/llm_hot_config.py`)
 
 ```python
 class LlmHotConfigHandler:
@@ -105,26 +104,25 @@ class LlmHotConfigHandler:
 
 ---
 
-## 21. AI リファレンスガイド
+## 20. AI リファレンスガイド
 
 | 質問 | 回答 |
 |---|---|
 | 設定ファイルの読み込み方法 | `ConfigLoader().load("filename.toml")` または `load_all()` |
 | 設定オーナーシップ表 | **§2a 設定オーナーシップを参照** — プロセス分離方針とプロセスごとの設定ファイル一覧の正式なリファレンス |
 | `load_all()` は `agent.toml` を含むか? | **含む(それのみ)** — `_BASE_CONFIG_FILES = ("agent.toml",)` の1件のみで、他の設定ファイル(crawler.toml等)は各プロセスが個別にロードする (§2a 設定オーナーシップを参照) |
-| プラグインツールの登録方法 | `plugins/*.py` 内の `@register_tool("name")` デコレータ |
 | ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU。ただし `ToolExecutor` は `shared/tool_cache.py` の `ToolResultCache` ではなく、`shared/tool_executor.py` 内の自前の `OrderedDict` ベースキャッシュ (`_execute_with_cache()`) を使う (§15 を参照) |
 | `git_helper.get_repo_info()` は信頼できるか? | `RepoInfoResult` を返す; `.success` と `.failure_reason` (FailureReason enum) を確認すること |
 | 正確なトークン数を取得する方法 | `await get_token_count(history, tokenize_url, http)` |
 | LLM の再試行はどう動くか? | 指数バックオフ: 429/503 および接続エラー時に `retry_base_delay * (2**attempt)` |
 | ToolExecutor のキャッシュキー形式は? | `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用) |
-| ヘルスゲートの状態遷移は? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (§18 を参照)。`UNKNOWN` 状態も定義されているが `get_state()` の既定値は `HEALTHY` |
+| ヘルスゲートの状態遷移は? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (§17 を参照)。`UNKNOWN` 状態も定義されているが `get_state()` の既定値は `HEALTHY` |
 
 ## Related Documents
 
 - `90_shared_00_document-guide.md`
 - `90_shared_03_01_runtime_and_execution-config-and-logging.md`
-- `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`
+- `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
 - `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md`
 - `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
 
@@ -134,7 +132,6 @@ LlmRetryHandler
 ToolResultCache
 CacheEntry
 ToolSpec
-PluginToolInvoker
 McpServerHealthState
 McpServerHealthRegistry
 record_degraded

@@ -24,7 +24,7 @@ from agent.memory.retriever import HybridRetriever
 @pytest.fixture()
 def config() -> EmbeddingClientConfig:
     return EmbeddingClientConfig(
-        embed_url="http://localhost:8001/embed",
+        embed_url="http://localhost:8080/embed",
         circuit_open_after=3,
         circuit_reset_sec=60.0,
         embed_dim=0,
@@ -71,7 +71,7 @@ class TestGetStatus:
 
     def test_auto_reset_when_elapsed(self) -> None:
         cfg = EmbeddingClientConfig(
-            embed_url="http://localhost:8001/embed",
+            embed_url="http://localhost:8080/embed",
             circuit_open_after=3,
             circuit_reset_sec=0.001,
             embed_dim=0,

@@ -20,8 +20,13 @@ from typing import Any
 import httpx
 import orjson
 from shared.config_loader import ConfigLoader
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import extract_llm_content, parse_http_json
+from shared.json_utils import (
+    dumps as _json_dumps,
+)
+from shared.json_utils import (
+    extract_llm_content,
+    parse_http_json,
+)
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,
@@ -95,6 +100,7 @@ class RagLLM:
         llm_url: str,
         cfg: Mapping[str, object] | None = None,
     ) -> None:
+        """Initialize with HTTP client, LLM URL, and optional config mapping."""
         self._client = client
         self._llm_url = llm_url
         self._cfg: Mapping[str, object] = cfg if cfg is not None else {}

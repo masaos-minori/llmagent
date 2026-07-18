@@ -52,6 +52,7 @@ app = FastAPI(
 
 @app.exception_handler(ShellAuthorizationError)
 async def _on_shell_auth_error(_req: Any, exc: ShellAuthorizationError) -> JSONResponse:
+    """Handle authorization errors by returning a 403 response."""
     return JSONResponse({"detail": str(exc)}, status_code=403)
 
 
@@ -59,6 +60,7 @@ async def _on_shell_auth_error(_req: Any, exc: ShellAuthorizationError) -> JSONR
 async def _on_shell_validation_error(
     _req: Any, exc: ShellValidationError
 ) -> JSONResponse:
+    """Handle validation errors by returning a 422 response."""
     return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
@@ -69,6 +71,7 @@ async def _on_shell_validation_error(
 
 @app.post("/shell_run", response_model=ShellRunResponse)
 async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
+    """Execute a sandboxed shell command via the shell service."""
     t0 = time.perf_counter()
     result = await _service.run_command(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -87,6 +90,7 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint. Returns degraded when 'sh' is not found in PATH."""
     deps: dict[str, str] = {}
     try:
         import shutil as _shutil
@@ -109,11 +113,13 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Route shell tool calls through the service's dispatch table."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """List available shell tools with server_key="shell"."""
     return {
         "tools": [{**t, "server_key": "shell"} for t in TOOL_LIST],
     }
@@ -121,6 +127,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    """Dispatch an MCP tool call through the shell service with audit logging."""
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
@@ -154,6 +161,7 @@ class ShellMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool by name with the given arguments via the shell service."""
         return await _dispatch_shell_tool(name, args)
 
 

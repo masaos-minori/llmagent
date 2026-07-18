@@ -32,6 +32,7 @@ async def _do_ack(
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
+        """Acknowledge an event and write consumer offset if newly acked."""
         now = now_iso()
         found, newly_acked = _ack_event(db, event_id, now)
         seq: int | None = None
@@ -62,6 +63,7 @@ async def ack_event(
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Acknowledge an event as successfully processed by a consumer."""
     db = get_db(request)
     cfg = get_config(request)
     return await _do_ack(db, cfg, event_id, consumer_id)
@@ -71,6 +73,7 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    """Negatively acknowledge an event, triggering retry logic."""
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
@@ -78,6 +81,7 @@ async def nack(
     cfg = get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
+        """Nack an event and promote to DLQ if max retries exceeded."""
         failure_count = _nack_event(db, event_id)
         if failure_count == -1:
             return (-1, False)

@@ -10,17 +10,23 @@ from enum import StrEnum
 
 
 class MemoryType(StrEnum):
+    """Types of persistent memory supported by the agent."""
+
     SEMANTIC = "semantic"
     EPISODIC = "episodic"
 
 
 class RetrievalMode(StrEnum):
+    """Modes for retrieving memory entries."""
+
     FTS = "fts"
     KNN = "knn"
     HYBRID = "hybrid"
 
 
 class ExtractionDecision(StrEnum):
+    """Decisions made during memory extraction."""
+
     ACCEPT = "accept"
     REJECT_TOO_SHORT = "reject_too_short"
     REJECT_NO_KEYWORDS = "reject_no_keywords"
@@ -28,11 +34,15 @@ class ExtractionDecision(StrEnum):
 
 
 class DedupAction(StrEnum):
+    """Actions taken when a near-duplicate is detected."""
+
     SKIP_NEW = "skip_new"  # skip new entry when a near-duplicate already exists
 
 
 @dataclass
 class DedupPolicy:
+    """Configuration for deduplication behavior."""
+
     action: DedupAction = DedupAction.SKIP_NEW
     threshold: float = 0.3
 

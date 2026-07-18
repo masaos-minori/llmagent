@@ -33,6 +33,7 @@ async def list_issues(
     req: ListIssuesRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> ListIssuesResponse:
+    """Retrieve the list of issues for a repository."""
     t0 = time.perf_counter()
     result = await svc.list_issues(req)
     _info(
@@ -50,6 +51,7 @@ async def get_issue(
     req: GetIssueRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> GetIssueResponse:
+    """Retrieve a specific issue by number."""
     t0 = time.perf_counter()
     result = await svc.get_issue(req)
     _info(
@@ -66,6 +68,7 @@ async def create_issue(
     req: CreateIssueRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> CreateIssueResponse:
+    """Create a new issue in a repository."""
     t0 = time.perf_counter()
     result = await svc.create_issue(req)
     _info(
@@ -82,6 +85,7 @@ async def search_issues(
     req: SearchIssuesRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> SearchIssuesResponse:
+    """Keyword search for issues across all of GitHub."""
     t0 = time.perf_counter()
     result = await svc.search_issues(req)
     _info(
@@ -98,6 +102,7 @@ async def add_issue_comment(
     req: AddIssueCommentRequest,
     svc: GitHubService = Depends(_get_service),
 ) -> AddIssueCommentResponse:
+    """Post a comment to an existing issue."""
     t0 = time.perf_counter()
     result = await svc.add_issue_comment(req)
     _info(

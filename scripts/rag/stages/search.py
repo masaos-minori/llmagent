@@ -6,8 +6,6 @@ import asyncio
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
-from shared.types import RagConfig
-
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
 
@@ -16,7 +14,7 @@ if TYPE_CHECKING:
     from db.helper import SQLiteHelper
 
 from shared.logger import Logger
-from shared.types import RawHit
+from shared.types import RagConfig, RawHit
 
 from rag.models_result import SearchDiagnostics
 
@@ -74,12 +72,15 @@ async def _search_all_queries(
 
 
 class SearchStage(PipelineStage):
+    """Semantic + BM25 hybrid search stage across all expanded queries."""
+
     def __init__(
         self,
         cfg: RagConfig,
         http: httpx.AsyncClient | None = None,
         embed_url: str = "",
     ) -> None:
+        """Initialize with RAG config, optional HTTP client, and embedding URL."""
         self._cfg = cfg
         self._http = http
         self._embed_url = embed_url
@@ -87,6 +88,7 @@ class SearchStage(PipelineStage):
     async def run(
         self, ctx: PipelineContext, db: SQLiteHelper | None = None, **kwargs: Any
     ) -> None:
+        """Execute hybrid search for all queries and store results in context."""
         if db is None:
             logger.warning("SearchStage.run: db is None, returning empty results")
             ctx.search_results = []

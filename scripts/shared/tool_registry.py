@@ -58,6 +58,7 @@ class ToolRegistry:
     """Central registry of MCP tools. Single source of truth for tool ownership."""
 
     def __init__(self) -> None:
+        """Initialize with empty tool and server mappings."""
         self._tools: dict[str, ToolDefinition] = {}  # name → ToolDefinition
         self._by_server: dict[str, list[str]] = {}  # server_key → [tool_names]
 

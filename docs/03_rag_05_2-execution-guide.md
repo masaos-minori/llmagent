@@ -19,7 +19,7 @@ source:
 
 ```bash
 # embed-llmが起動していることを確認
-curl -s http://127.0.0.1:8003/health
+curl -s http://127.0.0.1:8081/health
 
 # 設定ファイルが存在することを確認 (rag_src_dirを定義、デフォルトは/opt/llm/rag-src)
 ls -la config/rag_pipeline.toml
@@ -59,7 +59,7 @@ uv run python scripts/rag/ingestion/chunk_splitter.py --force
 
 ```bash
 # 実行前にembed-llmを確認
-curl -s http://127.0.0.1:8003/health
+curl -s http://127.0.0.1:8081/health
 
 uv run python scripts/rag/ingestion/ingester.py
 

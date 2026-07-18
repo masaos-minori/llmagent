@@ -10,7 +10,7 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
 source:
   - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
@@ -30,32 +30,31 @@ source:
 class ToolCallResult:
     output: str          # Tool output string (truncated if > MCP_MAX_RESPONSE_BYTES)
     is_error: bool       # True if the tool call failed
-    request_id: str      # X-Request-Id from the MCP server response; "" for plugin/cache
-    server_key: str      # Server key used for routing (e.g. "file_read", "shell"); "" for plugin tools
-    source: str = ""      # "mcp" | "plugin" | "" (cache/error paths)
-    error_type: str = ""  # "transport" | "tool" | "plugin_contract" | "" (empty on success)
+    request_id: str      # X-Request-Id from the MCP server response; "" for cache hits
+    server_key: str      # Server key used for routing (e.g. "file_read", "shell")
+    source: str = ""      # "mcp" for MCP tools, "cache" for cache hits, "" for error paths
+    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 ```
 
-**訂正 (Explicit in code):** 旧記述は `source` / `error_type` フィールドを欠いていた。`error_type` はエラーの分類(トランスポート層/ツール層/プラグイン契約違反)を示し、ヘルスゲートやエラーカウンタ集計(`get_error_counters()`)で参照される。
+**訂正 (Explicit in code):** 旧記述は `source` / `error_type` フィールドを欠いていた。`error_type` はエラーの分類(トランスポート層/ツール層)を示し、ヘルスゲートやエラーカウンタ集計(`get_error_counters()`)で参照される。
 
 **実行フロー:**
 ```
 ToolExecutor.execute(tool_name, args) -> ToolCallResult
-  1. PluginToolInvoker.try_execute(tool_name, args) → プラグイン該当時はここで確定し、以降(キャッシュ/ルーティング)はバイパス
-  2. TTL + LRU キャッシュチェック(is_error=Falseの結果のみ;キャッシュミス時のみ以降へ進む)
-  3. stampede protection(_inflight）→ 同一キーの同時実行はFutureを共有
-  4. ToolRouteResolver.resolve(tool_name) → server_key
-  5. startup_mode=none ゲート → 無効化されたサーバは即エラー
-  6. McpServerHealthRegistry.is_unavailable(server_key) → UNAVAILABLEならブロック(HALF_OPENは1回だけ許可)
-  7. lifecycle.ensure_ready(server_key)(設定されている場合)
-  8. ツール呼び出しの実行(tool_name, args)
+  1. TTL + LRU キャッシュチェック(is_error=Falseの結果のみ;キャッシュミス時のみ以降へ進む)
+  2. stampede protection(_inflight）→ 同一キーの同時実行はFutureを共有
+  3. ToolRouteResolver.resolve(tool_name) → server_key
+  4. startup_mode=none ゲート → 無効化されたサーバは即エラー
+  5. McpServerHealthRegistry.is_unavailable(server_key) → UNAVAILABLEならブロック(HALF_OPENは1回だけ許可)
+  6. lifecycle.ensure_ready(server_key)(設定されている場合)
+  7. ツール呼び出しの実行(tool_name, args)
        → セマフォ取得(server_key に concurrency_limits が設定されている場合)
        → HttpTransport.call()
-  9. キャッシュ保存(is_error=Falseのみ;TTLは設定から取得)
-  10. ToolCallResult を返す
+  8. キャッシュ保存(is_error=Falseのみ;TTLは設定から取得)
+  9. ToolCallResult を返す
 ```
 
-**訂正 (Explicit in code):** 旧記述はルーティング解決(2)をキャッシュチェック(4)より前に置いていたが、実装では `execute()` → `_execute_with_cache()` でキャッシュキー(`tool_name` と引数のみ)を先に判定し、キャッシュミス時のみ `_execute_with_stampede_protection()` 経由で `_raw_execute()` に入り、その内部でルーティング・startup_modeゲート・ヘルスチェック・lifecycle待機を行う。また `_raw_execute()` が例外を送出した場合、待機中の全同時呼び出しにも同じ例外が伝播する(stampede保護のフェイルセーフ)。
+**訂正 (Explicit in code):** 旧記述はルーティング解決(3)をキャッシュチェック(1)より前に置いていたが、実装では `execute()` → `_execute_with_cache()` でキャッシュキー(`tool_name` と引数のみ)を先に判定し、キャッシュミス時のみ `_execute_with_stampede_protection()` 経由で `_raw_execute()` に入り、その内部でルーティング・startup_modeゲート・ヘルスチェック・lifecycle待機を行う。また `_raw_execute()` が例外を送出した場合、待機中の全同時呼び出しにも同じ例外が伝播する(stampede保護のフェイルセーフ)。
 
 **キャッシュの挙動:**
 - `is_error=False` の結果のみキャッシュされる
@@ -91,7 +90,7 @@ is_side_effect(tool_name: str) -> bool
 
 - `90_shared_00_document-guide.md`
 - `90_shared_03_01_runtime_and_execution-config-and-logging.md`
-- `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`
+- `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
 - `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
 - `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part2.md`
 

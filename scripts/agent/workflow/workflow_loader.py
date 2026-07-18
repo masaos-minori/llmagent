@@ -16,11 +16,15 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 
 
 class _RetryPolicyJson(TypedDict):
+    """JSON representation of a workflow retry policy."""
+
     max_attempts: int
     backoff_sec: int
 
 
 class _WorkflowJson(TypedDict, total=False):
+    """JSON representation of a workflow definition."""
+
     name: str
     version: str
     stages: list[_StageJson]
@@ -29,6 +33,8 @@ class _WorkflowJson(TypedDict, total=False):
 
 
 class _StageJson(TypedDict):
+    """JSON representation of a single workflow stage."""
+
     id: str
     timeout_sec: int
     retryable: bool
@@ -91,6 +97,7 @@ class WorkflowLoader:
     """Loads a WorkflowDef from a JSON file in config/workflows/."""
 
     def __init__(self, workflows_dir: Path | None = None) -> None:
+        """Initialize the workflow loader with the directory containing workflow JSON definitions."""
         self._dir = workflows_dir or WORKFLOWS_DIR
 
     def load(self, name: str = "default") -> WorkflowDef:

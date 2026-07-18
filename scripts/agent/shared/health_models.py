@@ -11,6 +11,8 @@ from enum import StrEnum
 
 @dataclass(frozen=True)
 class ServiceWarning:
+    """A warning about a service during startup validation."""
+
     label: str
     url: str
     message: str
@@ -18,11 +20,14 @@ class ServiceWarning:
 
 @dataclass(frozen=True)
 class HealthCheckResult:
+    """Aggregated health check results with warnings and errors."""
+
     warnings: list[ServiceWarning] = field(default_factory=list)
     errors: list[ServiceWarning] = field(default_factory=list)
 
     @property
     def has_issues(self) -> bool:
+        """True if there are warnings or errors."""
         return bool(self.warnings or self.errors)
 
     def warning_messages(self) -> list[str]:
@@ -62,6 +67,8 @@ class McpHealthProbeResult:
 
 
 class StartupCheckStatus(StrEnum):
+    """Status of a startup validation check."""
+
     OK = "ok"
     WARNING = "warning"
     FATAL = "fatal"
@@ -70,6 +77,8 @@ class StartupCheckStatus(StrEnum):
 
 @dataclass(frozen=True)
 class StartupCheckOutcome:
+    """Result of a single startup validation check."""
+
     source: str
     status: StartupCheckStatus
     message: str = ""
@@ -78,36 +87,45 @@ class StartupCheckOutcome:
 
 @dataclass
 class StartupValidationResult:
+    """Aggregated startup validation results across all checks."""
+
     outcomes: list[StartupCheckOutcome] = field(default_factory=list)
 
     def add_fatal(self, source: str, message: str, remediation: str = "") -> None:
+        """Add a fatal outcome to the validation result."""
         self.outcomes.append(
             StartupCheckOutcome(source, StartupCheckStatus.FATAL, message, remediation)
         )
 
     def add_warning(self, source: str, message: str) -> None:
+        """Add a warning outcome to the validation result."""
         self.outcomes.append(
             StartupCheckOutcome(source, StartupCheckStatus.WARNING, message)
         )
 
     def add_ok(self, source: str) -> None:
+        """Add an OK outcome to the validation result."""
         self.outcomes.append(StartupCheckOutcome(source, StartupCheckStatus.OK))
 
     def add_skipped(self, source: str, message: str = "") -> None:
+        """Add a skipped outcome to the validation result."""
         self.outcomes.append(
             StartupCheckOutcome(source, StartupCheckStatus.SKIPPED, message)
         )
 
     @property
     def has_fatal(self) -> bool:
+        """True if any fatal outcome exists."""
         return any(o.status == StartupCheckStatus.FATAL for o in self.outcomes)
 
     def fatal_messages(self) -> list[str]:
+        """Return all fatal message strings."""
         return [
             o.message for o in self.outcomes if o.status == StartupCheckStatus.FATAL
         ]
 
     def warning_messages(self) -> list[str]:
+        """Return all warning message strings."""
         return [
             o.message for o in self.outcomes if o.status == StartupCheckStatus.WARNING
         ]

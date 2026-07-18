@@ -82,6 +82,7 @@ class GitService(GitSecurityGuards):
         read_only: bool = True,
         max_log_entries: int = 50,
     ) -> None:
+        """Initialize with security guards and configuration parameters."""
         GitSecurityGuards.__init__(self, allowed_repo_paths, read_only)
         self._max_log_entries = max_log_entries
 
@@ -129,7 +130,7 @@ class GitService(GitSecurityGuards):
     # ── Read-only tools ───────────────────────────────────────────────────────
 
     async def git_status(self, args: ToolArgs) -> str:
-
+        """Return the current status of files in the repository."""
         req = GitStatusRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_status")
         if result.error_message:
@@ -138,7 +139,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_status", lambda: format_status(repo))
 
     async def git_log(self, args: ToolArgs) -> str:
-
+        """Return recent commit log entries for the repository."""
         req = GitLogRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_log")
         if result.error_message:
@@ -149,7 +150,7 @@ class GitService(GitSecurityGuards):
         )
 
     async def git_diff(self, args: ToolArgs) -> str:
-
+        """Return the diff between working tree and index or two commits."""
         req = GitDiffRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_diff")
         if result.error_message:
@@ -158,7 +159,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_diff", lambda: format_diff(repo, req))
 
     async def git_branch(self, args: ToolArgs) -> str:
-
+        """List branches in the repository."""
         req = GitBranchRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_branch")
         if result.error_message:
@@ -167,7 +168,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_branch", lambda: format_branch(repo))
 
     async def git_show(self, args: ToolArgs) -> str:
-
+        """Show details of a commit, blob, or tree object."""
         req = GitShowRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_show")
         if result.error_message:
@@ -178,7 +179,7 @@ class GitService(GitSecurityGuards):
     # ── Write tools ───────────────────────────────────────────────────────────
 
     async def git_add(self, args: ToolArgs) -> str:
-
+        """Stage files for commit."""
         req = GitAddRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_add")
         if result.error_message:
@@ -187,7 +188,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_add", lambda: format_add(repo, req))
 
     async def git_commit(self, args: ToolArgs) -> str:
-
+        """Create a new commit from staged changes."""
         req = GitCommitRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_commit")
         if result.error_message:
@@ -196,7 +197,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_commit", lambda: format_commit(repo, req))
 
     async def git_checkout(self, args: ToolArgs) -> str:
-
+        """Switch branches or restore working tree files."""
         req = GitCheckoutRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_checkout")
         if result.error_message:
@@ -205,7 +206,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_checkout", lambda: format_checkout(repo, req))
 
     async def git_pull(self, args: ToolArgs) -> str:
-
+        """Fetch and merge changes from a remote repository."""
         req = GitPullRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_pull")
         if result.error_message:
@@ -214,7 +215,7 @@ class GitService(GitSecurityGuards):
         return self._wrap_git_op("git_pull", lambda: format_pull(repo, req))
 
     async def git_push(self, args: ToolArgs) -> str:
-
+        """Push local commits to a remote repository."""
         req = GitPushRequest(**args)
         result = await self._validate_repo(req.repo_path, "git_push")
         if result.error_message:
@@ -227,6 +228,7 @@ class GitService(GitSecurityGuards):
     def get_dispatch_table(
         self,
     ) -> dict[str, Callable[[ToolArgs], Awaitable[str]]]:
+        """Return the dispatch table mapping tool names to handler methods."""
         return {
             "git_status": self.git_status,
             "git_log": self.git_log,

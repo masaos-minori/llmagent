@@ -25,8 +25,13 @@ import logging
 
 import httpx
 
-from shared.json_utils import dumps as _json_dumps
-from shared.json_utils import parse_http_json, tool_call_serialized_length
+from shared.json_utils import (
+    dumps as _json_dumps,
+)
+from shared.json_utils import (
+    parse_http_json,
+    tool_call_serialized_length,
+)
 from shared.token_estimation import estimate_tokens
 from shared.types import LLMMessage
 
@@ -37,9 +42,11 @@ class _WarnOnce:
     """Module-level warn-once helper that suppresses repeated messages per session."""
 
     def __init__(self) -> None:
+        """Initialize with no warnings emitted yet."""
         self._warned: bool = False
 
     def log(self, msg: str, *args: object) -> None:
+        """Emit a warning message only once per session instance."""
         if not self._warned:
             logger.warning(msg, *args)
             self._warned = True

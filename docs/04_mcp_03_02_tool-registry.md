@@ -131,6 +131,12 @@ is_side_effect(tool_name: str) -> bool
 - `shared/tool_cache.py` の `ToolResultCache`（LRU + TTL）は現在 `ToolExecutor` からは使用されていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュ（本ドキュメント「キャッシュの挙動」節）を持ち、stampede protection（inflight future 共有）と密結合しているため、代わりに使われている。`ToolResultCache` は非推奨ではなく、stampede protection を必要としない将来の利用者向けのスタンドアロンユーティリティとして残されている。（Explicit in code: `shared/tool_cache.py` モジュール docstring）
 - `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scope`, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py` で構築され、`agent/tool_scheduler.py` の実行DAGで並列/直列判定に使われる。（Explicit in code）
 
+### 将来の追加: `RuntimeToolRegistry` とライブ検出（未配線）
+
+`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証し（`name`/`description`/`inputSchema` を必須、`status`/`is_write`/`requires_serial`/`resource_scope` は存在する場合のみ型検証）、`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で `security_profile` に応じた重大度（production: FATAL、local: WARNING）の `StartupCheckOutcome` を返す。
+
+**[Explicit in code]** `McpToolDiscoveryService` は現時点で `startup.py`/`AppServices`/`AgentContext` のいずれからも呼び出されていない（配線は別の実装ステップの範囲）。`ToolRegistry` は引き続き唯一のルーティング権威であり、本節の内容はこの状態が変わるまで変更しない。
+
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`
@@ -153,3 +159,5 @@ concurrency limits
 side effect detection
 routing drift
 tool safety tiers
+RuntimeToolRegistry
+McpToolDiscoveryService

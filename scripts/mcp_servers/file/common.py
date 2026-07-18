@@ -72,9 +72,11 @@ class FileSecurityMixin:
         return resolved
 
     def _require_file(self, target: Path, raw_path: str) -> None:
+        """Validate that target is an existing file; raises FileValidationError otherwise."""
         require_file(target, raw_path)
 
     def _require_dir(self, target: Path, raw_path: str) -> None:
+        """Validate that target is an existing directory; raises FileValidationError otherwise."""
         require_dir(target, raw_path)
 
 
@@ -120,17 +122,21 @@ def _build_health_deps(allowed_dirs: list[str]) -> dict[str, str]:
 
 
 async def _on_auth_error(_req: Request, exc: Exception) -> JSONResponse:
+    """Handle authorization errors by returning a 403 response."""
     return JSONResponse({"detail": str(exc)}, status_code=403)
 
 
 async def _on_not_found(_req: Request, exc: Exception) -> JSONResponse:
+    """Handle not found errors by returning a 404 response."""
     return JSONResponse({"detail": str(exc)}, status_code=404)
 
 
 async def _on_validation_error(_req: Request, exc: Exception) -> JSONResponse:
+    """Handle validation errors by returning a 422 response."""
     return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 async def _health(allowed_dirs: list[str]) -> JSONResponse:
+    """Build and return a health check response based on filesystem availability."""
     deps = _build_health_deps(allowed_dirs)
     return make_health_response(deps, {})

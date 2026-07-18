@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
@@ -15,6 +12,7 @@ class DbSessionOps:
     """Handles session database operations: health, checkpoint, vacuum, purge, recover."""
 
     def __init__(self, ctx: Any, out: Any) -> None:
+        """Initialize the database session operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
 

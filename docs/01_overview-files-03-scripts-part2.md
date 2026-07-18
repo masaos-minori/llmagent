@@ -50,7 +50,6 @@ related:
 │   │   │   ├─ cmd_rag_export.py            # /rag, /export, /compact コマンド (_RagExportMixin)
 │   │   │   ├─ cmd_memory.py                # /memory コマンド (_MemoryMixin)
 │   │   │   ├─ cmd_mdq.py                   # /mdq コマンド (_MdqMixin): status/index/refresh/search/outline/get/grep
-│   │   │   ├─ cmd_plugins.py               # /plugin コマンド (_PluginsMixin): プラグインロード状態表示
 │   │   │   ├─ cmd_workflow.py              # /approve, /reject コマンド (_WorkflowMixin)
 │   │   │   ├─ cmd_skill.py                 # /skill コマンド (_SkillMixin): SKILL.md を一時的な ephemeral system context として注入
 │   │   │   ├─ db_help_display.py           # DB ヘルプ表示

@@ -9,6 +9,8 @@ from enum import StrEnum
 
 
 class McpTier(StrEnum):
+    """Security tier classification for MCP servers."""
+
     READ_ONLY = "READ_ONLY"
     WRITE_SAFE = "WRITE_SAFE"
     WRITE_DANGEROUS = "WRITE_DANGEROUS"
@@ -16,6 +18,8 @@ class McpTier(StrEnum):
 
 
 class McpAvailability(StrEnum):
+    """Runtime availability state of an MCP server."""
+
     OK = "OK"
     STOPPED = "STOPPED"
     NOT_STARTED = "NOT_STARTED"
@@ -27,10 +31,14 @@ class McpAvailability(StrEnum):
 
 
 class ConversationActionType(StrEnum):
+    """Types of conversation-level actions that can be performed."""
+
     CLEAR = "clear"
     SWITCH_PROMPT = "switch_prompt"
 
 
 class ExportFormat(StrEnum):
+    """Supported export formats for agent session data."""
+
     JSON = "json"
     MARKDOWN = "markdown"

@@ -9,6 +9,8 @@ from enum import StrEnum
 
 
 class CommandKind(StrEnum):
+    """Categories of slash commands available in the agent REPL."""
+
     MEMORY = "memory"
     SESSION = "session"
     CONTEXT = "context"
@@ -20,6 +22,8 @@ class CommandKind(StrEnum):
 
 
 class MemoryAction(StrEnum):
+    """Actions available under the /memory command group."""
+
     LIST = "list"
     SEARCH = "search"
     SHOW = "show"
@@ -31,6 +35,8 @@ class MemoryAction(StrEnum):
 
 
 class DbAction(StrEnum):
+    """Actions available under the /db command group."""
+
     STATS = "stats"
     HEALTH = "health"
     CHECKPOINT = "checkpoint"
@@ -41,11 +47,15 @@ class DbAction(StrEnum):
 
 
 class McpAction(StrEnum):
+    """Actions available under the /mcp command group."""
+
     STATUS = "status"
     PROBE = "probe"
 
 
 class SessionAction(StrEnum):
+    """Actions available under the /session command group."""
+
     LIST = "list"
     LOAD = "load"
     RENAME = "rename"

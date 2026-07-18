@@ -27,6 +27,7 @@ class MemoryServices:
         embedding_client: EmbeddingClient | None = None,
         use_memory_layer: bool = True,
     ) -> None:
+        """Initialize the memory services facade with injection, ingestion, storage, and retrieval components."""
         self.injection = injection
         self.ingestion = ingestion
         self.store = store

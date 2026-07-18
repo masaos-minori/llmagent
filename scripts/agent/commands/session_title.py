@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.session_title import SessionTitleService
@@ -21,6 +18,7 @@ class SessionTitleGen:
     """Handles session title generation (LLM-based with fallback)."""
 
     def __init__(self, ctx: Any, out: Any) -> None:
+        """Initialize the session title generator with context and output port."""
         self._ctx = ctx
         self._out = out
 

@@ -27,6 +27,7 @@ class SubprocessRunner:
         exec_uid: int | None,
         exec_gid: int | None,
     ) -> None:
+        """Initialize the subprocess runner with sandbox configuration and resource limits."""
         self._sandbox_backend = sandbox_backend
         self._max_memory_mb = max_memory_mb
         self._timeout_sec = timeout_sec

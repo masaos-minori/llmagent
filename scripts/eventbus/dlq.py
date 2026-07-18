@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class DdqEventRecord:
+    """A single event record stored in the dead-letter queue database table."""
+
     seq: int
     event_id: str
     topic: str
@@ -26,6 +28,7 @@ class DdqEventRecord:
 
 
 def _build_dlq_record(row: sqlite3.Row, now: str) -> DdqEventRecord:
+    """Construct a DdqEventRecord from a SQLite row and current timestamp."""
     return DdqEventRecord(
         seq=row["seq"],
         event_id=row["event_id"],
@@ -43,6 +46,7 @@ def promote_to_dlq(
     deadletter_dir: str,
     max_retry: int,
 ) -> int:
+    """Promote failed events to the dead-letter queue and write them to disk."""
     now = now_iso()
     rows = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at, delivery_failure_count"
@@ -141,6 +145,7 @@ def promote_single(
 
 
 def _atomic_write(deadletter_dir: str, event_id: str, record: DdqEventRecord) -> None:
+    """Atomically write a dead-letter queue event record to disk via temp file + rename."""
     dir_path = Path(deadletter_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
     dst = dir_path / f"{event_id}.json"

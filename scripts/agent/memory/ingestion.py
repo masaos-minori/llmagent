@@ -50,6 +50,7 @@ class MemoryIngestionService:
         branch: str = "",
         max_content_chars: int = 500,
     ) -> None:
+        """Initialize the memory extraction and persistence pipeline."""
         self._store = store
         self._jsonl = jsonl
         self._retriever = retriever
@@ -227,6 +228,7 @@ class MemoryIngestionService:
         session_id: int | None,
         importance: float,
     ) -> MemoryEntry:
+        """Build a MemoryEntry for manually injected memory."""
         now = now_iso()
         return MemoryEntry(
             memory_id=str(uuid.uuid4()),

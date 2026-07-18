@@ -101,6 +101,7 @@ class MemoryEntry:
     updated_at: str = ""
 
     def __post_init__(self) -> None:
+        """Coerce enum fields and validate importance range after dataclass initialization."""
         coerced_memory_type = cast(
             MemoryType, _coerce_str_enum(self.memory_type, MemoryType)
         )
@@ -125,6 +126,7 @@ class MemoryQuery:
     session_id: int | None = None
 
     def __post_init__(self) -> None:
+        """Validate query non-emptyness and coerce optional memory type after dataclass initialization."""
         if not self.query.strip():
             raise ValueError("MemoryQuery.query must not be empty")
         coerced = _coerce_str_enum_or_none(self.memory_type, MemoryType)

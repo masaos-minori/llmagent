@@ -37,7 +37,7 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 - `rag_min_score` によりフィルタする；クロスエンコーダの失敗時にフォールバックはない（例外が伝播する）
 - 重複排除: `deduplicate_chunks(hits, max_chunks_per_doc)` — 同一URLのヒット数を制限する；関数自体はソート済み入力を必須としないが、呼び出し元はリランク後の降順結果を渡すため、上位チャンクのみが残る；リランクの後に適用される（前ではない）
 
-**例外の捕捉位置（Explicit in code）:** `RerankStage.run()` 自体は例外を捕捉しない。`RagPipeline._run_stage()`（`scripts/rag/pipeline.py`）が `run()` の実行を try/except で包み、`RuntimeError`（`RagRerankError` の基底）・`sqlite3.OperationalError`・`httpx.HTTPStatusError`・`httpx.RequestError`・`TimeoutError` を捕捉して `StageResult(status="failure", fallback_reason=<例外メッセージ>)` に変換する。したがってパイプライン全体としては例外で停止せず、後続ステージ（PluginHooks・AugmentStage）は空の `ctx.reranked` を引き継いで実行が継続する。
+**例外の捕捉位置（Explicit in code）:** `RerankStage.run()` 自体は例外を捕捉しない。`RagPipeline._run_stage()`（`scripts/rag/pipeline.py`）が `run()` の実行を try/except で包み、`RuntimeError`（`RagRerankError` の基底）・`sqlite3.OperationalError`・`httpx.HTTPStatusError`・`httpx.RequestError`・`TimeoutError` を捕捉して `StageResult(status="failure", fallback_reason=<例外メッセージ>)` に変換する。したがってパイプライン全体としては例外で停止せず、後続ステージ（AugmentStage）は空の `ctx.reranked` を引き継いで実行が継続する。
 
 ### 5.5 AugmentStage
 

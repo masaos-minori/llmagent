@@ -22,6 +22,7 @@ class SessionMessageRepository:
     def __init__(
         self, session_id: int | None = None, *, strict_mode: bool = False
     ) -> None:
+        """Initialize the session message repository with session ID and strict mode flag."""
         self.session_id = session_id
         self.strict_mode = strict_mode
         self.stat_skipped_no_session: int = 0

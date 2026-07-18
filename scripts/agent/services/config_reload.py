@@ -100,6 +100,7 @@ class ConfigReloadService:
     """
 
     def __init__(self, ctx: AgentContext) -> None:
+        """Initialize the config reload handler with the agent context for service updates."""
         self._ctx = ctx
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -429,9 +430,7 @@ class ConfigReloadService:
         # REMOVED: v = _get_bool(new_cfg, "use_memory_layer")
         # REMOVED: if v is not None and v != ctx.cfg.memory.use_memory_layer:
         # REMOVED:     changed.append("use_memory_layer")
-        v = _get_bool(new_cfg, "plugin_strict")
-        if v is not None and v != ctx.cfg.tool.plugin_strict:
-            changed.append("plugin_strict")
+
         v = _get_bool(new_cfg, "routing_drift_strict")
         if v is not None and v != ctx.cfg.tool.routing_drift_strict:
             changed.append("routing_drift_strict")

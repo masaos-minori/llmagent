@@ -29,21 +29,19 @@ source:
 
 ## 1. パイプライン概要
 
-`RagPipeline` は6つのステージを順に実行する（固定5つ + PluginHooks）。各ステージは
+`RagPipeline` は5つのステージを順に実行する。各ステージは
 `PipelineStage` Protocolを実装し、共有される `PipelineContext` dataclassをインプレースで変更する。
-PluginHooksは `PipelineStage` を実装しないため、独立したパスとして処理される。
 
 ```
 RagPipeline.augment(query)
   → use_search=False? → ""を返す
   → rag_service_urlが設定されている? → call_rag_service() → 失敗時はインプロセス実行にフォールバック
-  → run(query, db, history_context, hook_strict=False)
+  → run(query, db, history_context)
       [1] MqeStage         — クエリをN個のバリアントに展開する
       [2] SearchStage      — バリアントごとにKNN + BM25を実行する
       [3] FusionStage      — RRFによるマージ（Σ 1/(rrf_k+rank)；rrf_kは設定で変更可能、デフォルト: 60）
       [4] RerankStage      — クロスエンコーダによるスコアリング；rag_min_scoreでフィルタ；リランク後にchunk_id単位で重複排除
-      [5] PluginHooks      — 登録済みのリランク後フック（エラーは分離される；strictモードでは再送出される）；PipelineStageではないため独自の実行パス
-      [6] AugmentStage     — [RAG_CONTEXT_START]...[RAG_CONTEXT_END] 形式に整形する
+      [5] AugmentStage     — [RAG_CONTEXT_START]...[RAG_CONTEXT_END] 形式に整形する
   → use_refiner=True? → refine_context()（チャンクを圧縮；エラー時は生のチャンクにフォールバック）
   → コンテキストブロック文字列を返す
 ```

@@ -53,6 +53,7 @@ class _WorkflowMixin(MixinBase):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the workflow mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _emit_approval_audit(
@@ -61,6 +62,7 @@ class _WorkflowMixin(MixinBase):
         decision: str,
         reason: str | None,
     ) -> None:
+        """Write an audit log entry for a workflow approval/rejection decision."""
         audit_logger = self._ctx.services_required.audit_logger
         if audit_logger is None:
             return

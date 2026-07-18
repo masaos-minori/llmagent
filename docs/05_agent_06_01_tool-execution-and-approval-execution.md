@@ -32,9 +32,8 @@ related:
 `execute(tool_name, args) -> ToolCallResult`のディスパッチ優先順位:
 
 ```
-1. Plugin tool (@register_tool)        — ローカルPython関数、MCPをバイパス
-2. TTL cache                           — 期限切れでなければキャッシュ結果を返す
-3. MCP server dispatch via internal method
+1. TTL cache                           — 期限切れでなければキャッシュ結果を返す
+2. MCP server dispatch via internal method
      → ToolRouteResolver.resolve()     — tool_name → server_key (ルーティングの権威; 04_mcp_03 §Routing Source of Truth 参照)
      → McpServerHealthRegistry check  — UNAVAILABLEなサーバーをスキップ
      → LifecycleProtocol.ensure_ready() — 必要に応じてondemandサーバーを起動
@@ -54,7 +53,7 @@ related:
 | `serial_tool_calls=False` (デフォルト) | `_execute_with_dag()` — DAGスケジューリング |
 | `serial_tool_calls=True` | `_execute_standard()` — 逐次/並列判定 (副作用のあるツールが1つでもあれば逐次、なければ`asyncio.gather()`で並列) |
 
-> **Explicit in code:** `agent/tool_runner.py`の`execute_all_tool_calls()`は`if not ctx.cfg.tool.serial_tool_calls: _execute_with_dag(...) else: _execute_standard(...)`という2分岐のみで構成される。`use_tool_dag`という設定フィールドはコードベース全体 (`agent/config_dataclasses.py`含む) に存在しない。DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効であり、「レガシー動作」への切替フラグは実装上存在しない。旧版ドキュメントにあった`use_tool_dag`および`ProductionConfigValidator`による`use_tool_dag=false`の起動時エラー化の記述は実装と一致しないため削除した。`ProductionConfigValidator.validate()` (`shared/production_config_validator.py`) が実際に検証するのは`plugin_strict`/`tool_definitions_strict`/`routing_drift_strict`のstrictキー、`tool_safety_tiers`の登録漏れ・不明キー、および`allowed_tools=[]`のみである (詳細は[05_agent_06_03](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md)参照)。
+> **Explicit in code:** `agent/tool_runner.py`の`execute_all_tool_calls()`は`if not ctx.cfg.tool.serial_tool_calls: _execute_with_dag(...) else: _execute_standard(...)`という2分岐のみで構成される。`use_tool_dag`という設定フィールドはコードベース全体 (`agent/config_dataclasses.py`含む) に存在しない。DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効であり、「レガシー動作」への切替フラグは実装上存在しない。旧版ドキュメントにあった`use_tool_dag`および`ProductionConfigValidator`による`use_tool_dag=false`の起動時エラー化の記述は実装と一致しないため削除した。`ProductionConfigValidator.validate()` (`shared/production_config_validator.py`) が実際に検証するのは`tool_definitions_strict`/`routing_drift_strict`のstrictキー、`tool_safety_tiers`の登録漏れ・不明キー、および`allowed_tools=[]`のみである (詳細は[05_agent_06_03](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md)参照)。
 
 ---
 

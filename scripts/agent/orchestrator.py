@@ -16,7 +16,6 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from shared.json_utils import dumps
 from shared.json_utils import dumps as _json_dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
@@ -51,6 +50,7 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 def _mode_hint(mode: MdqRagMode) -> str:
+    """Return a human-readable hint about which tool category to use for the given mode."""
     if mode == MdqRagMode.MDQ:
         return "For this query, prefer MDQ tools (search_docs, outline, get_chunk) for Markdown-structural retrieval."
     if mode == MdqRagMode.RAG:
@@ -108,6 +108,7 @@ class Orchestrator:
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
     ) -> None:
+        """Initialize the orchestrator with context, callbacks, and diagnostic storage."""
         self._ctx = ctx
         self._allowed_tools: list[str] | None = allowed_tools
         self._on_first_turn = on_first_turn
@@ -196,13 +197,11 @@ class Orchestrator:
             )
 
             async def plan_fn() -> str | None:
-                # Intentional no-op: _handle_turn_start() (called earlier in handle_turn())
-                # already performs the planning-equivalent work (turn-id assignment, audit
-                # logging). WorkflowEngine.run() still invokes plan_fn() for stage sequencing
-                # and observability parity; there is no separate planning behavior to run here.
+                """No-op placeholder: planning work is done by _handle_turn_start before engine.run()."""
                 return None
 
             async def execute_fn() -> str | None:
+                """Process the user turn via _process_turn and log stage completion."""
                 nonlocal answer, error_kind, is_partial
                 answer, error_kind, is_partial = await self._process_turn(
                     line, ctx, turn_started_at
@@ -219,6 +218,7 @@ class Orchestrator:
                 return None
 
             async def verify_fn() -> str | None:
+                """Run turn-end processing after the execute stage completes."""
                 await self._handle_turn_end(
                     line, answer, turn_started_at, error_kind, is_partial
                 )
@@ -328,12 +328,13 @@ class Orchestrator:
     # ── Turn lifecycle ────────────────────────────────────────────────────────
 
     async def _handle_turn_start(self, line: str) -> None:
+        """Assign a turn ID and emit a turn_start audit event."""
         ctx = self._ctx
         ctx.turn.current_turn_id = str(uuid.uuid4())
         session_id = _format_session_id(ctx.session.session_id) or "none"
         if ctx.services_required.audit_logger is not None:
             ctx.services_required.audit_logger.info(
-                dumps(
+                _json_dumps(
                     {
                         "event": "turn_start",
                         "task_id": ctx.turn.current_turn_id,
@@ -345,6 +346,7 @@ class Orchestrator:
             )
 
     async def _handle_memory_injection(self, line: str) -> None:
+        """Retrieve relevant memory snippets and inject them into conversation history."""
         ctx = self._ctx
         if ctx.services_required.memory is not None:
             memory_snippets = await ctx.services_required.memory.on_user_prompt(
@@ -364,6 +366,7 @@ class Orchestrator:
                 )
 
     async def _handle_history_compression(self) -> None:
+        """Compress conversation history and replace messages if compression occurred."""
         ctx = self._ctx
         with self._llm_runner._span_ctx("compress"):
             ctx.conv.history, result = await ctx.services_required.hist_mgr.compress(
@@ -383,6 +386,7 @@ class Orchestrator:
                 )
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
+        """Execute an LLM streaming turn with wait/start/end callbacks and error handling."""
         ctx = self._ctx
         try:
             if self._on_llm_wait_start:
@@ -471,6 +475,7 @@ class Orchestrator:
         error_kind: str | None,
         is_partial: bool = False,
     ) -> None:
+        """Emit a turn_end audit event and clear the current turn ID."""
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services_required.audit_logger is not None:
@@ -528,6 +533,7 @@ class Orchestrator:
             )
 
     def _append_user_message(self, line: str) -> None:
+        """Append user message to history, sync system prompt, and increment turn counter."""
         ctx = self._ctx
         self._sync_system_prompt()
         ctx.conv.history.append({"role": "user", "content": line})

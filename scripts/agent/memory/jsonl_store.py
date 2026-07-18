@@ -51,10 +51,12 @@ class JsonlMemoryStore:
     """Append-only JSONL store.  Thread-unsafe — use from a single asyncio event loop."""
 
     def __init__(self, path: str | Path) -> None:
+        """Initialize the JSONL store with the given file path."""
         self._path = Path(path)
         self._lock: asyncio.Lock | None = None  # lazy: created after event loop starts
 
     def _get_lock(self) -> asyncio.Lock:
+        """Return the asyncio.Lock, creating it lazily after the event loop starts."""
         if self._lock is None:
             self._lock = asyncio.Lock()
         return self._lock

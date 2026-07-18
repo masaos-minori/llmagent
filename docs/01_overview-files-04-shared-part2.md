@@ -51,12 +51,6 @@ related:
 │       ├─ config_errors.py                 # ConfigMissingError / ConfigParseError / ConfigReadError / ConfigPermissionError エラー型
 │       ├─ config_validator.py              # RagConfigValidator: embedding_dim/vec_dim 整合性チェック、use_rrf 警告、semantic_cache_threshold 健全性チェック
 │       ├─ production_config_validator.py   # ProductionConfigValidator: 本番環境固有の設定検証
-│       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
-│       ├─ plugin_registries.py             # プラグインレジストリ一覧
-│       ├─ plugin_tool_invoker.py           # PluginToolInvoker: プラグインツール呼び出し (防御的タプル検証)
-│       ├─ plugin_auto_discover.py          # load_plugins(): *.py からプラグイン自動発見 + 競合検証
-│       ├─ plugin_conflicts.py              # プラグイン競合検出
-│       ├─ plugin_result.py                 # PluginFailure / PluginLoadResult データクラス、PluginLoadError 例外
 │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
 │       ├─ db_maintenance.py                # count_table(): テーブル行数カウント共通ヘルパー
 │       ├─ action_result.py                 # ActionResult データクラス (ActionType リテラル) — 機械判定パス向け汎用アクション/結果スキーマ

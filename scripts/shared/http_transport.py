@@ -33,6 +33,7 @@ class HttpTransport:
         cfg: McpServerConfig | None = None,
         timeout_sec: float = 60.0,
     ) -> None:
+        """Initialize with HTTP client, server URL, key, and optional auth config."""
         self._http = http
         self._base_url = base_url
         self._server_key = server_key

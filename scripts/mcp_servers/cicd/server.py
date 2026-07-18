@@ -69,6 +69,7 @@ setup_exception_handlers(app)
 
 
 async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Route CI/CD tool calls through the service's dispatch table."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -79,6 +80,7 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """List available CI/CD tools with server_key="cicd"."""
     return {
         "tools": [{**t, "server_key": "cicd"} for t in TOOL_LIST],
     }
@@ -86,6 +88,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    """Dispatch an MCP tool call through the CI/CD service with audit logging."""
     t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
@@ -108,6 +111,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint. Returns degraded when GITHUB_TOKEN is not set."""
     deps: dict[str, str] = {}
     try:
         token = os.environ.get("GITHUB_TOKEN", "")
@@ -136,6 +140,7 @@ class CiCdMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool by name with the given arguments via the CI/CD service."""
         return await _dispatch_cicd_tool(name, args)
 
 

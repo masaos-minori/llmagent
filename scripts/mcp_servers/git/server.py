@@ -52,6 +52,7 @@ attach_auth_middleware(app, _cfg.auth_token or "")
 
 @app.exception_handler(GitServiceError)
 async def _on_git_service_error(_req: Request, exc: GitServiceError) -> JSONResponse:
+    """Handle git service errors by returning a 500 response."""
     return JSONResponse({"detail": str(exc)}, status_code=500)
 
 
@@ -61,6 +62,7 @@ async def _on_git_service_error(_req: Request, exc: GitServiceError) -> JSONResp
 
 
 async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Dispatch a tool request to the git service."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -71,6 +73,7 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, list[dict[str, object]]]:
+    """List available MCP tools with server key annotation."""
     return {
         "tools": [{**t, "server_key": "git"} for t in TOOL_LIST],
     }
@@ -78,6 +81,7 @@ async def list_tools() -> dict[str, list[dict[str, object]]]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    """Handle a generic MCP call_tool request with audit logging."""
     t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
@@ -100,6 +104,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint verifying git availability."""
     deps: dict[str, str] = {}
     try:
         if shutil.which("git") is None:
@@ -127,6 +132,7 @@ class GitMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
+        """Dispatch a tool invocation via the git service."""
         return await _dispatch_git_tool(name, args)
 
 

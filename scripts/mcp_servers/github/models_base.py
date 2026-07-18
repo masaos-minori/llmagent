@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 
 class IssueInfo(BaseModel):
+    """Base information about a GitHub issue."""
+
     number: int
     title: str
     state: str
@@ -24,6 +26,8 @@ class IssueInfo(BaseModel):
 
 
 class PullRequestInfo(BaseModel):
+    """Base information about a GitHub pull request."""
+
     number: int
     title: str
     state: str

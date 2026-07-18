@@ -24,6 +24,7 @@ def validate_path(path: Path) -> WorkflowDef:
 
 
 def main() -> int:
+    """Validate a workflow definition JSON file against the schema."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "path", type=Path, help="Path to a workflow definition JSON file"

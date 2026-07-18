@@ -35,12 +35,14 @@ class GitHubActionsJobBackend:
         http: httpx.AsyncClient,
         max_log_size_kb: int = 256,
     ) -> None:
+        """Initialize the GitHub Actions job backend with auth token, HTTP client, and log size limit."""
         # Store token privately; never expose via __repr__ or logging (R-4)
         self._token = github_token
         self._http = http
         self._max_log_size_kb = max_log_size_kb
 
     def __repr__(self) -> str:
+        """Return a string representation with masked token for safe logging."""
         # Mask token value to prevent accidental log exposure (R-4)
         token_status = "set" if self._token else "not set"
         return f"GitHubActionsJobBackend(token={token_status!r})"

@@ -10,13 +10,14 @@ if TYPE_CHECKING:
 
 @dataclass
 class ConfigValidationResult:
+    """Result of configuration validation containing errors and warnings."""
+
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
 # Strict keys that must be true in production (defaulting to false is an error)
 _REQUIRED_STRICT_KEYS = (
-    "plugin_strict",
     "tool_definitions_strict",
     "routing_drift_strict",
 )
@@ -58,12 +59,19 @@ def _check_unknown_tool_safety_tiers(
 
 
 class ProductionConfigValidator:
+    """Validate configuration against production security requirements.
+
+    Checks strict mode flags, tool safety tier consistency, and other
+    production-critical settings.
+    """
+
     def validate(
         self,
         config: Mapping[str, object],
         security_profile: SecurityProfile | str = "local",
         known_tools: set[str] | None = None,
     ) -> ConfigValidationResult:
+        """Validate the full configuration against security profile rules."""
         errors: list[str] = []
         warnings: list[str] = []
 
@@ -131,6 +139,7 @@ class ProductionConfigValidator:
     def validate_unknown_tool_safety_tiers(
         self, unknown_keys: list[str]
     ) -> ConfigValidationResult:
+        """Validate that unknown tool_safety_tiers keys are rejected."""
         errors = [
             f"tool_safety_tiers contains unknown key {k!r} (not a registered tool name)"
             for k in unknown_keys

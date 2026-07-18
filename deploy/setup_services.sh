@@ -4,7 +4,7 @@
 # deploy.sh 実行後に実行すること。
 #
 # MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動。
-# LLM サーバ (ports 8001-8003) もエージェント管理 subprocess として起動する。
+# LLM サーバ (ports 8080-8081) もエージェント管理 subprocess として起動する。
 #
 # 使用例:
 #   bash deploy/setup_services.sh
@@ -92,8 +92,8 @@ echo "  Health: $(sleep 2 && curl -s http://127.0.0.1:8015/health 2>/dev/null ||
 
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
-echo "  embed-llm      (:8003): $(curl -s http://127.0.0.1:8003/health 2>/dev/null || echo 'まだ起動中')"
-echo "  agent-llm      (:8001): $(curl -s http://127.0.0.1:8001/health 2>/dev/null || echo 'まだ起動中')"
+echo "  embed-llm      (:8081): $(curl -s http://127.0.0.1:8081/health 2>/dev/null || echo 'まだ起動中')"
+echo "  agent-llm      (:8080): $(curl -s http://127.0.0.1:8080/health 2>/dev/null || echo 'まだ起動中')"
 echo "  eventbus       (:8015): $(curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
@@ -104,8 +104,8 @@ echo "=== setup_services.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
 echo "  # LLM サービスのモデルロード完了を確認してから llama-agent を起動する"
-echo "  curl -s http://127.0.0.1:8003/health  # embed-llm"
-echo "  curl -s http://127.0.0.1:8001/health  # agent-llm"
+echo "  curl -s http://127.0.0.1:8081/health  # embed-llm"
+echo "  curl -s http://127.0.0.1:8080/health  # agent-llm"
 echo ""
 echo "  # ドキュメント収集・投入 (uv run を使用)"
 echo "  cd /opt/llm"

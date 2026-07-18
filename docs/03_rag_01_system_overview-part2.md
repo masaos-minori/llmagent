@@ -27,12 +27,12 @@ source:
 |---|---|---|---|
 | `crawler.py` | クロール | URLまたはローカルパス | `rag-src/yyyymmddhhmmss-{slug}.json`（JSON） |
 | `chunk_splitter.py` | チャンク化 | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json`（JSON） |
-| `ingester.py` | 埋め込み | `rag-src/chunk/*.json` | 埋め込みAPI呼び出し（ポート8003） |
+| `ingester.py` | 埋め込み | `rag-src/chunk/*.json` | 埋め込みAPI呼び出し（ポート8081） |
 | `ingester.py` | 格納 | 埋め込みベクトル | SQLiteテーブル + `rag-src/registered/` |
 
 > **用語について:** 「3つのスクリプト」とは、3つの実行ファイル（`crawler.py`、`chunk_splitter.py`、`ingester.py`）を指す。
 > 「4つの処理フェーズ」とは、4つの論理的なステップ（クロール、チャンク化、埋め込み、格納）を指し、そのうち2つは `ingester.py` の内部で実行される。
-> 「ステージ（Stage）」という語はクエリパイプラインのステージ（MQE、Search、Fusion、Rerank、PluginHooks、Augment）専用であり、インジェクションでは使用しない。
+> 「ステージ（Stage）」という語はクエリパイプラインのステージ（MQE、Search、Fusion、Rerank、Augment）専用であり、インジェクションでは使用しない。
 
 ### インジェクションのデータフロー（概要）
 
@@ -57,7 +57,7 @@ config/crawler.toml [target_urls]
 
 ## クエリパイプライン
 
-**エージェントの1ターンごとに実行される6つの論理ステージ**（固定5つ + PluginHooksは任意）
+**エージェントの1ターンごとに実行される5つの論理ステージ**
 
 | ステージ | クラス | 機能 |
 |---|---|---|
@@ -65,8 +65,7 @@ config/crawler.toml [target_urls]
 | 2. Search | `SearchStage` | 各クエリバリアントに対しKNN（sqlite-vec）+ BM25（FTS5）を実行する |
 | 3. Fusion | `FusionStage` | RRF（Σ 1/(rrf_k+rank)）を用いて複数クエリの結果を統合する。`rrf_k` は設定で変更可能（デフォルト: 60） |
 | 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にchunk_id単位で重複排除する |
-| 5. PluginHooks | 登録済みフック | リランク後のプラグインステージ。RerankStageの後、AugmentStageの前に実行される。PipelineStageを実装しないため独自の実行パス。エラーは分離される（失敗はログに記録されスキップされる）。`hook_strict` で挙動を設定可能 |
-| 6. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
+| 5. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
 
 **エントリポイント:** `RagPipeline.augment(query) -> str`
 **呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（MCP HTTP、ポート8010経由）
@@ -82,7 +81,7 @@ config/crawler.toml [target_urls]
 
 | 要件 | 確認コマンド |
 |---|---|
-| ポート8003で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8003/health` |
+| ポート8081で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8081/health` |
 | `sqlite-vec` 拡張がロード可能であること | `/opt/llm/sqlite-vec/vec0.so` が存在すること |
 | 設定ファイルが存在すること | `config/rag_pipeline.toml` |
 | インジェクション対象のURLまたはファイルが指定されていること | CLIの `--url`、または設定内の `target_urls` |

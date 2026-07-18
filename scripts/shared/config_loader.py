@@ -58,6 +58,7 @@ class ConfigLoader:
         cls._allowed_files = frozenset(filenames)
 
     def __init__(self, config_dir: Path | None = None) -> None:
+        """Initialize with optional config directory path."""
         repo_root = Path(__file__).resolve().parent.parent.parent
         self._config_dir = config_dir or repo_root / "config"
 
@@ -121,6 +122,7 @@ class ConfigLoader:
 
     @staticmethod
     def _validate_names(names: tuple[Any, ...]) -> None:
+        """Ensure all names are non-empty strings."""
         if not names:
             raise ValueError("At least one config file name must be provided.")
         for name in names:
@@ -130,6 +132,7 @@ class ConfigLoader:
                 )
 
     def _load_single(self, name: str) -> dict[str, Any]:
+        """Load and parse a single config file (TOML or JSON)."""
         path = self._resolve_path(name)
         suffix = path.suffix.lower()
         try:
@@ -151,11 +154,13 @@ class ConfigLoader:
             raise ConfigReadError(f"Cannot read config file {path}: {exc}") from exc
 
     def _resolve_path(self, name: str) -> Path:
+        """Resolve a config name to its full filesystem path, appending .toml extension if needed."""
         p = Path(name) if name.endswith((".toml", ".json")) else Path(f"{name}.toml")
         return self._config_dir / p.name
 
     @staticmethod
     def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
+        """Remove keys starting with underscore from the config data."""
         return {k: v for k, v in data.items() if not k.startswith("_")}
 
     @staticmethod

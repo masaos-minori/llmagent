@@ -84,7 +84,6 @@ _FACTORY_PATCHES = [
     "agent.factory.ToolExecutor",
     "agent.factory._ServerLifecycleRouter",
     "agent.factory.HistoryManager",
-    "agent.factory.plugin_registry.load_plugins",
     "agent.factory.build_tracer",
 ]
 
@@ -160,15 +159,6 @@ class TestBuildAgentContext:
 
         mocks["agent.factory.HistoryManager"].assert_called_once()
         assert ctx.services.hist_mgr is not None
-
-    def test_plugin_registry_loaded(self, monkeypatch: Any) -> None:
-        mocks = _apply_patches(monkeypatch)
-        ctx = _make_ctx()
-        view = _make_view()
-
-        build_agent_context(ctx, view)
-
-        mocks["agent.factory.plugin_registry.load_plugins"].assert_called_once()
 
     def test_memory_layer_not_set_when_disabled(self, monkeypatch: Any) -> None:
         # use_memory_layer=False → ctx.services.memory は None のまま

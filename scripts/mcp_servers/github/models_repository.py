@@ -14,6 +14,8 @@ from .models_config import DEFAULT_PER_PAGE
 
 
 class SearchRepositoriesRequest(BaseModel):
+    """Request model for searching GitHub repositories."""
+
     query: str = Field(
         ...,
         description="GitHub repository search query (GitHub Search syntax)",
@@ -26,6 +28,8 @@ class SearchRepositoriesRequest(BaseModel):
 
 
 class RepositoryInfo(BaseModel):
+    """A single result from GitHub repository search."""
+
     full_name: str
     description: str | None
     url: str
@@ -36,11 +40,15 @@ class RepositoryInfo(BaseModel):
 
 
 class SearchRepositoriesResponse(BaseModel):
+    """Response from searching GitHub repositories."""
+
     query: str
     results: list[RepositoryInfo]
 
 
 class ListCommitsRequest(BaseModel):
+    """Request model for listing commits in a repository."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     branch: str = Field(default="", description="Branch name (default: default branch)")
@@ -48,6 +56,8 @@ class ListCommitsRequest(BaseModel):
 
 
 class CommitInfo(BaseModel):
+    """A single commit returned by list_commits."""
+
     sha: str
     message: str
     author: str
@@ -56,10 +66,14 @@ class CommitInfo(BaseModel):
 
 
 class ListCommitsResponse(BaseModel):
+    """Response containing a list of commits."""
+
     commits: list[CommitInfo]
 
 
 class SearchCodeRequest(BaseModel):
+    """Request model for searching GitHub code."""
+
     query: str = Field(
         ...,
         description="Code search query (e.g. 'filename:agent.py repo:owner/repo')",
@@ -68,6 +82,8 @@ class SearchCodeRequest(BaseModel):
 
 
 class CodeSearchResult(BaseModel):
+    """A single result from GitHub code search."""
+
     repository: str
     path: str
     url: str
@@ -75,33 +91,45 @@ class CodeSearchResult(BaseModel):
 
 
 class SearchCodeResponse(BaseModel):
+    """Response from searching GitHub code."""
+
     query: str
     results: list[CodeSearchResult]
 
 
 class ListBranchesRequest(BaseModel):
+    """Request model for listing branches in a repository."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     per_page: int = Field(default=DEFAULT_PER_PAGE, ge=1)
 
 
 class BranchInfo(BaseModel):
+    """Information about a single branch."""
+
     name: str
     sha: str
     protected: bool
 
 
 class ListBranchesResponse(BaseModel):
+    """Response containing a list of branches."""
+
     branches: list[BranchInfo]
 
 
 class GetCommitRequest(BaseModel):
+    """Request model for getting detailed commit information."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     sha: str = Field(..., description="Commit SHA (full or abbreviated)")
 
 
 class CommitDetail(BaseModel):
+    """Detailed information about a single commit."""
+
     sha: str
     message: str
     author: str
@@ -111,10 +139,14 @@ class CommitDetail(BaseModel):
 
 
 class GetCommitResponse(BaseModel):
+    """Response containing detailed commit information."""
+
     commit: CommitDetail
 
 
 class CreateBranchRequest(BaseModel):
+    """Request model for creating a new branch."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     branch_name: str = Field(..., description="Name of the new branch to create")
@@ -128,5 +160,7 @@ class CreateBranchRequest(BaseModel):
 
 
 class CreateBranchResponse(BaseModel):
+    """Response indicating whether a branch was created."""
+
     branch_name: str
     sha: str

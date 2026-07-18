@@ -95,7 +95,7 @@ Source: `config/agent.toml`
 | `validate_rag_rrf_k()` | `rrf_k >= 1` |
 
 > **矛盾の記録:** 旧版では`top_k_search`のデフォルトを`10`、`embed_url`のデフォルトを
-> `http://127.0.0.1:8003/embedding`としていたが、`agent/config_dataclasses.py::RAGConfig`の
+> `http://127.0.0.1:8081/embedding`としていたが、`agent/config_dataclasses.py::RAGConfig`の
 > 現在の実装ではそれぞれ`20`と`""` (空文字) である。`embed_url`が空の場合、
 > `use_semantic_cache=True`や`memory.memory_embed_enabled=True`との組み合わせは
 > `AgentConfig`のフィールド間検証で`ValueError`となる (Part 2参照)。

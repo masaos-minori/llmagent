@@ -34,6 +34,7 @@ def build_github_preview(args: dict[str, Any]) -> str:
 
 
 def _preview_file_write(args: dict[str, Any]) -> str:
+    """Generate a preview string for file write/edit operations showing path and content snippet."""
     path = args.get("path") or args.get("file_path", "?")
     raw_content = args.get("content") or args.get("new_content") or ""
     content = raw_content[:200] if isinstance(raw_content, str) else ""
@@ -41,11 +42,13 @@ def _preview_file_write(args: dict[str, Any]) -> str:
 
 
 def _preview_file_path(args: dict[str, Any]) -> str:
+    """Generate a preview string for directory/file path operations."""
     raw_path = args.get("path") or args.get("directory_path")
     return raw_path if isinstance(raw_path, str) else "?"
 
 
 def _preview_shell_cmd(args: dict[str, Any]) -> str:
+    """Generate a preview string for shell command execution."""
     raw_cmd = args.get("command")
     return raw_cmd if isinstance(raw_cmd, str) else "?"
 

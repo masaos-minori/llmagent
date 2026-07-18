@@ -53,6 +53,7 @@ class ApprovalOutcome:
 
     @property
     def approved(self) -> bool:
+        """True when the approval decision allows auto-execution."""
         return self.decision in (
             ApprovalDecisionType.AUTO,
             ApprovalDecisionType.APPROVED,

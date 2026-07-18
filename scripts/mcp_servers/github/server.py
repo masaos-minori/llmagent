@@ -77,6 +77,7 @@ setup_exception_handlers(app)
 
 
 def _include_routers():
+    """Register all domain routers on the FastAPI application at startup."""
     from mcp_servers.github.server_file import router as file_router
     from mcp_servers.github.server_issues import router as issues_router
     from mcp_servers.github.server_pull_requests import router as pr_router
@@ -171,6 +172,7 @@ class GithubMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Route a GitHub tool call to the appropriate handler."""
         return await _dispatch_github_tool(name, args)
 
 

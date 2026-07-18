@@ -65,6 +65,7 @@ app.add_exception_handler(FileValidationError, _on_validation_error)
 
 @app.post("/delete_file", response_model=DeleteFileResponse)
 async def delete_file(req: DeleteFileRequest) -> DeleteFileResponse:
+    """Delete a single file from disk."""
     t0 = time.perf_counter()
     result = _service.delete_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -74,6 +75,7 @@ async def delete_file(req: DeleteFileRequest) -> DeleteFileResponse:
 
 @app.post("/delete_directory", response_model=DeleteDirectoryResponse)
 async def delete_directory(req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
+    """Delete a directory, optionally recursively."""
     t0 = time.perf_counter()
     result = _service.delete_directory(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -90,6 +92,7 @@ async def delete_directory(req: DeleteDirectoryRequest) -> DeleteDirectoryRespon
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint returning allowed directories status."""
     result: JSONResponse = await _health(_cfg.allowed_dirs)
     return result
 
@@ -100,11 +103,13 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_delete_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Dispatch a tool request to the delete-file service."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """List available MCP tools with server key annotation."""
     return {
         "tools": [{**t, "server_key": "file_delete"} for t in TOOL_LIST],
     }
@@ -112,6 +117,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    """Handle a generic MCP call_tool request."""
     r = await _dispatch_delete_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -132,6 +138,7 @@ class FileDeleteMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool invocation via the delete-file service."""
         return await _dispatch_delete_tool(name, args)
 
 

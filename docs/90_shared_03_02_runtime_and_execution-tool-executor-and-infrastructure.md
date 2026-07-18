@@ -1,10 +1,9 @@
 ---
-title: "Shared Runtime and Execution - Plugin and Tool Runtime"
+title: "Shared Runtime and Execution - Tool Runtime"
 category: shared
 tags:
   - shared
   - runtime
-  - plugin-registry
   - token-counter
   - otel-tracer
   - git-helper
@@ -22,104 +21,7 @@ source:
 
 - Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
-## 4. `plugin_registry` (`shared/plugin_registry.py` ほか)
-
-**モジュール分割 (Explicit in code):** プラグイン基盤は単一ファイルではなく以下に分割されている。`shared/plugin_registry.py` は公開APIの窓口であり、実体は各モジュールに存在する。
-
-| モジュール | 役割 |
-|---|---|
-| `shared/plugin_registry.py` | 公開デコレータ・アクセサ (`register_command`/`register_tool`/`register_pipeline_stage`/`get_tool`/`get_command` 等)。`load_plugins`/`get_last_load_result`/`_reset_for_testing` は `plugin_auto_discover` へのシンラッパー |
-| `shared/plugin_registries.py` | モジュールレベルの内部状態 (`_commands`/`_tools`/`_pipeline_post`/`_current_loading_module`/`_builtin_command_names`) を保持するのみ |
-| `shared/plugin_auto_discover.py` | `load_plugins()` の実体。ディレクトリglob・インポート・失敗収集・`PluginLoadResult` 組み立てを行う |
-| `shared/plugin_conflicts.py` | `validate_tool_conflicts()` / `validate_command_conflicts()` — MCP既知ツール・組み込みコマンドとの名前衝突解決 |
-| `shared/plugin_result.py` | `PluginFailure` / `PluginLoadResult` / `PluginLoadError` のデータクラス定義本体 (`plugin_registry.py` は再エクスポートのみ) |
-| `shared/plugin_tool_invoker.py` | `PluginToolInvoker` — 登録済みプラグインツールの実行層 (`ToolExecutor.execute()` から呼ばれる) |
-
-```python
-def load_plugins(
-    plugin_dir: str | Path,
-    *,
-    known_tools: frozenset[str] = frozenset(),
-    override_policy: str = "reject",
-    strict_mode: bool = False,
-) -> PluginLoadResult
-def register_tool(name: str) -> Callable          # decorator
-def get_tool(name: str) -> Callable | None
-def register_command(name: str, *, prefix: bool = False) -> Callable
-def get_command(name: str) -> tuple[Callable, bool] | None
-def iter_commands() -> dict[str, tuple[Callable, bool]]
-def iter_tools() -> dict[str, Callable[..., Any]]
-def register_pipeline_stage(*, when: str = "post") -> Callable
-def get_pipeline_post_stages() -> list[PipelineHook]
-async def run_pipeline_stages(hooks, hits, query, *, strict=False) -> list[RagHit]
-def register_builtin_commands(names: frozenset[str]) -> None
-```
-
-**プラグイン読込フロー:**
-```
-plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="reject", strict_mode=False)
-  → plugins/*.py をアルファベット順にglob (plugin_auto_discover.load_plugins)
-  → 各ファイルをインポート (importlib.util; import時に @register_* が実行される)
-  → エラー時: WARNINGとして記録しプラグインをスキップ(fail-open); 例外種別は ImportError/SyntaxError/AttributeError/RuntimeError/ValueError のみ捕捉
-  → 全読込後: plugin_conflicts.validate_tool_conflicts() / validate_command_conflicts() でMCP既知ツール・組み込みコマンドとの衝突を解決
-  → strict_mode=True かつ (load失敗 or 衝突による拒否) がある場合のみ集約された PluginLoadError を送出
-  → ディレクトリが存在しない場合: loaded_count=0 の PluginLoadResult を返す(エラーにしない)
-```
-
-**register_tool のコントラクト検証 (Explicit in code):** `register_tool()` はデコレータ適用時に以下を強制する。違反時は `ValueError` を送出する(プラグインロード失敗として捕捉される)。
-- ハンドラは `inspect.iscoroutinefunction()` で判定される非同期関数でなければならない
-- 戻り値の型アノテーションが必須で、`tuple[str, bool]` と厳密一致しなければならない (`typing.get_type_hints` で解決)
-
-**優先順位:** `@register_tool` handlers are checked by `ToolExecutor.execute()` **before** `ToolRegistry` route resolution, the tool-result cache, the health gate, lifecycle `ensure_ready()`, and `HttpTransport` — a plugin tool never reaches any of these MCP-routing mechanisms.
-`@register_command` ハンドラは `CommandRegistry` によって組み込みコマンドの**後に**ディスパッチされる。
-
-**ツール衝突解決 (`plugin_conflicts.validate_tool_conflicts`):**
-- `known_tools` が空なら何もしない (`(0, 0, [])`)
-- `override_policy="allow"`: 衝突するプラグインツールをMCPツールの上に残し、`allowed_count` を加算
-- `override_policy="reject"` (デフォルト): 衝突するプラグインツールを `_tools` から削除し、`shadowed_count` を加算。`strict_mode=True` の場合はさらに `strict_rejected` リストに名前を積む
-
-**コマンド衝突解決 (`plugin_conflicts.validate_command_conflicts`):**
-- `register_builtin_commands()` で登録済みの組み込みコマンド名と衝突するプラグインコマンドを `_commands` から削除する
-- `strict_mode=True` の場合、拒否された名前は集約エラーメッセージに含まれる
-
-**戻り値の型:**
-
-```python
-# shared/plugin_result.py — plugin_registry.py はこれを再エクスポートするのみ
-@dataclass(frozen=True)
-class PluginFailure:
-    path: str          # plugin .py filename
-    error: str         # exception message
-
-@dataclass(frozen=True)
-class PluginLoadResult:
-    loaded_count: int
-    failed: tuple[PluginFailure, ...]
-    tool_conflicts_shadowed: int = 0
-    tool_conflicts_allowed: int = 0
-    command_shadows_rejected: int = 0  # commands rejected due to strict-mode conflict with a builtin
-
-class PluginLoadError(RuntimeError):
-    pass
-
-def get_last_load_result() -> PluginLoadResult | None
-```
-
-- `get_last_load_result()` は直近の `PluginLoadResult` を返す。初回ロード前は `None`。
-- `PluginLoadError` は `strict_mode=True` かつ失敗またはMCP競合がある場合のみ発生する。In `strict_mode=True`, **all** plugins are attempted first; a single aggregated `PluginLoadError` (naming every load failure, tool-conflict rejection, and command-conflict rejection together) is raised only after every plugin has had a chance to load — not on the first failure.
-- `PluginFailure.error` には失敗したプラグインの例外メッセージ全文が入る。
-
-**PluginToolInvoker (`shared/plugin_tool_invoker.py`):**
-- `try_execute(tool_name, args)` はプラグインツールが未登録なら `None` を返す (呼び出し側は `ToolExecutor.execute()`)
-- プラグイン関数が例外を送出した場合は `ToolCallResult(is_error=True, source="plugin", error_type="tool")` に変換し、例外を外へ伝播させない
-- 戻り値の実行時バリデーション: `tuple` かつ長さ2であること、`output: str`、`is_error: bool` を再チェックする。登録時のアノテーション検査とは別に、実行時にも防御的に検証する二重チェック設計 — 契約違反時は `error_type="plugin_contract"` の `ToolCallResult` を返す
-
-**テスト分離:** `_reset_for_testing()` (実体は `plugin_auto_discover._reset_for_testing`) は全レジストリをクリアするもので、コマンド・ツール・パイプラインステージを登録するテストファイルでは
-`pytest.fixture(autouse=True)` 内で必ず呼び出す必要がある。テスト以外のコードはこの関数を呼び出してはならない。
-
----
-
-## 4a. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
+## 4. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
 
 ```python
 class ToolExecutor(ToolTransportInvoker):
@@ -142,8 +44,6 @@ class ToolExecutor(ToolTransportInvoker):
 **`execute()` の実行順序 (Explicit in code):**
 ```
 execute(tool_name, args)
-  → PluginToolInvoker.try_execute() でプラグインツールか判定
-      → プラグインツールなら結果を即返す (キャッシュ・MCPルーティングを一切経由しない)
   → _execute_with_cache(): キャッシュキー "tool_name:json(args)" でTTLキャッシュ参照
       → ヒットかつ age < cache_ttl: LRU更新してヒット数を加算し即返す
   → _execute_with_stampede_protection(): 同一キーの同時実行はFutureを共有し、二重実行を防止
@@ -172,7 +72,7 @@ def tool_hash_key(name: str, args: dict[str, object]) -> str
 
 ---
 
-## 4b. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ルーティングの正本)
+## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ルーティングの正本)
 
 **責務分離 (Explicit in code — module docstring):**
 - `shared/tool_registry.py`: MCPツール所有権とルーティングの唯一の正本。`tool_constants.py` の frozenset群がインポート時にこのレジストリへ登録される
@@ -231,7 +131,7 @@ def check_unknown_tool_safety_tiers(registry=None, tool_safety_tiers=None) -> li
 - いずれも空dict/空listはドリフトなしを意味する
 - `check_tool_safety_tiers` / `check_unknown_tool_safety_tiers` は `tool_safety_tiers` が空/未設定なら即座に空リストを返す (機能自体がオプトイン)
 
-## 4c. `LifecycleProtocol` (`shared/tool_lifecycle.py`)
+## 4b. `LifecycleProtocol` (`shared/tool_lifecycle.py`)
 
 ```python
 @runtime_checkable
@@ -319,9 +219,10 @@ MAX_SNIPPET_CHARS: int                   # max chars for snippet display
 
 ## Keywords
 
-plugin_registry
 token_counter
 otel_tracer
 git_helper
 formatters
 ToolExecutor
+ToolRegistry
+LifecycleProtocol

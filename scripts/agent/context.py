@@ -143,6 +143,7 @@ class AppServices:
         health_registry: McpServerHealthRegistry | None = None,
         gateway: RepositoryGateway | None = None,
     ) -> None:
+        """Initialize all required service references for the agent runtime."""
         self.http = http
         self.llm = llm
         self.tools = tools
@@ -171,6 +172,7 @@ class AgentContext:
     """
 
     def __init__(self) -> None:
+        """Create an empty AgentContext with default state objects."""
         self.conv = ConversationState()
         self.turn = TurnState()
         self.stats = RuntimeStats()

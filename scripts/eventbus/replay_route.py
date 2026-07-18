@@ -29,9 +29,11 @@ async def replay(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
+    """Replay events from a given sequence number via SSE or JSON response."""
     db = get_db(request)
 
     def _fetch() -> list:
+        """Fetch events with seq > since_seq within limit/offset bounds."""
         rows: list = fetch_events_since(db, since_seq, limit=limit, offset=offset)
         return rows
 
@@ -40,6 +42,7 @@ async def replay(
     if fmt == "json":
 
         def _count() -> int:
+            """Count total events with seq > since_seq for pagination."""
             return _count_events_since(db, since_seq)
 
         total = await run_with_db_lock(_count)
@@ -51,6 +54,7 @@ async def replay(
         }
 
     async def _sse_gen() -> Any:
+        """Generate SSE stream events from fetched rows."""
         for row in rows:
             data = json_dumps(_row_to_dict(row))
             yield f"data: {data}\n\n"

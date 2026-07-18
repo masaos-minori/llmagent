@@ -33,6 +33,7 @@ class MemoryStore:
     """
 
     def __init__(self, embed_dim: int | None = None) -> None:
+        """Initialize the memory store with an optional embedding dimension for validation."""
         # When set, embeddings passed to add()/upsert() are validated against this dimension.
         self._embed_dim = embed_dim
 

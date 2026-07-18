@@ -22,6 +22,7 @@ from mcp_servers.health_response import make_health_response
 def _degraded_response(
     deps: dict[str, str], details: dict[str, object]
 ) -> JSONResponse:
+    """Build and return a degraded health response when checks fail."""
     result: JSONResponse = make_health_response(deps, details)
     return result
 

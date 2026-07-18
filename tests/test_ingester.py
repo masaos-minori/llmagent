@@ -125,7 +125,7 @@ def _make_ingester(tmp_path: Path) -> RagIngester:
     ingester = RagIngester(
         config={
             "rag_src_dir": str(tmp_path),
-            "embed_url": "http://localhost:8003/embedding",
+            "embed_url": "http://localhost:8081/embedding",
             "embed_retry": "1",
             "embed_workers": "1",
         }
@@ -146,7 +146,7 @@ def _make_ingester_with_retry(tmp_path: Path, embed_retry: int) -> RagIngester:
     ingester = RagIngester(
         config={
             "rag_src_dir": str(tmp_path),
-            "embed_url": "http://localhost:8003/embedding",
+            "embed_url": "http://localhost:8081/embedding",
             "embed_retry": str(embed_retry),
             "embed_workers": "1",
         }

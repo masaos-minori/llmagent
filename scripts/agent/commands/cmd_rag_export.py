@@ -20,6 +20,7 @@ class _RagExportMixin(MixinBase):
     """Export and compact slash-command handlers."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the RAG export mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     async def _cmd_compact(self) -> None:

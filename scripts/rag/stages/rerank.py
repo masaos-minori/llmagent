@@ -35,9 +35,13 @@ def _rerank_fallback(merged: list[RagHit], cfg: RagConfig) -> list[RagHit]:
 
 
 class RerankStage(PipelineStage):
+    """LLM-based reranking stage that reorders merged search results by relevance."""
+
     def __init__(self, cfg: RagConfig, llm: RagLLM) -> None:
+        """Initialize with RAG configuration and LLM client for reranking."""
         self._cfg = cfg
         self._llm = llm
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        """Execute reranking and store the reordered results in context."""
         ctx.reranked = await _rerank(ctx.query, ctx.merged, self._cfg, self._llm)

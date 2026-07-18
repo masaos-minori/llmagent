@@ -138,12 +138,12 @@ class TestAuditToolExec:
         ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
-        audit_tool_exec(ctx, "my_plugin_tool", {}, False, "", source="plugin")
+        audit_tool_exec(ctx, "read_text_file", {}, False, "", source="cache")
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "tool_exec" in logged
-        assert '"source":"plugin"' in logged or '"source": "plugin"' in logged
-        assert "my_plugin_tool" in logged
+        assert '"source":"cache"' in logged or '"source": "cache"' in logged
+        assert "read_text_file" in logged
 
     def test_source_default_agent_in_audit_event(self) -> None:
         ctx = _make_ctx()

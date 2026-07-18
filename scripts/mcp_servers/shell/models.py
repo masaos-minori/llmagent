@@ -111,6 +111,8 @@ def load_shell_policy() -> ShellPolicy:
 
 
 class ShellRunRequest(BaseModel):
+    """Request body for shell command execution."""
+
     command: str = Field(
         ...,
         description="Command string (argv[0] must be in allowlist)",
@@ -132,6 +134,8 @@ class ShellRunRequest(BaseModel):
 
 
 class ShellRunResponse(BaseModel):
+    """Response body from shell command execution."""
+
     stdout: str
     stderr: str
     exit_code: int

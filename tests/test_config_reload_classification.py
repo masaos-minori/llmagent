@@ -6,16 +6,15 @@ Tests each field's classification bucket: startup_only, applied, deferred, needs
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from agent.services.config_reload import ConfigReloadOutcome, ConfigReloadService
+from agent.services.config_reload import ConfigReloadService
 
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
     ctx.cfg.memory.use_memory_layer = False
-    ctx.cfg.tool.plugin_strict = False
     ctx.cfg.llm.llm_temperature = 0.7
     ctx.cfg.llm.llm_max_tokens = 4096
     ctx.cfg.llm.context_char_limit = 100_000
@@ -42,32 +41,6 @@ def svc(ctx: MagicMock) -> ConfigReloadService:
 # --- Direct unit tests of _detect_startup_only ---
 
 
-@pytest.mark.parametrize(
-    "key,new_val",
-    [
-        ("plugin_strict", True),
-    ],
-)
-def test_detect_startup_only_changed_field(
-    svc: ConfigReloadService, key: str, new_val: object
-) -> None:
-    result = svc._detect_startup_only({key: new_val})
-    assert key in result
-
-
-@pytest.mark.parametrize(
-    "key,val",
-    [
-        ("plugin_strict", False),
-    ],
-)
-def test_detect_startup_only_unchanged_not_reported(
-    svc: ConfigReloadService, key: str, val: object
-) -> None:
-    result = svc._detect_startup_only({key: val})
-    assert key not in result
-
-
 def test_detect_startup_only_empty_dict(svc: ConfigReloadService) -> None:
     result = svc._detect_startup_only({})
     assert result == []
@@ -76,17 +49,3 @@ def test_detect_startup_only_empty_dict(svc: ConfigReloadService) -> None:
 def test_detect_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
     result = svc._detect_startup_only({"llm_temperature": 0.3, "llm_max_tokens": 8192})
     assert result == []
-
-
-# --- Integration: apply_config_dict correctly classifies fields ---
-
-
-def test_apply_config_dict_plugin_strict_in_startup_only(
-    svc: ConfigReloadService, ctx: MagicMock
-) -> None:
-    ctx.cfg.tool.plugin_strict = False
-    with patch.object(
-        svc, "_classify_mcp_server_changes", return_value=ConfigReloadOutcome()
-    ):
-        outcome = svc.apply_config_dict({"plugin_strict": True})
-    assert "plugin_strict" in outcome.startup_only

@@ -279,7 +279,7 @@ class TestCheckServiceHealth:
 
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = "http://localhost:8001/v1/embeddings"
+        ctx.cfg.rag.embed_url = "http://localhost:8080/v1/embeddings"
         resp = MagicMock()
         resp.status_code = 200
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -593,27 +593,10 @@ class TestAuditSecurityDefaults:
         ):
             audit_security_defaults(ctx, production_mode=True)  # must not raise
 
-    def test_production_config_plugin_strict_false_raises(self) -> None:
-        ctx = self._make_ctx(
-            servers={"svc": {"auth_token": "tok"}}, security_profile="production"
-        )
-        ctx.cfg.tool.plugin_strict = False
-        ctx.cfg.tool.tool_definitions_strict = True
-        ctx.cfg.tool.routing_drift_strict = True
-        with (
-            patch("agent.repl_health.load_shell_audit_config", return_value=None),
-            patch("agent.repl_health.load_git_audit_config", return_value=None),
-            patch("agent.repl_health.load_github_audit_config", return_value=None),
-            patch("agent.repl_health.load_cicd_audit_config", return_value=None),
-        ):
-            with pytest.raises(RuntimeError, match="plugin_strict"):
-                audit_security_defaults(ctx, production_mode=True)
-
     def test_production_config_tool_definitions_strict_false_raises(self) -> None:
         ctx = self._make_ctx(
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
-        ctx.cfg.tool.plugin_strict = True
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = True
         with (
@@ -629,7 +612,6 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx(
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
-        ctx.cfg.tool.plugin_strict = True
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = False
         with (
@@ -643,7 +625,6 @@ class TestAuditSecurityDefaults:
 
     def test_production_config_false_warns_in_local(self) -> None:
         ctx = self._make_ctx(servers={"svc": {"auth_token": "tok"}})
-        ctx.cfg.tool.plugin_strict = False
         ctx.cfg.tool.tool_definitions_strict = False
         ctx.cfg.tool.routing_drift_strict = False
         with (
@@ -653,13 +634,12 @@ class TestAuditSecurityDefaults:
             patch("agent.repl_health.load_cicd_audit_config", return_value=None),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("plugin_strict" in w for w in warnings)
+        assert any("tool_definitions_strict" in w for w in warnings)
 
     def test_production_config_all_true_no_error(self) -> None:
         ctx = self._make_ctx(
             servers={"svc": {"auth_token": "tok"}}, security_profile="production"
         )
-        ctx.cfg.tool.plugin_strict = True
         ctx.cfg.tool.tool_definitions_strict = True
         ctx.cfg.tool.routing_drift_strict = True
         with (
@@ -717,8 +697,8 @@ class TestCheckReadiness:
 
     def _make_ctx(self, mock_http: object) -> MagicMock:
         ctx = MagicMock()
-        ctx.cfg.llm.llm_url = "http://127.0.0.1:8001/v1/chat"
-        ctx.cfg.rag.embed_url = "http://127.0.0.1:8003/embedding"
+        ctx.cfg.llm.llm_url = "http://127.0.0.1:8080/v1/chat"
+        ctx.cfg.rag.embed_url = "http://127.0.0.1:8081/embedding"
         ctx.services_required.http = mock_http
         return ctx
 

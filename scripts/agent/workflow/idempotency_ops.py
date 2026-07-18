@@ -10,6 +10,7 @@ from agent.workflow.models import AttemptRecord
 
 
 def is_event_processed(db: SQLiteHelper, event_id: str) -> bool:
+    """Check whether an event has already been processed by looking up its ID."""
     rows = db.fetchall("SELECT 1 FROM processed_events WHERE event_id=?", (event_id,))
     return len(rows) > 0
 

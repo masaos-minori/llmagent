@@ -39,7 +39,7 @@ source:
 ### 4.4 埋め込みAPI
 
 ```
-POST http://127.0.0.1:8003/embedding
+POST http://127.0.0.1:8081/embedding
 Request:  {"content": "passage: {text}"}
 Response: {"embedding": [float, ...]}   # 384次元（multilingual-E5-small；config/ingester.toml::embedding_dims）
 ```

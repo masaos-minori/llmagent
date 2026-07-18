@@ -190,9 +190,11 @@ class SQLiteHelper:
         return self
 
     def __enter__(self) -> "SQLiteHelper":
+        """Return self for context manager usage."""
         return self
 
     def __exit__(self, *_: object) -> None:
+        """Close the connection when exiting the context if not reusing."""
         if not self._reuse_connection:
             self.close()
 

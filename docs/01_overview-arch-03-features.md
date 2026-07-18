@@ -7,7 +7,6 @@ tags:
   - agent-context
   - memory-layer
   - tool-routing
-  - plugin-system
   - sqlite-vec
   - diagnostic-store
 related:
@@ -56,15 +55,6 @@ related:
 
 `shared/route_resolver.py` がツール名をサーバキーに解決する。ルーティング優先順位は (1) 起動時の `/v1/tools` live discovery マップ、(2) `shared/tool_registry.py` の静的レジストリ。設定 `tool_names` はルーティングには使用せず、ドリフト検証用のメタデータのみ。(根拠: `shared/route_resolver.py`)
 
-**プラグインシステム**
-
-`factory.build_agent_context()` の末尾でプラグインレジストリ初期化が呼ばれ、`plugins/` ディレクトリからツールおよびスラッシュコマンドを動的ロードする。設定による動作制御:
-
-- `plugin_tool_override=False` (デフォルト): 既存 MCP ツール名と衝突するプラグインは拒否
-- `plugin_strict=False` (デフォルト): ロード失敗は警告ログに留め、エージェント起動は継続 (fail-open)
-
-(根拠: `agent/factory.py`)
-
 **sqlite-vec 拡張の適用範囲**
 
 `db/helper.py` の `SQLiteHelper` は `target="rag"` 時のみ sqlite-vec 拡張 (`vec0.so`) をロードする。`session`・`workflow`・`eventbus` DB には適用しない。ベクトル演算を RAG DB に限定する意図的な分離。(根拠: `db/helper.py`)
@@ -94,6 +84,5 @@ implemented-features
 agent-context
 memory-layer
 tool-routing
-plugin-system
 sqlite-vec
 diagnostic-store

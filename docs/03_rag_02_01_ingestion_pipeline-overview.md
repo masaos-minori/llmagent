@@ -29,7 +29,7 @@ source:
 ### 前提条件
 
 ```bash
-curl -s http://127.0.0.1:8003/health   # embed-llmが稼働していることを確認
+curl -s http://127.0.0.1:8081/health   # embed-llmが稼働していることを確認
 ```
 
 ### ステップ1: クロール
@@ -82,7 +82,7 @@ uv run python scripts/rag/ingestion/chunk_splitter.py --force
 
 ```bash
 # embed-llmが稼働していることを確認
-curl -s http://127.0.0.1:8003/health
+curl -s http://127.0.0.1:8081/health
 
 uv run python scripts/rag/ingestion/ingester.py
 

@@ -10,6 +10,8 @@ from typing import Any, NotRequired, TypedDict
 
 
 class MCPToolSchema(TypedDict):
+    """MCP tool definition following the MCP JSON-RPC schema format."""
+
     name: str
     description: str
     inputSchema: dict[str, Any]

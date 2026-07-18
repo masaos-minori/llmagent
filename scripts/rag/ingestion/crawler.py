@@ -73,6 +73,7 @@ class WebCrawler:
     }
 
     def __init__(self, config: dict | None = None) -> None:
+        """Initialize with optional config override and load crawler settings."""
         cfg: dict = config or ConfigLoader().load("crawler.toml")
         self._rag_src_dir: Path = Path(cfg["rag_src_dir"])
         self._crawl_delay: float = float(cfg["crawl_delay"])
@@ -455,6 +456,7 @@ class WebCrawler:
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
+    """CLI entry point for BFS web crawling with language detection."""
     parser = argparse.ArgumentParser(
         description="BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.json",
     )

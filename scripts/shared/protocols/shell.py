@@ -49,6 +49,7 @@ class ShellPolicy:
     )
 
     def __post_init__(self) -> None:
+        """Validate all fields after initialization."""
         if self.kill_policy not in self._VALID_KILL_POLICIES:
             raise ValueError(
                 f"kill_policy must be one of {sorted(self._VALID_KILL_POLICIES)!r}, got {self.kill_policy!r}"

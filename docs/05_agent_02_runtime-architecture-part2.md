@@ -108,7 +108,7 @@ REPL loop
 
 ### ToolExecutor (`shared/tool_executor.py`)
 
-- プラグインツールの検索 → TTLキャッシュチェック → MCPルーティング
+- TTLキャッシュチェック → MCPルーティング
 - 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する
 - `ToolRouteResolver`: ツール名 → サーバーキーを解決する(ライブの`/v1/tools`ディスカバリー → ToolRegistry)
 - `McpServerHealthRegistry`: サーバーごとのヘルス状態(HEALTHY/DEGRADED/UNAVAILABLE)を追跡する
@@ -124,8 +124,7 @@ REPL loop
 ### CommandRegistry (`agent/commands/registry.py`)
 
 実装上は14個のmixinを継承する(`_`始まりの内部命名だが、クラス構成として一覧化する)。
-まず組み込みコマンド(`_COMMANDS`、`agent/commands/command_defs_list.py`が正本)をディスパッチし、
-その後プラグインコマンドをディスパッチする。(Explicit in code — 旧版の「12個」は実態と不一致)
+組み込みコマンド(`_COMMANDS`、`agent/commands/command_defs_list.py`が正本)をディスパッチする。(Explicit in code — 旧版の「12個」は実態と不一致)
 
 | Mixin | Commands |
 |---|---|
@@ -140,7 +139,6 @@ REPL loop
 | `_RagExportMixin` | `/rag`, `/export`, `/compact` |
 | `_MemoryMixin` | `/memory` |
 | `_WorkflowMixin` | `/approve`, `/reject` |
-| `_PluginsMixin` | `/plugin` |
 | `_MdqMixin` | `/mdq` |
 | `_SkillMixin` | `/skill` |
 

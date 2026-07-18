@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _mode_hint(mode: MdqRagMode) -> str:
+    """Return a human-readable hint explaining which tool category to prefer for the given mode."""
     if mode == MdqRagMode.MDQ:
         return "For this query, prefer MDQ tools (search_docs, outline, get_chunk) for Markdown-structural retrieval."
     if mode == MdqRagMode.RAG:

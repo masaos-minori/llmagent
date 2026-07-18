@@ -30,6 +30,7 @@ class FileOps(GitHubSecurityGuards):
     """File read/write/delete operations."""
 
     def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 
     async def get_file_contents(
@@ -39,6 +40,7 @@ class FileOps(GitHubSecurityGuards):
         """Retrieve the contents of a single file in a repository."""
 
         def _sync() -> GetFileContentsResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             # ref kwarg selects branch/tag/SHA; omit to use the default branch
             kwargs: dict[str, object] = {"ref": req.ref} if req.ref else {}
@@ -70,6 +72,7 @@ class FileOps(GitHubSecurityGuards):
         self._assert_max_file_size(req.content, req.path)
 
         def _sync() -> CreateOrUpdateFileResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             # Branch kwarg is optional; omit to use the default branch
             kwargs: dict[str, object] = {}
@@ -116,6 +119,7 @@ class FileOps(GitHubSecurityGuards):
             self._assert_max_file_size(f.content, f.path)
 
         def _sync() -> PushFilesResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             branch_ref = repo.get_git_ref(f"heads/{req.branch}")
             parent_commit = repo.get_git_commit(branch_ref.object.sha)
@@ -160,6 +164,7 @@ class FileOps(GitHubSecurityGuards):
         self._assert_allowed_path(req.path)
 
         def _sync() -> DeleteRepoFileResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             # Branch kwarg is optional; omit to use the default branch
             kwargs: dict[str, object] = {}

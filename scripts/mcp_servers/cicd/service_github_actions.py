@@ -44,11 +44,13 @@ class GitHubActionsBackend:
         github_token: str,
         http: httpx.AsyncClient,
     ) -> None:
+        """Store credentials and HTTP client for GitHub Actions API calls."""
         # Store token privately; never expose via __repr__ or logging (R-4)
         self._token = github_token
         self._http = http
 
     def __repr__(self) -> str:
+        """Return a safe string representation that masks the authentication token."""
         # Mask token value to prevent accidental log exposure (R-4)
         token_status = "set" if self._token else "not set"
         return f"GitHubActionsBackend(token={token_status!r})"

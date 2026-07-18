@@ -57,7 +57,7 @@ def ingester(tmp_path: str, db: _FakeSQLiteHelper) -> RagIngester:
     """Minimal RagIngester instance that does not hit the filesystem or DB."""
     cfg = {
         "rag_src_dir": tmp_path,
-        "embed_url": "http://localhost:8003/embedding",
+        "embed_url": "http://localhost:8081/embedding",
         "embed_retry": "1",
         "embed_workers": "1",
     }

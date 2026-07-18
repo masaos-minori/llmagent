@@ -9,35 +9,66 @@ from typing import Protocol
 
 
 class OutputPort(Protocol):
-    def write(self, text: str) -> None: ...
-    def write_table(self, headers: list[str], rows: list[list[str]]) -> None: ...
-    def write_error(self, text: str) -> None: ...
-    def write_success(self, text: str) -> None: ...
-    def write_no_data(self, text: str) -> None: ...
-    def write_validation_error(self, text: str) -> None: ...
-    def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None: ...
-    def write_debug_rag(self, data: dict) -> None: ...
+    """Interface for writing structured output from slash commands."""
+
+    def write(self, text: str) -> None:
+        """Write plain text output."""
+        ...
+
+    def write_table(self, headers: list[str], rows: list[list[str]]) -> None:
+        """Write a formatted table with aligned columns."""
+        ...
+
+    def write_error(self, text: str) -> None:
+        """Write an error message prefixed with '[error]'."""
+        ...
+
+    def write_success(self, text: str) -> None:
+        """Write a success message prefixed with a space."""
+        ...
+
+    def write_no_data(self, text: str) -> None:
+        """Write a no-data message prefixed with a space."""
+        ...
+
+    def write_validation_error(self, text: str) -> None:
+        """Write a validation error message prefixed with '[usage]'."""
+        ...
+
+    def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None:
+        """Write key-value pairs as aligned lines."""
+        ...
+
+    def write_debug_rag(self, data: dict) -> None:
+        """Write RAG debug information including queries, results, and scores."""
+        ...
 
 
 class CliOutputPort:
     """Concrete OutputPort that writes to stdout via print()."""
 
     def write(self, text: str) -> None:
+        """Write plain text output."""
         print(text)
 
     def write_success(self, text: str) -> None:
+        """Write a success message prefixed with a space."""
         print(f"  {text}")
 
     def write_error(self, text: str) -> None:
+        """Write an error message prefixed with '[error]'."""
         print(f"  [error] {text}")
 
     def write_no_data(self, text: str) -> None:
+        """Write a no-data message prefixed with a space."""
         print(f"  {text}")
 
     def write_validation_error(self, text: str) -> None:
+        """Write a validation error message prefixed with '[usage]'."""
         print(f"  [usage] {text}")
 
     def write_table(self, headers: list[str], rows: list[list[str]]) -> None:
+        """Write a formatted table with aligned columns."""
         if not rows:
             return
         expected = len(headers)
@@ -56,10 +87,12 @@ class CliOutputPort:
             print("  ".join(cell.ljust(w) for cell, w in zip(row, widths)))
 
     def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None:
+        """Write key-value pairs as aligned lines."""
         for k, v in pairs:
             print(f"  {k:<{key_width}}: {v}")
 
     def write_debug_rag(self, data: dict) -> None:
+        """Write RAG debug information including queries, results, and scores."""
         queries: list = data.get("queries", [])
         all_results: list = data.get("all_results", [])
         merged: list = data.get("merged", [])

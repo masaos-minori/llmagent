@@ -18,6 +18,8 @@ from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
 
 @dataclass
 class RebuildResult:
+    """Result of a memory rebuild operation."""
+
     dry_run: bool
     jsonl_count: int
     sqlite_before: int
@@ -29,6 +31,7 @@ class MemoryRebuildOps:
     """Handles memory rebuild operations (rebuild, rebuild-fts, rebuild-vec, check-consistency)."""
 
     def __init__(self, ctx: AgentContext, out: Any) -> None:
+        """Initialize the memory rebuild operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
 

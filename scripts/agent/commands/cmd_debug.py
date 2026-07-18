@@ -21,6 +21,7 @@ class _DebugMixin(MixinBase):
     """Debug-mode slash-command handlers."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the debug mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
     def _cmd_debug(self, args: str = "") -> None:

@@ -41,6 +41,7 @@ class HttpStartupError(RuntimeError):
     """Raised when an HTTP subprocess MCP server fails to start."""
 
     def __init__(self, failure: StartupFailure) -> None:
+        """Initialize with the startup failure details."""
         self.failure = failure
         super().__init__(failure.reason)
 
@@ -59,12 +60,14 @@ class HttpServerLifecycleManager:
     _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
 
     def __init__(self) -> None:
+        """Initialize empty tracking dicts for HTTP subprocess servers."""
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._stderr_log_paths: dict[str, str] = {}
 
     def _open_stderr_log(self, server_key: str) -> IO[bytes]:
+        """Open an append-mode file for the server's stderr output and track its path."""
         safe_key = re.sub(r"[^A-Za-z0-9_-]", "_", server_key)
         log_dir = Path("/opt/llm/logs/mcp_servers")
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -74,6 +77,7 @@ class HttpServerLifecycleManager:
         return fh
 
     def _read_stderr_tail(self, server_key: str) -> str:
+        """Read the last N bytes from a server's stderr log file."""
         log_path = self._stderr_log_paths.get(server_key)
         if not log_path:
             return ""
@@ -312,6 +316,12 @@ class HttpServerLifecycleManager:
 
     @staticmethod
     def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
+        """Silently absorb SIGINT signals during shutdown_all() to prevent orphaned subprocesses.
+
+        When a user presses Ctrl-C twice while shutdown_all() is running, the second signal would
+        normally interrupt the cleanup loop and leave HTTP subprocesses alive. This handler
+        catches those signals and logs a warning instead of propagating the exception.
+        """
         logger.warning(
             "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
         )

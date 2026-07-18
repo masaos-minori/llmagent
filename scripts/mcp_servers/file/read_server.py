@@ -84,6 +84,7 @@ app.add_exception_handler(FileValidationError, _on_validation_error)
 
 @app.post("/list_directory", response_model=ListDirectoryResponse)
 async def list_directory(req: ListDirectoryRequest) -> ListDirectoryResponse:
+    """List immediate entries in a directory without sizes."""
     t0 = time.perf_counter()
     result = _service.list_dir_entries(req, include_dir_sizes=False)
     ms = (time.perf_counter() - t0) * 1000
@@ -100,6 +101,7 @@ async def list_directory(req: ListDirectoryRequest) -> ListDirectoryResponse:
 
 @app.post("/list_directory_with_sizes", response_model=ListDirectoryResponse)
 async def list_directory_with_sizes(req: ListDirectoryRequest) -> ListDirectoryResponse:
+    """List directory entries including their sizes."""
     t0 = time.perf_counter()
     result = _service.list_dir_entries(req, include_dir_sizes=True)
     ms = (time.perf_counter() - t0) * 1000
@@ -116,6 +118,7 @@ async def list_directory_with_sizes(req: ListDirectoryRequest) -> ListDirectoryR
 
 @app.post("/directory_tree", response_model=DirectoryTreeResponse)
 async def directory_tree(req: DirectoryTreeRequest) -> DirectoryTreeResponse:
+    """Build a recursive tree structure of a directory."""
     t0 = time.perf_counter()
     result = _service.build_directory_tree(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -128,6 +131,7 @@ async def directory_tree(req: DirectoryTreeRequest) -> DirectoryTreeResponse:
 
 @app.post("/read_text_file", response_model=ReadTextFileResponse)
 async def read_text_file(req: ReadTextFileRequest) -> ReadTextFileResponse:
+    """Read a text file and return its content as UTF-8."""
     t0 = time.perf_counter()
     result = _service.read_text_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -141,6 +145,7 @@ async def read_text_file(req: ReadTextFileRequest) -> ReadTextFileResponse:
 
 @app.post("/read_media_file", response_model=ReadMediaFileResponse)
 async def read_media_file(req: ReadMediaFileRequest) -> ReadMediaFileResponse:
+    """Read a media file and return it as base64-encoded data."""
     t0 = time.perf_counter()
     result = _service.read_media_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -160,6 +165,7 @@ async def read_media_file(req: ReadMediaFileRequest) -> ReadMediaFileResponse:
 async def read_multiple_files(
     req: ReadMultipleFilesRequest,
 ) -> ReadMultipleFilesResponse:
+    """Batch retrieve multiple files at once."""
     t0 = time.perf_counter()
     result = _service.read_multiple_files(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -169,6 +175,7 @@ async def read_multiple_files(
 
 @app.post("/search_files", response_model=SearchFilesResponse)
 async def search_files(req: SearchFilesRequest) -> SearchFilesResponse:
+    """Search for files matching a glob pattern within a directory."""
     t0 = time.perf_counter()
     result = _service.search_files(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -186,6 +193,7 @@ async def search_files(req: SearchFilesRequest) -> SearchFilesResponse:
 
 @app.post("/grep_files", response_model=GrepFilesResponse)
 async def grep_files(req: GrepFilesRequest) -> GrepFilesResponse:
+    """Search file contents by regex pattern."""
     t0 = time.perf_counter()
     result = _service.grep_files(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -204,6 +212,7 @@ async def grep_files(req: GrepFilesRequest) -> GrepFilesResponse:
 
 @app.post("/get_file_info", response_model=GetFileInfoResponse)
 async def get_file_info(req: GetFileInfoRequest) -> GetFileInfoResponse:
+    """Get metadata about a single file (size, permissions, etc.)."""
     t0 = time.perf_counter()
     result = _service.get_file_info(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -213,11 +222,13 @@ async def get_file_info(req: GetFileInfoRequest) -> GetFileInfoResponse:
 
 @app.get("/list_allowed_directories")
 async def list_allowed_directories() -> dict[str, list[str]]:
+    """Return the list of allowed directories for file access."""
     return {"allowed_dirs": [str(d.resolve()) for d in _service._allowed_dirs]}
 
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Return health check status."""
     result: JSONResponse = await _health(_cfg.allowed_dirs)
     return result
 
@@ -228,11 +239,13 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_read_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Route a tool call through the shared dispatch mechanism."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """Return the MCP tool list with server_key appended."""
     return {
         "tools": [{**t, "server_key": "file_read"} for t in TOOL_LIST],
     }
@@ -240,6 +253,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    """Handle MCP call_tool requests with audit logging and error handling."""
     r = await _dispatch_read_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -260,6 +274,7 @@ class FileReadMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool call to the appropriate handler."""
         return await _dispatch_read_tool(name, args)
 
 

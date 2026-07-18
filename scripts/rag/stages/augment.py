@@ -21,5 +21,8 @@ def _format_chunks(reranked: list[RagHit]) -> str:
 
 
 class AugmentStage(PipelineStage):
+    """Text augmentation stage that formats reranked chunks into RAG context blocks."""
+
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
+        """Format reranked chunks into a RAG context block and store in context."""
         ctx.augment_result = _format_chunks(ctx.reranked)

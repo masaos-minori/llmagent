@@ -140,6 +140,8 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
 # plus optional rrf_score and rerank_score from derived classes.
 # All fields are optional because HTTP mode returns dicts with varied schemas.
 class HitDict(TypedDict, total=False):
+    """TypedDict for hit data returned in RAG pipeline response models."""
+
     chunk_id: int | str | None
     content: str | None
     url: str | None
@@ -183,6 +185,8 @@ class PipelineCapture(TypedDict):
 
 
 class RagRunRequest(BaseModel):
+    """Request model for running a RAG pipeline search."""
+
     query: str = Field(..., min_length=1, description="Original user query.")
     history_context: list[str] = Field(
         default_factory=list,
@@ -195,6 +199,8 @@ class RagRunRequest(BaseModel):
 
 
 class RagRunResponse(BaseModel):
+    """Response model for a RAG pipeline run containing retrieved context."""
+
     query: str
     augmented_text: str = Field(
         description="Formatted RAG context block for LLM injection.",
@@ -206,6 +212,8 @@ class RagRunResponse(BaseModel):
 
 
 class RagDebugResponse(RagRunResponse):
+    """Extended response model that includes intermediate pipeline outputs."""
+
     queries: list[str] = Field(
         default_factory=list,
         description="MQE-expanded queries.",

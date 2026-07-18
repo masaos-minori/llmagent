@@ -71,6 +71,7 @@ app.add_exception_handler(FileValidationError, _on_validation_error)
 
 @app.post("/write_file", response_model=WriteFileResponse)
 async def write_file(req: WriteFileRequest) -> WriteFileResponse:
+    """Create or overwrite a file on disk."""
     t0 = time.perf_counter()
     result = _service.write_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -82,6 +83,7 @@ async def write_file(req: WriteFileRequest) -> WriteFileResponse:
 
 @app.post("/edit_file", response_model=EditFileResponse)
 async def edit_file(req: EditFileRequest) -> EditFileResponse:
+    """Apply diff-based edits to an existing file on disk."""
     t0 = time.perf_counter()
     result = _service.edit_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -100,6 +102,7 @@ async def edit_file(req: EditFileRequest) -> EditFileResponse:
 
 @app.post("/create_directory", response_model=CreateDirectoryResponse)
 async def create_directory(req: CreateDirectoryRequest) -> CreateDirectoryResponse:
+    """Create a directory on disk."""
     t0 = time.perf_counter()
     result = _service.create_directory(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -112,6 +115,7 @@ async def create_directory(req: CreateDirectoryRequest) -> CreateDirectoryRespon
 
 @app.post("/move_file", response_model=MoveFileResponse)
 async def move_file(req: MoveFileRequest) -> MoveFileResponse:
+    """Move or rename a file or directory on disk."""
     t0 = time.perf_counter()
     result = _service.move_file(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -128,6 +132,7 @@ async def move_file(req: MoveFileRequest) -> MoveFileResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint returning allowed directories status."""
     result: JSONResponse = await _health(_cfg.allowed_dirs)
     return result
 
@@ -138,11 +143,13 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_write_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Dispatch a tool request to the write-file service."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """List available MCP tools with server key annotation."""
     return {
         "tools": [{**t, "server_key": "file_write"} for t in TOOL_LIST],
     }
@@ -150,6 +157,7 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    """Handle a generic MCP call_tool request."""
     r = await _dispatch_write_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -170,6 +178,7 @@ class FileWriteMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool invocation via the write-file service."""
         return await _dispatch_write_tool(name, args)
 
 

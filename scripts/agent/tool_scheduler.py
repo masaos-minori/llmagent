@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class _SerializationEvent:
+    """Record of a serialization decision made during group building."""
+
     trigger_tool: str
     reason: str
     tools_count: int
@@ -55,6 +57,8 @@ class ScheduledBatch:
 
 @dataclass
 class _GroupMetadata:
+    """Metadata about execution group construction including serialization events."""
+
     total_tools: int
     total_groups: int
     serialization_events: list[_SerializationEvent] = field(default_factory=list)

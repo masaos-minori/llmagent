@@ -33,11 +33,17 @@ StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or N
 class _Span(Protocol):
     """Protocol for OTel span-like objects."""
 
-    def start_as_current_span(self, name: str) -> _Span: ...
+    def start_as_current_span(self, name: str) -> _Span:
+        """Start a new child span and enter it as the current span."""
+        ...
 
-    def set_attribute(self, key: str, value: object) -> None: ...
+    def set_attribute(self, key: str, value: object) -> None:
+        """Set an attribute on the span."""
+        ...
 
-    def record_exception(self, exc: BaseException) -> None: ...
+    def record_exception(self, exc: BaseException) -> None:
+        """Record an exception on the span."""
+        ...
 
     def __enter__(self) -> _Span: ...
 
@@ -48,18 +54,23 @@ class _NoOpSpan(_Span):
     """No-op OTel span used when no tracer is configured."""
 
     def start_as_current_span(self, name: str) -> _Span:
+        """Return self as a no-op span."""
         return self
 
     def set_attribute(self, key: str, value: object) -> None:
+        """No-op; ignores the attribute."""
         pass
 
     def record_exception(self, exc: BaseException) -> None:
+        """No-op; ignores the exception."""
         pass
 
     def __enter__(self) -> _Span:
+        """Return self as context manager."""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """No-op exit handler."""
         pass
 
 
@@ -75,6 +86,7 @@ class WorkflowPendingApprovalError(Exception):
     """Raised when a task is suspended waiting for human approval."""
 
     def __init__(self, approval_id: str, task_id: str) -> None:
+        """Initialize the pending approval exception with approval and task identifiers."""
         self.approval_id = approval_id
         self.task_id = task_id
         super().__init__(f"task {task_id} awaiting approval {approval_id}")
@@ -100,11 +112,13 @@ class WorkflowEngine:
         store: StateStore,
         tracer: _Span | None = None,
     ) -> None:
+        """Initialize the workflow engine with its definition, state store, and optional tracer."""
         self._wdef = workflow_def
         self._store = store
         self._tracer = tracer
 
     def _span_ctx(self, name: str) -> _Span | nullcontext[_NoOpSpan]:
+        """Return a span context manager; uses NoOpSpan when no tracer is available."""
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
         return nullcontext(_NoOpSpan())

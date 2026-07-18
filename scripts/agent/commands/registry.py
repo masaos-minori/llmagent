@@ -18,23 +18,18 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
   cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
-  cmd_plugins.py    — _PluginsMixin:    /plugin
   cmd_mdq.py        — _MdqMixin:        /mdq commands
   cmd_skill.py      — _SkillMixin:      /skill commands
 
 _COMMANDS ownership:
   _COMMANDS is IMPORTED from agent.commands.command_defs_list.
   It is NOT defined in this module.
-  This module owns: dispatch behavior (dispatch(), _get_handler(),
-                    _dispatch_plugin()) and the fail-fast handler
-                    validation in __init__.
+  This module owns: dispatch behavior (dispatch(), _get_handler())
+                    and the fail-fast handler validation in __init__.
 """
 
-import inspect
 from collections.abc import Callable
 from typing import Any
-
-from shared import plugin_registry
 
 from agent.commands.cmd_audit import _AuditMixin
 from agent.commands.cmd_config import _ConfigMixin
@@ -43,7 +38,6 @@ from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.cmd_memory import _MemoryMixin
-from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_skill import _SkillMixin
@@ -68,7 +62,6 @@ class CommandRegistry(
     _RagExportMixin,
     _MemoryMixin,
     _WorkflowMixin,
-    _PluginsMixin,
     _MdqMixin,
     _SkillMixin,
 ):
@@ -79,6 +72,7 @@ class CommandRegistry(
     """
 
     def __init__(self, ctx: AgentContext, out: OutputPort | None = None) -> None:
+        """Initialize the command registry with context, output port, and handler validation."""
         self._ctx = ctx
         self._out: OutputPort = out if out is not None else CliOutputPort()
         super().__init__(ctx, out)
@@ -149,22 +143,4 @@ class CommandRegistry(
                         handler()
                     return True
 
-        # Plugin commands: exact-match and prefix-match (checked after built-ins)
-        return await self._dispatch_plugin(line)
-
-    async def _dispatch_plugin(self, line: str) -> bool:
-        """Dispatch to the first matching registered plugin command; return True if matched."""
-        for cmd_name, (handler, is_prefix) in plugin_registry.iter_commands().items():
-            args: str = ""
-            if is_prefix and (line == cmd_name or line.startswith(cmd_name + " ")):
-                args = line[len(cmd_name) :].strip()
-            elif not is_prefix and line == cmd_name:
-                pass  # args stays empty
-            else:
-                continue
-            if inspect.iscoroutinefunction(handler):
-                await handler(self._ctx, args)
-            else:
-                handler(self._ctx, args)
-            return True
         return False

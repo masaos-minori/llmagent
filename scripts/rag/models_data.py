@@ -14,18 +14,24 @@ from rag.enums import LanguageCode
 
 @dataclass(frozen=True)
 class EmbeddingResponse:
+    """Response from an embedding API call."""
+
     embedding: list[float]
     model: str | None = None
 
 
 @dataclass(frozen=True)
 class CrawlTarget:
+    """URL and language specification for document crawling."""
+
     url: str
     lang: LanguageCode
 
 
 @dataclass(frozen=True)
 class ChunkDocument:
+    """Raw document ready for chunking during ingestion."""
+
     url: str
     title: str
     lang: str
@@ -42,6 +48,8 @@ class ChunkDocument:
 
 @dataclass(frozen=True)
 class ChunkRecord:
+    """Indexed chunk record stored in SQLite."""
+
     chunk_id: str
     url: str
     title: str
@@ -52,6 +60,8 @@ class ChunkRecord:
 
 @dataclass(frozen=True)
 class RegisteredDocument:
+    """Metadata for a document registered during ingestion."""
+
     url: str
     lang: str
     chunk_count: int
@@ -59,6 +69,8 @@ class RegisteredDocument:
 
 @dataclass(frozen=True)
 class CacheEntry:
+    """Cached embedding result for reuse."""
+
     embedding: list[float]
     context_str: str
     history_context: str = ""

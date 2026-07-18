@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 
 
 class GetFileContentsRequest(BaseModel):
+    """Request model for fetching file contents from a GitHub repository."""
+
     owner: str = Field(
         ...,
         description="Repository owner name (username or organization name)",
@@ -25,6 +27,8 @@ class GetFileContentsRequest(BaseModel):
 
 
 class GetFileContentsResponse(BaseModel):
+    """Response containing file contents and metadata."""
+
     path: str
     content: str
     sha: str
@@ -33,6 +37,8 @@ class GetFileContentsResponse(BaseModel):
 
 
 class CreateOrUpdateFileRequest(BaseModel):
+    """Request model for creating or updating a file in a GitHub repository."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     path: str = Field(..., description="File path (relative to repository root)")
@@ -50,6 +56,8 @@ class CreateOrUpdateFileRequest(BaseModel):
 
 
 class CreateOrUpdateFileResponse(BaseModel):
+    """Response indicating whether a file was created or updated."""
+
     path: str
     commit_sha: str
     operation: str  # "created" or "updated"
@@ -63,6 +71,8 @@ class PushFile(BaseModel):
 
 
 class PushFilesRequest(BaseModel):
+    """Request model for pushing multiple files to a GitHub repository."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     branch: str = Field(..., description="Branch name to push to")
@@ -74,12 +84,16 @@ class PushFilesRequest(BaseModel):
 
 
 class PushFilesResponse(BaseModel):
+    """Response indicating the result of pushing multiple files."""
+
     branch: str
     commit_sha: str
     files_pushed: int
 
 
 class DeleteRepoFileRequest(BaseModel):
+    """Request model for deleting a file from a GitHub repository."""
+
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     path: str = Field(
@@ -99,5 +113,7 @@ class DeleteRepoFileRequest(BaseModel):
 
 
 class DeleteRepoFileResponse(BaseModel):
+    """Response indicating the result of deleting a file."""
+
     path: str
     commit_sha: str

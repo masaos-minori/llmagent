@@ -3,16 +3,13 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
 from shared.json_utils import dumps as json_dumps
 
 from eventbus.route_helpers import _row_to_dict, get_broker, get_db, run_with_db_lock
-
-if TYPE_CHECKING:
-    from eventbus.config import EventBusConfig  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +20,7 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
+    """Subscribe to events via SSE with optional topic filtering and offset recovery."""
     from eventbus.offsets import read_offset  # noqa: PLC0415
 
     cfg = request.app.state.config
@@ -35,11 +33,13 @@ async def subscribe(
         start_seq = read_offset(cfg.offsets_dir, consumer_id)
 
     async def _sse_gen() -> Any:
+        """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
         # Step 1: register with broker BEFORE replay to capture events published during replay
         sub = broker.subscribe(list(topic))
         try:
             # Step 2: replay from SQLite
             def _fetch_replay() -> list[Any]:
+                """Fetch replay events from SQLite filtered by topic and sequence."""
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
                     return list(

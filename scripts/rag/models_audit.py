@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AuditLogRecord:
+    """Immutable audit log entry capturing tool execution details."""
+
     tool_name: str
     args_masked: str
     result_summary: str
@@ -20,6 +22,8 @@ class AuditLogRecord:
 
 @dataclass(frozen=True)
 class ApprovalDecision:
+    """Immutable record of an approval decision with its rationale."""
+
     approved: bool
     reason: str
     risk_level: str

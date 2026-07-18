@@ -27,8 +27,8 @@ related:
 /opt/llm/
 ├─ llama.cpp/                                 # llama.cpp ソース・ビルド成果物
 ├─ models/
-│   ├─ Qwen3.6-Instruct-Q4_K_M.gguf           # チャット/コード生成用 LLM (MQE・再ランク兼用, :8001)
-│   └─ multilingual-E5-small.gguf             # 埋込用 LLM (384 次元, :8003)
+│   ├─ Qwen3.6-Instruct-Q4_K_M.gguf           # チャット/コード生成用 LLM (MQE・再ランク兼用, :8080)
+│   └─ multilingual-E5-small.gguf             # 埋込用 LLM (384 次元, :8081)
 ```
 
 デプロイスクリプト (リポジトリ `deploy/` 配下、`bash deploy/xxx.sh` で実行):
@@ -38,7 +38,7 @@ deploy/
 ├─ deploy.sh                                  # Python スクリプト・設定・SQL を /opt/llm/ へコピー
 ├─ build_sqlite_vec.sh                        # sqlite-vec (vec0.so) を取得・ビルド。初回デプロイ時に一度実行
 ├─ init_db.sh                                 # SQLite スキーマ初期化。deploy.sh 実行後に一度だけ実行
-├─ setup_services.sh                          # MCP サーバ (:8004-:8014) と LLM サーバ (:8001-:8003) を
+├─ setup_services.sh                          # MCP サーバ (:8004-:8014) と LLM サーバ (:8080-:8081) を
 │                                              # エージェント管理 subprocess として起動
 └─ start_agent.sh                             # AgentREPL を起動 (production では /opt/llm/pyproject.toml を優先)
 ```

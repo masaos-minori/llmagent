@@ -21,7 +21,7 @@ from agent.memory.types import EmbeddingResult
 @pytest.fixture()
 def config() -> EmbeddingClientConfig:
     return EmbeddingClientConfig(
-        embed_url="http://localhost:8001/embed",
+        embed_url="http://localhost:8080/embed",
         timeout=1.0,
         max_retries=2,
         circuit_open_after=3,
@@ -881,7 +881,7 @@ class TestDimensionValidation:
         from agent.memory.types import EmbeddingErrorKind
 
         cfg = EmbeddingClientConfig(
-            embed_url="http://localhost:8001/embed",
+            embed_url="http://localhost:8080/embed",
             timeout=1.0,
             max_retries=0,
             embed_dim=384,
@@ -902,7 +902,7 @@ class TestDimensionValidation:
     async def test_accepts_correct_dimension(self) -> None:
         """EmbeddingClient returns success when dims match."""
         cfg = EmbeddingClientConfig(
-            embed_url="http://localhost:8001/embed",
+            embed_url="http://localhost:8080/embed",
             timeout=1.0,
             max_retries=0,
             embed_dim=384,
@@ -923,7 +923,7 @@ class TestDimensionValidation:
     async def test_dim_zero_disables_validation(self) -> None:
         """embed_dim=0 disables dimension validation; any size accepted."""
         cfg = EmbeddingClientConfig(
-            embed_url="http://localhost:8001/embed",
+            embed_url="http://localhost:8080/embed",
             timeout=1.0,
             max_retries=0,
             embed_dim=0,

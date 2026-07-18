@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def init_sandbox(backend: str) -> str:
+    """Validate that the sandbox backend binary exists; returns the backend name unchanged."""
     if backend == "firejail" and shutil.which("firejail") is None:
         raise RuntimeError(
             "shell_sandbox_backend=firejail is configured but firejail is not found in PATH"
@@ -59,6 +60,7 @@ def make_preexec(
     """
 
     def _preexec() -> None:
+        """Apply group/user switching and resource limits before subprocess execution."""
         if gid is not None:
             os.setgid(gid)
         if uid is not None:

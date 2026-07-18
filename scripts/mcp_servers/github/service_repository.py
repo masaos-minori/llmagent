@@ -39,6 +39,7 @@ class RepositoryOps(GitHubSecurityGuards):
     """Repository search, branch, commit, and code search operations."""
 
     def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 
     async def search_repositories(
@@ -49,6 +50,7 @@ class RepositoryOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[RepositoryInfo]:
+            """Synchronously search repositories via GitHub API."""
             results_iter = self._gh.search_repositories(query=req.query)
             return [
                 RepositoryInfo(
@@ -71,6 +73,7 @@ class RepositoryOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[BranchInfo]:
+            """Synchronously fetch branches via GitHub API."""
             repo = self._get_repo(req.owner, req.repo)
             return [
                 BranchInfo(name=b.name, sha=b.commit.sha, protected=b.protected)
@@ -85,6 +88,7 @@ class RepositoryOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
 
         def _sync() -> CreateBranchResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             # Resolve source branch; fall back to default branch when omitted
             source_name = req.from_branch or repo.default_branch
@@ -113,6 +117,7 @@ class RepositoryOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[CommitInfo]:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             # sha kwarg selects a specific branch; omit to use the default branch
             kwargs: dict[str, object] = {"sha": req.branch} if req.branch else {}
@@ -134,6 +139,7 @@ class RepositoryOps(GitHubSecurityGuards):
         """Retrieve details of a specific commit."""
 
         def _sync() -> GetCommitResponse:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             repo = self._get_repo(req.owner, req.repo)
             commit = repo.get_commit(req.sha)
             return GetCommitResponse(
@@ -154,6 +160,7 @@ class RepositoryOps(GitHubSecurityGuards):
         per_page = self._clamp_per_page(req.per_page)
 
         def _sync() -> list[CodeSearchResult]:
+            """Execute the GitHub API call synchronously inside the thread pool."""
             results_iter = self._gh.search_code(query=req.query)
             return [
                 CodeSearchResult(

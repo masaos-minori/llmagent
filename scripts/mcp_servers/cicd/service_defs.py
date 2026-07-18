@@ -42,7 +42,9 @@ class CiBackend(Protocol):
         workflow: str,
         ref: str,
         inputs: dict[str, str],
-    ) -> str: ...
+    ) -> str:
+        """Trigger a workflow run on the specified repository and branch."""
+        ...
 
     async def get_workflow_runs(
         self,
@@ -50,11 +52,17 @@ class CiBackend(Protocol):
         repo: str,
         workflow: str,
         limit: int,
-    ) -> str: ...
+    ) -> str:
+        """Retrieve the list of workflow runs for the given workflow."""
+        ...
 
-    async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str: ...
+    async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str:
+        """Get the status of a specific workflow run by ID."""
+        ...
 
-    async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str: ...
+    async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
+        """Retrieve the logs for a specific workflow run."""
+        ...
 
 
 def build_auth_headers(token: str | None) -> dict[str, str]:

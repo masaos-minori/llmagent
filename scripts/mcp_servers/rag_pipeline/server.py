@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Start and stop the shared RAG pipeline service."""
     svc: RagPipelineMCPService = _service
     await svc.start()
     yield
@@ -70,6 +71,7 @@ app = FastAPI(
 async def _handle_rag_service_error(
     _req: Any, exc: RagPipelineServiceError
 ) -> JSONResponse:
+    """Handle RAG pipeline service errors with a 503 Service Unavailable response."""
     return JSONResponse(
         status_code=503,
         content={"error": str(exc)},
@@ -83,6 +85,7 @@ async def _handle_rag_service_error(
 
 @app.post("/rag_run_pipeline", response_model=RagRunResponse)
 async def rag_run_pipeline(req: RagRunRequest) -> RagRunResponse:
+    """Execute the full RAG pipeline with MQE→Search→RRF→Rerank→Dedup→Augment stages."""
     t0 = time.perf_counter()
     result = await _service.run_pipeline(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -99,6 +102,7 @@ async def rag_run_pipeline(req: RagRunRequest) -> RagRunResponse:
 
 @app.post("/rag_debug_pipeline", response_model=RagDebugResponse)
 async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
+    """Execute the RAG pipeline returning all intermediate stage outputs for debugging."""
     t0 = time.perf_counter()
     result = await _service.run_debug_pipeline(req)
     ms = (time.perf_counter() - t0) * 1000
@@ -154,17 +158,20 @@ async def rag_invalidate_cache() -> JSONResponse:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
+    """List available RAG tools with server_key="rag_pipeline"."""
     return {
         "tools": [{**t, "server_key": "rag_pipeline"} for t in TOOL_LIST],
     }
 
 
 async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
+    """Route RAG pipeline tool calls through the service's dispatch table."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    """Dispatch an MCP tool call through the RAG pipeline service."""
     r = await _dispatch_rag_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -185,6 +192,7 @@ class RagPipelineMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Dispatch a tool by name with the given arguments via the RAG pipeline."""
         return await _dispatch_rag_tool(name, args)
 
 

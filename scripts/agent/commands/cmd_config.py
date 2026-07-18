@@ -31,6 +31,7 @@ class _ConfigMixin(
     """Configuration and statistics slash-command handlers."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the config mixin via multiple inheritance constructors."""
         super().__init__(*args, **kwargs)
 
     def _cmd_reload(self) -> None:

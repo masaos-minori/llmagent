@@ -17,9 +17,15 @@ from db.helper import apply_connection_pragmas
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.db_grep import grep_docs
 from mcp_servers.mdq.db_schema import create_production_tables
-from mcp_servers.mdq.indexer import RefreshSummary
-from mcp_servers.mdq.indexer import index_paths as _index_paths
-from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
+from mcp_servers.mdq.indexer import (
+    RefreshSummary,
+)
+from mcp_servers.mdq.indexer import (
+    index_paths as _index_paths,
+)
+from mcp_servers.mdq.indexer import (
+    refresh_paths as _refresh_paths,
+)
 from mcp_servers.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -42,6 +48,7 @@ class MdqService:
     """Main service class for Mdq functionality."""
 
     def __init__(self, db_path: str | None = None):
+        """Initialize the MDQ service with database path and configuration from TOML file."""
         try:
             from shared.config_loader import ConfigLoader
 
@@ -269,6 +276,7 @@ class MdqService:
                 self._is_indexing = False
 
     def _validate_paths(self, paths: list[str]) -> None:
+        """Validate each path exists and is within allowed directories; raises MdqAuthorizationError on violation."""
         for path_str in paths:
             p = Path(path_str)
             if not p.exists():
@@ -280,6 +288,7 @@ class MdqService:
                 )
 
     def _format_refresh_summary(self, summary: RefreshSummary) -> list[str]:
+        """Format a RefreshSummary into human-readable status lines."""
         return [
             f"Refresh complete in {summary['elapsed_seconds']}s",
             f"  Indexed: {summary['indexed_count']}",

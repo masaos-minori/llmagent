@@ -23,6 +23,7 @@ class RobustSSEParser:
     """Stateful SSE parser: incremental UTF-8 decoder + heartbeat tracking + malformed frame budget; one instance per connection."""
 
     def __init__(self, malformed_retry: int, heartbeat_timeout: float) -> None:
+        """Initialize with malformed retry budget and heartbeat timeout duration."""
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self._buf = ""
         self._malformed_retry = malformed_retry

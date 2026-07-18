@@ -21,34 +21,7 @@ source:
 
 - 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
-## 7c. `PluginFailure` / `PluginLoadResult` (`shared/plugin_result.py`)
-
-```python
-@dataclass(frozen=True)
-class PluginFailure:
-    path: str          # plugin .py filename
-    error: str         # exception message
-
-@dataclass(frozen=True)
-class PluginLoadResult:
-    loaded_count: int
-    failed: tuple[PluginFailure, ...]
-    tool_conflicts_shadowed: int
-    tool_conflicts_allowed: int
-    command_shadows_rejected: int
-
-class PluginLoadError(RuntimeError):
-    pass
-```
-
-- `PluginFailure` — 個々のプラグイン読み込み失敗の詳細
-- `PluginLoadResult` — `load_plugins()` 呼び出しから集約された結果
-- `PluginLoadError` — `strict_mode=True` で失敗または MCP 競合がある場合にのみ発生する
-- Import: `from shared.plugin_result import PluginFailure, PluginLoadResult, PluginLoadError`
-
----
-
-## 7d. `ToolDefinition` (`shared/tool_registry.py`)
+## 7c. `ToolDefinition` (`shared/tool_registry.py`)
 
 ```python
 @dataclass(frozen=True)
@@ -157,7 +130,6 @@ ToolCallResult
 ActionResult
 ToolSpec
 CacheEntry
-PluginFailure
 ToolDefinition
 ArtifactEvent
 ShellPolicy

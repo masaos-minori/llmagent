@@ -25,6 +25,8 @@ class MaskedArgs:
 
 @dataclass(frozen=True)
 class StatsViewModel:
+    """Aggregated statistics from an active agent session."""
+
     session_id: str
     turns: int
     tool_calls: int

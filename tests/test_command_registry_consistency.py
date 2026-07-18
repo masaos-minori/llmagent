@@ -111,8 +111,8 @@ class TestCompletionDriftGuard:
 
 class TestCommandRegistryMixinCount:
     """Regression coverage for requires/20260716_16_require.md: the
-    documented CommandRegistry mixin count (13 direct + 2 nested via
-    _ConfigMixin = 15 total) must stay in sync with the actual MRO.
+    documented CommandRegistry mixin count (12 direct + 2 nested via
+    _ConfigMixin = 14 total) must stay in sync with the actual MRO.
 
     Limitation: this counts classes whose name ends in "Mixin" via
     inspect.getmro() -- if a future mixin is renamed without the "Mixin"
@@ -126,17 +126,17 @@ class TestCommandRegistryMixinCount:
             for cls in inspect.getmro(CommandRegistry)
             if cls.__name__.endswith("Mixin")
         ]
-        assert len(mixin_classes) == 15, (
-            f"Expected 15 *Mixin classes in CommandRegistry's MRO, found "
+        assert len(mixin_classes) == 14, (
+            f"Expected 14 *Mixin classes in CommandRegistry's MRO, found "
             f"{len(mixin_classes)}: {[c.__name__ for c in mixin_classes]}"
         )
 
-    def test_direct_base_mixin_count_is_13(self) -> None:
+    def test_direct_base_mixin_count_is_12(self) -> None:
         direct_mixins = [
             base
             for base in CommandRegistry.__bases__
             if base.__name__.endswith("Mixin")
         ]
-        assert len(direct_mixins) == 13, (
-            f"Expected 13 direct *Mixin base classes, found {len(direct_mixins)}: {[c.__name__ for c in direct_mixins]}"
+        assert len(direct_mixins) == 12, (
+            f"Expected 12 direct *Mixin base classes, found {len(direct_mixins)}: {[c.__name__ for c in direct_mixins]}"
         )

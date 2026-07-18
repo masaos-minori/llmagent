@@ -32,6 +32,7 @@ class GitHubSecurityGuards:
     """Mixin providing security policy enforcement for GitHubService."""
 
     def __init__(self, gh: Any, cfg: GitHubConfig) -> None:  # noqa: ANN401
+        """Initialize with GitHub client and config for security guard operations."""
         self._gh = gh
         self._cfg = cfg
         self._default_per_page = cfg.default_per_page

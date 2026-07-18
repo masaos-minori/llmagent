@@ -22,10 +22,12 @@ class StateStore:
     """CRUD facade over workflow.sqlite. One instance per workflow engine lifecycle."""
 
     def __init__(self) -> None:
+        """Initialize the state store by opening the workflow SQLite database in write mode."""
         self._db = SQLiteHelper(target="workflow")
         self._db.open(write_mode=True, row_factory=True)
 
     def close(self) -> None:
+        """Close the underlying database connection."""
         self._db.close()
 
     # ── Task ─────────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ class StateStore:
         )
 
     def update_task_status(self, task_id: str, status: str) -> None:
+        """Update the task's status and set updated_at timestamp."""
         self._db.execute(
             "UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
             (status, _now(), task_id),
@@ -84,6 +87,7 @@ class StateStore:
         self._db.commit()
 
     def _row_to_task(self, r: Any) -> TaskRecord:
+        """Convert a database row dict into a TaskRecord."""
         row = dict(r)
         return TaskRecord(
             task_id=row["task_id"],
@@ -105,6 +109,7 @@ class StateStore:
         return self._row_to_task(rows[0])
 
     def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:
+        """Return the task record matching the given idempotency key, or None if absent."""
         rows = self._db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
         if not rows:
             return None
@@ -139,6 +144,7 @@ class StateStore:
     # ── Attempt ───────────────────────────────────────────────────────────────
 
     def start_attempt(self, task_id: str, stage_id: str) -> AttemptRecord:
+        """Create a new attempt record with status 'running'."""
         attempt_id = str(uuid.uuid4())
         now = _now()
         self._db.execute(
@@ -166,6 +172,7 @@ class StateStore:
         error_kind: str | None = None,
         error_detail: str | None = None,
     ) -> None:
+        """Mark an attempt as completed with its final status and optional error details."""
         self._db.execute(
             "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
             (status, _now(), error_msg, error_kind, error_detail, attempt_id),
@@ -173,6 +180,7 @@ class StateStore:
         self._db.commit()
 
     def count_attempts(self, task_id: str, stage_id: str) -> int:
+        """Return the number of attempts recorded for a task-stage pair."""
         rows = self._db.fetchall(
             "SELECT COUNT(*) FROM attempts WHERE task_id=? AND stage_id=?",
             (task_id, stage_id),
