@@ -106,6 +106,24 @@ action**: re-audit the early-cycle docs (`20260717-220404` through `20260717-224
 for any "already covered, skipped" conclusion that lacks a recorded Goal-line cross-check, before
 treating those skip decisions as final.
 
+## Status update (post-review, 2026-07-18)
+
+Since this audit was written, requirements 02 and 03's core deliverables have actually landed in real
+source: `scripts/shared/runtime_tool.py` (114 lines) and `scripts/shared/runtime_tool_registry.py`
+(172 lines) now exist, matching the 13-field/9-method design exactly; `scripts/agent/services/
+mcp_tool_discovery.py` also exists, matching requirement 03's base fetch/validate/normalize/dedupe
+design. Requirement 09's consolidation *extension* to that same file (drift validation,
+`_check_tool_definitions_finding()`) has **not** landed — the real file still only has the base req-03
+shape. Requirements 04-08 and 11's consumer migrations remain not landed: confirmed by direct grep,
+zero `RuntimeToolRegistry`/`runtime_tool` references in `scripts/agent/tool_policy.py`,
+`scripts/shared/route_resolver.py`, `scripts/shared/tool_executor.py`, or
+`scripts/shared/tool_executor_helpers.py`. This means this doc's own Conclusion (lines 78-90) is still
+correct in substance — `tool_registry.py`'s docstring correction and the other 04-07-gated edits should
+still not be applied as fact yet — but the reason has shifted from "the whole batch is documents-only"
+to "the base registry has landed; its consumers have not." Re-run this doc's own audit procedure
+(Procedure steps 1-4) against real source, not just `implementations/`, before applying any of the
+gated docstring edits.
+
 ## Validation plan
 
 | Check | Tool / Command | Target |
