@@ -25,6 +25,7 @@ from agent.repl_health import (
     check_tool_definitions_startup,
     check_workflow_definition,
 )
+from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_latest_pending_approval
@@ -266,6 +267,26 @@ class StartupOrchestrator:
         except Exception as exc:  # noqa: BLE001
             pipeline.add_skipped(
                 "routing_drift_live", f"Live routing check skipped: {exc}"
+            )
+
+        # 6b. MCP tool discovery / RuntimeToolRegistry population
+        try:
+            discovery = await McpToolDiscoveryService(ctx).discover_all()
+            ctx.services_required.runtime_tools = discovery.registry
+            for outcome in discovery.findings:
+                if outcome.status == StartupCheckStatus.FATAL:
+                    pipeline.add_fatal("mcp_tool_discovery", outcome.message)
+                else:
+                    pipeline.add_warning("mcp_tool_discovery", outcome.message)
+            for key in discovery.unreachable:
+                pipeline.add_warning(
+                    "mcp_tool_discovery", f"{key}: unreachable during discovery"
+                )
+            if not discovery.findings and not discovery.unreachable:
+                pipeline.add_ok("mcp_tool_discovery")
+        except Exception as exc:  # noqa: BLE001
+            pipeline.add_skipped(
+                "mcp_tool_discovery", f"MCP tool discovery skipped: {exc}"
             )
 
         # 7. RAG consistency

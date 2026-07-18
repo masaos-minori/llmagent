@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from shared.mcp_config import McpServerHealthRegistry
+from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.types import LLMMessage
 
 from agent.config_builders import build_agent_config
@@ -142,6 +143,7 @@ class AppServices:
         memory: MemoryServices | None,
         health_registry: McpServerHealthRegistry | None = None,
         gateway: RepositoryGateway | None = None,
+        runtime_tools: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize all required service references for the agent runtime."""
         self.http = http
@@ -153,6 +155,7 @@ class AppServices:
         self.memory = memory
         self.health_registry = health_registry
         self.gateway: RepositoryGateway | None = gateway
+        self.runtime_tools: RuntimeToolRegistry | None = runtime_tools
         self.serialization_events: int = 0
         self.serialization_tools_affected: int = 0
 
