@@ -51,18 +51,23 @@ step 4, separate procedure doc); editing the 4 catalog docs (step 5, separate do
   agent-policy-enabled / LLM-visible) per requirement 17's plan, with `enabled_for_llm` as a
   derived field; disabled tools are tracked for diagnostics but never surfaced to the LLM and
   never dispatchable through the registry's own routing path.
-- Per the CLAUDE.md task-level warning about the two incompatible `RuntimeTool`/
-  `RuntimeToolRegistry` lineages coexisting under `implementations/` (13-field/9-method routing
-  version at `implementations/20260717-203121_runtime_tool.py.md` /
-  `implementations/20260717-203200_runtime_tool_registry.py.md`, vs. the 6-field
-  disabled-visibility version at `implementations/20260718-094020_runtime_tool.py.md` /
-  `implementations/20260718-094055_runtime_tool_registry.py.md`) — this plan's requirement 19 is
-  explicitly about disabled-tool-visibility documentation (per its own title: "Document MCP
-  runtime availability metadata and disabled tool behavior"), so the RuntimeToolRegistry section
-  of the new doc must be consistent with the **6-field, disabled-visibility lineage**
-  (requirement 17, `20260718-094020`/`20260718-094055`), not the 13-field routing/scheduling
-  lineage. No third incompatible variant was found; this plan does not need to reconcile a third
-  lineage, only align its prose with the correct one of the two.
+- **Superseded by post-review decision (2026-07-18)**: the CLAUDE.md task-level warning below
+  originally directed this doc to follow the 6-field lineage; a cross-batch review has since
+  resolved the incompatibility and adopted the 13-field/9-method lineage as the single baseline
+  (see the correction note in `implementations/20260718-084710_runtime_tool.py.md`). The two
+  lineages referenced here are: 13-field/9-method routing version at
+  `implementations/20260717-203121_runtime_tool.py.md` /
+  `implementations/20260717-203200_runtime_tool_registry.py.md` (**adopted baseline**), vs. the
+  6-field disabled-visibility version at `implementations/20260718-094020_runtime_tool.py.md` /
+  `implementations/20260718-094055_runtime_tool_registry.py.md` (neither base doc was actually
+  written; superseded). This plan's requirement 19 is explicitly about disabled-tool-visibility
+  documentation (per its own title: "Document MCP runtime availability metadata and disabled tool
+  behavior"), so the RuntimeToolRegistry section of the new doc must now describe the
+  disabled-visibility fields/methods (`config_dependent`/`enabled`/`disabled_reason`/
+  `enabled_for_llm`/`diagnostics()`/`get_llm_visible_definitions()`) as an **extension of the
+  13-field/9-method lineage**, not as a separate 6-field class. No third incompatible variant was
+  found; this plan does not need to reconcile a third lineage, only describe the one adopted
+  baseline correctly.
 
 ## Implementation
 
@@ -179,13 +184,14 @@ Body — 7 sections, in order:
    (`enabled_for_llm` derived field) but never included in the LLM-facing tool list and never
    dispatchable through the registry's own routing path. Four states: discovered /
    MCP-server-enabled / agent-policy-enabled / LLM-visible. Reference requirement 17's plan
-   (`plans/20260717-175327_plan.md`) — this section must align with the 6-field
-   disabled-visibility `RuntimeTool`/`RuntimeToolRegistry` lineage
+   (`plans/20260717-175327_plan.md`) — per the post-review decision above, this section must
+   describe the disabled-visibility fields/methods as an extension of the **adopted 13-field/
+   9-method `RuntimeTool`/`RuntimeToolRegistry` lineage**
+   (`implementations/20260717-203121_runtime_tool.py.md`,
+   `implementations/20260717-203200_runtime_tool_registry.py.md`,
+   `implementations/20260718-084710_runtime_tool.py.md`), not as a separate 6-field class
    (`implementations/20260718-094020_runtime_tool.py.md`,
-   `implementations/20260718-094055_runtime_tool_registry.py.md`), not the separate 13-field
-   routing/scheduling lineage (`implementations/20260717-203121_runtime_tool.py.md`,
-   `implementations/20260717-203200_runtime_tool_registry.py.md`), since requirement 19 is
-   scoped to disabled-tool-visibility per its own title.
+   `implementations/20260718-094055_runtime_tool_registry.py.md` — neither was actually written).
 
 ## Validation plan
 

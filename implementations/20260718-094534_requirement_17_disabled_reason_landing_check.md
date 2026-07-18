@@ -30,6 +30,16 @@ implementation steps 1-7 (the actual `RuntimeTool`/`RuntimeToolRegistry`/`mcp_to
 `llm_turn_runner.py`/`cmd_mcp.py` changes documented in this batch), so it cannot be treated as
 covering this plan's step 8. Not skipped.
 
+**Review note (post-review, 2026-07-18)**: this plan's "own 6 implemented files" (`runtime_tool.py`,
+`runtime_tool_registry.py`, listed below in Scope) are not a separate pair of files from requirement
+02/03's `runtime_tool.py`/`runtime_tool_registry.py` — per the correction note in
+`implementations/20260718-084710_runtime_tool.py.md`, the 13-field/9-method lineage is the adopted
+baseline, and requirement 17 extends the *same* `scripts/shared/runtime_tool.py` /
+`runtime_tool_registry.py` with disabled-visibility fields/methods rather than owning distinct files.
+This does not change this doc's own pre-merge dependency-check procedure (Scope/Procedure below are
+unaffected); it only corrects the "own 6 implemented files" framing so a future implementer does not
+look for a second, separate pair of source files.
+
 ## Scope
 
 **In scope**

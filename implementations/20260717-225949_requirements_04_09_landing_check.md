@@ -89,6 +89,23 @@ docstring (`scripts/shared/tool_registry.py:4,18-19`) still accurately describes
 (item 7) are the two items in this requirement that do **not** depend on 04-07 landing first, since
 they describe intent/compatibility framing independent of which functions currently do the lookup.
 
+## Review note (post-review, 2026-07-18)
+
+A cross-batch review found that "already implemented" / "landed" determinations made by pure
+filename match against `implementations/`/`implementations/done/` produced false positives in this
+batch — common filenames (e.g. `context.py`, `registry.py`, `tool_policy.py`) collide with many
+unrelated historical docs, and a filename match alone cannot tell the two apart. This doc's own
+Procedure step 3 already requires reading each candidate doc's `## Goal` before counting it as
+genuine overlap, and later docs in this batch (from roughly this timestamp onward) consistently
+apply that discipline. Docs authored earlier in the same working window (`20260717-220404` through
+`20260717-224812` — the batch's first cycle) do not uniformly show this same explicit check
+recorded in writing. Spot-checks of that early cycle found the discipline was in fact mostly applied
+(see e.g. `20260717-220433_test_tool_policy.py.md`'s and `20260717-220527_test_tool_approval_risk.py.md`'s
+own filename-match write-ups), but this was not verified for every early-cycle doc. **Recommended
+action**: re-audit the early-cycle docs (`20260717-220404` through `20260717-224812`) specifically
+for any "already covered, skipped" conclusion that lacks a recorded Goal-line cross-check, before
+treating those skip decisions as final.
+
 ## Validation plan
 
 | Check | Tool / Command | Target |
