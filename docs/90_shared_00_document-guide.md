@@ -88,7 +88,7 @@ source:
 | File | Description |
 |---|---|
 | [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) | ConfigLoader、Config Isolation Policy、Logger |
-| [90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md](90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md) | ToolExecutor, ToolRegistry, LifecycleProtocol, token_counter, otel_tracer, git_helper, formatters |
+| [90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md](90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md) | ToolExecutor, ToolRegistry, LifecycleProtocol, token_counter, otel_tracer, git_helper, formatters |
 | [90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md) | ToolExecutor、LLMClient、McpServerConfig、実行フロー |
 | [90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md](90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md) | LlmRetryHandler, ToolResultCache, ToolSpec |
 

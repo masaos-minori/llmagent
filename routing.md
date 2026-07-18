@@ -69,7 +69,7 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 | Agent REPL slash commands (`CommandRegistry`) | `docs/05_agent_07_01_cli-and-commands-cli-reference.md` |
 | Agent startup / verification / troubleshooting | `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` |
 | Agent features / slash commands / tool calling | `docs/05_agent_01_system-overview.md` + `docs/05_agent_07_01_cli-and-commands-cli-reference.md` |
-| Plugin tool handler / @register_tool | `docs/05_agent_11_01_extension-points-plugin-command.md` + `docs/90_shared_03_01_runtime_and_execution-config-and-logging.md` |
+
 | Agent REPL class structure | `docs/05_agent_02_runtime-architecture-part1.md` + `docs/05_agent_13_reference-api-part1.md` |
 | Agent REPL flow / tool execution | `docs/05_agent_03_01_turn-processing-flow-overview.md` + `docs/05_agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `docs/05_agent_02_runtime-architecture-part1.md` + `docs/05_agent_04_01_state-and-persistence-state-model-part1.md` |

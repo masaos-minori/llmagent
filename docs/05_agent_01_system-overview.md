@@ -166,7 +166,7 @@ MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
 | 設定 | [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) |
 | データレイヤー | [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) |
 | 運用と可観測性 | [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) |
-| 拡張ポイント(削除済み 2026-07-18) | [05_agent_11_01_extension-points-plugin-command.md](05_agent_11_01_extension-points-plugin-command.md) |
+
 | APIリファレンス | [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md) |
 
 ## Related Documents

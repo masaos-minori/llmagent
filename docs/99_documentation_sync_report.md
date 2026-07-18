@@ -169,7 +169,7 @@ source:
 | `docs/06_eventbus_03_persistence_schema_and_replay.md` | `_migrate()` の記載を削除 |
 | `docs/90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md` | `_execute_with_cache()`, `_store_and_evict()` の記載を削除 |
 | `docs/90_shared_03_01_runtime_and_execution-config-and-logging.md` | `_configure_logger` の記載を削除 |
-| `docs/90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md` | `_log_routing_coverage()` の記載を削除 |
+
 | `docs/90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md` | `_ensure_semaphores()` の記載を削除 |
 | `docs/90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md` | `_execute_with_cache()`, `_store_and_evict()` の記載を削除 |
 | `docs/04_mcp_02_01_endpoints-and-transport.md` | `_health()` の記載を削除 |

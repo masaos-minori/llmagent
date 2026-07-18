@@ -138,7 +138,7 @@ class TestAuditTurn:
         _write_log(
             log,
             [
-                "Loaded 3 plugin(s) from /opt/llm/plugins",
+                "Loaded 3 MCP servers",
                 _evt("tool_exec", "turn-aaa", "tool_x"),
             ],
         )

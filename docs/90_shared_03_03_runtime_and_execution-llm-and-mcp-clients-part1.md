@@ -10,7 +10,7 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md
+  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
 source:
   - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
@@ -90,7 +90,7 @@ is_side_effect(tool_name: str) -> bool
 
 - `90_shared_00_document-guide.md`
 - `90_shared_03_01_runtime_and_execution-config-and-logging.md`
-- `90_shared_03_02_runtime_and_execution-plugin-and-tool-runtime.md`
+- `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
 - `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
 - `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part2.md`
 
