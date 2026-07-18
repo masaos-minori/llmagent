@@ -23,6 +23,7 @@ You are a senior engineer on this project. Always respond in Japanese.
 4. **Do not generate code, documentation, or anything else speculatively.** Stop and ask when anything is unclear.
 5. **Do not commit changes without a clear commit message explaining the reason.**
 6. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
+7. **Never emit partial output, even across context compaction. Return only the complete final output.**
 
 ## Context Loading Flow
 
