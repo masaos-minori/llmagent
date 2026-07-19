@@ -27,7 +27,7 @@ related:
 
 | Function / Class | Returns | Description |
 |---|---|---|
-| `extract_memories(history, session_id=None, turn_id=None, project="", repo="", branch="", max_content_chars=500, policy=None)` | `list[MemoryEntry]` | 主要なエントリポイント。`max_content_chars` は assistant メッセージの切り詰め長。`policy` で `ExtractionPolicy` を上書き可能 |
+| `extract_memories(history, session_id=None, turn_id=None, project="", repo="", branch="", max_content_chars=500, policy=None)` | `list[MemoryEntry]` | 主要なエントリポイント。`max_content_chars` は assistant/user 両方のメッセージ抽出に適用されるチャンク単位の分割上限であり、切り詰め長ではない（超過分は複数の `MemoryEntry` に分割保存され、内容は破棄されない。詳細は `05_agent_12_03_memory-module-ref-core-and-store.md` の「チャンク分割ステージ」を参照）。`policy` で `ExtractionPolicy` を上書き可能 |
 | `ExtractionPolicy(...)` | Config | min_content_chars=80, min_user_content_chars=60, min_turns=2, max_entries=20 |
 
 **モジュールレベルの定数:** `MIN_CONTENT_CHARS = 80`, `MIN_USER_CONTENT_CHARS = 60`, `MIN_TURNS = 2`, `MAX_ENTRIES = 20`, `SEMANTIC_HITS_REQUIRED_STRONG = 2`, `SEMANTIC_CONTENT_THRESHOLD = 200`, `IMPORTANCE_LENGTH_DIVISOR = 2000.0`

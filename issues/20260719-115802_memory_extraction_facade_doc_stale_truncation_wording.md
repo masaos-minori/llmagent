@@ -1,5 +1,11 @@
 # `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md` still describes chunking as truncation
 
+**RESOLVED (2026-07-19).** `docs/05_agent_12_05_memory-module-ref-extraction-and-facade.md:30`'s
+`extract_memories()` row now describes `max_content_chars` as a per-chunk split
+limit applied to both assistant and user extraction (cross-referencing
+`05_agent_12_03_memory-module-ref-core-and-store.md`'s "チャンク分割ステージ"
+section), matching corrected behavior — no code change required, doc-only fix.
+
 Discovered while implementing `plans/done/20260719-095637_plan.md` (memory-layer
 chunking), specifically during the `implementations/done/20260719-110049_...md`
 cycle (adding the chunking-stage section to `docs/05_agent_12_03_...md`).

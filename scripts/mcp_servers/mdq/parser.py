@@ -156,9 +156,17 @@ async def parse_markdown(
             i += 1
             continue
 
-        # Save previous section before starting a new one
+        # Save previous section before starting a new one.
         if current_section is not None and current_section["content_lines"]:
-            sections.append(_finalize_section(current_section))
+            if current_section["heading"] == "<root>":
+                # <root> content_lines list-truthiness is not enough: a lone blank
+                # line (e.g. right after frontmatter) yields a non-empty list but
+                # empty finalized content, so check the finalized content instead.
+                finalized = _finalize_section(current_section)
+                if finalized["content"]:
+                    sections.append(finalized)
+            else:
+                sections.append(_finalize_section(current_section))
 
         # Update heading stack (pop ancestors of this level)
         while heading_stack and heading_stack[-1][0] >= heading_level_val:
@@ -188,9 +196,14 @@ async def parse_markdown(
 
         i += 1
 
-    # Save the last section
+    # Save the last section (same <root>-only finalized-content check as above)
     if current_section is not None and current_section["content_lines"]:
-        sections.append(_finalize_section(current_section))
+        if current_section["heading"] == "<root>":
+            finalized = _finalize_section(current_section)
+            if finalized["content"]:
+                sections.append(finalized)
+        else:
+            sections.append(_finalize_section(current_section))
 
     return sections, frontmatter_tags
 

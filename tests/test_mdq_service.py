@@ -304,6 +304,7 @@ class TestParseMarkdown:
         headings = [s["heading"] for s in sections]
         assert "---" not in headings
         assert "Title" in headings
+        assert len(sections) == 1
         assert tags == []
 
     def test_repeated_headings_have_distinct_ordinals(
@@ -418,13 +419,6 @@ class TestParseMarkdown:
         """Invalid YAML or a non-list/non-string tags value falls back to empty tags,
         not an exception — a malformed frontmatter block must not break indexing of an
         otherwise-valid document.
-
-        Note: this does not assert `len(sections) == 1`. A pre-existing parser bug
-        (unrelated to tags handling, see
-        issues/20260719-142152_parser_spurious_empty_root_section_after_frontmatter.md)
-        causes any frontmatter followed by a blank line before the first heading to
-        emit an extra empty `<root>` section. Asserting on the `Title` section's
-        content directly avoids depending on that unrelated, already-filed defect.
         """
         f = tmp_path / "malformed_fm.md"
         f.write_text(
@@ -435,8 +429,26 @@ class TestParseMarkdown:
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert tags == []
+        assert len(sections) == 1
         title_section = next(s for s in sections if s["heading"] == "Title")
         assert title_section["content"] == "Body."
+
+    def test_frontmatter_followed_by_blank_line_yields_no_spurious_root_section(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Frontmatter + blank line + heading (no other pre-heading content) parses
+        to exactly one section — no empty `<root>` section from the trailing blank
+        line left over after skipping the frontmatter block.
+
+        Regression test for issues/20260719-142152_parser_spurious_empty_root_section_after_frontmatter.md.
+        """
+        f = tmp_path / "frontmatter_blank.md"
+        f.write_text("---\ntags: [x]\n---\n\n# Title\n\nBody.", encoding="utf-8")
+        sections, _tags = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        assert len(sections) == 1
+        assert sections[0]["heading"] == "Title"
 
 
 # ── indexer ───────────────────────────────────────────────────────────────────

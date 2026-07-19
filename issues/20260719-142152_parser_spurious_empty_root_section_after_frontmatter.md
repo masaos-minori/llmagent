@@ -1,5 +1,21 @@
 # `parse_markdown` emits a spurious empty `<root>` section for any file with YAML frontmatter followed by a blank line before the first heading
 
+**RESOLVED (2026-07-19).** `scripts/mcp_servers/mdq/parser.py`'s two finalize-and-keep
+checks (`:163`, `:197` after the fix) now special-case the `<root>` section: when
+`current_section["heading"] == "<root>"`, the section is kept only if its
+*finalized* content is non-empty, not merely if `content_lines` is a non-empty
+list. Regular (non-root) headings keep the original list-truthiness check
+unchanged, since `tests/test_mdq_service.py::test_heading_level_returned_correctly`
+established that a heading followed by a blank line and then a subheading (e.g.
+`# A\n\n## B`) is expected to still produce a section for `A` — a blanket
+finalized-content check for all headings (as literally proposed below) would
+have broken that existing, intentionally-tested contract. Regression test added:
+`test_frontmatter_followed_by_blank_line_yields_no_spurious_root_section`.
+`test_frontmatter_stripped` and `test_malformed_frontmatter_does_not_crash_indexing`
+now assert `len(sections) == 1` directly (the cross-reference to this issue in
+the latter's docstring has been removed since the bug it described no longer
+reproduces).
+
 Discovered while implementing `implementations/20260719-110947_test_mdq_service.py.md`
 (tags/token_count test coverage + `parse_markdown` signature migration for
 `tests/test_mdq_service.py`).

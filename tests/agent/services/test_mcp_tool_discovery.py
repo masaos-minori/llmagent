@@ -19,7 +19,11 @@ from agent.services.mcp_tool_discovery import DiscoveryResult, McpToolDiscoveryS
 from agent.shared.health_models import HealthCheckResult, StartupCheckStatus
 from fastapi.testclient import TestClient
 from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
-from shared.tool_registry import ToolDefinition, get_registry
+from shared.tool_registry import (
+    ToolDefinition,
+    _reset_registry_for_testing,
+    get_registry,
+)
 
 _IN_SCOPE_SERVERS = [
     ("mcp_servers.mdq.server", "app", "mdq"),
@@ -821,17 +825,13 @@ class TestDriftDetection:
             ]
             assert not any("drift" in f.message.lower() for f in mcp_findings)
         finally:
-            reg._tools.pop("tool_a", None)
-            reg._tools.pop("tool_b", None)
-            if "srv1" in reg._by_server:
-                reg._by_server["srv1"].remove("tool_a")
-            if "srv2" in reg._by_server:
-                reg._by_server["srv2"].remove("tool_b")
+            # Full reset (not manual dict popping) guarantees the shared global
+            # singleton returns to its pristine, freshly-repopulated state on the
+            # next get_registry() call, regardless of what this test registered.
+            _reset_registry_for_testing()
 
     @pytest.mark.asyncio
     async def test_drift_vs_registry_mismatch_warns(self) -> None:
-        from shared.tool_registry import ToolDefinition, get_registry
-
         # Register tool_a -> srv1 in the static registry
         reg = get_registry()
         reg.register(ToolDefinition(name="tool_a", server_key="srv1"))
@@ -882,9 +882,10 @@ class TestDriftDetection:
             assert len(drift_findings) >= 1
             assert any("Live routing drift" in f.message for f in drift_findings)
         finally:
-            reg._tools.pop("tool_a", None)
-            if "srv1" in reg._by_server:
-                reg._by_server["srv1"].remove("tool_a")
+            # Full reset (not manual dict popping) guarantees the shared global
+            # singleton returns to its pristine, freshly-repopulated state on the
+            # next get_registry() call, regardless of what this test registered.
+            _reset_registry_for_testing()
 
 
 # ── unified severity matrix ────────────────────────────────────────────────────
