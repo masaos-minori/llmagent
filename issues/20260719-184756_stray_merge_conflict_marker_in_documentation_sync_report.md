@@ -1,5 +1,12 @@
 # `docs/99_documentation_sync_report.md` has a stray, unresolved merge-conflict marker committed at line 1
 
+**RESOLVED (2026-07-19).** Deleted the stray `<<<<<<< HEAD` line at line 1.
+The file's first line is now the frontmatter's opening `---` again;
+verified no other `^<<<<<<<`/`^=======$`/`^>>>>>>>` markers remain in the
+file. The suggested repo-wide pre-commit/`check_docs_consistency.py`
+grep guard (see "Recommended action" below) was not added as part of
+this fix — left for a separate decision.
+
 ## Problem
 
 `docs/99_documentation_sync_report.md` begins with a literal Git conflict
