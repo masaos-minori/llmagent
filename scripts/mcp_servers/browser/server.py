@@ -147,4 +147,4 @@ class BrowserMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = BrowserMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]
