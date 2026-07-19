@@ -121,6 +121,12 @@ class MCPServer:
         dict[str, Any]
     ]  # tool definitions (retained for subclass reference)
 
+    # Lazily initialized by _ensure_error_tracking(); not set in __init__ since
+    # MCPServer has no __init__ (subclasses are plain attribute-holding classes).
+    _tool_error_timestamps: list[float]
+    _error_window_sec: float
+    _error_threshold: int
+
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
@@ -141,18 +147,6 @@ class MCPServer:
         server_key = getattr(self, "server_key", type(self).__name__)
         tools = getattr(self, "mcp_tools", [])
         return [{**t, "server_key": server_key} for t in tools]
-
-
-def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any]:
-    """Build the /v1/tools response dict: schema_version + per-tool server_key tagging.
-
-    Callable directly from each server's module-level FastAPI route handler (no MCPServer
-    instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
-    """
-    return {
-        "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [{**t, "server_key": server_key} for t in tools],
-    }
 
     def health(self) -> tuple[dict[str, object], int]:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
@@ -225,3 +219,15 @@ def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any
             port=self.http_port,
             log_level="info",
         )
+
+
+def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any]:
+    """Build the /v1/tools response dict: schema_version + per-tool server_key tagging.
+
+    Callable directly from each server's module-level FastAPI route handler (no MCPServer
+    instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
+    """
+    return {
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": [{**t, "server_key": server_key} for t in tools],
+    }

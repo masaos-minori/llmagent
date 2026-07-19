@@ -103,7 +103,7 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    instance.run_http()  # type: ignore[attr-defined]
+    instance.run_http()
 
 
 if __name__ == "__main__":

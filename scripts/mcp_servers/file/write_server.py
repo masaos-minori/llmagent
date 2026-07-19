@@ -208,4 +208,4 @@ class FileWriteMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = FileWriteMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

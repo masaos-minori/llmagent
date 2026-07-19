@@ -145,4 +145,4 @@ class CiCdMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = CiCdMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

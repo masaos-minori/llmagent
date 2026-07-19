@@ -88,10 +88,13 @@ class TestClassifyRiskTierFallback:
         )
         assert _classify_risk(cfg, "shell_run", {"command": "rm -rf /"}) == "high"
 
-    def test_unknown_tool_defaults_to_write_dangerous(self) -> None:
-        # No risk_rules and no tier → Fail-Safe: WRITE_DANGEROUS → "medium"
+    def test_unregistered_tool_defaults_to_high_risk(self) -> None:
+        # No risk_rules and no tier, and the tool is absent from the registry
+        # entirely (not just untiered) → fail-safe HIGH, not the old "medium"
+        # default (superseded per the same fail-safe acceptance criterion
+        # test_tool_policy.py's sibling test was already updated for).
         cfg = _make_cfg()
-        assert _classify_risk(cfg, "some_unknown_tool", {}) == "medium"
+        assert _classify_risk(cfg, "some_unknown_tool", {}) == "high"
 
     def test_approval_risk_rules_takes_priority_over_tier(self) -> None:
         # approval_risk_rules overrides tier default

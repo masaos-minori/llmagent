@@ -335,4 +335,4 @@ attach_auth_middleware(cast(_FastAPIApp, app), "")
 
 if __name__ == "__main__":
     server = MdqMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

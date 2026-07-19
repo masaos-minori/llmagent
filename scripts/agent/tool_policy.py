@@ -22,6 +22,7 @@ from shared.tool_constants import (
     SHELL_TOOLS,
     WRITE_TOOLS,
 )
+from shared.tool_registry import get_registry
 
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
@@ -50,7 +51,12 @@ _TIER_TO_RISK: dict[str, RiskLevel] = {
 
 
 def classify_operation_type(tool_name: str) -> OperationType:
-    """Return the operation type for a tool."""
+    """Return the operation type for a tool.
+
+    A tool name absent from the tool registry entirely (not just untiered) is
+    genuinely unregistered — fail-safe classifies it UNKNOWN rather than READ,
+    since a made-up or typo'd tool name should not be treated as harmless.
+    """
     if tool_name in _ALL_WRITE_TOOLS:
         return OperationType.WRITE
     if tool_name in DELETE_TOOLS:
@@ -59,6 +65,8 @@ def classify_operation_type(tool_name: str) -> OperationType:
         return OperationType.EXECUTE
     if tool_name in _GITHUB_MUTATION_TOOLS:
         return OperationType.API_WRITE
+    if tool_name not in get_registry().get_all_tool_names():
+        return OperationType.UNKNOWN
     return OperationType.READ
 
 
@@ -138,7 +146,12 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> Ris
         base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
     # Priority 3: tool_constants.py classification
     if base is None:
-        if tool_name in DELETE_TOOLS or tool_name in SHELL_TOOLS:
+        if classify_operation_type(tool_name) == OperationType.UNKNOWN:
+            # Fail-safe: a tool name absent from the registry entirely (not just
+            # untiered) is treated as maximally risky rather than defaulting to
+            # MEDIUM like a real-but-untiered tool would.
+            base = RiskLevel.HIGH
+        elif tool_name in DELETE_TOOLS or tool_name in SHELL_TOOLS:
             base = RiskLevel.HIGH
         elif tool_name in WRITE_TOOLS:
             base = RiskLevel.MEDIUM

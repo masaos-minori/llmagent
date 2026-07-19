@@ -304,4 +304,4 @@ class FileReadMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = FileReadMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

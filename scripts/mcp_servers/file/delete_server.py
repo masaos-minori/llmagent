@@ -168,4 +168,4 @@ class FileDeleteMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = FileDeleteMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

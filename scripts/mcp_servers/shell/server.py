@@ -169,4 +169,4 @@ class ShellMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = ShellMCPServer()
-    server.run_http()  # type: ignore[attr-defined]
+    server.run_http()

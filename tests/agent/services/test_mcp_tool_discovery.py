@@ -836,10 +836,23 @@ class TestDriftDetection:
         reg = get_registry()
         reg.register(ToolDefinition(name="tool_a", server_key="srv1"))
 
-        http = AsyncMock(spec=httpx.AsyncClient)
+        try:
+            http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
-            if "srv1" in url:
+            async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+                if "srv1" in url:
+                    return _resp(
+                        200,
+                        {
+                            "tools": [
+                                {
+                                    "name": "tool_a",
+                                    "description": "d",
+                                    "inputSchema": {},
+                                }
+                            ]
+                        },
+                    )
                 return _resp(
                     200,
                     {
@@ -848,28 +861,30 @@ class TestDriftDetection:
                         ]
                     },
                 )
-            return _resp(
-                200,
-                {"tools": [{"name": "tool_a", "description": "d", "inputSchema": {}}]},
+
+            http.get = AsyncMock(side_effect=_get)
+            ctx = _make_ctx(
+                {
+                    "srv1": _server("http://srv1:9000"),
+                    "srv2": _server("http://srv2:9000"),
+                },
+                http,
+                security_profile=SecurityProfile.LOCAL,
             )
+            ctx.cfg.tool.tool_definitions_strict = False
 
-        http.get = AsyncMock(side_effect=_get)
-        ctx = _make_ctx(
-            {
-                "srv1": _server("http://srv1:9000"),
-                "srv2": _server("http://srv2:9000"),
-            },
-            http,
-            security_profile=SecurityProfile.LOCAL,
-        )
-        ctx.cfg.tool.tool_definitions_strict = False
+            result = await McpToolDiscoveryService(ctx).discover_all()
 
-        result = await McpToolDiscoveryService(ctx).discover_all()
-
-        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        drift_findings = [f for f in mcp_findings if "drift" in f.message.lower()]
-        assert len(drift_findings) >= 1
-        assert any("Live routing drift" in f.message for f in drift_findings)
+            mcp_findings = [
+                f for f in result.findings if f.source == "mcp_tool_discovery"
+            ]
+            drift_findings = [f for f in mcp_findings if "drift" in f.message.lower()]
+            assert len(drift_findings) >= 1
+            assert any("Live routing drift" in f.message for f in drift_findings)
+        finally:
+            reg._tools.pop("tool_a", None)
+            if "srv1" in reg._by_server:
+                reg._by_server["srv1"].remove("tool_a")
 
 
 # ── unified severity matrix ────────────────────────────────────────────────────
