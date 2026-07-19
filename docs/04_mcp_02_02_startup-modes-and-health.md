@@ -40,7 +40,7 @@ related:
 
 **`restart_recommended`**: `true` は、プロセスを再起動することで障害が解決する可能性があることをウォッチドッグに伝える。`false` は再起動しても効果がないことを意味する（例: 認証情報の欠落はオペレーターの対応が必要）。
 
-**注記（実装の現状）:** 現行コードでは、全10 MCPサーバーの `/health` 実装（`mcp_servers/health_response.py::make_health_response()` を使うサーバー、および mdq/file-read/write/delete の独自実装）はいずれも `restart_recommended` を常に `False` で返す。`MCPServer.health()` 基底実装も同様に固定 `False` である。`restart_recommended=True` を返す経路はコードベース上に存在しない（Explicit in code）。したがって、現状ウォッチドッグの自動再起動がトリガーされるのは「到達不可（`reachable=False`）」のケースのみであり、「到達可能だが `restart_recommended=true`」のケースは仕様上サポートされているが実装済みサーバーでは発生しない（Explicit in code）。
+**注記（実装の現状）:** 現行コードでは、全11 MCPサーバーの `/health` 実装（`mcp_servers/health_response.py::make_health_response()` を使うサーバー、および mdq/file-read/write-delete/browser の独自実装）はいずれも `restart_recommended` を常に `False` で返す。`MCPServer.health()` 基底実装も同様に固定 `False` である。`restart_recommended=True` を返す経路はコードベース上に存在しない（Explicit in code）。したがって、現状ウォッチドッグの自動再起動がトリガーされるのは「到達不可（`reachable=False`）」のケースのみであり、「到達可能だが `restart_recommended=true`」のケースは仕様上サポートされているが実装済みサーバーでは発生しない（Explicit in code）。
 
 **`operator_action_required`**: 人間による対応が必要な場合（認証情報の欠落、バイナリの欠落など）に `true`。ウォッチドッグは WARNING をログに記録するが、これが `true` かつ `restart_recommended=false` の場合は再起動を行わない。
 
