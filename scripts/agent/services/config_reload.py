@@ -84,17 +84,6 @@ class ConfigReloadOutcome:
     startup_only: list[str] = field(default_factory=list)
 
 
-_REMOVED_KEYS = frozenset(
-    (
-        "use_memory_layer",
-        "memory_jsonl_dir",
-        "memory_embed_enabled",
-        "gitops_force_push_blocked",
-        "gitops_protected_branches",
-    )
-)
-
-
 class ConfigReloadService:
     """Propagate an updated config dict to live service instances.
 
@@ -127,12 +116,6 @@ class ConfigReloadService:
         The command handler only calls this method and renders the result.
         """
         ctx = self._ctx
-        # Preflight: reject removed keys before mutating runtime config
-        found_removed = _REMOVED_KEYS & set(new_cfg.keys())
-        if found_removed:
-            raise ConfigReloadValidationError(
-                f"Reload rejected: config contains removed keys: {sorted(found_removed)}"
-            )
         self._apply_rag_tool_params(ctx, new_cfg)
         self._reload_approval_settings(ctx, new_cfg)
         if "masked_fields" in new_cfg:

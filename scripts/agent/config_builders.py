@@ -251,28 +251,6 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     Otherwise configuration is loaded from files via load_config().
     """
     cfg = cfg_override if cfg_override is not None else load_config()
-    _FORBIDDEN_KEYS = {
-        "workflow_mode",
-        "workflow_require_approval",
-        "use_tool_summarize",
-        "tool_summarize_threshold",
-        "web_search_url",
-        # Removed keys — reject at load time
-        "use_memory_layer",
-        "memory_jsonl_dir",
-        "memory_embed_enabled",
-        "gitops_force_push_blocked",
-        "gitops_protected_branches",
-    }
-    found = _FORBIDDEN_KEYS & set(cfg.keys())
-    if found:
-        raise ConfigLoadError(
-            f"Config contains removed keys: {sorted(found)}. Remove them from your config file."
-        )
-    if "github_server_url" in cfg:
-        raise ConfigLoadError(
-            "Config contains removed key: github_server_url. Use [mcp_servers.github].url instead."
-        )
     system_prompt_tool = cfg.get("system_prompt_tool", "")
     security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))
     # Production config validation (before REPL becomes available)

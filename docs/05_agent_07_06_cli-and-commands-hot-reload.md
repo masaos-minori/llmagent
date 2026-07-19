@@ -44,8 +44,7 @@ Applied (runtime): [3 items]
   [OK] - llm
   [OK] - hist_mgr
   [OK] - tools
-Startup-only (ignored): [1 items]
-  [STARTUP-ONLY] - use_memory_layer
+Startup-only (ignored): [N items]
 ```
 
 `[RESTART] - mcp_servers/server.url` の部分はプレースホルダで、実際の出力では `{server_key}` に置き換わる（例: `mcp_servers/github.url`）。

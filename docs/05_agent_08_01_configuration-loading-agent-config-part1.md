@@ -105,14 +105,9 @@ source:
   (`ConfigReloadValidationError`)。いずれの機構でも「`/reload`では変更できない」という実際の結果は
   同じであるため、両方ともここで「起動時のみ」として扱う。根拠: Explicit in code)
 
-**無効なキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
-`build_agent_config()`の`_FORBIDDEN_KEYS`参照): `workflow_mode`, `workflow_require_approval`,
-`use_tool_summarize`, `tool_summarize_threshold`。これらは有効な設定キーではなく、
-設定ファイルに含めると即座に拒否される。
-
-さらに、`github_server_url`キーも単独のチェックで拒否される
-(`_FORBIDDEN_KEYS`とは別の`if "github_server_url" in cfg:`分岐、
-`agent/config_builders.py`)。エラーメッセージは`[mcp_servers.github].url`を使うよう案内する
+**無効なキー** — Pydanticデータクラスが未知のフィールドを静かに無視するため、
+`build_agent_config()`でのキーの明示的な拒否チェックは削除された。
+設定ファイルに未知のキーを含めてもエラーにはならない。
 (根拠: Explicit in code)。
 
 ### リロード実行パイプライン
