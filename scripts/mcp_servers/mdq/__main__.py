@@ -3,4 +3,4 @@
 from mcp_servers.mdq.server import MdqMCPServer
 
 server = MdqMCPServer()
-server.run_http()
+server.run_http()  # type: ignore[attr-defined]

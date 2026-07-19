@@ -22,10 +22,12 @@ from __future__ import annotations
 import logging
 import shutil
 import time
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.tool_constants import GIT_WRITE_TOOLS
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
@@ -34,7 +36,12 @@ from mcp_servers.git.service import build_service
 from mcp_servers.git.tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs, attach_auth_middleware
+from mcp_servers.server import (
+    MCP_TOOL_SCHEMA_VERSION,
+    MCPServer,
+    ToolArgs,
+    attach_auth_middleware,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +68,15 @@ async def _on_git_service_error(_req: Request, exc: GitServiceError) -> JSONResp
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _git_tool_availability(cfg: GitConfig, tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single git tool by name."""
+    if not cfg.allowed_repo_paths:
+        return False, "allowed_repo_paths is empty"
+    if cfg.read_only and tool_name in GIT_WRITE_TOOLS:
+        return False, "read_only=true"
+    return True, ""
+
+
 async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
     """Dispatch a tool request to the git service."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
@@ -72,16 +88,34 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, list[dict[str, object]]]:
-    """List available MCP tools with server key annotation."""
+async def list_tools() -> dict[str, Any]:
+    """List available MCP tools with schema_version and server key annotation."""
+    tools_with_availability = []
+    for t in TOOL_LIST:
+        enabled, reason = _git_tool_availability(_cfg, t["name"])
+        tool_dict = {
+            **t,
+            "server_key": "git",
+            "enabled": enabled,
+            "disabled_reason": reason,
+        }
+        tools_with_availability.append(tool_dict)
     return {
-        "tools": [{**t, "server_key": "git"} for t in TOOL_LIST],
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": tools_with_availability,
     }
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle a generic MCP call_tool request with audit logging."""
+    enabled, reason = _git_tool_availability(_cfg, req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
+    try:
+        req.validate_args()
+    except ValueError as e:
+        return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
@@ -138,4 +172,4 @@ class GitMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = GitMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

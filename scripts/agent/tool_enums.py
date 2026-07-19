@@ -24,6 +24,7 @@ class OperationType(StrEnum):
     EXECUTE = "execute"
     API_WRITE = "api_write"
     READ = "read"
+    UNKNOWN = "unknown"
 
 
 class ApprovalDecisionType(StrEnum):

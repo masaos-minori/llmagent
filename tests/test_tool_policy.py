@@ -171,9 +171,11 @@ class TestCheckAllowedRoot:
 
 
 class TestCfgHelperDefaults:
-    def test_unknown_tool_defaults_to_medium_risk(self) -> None:
+    def test_unknown_tool_defaults_to_high_risk(self) -> None:
+        # was: test_unknown_tool_defaults_to_medium_risk asserting "medium" -- now "high"
+        # per this plan's fail-safe acceptance criterion for unregistered tools.
         cfg = _cfg()
-        assert classify_risk(cfg, "unknown_tool", {}) == "medium"
+        assert classify_risk(cfg, "unknown_tool", {}) == "high"
 
     def test_shell_run_no_command_defaults_to_high_risk(self) -> None:
         cfg = _cfg()
@@ -334,3 +336,27 @@ class TestClassifyRiskConstantsFallback:
         cfg = _cfg(tool_safety_tiers={"shell_run": "READ_ONLY"})
         result = classify_risk(cfg, "shell_run", {})
         assert result == "none"
+
+
+class TestClassifyOperationTypeUnknown:
+    def test_unregistered_tool_returns_unknown(self) -> None:
+        from agent.tool_enums import OperationType
+
+        assert (
+            classify_operation_type("totally_unregistered_tool_xyz")
+            == OperationType.UNKNOWN
+        )
+
+
+class TestClassifyRiskUnknown:
+    def test_unregistered_tool_returns_high_risk(self) -> None:
+        cfg = _cfg()
+        assert classify_risk(cfg, "totally_unregistered_tool_xyz", {}) == "high"
+
+    def test_unregistered_tool_high_risk_not_overridden_by_default_tier_fallback(
+        self,
+    ) -> None:
+        cfg = _cfg()
+        result = classify_risk(cfg, "totally_unregistered_tool_xyz", {})
+        assert result != "medium"
+        assert result == "high"

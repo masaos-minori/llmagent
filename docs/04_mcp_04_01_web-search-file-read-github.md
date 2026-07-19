@@ -64,7 +64,9 @@ related:
 **ツール:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
 `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
 
-全ツールとも config を必要としない（`requires_config: false`）。
+全ツールとも config を必要としない（`config_dependent: false`）。
+
+これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
 
 **主要なツール入力:**
 
@@ -108,7 +110,9 @@ related:
 `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`,
 `github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
 
-全ツールとも config が必須（`requires_config: true`）。
+全ツールとも config が必須（`config_dependent: true`）。
+
+github MCPサーバーの`enabled`/`disabled_reason`の計算ロジックは要件15/16の実装次第。現在の契約については[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)を参照。
 
 **書き込み操作（9個）はリポジトリ allowlist の対象:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
@@ -136,7 +140,7 @@ related:
 ### 実装上の補足
 
 - ドメイン例外の HTTP ステータス対応（`exception_handlers.py`）: `GitHubAuthorizationError`→403, `GitHubNotFoundError`→404, `GitHubValidationError`→400, `GitHubConflictError`→409, `GitHubUpstreamError`→502, `GitHubAuditError`→500。[Explicit in code]
-- PyGithub の `GithubException` は `service_security.py::_handle_github_error` でステータスコードに応じてドメイン例外へ変換される（404→NotFound, 403→Authorization, 409→Conflict, 400/422→Validation、それ以外→Upstream）。[Explicit in code]
+- PyGithub の `GithubException` は `service_security.py` のエラーハンドラでステータスコードに応じてドメイン例外へ変換される（404→NotFound, 403→Authorization, 409→Conflict, 400/422→Validation、それ以外→Upstream）。[Explicit in code]
 - `allow_force_push=false` は `merge_pull_request` の `merge_method="rebase"` 指定を拒否する形でのみ適用される（それ以外の force-push 相当操作を直接ブロックする実装は無い）。[Explicit in code]
 - `require_pr_review=true` は `merge_pull_request` 実行時に限り、少なくとも1件の `APPROVED` レビューが存在するかを確認する。[Explicit in code]
 - `GITHUB_TOKEN` 未設定時は匿名 `Github()` クライアントで起動し、`/health` が `degraded` を返す（`service_init.py`）。[Explicit in code]

@@ -98,6 +98,13 @@ def format_permissions(mode: int) -> str:
     return _stat.filemode(mode)[1:]
 
 
+def availability_flags(allowed_dirs: list[str]) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a file-{read,write,delete} server."""
+    if allowed_dirs:
+        return True, ""
+    return False, "allowed_dirs is empty"
+
+
 def _build_health_deps(allowed_dirs: list[str]) -> dict[str, str]:
     """Build health check dependency status dict.
 

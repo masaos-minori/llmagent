@@ -58,6 +58,8 @@ GitHub MCPエンドポイントは`mcp_servers.github.url` (`McpServerConfig`の
 
 `McpServerConfig`のフィールドについては[04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)を参照。
 
+ツールの実行時可用性（`config_dependent` / `enabled` / `disabled_reason`）とRuntimeToolRegistryでの扱いについては[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)を参照。
+
 ---
 
 ## ApprovalConfig (`cfg.approval.*`)

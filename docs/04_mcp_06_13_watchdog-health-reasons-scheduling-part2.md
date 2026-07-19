@@ -73,7 +73,7 @@ grep "error_type=transport" agent.log
 
 ### ツールのスケジューリングと直列化
 
-エージェントはリソーススコープでグループ化してツール呼び出しを実行する(`serial_tool_calls=False`のときに常時有効なDAGスケジューリング)。`use_tool_dag`という設定フィールドはコードベース上に存在しない(Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)。`serial_tool_calls=True`に設定すると、レガシーな`_execute_standard()`モード(副作用のあるツールが1つでもあれば逐次実行、なければ並列実行)に切り替わる。ほとんどのツールは並列実行されるが、
+エージェントはリソーススコープでグループ化してツール呼び出しを実行する(`serial_tool_calls=False`のときに常時有効なDAGスケジューリング)。`use_tool_dag`という設定フィールドはコードベース上に存在しない(Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)。`serial_tool_calls=True`に設定すると、レガシーな標準実行モード(副作用のあるツールが1つでもあれば逐次実行、なければ並列実行)に切り替わる。ほとんどのツールは並列実行されるが、
 特定の条件下ではラウンド内で直列実行が強制される。
 
 | 条件 | トリガー | ログ上の理由 |

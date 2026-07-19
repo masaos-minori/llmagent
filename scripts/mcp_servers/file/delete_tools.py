@@ -27,7 +27,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["path"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
     {
         "name": "delete_directory",
@@ -51,6 +51,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["path"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
 ]

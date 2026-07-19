@@ -142,11 +142,15 @@ class TestClassifyRisk:
         cfg = _make_cfg()
         assert _classify_risk(cfg, "list_directory", {}) == "none"
 
-    def test_truly_unknown_tool_returns_medium_fail_safe(self) -> None:
-        # Tool absent from both approval_risk_rules and tool_safety_tiers
-        # → Fail-Safe: WRITE_DANGEROUS default → "medium"
+    def test_truly_unknown_tool_returns_high_risk_fail_safe(self) -> None:
+        # Tool absent from RuntimeToolRegistry, approval_risk_rules, and tool_safety_tiers
+        # -> OperationType.UNKNOWN -> RiskLevel.HIGH (fail-safe; was "medium" pre-migration)
         cfg = _make_cfg()
-        assert _classify_risk(cfg, "some_unregistered_tool", {}) == "medium"
+        assert _classify_risk(cfg, "some_unregistered_tool", {}) == "high"
+
+    def test_unregistered_tool_high_risk_survives_no_special_case(self) -> None:
+        cfg = _make_cfg()
+        assert _classify_risk(cfg, "totally_unregistered_tool_xyz", {}) == "high"
 
     def test_write_to_protected_path_escalates_to_high(self) -> None:
         cfg = _make_cfg()
@@ -352,4 +356,11 @@ class TestClassifyOperationType:
 
         assert _classify_operation_type("list_directory") == "read"
         assert _classify_operation_type("read_text_file") == "read"
+
+    def test_unregistered_tool_returns_unknown(self) -> None:
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
+
+        assert _classify_operation_type("totally_unregistered_tool_xyz") == "unknown"
         assert _classify_operation_type("search_web") == "read"

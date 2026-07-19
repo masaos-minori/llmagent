@@ -23,9 +23,9 @@ subprocess-mode servers on failure) was removed on 2026-07-16. See
 
 Removed with it:
 
-- `watchdog_loop()`, `_watchdog_check_http()`, `_classify_health_failure()`
+- `watchdog_loop()` および関連ヘルパー関数
   (`agent/repl_health.py`)
-- `_watchdog_loop()`, `_start_watchdog()`, `_stop_watchdog()`
+- ウォッチドッグループおよび起動/停止関数
   (`agent/repl.py`)
 - `McpServerHealthRegistry.record_restart_exhausted()`
   (`shared/mcp_health.py`)

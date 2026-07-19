@@ -74,12 +74,14 @@ related:
 
 **ツール:**
 
-| ツール | ティア | 入力 | `requires_config` |
+| ツール | ティア | 入力 | `config_dependent` |
 |---|---|---|---|
 | `trigger_workflow` | WRITE_DANGEROUS | `{repo, workflow, ref?, inputs?}` | yes |
 | `get_workflow_runs` | READ_ONLY | `{repo, workflow, limit?}` | yes |
 | `get_workflow_status` | READ_ONLY | `{repo, run_id}` | yes |
 | `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
+
+cicdサーバーの`enabled`/`disabled_reason`の計算ロジック（`"workflow_allowlist is empty"`など）は予約済み/将来向けのみ。要件15の計画ではcicd/shellの実装は除外されている。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)を参照。
 
 **セキュリティ:**
 - `repo_allowlist`: fail-closed（空 = 全て拒否; 起動時に warning をログ出力）

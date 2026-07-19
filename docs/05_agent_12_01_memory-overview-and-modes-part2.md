@@ -122,7 +122,7 @@ session_stop
 
 ### 実装上の補足: `on_session_stop` の永続化順序と失敗時の扱い
 
-`ingestion.py` の `_persist_entry_with_embedding()` は SQLite への `write_ops.upsert()` を
+`ingestion.py` の埋め込み付きエントリ永続化関数は SQLite への `write_ops.upsert()` を
 先に実行し、その後に JSONL への書き込みを行う。JSONL 書き込みが `OSError` で失敗しても
 例外は再送出されず、警告ログ（`memory.jsonl_write_failed`）を出して処理を継続する
 （エントリは SQLite にのみ保存された状態になる）。
@@ -131,17 +131,17 @@ session_stop
 埋め込みなしでエントリを保存する（`stat_embed_skip` をインクリメントし
 `memory.embed_skip` を info ログに出力）。
 
-埋め込みが成功した場合のみ、`_link_duplicates()` が KNN 近傍探索を行い、
+埋め込みが成功した場合のみ、重複リンク探索が KNN 近傍探索を行い、
 `DedupPolicy.threshold`（デフォルト 0.3）未満の距離のエントリ間に
 `memory_links` テーブルへ関連リンクを記録する。挿入失敗（`OperationalError` /
 `IntegrityError`）は警告ログのみで無視される。
 
 自動抽出（`on_session_stop`）は `DedupAction.SKIP_NEW` による重複排除を適用するが、
-`write_semantic()` / `write_episodic()`（手動書き込み）は意図的にこの重複排除を
+セマンティック書き込み / エピソディック書き込み（手動書き込み）は意図的にこの重複排除を
 バイパスする（`ingestion.py` 冒頭コメントに明記）。
 
-根拠分類: Explicit in code（`ingestion.py` `_persist_entry_with_embedding`,
-`_link_duplicates`, `_persist_entry`, `write_semantic`, `write_episodic`）。
+根拠分類: Explicit in code（`ingestion.py` 埋め込みエントリ永続化、
+重複リンク探索、エントリ永続化、セマンティック書き込み、エピソディック書き込み）。
 
 ---
 

@@ -28,7 +28,11 @@ from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs
+from mcp_servers.server import (
+    MCPServer,
+    ToolArgs,
+    build_tools_response,
+)
 from mcp_servers.shell.models import (
     ShellAuthorizationError,
     ShellRunRequest,
@@ -119,10 +123,8 @@ async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
-    """List available shell tools with server_key="shell"."""
-    return {
-        "tools": [{**t, "server_key": "shell"} for t in TOOL_LIST],
-    }
+    """List available shell tools with schema_version and server_key="shell"."""
+    return build_tools_response(TOOL_LIST, "shell")
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
@@ -167,4 +169,4 @@ class ShellMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = ShellMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

@@ -202,6 +202,24 @@ class LLMTurnRunner:
         ctx.conv.history.append(message)
         return message.get("content") or ""
 
+    def _filter_disabled_tool_definitions(
+        self, tool_definitions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Exclude MCP tools marked as disabled_for_llm=False from the LLM payload."""
+        ctx = self._ctx
+        registry = ctx.services_required.runtime_tools
+        if registry is None:
+            return tool_definitions
+        visible_names = {td["name"] for td in registry.llm_tool_definitions()}
+        known_names = {tool.name for tool in registry.all_tools()}
+        result: list[dict[str, Any]] = []
+        for td in tool_definitions:
+            fn = td.get("function") if isinstance(td, dict) else None
+            name = fn.get("name") if isinstance(fn, dict) else None
+            if name is None or name not in known_names or name in visible_names:
+                result.append(td)
+        return result
+
     async def _stream_llm(
         self,
         llm_url: str,
@@ -213,6 +231,6 @@ class LLMTurnRunner:
         response = await ctx.services_required.llm.stream(
             llm_url,
             ctx.conv.history,
-            ctx.cfg.tool.tool_definitions,
+            self._filter_disabled_tool_definitions(ctx.cfg.tool.tool_definitions),
         )
         return response

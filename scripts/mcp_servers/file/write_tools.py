@@ -31,7 +31,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["path", "content"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
     {
         "name": "edit_file",
@@ -69,7 +69,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["path", "edits"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
     {
         "name": "create_directory",
@@ -89,7 +89,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["path"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
     {
         "name": "move_file",
@@ -113,6 +113,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["source", "destination"],
         },
         "status": "production",
-        "requires_config": False,
+        "config_dependent": False,
     },
 ]

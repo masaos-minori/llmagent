@@ -62,7 +62,7 @@ source:
 各ステージは`StageDefinition`を持つ:
 - `id` — 一意のステージ識別子 (例: "plan", "execute")
 - `timeout_sec` — 最大実行時間 (秒)
-- `retryable` — 失敗時にステージをリトライ可能かどうか。`_run_stage_with_retry()`が`stage_def.retryable`を見て、`plan`/`execute`/`verify`すべてに対しリトライループを適用するか単発実行にするかを一様に決定する (`description`フィールドは2026-07-17に削除 — どのコードパスからも読まれていなかった)
+- `retryable` — 失敗時にステージをリトライ可能かどうか。リトライループ関数が`stage_def.retryable`を見て、`plan`/`execute`/`verify`すべてに対しリトライループを適用するか単発実行にするかを一様に決定する (`description`フィールドは2026-07-17に削除 — どのコードパスからも読まれていなかった)
 
 `WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
 
@@ -113,7 +113,7 @@ verifyステージ実行前に一時停止する:
 
 ### リトライメカニズム
 
-`plan`/`execute`/`verify`はすべて同一の`_run_stage_with_retry()`を経由する。`stage_def.retryable`が
+`plan`/`execute`/`verify`はすべて同一のリトライループ関数を経由する。`stage_def.retryable`が
 `false`のステージ (`config/workflows/default.json`では`plan`と`verify`) は単発実行され、失敗時に
 即座に例外を送出する。`retryable: true`のステージ (デフォルトでは`execute`のみ) はリトライポリシーを
 使用してリトライ挙動を決定する:

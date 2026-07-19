@@ -172,7 +172,7 @@ class Logger:
 ```
 
 - コンストラクタ第2引数名は `log_file` (実装名。旧記載の `filepath` は誤り)
-- `name` / `log_file` はいずれも非空文字列であることが必須で、違反時は `ValueError` を送出する (`_require_str`)
+- `name` / `log_file` はいずれも非空文字列であることが必須で、違反時は `ValueError` を送出する (文字列検証関数)
 - `FileHandler` + `StreamHandler` を自動設定する (`propagate=False` により重複を防止)
 - 同一 `name` のロガーに既にハンドラが設定済みの場合、ロガー初期化処理は何もせず即座に return する (二重登録防止; 同名 `Logger` を複数回生成しても安全)
 - `structured_log=True` → ログファイルは JSON Lines 形式になる (`_JsonFormatter`; フィールドは `ts`/`level`/`func`/`msg` に加え `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` が値のあるもののみ出力される)

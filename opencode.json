@@ -15,8 +15,7 @@
                     "limit": {
                         "context": 98496,
                         "output": 8192
-                    },
-                    "context-window": 32768
+                    }
                 }
             }
         }
@@ -24,7 +23,7 @@
     "agent": {
         "build": {
             "model": "llama-cpp/local-model",
-            "temperature": 0.35
+            "temperature": 0.30
         },
         "plan": {
             "model": "llama-cpp/local-model",

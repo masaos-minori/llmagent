@@ -54,7 +54,11 @@ from mcp_servers.github.service_init import _GITHUB_TOKEN, build_service
 from mcp_servers.github.tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs
+from mcp_servers.server import (
+    MCPServer,
+    ToolArgs,
+    build_tools_response,
+)
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
@@ -126,9 +130,7 @@ async def _dispatch_github_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
-    return {
-        "tools": [{**t, "server_key": "github"} for t in TOOL_LIST],
-    }
+    return build_tools_response(TOOL_LIST, "github")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -178,4 +180,4 @@ class GithubMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = GithubMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

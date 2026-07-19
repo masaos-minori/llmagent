@@ -53,19 +53,19 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 - `db=None` の場合は警告付きで空の結果を返して処理する
 
 > **ドキュメントと実装の矛盾**: `vector_search`/`fts_search` が送出する `sqlite3.OperationalError` /
-> `RuntimeError` は `SearchStage` 内部（`_search_all_queries()`）で捕捉され、クエリ単位で
-> `fts_errors` カウンタに計上されるのみで、例外として呼び出し元（`RagPipeline._run_stage()`）へは
+> `RuntimeError` は `SearchStage` 内部で捕捉され、クエリ単位で
+> `fts_errors` カウンタに計上されるのみで、例外として呼び出し元へは
 > 伝播しない。1クエリの検索失敗は残りのクエリの処理を止めない
 > (根拠分類: Explicit in code — `scripts/rag/stages/search.py:56-65`)。
 >
 > **注記（2026-07-13）:** `RagPipeline.search_queries()` と `RagPipeline.rerank_candidates()` メソッドは
 > `pipeline.py` に定義されているが、いずれも呼び出し側が存在しない（デッドコード）。
-> 実際の検索・リランク処理は `SearchStage.run()` → `_search_all_queries()` および
-> `RerankStage.run()` → `_rerank()` で実行される。
+> 実際の検索・リランク処理は `SearchStage.run()` および
+> `RerankStage.run()` で実行される。
 
 #### 失敗時の意図 (Failure behavior)
 
-`_search_all_queries()` は埋め込み取得（`asyncio.gather(..., return_exceptions=True)`）とDB検索
+`SearchStage` は埋め込み取得（`asyncio.gather(..., return_exceptions=True)`）とDB検索
 （`try/except`）の両方で例外を個別に握りつぶし、`SearchDiagnostics` のカウンタに反映するのみで
 処理を継続する。これは、MQEで複数バリアントに展開したクエリのうち一部が失敗しても、
 残りのクエリの検索結果でパイプライン全体を継続させるための設計と考えられる

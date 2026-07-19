@@ -41,10 +41,10 @@ source:
 通過した後に `WorkflowLoader().load()` が何らかの理由で失敗した場合、無条件に `RuntimeError` を発生させる。
 
 **補足(起動シーケンス):** `StartupOrchestrator` の初期化処理の実際の呼び出し順は
-`_init_command_registry()` → `_check_workflow_definition()` → `_check_workflow_schema()` →
-`_init_orchestrator()` である。つまりワークフロー定義ファイルの存在検証
-(`check_workflow_definition()`)の直後に、`workflow.sqlite` の必須テーブル・必須カラム・
-`workflow_schema_version` の一致を検証する `check_workflow_schema()`(`agent/repl_health.py`)が
+コマンドレジストリ初期化 → ワークフロー定義検証 → ワークフロースキーマ検証 →
+Orchestrator初期化 である。つまりワークフロー定義ファイルの存在検証
+の直後に、`workflow.sqlite` の必須テーブル・必須カラム・
+`workflow_schema_version` の一致を検証する関数(`agent/repl_health.py`)が
 同じ初期化処理内で連続実行され、いずれも `Orchestrator.__init__()` より前に完了する。
 どちらも失敗時は `RuntimeError` を送出し、`StartupOrchestrator.run()` 側で捕捉されずに
 起動そのものを中断させる(根拠: Explicit in code)。

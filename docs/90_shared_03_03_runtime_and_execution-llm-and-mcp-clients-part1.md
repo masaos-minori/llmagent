@@ -54,7 +54,7 @@ ToolExecutor.execute(tool_name, args) -> ToolCallResult
   9. ToolCallResult を返す
 ```
 
-**訂正 (Explicit in code):** 旧記述はルーティング解決(3)をキャッシュチェック(1)より前に置いていたが、実装では `execute()` → `_execute_with_cache()` でキャッシュキー(`tool_name` と引数のみ)を先に判定し、キャッシュミス時のみ `_execute_with_stampede_protection()` 経由で `_raw_execute()` に入り、その内部でルーティング・startup_modeゲート・ヘルスチェック・lifecycle待機を行う。また `_raw_execute()` が例外を送出した場合、待機中の全同時呼び出しにも同じ例外が伝播する(stampede保護のフェイルセーフ)。
+**訂正 (Explicit in code):** 旧記述はルーティング解決(3)をキャッシュチェック(1)より前に置いていたが、実装では `execute()` → キャッシュ関数でキャッシュキー(`tool_name` と引数のみ)を先に判定し、キャッシュミス時のみ 同時実行保護関数 経由で 基本実行関数 に入り、その内部でルーティング・startup_modeゲート・ヘルスチェック・lifecycle待機を行う。また 基本実行関数 が例外を送出した場合、待機中の全同時呼び出しにも同じ例外が伝播する(stampede保護のフェイルセーフ)。
 
 **キャッシュの挙動:**
 - `is_error=False` の結果のみキャッシュされる

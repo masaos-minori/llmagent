@@ -51,13 +51,13 @@ source:
 
 ### 失敗時の意図 (要約LLM呼び出し失敗時)
 
-`HistoryManager.compress()`が要約用LLM呼び出し (`_call_compress_llm`) に失敗すると`HistoryCompressionError`が送出されるが、`_get_summary_text()`内で捕捉されWARNINGログの上`None`が返る (呼び出し元に例外を伝播させない)。その後の分岐:
-- 文字数上限を超えたままの場合 → `_fallback_truncate()`にフォールスルーし、要約なしで低重要度メッセージから機械的に削除する。
+`HistoryManager.compress()`が要約用LLM呼び出しに失敗すると`HistoryCompressionError`が送出されるが、内部で捕捉されWARNINGログの上`None`が返る (呼び出し元に例外を伝播させない)。その後の分岐:
+- 文字数上限を超えたままの場合 → フォールバック切り捨てにフォールスルーし、要約なしで低重要度メッセージから機械的に削除する。
 - 文字数上限を超えていない場合 (トークン上限のみ超過していた場合等) → 履歴を変更せずno-opで返す (`CompressResult(compressed_count=0, ...)`)。
 
-`_fallback_truncate()`は`HistorySelectionPolicy.classify_importance()`昇順 (重要度が低いものから) でメッセージをソートし、`system`ロールと直近`protect_turns`ペアを除外した候補から、文字数上限を下回るまで1件ずつ削除する。全件削除しても上限を下回れない場合はWARNINGログを出すのみで処理を継続する (例外は発生しない)。この経路は`CompressResult.is_fallback=True`および`HistoryManager.stat_fallback_truncate_count`のインクリメントを伴う。
+フォールバック切り捨ては`HistorySelectionPolicy.classify_importance()`昇順 (重要度が低いものから) でメッセージをソートし、`system`ロールと直近`protect_turns`ペアを除外した候補から、文字数上限を下回るまで1件ずつ削除する。全件削除しても上限を下回れない場合はWARNINGログを出すのみで処理を継続する (例外は発生しない)。この経路は`CompressResult.is_fallback=True`および`HistoryManager.stat_fallback_truncate_count`のインクリメントを伴う。
 
-*(根拠分類: Explicit in code — `agent/history.py` `compress()`, `_get_summary_text()`, `_fallback_truncate()`)*
+*(根拠分類: Explicit in code — `agent/history.py` `compress()`)*
 
 ### 実装上の補足 (`force_compress`)
 

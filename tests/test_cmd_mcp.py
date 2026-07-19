@@ -13,6 +13,8 @@ from agent.commands.exceptions import UnknownSubcommandError
 from agent.lifecycle import LifecycleState
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthState
+from shared.runtime_tool import RuntimeTool
+from shared.runtime_tool_registry import RuntimeToolRegistry
 
 
 class _Ctx:
@@ -36,6 +38,7 @@ class _Ctx:
         self.services_required = MagicMock()
         self.services_required.health_registry = None
         self.services_required.audit_logger = None
+        self.services_required.runtime_tools = None
         self.services_required.lifecycle = MagicMock()
         self.services_required.lifecycle.get_transport_state.return_value = (
             LifecycleState.UNKNOWN
@@ -64,6 +67,11 @@ def _stdio(
         auth_token="",
         startup_mode=startup_mode,
     )
+
+
+def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
+    tool_map = {t.name: t for t in tools}
+    return RuntimeToolRegistry(tools=tool_map)
 
 
 def _mock_client() -> AsyncMock:
@@ -509,6 +517,102 @@ class TestCmdMcpStatusSerialization:
             await mcp._cmd_mcp_status()
         out = capsys.readouterr().out
         assert "Serialization" not in out
+
+
+class TestCmdMcpStatusToolDiagnostics:
+    @pytest.mark.asyncio
+    async def test_tool_diagnostics_table_shows_disabled_and_enabled_tools(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Both disabled and enabled tools appear in the diagnostics table."""
+        ctx = _Ctx({"svc": _http()})
+        registry = _registry_with(
+            RuntimeTool(
+                name="read_file",
+                server_key="file_read",
+                server_url="http://127.0.0.1:8001",
+                description="Read a file",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=True,
+                resource_scope="",
+                agent_safety_tier="READ_ONLY",
+                requires_approval=False,
+                enabled_for_llm=True,
+                capabilities=(),
+            ),
+            RuntimeTool(
+                name="git_push",
+                server_key="git",
+                server_url="http://127.0.0.1:8002",
+                description="Push to git",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="inactive",
+                is_write=True,
+                requires_serial=True,
+                resource_scope="",
+                agent_safety_tier="WRITE_DANGEROUS",
+                requires_approval=True,
+                enabled_for_llm=False,
+                capabilities=(),
+            ),
+        )
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "Tools (RuntimeToolRegistry)" in out
+        assert "read_file" in out
+        assert "git_push" in out
+        assert "inactive" in out
+
+    @pytest.mark.asyncio
+    async def test_tool_diagnostics_table_absent_when_registry_none(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """No diagnostics section when runtime_tools is None."""
+        ctx = _Ctx({"svc": _http()})
+        ctx.services_required.runtime_tools = None
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "Tools (RuntimeToolRegistry)" not in out
+
+    @pytest.mark.asyncio
+    async def test_tool_diagnostics_table_absent_when_registry_empty(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """No diagnostics section when registry has zero tools."""
+        ctx = _Ctx({"svc": _http()})
+        ctx.services_required.runtime_tools = RuntimeToolRegistry()
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "Tools (RuntimeToolRegistry)" not in out
 
 
 class TestAppServicesMemoryOptional:

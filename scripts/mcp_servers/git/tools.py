@@ -27,7 +27,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_log",
@@ -53,7 +53,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_diff",
@@ -79,7 +79,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_branch",
@@ -95,7 +95,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_show",
@@ -116,7 +116,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_add",
@@ -142,7 +142,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path", "paths"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_commit",
@@ -164,7 +164,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path", "message"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_checkout",
@@ -194,7 +194,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path", "branch"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_pull",
@@ -225,7 +225,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "git_push",
@@ -256,6 +256,6 @@ TOOL_LIST: list[McpTool] = [
             "required": ["repo_path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

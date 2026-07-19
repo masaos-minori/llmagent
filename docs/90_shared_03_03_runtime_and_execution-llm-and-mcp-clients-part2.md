@@ -75,7 +75,7 @@ class LLMClient:
 [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) を参照。
 
 **概要:**
-- `McpServerConfig`: サーバごとのトランスポート設定(transport、url、cmd、startup_mode、tool_names、auth_token等) — `__post_init__` により検証される(URLスキーム、タイムアウト範囲、tool_namesの一意性、env型)。`key` フィールドは `_build_single_server()` がTOMLセクション名から設定し、`==` 比較からは除外される。
+- `McpServerConfig`: サーバごとのトランスポート設定(transport、url、cmd、startup_mode、tool_names、auth_token等) — `__post_init__` により検証される(URLスキーム、タイムアウト範囲、tool_namesの一意性、env型)。`key` フィールドはTOMLセクション名から設定する関数が設定し、`==` 比較からは除外される。
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
 - `McpServerHealthRegistry`: 連続失敗を追跡する;`UNAVAILABLE` はディスパッチをブロックする;`record_degraded(key, reason)` / `get_degraded_reason(key)` は失敗カウントを増やさずに「到達可能だが劣化している」サーバを追跡する
 

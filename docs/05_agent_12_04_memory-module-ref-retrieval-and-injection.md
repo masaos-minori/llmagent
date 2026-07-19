@@ -72,7 +72,7 @@ score = -bm25_rank + importance_boost + pin_boost + recency_decay + context_matc
 - セマンティック: importance_weight=1.0, recency_weight=0.5
 - エピソディック: importance_weight=0.5, recency_weight=1.0
 - 定数（`scoring.py`）: `pin_boost=0.3`、`importance_boost` は `importance(0–1) × importance_weight × 0.5`、`recency_decay` は経過日数に応じて 0.0–0.2（`recency_days` 経過で 0）、`context_match` は branch 一致で 0.15、project/repo 一致で 0.1
-- この数式は `FtsRetriever._fetch_hits()` が FTS5 候補（最大 `candidate_limit` 件）に対して呼ぶ再スコアリングであり、KNN 側の `score`（`-distance`）には適用されない。RRF マージ後の最終 `score` はいずれの数式でもなく RRF スコアで上書きされる。
+- この数式は FTS リトリーバーのヒットフェッチ関数が FTS5 候補（最大 `candidate_limit` 件）に対して呼ぶ再スコアリングであり、KNN 側の `score`（`-distance`）には適用されない。RRF マージ後の最終 `score` はいずれの数式でもなく RRF スコアで上書きされる。
 
 根拠: Explicit in code（`scoring.py` の `score()` / `context_boost()` / `recency_boost()`）。
 

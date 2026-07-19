@@ -157,9 +157,9 @@ Embed skip count        8
 ## グレースフルシャットダウン
 
 - `SIGTERM` → `agent.py` によって `SystemExit(0)` に変換される
-- シャットダウンフラグが立つ → `AgentREPL._read_input()` は、ブロッキングする `input()` 呼び出しと
+- シャットダウンフラグが立つ → REPL入力は、ブロッキングする `input()` 呼び出しと
   `_shutdown_event.wait()`（`asyncio.wait(FIRST_COMPLETED)`）を競合させる。シャットダウン
-  イベントが先に完了した場合、`_read_input()` は次のキー入力を待たずに即座に `None` を返す。
+  イベントが先に完了した場合、入力は次のキー入力を待たずに即座に `None` を返す。
   取り残された `input()` の executor スレッドは中断されず、プロセス終了時に
   終了する。
 - `finally` ブロック:

@@ -88,3 +88,13 @@ class TestRuntimeTool:
         assert a.raw_definition == {}
         assert b.raw_definition == {}
         assert a.raw_definition is not b.raw_definition  # no shared mutable default
+
+    def test_capabilities_defaults_to_empty_tuple(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s")
+        assert tool.capabilities == ()
+
+    def test_capabilities_stored_as_tuple_from_sequence(self) -> None:
+        tool = build_runtime_tool(
+            name="t", server_key="s", capabilities=("read", "write")
+        )
+        assert tool.capabilities == ("read", "write")

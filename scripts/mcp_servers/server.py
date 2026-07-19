@@ -14,7 +14,7 @@ import dataclasses
 import logging
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from mcp_servers.dispatch import DispatchResult
@@ -30,6 +30,10 @@ ToolArgs = dict[str, Any]
 
 # Maximum response size returned to the agent; larger responses are truncated.
 MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
+
+# Schema version advertised in each server's /v1/tools response; bump when the
+# tool-schema shape changes in a way that matters to Agent-side discovery/validation.
+MCP_TOOL_SCHEMA_VERSION: str = "1.0"
 
 
 class _FastAPIApp(Protocol):
@@ -138,6 +142,18 @@ class MCPServer:
         tools = getattr(self, "mcp_tools", [])
         return [{**t, "server_key": server_key} for t in tools]
 
+
+def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any]:
+    """Build the /v1/tools response dict: schema_version + per-tool server_key tagging.
+
+    Callable directly from each server's module-level FastAPI route handler (no MCPServer
+    instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
+    """
+    return {
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": [{**t, "server_key": server_key} for t in tools],
+    }
+
     def health(self) -> tuple[dict[str, object], int]:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
 
@@ -174,18 +190,17 @@ class MCPServer:
     def _ensure_error_tracking(self) -> None:
         """Ensure per-instance error tracking lists are initialized (lazy init)."""
         if not hasattr(self, "_tool_error_timestamps"):
-            self._tool_error_timestamps: list[float] = []
-            self._error_window_sec: float = 300.0
-            self._error_threshold: int = 3
+            object.__setattr__(self, "_tool_error_timestamps", [])
+            object.__setattr__(self, "_error_window_sec", 300.0)
+            object.__setattr__(self, "_error_threshold", 3)
 
     def _record_tool_error(self, tool_name: str) -> None:
         """Record a tool error timestamp; warn if repeated failures exceed threshold."""
         self._ensure_error_tracking()
         now = time.time()
         cutoff = now - self._error_window_sec
-        self._tool_error_timestamps = [
-            t for t in self._tool_error_timestamps if t > cutoff
-        ]
+        timestamps = [t for t in self._tool_error_timestamps if t > cutoff]
+        object.__setattr__(self, "_tool_error_timestamps", timestamps)
         self._tool_error_timestamps.append(now)
         if len(self._tool_error_timestamps) >= self._error_threshold:
             logger.warning(

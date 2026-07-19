@@ -89,17 +89,16 @@ async def test_all_checks_pass_no_raise(startup_instance) -> None:
             return_value=HealthCheckResult(),
         ),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
         ),
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
@@ -120,17 +119,16 @@ async def test_single_fatal_readiness_raises(startup_instance) -> None:
             ),
         ),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
         ),
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
@@ -150,17 +148,16 @@ async def test_security_audit_fatal_remaining_checks_still_run(
         ),
         patch(f"{MODULE}.check_readiness", readiness_mock),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
         ),
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
@@ -186,17 +183,16 @@ async def test_multiple_fatals_all_in_error_message(startup_instance) -> None:
             ),
         ),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
         ),
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
@@ -217,17 +213,16 @@ async def test_warnings_only_no_raise(startup_instance) -> None:
             return_value=HealthCheckResult(),
         ),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
         ),
-        patch(f"{MODULE}.check_routing_drift", return_value=["drift warning"]),
+        patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
@@ -244,16 +239,14 @@ async def test_skipped_live_routing_no_raise(startup_instance) -> None:
             return_value=HealthCheckResult(),
         ),
         patch(
-            f"{MODULE}.check_tool_definitions_startup",
-            new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(side_effect=Exception("all servers unreachable"))
+            ),
         ),
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
-        patch(
-            f"{MODULE}.check_routing_drift_vs_live",
-            side_effect=Exception("all servers unreachable"),
-        ),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True

@@ -25,7 +25,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_get_pull_request",
@@ -45,7 +45,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "pr_number"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_create_pull_request",
@@ -74,7 +74,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "title", "head", "base"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_search_pull_requests",
@@ -97,7 +97,7 @@ TOOL_LIST: list[dict] = [
             "required": ["query"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_update_pull_request",
@@ -129,7 +129,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "pr_number"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_merge_pull_request",
@@ -161,6 +161,6 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "pr_number"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

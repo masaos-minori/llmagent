@@ -11,8 +11,9 @@ Both return ConfigReloadOutcome so callers can display what changed.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from shared.mcp_config import McpServerConfig
 
@@ -20,6 +21,8 @@ from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
 if TYPE_CHECKING:
+    from shared.runtime_tool import AgentSafetyTier
+
     from agent.context import AgentContext
 
 from agent.services.typed_validators import (
@@ -196,6 +199,15 @@ class ConfigReloadService:
                 cache_ttl=ctx.cfg.tool.tool_cache_ttl
             )
             result.applied.append("tools")
+
+        if ctx.services_required.runtime_tools is not None:
+            ctx.services_required.runtime_tools.apply_policy(
+                tier_map=cast(
+                    Mapping[str, "AgentSafetyTier"], ctx.cfg.approval.tool_safety_tiers
+                ),
+                allowed_tools=ctx.cfg.tool.allowed_tools,
+            )
+            result.applied.append("runtime_tools")
 
         # system_prompt update: write to the canonical field; Orchestrator syncs history[0].
         if "system_prompt_tool" in new_cfg:

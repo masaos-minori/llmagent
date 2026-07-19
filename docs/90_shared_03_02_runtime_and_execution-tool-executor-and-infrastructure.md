@@ -44,11 +44,11 @@ class ToolExecutor(ToolTransportInvoker):
 **`execute()` の実行順序 (Explicit in code):**
 ```
 execute(tool_name, args)
-  → _execute_with_cache(): キャッシュキー "tool_name:json(args)" でTTLキャッシュ参照
+  → キャッシュ参照: キャッシュキー "tool_name:json(args)" でTTLキャッシュ参照
       → ヒットかつ age < cache_ttl: LRU更新してヒット数を加算し即返す
-  → _execute_with_stampede_protection(): 同一キーの同時実行はFutureを共有し、二重実行を防止
+  → 同時実行保護: 同一キーの同時実行はFutureを共有し、二重実行を防止
       → 例外発生時は共有Futureのすべての待機者へ例外を伝播させる (inflight.set_exception)
-  → _raw_execute():
+  → 基本実行:
       1. startup_mode=none のサーバーはエラー即返却 (無効化されたサーバーは使用不可)
       2. ヘルスチェックゲート
       3. lifecycle.ensure_ready() (LifecycleProtocol注入時のみ)
@@ -99,7 +99,7 @@ class ToolRegistry:
 def get_registry() -> ToolRegistry   # グローバルシングルトン。初回呼び出し時に tool_constants から自動登録
 ```
 
-- `ToolDefinition.description` / `input_schema` は**予約フィールドで現状未使用** (`_populate_default_registry()` は設定しない)。LLM向けツールスキーマは各サーバーの `tools.py` の `TOOL_LIST` が正本
+- `ToolDefinition.description` / `input_schema` は**予約フィールドで現状未使用** (デフォルトレジストリ初期化関数は設定しない)。LLM向けツールスキーマは各サーバーの `tools.py` の `TOOL_LIST` が正本
 - デフォルト登録は `tool_constants.py` の `READ_TOOLS`/`WRITE_TOOLS`/`DELETE_TOOLS`/`RAG_TOOLS`/`CICD_TOOLS`/`MDQ_TOOLS`/`GIT_TOOLS`/`SHELL_TOOLS`/`GITHUB_TOOLS`/`WEB_SEARCH_TOOLS` を対応するserver_keyに登録する
 
 ```python

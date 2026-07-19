@@ -121,7 +121,7 @@ class PipelineRunResult:
 
 **混同注意:** 名前が同じ `result_source` でも型が異なる2つのフィールドが存在する。
 - `PipelineRunResult.result_source: str | None`（`rag/types.py`）— 常に `None`、未使用
-- `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `RagPipeline._run_http_augment()` が `dataclasses.replace()` で更新する
+- `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `dataclasses.replace()` で更新する
 
 ---
 

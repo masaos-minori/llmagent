@@ -476,10 +476,15 @@ async def _run_check_services(
     mocks: dict[str, object] = {
         "audit_security_defaults": MagicMock(return_value=[]),
         "check_readiness": AsyncMock(return_value=HealthCheckResult()),
-        "check_tool_definitions_startup": AsyncMock(return_value=HealthCheckResult()),
+        "McpToolDiscoveryService": MagicMock(
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            )
+        ),
         "check_routing_drift": MagicMock(return_value=[]),
         "check_routing_safety_tiers": MagicMock(return_value=[]),
-        "check_routing_drift_vs_live": AsyncMock(return_value=HealthCheckResult()),
         "RagMaintenanceService": MagicMock(return_value=consistent_rag),
     }
     mocks.update(overrides)
@@ -635,57 +640,65 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "readiness"]
         assert outcomes == [StartupCheckOutcome("readiness", StartupCheckStatus.OK)]
 
-    # ── tool_definitions ─────────────────────────────────────────────────────
+    # ── mcp_tool_discovery ───────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_tool_definitions_warning_on_mismatch(self) -> None:
+    async def test_mcp_tool_discovery_warning_on_finding(self) -> None:
         ctx = _make_startup_ctx()
-        result = HealthCheckResult(
-            warnings=[
-                ServiceWarning(
-                    label="tool_definitions", url="", message="missing tool X"
-                )
-            ]
+        finding = StartupCheckOutcome(
+            "mcp_server_fetch", StartupCheckStatus.WARNING, "server unreachable"
         )
-        pipeline, exc = await _run_check_services(
-            ctx, check_tool_definitions_startup=AsyncMock(return_value=result)
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
-        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
-        assert not any(o.status == StartupCheckStatus.FATAL for o in outcomes)
-
-    @pytest.mark.asyncio
-    async def test_tool_definitions_never_fatal_even_on_strict_mode_raise(self) -> None:
-        """A strict-mode RuntimeError from check_tool_definitions_startup() (e.g. all
-        servers unreachable, or a mismatch detected in strict mode) is caught by the
-        generic except clause and downgraded to WARNING — tool_definitions has no FATAL
-        path in _check_services()."""
-        ctx = _make_startup_ctx()
+        discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
         pipeline, exc = await _run_check_services(
             ctx,
-            check_tool_definitions_startup=AsyncMock(
-                side_effect=RuntimeError(
-                    "Strict mode: tool definition mismatch detected."
+            McpToolDiscoveryService=MagicMock(
+                return_value=MagicMock(
+                    discover_all=AsyncMock(return_value=discovery_result)
                 )
             ),
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
-        assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
+        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
 
     @pytest.mark.asyncio
-    async def test_tool_definitions_ok_when_clean(self) -> None:
+    async def test_mcp_tool_discovery_fatal_on_strict_mode_finding(self) -> None:
+        """A strict-mode finding from discover_all() is surfaced as FATAL."""
         ctx = _make_startup_ctx()
+        finding = StartupCheckOutcome(
+            "drift_detected", StartupCheckStatus.FATAL, "drift in strict mode"
+        )
+        discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
         pipeline, exc = await _run_check_services(
             ctx,
-            check_tool_definitions_startup=AsyncMock(return_value=HealthCheckResult()),
+            McpToolDiscoveryService=MagicMock(
+                return_value=MagicMock(
+                    discover_all=AsyncMock(return_value=discovery_result)
+                )
+            ),
+        )
+        assert exc is not None
+        assert isinstance(exc, RuntimeError)
+        assert "drift in strict mode" in str(exc)
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_mcp_tool_discovery_ok_when_clean(self) -> None:
+        ctx = _make_startup_ctx()
+        discovery_result = MagicMock(registry=None, findings=[], unreachable=[])
+        pipeline, exc = await _run_check_services(
+            ctx,
+            McpToolDiscoveryService=MagicMock(
+                return_value=MagicMock(
+                    discover_all=AsyncMock(return_value=discovery_result)
+                )
+            ),
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "tool_definitions"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert outcomes == [
-            StartupCheckOutcome("tool_definitions", StartupCheckStatus.OK)
+            StartupCheckOutcome("mcp_tool_discovery", StartupCheckStatus.OK)
         ]
 
     # ── routing_drift (static) ───────────────────────────────────────────────
@@ -749,52 +762,56 @@ class TestCheckServicesSeverityClassification:
     @pytest.mark.asyncio
     async def test_routing_drift_live_ok_when_clean(self) -> None:
         ctx = _make_startup_ctx()
+        discovery_result = MagicMock(registry=None, findings=[], unreachable=[])
         pipeline, exc = await _run_check_services(
             ctx,
-            check_routing_drift_vs_live=AsyncMock(return_value=HealthCheckResult()),
+            McpToolDiscoveryService=MagicMock(
+                return_value=MagicMock(
+                    discover_all=AsyncMock(return_value=discovery_result)
+                )
+            ),
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert outcomes == [
-            StartupCheckOutcome("routing_drift_live", StartupCheckStatus.OK)
+            StartupCheckOutcome("mcp_tool_discovery", StartupCheckStatus.OK)
         ]
 
     @pytest.mark.asyncio
     async def test_routing_drift_live_warning_when_non_strict_drift(self) -> None:
         ctx = _make_startup_ctx(tool_definitions_strict=False)
-        result = HealthCheckResult(
-            warnings=[
-                ServiceWarning(
-                    label="web", url="", message="Live routing drift [web]: extra tool"
-                )
-            ]
+        finding = StartupCheckOutcome(
+            "drift_detected",
+            StartupCheckStatus.WARNING,
+            "Live routing drift [web]: extra tool",
         )
+        discovery_result = MagicMock(registry=None, findings=[finding], unreachable=[])
         pipeline, exc = await _run_check_services(
-            ctx, check_routing_drift_vs_live=AsyncMock(return_value=result)
+            ctx,
+            McpToolDiscoveryService=MagicMock(
+                return_value=MagicMock(
+                    discover_all=AsyncMock(return_value=discovery_result)
+                )
+            ),
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.WARNING
 
     @pytest.mark.asyncio
     async def test_routing_drift_live_skipped_on_exception(self) -> None:
-        """The strict-mode drift/duplicate scenario always raises inside
-        check_routing_drift_vs_live() before it can return (confirmed by reading
-        repl_health.py in full), so it is caught by the blanket except clause and
-        reported as SKIPPED. The `if strict: pipeline.add_fatal(...)` line in
-        _check_services() can never actually fire in practice: drift_result.warning_messages()
-        is only non-empty when the function returns normally, and under strict=True it only
-        returns normally when there is no drift/duplicates (i.e. empty warnings)."""
+        """When discover_all() raises an exception, it is caught by the blanket except clause and
+        reported as SKIPPED."""
         ctx = _make_startup_ctx(tool_definitions_strict=True)
         pipeline, exc = await _run_check_services(
             ctx,
-            check_routing_drift_vs_live=AsyncMock(
+            McpToolDiscoveryService=MagicMock(
                 side_effect=RuntimeError("Strict mode: live routing drift detected.")
             ),
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift_live"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.SKIPPED
 

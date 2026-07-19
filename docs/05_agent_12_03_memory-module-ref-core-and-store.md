@@ -112,7 +112,7 @@ related:
 
 `MemoryStore.__init__` は `embed_dim` を `self._embed_dim` にそのまま保持するのみで、`store.py` 内のいずれのメソッドからも参照されない。デフォルト値は `None` であり、コード上「未指定時に 384 になる」処理は `store.py` には存在しない（旧ドキュメントの記述はコードと不一致 — 修正済み）。
 
-実際には `agent/memory/ingestion.py` の `MemoryIngestionService` が `self._store._embed_dim` を読み取り、`write_ops.write_upsert(..., embed_dim=...)` に渡す。そこで `mapper._floats_to_blob(embedding, expected_dim)` が呼ばれ、`expected_dim` が非 None かつ埋め込みベクトルの長さと不一致の場合に `ValueError` を送出する（次元検証用途）。
+実際には `agent/memory/ingestion.py` の `MemoryIngestionService` が `self._store._embed_dim` を読み取り、`write_ops.write_upsert(..., embed_dim=...)` に渡す。そこで浮動小数点配列変換関数が呼ばれ、`expected_dim` が非 None かつ埋め込みベクトルの長さと不一致の場合に `ValueError` を送出する（次元検証用途）。
 
 384 という既定値は `MemoryStore` 自体にはなく、呼び出し元 `agent/factory.py` が `MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)` として渡す `AgentConfig.memory.memory_embed_dim`（`agent/config_dataclasses.py` で既定値 384、`agent/config_builders.py` で `memory_embed_dim` 設定キーから読み込み）に由来する。（根拠: Explicit in code — `store.py`, `ingestion.py`, `write_ops.py`, `mapper.py`, `factory.py`, `config_dataclasses.py`, `config_builders.py` を確認）
 

@@ -46,7 +46,7 @@ python -m agent   (scripts/agent/__main__.py)
   → User text → LLM (SSE streaming) → tool_calls → MCP → answer
 ```
 
-- プロンプト: `agent/repl.py`の`AgentREPL._prompt`プロパティが返す固定文字列`"> "`(セッションIDは含まない)
+- プロンプト: REPLプロンプティプロパティが返す固定文字列`"> "`(セッションIDは含まない)
 - 行編集: readline (bash互換のキーバインド)
 - 履歴ファイル: `~/.agent_history`
 - 複数行入力: 末尾の`\`で次の行へ継続、`agent/cli_view.py`の`read_multiline()`が表示する固定プロンプト`"... "`で継続入力
