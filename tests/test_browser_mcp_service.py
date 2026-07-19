@@ -16,13 +16,13 @@ import logging
 import httpx
 import pytest
 import respx
-from mcp_servers.browser.models import (
+from mcp_servers.browser.browser_models import (
     BrowserAuthorizationError,
     BrowserConfig,
     BrowserFetchRequest,
     BrowserFetchResponse,
 )
-from mcp_servers.browser.service import BrowserService, build_service
+from mcp_servers.browser.browser_service import BrowserService, build_service
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

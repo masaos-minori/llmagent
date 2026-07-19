@@ -10,7 +10,7 @@ import time
 
 from fastapi import APIRouter, Depends
 
-from mcp_servers.github.models import (
+from mcp_servers.github.github_models import (
     CreateOrUpdateFileRequest,
     CreateOrUpdateFileResponse,
     DeleteRepoFileRequest,

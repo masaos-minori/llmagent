@@ -18,7 +18,7 @@ from mcp_servers.mdq.indexer import (
     generate_chunk_id,
     index_paths,
 )
-from mcp_servers.mdq.models import (
+from mcp_servers.mdq.mdq_models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
@@ -31,7 +31,7 @@ from mcp_servers.mdq.models import (
 )
 from mcp_servers.mdq.parser import parse_markdown
 from mcp_servers.mdq.search import search_docs
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_service import MdqService
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -623,7 +623,7 @@ class TestSearchDocs:
         """A search exceeding search_timeout_sec raises MdqConsistencyError."""
         import time as _time
 
-        from mcp_servers.mdq.models import MdqConsistencyError
+        from mcp_servers.mdq.mdq_models import MdqConsistencyError
 
         f = tmp_path / "slow.md"
         f.write_text("# Title\n\nKeyword content.", encoding="utf-8")
@@ -930,7 +930,7 @@ class TestEnableGrepConfig:
 
     def test_grep_docs_disabled_by_config(self, service: MdqService) -> None:
         """When enable_grep=False, grep_docs raises MdqValidationError."""
-        from mcp_servers.mdq.models import MdqValidationError
+        from mcp_servers.mdq.mdq_models import MdqValidationError
 
         service.enable_grep = False
         with pytest.raises(MdqValidationError, match="disabled by configuration"):

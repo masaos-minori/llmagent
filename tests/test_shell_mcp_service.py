@@ -12,13 +12,13 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp_servers.shell.models import (
+from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
     ShellRunRequest,
     ShellValidationError,
     load_shell_policy,
 )
-from mcp_servers.shell.service import ShellService
+from mcp_servers.shell.shell_service import ShellService
 from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
 from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
 from shared.protocols.shell import ShellPolicy
@@ -312,7 +312,7 @@ class TestOutputTruncation:
 
 class TestLoadShellPolicy:
     def test_builds_policy_from_cfg(self, tmp_path: Path) -> None:
-        from mcp_servers.shell.models import ShellConfig
+        from mcp_servers.shell.shell_models import ShellConfig
 
         fake_cfg = ShellConfig(
             command_allowlist=["pytest", "git"],
@@ -462,7 +462,7 @@ class TestLazyShellService:
     ) -> None:
         import logging
 
-        from mcp_servers.shell.service import build_service
+        from mcp_servers.shell.shell_service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(["echo"]),
@@ -489,7 +489,7 @@ class TestLazyShellService:
     ) -> None:
         import logging
 
-        from mcp_servers.shell.service import build_service
+        from mcp_servers.shell.shell_service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(),  # empty
@@ -558,7 +558,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_formats_success_result(self, tmp_path: Path) -> None:
-        from mcp_servers.shell.models import ShellRunResponse
+        from mcp_servers.shell.shell_models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(
@@ -576,7 +576,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_timed_out_flag(self, tmp_path: Path) -> None:
-        from mcp_servers.shell.models import ShellRunResponse
+        from mcp_servers.shell.shell_models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(
@@ -593,7 +593,7 @@ class TestDryRun:
 
     @pytest.mark.asyncio
     async def test_fmt_run_command_truncated_flag(self, tmp_path: Path) -> None:
-        from mcp_servers.shell.models import ShellRunResponse
+        from mcp_servers.shell.shell_models import ShellRunResponse
 
         svc = _make_service(tmp_path)
         mock_result = ShellRunResponse(

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcp_servers.mdq.service import MdqService
+    from mcp_servers.mdq.mdq_service import MdqService
 
 
 def delete_file_from_index(

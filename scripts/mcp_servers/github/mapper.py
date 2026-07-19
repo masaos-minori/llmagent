@@ -7,7 +7,7 @@ Extracted from service.py to separate conversion responsibility from business lo
 
 from typing import Protocol
 
-from mcp_servers.github.models import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_models import IssueInfo, PullRequestInfo
 
 
 class _LabelProtocol(Protocol):

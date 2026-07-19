@@ -32,7 +32,7 @@ class TestMdqNoUnmappedTools:
             )
 
     def test_mdq_tools_match_server_definition(self) -> None:
-        from mcp_servers.mdq.tools import TOOL_LIST
+        from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
         server_tool_names = {t["name"] for t in TOOL_LIST}
 
@@ -60,7 +60,7 @@ class TestMdqSafetyTiers:
 
     def test_write_tools_contains_expected(self) -> None:
         """_WRITE_TOOLS frozenset should contain only index_paths and refresh_index."""
-        from mcp_servers.mdq.tools import _WRITE_TOOLS
+        from mcp_servers.mdq.mdq_tools import _WRITE_TOOLS
 
         assert _WRITE_TOOLS == frozenset({"index_paths", "refresh_index"}), (
             f"_WRITE_TOOLS should be {{index_paths, refresh_index}}, got {_WRITE_TOOLS}"
@@ -68,7 +68,7 @@ class TestMdqSafetyTiers:
 
     def test_read_only_not_in_write_tools(self) -> None:
         """Read-only tools must not appear in _WRITE_TOOLS."""
-        from mcp_servers.mdq.tools import _WRITE_TOOLS
+        from mcp_servers.mdq.mdq_tools import _WRITE_TOOLS
 
         read_only = {"search_docs", "get_chunk", "outline", "stats", "grep_docs"}
         overlap = read_only & _WRITE_TOOLS
@@ -93,7 +93,7 @@ class TestMdqMCPServerConformance:
     """Verify MdqMCPServer conforms to MCPServer base class contract."""
 
     def test_server_key_class_attribute(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         assert hasattr(MdqMCPServer, "server_key"), (
             "MdqMCPServer missing server_key class attribute"
@@ -103,7 +103,7 @@ class TestMdqMCPServerConformance:
         )
 
     def test_http_host_class_attribute(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         assert hasattr(MdqMCPServer, "http_host"), (
             "MdqMCPServer missing http_host class attribute"
@@ -113,7 +113,7 @@ class TestMdqMCPServerConformance:
         )
 
     def test_list_tools_with_server_key(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         server = MdqMCPServer()
         tools = server.list_tools_with_server_key()
@@ -123,14 +123,14 @@ class TestMdqMCPServerConformance:
             )
 
     def test_dispatch_method_exists(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         server = MdqMCPServer()
         assert hasattr(server, "dispatch"), "MdqMCPServer missing dispatch method"
         assert callable(server.dispatch), "MdqMCPServer.dispatch is not callable"
 
     def test_health_method_returns_standard_shape(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         server = MdqMCPServer()
         health, status_code = server.health()
@@ -145,7 +145,7 @@ class TestMdqMCPServerConformance:
         )
 
     def test_list_tools_returns_tool_names(self) -> None:
-        from mcp_servers.mdq.server import MdqMCPServer
+        from mcp_servers.mdq.mdq_server import MdqMCPServer
 
         server = MdqMCPServer()
         tool_names = server.list_tools()
@@ -160,7 +160,7 @@ class TestMdqV1ToolsEndpoint:
     def test_v1_tools_returns_all_tools(self) -> None:
         """GET /v1/tools should return the tools list."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.server import app
+        from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
         response = client.get("/v1/tools")
@@ -171,7 +171,7 @@ class TestMdqV1ToolsEndpoint:
     def test_v1_tools_names_match_mdq_tools(self) -> None:
         """Tool names in GET /v1/tools must match MDQ_TOOLS."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.server import app
+        from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
         response = client.get("/v1/tools")
@@ -184,7 +184,7 @@ class TestMdqV1ToolsEndpoint:
     def test_v1_tools_includes_server_key(self) -> None:
         """Each tool in GET /v1/tools must include server_key='mdq'."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.server import app
+        from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
         response = client.get("/v1/tools")

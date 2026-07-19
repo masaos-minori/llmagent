@@ -169,7 +169,7 @@ class TestGitCallToolDisabledGate:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_servers.git import server as git_server
-        from mcp_servers.git.models import GitConfig
+        from mcp_servers.git.git_models import GitConfig
 
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=False)
@@ -186,7 +186,7 @@ class TestGitCallToolDisabledGate:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_servers.git import server as git_server
-        from mcp_servers.git.models import GitConfig
+        from mcp_servers.git.git_models import GitConfig
 
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
@@ -204,7 +204,7 @@ class TestGitCallToolDisabledGate:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_servers.git import server as git_server
-        from mcp_servers.git.models import GitConfig
+        from mcp_servers.git.git_models import GitConfig
 
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True)
@@ -222,7 +222,7 @@ class TestGitCallToolDisabledGate:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_servers.git import server as git_server
-        from mcp_servers.git.models import GitConfig
+        from mcp_servers.git.git_models import GitConfig
 
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True)
@@ -238,7 +238,7 @@ class TestGitCallToolDisabledGate:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_servers.git import server as git_server
-        from mcp_servers.git.models import GitConfig
+        from mcp_servers.git.git_models import GitConfig
 
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False)

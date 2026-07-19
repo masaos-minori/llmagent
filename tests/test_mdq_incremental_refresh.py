@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
-from mcp_servers.mdq.models import RefreshIndexRequest
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_models import RefreshIndexRequest
+from mcp_servers.mdq.mdq_service import MdqService
 
 
 @pytest.fixture()

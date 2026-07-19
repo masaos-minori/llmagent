@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 
 from shared.json_utils import dumps as _json_dumps
 
-from mcp_servers.cicd.models import CicdConfig
+from mcp_servers.cicd.cicd_models import CicdConfig
 from mcp_servers.cicd.service_defs import CiBackend
 from mcp_servers.server import ToolArgs
 
@@ -41,7 +41,7 @@ class CiCdService(CiCdGuards):
 
             return GitHubActionsCompositeBackend._split_repo(repo)
         except ValueError as e:
-            from mcp_servers.cicd.models import CicdValidationError  # noqa: PLC0415
+            from mcp_servers.cicd.cicd_models import CicdValidationError  # noqa: PLC0415
 
             raise CicdValidationError(str(e)) from e
 
@@ -54,7 +54,7 @@ class CiCdService(CiCdGuards):
 
     async def handle_trigger_workflow(self, args: ToolArgs) -> str:
         """Trigger a CI/CD workflow run with optional dry-run support."""
-        from mcp_servers.cicd.models import TriggerWorkflowRequest  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_models import TriggerWorkflowRequest  # noqa: PLC0415
 
         req = TriggerWorkflowRequest(**args)
         self._assert_allowed_repo(req.repo)
@@ -77,7 +77,7 @@ class CiCdService(CiCdGuards):
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
         """Retrieve the list of workflow runs for a given workflow."""
-        from mcp_servers.cicd.models import GetWorkflowRunsRequest  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_models import GetWorkflowRunsRequest  # noqa: PLC0415
 
         req = GetWorkflowRunsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
@@ -91,7 +91,7 @@ class CiCdService(CiCdGuards):
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
         """Get the status of a specific workflow run."""
-        from mcp_servers.cicd.models import GetWorkflowStatusRequest  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_models import GetWorkflowStatusRequest  # noqa: PLC0415
 
         req = GetWorkflowStatusRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
@@ -100,7 +100,7 @@ class CiCdService(CiCdGuards):
 
     async def handle_get_workflow_logs(self, args: ToolArgs) -> str:
         """Retrieve the logs for a specific workflow run."""
-        from mcp_servers.cicd.models import GetWorkflowLogsRequest  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_models import GetWorkflowLogsRequest  # noqa: PLC0415
 
         req = GetWorkflowLogsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)

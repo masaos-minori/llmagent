@@ -26,12 +26,14 @@ from shared.tool_registry import (
 )
 
 _IN_SCOPE_SERVERS = [
-    ("mcp_servers.mdq.server", "app", "mdq"),
-    ("mcp_servers.cicd.server", "app", "cicd"),
-    ("mcp_servers.github.server", "app", "github"),
-    ("mcp_servers.git.server", "app", "git"),
-    ("mcp_servers.web_search.server", "app", "web_search"),
-    ("mcp_servers.shell.server", "app", "shell"),
+    ("mcp_servers.mdq.mdq_server", "app", "mdq"),
+    ("mcp_servers.cicd.cicd_server", "app", "cicd"),
+    ("mcp_servers.github.github_server", "app", "github"),
+    ("mcp_servers.git.git_server", "app", "git"),
+    ("mcp_servers.web_search.web_search_server", "app", "web_search"),
+    ("mcp_servers.shell.shell_server", "app", "shell"),
+    ("mcp_servers.browser.browser_server", "app", "browser"),
+    ("mcp_servers.rag_pipeline.rag_pipeline_server", "app", "rag_pipeline"),
     ("mcp_servers.file.read_server", "app", "file_read"),
     ("mcp_servers.file.write_server", "app", "file_write"),
     ("mcp_servers.file.delete_server", "app", "file_delete"),

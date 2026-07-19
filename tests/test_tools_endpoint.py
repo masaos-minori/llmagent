@@ -79,7 +79,7 @@ def test_git_tools_all_disabled_when_allowed_repo_paths_empty(
 ) -> None:
     """All git tools are disabled when allowed_repo_paths is empty."""
     from mcp_servers.git import server as git_server
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
 
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
@@ -98,7 +98,7 @@ def test_git_write_tools_disabled_when_read_only(
 ) -> None:
     """Only write tools are disabled when read_only=true with valid repo paths."""
     from mcp_servers.git import server as git_server
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from shared.tool_constants import GIT_WRITE_TOOLS
 
     monkeypatch.setattr(
@@ -117,7 +117,7 @@ def test_git_tools_all_enabled_when_repo_paths_set_and_not_read_only(
 ) -> None:
     """All git tools are enabled when allowed_repo_paths is set and read_only=false."""
     from mcp_servers.git import server as git_server
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
 
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False)
@@ -136,7 +136,7 @@ def test_enabled_and_disabled_reason_types_across_all_servers(
 ) -> None:
     """Assert type-correctness of enabled/disabled_reason across all four servers' fully-enabled state."""
     from mcp_servers.git import server as git_server
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
 
     # File servers
     for server_mod_path, cfg_cls_name, cfg_mod_path in _FILE_SERVERS:

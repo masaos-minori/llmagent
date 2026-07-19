@@ -65,7 +65,7 @@ def _dispatch_keys(table: Mapping[str, Callable[..., Any]]) -> set[str]:
 
 
 def _mdq_dispatch() -> set[str]:
-    from mcp_servers.mdq.server import _DISPATCH_TABLE
+    from mcp_servers.mdq.mdq_server import _DISPATCH_TABLE
 
     return _dispatch_keys(_DISPATCH_TABLE)
 
@@ -80,14 +80,14 @@ def _web_search_dispatch() -> set[str]:
 
 
 def _git_dispatch() -> set[str]:
-    from mcp_servers.git.service import GitService
+    from mcp_servers.git.git_service import GitService
 
     svc = GitService(allowed_repo_paths=[], read_only=True, max_log_entries=50)
     return _dispatch_keys(svc.get_dispatch_table())
 
 
 def _shell_dispatch(tmp_path: Path) -> set[str]:
-    from mcp_servers.shell.service import ShellService
+    from mcp_servers.shell.shell_service import ShellService
     from shared.protocols.shell import ShellPolicy
 
     policy = ShellPolicy(
@@ -111,8 +111,8 @@ def _shell_dispatch(tmp_path: Path) -> set[str]:
 
 
 def _cicd_dispatch() -> set[str]:
-    from mcp_servers.cicd.models import CicdConfig
-    from mcp_servers.cicd.service import CiCdService
+    from mcp_servers.cicd.cicd_models import CicdConfig
+    from mcp_servers.cicd.cicd_service import CiCdService
 
     cfg = CicdConfig(repo_allowlist=[], workflow_allowlist=[], max_log_size_kb=256)
     svc = CiCdService(cfg=cfg, backend=AsyncMock())
@@ -120,7 +120,7 @@ def _cicd_dispatch() -> set[str]:
 
 
 def _github_dispatch() -> set[str]:
-    from mcp_servers.github.models import GitHubConfig
+    from mcp_servers.github.github_models import GitHubConfig
     from mcp_servers.github.service_dispatch import GitHubService
 
     svc = GitHubService(
@@ -130,7 +130,7 @@ def _github_dispatch() -> set[str]:
 
 
 def _rag_pipeline_dispatch() -> set[str]:
-    from mcp_servers.rag_pipeline.service import RagPipelineMCPService
+    from mcp_servers.rag_pipeline.rag_pipeline_service import RagPipelineMCPService
 
     svc = RagPipelineMCPService()
     return _dispatch_keys(svc.get_dispatch_table())
@@ -168,7 +168,7 @@ def _file_delete_dispatch(tmp_path: Path) -> set[str]:
 
 
 def _mdq_schema() -> list[dict[str, Any]]:
-    from mcp_servers.mdq.tools import TOOL_LIST
+    from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
     # TOOL_LIST is typed as list[MCPToolSchema] (a TypedDict); cast to the
     # common dict[str, Any] shape used by every other server's TOOL_LIST.
@@ -176,37 +176,37 @@ def _mdq_schema() -> list[dict[str, Any]]:
 
 
 def _web_search_schema() -> list[dict[str, Any]]:
-    from mcp_servers.web_search.tools import TOOL_LIST
+    from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 
 
 def _git_schema() -> list[dict[str, Any]]:
-    from mcp_servers.git.tools import TOOL_LIST
+    from mcp_servers.git.git_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 
 
 def _shell_schema() -> list[dict[str, Any]]:
-    from mcp_servers.shell.tools import TOOL_LIST
+    from mcp_servers.shell.shell_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 
 
 def _cicd_schema() -> list[dict[str, Any]]:
-    from mcp_servers.cicd.tools import TOOL_LIST
+    from mcp_servers.cicd.cicd_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 
 
 def _github_schema() -> list[dict[str, Any]]:
-    from mcp_servers.github.tools import TOOL_LIST
+    from mcp_servers.github.github_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 
 
 def _rag_pipeline_schema() -> list[dict[str, Any]]:
-    from mcp_servers.rag_pipeline.tools import TOOL_LIST
+    from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
 
     return list(TOOL_LIST)
 

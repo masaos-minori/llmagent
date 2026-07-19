@@ -39,10 +39,10 @@ from typing import TYPE_CHECKING
 
 import yaml
 
-from mcp_servers.mdq.models import ParsedSection, ParseMarkdownRequest
+from mcp_servers.mdq.mdq_models import ParsedSection, ParseMarkdownRequest
 
 if TYPE_CHECKING:
-    from mcp_servers.mdq.service import MdqService
+    from mcp_servers.mdq.mdq_service import MdqService
 
 logger = logging.getLogger(__name__)
 

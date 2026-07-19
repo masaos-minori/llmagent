@@ -18,7 +18,7 @@ from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
-from mcp_servers.mdq.models import (
+from mcp_servers.mdq.mdq_models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     ParseMarkdownRequest,
@@ -27,7 +27,7 @@ from mcp_servers.mdq.models import (
 from mcp_servers.mdq.parser import parse_markdown
 
 if TYPE_CHECKING:
-    from mcp_servers.mdq.service import MdqService
+    from mcp_servers.mdq.mdq_service import MdqService
 
 logger = logging.getLogger(__name__)
 

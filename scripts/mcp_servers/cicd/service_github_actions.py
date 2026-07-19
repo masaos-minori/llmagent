@@ -18,7 +18,7 @@ import orjson
 from shared.json_utils import dumps as _json_dumps
 from shared.json_utils import parse_http_json
 
-from mcp_servers.cicd.models import (
+from mcp_servers.cicd.cicd_models import (
     CicdAuthorizationError,
     CicdNotFoundError,
     CicdValidationError,

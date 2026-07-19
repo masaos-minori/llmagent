@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from mcp_servers.cicd.models import CicdAuthorizationError
+from mcp_servers.cicd.cicd_models import CicdAuthorizationError
 from mcp_servers.cicd.service_defs import CiBackend
 
 logger = logging.getLogger(__name__)

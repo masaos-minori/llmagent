@@ -11,7 +11,7 @@ import logging
 import sqlite3
 from typing import TYPE_CHECKING
 
-from mcp_servers.mdq.models import (
+from mcp_servers.mdq.mdq_models import (
     MdqConsistencyError,
     SearchDocsRequest,
     SearchResultItem,
@@ -19,7 +19,7 @@ from mcp_servers.mdq.models import (
 )
 
 if TYPE_CHECKING:
-    from mcp_servers.mdq.service import MdqService
+    from mcp_servers.mdq.mdq_service import MdqService
 
 logger = logging.getLogger(__name__)
 

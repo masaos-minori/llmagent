@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi.responses import JSONResponse
 
-from mcp_servers.cicd.models import (
+from mcp_servers.cicd.cicd_models import (
     CicdAuthorizationError,
     CicdNotFoundError,
     CicdUpstreamError,

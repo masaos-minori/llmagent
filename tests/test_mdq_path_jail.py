@@ -14,13 +14,13 @@ from tempfile import mkstemp
 
 import pytest
 from mcp_servers.mdq.indexer import index_paths
-from mcp_servers.mdq.models import (
+from mcp_servers.mdq.mdq_models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     OutlineRequest,
     RefreshIndexRequest,
 )
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_service import MdqService
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 

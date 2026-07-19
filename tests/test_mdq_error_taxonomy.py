@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 from mcp_servers.mdq.indexer import index_paths
-from mcp_servers.mdq.models import (
+from mcp_servers.mdq.mdq_models import (
     GrepDocsRequest,
     IndexPathsRequest,
     MdqAuthorizationError,
@@ -18,7 +18,7 @@ from mcp_servers.mdq.models import (
     MdqServiceError,
     MdqValidationError,
 )
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_service import MdqService
 
 
 @pytest.fixture()
@@ -54,7 +54,7 @@ class TestValidationError:
     def test_grep_docs_invalid_regex_raises_validation_error(
         self, service: MdqService
     ) -> None:
-        from mcp_servers.mdq.models import GrepDocsRequest
+        from mcp_servers.mdq.mdq_models import GrepDocsRequest
 
         req = GrepDocsRequest(pattern="[invalid")
         with pytest.raises(MdqValidationError):
@@ -67,7 +67,7 @@ class TestAuthorizationError:
     def test_outline_unauthorized_path_raises_authorization_error(
         self, service: MdqService
     ) -> None:
-        from mcp_servers.mdq.models import OutlineRequest
+        from mcp_servers.mdq.mdq_models import OutlineRequest
 
         req = OutlineRequest(path="/etc/passwd")
         with pytest.raises(MdqAuthorizationError):
@@ -80,7 +80,7 @@ class TestNotFoundError:
     def test_get_chunk_not_found_raises_not_found_error(
         self, service: MdqService
     ) -> None:
-        from mcp_servers.mdq.models import GetChunkRequest
+        from mcp_servers.mdq.mdq_models import GetChunkRequest
 
         req = GetChunkRequest(chunk_id="nonexistent")
         with pytest.raises(MdqNotFoundError):
@@ -89,7 +89,7 @@ class TestNotFoundError:
     def test_outline_file_not_found_raises_not_found_error(
         self, service: MdqService
     ) -> None:
-        from mcp_servers.mdq.models import OutlineRequest
+        from mcp_servers.mdq.mdq_models import OutlineRequest
 
         req = OutlineRequest(path="/nonexistent/file.md")
         with pytest.raises(MdqNotFoundError):
@@ -115,7 +115,7 @@ class TestConsistencyError:
     def test_fts_search_raises_consistency_error_on_corrupt_index(
         self, service: MdqService, tmp_path: Path
     ) -> None:
-        from mcp_servers.mdq.models import SearchDocsRequest
+        from mcp_servers.mdq.mdq_models import SearchDocsRequest
 
         # Create a valid index first
         md_file = tmp_path / "test_consistency.md"
@@ -146,7 +146,7 @@ class TestCallToolDomainExceptionHandling:
         from unittest.mock import AsyncMock, patch
 
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.server import app
+        from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
         with patch(
@@ -169,8 +169,8 @@ class TestCallToolDomainExceptionHandling:
         from unittest.mock import AsyncMock, patch
 
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.models import MdqNotFoundError
-        from mcp_servers.mdq.server import app
+        from mcp_servers.mdq.mdq_models import MdqNotFoundError
+        from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
         with patch(

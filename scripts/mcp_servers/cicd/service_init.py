@@ -13,7 +13,7 @@ import os
 
 import httpx
 
-from mcp_servers.cicd.models import CicdConfig
+from mcp_servers.cicd.cicd_models import CicdConfig
 
 from .service_business import CiCdService
 from .service_defs import CiBackend

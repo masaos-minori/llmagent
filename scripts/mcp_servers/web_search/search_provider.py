@@ -13,7 +13,7 @@ import asyncio
 
 from duckduckgo_search import DDGS
 
-from mcp_servers.web_search.models import (
+from mcp_servers.web_search.web_search_models import (
     SearchResult,
     WebSearchUpstreamError,
 )

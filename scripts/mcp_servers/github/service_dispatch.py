@@ -17,7 +17,7 @@ from collections.abc import Awaitable, Callable
 from shared.formatters import fmt_md_link
 from shared.json_utils import dumps as _json_dumps
 
-from mcp_servers.github.models import (
+from mcp_servers.github.github_models import (
     AddIssueCommentRequest,
     CreateBranchRequest,
     CreateIssueRequest,

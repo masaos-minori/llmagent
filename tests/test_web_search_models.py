@@ -8,7 +8,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
-from mcp_servers.web_search.models import (
+from mcp_servers.web_search.web_search_models import (
     DEFAULT_MAX_RESULTS,
     MAX_RESULTS_LIMIT,
     SearchRequest,
@@ -93,7 +93,7 @@ class TestSearchRequestBoundsWiredToConfig:
     def test_bounds_reflect_monkeypatched_config(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import mcp_servers.web_search.models as models_mod
+        import mcp_servers.web_search.web_search_models as models_mod
         from shared.config_loader import ConfigLoader
 
         monkeypatch.setattr(

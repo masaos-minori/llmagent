@@ -15,7 +15,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from mcp_servers.github.models import (
+from mcp_servers.github.github_models import (
     DeleteRepoFileRequest,
     GitHubAuditError,
     GitHubAuthorizationError,
@@ -220,7 +220,7 @@ async def test_create_or_update_file_denies_path_in_denylist() -> None:
         "path_denylist": [".github/**"],
         "max_file_size_kb": 0,
     }
-    from mcp_servers.github.models import CreateOrUpdateFileRequest
+    from mcp_servers.github.github_models import CreateOrUpdateFileRequest
 
     req = CreateOrUpdateFileRequest(
         owner="a",
@@ -242,7 +242,7 @@ async def test_create_or_update_file_denies_oversized_content() -> None:
         "path_denylist": [],
         "max_file_size_kb": 1,
     }
-    from mcp_servers.github.models import CreateOrUpdateFileRequest
+    from mcp_servers.github.github_models import CreateOrUpdateFileRequest
 
     req = CreateOrUpdateFileRequest(
         owner="a",
@@ -369,7 +369,7 @@ async def test_create_or_update_file_empty_branch_protected_raises() -> None:
         "path_denylist": [],
         "max_file_size_kb": 0,
     }
-    from mcp_servers.github.models import CreateOrUpdateFileRequest
+    from mcp_servers.github.github_models import CreateOrUpdateFileRequest
 
     req = CreateOrUpdateFileRequest(
         owner="a",
@@ -833,7 +833,7 @@ class TestGitHubDomainExceptions:
 
     def test_github_api_409_raises_conflict_error(self) -> None:
         from github import GithubException
-        from mcp_servers.github.models import GitHubConflictError
+        from mcp_servers.github.github_models import GitHubConflictError
 
         exc = GithubException(409, {"message": "Conflict"}, {})
         with pytest.raises(GitHubConflictError):
@@ -841,7 +841,7 @@ class TestGitHubDomainExceptions:
 
     def test_github_api_500_raises_upstream_error(self) -> None:
         from github import GithubException
-        from mcp_servers.github.models import GitHubUpstreamError
+        from mcp_servers.github.github_models import GitHubUpstreamError
 
         exc = GithubException(500, {"message": "Server Error"}, {})
         with pytest.raises(GitHubUpstreamError, match="status=500"):
@@ -854,7 +854,7 @@ class TestGitHubDomainExceptions:
             svc._write_github_audit_log("test_op", key="value")
 
     def test_github_config_from_dict(self) -> None:
-        from mcp_servers.github.models import GitHubConfig
+        from mcp_servers.github.github_models import GitHubConfig
 
         cfg = GitHubConfig.from_dict(
             {
@@ -867,7 +867,7 @@ class TestGitHubDomainExceptions:
         assert cfg.protected_branches == []
 
     def test_github_config_defaults(self) -> None:
-        from mcp_servers.github.models import GitHubConfig
+        from mcp_servers.github.github_models import GitHubConfig
 
         cfg = GitHubConfig.from_dict({})
         assert cfg.allowed_repos == []

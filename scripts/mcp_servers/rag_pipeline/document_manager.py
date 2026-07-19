@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from db.helper import SQLiteHelper
 
-from mcp_servers.rag_pipeline.models import (
+from mcp_servers.rag_pipeline.rag_pipeline_models import (
     DocumentItem,
 )
 

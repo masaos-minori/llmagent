@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import git
 
-from mcp_servers.git.models import (
+from mcp_servers.git.git_models import (
     GitAddRequest,
     GitCheckoutRequest,
     GitCommitRequest,
@@ -106,7 +106,7 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
     if req.dry_run:
         return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
     if not staged:
-        from mcp_servers.git.models import GitServiceError
+        from mcp_servers.git.git_models import GitServiceError
 
         raise GitServiceError("nothing staged to commit")
     commit = repo.index.commit(req.message)

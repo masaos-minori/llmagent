@@ -15,7 +15,7 @@ from typing import Any, cast
 from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 from mcp_servers.dispatch import DispatchResult, dispatch_tool
-from mcp_servers.web_search.models import (
+from mcp_servers.web_search.web_search_models import (
     SearchRequest,
     SearchResponse,
     SearchResult,
@@ -50,7 +50,7 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
     )
 
     if not results:
-        from mcp_servers.web_search.models import WebSearchUpstreamError
+        from mcp_servers.web_search.web_search_models import WebSearchUpstreamError
 
         raise WebSearchUpstreamError("No results returned from DuckDuckGo")
 

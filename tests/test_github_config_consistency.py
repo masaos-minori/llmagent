@@ -103,7 +103,7 @@ class TestGitHubConfigConsistency:
 
     def test_github_tool_names_match_tool_list(self) -> None:
         """tool_names in [mcp_servers.github] (agent.toml) match TOOL_LIST exactly."""
-        from mcp_servers.github.tools import TOOL_LIST
+        from mcp_servers.github.github_tools import TOOL_LIST
 
         tool_list_names = {tool["name"] for tool in TOOL_LIST}
 

@@ -28,11 +28,11 @@ _PYTHON = sys.executable
 
 # (module_path, expected_tool_names, fixed_port) — each server always binds its own
 # hardcoded http_port (none of these servers parse --host/--port CLI args), so the
-# port here must match scripts/mcp_servers/<name>/server.py's http_port class attribute.
+# port here must match scripts/mcp_servers/<name>/<name>_server.py's http_port class attribute.
 _MCP_SERVERS: list[tuple[str, list[str], int]] = [
-    ("mcp_servers.shell.server", ["shell_run"], 8009),
+    ("mcp_servers.shell.shell_server", ["shell_run"], 8009),
     (
-        "mcp_servers.cicd.server",
+        "mcp_servers.cicd.cicd_server",
         [
             "trigger_workflow",
             "get_workflow_runs",
@@ -42,7 +42,7 @@ _MCP_SERVERS: list[tuple[str, list[str], int]] = [
         8012,
     ),
     (
-        "mcp_servers.mdq.server",
+        "mcp_servers.mdq.mdq_server",
         [
             "search_docs",
             "get_chunk",

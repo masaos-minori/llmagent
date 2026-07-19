@@ -11,8 +11,8 @@ from pathlib import Path
 from tempfile import mkstemp
 
 import pytest
-from mcp_servers.mdq.models import RefreshIndexRequest
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_models import RefreshIndexRequest
+from mcp_servers.mdq.mdq_service import MdqService
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_concurrent_refresh_calls_are_serialized(
     # _index_lock (the call into _refresh_paths), and force a scheduling
     # yield there — if the lock did not serialize the two calls, the second
     # call's "start" would be recorded before the first call's "end".
-    import mcp_servers.mdq.service as service_module
+    import mcp_servers.mdq.mdq_service as service_module
 
     original_refresh_paths = service_module._refresh_paths
 

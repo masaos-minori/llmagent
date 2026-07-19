@@ -13,9 +13,9 @@ from tempfile import mkstemp
 
 import pytest
 from mcp_servers.mdq.indexer import index_paths
-from mcp_servers.mdq.models import IndexPathsRequest, SearchDocsRequest
+from mcp_servers.mdq.mdq_models import IndexPathsRequest, SearchDocsRequest
 from mcp_servers.mdq.search import search_docs
-from mcp_servers.mdq.service import MdqService
+from mcp_servers.mdq.mdq_service import MdqService
 from pydantic import ValidationError
 
 

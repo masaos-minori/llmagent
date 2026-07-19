@@ -17,7 +17,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_web_search_health_returns_200_when_healthy(self) -> None:
         """web-search-mcp has no dependency checks — always healthy."""
-        from mcp_servers.web_search.server import app  # noqa: PLC0415
+        from mcp_servers.web_search.web_search_server import app  # noqa: PLC0415
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -32,7 +32,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_git_health_returns_503_when_git_not_in_path(self) -> None:
         """git-mcp returns 503 when git is not found in PATH."""
-        from mcp_servers.git.server import app as git_app  # noqa: PLC0415
+        from mcp_servers.git.git_server import app as git_app  # noqa: PLC0415
 
         client = TestClient(git_app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -55,7 +55,7 @@ class TestHealthHTTPStatusCodes:
         """cicd-mcp returns 503 when GITHUB_TOKEN is not set."""
         import os  # noqa: PLC0415
 
-        from mcp_servers.cicd.server import app as cicd_app  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_server import app as cicd_app  # noqa: PLC0415
 
         # Save original value and remove GITHUB_TOKEN if present
         original_token = os.environ.get("GITHUB_TOKEN")
@@ -76,7 +76,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_health_response_shape_when_healthy(self) -> None:
         """Verify the full response shape for a healthy server."""
-        from mcp_servers.web_search.server import app  # noqa: PLC0415
+        from mcp_servers.web_search.web_search_server import app  # noqa: PLC0415
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -97,7 +97,7 @@ class TestHealthHTTPStatusCodes:
         """Verify the full response shape for a degraded server."""
         import os  # noqa: PLC0415
 
-        from mcp_servers.cicd.server import app as cicd_app  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_server import app as cicd_app  # noqa: PLC0415
 
         original_token = os.environ.get("GITHUB_TOKEN")
         try:
@@ -223,7 +223,7 @@ class TestRagPipelineServerHealth:
 
     def test_degraded_when_embed_url_not_configured(self) -> None:
         """rag-pipeline-mcp returns 503 when embed_url is absent from config."""
-        from mcp_servers.rag_pipeline.server import app as rag_app  # noqa: PLC0415
+        from mcp_servers.rag_pipeline.rag_pipeline_server import app as rag_app  # noqa: PLC0415
 
         cfg: dict = {}
         with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):
@@ -239,7 +239,7 @@ class TestRagPipelineServerHealth:
 
     def test_ok_when_embed_url_configured(self) -> None:
         """rag-pipeline-mcp returns 200 when embed_url is present in config."""
-        from mcp_servers.rag_pipeline.server import app as rag_app  # noqa: PLC0415
+        from mcp_servers.rag_pipeline.rag_pipeline_server import app as rag_app  # noqa: PLC0415
 
         cfg = {"embed_url": "http://localhost:11434/api/embeddings"}
         with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):

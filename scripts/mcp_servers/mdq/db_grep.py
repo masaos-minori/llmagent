@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import sqlite3
 
-from mcp_servers.mdq.models import GrepDocMatch
+from mcp_servers.mdq.mdq_models import GrepDocMatch
 
 
 def find_grep_match(
