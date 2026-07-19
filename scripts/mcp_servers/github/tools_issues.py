@@ -26,7 +26,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_get_issue",
@@ -43,7 +43,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "issue_number"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_create_issue",
@@ -74,7 +74,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "title"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_search_issues",
@@ -97,7 +97,7 @@ TOOL_LIST: list[dict] = [
             "required": ["query"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_add_issue_comment",
@@ -119,6 +119,6 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "issue_number", "body"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

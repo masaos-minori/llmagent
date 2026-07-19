@@ -19,7 +19,10 @@ from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer
+from mcp_servers.server import (
+    MCPServer,
+    build_tools_response,
+)
 from mcp_servers.web_search.formatters import dispatch_web_tool
 from mcp_servers.web_search.models import (
     WebSearchConfig,
@@ -76,9 +79,7 @@ async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
-    return {
-        "tools": [{**t, "server_key": "web_search"} for t in TOOL_LIST],
-    }
+    return build_tools_response(TOOL_LIST, "web_search")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -124,4 +125,4 @@ class WebSearchMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = WebSearchMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

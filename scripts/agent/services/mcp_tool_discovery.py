@@ -7,8 +7,11 @@ This service fetches every HTTP-transport MCP server's `/v1/tools` endpoint,
 validates each entry's shape (richer than `repl_health.py`'s existing
 name-only check), normalizes valid entries into `shared.runtime_tool.RuntimeTool`
 instances via `build_runtime_tool()`, detects cross-server duplicate tool
-names, and returns a built `shared.runtime_tool_registry.RuntimeToolRegistry`
-plus a list of findings the startup pipeline can report.
+names, validates live tool lists against the static `ToolRegistry` for drift,
+absorbs `_check_tool_definitions` startup validation, and reads optional
+`schema_version`/`capabilities` keys on the response body and per-tool entries.
+Returns a built `shared.runtime_tool_registry.RuntimeToolRegistry` plus a list
+of findings the startup pipeline can report.
 
 This is an independent HTTP round-trip from `repl_health.py`'s existing
 drift-check fetch (`_collect_server_tool_names_per_server()`) — the two are
@@ -25,23 +28,33 @@ the safer of the two options considered (the alternative, first-wins-with-a-
 warning, risks silently routing calls to an arbitrary server). The only
 difference between profiles is the finding's severity: `FATAL` in
 `SecurityProfile.PRODUCTION`, `WARNING` in `SecurityProfile.LOCAL`.
+
+Unified severity scheme: `is_fatal = strict or (security_profile == PRODUCTION)`
+— applies to all findings emitted by this service (duplicates, drift,
+tool-definitions, malformed-capabilities). This replaces the old two-mechanism
+split (exception-based `strict` raising + profile-based FATAL/WARNING).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from http import HTTPStatus
+from logging import getLogger
 from typing import TYPE_CHECKING
 
 import httpx
 from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.tool_routing_validation import validate_routing_against_live
 
+from agent.repl_health import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+
+logger = getLogger(__name__)
 
 _SOURCE = "mcp_tool_discovery"
 
@@ -80,10 +93,16 @@ class McpToolDiscoveryService:
             if is_unreachable:
                 unreachable.append(key)
             entries.extend(fetched)
-        registry, dup_findings = self._dedupe_and_build(entries)
+        registry, dedup_findings = self._dedupe_and_build(entries)
+        findings.extend(dedup_findings)
+        drift_findings = self._build_drift_findings(entries)
+        findings.extend(drift_findings)
+        tool_defs_finding = await self._check_tool_definitions_finding()
+        if tool_defs_finding is not None:
+            findings.append(tool_defs_finding)
         return DiscoveryResult(
             registry=registry,
-            findings=[*findings, *dup_findings],
+            findings=findings,
             unreachable=unreachable,
         )
 
@@ -154,6 +173,14 @@ class McpToolDiscoveryService:
                 True,
             )
 
+        schema_version = body.get("schema_version")
+        if schema_version is not None:
+            logger.debug(
+                "mcp_tool_discovery: server_key=%s schema_version=%s",
+                key,
+                schema_version,
+            )
+
         tools = body.get("tools")
         if not isinstance(tools, list):
             msg = f"{key}: /v1/tools 'tools' field must be a list (got {type(tools).__name__})"
@@ -188,8 +215,8 @@ class McpToolDiscoveryService:
         Rules: entry is a dict; `name` is a non-empty string; `description`
         is present and is a str (empty string allowed); `inputSchema` or
         `input_schema` is a dict; optional `status`/`is_write`/
-        `requires_serial`/`resource_scope` are type-checked only if present.
-        Schema errors are per-tool WARNING findings, not FATAL.
+        `requires_serial`/`resource_scope`/`capabilities` are type-checked
+        only if present. Schema errors are per-tool WARNING findings, not FATAL.
         """
         if not isinstance(entry, dict):
             msg = f"{server_key}: /v1/tools tool entry is not an object (got {type(entry).__name__})"
@@ -235,6 +262,16 @@ class McpToolDiscoveryService:
                     source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
                 )
 
+        capabilities = entry.get("capabilities")
+        if capabilities is not None and not isinstance(capabilities, list):
+            msg = (
+                f"{server_key}: tool {name!r} on server {server_key!r}: "
+                "capabilities must be a list"
+            )
+            return None, StartupCheckOutcome(
+                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+            )
+
         return entry, None
 
     def _dedupe_and_build(
@@ -245,23 +282,22 @@ class McpToolDiscoveryService:
         Names reported by exactly one server become a RuntimeTool. Names
         reported by more than one distinct server are excluded from the
         registry entirely (per this module's docstring), each producing one
-        finding whose severity is FATAL in production, WARNING in local.
+        finding whose severity follows the unified scheme:
+        `is_fatal = strict or (security_profile == PRODUCTION)`.
         """
         by_name: dict[str, list[_RawEntry]] = {}
         for server_key, server_url, entry in entries:
             name = str(entry["name"])
             by_name.setdefault(name, []).append((server_key, server_url, entry))
 
-        is_production = self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
+        is_fatal = self._is_fatal_severity()
         findings: list[StartupCheckOutcome] = []
         built: dict[str, RuntimeTool] = {}
         for name, group in by_name.items():
             server_keys = sorted({server_key for server_key, _, _ in group})
             if len(server_keys) > 1:
                 status = (
-                    StartupCheckStatus.FATAL
-                    if is_production
-                    else StartupCheckStatus.WARNING
+                    StartupCheckStatus.FATAL if is_fatal else StartupCheckStatus.WARNING
                 )
                 msg = (
                     f"duplicate tool name {name!r} reported by multiple servers: "
@@ -282,5 +318,80 @@ class McpToolDiscoveryService:
                 status=str(entry.get("status", "active")),
                 is_write=entry.get("is_write"),  # type: ignore[arg-type]
                 requires_serial=entry.get("requires_serial"),  # type: ignore[arg-type]
+                capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
             )
         return RuntimeToolRegistry(tools=built), findings
+
+    def _is_strict(self) -> bool:
+        """Return True when strict mode is enabled."""
+        return bool(getattr(self._ctx.cfg.tool, "tool_definitions_strict", False))
+
+    def _is_fatal_severity(self) -> bool:
+        """Return True when findings should be FATAL per the unified severity scheme.
+
+        `is_fatal = strict or (security_profile == PRODUCTION)` — applies to all
+        findings emitted by this service (duplicates, drift, tool-definitions,
+        malformed-capabilities).
+        """
+        return self._is_strict() or (
+            self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
+        )
+
+    def _build_drift_findings(
+        self, entries: list[_RawEntry]
+    ) -> list[StartupCheckOutcome]:
+        """Build drift findings by comparing live tool lists against the static ToolRegistry.
+
+        Reuses `discover_all()`'s already-fetched `(server_key, server_url, entry)` tuples
+        to build `{server_key: [tool_name, ...]}` shape without a second fetch.
+        """
+        per_server: dict[str, list[str]] = {}
+        for server_key, _url, entry in entries:
+            per_server.setdefault(server_key, []).append(str(entry["name"]))
+        drift = validate_routing_against_live(live_tool_lists=per_server)
+        if not drift:
+            return []
+        status = (
+            StartupCheckStatus.FATAL
+            if self._is_fatal_severity()
+            else StartupCheckStatus.WARNING
+        )
+        return [
+            StartupCheckOutcome(
+                source=_SOURCE,
+                status=status,
+                message=f"Live routing drift [{sk}]: {msgs}",
+            )
+            for sk, msgs in drift.items()
+        ]
+
+    async def _check_tool_definitions_finding(self) -> StartupCheckOutcome | None:
+        """Wrap `_check_tool_definitions` to surface failures as data, not exceptions.
+
+        Converts any RuntimeError raised by the helper into a
+        StartupCheckOutcome with the unified severity instead of letting it
+        propagate — this resolves the old quirk where strict-mode drift
+        detection was silently downgraded to "skipped" by an unrelated
+        exception handler.
+        """
+        try:
+            result = await _check_tool_definitions(self._ctx, strict=self._is_strict())
+            if result.has_issues:
+                status = (
+                    StartupCheckStatus.FATAL
+                    if self._is_fatal_severity()
+                    else StartupCheckStatus.WARNING
+                )
+                return StartupCheckOutcome(
+                    source=_SOURCE,
+                    status=status,
+                    message="; ".join(result.warning_messages()),
+                )
+            return None
+        except RuntimeError as exc:
+            status = (
+                StartupCheckStatus.FATAL
+                if self._is_fatal_severity()
+                else StartupCheckStatus.WARNING
+            )
+            return StartupCheckOutcome(source=_SOURCE, status=status, message=str(exc))

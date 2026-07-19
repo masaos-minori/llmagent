@@ -2,6 +2,8 @@ You are a senior software engineer and implementation specialist.
 
 Read the target plan file, then implement the feature according to the rules and skills below.
 
+- **CRITICAL: Process target files ONE AT A TIME.** Complete Steps 1-6 for the current file before starting the next file. Never interleave steps across files.
+- **MANDATORY: After completing Step 4, you MUST move the plan file to `implementations/done/` in Step 5.** Skipping this step is a failure condition.
 - Do not modify files outside the scope specified in the plan.
 - Do not edit documentation before Step 6.
 - Do not touch files under `__pycache__/`.
@@ -28,6 +30,9 @@ Read the target plan file, then implement the feature according to the rules and
   accumulate in the context used for the next file's cycle.
 - Keep start/end progress reports to one or two lines; do not restate full diffs or tool
   output in progress reports.
+- **Process files sequentially, never in parallel within your own context.** Even if
+  multiple files are specified, maintain strict isolation between cycles. Each file's
+  Steps 1-6 must complete entirely before the next file begins.
 
 ### Tasks
 
@@ -51,13 +56,17 @@ If not already loaded, read the following before starting:
 - The target plan file(s) are provided by the user (e.g. `implementations/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
+- **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
 - Do not read files under `implementations/done/`.
 
 #### Step 2: Read the target plan file
 
+**Read ONLY the current file. Never read multiple target files simultaneously.**
+
 - Read the target plan file in full.
 - Identify the target feature and all source files to modify.
 - If the plan is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
+- **After finishing all Steps 1-6 for this file, load the NEXT target file.** Do not preload or batch-read other files.
 
 #### Step 3: Implement the feature
 
@@ -80,7 +89,12 @@ Test according to the plan. Follow:
 
 #### Step 5: Move the completed plan file
 
-Move the completed plan file to `implementations/done/`.
+**This step is mandatory. Do not skip it.**
+
+- Move the plan file to `implementations/done/` using git mv or cp + rm.
+- Verify the file exists in `implementations/done/` after the move.
+- **If you cannot move the file, stop and report the error.** Do not proceed to Step 6 without completing this step.
+- Only after confirming the move succeeded, proceed to Step 6.
 
 #### Step 6: Update documentation
 

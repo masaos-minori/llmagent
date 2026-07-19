@@ -46,6 +46,7 @@ from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
     MCPServer,
     attach_auth_middleware,
+    build_tools_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,10 +81,8 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
-    """List available CI/CD tools with server_key="cicd"."""
-    return {
-        "tools": [{**t, "server_key": "cicd"} for t in TOOL_LIST],
-    }
+    """List available CI/CD tools with schema_version and server_key="cicd"."""
+    return build_tools_response(TOOL_LIST, "cicd")
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
@@ -146,4 +145,4 @@ class CiCdMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = CiCdMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

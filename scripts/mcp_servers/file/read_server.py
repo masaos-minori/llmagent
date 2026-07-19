@@ -36,6 +36,7 @@ from mcp_servers.file.common import (
     _on_auth_error,
     _on_not_found,
     _on_validation_error,
+    availability_flags,
 )
 from mcp_servers.file.read_models import (
     DirectoryTreeRequest,
@@ -59,7 +60,11 @@ from mcp_servers.file.read_models import (
 from mcp_servers.file.read_service import ReadFileService, build_service
 from mcp_servers.file.read_tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs
+from mcp_servers.server import (
+    MCP_TOOL_SCHEMA_VERSION,
+    MCPServer,
+    ToolArgs,
+)
 
 logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
 
@@ -245,15 +250,34 @@ async def _dispatch_read_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
-    """Return the MCP tool list with server_key appended."""
+    """Return the MCP tool list with schema_version and server_key appended."""
+    enabled, disabled_reason = availability_flags(_cfg.allowed_dirs)
+    tools_with_availability = []
+    for t in TOOL_LIST:
+        tool_dict = {
+            **t,
+            "server_key": "file_read",
+            "enabled": enabled,
+            "disabled_reason": disabled_reason,
+        }
+        tools_with_availability.append(tool_dict)
     return {
-        "tools": [{**t, "server_key": "file_read"} for t in TOOL_LIST],
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": tools_with_availability,
     }
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
+    if not _cfg.allowed_dirs:
+        return CallToolResponse(
+            result="Tool disabled: allowed_dirs is empty", is_error=True
+        )
+    try:
+        req.validate_args()
+    except ValueError as e:
+        return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     r = await _dispatch_read_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -280,4 +304,4 @@ class FileReadMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = FileReadMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

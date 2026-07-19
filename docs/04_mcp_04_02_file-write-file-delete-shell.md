@@ -25,7 +25,9 @@ related:
 
 **ツール:** `write_file`, `edit_file`, `create_directory`, `move_file`
 
-全ツールとも config を必要としない（`requires_config: false`）。
+全ツールとも config を必要としない（`config_dependent: false`）。
+
+これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
 
 **設定フィールド:** `allowed_dirs`, `max_write_bytes`（デフォルト: 1,000,000）
 
@@ -57,7 +59,9 @@ related:
 
 **ツール:** `delete_file`, `delete_directory`
 
-全ツールとも config を必要としない（`requires_config: false`）。
+全ツールとも config を必要としない（`config_dependent: false`）。
+
+これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
 
 **設定フィールド:** `allowed_dirs`, `audit_log_path`
 

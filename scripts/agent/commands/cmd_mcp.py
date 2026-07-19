@@ -66,6 +66,37 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
     return "\n".join(lines)
 
 
+def _format_tool_diagnostics_table(rows: list[dict[str, object]]) -> str:
+    """Format per-tool diagnostics rows as a fixed-width table string."""
+    col = "{:<28} {:<14} {:<10} {:<8} {:<16} {:<9}"
+    lines = [
+        col.format(
+            "NAME",
+            "SERVER",
+            "CONFIG_DEP",
+            "ENABLED",
+            "DISABLED_REASON",
+            "LLM_VISIBLE",
+        ),
+        "-" * 85,
+    ]
+    for row in rows:
+        name_display = row.get("name", "-")
+        marker = "[DISABLED] " if not row.get("enabled", True) else ""
+        name_with_marker = f"{marker}{name_display}"
+        lines.append(
+            col.format(
+                name_with_marker,
+                row.get("server_key", "-"),
+                str(row.get("config_dependent", "-")),
+                str(row.get("enabled", "-")),
+                row.get("disabled_reason", "-") or "-",
+                str(row.get("enabled_for_llm", "-")),
+            )
+        )
+    return "\n".join(lines)
+
+
 class _McpMixin(MixinBase):
     """MCP server management slash-command handlers."""
 
@@ -149,6 +180,13 @@ class _McpMixin(MixinBase):
                 top_triggers = sorted(trigger_counts.items(), key=lambda x: -x[1])[:5]
                 trigger_str = ", ".join(f"{k} ({v})" for k, v in top_triggers)
                 self._out.write(f"    Top triggers: {trigger_str}")
+        tool_registry = ctx.services_required.runtime_tools
+        if tool_registry is not None:
+            diag_rows = tool_registry.diagnostics()
+            if diag_rows:
+                self._out.write("")
+                self._out.write("  Tools (RuntimeToolRegistry):")
+                self._out.write(_format_tool_diagnostics_table(diag_rows))
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status probe."""

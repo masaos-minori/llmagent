@@ -31,6 +31,7 @@ from mcp_servers.file.common import (
     _on_auth_error,
     _on_not_found,
     _on_validation_error,
+    availability_flags,
 )
 from mcp_servers.file.write_models import (
     CreateDirectoryRequest,
@@ -46,7 +47,11 @@ from mcp_servers.file.write_models import (
 from mcp_servers.file.write_service import WriteFileService, build_service
 from mcp_servers.file.write_tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs
+from mcp_servers.server import (
+    MCP_TOOL_SCHEMA_VERSION,
+    MCPServer,
+    ToolArgs,
+)
 
 logger = Logger(__name__, "/opt/llm/logs/file-write-mcp.log")
 
@@ -149,15 +154,34 @@ async def _dispatch_write_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
-    """List available MCP tools with server key annotation."""
+    """List available MCP tools with schema_version and server key annotation."""
+    enabled, disabled_reason = availability_flags(_cfg.allowed_dirs)
+    tools_with_availability = []
+    for t in TOOL_LIST:
+        tool_dict = {
+            **t,
+            "server_key": "file_write",
+            "enabled": enabled,
+            "disabled_reason": disabled_reason,
+        }
+        tools_with_availability.append(tool_dict)
     return {
-        "tools": [{**t, "server_key": "file_write"} for t in TOOL_LIST],
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": tools_with_availability,
     }
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     """Handle a generic MCP call_tool request."""
+    if not _cfg.allowed_dirs:
+        return CallToolResponse(
+            result="Tool disabled: allowed_dirs is empty", is_error=True
+        )
+    try:
+        req.validate_args()
+    except ValueError as e:
+        return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     r = await _dispatch_write_tool(req.name, req.args)
     return _to_call_tool_response(r)
 
@@ -184,4 +208,4 @@ class FileWriteMCPServer(MCPServer):
 
 if __name__ == "__main__":
     server = FileWriteMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

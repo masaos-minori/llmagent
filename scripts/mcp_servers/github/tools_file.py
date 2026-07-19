@@ -33,7 +33,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "path"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_create_or_update_file",
@@ -66,7 +66,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "path", "content", "message"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_push_files",
@@ -106,7 +106,7 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "branch", "files", "message"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "github_delete_file",
@@ -135,6 +135,6 @@ TOOL_LIST: list[dict] = [
             "required": ["owner", "repo", "path", "message", "sha"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

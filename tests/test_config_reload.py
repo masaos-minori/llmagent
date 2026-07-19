@@ -288,3 +288,44 @@ class TestStartupOnlyDetection:
         svc = self._make_svc(use_memory_layer=False)
         result = svc._detect_startup_only({})
         assert result == []
+
+
+class TestRuntimeToolPolicyReapplication:
+    """After /reload, RuntimeToolRegistry.apply_policy() is re-applied via _sync_services()."""
+
+    def _make_svc(self, with_registry: bool = True) -> tuple[object, object]:
+        from agent.services.config_reload import ConfigReloadService
+
+        ctx = MagicMock()
+        ctx.cfg.approval.tool_safety_tiers = {"delete_file": "ADMIN"}
+        ctx.cfg.tool.allowed_tools = []
+        ctx.services_required.llm = None
+        ctx.services_required.hist_mgr = None
+        ctx.services_required.tools = None
+        ctx.services_required.runtime_tools = MagicMock() if with_registry else None
+        return ConfigReloadService(ctx), ctx
+
+    def test_apply_policy_called_with_current_tier_map_and_allowed_tools(self) -> None:
+        svc, ctx = self._make_svc()
+        svc._sync_services({})
+        ctx.services_required.runtime_tools.apply_policy.assert_called_once_with(
+            tier_map=ctx.cfg.approval.tool_safety_tiers,
+            allowed_tools=ctx.cfg.tool.allowed_tools,
+        )
+
+    def test_runtime_tools_reported_in_applied(self) -> None:
+        svc, ctx = self._make_svc()
+        result = svc._sync_services({})
+        assert "runtime_tools" in result.applied
+
+    def test_no_runtime_tools_registry_is_noop(self) -> None:
+        svc, ctx = self._make_svc(with_registry=False)
+        result = svc._sync_services({})
+        assert "runtime_tools" not in result.applied
+
+    def test_reload_does_not_fetch_tools_over_http(self, svc: object) -> None:
+        # Regression guard: _sync_services must never trigger HTTP calls
+        # Uses direct _sync_services call to avoid MCP discovery complexity
+        svc._ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
+        svc._sync_services({})  # type: ignore[attr-defined]
+        svc._ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]

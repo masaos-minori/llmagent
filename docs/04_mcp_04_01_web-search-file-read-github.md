@@ -64,7 +64,9 @@ related:
 **ツール:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
 `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
 
-全ツールとも config を必要としない（`requires_config: false`）。
+全ツールとも config を必要としない（`config_dependent: false`）。
+
+これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
 
 **主要なツール入力:**
 
@@ -108,7 +110,9 @@ related:
 `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`,
 `github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
 
-全ツールとも config が必須（`requires_config: true`）。
+全ツールとも config が必須（`config_dependent: true`）。
+
+github MCPサーバーの`enabled`/`disabled_reason`の計算ロジックは要件15/16の実装次第。現在の契約については[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)を参照。
 
 **書き込み操作（9個）はリポジトリ allowlist の対象:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,

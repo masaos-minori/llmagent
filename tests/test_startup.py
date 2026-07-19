@@ -677,7 +677,9 @@ class TestCheckServicesSeverityClassification:
                 )
             ),
         )
-        assert exc is None
+        assert exc is not None
+        assert isinstance(exc, RuntimeError)
+        assert "drift in strict mode" in str(exc)
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
 

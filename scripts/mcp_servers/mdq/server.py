@@ -44,7 +44,13 @@ from mcp_servers.mdq.models import (
 from mcp_servers.mdq.service import MdqService
 from mcp_servers.mdq.tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse
-from mcp_servers.server import MCPServer, ToolArgs, _FastAPIApp, attach_auth_middleware
+from mcp_servers.server import (
+    MCPServer,
+    ToolArgs,
+    _FastAPIApp,
+    attach_auth_middleware,
+    build_tools_response,
+)
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
 
@@ -203,10 +209,8 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
-    """Return the MCP tool list with server_key appended."""
-    return {
-        "tools": [{**t, "server_key": "mdq"} for t in TOOL_LIST],
-    }
+    """Return the MCP tool list with schema_version and server_key appended."""
+    return build_tools_response(TOOL_LIST, "mdq")
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
@@ -331,4 +335,4 @@ attach_auth_middleware(cast(_FastAPIApp, app), "")
 
 if __name__ == "__main__":
     server = MdqMCPServer()
-    server.run_http()
+    server.run_http()  # type: ignore[attr-defined]

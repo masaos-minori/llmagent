@@ -15,6 +15,7 @@ related:
   - 04_mcp_05_01_access-control-and-allowlists.md
   - 04_mcp_06_02_configuration-file-inventory.md
   - 04_mcp_07_tool_schema_export_policy.md
+  - 04_mcp_08_tool_capability_naming_convention.md
   - 04_mcp_90_inconsistencies_and_known_issues.md
 ---
 
@@ -40,10 +41,12 @@ related:
 | どのMCPサーバが存在し、何をするのか。ポート・起動モードは | `04_mcp_01` |
 | `/v1/call_tool`・Bearer認証・audit logフォーマットは | `04_mcp_02` |
 | toolのルーティング、ToolExecutor、新規サーバ追加は | `04_mcp_03`(config defaultsは`04_mcp_06`§Major Default Values) |
+| ツールのenabled/disabled_reason、config_dependent、RuntimeToolRegistryの扱いは | `04_mcp_03_06` |
 | web-search/github/shell/mdq各mcpが提供するtoolは。mdq-mcpのFTS5検索は本番稼働可能、ハイブリッド検索は未実装 | `04_mcp_04`(mdq-mcpはFTS5検索のみ実装済み) |
 | allowed_dirs/allowed_repos、fail-closed/fail-open、dry_run、リスクティア、MDQ/RAG境界は | `04_mcp_05` |
 | configファイル一覧、健全性検証、デフォルト値、起動時警告、障害診断は | `04_mcp_06` |
 | tool schemaモジュールの命名、TOOL_LISTエクスポート、_MCP_TOOLS参照のクリーンアップは | `04_mcp_07` |
+| toolのcapability命名規則(domain.action形式)は | `04_mcp_08` |
 | 何が壊れているか、または未実装なのか | `04_mcp_90` |
 ---
 
@@ -72,7 +75,7 @@ related:
 | [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | エントリポイント |
 | [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | システム概要 |
 | [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | プロトコルとトランスポート(3分割) |
-| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health-part1.md)/[_03b](04_mcp_03_03_transport-and-health-part2.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md) | ルーティングとライフサイクル(6分割) |
+| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health-part1.md)/[_03b](04_mcp_03_03_transport-and-health-part2.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md)/[_06](04_mcp_03_06_tool-runtime-availability-metadata.md) | ルーティングとライフサイクル(7分割) |
 | [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md) 〜 [_02](04_mcp_04_02_file-write-file-delete-shell.md)/[_03](04_mcp_04_03_rag-pipeline-and-cicd.md)/[_04](04_mcp_04_04_mdq.md)/[_05](04_mcp_04_05_git.md) | サーバカタログ(5分割、_04=mdq) |
 | [04_mcp_05_01](04_mcp_05_01_access-control-and-allowlists.md) 〜 [_02](04_mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](04_mcp_05_04_mdq-rag-boundary.md)/[_05](04_mcp_05_05_mdq-enforcement-and-lockdown.md) | セキュリティモデル(5分割) |
 | [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | config目的 |
@@ -93,6 +96,7 @@ related:
 | [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | 本番投入前チェックリスト |
 | [04_mcp_06_17_local-to-production-auth-migration.md](04_mcp_06_17_local-to-production-auth-migration.md) | 認証移行 |
 | [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | スキーマエクスポート |
+| [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | capability命名規則 |
 | ~~04_mcp_07_mdq_rag_boundary.md~~ | 削除済み |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | 既知の問題 |
 
@@ -129,6 +133,7 @@ related:
 - `04_mcp_05_01_access-control-and-allowlists.md`
 - `04_mcp_06_02_configuration-file-inventory.md`
 - `04_mcp_07_tool_schema_export_policy.md`
+- `04_mcp_08_tool_capability_naming_convention.md`
 - `04_mcp_90_inconsistencies_and_known_issues.md`
 
 ## Keywords

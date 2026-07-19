@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """shared/tool_registry.py
 
-Primary source of truth for MCP tool ownership and routing.
+Tool ownership registry and routing seed data — not the primary runtime routing authority
+once RuntimeToolRegistry (shared/runtime_tool_registry.py) supplies LLM-visible tool schemas
+via live /v1/tools discovery (requirement 04). After that migration, ToolRegistry serves as:
+  (a) drift-detection input for McpToolDiscoveryService (per requirement 09), and
+  (b) backward-compatible routing fallback when the registry is empty/unavailable.
 
 Ownership model:
   - This module is the primary registry of all MCP tools.
@@ -14,10 +18,6 @@ Ownership model:
     schema/description registry. LLM-visible tool schemas come from each
     server's own `tools.py` `TOOL_LIST` (see
     `docs/04_mcp_07_tool_schema_export_policy.md`).
-
-Routing authority:
-  ToolRegistry is the sole routing authority. Live /v1/tools is used only for startup
-  validation (drift detection), not for routing decisions.
 
 Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 

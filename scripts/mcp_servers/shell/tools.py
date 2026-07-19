@@ -52,6 +52,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["command"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

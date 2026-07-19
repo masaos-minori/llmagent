@@ -170,3 +170,25 @@ class RuntimeToolRegistry:
                 requires_approval=requires_approval,
                 enabled_for_llm=enabled and tool.enabled_for_llm,
             )
+
+    def diagnostics(self) -> list[dict[str, object]]:
+        """Return per-tool diagnostics rows for display in /mcp status.
+
+        Each row contains: name, server_key, config_dependent, enabled,
+        disabled_reason, enabled_for_llm. Sorted by name.
+        """
+        rows: list[dict[str, object]] = []
+        for tool in sorted(self._tools.values(), key=lambda t: t.name):
+            config_dep = tool.status != "active"
+            disabled_reason = "" if tool.status == "active" else tool.status
+            rows.append(
+                {
+                    "name": tool.name,
+                    "server_key": tool.server_key,
+                    "config_dependent": config_dep,
+                    "enabled": True,
+                    "disabled_reason": disabled_reason,
+                    "enabled_for_llm": tool.enabled_for_llm,
+                }
+            )
+        return rows

@@ -43,7 +43,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["repo", "workflow"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "get_workflow_runs",
@@ -69,7 +69,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["repo", "workflow"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "get_workflow_status",
@@ -91,7 +91,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["repo", "run_id"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
     {
         "name": "get_workflow_logs",
@@ -114,6 +114,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["repo", "run_id"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]
