@@ -65,7 +65,7 @@ source:
 
 | File | Purpose | Classification |
 |---|---|---|
-| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`は起動時のみ |
+| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`/`memory_embed_enabled`は起動時のみ |
 | `config/*_mcp_server.toml` | MCPサーバー固有のアプリケーション設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須: サーバーの追加/削除/リネーム |
 
 **分類の定義:**
@@ -83,11 +83,27 @@ source:
   `mcp_servers/<server>.cmd`, `mcp_servers/<server>.env`。
 
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
-- `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする
+- `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする。デフォルトは`true`
+  (`MemoryConfig.use_memory_layer`, `agent/config_dataclasses.py`)。
+  **`config/agent.toml`の`use_memory_layer`キーはこの値に一切影響しない** — TOML読み込み時に
+  `_REMOVED_KEYS`（`shared/config_loader.py`）で除去され、`_build_memory_config()`
+  （`agent/config_builders.py`）でも当該フィールドがコメントアウトされている
+  (`# REMOVED: use_memory_layer=bool(cfg.get(...))`)。実際にこのフラグの挙動を決めるのは
+  Pythonのdataclassデフォルトのみであり、`config/agent.toml`は権威ソースではない
+  (既知の問題として`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`に記録済み)。
+- `memory_embed_enabled` — 起動時に埋め込み生成・KNN検索を有効/無効にする。デフォルトは`true`
+  (`MemoryConfig.memory_embed_enabled`, `agent/config_dataclasses.py`)。`use_memory_layer`と同様、
+  `config/agent.toml`の値は`_REMOVED_KEYS`により無視され、`_build_memory_config()`でも
+  コメントアウトされているため、Pythonのdataclassデフォルトのみが実際の挙動を決める
+  (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`)。
 - `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
-  (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`が
-  `use_memory_layer`と共に2フィールドを比較する。根拠: Explicit in code —
-  `agent/services/config_reload.py::_detect_startup_only()`)
+  (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`は
+  `routing_drift_strict`のみを実際に比較する(`agent/services/config_reload.py::_detect_startup_only()`)。
+  `use_memory_layer`と`memory_embed_enabled`は`_detect_startup_only()`による差分検出ではなく、
+  リロードリクエストに含まれた時点で`_REMOVED_KEYS`（`config_reload.py`,
+  `shared/config_loader.py`）により無条件に拒否される別経路
+  (`ConfigReloadValidationError`)。いずれの機構でも「`/reload`では変更できない」という実際の結果は
+  同じであるため、両方ともここで「起動時のみ」として扱う。根拠: Explicit in code)
 
 **無効なキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
 `build_agent_config()`の`_FORBIDDEN_KEYS`参照): `workflow_mode`, `workflow_require_approval`,

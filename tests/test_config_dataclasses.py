@@ -171,14 +171,18 @@ class TestApprovalConfigValidation:
 
 class TestAgentConfigValidation:
     def test_defaults_are_valid(self) -> None:
-        cfg = AgentConfig()
+        # memory_embed_enabled now defaults to True, so embed_url must be non-empty
+        # (mirrors config/agent.toml always supplying embed_url in practice).
+        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
         assert isinstance(cfg, AgentConfig)
 
     def test_agent_config_has_no_workflow_mode_field(self) -> None:
-        assert not hasattr(AgentConfig(), "workflow_mode")
+        assert not hasattr(AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080")), "workflow_mode")
 
     def test_agent_config_has_no_workflow_require_approval_field(self) -> None:
-        assert not hasattr(AgentConfig(), "workflow_require_approval")
+        assert not hasattr(
+            AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080")), "workflow_require_approval"
+        )
 
     def test_semantic_cache_without_embed_url_raises(self) -> None:
         rag = RAGConfig(use_semantic_cache=True, embed_url="")

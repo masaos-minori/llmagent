@@ -5,14 +5,17 @@ Behavior-lock tests for _ContextMixin: _cmd_undo, _cmd_clear, _cmd_system.
 
 from __future__ import annotations
 
+import json
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import git
 import pytest
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.token_display import _token_source_label
 from agent.services.context_view import _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
+from shared.transport_dto import ToolCallResult
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -528,3 +531,178 @@ class TestCollectContextStateWorkflow:
         ctx.services_required.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
         assert result.approval_pending is True
+
+
+# ── /diff ──────────────────────────────────────────────────────────────────────
+
+
+def _write_tool_call_msg(path: str, fn: str = "write_file") -> dict:
+    return {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "1",
+                "type": "function",
+                "function": {"name": fn, "arguments": json.dumps({"path": path})},
+            }
+        ],
+    }
+
+
+class TestCmdDiff:
+    @pytest.mark.asyncio
+    async def test_no_touched_files_prints_nothing_to_show(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "No files written or edited" in out
+        ctx.services.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_one_touched_path_with_real_diff_prints_hunk(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="diff --git a/a.py b/a.py\n@@ -1 +1 @@\n-old\n+new\n",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo",
+            return_value=MagicMock(working_tree_dir="/repo"),
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "/repo/a.py" in out
+        assert "-old" in out
+        assert "+new" in out
+        ctx.services.tools.execute.assert_called_once_with(
+            "git_diff", {"repo_path": "/repo", "commit": ""}
+        )
+
+    @pytest.mark.asyncio
+    async def test_touched_path_with_no_matching_hunk_prints_no_diff_notice(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="diff --git a/other.py b/other.py\n@@ -1 +1 @@\n-x\n+y\n",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo",
+            return_value=MagicMock(working_tree_dir="/repo"),
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "a.py" in out
+        assert "no working-tree diff" in out
+
+    @pytest.mark.asyncio
+    async def test_touched_path_outside_git_repo_prints_skipped_notice_and_completes(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            _write_tool_call_msg("/outside/b.py"),
+            _write_tool_call_msg("/repo/a.py"),
+        ]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="diff --git a/a.py b/a.py\n@@ -1 +1 @@\n-old\n+new\n",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+
+        def _repo_side_effect(
+            search_dir: str, search_parent_directories: bool = True
+        ) -> MagicMock:
+            if search_dir == "/repo":
+                return MagicMock(working_tree_dir="/repo")
+            raise git.InvalidGitRepositoryError(search_dir)
+
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo", side_effect=_repo_side_effect
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "/outside/b.py: not inside a git repository (skipped)" in out
+        assert "/repo/a.py" in out
+        assert "-old" in out
+        assert "+new" in out
+
+    @pytest.mark.asyncio
+    async def test_git_diff_denied_prints_per_repo_denial_and_completes(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="[DENIED] repo_path '/repo' is not in allowed_repo_paths",
+                is_error=True,
+                request_id="",
+                server_key="",
+            )
+        )
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo",
+            return_value=MagicMock(working_tree_dir="/repo"),
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "git diff unavailable" in out
+        assert "/repo" in out
+
+    @pytest.mark.asyncio
+    async def test_tools_not_available_prints_message(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_write_tool_call_msg("/repo/a.py")]
+        ctx.services = None
+        cmd = _FakeCmd(ctx)
+        await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "not available" in out
+
+    @pytest.mark.asyncio
+    async def test_path_with_space_matches_correct_hunk(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_write_tool_call_msg("/repo/my file.py")]
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="diff --git a/my file.py b/my file.py\n@@ -1 +1 @@\n-old\n+new\n",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.commands.cmd_context.git.Repo",
+            return_value=MagicMock(working_tree_dir="/repo"),
+        ):
+            await cmd._cmd_diff()
+        out = capsys.readouterr().out
+        assert "/repo/my file.py" in out
+        assert "-old" in out
+        assert "+new" in out
+        assert "no working-tree diff" not in out

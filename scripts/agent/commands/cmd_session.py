@@ -21,6 +21,7 @@ from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.export_formatter import render_export, write_export
 from agent.services.models import SessionRow
+from agent.services.rag_maintenance_service import RagMaintenanceService
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,18 @@ class _SessionMixin(MixinBase):
             ]
         )
 
+    def _rag_consistency(self) -> None:
+        """Print RAG index consistency status (is_consistent + any issues)."""
+        result = RagMaintenanceService().consistency()
+        self._out.write_kv([("is_consistent", str(result.is_consistent))])
+        for issue in result.issues:
+            self._out.write(issue)
+
+    def _rag_rebuild_fts(self) -> None:
+        """Rebuild the RAG FTS5 index (chunks_fts) from current chunk content."""
+        RagMaintenanceService().rebuild_fts()
+        self._out.write_success("RAG FTS index rebuilt. [RAG]")
+
     def _session_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
 
@@ -156,7 +169,8 @@ class _SessionMixin(MixinBase):
 
     def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
-        | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover.
+        | export markdown|json [file]
+        | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts.
         """
         parsed = parse_command_args(args.strip().split())
         sub = parsed.subcommand or "list"
@@ -195,6 +209,8 @@ class _SessionMixin(MixinBase):
             "vacuum": self._db_session_ops.vacuum,
             "purge": lambda: self._db_session_ops.purge(rest),
             "recover": lambda: self._db_session_ops.recover(rest.strip() or None),
+            "rag-consistency": self._rag_consistency,
+            "rag-rebuild-fts": self._rag_rebuild_fts,
         }
         handler = db_dispatch.get(sub)
         if handler is not None:
@@ -205,7 +221,7 @@ class _SessionMixin(MixinBase):
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
             " | /session export markdown|json [file]"
-            " | /session stats|health|checkpoint|vacuum|purge|recover"
+            " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts"
         )
 
     def _load_session(self, session_id: int) -> None:

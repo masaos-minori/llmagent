@@ -21,11 +21,14 @@ from agent.config_builders import (
 )
 from agent.config_dataclasses import AgentConfig
 
-# Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url).
+# Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
+# AgentConfig.__post_init__'s memory_embed_enabled cross-field check (now defaults to True,
+# so embed_url must be non-empty — mirrors config/agent.toml always supplying embed_url).
 _MIN_CFG: dict = {
     "mcp_servers": {
         "test-server": {"transport": "http", "url": "http://127.0.0.1:9999"}
-    }
+    },
+    "embed_url": "http://127.0.0.1:9999",
 }
 
 # ── _build_llm_config ─────────────────────────────────────────────────────────
@@ -91,7 +94,7 @@ class TestBuildToolConfig:
 class TestBuildMemoryConfig:
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_memory_config({})
-        assert cfg.use_memory_layer is False
+        assert cfg.use_memory_layer is True
         assert cfg.memory_fts_limit == 50
         assert cfg.memory_rrf_k == 60
         assert cfg.memory_retention_days == 90

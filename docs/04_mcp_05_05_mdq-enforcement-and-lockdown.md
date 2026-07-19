@@ -137,6 +137,15 @@ via allowed_dirs)"`(Explicit in code)。実際の呼び出しは
   `MdqValidationError` を発生させる）、`tests/test_mdq_service.py`
   の `TestGrepDocsConfigGate` でテストされている — 両者は設定上似ているが、
   一方のみが実際の挙動に接続されている(Explicit in code)。
+- `chunks` テーブルの `tags_json` と `token_count` は、これまで `scripts/mcp_servers/mdq/indexer.py`
+  の `_index_single_file()` 内で常に `""` / `None` としてハードコードされたプレースホルダー
+  だったが、**2026-07-19 に実データを格納するよう変更した**。`tags_json` は
+  `scripts/mcp_servers/mdq/parser.py` の `parse_markdown()` が YAML frontmatter の `tags:`
+  フィールド（リスト形式・カンマ区切り文字列形式のどちらも可）を抽出した結果を JSON 配列と
+  して格納する。`token_count` はローカルなヒューリスティック（`len(content) // 4`）による
+  概算値であり、正確なトークナイザーによる値ではない。`search_docs` の `tag_filter` は
+  `scripts/mcp_servers/mdq/search.py` の既存の `tags_json LIKE` 条件により、この実データに
+  対して照合されるようになった(Explicit in code)。
 
 ---
 

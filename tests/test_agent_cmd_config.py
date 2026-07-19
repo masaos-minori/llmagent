@@ -6,10 +6,12 @@ and ConfigReloadService.apply_config_dict (SSE hot-reload).
 
 from __future__ import annotations
 
+import re
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from agent.commands.cmd_config import _ConfigMixin
+from agent.commands.command_defs_list import _COMMANDS
 from agent.services.config_reload import ConfigReloadService
 
 # ── Test harness ──────────────────────────────────────────────────────────────
@@ -141,6 +143,34 @@ class TestCmdStats:
         cmd._cmd_stats()
         out = capsys.readouterr().out
         assert "Fallback trunc: 0" in out
+
+    def test_stats_hint_references_a_registered_command(self, capsys: Any) -> None:
+        """The /stats RAG-consistency hint must point at a live top-level command.
+
+        Regression guard: this must fail if the hint text drifts to reference a
+        command name that has since been removed from _COMMANDS (as happened when
+        the hint pointed at a since-removed command).
+        """
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch("db.config.build_db_config"):  # succeeds -> rag_db_configured=True
+            cmd._cmd_stats()
+        out = capsys.readouterr().out
+
+        hint_lines = [line for line in out.splitlines() if "Hint" in line]
+        assert hint_lines, (
+            "expected a Hint line to be printed when rag_db_configured=True"
+        )
+
+        match = re.search(r"(/\w[\w-]*)", hint_lines[0])
+        assert match, f"no command token found in hint line: {hint_lines[0]!r}"
+        command_token = match.group(1)
+
+        registered_names = {c.name for c in _COMMANDS}
+        assert command_token in registered_names, (
+            f"/stats hint references {command_token!r}, which is not a registered command"
+            f" in _COMMANDS: {sorted(registered_names)}"
+        )
 
 
 # ── _print_config_values ──────────────────────────────────────────────────────

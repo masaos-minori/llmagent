@@ -175,6 +175,9 @@ class TestAgentConfigMemoryValidation:
             memory=MemoryConfig(
                 use_memory_layer=True,
                 memory_jsonl_dir="/opt/llm/memory",
+                # Disabled explicitly: this test targets jsonl_dir validation only, not
+                # the embed_url cross-field check exercised by test_memory_embed_without_embed_url_raises.
+                memory_embed_enabled=False,
             ),
         )
 

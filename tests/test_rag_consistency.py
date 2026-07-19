@@ -256,7 +256,7 @@ class TestRagConsistencySeverity:
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
-        assert any("/db rag rebuild-fts" in i for i in issues)
+        assert any("/session rag-rebuild-fts" in i for i in issues)
 
     def test_summarize_issues_orphan_vec_includes_force_guidance(self) -> None:
         db = _make_rag_db()
@@ -356,3 +356,53 @@ class TestRagConsistencySeverity:
         )
         assert fts_orphan_issue is not None
         assert "Affected doc_ids" not in fts_orphan_issue
+
+    def test_summarize_issues_never_references_removed_db_command(self) -> None:
+        """Drift guard: no summarize_issues() output may reference a removed '/db'-prefixed command."""
+        all_issues: list[str] = []
+
+        # fts_gap > 0
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "drift guard fts gap")
+        db.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "drift guard fts gap"),
+        )
+        db.commit()
+        all_issues += summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+
+        # fts_orphan_count > 0
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "drift guard fts orphan")
+        db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        db.execute(
+            "INSERT INTO chunks_fts (rowid, content) VALUES (?, ?)",
+            (chunk_id + 1000, "ghost entry"),
+        )
+        db.commit()
+        all_issues += summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+
+        # orphan_vec_count > 0
+        db = _make_rag_db()
+        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (77777)", ())
+        db.commit()
+        all_issues += summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+
+        # vec != chunks
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_chunk(db, doc_id, "drift guard vec mismatch")
+        db.commit()
+        all_issues += summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+
+        # Each scenario contributes at least one issue string (some scenarios also trigger
+        # a secondary "Vector count mismatch" issue as a side effect of the fixture not
+        # populating chunks_vec, e.g. the fts_gap/fts_orphan setups) — a scenario silently
+        # producing zero issues would indicate check_rag_consistency() stopped detecting it.
+        assert len(all_issues) >= 4, (
+            "expected at least one issue string per triggered scenario"
+        )
+        assert not any("/db " in i for i in all_issues)
+        assert not any("/db rag" in i for i in all_issues)

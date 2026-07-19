@@ -215,6 +215,36 @@ def _make_summary(content: str, max_chars: int = 120) -> str:
     return content[:max_chars].rstrip() + "\u2026"
 
 
+def _split_content(content: str, max_chars: int) -> list[str]:
+    """Split content into chunks bounded by max_chars, preferring paragraph boundaries.
+
+    Splits on blank-line ("\n\n") paragraph boundaries first; a paragraph that alone
+    exceeds max_chars falls back to a hard character-slice cut. Returns a single-element
+    list containing the original content unchanged when max_chars <= 0 (no limit) or the
+    content already fits.
+    """
+    if max_chars <= 0 or len(content) <= max_chars:
+        return [content]
+    chunks: list[str] = []
+    current = ""
+    for para in content.split("\n\n"):
+        candidate = f"{current}\n\n{para}" if current else para
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = ""
+        if len(para) <= max_chars:
+            current = para
+        else:
+            for start in range(0, len(para), max_chars):
+                chunks.append(para[start : start + max_chars])
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _try_extract_from_assistant(
     msg: HistoryMessage,
     *,
@@ -226,13 +256,11 @@ def _try_extract_from_assistant(
     branch: str,
     max_content_chars: int,
     now: str,
-) -> MemoryEntry | None:
-    """Try to extract one MemoryEntry from an assistant message; return None when unqualified."""
+) -> list[MemoryEntry] | None:
+    """Try to extract MemoryEntry chunks from an assistant message; return None when unqualified."""
     content = msg.content.strip()
     if len(content) < policy.min_content_chars:
         return None
-    if max_content_chars > 0 and len(content) > max_content_chars:
-        content = content[:max_content_chars]
     semantic_hits = len(_SEMANTIC_KEYWORDS.findall(content))
     failure_hits = len(_EPISODIC_FAILURE_KEYWORDS.findall(content))
     classification = _classify_content(content, semantic_hits, failure_hits)
@@ -242,19 +270,22 @@ def _try_extract_from_assistant(
     importance = _importance_from_content(
         content, is_semantic=(mem_type == MemoryType.SEMANTIC), source_type=source_type
     )
-    return _make_entry_with_importance(
-        memory_type=mem_type,
-        source_type=source_type,
-        tags=tags,
-        content=content,
-        importance=importance,
-        session_id=session_id,
-        turn_id=turn_id,
-        project=project,
-        repo=repo,
-        branch=branch,
-        now=now,
-    )
+    return [
+        _make_entry_with_importance(
+            memory_type=mem_type,
+            source_type=source_type,
+            tags=tags,
+            content=chunk,
+            importance=importance,
+            session_id=session_id,
+            turn_id=turn_id,
+            project=project,
+            repo=repo,
+            branch=branch,
+            now=now,
+        )
+        for chunk in _split_content(content, max_content_chars)
+    ]
 
 
 def _try_extract_from_user(
@@ -266,9 +297,10 @@ def _try_extract_from_user(
     project: str,
     repo: str,
     branch: str,
+    max_content_chars: int,
     now: str,
-) -> MemoryEntry | None:
-    """Extract a MemoryEntry from a user message containing explicit rules or constraints.
+) -> list[MemoryEntry] | None:
+    """Extract MemoryEntry chunks from a user message containing explicit rules or constraints.
 
     Short messages and messages without rule/policy keywords are ignored.
     """
@@ -278,19 +310,22 @@ def _try_extract_from_user(
     if not _SEMANTIC_KEYWORDS.search(content):
         return None
     importance = _importance_from_content(content, is_semantic=True)
-    return _make_entry_with_importance(
-        memory_type=MemoryType.SEMANTIC,
-        source_type=SourceType.RULE,
-        tags=["auto-extracted", "user-rule"],
-        content=content,
-        importance=importance,
-        session_id=session_id,
-        turn_id=turn_id,
-        project=project,
-        repo=repo,
-        branch=branch,
-        now=now,
-    )
+    return [
+        _make_entry_with_importance(
+            memory_type=MemoryType.SEMANTIC,
+            source_type=SourceType.RULE,
+            tags=["auto-extracted", "user-rule"],
+            content=chunk,
+            importance=importance,
+            session_id=session_id,
+            turn_id=turn_id,
+            project=project,
+            repo=repo,
+            branch=branch,
+            now=now,
+        )
+        for chunk in _split_content(content, max_content_chars)
+    ]
 
 
 def extract_memories(
@@ -323,7 +358,7 @@ def extract_memories(
     for msg in history:
         role = msg.role
         if role == "assistant":
-            entry = _try_extract_from_assistant(
+            chunks = _try_extract_from_assistant(
                 msg,
                 policy=_policy,
                 session_id=session_id,
@@ -335,7 +370,7 @@ def extract_memories(
                 now=now,
             )
         elif role == "user":
-            entry = _try_extract_from_user(
+            chunks = _try_extract_from_user(
                 msg,
                 policy=_policy,
                 session_id=session_id,
@@ -343,12 +378,13 @@ def extract_memories(
                 project=project,
                 repo=repo,
                 branch=branch,
+                max_content_chars=max_content_chars,
                 now=now,
             )
         else:
-            entry = None
-        if entry is not None:
-            candidates.append(entry)
+            chunks = None
+        if chunks:
+            candidates.extend(chunks)
 
     candidates.sort(key=lambda e: e.importance, reverse=True)
     entries = candidates[: _policy.max_entries]

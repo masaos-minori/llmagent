@@ -113,6 +113,9 @@ SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 # Web search tools (web-search-mcp)
 WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
 
+# Browser fetch tool (browser-mcp) — read-only page fetch + render-to-text
+BROWSER_TOOLS: frozenset[str] = frozenset({"browser_fetch"})
+
 # GitHub tools (github-mcp, port 8012)
 GITHUB_READ_TOOLS: frozenset[str] = frozenset(
     {
@@ -171,5 +174,6 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | GIT_TOOLS
         | SHELL_TOOLS
         | WEB_SEARCH_TOOLS
-        | GITHUB_TOOLS,
+        | GITHUB_TOOLS
+        | BROWSER_TOOLS,
     )

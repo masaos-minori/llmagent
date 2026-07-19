@@ -104,6 +104,14 @@ AND (? = '' OR m.branch = '' OR m.branch = ?)
 
 根拠: Explicit in code（`rrf.py` `rrf_merge()`）。
 
+**フラグメンテーションの制限事項（複数チャンクへの分割時の挙動）:**
+
+抽出時にチャンク分割ステージ（`05_agent_12_03_memory-module-ref-core-and-store.md`「チャンク分割ステージ」参照）で複数チャンクに分割された長いソースメッセージは、それぞれ独立した `memories` テーブルの行として保存され、各チャンクは個別の `memory_id` を持つ（`extract.py` の分割詳細は `05_agent_12_05_memory-module-ref-extraction-and-facade.md` を参照）。
+
+`retriever.py`／`rrf.py` は各行を独立に扱い、チャンクと元ソースを紐づける親子関係やグルーピングはスキーマ上存在しない。そのため、1件の長いソースイベントが N 個のチャンクに分割された場合、`search()`／`top_semantic()` の結果には最大 N 件の独立したヒットとして現れうる。これは `rrf_merge` の同一 `memory_id` に対する重複排除（前述）とは別の事象であり、異なる `memory_id` を持つチャンク間には適用されない。
+
+これは現行のチャンク分割方式（1チャンク1行、紐づけなし）における既知の許容された制限であり、バグではない。実運用上問題になる場合は、将来的に `chunk_index`／`parent_id` のスキーマ対応と検索側でのグルーピングを追加することが考えられる。
+
 ### 8. `injection.py` — ライフサイクル注入サービス
 
 クラス `MemoryInjectionService(policy, retriever, embed_client, project="", repo="", branch="")`:

@@ -66,6 +66,13 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_compact",
         "Force immediate compression of conversation history",
     ),
+    CommandDef(
+        "/diff",
+        False,
+        True,
+        "_cmd_diff",
+        "Show diffs for files written/edited this session",
+    ),
     # ── Prefix sync ──────────────────────────────────────────────────────────
     CommandDef(
         "/mcp",
@@ -80,7 +87,7 @@ _COMMANDS: list[CommandDef] = [
         False,
         "_cmd_session",
         "list [n] | load <id> | rename <title> | delete <id>"
-        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover",
+        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts",
     ),
     CommandDef(
         "/clear",

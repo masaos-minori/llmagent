@@ -87,6 +87,7 @@ cp "${REPO_ROOT}/config/rag_pipeline_mcp_server.toml"   "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/cicd_mcp_server.toml"           "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/mdq_mcp_server.toml"            "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/git_mcp_server.toml"            "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/browser_mcp_server.toml"        "${DEPLOY_CONFIG}/"
 # 取込パイプライン (各スクリプト専用設定; agent.toml は読み込まない)
 cp "${REPO_ROOT}/config/crawler.toml"                   "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/chunk_splitter.toml"            "${DEPLOY_CONFIG}/"

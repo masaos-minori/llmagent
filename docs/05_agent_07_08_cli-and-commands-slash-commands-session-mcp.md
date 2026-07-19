@@ -54,6 +54,8 @@ related:
 | `/session vacuum` | VACUUM | 空きページを回収 |
 | `/session purge [--max-sessions N] [--max-age-days N]` | 古いセッションをDELETE | 件数または経過日数に基づく |
 | `/session recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | Sessionのみ |
+| `/session rag-consistency` | なし | RAGインデックス整合性チェック結果(`is_consistent`、不整合時は`issues`一覧) |
+| `/session rag-rebuild-fts` | FTS再構築(delete-all + 再挿入) | `chunks_fts`をchunksから再構築(対象: rag.sqlite) |
 
 ### MCPカテゴリ
 

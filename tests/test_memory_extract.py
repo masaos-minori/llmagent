@@ -195,6 +195,110 @@ class TestExtractMemories:
         result = extract_memories(msgs)
         assert len(result) <= MAX_ENTRIES
 
+    def test_over_limit_assistant_message_yields_multiple_entries(self) -> None:
+        """An over-long assistant message is chunked into multiple entries sharing identity fields."""
+        content = (
+            "The rule is that we should always follow the policy and constraint decided "
+            "by the team. This must be followed by everyone in the group at all times."
+        )
+        history = _hist(("user", "What is the rule?"), ("assistant", content))
+        result = extract_memories(
+            history,
+            session_id=42,
+            turn_id="turn-1",
+            project="p",
+            repo="r",
+            branch="b",
+            max_content_chars=50,
+        )
+        assert len(result) > 1
+        first = result[0]
+        for e in result:
+            assert e.session_id == 42
+            assert e.turn_id == "turn-1"
+            assert e.project == "p"
+            assert e.repo == "r"
+            assert e.branch == "b"
+            assert e.memory_type == first.memory_type
+            assert e.source_type == first.source_type
+        assert len({e.memory_id for e in result}) == len(result)
+        assert "".join(e.content for e in result) == content
+
+    def test_over_limit_user_rule_message_yields_multiple_entries(self) -> None:
+        """The max_content_chars parameter is wired through the user-rule extraction path too."""
+        user_content = (
+            "Always use type annotations in all Python functions across the codebase. "
+            "This is a policy we should always follow as a team constraint without exception."
+        )
+        history = _hist(("user", user_content), ("assistant", "Understood."))
+        result = extract_memories(
+            history,
+            session_id=7,
+            turn_id="turn-2",
+            project="p2",
+            repo="r2",
+            branch="b2",
+            max_content_chars=50,
+        )
+        user_rules = [e for e in result if "user-rule" in e.tags]
+        assert len(user_rules) > 1
+        for e in user_rules:
+            assert e.session_id == 7
+            assert e.turn_id == "turn-2"
+            assert e.project == "p2"
+            assert e.repo == "r2"
+            assert e.branch == "b2"
+            assert e.memory_type == "semantic"
+        assert len({e.memory_id for e in user_rules}) == len(user_rules)
+        assert "".join(e.content for e in user_rules) == user_content
+
+    def test_under_limit_message_still_yields_single_entry(self) -> None:
+        """Content just under max_content_chars is not split into multiple entries."""
+        content = (
+            "The rule is that we should always follow the policy and constraint decided "
+            "by the team. This must be followed by everyone in the group at all times."
+        )
+        history = _hist(("user", "What is the rule?"), ("assistant", content))
+        result = extract_memories(history, max_content_chars=200)
+        assert len(result) == 1
+        assert result[0].content == content
+
+
+class TestSplitContent:
+    """Unit tests for the chunking-aware _split_content helper."""
+
+    def test_content_under_limit_returns_single_chunk(self) -> None:
+        from agent.memory.extract import _split_content
+
+        content = "short content well under the limit"
+        assert _split_content(content, 100) == [content]
+
+    def test_content_over_limit_splits_on_paragraph_boundary(self) -> None:
+        from agent.memory.extract import _split_content
+
+        para1 = "A" * 20
+        para2 = "B" * 20
+        content = f"{para1}\n\n{para2}"
+        result = _split_content(content, 25)
+        assert result == [para1, para2]
+
+    def test_single_paragraph_exceeding_limit_hard_cuts(self) -> None:
+        from agent.memory.extract import _split_content
+
+        content = "x" * 55
+        max_chars = 20
+        result = _split_content(content, max_chars)
+        assert all(len(chunk) <= max_chars for chunk in result)
+        assert "".join(result) == content
+        assert len(result) == -(-len(content) // max_chars)  # ceil division
+
+    def test_max_chars_zero_or_negative_disables_splitting(self) -> None:
+        from agent.memory.extract import _split_content
+
+        content = "z" * 1000
+        assert _split_content(content, 0) == [content]
+        assert _split_content(content, -5) == [content]
+
 
 class TestClassifyContent:
     """Regression tests for _classify_content source-type classification."""

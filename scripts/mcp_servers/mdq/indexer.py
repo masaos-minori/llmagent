@@ -14,6 +14,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
+from shared.json_utils import dumps as _json_dumps
+
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
 from mcp_servers.mdq.models import (
@@ -99,6 +101,17 @@ def generate_chunk_id(
     ).hexdigest()
 
 
+def _estimate_token_count(text: str) -> int:
+    """Approximate token count via a chars-per-token-~4 heuristic.
+
+    This is not an exact tokenizer count -- no live tokenizer endpoint is available
+    inside mcp_servers/mdq without adding a new network dependency. Consistent in
+    spirit with shared/token_estimation.py's own ratio-based approach, but without
+    its chat-category/network dependencies.
+    """
+    return max(1, len(text) // 4)
+
+
 async def _index_single_file(service: MdqService, path: Path) -> None:
     """Index a single Markdown file into the service DB."""
     logger.info("Indexing file: %s", path)
@@ -114,7 +127,9 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
         return
 
     try:
-        sections = await parse_markdown(service, ParseMarkdownRequest(path=str(path)))
+        sections, tags = await parse_markdown(
+            service, ParseMarkdownRequest(path=str(path))
+        )
     except FileNotFoundError as e:
         logger.error("Failed to parse %s: %s", path, e)
         return
@@ -122,6 +137,8 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
     if not sections:
         logger.info("No sections found in %s", path)
         return
+
+    tags_json = _json_dumps(tags)
 
     conn = service._get_db_connection()
     try:
@@ -152,6 +169,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
             normalized_content = " ".join(section["content"].split())
             char_count = len(section["content"])
+            token_count = _estimate_token_count(section["content"])
             chunk_id = generate_chunk_id(
                 normalized_path,
                 section.get("heading_path", ""),
@@ -175,9 +193,9 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     section["start_line"],
                     section["end_line"],
                     char_count,
-                    None,
+                    token_count,
                     content_hash,
-                    "",
+                    tags_json,
                     indexed_at,
                 ),
             )

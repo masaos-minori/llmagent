@@ -5,6 +5,7 @@ Unit tests for mcp/mdq/ components: parser, indexer, search, service, models.
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from tempfile import mkstemp
 from unittest.mock import patch
@@ -250,7 +251,7 @@ class TestParseMarkdown:
     def test_returns_sections_with_headings(
         self, service: MdqService, md_file: Path
     ) -> None:
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(md_file)))
         )
         assert len(sections) == 1
@@ -262,7 +263,7 @@ class TestParseMarkdown:
     ) -> None:
         f = tmp_path / "root.md"
         f.write_text("Intro text.\n\n## Section\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -285,7 +286,7 @@ class TestParseMarkdown:
         f.write_text(
             "# Title\n\n```text\n# Not a heading\n```\n\nBody.", encoding="utf-8"
         )
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -297,12 +298,13 @@ class TestParseMarkdown:
         """YAML frontmatter is skipped; first ATX heading becomes first section."""
         f = tmp_path / "frontmatter.md"
         f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
         assert "---" not in headings
         assert "Title" in headings
+        assert tags == []
 
     def test_repeated_headings_have_distinct_ordinals(
         self, service: MdqService, tmp_path: Path
@@ -313,7 +315,7 @@ class TestParseMarkdown:
             "# Title\n\n## API\n\nFirst body.\n\n## API\n\nSecond body.",
             encoding="utf-8",
         )
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         api_sections = [s for s in sections if s["heading"] == "API"]
@@ -325,7 +327,7 @@ class TestParseMarkdown:
         """### C under # A / ## B produces heading_path='A > B'."""
         f = tmp_path / "nested.md"
         f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         c_section = next(s for s in sections if s["heading"] == "C")
@@ -338,7 +340,7 @@ class TestParseMarkdown:
         """#NoSpace (no space after #) is treated as plain content."""
         f = tmp_path / "malformed.md"
         f.write_text("# Title\n\n#NoSpace\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -351,7 +353,7 @@ class TestParseMarkdown:
         """Verify heading_level field equals the ATX # count."""
         f = tmp_path / "levels.md"
         f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         levels = {s["heading"]: s["heading_level"] for s in sections}
@@ -366,12 +368,75 @@ class TestParseMarkdown:
         f = tmp_path / "empty.md"
         # No blank line between ## Empty and ## Has Content — no content lines
         f.write_text("# Title\n\n## Empty\n## Has Content\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(
+        sections, _tags = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
         assert "Empty" not in headings
         assert "Has Content" in headings
+
+    def test_frontmatter_tags_list_form(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """tags: [a, b] in frontmatter is returned as a normalized list."""
+        f = tmp_path / "tags_list.md"
+        f.write_text(
+            "---\ntags: [alpha, beta]\n---\n\n# Title\n\nBody.", encoding="utf-8"
+        )
+        _sections, tags = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        assert tags == ["alpha", "beta"]
+
+    def test_frontmatter_tags_comma_string_form(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """tags: "a, b" (comma-separated string) is normalized to a list."""
+        f = tmp_path / "tags_string.md"
+        f.write_text(
+            '---\ntags: "alpha, beta"\n---\n\n# Title\n\nBody.', encoding="utf-8"
+        )
+        _sections, tags = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        assert tags == ["alpha", "beta"]
+
+    def test_frontmatter_no_tags_key_returns_empty(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Frontmatter present but with no tags key yields an empty tags list."""
+        f = tmp_path / "no_tags.md"
+        f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
+        _sections, tags = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        assert tags == []
+
+    def test_malformed_frontmatter_does_not_crash_indexing(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Invalid YAML or a non-list/non-string tags value falls back to empty tags,
+        not an exception — a malformed frontmatter block must not break indexing of an
+        otherwise-valid document.
+
+        Note: this does not assert `len(sections) == 1`. A pre-existing parser bug
+        (unrelated to tags handling, see
+        issues/20260719-142152_parser_spurious_empty_root_section_after_frontmatter.md)
+        causes any frontmatter followed by a blank line before the first heading to
+        emit an extra empty `<root>` section. Asserting on the `Title` section's
+        content directly avoids depending on that unrelated, already-filed defect.
+        """
+        f = tmp_path / "malformed_fm.md"
+        f.write_text(
+            "---\ntags: {not: a, list: or, string: value}\n---\n\n# Title\n\nBody.",
+            encoding="utf-8",
+        )
+        sections, tags = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        assert tags == []
+        title_section = next(s for s in sections if s["heading"] == "Title")
+        assert title_section["content"] == "Body."
 
 
 # ── indexer ───────────────────────────────────────────────────────────────────
@@ -385,11 +450,32 @@ class TestIndexer:
         conn = service._get_db_connection()
         try:
             row = conn.execute(
-                "SELECT heading, content FROM chunks WHERE source_path = ?",
+                "SELECT heading, content, token_count, tags_json FROM chunks WHERE source_path = ?",
                 (str(md_file),),
             ).fetchone()
             assert row is not None
             assert "Title" in row["heading"]
+            assert row["token_count"] is not None and row["token_count"] > 0
+            assert row["tags_json"] == "[]"
+        finally:
+            conn.close()
+
+    def test_index_single_file_stores_real_tags_json(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A frontmatter tags list is persisted as a real JSON array in tags_json."""
+        f = tmp_path / "tagged.md"
+        f.write_text(
+            "---\ntags: [urgent, draft]\n---\n\n# Title\n\nBody.", encoding="utf-8"
+        )
+        asyncio.run(_index_single_file(service, f))
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute(
+                "SELECT tags_json FROM chunks WHERE source_path = ?", (str(f),)
+            ).fetchone()
+            assert row is not None
+            assert json.loads(row["tags_json"]) == ["urgent", "draft"]
         finally:
             conn.close()
 
@@ -485,6 +571,39 @@ class TestSearchDocs:
         assert len(result["results"]) > 0
         for item in result["results"]:
             assert len(item.snippet) <= 10
+
+    def test_search_docs_tag_filter_matches_real_tags(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """search_docs(..., tag_filter=[...]) matches docs indexed with that tag only."""
+        tagged = tmp_path / "tagged.md"
+        tagged.write_text(
+            "---\ntags: [important]\n---\n\n# Title\n\nShared keyword content.",
+            encoding="utf-8",
+        )
+        untagged = tmp_path / "untagged.md"
+        untagged.write_text("# Other\n\nShared keyword content.", encoding="utf-8")
+        asyncio.run(
+            index_paths(service, IndexPathsRequest(paths=[str(tagged), str(untagged)]))
+        )
+        req = SearchDocsRequest(query="keyword", tag_filter=["important"])
+        result = asyncio.run(search_docs(service, req))
+        assert "Title" in result
+        assert "Other" not in result
+
+    def test_search_docs_structured_token_count_non_null(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """SearchResultItem.token_count is a positive int after indexing (API response
+        payload, not just the raw DB row)."""
+        from mcp_servers.mdq.search import _search_docs_structured
+
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        result = _search_docs_structured(service, SearchDocsRequest(query="Content"))
+        assert len(result["results"]) > 0
+        for item in result["results"]:
+            assert item.token_count is not None
+            assert item.token_count > 0
 
     def test_search_timeout_raises_mdq_consistency_error(
         self, service: MdqService, tmp_path: Path

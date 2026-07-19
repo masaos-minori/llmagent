@@ -3,7 +3,7 @@
 # サービスをデプロイし、起動する。
 # deploy.sh 実行後に実行すること。
 #
-# MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動。
+# MCP サーバ (ports 8004-8016) はエージェント管理 subprocess として起動。
 # LLM サーバ (ports 8080-8081) もエージェント管理 subprocess として起動する。
 #
 # 使用例:
@@ -70,7 +70,7 @@ echo ""
 echo "=== setup_services.sh: サービス設定開始 ==="
 
 # ── LLM サービスのサブプロセス起動 ─────────────────────────────────────────────
-# MCP サーバ (8004-8014) はエージェントが subprocess として管理するため登録不要
+# MCP サーバ (8004-8016) はエージェントが subprocess として管理するため登録不要
 echo "--- LLM サービスの起動 ---"
 for svc in embed-llm agent-llm; do
     echo "  起動: ${svc}"
@@ -96,7 +96,7 @@ echo "  embed-llm      (:8081): $(curl -s http://127.0.0.1:8081/health 2>/dev/nu
 echo "  agent-llm      (:8080): $(curl -s http://127.0.0.1:8080/health 2>/dev/null || echo 'まだ起動中')"
 echo "  eventbus       (:8015): $(curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
-echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
+echo "  ※ MCP サーバ (ports 8004-8016) はエージェント起動時に自動起動します"
 echo "     llama-agent 起動後に /mcp status で確認してください"
 
 echo ""

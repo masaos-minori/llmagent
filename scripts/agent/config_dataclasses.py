@@ -205,13 +205,13 @@ class ToolConfig:
 class MemoryConfig:
     """Persistent semantic memory layer settings."""
 
-    use_memory_layer: bool = False
+    use_memory_layer: bool = True
     memory_jsonl_dir: str = "/opt/llm/memory"
     memory_max_inject_semantic: int = 5
     memory_max_inject_episodic: int = 3
     memory_min_importance: float = 0.3
     # Enable embedding generation and KNN search
-    memory_embed_enabled: bool = False
+    memory_embed_enabled: bool = True
     # Dimension of embedding vectors; must match vec0 schema
     memory_embed_dim: int = 384
     # L2 distance threshold for deduplication

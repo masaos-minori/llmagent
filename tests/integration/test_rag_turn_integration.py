@@ -30,7 +30,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 import respx
-from agent.config_dataclasses import AgentConfig
+from agent.config_dataclasses import AgentConfig, MemoryConfig
 from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
@@ -77,7 +77,10 @@ def _make_turn_ctx(
     dry-run-preview path (absent tools default to "medium", fail-closed).
     """
     ctx = MagicMock()
-    ctx.cfg = AgentConfig()
+    # memory_embed_enabled now defaults to True, which requires a non-empty
+    # rag.embed_url; disable it explicitly since this test exercises the RAG
+    # tool-call round-trip, not the memory/embedding subsystem.
+    ctx.cfg = AgentConfig(memory=MemoryConfig(memory_embed_enabled=False))
     ctx.cfg.tool.max_tool_turns = 5
     ctx.cfg.tool.serial_tool_calls = True
     for name in risk_none_for:

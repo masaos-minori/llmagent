@@ -182,6 +182,7 @@ def _reset_registry_for_testing() -> None:
 def _populate_default_registry(registry: ToolRegistry) -> None:
     """Populate the registry with default tool definitions from tool_constants."""
     from shared.tool_constants import (
+        BROWSER_TOOLS,
         CICD_TOOLS,
         DELETE_TOOLS,
         GIT_TOOLS,
@@ -205,6 +206,7 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     _register_set(registry, SHELL_TOOLS, "shell")
     _register_set(registry, GITHUB_TOOLS, "github")
     _register_set(registry, WEB_SEARCH_TOOLS, "web_search")
+    _register_set(registry, BROWSER_TOOLS, "browser")
 
 
 def _register_set(

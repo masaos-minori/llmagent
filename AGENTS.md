@@ -80,6 +80,6 @@ Unit tests exist for these modules. Refactoring that touches them must first acq
 
 - **agent/**: cmd_config, cmd_mcp, cmd_tooling (via `test_agent_rag.py`), session, tool_policy, tool_audit, tool_approval, tool_runner, tool_result_formatter, tool_loop_guard, llm_turn_runner, factory, cli_view, history, memory (layer, store, extract, retriever, jsonl_store, embedding_client, ingestion, injection), orchestrator, lifecycle, http_lifecycle, stdio_lifecycle
 - **shared/**: llm_client, token_counter, mcp_config, config_loader, otel_tracer, route_resolver, tool_executor (routing paths)
-- **mcp/**: file (delete_service, write_service, read_server models), github/service, git/service, shell/service, rag_pipeline/service, sqlite/service, cicd/service, server (base class)
+- **mcp/**: file (delete_service, write_service, read_server models), github/service, git/service, shell/service, rag_pipeline/service, cicd/service, server (base class)
 - **rag/**: utils, pipeline, repository (FTS5 via `test_fts_japanese.py`)
 - **db/**: helper, maintenance, tool_results

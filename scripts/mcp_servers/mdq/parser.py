@@ -12,7 +12,8 @@ Supported Markdown features:
 - Content before first heading (as <root> section)
 - Repeated heading names (distinct chunk identities via ordinal)
 - Nested heading hierarchy (heading_path includes ancestors)
-- Optional YAML frontmatter (parsed and stripped)
+- Optional YAML frontmatter (parsed, stripped from sections, and its `tags` field
+  extracted as document-level tags)
 - Malformed headings (ignored)
 
 Unsupported Markdown features:
@@ -36,6 +37,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
+
 from mcp_servers.mdq.models import ParsedSection, ParseMarkdownRequest
 
 if TYPE_CHECKING:
@@ -46,11 +49,15 @@ logger = logging.getLogger(__name__)
 
 async def parse_markdown(
     service: MdqService, req: ParseMarkdownRequest
-) -> list[ParsedSection]:
-    """Parse a Markdown file and return its sections as a list of dicts.
+) -> tuple[list[ParsedSection], list[str]]:
+    """Parse a Markdown file and return its sections and document-level tags.
 
-    Each dict has keys: heading, heading_level, heading_path, content,
-    start_line, end_line, ordinal, parent_heading.
+    Returns a tuple of `(sections, tags)`. Each section dict has keys: heading,
+    heading_level, heading_path, content, start_line, end_line, ordinal,
+    parent_heading. `tags` is the normalized `list[str]` extracted from the
+    optional YAML frontmatter's `tags` field (accepting either a YAML list or
+    a comma-separated string); it is an empty list when there is no
+    frontmatter, no `tags` field, or the frontmatter/tags value is malformed.
     """
     logger.info("Parsing Markdown file: %s", req.path)
     path = Path(req.path)
@@ -61,6 +68,7 @@ async def parse_markdown(
     lines = content.splitlines()
 
     sections: list[ParsedSection] = []
+    frontmatter_tags: list[str] = []
     in_fence = False
     fence_char = ""
     current_section: dict | None = None
@@ -97,6 +105,26 @@ async def parse_markdown(
             while j < len(lines) and lines[j].rstrip() != "---":
                 j += 1
             if j < len(lines) and lines[j].rstrip() == "---":
+                # Capture and parse frontmatter (lines i to j inclusive) for tags
+                frontmatter_text = "\n".join(lines[i + 1 : j])
+                try:
+                    fm_data = yaml.safe_load(frontmatter_text)
+                except yaml.YAMLError:
+                    fm_data = None
+
+                raw_tags = fm_data.get("tags") if isinstance(fm_data, dict) else None
+
+                if isinstance(raw_tags, list):
+                    frontmatter_tags = [
+                        str(t).strip() for t in raw_tags if str(t).strip()
+                    ]
+                elif isinstance(raw_tags, str):
+                    frontmatter_tags = [
+                        t.strip() for t in raw_tags.split(",") if t.strip()
+                    ]
+                else:
+                    frontmatter_tags = []
+
                 # Skip frontmatter (lines i to j inclusive)
                 i = j + 1
                 continue
@@ -164,7 +192,7 @@ async def parse_markdown(
     if current_section is not None and current_section["content_lines"]:
         sections.append(_finalize_section(current_section))
 
-    return sections
+    return sections, frontmatter_tags
 
 
 def _finalize_section(section: dict) -> ParsedSection:

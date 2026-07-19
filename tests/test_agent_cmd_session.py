@@ -600,6 +600,102 @@ class TestCmdSessionStats:
         assert "sessions" in out or "messages" in out
 
 
+# ── /session rag-consistency ────────────────────────────────────────────────────
+
+
+class TestCmdSessionRagConsistency:
+    def test_rag_consistency_prints_ok_when_consistent(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import RagConsistencyResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.consistency.return_value = RagConsistencyResult(
+                is_consistent=True, issues=[], report=MagicMock()
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("rag-consistency")
+            out = capsys.readouterr().out
+            assert "is_consistent" in out
+            assert "True" in out
+
+    def test_rag_consistency_prints_issues_when_inconsistent(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import RagConsistencyResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.consistency.return_value = RagConsistencyResult(
+                is_consistent=False,
+                issues=["[WARNING] FTS gap detected (chunks=10, fts=8, gap=2)."],
+                report=MagicMock(),
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("rag-consistency")
+            out = capsys.readouterr().out
+            assert "False" in out
+            assert "FTS gap detected" in out
+
+    def test_rag_consistency_ignores_extra_args(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import RagConsistencyResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.consistency.return_value = RagConsistencyResult(
+                is_consistent=True, issues=[], report=MagicMock()
+            )
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("rag-consistency extra_arg")
+            out = capsys.readouterr().out
+            assert "is_consistent" in out
+
+
+# ── /session rag-rebuild-fts ────────────────────────────────────────────────────
+
+
+class TestCmdSessionRagRebuildFts:
+    def test_rag_rebuild_fts_calls_service_and_prints_success(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("rag-rebuild-fts")
+            out = capsys.readouterr().out
+            mock_svc.rebuild_fts.assert_called_once()
+            assert "rebuilt" in out.lower()
+
+    def test_rag_rebuild_fts_ignores_extra_args(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("rag-rebuild-fts extra_arg")
+            out = capsys.readouterr().out
+            mock_svc.rebuild_fts.assert_called_once()
+            assert "rebuilt" in out.lower()
+
+
 # ── /session export ─────────────────────────────────────────────────────────────
 
 

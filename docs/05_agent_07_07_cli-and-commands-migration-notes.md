@@ -47,14 +47,14 @@ related:
 |---|---|
 | `/db urls [--lang] [--limit]` | 後継コマンドなし(RAGパイプライン側のMCPツールを直接利用) |
 | `/db clean <url>` | 後継コマンドなし |
-| `/db rebuild-fts` | 後継コマンドなし |
+| `/db rebuild-fts` | `/session rag-rebuild-fts` |
 | `/db recover [backup-path]` | `/session recover [backup-path]` |
 | `/db stats` | `/session stats` |
 | `/db health` | `/session health` |
 | `/db checkpoint [MODE]` | `/session checkpoint [MODE]` |
 | `/db vacuum` | `/session vacuum` |
 | `/db purge [--max-sessions N] [--max-age-days N]` | `/session purge [--max-sessions N] [--max-age-days N]` |
-| `/db consistency` | 後継コマンドなし |
+| `/db consistency` | `/session rag-consistency` |
 
 `/db`はいかなる形式(フラット・`rag`スコープ・`session`スコープ)でももはや認識されるコマンドではなく、未知のスラッシュコマンドとして扱われる(根拠: Explicit in code — `agent/commands/command_defs_list.py`に`/db`の`CommandDef`が存在しない、および`tests/test_cmd_registry_ingest_removal.py`/`tests/test_command_def_sync.py`の回帰テスト)。後方互換は提供されていない。
 

@@ -599,6 +599,9 @@ class TestAgentConfigSseValidation:
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
+            # memory_embed_enabled now defaults to True; embed_url must be non-empty
+            # to satisfy AgentConfig.__post_init__'s cross-field validation.
+            "embed_url": "http://localhost:8000",
             "mcp_servers": {
                 "dummy": {
                     "transport": "http",

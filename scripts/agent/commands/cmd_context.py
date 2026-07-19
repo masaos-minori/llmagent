@@ -9,6 +9,7 @@ Provides _ContextMixin with:
   _cmd_undo      — /undo: roll back the last turn
   _cmd_history   — /history: show recent messages
   _cmd_system    — /system: switch system prompt preset
+  _cmd_diff      — /diff: show diffs for files written/edited this session
 
 Data collection delegates to agent.services.context_view.
 Undo logic delegates to agent.services.undo_service.
@@ -18,7 +19,12 @@ Clear/system logic delegates to agent.services.conversation_service.
 from __future__ import annotations
 
 import logging
+import re
+from pathlib import Path
 from typing import Any
+
+import git
+import orjson
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.token_display import TokenDisplay
@@ -30,6 +36,14 @@ from agent.services.exceptions import ContextStateBuildError, ConversationStateE
 logger = logging.getLogger(__name__)
 
 CONTEXT_PREVIEW_LENGTH = 120
+
+# Matches a per-file unified-diff header: `diff --git a/<path> b/<path>`.
+# Group 2 (the `b/` side) is used as the canonical path key since it reflects
+# the post-change path (relevant for renames); non-greedy group 1 stops at the
+# literal ` b/` separator so paths containing spaces still match correctly.
+_DIFF_HEADER_RE = re.compile(r"^diff --git a/(.+?) b/(.+)$", re.MULTILINE)
+
+_DIFF_TOUCHED_TOOL_NAMES = ("write_file", "edit_file")
 
 
 class _ContextMixin(MixinBase, TokenDisplay):
@@ -176,3 +190,103 @@ class _ContextMixin(MixinBase, TokenDisplay):
             self._out.write(f"  {result.message}")
         except ConversationStateError as e:
             self._out.write_validation_error(str(e))
+
+    async def _cmd_diff(self) -> None:
+        """Show working-tree diffs for files written/edited via tool calls this session."""
+        ctx = self._ctx
+        paths = self._collect_diff_touched_paths()
+        if not paths:
+            self._out.write("No files written or edited this session.")
+            return
+        if ctx.services is None or ctx.services.tools is None:
+            self._out.write("MCP tool executor not available.")
+            return
+        by_repo, outside_repo = self._group_paths_by_repo(paths)
+        for path in outside_repo:
+            self._out.write(f"{path}: not inside a git repository (skipped)")
+        for repo_root, repo_paths in by_repo.items():
+            result = await ctx.services.tools.execute(
+                "git_diff", {"repo_path": repo_root, "commit": ""}
+            )
+            if result.is_error or result.output.startswith("[DENIED]"):
+                self._out.write(f"[{repo_root}] git diff unavailable: {result.output}")
+                continue
+            self._print_repo_diffs(repo_root, repo_paths, result.output)
+
+    def _collect_diff_touched_paths(self) -> list[str]:
+        """Extract distinct file paths written/edited by tool calls in this session's history.
+
+        Scans assistant messages for write_file/edit_file tool calls, preserving
+        first-seen order. Malformed entries (bad JSON, missing keys, wrong types)
+        are skipped individually rather than aborting the whole scan.
+        """
+        ctx = self._ctx
+        paths: list[str] = []
+        for msg in ctx.conv.history:
+            if msg["role"] != "assistant":
+                continue
+            tool_calls = msg.get("tool_calls")
+            if not tool_calls:
+                continue
+            for call in tool_calls:
+                try:
+                    function = call["function"]
+                    name = function["name"]
+                    if name not in _DIFF_TOUCHED_TOOL_NAMES:
+                        continue
+                    args = orjson.loads(function["arguments"])
+                    path = args["path"]
+                except (KeyError, TypeError, orjson.JSONDecodeError):
+                    continue
+                if isinstance(path, str) and path:
+                    paths.append(path)
+        return list(dict.fromkeys(paths))
+
+    def _group_paths_by_repo(
+        self, paths: list[str]
+    ) -> tuple[dict[str, list[str]], list[str]]:
+        """Group touched paths by containing git repository's working-tree root.
+
+        Paths outside any git repository (or whose containing repo has no
+        working tree, e.g. a bare repo) are returned separately.
+        """
+        by_repo: dict[str, list[str]] = {}
+        outside_repo: list[str] = []
+        for path in paths:
+            search_dir = str(Path(path).parent)
+            try:
+                repo = git.Repo(search_dir, search_parent_directories=True)
+            except (git.InvalidGitRepositoryError, git.NoSuchPathError):
+                outside_repo.append(path)
+                continue
+            repo_root = repo.working_tree_dir
+            if repo_root is None:
+                outside_repo.append(path)
+                continue
+            by_repo.setdefault(str(repo_root), []).append(path)
+        return by_repo, outside_repo
+
+    def _print_repo_diffs(
+        self, repo_root: str, touched_paths: list[str], diff_text: str
+    ) -> None:
+        """Split a repo-wide unified diff by per-file headers and print each touched path's hunk.
+
+        Paths with no matching hunk (clean repo, or a touched path with no
+        working-tree change) get a single "no working-tree diff" notice.
+        """
+        matches = list(_DIFF_HEADER_RE.finditer(diff_text))
+        sections: dict[str, str] = {}
+        for i, match in enumerate(matches):
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(diff_text)
+            sections[match.group(2)] = diff_text[match.start() : end].rstrip("\n")
+        for path in touched_paths:
+            try:
+                rel = Path(path).relative_to(repo_root, walk_up=True).as_posix()
+            except ValueError:
+                rel = path
+            body = sections.get(rel)
+            if body is None:
+                self._out.write(f"{path}: no working-tree diff")
+                continue
+            self._out.write(f"--- {path} ---")
+            self._out.write(body)

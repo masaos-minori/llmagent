@@ -143,7 +143,7 @@ class _ConfigStatsMixin(MixinBase):
             self._out.write("  Approval      : PENDING — use /approve or /reject")
         if stats.rag_db_configured:
             self._out.write(
-                "  Hint          : Run /db rag consistency for index integrity status"
+                "  Hint          : Run /session rag-consistency for index integrity status"
             )
         if stats.latency:
             self._out.write("Latency (mean / max, N samples):")

@@ -1,0 +1,16 @@
+# browser-mcp server configuration
+
+# allowed_domains: hostnames permitted for browser_fetch (exact match against the URL's
+# hostname). Empty list = deny all (fail-closed). IP-literal, loopback, and link-local
+# targets are always rejected regardless of this list (defense in depth).
+allowed_domains = []
+
+# max_response_kb: extracted-text response size cap (KB); truncated (not rejected) beyond
+# this limit, with a truncated=true flag on the response.
+max_response_kb = 256
+
+# timeout_sec: HTTP request timeout in seconds for the outbound fetch.
+timeout_sec = 15
+
+# auth_token: Bearer token; empty string = auth disabled.
+auth_token = ""

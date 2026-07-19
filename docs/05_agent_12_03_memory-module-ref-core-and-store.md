@@ -116,6 +116,12 @@ related:
 
 384 という既定値は `MemoryStore` 自体にはなく、呼び出し元 `agent/factory.py` が `MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)` として渡す `AgentConfig.memory.memory_embed_dim`（`agent/config_dataclasses.py` で既定値 384、`agent/config_builders.py` で `memory_embed_dim` 設定キーから読み込み）に由来する。（根拠: Explicit in code — `store.py`, `ingestion.py`, `write_ops.py`, `mapper.py`, `factory.py`, `config_dataclasses.py`, `config_builders.py` を確認）
 
+### チャンク分割ステージ（抽出時のサイズ上限）
+
+抽出対象のコンテンツ（assistant / user いずれのメッセージも対象）が `memory_max_content_chars`（`agent/config_dataclasses.py:220`、既定値 `500`）を超える長さの場合、チャンク分割ステージが発生する。`memory_max_content_chars` は総コンテンツ量に対する上限ではなく、**チャンク単位の上限**である。上限を超えるコンテンツは複数のチャンクに分割され、それぞれが独立した `MemoryEntry`（`memories` テーブルの行）として保存される。コンテンツが破棄されることはなく、元メッセージの全文がチャンク群を通じて保持される。
+
+`extract.py` の `_split_content` ヘルパーおよびその段落境界優先・ハードカット併用の分割戦略の詳細は `05_agent_12_05_memory-module-ref-extraction-and-facade.md` を参照。1件のソースメッセージが複数チャンクに分割された場合、検索時にはそれぞれが独立したヒットとして現れうる点（フラグメンテーションの制限事項）については `05_agent_12_04_memory-module-ref-retrieval-and-injection.md` を参照。
+
 ## Related Documents
 
 - `05_agent_00_document-guide.md`

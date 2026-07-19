@@ -79,15 +79,15 @@ llm_stream_retry_on_malformed_chunk = false
 
 # ── Memory ────────────────────────────────────────────────────────────────────
 
-use_memory_layer = false
+use_memory_layer = true
 memory_jsonl_dir = "/opt/llm/memory"
 memory_max_inject_semantic = 5
 memory_max_inject_episodic = 3
 memory_min_importance = 0.5
-memory_embed_enabled = false
+memory_embed_enabled = true
 memory_embed_dim = 384
 memory_dedup_threshold = 0.3
-memory_local_only = true
+memory_local_only = false
 memory_embed_timeout_sec = 5.0
 memory_max_content_chars = 500
 memory_retention_days = 90
@@ -220,6 +220,7 @@ delete_file              = "WRITE_DANGEROUS"
 delete_directory         = "WRITE_DANGEROUS"
 shell_run                = "ADMIN"
 search_web               = "READ_ONLY"
+browser_fetch            = "READ_ONLY"
 github_search_repositories   = "READ_ONLY"
 github_search_code           = "READ_ONLY"
 github_get_file_contents     = "READ_ONLY"
@@ -385,6 +386,15 @@ tool_names       = [
   "stats", "grep_docs",
 ]
 cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/mdq/server.py"]
+
+[mcp_servers.browser]
+transport        = "http"
+url              = "http://127.0.0.1:8016"
+startup_mode     = "subprocess"
+auth_token       = ""
+role             = "search"
+tool_names       = ["browser_fetch"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/browser/server.py"]
 
 # ── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -1424,3 +1434,22 @@ description = "リポジトリのスラッグ (owner/repo 形式)"
 [tool_definitions.function.parameters.properties.run_id]
 type        = "integer"
 description = "ワークフロー実行 ID (get_workflow_runs の出力から取得)"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "browser_fetch"
+description = "指定した URL のページを取得し、可視テキストを抽出して返す(読み取り専用; JavaScript は実行しない; クリック・フォーム入力・ナビゲーション等の対話操作は行わない)。アクセス可能なドメインは allowlist 設定による。"
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["url"]
+
+[tool_definitions.function.parameters.properties.url]
+type        = "string"
+description = "取得する絶対 URL (http/https のみ; ホストは allowlist 設定が必要)"
+
+[tool_definitions.function.parameters.properties.max_response_kb]
+type        = "integer"
+description = "レスポンステキストのサイズ上限 (KB)。サーバ設定の上限値でクランプされる。"

@@ -93,7 +93,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 **実装補足(`agent/commands/cmd_config_stats.py _collect_stats()` / `_cmd_stats()`):**
 
 - 上記のサンプル出力は簡略化されたイメージであり、実際の `/stats` はキーバリュー形式で1項目1行、かつドキュメント記載より多くの項目を出力する。`Session ID`、`Turns`、`Tool calls`、`Tool errors`、`LLM retries`、`LLM reconnects`、`HB timeouts`、`Partial compl`(0件でも常に表示、`stat_partial_completions > 0` の場合のみ `(stored in session_diagnostics)` を付記)、`Parse errors`、`Cache hits`、`Compress`、`Fallback trunc`、`Sem. cache`、`Input tokens`/`Output tokens`(未取得時は `N/A`)、`Debug mode` が常に出力される(根拠: Explicit in code)。
-- 条件付き行として、`stat_memory_consistency_failures` が真の場合のみ `Memory inconsist.`、メモリ埋め込みのサーキットブレーカーが開いている場合は `Memory embed: CIRCUIT OPEN [DEGRADED]`、そうでなくFTSフォールバック回数が1以上の場合は `Memory embed: fts_only x<N> [degraded]`、`rag_db_configured`(`db.config.build_db_config()` が例外なく成功するか)が真の場合は `Hint: Run /db rag consistency for index integrity status` が追加表示される。これらはドキュメントのサンプルには含まれていない(根拠: Explicit in code)。
+- 条件付き行として、`stat_memory_consistency_failures` が真の場合のみ `Memory inconsist.`、メモリ埋め込みのサーキットブレーカーが開いている場合は `Memory embed: CIRCUIT OPEN [DEGRADED]`、そうでなくFTSフォールバック回数が1以上の場合は `Memory embed: fts_only x<N> [degraded]`、`rag_db_configured`(`db.config.build_db_config()` が例外なく成功するか)が真の場合は `Hint: Run /session rag-consistency for index integrity status` が追加表示される。これらはドキュメントのサンプルには含まれていない(根拠: Explicit in code)。
 - `Latency (mean/max)` は `ctx.stats.stat_latency` の `"llm"` キーのサンプル配列のみを集計対象としており、ツール呼び出し(`tools=...`)の遅延行は出力されない。ドキュメントのサンプル出力にある `tools=0.3s/0.8s` に相当する行は現行実装には存在しない(根拠: Explicit in code)。
 
 ---

@@ -100,7 +100,7 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
             detail = f" Affected chunk_ids: [{ids}{truncated}]."
         issues.append(
             f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
-            f" gap={report.fts_gap}).{detail} Run '/db rag rebuild-fts' to repair."
+            f" gap={report.fts_gap}).{detail} Run '/session rag-rebuild-fts' to repair."
         )
     if report.fts_orphan_count > 0:
         detail = ""
@@ -117,7 +117,7 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
         issues.append(
             f"[CRITICAL] FTS index has more entries than chunks"
             f" (fts={report.fts}, chunks={report.chunks}).{detail}"
-            f" Run '/db rag rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
+            f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
         )
     if report.orphan_vec_count > 0:
         detail = ""
