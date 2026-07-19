@@ -1,5 +1,15 @@
 # `/stats` prints a hint pointing to the removed `/db rag consistency` command
 
+**RESOLVED.** `scripts/agent/commands/cmd_config_stats.py`'s hint now reads
+"Run /session rag-consistency for index integrity status" — option (b) was
+taken: `/session rag-consistency` was implemented (see
+`scripts/agent/commands/cmd_session.py`'s `_rag_consistency` handler,
+landed alongside the `/session rag-rebuild-fts` work referenced in
+`issues/20260719-091341_rag_consistency_repair_guidance_points_to_removed_db_command.md`).
+No test currently pins this hint string (`grep -rn "Run /session
+rag-consistency" tests/` returns no hits) — a regression test is still
+worth adding but is a minor, separate follow-up.
+
 Discovered while building `tools/check_agent_docs_consistency.py`
 (`plans/20260717-094227_plan.md`, `requires/20260716_17_require.md`). This is
 a real implementation defect, not a documentation error — the doc describing
