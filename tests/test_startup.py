@@ -93,7 +93,7 @@ class TestStartupOrchestratorStartServers:
             RuntimeError("port busy")
         )
 
-        with pytest.raises(RuntimeError, match="FATAL"):
+        with pytest.raises(RuntimeError, match=r"\[fatal\]"):
             await startup._start_servers()
 
     @pytest.mark.asyncio

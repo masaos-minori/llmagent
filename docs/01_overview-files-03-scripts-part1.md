@@ -52,6 +52,7 @@ related:
 │   │   ├─ tool_exceptions.py               # ツール例外定義
 │   │   ├─ tool_models.py                   # ツールデータモデル
 │   │   ├─ tool_output.py                   # ツール出力フォーマット
+│   │   ├─ output_tags.py                   # OutputTag: REPL/CLI 出力の角括弧プレフィックス列挙型 ([warn]/[fatal]/[error] 等)
 │   │   ├─ tool_result_formatter.py         # ツール結果整形
 │   │   ├─ repository_gateway.py            # RepositoryGateway: 書込/削除/API-write の単一強制境界 (policy → approval → exec → audit)
 │   │   ├─ turn_result.py                   # ターン結果データクラス

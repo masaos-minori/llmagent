@@ -16,6 +16,7 @@ from shared.mcp_config import SecurityProfile, StartupMode, TransportType
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
+from agent.output_tags import OutputTag
 from agent.repl_health import (
     audit_security_defaults,
     check_readiness,
@@ -137,7 +138,7 @@ class StartupOrchestrator:
                     )
                 except (OSError, RuntimeError) as e:
                     if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
-                        msg = f"[FATAL] MCP subprocess {key!r} failed to start: {e}"
+                        msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start: {e}"
                         logger.error(msg)
                         raise RuntimeError(msg) from e
                     logger.error(
@@ -146,7 +147,7 @@ class StartupOrchestrator:
                         e,
                     )
                     self._view.write_warning(
-                        f"[non-fatal] HTTP subprocess MCP server {key!r} failed to start: {e}"
+                        f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start: {e}"
                     )
 
     def _check_workflow_definition(self) -> None:
@@ -286,9 +287,9 @@ class StartupOrchestrator:
         """Display startup validation warnings and fatal errors via the CLI view."""
         for outcome in pipeline.outcomes:
             if outcome.status == StartupCheckStatus.WARNING:
-                self._view.write_warning(f"[non-fatal] {outcome.message}")
+                self._view.write_warning(f"{OutputTag.NON_FATAL} {outcome.message}")
             elif outcome.status == StartupCheckStatus.FATAL:
-                self._view.write_warning(f"[FATAL] {outcome.message}")
+                self._view.write_warning(f"{OutputTag.FATAL} {outcome.message}")
                 if outcome.remediation:
                     self._view.write_warning(f"  Remediation: {outcome.remediation}")
 
@@ -315,7 +316,7 @@ class StartupOrchestrator:
             approval.reason or "none",
         )
         self._view.write_warning(
-            f"[workflow] Pending approval from previous session — "
+            f"{OutputTag.WORKFLOW} Pending approval from previous session — "
             f"task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
             f"Use /approve {approval.approval_id} [reason] or /reject {approval.approval_id} [reason]."
         )

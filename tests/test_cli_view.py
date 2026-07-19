@@ -182,25 +182,6 @@ class TestDisplayHelpers:
         captured = capsys.readouterr()
         assert captured.out == "[warn] disk space low\n"
 
-    def test_write_debug_rag(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
-        data = {
-            "queries": ["python"],
-            "all_results": [
-                [{"chunk_id": 1, "url": "https://example.com", "rrf_score": 0.5}]
-            ],
-            "merged": [{"chunk_id": 1, "url": "https://example.com", "rrf_score": 0.5}],
-            "reranked": [
-                {"chunk_id": 1, "url": "https://example.com", "rerank_score": 0.9}
-            ],
-            "rrf_config": {"use_rrf": True, "rrf_k": 60},
-        }
-        view.write_debug_rag(data)
-        captured = capsys.readouterr()
-        assert "RRF config: use_rrf=True rrf_k=60" in captured.out
-        assert "MQE queries" in captured.out
-        assert "RRF merge" in captured.out
-        assert "reranked" in captured.out
-
 
 # ── write_startup_banner ───────────────────────────────────────────────────────
 

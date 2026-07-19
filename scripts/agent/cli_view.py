@@ -14,6 +14,8 @@ import readline
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from agent.output_tags import OutputTag
+
 logger = logging.getLogger(__name__)
 
 _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -134,7 +136,7 @@ class CLIView:
 
     def write_compress_notice(self, n: int) -> None:
         """Notify the user that history was compressed."""
-        print(f"  [context] history compressed ({n} messages summarized)")
+        print(f"  {OutputTag.CONTEXT} history compressed ({n} messages summarized)")
 
     def write_turn_start(self) -> None:
         """Print a blank line before each LLM streaming turn."""
@@ -146,11 +148,11 @@ class CLIView:
 
     def write_llm_error(self, e: Exception) -> None:
         """Notify the user of an LLM request failure."""
-        print(f"\n[error] {e}\n")
+        print(f"\n{OutputTag.ERROR} {e}\n")
 
     def write_progress(self, msg: str) -> None:
         """Overwrite the current line with a progress indicator."""
-        print(f"  [rag] {msg:<24}", end="\r", flush=True)
+        print(f"  {OutputTag.RAG} {msg:<24}", end="\r", flush=True)
 
     def clear_progress(self) -> None:
         """Erase the progress line."""
@@ -182,11 +184,11 @@ class CLIView:
 
     def write_warning(self, msg: str) -> None:
         """Print a startup or runtime warning prefixed with [warn]."""
-        print(f"[warn] {msg}")
+        print(f"{OutputTag.WARN} {msg}")
 
     def write_fatal(self, msg: str) -> None:
         """Print a fatal error prefixed with [fatal]."""
-        print(f"[fatal] {msg}")
+        print(f"{OutputTag.FATAL} {msg}")
 
     def write_startup_banner(
         self,
@@ -202,42 +204,6 @@ class CLIView:
         if workflow_status:
             print(f"Workflow: {workflow_status}")
         print("Type /help for commands, /exit to quit.")
-
-    def write_debug_rag(self, data: dict) -> None:
-        """Render structured RAG pipeline debug data to stdout."""
-        rrf_config: dict = data.get("rrf_config", {})
-        print(
-            f"  [debug] RRF config: use_rrf={rrf_config.get('use_rrf', True)} rrf_k={rrf_config.get('rrf_k', 60)}"
-        )
-
-        queries: list[str] = data.get("queries", [])
-        all_results: list[list[dict]] = data.get("all_results", [])
-        merged: list[dict] = data.get("merged", [])
-        reranked: list[dict] = data.get("reranked", [])
-
-        print(f"  [debug] MQE queries ({len(queries)}):")
-        for i, q in enumerate(queries, 1):
-            print(f"    {i}: {q}")
-
-        total = sum(len(r) for r in all_results)
-        print(
-            f"  [debug] search: {len(all_results)} result lists, {total} total candidates",
-        )
-
-        print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
-        for c in merged[:5]:
-            self._print_rag_candidate(c, rrf=True)
-
-        print(f"  [debug] reranked top-{len(reranked)}:")
-        for c in reranked:
-            self._print_rag_candidate(c, rrf=False)
-
-    def _print_rag_candidate(self, candidate: dict, *, rrf: bool) -> None:
-        """Print a single RAG candidate with its score and URL."""
-        score_key = "rrf_score" if rrf else "rerank_score"
-        score = candidate.get(score_key, candidate.get("rrf_score", 0))
-        url = str(candidate.get("url", ""))[:60]
-        print(f"    chunk_id={candidate.get('chunk_id')} score={score:.4f} url={url}")
 
     async def read_multiline(
         self,

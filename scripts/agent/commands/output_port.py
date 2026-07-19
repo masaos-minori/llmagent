@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from agent.output_tags import OutputTag
+
 
 class OutputPort(Protocol):
     """Interface for writing structured output from slash commands."""
@@ -39,10 +41,6 @@ class OutputPort(Protocol):
         """Write key-value pairs as aligned lines."""
         ...
 
-    def write_debug_rag(self, data: dict) -> None:
-        """Write RAG debug information including queries, results, and scores."""
-        ...
-
 
 class CliOutputPort:
     """Concrete OutputPort that writes to stdout via print()."""
@@ -57,7 +55,7 @@ class CliOutputPort:
 
     def write_error(self, text: str) -> None:
         """Write an error message prefixed with '[error]'."""
-        print(f"  [error] {text}")
+        print(f"  {OutputTag.ERROR} {text}")
 
     def write_no_data(self, text: str) -> None:
         """Write a no-data message prefixed with a space."""
@@ -65,7 +63,7 @@ class CliOutputPort:
 
     def write_validation_error(self, text: str) -> None:
         """Write a validation error message prefixed with '[usage]'."""
-        print(f"  [usage] {text}")
+        print(f"  {OutputTag.USAGE} {text}")
 
     def write_table(self, headers: list[str], rows: list[list[str]]) -> None:
         """Write a formatted table with aligned columns."""
@@ -90,44 +88,3 @@ class CliOutputPort:
         """Write key-value pairs as aligned lines."""
         for k, v in pairs:
             print(f"  {k:<{key_width}}: {v}")
-
-    def write_debug_rag(self, data: dict) -> None:
-        """Write RAG debug information including queries, results, and scores."""
-        queries: list = data.get("queries", [])
-        all_results: list = data.get("all_results", [])
-        merged: list = data.get("merged", [])
-        reranked: list = data.get("reranked", [])
-        use_rrf = data.get("use_rrf", True)
-        rrf_k = data.get("rrf_k", 60)
-        http_result_kind = data.get("http_result_kind")
-        print(f"  [debug] MQE queries ({len(queries)}):")
-        for i, q in enumerate(queries, 1):
-            print(f"    {i}: {q}")
-        total = sum(len(r) for r in all_results)
-        print(
-            f"  [debug] search: {len(all_results)} result lists, {total} total candidates"
-        )
-        rrf_label = (
-            f"use_rrf={use_rrf} rrf_k={rrf_k}"
-            if use_rrf
-            else f"use_rrf={use_rrf} (rank signal disabled)"
-        )
-        print(f"  [debug] fusion: {rrf_label}")
-        if http_result_kind is not None:
-            kind_label = (
-                "success (empty response — no in-process fallback)"
-                if http_result_kind == "empty"
-                else http_result_kind
-            )
-            print(f"  [debug] http_result_kind: {kind_label}")
-        print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
-        for c in merged[:5]:
-            print(
-                f"    chunk_id={c.get('chunk_id')} rrf={c.get('rrf_score', 0):.4f} url={str(c.get('url', ''))[:60]}"
-            )
-        print(f"  [debug] reranked top-{len(reranked)}:")
-        for c in reranked:
-            score = c.get("rerank_score", c.get("rrf_score", 0))
-            print(
-                f"    chunk_id={c.get('chunk_id')} score={score:.4f} url={str(c.get('url', ''))[:60]}"
-            )

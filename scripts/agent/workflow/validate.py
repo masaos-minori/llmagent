@@ -13,6 +13,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from agent.output_tags import OutputTag
 from agent.workflow.models import WorkflowDef
 from agent.workflow.workflow_loader import WorkflowLoader, WorkflowLoadError
 
@@ -40,7 +41,8 @@ def main() -> int:
         wdef = validate_path(args.path)
     except WorkflowLoadError as exc:
         print(
-            f"[FATAL] Invalid workflow definition {args.path}: {exc}", file=sys.stderr
+            f"{OutputTag.FATAL} Invalid workflow definition {args.path}: {exc}",
+            file=sys.stderr,
         )
         return 1
 

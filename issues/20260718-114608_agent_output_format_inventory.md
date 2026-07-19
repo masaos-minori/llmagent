@@ -1,5 +1,30 @@
 # エージェント実行時の画面出力機能の洗い出しと分類(フォーマット統一の事前調査)
 
+**部分対応 (2026-07-19).** 本ファイル「推奨アクション」のうち以下2点を実施:
+
+- `write_debug_rag`(`cli_view.py:206-240` 相当 および `commands/output_port.py:94-133` 相当。
+  行番号は削除により失効)の重複デッドコードを削除(`cli_view.py` の `_print_rag_candidate` ヘルパー、
+  `commands/output_port.py` の `OutputPort` Protocol 宣言、`tests/test_cli_view.py::test_write_debug_rag`
+  も合わせて削除)。復活は行わない判断(呼び出し元が2度とも「不要になったコマンドの削除」で消えており、
+  復活を前提とする根拠がないため)。
+- 角括弧プレフィックス(`[warn]` `[fatal]` `[error]` `[tool]` `[approval]` `[denied]`
+  `[plan-blocked]` `[skipped]` `[approval-pending]` `[context]` `[rag]` `[non-fatal]` `[workflow]`
+  `[usage]`)を新設の `scripts/agent/output_tags.py`(`OutputTag` StrEnum)に一元化。
+  `[fatal]`/`[FATAL]` の大文字小文字不統一(`startup.py` 2箇所、`workflow/validate.py` 1箇所)は
+  小文字 `[fatal]` に統一(`cli_view.py` 側の既存表記を正とした)。影響を受けた
+  `tests/test_startup.py::test_production_profile_raises_on_start_failure` の
+  `pytest.raises(match="FATAL")` は `match=r"\[fatal\]"` に更新。
+
+未対応のまま残る項目(ユーザーが対象外と判断):
+
+- `OutputPort`/`Writer` の1系統への統合(出力APIの3系統混在の解消)。
+- `services/export_formatter.py` の `sys.stdout.write()` を他と同じ出力口に揃えるか。
+- `write_table` 未使用箇所(`cmd_mcp.py` の独自テーブル実装、`cmd_config_display.py` の個別整形)の統一。
+- `cmd_audit.py`/`cmd_context.py` のエラー表現メソッド不統一(`write_error()` 未使用箇所)。
+- ロギングとの二重化(`orchestrator.py`、`startup.py` の `logger.warning` + 画面表示)。
+
+これらは元issueの「統一方針そのものはまだ決定していない」に該当し、別途ユーザー判断が必要。
+
 ## 背景
 
 エージェント実行時のターミナル出力フォーマットを統一したいという要望を受け、

@@ -17,6 +17,7 @@ from shared.mcp_config import TransportType
 from shared.production_config_validator import ProductionConfigValidator
 
 from agent.context import AgentContext
+from agent.output_tags import OutputTag
 from agent.security_audit_config import (
     load_cicd_audit_config,
     load_git_audit_config,
@@ -100,7 +101,7 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
                     ServiceWarning(label=label, url=health_url, message=msg)
                 )
         except (httpx.HTTPError, OSError) as e:
-            msg = f"[non-fatal] {label} unreachable at {health_url}: {e}"
+            msg = f"{OutputTag.NON_FATAL} {label} unreachable at {health_url}: {e}"
             logger.warning(msg)
             warnings.append(ServiceWarning(label=label, url=health_url, message=msg))
     return HealthCheckResult(warnings=warnings)

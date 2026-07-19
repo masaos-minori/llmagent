@@ -26,6 +26,7 @@ from agent.llm_transport_errors import handle_llm_transport_error
 from agent.llm_turn_runner import LLMTurnRunner
 from agent.mdq_rag_classifier import MdqRagMode
 from agent.mode_classification import classify_and_inject_mode
+from agent.output_tags import OutputTag
 from agent.tool_audit import (
     audit_approval_requested,
     audit_stage_completed,
@@ -131,7 +132,7 @@ class Orchestrator:
             self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
         except (WorkflowLoadError, Exception) as exc:
             raise RuntimeError(
-                f"[workflow] WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
+                f"{OutputTag.WORKFLOW} WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
             ) from exc
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -156,7 +157,7 @@ class Orchestrator:
             if self._on_error:
                 self._on_error(
                     RuntimeError(
-                        f"[workflow] Approval is pending — use /approve {ctx.turn.pending_approval_id} [reason] "
+                        f"{OutputTag.WORKFLOW} Approval is pending — use /approve {ctx.turn.pending_approval_id} [reason] "
                         f"or /reject {ctx.turn.pending_approval_id} [reason]."
                     )
                 )
@@ -310,7 +311,8 @@ class Orchestrator:
             task_id=exc.task_id or "unknown",
         )
         logger.warning(
-            "[workflow] Approval required. Use /approve %s [reason] or /reject %s [reason].",
+            "%s Approval required. Use /approve %s [reason] or /reject %s [reason].",
+            OutputTag.WORKFLOW,
             exc.approval_id,
             exc.approval_id,
         )
