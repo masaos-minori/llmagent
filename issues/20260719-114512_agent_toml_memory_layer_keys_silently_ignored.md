@@ -3,22 +3,39 @@
 Discovered while implementing `plans/done/20260719-095637_plan.md` (memory-layer
 chunking + defaults, requirement `requires/done/20260714_15_require.md`).
 
+**Status update (2026-07-19, post-verification):** commit `9711ca96`
+("refactor: remove redundant _FORBIDDEN_KEYS/_REMOVED_KEYS validation")
+removed the `_REMOVED_KEYS`/`_FORBIDDEN_KEYS` stripping mechanisms entirely
+from `config_loader.py`, `config_builders.py`, and `config_reload.py` — but
+this did **not** fix the bug described below. `_build_memory_config()` still
+never reads `use_memory_layer`/`memory_embed_enabled` from the parsed config
+dict at all (the two lines are still present, commented out as
+`# REMOVED: ...`); the stripping step was simply redundant with that, not the
+cause. **Re-verified directly**: calling `_build_memory_config()` with an
+explicit dict containing `use_memory_layer=False`/`memory_embed_enabled=False`
+still returns `MemoryConfig(use_memory_layer=True, memory_embed_enabled=True)`
+— the dataclass defaults are still the sole authority. This issue remains
+open; only the root-cause mechanism description below is now stale (see
+Reproduction for the corrected explanation).
+
 ## Problem
 
 `config/agent.toml` has `use_memory_layer` and `memory_embed_enabled` keys that
 look like normal, settable configuration — but they have **zero runtime
 effect**:
 
-- `scripts/shared/config_loader.py:31-35`'s `_REMOVED_KEYS` frozenset includes
-  both `"use_memory_layer"` and `"memory_embed_enabled"` — both are stripped
-  from the parsed TOML dict before it ever reaches config construction
-  (`config_loader.py:169`: `{k: v for k, v in data.items() if k not in
-  _REMOVED_KEYS}`).
 - `scripts/agent/config_builders.py:194-202`'s `_build_memory_config()` has
   both fields **commented out** as `# REMOVED: use_memory_layer=bool(cfg.get(...))`
   and `# REMOVED: memory_embed_enabled=bool(cfg.get(...))` — meaning
   `MemoryConfig`'s dataclass field defaults (`scripts/agent/config_dataclasses.py`)
-  are used unconditionally, regardless of what `config/agent.toml` says.
+  are used unconditionally, regardless of what `config/agent.toml` says. This
+  is the entire cause — no other layer needs to reject or strip the keys for
+  them to be ignored; `_build_memory_config()` simply never looks at them.
+- (Historical, no longer true as of `9711ca96`: `scripts/shared/config_loader.py`
+  used to additionally strip these two keys via a `_REMOVED_KEYS` frozenset
+  before the dict reached config construction. That mechanism has since been
+  removed as redundant, since `_build_memory_config()` never read the keys in
+  the first place — removing the stripping layer changes nothing observable.)
 
 An operator editing either key in `config/agent.toml` (setting it to `true` or
 `false`) has no effect whatsoever — the only way to change these two flags'
@@ -33,13 +50,14 @@ specific to these two keys, not the whole memory config section.
 
 ## Reproduction
 
-- `grep -n "_REMOVED_KEYS" scripts/shared/config_loader.py` shows
-  `use_memory_layer`/`memory_embed_enabled` in the frozenset.
 - `grep -n "_build_memory_config" -A 10 scripts/agent/config_builders.py` shows
   both fields commented out with `# REMOVED:` prefixes.
 - Set `config/agent.toml`'s `use_memory_layer = false` (or any value) and
   confirm via `build_agent_config()` that `cfg.memory.use_memory_layer` always
   equals the dataclass default (`config_dataclasses.py`), never the toml value.
+- Re-verified directly (2026-07-19) by calling
+  `agent.config_builders._build_memory_config({"use_memory_layer": False,
+  "memory_embed_enabled": False, ...})` — returns `True`/`True` regardless.
 
 ## Why this wasn't fixed inline
 
@@ -68,9 +86,14 @@ silently patch" convention for exactly this class of finding.
 
 ## Recommended action
 
-Decide (a) or (b) above. If (b), also decide whether the `_REMOVED_KEYS`
-history (why these were removed originally) should be checked via `git log
--p -- scripts/agent/config_builders.py` before re-wiring them, in case the
-removal was itself deliberate for a reason not yet understood (e.g. related
-to the `use_memory_layer` startup-only/hot-reload distinction documented in
-`docs/05_agent_08_01_configuration-loading-agent-config-part1.md`).
+Decide (a) or (b) above. If (b): simply un-comment the two lines in
+`_build_memory_config()` (`memory=MemoryConfig(use_memory_layer=bool(cfg.get("use_memory_layer", True)), memory_embed_enabled=bool(cfg.get("memory_embed_enabled", True)), ...)`,
+defaulting to `True` to match the current dataclass defaults) — this is now a
+purely additive, low-risk change since the `_REMOVED_KEYS`/`_FORBIDDEN_KEYS`
+stripping mechanisms that might have once fought against this are gone
+(`9711ca96`). Also update
+`docs/05_agent_08_01_configuration-loading-agent-config-part1.md`'s
+`use_memory_layer`/`memory_embed_enabled` bullets, which still describe the
+now-removed `_REMOVED_KEYS` mechanism as the reason these keys are ignored —
+that description is stale post-`9711ca96` even though its conclusion (dataclass
+default is authoritative) remains correct.
