@@ -99,6 +99,18 @@ class TestBuildMemoryConfig:
         assert cfg.memory_rrf_k == 60
         assert cfg.memory_retention_days == 90
 
+    def test_overrides_are_applied(self) -> None:
+        cfg = _build_memory_config(
+            {
+                "use_memory_layer": False,
+                "memory_embed_enabled": False,
+                "memory_jsonl_dir": "/tmp/custom_memory_dir",
+            }
+        )
+        assert cfg.use_memory_layer is False
+        assert cfg.memory_embed_enabled is False
+        assert cfg.memory_jsonl_dir == "/tmp/custom_memory_dir"
+
 
 # ── _build_approval_config ────────────────────────────────────────────────────
 

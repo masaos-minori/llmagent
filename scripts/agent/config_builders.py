@@ -194,12 +194,12 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
 def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
     """Build MemoryConfig from a raw config dict."""
     return MemoryConfig(
-        # REMOVED: use_memory_layer=bool(cfg.get("use_memory_layer", False)),
-        # REMOVED: memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
+        use_memory_layer=bool(cfg.get("use_memory_layer", True)),
+        memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
         memory_max_inject_semantic=int(cfg.get("memory_max_inject_semantic", 5)),
         memory_max_inject_episodic=int(cfg.get("memory_max_inject_episodic", 3)),
         memory_min_importance=float(cfg.get("memory_min_importance", 0.3)),
-        # REMOVED: memory_embed_enabled=bool(cfg.get("memory_embed_enabled", False)),
+        memory_embed_enabled=bool(cfg.get("memory_embed_enabled", True)),
         memory_embed_dim=int(cfg.get("memory_embed_dim", 384)),
         memory_dedup_threshold=float(cfg.get("memory_dedup_threshold", 0.3)),
         memory_max_content_chars=int(cfg.get("memory_max_content_chars", 500)),

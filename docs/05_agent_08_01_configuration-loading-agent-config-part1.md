@@ -84,28 +84,27 @@ source:
 
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
 - `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする。デフォルトは`true`
-  (`MemoryConfig.use_memory_layer`, `agent/config_dataclasses.py`)。
-  **`config/agent.toml`の`use_memory_layer`キーはこの値に一切影響しない** —
-  `_build_memory_config()`（`agent/config_builders.py`）が当該フィールドを
-  コメントアウトしたまま(`# REMOVED: use_memory_layer=bool(cfg.get(...))`)、
-  `cfg`から読み取っていないため。実際にこのフラグの挙動を決めるのは
-  Pythonのdataclassデフォルトのみであり、`config/agent.toml`は権威ソースではない
-  (既知の問題として`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`に記録済み。
-  2026-07-19時点、`_REMOVED_KEYS`除去のリファクタ後も本挙動は変わらず継続している)。
+  (`MemoryConfig.use_memory_layer`, `agent/config_dataclasses.py`)。`config/agent.toml`の
+  `use_memory_layer`キーは`_build_memory_config()`(`agent/config_builders.py`)で読み取られ、
+  この値を上書きする(2026-07-19、`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`
+  で修正済み — それ以前は当該フィールドがコメントアウトされたままで`cfg`から読み取られておらず、
+  dataclassデフォルトのみが有効だった)。値は起動時にのみ適用され、`/reload`では変更できない
+  (下記`routing_drift_strict`の説明を参照)。
 - `memory_embed_enabled` — 起動時に埋め込み生成・KNN検索を有効/無効にする。デフォルトは`true`
   (`MemoryConfig.memory_embed_enabled`, `agent/config_dataclasses.py`)。`use_memory_layer`と同様、
-  `_build_memory_config()`が当該フィールドをコメントアウトしたまま`cfg`から読み取っていないため、
-  Pythonのdataclassデフォルトのみが実際の挙動を決める
+  `config/agent.toml`の値が`_build_memory_config()`で読み取られ、この値を上書きする
+  (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`で修正済み)。
+- `memory_jsonl_dir` — メモリエントリのJSONLバックアップ先ディレクトリ。デフォルトは
+  `/opt/llm/memory`(`MemoryConfig.memory_jsonl_dir`)。`use_memory_layer`/`memory_embed_enabled`と
+  同じ修正で、`config/agent.toml`の値が読み取られるようになった
   (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`)。
 - `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
   (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`は
   `routing_drift_strict`のみを実際に比較する(`agent/services/config_reload.py::_detect_startup_only()`)。
-  `use_memory_layer`と`memory_embed_enabled`のトラッキングは同メソッド内でコメントアウトされている
-  (`# REMOVED: use_memory_layer tracking` 等)ため、`/reload`リクエストにこれらのキーを含めてもエラーにはならず
-  (2026-07-19の`_REMOVED_KEYS`除去リファクタ以前は`ConfigReloadValidationError`で明示的に拒否されていたが、現在はそのチェックが削除された)、単に無視される
-  — `_build_memory_config()`がそもそもこれらのキーを`cfg`から読み取らないため
-  (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`)。いずれにせよ「`/reload`では変更できない」という実際の結果は変わらないため、ここでは「起動時のみ」として扱う。
-  根拠: Explicit in code)
+  `use_memory_layer`/`memory_embed_enabled`/`memory_jsonl_dir`は`_detect_startup_only()`による
+  差分検出の対象ではないため、`/reload`リクエストにこれらのキーを含めても値は反映されない
+  (エラーにもならず、単に無視される)。いずれにせよ「`/reload`では変更できない」という実際の結果は
+  変わらないため、ここでは「起動時のみ」として扱う。根拠: Explicit in code)
 
 **無効なキー** — Pydanticデータクラスが未知のフィールドを静かに無視するため、
 `build_agent_config()`でのキーの明示的な拒否チェックは削除された。

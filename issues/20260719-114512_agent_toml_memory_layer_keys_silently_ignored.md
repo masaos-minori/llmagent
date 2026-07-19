@@ -1,5 +1,22 @@
 # `config/agent.toml`'s `use_memory_layer`/`memory_embed_enabled` are silently ignored
 
+**RESOLVED (2026-07-19).** Fixed by restoring the three commented-out lines
+in `_build_memory_config()` (`scripts/agent/config_builders.py`):
+`use_memory_layer`, `memory_embed_enabled`, and `memory_jsonl_dir` (a third
+field found to have the identical bug during the fix) are now genuinely read
+from the config dict, defaulting to the current dataclass defaults (`True`,
+`True`, `"/opt/llm/memory"`) when absent — option (b) from "Recommended
+action" below. Verified directly: `_build_memory_config({"use_memory_layer":
+False, "memory_embed_enabled": False, "memory_jsonl_dir": "/tmp/x"})` now
+returns those exact values instead of the old dataclass-only defaults.
+Regression test added: `tests/test_config_builders.py::TestBuildMemoryConfig::test_overrides_are_applied`
+(the prior test only checked the empty-dict/defaults case, which is exactly
+why this bug went unnoticed — it never exercised an actual override).
+`docs/05_agent_08_01_configuration-loading-agent-config-part1.md`'s two
+affected bullets no longer apply as written and should be revised to state
+these keys are now live config again (not done as part of this fix — see
+that doc directly).
+
 Discovered while implementing `plans/done/20260719-095637_plan.md` (memory-layer
 chunking + defaults, requirement `requires/done/20260714_15_require.md`).
 
