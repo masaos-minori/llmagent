@@ -5,7 +5,10 @@ Adds scripts/ to sys.path so all project modules are importable without installa
 
 import datetime
 import sys
+from collections.abc import Generator
 from pathlib import Path
+
+import pytest
 
 # scripts/ and tools/ are not installed packages; add them to sys.path for all tests
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
@@ -15,6 +18,25 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # True when the sqlite-vec .so is present; used to skipif vec0 tests.
 _VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
+
+
+@pytest.fixture(autouse=True)
+def _reset_tool_registry() -> Generator[None]:
+    """Reset the global ToolRegistry singleton before and after every test.
+
+    Several tests across the suite register throwaway tool names (e.g.
+    "tool_a") into shared.tool_registry's process-wide singleton via
+    get_registry(). Without a session-wide reset, a registration left behind
+    by one test file leaks into another depending on pytest-randomly's test
+    order, causing ValueError: "Tool already registered" or stale-drift
+    false positives in unrelated tests.
+    """
+    from shared.tool_registry import _reset_registry_for_testing
+
+    _reset_registry_for_testing()
+    yield
+    _reset_registry_for_testing()
+
 
 # ── Test case logging: track which test was running when SSH disconnects ──
 
