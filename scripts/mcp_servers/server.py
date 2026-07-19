@@ -102,18 +102,6 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
         return response
 
 
-def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any]:
-    """Build the /v1/tools response dict: schema_version + per-tool server_key tagging.
-
-    Callable directly from each server's module-level FastAPI route handler (no MCPServer
-    instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
-    """
-    return {
-        "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [{**t, "server_key": server_key} for t in tools],
-    }
-
-
 class MCPServer:
     """Base class for MCP servers.
 
@@ -204,16 +192,16 @@ class MCPServer:
         """Record a tool error timestamp; warn if repeated failures exceed threshold."""
         self._ensure_error_tracking()
         now = time.time()
-        cutoff = now - self._error_window_sec  # type: ignore[attr-defined]
-        timestamps = [t for t in self._tool_error_timestamps if t > cutoff]  # type: ignore[attr-defined]
+        cutoff = now - self._error_window_sec
+        timestamps = [t for t in self._tool_error_timestamps if t > cutoff]
         object.__setattr__(self, "_tool_error_timestamps", timestamps)
-        self._tool_error_timestamps.append(now)  # type: ignore[attr-defined]
-        if len(self._tool_error_timestamps) >= self._error_threshold:  # type: ignore[attr-defined]
+        self._tool_error_timestamps.append(now)
+        if len(self._tool_error_timestamps) >= self._error_threshold:
             logger.warning(
                 "Repeated tool failures detected: %s failed %d times in %.0fs window",
                 tool_name,
-                len(self._tool_error_timestamps),  # type: ignore[attr-defined]
-                self._error_window_sec,  # type: ignore[attr-defined]
+                len(self._tool_error_timestamps),
+                self._error_window_sec,
             )
 
     def run_http(self) -> None:
