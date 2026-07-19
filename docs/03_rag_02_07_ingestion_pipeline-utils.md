@@ -66,7 +66,7 @@ source:
 | `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | `target_urls = [[url, lang], ...]` を含むTOMLファイルをパースする；ファイルが見つからない場合はFileNotFoundError、パースエラーの場合はValueErrorを発生させる |
 
 **実装上の補足:**
-- `parse_targets_file` はURL検証にモジュール内の `_validate_target_url` を使う。これは `rag.utils.validate_url`（http/https限定）と異なり `file://` スキームも許可する。docstringには「`--targets-file` クロールパスで使うfile://を扱うため」と明記されている（`crawler_utils.py:31-40`）。一方 `parse_target_urls`（設定ファイル `config/rag_pipeline.toml` の `target_urls` をパースする方）は `rag.utils.validate_url` を使うためfile://を受け付けない。両関数は同じ「(url, lang)のリストをパースする」役割に見えるが、想定入力元（TOML `--targets-file` vs 設定内リスト）によって許可URLスキームが異なる。(Explicit in code)
+- `parse_targets_file` はURL検証にモジュール内の関数を使う。`rag.utils.validate_url`（http/https限定）と異なり `file://` スキームも許可する。docstringには「`--targets-file` クロールパスで使うfile://を扱うため」と明記されている（`crawler_utils.py:31-40`）。一方 `parse_target_urls`（設定ファイル `config/rag_pipeline.toml` の `target_urls` をパースする方）は `rag.utils.validate_url` を使うためfile://を受け付けない。両関数は同じ「(url, lang)のリストをパースする」役割に見えるが、想定入力元（TOML `--targets-file` vs 設定内リスト）によって許可URLスキームが異なる。(Explicit in code)
 
 ---
 

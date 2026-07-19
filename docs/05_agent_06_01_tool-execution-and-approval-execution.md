@@ -50,10 +50,10 @@ related:
 
 | Condition | Execution |
 |---|---|
-| `serial_tool_calls=False` (デフォルト) | `_execute_with_dag()` — DAGスケジューリング |
-| `serial_tool_calls=True` | `_execute_standard()` — 逐次/並列判定 (副作用のあるツールが1つでもあれば逐次、なければ`asyncio.gather()`で並列) |
+| `serial_tool_calls=False` (デフォルト) | DAGスケジューリング |
+| `serial_tool_calls=True` | 標準実行 — 逐次/並列判定 (副作用のあるツールが1つでもあれば逐次、なければ`asyncio.gather()`で並列) |
 
-> **Explicit in code:** `agent/tool_runner.py`の`execute_all_tool_calls()`は`if not ctx.cfg.tool.serial_tool_calls: _execute_with_dag(...) else: _execute_standard(...)`という2分岐のみで構成される。`use_tool_dag`という設定フィールドはコードベース全体 (`agent/config_dataclasses.py`含む) に存在しない。DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効であり、「レガシー動作」への切替フラグは実装上存在しない。旧版ドキュメントにあった`use_tool_dag`および`ProductionConfigValidator`による`use_tool_dag=false`の起動時エラー化の記述は実装と一致しないため削除した。`ProductionConfigValidator.validate()` (`shared/production_config_validator.py`) が実際に検証するのは`tool_definitions_strict`/`routing_drift_strict`のstrictキー、`tool_safety_tiers`の登録漏れ・不明キー、および`allowed_tools=[]`のみである (詳細は[05_agent_06_03](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md)参照)。
+> **Explicit in code:** ツール呼び出し実行関数は`if not ctx.cfg.tool.serial_tool_calls: DAGスケジューリング(...) else: 標準実行(...)`という2分岐のみで構成される。`use_tool_dag`という設定フィールドはコードベース全体 (`agent/config_dataclasses.py`含む) に存在しない。DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効であり、「レガシー動作」への切替フラグは実装上存在しない。旧版ドキュメントにあった`use_tool_dag`および`ProductionConfigValidator`による`use_tool_dag=false`の起動時エラー化の記述は実装と一致しないため削除した。`ProductionConfigValidator.validate()` (`shared/production_config_validator.py`) が実際に検証するのは`tool_definitions_strict`/`routing_drift_strict`のstrictキー、`tool_safety_tiers`の登録漏れ・不明キー、および`allowed_tools=[]`のみである (詳細は[05_agent_06_03](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md)参照)。
 
 ---
 
@@ -130,7 +130,7 @@ related:
 | `source` | string | 固定値`"agent"` |
 | `ts` | float | イベント発行時刻 (UNIX時間) |
 
-> **Explicit in code:** `agent/tool_audit.py`の`write_round_exec()`が上記フィールドをすべて発行する。`agent/tool_runner.py`の`_execute_with_dag()`は`mode`フィールドに常に文字列`"parallel"`を設定する (DAG実行であることを示す固定値であり、バッチ内の逐次/並列の別は`scheduling_mode`側で表現される)。一方`_execute_standard()`の`mode`は実際の実行方式に応じて`"serial"`または`"parallel"`になる。同じ`mode`フィールドでも経路によって意味が異なる点に注意。
+> **Explicit in code:** 監査ロギング関数が上記フィールドをすべて発行する。DAG実行関数は`mode`フィールドに常に文字列`"parallel"`を設定する (DAG実行であることを示す固定値であり、バッチ内の逐次/並列の別は`scheduling_mode`側で表現される)。一方標準実行の`mode`は実際の実行方式に応じて`"serial"`または`"parallel"`になる。同じ`mode`フィールドでも経路によって意味が異なる点に注意。
 
 `elapsed_ms`を使ってシリアル化のオーバーヘッドを特定する。`has_side_effect=true`かつ
 同等の並列ラウンドと比較して`elapsed_ms`が高いラウンドは、最適化の候補となる。

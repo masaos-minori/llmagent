@@ -62,7 +62,7 @@ from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 `http_result_kind` という名前は2つの異なる値体系で使われており、混同しないよう注意が必要（根拠分類: Explicit in code）。
 
 - `SearchDiagnostics.http_result_kind`（本節、`rag/models_result.py` の `HttpResultKind` enum）は
-  `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` の4値。`pipeline.py` の `_run_http_augment()` 内で
+  `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` の4値。`pipeline.py` の HTTP augment実行内で
   `HttpResultKind.SUCCESS`（非空）・`HttpResultKind.EMPTY`（`""`）・`HttpResultKind.ERROR`（`None`）の
   いずれかに設定される (`scripts/rag/pipeline.py:485-499`)。
 - `get_diagnostics()["http_result_kind"]`（`RagPipeline._http_result_kind` 属性経由、

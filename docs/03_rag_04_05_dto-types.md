@@ -43,8 +43,7 @@ source:
   [Explicit in code] — コンストラクタ呼び出しに当該キーワード引数が存在しない。
 - 実際に「remote/local/fallback」の結果取得元を保持しているのは
   `PipelineRunResult` ではなく `rag/models_result.py` の `SearchDiagnostics.result_source`
-  (`ResultSource` enum) であり、`RagPipeline.augment()` の内部
-  (`_run_http_augment()`) でHTTPモードの成否に応じて設定される。
+  (`ResultSource` enum) であり、`RagPipeline.augment()` の内部でHTTPモードの成否に応じて設定される。
   [Explicit in code]
 - したがって `PipelineRunResult.result_source` フィールド自体は、現状の呼び出し経路では
   実質的に未使用 (常にNone) である可能性が高い。

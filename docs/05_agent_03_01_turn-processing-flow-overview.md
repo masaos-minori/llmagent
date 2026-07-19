@@ -117,10 +117,10 @@ User input (line)
 - 判定結果に応じたヒント文字列を`"system"`ロール・`_ephemeral: true`付きメッセージとして
   `ctx.conv.history`に注入する。`_ephemeral`メッセージ(および`_memory_injected`メッセージ)は
   `_process_turn()`の先頭、メモリ注入・モード分類より前に呼ばれる
-  `Orchestrator._clear_previous_turn_ephemeral_messages()`で、**前のターン**分のみが除去される
+  前ターン ephemeral メッセージクリア関数で、**前のターン**分のみが除去される
   (毎ターン再評価される一時的なヒント)。この呼び出し順序により、当該ターンで注入した内容は
   同一ターンのLLM呼び出しに正しく渡り、次ターン開始時にのみ除去される
-  (`_sync_system_prompt()`はシステムプロンプト本文の同期のみを担当し、この除去処理は行わない)
+  (システムプロンプト同期関数はシステムプロンプト本文の同期のみを担当し、この除去処理は行わない)
 
 ---
 

@@ -34,8 +34,8 @@ class ToolDefinition:
 ```
 
 - 不変のツール定義 — 1 つのツールは必ず 1 つの MCP サーバーに属する
-- インポート時に `tool_constants.py` の frozenset から `_populate_default_registry()` により値が設定される
-- **境界条件 (Boundary and ownership):** `description` と `input_schema` は将来利用のための予約フィールドであり、`_populate_default_registry()` では一切設定されず、現状どの呼び出し元からも読まれない。LLMに見せるツールスキーマは各サーバー自身の `tools.py` の `TOOL_LIST` が情報源であり、この `ToolRegistry` からではない (Explicit in code: `scripts/shared/tool_registry.py` docstring)
+- インポート時に `tool_constants.py` の frozenset からデフォルトレジストリ初期化関数により値が設定される
+- **境界条件 (Boundary and ownership):** `description` と `input_schema` は将来利用のための予約フィールドであり、デフォルトレジストリ初期化関数では一切設定されず、現状どの呼び出し元からも読まれない。LLMに見せるツールスキーマは各サーバー自身の `tools.py` の `TOOL_LIST` が情報源であり、この `ToolRegistry` からではない (Explicit in code: `scripts/shared/tool_registry.py` docstring)
 - `ToolRegistry` はツールの所有権・ルーティングのみを扱う。ライブ `/v1/tools` の応答は起動時のドリフト検証にのみ使われ、ルーティング判断には使われない (Explicit in code)
 - Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
 

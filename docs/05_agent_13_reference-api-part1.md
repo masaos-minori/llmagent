@@ -50,13 +50,13 @@ source:
 
 - **役割:** ターンレベルのファサード。メモリ注入 → 圧縮 → LLM → ツールループを管理する
 - **主要な API:** `await Orchestrator.handle_turn(line)`、`workflow_status() -> dict[str, str]`
-- **呼び出し元:** REPL ループドライバ（`AgentREPL._dispatch_line()`）
+- **呼び出し元:** REPL ループドライバ
 - **呼び出し先:** `LLMTurnRunner`、`HistoryManager`（`ctx.services_required.hist_mgr.compress()`）、`AgentSession`、`MemoryServices`（`ctx.services_required.memory.on_user_prompt()`）、`WorkflowEngine` / `StateStore` / `WorkflowLoader`（`agent/workflow/`）、`ToolLoopGuard`
 - **設定:** `cfg.llm.*`、`cfg.tool.*`、`cfg.memory.*`
 - **失敗時:** `LLMTransportError` は内部で捕捉される。REPL は継続する。`__init__()` 時点で `WorkflowLoader().load()` が失敗すると `RuntimeError` を送出し、`Orchestrator` 自体の構築が失敗する（ワークフロー定義は必須）
 
 > **根拠分類: Explicit in code（追記/訂正）。** 呼び出し先に `MemoryInjectionService` を直接列挙していたが、
-> `Orchestrator._handle_memory_injection()` は `ctx.services_required.memory`（`MemoryServices` ファサード）
+> メモリ注入処理は `ctx.services_required.memory`（`MemoryServices` ファサード）
 > の `on_user_prompt()` を呼ぶのみで、`MemoryInjectionService` を直接参照しない。
 > また `Orchestrator.__init__()` は `WorkflowLoader().load()` に失敗すると即座に `RuntimeError` を送出する
 > （フォールバック動作なし）。ワークフローエンジン関連の呼び出し先が旧版に欠落していたため追記した。

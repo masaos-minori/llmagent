@@ -84,7 +84,7 @@ AgentREPL.run()
 | `save_transport_failure()` | `transport_failure` | `tool_runner.py` (ツール実行のトランスポート層失敗) |
 | `save_loop_guard_hint()` | `loop_guard_hint` | 呼び出し元なし (grep上、定義のみで未使用) |
 
-**矛盾/未整理点:** `DiagnosticStore.save_loop_guard_hint()`は`kind="loop_guard_hint"`を書き込むメソッドとして定義されているが、実際に`ToolLoopGuard`が使うのは`save()`を直接呼ぶ`kind="guard_hint"`の経路 (`tool_loop_guard.py`内`_save_guard_hint()`) であり、`save_loop_guard_hint()`はコードベース中どこからも呼ばれていない。同一目的のメソッドが2種類存在し、一方が死んでいる状態。
+**矛盾/未整理点:** `DiagnosticStore.save_loop_guard_hint()`は`kind="loop_guard_hint"`を書き込むメソッドとして定義されているが、実際に`ToolLoopGuard`が使うのは`save()`を直接呼ぶ`kind="guard_hint"`の経路 (ツールループガード関数内) であり、`save_loop_guard_hint()`はコードベース中どこからも呼ばれていない。同一目的のメソッドが2種類存在し、一方が死んでいる状態。
 
 *(根拠分類: Explicit in code — `agent/diagnostic_store.py`, `agent/tool_loop_guard.py`, `agent/llm_transport_errors.py`)*
 

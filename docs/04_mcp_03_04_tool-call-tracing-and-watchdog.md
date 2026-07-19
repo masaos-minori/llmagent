@@ -41,7 +41,7 @@ related:
     audit log (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"","is_error":true,"error_type":"transport","ts":...}
     Note: mcp_request_id="" because no response was received.
 
-7. Next real tool call to "file_read" (ToolExecutor._raw_execute):
+7. Next real tool call to "file_read" (内部ディスパッチ):
    ensure_ready() attempts recovery (subprocess mode only), then dispatch proceeds.
    → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
    → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE

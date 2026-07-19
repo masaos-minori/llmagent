@@ -52,7 +52,7 @@ source:
 
 - `RagRerankError`は`scripts/rag/exceptions.py`ではなく`scripts/rag/llm_prompts.py`に
   `class RagRerankError(RuntimeError)`として定義されている。`RuntimeError`のサブクラスなので、
-  `pipeline.py`の`_run_stage()`が捕捉する例外タプル (`RuntimeError`, `sqlite3.OperationalError`,
+  `pipeline.py`の例外捕捉タプル (`RuntimeError`, `sqlite3.OperationalError`,
   `httpx.HTTPStatusError`, `httpx.RequestError`, `TimeoutError`) に含まれ、
   「`RuntimeError`として捕捉される」という記述は正確。
   [Explicit in code]

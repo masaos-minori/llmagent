@@ -70,7 +70,7 @@ related:
 `/mcp status`の出力にはサーバー一覧テーブルに加え、DEGRADED/UNAVAILABLE状態の
 サーバー一覧(`ServerHealthRegistry`経由)、直列化(serialization)イベント統計
 (発生回数・平均影響ツール数・理由別内訳・上位トリガー)が含まれる
-(根拠: Explicit in code — `agent/commands/cmd_mcp.py::_cmd_mcp_status()`)。
+(根拠: Explicit in code — `agent/commands/cmd_mcp.py`)。
 MCP watchdog(バックグラウンドの自動ヘルスポーリング・自動再起動ループ)は2026-07-16に
 削除されたため、Watchdogの有効/無効状態は表示されない
 ([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。

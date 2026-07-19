@@ -29,17 +29,17 @@ source:
 
 ```
 StartupOrchestrator.run()
-  Initialization phase (_initialize):
+  Initialization phase:
     → Readline setup
     → build_agent_context(ctx, view)   [factory.py]
     → Command registry initialization
     → Workflow definition / schema preflight checks
     → Orchestrator initialization
-  MCP server startup (_start_servers)  [HTTP subprocess MCP servers; startup_mode=SUBPROCESS かつ transport=HTTPのみ]
-  Service checks (_check_services)     [security audit, embedding dim整合, readiness,
-                                         tool定義検証, routing drift(static/live), RAG consistency]
-  Pending approval recovery (_recover_pending_approvals) [StateStoreから前回セッションの承認待ちを復元]
-  Prompt setup (_setup_prompt)
+  MCP server startup [HTTP subprocess MCP servers; startup_mode=SUBPROCESS かつ transport=HTTPのみ]
+  Service checks [security audit, embedding dim整合, readiness,
+                  tool定義検証, routing drift(static/live), RAG consistency]
+  Pending approval recovery [StateStoreから前回セッションの承認待ちを復元]
+  Prompt setup
     → system prompt init
     → memory.on_session_start()
 → returns (CommandRegistry, Orchestrator)
@@ -52,14 +52,14 @@ REPL loop
   設定して`asyncio.Event`をセットする。これによりREPLループが次の入力待ち/ターン完了後に終了する
   (`SystemExit(0)`への直接変換ではなく、フラグベースのグレースフルシャットダウン)。進行中のターンには
   最大10秒(`_GRACEFUL_TIMEOUT`)の猶予があり、超過するとタイムアウトしてループを抜ける。(Explicit in code)
-- `_close_resources()`はWALチェックポイント実行後、`ctx.services.lifecycle.shutdown_all()`と
+- リソースクローズはWALチェックポイント実行後、`ctx.services.lifecycle.shutdown_all()`と
   `http.aclose()`を呼ぶ。`HttpServerLifecycleManager.shutdown_all()`は実行中に届いた2回目の
   SIGINTを一時的に吸収し、クリーンアップの完了を保証する。(Explicit in code)
 
 ### StartupOrchestrator検証パイプライン
 
-`_check_services()`は`StartupValidationResult`に各チェックの結果(OK/WARNING/FATAL/SKIPPED)を
-蓄積し、FATALが1件でもあれば`RuntimeError`で起動を中断する。`_start_servers()`実行後に例外が
+サービスチェックは`StartupValidationResult`に各チェックの結果(OK/WARNING/FATAL/SKIPPED)を
+蓄積し、FATALが1件でもあれば`RuntimeError`で起動を中断する。MCPサブプロセス起動後に例外が
 発生した場合、起動済みのMCPサブプロセスは`shutdown_all()`でロールバックされる。
 (Explicit in code)
 

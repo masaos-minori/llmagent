@@ -84,14 +84,14 @@ FTS のみへフォールバックする。一方、`VectorRetriever.knn_search(
 | `DEDUP_THRESHOLDS` | source_type 別の重複判定しきい値: RULE=0.98, DECISION=0.98, FAILURE=0.90, CONVERSATION=0.85 |
 | `RETENTION_DAYS` | source_type 別の保持日数: RULE=None（無期限）, DECISION=None（無期限）, FAILURE=180, CONVERSATION=90 |
 
-`DEDUP_THRESHOLDS` は `ingestion.py` の `_get_dedup_threshold()` が
+`DEDUP_THRESHOLDS` は `ingestion.py` の重複判定閾値取得関数が
 `entry.source_type` に応じて参照する。`RETENTION_DAYS` は `enums.py` に定義されているが、
 本ドキュメント担当範囲のモジュール（`store.py` / `retriever.py` / `services.py` /
 `ingestion.py`）内でこの値を参照する保持削除処理は確認できなかった
 （`rebuild_ops.py` 等の未読モジュールで使用されている可能性がある）。
 
 根拠分類: Explicit in code（`enums.py` の定数定義、`ingestion.py`
-`_get_dedup_threshold`）／`RETENTION_DAYS` の利用箇所は Needs confirmation。
+重複判定閾値取得関数）／`RETENTION_DAYS` の利用箇所は Needs confirmation。
 
 ---
 

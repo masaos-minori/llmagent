@@ -37,13 +37,13 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 - `rag_min_score` によりフィルタする；クロスエンコーダの失敗時にフォールバックはない（例外が伝播する）
 - 重複排除: `deduplicate_chunks(hits, max_chunks_per_doc)` — 同一URLのヒット数を制限する；関数自体はソート済み入力を必須としないが、呼び出し元はリランク後の降順結果を渡すため、上位チャンクのみが残る；リランクの後に適用される（前ではない）
 
-**例外の捕捉位置（Explicit in code）:** `RerankStage.run()` 自体は例外を捕捉しない。`RagPipeline._run_stage()`（`scripts/rag/pipeline.py`）が `run()` の実行を try/except で包み、`RuntimeError`（`RagRerankError` の基底）・`sqlite3.OperationalError`・`httpx.HTTPStatusError`・`httpx.RequestError`・`TimeoutError` を捕捉して `StageResult(status="failure", fallback_reason=<例外メッセージ>)` に変換する。したがってパイプライン全体としては例外で停止せず、後続ステージ（AugmentStage）は空の `ctx.reranked` を引き継いで実行が継続する。
+**例外の捕捉位置（Explicit in code）:** `RerankStage.run()` 自体は例外を捕捉しない。`RagPipeline` が `run()` の実行を try/except で包み、`RuntimeError`（`RagRerankError` の基底）・`sqlite3.OperationalError`・`httpx.HTTPStatusError`・`httpx.RequestError`・`TimeoutError` を捕捉して `StageResult(status="failure", fallback_reason=<例外メッセージ>)` に変換する。したがってパイプライン全体としては例外で停止せず、後続ステージ（AugmentStage）は空の `ctx.reranked` を引き継いで実行が継続する。
 
 ### 5.5 AugmentStage
 
 コンストラクタなし（`PipelineStage` を継承）。
 
-**訂正（Explicit in code）:** チャンク整形関数の重複は解消済みである。`scripts/rag/stages/augment.py:11` の `_format_chunks()` が唯一の実装であり、`scripts/rag/pipeline.py` はこれを `_augment_format_chunks` としてimportして使う（`from rag.stages.augment import _format_chunks as _augment_format_chunks`）。AugmentStage（augment.py内）と `RagPipeline.augment()` の生チャンクフォールバック（pipeline.py 461行目付近）はいずれも同一関数を呼び出す。
+**訂正（Explicit in code）:** チャンク整形関数の重複は解消済みである。`scripts/rag/stages/augment.py:11` のチャンク整形関数が唯一の実装であり、`scripts/rag/pipeline.py` はこれを `_augment_format_chunks` としてimportして使う（`from rag.stages.augment import _format_chunks as _augment_format_chunks`）。AugmentStage（augment.py内）と `RagPipeline.augment()` の生チャンクフォールバック（pipeline.py 461行目付近）はいずれも同一関数を呼び出す。
 
 - `ctx.reranked` を `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` の形式のブロックとして整形する；titleが空の場合はURLをフォールバックとして使用する
 - `\n\n---\n\n` で連結し、`[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]` で囲む

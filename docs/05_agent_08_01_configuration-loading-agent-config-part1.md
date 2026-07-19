@@ -85,9 +85,9 @@ source:
 **起動時のみの設定** (`apply_config_dict()`では変更されない):
 - `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする
 - `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
-  (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`が
+  (`ToolConfig.routing_drift_strict`; 設定リロードサービスが起動時のみ適用対象を検出する関数が
   `use_memory_layer`と共に2フィールドを比較する。根拠: Explicit in code —
-  `agent/services/config_reload.py::_detect_startup_only()`)
+  `agent/services/config_reload.py`)
 
 **無効なキー** (設定読み込み時に拒否される、`ConfigLoadError`; 2026-07-09検証済み — 
 `build_agent_config()`の`_FORBIDDEN_KEYS`参照): `workflow_mode`, `workflow_require_approval`,

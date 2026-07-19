@@ -43,7 +43,7 @@ agent、transport、サーバのログを横断した相関分析については
 
 #### Tool dispatch時のensure ready動作
 
-`_raw_execute()` パス経由でtool callが到着した場合:
+内部ディスパッチパス経由でtool callが到着した場合:
 
 ```python
 # In agent/factory.py _ServerLifecycleRouter.ensure_ready():

@@ -48,13 +48,13 @@ class AgentConfig:
 `StartupOrchestrator` の初期化処理は、`Orchestrator.__init__()`の**前**に
 2つのプレフライトチェックを順に呼び出す (`agent/startup.py:85-86`):
 1. ワークフロー定義の存在チェック — `agent/repl_health.py`内の
-   `check_workflow_definition()`をラップ。`config/workflows/default.json`が
-   存在しない場合、期待されるパスを明記した実行可能なメッセージと共に
-   `RuntimeError`を発生させる。
-2. `_check_workflow_schema()` — `agent/repl_health.py`内の
-   `check_workflow_schema()`をラップし、ワークフローDBスキーマを検証する。
-   失敗時はログ出力の上`RuntimeError`を再送出する
-   (根拠: Explicit in code — `agent/startup.py:156-164`)。
+    ワークフロー定義検証関数をラップ。`config/workflows/default.json`が
+    存在しない場合、期待されるパスを明記した実行可能なメッセージと共に
+    `RuntimeError`を発生させる。
+ 2. ワークフロースキーマ検証 — `agent/repl_health.py`内の
+    ワークフロースキーマ検証関数をラップし、ワークフローDBスキーマを検証する。
+    失敗時はログ出力の上`RuntimeError`を再送出する
+    (根拠: Explicit in code — `agent/startup.py:156-164`)。
 
 `Orchestrator.__init__()`自体 (`agent/orchestrator.py:126-132`) はその後無条件に
 `WorkflowLoader().load()`を呼び出し、いかなる失敗 (`WorkflowLoadError`など) に対しても

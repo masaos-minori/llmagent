@@ -84,12 +84,12 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 > |---|---|---|
 > | `partial_completion` | `scripts/agent/llm_transport_errors.py` `handle_partial_completion` | LLMストリームが部分完了で終わったターン番号・理由・部分テキスト長 |
 > | `llm_transport_error` | `scripts/agent/llm_transport_errors.py`、`scripts/agent/session.py` `save_diagnostic` | 部分完了テキストそのもの、または任意の転送エラー詳細 |
-> | `guard_hint` | `scripts/agent/tool_loop_guard.py` `_save_guard_hint` | ツールループガード(サイクル検出・重複しきい値超過)発火時のヒント |
+> | `guard_hint` | ツールループガード関数 | ツールループガード(サイクル検出・重複しきい値超過)発火時のヒント |
 > | `transport_failure` | `scripts/agent/tool_runner.py`(`DiagnosticStore.save_transport_failure`) | ツール実行時のトランスポート層失敗(ツール名・server_key・エラー内容) |
 > | `serialization_event` | `scripts/agent/tool_runner.py`(`DiagnosticStore.save_serialization_event`) | ラウンド単位の直列化実行イベント |
 > | `rag_query` | `scripts/agent/commands/cmd_rag_export.py` | RAGクエリのパイプライン診断(`stage_results`等)。`session_summary` の `rag_query_count`/`rag_stage_outcomes` の集計元 |
 >
-> `DiagnosticStore` には `save_loop_guard_hint`(kind=`loop_guard_hint`)というメソッドも定義されているが、現行コードからの呼び出し箇所は見当たらない。実際にツールループガードが保存する`kind`は `guard_hint`(`tool_loop_guard.py` `_save_guard_hint` による直接の`save()`呼び出し)である。`loop_guard_hint`というkind名は現状生成されない可能性がある(根拠: Needs confirmation)。
+> `DiagnosticStore` には `save_loop_guard_hint`(kind=`loop_guard_hint`)というメソッドも定義されているが、現行コードからの呼び出し箇所は見当たらない。実際にツールループガードが保存する`kind`は `guard_hint`(ツールループガード関数による直接の`save()`呼び出し)である。`loop_guard_hint`というkind名は現状生成されない可能性がある(根拠: Needs confirmation)。
 > 同様に `fetch_by_kind` / `fetch_all` という参照系メソッドも `DiagnosticStore` に定義されているが、`scripts/agent/` 配下から実際に呼び出している箇所は確認できなかった(将来のCLI/API用途と推測されるが未確認)(根拠: Needs confirmation)。
 
 **各レコードのフィールド:**
