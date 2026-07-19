@@ -29,9 +29,9 @@ from mcp_servers.mdq.mdq_models import (
     SearchDocsRequest,
     StatsRequest,
 )
+from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.parser import parse_markdown
 from mcp_servers.mdq.search import search_docs
-from mcp_servers.mdq.mdq_service import MdqService
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 

@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
+from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
     ShellRunRequest,
@@ -19,8 +21,6 @@ from mcp_servers.shell.shell_models import (
     load_shell_policy,
 )
 from mcp_servers.shell.shell_service import ShellService
-from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
-from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
 from shared.protocols.shell import ShellPolicy
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

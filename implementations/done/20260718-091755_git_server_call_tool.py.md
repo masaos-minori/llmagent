@@ -69,7 +69,7 @@ per `.importlinter`.
       return _to_call_tool_response(r)
   ```
 - Current top-level imports (lines 20-37) already include
-  `from mcp_servers.git.models import GitConfig, GitServiceError` (line 32) and
+  `from mcp_servers.git.git_models import GitConfig, GitServiceError` (line 32) and
   `from mcp_servers.models import CallToolRequest, CallToolResponse` (line 36); no new
   import of these two names is needed. A new import line
   `from shared.tool_constants import GIT_WRITE_TOOLS` must be added (alphabetically

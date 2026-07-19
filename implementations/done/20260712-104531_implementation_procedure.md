@@ -25,7 +25,7 @@ GitHub MCP サーバーの起動失敗を修正する。`server.py` のモジュ
 - 既存のテスト（78件）が全てパスすること
 
 ### Assumptions
-1. `server_common.py` は既に遅延インポートになっている（確認済み：`_get_service()`, `_info()` 関数内で `from mcp_servers.github.server import _service` / `logger` を遅延インポートしている）。修正不要。
+1. `server_common.py` は既に遅延インポートになっている（確認済み：`_get_service()`, `_info()` 関数内で `from mcp_servers.github.github_server import _service` / `logger` を遅延インポートしている）。修正不要。
 2. `server_file.py` も既に遅延インポートになっている（確認済み：各エンドポイント関数内で `_get_service`, `_info` を遅延インポートしている）。修正不要。
 3. 問題の原因は `server.py` のみ。モジュールレベルで `from mcp_servers.github.server_file import router as file_router` などルーターをインポートしており、これが `server_file.py → server_common.py → server.py` のループを生成する。
 
@@ -169,7 +169,7 @@ logger.error("descriptive_message key=value key2=%s", val)
 
 | ターゲット | テスト戦略 | ツール/コマンド | 期待結果 |
 |---|---|---|---|
-| `server.py` | ユニット — インポートテスト | `python -c "from mcp_servers.github.server import app; print('OK:', app.title)"` | `OK: github-mcp` が出力される |
+| `server.py` | ユニット — インポートテスト | `python -c "from mcp_servers.github.github_server import app; print('OK:', app.title)"` | `OK: github-mcp` が出力される |
 | `server.py` | 統合 — サーバー起動 | `timeout 8 uv run --directory /opt/llm python /opt/llm/scripts/mcp_servers/github/server.py` | エラーなく起動・シャットダウン |
 | `server.py` | 統合 — ヘルスエンドポイント | `curl http://localhost:8006/health` | HTTP 200 が返る |
 | Agent | 統合 — エージェント再起動 | エージェントを再起動 | GitHub MCP サーバーが正常に起動する |
@@ -195,7 +195,7 @@ logger.error("descriptive_message key=value key2=%s", val)
 
 ### Phase 3: Deployment & Verification
 
-- [ ] Step 6: `server.py` のインポートテスト — `python -c "from mcp_servers.github.server import app; print('OK:', app.title)"` で `OK: github-mcp` が出力されることを確認
+- [ ] Step 6: `server.py` のインポートテスト — `python -c "from mcp_servers.github.github_server import app; print('OK:', app.title)"` で `OK: github-mcp` が出力されることを確認
 - [ ] Step 7: GitHub MCP サーバーの起動テスト — `timeout 8 uv run --directory /opt/llm python /opt/llm/scripts/mcp_servers/github/server.py` でエラーなく起動・シャットダウンすることを確認
 - [ ] Step 8: エージェント経由での起動テスト — エージェントを再起動し、GitHub MCP サーバーが正常に起動することを確認
 - [ ] Step 9: GitHub ツールの呼び出しテスト — エージェントから GitHub ツールを呼び出し、正常に動作することを確認

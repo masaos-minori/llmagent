@@ -127,7 +127,7 @@ def test_file_read_tools_enabled_when_allowed_dirs_set(monkeypatch) -> None:
 # file from growing 3x as long)
 
 def test_git_tools_disabled_when_allowed_repo_paths_empty_even_if_read_only_false(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=False))
     client = TestClient(git_server.app)
@@ -139,7 +139,7 @@ def test_git_tools_disabled_when_allowed_repo_paths_empty_even_if_read_only_fals
     # read_only=False would otherwise enable everything
 
 def test_git_write_tools_disabled_when_read_only_and_repo_paths_set(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     from shared.tool_constants import GIT_WRITE_TOOLS
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True))

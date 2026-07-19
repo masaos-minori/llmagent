@@ -223,7 +223,9 @@ class TestRagPipelineServerHealth:
 
     def test_degraded_when_embed_url_not_configured(self) -> None:
         """rag-pipeline-mcp returns 503 when embed_url is absent from config."""
-        from mcp_servers.rag_pipeline.rag_pipeline_server import app as rag_app  # noqa: PLC0415
+        from mcp_servers.rag_pipeline.rag_pipeline_server import (
+            app as rag_app,  # noqa: PLC0415
+        )
 
         cfg: dict = {}
         with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):
@@ -239,7 +241,9 @@ class TestRagPipelineServerHealth:
 
     def test_ok_when_embed_url_configured(self) -> None:
         """rag-pipeline-mcp returns 200 when embed_url is present in config."""
-        from mcp_servers.rag_pipeline.rag_pipeline_server import app as rag_app  # noqa: PLC0415
+        from mcp_servers.rag_pipeline.rag_pipeline_server import (
+            app as rag_app,  # noqa: PLC0415
+        )
 
         cfg = {"embed_url": "http://localhost:11434/api/embeddings"}
         with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):

@@ -99,9 +99,9 @@ for async paths, and `respx` for mocked HTTP calls (project dependency, confirme
 
 ### Procedure
 
-1. Imports: `pytest`, `respx`, `httpx`; `from mcp_servers.browser.models import
+1. Imports: `pytest`, `respx`, `httpx`; `from mcp_servers.browser.browser_models import
    BrowserAuthorizationError, BrowserConfig, BrowserFetchRequest` (plus `BrowserFetchError` if
-   introduced per the `server.py`/`service.py` docs); `from mcp_servers.browser.service import
+   introduced per the `server.py`/`service.py` docs); `from mcp_servers.browser.browser_service import
    BrowserService, build_service`.
 2. Define `_make_config(*, allowed_domains=None, max_response_kb=256, timeout_sec=15) ->
    BrowserConfig` local factory per Assumption 1.

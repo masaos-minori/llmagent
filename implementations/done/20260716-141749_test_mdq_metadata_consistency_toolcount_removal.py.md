@@ -86,7 +86,7 @@ tests' assertion bodies completely unchanged.
    ```python
        def test_total_tool_count(self) -> None:
            """mdq-mcp has exactly 7 tools."""
-           from mcp_servers.mdq.tools import TOOL_LIST
+           from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
            assert len(TOOL_LIST) == 7
    ```

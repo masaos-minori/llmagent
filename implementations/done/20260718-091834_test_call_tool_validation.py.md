@@ -145,7 +145,7 @@ def test_file_read_call_tool_dispatch_not_reached_when_disabled(monkeypatch) -> 
     assert resp.json()["is_error"] is True  # spy never raised -> handler returned early
 
 def test_git_call_tool_disabled_when_repo_paths_empty_even_if_read_only_false(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=False))
     client = TestClient(git_server.app)
@@ -155,7 +155,7 @@ def test_git_call_tool_disabled_when_repo_paths_empty_even_if_read_only_false(mo
     assert data["result"] == "Tool disabled: allowed_repo_paths is empty"
 
 def test_git_call_tool_write_tool_disabled_when_read_only(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True))
     client = TestClient(git_server.app)
@@ -165,7 +165,7 @@ def test_git_call_tool_write_tool_disabled_when_read_only(monkeypatch) -> None:
     assert data["result"] == "Tool disabled: read_only=true"
 
 def test_git_call_tool_validate_args_rejects_blank_commit_message(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False))
     client = TestClient(git_server.app)

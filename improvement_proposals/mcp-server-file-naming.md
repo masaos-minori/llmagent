@@ -102,10 +102,10 @@
 
 **変更前:**
 ```python
-from mcp_servers.github.models import GitHubConfig, CreateOrUpdateFileRequest
-from mcp_servers.github.server import app
-from mcp_servers.github.service import build_service
-from mcp_servers.github.tools import TOOL_LIST
+from mcp_servers.github.github_models import GitHubConfig, CreateOrUpdateFileRequest
+from mcp_servers.github.github_server import app
+from mcp_servers.github.github_service import build_service
+from mcp_servers.github.github_tools import TOOL_LIST
 ```
 
 **変更後:**

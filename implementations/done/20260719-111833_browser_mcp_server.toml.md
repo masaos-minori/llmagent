@@ -109,6 +109,6 @@ No code; this is a data file consumed by `BrowserConfig.load()`
 | Check | Command | Target |
 |---|---|---|
 | TOML syntax | `uv run python -c "import tomllib; tomllib.load(open('config/browser_mcp_server.toml','rb'))"` | parses without error |
-| Config-load round-trip | `PYTHONPATH=scripts uv run python -c "from mcp_servers.browser.models import BrowserConfig; import shared.config_loader as cl; cl.ConfigLoader.restrict_to('browser_mcp_server.toml'); print(BrowserConfig.load())"` | prints a `BrowserConfig` with `allowed_domains=[]`, confirming fail-closed default loads correctly |
+| Config-load round-trip | `PYTHONPATH=scripts uv run python -c "from mcp_servers.browser.browser_models import BrowserConfig; import shared.config_loader as cl; cl.ConfigLoader.restrict_to('browser_mcp_server.toml'); print(BrowserConfig.load())"` | prints a `BrowserConfig` with `allowed_domains=[]`, confirming fail-closed default loads correctly |
 | Deploy copy-list | `grep -n "browser_mcp_server.toml" deploy/deploy.sh` | present (see paired `deploy.sh` doc) |
 | MCP docs consistency | `uv run check-mcp-docs` | passes; no fail-open wording introduced for `allowed_domains` |

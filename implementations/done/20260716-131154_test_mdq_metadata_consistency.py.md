@@ -73,7 +73,7 @@ now-meaningless `test_admin_tool_statuses` test.
    ```python
    def test_total_tool_count(self) -> None:
        """mdq-mcp has exactly 9 tools."""
-       from mcp_servers.mdq.tools import TOOL_LIST
+       from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
        assert len(TOOL_LIST) == 9
    ```
@@ -81,7 +81,7 @@ now-meaningless `test_admin_tool_statuses` test.
    ```python
    def test_total_tool_count(self) -> None:
        """mdq-mcp has exactly 7 tools."""
-       from mcp_servers.mdq.tools import TOOL_LIST
+       from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
        assert len(TOOL_LIST) == 7
    ```
@@ -89,7 +89,7 @@ now-meaningless `test_admin_tool_statuses` test.
    ```python
    def test_admin_tool_statuses(self) -> None:
        """2 admin mdq-mcp tools (fts_consistency_check, fts_rebuild) have status='admin'."""
-       from mcp_servers.mdq.tools import TOOL_LIST
+       from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
        admin_tools = {"fts_consistency_check", "fts_rebuild"}
        for tool in TOOL_LIST:

@@ -54,7 +54,7 @@ path and each currently has the identical inline-dict pattern, verified by direc
    `implementations/20260718-084001_mcp_servers_server.py.md`'s Assumption 1 for why — no server instance
    is available at module import time under normal ASGI serving).
 2. Each of the 9 files already imports `TOOL_LIST` from its sibling `tools.py` at module scope (confirmed,
-   e.g. `mdq/server.py:45: from mcp_servers.mdq.tools import TOOL_LIST`). Each file needs exactly one new
+   e.g. `mdq/server.py:45: from mcp_servers.mdq.mdq_tools import TOOL_LIST`). Each file needs exactly one new
    import line (`from mcp_servers.server import build_tools_response`, or a relative-equivalent import
    consistent with each file's existing `from mcp_servers.server import ...` style — several files already
    import `MCPServer`, `attach_auth_middleware`, etc. from `mcp_servers.server`, so this is typically

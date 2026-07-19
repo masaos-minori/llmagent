@@ -35,7 +35,7 @@ for the never-implemented hybrid search mode.
    functionality, not cleanup, and is explicitly out of scope.
 2. `EmbeddingResult` (a `TypedDict` at `models.py:237-240`) has zero
    importers anywhere in `scripts/` or `tests/` — verified via
-   `rg -n "from mcp_servers.mdq.models import"` across the repo (this is
+   `rg -n "from mcp_servers.mdq.mdq_models import"` across the repo (this is
    a distinct class from the unrelated `agent.memory.types.EmbeddingResult`
    dataclass used elsewhere in the codebase; do not confuse the two).
 3. This change must land in the same commit as `tools.py`'s description
@@ -98,8 +98,8 @@ rejection of unsupported values automatically at parse time.
 |---|---|---|
 | Type narrowed | `grep -n "mode: Literal" scripts/mcp_servers/mdq/models.py` | 1 match |
 | `EmbeddingResult` removed | `grep -n "class EmbeddingResult" scripts/mcp_servers/mdq/models.py` | 0 matches |
-| Rejects invalid mode | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.models import SearchDocsRequest; SearchDocsRequest(query='x', mode='hybrid')"` | raises `pydantic.ValidationError` |
-| Accepts valid mode | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.models import SearchDocsRequest; print(SearchDocsRequest(query='x', mode='bm25').mode)"` | prints `bm25` |
+| Rejects invalid mode | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.mdq_models import SearchDocsRequest; SearchDocsRequest(query='x', mode='hybrid')"` | raises `pydantic.ValidationError` |
+| Accepts valid mode | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.mdq_models import SearchDocsRequest; print(SearchDocsRequest(query='x', mode='bm25').mode)"` | prints `bm25` |
 | Lint | `uv run ruff check scripts/mcp_servers/mdq/models.py` | 0 errors |
 | Type check | `uv run mypy scripts/mcp_servers/mdq/models.py` | no new errors |
 | Targeted tests | `uv run pytest tests/test_mdq_search_modes.py -v` (once companion new-test doc lands) | all pass |

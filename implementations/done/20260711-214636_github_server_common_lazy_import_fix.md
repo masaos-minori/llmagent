@@ -9,7 +9,7 @@ Fix the GitHub MCP server startup failure caused by a circular import between `s
 ## Scope
 
 **In:**
-- `scripts/mcp_servers/github/server_common.py`: remove the module-level `from mcp_servers.github.server import _service, logger` import; add equivalent lazy imports inside `_get_service()` and `_info()`.
+- `scripts/mcp_servers/github/server_common.py`: remove the module-level `from mcp_servers.github.github_server import _service, logger` import; add equivalent lazy imports inside `_get_service()` and `_info()`.
 
 **Out:**
 - No change to any endpoint function signature in `server_file.py`, `server_issues.py`, `server_pull_requests.py`, `server_repository.py` — their public API is unaffected since `_get_service()`/`_info()`'s external behavior does not change.
@@ -32,15 +32,15 @@ Fix the GitHub MCP server startup failure caused by a circular import between `s
 
 ### Procedure
 
-1. Read the current file to locate the exact module-level import line: `from mcp_servers.github.server import _service, logger  # noqa: PLC0415` (or similar — confirm exact current wording/line number, since the plan's own Phase 1 calls for re-verifying this before editing).
+1. Read the current file to locate the exact module-level import line: `from mcp_servers.github.github_server import _service, logger  # noqa: PLC0415` (or similar — confirm exact current wording/line number, since the plan's own Phase 1 calls for re-verifying this before editing).
 2. Remove that module-level import line entirely.
 3. Inside `_get_service()`'s function body (as its first statement, or immediately before first use of `_service`), add:
    ```python
-   from mcp_servers.github.server import _service  # noqa: PLC0415
+   from mcp_servers.github.github_server import _service  # noqa: PLC0415
    ```
 4. Inside `_info()`'s function body (as its first statement, or immediately before first use of `logger`), add:
    ```python
-   from mcp_servers.github.server import logger  # noqa: PLC0415
+   from mcp_servers.github.github_server import logger  # noqa: PLC0415
    ```
 5. If either function already has other lazy imports at its top, place the new import there consistently, keeping one import per line and preserving existing suppression-comment style.
 

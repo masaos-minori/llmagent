@@ -117,6 +117,6 @@ replacement types.
 | Field removed | `grep -n "use_summary" scripts/mcp_servers/mdq/models.py` | 0 matches |
 | Classes removed | `grep -n "class ChunkSummary\|class GetChunkSummaryResponse" scripts/mcp_servers/mdq/models.py` | 0 matches |
 | `GetChunkResponse` intact | `grep -n "class GetChunkResponse" scripts/mcp_servers/mdq/models.py` | 1 match, unchanged |
-| Extra-field behavior confirmed | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.models import GetChunkRequest; r = GetChunkRequest(chunk_id='x', use_summary=True); print(hasattr(r, 'use_summary'))"` | prints `False` (field silently ignored, no error) |
+| Extra-field behavior confirmed | `PYTHONPATH=scripts uv run python -c "from mcp_servers.mdq.mdq_models import GetChunkRequest; r = GetChunkRequest(chunk_id='x', use_summary=True); print(hasattr(r, 'use_summary'))"` | prints `False` (field silently ignored, no error) |
 | Lint | `uv run ruff check scripts/mcp_servers/mdq/models.py` | 0 errors |
 | Type check | `uv run mypy scripts/mcp_servers/mdq/models.py` | no new errors |

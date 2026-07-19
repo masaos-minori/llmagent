@@ -73,8 +73,8 @@ that `plans/done/20260716-123031_plan.md` fixed for the
    ```python
    from __future__ import annotations
 
-   from mcp_servers.mdq.server import _DISPATCH_TABLE
-   from mcp_servers.mdq.tools import TOOL_LIST
+   from mcp_servers.mdq.mdq_server import _DISPATCH_TABLE
+   from mcp_servers.mdq.mdq_tools import TOOL_LIST
    from shared.tool_constants import MDQ_TOOLS, MDQ_WRITE_TOOLS
    from shared.tool_registry import get_registry
    ```

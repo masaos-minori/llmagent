@@ -165,7 +165,7 @@ def test_file_server_tools_disabled_when_allowed_dirs_empty(server_mod_path, cfg
 
 @pytest.mark.xfail(reason="depends on requirement 15 landing in scripts/mcp_servers/", strict=True)
 def test_git_tools_all_disabled_when_allowed_repo_paths_empty(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True))
     client = TestClient(git_server.app)
@@ -175,7 +175,7 @@ def test_git_tools_all_disabled_when_allowed_repo_paths_empty(monkeypatch) -> No
 
 @pytest.mark.xfail(reason="depends on requirement 15 landing in scripts/mcp_servers/", strict=True)
 def test_git_write_tools_disabled_when_read_only(monkeypatch) -> None:
-    from mcp_servers.git.models import GitConfig
+    from mcp_servers.git.git_models import GitConfig
     from mcp_servers.git import server as git_server
     from shared.tool_constants import GIT_WRITE_TOOLS
     monkeypatch.setattr(git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True))

@@ -4,18 +4,16 @@ Regression guards for rag-pipeline-mcp server after /v1/search removal.
 
 from __future__ import annotations
 
-import importlib
-
 # ── Model removal guard ───────────────────────────────────────────────────────
 
 
 def test_rag_search_models_removed() -> None:
     """RagSearchRequest and RagSearchResponse must not exist in models module."""
     import importlib.util
-    
+
     spec = importlib.util.find_spec("mcp_servers.rag_pipeline.rag_pipeline_models")
     assert spec is not None, "rag_pipeline_models should exist"
-    
+
     # RagSearchRequest and RagSearchResponse must not exist
     mod = importlib.import_module("mcp_servers.rag_pipeline.rag_pipeline_models")
     assert not hasattr(mod, "RagSearchRequest"), (

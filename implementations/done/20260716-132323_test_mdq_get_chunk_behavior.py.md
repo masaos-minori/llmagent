@@ -80,8 +80,8 @@ Unknown in the source plan.
    from tempfile import mkstemp
 
    import pytest
-   from mcp_servers.mdq.models import GetChunkRequest, MdqNotFoundError
-   from mcp_servers.mdq.service import MdqService
+   from mcp_servers.mdq.mdq_models import GetChunkRequest, MdqNotFoundError
+   from mcp_servers.mdq.mdq_service import MdqService
    ```
 3. Add a `service` fixture matching `tests/test_mdq_service.py`'s existing
    pattern (temp DB, `tmp_path` in `_allowed_dirs`).

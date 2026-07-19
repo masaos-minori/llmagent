@@ -63,7 +63,7 @@ presence check and every other class in the file untouched.
 
        def test_mdq_production_tools_count(self) -> None:
            """TOOL_LIST should have exactly 7 production-status tools."""
-           from mcp_servers.mdq.tools import TOOL_LIST
+           from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
            production_tools = [t for t in TOOL_LIST if t.get("status") == "production"]
            assert len(production_tools) == 7, (
@@ -92,7 +92,7 @@ presence check and every other class in the file untouched.
        def test_v1_tools_returns_all_tools(self) -> None:
            """GET /v1/tools should return all 7 MDQ tools."""
            from fastapi.testclient import TestClient
-           from mcp_servers.mdq.server import app
+           from mcp_servers.mdq.mdq_server import app
 
            client = TestClient(app)
            response = client.get("/v1/tools")

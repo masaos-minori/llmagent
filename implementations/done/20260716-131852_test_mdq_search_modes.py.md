@@ -91,8 +91,8 @@ the removed `max_search_results` alias is no longer accepted.
    import pytest
    from pydantic import ValidationError
 
-   from mcp_servers.mdq.models import SearchDocsRequest
-   from mcp_servers.mdq.service import MdqService
+   from mcp_servers.mdq.mdq_models import SearchDocsRequest
+   from mcp_servers.mdq.mdq_service import MdqService
    ```
 3. Add a `service` fixture matching `tests/test_mdq_service.py`'s existing
    pattern (temp DB, `tmp_path` in `_allowed_dirs`) — reuse or duplicate as

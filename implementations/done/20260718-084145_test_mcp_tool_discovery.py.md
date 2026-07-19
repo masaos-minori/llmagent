@@ -74,7 +74,7 @@ are correctly typed when present, and (5) any failure names both the offending `
    avoids this false failure.
 3. **`TestClient` usage mirrors `tests/test_mcp_server_base.py:95-104`'s `_make_test_app()` helper**
    (confirmed by direct read) — `TestClient(app, raise_server_exceptions=True)`. Each of the 9 real `app`
-   objects can be imported directly (e.g. `from mcp_servers.mdq.server import app as mdq_app`) and wrapped
+   objects can be imported directly (e.g. `from mcp_servers.mdq.mdq_server import app as mdq_app`) and wrapped
    the same way; no server process/uvicorn needs to actually run for these tests (FastAPI's `TestClient`
    calls the ASGI app in-process).
 4. **`status`/`is_write`/`requires_serial` values observed in real `TOOL_LIST`s today** (confirmed via

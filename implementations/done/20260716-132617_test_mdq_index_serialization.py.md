@@ -92,8 +92,8 @@ actually prevents interleaved execution of overlapping `index_paths`/
    from pathlib import Path
 
    import pytest
-   from mcp_servers.mdq.models import RefreshIndexRequest
-   from mcp_servers.mdq.service import MdqService
+   from mcp_servers.mdq.mdq_models import RefreshIndexRequest
+   from mcp_servers.mdq.mdq_service import MdqService
    ```
 3. Reuse the `service`/`md_file` fixture pattern already established in
    `tests/test_mdq_service.py:36-55` (temp DB, `tmp_path` in
