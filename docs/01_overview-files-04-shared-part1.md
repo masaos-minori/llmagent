@@ -21,7 +21,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 /opt/llm/
 ├─ venv/                              # Python 仮想環境
 │   └─ requirements.txt              # Python 依存パッケージ一覧

@@ -27,7 +27,7 @@ source:
 
 **起動シーケンス(`StartupOrchestrator.run()`に委譲):**
 
-```
+``` text
 StartupOrchestrator.run()
   Initialization phase:
     → Readline setup

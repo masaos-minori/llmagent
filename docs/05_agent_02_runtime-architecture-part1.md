@@ -28,7 +28,7 @@ source:
 
 ## Component Dependency Diagram
 
-```
+``` text
 agent/__main__.py
   └─ AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
        ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()

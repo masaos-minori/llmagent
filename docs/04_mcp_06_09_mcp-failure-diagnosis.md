@@ -16,7 +16,7 @@ source:
 
 失敗した、または予期しないMCP tool callを追跡するには、以下のフローを使用する:
 
-```
+``` text
 1. Was the request delivered to the server?
    NO  → Transport failure (error_type="transport" in agent-side audit log). See §Error Type Distinction.
    YES → continue

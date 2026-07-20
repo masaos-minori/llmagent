@@ -24,7 +24,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 │   ├─ mcp_servers/                           # MCP サーバパッケージ
 │   │   └─ __init__.py                      # MCP パッケージ初期化
 │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル

@@ -47,7 +47,7 @@ uv sync --dev --system-certs
 
 `/opt/llm/venv/requirements.txt`:
 
-```
+``` text
 fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
 httpx>=0.27.0

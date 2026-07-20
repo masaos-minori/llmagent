@@ -75,7 +75,7 @@ grep '"error_type":"tool"' /opt/llm/logs/audit.log
 
 toolが5分間のスライディングウィンドウ内で3回以上失敗すると、警告がログに出力される:
 
-```
+``` text
 WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s window
 ```
 
@@ -96,7 +96,7 @@ WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s windo
 | `is_write_overlap` | 特定のスコープを持たない複数の書き込み | 書き込み系toolがすべてまとめてグループ化される（write-first） |
 
 **ログ形式:**
-```
+``` yaml
 ROUND_SERIALIZATION: triggered by shell_run (requires_serial) — 1 tools serialized in this round
 Serialization impact: 3 tools grouped serially (normally would run in parallel)
 ```

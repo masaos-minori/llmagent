@@ -23,7 +23,7 @@ related:
 
 デプロイ先のディレクトリ構成:
 
-```
+``` text
 /opt/llm/
 ├─ llama.cpp/                                 # llama.cpp ソース・ビルド成果物
 ├─ models/
@@ -33,7 +33,7 @@ related:
 
 デプロイスクリプト (リポジトリ `deploy/` 配下、`bash deploy/xxx.sh` で実行):
 
-```
+``` text
 deploy/
 ├─ deploy.sh                                  # Python スクリプト・設定・SQL を /opt/llm/ へコピー
 ├─ build_sqlite_vec.sh                        # sqlite-vec (vec0.so) を取得・ビルド。初回デプロイ時に一度実行

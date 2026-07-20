@@ -39,7 +39,7 @@ class ToolCallResult:
 **訂正 (Explicit in code):** 旧記述は `source` / `error_type` フィールドを欠いていた。`error_type` はエラーの分類(トランスポート層/ツール層)を示し、ヘルスゲートやエラーカウンタ集計(`get_error_counters()`)で参照される。
 
 **実行フロー:**
-```
+``` text
 ToolExecutor.execute(tool_name, args) -> ToolCallResult
   1. TTL + LRU キャッシュチェック(is_error=Falseの結果のみ;キャッシュミス時のみ以降へ進む)
   2. stampede protection(_inflight）→ 同一キーの同時実行はFutureを共有

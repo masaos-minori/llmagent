@@ -24,7 +24,7 @@ related:
 
 デプロイ先のディレクトリ構成:
 
-```
+``` text
 /opt/llm/
 ├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.json)
 │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.json)

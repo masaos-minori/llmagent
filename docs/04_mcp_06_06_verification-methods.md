@@ -140,7 +140,7 @@ curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
 
 ## Agent REPLでの確認
 
-```
+``` text
 agent[:#N]> /mcp
 ```
 

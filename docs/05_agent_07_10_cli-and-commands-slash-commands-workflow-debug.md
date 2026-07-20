@@ -45,7 +45,7 @@ related:
 `StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから
 起動時に自動検出される。起動時に以下の通知が表示される:
 
-```
+``` text
 [workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].
 ```
 

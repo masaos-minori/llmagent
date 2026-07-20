@@ -45,7 +45,7 @@ TOML 設定で `allow_public_bind: true` を設定すると、この検証を回
 リバースプロキシなどによる認証手段がない限り、この設定は**推奨されない**。
 拒否された場合のエラーメッセージは以下の通り。
 
-```
+``` text
 Event Bus bound to public address {host} without allow_public_bind=true.
 The API has no authentication — this is a security risk.
 ```

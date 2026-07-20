@@ -32,7 +32,7 @@ source:
 
 各ターンの後、REPLの行ディスパッチャーが`stat_partial_completions`が増加したかをチェックする。増加していれば:
 
-```
+``` text
 [warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
 ```
 

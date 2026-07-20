@@ -44,7 +44,7 @@ cd /opt/llm/scripts && python -m agent
 ```
 
 期待される起動バナー:
-```
+``` text
 DB: 12,345 chunks | Tools: 14
 Memory: disabled
 Type /help for commands, /exit to quit.
@@ -88,7 +88,7 @@ curl -s http://127.0.0.1:8081/health
 
 ### MCPサーバの状態
 
-```
+``` text
 agent[:#1]> /mcp
 ```
 

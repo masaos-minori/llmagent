@@ -24,7 +24,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 │   │   ├─ shell/                           # シェル MCP サーバ (:8009)
 │   │   │   ├─ server.py                    # シェル MCP サーバ
 │   │   │   ├─ service.py                   # シェルサービス

@@ -66,7 +66,7 @@ related:
 | `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | KNN 検索。`MemoryHit.score` には `mv.distance` を符号反転した値（`-distance`）を格納する（コード上のコメントは “Negate distance” であり、距離指標がコサインか L2 かは `memories_vec` テーブル定義依存で本モジュールからは確認できない＝Needs confirmation）。クエリ結果が0件の場合は [] を返す。 |
 
 **スコアリングの数式:**
-```
+``` text
 score = -bm25_rank + importance_boost + pin_boost + recency_decay + context_match
 ```
 - セマンティック: importance_weight=1.0, recency_weight=0.5

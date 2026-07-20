@@ -99,7 +99,7 @@ pipeline.get_diagnostics() -> dict
 
 **`run()` / `augment()` の前に呼び出しても安全** — 空/ゼロ値を返す。呼び出し元は `orjson.dumps(pipeline.get_diagnostics())` でシリアライズすること。
 
-```
+``` text
 StageResult = TypedDict with keys:
   stage_name: str         — class name of the stage
   status: str             — "success" | "fallback" | "failure"

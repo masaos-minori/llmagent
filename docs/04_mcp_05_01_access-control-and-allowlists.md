@@ -191,7 +191,7 @@ command_allowlist = ["ls", "cat", "grep", "git", "python3"]
 
 ### 環境変数のフィルタリング
 
-```
+``` text
 env_allowlist non-empty  → keep only listed keys (denylist ignored)
 env_allowlist empty      → remove denylist pattern matches
 both empty               → use req.env as-is

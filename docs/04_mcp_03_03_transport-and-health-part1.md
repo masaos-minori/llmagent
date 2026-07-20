@@ -50,7 +50,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 **状態遷移:**
 
-```
+``` text
 HEALTHY ──(failure × threshold)──→ UNAVAILABLE
    ↑                                    │
    │                            (cooldown 30s elapsed)

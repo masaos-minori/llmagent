@@ -23,7 +23,7 @@ related:
 
 ## 失敗パスの例（トランスポートエラー）
 
-```
+``` text
 1-2. Same as above.
 
 3. MCP server unreachable (timeout / 5xx):
@@ -73,7 +73,7 @@ related:
 
 ツール定義の起動時バリデーション動作については `04_mcp_06` §Startup Validation Behavior を参照。
 
-```
+``` text
 AgentREPL.run()
   → MCP server startup
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll

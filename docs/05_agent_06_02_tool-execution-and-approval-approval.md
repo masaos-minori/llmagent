@@ -171,7 +171,7 @@ toolロールメッセージとして返され、会話は自然に継続する)
 
 ターン単位の上限によりツール実行結果が破棄された場合に履歴に追加されるヒント。形式:
 
-```
+``` text
 [Result omitted: per-turn tool result limit reached.]
 ```
 

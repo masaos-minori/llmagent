@@ -22,7 +22,7 @@ related:
 
 デプロイ先のディレクトリ構成:
 
-```
+``` text
 /opt/llm/
 ├─ scripts/
 │   └─ eventbus/                        # イベントバスパッケージ
@@ -45,7 +45,7 @@ related:
 ```
 
 リポジトリルート:
-```
+``` text
 conf.d/
 └─ github-mcp                           # GITHUB_TOKEN (Personal Access Token) 設定
 ```

@@ -85,7 +85,7 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 
 ### HTTP transport（大半のサーバ）
 
-```
+``` text
 Agent ToolExecutor
   → POST http://127.0.0.1:{port}/v1/call_tool
   → {"name": "tool_name", "args": {...}}
@@ -130,7 +130,7 @@ Agent ToolExecutor
 
 ## server、protocol、sharedの関係
 
-```
+``` text
 agent/factory.py
   → builds ToolExecutor (shared/tool_executor.py)
        → uses ToolRouteResolver (shared/route_resolver.py)

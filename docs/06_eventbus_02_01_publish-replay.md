@@ -87,7 +87,7 @@ source:
 - `items`: イベントオブジェクトの配列（最大 `limit` 件）。`offset >= total` の場合は空配列
 
 **レスポンス（`format=sse`）:** 各イベントは SSE の data 行として出力される:
-```
+``` text
 data: {"seq": 42, "event_id": "...", "topic": "...", "payload": {}, "producer": "...", "published_at": "..."}
 ```
 

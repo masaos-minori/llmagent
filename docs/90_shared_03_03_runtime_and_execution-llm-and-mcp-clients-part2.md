@@ -88,7 +88,7 @@ class LLMClient:
 ## 12. 実行フローのまとめ
 
 **設定の読み込み:**
-```
+``` text
 build_agent_config()
   → ConfigLoader().load_all()     [_BASE_CONFIG_FILES = ("agent.toml",) の1ファイルのみ — 詳細は90_shared_03_01 §2aを参照]
 ```
@@ -96,7 +96,7 @@ build_agent_config()
 **実装上の補足:** 他の設定(crawler.toml、chunk_splitter.toml、ingester.toml、各`*_mcp_server.toml`等)はプロセス分離方針により各プロセスが個別にロードし、エージェントの`load_all()`には含まれない(Explicit in code)。
 
 **ツール実行:**
-```
+``` text
 ToolExecutor.execute(tool_name, args)
   → ヘルスゲート → キャッシュ → 生のMCP呼び出し
 ```

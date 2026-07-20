@@ -20,7 +20,7 @@ source:
 
 `stream()`は`LlmSseStreamHandler.stream_once()`をリトライループでラップする:
 
-```
+``` text
 LlmSseStreamHandler.stream_once() attempt 1
   → if LLMTransportError.retryable and reconnect count < sse_reconnect_max:
        reconnect (new RobustSSEParser, new HTTP request)

@@ -101,7 +101,7 @@ class ConfigLoader:
 `MCPServer` サブクラスは `own_config_file = "xxx_mcp_server.toml"` を宣言する。`run_http()` がこの値を使って `ConfigLoader.restrict_to(own_config_file)` を uvicorn 起動前に呼び出す。
 
 **Config loading flow:**
-```
+``` text
 ConfigLoader().load("agent.toml")
   → read /opt/llm/config/agent.toml (TOML)
   → remove keys prefixed with "_"

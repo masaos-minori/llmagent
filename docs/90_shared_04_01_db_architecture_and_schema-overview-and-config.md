@@ -30,7 +30,7 @@ WAL/FTS5/sqlite-vec の設定、全テーブルスキーマ、およびスキー
 
 ## 2. DB レイヤー全体構造
 
-```
+``` text
 db/
 ├── helper.py          SQLiteHelper — connection lifecycle, PRAGMA, vec extension
 ├── create_schema.py   DDL creation (rag + session schemas; idempotent)

@@ -29,7 +29,7 @@ source:
 
 ## Recommended Reading Order (Human)
 
-```
+``` text
 01 Overview → 02 Types and Protocols → 03 Runtime and Execution
   → 04 DB Architecture/Schema → 05 DB API and Operations → 90 Inconsistencies
 ```

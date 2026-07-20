@@ -36,7 +36,7 @@ related:
 
 ### リクエスト
 
-```
+``` http
 POST /v1/call_tool
 Content-Type: application/json
 Authorization: Bearer <token>   (when auth_token is configured)

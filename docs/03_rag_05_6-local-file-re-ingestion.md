@@ -26,7 +26,7 @@ lang = "en"
 
 その後、以下を実行する。
 
-```
+``` python
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 ```
 
@@ -64,7 +64,7 @@ ingesterは、現在のファイル内容のSHA-256ハッシュを`documents`に
 クローラーは`--force`をサポートしない。未変更のファイルはSHA-256ハッシュ比較により自動的にスキップされる。
 すでに取り込み済みのURLの埋め込みを強制的に再実行するには、クロール後に`ingester.py --force`を実行する。
 
-```
+``` python
 uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 uv run python scripts/rag/ingestion/ingester.py --force
 ```

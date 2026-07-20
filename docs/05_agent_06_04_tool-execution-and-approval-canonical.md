@@ -58,7 +58,7 @@ related:
 
 ### アーキテクチャ図
 
-```
+``` text
 User prompt
   └─► Orchestrator
         └─► WorkflowEngine (plan → execute → [approval gate] → verify)

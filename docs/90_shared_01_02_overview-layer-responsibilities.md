@@ -21,7 +21,7 @@ source:
 
 ## 4. レイヤー構造全体
 
-```
+``` text
 External Libraries
         ↑
    shared/          ← 最下層。他の全レイヤーがこれに依存する

@@ -45,7 +45,7 @@ source:
 
 ## Interpreting `/context`(`/context` の解釈)
 
-```
+``` text
 Context state:
   Messages        : 12
   Total chars     : 4,321
@@ -77,7 +77,7 @@ Budget breakdown:
 
 ## Interpreting `/stats`(`/stats` の解釈)
 
-```
+``` text
 Turns: 5 | Tool calls: 12 | Errors: 1
 LLM: retries=0, reconnects=0, HB timeouts=0, partials=0, parse_errors=0
 Cache hits: 3 | Compress: 1 | Semantic cache hits: 0

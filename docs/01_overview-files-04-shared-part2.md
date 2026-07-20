@@ -21,7 +21,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 │   ├─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
 │       ├─ __init__.py                      # shared パッケージ初期化
 │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ

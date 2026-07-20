@@ -46,7 +46,7 @@ ctx.services.tools.stat_tool_errors   # {"rag_pipeline": 3, "github": 0}
 サーバーごとのツールエラー数が`repeated_tool_error_threshold`(デフォルト: 3)の倍数に
 達した場合、次の警告がログに記録される。
 
-```
+``` text
 WARNING repeated tool errors from 'rag_pipeline': 3 failures (error_type=tool)
 ```
 
@@ -90,14 +90,14 @@ grep "error_type=transport" agent.log
 
 各直列化イベントは次の形式でログに記録される。
 
-```
+``` text
 INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
      — <N> tools serialized in this round
 ```
 
 例:
 
-```
+``` text
 INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
      — 2 tools serialized in this round
 ```
@@ -106,7 +106,7 @@ INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
 
 `/mcp status`を実行すると、セッションの累積統計を確認できる。
 
-```
+``` text
 --- Tool Scheduling ---
   Serialization events this session: 5
   Tools affected by serialization:   12

@@ -124,7 +124,7 @@ source:
 
 各ターンの後、REPLの行ディスパッチャーが`handle_turn()`の前後で`stat_partial_completions`を比較する。増加していれば、ユーザーに見える警告が出力される:
 
-```
+``` text
 [warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
 ```
 

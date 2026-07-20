@@ -31,7 +31,7 @@ related:
 
 `execute(tool_name, args) -> ToolCallResult`のディスパッチ優先順位:
 
-```
+``` text
 1. TTL cache                           — 期限切れでなければキャッシュ結果を返す
 2. MCP server dispatch via internal method
      → ToolRouteResolver.resolve()     — tool_name → server_key (ルーティングの権威; 04_mcp_03 §Routing Source of Truth 参照)
@@ -136,7 +136,7 @@ related:
 同等の並列ラウンドと比較して`elapsed_ms`が高いラウンドは、最適化の候補となる。
 
 監査ログの検索:
-```
+``` text
 grep round_exec /path/to/audit.log
 ```
 

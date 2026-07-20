@@ -23,7 +23,7 @@ related:
 
 デプロイ先のディレクトリ構成:
 
-```
+``` text
 /opt/llm/
 ├─ config/
 │   ├─ workflows/                           # ワークフロー定義ファイル群

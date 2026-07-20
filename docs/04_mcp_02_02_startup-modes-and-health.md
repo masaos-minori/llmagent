@@ -108,7 +108,7 @@ related:
 ## レスポンスの切り詰め
 
 結果が 512 KB を超える場合:
-```
+``` text
 [TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]
 ```
 

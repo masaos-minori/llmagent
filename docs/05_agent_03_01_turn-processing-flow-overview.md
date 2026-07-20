@@ -28,7 +28,7 @@ source:
 
 ## 1ターンの処理フロー
 
-```
+``` text
 User input (line)
   │
   ├─ line.startswith("/")

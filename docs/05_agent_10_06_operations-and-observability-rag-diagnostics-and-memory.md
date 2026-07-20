@@ -35,7 +35,7 @@ source:
 
 以下は`write_debug_rag()`が受け取るデータ構造を示す想定出力例。
 
-```
+``` text
   [debug] RRF config: use_rrf=True rrf_k=60
   [debug] MQE queries (2):
     1: what is the retry policy
@@ -101,7 +101,7 @@ source:
 
 スタンドアロンの RAG 取り込みパイプライン（`scripts/rag/ingestion/crawler.py`）は、URL ごとの進捗とサマリー行を出力する。
 
-```
+``` text
 [ingest] crawling https://example.com/docs (lang=en)...
 [ingest] splitting chunks...
 [ingest] 12 chunks written
@@ -126,7 +126,7 @@ inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registe
 
 出力例。
 
-```
+``` text
 Field                   Value
 ----------------------  --------------------------------------------------
 Mode                    Hybrid mode (semantic + FTS)

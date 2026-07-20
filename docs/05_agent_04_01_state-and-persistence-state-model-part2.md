@@ -34,7 +34,7 @@ source:
 
 ### セッションのライフサイクル
 
-```
+``` text
 AgentREPL.run()
   → AgentSession.start()              — sessionsへINSERT; session_idを取得
   → each turn: AgentSession.save()    — messagesへINSERT
@@ -94,7 +94,7 @@ AgentREPL.run()
 
 ## 会話履歴とデータベースの関係
 
-```
+``` text
 ctx.conv.history (in-memory list)
     ↕ synchronized per turn
 AgentSession (session.sqlite: sessions + messages)

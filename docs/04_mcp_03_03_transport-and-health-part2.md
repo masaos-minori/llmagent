@@ -36,7 +36,7 @@ source:
 
 ### 成功パスの例
 
-```
+``` text
 1. Agent: LLM emits tool_use for "read_text_file"
    → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
    → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"

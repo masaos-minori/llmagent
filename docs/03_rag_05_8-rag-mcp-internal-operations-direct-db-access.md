@@ -65,7 +65,7 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 ## crawler
 
-```
+``` yaml
 usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
                    [--targets-file PATH]
 
@@ -87,7 +87,7 @@ options:
 
 ## chunk_splitter
 
-```
+``` yaml
 usage: chunk_splitter.py [-h] [--file FILE] [--force]
 
 Chunking: rag-src/*.json → rag-src/chunk/{stem}-{idx:04d}.json
@@ -101,7 +101,7 @@ options:
 
 ## ingester
 
-```
+``` yaml
 usage: ingester.py [-h] [--force]
 
 Embedding generation and DB ingestion: rag-src/chunk/*.json → SQLite → rag-

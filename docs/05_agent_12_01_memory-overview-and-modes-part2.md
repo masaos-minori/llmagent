@@ -48,7 +48,7 @@ source:
 - Degraded → Hybrid: 復旧期間後にサーキットブレーカーが閉じた際に自動的に遷移する
 - いずれか → Disabled: 設定変更とエージェントの再起動が必要
 
-```
+``` text
 session_start
     |
     v

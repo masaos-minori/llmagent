@@ -48,7 +48,7 @@ related:
 
 チェックの最後に、以下の要約行がログに出力される。
 
-```
+``` text
 Security posture summary — fail-closed (deny when empty): <list>; fail-open (allow when empty): <list>
 ```
 

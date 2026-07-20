@@ -32,7 +32,7 @@ related:
 
 ### 出力フォーマット
 
-```
+``` yaml
 Config reloaded — some changes require restart
 WARNING: Some settings require restart to take effect.
 Restart required: [4 items]

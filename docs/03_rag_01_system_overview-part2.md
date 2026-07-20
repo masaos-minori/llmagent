@@ -36,7 +36,7 @@ source:
 
 ### インジェクションのデータフロー（概要）
 
-```
+``` text
 config/crawler.toml [target_urls]
   → crawler.py: BFS crawl (same-origin) → rag-src/
   → chunk_splitter.py (config/chunk_splitter.toml): language-aware splitting

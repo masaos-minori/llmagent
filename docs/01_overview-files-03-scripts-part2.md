@@ -24,7 +24,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 │   │   ├─ commands/
 │   │   │   └─ __init__.py                  # commands パッケージ初期化
 │   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (15 mixins)

@@ -32,7 +32,7 @@ source:
 `RagPipeline` は5つのステージを順に実行する。各ステージは
 `PipelineStage` Protocolを実装し、共有される `PipelineContext` dataclassをインプレースで変更する。
 
-```
+``` text
 RagPipeline.augment(query)
   → use_search=False? → ""を返す
   → rag_service_urlが設定されている? → call_rag_service() → 失敗時はインプロセス実行にフォールバック
@@ -65,7 +65,7 @@ RagPipeline.augment(query)
 
 ### MCP サーバー呼び出しパス
 
-```
+``` text
 MCP クライアント
   → scripts/mcp_servers/rag_pipeline/server.py (HTTP ルート)
     → RagPipelineMCPService.run_pipeline() (service.py)

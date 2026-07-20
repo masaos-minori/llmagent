@@ -25,7 +25,7 @@ related:
 
 詳細 → [`03_rag_02_01_ingestion_pipeline-overview.md`](03_rag_02_01_ingestion_pipeline-overview.md)
 
-```
+``` text
 target_urls → crawler.py (BFS クロール) → rag-src/*.json
            → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.json
            → ingester.py (embed → SQLite INSERT) → rag-src/registered/
@@ -35,7 +35,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 詳細 → [`03_rag_03_01_query_pipeline-overview.md`](03_rag_03_01_query_pipeline-overview.md)
 
-```
+``` text
 ユーザー入力
   → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
   → LLM (:8080) → tool_calls → MCP サーバ群 (:8004〜:8014)

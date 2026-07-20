@@ -33,7 +33,7 @@ related:
 
 ### 2.1 プロセス構成
 
-```
+``` text
 ユーザー
     │ 対話入力 (agent[chat]> / agent[code]> プロンプト)
     ▼

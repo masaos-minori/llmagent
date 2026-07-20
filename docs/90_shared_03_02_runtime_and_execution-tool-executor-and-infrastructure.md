@@ -42,7 +42,7 @@ class ToolExecutor(ToolTransportInvoker):
 ```
 
 **`execute()` の実行順序 (Explicit in code):**
-```
+``` text
 execute(tool_name, args)
   → キャッシュ参照: キャッシュキー "tool_name:json(args)" でTTLキャッシュ参照
       → ヒットかつ age < cache_ttl: LRU更新してヒット数を加算し即返す

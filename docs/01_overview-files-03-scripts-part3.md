@@ -24,7 +24,7 @@ related:
 デプロイ先のディレクトリ構成:
 
 
-```
+``` text
 │   │   ├─ services/                        # サービスレイヤー (agent/services/ ディレクトリ内)
 │   │   │   └─ __init__.py                  # services パッケージ初期化
 │   │   │   ├─ enums.py                     # McpTier / McpAvailability / ConversationActionType / ExportFormat
