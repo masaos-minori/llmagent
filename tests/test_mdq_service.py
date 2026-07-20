@@ -509,9 +509,10 @@ class TestIndexer:
 
         req = IndexPathsRequest(paths=[str(tmp_path / "ghost.md")])
         with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
-            result = asyncio.run(index_paths(service, req))
-        assert result == "Indexing complete"
+            text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
         assert "does not exist" in caplog.text
+        assert metadata["skipped_count"] == 1
 
     def test_index_paths_skips_non_md_file(
         self, service: MdqService, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -522,23 +523,61 @@ class TestIndexer:
         txt.write_text("hello")
         req = IndexPathsRequest(paths=[str(txt)])
         with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
-            result = asyncio.run(index_paths(service, req))
-        assert result == "Indexing complete"
+            text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
         assert "Skipping" in caplog.text
+        assert metadata["skipped_count"] == 1
 
     def test_index_paths_md_file_returns_complete(
         self, service: MdqService, md_file: Path
     ) -> None:
         req = IndexPathsRequest(paths=[str(md_file)])
-        result = asyncio.run(index_paths(service, req))
-        assert result == "Indexing complete"
+        text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
+        assert metadata["indexed_count"] == 1
+        assert metadata["failed_count"] == 0
 
     def test_index_paths_directory_returns_complete(
         self, service: MdqService, md_dir: Path
     ) -> None:
         req = IndexPathsRequest(paths=[str(md_dir)])
-        result = asyncio.run(index_paths(service, req))
-        assert result == "Indexing complete"
+        text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
+        assert metadata["indexed_count"] >= 1
+
+    def test_index_paths_records_failed_count_on_file_error(
+        self, service: MdqService, md_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A file that raises while being indexed increments failed_count
+        instead of silently being counted as indexed."""
+        import mcp_servers.mdq.indexer as indexer_module
+
+        async def _raise(_service: MdqService, _path: Path) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(indexer_module, "_index_single_file", _raise)
+        req = IndexPathsRequest(paths=[str(md_file)])
+        text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
+        assert metadata["failed_count"] == 1
+        assert metadata["indexed_count"] == 0
+
+    def test_index_paths_records_failed_count_on_directory_error(
+        self, service: MdqService, md_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A directory that raises while being indexed increments failed_count
+        instead of silently being counted as indexed."""
+        import mcp_servers.mdq.indexer as indexer_module
+
+        async def _raise(_service: MdqService, _path: Path) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(indexer_module, "_index_directory", _raise)
+        req = IndexPathsRequest(paths=[str(md_dir)])
+        text, metadata = asyncio.run(index_paths(service, req))
+        assert text == "Indexing complete"
+        assert metadata["failed_count"] == 1
+        assert metadata["indexed_count"] == 0
 
 
 # ── search ────────────────────────────────────────────────────────────────────
@@ -550,14 +589,16 @@ class TestSearchDocs:
     ) -> None:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
         req = SearchDocsRequest(query="Content")
-        result = asyncio.run(search_docs(service, req))
-        assert "Content" in result
-        assert "found" in result
+        text, metadata = asyncio.run(search_docs(service, req))
+        assert "Content" in text
+        assert "found" in text
+        assert metadata["truncated"] is False
+        assert metadata["result_count"] == metadata["shown_count"]
 
     def test_returns_no_results_for_empty_query(self, service: MdqService) -> None:
         req = SearchDocsRequest(query="")
-        result = asyncio.run(search_docs(service, req))
-        assert "No results found" in result
+        text, metadata = asyncio.run(search_docs(service, req))
+        assert "No results found" in text
 
     def test_logs_query(
         self, service: MdqService, caplog: pytest.LogCaptureFixture
@@ -599,9 +640,11 @@ class TestSearchDocs:
             index_paths(service, IndexPathsRequest(paths=[str(tagged), str(untagged)]))
         )
         req = SearchDocsRequest(query="keyword", tag_filter=["important"])
-        result = asyncio.run(search_docs(service, req))
-        assert "Title" in result
-        assert "Other" not in result
+        text, metadata = asyncio.run(search_docs(service, req))
+        assert "Title" in text
+        assert "Other" not in text
+        assert metadata["truncated"] is False
+        assert metadata["result_count"] == metadata["shown_count"]
 
     def test_search_docs_structured_token_count_non_null(
         self, service: MdqService, md_file: Path
@@ -616,6 +659,34 @@ class TestSearchDocs:
         for item in result["results"]:
             assert item.token_count is not None
             assert item.token_count > 0
+
+    def test_fence_content_excluded_from_search_index(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A unique token that exists only inside a fenced code block must not be
+        returned by search_docs -- fence content is excluded from the indexed
+        section text, not just from heading detection."""
+        f = tmp_path / "fenced.md"
+        f.write_text(
+            "# Title\n\nNormal body text.\n\n```text\nUNIQUE_FENCE_TOKEN_XYZ\n```\n",
+            encoding="utf-8",
+        )
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+
+        # Sanity check: normal body text IS indexed and searchable.
+        normal_text, _normal_metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Normal"))
+        )
+        assert "Title" in normal_text
+
+        # The unique fence-only token must NOT be found. Note: the "no results"
+        # message below echoes the query string itself (e.g. "No results found
+        # for: 'UNIQUE_FENCE_TOKEN_XYZ'"), so the absence of a match is asserted
+        # via the zero-match message, not via a literal `not in` on the full text.
+        fence_text, _fence_metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="UNIQUE_FENCE_TOKEN_XYZ"))
+        )
+        assert "No results found" in fence_text
 
     def test_search_timeout_raises_mdq_consistency_error(
         self, service: MdqService, tmp_path: Path
@@ -645,8 +716,8 @@ class TestSearchDocs:
 class TestMdqService:
     def test_search_docs_delegates(self, service: MdqService) -> None:
         req = SearchDocsRequest(query="test")
-        result = asyncio.run(service.search_docs(req))
-        assert "test" in result
+        text, _metadata = asyncio.run(service.search_docs(req))
+        assert "test" in text
 
     def test_get_chunk_returns_content_after_indexing(
         self, service: MdqService, md_file: Path
@@ -673,12 +744,14 @@ class TestMdqService:
         self, service: MdqService, md_file: Path
     ) -> None:
         req = RefreshIndexRequest(paths=[str(md_file)])
-        result = asyncio.run(service.refresh_index(req))
-        assert "Refresh complete" in result
-        assert "Indexed:" in result
-        assert "Skipped (unchanged):" in result
-        assert "Deleted from index:" in result
-        assert "Failed:" in result
+        text, metadata = asyncio.run(service.refresh_index(req))
+        assert "Refresh complete" in text
+        assert "Indexed:" in text
+        assert "Skipped (unchanged):" in text
+        assert "Deleted from index:" in text
+        assert "Failed:" in text
+        assert metadata["indexed_count"] == 1
+        assert metadata["failed_count"] == 0
 
     def test_stats_returns_counts_after_indexing(
         self, service: MdqService, md_dir: Path
@@ -709,18 +782,33 @@ class TestMdqService:
     ) -> None:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
         req = GrepDocsRequest(pattern="Content")
-        result = asyncio.run(service.grep_docs(req))
-        assert "Chunk" in result or "Content" in result
+        text, metadata = asyncio.run(service.grep_docs(req))
+        assert "Chunk" in text or "Content" in text
+        assert metadata["match_count"] == text.count("Chunk:")
 
     def test_grep_docs_no_match(self, service: MdqService) -> None:
         req = GrepDocsRequest(pattern="nonexistent_xyz")
-        result = asyncio.run(service.grep_docs(req))
-        assert "No matches found" in result
+        text, metadata = asyncio.run(service.grep_docs(req))
+        assert "No matches found" in text
+        assert metadata["match_count"] == 0
+
+    def test_grep_docs_no_match_with_indexed_content(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """Regex matches nothing even though authorized, indexed content exists —
+        exercises db_grep.grep_docs()'s own no-matches branch (as opposed to
+        MdqService.grep_docs()'s earlier no-authorized-paths short-circuit)."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        req = GrepDocsRequest(pattern="nonexistent_xyz")
+        text, metadata = asyncio.run(service.grep_docs(req))
+        assert "No matches found" in text
+        assert metadata["match_count"] == 0
+        assert metadata["truncated"] is False
 
     def test_index_paths_delegates(self, service: MdqService, md_dir: Path) -> None:
         req = IndexPathsRequest(paths=[str(md_dir)])
-        result = asyncio.run(service.index_paths(req))
-        assert result == "Indexing complete"
+        text, _metadata = asyncio.run(service.index_paths(req))
+        assert text == "Indexing complete"
 
     def test_outline_returns_headings(self, service: MdqService, md_file: Path) -> None:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
@@ -815,10 +903,10 @@ class TestChunkIdStability:
     ) -> None:
         """chunk_id from search result can be passed to get_chunk without error."""
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
-        search_result = asyncio.run(
+        search_text, _search_metadata = asyncio.run(
             search_docs(service, SearchDocsRequest(query="Content"))
         )
-        assert "Title" in search_result
+        assert "Title" in search_text
 
         import sqlite3  # noqa: PLC0415
 
@@ -847,9 +935,12 @@ class TestTruncation:
             f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
         service.max_results_limit = 2
-        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
-        assert "Truncated" in result
-        assert "results found" in result
+        text, metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Keyword"))
+        )
+        assert "Truncated" in text
+        assert "results found" in text
+        assert metadata["truncated"] is True
 
     def test_search_docs_truncates_by_char_limit(
         self, service: MdqService, tmp_path: Path
@@ -860,9 +951,12 @@ class TestTruncation:
             f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
         service.max_total_result_chars = 50
-        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
-        assert "Truncated" in result
-        assert "chars" in result
+        text, metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Keyword"))
+        )
+        assert "Truncated" in text
+        assert "chars" in text
+        assert metadata["truncated"] is True
 
     def test_get_chunk_truncates_large_content(
         self, service: MdqService, tmp_path: Path
@@ -906,9 +1000,12 @@ class TestTruncation:
             f.write_text(f"# G{i}\n\nfind_me content.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
         service.max_grep_matches = 2
-        result = asyncio.run(service.grep_docs(GrepDocsRequest(pattern="find_me")))
-        assert "Truncated" in result
-        assert "cap of 2 matches reached" in result
+        text, metadata = asyncio.run(
+            service.grep_docs(GrepDocsRequest(pattern="find_me"))
+        )
+        assert "Truncated" in text
+        assert "cap of 2 matches reached" in text
+        assert metadata["truncated"] is True
 
     def test_request_override_bounded_by_config_cap(
         self, service: MdqService, tmp_path: Path

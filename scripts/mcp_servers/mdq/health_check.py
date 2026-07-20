@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from shared.config_loader import ConfigLoader
 
 from mcp_servers.health_response import make_health_response
+from mcp_servers.mdq.mdq_models import STALE_SQL_CONDITION
 
 
 def _degraded_response(
@@ -31,7 +32,7 @@ def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
     """Check for documents with mtime_ns > indexed_at."""
     try:
         result = conn.execute(
-            "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"
         ).fetchone()
         return result["cnt"] if result is not None else 0
     except Exception:
@@ -47,6 +48,9 @@ def check_health() -> JSONResponse:
         mdq_cfg = ConfigLoader().load("mdq_mcp_server.toml")
         db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
         details["database"] = db_path
+        allowed_dirs = mdq_cfg.get("allowed_dirs") or []
+        details["allowed_dirs_count"] = len(allowed_dirs)
+        details["deny_all"] = len(allowed_dirs) == 0
 
         if not Path(db_path).is_file():
             deps["db_file"] = f"not found: {db_path}"

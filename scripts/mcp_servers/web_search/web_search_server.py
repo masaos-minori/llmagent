@@ -9,7 +9,9 @@ Search provider: DuckDuckGo (no API key required).
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -23,9 +25,13 @@ from mcp_servers.server import (
     MCPServer,
     build_tools_response,
 )
+from mcp_servers.web_search import health, metrics
 from mcp_servers.web_search.formatters import dispatch_web_tool
 from mcp_servers.web_search.web_search_models import (
     WebSearchConfig,
+    WebSearchNetworkError,
+    WebSearchParseError,
+    WebSearchTimeoutError,
     WebSearchUpstreamError,
 )
 from mcp_servers.web_search.web_search_tools import TOOL_LIST
@@ -55,10 +61,14 @@ async def _handle_web_search_error(
 # Endpoint definitions
 # ──────────────────────────────────────────────────────────────────────────────
 @app.get("/health")
-async def health() -> JSONResponse:
+async def health_endpoint() -> JSONResponse:
     """Health check endpoint."""
     deps: dict[str, str] = {}
     details: dict[str, object] = {"service": "web-search-mcp"}
+    details["provider"] = health.health_details()
+    details["metrics"] = metrics.snapshot()
+    if health.is_degraded():
+        deps["web_search_provider"] = "degraded: repeated provider failures"
     result: JSONResponse = make_health_response(deps, details)
     return result
 
@@ -71,6 +81,34 @@ async def health() -> JSONResponse:
 async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
     return await dispatch_web_tool(name, args)
+
+
+def _classify_dispatch_error(output: str) -> str:
+    """Classify a non-raised DispatchResult error by its output text prefix."""
+    if output.startswith("Validation error: "):
+        return "validation_error"
+    if output.startswith("Unknown tool: "):
+        return "unknown_tool"
+    if output == "Tool name must be a non-empty string":
+        return "invalid_tool_name"
+    return "dispatch_error"
+
+
+def _classify_upstream_error(exc: WebSearchUpstreamError) -> str:
+    """Classify a raised WebSearchUpstreamError by its concrete subclass.
+
+    web_search_models.py now defines distinct WebSearchUpstreamError
+    subclasses (WebSearchTimeoutError, WebSearchNetworkError,
+    WebSearchParseError, WebSearchProviderError), so classification uses
+    isinstance checks rather than a substring match on str(exc).
+    """
+    if isinstance(exc, WebSearchTimeoutError):
+        return "timeout"
+    if isinstance(exc, WebSearchNetworkError):
+        return "network_error"
+    if isinstance(exc, WebSearchParseError):
+        return "parse_error"
+    return "provider_error"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -87,22 +125,59 @@ async def list_tools() -> dict[str, Any]:
 # ──────────────────────────────────────────────────────────────────────────────
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
-    """Execute a web search tool by name and return the formatted text result."""
+    """Execute a web search tool by name and return the formatted text result.
+
+    `outcome`/`error_type`/`latency_ms` here are for the always-fires audit
+    log only — health/metrics recording is owned entirely by
+    `service.search_web()` (called via `dispatch_web_tool` ->
+    `fdisp_search_web`), so this function must not call
+    `health.record_*`/`metrics.record_query` itself (that would double-count
+    every query).
+    """
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
-    r = await _dispatch_web_tool(req.name, req.args)
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action=req.name,
-        target=req.args.get("query", ""),
-        outcome=r.outcome,
-        server_key="web_search",
-    )
-    return _to_call_tool_response(r)
+    t0 = time.perf_counter()
+    outcome = "ok"
+    error_type = ""
+    latency_ms = 0.0
+    try:
+        r = await _dispatch_web_tool(req.name, req.args)
+        outcome = r.outcome
+        latency_ms = (time.perf_counter() - t0) * 1000
+        if outcome == "error":
+            error_type = _classify_dispatch_error(r.output)
+        return _to_call_tool_response(r)
+    except WebSearchUpstreamError as e:
+        outcome = "error"
+        error_type = _classify_upstream_error(e)
+        latency_ms = (time.perf_counter() - t0) * 1000
+        raise
+    except Exception:
+        outcome = "error"
+        error_type = "unexpected_error"
+        latency_ms = (time.perf_counter() - t0) * 1000
+        raise
+    finally:
+        query = str(req.args.get("query", ""))
+        detail = (
+            f"max_results={req.args.get('max_results', '')} "
+            f"latency_ms={latency_ms:.0f} "
+            f"query_preview={query[:80]!r} "
+            f"query_hash={hashlib.sha256(query.strip().lower().encode()).hexdigest()[:16]}"
+        )
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target=query,
+            outcome=outcome,
+            error_type=error_type,
+            server_key="web_search",
+            detail=detail,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

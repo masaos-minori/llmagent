@@ -51,3 +51,34 @@ class TestMdqRagBoundary:
             f"{pattern!r} found outside allowed files:\n"
             + "\n".join(f"  {v}" for v in violations)
         )
+
+    def test_agent_layer_has_no_direct_mdq_sqlite_access(self) -> None:
+        """scripts/agent/ must not access the MDQ SQLite DB or import MdqService
+        directly (static string/import scan, not a runtime guarantee)."""
+        violations = [
+            str(p)
+            for p in _py_files("agent")
+            if "mdq.sqlite" in (text := p.read_text(encoding="utf-8"))
+            or "from mcp_servers.mdq" in text
+        ]
+        assert not violations, (
+            "Direct MDQ DB/import access found in scripts/agent/:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )
+
+    def test_shared_layer_has_no_direct_mdq_rag_sqlite_access(self) -> None:
+        """scripts/shared/ must not access the MDQ or RAG SQLite DBs directly."""
+        ALLOWED: set[str] = (
+            set()
+        )  # empty today; add a filename here only with an inline comment explaining the reviewed exception
+        forbidden = ("mdq.sqlite", "rag.sqlite", "sqlite3.connect")
+        violations = [
+            str(p)
+            for p in _py_files("shared")
+            if p.name not in ALLOWED
+            and any(pattern in p.read_text(encoding="utf-8") for pattern in forbidden)
+        ]
+        assert not violations, (
+            "Direct MDQ/RAG SQLite access found in scripts/shared/ (not in allowlist):\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )

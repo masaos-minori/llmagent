@@ -38,6 +38,28 @@ def _reset_tool_registry() -> Generator[None]:
     _reset_registry_for_testing()
 
 
+@pytest.fixture(autouse=True)
+def _reset_web_search_health_and_metrics() -> Generator[None]:
+    """Reset web-search-mcp's in-process health/metrics singletons per test.
+
+    mcp_servers.web_search.health and mcp_servers.web_search.metrics track
+    state (e.g. consecutive_failures) in module-level singletons by design
+    (single-worker process, no persistence). Without a session-wide reset,
+    a failure recorded by one test file (e.g. test_web_search_server.py's
+    502-on-upstream-error cases, which now flow through call_tool()'s
+    health.record_failure()) leaks into unrelated tests depending on
+    pytest-randomly's order, e.g. flipping web_search's /health to 503 in
+    tests/test_mcp_server_health_status.py.
+    """
+    from mcp_servers.web_search import health, metrics
+
+    health.reset()
+    metrics.reset()
+    yield
+    health.reset()
+    metrics.reset()
+
+
 # ── Test case logging: track which test was running when SSH disconnects ──
 
 _LOG_PATH = Path("/tmp/test_lifecycle_crash.log")

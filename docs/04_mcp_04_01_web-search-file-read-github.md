@@ -36,22 +36,29 @@ related:
 
 | ツール | 入力 | 出力 |
 |---|---|---|
-| `search_web` | `{query: str, max_results?: int}` | ヘッダー + N件の結果ブロック（title/URL/snippet） |
+| `search_web` | `{query: str (1-500文字、トリム後非空), max_results?: int (1〜設定された`max_results_limit`、`HARD_MAX_RESULTS_LIMIT=100`でハード上限)}` | ヘッダー + N件の結果ブロック（title/URL/snippet） |
 
 **設定パラメータ:**
 
 | キー | デフォルト | 説明 |
 |---|---|---|
 | `default_max_results` | `5` | デフォルトの結果件数 |
-| `max_results_limit` | `20` | サーバー側の上限 |
+| `max_results_limit` | `20` | サーバー側の上限（`HARD_MAX_RESULTS_LIMIT=100`以下でなければならない） |
+| `search_timeout_sec` | `10.0` | プロバイダ呼び出しのタイムアウト秒数（`(0, 60.0]`の範囲） |
 
-**注記(2026-07-17):** 上記2キーは`mcp_servers/web_search/models.py`の`SearchRequest.max_results`（Pydantic `Field`の`ge`/`le`/デフォルト値）に、モジュールインポート時にロードされる`WebSearchConfig.load()`経由で直接反映される（`server.py`の既存の`_cfg: WebSearchConfig = WebSearchConfig.load()`パターンを踏襲）。以前はこれらのモジュール定数（`DEFAULT_MAX_RESULTS=5`, `MAX_RESULTS_LIMIT=20`）がハードコードされたバリデーション境界として使われており、config値と一致してはいたが読み込まれていなかった。
+**注記(2026-07-17):** 上記2キーは`mcp_servers/web_search/web_search_models.py`の`SearchRequest.max_results`（Pydantic `Field`の`ge`/`le`/デフォルト値）に、モジュールインポート時にロードされる`WebSearchConfig.load()`経由で直接反映される（`server.py`の既存の`_cfg: WebSearchConfig = WebSearchConfig.load()`パターンを踏襲）。以前はこれらのモジュール定数（`DEFAULT_MAX_RESULTS=5`, `MAX_RESULTS_LIMIT=20`）がハードコードされたバリデーション境界として使われており、config値と一致してはいたが読み込まれていなかった。
 
-**ヘルス:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
+**注記(2026-07-20):** `WebSearchConfig.from_dict()`は次の不変条件をバリデーションし、違反時は`ValueError`を送出する（モジュールインポート時に評価されるため、不正な設定はプロセス起動時にフェイルファーストで検出される）: `default_max_results >= 1`、`max_results_limit >= 1`、`default_max_results <= max_results_limit`、`max_results_limit <= HARD_MAX_RESULTS_LIMIT`、`search_timeout_sec`が`(0, 60.0]`の範囲内であること。また`SearchRequest.query`はフィールドバリデータで正規化される: 前後の空白をトリムし、トリム後に空文字列または制御文字（Unicode category `Cc`、NUL含む）を含む場合はリクエストを拒否する。`search_web`ツールの`inputSchema`（`web_search_tools.py`の`TOOL_LIST`）は`minLength`/`maxLength`/`minimum`/`maximum`をこれらの境界値と一致するように`get_max_results_limit()`経由で同じ`_cfg`シングルトンから取得しているため、`max_results_limit`のTOML変更は`_cfg`と同様にサーバー再起動後にのみ`/v1/tools`へ反映される。
+
+**ヘルス:** `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"service":"web-search-mcp","provider":{...},"metrics":{...}}}` — ready 時は HTTP 200、degraded 時は 503。
 **エラーハンドリング:** 全プロバイダ（DuckDuckGo）が失敗すると `WebSearchUpstreamError` を送出し、HTTP 502 を返す（`search_provider.py::search_duckduckgo` が `RuntimeError`/`TimeoutError` を捕捉して変換）。[Explicit in code]
 **ログ:** `/opt/llm/logs/web-search-mcp.log`
 **Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): なし
 **使用場面:** RAG インデックスにないリアルタイム情報; 最新リリース; ニュース。
+
+**注記(2026-07-20):** `call_tool()` は dispatch 呼び出しを try/except/finally で包み、成功・バリデーションエラー・未知のツール名・プロバイダ障害（タイムアウト含む）のいずれの経路でも `_audit_log(...)` を必ず1回だけ発行する（従来は非送出の成功系のみ到達し、`WebSearchUpstreamError` 系の例外は audit をスキップして直接 502 ハンドラへ抜けていた）。audit レコードの `error_type` は `""`（成功）、`validation_error`/`unknown_tool`/`invalid_tool_name`/`dispatch_error`（dispatch 層で非送出のエラー）、または `timeout`/`network_error`/`parse_error`/`provider_error`（`WebSearchUpstreamError` の具象サブクラスに対する `isinstance` 判定）のいずれか。`detail` フィールドは `max_results`・`latency_ms`・80文字までの `query_preview`・`query_hash`（sha256 先頭16桁）を含む。新設の `scripts/mcp_servers/web_search/health.py`（プロバイダ健全性: 直近成功/失敗時刻、連続失敗数、`consecutive_failures >= 3` で degraded）と `scripts/mcp_servers/web_search/metrics.py`（クエリ本文を一切保持しない件数/平均レイテンシのみのカウンタ）はプロセス内メモリのみで永続化されず、`/health` の `details.provider`/`details.metrics` に反映される。degraded 判定時は `dependencies.web_search_provider` が非空になり HTTP 503 を返す。
+
+**注記(2026-07-20):** `health.record_success()`/`record_failure()`/`metrics.record_query()`の呼び出しは新設の `scripts/mcp_servers/web_search/service.py`（`SearchRequest`の構築、`search_provider.search_duckduckgo`呼び出し、レイテンシ計測を担うオーケストレーション層）に一本化されている。`formatters.py::fdisp_search_web()`が`service.search_web()`を呼び出し、その結果を整形する。`web_search_server.py::call_tool()`はこれらの更新フックを直接呼ばず、`_audit_log(...)`用の`outcome`/`error_type`分類のみを行う——health/metricsの二重計上を避けるため、パッケージ内で`health.record_*`/`metrics.record_query`を呼び出すのは`service.py`のみである。
 
 ---
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedSection(TypedDict):
@@ -82,6 +82,33 @@ class MdqDatabaseError(MdqServiceError):
 
 class MdqConsistencyError(MdqServiceError):
     """Consistency errors: FTS mismatch, data corruption."""
+
+
+class MdqConfig(BaseModel):
+    """Validated mdq-mcp configuration loaded from `mdq_mcp_server.toml`.
+
+    `db_path` is deliberately excluded — it has no meaningful range/type
+    constraint beyond being a string and is handled separately by the caller.
+    """
+
+    allowed_dirs: list[str] = []
+    include_globs: list[str] = ["*.md"]
+    exclude_globs: list[str] = [".git/**", "__pycache__/**"]
+    max_snippet_chars: int = Field(default=500, gt=0)
+    max_chunk_chars: int = Field(default=10000, gt=0)
+    max_file_chars: int = Field(default=100000, gt=0)
+    search_timeout_sec: int = Field(default=30, gt=0)
+    max_results_limit: int = Field(default=100, gt=0)
+    max_chars_per_chunk: int = Field(default=10000, gt=0)
+    max_total_result_chars: int = Field(default=100000, gt=0)
+    max_outline_items: int = Field(default=500, gt=0)
+    max_grep_matches: int = Field(default=200, gt=0)
+    max_chars_per_match: int = Field(default=500, gt=0)
+    context_before: int = Field(default=2, ge=0)
+    context_after: int = Field(default=2, ge=0)
+    enable_grep: bool = True
+    max_outline_depth: int = Field(default=6, gt=0)
+    sqlite_busy_timeout: int = Field(default=5000, gt=0)
 
 
 class ParseMarkdownRequest(BaseModel):
@@ -245,4 +272,44 @@ class SearchResultResult(TypedDict):
 
     query: str | None
     results: list[SearchResultItem]
-    total: int
+    matched_count: int  # exact count of rows matching the query, no LIMIT applied
+    shown_count: int  # len(results) — rows actually returned after effective_limit
+
+
+def is_stale(mtime_ns: int, indexed_at: float) -> bool:
+    """True if the file's on-disk mtime (ns) is newer than the last indexed_at (s, time.time())."""
+    return mtime_ns > int(indexed_at * 1e9)
+
+
+STALE_SQL_CONDITION: str = "mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+
+
+class SearchDocsMetadata(TypedDict):
+    """Structured audit metadata produced by search_docs(), consumed by mdq_server.py."""
+
+    query_preview: str
+    result_count: int  # exact match count before truncation
+    shown_count: int  # results actually included in the formatted text
+    truncated: bool
+    total_count: int  # kept distinct from result_count per requirement wording
+    duration_ms: float
+
+
+class IndexPathsMetadata(TypedDict):
+    """Structured audit metadata produced by index_paths(), consumed by mdq_server.py."""
+
+    input_path_count: int
+    indexed_count: int
+    skipped_count: int
+    failed_count: int
+    duration_ms: float
+
+
+class GrepDocsMetadata(TypedDict):
+    """Structured audit metadata produced by grep_docs(), consumed by mdq_server.py."""
+
+    pattern_preview: str
+    path_filter_count: int
+    match_count: int
+    truncated: bool
+    grep_enabled: bool

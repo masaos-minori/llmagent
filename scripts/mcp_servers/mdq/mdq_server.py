@@ -13,7 +13,9 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import contextvars
 import time
+from dataclasses import dataclass
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
@@ -79,8 +81,9 @@ def _mdq_error_handler(
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind={error_kind}",
+        detail="",
         server_key="mdq",
+        error_type=error_kind,
     )
     return JSONResponse({"detail": str(exc)}, status_code=status_code)
 
@@ -144,10 +147,30 @@ async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONR
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+_mdq_metadata_var: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
+    "mdq_metadata", default={}
+)
+
+
+@dataclass(frozen=True)
+class MdqDispatchResult:
+    """Wraps the shared DispatchResult with mdq-local per-call metadata."""
+
+    output: str
+    is_error: bool
+    metadata: dict[str, Any]
+
+    @property
+    def outcome(self) -> str:
+        """Return 'error' if is_error, otherwise 'ok'."""
+        return "error" if self.is_error else "ok"
+
+
 async def _handle_search_docs(args: ToolArgs) -> str:
     """Dispatch search_docs tool call to the mdq service."""
-    result: str = await _service.search_docs(SearchDocsRequest(**args))
-    return result
+    text, metadata = await _service.search_docs(SearchDocsRequest(**args))
+    _mdq_metadata_var.set(dict(metadata))
+    return text
 
 
 async def _handle_get_chunk(args: ToolArgs) -> str:
@@ -164,14 +187,16 @@ async def _handle_outline(args: ToolArgs) -> str:
 
 async def _handle_index_paths(args: ToolArgs) -> str:
     """Dispatch index_paths tool call to the mdq service."""
-    result: str = await _service.index_paths(IndexPathsRequest(**args))
-    return result
+    text, metadata = await _service.index_paths(IndexPathsRequest(**args))
+    _mdq_metadata_var.set(dict(metadata))
+    return text
 
 
 async def _handle_refresh_index(args: ToolArgs) -> str:
     """Dispatch refresh_index tool call to the mdq service."""
-    result: str = await _service.refresh_index(RefreshIndexRequest(**args))
-    return result
+    text, metadata = await _service.refresh_index(RefreshIndexRequest(**args))
+    _mdq_metadata_var.set(dict(metadata))
+    return text
 
 
 async def _handle_stats(args: ToolArgs) -> str:
@@ -182,8 +207,9 @@ async def _handle_stats(args: ToolArgs) -> str:
 
 async def _handle_grep_docs(args: ToolArgs) -> str:
     """Dispatch grep_docs tool call to the mdq service."""
-    result: str = await _service.grep_docs(GrepDocsRequest(**args))
-    return result
+    text, metadata = await _service.grep_docs(GrepDocsRequest(**args))
+    _mdq_metadata_var.set(dict(metadata))
+    return text
 
 
 _DISPATCH_TABLE = {
@@ -197,9 +223,17 @@ _DISPATCH_TABLE = {
 }
 
 
-async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
-    """Route a tool call through the shared dispatch mechanism."""
-    return await dispatch_tool(_DISPATCH_TABLE, name, args)
+async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> MdqDispatchResult:
+    """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata."""
+    token = _mdq_metadata_var.set({})
+    try:
+        result = await dispatch_tool(_DISPATCH_TABLE, name, args)
+        metadata = _mdq_metadata_var.get()
+    finally:
+        _mdq_metadata_var.reset(token)
+    return MdqDispatchResult(
+        output=result.output, is_error=result.is_error, metadata=metadata
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -216,8 +250,6 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
-    import re as _re
-
     t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
@@ -243,43 +275,45 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             action=req.name,
             target=target[:80],
             outcome="error",
-            detail=f"duration_ms={ms:.0f}, error_kind={error_kind}",
+            detail=f"duration_ms={ms:.0f}",
             server_key="mdq",
+            error_type=error_kind,
         )
         return CallToolResponse(result=str(exc), is_error=True)
 
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
 
-    # Per-tool audit detail enrichment
+    # Per-tool audit detail enrichment — sourced from structured metadata
+    # returned by MdqService's methods, never inferred from output text.
     detail_parts: list[str] = [f"duration_ms={ms:.0f}"]
     if r.is_error:
         detail_parts.append("error_kind=tool_error")
     elif req.name == "search_docs":
-        result_count = r.output.count("---") if r.output else 0
-        detail_parts.append(f"result_count={result_count}")
+        md = r.metadata
+        detail_parts.append(f"result_count={md.get('result_count', 0)}")
+        detail_parts.append(f"shown_count={md.get('shown_count', 0)}")
+        if md.get("truncated"):
+            detail_parts.append("truncated=true")
     elif req.name == "get_chunk":
         if r.output and "[Truncated" in r.output:
             detail_parts.append("truncated=true")
     elif req.name == "grep_docs":
-        match_count = r.output.count("---") if r.output else 0
-        detail_parts.append(f"match_count={match_count}")
+        md = r.metadata
+        detail_parts.append(f"match_count={md.get('match_count', 0)}")
+        if md.get("truncated"):
+            detail_parts.append("truncated=true")
     elif req.name == "index_paths":
-        if r.output:
-            m = _re.search(r"Indexed:\s*(\d+)", r.output)
-            if m:
-                detail_parts.append(f"indexed_count={m.group(1)}")
+        md = r.metadata
+        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
+        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
+        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
     elif req.name == "refresh_index":
-        if r.output:
-            m_idx = _re.search(r"Indexed:\s*(\d+)", r.output)
-            m_skip = _re.search(r"Skipped.*?:\s*(\d+)", r.output)
-            m_del = _re.search(r"Deleted from index:\s*(\d+)", r.output)
-            if m_idx:
-                detail_parts.append(f"indexed_count={m_idx.group(1)}")
-            if m_skip:
-                detail_parts.append(f"skipped_count={m_skip.group(1)}")
-            if m_del:
-                detail_parts.append(f"deleted_count={m_del.group(1)}")
+        md = r.metadata
+        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
+        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
+        detail_parts.append(f"deleted_count={md.get('deleted_count', 0)}")
+        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
 
     _audit_log(
         logger,
@@ -291,7 +325,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         detail=", ".join(detail_parts),
         server_key="mdq",
     )
-    return _to_call_tool_response(r)
+    return _to_call_tool_response(DispatchResult(output=r.output, is_error=r.is_error))
 
 
 @app.get("/health")
@@ -326,7 +360,8 @@ class MdqMCPServer(MCPServer):
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         """Route an MDQ tool call to the appropriate handler."""
-        return await _dispatch_mdq_tool(name, args)
+        r = await _dispatch_mdq_tool(name, args)
+        return DispatchResult(output=r.output, is_error=r.is_error)
 
 
 # Attach auth middleware — no-op when token is empty (mdq has its own authorization)

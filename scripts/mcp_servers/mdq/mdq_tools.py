@@ -30,28 +30,47 @@ TOOL_LIST: list[MCPToolSchema] = [
                 "query": {"type": "string", "description": "Search query string"},
                 "limit": {
                     "type": "integer",
-                    "description": "Max results (default: 10)",
+                    "description": (
+                        "Max results to fetch (default: 10). Bounded at the database layer by "
+                        "the server's configured max_results_limit — the effective SQL limit is "
+                        "min(limit, configured max_results_limit)."
+                    ),
+                    "minimum": 1,
+                    "maximum": 100,
                 },
                 "mode": {
                     "type": "string",
                     "description": "Search mode: bm25 (only supported value)",
+                    "enum": ["bm25"],
                 },
                 "path_prefix": {
                     "type": "string",
                     "description": "Filter by path prefix",
                 },
-                "tag_filter": {"type": "array", "description": "Filter by tags"},
+                "tag_filter": {
+                    "type": "array",
+                    "description": "Filter by tags",
+                    "items": {"type": "string"},
+                },
                 "heading_prefix": {
                     "type": "string",
                     "description": "Filter by heading prefix",
                 },
                 "max_results_limit": {
                     "type": "integer",
-                    "description": "Override max results from config (default: use config value)",
+                    "description": (
+                        "Secondary display cap applied after the SQL-layer limit; if smaller "
+                        "than the effective limit derived from 'limit', further restricts how "
+                        "many results are shown (default: use server config value)."
+                    ),
+                    "minimum": 1,
+                    "maximum": 100,
                 },
                 "max_total_result_chars": {
                     "type": "integer",
                     "description": "Max total characters in response (default: use config value)",
+                    "minimum": 1,
+                    "maximum": 100000,
                 },
             },
             "required": ["query"],
@@ -72,6 +91,8 @@ TOOL_LIST: list[MCPToolSchema] = [
                 "max_chars_per_chunk": {
                     "type": "integer",
                     "description": "Max characters in chunk content (default: use config value)",
+                    "minimum": 1,
+                    "maximum": 10000,
                 },
             },
             "required": ["chunk_id"],
@@ -88,6 +109,14 @@ TOOL_LIST: list[MCPToolSchema] = [
                 "max_outline_items": {
                     "type": "integer",
                     "description": "Max outline items (default: use config value)",
+                    "minimum": 1,
+                    "maximum": 500,
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Max heading depth to include (default: use config value)",
+                    "minimum": 1,
+                    "maximum": 6,
                 },
             },
             "required": ["path"],
@@ -100,7 +129,12 @@ TOOL_LIST: list[MCPToolSchema] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "paths": {"type": "array", "description": "Paths to index"},
+                "paths": {
+                    "type": "array",
+                    "description": "Paths to index",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                },
             },
             "required": ["paths"],
         },
@@ -114,7 +148,12 @@ TOOL_LIST: list[MCPToolSchema] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "paths": {"type": "array", "description": "Paths to refresh"},
+                "paths": {
+                    "type": "array",
+                    "description": "Paths to refresh",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                },
                 "force": {
                     "type": "boolean",
                     "description": "Force full re-index regardless of changes (default: false)",
@@ -139,22 +178,32 @@ TOOL_LIST: list[MCPToolSchema] = [
             "type": "object",
             "properties": {
                 "pattern": {"type": "string", "description": "Regex pattern"},
-                "paths": {"type": "array", "description": "Optional path filter"},
+                "paths": {
+                    "type": "array",
+                    "description": "Optional path filter",
+                    "items": {"type": "string"},
+                },
                 "max_grep_matches": {
                     "type": "integer",
                     "description": "Max grep matches (default: 200)",
+                    "minimum": 1,
+                    "maximum": 200,
                 },
                 "max_chars_per_match": {
                     "type": "integer",
                     "description": "Max chars per match snippet (default: 500)",
+                    "minimum": 1,
+                    "maximum": 500,
                 },
                 "context_before": {
                     "type": "integer",
                     "description": "Context lines before match (default: 2)",
+                    "minimum": 0,
                 },
                 "context_after": {
                     "type": "integer",
                     "description": "Context lines after match (default: 2)",
+                    "minimum": 0,
                 },
             },
             "required": ["pattern"],

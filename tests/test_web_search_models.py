@@ -10,6 +10,8 @@ import importlib
 import pytest
 from mcp_servers.web_search.web_search_models import (
     DEFAULT_MAX_RESULTS,
+    HARD_MAX_RESULTS_LIMIT,
+    HARD_SEARCH_TIMEOUT_SEC_LIMIT,
     MAX_RESULTS_LIMIT,
     SearchRequest,
     SearchResponse,
@@ -43,6 +45,48 @@ class TestWebSearchConfig:
     def test_from_dict_type_coercion(self) -> None:
         cfg = WebSearchConfig.from_dict({"default_max_results": "7"})
         assert cfg.default_max_results == 7
+
+    def test_from_dict_default_max_results_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="default_max_results"):
+            WebSearchConfig.from_dict({"default_max_results": 0})
+
+    def test_from_dict_max_results_limit_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="max_results_limit"):
+            WebSearchConfig.from_dict({"max_results_limit": 0})
+
+    def test_from_dict_default_exceeds_limit_raises(self) -> None:
+        with pytest.raises(ValueError, match="must not exceed"):
+            WebSearchConfig.from_dict(
+                {"default_max_results": 20, "max_results_limit": 10}
+            )
+
+    def test_from_dict_limit_exceeds_hard_max_raises(self) -> None:
+        with pytest.raises(ValueError, match="HARD_MAX_RESULTS_LIMIT"):
+            WebSearchConfig.from_dict({"max_results_limit": HARD_MAX_RESULTS_LIMIT + 1})
+
+    def test_from_dict_search_timeout_sec_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="search_timeout_sec"):
+            WebSearchConfig.from_dict({"search_timeout_sec": 0})
+
+    def test_from_dict_search_timeout_sec_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="search_timeout_sec"):
+            WebSearchConfig.from_dict({"search_timeout_sec": -1.0})
+
+    def test_from_dict_search_timeout_sec_exceeds_hard_limit_raises(self) -> None:
+        with pytest.raises(ValueError, match="search_timeout_sec"):
+            WebSearchConfig.from_dict(
+                {"search_timeout_sec": HARD_SEARCH_TIMEOUT_SEC_LIMIT + 1}
+            )
+
+    def test_from_dict_search_timeout_sec_default(self) -> None:
+        cfg = WebSearchConfig.from_dict({})
+        assert cfg.search_timeout_sec == 10.0
+
+    def test_from_dict_search_timeout_sec_at_hard_limit_ok(self) -> None:
+        cfg = WebSearchConfig.from_dict(
+            {"search_timeout_sec": HARD_SEARCH_TIMEOUT_SEC_LIMIT}
+        )
+        assert cfg.search_timeout_sec == HARD_SEARCH_TIMEOUT_SEC_LIMIT
 
 
 class TestWebSearchUpstreamError:
@@ -81,6 +125,22 @@ class TestSearchRequest:
     def test_max_results_at_limit_ok(self) -> None:
         req = SearchRequest(query="test", max_results=MAX_RESULTS_LIMIT)
         assert req.max_results == MAX_RESULTS_LIMIT
+
+    def test_query_whitespace_only_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SearchRequest(query="   ")
+
+    def test_query_trims_leading_trailing_whitespace(self) -> None:
+        req = SearchRequest(query="  hello  ")
+        assert req.query == "hello"
+
+    def test_query_nul_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SearchRequest(query="hello\x00world")
+
+    def test_query_control_char_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            SearchRequest(query="hello\nworld")
 
 
 class TestSearchRequestBoundsWiredToConfig:

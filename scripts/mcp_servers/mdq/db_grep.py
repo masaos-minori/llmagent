@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import sqlite3
 
-from mcp_servers.mdq.mdq_models import GrepDocMatch
+from mcp_servers.mdq.mdq_models import GrepDocMatch, GrepDocsMetadata
 
 
 def find_grep_match(
@@ -56,7 +56,7 @@ def grep_docs(
     max_chars: int,
     ctx_before: int,
     ctx_after: int,
-) -> str:
+) -> tuple[str, GrepDocsMetadata]:
     """Execute a grep search across chunks."""
     where_clauses = []
     params: list = []
@@ -85,7 +85,13 @@ def grep_docs(
     truncated = len(matches) >= max_matches
 
     if not matches:
-        return "No matches found."
+        return "No matches found.", GrepDocsMetadata(
+            pattern_preview=compiled.pattern[:80],
+            path_filter_count=len(req_paths),
+            match_count=0,
+            truncated=False,
+            grep_enabled=True,
+        )
 
     parts = []
     for m in matches:
@@ -103,4 +109,10 @@ def grep_docs(
             f"\n\n[Truncated — cap of {max_matches} matches reached. "
             f"Use a more specific pattern or path filter to narrow results.]"
         )
-    return result
+    return result, GrepDocsMetadata(
+        pattern_preview=compiled.pattern[:80],
+        path_filter_count=len(req_paths),
+        match_count=len(matches),
+        truncated=truncated,
+        grep_enabled=True,
+    )

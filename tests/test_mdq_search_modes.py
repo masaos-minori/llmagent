@@ -71,9 +71,12 @@ class TestResultLimitBehavior:
             f = tmp_path / f"doc{i}.md"
             f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
-        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
-        assert "Truncated" not in result
-        assert "3 found" in result
+        text, metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Keyword"))
+        )
+        assert "Truncated" not in text
+        assert "3 found" in text
+        assert metadata["truncated"] is False
 
     def test_request_override_below_cap_is_honored(
         self, service: MdqService, tmp_path: Path
@@ -82,13 +85,17 @@ class TestResultLimitBehavior:
             f = tmp_path / f"doc{i}.md"
             f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
-        result = asyncio.run(
+        text, metadata = asyncio.run(
             search_docs(
                 service, SearchDocsRequest(query="Keyword", max_results_limit=2)
             )
         )
-        assert "Truncated" in result
-        assert "5 found" in result
+        assert "Truncated" in text
+        assert "5" in text  # matched_count
+        assert "2" in text  # shown_count
+        assert metadata["truncated"] is True
+        assert metadata["result_count"] == 5
+        assert metadata["shown_count"] == 2
 
     def test_request_override_above_cap_is_bounded(
         self, service: MdqService, tmp_path: Path
@@ -98,9 +105,14 @@ class TestResultLimitBehavior:
             f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
         service.max_results_limit = 2
-        result = asyncio.run(
+        text, metadata = asyncio.run(
             search_docs(
                 service, SearchDocsRequest(query="Keyword", max_results_limit=100)
             )
         )
-        assert "Truncated" in result
+        assert "Truncated" in text
+        assert "3" in text  # matched_count
+        assert "2" in text  # shown_count
+        assert metadata["truncated"] is True
+        assert metadata["result_count"] == 3
+        assert metadata["shown_count"] == 2

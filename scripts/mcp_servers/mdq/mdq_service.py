@@ -27,17 +27,23 @@ from mcp_servers.mdq.indexer import (
     refresh_paths as _refresh_paths,
 )
 from mcp_servers.mdq.mdq_models import (
+    STALE_SQL_CONDITION,
     GetChunkRequest,
+    GrepDocsMetadata,
     GrepDocsRequest,
+    IndexPathsMetadata,
     IndexPathsRequest,
     MdqAuthorizationError,
+    MdqConfig,
     MdqNotFoundError,
     MdqValidationError,
     OutlineHeading,
     OutlineRequest,
     RefreshIndexRequest,
+    SearchDocsMetadata,
     SearchDocsRequest,
     StatsRequest,
+    is_stale,
 )
 from mcp_servers.mdq.search import search_docs
 
@@ -56,36 +62,34 @@ class MdqService:
         except (FileNotFoundError, KeyError, TypeError):
             mdq_cfg = {}
 
+        cfg = MdqConfig(**mdq_cfg)  # raises pydantic.ValidationError on invalid values
         self.db_path = db_path or mdq_cfg.get("db_path", "/opt/llm/db/mdq.sqlite")
-        self._allowed_dirs: list[str] = mdq_cfg.get("allowed_dirs") or []
-        self.include_globs: list[str] = mdq_cfg.get("include_globs", ["*.md"])
-        self.exclude_globs: list[str] = mdq_cfg.get(
-            "exclude_globs", [".git/**", "__pycache__/**"]
-        )
-        self.max_snippet_chars: int = mdq_cfg.get("max_snippet_chars", 500)
-        self.max_chunk_chars: int = mdq_cfg.get("max_chunk_chars", 10000)
-        self.max_file_chars: int = mdq_cfg.get("max_file_chars", 100000)
-        self.search_timeout_sec: int = mdq_cfg.get("search_timeout_sec", 30)
-        self.enable_grep: bool = mdq_cfg.get("enable_grep", True)
-        self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
-        self.max_chars_per_match: int = mdq_cfg.get("max_chars_per_match", 500)
-        self.context_before: int = mdq_cfg.get("context_before", 2)
-        self.context_after: int = mdq_cfg.get("context_after", 2)
+        self._allowed_dirs = cfg.allowed_dirs
+        self.include_globs = cfg.include_globs
+        self.exclude_globs = cfg.exclude_globs
+        self.max_snippet_chars = cfg.max_snippet_chars
+        self.max_chunk_chars = cfg.max_chunk_chars
+        self.max_file_chars = cfg.max_file_chars
+        self.search_timeout_sec = cfg.search_timeout_sec
+        self.enable_grep = cfg.enable_grep
+        self.max_grep_matches = cfg.max_grep_matches
+        self.max_chars_per_match = cfg.max_chars_per_match
+        self.context_before = cfg.context_before
+        self.context_after = cfg.context_after
 
         # Result size limits
-        self.max_results_limit: int = mdq_cfg.get("max_results_limit", 100)
-        self.max_chars_per_chunk: int = mdq_cfg.get("max_chars_per_chunk", 10000)
-        self.max_total_result_chars: int = mdq_cfg.get("max_total_result_chars", 100000)
-        self.max_outline_items: int = mdq_cfg.get("max_outline_items", 500)
-        self.max_outline_depth: int = mdq_cfg.get("max_outline_depth", 6)
-        self.sqlite_busy_timeout: int = mdq_cfg.get("sqlite_busy_timeout", 5000)
+        self.max_results_limit = cfg.max_results_limit
+        self.max_chars_per_chunk = cfg.max_chars_per_chunk
+        self.max_total_result_chars = cfg.max_total_result_chars
+        self.max_outline_items = cfg.max_outline_items
+        self.max_outline_depth = cfg.max_outline_depth
+        self.sqlite_busy_timeout = cfg.sqlite_busy_timeout
 
-        # Validate required fields
-        if not isinstance(self._allowed_dirs, list):
+        if not self._allowed_dirs:
             logger.warning(
-                "mdq_mcp_server.allowed_dirs must be a list; using empty list"
+                "MDQ allowed_dirs is empty — all path-based operations will be denied. "
+                "Configure allowed_dirs in mdq_mcp_server.toml to enable indexing and path operations."
             )
-            self._allowed_dirs = []
 
         # Concurrency control for indexing operations
         self._index_lock: asyncio.Lock | None = None
@@ -126,14 +130,14 @@ class MdqService:
         )
         return conn
 
-    async def search_docs(self, req: SearchDocsRequest) -> str:
+    async def search_docs(
+        self, req: SearchDocsRequest
+    ) -> tuple[str, SearchDocsMetadata]:
         """Search indexed Markdown sections by query."""
-        result: str = await search_docs(self, req)
+        text, metadata = await search_docs(self, req)
         if self._is_indexing:
-            result += (
-                "\n\n[WARNING: Index is being updated — results may be incomplete]"
-            )
-        return result
+            text += "\n\n[WARNING: Index is being updated — results may be incomplete]"
+        return text, metadata
 
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
@@ -145,11 +149,15 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             row = conn.execute(
-                "SELECT heading, content, content_hash FROM chunks WHERE chunk_id = ?",
+                "SELECT heading, content, content_hash, source_path FROM chunks WHERE chunk_id = ?",
                 (req.chunk_id,),
             ).fetchone()
             if row is None:
                 raise MdqNotFoundError(f"Chunk {req.chunk_id} not found")
+            if not authorize_path(Path(row["source_path"]), self.allowed_dirs):
+                raise MdqAuthorizationError(
+                    f"Access denied: chunk {req.chunk_id} is not authorized"
+                )
             content = row["content"]
             truncated = False
             if len(content) > max_chars:
@@ -209,7 +217,7 @@ class MdqService:
                 and doc_row["mtime_ns"] is not None
                 and doc_row["indexed_at"] is not None
             ):
-                if doc_row["mtime_ns"] > doc_row["indexed_at"]:
+                if is_stale(doc_row["mtime_ns"], doc_row["indexed_at"]):
                     stale_warning = (
                         f"Warning: file has been modified since last indexing "
                         f"(mtime={doc_row['mtime_ns']}, indexed_at={doc_row['indexed_at']})"
@@ -250,19 +258,23 @@ class MdqService:
         finally:
             conn.close()
 
-    async def index_paths(self, req: IndexPathsRequest) -> str:
+    async def index_paths(
+        self, req: IndexPathsRequest
+    ) -> tuple[str, IndexPathsMetadata]:
         """Index a set of paths into the in-process SQLite DB."""
         if self._index_lock is None:
             self._index_lock = asyncio.Lock()
         async with self._index_lock:
             self._is_indexing = True
             try:
-                result: str = await _index_paths(self, req)
-                return result
+                text, metadata = await _index_paths(self, req)
+                return text, metadata
             finally:
                 self._is_indexing = False
 
-    async def refresh_index(self, req: RefreshIndexRequest) -> str:
+    async def refresh_index(
+        self, req: RefreshIndexRequest
+    ) -> tuple[str, RefreshSummary]:
         """Incrementally refresh the index for a set of paths."""
         if self._index_lock is None:
             self._index_lock = asyncio.Lock()
@@ -271,7 +283,8 @@ class MdqService:
             try:
                 self._validate_paths(req.paths)
                 summary = await _refresh_paths(self, req)
-                return "\n".join(self._format_refresh_summary(summary))
+                text = "\n".join(self._format_refresh_summary(summary))
+                return text, summary
             finally:
                 self._is_indexing = False
 
@@ -311,7 +324,7 @@ class MdqService:
                 "SELECT COUNT(*) as cnt FROM chunks_fts"
             ).fetchone()["cnt"]
             stale_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+                f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"
             ).fetchone()["cnt"]
             rows = conn.execute("SELECT key, value FROM index_state").fetchall()
             index_metadata = dict((row["key"], row["value"]) for row in rows)
@@ -323,7 +336,7 @@ class MdqService:
         finally:
             conn.close()
 
-    async def grep_docs(self, req: GrepDocsRequest) -> str:
+    async def grep_docs(self, req: GrepDocsRequest) -> tuple[str, GrepDocsMetadata]:
         """Search Markdown chunks with a regex pattern."""
         if not self.enable_grep:
             raise MdqValidationError("grep_docs is disabled by configuration")
@@ -331,6 +344,36 @@ class MdqService:
             compiled = re.compile(req.pattern)
         except re.error as e:
             raise MdqValidationError(f"Invalid regex pattern: {e}")
+
+        if req.paths:
+            for p in req.paths:
+                if not authorize_path(Path(p), self.allowed_dirs):
+                    raise MdqAuthorizationError(
+                        f"Access denied: {p} is outside allowed directories"
+                    )
+            authorized_paths = req.paths
+        else:
+            conn_check = self._get_db_connection()
+            try:
+                all_paths = [
+                    row["source_path"]
+                    for row in conn_check.execute(
+                        "SELECT DISTINCT source_path FROM chunks"
+                    ).fetchall()
+                ]
+            finally:
+                conn_check.close()
+            authorized_paths = [
+                p for p in all_paths if authorize_path(Path(p), self.allowed_dirs)
+            ]
+            if not authorized_paths:
+                return "No matches found.", GrepDocsMetadata(
+                    pattern_preview=req.pattern[:80],
+                    path_filter_count=0,
+                    match_count=0,
+                    truncated=False,
+                    grep_enabled=True,
+                )
 
         request_matches = req.max_grep_matches
         config_cap_matches = self.max_grep_matches
@@ -347,15 +390,15 @@ class MdqService:
 
         conn = self._get_db_connection()
         try:
-            result: str = grep_docs(
+            text, metadata = grep_docs(
                 conn,
                 compiled,
-                req.paths or [],
+                authorized_paths,
                 max_matches,
                 max_chars,
                 ctx_before,
                 ctx_after,
             )
-            return result
+            return text, metadata
         finally:
             conn.close()

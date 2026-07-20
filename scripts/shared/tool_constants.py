@@ -114,6 +114,11 @@ GIT_TOOLS: frozenset[str] = GIT_READ_TOOLS | GIT_WRITE_TOOLS
 # Shell execution tools (shell-mcp)
 SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 
+# Seed data only; shared.tool_registry.ToolRegistry is the canonical/fallback
+# routing source (see tool_registry.py and route_resolver.py module docstrings
+# for the full routing-priority model). Live /v1/tools discovery
+# (agent.services.mcp_tool_discovery.McpToolDiscoveryService) is validation-only,
+# not a routing input.
 # Web search tools (web-search-mcp)
 WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
 

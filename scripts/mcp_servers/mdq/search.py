@@ -9,10 +9,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.mdq_models import (
     MdqConsistencyError,
+    SearchDocsMetadata,
     SearchDocsRequest,
     SearchResultItem,
     SearchResultResult,
@@ -24,8 +28,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
+async def search_docs(
+    service: MdqService, req: SearchDocsRequest
+) -> tuple[str, SearchDocsMetadata]:
     """Search indexed Markdown sections by query; returns formatted results."""
+    t0 = time.perf_counter()
+    query_preview = req.query[:80]
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(_search_docs_structured, service, req),
@@ -36,10 +44,23 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
             f"Search timed out after {service.search_timeout_sec}s: {req.query!r}"
         ) from e
     if not result["results"]:
-        return f"No results found for: {req.query!r}"
+        duration_ms = (time.perf_counter() - t0) * 1000
+        return f"No results found for: {req.query!r}", SearchDocsMetadata(
+            query_preview=query_preview,
+            result_count=0,
+            shown_count=0,
+            truncated=False,
+            total_count=0,
+            duration_ms=duration_ms,
+        )
+
+    # matched_count is the exact count of rows matching the query (no LIMIT
+    # applied, unaffected by authorization filtering); it is a true total,
+    # unlike the pre-fix "total" field which silently reported the post-LIMIT
+    # row count as if it were exact.
+    matched_count = result["matched_count"]
 
     # Apply result size limits (request overrides bounded by config cap)
-    original_total = result["total"]
     request_results = getattr(req, "max_results_limit", None)
     config_results = service.max_results_limit
     max_results = (
@@ -54,31 +75,46 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
         min(request_chars, config_chars) if request_chars is not None else config_chars
     )
 
-    truncated = False
-    if original_total > max_results:
-        truncated = True
-        result["results"] = result["results"][:max_results]
+    results = result["results"]
+    if len(results) > max_results:
+        results = results[:max_results]
 
     # Enforce char limit
-    if len(result["results"]) > 0:
-        lines = [f"Search results for: {req.query!r} ({original_total} found)"]
-        for r in result["results"]:
-            line = f"{r.source_path}: {r.heading}: {r.snippet}"
-            if len("\n".join(lines)) + len(line) > max_chars:
-                truncated = True
-                break
-            lines.append(line)
-        shown = len(lines) - 1  # subtract header line
-        chars_used = len("\n".join(lines))
-        if truncated:
-            return "\n".join(lines) + (
-                f"\n\n[Truncated — {original_total} results found, "
-                f"{shown} shown ({chars_used}/{max_chars} chars). "
-                f"Use a narrower query or get_chunk for specific sections.]"
-            )
-        return "\n".join(lines)
+    lines = [f"Search results for: {req.query!r} ({matched_count} found)"]
+    for r in results:
+        line = f"{r.source_path}: {r.heading}: {r.snippet}"
+        if len("\n".join(lines)) + len(line) > max_chars:
+            break
+        lines.append(line)
+    shown_count = len(lines) - 1  # subtract header line
+    chars_used = len("\n".join(lines))
 
-    return f"Search results for: {req.query!r} ({original_total} found)"
+    # Honest reporting: only claim a bare "found" total when nothing was
+    # actually hidden by limiting (SQL layer, authorization, count cap, or
+    # char budget) — otherwise surface both the exact matched count and the
+    # actually-shown count so the header/trailer never conflate the two.
+    duration_ms = (time.perf_counter() - t0) * 1000
+    if matched_count != shown_count:
+        return "\n".join(lines) + (
+            f"\n\n[Truncated — {matched_count} results found, "
+            f"{shown_count} shown ({chars_used}/{max_chars} chars). "
+            f"Use a narrower query or get_chunk for specific sections.]"
+        ), SearchDocsMetadata(
+            query_preview=query_preview,
+            result_count=matched_count,
+            shown_count=shown_count,
+            truncated=True,
+            total_count=matched_count,
+            duration_ms=duration_ms,
+        )
+    return "\n".join(lines), SearchDocsMetadata(
+        query_preview=query_preview,
+        result_count=matched_count,
+        shown_count=shown_count,
+        truncated=False,
+        total_count=matched_count,
+        duration_ms=duration_ms,
+    )
 
 
 def _search_docs_structured(
@@ -86,16 +122,33 @@ def _search_docs_structured(
 ) -> SearchResultResult:
     """Run FTS5 search; return structured result."""
     if not req.query or not req.query.strip():
-        return SearchResultResult(query=req.query, results=[], total=0)
+        return SearchResultResult(
+            query=req.query, results=[], matched_count=0, shown_count=0
+        )
 
     logger.info("MDQ search query: %s", req.query)
 
-    limit = getattr(req, "limit", 10) or 10
+    # Cap the SQL-layer fetch itself at the server's configured limit so a
+    # large request `limit` cannot bypass the config cap by having the
+    # database return an unbounded row set before Python-side truncation.
+    effective_limit = min(getattr(req, "limit", 10) or 10, service.max_results_limit)
 
+    matched_count = 0
     conn = service._get_db_connection()
     try:
         where_clauses, params = _build_search_where(req)
         where_clause = " AND ".join(where_clauses)
+
+        # Exact count of rows matching the query, with no LIMIT applied —
+        # used to report an honest matched_count independent of effective_limit.
+        matched_count_row = conn.execute(
+            f"""SELECT COUNT(*) as cnt
+                FROM chunks_fts f
+                JOIN chunks c ON f.rowid = c.rowid
+                WHERE {where_clause}""",
+            params,
+        ).fetchone()
+        matched_count = matched_count_row["cnt"] if matched_count_row is not None else 0
 
         # Get FTS5 results
         fts_results: list[SearchResultItem] = []
@@ -108,7 +161,7 @@ def _search_docs_structured(
                 WHERE {where_clause}
                 ORDER BY rank
                 LIMIT ?""",
-            params + [limit],
+            params + [effective_limit],
         ).fetchall()
 
         fts_results = [
@@ -126,7 +179,11 @@ def _search_docs_structured(
             for row in rows
         ]
 
-        results = fts_results
+        results = [
+            item
+            for item in fts_results
+            if authorize_path(Path(item.source_path), service.allowed_dirs)
+        ]
 
     except sqlite3.OperationalError as e:
         if "no such table: chunks_fts" in str(e) or "corrupt" in str(e).lower():
@@ -140,7 +197,12 @@ def _search_docs_structured(
     finally:
         conn.close()
 
-    return SearchResultResult(query=req.query, results=results, total=len(results))
+    return SearchResultResult(
+        query=req.query,
+        results=results,
+        matched_count=matched_count,
+        shown_count=len(results),
+    )
 
 
 def _build_search_where(req: SearchDocsRequest) -> tuple[list[str], list]:

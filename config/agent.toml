@@ -271,7 +271,6 @@ git_commit               = "WRITE_SAFE"
 git_checkout             = "WRITE_DANGEROUS"
 git_pull                 = "WRITE_DANGEROUS"
 git_push                 = "WRITE_DANGEROUS"
-mdq                      = "WRITE_DANGEROUS"
 
 # ── MCP server transport entries ──────────────────────────────────────────────
 
@@ -412,6 +411,10 @@ required = ["query"]
 [tool_definitions.function.parameters.properties.query]
 type        = "string"
 description = "検索クエリ文字列"
+
+[tool_definitions.function.parameters.properties.max_results]
+type        = "integer"
+description = "取得する検索結果の最大件数（省略可、既定値はサーバー側設定に従う）"
 
 [[tool_definitions]]
 type = "function"

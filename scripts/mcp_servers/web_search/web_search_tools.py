@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcp_servers.web_search.web_search_models import get_max_results_limit
+
 TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "search_web",
@@ -17,10 +19,17 @@ TOOL_LIST: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search query string"},
+                "query": {
+                    "type": "string",
+                    "description": "Search query string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                },
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of results (default: configured)",
+                    "minimum": 1,
+                    "maximum": get_max_results_limit(),
                 },
             },
             "required": ["query"],

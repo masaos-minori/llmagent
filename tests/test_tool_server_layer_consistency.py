@@ -53,6 +53,7 @@ from shared.tool_constants import (
 )
 from shared.tool_executor_helpers import is_side_effect
 from shared.tool_registry import get_registry
+from shared.tool_routing_validation import validate_routing_against_live
 
 
 def _dispatch_keys(table: Mapping[str, Callable[..., Any]]) -> set[str]:
@@ -401,3 +402,33 @@ def test_serial_tools_flagged_requires_serial(server_key: str) -> None:
     else:
         for t in layers.schema_fn():
             assert t.get("requires_serial") in (None, False)
+
+
+# NOTE: validate_routing_against_live() is exercised directly here, scoped to
+# search_web only (not generalized across the _SERVERS matrix above, which
+# already covers a different axis: schema/dispatch/registry triple-consistency
+# for all 8 servers). It is not currently wired into agent startup — see
+# plans/20260719-202346_plan.md Scope, which explicitly keeps wiring
+# validate_all_routing()/validate_routing_against_live() into agent/startup.py
+# out of scope. This uses the real, default get_registry() rather than a
+# synthetic registry, complementing tests/test_tool_registry.py's existing
+# synthetic-registry unit tests for the same function.
+
+
+def test_search_web_live_drift_detected_when_missing() -> None:
+    """search_web is reported as missing from live discovery when the stubbed
+    live_tool_lists omits it for the web_search server key."""
+    drift = validate_routing_against_live(
+        live_tool_lists={"web_search": ["other_tool"]}
+    )
+    assert "web_search" in drift
+    assert any("search_web" in msg for msg in drift["web_search"])
+
+
+def test_search_web_no_live_drift_when_matching() -> None:
+    """No drift is reported when the stubbed live_tool_lists matches the real
+    registry's search_web registration for the web_search server key."""
+    drift = validate_routing_against_live(
+        live_tool_lists={"web_search": ["search_web"]}
+    )
+    assert drift == {}

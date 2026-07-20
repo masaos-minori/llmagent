@@ -19,6 +19,7 @@ from shared.json_utils import dumps as _json_dumps
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
 from mcp_servers.mdq.mdq_models import (
+    IndexPathsMetadata,
     IndexPathsRequest,
     MdqAuthorizationError,
     ParseMarkdownRequest,
@@ -217,25 +218,50 @@ async def _index_directory(service: MdqService, path: Path) -> None:
         await _index_single_file(service, child)
 
 
-async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
+async def index_paths(
+    service: MdqService, req: IndexPathsRequest
+) -> tuple[str, IndexPathsMetadata]:
     """Index a set of paths into the in-process SQLite DB."""
     logger.info("Indexing paths: %s", req.paths)
+    t0 = time.perf_counter()
+    indexed_count = skipped_count = failed_count = 0
     for path_str in req.paths:
         p = Path(path_str)
         if not p.exists():
             logger.warning("Path does not exist: %s", path_str)
+            skipped_count += 1
             continue
         if not authorize_path(p, service.allowed_dirs):
             raise MdqAuthorizationError(
                 f"Access denied: {path_str} is outside allowed directories"
             )
         if p.is_file() and p.suffix == ".md":
-            await _index_single_file(service, p)
+            try:
+                await _index_single_file(service, p)
+            except Exception as e:
+                logger.error("Failed to index %s: %s", path_str, e)
+                failed_count += 1
+            else:
+                indexed_count += 1
         elif p.is_dir():
-            await _index_directory(service, p)
+            try:
+                await _index_directory(service, p)
+            except Exception as e:
+                logger.error("Failed to index %s: %s", path_str, e)
+                failed_count += 1
+            else:
+                indexed_count += 1
         else:
             logger.warning("Skipping non-Markdown path: %s", path_str)
-    return "Indexing complete"
+            skipped_count += 1
+    duration_ms = (time.perf_counter() - t0) * 1000
+    return "Indexing complete", IndexPathsMetadata(
+        input_path_count=len(req.paths),
+        indexed_count=indexed_count,
+        skipped_count=skipped_count,
+        failed_count=failed_count,
+        duration_ms=duration_ms,
+    )
 
 
 async def refresh_paths(

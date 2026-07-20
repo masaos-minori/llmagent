@@ -38,6 +38,10 @@ related:
 8. **file_write** — `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/write_server.py`
 9. **file_delete** — `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/file/delete_server.py`
 
+注: 一部のサーバーではベア名 (tools.py/server.py) のファイルと、後の命名変更による
+<server>_tools.py/<server>_server.py が併存していた期間があった。現状と対応は
+issues/20260719-193357_risks.md で追跡している。
+
 ### 検証
 
 すべての移行完了後:

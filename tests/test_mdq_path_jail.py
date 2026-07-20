@@ -71,8 +71,8 @@ class TestIndexPathsAuthorization:
     ) -> None:
         """Path within allowed_dirs completes without raising."""
         req = IndexPathsRequest(paths=[str(md_file)])
-        result = await index_paths(allowed_service, req)
-        assert "complete" in result.lower()
+        text, _metadata = await index_paths(allowed_service, req)
+        assert "complete" in text.lower()
 
     async def test_denied_path_raises(
         self, denied_service: MdqService, md_file: Path
@@ -125,8 +125,8 @@ class TestIndexPathsAuthorization:
     ) -> None:
         """Directory within allowed_dirs completes without raising."""
         req = IndexPathsRequest(paths=[str(md_dir)])
-        result = await index_paths(allowed_service, req)
-        assert "complete" in result.lower()
+        text, _metadata = await index_paths(allowed_service, req)
+        assert "complete" in text.lower()
 
 
 # ── refresh_paths / _validate_paths ──────────────────────────────────────────
@@ -146,8 +146,9 @@ class TestRefreshIndexAuthorization:
     ) -> None:
         """refresh_index accepts path within allowed_dirs."""
         req = RefreshIndexRequest(paths=[str(md_file)], force=False)
-        result = await allowed_service.refresh_index(req)
-        assert result is not None
+        text, metadata = await allowed_service.refresh_index(req)
+        assert text is not None
+        assert metadata is not None
 
 
 # ── outline (regression guard) ────────────────────────────────────────────────
