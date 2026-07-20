@@ -1,5 +1,15 @@
 # RuntimeToolRegistry / MCP runtime-availability-metadata migration (requirements 14-20): consolidated landing-status risks (2026-07-18)
 
+**Largely resolved (2026-07-20/21), one gap remains.** Verified against current source:
+
+- **Requirement 14** (`requires_config` → `config_dependent`): fully landed. `grep -rn "requires_config" scripts/` returns 0 matches; `config_dependent` is the live field name (13 matches).
+- **Requirement 15** (`enabled`/`disabled_reason` in `/v1/tools`): landed for all 4 originally-targeted handlers plus more — `scripts/mcp_servers/file/{read,write,delete}_server.py` and `scripts/mcp_servers/git/git_server.py` all compute and return `(enabled, disabled_reason)` via `availability_flags()`/per-tool helpers.
+- **Requirement 17** (`RuntimeToolRegistry` wiring): fully resolved, and then some — `McpToolDiscoveryService` is now wired into `startup.py`/`context.py` (landed 2026-07-20 in commit `d510c87f`), and a same-day later change made `RuntimeToolRegistry` the **sole** routing authority (removing the `ToolRegistry` fallback entirely — see `docs/04_mcp_03_01_dispatch-and-routing.md` / `04_mcp_03_02_tool-registry.md`). No longer "inert" in any sense.
+- **Requirement 19** (`docs/04_mcp_03_06_tool-runtime-availability-metadata.md`): exists and has been kept current through several rounds of edits since.
+- **Requirement 20** (`include_disabled`/`disabled_code`): still zero matches in `scripts/` — but per the original issue text this was always meant to stay a documented-but-deferred, on-paper proposal, not a landing gap. No action needed.
+
+**Remaining gap, not yet closed:** `enabled`/`disabled_reason` are computed and returned by the 4 servers above, but `scripts/agent/services/mcp_tool_discovery.py` still does not read them when building each `RuntimeTool` — `build_runtime_tool()`'s `enabled_for_llm` parameter is never passed a value derived from the live response's `enabled` field (defaults to `False` unless explicitly supplied, and discovery.py has no `.get("enabled")` call). So a tool a server correctly reports as disabled (e.g. `write_file` with empty `allowed_dirs`) is not actually hidden from the LLM via `RuntimeToolRegistry` today — the metadata exists but isn't consumed. This is the one part of the original "consolidated risk" that is still real and unresolved; everything else in this file is historical context for the now-resolved items above.
+
 ## Context
 
 This note consolidates three separate risk files that all trace back to the same root cause — the
