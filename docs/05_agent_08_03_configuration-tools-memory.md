@@ -21,6 +21,8 @@ source:
 
 ## ToolConfig (`cfg.tool.*`)
 
+### ToolConfig cfg.tool
+
 Source: `config/agent.toml`
 
 | Field | Default | Production Recommended | Description |

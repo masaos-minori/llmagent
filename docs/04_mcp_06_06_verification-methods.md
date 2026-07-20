@@ -18,6 +18,8 @@ source:
 
 ### ヘルスプローブ
 
+### Health probes
+
 ```bash
 # Individual server health checks (all return 4-field nested format)
 curl -s http://127.0.0.1:8004/health | jq   # web-search: base response only

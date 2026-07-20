@@ -48,6 +48,8 @@ auth_token = ""   # empty = no auth
 
 ## セキュリティプロファイル（`security_profile`）
 
+### Security profile (security_profile)
+
 ```toml
 # In config/agent.toml [mcp_servers] section
 security_profile = "local"   # or "production"

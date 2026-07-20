@@ -26,6 +26,8 @@ source:
 
 ## アクティベーションゲート
 
+### Activation gate
+
 メモリ層には、メモリ操作の実行タイミングを制御する3層のアクティベーションゲートがある。
 
 **レイヤー1: config によるバイパス**
@@ -44,6 +46,8 @@ source:
 - すべてのメモリ操作はこのファサードを経由する。サブサービスへの直接アクセスはテスト専用である
 
 ### モジュール別の無効化時の動作
+
+### Module-specific behavior when disabled
 
 | Module | Disabled condition | Behavior |
 |---|---|---|

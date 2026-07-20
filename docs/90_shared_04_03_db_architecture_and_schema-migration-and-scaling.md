@@ -30,7 +30,7 @@ create_schema()
 ```
 
 - すべてのDDLは`IF NOT EXISTS`を使用する — べき等であり、何度実行しても安全
-- **rag.sqlite/session.sqlite/eventbus.sqliteは互換マイグレーションに非対応。** これらのスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md#11-db-recreation-procedure)を参照。workflow.sqlite（§8a）とmdq.sqlite（§8c）はそれぞれ異なる方式のマイグレーション/自動スキーマ更新機構を持つ — 詳細は各節を参照。
+- **rag.sqlite/session.sqlite/eventbus.sqliteは互換マイグレーションに非対応。** これらのスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)を参照。workflow.sqlite（§8a）とmdq.sqlite（§8c）はそれぞれ異なる方式のマイグレーション/自動スキーマ更新機構を持つ — 詳細は各節を参照。
 - `embedding_dims`は実行時にconfigから動的に置換される（デフォルト384）
 
 ### 8a. workflow.sqlite限定の増分マイグレーション (Explicit in code)

@@ -19,6 +19,8 @@ source:
 
 ## HttpTransport (`shared/http_transport.py`)
 
+### HttpTransport
+
 **矛盾点（要修正の記録）:** 本節の見出しは従来 `shared/tool_executor.py` としていたが、`HttpTransport` クラスの実体は `shared/http_transport.py` に定義されている（Explicit in code）。インスタンス化と保持は `shared/tool_transport_invoker.py` が行い、`shared/tool_executor.py` は `TransportError` 例外型のみを同モジュールからインポートしている。`shared/tool_executor.py` のモジュール docstring には "Provides HttpTransport implementation for POST /v1/call_tool over httpx." とあるが、実装本体は同ファイルには存在しない（Explicit in code）。
 
 ```python

@@ -42,7 +42,7 @@ source:
 過去の経緯: 以前のバージョンでは複数の個別ファイル (`common.toml`, `llm.toml`, `http.toml`, `context.toml`, `rag.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `tools_definitions.toml`、加えてサーバーごとの`*_mcp_server.toml`) を読み込んでいた。これらは`agent.toml`に統合され、分割されたファイルはもはや存在しない。
 
 正準の設定所有関係表 (ファイルごとの所有レイヤー) については、
-[90_shared_03 §2a Config Ownership](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-config-ownership)を参照。
+[90_shared_03 §2a Config Ownership](90_shared_03_01_runtime_and_execution-config-and-logging.md#config-ownership)を参照。
 
 `ctx.cfg`が設定を保持する。`/reload`は`ConfigLoader().load_all()`を呼び出して
 すべてのベース設定ファイルを再読み込みし、マージされたdictを
@@ -57,6 +57,8 @@ source:
    `needs_restart`, `skipped`, `source_files`フィールドと共に呼び出し元に返される
 
 ### 設定ファイルの所有関係とホットリロード可否
+
+### Config file ownership and hot-reload eligibility
 
 `/reload`はすべてのベース設定ファイルを読み込む — 起動時に読み込まれるものと同一の集合。
 `ConfigReloadService`は変更されたキーごとに4つのカテゴリのいずれかに分類する。

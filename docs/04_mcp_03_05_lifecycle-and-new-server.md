@@ -41,6 +41,8 @@ related:
 
 ## 新しい MCP サーバーの追加
 
+### Adding a new tool
+
 ### 新しいツールを安全に追加する方法
 
 新しいツールを追加する際は、上記の [Adding a new tool](#adding-a-new-tool) セクションにある

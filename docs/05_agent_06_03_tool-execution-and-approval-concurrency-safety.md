@@ -75,7 +75,7 @@ Orchestratorは、ワークフローを作成できない場合に直接 (未承
 修正してから再試行する必要がある。
 
 これはフェイルクローズなポリシーである: 可用性よりも安全性が優先される。
-起動時のリカバリモデルについては[Agent Startup and Recovery](05_agent_07_01_cli-and-commands-cli-reference.md#startup-recovery)を参照。
+起動時のリカバリモデルについては[Agent Startup and Recovery](05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md#startup-recovery)を参照。
 
 ---
 

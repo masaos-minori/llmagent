@@ -71,6 +71,8 @@ class RecoveryResult:
 
 ## 11. DB再作成手順
 
+### 11. DB recreation procedure
+
 スキーマ変更にはDBの再作成が必要 — マイグレーション機能は存在しない。
 
 **手順1: アーカイブ** — `rotate_all_dbs()` を実行し、本番用3DBすべてをアーカイブする:

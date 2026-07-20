@@ -19,6 +19,8 @@ source:
 
 ## エンドツーエンドのツール呼び出し追跡
 
+### End-to-end tool call tracing
+
 ### 相関キー
 
 | キー | 生成元 | 出現箇所 |

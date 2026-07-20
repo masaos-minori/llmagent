@@ -74,7 +74,7 @@ source:
 - `03_rag_00_document-guide.md`
 - `03_rag_91_design_notes-part1.md`
 - `03_rag_91_design_notes-part2.md`
-- `03_rag_90_inconsistencies_and_known_issues-part2.md`
+
 
 ## Keywords
 

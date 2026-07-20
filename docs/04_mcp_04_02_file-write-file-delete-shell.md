@@ -44,7 +44,7 @@ related:
 **ログ:** `/opt/llm/logs/file-write-mcp.log`
 **Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
 
-### 実装上の補足
+### 実装上の補足（file-write-mcp）
 
 - `max_write_bytes` の強制は Pydantic のフィールド制約ではなく、`write_service.py::WriteFileService.write_file` 内で `len(content.encode("utf-8")) > max_write_bytes` を手動チェックする実装である（超過時は `FileValidationError`）。[Explicit in code]
 - `write_file` は一時ファイル（`.tmp_<name>`）に書き込んでから `os.replace` で置換するアトミック書き込みを行う。書き込み失敗時は一時ファイルを削除してからエラーを送出する。[Explicit in code]

@@ -64,6 +64,12 @@ class ConfigLoader:
 
 ## 2a. プロセス分離方針 (Config Isolation Policy)
 
+### 2a. Process separation policy (Config isolation policy)
+
+### Process separation policy
+
+### Config ownership
+
 **各プロセスは自身の設定ファイルのみを読み込む。**
 
 エージェント / 各 MCP サーバー / crawler / ingester / chunk_splitter はそれぞれ独立したプロセスとして動作する。設定ファイルは以下のルールに従う:

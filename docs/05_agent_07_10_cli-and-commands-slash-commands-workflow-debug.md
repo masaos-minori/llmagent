@@ -39,6 +39,8 @@ related:
 
 #### 起動時のリカバリ
 
+### Startup recovery
+
 ワークフローレベルの承認が保留中の状態でエージェントが再起動した場合、その保留状態は
 `StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから
 起動時に自動検出される。起動時に以下の通知が表示される:

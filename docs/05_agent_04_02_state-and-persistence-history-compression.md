@@ -98,19 +98,6 @@ source:
 
 *(根拠分類: Explicit in code — `agent/history.py` `__init__`)*
 
-### 圧縮の永続化モデル
-
-各履歴圧縮 (自動または`/compact`) の後、圧縮されたスナップショットは`AgentSession.replace_messages()`経由で`session.sqlite`に書き戻される。これにより`/session load`が意味的に一貫した状態を復元できる — 復元された履歴は次のLLM呼び出し前にコンテキストに実際にあったものと一致する。
-
-主な挙動:
-- 圧縮された`[Conversation summary]`のsystemメッセージは`role=system`の行として永続化される; `fetch_messages()` → `LLMMessage`を通じて正しくラウンドトリップする。
-- フォールバックの切り詰め (要約なしの破棄) もDBの一貫性を保つため永続化をトリガーする (`CompressResult.is_fallback=True`)。
-- メモリ上の`ctx.conv.history`は現在のセッションの正となるソースであり続ける; DB永続化はリロード時のためのバックアップである。
-- `/history`と`/export`は引き続き`ctx.conv.history`に対して動作する; 変更不要。
-- `stat_turns`カウンタと他のメモリ上の統計はリロード時にリセットされる (既存の挙動)。
-
-**注:** 圧縮されたセッションのリロード後、`/undo`は圧縮済みのDB行に対して動作する — 元のメッセージが要約メッセージに置き換えられているため、ユーザーが期待するよりも少ないターン数しか取り消せない場合がある。
-
 ---
 
 ## データ分類

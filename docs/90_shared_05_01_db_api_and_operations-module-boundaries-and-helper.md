@@ -30,6 +30,8 @@ source:
 
 ## 1a. DB Store モジュールの境界
 
+### 1a. DB Store module boundaries
+
 DB store 層は、明確なインポート境界を持つ3つのモジュールに分割されている。
 
 | Module | 役割 | インポート境界 |
