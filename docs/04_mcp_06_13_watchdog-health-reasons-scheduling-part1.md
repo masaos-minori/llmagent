@@ -15,7 +15,7 @@ source:
 # MCP Health Reasons and Scheduling
 
 
-### ヘルス理由の優先順位
+## ヘルス理由の優先順位
 
 `/health`経由でHTTP MCPサーバーをプローブすると、LIFECYCLEのアクションと表示用の理由の両方を決定する構造化フィールドが返される。
 
@@ -42,7 +42,7 @@ health_reason: str              # Derived priority: operator_action > restart_re
 
 両者は表示レベルでは同等に扱われる。
 
-#### プローブチェーン全体でのボディ理由の追跡
+### プローブチェーン全体でのボディ理由の追跡
 
 HTTP MCPサーバーの`/health`をプローブする際、bodyフィールドは次のように伝播する。
 

@@ -187,12 +187,6 @@ source:
 
 標準デプロイでは、`config/workflows/default.json` に `require_approval` フィールドが含まれていないため、デフォルトで承認ゲートは発火しない。
 
-### Related Documents
-
-- `05_agent_06_04_tool-execution-and-approval-canonical.md` — ツールレベルとワークフローレベルの承認の境界
-- `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md` — `/approve`/`/reject` コマンド
-- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md` — ワークフローエンジンによる承認ゲートの実装
-
 ## Related Documents
 
 - `05_agent_00_document-guide.md`

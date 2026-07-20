@@ -14,8 +14,6 @@ source:
 
 # 6.1 models_data.py (`scripts/rag/models_data.py`)
 
-### 6.1 models_data.py (`scripts/rag/models_data.py`)
-
 **EmbeddingResponse** — 埋め込みAPIからのレスポンス。
 
 | Field | Type | Description |

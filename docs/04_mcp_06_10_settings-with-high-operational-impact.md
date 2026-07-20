@@ -13,8 +13,6 @@ source:
 
 # Settings with High Operational Impact
 
-## Settings with High Operational Impact
-
 | 設定 | 影響 |
 |---|---|
 | `allowed_dirs` = `[]` | ファイルアクセスが完全に拒否される |

@@ -13,8 +13,6 @@ source:
 
 # Long-Running HTTP Operation (startup_mode=subprocess)
 
-## Long-Running HTTP Operation (startup_mode=subprocess)
-
 Agentは起動時にuvicornを起動し、`startup_timeout_sec` まで1秒ごとに `/health` をポーリングする。
 ヘルスチェックが一度も成功しない場合は `RuntimeError` となる。
 

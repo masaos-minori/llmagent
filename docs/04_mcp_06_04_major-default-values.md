@@ -13,8 +13,6 @@ source:
 
 # Major Default Values
 
-## Major Default Values
-
 | パラメータ | デフォルト | Production推奨 | Configファイル |
 |---|---|---|---|
 | 最大レスポンスバイト数 | 512 KB | — | `scripts/mcp_servers/server.py`（`MCP_MAX_RESPONSE_BYTES`）にハードコード |

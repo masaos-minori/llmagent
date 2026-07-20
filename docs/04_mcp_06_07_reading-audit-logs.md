@@ -13,8 +13,6 @@ source:
 
 # Reading Audit Logs
 
-## Reading Audit Logs
-
 `/opt/llm/logs/audit.log` にある共有audit logには、MCPサーバとagent側の両方のaudit eventがJSON-lines形式で記録される。各行はパース可能なJSONオブジェクトである。
 
 ### MCPサーバのaudit log（呼び出しごと）

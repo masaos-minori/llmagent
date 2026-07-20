@@ -26,7 +26,7 @@ related:
 
 - システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-### Workflowカテゴリ
+## Workflowカテゴリ
 
 | Command | 副作用 | 関連する状態 |
 |---|---|---|
@@ -37,7 +37,7 @@ related:
 > ツールごとのインタラクティブな承認プロンプト(`tool_approval.run_approval_checks`)には影響しない。
 > 正式な承認モデルについては[Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md)を参照。
 
-#### 起動時のリカバリ
+### 起動時のリカバリ
 
 ### Startup recovery
 

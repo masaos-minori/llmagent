@@ -23,7 +23,7 @@ related:
 - 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-### 10. `extract.py` — ルールベースの抽出
+## 10. `extract.py` — ルールベースの抽出
 
 | Function / Class | Returns | Description |
 |---|---|---|

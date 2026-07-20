@@ -13,8 +13,6 @@ source:
 
 # Configuration File Inventory
 
-## Configuration File Inventory
-
 ### プロセス分離方針
 
 各 MCP サーバーは独立したプロセスであり、**自身の設定ファイル (`*_mcp_server.toml`) のみを読み込む**。`agent.toml` は読み込まない。DB パスや外部サービス URL など他プロセスと同じ値が必要な場合でも、共通ファイルを作らず各設定ファイルに個別に記述する。

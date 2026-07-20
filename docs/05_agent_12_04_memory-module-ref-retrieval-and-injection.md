@@ -22,7 +22,7 @@ related:
 - 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-### 7. `retriever.py` — 検索（FTS5 + KNN + ハイブリッド）
+## 7. `retriever.py` — 検索（FTS5 + KNN + ハイブリッド）
 
 | Class | Role |
 |---|---|

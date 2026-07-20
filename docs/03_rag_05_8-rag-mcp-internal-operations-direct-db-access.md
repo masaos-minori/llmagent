@@ -13,8 +13,6 @@ source:
 
 # RAG MCP内部操作 (DB直接アクセス)
 
-## RAG MCP内部操作 (DB直接アクセス)
-
 以下の操作はRAG MCPサービスの内部処理であり、`SQLiteHelper("rag")`を通じて`rag.sqlite`に
 直接アクセスする。これらはエージェント層によるDB直接アクセス**ではなく**、
 RAG MCPサービスの責務範囲内の処理である。

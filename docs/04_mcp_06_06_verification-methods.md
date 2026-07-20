@@ -14,8 +14,6 @@ source:
 
 # Verification Methods
 
-## Verification Methods
-
 ### ヘルスプローブ
 
 ### Health probes

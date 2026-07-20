@@ -13,8 +13,6 @@ source:
 
 # 1. 設定リファレンス
 
-## 1. 設定リファレンス
-
 crawler / chunk_splitter / ingester / rag-pipeline-mcpはそれぞれ独立したプロセスであり、各自の設定ファイルのみを読み込む。共有の設定ファイルは存在しない。DBパスや外部サービスのURLを複数プロセスで必要とする場合、各設定ファイルにそれぞれ個別に指定する必要がある。
 
 → プロセス分離ポリシーの詳細: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)

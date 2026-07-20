@@ -25,7 +25,7 @@ related:
 
 - システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-### Contextカテゴリ
+## Contextカテゴリ
 
 | Command | 副作用 | 関連する状態 |
 |---|---|---|

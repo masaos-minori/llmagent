@@ -14,8 +14,6 @@ source:
 
 # MCP Failure Diagnosis
 
-## MCP Failure Diagnosis
-
 失敗した、または予期しないMCP tool callを追跡するには、以下のフローを使用する:
 
 ```
@@ -41,7 +39,7 @@ source:
 
 agent、transport、サーバのログを横断した相関分析については §End-to-End Tool Call Tracing を参照。
 
-#### Tool dispatch時のensure ready動作
+### Tool dispatch時のensure ready動作
 
 内部ディスパッチパス経由でtool callが到着した場合:
 

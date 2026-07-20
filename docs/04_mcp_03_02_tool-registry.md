@@ -19,7 +19,7 @@ related:
 
 ToolRegistry の責任はツールからサーバーへの所有関係とルーティングのみであり、スキーマレジストリではない。`ToolDefinition.description` / `input_schema` は予約済みで未使用である。LLM に見えるツールのスキーマの正規ソースは各サーバーの `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)) である。
 
-### ドリフト検証
+## ドリフト検証
 
 ### Drift validation
 

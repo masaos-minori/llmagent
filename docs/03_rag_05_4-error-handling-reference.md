@@ -13,8 +13,6 @@ source:
 
 # 4. エラー処理リファレンス
 
-## 4. エラー処理リファレンス
-
 ### Crawler
 
 | Error | Action |

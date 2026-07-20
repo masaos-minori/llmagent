@@ -13,8 +13,6 @@ source:
 
 # Startup Validation Behavior (`tool_definitions_strict`)
 
-## Startup Validation Behavior (`tool_definitions_strict`)
-
 > **正典となる仕様。** 本セクションは `repl_health.py` におけるtool definitionsチェックについて記述する。
 > ルーティングのドリフト検出（`route_resolver.py` の `validate_routing_against_live`）については
 > [04_mcp_03 §Drift validation](04_mcp_03_02_tool-registry.md#drift-validation) を参照。

@@ -13,8 +13,6 @@ source:
 
 # End-to-End Tool Call Tracing
 
-## End-to-End Tool Call Tracing
-
 失敗したtool callをagent、transport、サーバのログを通じて追跡する手順:
 
 1. agent側のaudit logで `mcp_request_id` を見つける:

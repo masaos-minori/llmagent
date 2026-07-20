@@ -14,8 +14,6 @@ source:
 
 # 6.2 models_result.py (`scripts/rag/models_result.py`)
 
-### 6.2 models_result.py (`scripts/rag/models_result.py`)
-
 **ResultSource** — RAG結果の取得元。
 
 | Value | Description |

@@ -13,8 +13,6 @@ source:
 
 # 3. ロギング
 
-## 3. ロギング
-
 | Script | Log file | Log levels |
 |---|---|---|
 | `crawler.py` | `/opt/llm/logs/crawl.log` + stderr | INFO: 開始/保存/スキップ; WARNING: HTTPエラー/リトライ |

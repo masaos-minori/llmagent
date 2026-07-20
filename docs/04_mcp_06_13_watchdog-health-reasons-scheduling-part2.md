@@ -15,7 +15,7 @@ source:
 # MCP Health Reasons and Scheduling
 
 
-### ツールエラーの監視
+## ツールエラーの監視
 
 `ToolExecutor`は2種類のエラーカテゴリを区別する。
 
@@ -32,7 +32,7 @@ source:
 トランスポートエラーハンドラによって捕捉される。ハンドラは`stat_transport_errors`をインクリメントし、
 `HealthRegistry.record_failure()`を呼び出す。
 
-#### サーバーごとのツールエラーカウンタ
+### サーバーごとのツールエラーカウンタ
 
 `ToolExecutor.stat_tool_errors`は`dict[str, int]`(server_key → カウント)で、
 プロセスの生存期間中利用可能である。エージェントコンテキストから参照する。

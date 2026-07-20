@@ -14,8 +14,6 @@ source:
 
 # 6.5 models_config.py (`scripts/rag/models_config.py`)
 
-### 6.5 models_config.py (`scripts/rag/models_config.py`)
-
 **MqeConfig** — MQEクエリ展開の設定。
 
 | Field | Type | Default | Description |

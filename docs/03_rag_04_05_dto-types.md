@@ -14,8 +14,6 @@ source:
 
 # 6.3 types.py (`scripts/rag/types.py`)
 
-### 6.3 types.py (`scripts/rag/types.py`)
-
 **RagQuery** — 省略可能なコンテキスト付きのクエリ。
 
 | Field | Type | Default | Description |

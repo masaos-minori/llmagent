@@ -21,7 +21,7 @@ related:
 > MCP watchdog(自動ヘルスポーリング・自動再起動ループ)は2026-07-16に削除された。
 > 詳細は [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照。
 
-### 失敗パスの例（トランスポートエラー）
+## 失敗パスの例（トランスポートエラー）
 
 ```
 1-2. Same as above.

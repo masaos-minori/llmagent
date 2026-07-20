@@ -21,7 +21,7 @@ related:
 - 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-### 1. `__init__.py` — 公開 API のバレル
+## 1. `__init__.py` — 公開 API のバレル
 
 サブモジュールからすべての公開シンボルを再エクスポートする。主なカテゴリ:
 

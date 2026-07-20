@@ -16,7 +16,7 @@ related:
 
 # プロセスの内部確認と新しい MCP サーバーの追加
 
-### プロセスの内部確認
+## プロセスの内部確認
 
 `HttpServerLifecycleManager` は診断用途（例: `/mcp status` コマンド、`mcp_status.py`）のために、
 管理下の subprocess の読み取り専用スナップショットを公開する。
