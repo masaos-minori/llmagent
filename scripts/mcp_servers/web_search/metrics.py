@@ -15,6 +15,8 @@ single-worker justification, which applies identically here).
 By construction, the public API never accepts a query string anywhere:
 `record_query()` takes only `success`, `latency_ms`, and `error_type`, so it
 is structurally impossible to record full query text through this module.
+This invariant applies identically to `record_browser_query()` — it never
+accepts a URL either.
 """
 
 from __future__ import annotations
@@ -76,3 +78,44 @@ def reset() -> None:
     """Reset metrics state to defaults. Test helper only."""
     global _metrics
     _metrics = WebSearchMetrics()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# browser_fetch metrics tracking (independent singleton, see UNK-03)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_browser_metrics = WebSearchMetrics()
+
+
+def record_browser_query(
+    success: bool, latency_ms: float, error_type: str = ""
+) -> None:
+    """Record the outcome and latency of one browser_fetch call. Never accepts a URL."""
+    _browser_metrics.queries_total += 1
+    _browser_metrics._latency_sum_ms += latency_ms
+    if success:
+        _browser_metrics.queries_succeeded += 1
+        _browser_metrics.last_success_at = time.time()
+    else:
+        _browser_metrics.queries_failed += 1
+        _browser_metrics.last_failure_at = time.time()
+        _browser_metrics.last_error_type = error_type
+
+
+def browser_snapshot() -> dict[str, object]:
+    """Return a plain dict snapshot of all current browser_fetch metrics."""
+    return {
+        "queries_total": _browser_metrics.queries_total,
+        "queries_succeeded": _browser_metrics.queries_succeeded,
+        "queries_failed": _browser_metrics.queries_failed,
+        "average_latency_ms": _browser_metrics.average_latency_ms,
+        "last_success_at": _browser_metrics.last_success_at,
+        "last_failure_at": _browser_metrics.last_failure_at,
+        "last_error_type": _browser_metrics.last_error_type,
+    }
+
+
+def reset_browser() -> None:
+    """Reset browser_fetch metrics state to defaults. Test helper only."""
+    global _browser_metrics
+    _browser_metrics = WebSearchMetrics()

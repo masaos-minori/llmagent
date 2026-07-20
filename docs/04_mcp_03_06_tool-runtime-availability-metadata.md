@@ -19,11 +19,11 @@ related:
 
 # ツール実行時可用性メタデータ: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** As of 2026-07-20 `config_dependent` is adopted for browser-mcp `browser_fetch` tool. `enabled`/`disabled_reason` fields are not yet implemented in MCP server responses. RuntimeToolRegistry wiring is complete — see `04_mcp_03_01_dispatch-and-routing.md` for details.
+> **Implementation status:** As of 2026-07-20 `config_dependent` is adopted for `web_search-mcp`'s `browser_fetch` tool (merged from the former standalone browser-mcp server). `enabled`/`disabled_reason` fields are not yet implemented in MCP server responses. RuntimeToolRegistry wiring is complete — see `04_mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 1. `config_dependent` (static)
 
-Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (direct rename of `requires_config` with identical boolean semantics, no compatibility shim). `requires_config` is removed; any remaining doc/code reference to it describes obsolete behavior. browser-mcp `browser_fetch` tool is the first to adopt `config_dependent: True`.
+Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (direct rename of `requires_config` with identical boolean semantics, no compatibility shim). `requires_config` is removed; any remaining doc/code reference to it describes obsolete behavior. `web_search-mcp`'s `browser_fetch` tool is the first to adopt `config_dependent: True`.
 
 ## 2. `enabled` / `disabled_reason` (runtime, request-time-computed)
 

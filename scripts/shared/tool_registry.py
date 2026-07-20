@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """shared/tool_registry.py
 
-Tool ownership registry and routing seed data — not the primary runtime routing authority
-once RuntimeToolRegistry (shared/runtime_tool_registry.py) supplies LLM-visible tool schemas
-via live /v1/tools discovery (requirement 04). After that migration, ToolRegistry serves as:
-  (a) drift-detection input for McpToolDiscoveryService (per requirement 09), and
-  (b) backward-compatible routing fallback when the registry is empty/unavailable.
+Tool ownership registry and routing seed data. RuntimeToolRegistry
+(shared/runtime_tool_registry.py) is the sole runtime routing authority, populated from
+live /v1/tools discovery. ToolRegistry now serves only as:
+  (a) drift-detection input for McpToolDiscoveryService (per requirement 09).
 
 Ownership model:
   - This module is the primary registry of all MCP tools.
@@ -182,7 +181,6 @@ def _reset_registry_for_testing() -> None:
 def _populate_default_registry(registry: ToolRegistry) -> None:
     """Populate the registry with default tool definitions from tool_constants."""
     from shared.tool_constants import (
-        BROWSER_TOOLS,
         CICD_TOOLS,
         DELETE_TOOLS,
         GIT_TOOLS,
@@ -206,7 +204,6 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     _register_set(registry, SHELL_TOOLS, "shell")
     _register_set(registry, GITHUB_TOOLS, "github")
     _register_set(registry, WEB_SEARCH_TOOLS, "web_search")
-    _register_set(registry, BROWSER_TOOLS, "browser")
 
 
 def _register_set(

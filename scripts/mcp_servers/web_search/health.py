@@ -84,3 +84,46 @@ def reset() -> None:
     """Reset health state to defaults. Test helper only."""
     global _health
     _health = ProviderHealth()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# browser_fetch health tracking (independent singleton, see UNK-03)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_browser_health = ProviderHealth(provider="browser_fetch")
+
+
+def record_browser_success() -> None:
+    """Record a successful browser_fetch call: reset the failure streak."""
+    _browser_health.last_success_at = time.time()
+    _browser_health.consecutive_failures = 0
+
+
+def record_browser_failure(error_type: str) -> None:
+    """Record a failed browser_fetch call and increment the failure streak."""
+    _browser_health.last_failure_at = time.time()
+    _browser_health.last_error_type = error_type
+    _browser_health.consecutive_failures += 1
+
+
+def is_browser_degraded() -> bool:
+    """Return True if browser_fetch's consecutive failures reached DEGRADED_THRESHOLD."""
+    return _browser_health.consecutive_failures >= DEGRADED_THRESHOLD
+
+
+def browser_health_details() -> dict[str, object]:
+    """Return a plain dict of browser_fetch's current health state for /health reporting."""
+    return {
+        "provider": _browser_health.provider,
+        "last_success_at": _browser_health.last_success_at,
+        "last_failure_at": _browser_health.last_failure_at,
+        "last_error_type": _browser_health.last_error_type,
+        "consecutive_failures": _browser_health.consecutive_failures,
+        "degraded": is_browser_degraded(),
+    }
+
+
+def reset_browser() -> None:
+    """Reset browser_fetch health state to defaults. Test helper only."""
+    global _browser_health
+    _browser_health = ProviderHealth(provider="browser_fetch")

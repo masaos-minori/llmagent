@@ -309,8 +309,8 @@ url              = "http://127.0.0.1:8004"
 startup_mode     = "subprocess"
 auth_token       = ""
 role             = "search"
-tool_names       = ["search_web"]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/web_search/server.py"]
+tool_names       = ["search_web", "browser_fetch"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/web_search/web_search_server.py"]
 
 [mcp_servers.file_delete]
 transport        = "http"
@@ -385,15 +385,6 @@ tool_names       = [
   "stats", "grep_docs",
 ]
 cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/mdq/server.py"]
-
-[mcp_servers.browser]
-transport        = "http"
-url              = "http://127.0.0.1:8016"
-startup_mode     = "subprocess"
-auth_token       = ""
-role             = "search"
-tool_names       = ["browser_fetch"]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/browser/server.py"]
 
 # ── Tool definitions ──────────────────────────────────────────────────────────
 

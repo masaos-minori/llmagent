@@ -12,6 +12,7 @@ query text.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 
 import pytest
 from mcp_servers.web_search import metrics
@@ -20,8 +21,15 @@ SAMPLE_QUERY = "distinctive_test_query_xyz123"
 
 
 @pytest.fixture(autouse=True)
-def _reset_metrics() -> None:
+def _reset_metrics() -> Iterator[None]:
+    """Reset both before AND after each test — metrics.py's counters are
+    process-global singletons shared across the whole pytest session; see
+    test_web_search_health.py's `_reset_health` fixture for the rationale."""
     metrics.reset()
+    metrics.reset_browser()
+    yield
+    metrics.reset()
+    metrics.reset_browser()
 
 
 class TestWebSearchMetrics:
@@ -87,3 +95,53 @@ class TestWebSearchMetrics:
         metrics.record_query(success=True, latency_ms=30.0)
 
         assert SAMPLE_QUERY not in str(metrics.snapshot())
+
+
+class TestBrowserMetrics:
+    """browser_fetch's metrics tracking is an independent singleton (UNK-03) —
+    recording a browser_fetch outcome must not change search_web's own
+    counters, and vice versa."""
+
+    def test_initial_browser_snapshot_all_zero(self) -> None:
+        snap = metrics.browser_snapshot()
+
+        assert snap["queries_total"] == 0
+        assert snap["queries_succeeded"] == 0
+        assert snap["queries_failed"] == 0
+        assert snap["average_latency_ms"] == 0.0
+
+    def test_record_browser_success_updates_counters(self) -> None:
+        metrics.record_browser_query(success=True, latency_ms=80.0)
+
+        snap = metrics.browser_snapshot()
+        assert snap["queries_total"] == 1
+        assert snap["queries_succeeded"] == 1
+        assert snap["average_latency_ms"] == 80.0
+
+    def test_record_browser_failure_updates_counters(self) -> None:
+        metrics.record_browser_query(
+            success=False, latency_ms=40.0, error_type="fetch_error"
+        )
+
+        snap = metrics.browser_snapshot()
+        assert snap["queries_failed"] == 1
+        assert snap["last_error_type"] == "fetch_error"
+
+    def test_record_browser_query_does_not_affect_search_web_metrics(self) -> None:
+        metrics.record_browser_query(success=True, latency_ms=10.0)
+
+        assert metrics.snapshot()["queries_total"] == 0
+
+    def test_record_query_does_not_affect_browser_metrics(self) -> None:
+        metrics.record_query(success=True, latency_ms=10.0)
+
+        assert metrics.browser_snapshot()["queries_total"] == 0
+
+    def test_browser_snapshot_never_contains_url_text(self) -> None:
+        sample_url = "https://distinctive-test-url-xyz123.example/"
+        metrics.record_browser_query(success=True, latency_ms=10.0)
+        metrics.record_browser_query(
+            success=False, latency_ms=20.0, error_type="fetch_error"
+        )
+
+        assert sample_url not in str(metrics.browser_snapshot())

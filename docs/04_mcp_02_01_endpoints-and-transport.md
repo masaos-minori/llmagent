@@ -130,7 +130,7 @@ class CallToolResponse(BaseModel):
 | `list_tools_with_server_key() -> list[dict[str, object]]` | `server_key` を含むツールメタデータ; `/v1/tools` エンドポイントで使用 |
 | `health() -> tuple[dict[str, object], int]` | `(health_dict, http_status_code)` を返す。HTTP ステータス: ready=True の場合 200、ready=False の場合 503。Health dict: `{"status": "ok"/"degraded", "ready": bool, "liveness": bool, "restart_recommended": bool, "operator_action_required": bool, "dependencies": dict, "details": dict}`。サーバーごとにオーバーライドされる（例: github は `dependencies` に `github_token` を追加、mdq は `details` に `service` を追加） |
 
-基底クラスの `health()` 実装は `deps={}` 固定であり、オーバーライドしない限り常に `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` を返す（Explicit in code）。実際には全11 MCPサーバーが `/health` エンドポイントを個別実装しており、`MCPServer.health()` を直接使うのではなく `mcp_servers/health_response.py` の `make_health_response(deps, details)` ヘルパー（file/git/github/shell/rag_pipeline/cicd/web_search 系）または独自実装（mdq、file-read/write/delete/browser 系）を用いる（Explicit in code）。詳細は [04_mcp_02_02](04_mcp_02_02_startup-modes-and-health.md) を参照。
+基底クラスの `health()` 実装は `deps={}` 固定であり、オーバーライドしない限り常に `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` を返す（Explicit in code）。実際には全10 MCPサーバーが `/health` エンドポイントを個別実装しており、`MCPServer.health()` を直接使うのではなく `mcp_servers/health_response.py` の `make_health_response(deps, details)` ヘルパー（file/git/github/shell/rag_pipeline/cicd/web_search 系）または独自実装（mdq、file-read/write/delete 系）を用いる（Explicit in code）。詳細は [04_mcp_02_02](04_mcp_02_02_startup-modes-and-health.md) を参照。
 | `run_http() -> None` | uvicorn HTTP サーバーを起動 |
 ### エントリーポイントのパターン（全サーバー共通）
 

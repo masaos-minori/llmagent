@@ -13,6 +13,11 @@ from mcp_servers.web_search.web_search_models import (
     HARD_MAX_RESULTS_LIMIT,
     HARD_SEARCH_TIMEOUT_SEC_LIMIT,
     MAX_RESULTS_LIMIT,
+    BrowserAuthorizationError,
+    BrowserConfig,
+    BrowserFetchRequest,
+    BrowserFetchResponse,
+    BrowserValidationError,
     SearchRequest,
     SearchResponse,
     SearchResult,
@@ -94,6 +99,123 @@ class TestWebSearchUpstreamError:
         err = WebSearchUpstreamError("all providers failed")
         assert isinstance(err, RuntimeError)
         assert "all providers failed" in str(err)
+
+
+class TestBrowserExceptions:
+    def test_browser_authorization_error_is_runtime_error(self) -> None:
+        err = BrowserAuthorizationError("domain not allowed")
+        assert isinstance(err, RuntimeError)
+        assert "domain not allowed" in str(err)
+
+    def test_browser_validation_error_is_value_error(self) -> None:
+        err = BrowserValidationError("bad url")
+        assert isinstance(err, ValueError)
+        assert "bad url" in str(err)
+
+    def test_browser_errors_are_not_web_search_upstream_error(self) -> None:
+        """Per the plan's Design section, the two error hierarchies coexist
+        independently — a BrowserAuthorizationError must not also be a
+        WebSearchUpstreamError."""
+        assert not isinstance(BrowserAuthorizationError("x"), WebSearchUpstreamError)
+        assert not isinstance(BrowserValidationError("x"), WebSearchUpstreamError)
+
+
+class TestWebSearchConfigBrowserFields:
+    def test_defaults(self) -> None:
+        cfg = WebSearchConfig()
+        assert cfg.browser_allowed_domains == []
+        assert cfg.browser_max_response_kb == 256
+        assert cfg.browser_timeout_sec == 15
+        assert cfg.browser_auth_token == ""
+
+    def test_from_dict_defaults(self) -> None:
+        cfg = WebSearchConfig.from_dict({})
+        assert cfg.browser_allowed_domains == []
+        assert cfg.browser_max_response_kb == 256
+        assert cfg.browser_timeout_sec == 15
+        assert cfg.browser_auth_token == ""
+
+    def test_from_dict_custom(self) -> None:
+        cfg = WebSearchConfig.from_dict(
+            {
+                "browser_allowed_domains": ["example.com"],
+                "browser_max_response_kb": 512,
+                "browser_timeout_sec": 30,
+                "browser_auth_token": "secret",
+            }
+        )
+        assert cfg.browser_allowed_domains == ["example.com"]
+        assert cfg.browser_max_response_kb == 512
+        assert cfg.browser_timeout_sec == 30
+        assert cfg.browser_auth_token == "secret"
+
+    def test_from_dict_none_values_use_defaults(self) -> None:
+        """Uses `or` for defaults so a present-but-null TOML key does not
+        raise (int(None)) or stringify to "None" (str(None))."""
+        cfg = WebSearchConfig.from_dict(
+            {
+                "browser_allowed_domains": None,
+                "browser_max_response_kb": None,
+                "browser_timeout_sec": None,
+                "browser_auth_token": None,
+            }
+        )
+        assert cfg.browser_allowed_domains == []
+        assert cfg.browser_max_response_kb == 256
+        assert cfg.browser_timeout_sec == 15
+        assert cfg.browser_auth_token == ""
+
+
+class TestBrowserConfig:
+    def test_from_web_search_config_projects_fields(self) -> None:
+        cfg = WebSearchConfig.from_dict(
+            {
+                "browser_allowed_domains": ["example.com", "docs.python.org"],
+                "browser_max_response_kb": 128,
+                "browser_timeout_sec": 5,
+                "browser_auth_token": "tok",
+            }
+        )
+        browser_cfg = BrowserConfig.from_web_search_config(cfg)
+        assert browser_cfg.allowed_domains == ["example.com", "docs.python.org"]
+        assert browser_cfg.max_response_kb == 128
+        assert browser_cfg.timeout_sec == 5
+        assert browser_cfg.auth_token == "tok"
+
+
+class TestBrowserFetchRequest:
+    def test_valid_request_defaults(self) -> None:
+        req = BrowserFetchRequest(url="https://example.com/")
+        assert req.url == "https://example.com/"
+        assert req.max_response_kb is None
+
+    def test_max_response_kb_override(self) -> None:
+        req = BrowserFetchRequest(url="https://example.com/", max_response_kb=100)
+        assert req.max_response_kb == 100
+
+    def test_max_response_kb_below_min_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            BrowserFetchRequest(url="https://example.com/", max_response_kb=0)
+
+    def test_max_response_kb_above_max_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            BrowserFetchRequest(url="https://example.com/", max_response_kb=65537)
+
+
+class TestBrowserFetchResponse:
+    def test_fields(self) -> None:
+        resp = BrowserFetchResponse(
+            text="hello",
+            truncated=False,
+            url="https://example.com/",
+            status_code=200,
+            elapsed_sec=0.5,
+        )
+        assert resp.text == "hello"
+        assert resp.truncated is False
+        assert resp.url == "https://example.com/"
+        assert resp.status_code == 200
+        assert resp.elapsed_sec == 0.5
 
 
 class TestSearchRequest:

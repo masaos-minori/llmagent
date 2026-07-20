@@ -10,12 +10,14 @@ looks it up (no real network I/O).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from mcp_servers.web_search import health, metrics, web_search_server
+from mcp_servers.web_search import health, metrics, service, web_search_server
 from mcp_servers.web_search.web_search_models import (
+    BrowserFetchResponse,
     SearchResult,
     WebSearchNetworkError,
     WebSearchParseError,
@@ -25,9 +27,18 @@ from mcp_servers.web_search.web_search_models import (
 
 
 @pytest.fixture(autouse=True)
-def _reset_state() -> None:
+def _reset_state() -> Iterator[None]:
+    """Reset both before AND after each test — see
+    test_web_search_health.py's `_reset_health` fixture for the rationale."""
     health.reset()
     metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
+    yield
+    health.reset()
+    metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
 
 
 class _RecordingAudit:
@@ -159,6 +170,80 @@ class TestAuditAlwaysFires:
         assert len(audit_stub.calls) == 1
         assert audit_stub.calls[0]["outcome"] == "error"
         assert audit_stub.calls[0]["error_type"] == "unexpected_error"
+
+
+class TestAuditBrowserFetch:
+    """browser_fetch shares call_tool()'s audit-logging code path with
+    search_web, but its target/detail is built from `url`, not `query`."""
+
+    def test_audit_emitted_on_success_with_url_preview(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        audit_stub: _RecordingAudit,
+        client: TestClient,
+    ) -> None:
+        mock_result = BrowserFetchResponse(
+            text="ok",
+            truncated=False,
+            url="https://example.com/page",
+            status_code=200,
+            elapsed_sec=0.1,
+        )
+
+        async def _fake(args: dict[str, Any]) -> BrowserFetchResponse:
+            return mock_result
+
+        monkeypatch.setattr(service, "fetch_browser", _fake)
+
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "browser_fetch", "args": {"url": "https://example.com/page"}},
+        )
+
+        assert resp.status_code == 200
+        assert len(audit_stub.calls) == 1
+        call = audit_stub.calls[0]
+        assert call["outcome"] == "ok"
+        assert call["error_type"] == ""
+        assert call["server_key"] == "web_search"
+        assert call["target"] == "https://example.com/page"
+        assert "url_preview=" in call["detail"]
+        # search_web's query-specific detail fields must not leak in.
+        assert "query_hash=" not in call["detail"]
+
+    def test_audit_emitted_on_authorization_error(
+        self, audit_stub: _RecordingAudit, client: TestClient
+    ) -> None:
+        resp = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "browser_fetch",
+                "args": {"url": "https://not-allowed.example/"},
+            },
+        )
+
+        assert resp.status_code == 403
+        assert len(audit_stub.calls) == 1
+        assert audit_stub.calls[0]["outcome"] == "error"
+        assert audit_stub.calls[0]["error_type"] == "authorization_error"
+        assert audit_stub.calls[0]["target"] == "https://not-allowed.example/"
+
+    def test_audit_emitted_on_validation_error(
+        self, audit_stub: _RecordingAudit, client: TestClient
+    ) -> None:
+        # BrowserValidationError is a ValueError subclass, so dispatch_tool()
+        # converts it into an is_error=True DispatchResult (200 response)
+        # before it can reach the BrowserValidationError exception_handler —
+        # same as search_web's own ValueError validation path.
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "browser_fetch", "args": {"url": "ftp://example.com/"}},
+        )
+
+        assert resp.status_code == 200
+        assert len(audit_stub.calls) == 1
+        assert audit_stub.calls[0]["outcome"] == "error"
+        assert audit_stub.calls[0]["error_type"] == "validation_error"
 
 
 class TestClassifyDispatchError:

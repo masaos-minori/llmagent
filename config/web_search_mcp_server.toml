@@ -8,3 +8,19 @@ max_results_limit = 20
 
 # search_timeout_sec: MCP-level timeout (seconds) wrapped around the DuckDuckGo provider call
 search_timeout_sec = 10.0
+
+# browser_allowed_domains: hostnames permitted for browser_fetch (exact match against the URL's
+# hostname). Empty list = deny all (fail-closed). IP-literal, loopback, and link-local
+# targets are always rejected regardless of this list (defense in depth).
+browser_allowed_domains = []
+
+# browser_max_response_kb: extracted-text response size cap (KB) for browser_fetch; truncated
+# (not rejected) beyond this limit, with a truncated=true flag on the response.
+browser_max_response_kb = 256
+
+# browser_timeout_sec: HTTP request timeout in seconds for the outbound browser_fetch request.
+browser_timeout_sec = 15
+
+# browser_auth_token: Bearer token for browser_fetch's auth middleware; empty string = auth
+# disabled.
+browser_auth_token = ""

@@ -1,7 +1,8 @@
 """tests/test_runtime_tool_routing_integration.py
 
 Integration tests for RuntimeToolRegistry wiring into the routing layer,
-/mcp tools subcommand, and browser tools config_dependent migration.
+/mcp tools subcommand, and web_search_tools.py's browser_fetch entry's
+config_dependent migration.
 """
 
 from __future__ import annotations
@@ -55,11 +56,17 @@ def _make_executor(
     )
 
 
-def _make_runtime_registry() -> RuntimeToolRegistry:
-    """Create a minimal RuntimeToolRegistry with one tool."""
+def _make_runtime_registry(
+    *, extra: dict[str, str] | None = None
+) -> RuntimeToolRegistry:
+    """Create a minimal RuntimeToolRegistry with browser_fetch, plus any extra tools.
+
+    `extra` maps additional tool_name -> server_key pairs to register alongside
+    browser_fetch, for tests that need more than one routable tool.
+    """
     tool = build_runtime_tool(
         name="browser_fetch",
-        server_key="browser",
+        server_key="web_search",
         description="Fetch a URL",
         input_schema={
             "type": "object",
@@ -75,34 +82,42 @@ def _make_runtime_registry() -> RuntimeToolRegistry:
         enabled_for_llm=True,
         capabilities=("web_fetch",),
     )
-    return RuntimeToolRegistry(tools={"browser_fetch": tool})
+    tools = {"browser_fetch": tool}
+    for name, server_key in (extra or {}).items():
+        tools[name] = build_runtime_tool(
+            name=name,
+            server_key=server_key,
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope="",
+            agent_safety_tier="READ_ONLY",
+            requires_approval=False,
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+    return RuntimeToolRegistry(tools=tools)
 
 
 # ── 1. RuntimeToolRegistry → Routing Layer Wiring ────────────────────────────
 
 
 class TestRuntimeRegistryPriorityInResolve:
-    """Verify RuntimeToolRegistry takes resolution priority over legacy ToolRegistry."""
+    """Verify RuntimeToolRegistry is the sole routing authority."""
 
     def test_runtime_registry_wins_when_both_available(self) -> None:
-        """When both registries exist, RuntimeToolRegistry resolves first."""
+        """RuntimeToolRegistry resolves tools it registers."""
         runtime_reg = _make_runtime_registry()
-        configs = {"browser": _http("http://127.0.0.1:8001")}
+        configs = {"web_search": _http("http://127.0.0.1:8001")}
         resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
-        assert resolver.resolve("browser_fetch") == "browser"
-
-    def test_legacy_fallback_when_runtime_unavailable(self) -> None:
-        """Without RuntimeToolRegistry, resolve falls through to legacy ToolRegistry."""
-        configs = {"file_read": _http("http://127.0.0.1:8002")}
-        resolver = ToolRouteResolver(configs)
-        assert resolver.resolve("read_text_file") == "file_read"
+        assert resolver.resolve("browser_fetch") == "web_search"
 
     def test_runtime_only_resolve(self) -> None:
         """RuntimeToolRegistry alone can resolve its own tools."""
         runtime_reg = _make_runtime_registry()
         configs: dict[str, McpServerConfig] = {}
         resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
-        assert resolver.resolve("browser_fetch") == "browser"
+        assert resolver.resolve("browser_fetch") == "web_search"
 
     def test_unknown_tool_raises_with_runtime_only(self) -> None:
         """Unknown tool raises ValueError when only RuntimeToolRegistry is present."""
@@ -113,27 +128,28 @@ class TestRuntimeRegistryPriorityInResolve:
             resolver.resolve("no_such_browser_tool")
 
     def test_mixed_tools_resolve_correctly(self) -> None:
-        """Tools in both registries resolve to their correct owners."""
-        runtime_reg = _make_runtime_registry()
+        """Tools registered in RuntimeToolRegistry resolve to their correct owners."""
+        runtime_reg = _make_runtime_registry(extra={"read_text_file": "file_read"})
         configs = {"file_read": _http("http://127.0.0.1:8003")}
         resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
-        assert resolver.resolve("browser_fetch") == "browser"
+        assert resolver.resolve("browser_fetch") == "web_search"
         assert resolver.resolve("read_text_file") == "file_read"
 
-    def test_runtime_none_does_not_break_resolve(self) -> None:
-        """Passing runtime_registry=None behaves like no RuntimeToolRegistry."""
+    def test_runtime_none_raises_for_all_tools(self) -> None:
+        """Passing runtime_registry=None means no tool can resolve."""
         configs = {"file_read": _http("http://127.0.0.1:8004")}
         resolver = ToolRouteResolver(configs, runtime_registry=None)
-        assert resolver.resolve("read_text_file") == "file_read"
+        with pytest.raises(ValueError, match="Unknown tool"):
+            resolver.resolve("read_text_file")
 
-    def test_strict_mode_error_message_mentions_any_registry(self) -> None:
-        """strict_mode error message mentions 'any registry' not just ToolRegistry."""
+    def test_strict_mode_error_message_mentions_runtime_registry(self) -> None:
+        """strict_mode error message mentions RuntimeToolRegistry explicitly."""
         runtime_reg = _make_runtime_registry()
         configs: dict[str, McpServerConfig] = {}
         resolver = ToolRouteResolver(
             configs, strict_mode=True, runtime_registry=runtime_reg
         )
-        with pytest.raises(ValueError, match="any registry"):
+        with pytest.raises(ValueError, match="RuntimeToolRegistry"):
             resolver.resolve("nonexistent_tool")
 
     def test_warn_on_missing_logs_warning_for_unknown_tool(self) -> None:
@@ -146,12 +162,13 @@ class TestRuntimeRegistryPriorityInResolve:
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("unknown_tool_xyz")
 
-    def test_runtime_empty_registry_resolves_via_legacy(self) -> None:
-        """Empty RuntimeToolRegistry falls through to legacy ToolRegistry."""
+    def test_empty_runtime_registry_raises_for_all_tools(self) -> None:
+        """Empty RuntimeToolRegistry means no tool can resolve."""
         empty_reg = RuntimeToolRegistry()
         configs = {"file_read": _http("http://127.0.0.1:8005")}
         resolver = ToolRouteResolver(configs, runtime_registry=empty_reg)
-        assert resolver.resolve("read_text_file") == "file_read"
+        with pytest.raises(ValueError, match="Unknown tool"):
+            resolver.resolve("read_text_file")
 
     def test_runtime_registry_resolves_all_its_tools(self) -> None:
         """All tools registered in RuntimeToolRegistry resolve correctly."""
@@ -185,18 +202,19 @@ class TestRuntimeRegistryPriorityInResolve:
         assert resolver.resolve("tool_a") == "srv_a"
         assert resolver.resolve("tool_b") == "srv_b"
 
-    def test_runtime_registry_set_runtime_registry_replaces_resolver(self) -> None:
-        """ToolExecutor.set_runtime_registry() replaces the resolver instance."""
+    def test_set_runtime_registry_preserves_resolver_identity(self) -> None:
+        """ToolExecutor.set_runtime_registry() mutates the existing resolver, not replaces it."""
         configs = {"file_read": _http("http://127.0.0.1:8006")}
         ex = _make_executor(configs=configs)
         resolver_before = ex._resolver
         runtime_reg = _make_runtime_registry()
         ex.set_runtime_registry(runtime_reg)
-        assert ex._resolver is not resolver_before
-        # New resolver should resolve via RuntimeToolRegistry first
-        assert ex._resolver.resolve("browser_fetch") == "browser"
-        # Legacy fallback still works
-        assert ex._resolver.resolve("read_text_file") == "file_read"
+        assert ex._resolver is resolver_before
+        # The mutated resolver now resolves via the newly-wired RuntimeToolRegistry.
+        assert ex._resolver.resolve("browser_fetch") == "web_search"
+        # No fallback: a tool not registered in the new RuntimeToolRegistry no longer resolves.
+        with pytest.raises(ValueError, match="Unknown tool"):
+            ex._resolver.resolve("read_text_file")
 
 
 class TestLogRoutingCoverageWithRuntime:
@@ -219,7 +237,7 @@ class TestLogRoutingCoverageWithRuntime:
     def test_all_unmapped_when_both_registries_miss(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Tool absent from both registries is UNMAPPED."""
+        """Tool absent from RuntimeToolRegistry is UNMAPPED."""
         configs = self._make_configs()
         known_tools = frozenset({"totally_unknown_tool"})
         with caplog.at_level(logging.WARNING):
@@ -241,11 +259,11 @@ class TestLogRoutingCoverageWithRuntime:
         infos = [r.message for r in caplog.records if r.levelno == logging.INFO]
         assert any("1/1 tools mapped" in msg for msg in infos)
 
-    def test_both_registries_count_as_mapped(
+    def test_runtime_registry_mapped_tools_count_correctly(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Tool in both registries counts as mapped once."""
-        runtime_reg = _make_runtime_registry()
+        """Multiple tools registered in RuntimeToolRegistry all count as mapped."""
+        runtime_reg = _make_runtime_registry(extra={"read_text_file": "file_read"})
         known_tools = frozenset({"browser_fetch", "read_text_file"})
         with caplog.at_level(logging.INFO):
             ToolRouteResolver({}, known_tools=known_tools, runtime_registry=runtime_reg)
@@ -256,33 +274,37 @@ class TestLogRoutingCoverageWithRuntime:
 # ── 2. /mcp tools Subcommand ─────────────────────────────────────────────────
 
 # ── 3. Browser Tools config_dependent Migration ───────────────────────────────
+# browser_fetch's TOOL_LIST entry now lives in mcp_servers.web_search.web_search_tools
+# (merged from the retired standalone mcp_servers.browser package). TOOL_LIST is no
+# longer browser-exclusive — it also contains search_web, which has no
+# config_dependent key at all — so the first two tests below assert on the
+# browser_fetch entry specifically rather than iterating the whole list.
 
 
 class TestBrowserToolsConfigDependentMigration:
-    """Verify browser_tools.py uses config_dependent instead of requires_config."""
+    """Verify web_search_tools.py's browser_fetch entry uses config_dependent instead of requires_config."""
 
     async def test_browser_tools_tool_list_contains_config_dependent(self) -> None:
-        """browser_tools TOOL_LIST contains config_dependent property."""
-        from mcp_servers.browser.browser_tools import TOOL_LIST
+        """browser_fetch's TOOL_LIST entry contains config_dependent property."""
+        from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
-        assert len(TOOL_LIST) > 0
-        for tool in TOOL_LIST:
-            assert "config_dependent" in tool, (
-                f"Tool {tool['name']} missing config_dependent"
-            )
+        fetch_tool = next(t for t in TOOL_LIST if t["name"] == "browser_fetch")
+        assert "config_dependent" in fetch_tool, (
+            f"Tool {fetch_tool['name']} missing config_dependent"
+        )
 
     async def test_browser_tools_no_requires_config_in_tool_list(self) -> None:
-        """browser_tools TOOL_LIST does NOT contain requires_config."""
-        from mcp_servers.browser.browser_tools import TOOL_LIST
+        """browser_fetch's TOOL_LIST entry does NOT contain requires_config."""
+        from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
-        for tool in TOOL_LIST:
-            assert "requires_config" not in tool, (
-                f"Tool {tool['name']} still has requires_config"
-            )
+        fetch_tool = next(t for t in TOOL_LIST if t["name"] == "browser_fetch")
+        assert "requires_config" not in fetch_tool, (
+            f"Tool {fetch_tool['name']} still has requires_config"
+        )
 
     async def test_browser_fetch_tool_has_config_dependent_true(self) -> None:
         """browser_fetch specifically has config_dependent: True."""
-        from mcp_servers.browser.browser_tools import TOOL_LIST
+        from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
         fetch_tool = next(t for t in TOOL_LIST if t["name"] == "browser_fetch")
         assert fetch_tool.get("config_dependent") is True

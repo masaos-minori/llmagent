@@ -36,4 +36,31 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
     },
+    {
+        "name": "browser_fetch",
+        "description": (
+            "Fetch a URL and return its visible text content (read-only; no JavaScript "
+            "execution, no interactive actions). Host must be in the configured domain "
+            "allowlist."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Absolute http(s) URL to fetch (host must be allowlisted)",
+                },
+                "max_response_kb": {
+                    "type": "integer",
+                    "description": (
+                        "Output size limit in KB (default: server-configured; caller "
+                        "value is clamped to server maximum)"
+                    ),
+                },
+            },
+            "required": ["url"],
+        },
+        "status": "production",
+        "config_dependent": True,
+    },
 ]

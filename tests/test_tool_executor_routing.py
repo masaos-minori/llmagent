@@ -19,6 +19,8 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.runtime_tool import build_runtime_tool
+from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import LifecycleProtocol, ToolExecutor
 from shared.transport_dto import ToolCallResult
 
@@ -29,21 +31,59 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     )
 
 
+def _runtime_registry_for(tool_to_server: dict[str, str]) -> RuntimeToolRegistry:
+    """Build a RuntimeToolRegistry covering the given {tool_name: server_key} pairs."""
+    tools = {
+        name: build_runtime_tool(
+            name=name,
+            server_key=server_key,
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope="",
+            agent_safety_tier="READ_ONLY",
+            requires_approval=False,
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+        for name, server_key in tool_to_server.items()
+    }
+    return RuntimeToolRegistry(tools=tools)
+
+
+# Tool routes this test file exercises via ex.execute()/ex._raw_execute(); wired into
+# each executor's resolver via set_runtime_registry() to mirror the production flow
+# where ToolExecutor.set_runtime_registry() is called after discovery completes.
+_DEFAULT_TEST_TOOL_ROUTES = {
+    "read_text_file": "file_read",
+    "trigger_workflow": "cicd",
+}
+
+
 def _make_executor(
     configs: dict[str, McpServerConfig] | None = None,
     concurrency_limits: dict[str, int] | None = None,
 ) -> ToolExecutor:
+    resolved_configs = configs or {"file_read": _http_cfg()}
     http = MagicMock(spec=httpx.AsyncClient)
-    return ToolExecutor(
+    ex = ToolExecutor(
         http,
         cache_ttl=60.0,
-        server_configs=configs or {"file_read": _http_cfg()},
+        server_configs=resolved_configs,
         concurrency_limits=concurrency_limits,
     )
+    routes = {
+        tool: server
+        for tool, server in _DEFAULT_TEST_TOOL_ROUTES.items()
+        if server in resolved_configs
+    }
+    if routes:
+        ex.set_runtime_registry(_runtime_registry_for(routes))
+    return ex
 
 
 class TestResolverIntegration:
-    def test_resolver_resolves_static_fallback(self) -> None:
+    def test_resolver_resolves_via_runtime_registry(self) -> None:
         ex = _make_executor({"file_read": _http_cfg()})
         assert ex._resolver.resolve("read_text_file") == "file_read"
 
@@ -120,6 +160,7 @@ class TestRawExecuteWithLifecycle:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg("http://127.0.0.1:8000")}
         ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
+        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
 
         call_order: list[str] = []
 
@@ -152,6 +193,7 @@ class TestRawExecuteWithLifecycle:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg()}
         ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
+        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
         assert ex._lifecycle is None
 
         mock_transport = AsyncMock()
@@ -320,6 +362,7 @@ class TestToolExecutorExecute:
             cache_ttl=0.0,
             server_configs={"file_read": _http_cfg()},
         )
+        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(

@@ -15,7 +15,7 @@ from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 from mcp_servers.dispatch import DispatchResult, dispatch_tool
 from mcp_servers.web_search import service
-from mcp_servers.web_search.web_search_models import SearchResult
+from mcp_servers.web_search.web_search_models import BrowserFetchResponse, SearchResult
 
 
 def fmt_search_result(i: int, r: SearchResult) -> str:
@@ -35,8 +35,26 @@ async def fdisp_search_web(args: dict[str, Any]) -> str:
     return header + "\n\n".join(lines)
 
 
+def _format_fetch_result(result: BrowserFetchResponse) -> str:
+    """Format a BrowserFetchResponse as plain text for the LLM."""
+    parts: list[str] = [
+        f"status_code={result.status_code} elapsed={result.elapsed_sec}s"
+    ]
+    if result.truncated:
+        parts.append("[RESPONSE TRUNCATED]")
+    parts.append(result.text)
+    return "\n".join(parts)
+
+
+async def fdisp_browser_fetch(args: dict[str, Any]) -> str:
+    """Format browser_fetch MCP tool result as plain text for LLM."""
+    result = await service.fetch_browser(args)
+    return _format_fetch_result(result)
+
+
 _WEB_DISPATCH: dict[str, Any] = {
     "search_web": fdisp_search_web,
+    "browser_fetch": fdisp_browser_fetch,
 }
 
 

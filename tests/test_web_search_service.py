@@ -11,9 +11,15 @@ real DuckDuckGo network calls.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
+import httpx
 import pytest
+import respx
 from mcp_servers.web_search import health, metrics, service
 from mcp_servers.web_search.web_search_models import (
+    BrowserAuthorizationError,
+    BrowserValidationError,
     SearchResult,
     WebSearchNetworkError,
     WebSearchParseError,
@@ -24,9 +30,21 @@ from mcp_servers.web_search.web_search_models import (
 
 
 @pytest.fixture(autouse=True)
-def _reset_state() -> None:
+def _reset_state() -> Iterator[None]:
+    """Reset both before AND after each test — health.py/metrics.py's
+    singletons are process-global, shared across the whole pytest session;
+    see test_web_search_health.py's `_reset_health` fixture for the
+    rationale (a degraded-flipping test here must not leak state into an
+    unrelated test elsewhere, e.g. test_mcp_server_health_status.py)."""
     health.reset()
     metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
+    yield
+    health.reset()
+    metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
 
 
 class TestSearchWebSuccess:
@@ -186,3 +204,111 @@ class TestSearchWebValidationError:
         assert snap["queries_total"] == 2
         assert snap["queries_succeeded"] == 1
         assert snap["queries_failed"] == 1
+
+
+class TestFetchBrowserSuccess:
+    @respx.mock
+    async def test_success_returns_result_and_records_browser_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The real, config-loaded allowlist defaults to empty (fail-closed);
+        # allow "example.com" for this success-path test only.
+        monkeypatch.setattr(service._cfg, "browser_allowed_domains", ["example.com"])
+        respx.get("https://example.com/").mock(
+            return_value=httpx.Response(
+                200, html="<html><body><p>Hello</p></body></html>"
+            )
+        )
+        # search_web's own health/metrics must stay untouched by a browser_fetch call.
+        result = await service.fetch_browser({"url": "https://example.com/"})
+
+        assert result.status_code == 200
+        assert "Hello" in result.text
+
+        browser_snap = metrics.browser_snapshot()
+        assert browser_snap["queries_total"] == 1
+        assert browser_snap["queries_succeeded"] == 1
+        assert browser_snap["queries_failed"] == 0
+
+        assert health.is_browser_degraded() is False
+        assert health.browser_health_details()["last_success_at"] is not None
+
+        # search_web's own state stays at its defaults.
+        assert metrics.snapshot()["queries_total"] == 0
+        assert health.is_degraded() is False
+
+
+class TestFetchBrowserValidationError:
+    async def test_bad_scheme_raises_and_records_validation_failure_only(self) -> None:
+        with pytest.raises(BrowserValidationError):
+            await service.fetch_browser({"url": "ftp://example.com/"})
+
+        browser_snap = metrics.browser_snapshot()
+        assert browser_snap["queries_failed"] == 1
+        assert browser_snap["last_error_type"] == "validation_error"
+
+        # Validation errors never reach the fetch, so they are not a
+        # browser-health failure — health state stays untouched.
+        details = health.browser_health_details()
+        assert details["consecutive_failures"] == 0
+        assert details["last_failure_at"] is None
+
+
+class TestFetchBrowserAuthorizationError:
+    async def test_disallowed_domain_raises_and_records_authorization_failure_only(
+        self,
+    ) -> None:
+        with pytest.raises(BrowserAuthorizationError):
+            await service.fetch_browser({"url": "https://not-allowed.example/"})
+
+        browser_snap = metrics.browser_snapshot()
+        assert browser_snap["queries_failed"] == 1
+        assert browser_snap["last_error_type"] == "authorization_error"
+
+        # An authorization rejection is a caller/target problem, not a signal
+        # that outbound fetches are failing — not a browser-health failure.
+        details = health.browser_health_details()
+        assert details["consecutive_failures"] == 0
+        assert details["last_failure_at"] is None
+
+
+class TestFetchBrowserFetchError:
+    async def test_unclassified_fetch_failure_records_metrics_and_health(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def _raise(*args: object, **kwargs: object) -> None:
+            raise httpx.ConnectError("boom")
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.service._provider_fetch_browser", _raise
+        )
+        # Allow the request past _check_domain by not exercising it at all
+        # (the provider is fully monkeypatched, so allowlist state is moot).
+        with pytest.raises(httpx.ConnectError):
+            await service.fetch_browser({"url": "https://example.com/"})
+
+        browser_snap = metrics.browser_snapshot()
+        assert browser_snap["queries_failed"] == 1
+        assert browser_snap["last_error_type"] == "fetch_error"
+
+        details = health.browser_health_details()
+        assert details["last_error_type"] == "fetch_error"
+        assert details["consecutive_failures"] == 1
+
+    async def test_repeated_fetch_failures_flip_browser_degraded_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def _raise(*args: object, **kwargs: object) -> None:
+            raise httpx.ConnectError("boom")
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.service._provider_fetch_browser", _raise
+        )
+
+        for _ in range(health.DEGRADED_THRESHOLD):
+            with pytest.raises(httpx.ConnectError):
+                await service.fetch_browser({"url": "https://example.com/"})
+
+        assert health.is_browser_degraded() is True
+        # search_web's own degradation state is unaffected by browser_fetch failures.
+        assert health.is_degraded() is False

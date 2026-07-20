@@ -32,7 +32,6 @@ _IN_SCOPE_SERVERS = [
     ("mcp_servers.git.git_server", "app", "git"),
     ("mcp_servers.web_search.web_search_server", "app", "web_search"),
     ("mcp_servers.shell.shell_server", "app", "shell"),
-    ("mcp_servers.browser.browser_server", "app", "browser"),
     ("mcp_servers.rag_pipeline.rag_pipeline_server", "app", "rag_pipeline"),
     ("mcp_servers.file.read_server", "app", "file_read"),
     ("mcp_servers.file.write_server", "app", "file_write"),

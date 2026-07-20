@@ -119,11 +119,10 @@ SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 # for the full routing-priority model). Live /v1/tools discovery
 # (agent.services.mcp_tool_discovery.McpToolDiscoveryService) is validation-only,
 # not a routing input.
-# Web search tools (web-search-mcp)
-WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
-
-# Browser fetch tool (browser-mcp) — read-only page fetch + render-to-text
-BROWSER_TOOLS: frozenset[str] = frozenset({"browser_fetch"})
+# Web search tools (web-search-mcp) — includes browser_fetch, the read-only
+# page fetch + render-to-text tool merged into web-search-mcp from the
+# retired standalone browser-mcp server.
+WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web", "browser_fetch"})
 
 # GitHub tools (github-mcp, port 8012)
 GITHUB_READ_TOOLS: frozenset[str] = frozenset(
@@ -183,6 +182,5 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | GIT_TOOLS
         | SHELL_TOOLS
         | WEB_SEARCH_TOOLS
-        | GITHUB_TOOLS
-        | BROWSER_TOOLS,
+        | GITHUB_TOOLS,
     )

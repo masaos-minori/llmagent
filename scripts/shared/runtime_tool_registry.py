@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """shared/runtime_tool_registry.py
 
-In-memory registry of `RuntimeTool` instances.
-
-This module is additive and unused until a later implementation step (MCP
-discovery) populates it, and until subsequent steps wire existing call sites
-(`route_resolver.py`, `tool_executor_helpers.py`, `tool_policy.py`,
-`tool_runner.py`) to actually consult it. `shared.tool_registry.ToolRegistry`
-remains the sole routing authority for now, per that module's own docstring.
+In-memory registry of `RuntimeTool` instances, populated by
+`McpToolDiscoveryService.discover_all()` at startup and wired into
+`ToolRouteResolver` via `ToolExecutor.set_runtime_registry()`.
+`shared.route_resolver.ToolRouteResolver.resolve()` consults this registry as
+the sole routing authority — no fallback to `shared.tool_registry.ToolRegistry`
+exists.
 
 Import-layer design decisions (do not "fix" these by adding the imports back):
   - `classify_operation_type()` returns a plain `Literal["read", "write"]`

@@ -41,6 +41,14 @@ class WebSearchParseError(WebSearchUpstreamError):
     """Raised when provider response data cannot be parsed into SearchResult."""
 
 
+class BrowserAuthorizationError(RuntimeError):
+    """Raised when a domain-allowlist check fails (HTTP 403)."""
+
+
+class BrowserValidationError(ValueError):
+    """Raised on invalid input (HTTP 400/422)."""
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
@@ -61,6 +69,10 @@ class WebSearchConfig:
     default_max_results: int = DEFAULT_MAX_RESULTS
     max_results_limit: int = MAX_RESULTS_LIMIT
     search_timeout_sec: float = 10.0
+    browser_allowed_domains: list[str] = dataclasses.field(default_factory=list)
+    browser_max_response_kb: int = 256
+    browser_timeout_sec: int = 15
+    browser_auth_token: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> WebSearchConfig:
@@ -72,6 +84,10 @@ class WebSearchConfig:
         default_max_results = int(d.get("default_max_results", DEFAULT_MAX_RESULTS))
         max_results_limit = int(d.get("max_results_limit", MAX_RESULTS_LIMIT))
         search_timeout_sec = float(d.get("search_timeout_sec", 10.0))
+        browser_allowed_domains = list(d.get("browser_allowed_domains") or [])
+        browser_max_response_kb = int(d.get("browser_max_response_kb") or 256)
+        browser_timeout_sec = int(d.get("browser_timeout_sec") or 15)
+        browser_auth_token = d.get("browser_auth_token") or ""
 
         if default_max_results < 1:
             raise ValueError(
@@ -98,12 +114,36 @@ class WebSearchConfig:
             default_max_results=default_max_results,
             max_results_limit=max_results_limit,
             search_timeout_sec=search_timeout_sec,
+            browser_allowed_domains=browser_allowed_domains,
+            browser_max_response_kb=browser_max_response_kb,
+            browser_timeout_sec=browser_timeout_sec,
+            browser_auth_token=browser_auth_token,
         )
 
     @classmethod
     def load(cls) -> WebSearchConfig:
         """Load from web_search_mcp_server.toml; raises on failure (fail-fast)."""
         return cls.from_dict(ConfigLoader().load("web_search_mcp_server.toml"))
+
+
+@dataclasses.dataclass
+class BrowserConfig:
+    """Thin sub-view of WebSearchConfig's browser_* fields for the browser_fetch tool."""
+
+    allowed_domains: list[str]
+    max_response_kb: int
+    timeout_sec: int
+    auth_token: str
+
+    @classmethod
+    def from_web_search_config(cls, cfg: WebSearchConfig) -> BrowserConfig:
+        """Project the four browser_* fields out of a WebSearchConfig."""
+        return cls(
+            cfg.browser_allowed_domains,
+            cfg.browser_max_response_kb,
+            cfg.browser_timeout_sec,
+            cfg.browser_auth_token,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -170,3 +210,28 @@ class SearchResponse(BaseModel):
     query: str
     results: list[SearchResult]
     provider: str  # Name of the provider actually used
+
+
+class BrowserFetchRequest(BaseModel):
+    """Request body for a read-only browser fetch."""
+
+    url: str = Field(
+        ...,
+        description="Target URL to fetch (must match the configured domain allowlist)",
+    )
+    max_response_kb: int | None = Field(
+        default=None,
+        ge=1,
+        le=65536,
+        description="Caller override for response size cap; clamped to the server max in service.py",
+    )
+
+
+class BrowserFetchResponse(BaseModel):
+    """Response body from a browser fetch."""
+
+    text: str
+    truncated: bool
+    url: str
+    status_code: int
+    elapsed_sec: float

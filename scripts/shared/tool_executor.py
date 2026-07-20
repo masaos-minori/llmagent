@@ -74,14 +74,8 @@ class ToolExecutor(ToolTransportInvoker):
             self._cache_ttl = cache_ttl
 
     def set_runtime_registry(self, registry: RuntimeToolRegistry) -> None:
-        """Wire RuntimeToolRegistry into the resolver after discovery completes."""
-        from shared.route_resolver import ToolRouteResolver
-
-        self._resolver = ToolRouteResolver(
-            self._server_configs,
-            discovery_map={},
-            runtime_registry=registry,
-        )
+        """Wire RuntimeToolRegistry into the existing resolver after discovery completes."""
+        self._resolver.set_runtime_registry(registry)
 
     def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
         """Return an error result if the server is disabled (startup_mode=none); None otherwise."""

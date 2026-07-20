@@ -50,14 +50,24 @@ def _reset_web_search_health_and_metrics() -> Generator[None]:
     health.record_failure()) leaks into unrelated tests depending on
     pytest-randomly's order, e.g. flipping web_search's /health to 503 in
     tests/test_mcp_server_health_status.py.
+
+    browser_fetch's health/metrics tracking (browser_fetch was merged into
+    web-search-mcp from the retired standalone browser-mcp server) is a
+    second, independent pair of module-level singletons (_browser_health/
+    _browser_metrics, per UNK-03's per-tool-keying resolution) — reset those
+    too for the same reason.
     """
     from mcp_servers.web_search import health, metrics
 
     health.reset()
     metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
     yield
     health.reset()
     metrics.reset()
+    health.reset_browser()
+    metrics.reset_browser()
 
 
 # ── Test case logging: track which test was running when SSH disconnects ──

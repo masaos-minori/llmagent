@@ -181,7 +181,7 @@ def build_runtime_tool(
 - 13フィールドの正規化されたツール実行メタデータ (ルーティング、LLMスキーマ、スケジューラメタデータ、副作用検出、安全性ティア、承認要否) を1つの型で表現する
 - `AgentSafetyTier` の4値 (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) は `agent/tool_policy.py` の `_TIER_TO_RISK` dict のキー文字列と同一だが、`shared-is-leaf` インポート制約 (`shared` は `agent` をインポートしない) のため `agent.tool_enums` からインポートせず、本モジュール内でローカルな `Literal` 型として重複定義している
 - `build_runtime_tool()` はモジュール関数 (classmethodではない) で、未指定の注釈フィールドに安全側のデフォルトを適用する: `is_write` 省略時は `False`、`requires_serial` は `is_write` が明示指定されていない場合のみ `True`、`agent_safety_tier` 省略時は最も保守的な `"WRITE_DANGEROUS"`、`requires_approval` 省略時は `True`、`enabled_for_llm` 省略時は `False`
-- **[Explicit in code]** browser-mcp `browser_fetch` ツールが `config_dependent: True` を採用したことで、`RuntimeTool` / `build_runtime_tool()` が初めて実データで使用されている。MCPツールディスカバリによる実データの投入も完了済み
+- **[Explicit in code]** web_search-mcp の `browser_fetch` ツールが `config_dependent: True` を採用したことで、`RuntimeTool` / `build_runtime_tool()` が初めて実データで使用されている。MCPツールディスカバリによる実データの投入も完了済み
 - Import: `from shared.runtime_tool import RuntimeTool, build_runtime_tool, AgentSafetyTier`
 
 ---
@@ -211,7 +211,7 @@ class RuntimeToolRegistry:
 - `classify_operation_type()` は `agent.tool_enums.OperationType` ではなく、ローカルな `Literal["read", "write"]` を返す — `RuntimeTool` が `is_write: bool` しか持たないため `DELETE`/`API_WRITE`/`EXECUTE` の粒度は導出できない（`shared-is-leaf` インポート制約により `agent.tool_enums` はインポートしない、意図的な未対応であり隠れた欠落ではない）
 - `apply_policy()` は `agent.config_dataclasses.ToolConfig`/`ApprovalConfig` ではなく、プレーンな `tier_map: Mapping[str, AgentSafetyTier]` と `allowed_tools: Sequence[str] = ()` を受け取る（同じく `shared-is-leaf` 制約のため）。`allowed_tools` が空の場合は全ツール許可（`ToolConfig.allowed_tools` と同じ規約）。`requires_approval`/`enabled_for_llm` の再導出規則（`WRITE_DANGEROUS`/`ADMIN` ティアは承認必須）は暫定的な既定であり、後続の `/reload` 実装ステップで見直される可能性がある
 - `is_side_effect()` は `shared.tool_executor_helpers.is_side_effect()`（`_SIDE_EFFECT_TOOLS` frozenset ベース）を置き換えるものではなく、意図的に並行して重複させた実装（登録済み `RuntimeTool.is_write` を参照する）— どちらも `shared/` にあるためレイヤー制約上の問題はない
-- **[Explicit in code]** MCP ディスカバリ（`McpToolDiscoveryService`）がレジストリを実データで投入し、`ToolExecutor.set_runtime_registry()` で接続済み。`ToolRouteResolver.resolve()` は RuntimeToolRegistry を最優先で解決し、見つからない場合に `ToolRegistry` にフォールバックする
+- **[Explicit in code]** MCP ディスカバリ（`McpToolDiscoveryService`）がレジストリを実データで投入し、`ToolExecutor.set_runtime_registry()` で接続済み。`ToolRouteResolver.resolve()` は RuntimeToolRegistry のみを参照して解決する。`ToolRegistry` へのフォールバックは存在しない — 未解決のツール名は即座に `ValueError` となる
 - Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ---

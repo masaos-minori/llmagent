@@ -21,6 +21,8 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.runtime_tool import build_runtime_tool
+from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_cache import CacheEntry
 from shared.tool_executor import (
     ToolExecutor,
@@ -497,12 +499,30 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
 def _make_executor(
     configs: dict[str, McpServerConfig] | None = None,
 ) -> ToolExecutor:
+    resolved_configs = configs or {"file_read": _http_cfg()}
     http = MagicMock(spec=httpx.AsyncClient)
-    return ToolExecutor(
+    ex = ToolExecutor(
         http,
         cache_ttl=60.0,
-        server_configs=configs or {"file_read": _http_cfg()},
+        server_configs=resolved_configs,
     )
+    if "file_read" in resolved_configs:
+        # Wire read_text_file -> file_read routing, mirroring the production flow
+        # where ToolExecutor.set_runtime_registry() is called after discovery completes.
+        tool = build_runtime_tool(
+            name="read_text_file",
+            server_key="file_read",
+            status="active",
+            is_write=False,
+            requires_serial=False,
+            resource_scope="",
+            agent_safety_tier="READ_ONLY",
+            requires_approval=False,
+            enabled_for_llm=True,
+            capabilities=(),
+        )
+        ex.set_runtime_registry(RuntimeToolRegistry(tools={"read_text_file": tool}))
+    return ex
 
 
 class TestToolExecutorErrorClassification:

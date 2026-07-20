@@ -427,8 +427,10 @@ def test_search_web_live_drift_detected_when_missing() -> None:
 
 def test_search_web_no_live_drift_when_matching() -> None:
     """No drift is reported when the stubbed live_tool_lists matches the real
-    registry's search_web registration for the web_search server key."""
+    registry's search_web + browser_fetch registration for the web_search
+    server key (browser_fetch merged into web_search from the retired
+    standalone browser-mcp server)."""
     drift = validate_routing_against_live(
-        live_tool_lists={"web_search": ["search_web"]}
+        live_tool_lists={"web_search": ["search_web", "browser_fetch"]}
     )
     assert drift == {}

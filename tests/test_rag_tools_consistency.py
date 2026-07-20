@@ -3,6 +3,8 @@ Consistency tests for RAG MCP tools across schema, discovery, and registry.
 """
 
 from shared.route_resolver import ToolRouteResolver
+from shared.runtime_tool import build_runtime_tool
+from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_constants import RAG_TOOLS
 
 
@@ -40,11 +42,29 @@ class TestRagToolsInRegistry:
             assert tool_name in tools, f"RAG tool {tool_name!r} not in ToolRegistry"
 
     def test_rag_tools_resolve_without_fallback(self) -> None:
-        """RAG tools must resolve via registry, not static fallback."""
+        """RAG tools must resolve via RuntimeToolRegistry, the sole routing authority."""
+        runtime_registry = RuntimeToolRegistry(
+            tools={
+                tool_name: build_runtime_tool(
+                    name=tool_name,
+                    server_key="rag_pipeline",
+                    status="active",
+                    is_write=False,
+                    requires_serial=False,
+                    resource_scope="",
+                    agent_safety_tier="READ_ONLY",
+                    requires_approval=False,
+                    enabled_for_llm=True,
+                    capabilities=(),
+                )
+                for tool_name in RAG_TOOLS
+            }
+        )
         resolver = ToolRouteResolver(
             server_configs={},
             discovery_map=None,
             strict_mode=False,
+            runtime_registry=runtime_registry,
         )
         for tool_name in RAG_TOOLS:
             server_key = resolver.resolve(tool_name)

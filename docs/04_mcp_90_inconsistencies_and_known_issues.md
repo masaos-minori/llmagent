@@ -38,8 +38,8 @@ related:
 ## ツール実行時可用性メタデータ（config_dependent/enabled/disabled_reason/RuntimeToolRegistry）は一部実装済み
 
 - **Type:** `Partially implemented`
-- **Impact scope:** `scripts/mcp_servers/browser/`（`config_dependent`採用済み）、`scripts/agent/**`（RuntimeToolRegistry配線済み）
-- **Current behavior:** browser-mcp `browser_fetch` が `config_dependent: True` を採用した。RuntimeToolRegistry は McpToolDiscoveryService によりライブ検出され、`ToolExecutor.set_runtime_registry()` で接続された。ただし `enabled`/`disabled_reason` は `/v1/tools` レスポンスに存在せず、他の MCP サーバーは `config_dependent` をまだ採用していない。
+- **Impact scope:** `scripts/mcp_servers/web_search/`（`browser_fetch` の `config_dependent` 採用済み、web_search-mcp に統合）、`scripts/agent/**`（RuntimeToolRegistry配線済み）
+- **Current behavior:** web_search-mcp の `browser_fetch` が `config_dependent: True` を採用した。RuntimeToolRegistry は McpToolDiscoveryService によりライブ検出され、`ToolExecutor.set_runtime_registry()` で接続された。ただし `enabled`/`disabled_reason` は `/v1/tools` レスポンスに存在せず、他の MCP サーバーは `config_dependent` をまだ採用していない。
 - **Affected config:** N/A（コード側フィールド名の問題であり、config側の値ではない）
 - **Recommended action:** 他の MCP サーバーの `config_dependent` 移行と `enabled`/`disabled_reason` の実装完了後、本エントリを削除すること。
 - **Notes for AI reference:** `config_dependent`/`enabled`/`disabled_reason`/`RuntimeToolRegistry`という語がコード中またはテスト中に見つかる場合、これは部分的に実装済みである。`enabled`/`disabled_reason` はまだ未実装であり、`04_mcp_03_06`の「Implementation status」コールアウトも参照すること。

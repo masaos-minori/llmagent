@@ -19,7 +19,7 @@ related:
 
 ## 目的
 
-全11 MCP サーバーのサーバーごとの仕様: 目的、ポート、ツール、入出力、
+全10 MCP サーバーのサーバーごとの仕様: 目的、ポート、ツール、入出力、
 設定、起動、セキュリティ、ログ、運用上の注意点、既知の制約。
 
 > **注記:** 本ドキュメントは正式なサーバーカタログである。ポートとトランスポート種別を含むシステムレベルのサーバー一覧については、[04_mcp_01_system_overview.md §Server Catalog](04_mcp_01_system_overview.md) を参照。
@@ -59,6 +59,30 @@ related:
 **注記(2026-07-20):** `call_tool()` は dispatch 呼び出しを try/except/finally で包み、成功・バリデーションエラー・未知のツール名・プロバイダ障害（タイムアウト含む）のいずれの経路でも `_audit_log(...)` を必ず1回だけ発行する（従来は非送出の成功系のみ到達し、`WebSearchUpstreamError` 系の例外は audit をスキップして直接 502 ハンドラへ抜けていた）。audit レコードの `error_type` は `""`（成功）、`validation_error`/`unknown_tool`/`invalid_tool_name`/`dispatch_error`（dispatch 層で非送出のエラー）、または `timeout`/`network_error`/`parse_error`/`provider_error`（`WebSearchUpstreamError` の具象サブクラスに対する `isinstance` 判定）のいずれか。`detail` フィールドは `max_results`・`latency_ms`・80文字までの `query_preview`・`query_hash`（sha256 先頭16桁）を含む。新設の `scripts/mcp_servers/web_search/health.py`（プロバイダ健全性: 直近成功/失敗時刻、連続失敗数、`consecutive_failures >= 3` で degraded）と `scripts/mcp_servers/web_search/metrics.py`（クエリ本文を一切保持しない件数/平均レイテンシのみのカウンタ）はプロセス内メモリのみで永続化されず、`/health` の `details.provider`/`details.metrics` に反映される。degraded 判定時は `dependencies.web_search_provider` が非空になり HTTP 503 を返す。
 
 **注記(2026-07-20):** `health.record_success()`/`record_failure()`/`metrics.record_query()`の呼び出しは新設の `scripts/mcp_servers/web_search/service.py`（`SearchRequest`の構築、`search_provider.search_duckduckgo`呼び出し、レイテンシ計測を担うオーケストレーション層）に一本化されている。`formatters.py::fdisp_search_web()`が`service.search_web()`を呼び出し、その結果を整形する。`web_search_server.py::call_tool()`はこれらの更新フックを直接呼ばず、`_audit_log(...)`用の`outcome`/`error_type`分類のみを行う——health/metricsの二重計上を避けるため、パッケージ内で`health.record_*`/`metrics.record_query`を呼び出すのは`service.py`のみである。
+
+**注記(2026-07-20):** `browser_fetch`ツールは旧単独サーバー`browser-mcp`（ポート8016）から本サーバーへ統合された。読み取り専用のページ取得・テキスト抽出（対話操作なし; JavaScript実行なし）を行う。
+
+| ツール | 入力 | 出力 |
+|---|---|---|
+| `browser_fetch` | `{url: str (http/httpsのみ), max_response_kb?: int}` | 抽出テキスト（`truncated`フラグ付き） |
+
+**設定パラメータ（`config/web_search_mcp_server.toml`に統合済み）:**
+
+| キー | デフォルト | 説明 |
+|---|---|---|
+| `browser_allowed_domains` | `[]` | fail-closed; 空 = 全て拒否（ホスト名の完全一致） |
+| `browser_max_response_kb` | `256` | 抽出テキストのサイズ上限。超過時は切り詰め、`truncated=true` |
+| `browser_timeout_sec` | `15` | 取得リクエストのタイムアウト秒数 |
+| `browser_auth_token` | `""` | `browser_fetch`呼び出し専用のBearerトークン（`search_web`とは独立） |
+
+**実装上の補足（browser_fetch、統合元の`04_mcp_04_06_browser.md`より移設）:**
+
+- ホスト名が IP リテラルの場合、`ipaddress.ip_address()` で判定した上で loopback / link-local / private / reserved / multicast のいずれかに該当すれば、`allowed_domains` の内容に関わらず無条件に `BrowserAuthorizationError`（HTTP 403）を送出する。ドメイン許可リストによるチェックとは独立した defense-in-depth の経路である。(Explicit in code, `search_provider.py::_check_domain`)
+- `url` のスキームは `http`/`https` のみ許可され、それ以外および hostname 欠落は `BrowserValidationError`（HTTP 422）となる。(Explicit in code)
+- `max_response_kb` はツール呼び出し側で指定できるが、常にサーバー設定値 `browser_max_response_kb` を上限として `min()` で clamp される。(Explicit in code)
+- テキスト切り詰めはバイト列にエンコードしてからスライスする（`_truncate`）。文字単位で素朴に切ると UTF-8 のマルチバイト文字を途中で破壊する可能性があるため。(Explicit in code)
+- JavaScript を実行しない（HTML を取得し `BeautifulSoup` で可視テキストを抽出するのみ）ため、クライアントサイドでレンダリングされる SPA/React 系ページでは意味のあるテキストがほとんど、あるいは全く取得できない場合がある。これは意図された仕様である（Accepted current specification）。
+- `browser_fetch`の health/metrics は`search_web`とは独立したシングルトン（`health.py`/`metrics.py`内の`_browser_*`）で管理され、`/health`の`details`に別々に反映される。
 
 ---
 
