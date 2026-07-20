@@ -13,7 +13,7 @@ source:
 
 # Configuration File Inventory
 
-### プロセス分離方針
+## プロセス分離方針
 
 各 MCP サーバーは独立したプロセスであり、**自身の設定ファイル (`*_mcp_server.toml`) のみを読み込む**。`agent.toml` は読み込まない。DB パスや外部サービス URL など他プロセスと同じ値が必要な場合でも、共通ファイルを作らず各設定ファイルに個別に記述する。
 
@@ -21,7 +21,7 @@ source:
 
 → 詳細: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
 
-### レイヤー1 — エージェントプロセス設定 (`config/agent.toml`)
+## レイヤー1 — エージェントプロセス設定 (`config/agent.toml`)
 
 `config/agent.toml` はエージェントプロセスのみが `ConfigLoader().load_all()` で読み込む。
 
@@ -45,7 +45,7 @@ apply any pending `/reload` config change either. See
 [Agent Operations: MCP restart requirement](05_agent_10_01_operations-and-observability-startup-and-health.md)
 for the full explanation.
 
-### レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)
+## レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)
 
 | Server | Config file |
 |---|---|
@@ -60,7 +60,7 @@ for the full explanation.
 | mdq-mcp | `config/mdq_mcp_server.toml` |
 | git-mcp | `config/git_mcp_server.toml` |
 
-### API key env files (`conf.d/`)
+## API key env files (`conf.d/`)
 
 | File | Key |
 |---|---|

@@ -32,7 +32,7 @@ source:
 
 ---
 
-### Audit Log内のエラー種別の区別（Agent側）
+## Audit Log内のエラー種別の区別（Agent側）
 
 **クロスレイヤー相関について:** per-server audit logs（github_audit.log, shell_audit.log, delete_audit.log）は X-Session-Id や X-Request-Id のような相関フィールドを持たない。これらのログ間の相関はエージェント側の audit ログを基準として使用する必要がある。
 
@@ -58,7 +58,7 @@ grep '"error_type":"transport"' /opt/llm/logs/audit.log
 grep '"error_type":"tool"' /opt/llm/logs/audit.log
 ```
 
-### サーバごとのエラーカウンタ
+## サーバごとのエラーカウンタ
 
 `ToolExecutor` はサーバごとのエラーカウンタを保持し、`ToolExecutor.get_error_counters()` から参照できる:
 
@@ -71,7 +71,7 @@ grep '"error_type":"tool"' /opt/llm/logs/audit.log
 
 これらのカウンタはメモリ上のみに保持され（永続化されない）、agent再起動時にリセットされる。
 
-### 繰り返し失敗の検出
+## 繰り返し失敗の検出
 
 toolが5分間のスライディングウィンドウ内で3回以上失敗すると、警告がログに出力される:
 
@@ -83,7 +83,7 @@ WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s windo
 
 ---
 
-### 副作用の直列化
+## 副作用の直列化
 
 ラウンドに副作用を持つtool（書き込み操作）が含まれる場合、スケジューラはそれらをグループ化して並行的な変更を防ぐ。これは安全性のために意図された挙動であるが、並列度は低下する。
 

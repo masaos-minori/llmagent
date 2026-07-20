@@ -13,7 +13,7 @@ source:
 
 # 4. エラー処理リファレンス
 
-### Crawler
+## Crawler
 
 | Error | Action |
 |---|---|
@@ -21,7 +21,7 @@ source:
 | URL単位の例外 | `WARNING` を出して継続 |
 | `lang`が`ja`/`en`以外 | URLをスキップ |
 
-### ChunkSplitter
+## ChunkSplitter
 
 | Error | Action |
 |---|---|
@@ -29,7 +29,7 @@ source:
 | ファイル単位の失敗 | `ERROR` (トレースバック付き); 次のファイルへ継続 |
 | 既存チャンク | `--force`指定がない限りスキップ |
 
-### RagIngester
+## RagIngester
 
 | Error | Action |
 |---|---|
@@ -37,7 +37,7 @@ source:
 | リトライ上限到達 (単一チャンク) | `WARNING`; チャンクをスキップ; 継続 |
 | `lang`の値が不正 | `ValueError`; URLグループをスキップ; `ERROR` (トレースバック付き) |
 
-### RagPipeline
+## RagPipeline
 
 | Error | Action |
 |---|---|
@@ -46,7 +46,7 @@ source:
 | `rag_service_url`設定時に失敗 | インプロセスパイプラインにフォールバック |
 | クロスエンコーダーの失敗 | `RagRerankError`は`RuntimeError`として捕捉され、`StageResult.status="failure"`が記録され、警告がログに出力される。パイプラインは`ctx.reranked=[]`のまま継続する (RRFへのフォールバックはない)。`use_rerank=False`の場合はRRFの順序と重複排除が代わりに使用される。 |
 
-### 実装上の補足
+## 実装上の補足
 
 - `RagRerankError`は`scripts/rag/exceptions.py`ではなく`scripts/rag/llm_prompts.py`に
   `class RagRerankError(RuntimeError)`として定義されている。`RuntimeError`のサブクラスなので、

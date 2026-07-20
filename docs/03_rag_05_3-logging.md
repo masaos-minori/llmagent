@@ -21,7 +21,7 @@ source:
 
 **共通フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-### 実装上の補足
+## 実装上の補足
 
 - 上記3スクリプトはいずれも `shared/logger.py` の `Logger` クラスを
   `Logger(__name__, "<path>.log")` の形で使用する。ログレベルはコンストラクタでは

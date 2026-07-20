@@ -14,7 +14,7 @@ source:
 
 # Verification Methods
 
-### ヘルスプローブ
+## ヘルスプローブ
 
 ### Health probes
 
@@ -34,7 +34,7 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
 
-### HTTPステータスコードの挙動
+## HTTPステータスコードの挙動
 
 - **HTTP 200**: サーバは完全に健全（`status="ok"`、`ready=true`）
 - **HTTP 503**: サーバに依存関係の失敗がある（`status="degraded"`、`ready=false`）
@@ -46,7 +46,7 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if healthy, 503 if degraded
 ```
 
-### ヘルスプローブレスポンスの例
+## ヘルスプローブレスポンスの例
 
 **ベースレスポンス（healthy、全サーバ共通）:**
 ```json
@@ -132,13 +132,13 @@ HTTP 503 — databaseファイルが見つからない。`/mcp status` の `heal
 ```
 HTTP 503 — PATH内にgitが見つからない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
 
-### /v1/tools による検証
+## /v1/tools による検証
 
 ```bash
 curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
 ```
 
-### Agent REPLでの確認
+## Agent REPLでの確認
 
 ```
 agent[:#N]> /mcp

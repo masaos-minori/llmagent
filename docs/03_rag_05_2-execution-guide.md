@@ -13,7 +13,7 @@ source:
 
 # 2. 実行ガイド
 
-### 2.1 前提条件
+## 2.1 前提条件
 
 ```bash
 # embed-llmが起動していることを確認
@@ -23,7 +23,7 @@ curl -s http://127.0.0.1:8081/health
 ls -la config/rag_pipeline.toml
 ```
 
-### 2.2 ステップ1: クロール
+## 2.2 ステップ1: クロール
 
 ```bash
 # config/rag_pipeline.tomlのtarget_urls全件
@@ -40,7 +40,7 @@ uv run python scripts/rag/ingestion/crawler.py \
     --lang en
 ```
 
-### 2.3 ステップ2: チャンク分割
+## 2.3 ステップ2: チャンク分割
 
 ```bash
 # {rag_src_dir}/内の未処理.jsonファイル全件

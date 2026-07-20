@@ -98,7 +98,7 @@ source:
 | `remote_latency_ms` | `float \| None` | `None` | リモート呼び出しのレイテンシ (ミリ秒) |
 | `fallback_reason` | `str \| None` | `None` | インプロセスフォールバックが発生した理由 (該当する場合) |
 
-### 実装意図 (Implementation note)
+## 実装意図 (Implementation note)
 
 - `ResultSource`・`HttpResultKind` は `StrEnum` として定義され、他のDTO(`ExpandedQuerySet` 以下)は全て `@dataclass(frozen=True)`。`03_rag_04_01_dto-models_data.md` と同様、DTO層全体で不変性を統一する設計方針が読み取れる(Explicit in code / Strongly implied by code)。
 - `SearchDiagnostics` の `result_source` / `http_result_kind` / `remote_status_code` / `remote_latency_ms` / `fallback_reason` は、コード内コメントで "Remote mode fields (new)" と区分されている(Explicit in code、`scripts/rag/models_result.py`)。`embed_ok` / `embed_failed` / `fts_errors` がローカル実行時からの既存カウンタで、remote系フィールドはHTTP RAGサービス導入後に追加されたことが示唆される(Strongly implied by code)。

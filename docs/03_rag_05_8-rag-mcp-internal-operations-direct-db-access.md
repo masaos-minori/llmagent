@@ -17,7 +17,7 @@ source:
 直接アクセスする。これらはエージェント層によるDB直接アクセス**ではなく**、
 RAG MCPサービスの責務範囲内の処理である。
 
-### `list_documents()`
+## `list_documents()`
 
 `/db rag urls`コマンド (`rag_list_documents` MCPツール経由) で使用される、チャンク数付きの
 ドキュメント一覧を返す。
@@ -28,7 +28,7 @@ def list_documents(lang: str | None = None, limit: int = 20) -> list[DocumentIte
 
 **アクセスパターン:** `documents`テーブルと`chunks`テーブルに対する読み取り専用クエリ。
 
-### `delete_document()`
+## `delete_document()`
 
 `/db rag clean`コマンド (`rag_delete_document` MCPツール経由) で使用される、ドキュメントと
 関連するチャンク/埋め込みの削除処理。
@@ -63,7 +63,7 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 ---
 
-### crawler
+## crawler
 
 ```
 usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
@@ -81,11 +81,11 @@ options:
                        lang], ...] pairs. Mutually exclusive with --url.
 ```
 
-### 実装上の補足(この節のAUTO-GENERATEDマーカーについて)
+## 実装上の補足(この節のAUTO-GENERATEDマーカーについて)
 
 `tools/gen_rag_reference.py` の出力先は `docs/03_rag_05_configuration_and_operations.md` (`OPS_DOC`定数) だが、このファイルはドキュメント分割後の現構成には存在しない(分割後は `03_rag_05_1`〜`03_rag_05_8` に分かれている)。そのため本節の内容はツールによる自動更新が効かず、手動で追随させる必要がある。`--targets-file`引数は元のAUTO-GENERATED内容作成後に追加されたため、上記usageブロックは本修正で追記した。(Explicit in code / Needs confirmation — ツールのOPS_DOC定数を分割後のファイルに追随させる方針は未確認)
 
-### chunk_splitter
+## chunk_splitter
 
 ```
 usage: chunk_splitter.py [-h] [--file FILE] [--force]
@@ -99,7 +99,7 @@ options:
   --force      Re-process even if output chunks already exist
 ```
 
-### ingester
+## ingester
 
 ```
 usage: ingester.py [-h] [--force]

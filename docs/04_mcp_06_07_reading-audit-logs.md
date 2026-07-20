@@ -15,7 +15,7 @@ source:
 
 `/opt/llm/logs/audit.log` にある共有audit logには、MCPサーバとagent側の両方のaudit eventがJSON-lines形式で記録される。各行はパース可能なJSONオブジェクトである。
 
-### MCPサーバのaudit log（呼び出しごと）
+## MCPサーバのaudit log（呼び出しごと）
 
 形式: JSON-lines、1行に1個のJSONオブジェクト。例:
 ```json
@@ -51,7 +51,7 @@ grep '"event":"mcp_tool_exec"' /opt/llm/logs/audit.log
 > cicd-mcp/git-mcp は `logging.getLogger(__name__)` のみを使用し、
 > mdq-mcp は `_audit_log()` 経由で共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録する。
 
-### サーバ別ログファイル
+## サーバ別ログファイル
 
 | サーバ | ログパス | 補足 |
 |---|---|---|
@@ -66,7 +66,7 @@ grep '"event":"mcp_tool_exec"' /opt/llm/logs/audit.log
 | cicd-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用 |
 | git-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用。audit_log_pathは予約済みだが未実装 |
 
-### サーバ別Auditログレイヤー
+## サーバ別Auditログレイヤー
 
 | サーバー | Layer1: Agent/MCP共有 | Layer2: 共有MCP | Layer3: 専用 |
 |---|---|---|---|

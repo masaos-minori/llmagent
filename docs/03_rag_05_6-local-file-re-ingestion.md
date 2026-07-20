@@ -13,7 +13,7 @@ source:
 
 # 6. ローカルファイルの再取り込み
 
-### 初回取り込み
+## 初回取り込み
 
 `config/crawler.toml`の`target_urls`に、スキーム`file://`でファイルパスを追加する
 (`--targets-file`で別ファイルを指定する場合も同じ`target_urls = [[url, lang], ...]`形式)。
@@ -43,7 +43,7 @@ JSONを`rag-src/`に書き込む (`scripts/rag/ingestion/crawler.py:crawl_file()
   Web URLの場合と同じカラムを再利用しているため、カラム名から実体が本物のHTTP ETagだと
   誤解しないよう注意する。
 
-### ファイル変更後の再取り込み
+## ファイル変更後の再取り込み
 
 ingesterは、現在のファイル内容のSHA-256ハッシュを`documents`に保存されている
 `etag`と比較する。
@@ -57,7 +57,7 @@ ingesterは、現在のファイル内容のSHA-256ハッシュを`documents`に
 - `"file:// unchanged (sha256 match): file:///path/to/file"` — スキップされた
 - `"file:// changed — auto re-ingesting: file:///path/to/file"` — 再取り込みされた
 
-### 多数のローカルファイルの一括再取り込み
+## 多数のローカルファイルの一括再取り込み
 
 複数のファイルが変更された場合は、`--targets-file`を指定してクローラーを実行し、
 リストされた`file://` URLをすべて再クロールする。
@@ -69,7 +69,7 @@ uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.t
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-### 比較: ローカルファイル vs. Web URL
+## 比較: ローカルファイル vs. Web URL
 
 | Aspect | Web URL | ローカルファイル (file://) |
 |---|---|---|

@@ -81,7 +81,7 @@ source:
 | `min_score_applied` | `float` | フィルタリングに使用されたrag_min_score |
 | `max_chunks_per_doc` | `int` | 適用されたドキュメント単位の重複排除上限 |
 
-### 実装意図 (Implementation note)
+## 実装意図 (Implementation note)
 
 - `scripts/rag/models_data.py` の全DTOは `@dataclass(frozen=True)` として定義されている(Explicit in code)。生成後の書き換えを禁止し、パイプラインステージ間で受け渡す際の意図しない変更を防ぐ設計と読み取れる(Strongly implied by code)。
 - `CrawlTarget.lang` の型は `str` ではなく `rag.enums.LanguageCode`(`StrEnum`、値は `"en"`/`"ja"`)。他のDTO(`ChunkDocument.lang` 等)は素の `str` のままであり、DTO間で言語表現の型が統一されていない(Explicit in code)。

@@ -74,7 +74,7 @@ source:
 | `rerank` | `RerankConfig` | クロスエンコーダーリランクの設定 |
 | `search` | `SearchConfig` | 検索の設定 |
 
-### 実装上の補足
+## 実装上の補足
 
 - 本ファイルの全dataclass (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`,
   `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) は `scripts/rag/` 配下の

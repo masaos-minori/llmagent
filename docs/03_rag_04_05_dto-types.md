@@ -33,7 +33,7 @@ source:
 | `diagnostics` | `SearchDiagnostics` | 検索診断情報 |
 | `result_source` | `str \| None` | 結果の取得元 (remote/local/fallback)。デフォルト`None` |
 
-### 実装上の補足
+## 実装上の補足
 
 - `RagPipeline.run()` (`scripts/rag/pipeline.py`) の `PipelineRunResult` 生成箇所
   (同ファイル351行目付近) では `result_source` 引数を渡していない。そのため

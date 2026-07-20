@@ -32,7 +32,7 @@ source:
 | `reason` | `str` | 判定の理由 |
 | `risk_level` | `str` | リスクレベルの分類 |
 
-### 実装意図 (Implementation note) / 矛盾点
+## 実装意図 (Implementation note) / 矛盾点
 
 - `AuditLogRecord` / `ApprovalDecision` はいずれも `scripts/` 配下のどこからも import されていない(`grep -rn "from rag.models_audit\|rag.models_audit\." scripts/` で該当なし。Explicit in code、否定的事実)。
 - 類似名の `ApprovalDecisionEvent`(`scripts/agent/shared/models.py`)や、ツール承認の実処理(`scripts/agent/tool_approval.py`、`scripts/agent/tool_audit.py`)は agent 層に別途独自実装されており、本ファイルの2クラスとは無関係(Explicit in code)。
