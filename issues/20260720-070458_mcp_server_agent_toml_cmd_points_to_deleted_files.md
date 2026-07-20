@@ -82,7 +82,8 @@ higher-severity concern than the "dead duplicate code" issue those plans deferre
 
 ## Status
 
-Open — not fixed. This is a planning-cycle finding; per current task instructions, no source or config
-file has been modified. `config/agent.toml` is a production configuration file, not a plan/issue
-document, so fixing it is out of scope for this documentation-only pass and requires explicit
-implementation approval.
+Plan written, not yet implemented (2026-07-20). See `plans/20260720-073534_plan.md` for the concrete
+fix (8 `cmd` entries in `config/agent.toml`) and a new regression test guarding against this bug class
+recurring. `config/agent.toml` is a production configuration file, not a plan/issue document, so no
+edit has been made to it in this pass — implementation requires explicit approval, and redeploying the
+fix to `/opt/llm` requires a separate `deploy` step after that.
