@@ -120,9 +120,14 @@ degraded (503) via `is_degraded()`.
    str` for in-`try`-block (non-raised) errors surfaced via
    `DispatchResult(is_error=True, output=...)` — e.g. distinguishing
    `"Validation error: ..."` (from `dispatch_tool`'s `ValueError` branch,
-   `dispatch.py:60-62`) vs `"Unknown tool: ..."` (from `dispatch.py:53-55`)
-   vs `"Tool name must be a non-empty string"` (`dispatch.py:47-49`) by
+   `dispatch.py:69-72`) vs `"Unknown tool: ..."` (from `dispatch.py:62-64`)
+   vs `"Tool name must be a non-empty string"` (`dispatch.py:55-59`) by
    prefix/substring match on `output`.
+   <!-- Corrected 2026-07-20: the three dispatch.py line-range citations above
+   were off by ~9 lines against the live file (verified by direct read);
+   updated to the actual current line ranges. The cited message strings
+   themselves ("Validation error: ", "Unknown tool: ",
+   "Tool name must be a non-empty string") were already correct. -->
 3. Add a small module-level helper `_classify_upstream_error(exc:
    WebSearchUpstreamError) -> str` implementing the UNK-1 default: return
    `"timeout"` if `"timeout"` appears in `str(exc).lower()`, else

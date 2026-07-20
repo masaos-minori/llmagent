@@ -50,9 +50,16 @@ plan's revision note — `web_search_server.py` imports exclusively from
    exception handler, `@app.exception_handler(WebSearchUpstreamError)` →
    `_handle_web_search_error`, returning `JSONResponse(status_code=502,
    content={"error": str(exc)})`. Since the four new classes subclass
-   `WebSearchUpstreamError` (per the `web_search_models.py` procedure
-   document), Starlette's `ExceptionMiddleware` will match them via MRO lookup
-   without any new handler registration.
+   `WebSearchUpstreamError`, Starlette's `ExceptionMiddleware` will match them
+   via MRO lookup without any new handler registration.
+   **Corrected 2026-07-20:** this assumption originally attributed the four
+   subclasses' addition to "the `web_search_models.py` procedure document"
+   (i.e. `implementations/20260720-080006_web_search_models.py.md`) — verified
+   by reading that document, it does not cover these classes (its scope is
+   config validation + query normalization only). They must be added to
+   `web_search_models.py` as part of implementing
+   `implementations/20260720-081016_search_provider.py.md` (see that
+   document's own correction), which must land before this test file.
 2. The call chain for `/v1/call_tool` is: `call_tool()` →
    `_dispatch_web_tool()` → `dispatch_web_tool()` (in `formatters.py`) →
    `dispatch_tool(_WEB_DISPATCH, name, args)` → `fdisp_search_web()` →

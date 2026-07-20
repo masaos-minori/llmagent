@@ -63,10 +63,17 @@ hardcoded in Python.
 
 Direct text addition to a 7-line TOML file; no code generation, no schema
 migration. The corresponding Python-side consumer (`WebSearchConfig.from_dict()`
-in `web_search_models.py`) reads this key via
-`float(d.get("search_timeout_sec", 10.0))`-style coercion (see that file's
-separate procedure document) — this document covers only the config file change
-itself.
+in `web_search_models.py`) must read this key via
+`float(d.get("search_timeout_sec", 10.0))`-style coercion — this document
+covers only the config file change itself.
+**Corrected 2026-07-20, gap closed:** this originally deferred the Python-side parsing to
+"that file's separate procedure document," but no such document existed at the time
+(`implementations/20260720-080006_web_search_models.py.md` covers only `from_dict()` invariant
+validation and query normalization, not `search_timeout_sec`). The gap is now closed:
+`implementations/20260720-101313_web_search_models.py.md` adds the `search_timeout_sec` field +
+validation to `WebSearchConfig`, plus the 4 exception classes `search_provider.py`/`formatters.py`
+need. Implement `080006` and `101313` together against `web_search_models.py` (both touch
+`from_dict()`) before `search_provider.py`/`formatters.py`.
 
 ### Details
 
