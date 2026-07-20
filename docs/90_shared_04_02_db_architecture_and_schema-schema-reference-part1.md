@@ -29,11 +29,11 @@ source:
 |---|---|---|
 | `doc_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `url` | TEXT | UNIQUE NOT NULL |
-| `title` | TEXT | |
+| `title` | TEXT 
 | `lang` | TEXT | NOT NULL CHECK (`lang IN ('ja', 'en')`) |
 | `fetched_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
-| `etag` | TEXT | |
-| `last_modified` | TEXT | |
+| `etag` | TEXT 
+| `last_modified` | TEXT 
 | `chunking_strategy` | TEXT | NOT NULL DEFAULT `'text'` |
 
 **矛盾（要修正）:** 従来 `datetime('now')` と記載していたが、`db/schema_sql.py` の `_RAG_SCHEMA_TEMPLATE` では `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`（ISO-8601 UTC、`Z` サフィックス付き）が実装されている。他の全テーブルのタイムスタンプ列（`created_at`/`updated_at`等）も同一フォーマットで統一されている（Explicit in code）。

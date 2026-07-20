@@ -29,7 +29,7 @@ source:
 |---|---|---|
 | `session_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
-| `title` | TEXT | |
+| `title` | TEXT 
 
 ### `messages` table
 
@@ -89,7 +89,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 |---|---|---|
 | `src_id` | TEXT | NOT NULL; part of PRIMARY KEY |
 | `dst_id` | TEXT | NOT NULL; part of PRIMARY KEY |
-| PRIMARY KEY | (`src_id`, `dst_id`) | |
+| PRIMARY KEY | (`src_id`, `dst_id`) 
 
 外部キーは持たない (冪等性のために `INSERT OR IGNORE` を使用)。
 重複除去のため、ほぼ重複するメモリのペアを記録する。
@@ -119,9 +119,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 | Column | Type | Note |
 |---|---|---|
 | `task_id` | TEXT PK | UUID4 |
-| `session_id` | TEXT | |
+| `session_id` | TEXT 
 | `workflow_id` | TEXT | UUID4 for this workflow run |
-| `turn_number` | INTEGER | |
+| `turn_number` | INTEGER 
 | `workflow_version` | TEXT | NOT NULL |
 | `status` | TEXT | `pending`/`running`/`pending_approval`/`completed`/`failed`/`halted` |
 | `idempotency_key` | TEXT UNIQUE | `session_id:turn_number` |
@@ -134,12 +134,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 |---|---|---|
 | `approval_id` | TEXT PK | UUID4 |
 | `task_id` | TEXT NOT NULL | FK → `tasks(task_id)` ON DELETE CASCADE |
-| `stage_id` | TEXT | |
+| `stage_id` | TEXT 
 | `status` | TEXT | `pending`/`approved`/`rejected` |
-| `reason` | TEXT | |
+| `reason` | TEXT 
 | `created_at` | TEXT | ISO-8601 UTC |
-| `resolved_at` | TEXT | |
-| `workflow_id` | TEXT NOT NULL DEFAULT '' | |
+| `resolved_at` | TEXT 
+| `workflow_id` | TEXT NOT NULL DEFAULT '' 
 
 ### `attempts`、`processed_events`、`artifacts` テーブル
 

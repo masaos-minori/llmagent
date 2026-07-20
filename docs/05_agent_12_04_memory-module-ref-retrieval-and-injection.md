@@ -34,7 +34,7 @@ related:
 
 | Method / Attribute | Returns | Description |
 |---|---|---|
-| `search(query: MemoryQuery, embedding: list[float] | None = None, project="", repo="", branch="")` | `list[MemoryHit]` | 埋め込みがない場合は FTS のみ、埋め込みがある場合は RRF マージ。（生の文字列ではなく）`MemoryQuery` オブジェクトを受け取る。クエリテキストは内部で `query.query` から抽出される。戻り値に応じて `last_retrieval_mode` を設定する。 |
+| `search(query: MemoryQuery, embedding: list[float] &#124; None = None, project="", repo="", branch="")` | `list[MemoryHit]` | 埋め込みがない場合は FTS のみ、埋め込みがある場合は RRF マージ。（生の文字列ではなく）`MemoryQuery` オブジェクトを受け取る。クエリテキストは内部で `query.query` から抽出される。戻り値に応じて `last_retrieval_mode` を設定する。 |
 | `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | VectorRetriever に委譲する（ingestion の重複排除で使用） |
 | `top_semantic(limit=5, min_importance=0.0, project="", repo="", branch="")` | `list[MemoryEntry]` | 直接 SQL を使用する。FTS は不要 |
 | `embed_client` | `EmbeddingClient \| None` | 構築時に注入される。`/memory status` で使用される |

@@ -60,14 +60,14 @@ session_start
          v
 +-----------------+     +------------------+
 | injection.py    |---->| retriever.py     |
-| MemoryInject    |     | HybridRetriever  |
-| Service         |     | top_semantic()   |
+| MemoryInject    |     | HybridRetriever  
+| Service         |     | top_semantic()   
 +--------+--------+     +------------------+
          |
          v
 +-----------------+
 | models.py       |  MemorySnippet[] -> injected into LLM context
-| MemorySnippet   |
+| MemorySnippet   
 +-----------------+
 
 user_prompt (during session)
@@ -75,7 +75,7 @@ user_prompt (during session)
     v
 +-----------------+     +-----------------+     +---------------------+
 | services.py     |---->| injection.py    |---->| embedding_client.py |
-| on_user_prompt  |     | on_user_prompt  |     | EmbeddingClient     |
+| on_user_prompt  |     | on_user_prompt  |     | EmbeddingClient     
 +-----------------+     +--------+--------+     +---------------------+
                                  |
                                  v
@@ -102,21 +102,21 @@ session_stop
          v
 +-----------------+     +------------------+     +-----------------------------+
 | ingestion.py    |---->| extract.py       |---->| For each MemoryEntry:       |
-| MemoryIngestion |     | extract_memories |     | 1. EmbeddingClient.fetch()  |
+| MemoryIngestion |     | extract_memories |     | 1. EmbeddingClient.fetch()  
 | Service         |     +------------------+     | 2. Dedup check (KNN)        |
 +--------+--------+                              | 3. write_ops.upsert()       |
          |                                       | 4. JsonlMemoryStore.write() |
          v                                       | 5. Duplicate link recording |
 +-----------------+                              +-----------------------------+
 | jsonl_store.py  |  Append-only archive
-| JsonlMemoryStore|
+| JsonlMemoryStore
 +--------+--------+
          |
          v
 +-----------------+     +------------------+
 | store.py        |---->| retriever.py     |
-| MemoryStore     |     | .fts_search()    |
-| (SQLite index)  |     | .knn_search()    |
+| MemoryStore     |     | .fts_search()    
+| (SQLite index)  |     | .knn_search()    
 +-----------------+     +------------------+
 ```
 
