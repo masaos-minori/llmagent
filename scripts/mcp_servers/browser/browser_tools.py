@@ -34,6 +34,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["url"],
         },
         "status": "production",
-        "requires_config": True,
+        "config_dependent": True,
     },
 ]

@@ -194,8 +194,23 @@ class _McpMixin(MixinBase):
         sub = parts[0] if parts else ""
         if sub in ("status", ""):
             if not sub:
-                self._out.write("Usage: /mcp [status]")
+                self._out.write("Usage: /mcp [status|tools]")
                 self._out.write("")
             await self._cmd_mcp_status()
+        elif sub == "tools":
+            await self._cmd_mcp_tools()
         else:
-            raise UnknownSubcommandError(sub, ("status",))
+            raise UnknownSubcommandError(sub, ("status", "tools"))
+
+    async def _cmd_mcp_tools(self) -> None:
+        """Print RuntimeToolRegistry diagnostics table."""
+        ctx = self._ctx
+        tool_registry = ctx.services_required.runtime_tools
+        if tool_registry is None:
+            self._out.write("  No RuntimeToolRegistry available.")
+            return
+        diag_rows = tool_registry.diagnostics()
+        if not diag_rows:
+            self._out.write("  No tools registered.")
+            return
+        self._out.write(_format_tool_diagnostics_table(diag_rows))

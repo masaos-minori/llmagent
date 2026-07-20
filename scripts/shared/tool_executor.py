@@ -14,7 +14,10 @@ import asyncio
 import logging
 import time
 from collections import OrderedDict
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from shared.runtime_tool_registry import RuntimeToolRegistry
 
 import httpx
 
@@ -69,6 +72,16 @@ class ToolExecutor(ToolTransportInvoker):
         """Update hot-reloadable configuration fields without recreating the instance."""
         if cache_ttl is not None:
             self._cache_ttl = cache_ttl
+
+    def set_runtime_registry(self, registry: RuntimeToolRegistry) -> None:
+        """Wire RuntimeToolRegistry into the resolver after discovery completes."""
+        from shared.route_resolver import ToolRouteResolver
+
+        self._resolver = ToolRouteResolver(
+            self._server_configs,
+            discovery_map={},
+            runtime_registry=registry,
+        )
 
     def _check_startup_mode(self, server_key: str) -> ToolCallResult | None:
         """Return an error result if the server is disabled (startup_mode=none); None otherwise."""

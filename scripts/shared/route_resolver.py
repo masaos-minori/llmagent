@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
+    from shared.runtime_tool_registry import RuntimeToolRegistry
+    from shared.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +56,13 @@ def build_discovery_map(
 
 
 class ToolRouteResolver:
-    """Map tool_name → server_key using ToolRegistry as the sole routing authority.
+    """Map tool_name → server_key using RuntimeToolRegistry or ToolRegistry as routing authority.
 
-    Raises ValueError when the tool is not in the registry.
+    Resolution priority:
+      1. RuntimeToolRegistry (live /v1/tools discovery)
+      2. ToolRegistry (drift-detection fallback)
+
+    Raises ValueError when the tool is not in any registry.
     """
 
     def __init__(
@@ -67,6 +73,7 @@ class ToolRouteResolver:
         warn_on_missing: bool = False,
         strict_mode: bool = False,
         known_tools: frozenset[str] | None = None,
+        runtime_registry: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize the resolver.
 
@@ -81,20 +88,22 @@ class ToolRouteResolver:
                 stricter error message.
             known_tools: When provided, triggers a startup coverage log via
                 `_log_routing_coverage()`. No production caller passes this today.
+            runtime_registry: Optional RuntimeToolRegistry from live /v1/tools discovery;
+                takes resolution priority over legacy ToolRegistry.
         """
         # Validation data from live /v1/tools (not used for routing).
         self._discovery_map: dict[str, str] = discovery_map or {}
-        # Tool registry (canonical source of truth).
-        from shared.tool_registry import ToolRegistry
-
-        self._registry: ToolRegistry | None
+        # RuntimeToolRegistry (primary routing authority when available).
+        self._runtime_registry: RuntimeToolRegistry | None = runtime_registry
+        # Legacy ToolRegistry (fallback when RuntimeToolRegistry unavailable).
+        self._legacy_registry: ToolRegistry | None = None
         try:
             from shared.tool_registry import get_registry
 
-            self._registry = get_registry()
+            self._legacy_registry = get_registry()
         except (ImportError, RuntimeError) as exc:
             logger.warning("Failed to initialize ToolRegistry: %s", exc)
-            self._registry = None
+            self._legacy_registry = None
         # Config tool_names is NOT used for routing — only for drift validation.
         self._warn_on_missing = warn_on_missing
         self._strict_mode = strict_mode
@@ -103,42 +112,52 @@ class ToolRouteResolver:
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
-        # Priority 1: tool registry (canonical source of truth).
-        if (key := self._lookup_registry(tool_name)) is not None:
+        # Priority 1: RuntimeToolRegistry (live discovery).
+        if (key := self._lookup_runtime_registry(tool_name)) is not None:
+            return key
+        # Priority 2: Legacy ToolRegistry (drift-detection fallback).
+        if (key := self._lookup_legacy_registry(tool_name)) is not None:
             return key
         # No mapping found — raise ValueError immediately.
         if self._strict_mode:
             self._raise_strict_error(tool_name)
         if self._warn_on_missing:
             logger.warning(
-                "ToolRouteResolver: tool %r not in ToolRegistry; "
+                "ToolRouteResolver: tool %r not in any registry; "
                 "add it to the appropriate frozenset in shared/tool_constants.py.",
                 tool_name,
             )
         raise ValueError(f"Unknown tool: {tool_name!r}")
 
-    def _lookup_registry(self, tool_name: str) -> str | None:
-        """Look up a tool in the registry; returns server key or None."""
-        if self._registry is not None:
-            result: str | None = self._registry.get_server_for_tool(tool_name)
+    def _lookup_runtime_registry(self, tool_name: str) -> str | None:
+        """Look up a tool in RuntimeToolRegistry; returns server key or None."""
+        if self._runtime_registry is not None:
+            return self._runtime_registry.resolve(tool_name)
+        return None
+
+    def _lookup_legacy_registry(self, tool_name: str) -> str | None:
+        """Look up a tool in legacy ToolRegistry; returns server key or None."""
+        if self._legacy_registry is not None:
+            result: str | None = self._legacy_registry.get_server_for_tool(tool_name)
             return result
         return None
 
     def _raise_strict_error(self, tool_name: str) -> None:
         """Raise ValueError when strict_mode is enabled and no mapping found."""
         raise ValueError(
-            f"ToolRouteResolver: tool {tool_name!r} not in ToolRegistry "
+            f"ToolRouteResolver: tool {tool_name!r} not in any registry "
             f"and strict_mode=True; add it to the appropriate frozenset in shared/tool_constants.py"
         )
 
     def _log_routing_coverage(self, known_tools: frozenset[str]) -> None:
         """Log routing coverage for all known tools at startup.
 
-        "Mapped" means resolvable via `ToolRegistry` — the same authority `resolve()`
-        uses — not merely present in `discovery_map`. `discovery_map` is validation-only
-        metadata from live /v1/tools responses and carries no routing authority: a tool
-        present only in `discovery_map` but absent from the registry is UNMAPPED for this
-        purpose, since `resolve()` would raise `ValueError` for it.
+        "Mapped" means resolvable via either RuntimeToolRegistry or ToolRegistry —
+        the same authorities `resolve()` uses — not merely present in `discovery_map`.
+        `discovery_map` is validation-only metadata from live /v1/tools responses and
+        carries no routing authority: a tool present only in `discovery_map` but absent
+        from both registries is UNMAPPED for this purpose, since `resolve()` would
+        raise `ValueError` for it.
 
         Note: as of this writing, no production caller passes `known_tools` to
         `ToolRouteResolver.__init__()` (see `shared/tool_executor.py`'s construction
@@ -148,7 +167,10 @@ class ToolRouteResolver:
         mapped: list[str] = []
         unmapped: list[str] = []
         for tool_name in sorted(known_tools):
-            if self._lookup_registry(tool_name) is not None:
+            if (
+                self._lookup_runtime_registry(tool_name) is not None
+                or self._lookup_legacy_registry(tool_name) is not None
+            ):
                 mapped.append(tool_name)
             else:
                 unmapped.append(tool_name)

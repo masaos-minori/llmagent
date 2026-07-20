@@ -228,6 +228,9 @@ class StartupOrchestrator:
         try:
             discovery = await McpToolDiscoveryService(ctx).discover_all()
             ctx.services_required.runtime_tools = discovery.registry
+            # Wire RuntimeToolRegistry into ToolExecutor routing resolver.
+            if discovery.registry is not None:
+                ctx.services_required.tools.set_runtime_registry(discovery.registry)
             for outcome in discovery.findings:
                 if outcome.status == StartupCheckStatus.FATAL:
                     pipeline.add_fatal("mcp_tool_discovery", outcome.message)
