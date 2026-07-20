@@ -27,8 +27,6 @@ related:
 
 ---
 
-
-
 ## DESIGN-3: `documents`、`chunks`、`chunks_fts`、`chunks_vec`間の責務分離
 
 - **Type:** 確定済みの設計判断
@@ -54,8 +52,6 @@ related:
 ---
 
 
-
-## DESIGN-2 リグレッションテストの期待値
 
 **既存のテスト:**
 

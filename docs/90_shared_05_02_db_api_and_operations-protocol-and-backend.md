@@ -123,8 +123,6 @@ result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
 
 ---
 
-
-
 ---
 
 **注意: セクション5は未作成。** 隣接ファイルのセクション番号（90_shared_05_01: 1-2, 90_shared_05_03: 7-7b, 90_shared_05_04: 9-13）から、セクション5の範囲は空欄となっている。

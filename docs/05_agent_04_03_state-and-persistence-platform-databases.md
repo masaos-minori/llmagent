@@ -122,8 +122,6 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 | `is_event_processed(db, event_id)` | イベントが既に処理済みかをチェックする (冪等性ガード) |
 | `begin_stage_if_new(db, event_id, task_id, stage_id, workflow_id=None)` | event_idをアトミックにチェックし、新規であれば試行を開始する; ステージを実行すべき場合は`AttemptRecord`を、既に処理済みの場合はNoneを返す。`begin_immediate`でチェックと挿入を単一トランザクションにまとめ、明示的な`commit()`は呼ばない (Explicit in code) |
 
-
-
 ---
 
 ## Session / RAG責務境界

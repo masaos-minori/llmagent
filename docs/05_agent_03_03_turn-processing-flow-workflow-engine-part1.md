@@ -66,8 +66,6 @@ source:
 
 `WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
 
-
-
 ワークフローパッケージ: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine)。
 
 デフォルトのリトライポリシー (`default.json`に`retry_policy`が定義されていない場合に適用):

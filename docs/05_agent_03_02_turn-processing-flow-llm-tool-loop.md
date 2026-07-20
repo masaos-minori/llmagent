@@ -31,8 +31,6 @@ source:
    - `max_tool_turns`回まで繰り返す
 5. `finish_reason == "stop"`または`max_tool_turns`超過の場合: 最終回答を返す
 
-
-
 `ToolLoopGuard`は各ツールループの反復中に以下をガードする。実行順序は
 `check_all()`内で **循環検出 → 重複排除 → リトライ** の順 (Explicit in code、`tool_loop_guard.py`の
 `check_all`)。いずれかが発動した時点でそれ以降のチェックは行われずループを終了する。
