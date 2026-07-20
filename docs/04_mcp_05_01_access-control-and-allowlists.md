@@ -93,7 +93,7 @@ repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
 ### `protected_branches`
 
 ```toml
-# config/github_mcp_server.toml
+# config/github_mcp_server.toml - protected_branches
 protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
 ```
 
@@ -118,7 +118,7 @@ protected_branches = [
 ### `path_denylist`
 
 ```toml
-# config/github_mcp_server.toml
+# config/github_mcp_server.toml - path_denylist
 path_denylist = [".github/**", "Dockerfile*"]   # fnmatch glob patterns
 ```
 
@@ -141,7 +141,7 @@ path_denylist = [
 ### `allow_force_push`
 
 ```toml
-# config/github_mcp_server.toml
+# config/github_mcp_server.toml - allow_force_push
 allow_force_push = false   # default: force push disabled
 ```
 
@@ -161,7 +161,7 @@ allow_force_push = false
 ### `require_pr_review`
 
 ```toml
-# config/github_mcp_server.toml
+# config/github_mcp_server.toml - require_pr_review
 require_pr_review = true   # default: PR review required
 ```
 

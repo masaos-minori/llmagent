@@ -65,7 +65,7 @@ def test_fts_rebuild_uses_cascade(db):
 **TEST-DESIGN3-02: chunks_ftsは派生であり、正規ではない**
 
 ```python
-# Pseudocode for integration test
+# Pseudocode for integration test - chunks_fts_derived_index
 def test_chunks_fts_is_derived_index(db):
     """chunks_fts must not be directly INSERTed/UPDATEed by application code."""
     # Insert chunk via canonical path (INSERT into chunks)
@@ -78,7 +78,7 @@ def test_chunks_fts_is_derived_index(db):
 **TEST-DESIGN3-03: 強制再取り込みで孤立ベクトルが発生しないこと**
 
 ```python
-# Pseudocode for integration test
+# Pseudocode for integration test - force_reingest_no_orphan_vectors
 def test_force_reingest_no_orphan_vectors(db):
     """Force re-ingestion must not leave orphan chunks_vec records."""
     # Insert document and chunks
@@ -96,7 +96,7 @@ def test_force_reingest_no_orphan_vectors(db):
 **TEST-DESIGN3-04: 削除順序の不変条件**
 
 ```python
-# Pseudocode for integration test
+# Pseudocode for integration test - deletion_order_invariant
 def test_deletion_order_invariant(db):
     """Deletion must follow: chunks_vec → documents (CASCADE removes chunks)."""
     # Insert document with chunks and vectors
@@ -115,7 +115,7 @@ def test_deletion_order_invariant(db):
 **TEST-DESIGN3-05: 整合性チェックが非同期を検出する**
 
 ```python
-# Pseudocode for integration test
+# Pseudocode for integration test - consistency_checks_detect_fts_gap
 def test_consistency_checks_detect_fts_gap(db):
     """check_rag_consistency() must detect FTS index desync."""
     # Insert chunk without triggering FTS (simulate trigger failure)
