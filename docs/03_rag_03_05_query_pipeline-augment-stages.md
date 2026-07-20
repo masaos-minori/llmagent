@@ -99,7 +99,7 @@ from rag.pipeline_refiner import RefineResult
 
 ---
 
-## Related Documents
+### Related Documents
 
 - `03_rag_00_document-guide.md`
 - `03_rag_01_system_overview-part1.md`
@@ -111,7 +111,7 @@ from rag.pipeline_refiner import RefineResult
 - `03_rag_03_06_query_pipeline-helpers-and-cache-part1.md`
 - `03_rag_03_06_query_pipeline-helpers-and-cache-part2.md`
 
-## Keywords
+### Keywords
 
 rerank-stage
 augment-stage

@@ -111,7 +111,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 
 ---
 
-## Related Documents
+### Related Documents
 
 - `03_rag_00_document-guide.md`
 - `03_rag_01_system_overview-part1.md`
@@ -122,7 +122,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
 
-## Keywords
+### Keywords
 
 mqe-stage
 search-stage

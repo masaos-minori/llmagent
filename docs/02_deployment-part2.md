@@ -30,10 +30,9 @@ Schema details: `90_shared_04_01_db_architecture_and_schema-overview-and-config.
 ### 3.1 Applying schema
 
 ```bash
-# Ensure deploy/deploy.sh has been run (scripts and config files are in place)
 bash deploy/init_db.sh
-# Output: Schema created successfully.
-# Verify tables (chunks  chunks_fts  chunks_vec  documents)
+
+Verify tables (chunks  chunks_fts  chunks_vec  documents)
 ```
 
 **Workflow schema responsibilities (init_db.sh):**

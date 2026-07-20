@@ -116,7 +116,7 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 
 ---
 
-## Related Documents
+### Related Documents
 
 - `03_rag_00_document-guide.md`
 - `03_rag_01_system_overview-part1.md`
@@ -128,7 +128,7 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_03_02_query_pipeline-rag-pipeline-class-part1.md`
 
-## Keywords
+### Keywords
 
 rag-pipeline-class
 http-mode

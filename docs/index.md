@@ -48,7 +48,7 @@ related:
 
 各カテゴリはそれぞれ既知の不整合・未解決事項を管理している:
 
-- [RAG](03_rag_90_inconsistencies_and_known_issues-part1.md)
+- [RAG](03_rag_90_inconsistencies_and_known_issues.md)
 - [MCP](04_mcp_90_inconsistencies_and_known_issues.md)
 - [Agent](05_agent_90_inconsistencies_and_known_issues.md)
 - [Event Bus](06_eventbus_90_inconsistencies_and_known_issues.md)

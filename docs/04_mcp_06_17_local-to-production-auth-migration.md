@@ -74,10 +74,10 @@ source:
 対処: エージェントプロセスを停止し、再起動して新しい認証設定を反映させる。
 
 
-## Related Documents
+### Related Documents
 
 - [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
 
-## Keywords
+### Keywords
 
 configuration

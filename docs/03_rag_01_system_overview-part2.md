@@ -118,7 +118,7 @@ config/crawler.toml [target_urls]
 | クエリパイプライン（API、ステージ詳細） | [03_rag_03_01_query_pipeline-overview.md](03_rag_03_01_query_pipeline-overview.md) |
 | DBスキーマ、型定義 | [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md) |
 | 設定、実行コマンド、ログ | [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md) |
-| 既知のバグと不整合 | [03_rag_90_inconsistencies_and_known_issues-part1.md](03_rag_90_inconsistencies_and_known_issues-part1.md) |
+| 既知のバグと不整合 | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) |
 
 ## Related Documents
 

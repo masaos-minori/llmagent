@@ -48,7 +48,7 @@ class EventBusConfig:
 | `get_schema_path` | `() -> str` | `EVENTBUS_SCHEMA_PATH` 環境変数、またはデフォルト値を返す |
 | `load_config` | `(path: Path \| str \| None) -> EventBusConfig` | TOML 設定を読み込む。path が None の場合は `get_config_path()` を使用する |
 
-#### 内部関数
+### 内部関数
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
@@ -56,7 +56,7 @@ class EventBusConfig:
 
 ---
 
-## scripts/eventbus/db.py
+### scripts/eventbus/db.py
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
@@ -134,12 +134,12 @@ DDL は `scripts/eventbus/schema.sql` で定義されている。`events` テー
 | `ERR_EVENT_ID_REQUIRED` | `"event_id is required"` |
 | `ERR_EVENT_NOT_IN_DLQ` | `"event is not in DLQ"` |
 
-## Related Documents
+### Related Documents
 
 - `06_eventbus_06_02_reference-api-route-handlers.md`
 - `06_eventbus_06_03_reference-api-broker-and-offsets.md`
 
-## Keywords
+### Keywords
 
 event-bus
 api-reference

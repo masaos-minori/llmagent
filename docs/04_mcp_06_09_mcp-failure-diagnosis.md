@@ -92,11 +92,11 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 ヘルスチェックがディスパッチ前のゲートとしてこの機構を参照する。
 
 
-## Related Documents
+### Related Documents
 
 - [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
 - [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)
 
-## Keywords
+### Keywords
 
 configuration

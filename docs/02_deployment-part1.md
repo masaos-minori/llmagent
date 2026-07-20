@@ -13,27 +13,21 @@ source:
 
 # 導入手順・デプロイ
 
-## 1. 事前準備
+## Embedding: multilingual-E5-small (384 dim)
 
 ### 1.1 Gentoo Linux パッケージ導入
 
 ```bash
-# ビルドツール
 emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja
 
-# SQLite (FTS5 有効、Gentoo の dev-db/sqlite は標準で FTS5 を含む)
 emerge --ask dev-db/sqlite
 
-# FTS5 動作確認
 sqlite3 :memory: "CREATE VIRTUAL TABLE t USING fts5(x); INSERT INTO t VALUES('テスト'); SELECT * FROM t WHERE t MATCH 'テスト';"
 
-# Python 3.13 以上
 emerge --ask dev-lang/python:3.13
 
-# BeautifulSoup4 の lxml パーサ用ライブラリ
 emerge --ask dev-libs/libxml2 dev-libs/libxslt
 
-# git (sqlite-vec・llama.cpp ソース取得用)
 emerge --ask dev-vcs/git
 ```
 
@@ -46,10 +40,8 @@ emerge --ask dev-vcs/git
 ### 1.2 Python 環境構築 (uv を使用)
 
 ```bash
-# uv をインストール (https://docs.astral.sh/uv/)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# プロジェクトの依存関係をインストール
 uv sync --dev --system-certs
 ```
 
@@ -73,7 +65,6 @@ PyGithub>=2.3.0
 ```
 
 ```bash
-# 依存関係をインストール
 uv pip install -r /opt/llm/venv/requirements.txt
 ```
 
@@ -99,20 +90,16 @@ cmake --build build --config Release -j$(nproc)
 ```bash
 mkdir -p /opt/llm/models
 
-# Embedding: multilingual-E5-small (384 dim)
-# E5 model prefix: "passage: " for ingestion, "query: " for queries
 uv run --with huggingface-hub huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
     multilingual-e5-small-Q8_0.gguf \
     --local-dir /opt/llm/models/
 mv /opt/llm/models/multilingual-e5-small-Q8_0.gguf \
    /opt/llm/models/multilingual-E5-small.gguf
 
-# LLM: gemma-4-e4b (Gemma 4 4B parameter instruction-tuned)
 uv run --with huggingface-hub huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
     gemma-4-e4b-it-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
 
-# LLM: Qwen2.5-Coder-7B
 uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
     Qwen3.6-Instruct-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
@@ -139,7 +126,6 @@ Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agen
 `deploy/deploy.sh` performs bulk copying of scripts, config files, and SQL files.
 
 ```bash
-# Execute from the repository root
 bash deploy/deploy.sh
 ```
 
@@ -172,14 +158,11 @@ MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent 
 - Services (Event Bus, LLM, MCP) are started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 
 ```bash
-# deploy.sh 実行後に実行する
 bash deploy/setup_services.sh
 
-# Health check (wait for each LLM service to complete model loading)
 curl -s http://127.0.0.1:8081/health   # embed-llm
 curl -s http://127.0.0.1:8080/health   # agent-llm
 
-# Start the agent after LLM services complete model loading
 bash deploy/start_agent.sh
 ```
 

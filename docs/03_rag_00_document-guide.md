@@ -13,7 +13,7 @@ related:
   - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
-  - 03_rag_90_inconsistencies_and_known_issues-part1.md
+  - 03_rag_90_inconsistencies_and_known_issues.md
   - 03_rag_91_design_notes-part1.md
   - 03_rag_91_design_notes-part2.md
 ---
@@ -61,10 +61,10 @@ related:
 | ファイル形式（JSON構造、フィールド名） | `03_rag_02_01_ingestion_pipeline-overview.md`, `03_rag_04_01_dto-models_data.md` |
 | クエリパイプラインの動作（ステージ、RRF、リランク、HTTPモード） | `03_rag_03_01_query_pipeline-overview.md` |
 | 設定パラメータと運用コマンド | `03_rag_05_1-configuration-reference.md` |
-| 既知のバグ、仕様の矛盾、未解決の課題 | `03_rag_90_inconsistencies_and_known_issues-part1.md` |
+| 既知のバグ、仕様の矛盾、未解決の課題 | `03_rag_90_inconsistencies_and_known_issues.md` |
 | 確定した設計上の不変条件とリグレッションテストのギャップ | `03_rag_91_design_notes-part1.md`, `03_rag_91_design_notes-part2.md` |
 
-**コンフリクト解決**: 2つのドキュメントで事実が一致せず、すぐに解決できない場合は、`03_rag_90_inconsistencies_and_known_issues-part1.md` にDOC-Nラベルを付けたエントリとして記録し、その後、責任を持つドキュメント側で根本原因を修正すること。ローカルチェックは `python tools/check_docs_consistency.py [対象ファイル...]` を使用。
+**コンフリクト解決**: 2つのドキュメントで事実が一致せず、すぐに解決できない場合は、`03_rag_90_inconsistencies_and_known_issues.md` にDOC-Nラベルを付けたエントリとして記録し、その後、責任を持つドキュメント側で根本原因を修正すること。ローカルチェックは `python tools/check_docs_consistency.py [対象ファイル...]` を使用。
 
 ---
 
@@ -103,7 +103,7 @@ related:
 | [03_rag_05_6-local-file-re-ingestion.md](03_rag_05_6-local-file-re-ingestion.md) | ローカル再インジェクション |
 | [03_rag_05_7-rag-index-consistency-checks.md](03_rag_05_7-rag-index-consistency-checks.md) | 整合性チェック |
 | [03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md](03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP内部操作 |
-| [03_rag_90_inconsistencies_and_known_issues-part1.md](03_rag_90_inconsistencies_and_known_issues-part1.md) | 既知の問題 |
+| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | 既知の問題 |
 | [03_rag_91_design_notes-part1.md](03_rag_91_design_notes-part1.md) | DESIGN-2ノート |
 | [03_rag_91_design_notes-part2.md](03_rag_91_design_notes-part2.md) | DESIGN-3ノート |
 
@@ -116,7 +116,7 @@ related:
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
-- `03_rag_90_inconsistencies_and_known_issues-part1.md`
+- `03_rag_90_inconsistencies_and_known_issues.md`
 - `03_rag_91_design_notes-part1.md`
 - `03_rag_91_design_notes-part2.md`
 

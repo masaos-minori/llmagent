@@ -42,7 +42,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
   → 最終回答 (SSE ストリーミング)
 ```
 
-#### 実装上の補足
+#### クエリパイプラインの実装補足
 
 - ターン処理は 4 層に分離されている: `AgentREPL`(REPL ループ) → `Orchestrator`(ターン制御・ワークフロー管理) → `LLMTurnRunner`(LLM ストリーミング + 内部ツールループ) → `agent/tool_runner.py`(ツール実行)。各層の責務は `agent/repl.py` の docstring で宣言されている。
 - MDQ/RAG ツール選択: `agent/mdq_rag_classifier.py` がクエリ文字列を解析し、Markdown 構造系キーワードを含む場合は MDQ ツール、それ以外は RAG ツールを優先するよう `system` ロールのエフェメラルメッセージとして hint をhistory に注入する。設定で固定も可能。(根拠: `agent/orchestrator.py`)
@@ -81,7 +81,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 現行の `config/agent.toml` は全 MCP サーバに `startup_mode = "subprocess"` を明示指定している(persistent はスキーマ上存在するが未使用)。(根拠: Explicit in code, `config/agent.toml`)
 
-##### 実装上の補足: subprocess 起動失敗時の挙動
+### 実装上の補足: サーバ起動失敗時の挙動
 
 `startup_mode="subprocess"` のサーバ起動に失敗した場合の挙動は `security_profile` に依存する分岐になっている(根拠: `agent/startup.py` の `_start_servers()`):
 

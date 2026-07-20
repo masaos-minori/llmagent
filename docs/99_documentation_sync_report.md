@@ -8,7 +8,7 @@ tags:
 related:
   - index.md
 source:
-  - 08_document_refactor.md
+  - 08_document_refactor.md（削除済み）
 ---
 
 # ドキュメント同期レポート

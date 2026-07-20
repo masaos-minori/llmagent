@@ -14,7 +14,7 @@ related:
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 
-# MCP セキュリティと安全性モデル
+## config/github_mcp_server.toml
 
 - サーバーカタログ → [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md)
 

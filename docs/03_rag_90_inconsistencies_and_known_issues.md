@@ -12,7 +12,7 @@ related:
   - 03_rag_91_design_notes-part1.md
   - 03_rag_91_design_notes-part2.md
 source:
-  - 03_rag_90_inconsistencies_and_known_issues-part1.md
+  - 03_rag_90_inconsistencies_and_known_issues.md
 ---
 
 # RAGの不整合と既知の問題

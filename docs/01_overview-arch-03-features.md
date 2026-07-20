@@ -41,7 +41,7 @@ related:
 | 依存性注入ハブ (AgentContext) | `agent/context.py` |
 | 診断ストア (ターン/セッション統計) | `agent/diagnostic_store.py` |
 
-#### 実装上の補足
+### 実装上の補足
 
 **共有状態と依存性注入**
 

@@ -73,14 +73,14 @@ registry.record_failure(reason=str(body_reason))
 
 ---
 
-## Related Documents
+### Related Documents
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_06_02_configuration-file-inventory.md`
 - `04_mcp_06_13_watchdog-health-reasons-scheduling-part2.md`
 - `04_mcp_06_12_watchdog-configuration-monitoring.md`
 
-## Keywords
+### Keywords
 
 health-reasons
 scheduling
