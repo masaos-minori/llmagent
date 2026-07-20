@@ -75,8 +75,9 @@ def tool_hash_key(name: str, args: dict[str, object]) -> str
 ## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ルーティングの正本)
 
 **責務分離 (Explicit in code — module docstring):**
-- `shared/tool_registry.py`: MCPツール所有権とルーティングの唯一の正本。`tool_constants.py` の frozenset群がインポート時にこのレジストリへ登録される
-- `shared/route_resolver.py`: `ToolRouteResolver` — ツール名→server_key解決。**ルーティング判断の唯一の権威は `ToolRegistry` であり、config の `tool_names` はドリフト検証専用のメタデータであってルーティング入力ではない**
+- `shared/runtime_tool_registry.py`: **最優先のルーティング権威**。McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築され、`ToolExecutor.set_runtime_registry()` で接続される
+- `shared/tool_registry.py`: **フォールバックのルーティング権威**。`tool_constants.py` の frozenset群がインポート時にこのレジストリへ登録される
+- `shared/route_resolver.py`: `ToolRouteResolver` — ツール名→server_key解決。**RuntimeToolRegistry が最優先で解決され、見つからない場合に ToolRegistry にフォールバックする**
 - `shared/tool_routing_validation.py`: config / live `/v1/tools` 応答とレジストリの整合性検証 (ドリフト検出専用。ルーティングには使わない)
 
 ```python
@@ -108,16 +109,18 @@ class ToolRouteResolver:
         self,
         server_configs: dict[str, McpServerConfig],   # 後方互換のためだけに受理; 読み取られない
         *,
+        runtime_registry: RuntimeToolRegistry | None = None,  # 最優先のルーティング権威
         discovery_map: dict[str, str] | None = None,   # 診断専用; resolve()には使われない
         warn_on_missing: bool = False,
         strict_mode: bool = False,
         known_tools: frozenset[str] | None = None,     # 現状どの本番呼び出しも渡していない
     ) -> None
-    def resolve(self, tool_name: str) -> str   # ToolRegistry参照のみ; 未登録はValueError
+    def resolve(self, tool_name: str) -> str   # RuntimeToolRegistry → ToolRegistry の順で解決; 未登録はValueError
 ```
 
 **Current behavior (Explicit in code):**
 - `server_configs` はコンストラクタで受け取るが一切読み取られず保存もされない (後方互換性のためだけの引数)
+- `runtime_registry` が設定されている場合、`resolve()` で最初に RuntimeToolRegistry が検索される
 - `discovery_map` はルーティングカバレッジ診断という現状どこからも呼ばれない診断機能専用で、`resolve()` の判断には一切使われない
 - `known_tools` を渡す本番呼び出しは `tool_executor.py` を含め存在しない (2026-07時点)。このため起動時カバレッジログ機能は実質的に到達しないコード
 

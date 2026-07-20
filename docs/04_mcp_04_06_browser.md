@@ -25,7 +25,7 @@ related:
 
 **ツール:**
 
-| ツール | ティア | `requires_config` |
+| ツール | ティア | `config_dependent` |
 |---|---|---|
 | `browser_fetch` | READ_ONLY | yes |
 

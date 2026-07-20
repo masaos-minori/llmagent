@@ -35,14 +35,14 @@ related:
 
 ---
 
-## ツール実行時可用性メタデータ（config_dependent/enabled/disabled_reason/RuntimeToolRegistry）は文書化済みだが未実装
+## ツール実行時可用性メタデータ（config_dependent/enabled/disabled_reason/RuntimeToolRegistry）は一部実装済み
 
-- **Type:** `Unimplemented`
-- **Impact scope:** `scripts/mcp_servers/**`（`requires_config`のまま）、`scripts/agent/**`（RuntimeToolRegistry未実装）
-- **Current behavior:** `docs/04_mcp_03_06_tool-runtime-availability-metadata.md`に`config_dependent`/`enabled`/`disabled_reason`/`RuntimeToolRegistry`の対象設計が記述されているが、実装コードは`requires_config`のままであり、`enabled`/`disabled_reason`は`/v1/tools`レスポンスに存在しない。RuntimeToolRegistryクラス自体も未実装。
+- **Type:** `Partially implemented`
+- **Impact scope:** `scripts/mcp_servers/browser/`（`config_dependent`採用済み）、`scripts/agent/**`（RuntimeToolRegistry配線済み）
+- **Current behavior:** browser-mcp `browser_fetch` が `config_dependent: True` を採用した。RuntimeToolRegistry は McpToolDiscoveryService によりライブ検出され、`ToolExecutor.set_runtime_registry()` で接続された。ただし `enabled`/`disabled_reason` は `/v1/tools` レスポンスに存在せず、他の MCP サーバーは `config_dependent` をまだ採用していない。
 - **Affected config:** N/A（コード側フィールド名の問題であり、config側の値ではない）
-- **Recommended action:** requirement 14-18のプラン（`plans/20260717-173602_plan.md`, `plans/20260717-174024_plan.md`, `plans/20260717-174848_plan.md`, `plans/20260717-175327_plan.md`, `plans/20260717-175630_plan.md`）の実装完了後、本エントリを削除すること。
-- **Notes for AI reference:** `config_dependent`/`enabled`/`disabled_reason`/`RuntimeToolRegistry`という語がコード中またはテスト中に見つからない場合、これはドキュメント先行（target design documented ahead of implementation）であり、バグではない。実装が完了したらこのエントリと`04_mcp_03_06`の「Implementation status」コールアウトの両方を更新/削除すること。
+- **Recommended action:** 他の MCP サーバーの `config_dependent` 移行と `enabled`/`disabled_reason` の実装完了後、本エントリを削除すること。
+- **Notes for AI reference:** `config_dependent`/`enabled`/`disabled_reason`/`RuntimeToolRegistry`という語がコード中またはテスト中に見つかる場合、これは部分的に実装済みである。`enabled`/`disabled_reason` はまだ未実装であり、`04_mcp_03_06`の「Implementation status」コールアウトも参照すること。
 
 ---
 

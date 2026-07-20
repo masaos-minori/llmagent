@@ -63,9 +63,16 @@ related:
 |---|---|---|
 | `/mcp` | 全MCPサーバーへのHTTPプローブ | ヘルステーブルを表示(実行中の設定のみ) |
 | `/mcp status` | 全MCPサーバーへのHTTPプローブ | ヘルステーブルを表示(実行中の設定のみ) |
+| `/mcp tools` | なし | RuntimeToolRegistryのツール一覧を表示 |
 
 `/mcp` / `/mcp status`は**現在実行中の**MCPサーバー設定のヘルスビューであり、
 保留中の`/reload`変更のプレビューではない。
+
+`/mcp tools` は McpToolDiscoveryService によってライブ検出された RuntimeToolRegistry
+のツール一覧を表示する。各ツールの状態（active/inactive）、シリアライズ要件、
+承認フラグ、ケイパビリティなどが表示される。
+
+`/mcp status`の出力にはサーバー一覧テーブルに加え、DEGRADED/UNAVAILABLE状態の
 `/reload`が`[RESTART]`項目を報告した後も、`/mcp`はエージェントが実際に
 再起動されるまで、リロード前のサーバー・URL・認証状態を表示し続ける。
 

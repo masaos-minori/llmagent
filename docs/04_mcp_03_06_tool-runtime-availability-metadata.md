@@ -19,11 +19,11 @@ related:
 
 # ツール実行時可用性メタデータ: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** As of 2026-07-18 this contract is documented as target design; production code still uses `requires_config` and has no `enabled`/`disabled_reason`/`RuntimeToolRegistry` — see `plans/20260717-173602_plan.md` through `plans/20260717-175630_plan.md` (requirements 14-18) for the implementing work.
+> **Implementation status:** As of 2026-07-20 `config_dependent` is adopted for browser-mcp `browser_fetch` tool. `enabled`/`disabled_reason` fields are not yet implemented in MCP server responses. RuntimeToolRegistry wiring is complete — see `04_mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 1. `config_dependent` (static)
 
-Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (direct rename of `requires_config` with identical boolean semantics, no compatibility shim). `requires_config` is removed; any remaining doc/code reference to it describes obsolete behavior.
+Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (direct rename of `requires_config` with identical boolean semantics, no compatibility shim). `requires_config` is removed; any remaining doc/code reference to it describes obsolete behavior. browser-mcp `browser_fetch` tool is the first to adopt `config_dependent: True`.
 
 ## 2. `enabled` / `disabled_reason` (runtime, request-time-computed)
 
@@ -91,7 +91,7 @@ Proposed: `GET /v1/tools?include_disabled=false` as an opt-in filter on tool dis
 Proposed: a machine-readable enum companion to the free-text `disabled_reason`, coexisting with
 it (never replacing it, never present alone without `disabled_reason`).
 
-Candidate values, mapped to today's `requires_config`-gated servers:
+Candidate values, mapped to today's `config_dependent`-gated servers:
 
 | `disabled_code`             | Server(s)                              |
 |------------------------------|-----------------------------------------|
