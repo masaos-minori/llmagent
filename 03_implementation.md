@@ -25,14 +25,15 @@ Read the target plan file, then implement the feature according to the rules and
 - In Step 6, update only the specific `docs/*.md` sections affected by the change (using
   the `routing.md` mapping to locate them) rather than reading and rewriting entire
   documentation files.
-- When multiple target plan files are specified, run each Steps 1-6 cycle as an isolated
-  sub-agent call so that diffs, tool output, and test logs from one file's cycle do not
-  accumulate in the context used for the next file's cycle.
+- When multiple target plan files are specified, delegate each Steps 1-6 cycle to an
+  isolated sub-agent call for context hygiene only, so diffs, tool output, and test logs
+  from one file's cycle do not accumulate into the next. This delegation is for context
+  isolation, **not parallel execution**: dispatch and await each sub-agent one at a
+  time, never in parallel, and do not start the next file's cycle until the current
+  file's Steps 1-6 (through moving it to `implementations/done/` in Step 5 and updating
+  documentation in Step 6) have completed.
 - Keep start/end progress reports to one or two lines; do not restate full diffs or tool
   output in progress reports.
-- **Process files sequentially, never in parallel within your own context.** Even if
-  multiple files are specified, maintain strict isolation between cycles. Each file's
-  Steps 1-6 must complete entirely before the next file begins.
 
 ### Tasks
 
@@ -100,3 +101,8 @@ Test according to the plan. Follow:
 
 Update `docs/*.md` for every changed file. Follow:
 - `skills/python-documentation/SKILL.md`
+
+Determine which sections to update by looking up each changed file in `routing.md`'s
+"Docs → task mapping" table and editing only the matched section(s). If a changed file
+has no matching entry, note this in the progress report instead of guessing which doc
+to edit.

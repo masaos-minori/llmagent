@@ -22,14 +22,14 @@ Read the target plan file, then produce file-level implementation procedure docu
   the target source file (locate them with grep first, then read a limited range) rather
   than the full file. Have the sub-agent return only what is needed for the procedure
   document, not full file contents.
-- When multiple target plan files are specified, run each Steps 1-4 cycle as an isolated
-  sub-agent call so that source investigation from one file's cycle does not accumulate
-  in the context used for the next file's cycle.
+- When multiple target plan files are specified, delegate each Steps 1-4 cycle to an
+  isolated sub-agent call for context hygiene only, so source investigation from one
+  file's cycle does not accumulate into the next. This delegation is for context
+  isolation, **not parallel execution**: dispatch and await each sub-agent one at a
+  time, never in parallel, and do not start the next file's cycle until the current
+  file's Steps 1-4 (through moving it to `plans/done/` in Step 4) have completed.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
-- **Process files sequentially, never in parallel within your own context.** Even if
-  multiple files are specified, maintain strict isolation between cycles. Each file's
-  Steps 1-4 must complete entirely before the next file begins.
 
 ### Tasks
 

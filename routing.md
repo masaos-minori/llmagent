@@ -28,9 +28,21 @@ Invoke directly by filename. Not triggered by routing.
 
 | Workflow | File |
 |---|---|
+| Issue → requirement (raw issue → formal require doc) | `00_issue_to_require.md` |
 | Plan (requirement → work plan) | `01_plan.md` |
 | Design (work plan → implementation docs) | `02_design.md` |
 | Implementation (implementation doc → code) | `03_implementation.md` |
+
+## Document workflow directories
+
+`requires/` holds the full issue-to-requirement pipeline in one place:
+
+| Directory | Contents |
+|---|---|
+| `requires/inbox/` | Raw, unformatted issues — the entry point. Populated manually (code review findings, proposals, audit results). |
+| `requires/ready/` | Formal requirement docs ready for `01_plan.md`, in the `Title/Priority/Target files/...` template. |
+| `requires/derived/` | Unknowns and risks generated as a byproduct of `01_plan.md` Steps 5-6. Not a workflow entry point. |
+| `requires/done/` | Completed items from any of the above — issues resolved via `00_issue_to_require.md`, or requirements consumed by `01_plan.md`. |
 
 ## Docs → task mapping
 

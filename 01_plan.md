@@ -7,23 +7,23 @@ Read the target requirement file, then create a concrete work plan based on the 
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
 - Do not touch files under `__pycache__/`.
-- Write all output documents (plans/, issues/) in clear and concise English for AI consumption.
+- Write all output documents (plans/, requires/derived/) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ### Token efficiency
 
 - Delegate Step 3 (reading related source files) to a read-only sub-agent. Have it return
   a concise summary of the relevant code, not full file contents, to the main context.
-- When multiple target files are specified, run each Steps 1-7 cycle as an isolated
-  sub-agent call so that source excerpts and analysis from one file's cycle do not
-  accumulate in the context used for the next file's cycle.
+- When multiple target files are specified, delegate each Steps 1-7 cycle to an isolated
+  sub-agent call for context hygiene only, so source excerpts and analysis from one
+  file's cycle do not accumulate into the next. This delegation is for context
+  isolation, **not parallel execution**: dispatch and await each sub-agent one at a
+  time, never in parallel, and do not start the next file's cycle until the current
+  file's Steps 1-7 (through moving it to `requires/done/` in Step 7) have completed.
 - Read shared files in Step 0 only once per session; do not re-read them for later
   cycles.
 - Keep start/end progress reports to one or two lines; do not restate the full plan
   content in progress reports.
-- **Process files sequentially, never in parallel within your own context.** Even if
-  multiple files are specified, maintain strict isolation between cycles. Each file's
-  Steps 1-7 must complete entirely before the next file begins.
 
 ### Tasks
 
@@ -45,12 +45,12 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify the target requirement file(s)
 
-- The target requirement file(s) are provided by the user (e.g. `requires/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
+- The target requirement file(s) are provided by the user (e.g. `requires/ready/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
 - **Read ONLY the current target file.** Do not read ahead into files that will be processed in a later cycle.
-- Do not read files under `requires/done/`.
+- Do not read files under `requires/done/`, `requires/inbox/`, or `requires/derived/`.
 
 #### Step 2: Create a work plan file
 
@@ -88,7 +88,7 @@ If all unknowns were resolved in Step 4, skip this step.
   - Reflect the answers in the work plan.
   - If any unknowns still remain unresolved, output them as a GitHub Issue Markdown template file:
     - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-    - Filename: `issues/{timestamp}_unknowns.md`
+    - Filename: `requires/derived/{timestamp}_unknowns.md`
     - 1 issue = 1 section
 
 #### Step 6: Analyze risks
@@ -97,7 +97,7 @@ If all unknowns were resolved in Step 4, skip this step.
 - Add any necessary mitigation steps to the work plan.
 - If any risks remain unmitigated, output them as a GitHub Issue Markdown template file:
   - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Filename: `issues/{timestamp}_risks.md`
+  - Filename: `requires/derived/{timestamp}_risks.md`
   - 1 issue = 1 section
 
 #### Step 7: Move the completed requirement file
