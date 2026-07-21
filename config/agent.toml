@@ -289,7 +289,7 @@ startup_mode     = "subprocess"
 auth_token       = ""
 role             = "execute"
 tool_names       = ["shell_run"]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/shell/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/shell/shell_server.py"]
 
 [mcp_servers.git]
 transport        = "http"
@@ -301,7 +301,7 @@ tool_names       = [
   "git_status", "git_log", "git_diff", "git_branch", "git_show",
   "git_add", "git_commit", "git_checkout", "git_pull", "git_push",
 ]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/git/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/git/git_server.py"]
 
 [mcp_servers.web_search]
 transport        = "http"
@@ -354,7 +354,7 @@ tool_names       = [
   "github_list_pull_requests", "github_get_pull_request", "github_create_pull_request",
   "github_search_pull_requests", "github_update_pull_request", "github_merge_pull_request",
 ]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/github/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/github/github_server.py"]
 
 [mcp_servers.cicd]
 transport        = "http"
@@ -363,7 +363,7 @@ startup_mode     = "subprocess"
 auth_token       = ""
 role             = "query"
 tool_names       = ["trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/cicd/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/cicd/cicd_server.py"]
 
 [mcp_servers.rag_pipeline]
 transport        = "http"
@@ -372,7 +372,7 @@ startup_mode     = "subprocess"
 auth_token       = ""
 role             = "query"
 tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/rag_pipeline/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py"]
 
 [mcp_servers.mdq]
 transport        = "http"
@@ -384,7 +384,7 @@ tool_names       = [
   "search_docs", "get_chunk", "outline", "index_paths", "refresh_index",
   "stats", "grep_docs",
 ]
-cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/mdq/server.py"]
+cmd              = ["uv", "run", "--directory", "/opt/llm", "python", "/opt/llm/scripts/mcp_servers/mdq/mdq_server.py"]
 
 # ── Tool definitions ──────────────────────────────────────────────────────────
 

@@ -82,8 +82,8 @@ higher-severity concern than the "dead duplicate code" issue those plans deferre
 
 ## Status
 
-Plan written, not yet implemented (2026-07-20). See `plans/20260720-073534_plan.md` for the concrete
-fix (8 `cmd` entries in `config/agent.toml`) and a new regression test guarding against this bug class
-recurring. `config/agent.toml` is a production configuration file, not a plan/issue document, so no
-edit has been made to it in this pass — implementation requires explicit approval, and redeploying the
-fix to `/opt/llm` requires a separate `deploy` step after that.
+Resolved (implemented at this commit). `config/agent.toml`'s 8 `cmd` entries now
+point at each server's actual `<name>_server.py`; `tests/test_mcp_server_cmd_paths.py` locks this
+invariant for all subprocess-mode MCP servers. Redeploying this fix to `/opt/llm` (so any currently
+running/crashed production processes actually pick it up) is a separate step — run the `deploy` skill
+after this fix is reviewed and merged.

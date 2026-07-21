@@ -45,6 +45,16 @@ apply any pending `/reload` config change either. See
 [Agent Operations: MCP restart requirement](05_agent_10_01_operations-and-observability-startup-and-health.md)
 for the full explanation.
 
+**`cmd` script-path invariant:** for every `[mcp_servers.<name>]` entry with
+`startup_mode = "subprocess"`, the last element of `cmd` must point to a
+script that actually exists on disk (relative to `/opt/llm/scripts/` in
+production, `scripts/` in this repo) — `ConfigLoader`/`_build_mcp_servers()`
+do not verify this at load time, so a stale or renamed path silently loads
+without error until the subprocess is spawned.
+`tests/test_mcp_server_cmd_paths.py` guards this invariant by loading the
+real `config/agent.toml` via `build_agent_config()` and asserting every
+subprocess-mode server's `cmd` script path resolves to an existing file.
+
 ## レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)
 
 | Server | Config file |
