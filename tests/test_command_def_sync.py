@@ -26,6 +26,7 @@ INTENTIONAL_HANDLER_EXCLUSIONS: frozenset[str] = frozenset(
         "_cmd_mdq_refresh",
         "_cmd_mdq_search",
         "_cmd_mdq_status",
+        "_cmd_mcp_tools",
     }
 )
 

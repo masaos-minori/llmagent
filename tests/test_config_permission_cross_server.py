@@ -46,5 +46,5 @@ def test_security_audit_config_blocked_in_restricted_agent_process() -> None:
     ConfigLoader.restrict_to("agent.toml")
     from agent.security_audit_config import load_shell_audit_config
 
-    with pytest.raises(RuntimeError, match="shell config"):
+    with pytest.raises(RuntimeError, match="not permitted"):
         load_shell_audit_config()
