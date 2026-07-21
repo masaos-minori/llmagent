@@ -347,12 +347,6 @@ class ApprovalConfig:
     approval_github_allowed_repos: list[str] = field(default_factory=list)
     # Block all GitHub write operations globally when True
     gitops_push_blocked: bool = False
-    # Block github_push_files with force=True
-    gitops_force_push_blocked: bool = True
-    # Protected branch names; push/merge to these requires high-risk approval
-    gitops_protected_branches: list[str] = field(
-        default_factory=lambda: ["main", "master"]
-    )
 
     def __post_init__(self) -> None:
         """Validate approval configuration fields after initialization."""

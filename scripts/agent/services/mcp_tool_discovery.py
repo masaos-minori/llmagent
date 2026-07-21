@@ -282,23 +282,20 @@ class McpToolDiscoveryService:
         Names reported by exactly one server become a RuntimeTool. Names
         reported by more than one distinct server are excluded from the
         registry entirely (per this module's docstring), each producing one
-        finding whose severity follows the unified scheme:
-        `is_fatal = strict or (security_profile == PRODUCTION)`.
+        FATAL finding — tool is unusable when duplicated across servers.
         """
         by_name: dict[str, list[_RawEntry]] = {}
         for server_key, server_url, entry in entries:
             name = str(entry["name"])
             by_name.setdefault(name, []).append((server_key, server_url, entry))
 
-        is_fatal = self._is_fatal_severity()
         findings: list[StartupCheckOutcome] = []
         built: dict[str, RuntimeTool] = {}
         for name, group in by_name.items():
             server_keys = sorted({server_key for server_key, _, _ in group})
             if len(server_keys) > 1:
-                status = (
-                    StartupCheckStatus.FATAL if is_fatal else StartupCheckStatus.WARNING
-                )
+                # Always fatal — tool is unusable when duplicated across servers
+                status = StartupCheckStatus.FATAL
                 msg = (
                     f"duplicate tool name {name!r} reported by multiple servers: "
                     f"{', '.join(server_keys)} — excluded from registry"
@@ -318,6 +315,7 @@ class McpToolDiscoveryService:
                 status=str(entry.get("status", "active")),
                 is_write=entry.get("is_write"),  # type: ignore[arg-type]
                 requires_serial=entry.get("requires_serial"),  # type: ignore[arg-type]
+                enabled_for_llm=bool(entry.get("enabled", True)),
                 capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
             )
         return RuntimeToolRegistry(tools=built), findings

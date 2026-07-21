@@ -61,15 +61,16 @@ class StartupOrchestrator:
             await self._check_services()
             await self._recover_pending_approvals()
             await self._setup_prompt()
-        except Exception:
+        except Exception as setup_err:
             if _servers_started:
                 try:
                     await self._ctx.services_required.lifecycle.shutdown_all()
                 except Exception as shutdown_err:
-                    logger.warning(
-                        "Startup rollback: shutdown_all() failed: %s", shutdown_err
+                    logger.error(
+                        "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
+                        shutdown_err,
                     )
-            raise
+            raise setup_err
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
@@ -162,11 +163,10 @@ class StartupOrchestrator:
         """Preflight check for workflow DB schema before Orchestrator.__init__()."""
         from agent.repl_health import check_workflow_schema  # noqa: PLC0415
 
-        try:
-            check_workflow_schema()
-        except RuntimeError as e:
-            logger.error("Workflow schema preflight failed: %s", e)
-            raise
+        result = check_workflow_schema()
+        if not result.valid:
+            logger.error("Workflow schema preflight failed: %s", result.error)
+            raise RuntimeError(result.error)
 
     def _check_embedding_dimensions(self) -> None:
         """Verify embedding dimension consistency between memory config and db config."""

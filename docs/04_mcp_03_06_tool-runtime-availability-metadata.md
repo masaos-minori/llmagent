@@ -19,7 +19,7 @@ related:
 
 # ツール実行時可用性メタデータ: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** As of 2026-07-20 `config_dependent` is adopted for `web_search-mcp`'s `browser_fetch` tool (merged from the former standalone browser-mcp server). `enabled`/`disabled_reason` fields are not yet implemented in MCP server responses. RuntimeToolRegistry wiring is complete — see `04_mcp_03_01_dispatch-and-routing.md` for details.
+> **Implementation status:** As of 2026-07-21 `config_dependent` is adopted for `web_search-mcp`'s `browser_fetch` tool (merged from the former standalone browser-mcp server). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `04_mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 1. `config_dependent` (static)
 

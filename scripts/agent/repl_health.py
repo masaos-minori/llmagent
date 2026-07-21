@@ -7,6 +7,8 @@ health check behaviour.
 
 from __future__ import annotations
 
+import os
+from dataclasses import dataclass
 from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import urlparse
@@ -319,14 +321,33 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     "workflow_schema_version": ["version", "applied_at"],
 }
 
+_WORKFLOW_SCHEMA_READ_ONLY = True
 
-def check_workflow_schema(db_path: str | None = None) -> None:
-    """Raise RuntimeError if the workflow DB is missing required tables or columns."""
+
+@dataclass(frozen=True)
+class SchemaCheckResult:
+    """Result of a workflow schema check."""
+
+    valid: bool
+    error: str | None = None
+
+
+def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
+    """Return SchemaCheckResult indicating whether the workflow DB schema is valid."""
     from db.helper import SQLiteHelper  # noqa: PLC0415
     from db.schema_sql import WORKFLOW_SCHEMA_VERSION  # noqa: PLC0415
 
     db = SQLiteHelper(target="workflow", db_path=db_path)
-    db.open(write_mode=False, row_factory=False)
+
+    # Check DB existence first — sqlite3.connect() creates files automatically
+    if db_path and not os.path.exists(db_path):
+        return SchemaCheckResult(valid=False, error=f"Workflow DB not found: {db_path}")
+
+    try:
+        db.open(write_mode=_WORKFLOW_SCHEMA_READ_ONLY, row_factory=False)
+    except Exception as e:
+        return SchemaCheckResult(valid=False, error=f"Failed to open workflow DB: {e}")
+
     try:
         tables = {
             row[0]
@@ -336,16 +357,18 @@ def check_workflow_schema(db_path: str | None = None) -> None:
         }
         for table, required_cols in REQUIRED_WORKFLOW_TABLES.items():
             if table not in tables:
-                raise RuntimeError(
-                    f"Workflow schema missing table {table!r}. Run create_workflow_schema() to initialize."
+                return SchemaCheckResult(
+                    valid=False,
+                    error=f"Workflow schema missing table {table!r}. Run create_workflow_schema() to initialize.",
                 )
             existing = {
                 row[1] for row in db.fetchall(f"PRAGMA table_info({table})", ())
             }
             for col in required_cols:
                 if col not in existing:
-                    raise RuntimeError(
-                        f"Workflow schema missing column {table}.{col}. Reinitialize the workflow database."
+                    return SchemaCheckResult(
+                        valid=False,
+                        error=f"Workflow schema missing column {table}.{col}. Reinitialize the workflow database.",
                     )
 
         rows = db.fetchall(
@@ -354,10 +377,13 @@ def check_workflow_schema(db_path: str | None = None) -> None:
         )
         actual_version = rows[0][0] if rows else None
         if actual_version != WORKFLOW_SCHEMA_VERSION:
-            raise RuntimeError(
-                f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
-                f"found {actual_version!r}. Run create_workflow_schema() to migrate."
+            return SchemaCheckResult(
+                valid=False,
+                error=f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
+                f"found {actual_version!r}. Run create_workflow_schema() to migrate.",
             )
+
+        return SchemaCheckResult(valid=True)
     finally:
         db.close()
 

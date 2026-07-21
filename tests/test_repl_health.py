@@ -836,53 +836,70 @@ class TestCheckWorkflowSchema:
 
     def test_valid_schema_passes(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path)
-        check_workflow_schema(db_path=db_path)  # must not raise
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is True
 
     def test_missing_tasks_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="tasks")
-        with pytest.raises(RuntimeError, match="tasks"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "tasks" in result.error
 
     def test_missing_attempts_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="attempts")
-        with pytest.raises(RuntimeError, match="attempts"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "attempts" in result.error
 
     def test_missing_processed_events_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="processed_events")
-        with pytest.raises(RuntimeError, match="processed_events"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "processed_events" in result.error
 
     def test_missing_artifacts_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="artifacts")
-        with pytest.raises(RuntimeError, match="artifacts"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "artifacts" in result.error
 
     def test_missing_approvals_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="approvals")
-        with pytest.raises(RuntimeError, match="approvals"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "approvals" in result.error
 
     def test_missing_required_column_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, missing_column=("tasks", "workflow_id"))
-        with pytest.raises(RuntimeError, match="workflow_id"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "workflow_id" in result.error
 
     def test_matching_schema_version_passes(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version=WORKFLOW_SCHEMA_VERSION)
-        check_workflow_schema(db_path=db_path)  # must not raise
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is True
 
     def test_missing_schema_version_row_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version=None)
-        with pytest.raises(RuntimeError, match="schema version mismatch"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "schema version mismatch" in result.error
 
     def test_mismatched_schema_version_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, schema_version="0.9.0")
-        with pytest.raises(RuntimeError, match="schema version mismatch"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "schema version mismatch" in result.error
 
     def test_missing_workflow_schema_version_table_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, exclude_table="workflow_schema_version")
-        with pytest.raises(RuntimeError, match="workflow_schema_version"):
-            check_workflow_schema(db_path=db_path)
+        result = check_workflow_schema(db_path=db_path)
+        assert result.valid is False
+        assert result.error is not None and "workflow_schema_version" in result.error
+
+    def test_missing_db_file_returns_error(self, tmp_path: Any) -> None:
+        nonexistent = str(tmp_path / "nonexistent.db")
+        result = check_workflow_schema(db_path=nonexistent)
+        assert result.valid is False
+        assert result.error is not None and "Workflow DB not found" in result.error

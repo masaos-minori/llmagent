@@ -98,7 +98,7 @@ source:
 ## Needs Confirmation として残した項目
 
 - `dlq.py::promote_to_dlq()` がデッドコードか、将来の一括運用コマンド用に意図的に残されているか
-- `gitops_force_push_blocked` / `gitops_protected_branches` 設定フィールドが将来実装予定なのか削除漏れなのか(`config/agent.toml` にキー自体が存在しないため設定ファイル修正の対象外。dataclass 側のクリーンアップが必要なら別途ソースコード変更として対応)
+- ~~`gitops_force_push_blocked` / `gitops_protected_branches` 設定フィールド~~ — 2026-07-21に削除済み
 - `agent/memory/store.py::DiagnosticStore` の `fetch_by_kind`/`fetch_all` が将来のCLI/API用途かどうか
 
 (`mdq_mcp_server.toml` の `concurrency_limit`/`audit_log_path` は上記「追記2」で調査・解決済みのため本リストから除外)

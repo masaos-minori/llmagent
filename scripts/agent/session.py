@@ -65,6 +65,11 @@ class AgentSession:
 
     def save_diagnostic(self, content: str) -> None:
         """Persist a diagnostic event to the session_diagnostics table via DiagnosticStore; never written to messages."""
+        if self.session_id is None:
+            logger.warning(
+                "save_diagnostic called before session.start(); skipping persist"
+            )
+            return
         self._diagnostic_store.save(
             self.session_id, kind="llm_transport_error", content=content
         )

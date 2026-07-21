@@ -80,8 +80,6 @@ Source: `config/agent.toml`
 | `allowed_root` | `""` | ファイルパスジェイル (空 = 無効) |
 | `approval_github_allowed_repos` | `[]` | GitHub書き込み許可リスト (空 = すべて拒否) |
 | `gitops_push_blocked` | `False` | GitHubへの書き込みをグローバルにすべてブロック |
-| `gitops_force_push_blocked` | `True` | force pushをブロック |
-| `gitops_protected_branches` | `[main, master]` | 保護対象ブランチ (高リスク承認) |
 
 **デフォルトの`approval_risk_rules`:**
 - `none`: (デフォルトではなし)

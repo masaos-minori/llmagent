@@ -246,7 +246,7 @@ class HttpServerLifecycleManager:
         health_url = cfg.url.rstrip("/") + "/health"
         if cfg.startup_timeout_sec > 0:
             deadline = time.monotonic() + cfg.startup_timeout_sec
-            async with httpx.AsyncClient(timeout=2.0) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=5.0)) as client:
                 while time.monotonic() < deadline:
                     if proc.poll() is not None:
                         stderr_full = self._read_stderr_tail(server_key)
@@ -275,7 +275,7 @@ class HttpServerLifecycleManager:
                             )
                             return
                     except (httpx.HTTPError, OSError) as e:
-                        logger.debug(
+                        logger.info(
                             "Lifecycle: health-check poll %r: %s", server_key, e
                         )
                     await asyncio.sleep(0.5)
@@ -335,10 +335,16 @@ class HttpServerLifecycleManager:
         old_sigint: object | None = None
         try:
             old_sigint = signal.getsignal(signal.SIGINT)
-            signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
         except ValueError:
             # Not on the main thread — proceed without the guard rather than fail shutdown.
             old_sigint = None
+
+        if old_sigint is not None:
+            try:
+                signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
+            except ValueError:
+                # signal.signal() failed — do not install the guard handler.
+                old_sigint = None
 
         try:
             keys = list(self._http_procs.keys())

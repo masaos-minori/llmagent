@@ -543,5 +543,16 @@ class Orchestrator:
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
             _task = asyncio.create_task(self._on_first_turn(line))
             self._background_tasks.add(_task)
-            _task.add_done_callback(self._background_tasks.discard)
+
+            def _discard_and_log(task: asyncio.Task[Any]) -> None:
+                exc = task.exception()
+                if exc is not None:
+                    if isinstance(exc, asyncio.CancelledError):
+                        # Task was cancelled — do not log as error.
+                        pass
+                    else:
+                        logger.error("First-turn background task failed: %s", exc)
+                self._background_tasks.discard(task)
+
+            _task.add_done_callback(_discard_and_log)
         ctx.session.save("user", line)

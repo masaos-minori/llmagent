@@ -421,10 +421,9 @@ class ConfigReloadService:
         """Return names of startup-only fields that differ between new_cfg and running cfg."""
         changed: list[str] = []
         ctx = self._ctx
-        # REMOVED: use_memory_layer tracking — key removed from schema
-        # REMOVED: v = _get_bool(new_cfg, "use_memory_layer")
-        # REMOVED: if v is not None and v != ctx.cfg.memory.use_memory_layer:
-        # REMOVED:     changed.append("use_memory_layer")
+        v = _get_bool(new_cfg, "use_memory_layer")
+        if v is not None and v != ctx.cfg.memory.use_memory_layer:
+            changed.append("use_memory_layer")
 
         v = _get_bool(new_cfg, "routing_drift_strict")
         if v is not None and v != ctx.cfg.tool.routing_drift_strict:

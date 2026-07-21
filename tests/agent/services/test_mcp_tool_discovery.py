@@ -413,7 +413,7 @@ class TestDiscoverAllDuplicates:
         assert result.registry.all_tools() == []
         dup_findings = [f for f in result.findings if "duplicate" in f.message]
         assert len(dup_findings) == 1
-        assert dup_findings[0].status == StartupCheckStatus.WARNING
+        assert dup_findings[0].status == StartupCheckStatus.FATAL
 
 
 # ── non-HTTP / empty-URL server filtering ──────────────────────────────────────
@@ -707,7 +707,7 @@ class TestDriftDetection:
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         dup_findings = [f for f in mcp_findings if "duplicate" in f.message.lower()]
         assert len(dup_findings) == 1
-        assert dup_findings[0].status == StartupCheckStatus.WARNING
+        assert dup_findings[0].status == StartupCheckStatus.FATAL
         assert "tool_a" in dup_findings[0].message
         # duplicate tool should NOT be in the registry
         assert not any(t.name == "tool_a" for t in result.registry.all_tools())
@@ -896,7 +896,7 @@ class TestUnifiedSeverity:
     @pytest.mark.parametrize(
         "strict, profile, expected_status",
         [
-            (False, SecurityProfile.LOCAL, StartupCheckStatus.WARNING),
+            (False, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
             (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
             (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
             (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),

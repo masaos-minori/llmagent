@@ -15,6 +15,7 @@ See scoring.py for scoring formula details.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import Any
 
 from db.helper import SQLiteHelper
@@ -230,9 +231,16 @@ class HybridRetriever:
             self.fts_fallback_count += 1
             return fts_hits
 
-        vec_hits = self._vec.knn_search(
-            embedding, query.memory_type, self._fts.candidate_limit, branch
-        )
+        try:
+            vec_hits = self._vec.knn_search(
+                embedding, query.memory_type, self._fts.candidate_limit, branch
+            )
+        except sqlite3.OperationalError as e:
+            logger.warning("Vector KNN failed, falling back to FTS-only: %s", e)
+            self.last_retrieval_mode = "fts_only"
+            self.fts_fallback_count += 1
+            return fts_hits
+
         if not vec_hits:
             logger.info("retrieval: fts_only (reason=vec_returned_empty)")
             self.last_retrieval_mode = "fts_only"

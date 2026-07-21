@@ -714,6 +714,25 @@ class TestHybridRetrieverFallbackCount:
 
         assert retriever.last_retrieval_mode == "fts_only"
 
+    def test_vector_operational_error_falls_back_to_fts(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        """When knn_search raises sqlite3.OperationalError, FTS results are returned."""
+        _insert(db_conn, memory_id="fts-fallback", content="fallback keyword xyz")
+        q = MemoryQuery(query="fallback keyword", limit=5)
+
+        with patch.object(
+            retriever._vec,
+            "knn_search",
+            side_effect=sqlite3.OperationalError("no such table: memories_vec"),
+        ):
+            hits = retriever.search(q, embedding=[0.1] * 3)
+
+        ids = [h.entry.memory_id for h in hits]
+        assert "fts-fallback" in ids
+        assert retriever.last_retrieval_mode == "fts_only"
+        assert retriever.fts_fallback_count == 1
+
 
 class TestBranchBoundary:
     """Branch boundary tests for top_semantic."""

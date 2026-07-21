@@ -139,7 +139,6 @@ class TestApprovalConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = ApprovalConfig()
         assert "write_file" in cfg.approval_risk_rules
-        assert cfg.gitops_force_push_blocked is True
 
     def test_invalid_risk_level_raises(self) -> None:
         with pytest.raises(ValueError, match="approval_risk_rules"):

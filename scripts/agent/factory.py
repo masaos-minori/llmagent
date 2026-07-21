@@ -299,6 +299,11 @@ def _build_memory_services(
     if _git.success and _git.data:
         _raw = _git.data.get("branch", "")
         _branch = "" if _raw == "HEAD (detached)" else _raw
+    else:
+        _logger.warning(
+            "Memory branch resolution failed: %s; falling back to global scope",
+            _git.failure_reason if _git.failure_reason else "unknown",
+        )
 
     injection = _build_injection_service(
         embed_client,

@@ -48,6 +48,24 @@ _GITOPS_BLOCKABLE_TOOLS: frozenset[str] = _GITHUB_MUTATION_TOOLS - {
     "github_add_issue_comment",
 }
 
+# Tools that support the dry_run parameter for preview enrichment.
+# Only these tools can safely receive dry_run=True during approval preview.
+_KNOWN_DRY_RUN_CAPABLE_TOOLS: frozenset[str] = frozenset(
+    [
+        "write_file",
+        "edit_file",
+        "create_directory",
+        "delete_file",
+        "delete_directory",
+        "move_file",
+    ]
+)
+
+
+def _is_dry_run_capable(tool_name: str) -> bool:
+    """Check whether a tool supports the dry_run parameter."""
+    return tool_name in _KNOWN_DRY_RUN_CAPABLE_TOOLS
+
 
 async def _build_preview_with_dry_run(
     ctx: AgentContext,
@@ -66,6 +84,11 @@ async def _build_preview_with_dry_run(
     ):
         preview_str: str = preview
         return preview_str
+    if not _is_dry_run_capable(tool_name):
+        logger.warning(
+            "Tool %s does not support dry_run; using static preview", tool_name
+        )
+        return preview
     try:
         result = await ctx.services_required.tools.execute(
             tool_name,

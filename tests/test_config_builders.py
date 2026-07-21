@@ -20,6 +20,7 @@ from agent.config_builders import (
     load_config,
 )
 from agent.config_dataclasses import AgentConfig
+from agent.services.exceptions import ConfigReloadValidationError
 
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
 # AgentConfig.__post_init__'s memory_embed_enabled cross-field check (now defaults to True,
@@ -49,9 +50,8 @@ class TestBuildLLMConfig:
         assert cfg.llm_max_tokens == 512
 
     def test_type_coercion_for_numeric_fields(self) -> None:
-        cfg = _build_llm_config({"llm_max_retries": "5", "llm_temperature": "0.5"})
-        assert cfg.llm_max_retries == 5
-        assert cfg.llm_temperature == 0.5
+        with pytest.raises(ConfigReloadValidationError):
+            _build_llm_config({"llm_max_retries": "5", "llm_temperature": "0.5"})
 
 
 # ── _build_rag_config ─────────────────────────────────────────────────────────
@@ -120,7 +120,6 @@ class TestBuildApprovalConfig:
         cfg = _build_approval_config({})
         assert "write_file" in cfg.approval_risk_rules
         assert cfg.approval_risk_rules["delete_file"] == "high"
-        assert cfg.gitops_force_push_blocked is True
 
     def test_invalid_risk_level_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="invalid levels"):
@@ -167,3 +166,64 @@ class TestLoadConfig:
             MockLoader.return_value.load_all.side_effect = TypeError("wrong type")
             with pytest.raises(ConfigLoadError, match="Config load failed"):
                 load_config()
+
+
+# ── Business Rule Validations ─────────────────────────────────────────────────
+
+
+class TestBusinessRuleValidations:
+    """Tests for business rule validations added via typed validators."""
+
+    def test_memory_retention_days_zero_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_retention_days": 0}
+        with pytest.raises(ConfigReloadValidationError, match="memory_retention_days"):
+            _build_memory_config(cfg)
+
+    def test_memory_retention_days_negative_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_retention_days": -1}
+        with pytest.raises(ConfigReloadValidationError, match="memory_retention_days"):
+            _build_memory_config(cfg)
+
+    def test_memory_embed_dim_zero_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_embed_dim": 0}
+        with pytest.raises(ConfigReloadValidationError, match="memory_embed_dim"):
+            _build_memory_config(cfg)
+
+    def test_memory_embed_timeout_sec_zero_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_embed_timeout_sec": 0}
+        with pytest.raises(
+            ConfigReloadValidationError, match="memory_embed_timeout_sec"
+        ):
+            _build_memory_config(cfg)
+
+    def test_memory_max_inject_semantic_negative_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_max_inject_semantic": -1}
+        with pytest.raises(
+            ConfigReloadValidationError, match="memory_max_inject_semantic"
+        ):
+            _build_memory_config(cfg)
+
+    def test_memory_max_inject_episodic_negative_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "memory_max_inject_episodic": -1}
+        with pytest.raises(
+            ConfigReloadValidationError, match="memory_max_inject_episodic"
+        ):
+            _build_memory_config(cfg)
+
+    def test_tool_safety_tiers_invalid_value_rejected(self) -> None:
+        cfg = {**_MIN_CFG, "tool_safety_tiers": {"test_key": "INVALID_TIER"}}
+        with pytest.raises(ConfigReloadValidationError, match="tool_safety_tiers"):
+            _build_approval_config(cfg)
+
+    def test_tool_safety_tiers_valid_values_accepted(self) -> None:
+        cfg = {
+            **_MIN_CFG,
+            "tool_safety_tiers": {
+                "read_op": "READ_ONLY",
+                "write_op": "WRITE_SAFE",
+                "danger_op": "WRITE_DANGEROUS",
+                "admin_op": "ADMIN",
+            },
+        }
+        result = _build_approval_config(cfg)
+        assert result.tool_safety_tiers == cfg["tool_safety_tiers"]

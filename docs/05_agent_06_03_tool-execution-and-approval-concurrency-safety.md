@@ -30,10 +30,6 @@ related:
 | `approval_protected_paths` | `cfg.approval.*` | パスプレフィックスによる`high`へのエスカレーション |
 | `approval_high_risk_branches` | `cfg.approval.*` | ブランチ名による`high`へのエスカレーション |
 | `gitops_push_blocked` | `cfg.approval.*` | GitHubへの書き込みをグローバルにすべてブロック |
-| `gitops_force_push_blocked` | `cfg.approval.*` | 設定フィールドとして存在 (デフォルト: `True`) だが、`tool_policy.py`/`tool_approval.py`のいずれからも参照されていない未配線の項目。force pushを拒否する専用ロジックは実装上存在しない (`force=True`引数は`_special_case_risk`により`high`へのリスクエスカレーションのみ発生する。[05_agent_06_02](05_agent_06_02_tool-execution-and-approval-approval.md#gitops系フラグと承認フローの関係-要注意-設定はあるが未配線の項目あり)参照) |
-| `gitops_protected_branches` | `cfg.approval.*` | 設定フィールドとして存在 (デフォルト: main, master) だが未配線。実際にブランチ名で`high`へエスカレートするのは`approval_high_risk_branches`のみ |
-
-> **Explicit in code:** `gitops_force_push_blocked`と`gitops_protected_branches`は`agent/config_dataclasses.py`にフィールド定義と`agent/config_builders.py`での読み込みはあるが、承認・リスク判定コード (`tool_policy.py`, `tool_approval.py`) から参照されていない。設定しても実行時の挙動には影響しない。**Needs confirmation:** 将来実装予定で先行定義されたものか、削除漏れの設定か不明。
 
 ---
 
