@@ -26,14 +26,6 @@
 
 ### 3.1 変更対象ファイル一覧
 
-#### browser/
-| 変更前 | 変更後 |
-|-------|--------|
-| `browser/models.py` | `browser/browser_models.py` |
-| `browser/server.py` | `browser/browser_server.py` |
-| `browser/service.py` | `browser/browser_service.py` |
-| `browser/tools.py` | `browser/browser_tools.py` |
-
 #### cicd/
 | 変更前 | 変更後 |
 |-------|--------|
