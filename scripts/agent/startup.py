@@ -249,8 +249,12 @@ class StartupOrchestrator:
 
         # 5. Routing drift (static)
         try:
-            for msg in check_routing_drift(ctx):
+            for msg in check_routing_drift(
+                ctx, strict=ctx.cfg.tool.routing_drift_strict
+            ):
                 pipeline.add_warning("routing_drift", msg)
+        except RuntimeError as exc:
+            pipeline.add_fatal("routing_drift", str(exc))
         except Exception as exc:  # noqa: BLE001
             pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
 

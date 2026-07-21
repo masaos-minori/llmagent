@@ -230,6 +230,67 @@ async def test_warnings_only_no_raise(startup_instance) -> None:
 
 
 @pytest.mark.asyncio
+async def test_routing_drift_strict_true_raises_fatal(startup_instance) -> None:
+    startup_instance._ctx.cfg.tool.routing_drift_strict = True
+    with (
+        patch(f"{MODULE}.audit_security_defaults", return_value=[]),
+        patch(
+            f"{MODULE}.check_readiness",
+            new_callable=AsyncMock,
+            return_value=HealthCheckResult(),
+        ),
+        patch(
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
+        ),
+        patch(
+            f"{MODULE}.check_routing_drift",
+            side_effect=RuntimeError("routing drift detected: tool_names mismatch"),
+        ),
+        patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+        patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+    ):
+        mock_rag.return_value.consistency.return_value.is_consistent = True
+        with pytest.raises(RuntimeError, match="Startup validation failed"):
+            await startup_instance._check_services()
+
+
+@pytest.mark.asyncio
+async def test_routing_drift_strict_false_warns_only(startup_instance) -> None:
+    startup_instance._ctx.cfg.tool.routing_drift_strict = False
+    with (
+        patch(f"{MODULE}.audit_security_defaults", return_value=[]),
+        patch(
+            f"{MODULE}.check_readiness",
+            new_callable=AsyncMock,
+            return_value=HealthCheckResult(),
+        ),
+        patch(
+            f"{MODULE}.McpToolDiscoveryService",
+            new_callable=MagicMock,
+            return_value=MagicMock(
+                discover_all=AsyncMock(
+                    return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                )
+            ),
+        ),
+        patch(
+            f"{MODULE}.check_routing_drift",
+            return_value=["drift: tool foo missing from tool_definitions"],
+        ),
+        patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+        patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+    ):
+        mock_rag.return_value.consistency.return_value.is_consistent = True
+        await startup_instance._check_services()  # must not raise
+
+
+@pytest.mark.asyncio
 async def test_skipped_live_routing_no_raise(startup_instance) -> None:
     with (
         patch(f"{MODULE}.audit_security_defaults", return_value=[]),
