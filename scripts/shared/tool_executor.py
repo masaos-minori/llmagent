@@ -10,6 +10,8 @@ applies TTL caching on successful results, and delegates execution to the
 configured transport.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
