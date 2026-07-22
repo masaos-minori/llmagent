@@ -38,7 +38,10 @@ from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagRunRequest,
     RagRunResponse,
 )
-from mcp_servers.rag_pipeline.rag_pipeline_service import RagPipelineMCPService, _service
+from mcp_servers.rag_pipeline.rag_pipeline_service import (
+    RagPipelineMCPService,
+    _service,
+)
 from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
 from mcp_servers.server import MCPServer, ToolArgs
 

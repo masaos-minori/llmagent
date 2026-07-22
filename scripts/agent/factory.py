@@ -64,7 +64,17 @@ class _ServerLifecycleRouter:
 
     def _set_state(self, server_key: str, new_state: LifecycleState) -> None:
         """Transition the server state with validation."""
-        current = self._states.get(server_key, LifecycleState.UNKNOWN)
+        # First-time server: no prior state to validate against.
+        if server_key not in self._states:
+            _logger.info(
+                "Lifecycle: initializing state for %r -> %r",
+                server_key,
+                new_state,
+            )
+            self._states[server_key] = new_state
+            return
+
+        current = self._states[server_key]
         try:
             assert_valid_transition(current, new_state)
         except ValueError:

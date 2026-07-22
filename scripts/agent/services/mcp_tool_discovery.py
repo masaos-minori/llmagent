@@ -48,6 +48,7 @@ from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
 
+from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
 from agent.repl_health import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 
@@ -121,7 +122,8 @@ class McpToolDiscoveryService:
         """
         try:
             resp = await self._ctx.services_required.http.get(
-                f"{cfg.url}/v1/tools", timeout=5.0
+                f"{cfg.url}/v1/tools",
+                timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT),
             )
         except (httpx.HTTPError, OSError) as e:
             msg = f"{key} unreachable at {cfg.url}/v1/tools: {e}"

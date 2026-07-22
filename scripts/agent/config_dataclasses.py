@@ -390,6 +390,7 @@ class AgentConfig:
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     security_lockdown_enabled: bool = False
+    agent_memory_max_startup_snippets: int = 10
 
     def __post_init__(self) -> None:
         """Validate cross-field dependencies between sub-configs."""

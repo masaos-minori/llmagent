@@ -10,10 +10,15 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.factory import _ServerLifecycleRouter, build_agent_context, init_tracer
+from agent.factory import (
+    _logger,
+    _ServerLifecycleRouter,
+    build_agent_context,
+    init_tracer,
+)
 from agent.lifecycle import LifecycleState
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
@@ -479,3 +484,17 @@ class TestLifecycleStateTracking:
 
         assert LifecycleState.STARTING in states_during_start
         assert router.get_transport_state("srv") == LifecycleState.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_first_time_server_initialization_logs_info(self) -> None:
+        """First-time server initialization emits an INFO-level log."""
+        router = _make_router()
+        cfg = router._server_configs["srv"]
+
+        with patch.object(_logger, "info") as mock_info:
+            await router.start_http_subprocess("srv", cfg)
+
+        # The first call should be the INFO-level initialization log
+        init_call = mock_info.call_args_list[0]
+        assert "initializing state" in str(init_call).lower()
+        assert "srv" in str(init_call)

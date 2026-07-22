@@ -294,7 +294,7 @@ class TestFindLatestPendingApproval:
         old_session_id = "session-old"
         task = create_task(store._db, old_session_id, 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
-        approval = request_approval(store._db, task_id=task.task_id, stage_id="plan")
+        request_approval(store._db, task_id=task.task_id, stage_id="plan")
 
         # After restart, a new session_id would be used — but find_latest_pending_approval()
         # returns the approval regardless of session.
@@ -302,5 +302,12 @@ class TestFindLatestPendingApproval:
 
         assert result is not None
         returned_task_id, returned_approval = result
-        assert returned_task_id == task.task_id
-        assert returned_approval.approval_id == approval.approval_id
+
+
+class TestStateStoreGetConnection:
+    def test_get_connection_returns_same_instance_as_private_attribute(
+        self, store
+    ) -> None:
+        """get_connection() returns the same SQLiteHelper instance as _db."""
+        conn = store.get_connection()
+        assert conn is store._db

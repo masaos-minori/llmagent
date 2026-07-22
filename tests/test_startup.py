@@ -135,14 +135,47 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         approval.reason = "waiting for deploy"
 
         with patch(
-            "agent.startup.find_latest_pending_approval",
-            return_value=("task-456", approval),
+            "agent.startup.find_all_pending_approvals",
+            return_value=[("task-456", approval)],
         ):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is True
         assert ctx.turn.pending_approval_id == "approval-123"
         assert ctx.turn.pending_approval_task_id == "task-456"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_shows_last_of_multiple_pending_approvals(
+        self,
+    ) -> None:
+        """When multiple pending approvals exist, the most recent one is shown."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval1 = MagicMock()
+        approval1.approval_id = "approval-old"
+        approval1.reason = "old reason"
+
+        approval2 = MagicMock()
+        approval2.approval_id = "approval-new"
+        approval2.reason = "new reason"
+
+        with patch(
+            "agent.startup.find_all_pending_approvals",
+            return_value=[("task-old", approval1), ("task-new", approval2)],
+        ):
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id == "approval-new"
+        assert ctx.turn.pending_approval_task_id == "task-new"
+        assert len(view.write_warning.call_args[0][0]) > 0
 
     @pytest.mark.asyncio
     async def test_startup_recovery_warning_contains_task_and_approval_id(self) -> None:
@@ -161,8 +194,8 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         approval.reason = "waiting for deploy"
 
         with patch(
-            "agent.startup.find_latest_pending_approval",
-            return_value=("task-456", approval),
+            "agent.startup.find_all_pending_approvals",
+            return_value=[("task-456", approval)],
         ):
             await startup._recover_pending_approvals()
 
@@ -194,7 +227,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
 
         startup = StartupOrchestrator(ctx, view)
 
-        with patch("agent.startup.find_latest_pending_approval", return_value=None):
+        with patch("agent.startup.find_all_pending_approvals", return_value=[]):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is False
@@ -214,7 +247,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
 
         with patch("agent.startup.StateStore", return_value=mock_store):
             with patch(
-                "agent.startup.find_latest_pending_approval",
+                "agent.startup.find_all_pending_approvals",
                 side_effect=RuntimeError("db error"),
             ):
                 with pytest.raises(RuntimeError, match="db error"):
@@ -256,6 +289,7 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.session.session_id = 1
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        ctx.cfg.agent_memory_max_startup_snippets = 10
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 
@@ -293,6 +327,27 @@ class TestStartupOrchestratorSetupPrompt:
 
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[0] == {"role": "system", "content": "Initial prompt"}
+
+    @pytest.mark.asyncio
+    async def test_memory_snippets_truncated_when_exceeds_limit(self) -> None:
+        """Memory snippets are truncated when exceeding the configured limit."""
+        snippets = [MagicMock(text=f"memory {i}") for i in range(15)]
+        ctx = MagicMock()
+        mock_mem = MagicMock()
+        mock_mem.on_session_start.return_value = snippets
+        ctx.services_required.memory = mock_mem
+        ctx.session.session_id = 1
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        ctx.cfg.agent_memory_max_startup_snippets = 10
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        await startup._setup_prompt()
+
+        assert "[Relevant memories]" in ctx.conv.system_prompt_content
+        assert "memory 9" in ctx.conv.system_prompt_content
+        assert "memory 10" not in ctx.conv.system_prompt_content
 
 
 # ── Workflow preflight abort tests ───────────────────────────────────────────

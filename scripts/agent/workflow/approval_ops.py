@@ -172,3 +172,35 @@ def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord]
         resolved_at=r["resolved_at"],
         workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
     )
+
+
+def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalRecord]]:
+    """Return all globally pending approvals ordered by creation time descending."""
+    rows = db.fetchall(
+        """
+
+        SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
+        FROM tasks t
+        JOIN approvals a ON t.task_id = a.task_id
+        WHERE t.status = 'pending_approval'
+          AND a.status = 'pending'
+        ORDER BY a.created_at DESC, a.rowid DESC
+        """,
+        (),
+    )
+    return [
+        (
+            r["task_id"],
+            ApprovalRecord(
+                approval_id=r["approval_id"],
+                task_id=r["task_id"],
+                stage_id=r["stage_id"],
+                status="pending",
+                reason=r["reason"],
+                created_at=r["created_at"],
+                resolved_at=r["resolved_at"],
+                workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
+            ),
+        )
+        for r in rows
+    ]

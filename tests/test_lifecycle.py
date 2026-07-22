@@ -156,7 +156,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
         ):
@@ -191,7 +191,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(RuntimeError, match="exited early"),
@@ -212,7 +212,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(RuntimeError, match="did not become healthy"),
@@ -236,7 +236,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             patch.object(mgr._http_mgr, "_terminate_with_timeout"),
@@ -265,7 +265,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
         ):
@@ -296,7 +296,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             patch.object(mgr._http_mgr, "_terminate_with_timeout"),
@@ -325,7 +325,7 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
         ):
@@ -341,6 +341,29 @@ class TestStartHttpSubprocess:
     @pytest.mark.asyncio
     async def test_health_poll_exception_is_logged_not_raised(self) -> None:
         pytest.skip("source code cfg.cmd removed; skip until source fix")
+
+    @pytest.mark.asyncio
+    async def test_getpgid_failure_cleans_up_resources(self) -> None:
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+
+        mock_proc = _make_mock_proc()
+
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch(
+                "agent.http_lifecycle.os.getpgid",
+                side_effect=OSError("no such process"),
+            ),
+            patch("agent.http_lifecycle.os.killpg"),
+        ):
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert "s" not in mgr._http_mgr._http_procs
+        assert "s" not in mgr._http_mgr._http_pgids
+        assert "s" not in mgr._http_mgr._stderr_files
+        assert "s" not in mgr._http_mgr._stderr_log_paths
 
 
 class TestRestart:
@@ -541,7 +564,7 @@ class TestHttpLifecycleStderrLog:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
@@ -573,7 +596,7 @@ class TestHttpLifecycleStderrLog:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
                 "agent.http_lifecycle.os.getpgid",
-                side_effect=OSError("no such process"),
+                return_value=9999,
             ),
             patch("agent.http_lifecycle.os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
@@ -933,3 +956,43 @@ class TestProcessGroupShutdown:
 
         assert mgr._http_pgids["srv"] == 9999
         assert mgr._http_pgids.get("srv") == 9999
+
+    @pytest.mark.asyncio
+    async def test_shutdown_all_restores_sigint_handler_when_signal_signal_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """shutdown_all() must restore the original SIGINT handler even when
+        signal.signal() fails after signals.getsignal() succeeds."""
+        from agent import http_lifecycle as mod
+
+        original_handler = object()
+        call_count = 0
+
+        def mock_getsig(sig):
+            if sig == signal.SIGINT:
+                return original_handler
+            raise ValueError("not main thread")
+
+        def mock_sigsig(sig, handler):
+            nonlocal call_count, last_call_args
+            call_count += 1
+            last_call_args = (sig, handler)
+            if sig == signal.SIGINT and call_count <= 1:
+                # First call (install guard) raises; finally block restore succeeds
+                raise ValueError("not main thread")
+            return object()
+
+        last_call_args: tuple[int, object] | None = None
+
+        monkeypatch.setattr(mod.signal, "getsignal", mock_getsig)
+        monkeypatch.setattr(mod.signal, "signal", mock_sigsig)
+
+        mgr = HttpServerLifecycleManager()
+        mgr._http_procs["srv"] = MagicMock(poll=MagicMock(return_value=0))
+
+        await mgr.shutdown_all()
+
+        # Verify the final signal.signal() call restored the original handler
+        assert call_count >= 2
+        assert last_call_args[0] == signal.SIGINT
+        assert last_call_args[1] is original_handler

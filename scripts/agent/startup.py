@@ -27,7 +27,7 @@ from agent.repl_health import (
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
-from agent.workflow.approval_ops import find_latest_pending_approval
+from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
 
 if TYPE_CHECKING:
@@ -315,24 +315,26 @@ class StartupOrchestrator:
             return
         store = StateStore()
         try:
-            result = find_latest_pending_approval(store._db)
+            results = find_all_pending_approvals(store.get_connection())
         finally:
             store.close()
-        if result is None:
+        if not results:
             return
-        task_id, approval = result
+        # Recover the most recent pending approval first
+        task_id, approval = results[-1]
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
         ctx.turn.pending_approval_task_id = task_id
         logger.warning(
-            "Recovered pending approval: task=%s approval=%s reason=%s",
+            "Recovered %d pending approval(s); showing last: task=%s approval=%s reason=%s",
+            len(results),
             task_id,
             approval.approval_id,
             approval.reason or "none",
         )
         self._view.write_warning(
             f"{OutputTag.WORKFLOW} Pending approval from previous session — "
-            f"task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
+            f"{len(results)} pending approval(s); last: task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
             f"Use /approve {approval.approval_id} [reason] or /reject {approval.approval_id} [reason]."
         )
 
@@ -348,6 +350,15 @@ class StartupOrchestrator:
                 ctx.session.session_id,
             )
             if memory_snippets:
+                max_snippets = ctx.cfg.agent_memory_max_startup_snippets
+                if len(memory_snippets) > max_snippets:
+                    logger.warning(
+                        "Startup: truncating %d memory snippets to %d for %r",
+                        len(memory_snippets),
+                        max_snippets,
+                        ctx.session.session_id,
+                    )
+                    memory_snippets = memory_snippets[:max_snippets]
                 memory_block = "\n\n[Relevant memories]\n" + "\n".join(
                     f"- {snippet.text}" for snippet in memory_snippets
                 )

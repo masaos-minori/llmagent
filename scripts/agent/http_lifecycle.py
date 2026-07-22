@@ -27,6 +27,8 @@ from agent.services.models import ProcessInfoSnapshot
 
 logger = logging.getLogger(__name__)
 
+MCPSERVER_HEALTH_TIMEOUT: float = 5.0
+
 
 @dataclass
 class StartupFailure:
@@ -240,7 +242,17 @@ class HttpServerLifecycleManager:
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
         except OSError:
-            pass
+            logger.warning(
+                "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
+                server_key,
+                proc.pid,
+            )
+            stderr_fh.close()
+            self._stderr_files.pop(server_key, None)
+            self._stderr_log_paths.pop(server_key, None)
+            self._http_procs.pop(server_key, None)
+            self._http_pgids.pop(server_key, None)
+            return
         self._http_procs[server_key] = proc
 
         health_url = cfg.url.rstrip("/") + "/health"
@@ -342,9 +354,13 @@ class HttpServerLifecycleManager:
         if old_sigint is not None:
             try:
                 signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
-            except ValueError:
+            except ValueError as exc:
                 # signal.signal() failed — do not install the guard handler.
-                old_sigint = None
+                # Keep old_sigint intact so the finally block can restore the original handler.
+                logger.debug(
+                    "Lifecycle: could not install SIGINT guard handler: %s",
+                    exc,
+                )
 
         try:
             keys = list(self._http_procs.keys())

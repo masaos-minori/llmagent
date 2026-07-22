@@ -30,6 +30,15 @@ class StateStore:
         """Close the underlying database connection."""
         self._db.close()
 
+    def get_connection(self) -> SQLiteHelper:
+        """Return the underlying SQLiteHelper connection.
+
+        Used by external callers that need direct DB access for queries
+        not covered by the StateStore CRUD API. Prefer using StateStore
+        methods when possible; use this only when necessary.
+        """
+        return self._db
+
     # ── Task ─────────────────────────────────────────────────────────────────
 
     def create_task(

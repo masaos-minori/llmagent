@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 from shared.mcp_config import McpServerHealthState, TransportType
 
+from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
 from agent.lifecycle import LifecycleState
 from agent.repl_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
@@ -60,7 +61,9 @@ class McpStatusService:
         ctx = self._ctx
         tiers: dict[str, str] = ctx.cfg.approval.tool_safety_tiers
         results: list[McpProbeResult] = []
-        async with httpx.AsyncClient(timeout=5.0) as probe:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT)
+        ) as probe:
             for key, cfg in ctx.cfg.mcp.mcp_servers.items():
                 result = await self._probe_single_server(probe, ctx, key, cfg, tiers)
                 results.append(result)
