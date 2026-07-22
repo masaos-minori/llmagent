@@ -319,7 +319,6 @@ class McpToolDiscoveryService:
                 requires_serial=entry.get("requires_serial"),  # type: ignore[arg-type]
                 enabled_for_llm=bool(entry.get("enabled", True)),
                 capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
-                enabled_for_llm=bool(entry.get("enabled", True)),
             )
         return RuntimeToolRegistry(tools=built), findings
 
