@@ -175,11 +175,20 @@ class RuntimeToolRegistry:
 
         Each row contains: name, server_key, config_dependent, enabled,
         disabled_reason, enabled_for_llm. Sorted by name.
+
+        `disabled_reason` prefers the discovery-time reason a server sent in its
+        /v1/tools entry (`raw_definition["disabled_reason"]`), falling back to a
+        status-derived value for tools whose entry never carried that key.
         """
         rows: list[dict[str, object]] = []
         for tool in sorted(self._tools.values(), key=lambda t: t.name):
             config_dep = tool.status != "active"
-            disabled_reason = "" if tool.status == "active" else tool.status
+            raw_reason = tool.raw_definition.get("disabled_reason")
+            disabled_reason = (
+                str(raw_reason)
+                if isinstance(raw_reason, str) and raw_reason
+                else ("" if tool.status == "active" else tool.status)
+            )
             rows.append(
                 {
                     "name": tool.name,

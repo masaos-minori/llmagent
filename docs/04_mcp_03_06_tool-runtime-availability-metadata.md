@@ -70,6 +70,14 @@ Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch 
 
 Disabled tools are tracked for diagnostics (`enabled_for_llm` derived field) but never included in the LLM-facing tool list and never dispatchable through the registry's own routing path. Four states: discovered / MCP-server-enabled / agent-policy-enabled / LLM-visible. Reference requirement 17's plan (`plans/20260717-175327_plan.md`) — per the post-review decision, this section describes the disabled-visibility fields/methods as an extension of the adopted 13-field/9-method `RuntimeTool`/`RuntimeToolRegistry` lineage (`implementations/20260717-203121_runtime_tool.py.md`, `implementations/20260717-203200_runtime_tool_registry.py.md`, `implementations/20260718-084710_runtime_tool.py.md`), not as a separate 6-field class.
 
+`RuntimeToolRegistry.diagnostics()` (consumed by `/mcp status`'s `DISABLED_REASON` column, see `cmd_mcp.py`) computes each row's `disabled_reason` by first checking `tool.raw_definition.get("disabled_reason")` — the raw string a server actually sent in its `/v1/tools` entry, if present and non-empty — and only falls back to a `tool.status`-derived value (`""` when `status == "active"`, otherwise the status string) when the raw entry carried no such key. This lets `/mcp status` surface a server's real audit-trail reason once servers adopt the `enabled`/`disabled_reason` schema from section 2, while preserving the pre-existing status-derived value for every tool discovered today, none of which yet sends `disabled_reason` (see section 1's implementation-status callout).
+
+## Wiring reference
+
+For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see also:
+- `docs/04_mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
+- `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
+
 ## Future / deferred design options
 
 Evaluated per requirement 20 (`requires/done/20260717_20_require.md` once filed) and

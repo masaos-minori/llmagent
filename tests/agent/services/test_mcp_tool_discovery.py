@@ -135,6 +135,78 @@ class TestDiscoverAllHappyPath:
         assert tool.requires_serial is False
 
 
+# ── enabled_for_llm derivation from `enabled` key ─────────────────────────────
+
+
+class TestDiscoverAllEnabledForLlm:
+    @pytest.mark.asyncio
+    async def test_enabled_key_absent_defaults_to_true(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("grep").enabled_for_llm is True
+
+    @pytest.mark.asyncio
+    async def test_enabled_true_stays_visible(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "read_file",
+                            "description": "d",
+                            "inputSchema": {},
+                            "enabled": True,
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.get("read_file").enabled_for_llm is True
+
+    @pytest.mark.asyncio
+    async def test_enabled_false_hides_tool_from_llm(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "delete_file",
+                            "description": "d",
+                            "inputSchema": {},
+                            "enabled": False,
+                            "disabled_reason": "feature flag off",
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        tool = result.registry.get("delete_file")
+        assert tool.enabled_for_llm is False
+        # still present in the registry (routing-visible); only LLM-payload visibility is gated
+        assert "delete_file" in {t.name for t in result.registry.all_tools()}
+
+
 # ── per-entry schema validation ───────────────────────────────────────────────
 
 
@@ -567,6 +639,61 @@ async def test_resource_scope_type_checked_when_present_synthetic() -> None:
 
     assert result2.registry.get("test_tool_ok") is not None
     assert not any("resource_scope" in f.message for f in result2.findings)
+
+
+@pytest.mark.asyncio
+async def test_enabled_type_checked_when_present_synthetic() -> None:
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.get = _async_result(
+        _resp(
+            200,
+            {
+                "tools": [
+                    {
+                        "name": "test_tool",
+                        "description": "desc",
+                        "inputSchema": {},
+                        "enabled": "yes",
+                    }
+                ]
+            },
+        )
+    )
+    ctx = _make_ctx({"srv": _server()}, http)
+
+    result = await McpToolDiscoveryService(ctx).discover_all()
+
+    assert result.registry.all_tools() == []
+    enabled_findings = [
+        f
+        for f in result.findings
+        if "enabled" in f.message and "test_tool" in f.message
+    ]
+    assert len(enabled_findings) == 1
+    assert enabled_findings[0].status == StartupCheckStatus.WARNING
+
+    http2 = AsyncMock(spec=httpx.AsyncClient)
+    http2.get = _async_result(
+        _resp(
+            200,
+            {
+                "tools": [
+                    {
+                        "name": "test_tool_ok",
+                        "description": "desc",
+                        "inputSchema": {},
+                        "enabled": False,
+                    }
+                ]
+            },
+        )
+    )
+    ctx2 = _make_ctx({"srv": _server()}, http2)
+
+    result2 = await McpToolDiscoveryService(ctx2).discover_all()
+
+    assert result2.registry.get("test_tool_ok") is not None
+    assert not any("enabled" in f.message for f in result2.findings)
 
 
 @pytest.mark.asyncio

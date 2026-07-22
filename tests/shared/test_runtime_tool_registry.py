@@ -1,6 +1,7 @@
 """tests/shared/test_runtime_tool_registry.py
 Unit tests for RuntimeToolRegistry: resolve/get, all_tools, llm_tool_definitions,
-tool_spec_map/tool_spec_for_call, is_side_effect, classify_operation_type, apply_policy.
+tool_spec_map/tool_spec_for_call, is_side_effect, classify_operation_type, apply_policy,
+diagnostics.
 """
 
 from __future__ import annotations
@@ -149,3 +150,37 @@ class TestRuntimeToolRegistry:
         reg = _registry_with(tool)
         reg.apply_policy(tier_map={})
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
+
+    def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
+        tool = build_runtime_tool(
+            name="quota_tool",
+            server_key="s",
+            status="inactive",
+            raw_definition={"disabled_reason": "quota exceeded"},
+        )
+        reg = _registry_with(tool)
+        row = reg.diagnostics()[0]
+        assert row["disabled_reason"] == "quota exceeded"
+
+    def test_diagnostics_falls_back_to_status_when_raw_definition_lacks_disabled_reason(
+        self,
+    ) -> None:
+        tool = build_runtime_tool(
+            name="inactive_tool", server_key="s", status="inactive", raw_definition={}
+        )
+        reg = _registry_with(tool)
+        row = reg.diagnostics()[0]
+        assert row["disabled_reason"] == "inactive"
+
+    def test_diagnostics_active_status_with_no_raw_reason_yields_empty_string(
+        self,
+    ) -> None:
+        tool = build_runtime_tool(
+            name="active_tool", server_key="s", status="active", raw_definition={}
+        )
+        reg = _registry_with(tool)
+        row = reg.diagnostics()[0]
+        assert row["disabled_reason"] == ""
+        assert row["config_dependent"] is False
+        assert row["enabled"] is True
+        assert row["server_key"] == "s"

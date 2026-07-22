@@ -215,8 +215,9 @@ class McpToolDiscoveryService:
         Rules: entry is a dict; `name` is a non-empty string; `description`
         is present and is a str (empty string allowed); `inputSchema` or
         `input_schema` is a dict; optional `status`/`is_write`/
-        `requires_serial`/`resource_scope`/`capabilities` are type-checked
-        only if present. Schema errors are per-tool WARNING findings, not FATAL.
+        `requires_serial`/`resource_scope`/`enabled`/`capabilities` are
+        type-checked only if present. Schema errors are per-tool WARNING
+        findings, not FATAL.
         """
         if not isinstance(entry, dict):
             msg = f"{server_key}: /v1/tools tool entry is not an object (got {type(entry).__name__})"
@@ -252,6 +253,7 @@ class McpToolDiscoveryService:
             ("is_write", bool),
             ("requires_serial", bool),
             ("resource_scope", str),
+            ("enabled", bool),
         ):
             if field_name in entry and not isinstance(entry[field_name], expected_type):
                 msg = (
@@ -317,6 +319,7 @@ class McpToolDiscoveryService:
                 requires_serial=entry.get("requires_serial"),  # type: ignore[arg-type]
                 enabled_for_llm=bool(entry.get("enabled", True)),
                 capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
+                enabled_for_llm=bool(entry.get("enabled", True)),
             )
         return RuntimeToolRegistry(tools=built), findings
 

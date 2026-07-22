@@ -10,10 +10,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
@@ -308,3 +309,60 @@ class TestBrowserToolsConfigDependentMigration:
 
         fetch_tool = next(t for t in TOOL_LIST if t["name"] == "browser_fetch")
         assert fetch_tool.get("config_dependent") is True
+
+
+# ── 4. Discovery → RuntimeToolRegistry → LLM Payload Visibility (end-to-end) ──
+# Exercises the real McpToolDiscoveryService.discover_all() call site (mocked
+# HTTP transport only) through to RuntimeToolRegistry.llm_tool_definitions(),
+# proving `enabled_for_llm` is correctly derived from a live discovery
+# response rather than a hand-built RuntimeTool fixture (see
+# `_make_runtime_registry()` above, which always passes `enabled_for_llm=True`
+# explicitly and therefore cannot catch a regression in the discovery→registry
+# wiring itself).
+
+
+class TestDiscoveryToLlmVisibilityEndToEnd:
+    """End-to-end regression guard for `enabled_for_llm` discovery wiring."""
+
+    @staticmethod
+    def _http_with_tools() -> AsyncMock:
+        """Build a mocked httpx.AsyncClient returning one visible and one disabled tool."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "tools": [
+                {
+                    "name": "visible_tool",
+                    "description": "stays visible",
+                    "inputSchema": {"type": "object"},
+                },
+                {
+                    "name": "hidden_tool",
+                    "description": "explicitly disabled",
+                    "inputSchema": {"type": "object"},
+                    "enabled": False,
+                    "disabled_reason": "config-gated",
+                },
+            ]
+        }
+        http.get = AsyncMock(return_value=resp)
+        return http
+
+    async def test_disabled_discovered_tool_excluded_from_llm_payload(self) -> None:
+        """A discovered tool with `enabled: false` is hidden from the LLM payload."""
+        http = self._http_with_tools()
+        ctx = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {
+            "srv": McpServerConfig(TransportType.HTTP, "http://127.0.0.1:9100")
+        }
+        ctx.services_required.http = http
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        names = {d["name"] for d in result.registry.llm_tool_definitions()}
+        assert "visible_tool" in names
+        assert "hidden_tool" not in names
+        # Confirms the value came from the real _dedupe_and_build()/
+        # build_runtime_tool() path, not a hand-built fixture.
+        assert result.registry.get("hidden_tool").enabled_for_llm is False

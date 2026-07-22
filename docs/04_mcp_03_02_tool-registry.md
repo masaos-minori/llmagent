@@ -135,7 +135,7 @@ is_side_effect(tool_name: str) -> bool
 
 ### `RuntimeToolRegistry` とライブ検出（実装済み）
 
-`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証し（`name`/`description`/`inputSchema` を必須、`status`/`is_write`/`requires_serial`/`resource_scope` は存在する場合のみ型検証）、`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で `security_profile` に応じた重大度（production: FATAL、local: WARNING）の `StartupCheckOutcome` を返す。
+`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証し（`name`/`description`/`inputSchema` を必須、`status`/`is_write`/`requires_serial`/`resource_scope`/`enabled` は存在する場合のみ型検証）、`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で `security_profile` に応じた重大度（production: FATAL、local: WARNING）の `StartupCheckOutcome` を返す。
 
 **[Explicit in code]** `McpToolDiscoveryService` は `startup.py` から呼び出される。`ToolExecutor.set_runtime_registry(runtime_reg)` により RuntimeToolRegistry が接続される。`ToolRouteResolver.resolve()` は RuntimeToolRegistry のみを参照して解決する。ToolRegistry はルーティング判断には一切使われない — `tool_constants.py` frozenset のドリフト検出用データとしてのみ機能する（本ドキュメント冒頭の説明を参照）。
 
