@@ -16,14 +16,6 @@ issue file (requires/inbox/)
 This phase produces the **implementation procedure**, not an architecture design document.
 There is no separate design phase in this pipeline.
 
-## Review gate
-
-- `review_mode = manual` (default unless the user states otherwise): after Step 3
-  produces the implementation procedure document(s), stop and wait for explicit user
-  approval before moving the plan file to `plans/done/` in Step 4.
-- `review_mode = autonomous`: proceed to Step 4 without stopping, but still report the
-  generated document path(s) and a one-line validation summary.
-
 ## Allowed file operations
 
 This is a document-only phase. Allowed operations:

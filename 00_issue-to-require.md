@@ -13,14 +13,6 @@ issue file (requires/inbox/)
 - Input: `requires/inbox/{filename}.md`
 - Output: `requires/ready/{timestamp}_require.md`
 
-## Review gate
-
-- `review_mode = manual` (default unless the user states otherwise): after Step 3
-  produces the requirement document, stop and wait for explicit user approval before
-  moving the issue file to `requires/done/` in Step 4.
-- `review_mode = autonomous`: proceed to Step 4 without stopping, but still report the
-  requirement document path and a one-line validation summary.
-
 ## Allowed file operations
 
 This is a document-only phase. Allowed operations:

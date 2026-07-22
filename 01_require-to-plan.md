@@ -13,14 +13,6 @@ issue file (requires/inbox/)
 - Input: `requires/ready/{filename}_require.md`
 - Output: `plans/{timestamp}_plan.md`
 
-## Review gate
-
-- `review_mode = manual` (default unless the user states otherwise): after Step 6
-  finalizes the work plan, stop and wait for explicit user approval before moving the
-  requirement file to `requires/done/` in Step 7.
-- `review_mode = autonomous`: proceed to Step 7 without stopping, but still report the
-  work plan path and a one-line validation summary.
-
 ## Allowed file operations
 
 This is a document-only phase. Allowed operations:

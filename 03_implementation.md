@@ -13,15 +13,6 @@ issue file (requires/inbox/)
 - Input: `implementations/{filename}.md`
 - Output: code changes, tests, and `docs/*.md` updates; the input file moved to `implementations/done/`
 
-## Review gate
-
-- `review_mode = manual` (default unless the user states otherwise): after Step 6
-  validates the documentation updates, stop and wait for explicit user approval before
-  moving the implementation procedure file to `implementations/done/` in Step 7.
-- `review_mode = autonomous`: proceed to Step 7 without stopping, but still report the
-  implementation result (changed files, test status) and a documentation validation
-  summary.
-
 Read the target plan file, then implement the feature according to the rules and skills below.
 
 - **CRITICAL: Process target files ONE AT A TIME.** Complete Steps 1-7 for the current file before starting the next file. Never interleave steps across files.
