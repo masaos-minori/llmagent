@@ -161,6 +161,7 @@ class TestRuntimeToolRegistry:
         reg = _registry_with(tool)
         row = reg.diagnostics()[0]
         assert row["disabled_reason"] == "quota exceeded"
+        assert row["enabled"] is False
 
     def test_diagnostics_falls_back_to_status_when_raw_definition_lacks_disabled_reason(
         self,
@@ -171,6 +172,7 @@ class TestRuntimeToolRegistry:
         reg = _registry_with(tool)
         row = reg.diagnostics()[0]
         assert row["disabled_reason"] == "inactive"
+        assert row["enabled"] is False
 
     def test_diagnostics_active_status_with_no_raw_reason_yields_empty_string(
         self,

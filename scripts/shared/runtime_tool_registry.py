@@ -179,6 +179,10 @@ class RuntimeToolRegistry:
         `disabled_reason` prefers the discovery-time reason a server sent in its
         /v1/tools entry (`raw_definition["disabled_reason"]`), falling back to a
         status-derived value for tools whose entry never carried that key.
+
+        `enabled` is derived from `disabled_reason` to preserve the invariant
+        documented in docs/04_mcp_03_06_tool-runtime-availability-metadata.md:
+        `enabled=True` iff `disabled_reason == ""`.
         """
         rows: list[dict[str, object]] = []
         for tool in sorted(self._tools.values(), key=lambda t: t.name):
@@ -194,7 +198,7 @@ class RuntimeToolRegistry:
                     "name": tool.name,
                     "server_key": tool.server_key,
                     "config_dependent": config_dep,
-                    "enabled": True,
+                    "enabled": not disabled_reason,
                     "disabled_reason": disabled_reason,
                     "enabled_for_llm": tool.enabled_for_llm,
                 }
