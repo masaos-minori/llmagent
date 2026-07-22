@@ -102,7 +102,7 @@ agent.toml の全設定項目・ホットリロード可否・分類: `docs/05_a
 
 | File | Content |
 |---|---|
-| `docs/index.md` | ドキュメント全体索引 |
+| `docs/00_index.md` | ドキュメント全体索引 |
 | `docs/01_overview.md` | システム全体のアーキテクチャ・ファイル構成索引 |
 | `docs/02_deployment-part1.md` / `-part2.md` | 導入手順・デプロイ |
 | `docs/03_rag_00_document-guide.md` | RAG ドキュメントセット入口 |
