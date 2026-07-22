@@ -91,9 +91,36 @@ class CallToolResponse(BaseModel):
 
 ## HTTP ツール一覧: `/v1/tools`
 
-```json
-{"tools": [{"name": "read_text_file", "description": "..."}]}
-```
+### Current fields
+
+These fields are currently supported by the discovery service:
+
+#### Top-level response fields
+
+- `schema_version` — top-level discovery-time metadata (returned by all servers)
+
+#### Per-tool fields
+
+- `name` — per-tool identifier
+- `description` — per-tool description
+- `inputSchema` — per-tool schema (or `input_schema`)
+- `status` — per-tool status
+- `server_key` — server key injected by `build_tools_response()`
+- `enabled` — maps to RuntimeTool.enabled_for_llm (server-specific; not all servers return this)
+- `disabled_reason` — reason when disabled (server-specific; not all servers return this)
+- `is_write` — whether the tool performs writes
+- `requires_serial` — whether the tool requires serial execution
+- `resource_scope` — resource scope constraints
+- `capabilities` — optional capability flags (per-tool)
+- `config_dependent` — whether the tool depends on configuration state
+
+### Deferred fields
+
+These fields are planned but NOT yet implemented:
+
+- `include_disabled` — query parameter to include disabled tools
+- `disabled_code` — structured code for disabled reasons
+- Top-level `capabilities` — if not already implemented (verify during implementation)
 
 起動時に呼び出され、設定済みのツール名がライブのサーバーツールと一致するかを検証する。
 不一致の場合 → warning ログ; `tool_definitions_strict=True` の場合 → `RuntimeError`。

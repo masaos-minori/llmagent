@@ -20,13 +20,13 @@ source:
 curl -s http://127.0.0.1:8081/health
 
 # 設定ファイルが存在することを確認 (rag_src_dirを定義、デフォルトは/opt/llm/rag-src)
-ls -la config/rag_pipeline.toml
+ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml
 ```
 
 ## 2.2 ステップ1: クロール
 
 ```bash
-# config/rag_pipeline.tomlのtarget_urls全件
+# crawler.tomlのtarget_urls全件
 nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
 tail -f logs/crawl.log
 

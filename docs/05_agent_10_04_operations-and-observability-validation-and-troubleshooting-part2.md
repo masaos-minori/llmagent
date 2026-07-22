@@ -54,7 +54,7 @@ Context state:
   Compress count  : 1
   System prompt   : default
   System preview  : '...'
-  Token estimate  : 1,080 (chars / 4)
+  Token estimate  : 1,080 (category-aware estimate)
   Token limit     : disabled
   Memory layer    : disabled
 Budget breakdown:
@@ -63,7 +63,7 @@ Budget breakdown:
 ```
 
 - **Remaining:** `context_char_limit` までの残り距離 → 圧縮のトリガー
-- **Token estimate:** `/tokenize` エンドポイントが設定されていない限り `文字数 / 4`
+- **Token estimate:** `/tokenize` エンドポイントが設定されていない場合、カテゴリ別推定（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5 の比率）を使用
 - **Token limit:** `context_token_limit` が未設定の場合は `disabled`。`context_token_limit` が設定されている場合は `200,000 tokens`(または設定値)を表示
 - **Memory layer:** `use_memory_layer=True` の場合は `enabled (entries=N)`
 

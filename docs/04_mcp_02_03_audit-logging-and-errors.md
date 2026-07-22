@@ -94,6 +94,8 @@ result = await dispatch_tool(dispatch_table, name, args)
 - ハンドラーからの `ValueError` → `("Validation error: <e>", True)`
 - その他の例外は呼び出し元に伝播する
 
+**Disabled call handling:** When a tool is disabled, the MCP server returns a response with `is_error=True` and includes the concrete reason in the result field. This follows the standard error response format but specifically indicates the tool is disabled rather than encountering a runtime error.
+
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`

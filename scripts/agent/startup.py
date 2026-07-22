@@ -302,9 +302,9 @@ class StartupOrchestrator:
             if outcome.status == StartupCheckStatus.WARNING:
                 self._view.write_warning(f"{OutputTag.NON_FATAL} {outcome.message}")
             elif outcome.status == StartupCheckStatus.FATAL:
-                self._view.write_warning(f"{OutputTag.FATAL} {outcome.message}")
+                self._view.write_fatal(outcome.message)
                 if outcome.remediation:
-                    self._view.write_warning(f"  Remediation: {outcome.remediation}")
+                    self._view.write_fatal(f"  Remediation: {outcome.remediation}")
             elif outcome.status == StartupCheckStatus.SKIPPED:
                 self._view.write_warning(f"{OutputTag.SKIPPED} {outcome.message}")
 

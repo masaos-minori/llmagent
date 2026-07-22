@@ -83,7 +83,7 @@ config/crawler.toml [target_urls]
 |---|---|
 | ポート8081で埋め込みサーバーが稼働していること | `curl -s http://127.0.0.1:8081/health` |
 | `sqlite-vec` 拡張がロード可能であること | `/opt/llm/sqlite-vec/vec0.so` が存在すること |
-| 設定ファイルが存在すること | `config/rag_pipeline.toml` |
+| 設定ファイルが存在すること | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | インジェクション対象のURLまたはファイルが指定されていること | CLIの `--url`、または設定内の `target_urls` |
 
 ---

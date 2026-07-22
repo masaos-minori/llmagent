@@ -55,6 +55,47 @@ LLM returns tool_call
 
 ---
 
+## Two-stage tool resolution
+
+Tools go through two distinct resolution stages before being available for execution:
+
+**Stage 1: LLM Visibility** (`RuntimeToolRegistry.llm_tool_definitions()`)
+
+- Tools returned here are visible to the LLM as potential tool calls
+- This stage determines what tools the LLM can propose
+- Disabled tools may still appear at this stage depending on configuration
+
+**Stage 2: Runtime Routability** (`LLMTurnRunner._filter_disabled_tool_definitions()`)
+
+- After the LLM proposes a tool call, this stage determines whether the tool can actually be routed to its handler
+- Disabled tools are filtered out at this stage
+- A tool can be LLM-visible but not runtime-routable (e.g., disabled due to config)
+
+**Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system.
+
+## Data source for DAG scheduling
+
+The DAG scheduler does NOT read from `RuntimeToolRegistry`. Instead, it reads metadata from the configured LLM tool definitions in `config/agent.toml`.
+
+### Fields used by the DAG scheduler
+
+The following metadata fields are read from `config/agent.toml` tool definitions:
+
+- `requires_serial`: Controls whether the tool requires serialized execution
+- `resource_scope`: Determines which resources the tool can access during DAG execution
+- `is_write`: Indicates whether the tool performs write operations
+- Side-effect status: Determines if the tool is considered a side effect
+- Shell-specific serial behavior: Controls how the tool behaves in shell contexts
+
+### Key distinction
+
+- **RuntimeToolRegistry**: Controls routing + LLM visibility (what tools appear in `/v1/tools`)
+- **config/agent.toml**: Controls DAG scheduling metadata (how tools execute in the DAG)
+
+These two data sources are independent. Updating `/v1/tools` metadata alone does not change DAG scheduling behavior. Both `/v1/tools` and `config/agent.toml` must be updated independently when changing tool metadata.
+
+---
+
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
 `RuntimeToolRegistry` を用いて `tool_name → server_key` を解決する。`ToolRegistry` はルーティング
@@ -80,7 +121,7 @@ LLM returns tool_call
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
 | 一致なし | `ValueError` |
 
-**重要:** 未知のツールは `ValueError` で即時失敗する。新しいツールは `tool_constants.py` の frozenset に追加しなければならない（`ToolRegistry` がこれをドリフト検出用データとしてインポート時に取り込む）。ただしルーティング自体は `RuntimeToolRegistry` のライブ discovery にのみ基づく — `tool_constants.py`/`ToolRegistry` への登録だけではツールは解決可能にならない。
+**重要:** 未知のツールは `ValueError` で即時失敗する。新しいツールは `tool_constants.py` の frozenset に追加しなければならない（`ToolRegistry` がこれをドリフト検出用データとしてインポート時に取り込む）。ただしルーティング自体は `RuntimeToolRegistry` のライブ discovery にのみ基づく — `tool_constants.py`/`ToolRegistry` への登録だけではツールは解決可能にならない。For diagnosis guidance, see [MCP Failure Diagnosis](04_mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
 ```python
 resolver = ToolRouteResolver(server_configs)

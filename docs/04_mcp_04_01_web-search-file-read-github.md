@@ -84,6 +84,26 @@ related:
 - JavaScript を実行しない（HTML を取得し `BeautifulSoup` で可視テキストを抽出するのみ）ため、クライアントサイドでレンダリングされる SPA/React 系ページでは意味のあるテキストがほとんど、あるいは全く取得できない場合がある。これは意図された仕様である（Accepted current specification）。
 - `browser_fetch`の health/metrics は`search_web`とは独立したシングルトン（`health.py`/`metrics.py`内の`_browser_*`）で管理され、`/health`の`details`に別々に反映される。
 
+### Availability metadata
+
+The web-search server provides limited availability metadata through `/v1/tools`:
+
+- `config_dependent`: `true` for `browser_fetch` — indicates the tool depends on configuration
+- `enabled`: Not currently implemented for web-search tools
+- `disabled_reason`: Not currently implemented for web-search tools
+
+#### Current limitations
+
+The web-search server does NOT implement runtime `enabled/disabled_reason` fields despite having `config_dependent=true`. This means:
+
+- Tools appear available to the LLM even when they may fail due to missing configuration
+- Domain allowlist enforcement happens at call time (via `BrowserAuthorizationError`) rather than via availability metadata
+- Operators cannot determine from `/v1/tools` alone whether `browser_fetch` will work
+
+#### Enforcement mechanism
+
+When `browser_fetch` is called with a domain not in the allowlist, the server raises `BrowserAuthorizationError`. This error is returned via the `/v1/call_tool` response rather than being prevented by availability metadata.
+
 ---
 
 ## file-read-mcp（ポート 8005）

@@ -39,6 +39,29 @@ source:
 
 agent、transport、サーバのログを横断した相関分析については §End-to-End Tool Call Tracing を参照。
 
+## Failure mode: LLM sees tool but execution fails
+
+**Symptoms:**
+- LLM proposes a valid tool call using a known tool name
+- Execution fails with "Unknown tool" error despite the tool name being valid
+
+**Root cause:**
+- `RuntimeToolRegistry` is missing entirely during runtime
+- Tools may exist in MCP server catalogs but are not registered in the runtime registry
+- This creates a mismatch: LLM knows about the tool (from discovery), but the router cannot find it
+
+**Diagnostic steps:**
+1. Check if `RuntimeToolRegistry` was initialized successfully at startup
+2. Verify no errors during tool registration phase
+3. Confirm all expected MCP servers have completed their tool discovery
+4. Review startup logs for any tool registration failures
+
+**Resolution:**
+- Restart the agent process to re-initialize `RuntimeToolRegistry`
+- If persistent, investigate MCP server connection issues that may prevent tool registration
+
+See also: Two-stage tool resolution (LLM visibility vs runtime routability)
+
 ## Tool dispatch時のensure ready動作
 
 内部ディスパッチパス経由でtool callが到着した場合:
@@ -89,6 +112,26 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 根拠: Explicit in code（`shared/mcp_health.py`）。`ToolExecutor` の実行処理内の
 ヘルスチェックがディスパッチ前のゲートとしてこの機構を参照する。
 
+### LLM called a tool, but execution failed with Unknown tool
+
+**Possible causes:**
+- RuntimeToolRegistry is missing or incomplete
+- Discovery was FATAL, WARNING, or SKIPPED
+- Duplicate tool name detection excluded the tool
+- ToolExecutor.set_runtime_registry() was not called
+
+**Diagnosis steps:**
+1. Check startup output for `mcp_tool_discovery` outcomes
+2. Check whether discovery was FATAL, WARNING, or SKIPPED
+3. Check whether the owning server's /v1/tools response includes the tool
+4. Check whether duplicate tool name detection excluded the tool
+5. Check whether ctx.services_required.runtime_tools was populated
+6. Check whether ToolExecutor.set_runtime_registry() was called
+7. Check whether the tool exists in RuntimeToolRegistry
+8. Do not rely only on config/agent.toml tool_definitions
+
+**Root cause explanation:**
+The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which raises `ValueError` when a tool name is not found in `RuntimeToolRegistry`. This can happen even when the LLM sees the tool via `/v1/tools` because `RuntimeToolRegistry` may be incomplete due to discovery failures.
 
 ## Related Documents
 

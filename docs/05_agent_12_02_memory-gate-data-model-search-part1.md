@@ -31,7 +31,7 @@ source:
 メモリ層には、メモリ操作の実行タイミングを制御する3層のアクティベーションゲートがある。
 
 **レイヤー1: config によるバイパス**
-- `use_memory_layer` config フラグ（デフォルト: `False`）
+- `use_memory_layer` config フラグ（デフォルト: `True`）
 - `False` の場合、メモリサービスは構築されず、`ctx.services.memory` は `None` になる
 - すべての呼び出し元は `if ctx.services.memory is None: return` でガードする
 - injection、ingestion、retrieval を完全にバイパスする

@@ -72,7 +72,7 @@ def tool_hash_key(name: str, args: dict[str, object]) -> str
 
 ---
 
-## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ルーティングの正本)
+## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ツール所有権とルーティング)
 
 **責務分離 (Explicit in code — module docstring):**
 - `shared/runtime_tool_registry.py`: **ルーティング権威**（唯一の解決元）。McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築され、`ToolExecutor.set_runtime_registry()` で接続される

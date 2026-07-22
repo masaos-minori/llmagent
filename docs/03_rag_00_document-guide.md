@@ -109,6 +109,17 @@ related:
 
 ---
 
+## Governance
+
+Cross-cutting documentation rules and policies:
+
+- [Documentation Governance](00_governance_01_documentation-governance.md)
+- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
+- [Evidence Labels](00_governance_03_evidence-labels.md)
+- [Known Issues Template](00_governance_04_known-issues-template.md)
+- [Deprecated Items](00_governance_05_deprecated-items.md)
+- [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
+
 ## Related Documents
 
 - `03_rag_01_system_overview-part1.md`

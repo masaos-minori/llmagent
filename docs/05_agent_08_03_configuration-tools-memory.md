@@ -71,7 +71,7 @@ Source: `config/agent.toml`
 
 | Field | Default | Description |
 |---|---|---|
-| `use_memory_layer` | `False` | 永続的なセマンティックメモリを有効化 |
+| `use_memory_layer` | `True` | 永続的なセマンティックメモリを有効化 |
 | `memory_jsonl_dir` | `"/opt/llm/memory"` | JSONLソースディレクトリ (正式なキー; `memory_jsonl_path`ではない) |
 | `memory_max_inject_semantic` | `5` | セッション開始時に注入されるセマンティックエントリ数 |
 | `memory_max_inject_episodic` | `3` | ユーザープロンプトごとに注入されるエピソードエントリ数 |

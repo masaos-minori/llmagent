@@ -99,7 +99,7 @@ source:
 - **設定:** `cfg.memory.*`
 - **失敗時:** エラーはログ出力される。REPL はメモリなしで継続する（グレースフルデグラデーション）
 
-**有効化:** `use_memory_layer=False`（デフォルト）の場合、`ctx.services.memory` は `None` になる。
+**有効化:** `use_memory_layer=True`（デフォルト）の場合、`ctx.services.memory` が有効になる。
 メモリサービスにアクセスする前に必ず null チェックを行うこと。
 
 ## Related Documents

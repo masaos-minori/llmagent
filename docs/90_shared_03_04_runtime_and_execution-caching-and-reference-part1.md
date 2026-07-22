@@ -61,15 +61,7 @@ class ToolResultCache:
     def clear(self) -> None
 ```
 
-- TTL 失効とオプションの最大サイズ超過時のエビクションを備えた、ツール呼び出し結果用の LRU キャッシュ
-- `is_error=False` の結果のみキャッシュされる (`store_if_success` はエラー結果をスキップする)
-- キャッシュキーの形式: `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用)
-- TTL チェック: `time.time() - cached_at >= ttl` → エビクトして None を返す
-- LRU エビクション: `max_size > 0` かつキャッシュが上限を超えた場合、`popitem(last=False)` で最も古いエントリを削除する
-- インポート: `from shared.tool_cache import ToolResultCache`
-- **[Explicit in code]** `shared/tool_cache.py` のモジュール docstring により、`ToolResultCache` は現時点で `ToolExecutor` からは使用されていないと明記されている。`ToolExecutor` は `shared/tool_executor.py` 内に独自の `OrderedDict` ベースのキャッシュ（キャッシュ処理とエビクション処理）を持ち、`_inflight` (`dict[str, asyncio.Future]`) によるスタンピード防止 (同時リクエストの future 共有) と統合されている。`ToolResultCache` にはスタンピード防止の仕組みが無い
-- **[Explicit in code]** `ToolResultCache` は非推奨ではなく、スタンピード防止を必要としない将来の呼び出し元向けに、LRU+TTL キャッシュ単体機能を提供するスタンドアロンユーティリティとして残置されている
-- **[Explicit in code]** `get_result()` の戻り値 `ToolCallResult` は `request_id=""`, `server_key=""` で構築され、`error_type` は `is_error=True` のとき `"tool"`、それ以外は `""` となる
+**ToolResultCache**: Standalone LRU+TTL cache utility for tool results. Not currently used by ToolExecutor; kept for potential future use without stampede protection.
 
 ---
 

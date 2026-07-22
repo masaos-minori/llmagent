@@ -127,15 +127,7 @@ class ToolResultCache:
     def clear(self) -> None
 ```
 
-- TTL 失効とオプションの最大サイズによるエビクションを備えた、ツール呼び出し結果用の LRU キャッシュ
-- `is_error=False` の結果のみがキャッシュされる
-- キャッシュキー: `(tool_name, serialized_args via json_utils.dumps)`
-- Import: `from shared.tool_cache import ToolResultCache`
-
-### 実運用では未使用
-
-`ToolResultCache` は現在 `ToolExecutor` からは使われていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュを内部に持ち（キャッシュ処理とエビクション処理）、`ToolResultCache` にはない stampede 防止機構（`_inflight` future 共有）と密結合している。
-`ToolResultCache` は非推奨ではなく、stampede 防止が不要な将来の利用者向けにシンプルな LRU+TTL キャッシュとして残されている実装だが、現時点での正規キャッシュではない (Explicit in code: `scripts/shared/tool_cache.py` モジュールdocstring)。
+**ToolResultCache**: Standalone LRU+TTL cache utility for tool results. Not currently used by ToolExecutor; kept for potential future use without stampede protection.
 
 ---
 

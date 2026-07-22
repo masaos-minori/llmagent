@@ -111,7 +111,7 @@ class LlmHotConfigHandler:
 | 設定ファイルの読み込み方法 | `ConfigLoader().load("filename.toml")` または `load_all()` |
 | 設定オーナーシップ表 | **§2a 設定オーナーシップを参照** — プロセス分離方針とプロセスごとの設定ファイル一覧の正式なリファレンス |
 | `load_all()` は `agent.toml` を含むか? | **含む(それのみ)** — `_BASE_CONFIG_FILES = ("agent.toml",)` の1件のみで、他の設定ファイル(crawler.toml等)は各プロセスが個別にロードする (§2a 設定オーナーシップを参照) |
-| ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU。ただし `ToolExecutor` は `shared/tool_cache.py` の `ToolResultCache` ではなく、`shared/tool_executor.py` 内の自前の `OrderedDict` ベースキャッシュ (`_execute_with_cache()`) を使う (§15 を参照) |
+| ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU。ただし `ToolExecutor` は `shared/tool_cache.py` の `ToolResultCache`（standalone utility, not used by ToolExecutor）ではなく、`shared/tool_executor.py` 内の自前の `OrderedDict` ベースキャッシュ (`_execute_with_cache()`) を使う (§15 を参照) |
 | `git_helper.get_repo_info()` は信頼できるか? | `RepoInfoResult` を返す; `.success` と `.failure_reason` (FailureReason enum) を確認すること |
 | 正確なトークン数を取得する方法 | `await get_token_count(history, tokenize_url, http)` |
 | LLM の再試行はどう動くか? | 指数バックオフ: 429/503 および接続エラー時に `retry_base_delay * (2**attempt)` |

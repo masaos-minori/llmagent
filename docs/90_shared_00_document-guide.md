@@ -117,6 +117,17 @@ source:
 
 ---
 
+## Governance
+
+Cross-cutting documentation rules and policies:
+
+- [Documentation Governance](00_governance_01_documentation-governance.md)
+- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
+- [Evidence Labels](00_governance_03_evidence-labels.md)
+- [Known Issues Template](00_governance_04_known-issues-template.md)
+- [Deprecated Items](00_governance_05_deprecated-items.md)
+- [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
+
 ## Guidance for Safe AI Use
 
 1. `load_all()`は`agent.toml`のみを含む(`_BASE_CONFIG_FILES = ("agent.toml",)`、詳細`90_shared_03_01`§2a)。`rag_pipeline.toml`という設定ファイルは存在しない — 各MCPサーバー(rag-pipeline-mcp含む)はプロセス分離方針により自身の`config/<key>_mcp_server.toml`のみを個別にロードし、エージェント側で明示ロードする必要はない(Explicit in code)。

@@ -15,6 +15,34 @@ source:
 
 ## 新規ツール登録手順
 
+### /v1/tools Requirements
+
+Before registering a new tool, ensure your MCP server responds to `/v1/tools` requests with the correct format. See [endpoints-and-transport.md](./04_mcp_02_01_endpoints-and-transport.md) for the complete field specification.
+
+#### Required fields
+
+- `name`: Unique tool identifier
+- `description`: Human-readable description of the tool
+- `inputSchema`: JSON Schema defining the tool's input parameters
+
+#### Optional fields
+
+- `status`: Tool status (e.g., "available", "degraded")
+- `is_write`: Whether the tool performs write operations
+- `requires_serial`: Whether the tool requires serialized execution
+- `resource_scope`: List of resource scopes the tool can access
+- `enabled`: Whether the tool is enabled for LLM use
+- `capabilities`: Tool capabilities object
+- `server_key`: Identifier for the MCP server providing the tool
+- `config_dependent`: Whether the tool depends on configuration
+- `disabled_reason`: Reason why the tool is disabled (if applicable)
+
+#### Deferred fields
+
+The following fields are deferred and may not be supported yet:
+
+- `disabled_code`: Structured error code for disabled tools (deferred)
+
 **既存**のMCPサーバーに新しいツールを追加する場合:
 
 | 手順 | 操作 | 必須か |
@@ -38,6 +66,36 @@ uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 ```
 
 期待される結果: すべてのルーティングテストがパスする。`tool_definitions_strict = true`の場合、エージェントを再起動し、起動ログに未マッピングの警告なしで`"Routing: N/N tools mapped"`が表示されることを確認する。
+
+---
+
+## Metadata update paths
+
+When updating tool metadata, you must understand that there are two independent update paths:
+
+### Path 1: /v1/tools metadata (runtime availability)
+
+Updating `/v1/tools` response affects:
+- What tools are visible to the LLM via `/v1/tools`
+- Runtime routing decisions made by `RuntimeToolRegistry`
+- LLM visibility (enabled/disabled state)
+
+This path is controlled by the MCP server's `/v1/tools` endpoint implementation.
+
+### Path 2: config/agent.toml metadata (DAG scheduling)
+
+Updating `config/agent.toml` tool definitions affects:
+- DAG scheduling metadata (`requires_serial`, `resource_scope`, `is_write`, etc.)
+- How tools execute in the DAG context
+- Shell-specific serial behavior
+
+This path is controlled by the agent configuration file.
+
+### Important: Independent updates
+
+These two update paths are **independent**. Updating `/v1/tools` metadata alone does not change DAG scheduling behavior. If you need to change both runtime availability AND DAG scheduling metadata, you must update both `/v1/tools` and `config/agent.toml` separately.
+
+See [dispatch-and-routing.md](./04_mcp_03_01_dispatch-and-routing.md#data-source-for-dag-scheduling) for details on the data source distinction.
 
 ---
 

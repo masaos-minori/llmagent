@@ -136,7 +136,7 @@ REPL loop
 | `_ToolingMixin` | `/plan` |
 | `_DebugMixin` | `/debug` |
 | `_AuditMixin` | `/audit` |
-| `_RagExportMixin` | `/rag`, `/export`, `/compact` |
+| `_RagExportMixin` | `/compact` |
 | `_MemoryMixin` | `/memory` |
 | `_WorkflowMixin` | `/approve`, `/reject` |
 | `_MdqMixin` | `/mdq` |

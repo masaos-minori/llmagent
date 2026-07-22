@@ -76,7 +76,7 @@ source:
 | [06_eventbus_00_document-guide.md](06_eventbus_00_document-guide.md) | エントリポイント |
 | [06_eventbus_01_system-overview.md](06_eventbus_01_system-overview.md) | アーキテクチャ、機能、セキュリティモデル |
 | [06_eventbus_02_01_publish-replay.md](06_eventbus_02_01_publish-replay.md) | POST /publish、GET /replay エンドポイント |
-| [06_eventbus_02_02_subscribe-ack.md](06_eventbus_02_02_subscribe-ack.md) | GET /subscribe、POST /events/{event_id}/ack、POST /ack |
+| [06_eventbus_02_02_subscribe-ack.md](06_eventbus_02_02_subscribe-ack.md) | GET /subscribe、POST /events/{event_id}/ack |
 | [06_eventbus_02_03_nack-health-dlq.md](06_eventbus_02_03_nack-health-dlq.md) | POST /nack、GET /health、GET /dlq、POST /dlq/{event_id}/requeue |
 | [06_eventbus_02_04_dlq-background-loop.md](06_eventbus_02_04_dlq-background-loop.md) | DLQ スイープのバックグラウンドループ |
 | [06_eventbus_02_05_failure-behavior-summary.md](06_eventbus_02_05_failure-behavior-summary.md) | 障害動作のまとめ表 |
@@ -97,6 +97,17 @@ source:
 ## 正典ソースのルール
 
 動作に関する正典（canonical）のソースは **ソースコード**（`scripts/eventbus/`）であり、これらのドキュメントではない。ドキュメントとコードが矛盾する場合はコードを信頼し、ドキュメントを更新すること。
+
+## Governance
+
+Cross-cutting documentation rules and policies:
+
+- [Documentation Governance](00_governance_01_documentation-governance.md)
+- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
+- [Evidence Labels](00_governance_03_evidence-labels.md)
+- [Known Issues Template](00_governance_04_known-issues-template.md)
+- [Deprecated Items](00_governance_05_deprecated-items.md)
+- [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
 
 ## Related Documents
 

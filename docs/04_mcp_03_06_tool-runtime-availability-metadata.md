@@ -39,6 +39,10 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 | `"command_allowlist is empty"` | shell | reserved — not yet implemented (requirement 15 scopes shell/cicd out) |
 | `"workflow_allowlist is empty"` | cicd | reserved — not yet implemented (requirement 15 scopes shell/cicd out) |
 
+**Active example:** The git-mcp server actively uses `disabled_reason` to indicate why tools are disabled. See [git-mcp availability metadata](./04_mcp_04_05_git.md#availability-metadata) for details on its specific precedence rules.
+
+**Not yet implemented:** The web-search server does NOT implement `disabled_reason` for `browser_fetch`, despite having `config_dependent=true`. See [web-search availability metadata](./04_mcp_04_01_web-search-file-read-github.md#availability-metadata) for details on its current limitations.
+
 ## 4. `/v1/tools` behavioral rules
 
 Always returns every implemented tool; disabled tools are never omitted from the response. Example JSON response block, one enabled + one disabled tool side by side:
@@ -62,6 +66,33 @@ Always returns every implemented tool; disabled tools are never omitted from the
 }
 ```
 
+## /v1/tools as RuntimeToolRegistry Source
+
+The `/v1/tools` endpoint is **not just an informational endpoint** — it is the primary source used to construct `RuntimeToolRegistry`.
+
+When a client calls `/v1/tools`, the MCP server returns the current state of all tools including their availability metadata. This response is consumed by the agent's runtime to populate `RuntimeToolRegistry`, which determines:
+- Which tools are available for routing
+- Current tool status (enabled/disabled)
+- Tool configuration dependencies
+
+Any changes to tool availability (e.g., due to health degradation, config reload) will be reflected in subsequent `/v1/tools` responses and will cause `RuntimeToolRegistry` to be updated accordingly.
+
+## Field Mapping: /v1/tools ↔ RuntimeTool
+
+The following table shows how /v1/tools response fields map to RuntimeTool fields:
+
+| /v1/tools field | RuntimeTool field | Notes |
+|---|---|---|
+| `enabled` | `enabled_for_llm` | Both indicate LLM visibility; values should match |
+| `disabled_reason` | *(not a first-class field)* | Currently not stored in RuntimeTool; deferred future task |
+
+### Key points
+
+- `enabled` and `enabled_for_llm` serve the same purpose: indicating whether the tool is visible to the LLM
+- `disabled_reason` from /v1/tools is **not** currently a first-class RuntimeTool field
+- The reason a tool is disabled is determined by the source of truth (config, health status, etc.) rather than being carried forward in RuntimeTool
+- Future work will add `RuntimeTool.disabled_reason` as a first-class field to close this gap
+
 ## 5. Dispatch rule
 
 Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch table (server-side gate). Reference requirement 16's plan (`plans/20260717-174848_plan.md`) for the exact response shape: `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`.
@@ -80,9 +111,13 @@ For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see al
 
 ## Future / deferred design options
 
+**Note:** Top-level `capabilities` (on the response body, not per-tool) is also deferred unless verified otherwise. If any MCP server returns top-level `capabilities` in its `/v1/tools` response, this should be updated to reflect current implementation status.
+
 Evaluated per requirement 20 (`requires/done/20260717_20_require.md` once filed) and
 `plans/20260717-181151_plan.md`. Neither option below is implemented; both are deferred design
 decisions with no dependency from the initial RuntimeToolRegistry migration (requirements 14-19).
+
+- [ ] First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above
 
 ### 1. `include_disabled` query parameter
 
