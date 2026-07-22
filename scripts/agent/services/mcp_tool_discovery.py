@@ -25,14 +25,14 @@ requirement's "avoid automatic priority selection" constraint): when the same
 tool name is reported by more than one server, the tool is **excluded from
 the registry entirely** in both `local` and `production` security profiles —
 the safer of the two options considered (the alternative, first-wins-with-a-
-warning, risks silently routing calls to an arbitrary server). The only
-difference between profiles is the finding's severity: `FATAL` in
-`SecurityProfile.PRODUCTION`, `WARNING` in `SecurityProfile.LOCAL`.
+warning, risks silently routing calls to an arbitrary server). Unlike the
+other findings emitted by this service, a duplicate is **always** reported as
+`FATAL`, regardless of `security_profile` or `strict` — a duplicated tool is
+unusable in either profile, so there is no WARNING-only case.
 
-Unified severity scheme: `is_fatal = strict or (security_profile == PRODUCTION)`
-— applies to all findings emitted by this service (duplicates, drift,
-tool-definitions, malformed-capabilities). This replaces the old two-mechanism
-split (exception-based `strict` raising + profile-based FATAL/WARNING).
+Unified severity scheme (drift, tool-definitions, malformed-capabilities):
+`is_fatal = strict or (security_profile == PRODUCTION)`. Duplicate-tool
+findings are the one exception to this scheme — they are always FATAL.
 """
 
 from __future__ import annotations

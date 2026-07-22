@@ -82,7 +82,7 @@ is_side_effect(tool_name: str) -> bool
 
 > **訂正 (Explicit in code):** `_SIDE_EFFECT_TOOLS` / `is_side_effect()` は `shared/tool_executor.py` ではなく `shared/tool_executor_helpers.py` に定義されている。また `execute_all_tool_calls()` と `serial_tool_calls` による直列化判定は `ToolExecutor` 自身のメソッドではなく `agent/tool_runner.py`(agentレイヤー)が呼び出し元であり、`is_side_effect()` の判定結果を用いてラウンド単位で並列/直列を切り替える。`ToolExecutor.execute()` は単一のツール呼び出し単位のAPIであり、ラウンド全体の直列化制御は行わない。集合には旧記述にない `GIT_WRITE_TOOLS` / `GITHUB_WRITE_TOOLS` / `GITHUB_DANGEROUS_TOOLS` も含まれる。
 
-**ルーティング (Explicit in code):** `shared/tool_registry.py` の `ToolRegistry` が唯一のルーティング権威(sole routing authority)。`ToolRouteResolver.resolve()`(`shared/route_resolver.py`)は `ToolRegistry.get_server_for_tool()` のみを参照し、未知のツールは即座に `ValueError` で失敗する。設定ファイルの `tool_names` および `/v1/tools` によるライブ検出は、起動時のドリフト検証(`shared/tool_routing_validation.py`)専用のメタデータであり、実行時のルーティング判断には使われない。旧「2段カスケード」方式(ライブ検出→レジストリの順で解決)は現行コードには存在しない。ルーティングの詳細は [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) を参照。
+**ルーティング (Explicit in code):** `shared/runtime_tool_registry.py` の `RuntimeToolRegistry` が唯一のルーティング権威(sole routing authority)。`ToolRouteResolver.resolve()`(`shared/route_resolver.py`)は `RuntimeToolRegistry.resolve()` のみを参照し、未知のツールは即座に `ValueError` で失敗する。`shared/tool_registry.py` の `ToolRegistry` はルーティング判断には一切使われず、起動時のドリフト検証(`shared/tool_routing_validation.py`)専用のシードデータに格下げされている。設定ファイルの `tool_names` はドリフト検証専用のメタデータであり、実行時のルーティング判断には使われない。旧「2段カスケード」方式(ライブ検出→レジストリの順で解決)は現行コードには存在しない。ルーティングの詳細は [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) を参照。
 
 ---
 
@@ -102,6 +102,7 @@ McpServerHealthRegistry
 execution flow summary
 import boundaries
 ToolRegistry
+RuntimeToolRegistry
 ToolRouteResolver
 HALF_OPEN
 tool_executor_helpers

@@ -222,6 +222,52 @@ sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY
 
 ---
 
+## Rollback behavior on startup failure(起動失敗時のロールバック挙動)
+
+`StartupOrchestrator.run()`(`agent/startup.py`)は`_start_servers()` → `_check_services()` →
+`_recover_pending_approvals()` → `_setup_prompt()` の順に実行し、いずれかが例外を送出すると
+`except Exception as setup_err:` 節でロールバックを試みる。ロールバックの発火条件と、
+ロールバック自体が失敗した場合の挙動には、以下2点の仕様がある。
+
+### ロールバックが発火する条件
+
+`_servers_started`フラグは`_start_servers()`が例外を送出せず完了した直後にのみ`True`になる
+(`run()`の54-60行目付近: `_servers_started = False` → `await self._start_servers()` →
+`_servers_started = True`)。except節は`if _servers_started:`の場合のみ
+`await self._ctx.services_required.lifecycle.shutdown_all()`を呼び出す。
+
+したがって:
+
+- `_check_services()` / `_recover_pending_approvals()` / `_setup_prompt()`のいずれかが失敗した場合は、
+  `_servers_started`が`True`のため`shutdown_all()`が呼ばれる。
+- `_start_servers()`自体が例外を送出して失敗した場合は、`_servers_started`が`False`のままとなるため
+  `shutdown_all()`は呼ばれない。複数のMCPサブプロセスのうち1台目が起動済みで2台目が起動失敗したケースでも、
+  この分岐では既に起動済みの1台目に対するロールバックは行われず、そのサブプロセスはorphan化しうる。
+
+この仕様は`tests/test_startup.py`の`TestStartupRollback`クラス(docstring: "run() calls
+lifecycle.shutdown_all() iff _start_servers() succeeded before failure")で固定されており、
+`test_no_rollback_on_start_servers_failure`が「`_start_servers()`失敗時は`shutdown_all()`が
+呼ばれないこと」を、`test_rollback_on_check_services_failure`等が「`_start_servers()`成功後の
+後続失敗では`shutdown_all()`が呼ばれること」を検証する。
+
+### ロールバック自体が失敗した場合
+
+`shutdown_all()`の呼び出しは`try`/`except Exception as shutdown_err:`で囲まれており、
+ロールバックが失敗しても`shutdown_err`は`logger.error()`で
+`"CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s"`として
+`/opt/llm/logs/agent.log`にのみ記録される。except節は最終的に常に元の例外(`setup_err`)を
+再送出し(`raise setup_err`)、`shutdown_err`の内容は再送出される例外に一切含まれない。
+
+呼び出し元`repl.py`は`run()`から伝播した例外を`self._view.write_fatal(f"Startup failed: {e}")`で
+画面表示するが、この`e`は常に元の`setup_err`であるため、ロールバック失敗自体の情報は
+コンソール画面には表示されず、ログファイルのみで確認できる。
+
+この仕様は`tests/test_startup.py`の`test_rollback_shutdown_failure_preserves_original_error`
+(`mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")`を与えても
+`pytest.raises(RuntimeError, match="original error")`が成立することを検証)で固定されている。
+
+---
+
 ## Related Documents
 
 - `05_agent_00_document-guide.md`

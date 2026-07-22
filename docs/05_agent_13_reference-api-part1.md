@@ -112,19 +112,21 @@ source:
 
 ## ToolRouteResolver（`shared/route_resolver.py`）— ToolExecutor の内部コンポーネント
 
-- **役割:** `ToolRegistry`（`shared/tool_registry.py`、`tool_constants.py` の frozenset からインポート時に構築）を**唯一のルーティング権威**として `tool_name → server_key` を解決する
+- **役割:** `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`、McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築）を**唯一のルーティング権威**として `tool_name → server_key` を解決する
 - **主要な API:** `resolve(tool_name) -> server_key`
 - **呼び出し元:** ツール実行層（`ToolExecutor._raw_execute`）
-- **呼び出し先:** なし（`ToolRegistry` シングルトンを参照するのみ）
+- **呼び出し先:** なし（`RuntimeToolRegistry` インスタンスを参照するのみ。`ToolRegistry` には一切触れない）
 - **設定:** 直接の設定なし。コンストラクタは `server_configs` を後方互換のために受け取るが読み取らない
 - **失敗時:** ツール名がレジストリに見つからない場合、フォールバックなしで即時 `ValueError` を発生させる
 
 > **根拠分類: Explicit in code / Document inconsistency の修正。**
 > 旧版は「4層カスケード（live discovery > ToolRegistry > config `tool_names` > 静的定数）」
-> および失敗時 `KeyError` と記載していたが、`shared/route_resolver.py::ToolRouteResolver.resolve()`
-> の実装は `ToolRegistry` のみを参照し、一致しない場合は `ValueError` を送出する。
-> live discovery（`/v1/tools`）は起動時のドリフト検証専用（ルーティングカバレッジ診断機能、現状どの本番呼び出しからも渡されない未使用経路）、
-> config `tool_names` はドリフト検証メタデータに過ぎず、いずれもルーティングの入力ではない。
+> および失敗時 `KeyError` と記載していたが、その後 `shared/route_resolver.py::ToolRouteResolver.resolve()`
+> の実装が `ToolRegistry` のみを参照し、一致しない場合は `ValueError` を送出する形に一度修正された。
+> しかし現行コードはさらに `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`）への移行を経ており、
+> `resolve()` は起動時のライブ `/v1/tools` discovery から構築された `RuntimeToolRegistry.resolve()` のみを参照する。
+> `ToolRegistry` はドリフト検出用のシードデータに格下げされ、ルーティング判断には一切使われない。
+> config `tool_names` はドリフト検証メタデータに過ぎず、ルーティングの入力ではない。
 > `04_mcp_03_01_dispatch-and-routing.md` §ルーティングの信頼できる情報源 は既にこの実装内容に追随済みであり、
 > 本ファイルのみ旧記述が残っていたため修正した。
 

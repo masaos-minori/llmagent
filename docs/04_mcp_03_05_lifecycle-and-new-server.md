@@ -66,12 +66,13 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 | 層 | 役割 | ルーティングに使用するか |
 |---|---|---|
-| `ToolRegistry`（`tool_constants.py` の frozenset からインポート時に自動構築） | **唯一のルーティング権威**; 内部レジストリ登録関数によって構築される | Yes |
-| ライブの `/v1/tools` discovery | **検証専用のソース**; 起動時に `check_routing_drift_vs_live()` によってドリフト検出に使用 | No |
+| `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`; McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築） | **唯一のルーティング権威** | Yes |
+| `ToolRegistry`（`tool_constants.py` の frozenset からインポート時に自動構築） | **ドリフト検出用の入力**（ルーティングには使われない） | No |
+| ライブの `/v1/tools` discovery | **RuntimeToolRegistry のソース**; 起動時に McpToolDiscoveryService によって取得され RuntimeToolRegistry に投入される | (RuntimeToolRegistry 経由で使用) |
 
 **重要なルール:**
-- **新しいツールは常に `ToolRegistry` を経由して登録しなければならない**。未知のツールは `ValueError` で即時失敗する。
-- **ライブ discovery はルーティングに影響しない** — `/v1/tools` が異なる `server_key` を返す場合、ルーティングの上書きとしてではなく、ドリフトとしてフラグが立てられる。
+- **新しいツールは常に `tool_constants.py` の frozenset を経由して登録しなければならない**。`ToolRegistry` はインポート時に自動構築される(ドリフト検出用)。実行時のルーティングは `RuntimeToolRegistry` が起動時のライブ `/v1/tools` discovery から構築する。未知のツールは `ValueError` で即時失敗する。
+- **ライブ discovery はルーティングの入力そのものである**(`RuntimeToolRegistry` を構築するソース)が、`ToolRegistry` に対しては上書きではなくドリフトとしてフラグが立てられる。
 - **config の `tool_names` はルーティングの入力ではない** — あくまでドリフト検出用の検証ヒントである。
 
 ### 新規サーバー/ツール登録チェックリスト

@@ -113,7 +113,7 @@ protected_branches = [
 ]
 ```
 
-この設定では、`main`, `master`, `release/v1.0`, `develop` を対象とする書き込み操作は、承認によって明示的に上書きされない限りブロックされる。
+この設定では、`main`, `master`, `release/v1.0`, `develop` を対象とする書き込み操作は無条件にブロックされる。`protected_branches` のチェック（`_assert_allowed_branch`）は常に `GitHubAuthorizationError` を送出し、これを上書きする承認フローは実装されていない（agent 層の承認と github-mcp 側の `protected_branches` は独立した別レイヤーである）。
 
 ### `path_denylist`
 
@@ -145,9 +145,9 @@ path_denylist = [
 allow_force_push = false   # default: force push disabled
 ```
 
-- 保護対象ブランチで `force-push` 操作を許可するかどうかを制御する
-- **推奨: 本番環境では `false` を維持する。** Force push は履歴を書き換え、チームの共同作業を破壊する可能性がある。
-- `true` の場合、force push は `protected_branches` の保護を回避する。
+- `merge_pull_request` ツールで `merge_method="rebase"` を使用できるかどうかのみを制御する（`scripts/mcp_servers/github/service_pull_requests.py`）。`false` の場合、rebase マージは `GitHubAuthorizationError` で拒否される。
+- **推奨: 本番環境では `false` を維持する。** Rebase マージは履歴を書き換え、チームの共同作業を破壊する可能性がある。
+- github-mcp には ref を強制更新する force-push 操作自体を実行するツールは存在せず、`protected_branches` の保護と相互作用することもない。
 
 **本番環境の例:**
 
@@ -156,7 +156,7 @@ allow_force_push = false   # default: force push disabled
 allow_force_push = false
 ```
 
-正当な force push が必要な場合（例: rebase 後のコミットの squash）は、この設定を有効化するのではなく、適切な権限を持つ GitHub の UI を直接使用すること。
+正当な force push（ref の強制更新）が必要な場合、github-mcp にはそれを実行するツール自体が存在しないため、この設定を有効化するのではなく、適切な権限を持つ GitHub の UI を直接使用すること。
 
 ### `require_pr_review`
 

@@ -110,7 +110,7 @@ REPL loop
 
 - TTLキャッシュチェック → MCPルーティング
 - 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する
-- `ToolRouteResolver`: ツール名 → サーバーキーを解決する(ライブの`/v1/tools`ディスカバリー → ToolRegistry)
+- `ToolRouteResolver`: ツール名 → サーバーキーを解決する(`RuntimeToolRegistry`のみを参照。ライブの`/v1/tools`ディスカバリー→ToolRegistryというカスケードは実装に存在しない)
 - `McpServerHealthRegistry`: サーバーごとのヘルス状態(HEALTHY/DEGRADED/UNAVAILABLE)を追跡する
 
 ### HistoryManager (`agent/history.py`)
