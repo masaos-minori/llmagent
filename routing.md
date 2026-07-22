@@ -28,7 +28,7 @@ Invoke directly by filename. Not triggered by routing.
 
 | Workflow | File |
 |---|---|
-| Issue → requirement (raw issue → formal require doc) | `00_issue_to_require.md` |
+| Issue → requirement (raw issue → formal require doc) | `00_issue-to-require.md` |
 | Plan (requirement → work plan) | `01_require-to-plan.md` |
 | Implementation procedure (work plan → file-level implementation procedure docs) | `02_plan_to_implementation_procedure.md` |
 | Implementation (implementation procedure doc → code, tests, docs) | `03_implementation.md` |
@@ -47,7 +47,7 @@ implementation procedure, not an architecture design document.
 | `requires/inbox/` | Raw, unformatted issues — the entry point. Populated manually (code review findings, proposals, audit results). |
 | `requires/ready/` | Formal requirement docs ready for `01_require-to-plan.md`, in the `Title/Priority/Target files/...` template. |
 | `requires/derived/` | Unknowns and risks generated as a byproduct of `01_require-to-plan.md` Steps 5-6. Not a workflow entry point. |
-| `requires/done/` | Completed items from any of the above — issues resolved via `00_issue_to_require.md`, or requirements consumed by `01_require-to-plan.md`. |
+| `requires/done/` | Completed items from any of the above — issues resolved via `00_issue-to-require.md`, or requirements consumed by `01_require-to-plan.md`. |
 
 ## Docs → task mapping
 
