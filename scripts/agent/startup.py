@@ -243,9 +243,15 @@ class StartupOrchestrator:
             if not discovery.findings and not discovery.unreachable:
                 pipeline.add_ok("mcp_tool_discovery")
         except Exception as exc:  # noqa: BLE001
-            pipeline.add_skipped(
-                "mcp_tool_discovery", f"MCP tool discovery skipped: {exc}"
-            )
+            msg = f"MCP tool discovery failed - ALL tool calls will fail this session: {exc}"
+            if production_mode:
+                pipeline.add_fatal(
+                    "mcp_tool_discovery",
+                    msg,
+                    remediation="Investigate MCP server connectivity/discovery failure before restarting.",
+                )
+            else:
+                pipeline.add_skipped("mcp_tool_discovery", msg)
 
         # 5. Routing drift (static)
         try:
@@ -299,6 +305,8 @@ class StartupOrchestrator:
                 self._view.write_warning(f"{OutputTag.FATAL} {outcome.message}")
                 if outcome.remediation:
                     self._view.write_warning(f"  Remediation: {outcome.remediation}")
+            elif outcome.status == StartupCheckStatus.SKIPPED:
+                self._view.write_warning(f"{OutputTag.SKIPPED} {outcome.message}")
 
     async def _recover_pending_approvals(self) -> None:
         """Restore workflow approval-pending state from a previous session."""
