@@ -56,86 +56,45 @@ source:
 3. `ConfigReloadOutcome` — `applied`,
    `needs_restart`, `skipped`, `source_files`フィールドと共に呼び出し元に返される
 
-### 設定ファイルの所有関係とホットリロード可否
+### 設定の責務境界
 
-### Config file ownership and hot-reload eligibility
+#### 設定ファイルの所有関係
 
-`/reload`はすべてのベース設定ファイルを読み込む — 起動時に読み込まれるものと同一の集合。
-`ConfigReloadService`は変更されたキーごとに4つのカテゴリのいずれかに分類する。
-
-エージェントプロセスの設定は`config/agent.toml`に集約されている。デフォルト値を提供する個別の`common.toml`や他の分割ファイルは存在しない。
-
-| File | Purpose | Classification |
+| ファイル | 責務 | ホットリロード |
 |---|---|---|
-| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ホットリロード可能 (ほとんど); `use_memory_layer`/`memory_embed_enabled`は起動時のみ |
-| `config/*_mcp_server.toml` | MCPサーバー固有のアプリケーション設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須: サーバーの追加/削除/リネーム |
+| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ほとんど可能; `use_memory_layer`/`memory_embed_enabled`は起動時のみ |
+| `config/*_mcp_server.toml` | MCPサーバー固有設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須（追加/削除/リネーム時） |
 
-**分類の定義:**
+#### 再起動が必要な設定
 
-- **ホットリロード可能** — 実行中のエージェントに即座に適用される; 再起動不要。
-- **再起動必須** — 変更を適用するにはサブシステムの再起動が必要。
-  `/reload`の出力はこれらを`[RESTART]`として表示する。
-- **起動時のみ** — エージェント起動時に一度だけ読み込まれる; `/reload`では一切変更されない。
-  `/reload`はフィールドの値が実行中の設定と異なる場合のみ`[STARTUP-ONLY]`を出力する。
+- MCPサーバーのURL、認証トークン、起動モード、コマンド、環境変数の変更
+- `use_memory_layer` — メモリサブシステムの有効/無効（起動時のみ）
+- `memory_embed_enabled` — 埋め込み生成・KNN検索の有効/無効（起動時のみ）
+- `memory_jsonl_dir` — メモリエントリのJSONLバックアップ先ディレクトリ（起動時のみ）
+- `routing_drift_strict` — ルーティングドリフトのfatal扱い（起動時のみ）
 
-**再起動必須の設定** (`ConfigReloadOutcome`内の`needs_restart`):
-- `McpServerConfig`のフィールド変更、新規サーバー、削除されたサーバー、
-  リネーム (旧サーバーの削除+新規追加) はすべて該当する。例:
-  `mcp_servers/<server>.url`, `mcp_servers/<server>.auth_token`, `mcp_servers/<server>.startup_mode`,
-  `mcp_servers/<server>.cmd`, `mcp_servers/<server>.env`。
+#### ホットリロード可能な範囲
 
-**起動時のみの設定** (`apply_config_dict()`では変更されない):
-- `use_memory_layer` — 起動時にメモリサブシステムを有効/無効にする。デフォルトは`true`
-  (`MemoryConfig.use_memory_layer`, `agent/config_dataclasses.py`)。`config/agent.toml`の
-  `use_memory_layer`キーは`_build_memory_config()`(`agent/config_builders.py`)で読み取られ、
-  この値を上書きする(2026-07-19、`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`
-  で修正済み — それ以前は当該フィールドがコメントアウトされたままで`cfg`から読み取られておらず、
-  dataclassデフォルトのみが有効だった)。値は起動時にのみ適用され、`/reload`では変更できない
-  (下記`routing_drift_strict`の説明を参照)。
-- `memory_embed_enabled` — 起動時に埋め込み生成・KNN検索を有効/無効にする。デフォルトは`true`
-  (`MemoryConfig.memory_embed_enabled`, `agent/config_dataclasses.py`)。`use_memory_layer`と同様、
-  `config/agent.toml`の値が`_build_memory_config()`で読み取られ、この値を上書きする
-  (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`で修正済み)。
-- `memory_jsonl_dir` — メモリエントリのJSONLバックアップ先ディレクトリ。デフォルトは
-  `/opt/llm/memory`(`MemoryConfig.memory_jsonl_dir`)。`use_memory_layer`/`memory_embed_enabled`と
-  同じ修正で、`config/agent.toml`の値が読み取られるようになった
-  (`issues/20260719-114512_agent_toml_memory_layer_keys_silently_ignored.md`)。
-- `routing_drift_strict` — 起動時に config/registry のルーティングドリフトをfatal扱いにする
-  (`ToolConfig.routing_drift_strict`; `ConfigReloadService._detect_startup_only()`は
-  `routing_drift_strict`のみを実際に比較する(`agent/services/config_reload.py::_detect_startup_only()`)。
-  `use_memory_layer`/`memory_embed_enabled`/`memory_jsonl_dir`は`_detect_startup_only()`による
-  差分検出の対象ではないため、`/reload`リクエストにこれらのキーを含めても値は反映されない
-  (エラーにもならず、単に無視される)。いずれにせよ「`/reload`では変更できない」という実際の結果は
-  変わらないため、ここでは「起動時のみ」として扱う。根拠: Explicit in code)
+- LLMClient: temperature, max_tokens, max_retries, retry_base_delay, SSEパラメータ
+- HistoryManager: context_char_limit, context_compress_turns, context_token_limit, tokenize_url
+- ToolExecutor: tool_cache_ttl
+- システムプロンプト: system_prompt_tool → `ctx.conv.system_prompt_content`
 
-**無効なキー** — Pydanticデータクラスが未知のフィールドを静かに無視するため、
-`build_agent_config()`でのキーの明示的な拒否チェックは削除された。
-設定ファイルに未知のキーを含めてもエラーにはならない。
-(根拠: Explicit in code)。
+#### 変更時の運用影響
 
-### リロード実行パイプライン
+`ConfigReloadOutcome`の出力で以下のカテゴリを確認:
+- `[APPLIED]` — ホットリロード適用済み
+- `[RESTART]` — サブシステム再起動が必要
+- `[STARTUP-ONLY]` — `/reload`では変更できないフィールド
 
-`ConfigReloadService` (`agent/services/config_reload.py`) はリロードされた
-設定を実行中のサービスインスタンスに適用する:
+#### セキュリティに関わる設定
 
-| Service | Method called | Config fields propagated |
-|---|---|---|
-| `LLMClient` | `.apply_config()` | temperature, max_tokens, max_retries, retry_base_delay, SSEパラメータ |
-| `HistoryManager` | `.apply_config()` | context_char_limit, context_compress_turns, context_token_limit, tokenize_url |
-| `ToolExecutor` | `.apply_config()` | tool_cache_ttl |
-| システムプロンプト | 直接書き込み | system_prompt_tool → `ctx.conv.system_prompt_content` |
+- MCPサーバーのauth_token変更は再起動必須
+- allowlist/denylistの変更は再起動必須
 
-**`ConfigReloadOutcome`のフィールド:**
+### 実装詳細の参照先
 
-| Field | Type | Description |
-|---|---|---|
-| `applied` | `list[str]` | 実行時に適用された変更 (ホットリロード済み) |
-| `needs_restart` | `list[str]` | エージェントの完全な再起動が必要な変更 |
-| `skipped` | `list[str]` | 意図的に無視された変更、MCPサーバー定義ではない — `needs_restart`参照 |
-| `source_files` | `list[str]` | リロードされた設定ファイル |
-| `startup_only` | `list[str]` | 実行中の設定と異なる起動時のみのフィールド |
-
-フィールド単位の完全なマッピングについては`agent/services/config_reload.py`を参照。
+フィールド単位の完全なマッピングについては `agent/services/config_reload.py` を参照。
 
 ---
 
