@@ -61,9 +61,11 @@ When a document or skill file grows too large, split it according to these rules
 | `python-lint-typecheck` | `skills/python-lint-typecheck/` | Ruff / mypy / pyright lint and type error resolution |
 | `python-test-and-fix` | `skills/python-test-and-fix/` | pytest test writing, flaky test detection, fix validation |
 | `python-refactoring` | `skills/python-refactoring/` | Structural refactoring without behavior change |
+| `python-code-review` | `skills/python-code-review/` | Evidence-based review of existing Python code, PRs, and diffs |
 | `python-issue-to-plan` | `skills/python-issue-to-plan/` | Convert tickets or requests into implementation plans |
 | `python-design` | `skills/python-design/` | Architecture and module interface design |
 | `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
+| `issue-creator` | `skills/issue-creator/` | Convert requests, findings, or plans into actionable GitHub Issues |
 | `mcp-server-add` | `skills/mcp-server-add/` | Add a new MCP server to the project |
 | `deploy` | `skills/deploy/` | Deploy changes to the production environment |
 | `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, pull, conflict resolution, and push |
