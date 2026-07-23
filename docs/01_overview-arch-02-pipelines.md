@@ -65,7 +65,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 `workflow_mode` は設定キーとして存在しない(`build_agent_config()` の `_FORBIDDEN_KEYS` に含まれ、設定すると `ConfigLoadError` で起動不可)。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
 
-詳細: [02_deployment-part1.md §Workflow deployment checklist](02_deployment-part1.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook)
+詳細: [02_deployment-part1.md §Workflow deployment checklist](02_deployment-part1.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook) / [ADR-Workflow-Mandatory](../ADR-Workflow-Mandatory.md)
 
     ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に人間承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
