@@ -14,78 +14,45 @@ source:
 
 # 6.1 models_data.py (`scripts/rag/models_data.py`)
 
-**EmbeddingResponse** — 埋め込みAPIからのレスポンス。
+## データ構造の目的
 
-| Field | Type | Description |
-|---|---|---|
-| `embedding` | `list[float]` | 埋め込みベクトル |
-| `model` | `str \| None` | モデル名 (省略可) |
+このファイルはRAGパイプライン全体で共有されるデータモデルを定義する。
+すべてのDTOは `@dataclass(frozen=True)` として定義されており、生成後の書き換えを禁止する。
 
-**CrawlTarget** — WebCrawlerのクロール操作の対象。
+## 設計上重要なフィールド
 
-| Field | Type | Description |
-|---|---|---|
-| `url` | `str` | クロール対象のURL |
-| `lang` | `LanguageCode` | 言語ヒント (`"en"` / `"ja"`) |
+### EmbeddingResponse — 埋め込みAPIからのレスポンス
+- `embedding`: 埋め込みベクトル（必須）
+- `model`: モデル名（省略可）
 
-**ChunkDocument** — パイプラインステージ間で受け渡されるチャンクデータ。
+### CrawlTarget — WebCrawlerのクロール対象
+- `url`: クロール対象URL（必須）
+- `lang`: 言語ヒント（`LanguageCode` enum、`"en"`/`"ja"`）
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `url` | `str` | (required) | ソースドキュメントのURL |
-| `title` | `str` | (required) | ソースドキュメントのタイトル |
-| `lang` | `str` | (required) | 言語コード (`"ja"` / `"en"`) |
-| `content` | `str` | (required) | チャンクのテキスト |
-| `code_blocks` | `list[str]` | `[]` | コードブロックの内容 |
-| `etag` | `str \| None` | `None` | 更新検知用のETag |
-| `last_modified` | `str \| None` | `None` | Last-Modifiedタイムスタンプ |
-| `chunking_strategy` | `str` | `"text"` | チャンク分割ストラテジー |
-| `normalized_content` | `str \| None` | `None` | Sudachiで正規化されたテキスト (日本語のみ) |
-| `chunk_index` | `int` | `0` | ドキュメント内での位置 |
-| `source_file` | `str` | `""` | 元のクローラー出力ファイル名 |
-| `chunk_type` | `str` | `""` | `"text"` または `"code"` |
+### ChunkDocument — パイプラインステージ間で受け渡されるチャンクデータ
+- `url`, `title`, `lang`, `content`: 必須フィールド
+- `etag`, `last_modified`: 更新検知用
+- `normalized_content`: Sudachi正規化済みテキスト（日本語のみ）
+- `chunking_strategy`, `source_file`, `chunk_type`: 処理メタデータ
 
-**ChunkRecord** — 埋め込みベクトルを持つチャンクデータ (クエリパイプラインで使用)。
+### ChunkRecord — 埋め込みベクトル付きチャンク（クエリパイプライン使用）
+- `chunk_id`, `url`, `title`, `lang`, `content`: 必須フィールド
+- `embedding`: 埋め込みベクトル
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `chunk_id` | `str` | (required) | チャンク識別子 |
-| `url` | `str` | (required) | ソースドキュメントのURL |
-| `title` | `str` | (required) | ソースドキュメントのタイトル |
-| `lang` | `str` | (required) | 言語コード |
-| `content` | `str` | (required) | チャンクのテキスト |
-| `embedding` | `list[float]` | `[]` | 埋め込みベクトル |
+### CacheEntry — セマンティックキャッシュエントリ
+- `embedding`, `context_str`: 必須フィールド
+- `history_context`: 関連会話履歴
+- `generation`: キャッシュ無効化用世代カウンタ
 
-**RegisteredDocument** — ドキュメント登録レコード。
+### TwoStageFetchResult — HTTP RAGサービス呼び出し結果
+- `hits`: インプロセス時は `RagHit`、HTTPモード時は `dict`（型が異なる）
+- `min_score_applied`, `max_chunks_per_doc`: フィルタリングパラメータ
 
-| Field | Type | Description |
-|---|---|---|
-| `url` | `str` | ソースURL |
-| `lang` | `str` | 言語コード |
-| `chunk_count` | `int` | チャンク数 |
+## 永続化・検索・互換性に関わる制約
 
-**CacheEntry** — セマンティックキャッシュエントリ。
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `embedding` | `list[float]` | (required) | キャッシュされた埋め込みベクトル |
-| `context_str` | `str` | (required) | キャッシュされたコンテキスト文字列 |
-| `history_context` | `str` | `""` | 関連する会話履歴 |
-| `generation` | `int` | `0` | キャッシュ無効化用の世代カウンタ |
-
-**TwoStageFetchResult** — HTTP RAGサービス呼び出しの結果。
-
-| Field | Type | Description |
-|---|---|---|
-| `hits` | `list[Any]` | ヒット結果 (インプロセス時はRagHit、HTTPモード時はdict) |
-| `min_score_applied` | `float` | フィルタリングに使用されたrag_min_score |
-| `max_chunks_per_doc` | `int` | 適用されたドキュメント単位の重複排除上限 |
-
-## 実装意図 (Implementation note)
-
-- `scripts/rag/models_data.py` の全DTOは `@dataclass(frozen=True)` として定義されている(Explicit in code)。生成後の書き換えを禁止し、パイプラインステージ間で受け渡す際の意図しない変更を防ぐ設計と読み取れる(Strongly implied by code)。
-- `CrawlTarget.lang` の型は `str` ではなく `rag.enums.LanguageCode`(`StrEnum`、値は `"en"`/`"ja"`)。他のDTO(`ChunkDocument.lang` 等)は素の `str` のままであり、DTO間で言語表現の型が統一されていない(Explicit in code)。
-- `TwoStageFetchResult.hits` は `list[Any]` で、インプロセス実行時は `RagHit`、HTTPモード時は `dict` が格納される。呼び出しモードによって要素の実体型が変わることはコード中のコメントに明記されている(Explicit in code、`scripts/rag/models_data.py` の型注釈コメント)。実際の利用箇所は `scripts/rag/pipeline.py`・`scripts/rag/pipeline_service.py`・`scripts/rag/http_augment.py`。
+- `ChunkDocument.normalized_content` は日本語のみ有効
+- `TwoStageFetchResult.hits` の要素型は呼び出しモードによって異なる（`RagHit` / `dict`）
+- `CrawlTarget.lang` は `LanguageCode` enum、他DTOの `lang` は素の `str`（型不統一に注意）
 
 ## Related Documents
 
