@@ -21,77 +21,53 @@ related:
 
 ## 3. ファイル構成
 
-デプロイ先のディレクトリ構成:
+### 主要ディレクトリと責務
 
+#### エージェント REPL パッケージ (`scripts/agent/`)
 
-``` text
-/opt/llm/
-├─ scripts/
-│   ├─ agent/                               # エージェント REPL パッケージ
-│   │   ├─ __init__.py                      # agent パッケージ初期化
-│   │   ├─ __main__.py                      # python -m agent エントリポイント
-│   │   ├─ repl.py                          # AgentREPL: 全コンポーネントを AgentContext に注入し REPL ループを駆動
-│   │   ├─ startup.py                       # StartupOrchestrator: 起動シーケンス
-│   │   ├─ config_builders.py               # 設定ビルダ群
-│   │   ├─ config_dataclasses.py            # 設定データクラス
-│   │   ├─ context.py                       # AgentContext: per-session mutable state / DI ハブ
-│   │   ├─ session.py                       # AgentSession: セッション CRUD (SQLite 永続化)
-│   │   ├─ session_message_repo.py          # セッションメッセージリポジトリ
-│   │   ├─ security_audit_config.py         # セキュリティ監査用 MCP サーバ設定モデル narrow API
-│   │   ├─ history.py                       # 会話履歴バッファ・圧縮フック
-│   │   ├─ history_selection_policy.py      # 履歴圧縮選択ポリシー
-│   │   ├─ orchestrator.py                  # Orchestrator: ターンレベル制御 (RAG → 圧縮 → LLM → ツール)
-│   │   ├─ llm_turn_runner.py               # LLMTurnRunner: SSE ストリーミング + ツールループ
-│   │   ├─ tool_loop_guard.py               # ToolLoopGuard: dedup/cycle/retry/error ガード
-│   │   ├─ tool_runner.py                   # ツール実行
-│   │   ├─ tool_scheduler.py                # ツールスケジューラ (並列/直列)
-│   │   ├─ tool_policy.py                   # ツールポリシー
-│   │   ├─ tool_approval.py                 # ツール承認
-│   │   ├─ tool_audit.py                    # ツール監査
-│   │   ├─ tool_enums.py                    # ツール列挙型
-│   │   ├─ tool_exceptions.py               # ツール例外定義
-│   │   ├─ tool_models.py                   # ツールデータモデル
-│   │   ├─ tool_output.py                   # ツール出力フォーマット
-│   │   ├─ output_tags.py                   # OutputTag: REPL/CLI 出力の角括弧プレフィックス列挙型 ([warn]/[fatal]/[error] 等)
-│   │   ├─ tool_result_formatter.py         # ツール結果整形
-│   │   ├─ repository_gateway.py            # RepositoryGateway: 書込/削除/API-write の単一強制境界 (policy → approval → exec → audit)
-│   │   ├─ turn_result.py                   # ターン結果データクラス
-│   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
-│   │   ├─ error_injection_service.py       # エラー注入サービス
-│   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
-│   │   ├─ mode_classification.py           # MDQ/RAG モード分類 + システムプロンプト注入
-│   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
-│   │   ├─ llm_transport_errors.py          # LLM トランスポートエラー処理
-│   │   ├─ lifecycle.py                     # LifecycleState enum
-│   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理
-│   │   ├─ repl_health.py                   # ヘルスチェックサテライト
-│   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
-│   │   ├─ factory.py                       # AgentFactory: エージェントコンポーネント構築
-│   │   ├─ memory/
-│   │   │   └─ __init__.py                  # memory パッケージ初期化
-│   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit / EmbeddingResult データクラス
-│   │   │   ├─ services.py                  # MemoryServices: memory サブサービスコンテナ (AppServices.memory の型)
-│   │   │   ├─ store.py                     # MemoryStore: SQLite CRUD (`memories` / `memories_fts` / `memories_vec`)
-│   │   │   ├─ retriever.py                 # FtsRetriever / VectorRetriever / HybridRetriever: FTS5 + KNN RRF 検索
-│   │   │   ├─ extract.py                   # extract_memories(): ルールベース履歴抽出
-│   │   │   ├─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース (write() 1 本)
-│   │   │   ├─ embedding_client.py          # 埋め込みクライアント
-│   │   │   ├─ ingestion.py                 # メモリ取り込み
-│   │   │   ├─ injection.py                 # メモリ注入
-│   │   │   ├─ mapper.py                    # メモリマッパー
-│   │   │   ├─ enums.py                     # メモリ列挙型
-│   │   │   ├─ exceptions.py                # メモリ例外定義
-│   │   │   ├─ models.py                    # HistoryMessage / JsonlRecord / ConsistencyReport / MemorySnippet データクラス
-│   │   │   ├─ count_ops.py                 # memories テーブルの行数カウント (type/source_type 別)
-│   │   │   ├─ write_ops.py                 # メモリ書き込み操作
-│   │   │   ├─ pin_ops.py                   # メモリピン留め操作
-│   │   │   ├─ import_ops.py                # メモリインポート操作
-│   │   │   ├─ rebuild_ops.py               # メモリ再構築操作
-│   │   │   ├─ fts_query.py                 # FTS クエリヘルパー
-│   │   │   ├─ scoring.py                   # メモリスコアリング
-│   │   │   ├─ rrf.py                       # RRF (Reciprocal Rank Fusion) マージ
-│   │   │   └─ sql_constants.py             # SQL定数
-```
+| 責務 | ファイル群 |
+|---|---|
+| エントリポイント | `__main__.py`, `repl.py` |
+| 起動シーケンス | `startup.py`, `context.py` |
+| 設定 | `config_builders.py`, `config_dataclasses.py` |
+| セッション管理 | `session.py`, `session_message_repo.py` |
+| ターン制御 | `orchestrator.py`, `llm_turn_runner.py` |
+| ツール実行 | `tool_runner.py`, `tool_scheduler.py`, `tool_policy.py`, `tool_approval.py` |
+| ツールガード | `tool_loop_guard.py` |
+| ツール監査 | `security_audit_config.py`, `tool_audit.py` |
+| 出力フォーマット | `output_tags.py`, `tool_output.py`, `tool_result_formatter.py` |
+| エラー処理 | `llm_transport_errors.py`, `tool_exceptions.py`, `error_injection_service.py` |
+| ライフサイクル | `lifecycle.py`, `lifecycle_protocol.py`, `http_lifecycle.py`, `repl_health.py` |
+| CLI | `cli_view.py` |
+| コンポーネント構築 | `factory.py` |
+| 診断 | `diagnostic_store.py` |
+| モード分類 | `mdq_rag_classifier.py`, `mode_classification.py` |
+| 会話履歴 | `history.py`, `history_selection_policy.py` |
+
+#### メモリサブパッケージ (`scripts/agent/memory/`)
+
+| 責務 | ファイル群 |
+|---|---|
+| データモデル | `types.py`, `models.py`, `enums.py` |
+| ストレージ | `store.py`, `jsonl_store.py` |
+| 検索 | `retriever.py`, `fts_query.py` |
+| 埋め込み | `embedding_client.py` |
+| 取り込み | `ingestion.py` |
+| 注入 | `injection.py` |
+| マッピング | `mapper.py` |
+| スコアリング | `scoring.py`, `rrf.py` |
+| 操作 | `count_ops.py`, `write_ops.py`, `pin_ops.py`, `import_ops.py`, `rebuild_ops.py` |
+| 定数 | `sql_constants.py` |
+
+### 変更時の注意点
+
+- セッション永続化のスキーマ変更時は `store.py` と `sql_constants.py` を併せて確認
+- ツール承認フローの変更時は `tool_approval.py` と `repository_gateway.py` の両方を確認
+- メモリ検索アルゴリズムの変更時は `retriever.py` と `scoring.py` を併せて確認
+
+### 実装詳細の参照先
+
+完全なファイル一覧はリポジトリの実装ツリーを参照する。
 
 ## Related Documents
 
