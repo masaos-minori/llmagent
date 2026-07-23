@@ -17,6 +17,10 @@ Each entry must contain the following eleven fields:
 9. **Status** — Current lifecycle state of the item
 10. **Assigned To** — Person responsible for resolution
 11. **Last Reviewed** — Date last reviewed
+12. **Priority** — Classification of urgency: High (must resolve before next release), Medium (resolve within sprint), Low (nice-to-have)
+13. **Related NC** — Other NC items that share the same root cause or dependency
+14. **Resolution Target** — Date or milestone by which this item should be resolved
+15. **Blocking** — Whether this item blocks other work (Yes/No)
 
 ## Status Values
 
@@ -25,6 +29,12 @@ Each entry must contain the following eleven fields:
 - **resolved** — Item resolved through code change or documentation update
 - **deferred** — Resolution postponed to future work
 - **wontfix** — Item will not be addressed
+
+### プライオリティ値（日本語）
+
+- **高** (High) — 次のリリース前に解決必須
+- **中** (Medium) — スプリント内で解決すべき
+- **低** (Low) — やりたいが必須ではない
 
 ## Extraction Process
 
@@ -76,6 +86,9 @@ To extract "Needs confirmation" items from source documents:
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-07-22
+- **Priority**: High
+- **Resolution Target**: Next sprint
+- **Blocking**: Yes
 
 ### NC-004
 
@@ -141,6 +154,9 @@ To extract "Needs confirmation" items from source documents:
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-07-22
+- **Priority**: High
+- **Resolution Target**: Next sprint
+- **Blocking**: Yes
 
 ### NC-009
 
@@ -167,6 +183,9 @@ To extract "Needs confirmation" items from source documents:
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-07-22
+- **Priority**: Medium
+- **Resolution Target**: Current sprint
+- **Blocking**: No
 
 ### NC-011
 
@@ -219,6 +238,10 @@ To extract "Needs confirmation" items from source documents:
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-07-22
+- **Priority**: Medium
+- **Resolution Target**: Current sprint
+- **Blocking**: No
+- **Related NC**: NC-010
 
 ### NC-015
 
