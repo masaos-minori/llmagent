@@ -22,7 +22,9 @@ related:
 
 ---
 
-## Purpose of This Document Set
+## 設計意図
+
+### ドキュメントセットの目的
 
 これらのファイルはLLM Agent REPLシステムを文書化するものである。LLM Agent REPLシステムとは、LLMのfunction
 callingを用いてMCPツールサーバーと対話し、会話履歴を維持し、ターミナルに
@@ -31,7 +33,9 @@ callingを用いてMCPツールサーバーと対話し、会話履歴を維持�
 
 ---
 
-## Recommended Reading Order (Human)
+## 現在の実装挙動
+
+### 推奨読書順序（人間向け）
 
 ``` text
 01 Overview → 02 Runtime Architecture → 03 Turn Processing Flow
@@ -42,7 +46,9 @@ callingを用いてMCPツールサーバーと対話し、会話履歴を維持�
 
 ---
 
-## AI Query Routing Table
+## 責務境界
+
+### エージェントクエリルーティングテーブル
 
 | Question | File |
 |---|---|
@@ -106,6 +112,11 @@ Cross-cutting documentation rules and policies:
 ## Known Limitations
 
 古いモノリシックなソースファイル(`05_agent.md`等)は削除済みで本セットが正式リファレンス。メモリレイヤー(`agent/memory/`)は`05_agent_12_memory-*.md`で詳述、`05_agent_02`§Memory Servicesで概要。
+
+## 未確認事項
+
+- [NC-001](00_governance_07_needs-confirmation-inventory.md#nc-001): UTF8_PARTIAL_DECODE_ERROR と PREMATURE_EOF の区別
+- [NC-004](00_governance_07_needs-confirmation-inventory.md#nc-004): 距離計測のcosine/L2判定不能
 
 ## Related Documents
 

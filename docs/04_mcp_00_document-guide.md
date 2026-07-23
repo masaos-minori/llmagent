@@ -26,7 +26,17 @@ related:
 
 ---
 
-## Reading Order
+## 設計意図
+
+### ドキュメントセットの目的
+
+MCPドキュメント群のエントリポイントとして、どの章を開くべきかを判断するためのガイダンスを提供する。
+
+---
+
+## 現在の実装挙動
+
+### 推奨読書順序
 
 ``` text
 01 → 02 → 03 → 04 → 05 → 06 → 90
@@ -34,7 +44,9 @@ related:
 
 ---
 
-## AI Query Routing Table
+## 責務境界
+
+### エージェントクエリルーティングテーブル
 
 | 質問 | ファイル |
 |---|---|
@@ -141,6 +153,12 @@ Cross-cutting documentation rules and policies:
 ## Known Limitations
 
 - `04_spec_mcp.md` §13の既知の問題はすべて `04_mcp_90` に転記済み。
+
+## 未確認事項
+
+- [NC-002](00_governance_07_needs-confirmation-inventory.md#nc-002): ResultSourceフィールドの未使用理由
+- [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): RagAuditRequest/RagAuditResponseのデッドコード判定
+- [NC-006](00_governance_07_needs-confirmation-inventory.md#nc-006): result_sourceフィールドの将来利用可否
 
 ## Related Documents
 
