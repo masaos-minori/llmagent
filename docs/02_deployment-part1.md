@@ -18,17 +18,8 @@ source:
 ### 1.1 Gentoo Linux パッケージ導入
 
 ```bash
-emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja
-
-emerge --ask dev-db/sqlite
-
-sqlite3 :memory: "CREATE VIRTUAL TABLE t USING fts5(x); INSERT INTO t VALUES('テスト'); SELECT * FROM t WHERE t MATCH 'テスト';"
-
-emerge --ask dev-lang/python:3.13
-
-emerge --ask dev-libs/libxml2 dev-libs/libxslt
-
-emerge --ask dev-vcs/git
+# 必須パッケージ
+emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/sqlite dev-lang/python:3.13 dev-libs/libxml2 dev-libs/libxslt dev-vcs/git
 ```
 
 > Python の `sqlite3` モジュールがロード拡張に対応していない場合:
@@ -41,7 +32,6 @@ emerge --ask dev-vcs/git
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
 uv sync --dev --system-certs
 ```
 
@@ -70,42 +60,25 @@ uv pip install -r /opt/llm/venv/requirements.txt
 
 ### 1.3 llama.cpp のビルド
 
-GGUF (GPT-Generated Unified Format) 形式のモデルを CPU で動作させる推論エンジン。
-
 ```bash
 git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
 cd /opt/llm/llama.cpp
-
-cmake -B build \
-    -DGGML_NATIVE=ON \
-    -DLLAMA_SERVER=ON \
-    -DCMAKE_BUILD_TYPE=Release
-
+cmake -B build -DGGML_NATIVE=ON -DLLAMA_SERVER=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j$(nproc)
-/opt/llm/llama.cpp/build/bin/llama-server --version
 ```
 
 ### 1.4 LLM モデルの取得
 
 ```bash
 mkdir -p /opt/llm/models
-
-uv run --with huggingface-hub huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
-    multilingual-e5-small-Q8_0.gguf \
-    --local-dir /opt/llm/models/
-mv /opt/llm/models/multilingual-e5-small-Q8_0.gguf \
-   /opt/llm/models/multilingual-E5-small.gguf
-
-uv run --with huggingface-hub huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
-    gemma-4-e4b-it-Q4_K_M.gguf \
-    --local-dir /opt/llm/models/
-
-uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
-    Qwen3.6-Instruct-Q4_K_M.gguf \
-    --local-dir /opt/llm/models/
-
-ls -lh /opt/llm/models/
+uv run --with huggingface-hub huggingface-cli download <repo>/<model> <file> --local-dir /opt/llm/models/
 ```
+
+| モデル | ファイル名 |
+|---|---|
+| multilingual-e5-small (埋め込み) | multilingual-e5-small-Q8_0.gguf |
+| gemma-4-e4b-it (LLM) | gemma-4-e4b-it-Q4_K_M.gguf |
+| Qwen2.5-Coder-7B (LLM) | Qwen3.6-Instruct-Q4_K_M.gguf |
 
 ---
 

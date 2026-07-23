@@ -71,7 +71,7 @@ URLは `file://{absolute_path}` として格納される。
 | `--lang {en,ja,auto}` | ページごとのCJK比率判定に使うヒント言語 | `en` |
 | `--targets-file PATH` | `target_urls = [[url, lang], ...]` を記述したTOMLファイルのパス。`http://`、`https://`、`file://` に対応。`--url` とは併用不可 | — |
 
-### 2.4 出力JSON形式（`rag-src/yyyymmddhhmmss-{slug}.json`）
+### 2.4 出力JSON形式
 
 ```json
 {
@@ -89,8 +89,9 @@ URLは `file://{absolute_path}` として格納される。
 }
 ```
 
-ローカルファイルのペイロードには `etag`（ファイル内容のSHA-256十六進ダイジェスト）と `last_modified`（ISO形式のmtime文字列）が含まれる。
-Pythonファイル（.py）は内容を `code_blocks` に格納し `content` は空にする。それ以外のファイル種別は内容を直接格納する。
+- Web: `etag` はHTTP ETag、`last_modified` はHTTP Last-Modified
+- ローカルファイル: `etag` はSHA-256ハッシュ、`last_modified` はmtime
+- `.py`ファイル: コンテンツを `code_blocks` に格納、`content` は空
 
 ### 2.5 エラーハンドリング
 

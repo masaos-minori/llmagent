@@ -15,33 +15,22 @@ source:
 
 ## 初回取り込み
 
-`config/crawler.toml`の`target_urls`に、スキーム`file://`でファイルパスを追加する
-(`--targets-file`で別ファイルを指定する場合も同じ`target_urls = [[url, lang], ...]`形式)。
+```bash
+# target_urlsにfile://を追加して実行
+uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
+```
 
+TOML形式:
 ```toml
 [[target_urls]]
 url = "file:///path/to/file.py"
 lang = "en"
 ```
 
-その後、以下を実行する。
-
-``` python
-uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
-```
-
-クローラーは`crawl()`内で`url.startswith("file://")`を判定して`crawl_file()`を呼び出し、
-JSONを`rag-src/`に書き込む (`scripts/rag/ingestion/crawler.py:crawl_file()`)。
-その後`chunk_splitter.py`がチャンク分割を行い、`ingester.py`がSQLiteベクトルストアに埋め込む
-(`crawler.py`自体はチャンク分割・埋め込みを行わない。3スクリプトは個別に実行する別プロセスである)。
-
-**実装上の補足 (Strongly implied by code):**
-- `.py`拡張子のファイルは`content`ではなく`code_blocks`に格納され、コード用チャンカー
-  (`chunk_english.py`側のコードパス) が適用される。
-- `crawl_file()`が`documents.etag`に書き込む値は、HTTPのETagではなくファイル内容の
-  SHA-256ハッシュそのものである。`last_modified`にはファイルの`mtime` (ISO8601) を格納する。
-  Web URLの場合と同じカラムを再利用しているため、カラム名から実体が本物のHTTP ETagだと
-  誤解しないよう注意する。
+- クロール → チャンク分割 → 埋め込みの3ステップ（別プロセス）
+- `.py`ファイル: コンテンツを `code_blocks` に格納
+- `etag`: HTTP ETagではなくファイル内容のSHA-256ハッシュ
+- `last_modified`: ファイルのmtime (ISO8601)
 
 ## ファイル変更後の再取り込み
 

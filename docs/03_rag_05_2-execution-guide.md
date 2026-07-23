@@ -26,52 +26,38 @@ ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml
 ## 2.2 ステップ1: クロール
 
 ```bash
-# crawler.tomlのtarget_urls全件
-nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
-tail -f logs/crawl.log
+# crawler.tomlの全URLクロール
+uv run python scripts/rag/ingestion/crawler.py
 
-# 単一URL
-uv run python scripts/rag/ingestion/crawler.py --url "https://ziglang.org/documentation/master/" --lang en
-
-# 複数URL (同じ--langが全てに適用される)
-uv run python scripts/rag/ingestion/crawler.py \
-    --url "https://ziglang.org/documentation/master/" \
-          "https://zig.guide/" \
-    --lang en
+# 単一URLクロール
+uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/" --lang en
 ```
 
 ## 2.3 ステップ2: チャンク分割
 
 ```bash
-# {rag_src_dir}/内の未処理.jsonファイル全件
+# 未処理ファイル一括分割
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
-# 単一ファイル (設定にある絶対パスを使用)
-uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.json
-
-# 既存チャンクの再生成 (--force)
+# 既存チャンクの再生成
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
-### 2.4 ステップ3: 埋め込みと保存
+## 2.4 埋め込みと保存
 
 ```bash
-# 実行前にembed-llmを確認
-curl -s http://127.0.0.1:8081/health
-
+# 埋め込みとDB保存
 uv run python scripts/rag/ingestion/ingester.py
 
-# 既存URLの強制再登録 (削除して再挿入)
+# 強制再登録
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-### 2.5 スクリプトごとの`--force`の動作
+### `--force`の動作
 
-| Script | `--force` effect |
-|---|---|
-| `crawler.py` | 適用対象外 (クローラーは常に上書きし、実行ごとの`visited`集合により冪等性を確保) |
-| `chunk_splitter.py` | 既存の`{stem}-*.json`チャンクを削除して再生成 |
-| `ingester.py` | 対象URLの`chunks_vec` → `chunks` → `documents`レコードを削除後、再挿入 |
+- `crawler.py`: 適用対象外（冪等）
+- `chunk_splitter.py`: 既存チャンクを削除して再生成
+- `ingester.py`: 対象URLの`chunks_vec` → `chunks` → `documents`を削除後再挿入
 
 ### 2.6 RAG整合性チェック (`db/rag_consistency.py`)
 

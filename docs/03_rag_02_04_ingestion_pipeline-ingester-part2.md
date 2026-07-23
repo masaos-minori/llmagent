@@ -40,13 +40,15 @@ source:
 
 ``` http
 POST http://127.0.0.1:8081/embedding
-Request:  {"content": "passage: {text}"}
-Response: {"embedding": [float, ...]}   # 384次元（multilingual-E5-small；config/ingester.toml::embedding_dims）
+Content-Type: application/json
+
+{"content": "passage: {text}"}
 ```
 
-### 実装上の補足(embedding_dimsの参照元)
+応答: `{"embedding": [float, ...]}` — 384次元（multilingual-E5-small）
 
-`ingester.py` 内のコード上のdocstringは `common.toml::embedding_dims` と記載しているが、`common.toml` という設定ファイルはリポジトリ内に存在しない。実際には `RagIngester.__init__` に渡される設定辞書(`ingester.toml` をロードしたもの)の `embedding_dims` キー(デフォルト384)を使用する。docstringはプロセス分離方針導入前の記述が残ったものと考えられる(Explicit in code / Needs confirmation — docstringの記述意図そのものは未確認)。
+- `embedding_dims`: `config/ingester.toml` で指定（デフォルト384）
+- docstringの `common.toml::embedding_dims` は古い記述（`common.toml` は存在しない）
 
 ### 4.5 更新されるDBテーブル
 

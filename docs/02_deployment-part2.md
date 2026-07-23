@@ -27,36 +27,34 @@ The agent uses three SQLite databases. All paths are configured in `agent.toml`.
 
 Schema details: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`
 
-### 3.1 Applying schema
+### 3.1 スキーマ適用
 
 ```bash
 bash deploy/init_db.sh
-
-Verify tables (chunks  chunks_fts  chunks_vec  documents)
 ```
 
-**Workflow schema responsibilities (init_db.sh):**
-- Creates `workflow.sqlite` and its required tables (`tasks`, `attempts`, `processed_events`, `artifacts`, `approvals`) via `create_workflow_schema()`
-- Applies incremental schema migrations (idempotent — safe to re-run)
-- Verifies all 5 required tables exist after initialization; aborts if any are missing
-- Records the current workflow schema version in `workflow_schema_version`
+**init_db.sh の責務:**
+- `workflow.sqlite` と 5つの必須テーブル（tasks, attempts, processed_events, artifacts, approvals）を作成
+- インクリメンタルスキーママイグレーションを適用（冪等性あり）
+- 全5テーブルが存在することを確認、いずれか欠如時は中止
+- スキーマバージョンを記録
 
-### 3.2 Workflow deployment checklist
+### 3.2 デプロイメントチェックリスト
 
-- [ ] `config/workflows/default.json` exists in the repository before running `deploy.sh`
-- [ ] `bash deploy/deploy.sh` completes with a printed workflow Name/Version/Stages/SHA256 block and no `[FATAL]` errors
-- [ ] `bash deploy/init_db.sh` reports all 5 workflow tables present and the expected schema version recorded
-- [ ] `bash deploy/setup_services.sh` passes its pre-flight workflow checks before any service starts
+- [ ] `config/workflows/default.json` が存在する
+- [ ] `deploy.sh` が正常終了（[FATAL]なし）
+- [ ] `init_db.sh` が全5テーブルと正しいスキーマバージョンを報告
+- [ ] `setup_services.sh` がプリフライトチェックに合格
 
-### 3.3 Workflow deployment failure modes
+### 3.3 失敗モード
 
-| Symptom | Failing script | Remediation |
+| 症状 | 失敗スクリプト | 対処法 |
 |---|---|---|
-| `[FATAL] Missing required workflow definition` | `deploy.sh` | Add `config/workflows/default.json` to the repository before deploying |
-| `[FATAL] Invalid workflow definition ...` | `deploy.sh` | Fix the JSON per the printed validation error (missing field, duplicate stage ID, invalid retry policy, etc.) |
-| `[FATAL] Deployed workflow definition checksum does not match source` | `deploy.sh` | Re-run `deploy.sh`; investigate why the copy was not byte-identical (disk/filesystem issue) |
-| `[FATAL] Workflow database schema is missing or incomplete` | `init_db.sh` or `setup_services.sh` | Run `bash deploy/init_db.sh` to (re-)create the workflow schema |
-| `[FATAL] Workflow schema version mismatch` | `setup_services.sh` (or `RuntimeError` at agent startup) | Run `bash deploy/init_db.sh` to apply pending migrations and record the current version |
+| `[FATAL] Missing required workflow definition` | deploy.sh | config/workflows/default.json を追加 |
+| `[FATAL] Invalid workflow definition` | deploy.sh | JSONバリデーションエラーを修正 |
+| `[FATAL] Checksum does not match source` | deploy.sh | deploy.sh を再実行、ディスク異常を確認 |
+| `[FATAL] Schema is missing or incomplete` | init_db.sh / setup_services.sh | init_db.sh を再実行 |
+| `[FATAL] Schema version mismatch` | setup_services.sh | init_db.sh でマイグレーション適用 |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook).
 

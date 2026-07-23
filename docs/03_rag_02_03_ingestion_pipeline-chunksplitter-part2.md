@@ -64,7 +64,7 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 | `--file PATH` | 単一ファイルのみ処理する（パスはrag_src_dirからの相対パス） | rag-src/内の未処理の `.json` すべて |
 | `--force` | 既存チャンクを再生成する（センチネルチェックを上書き） | false |
 
-### 3.4 出力JSON形式（`rag-src/chunk/{stem}-{idx:04d}.json`）
+### 3.4 出力JSON形式
 
 ```json
 {
@@ -85,8 +85,10 @@ Markdownの見出し（# から ######）でテキストを分割する。`md_sn
 }
 ```
 
-`source_file` フィールドには、クローラの出力ファイル名の元の `.json` 拡張子がそのまま保持される。
-`ChunkMetadata` TypedDict（total=False）のすべてのフィールドが `**metadata` の展開によって含まれる。
+- `chunk_type`: `text` / `code`
+- `chunking_strategy`: `text` / `heading`
+- `normalized_content`: 日本語のみ（Sudachi正規化）、英語・コードはnull
+- `source_file`: クローラ出力ファイル名から`.json`拡張子を除いたもの
 
 ### 3.5 エラーハンドリング
 
