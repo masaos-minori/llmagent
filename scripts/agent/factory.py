@@ -9,6 +9,7 @@ REPL instance state directly.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -40,6 +41,9 @@ _COMPRESS_MAX_TOKENS: int = 300
 
 _logger = logging.getLogger(__name__)
 
+# Cooldown duration for failed MCP subprocess starts (seconds)
+_COOLDOWN_SECONDS: float = 30.0
+
 
 class _ServerLifecycleRouter:
     """Production implementation of LifecycleManagerProtocol for HTTP MCP servers.
@@ -61,6 +65,7 @@ class _ServerLifecycleRouter:
         self._http_mgr = HttpServerLifecycleManager()
         self._shutting_down: bool = False
         self._states: dict[str, LifecycleState] = {}
+        self._failed_starts: dict[str, float] = {}
 
     def _set_state(self, server_key: str, new_state: LifecycleState) -> None:
         """Transition the server state with validation."""
@@ -86,6 +91,23 @@ class _ServerLifecycleRouter:
             )
         self._states[server_key] = new_state
 
+    def _in_cooldown(self, server_key: str) -> bool:
+        """Return True if the server is within its cooldown window."""
+        last_failure = self._failed_starts.get(server_key, 0)
+        if last_failure == 0:
+            return False
+        elapsed = time.monotonic() - last_failure
+        if elapsed < _COOLDOWN_SECONDS:
+            _logger.info(
+                "Lifecycle: %r still in cooldown (%.1fs remaining)",
+                server_key,
+                _COOLDOWN_SECONDS - elapsed,
+            )
+            return True
+        # Cooldown expired — remove stale entry
+        del self._failed_starts[server_key]
+        return False
+
     async def ensure_ready(self, server_key: str) -> None:
         """Ensure the HTTP subprocess server is running; start it if needed."""
         if self._shutting_down:
@@ -101,6 +123,8 @@ class _ServerLifecycleRouter:
             or cfg.startup_mode != StartupMode.SUBPROCESS
         ):
             return
+        if self._in_cooldown(server_key):
+            return
         if not self._http_mgr.verify_running(server_key):
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
@@ -108,8 +132,10 @@ class _ServerLifecycleRouter:
             self._set_state(server_key, LifecycleState.STARTING)
             try:
                 await self._http_mgr.start(server_key, cfg)
+                self._failed_starts.pop(server_key, None)
                 self._set_state(server_key, LifecycleState.RUNNING)
             except Exception:
+                self._failed_starts[server_key] = time.monotonic()
                 self._set_state(server_key, LifecycleState.FAILED)
                 raise
 
@@ -132,11 +158,15 @@ class _ServerLifecycleRouter:
                 server_key,
             )
             return
+        if self._in_cooldown(server_key):
+            return
         self._set_state(server_key, LifecycleState.STARTING)
         try:
             await self._http_mgr.start(server_key, cfg)
+            self._failed_starts.pop(server_key, None)
             self._set_state(server_key, LifecycleState.RUNNING)
         except Exception:
+            self._failed_starts[server_key] = time.monotonic()
             self._set_state(server_key, LifecycleState.FAILED)
             raise
 
@@ -154,11 +184,15 @@ class _ServerLifecycleRouter:
                 server_key,
             )
             return
+        if self._in_cooldown(server_key):
+            return
         self._set_state(server_key, LifecycleState.STARTING)
         try:
             await self._http_mgr.restart(server_key, cfg)
+            self._failed_starts.pop(server_key, None)
             self._set_state(server_key, LifecycleState.RUNNING)
         except Exception:
+            self._failed_starts[server_key] = time.monotonic()
             self._set_state(server_key, LifecycleState.FAILED)
             raise
 

@@ -346,22 +346,31 @@ class StartupOrchestrator:
             ctx.cfg.tool.system_prompt_tool,
         )
         if ctx.services_required.memory is not None:
-            memory_snippets = ctx.services_required.memory.on_session_start(
-                ctx.session.session_id,
-            )
-            if memory_snippets:
-                max_snippets = ctx.cfg.agent_memory_max_startup_snippets
-                if len(memory_snippets) > max_snippets:
-                    logger.warning(
-                        "Startup: truncating %d memory snippets to %d for %r",
-                        len(memory_snippets),
-                        max_snippets,
-                        ctx.session.session_id,
-                    )
-                    memory_snippets = memory_snippets[:max_snippets]
-                memory_block = "\n\n[Relevant memories]\n" + "\n".join(
-                    f"- {snippet.text}" for snippet in memory_snippets
+            try:
+                memory_snippets = ctx.services_required.memory.on_session_start(
+                    ctx.session.session_id,
                 )
-                initial_prompt = initial_prompt + memory_block
+                if memory_snippets:
+                    max_snippets = ctx.cfg.agent_memory_max_startup_snippets
+                    if len(memory_snippets) > max_snippets:
+                        logger.warning(
+                            "Startup: truncating %d memory snippets to %d for %r",
+                            len(memory_snippets),
+                            max_snippets,
+                            ctx.session.session_id,
+                        )
+                        memory_snippets = memory_snippets[:max_snippets]
+                    memory_block = "\n\n[Relevant memories]\n" + "\n".join(
+                        f"- {snippet.text}" for snippet in memory_snippets
+                    )
+                    initial_prompt = initial_prompt + memory_block
+            except Exception as exc:
+                logger.warning(
+                    "Memory injection failed during startup: %s; continuing without memory",
+                    exc,
+                )
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Memory injection failed: {exc}"
+                )
         ctx.conv.system_prompt_content = initial_prompt
         ctx.conv.history = [{"role": "system", "content": initial_prompt}]

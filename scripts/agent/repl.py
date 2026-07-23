@@ -415,7 +415,25 @@ class AgentREPL:
         ctx = self._ctx
         try:
             self._print_startup_banner()
-            ctx.session.start()
+            try:
+                ctx.session.start()
+            except RuntimeError as e:
+                msg = str(e)
+                if "no such table" in msg.lower():
+                    self._view.write_fatal(
+                        "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
+                    )
+                else:
+                    self._view.write_fatal(f"Session start failed: {msg}")
+                # Re-raise as RuntimeError with a clean message so the outer handler
+                # produces consistent formatting regardless of the original exception type.
+                raise RuntimeError(msg) from None
+            except sqlite3.Error as e:
+                self._view.write_fatal(
+                    f"Database unavailable during session start: {e}. Check DB connectivity or run: bash deploy/init_db.sh"
+                )
+                # Wrap in RuntimeError so the outer handler treats it uniformly.
+                raise RuntimeError(f"Database unavailable: {e}") from None
             if (
                 ctx.services_required.tools is not None
                 and ctx.session.session_id is not None
@@ -453,10 +471,12 @@ class AgentREPL:
 
         try:
             loop.add_signal_handler(signal.SIGTERM, _sigterm_handler)
+            loop.add_signal_handler(signal.SIGINT, _sigterm_handler)
         except NotImplementedError:
             import signal as _signal
 
             _signal.signal(_signal.SIGTERM, lambda *_: _sigterm_handler())
+            _signal.signal(_signal.SIGINT, lambda *_: _sigterm_handler())
 
         startup = StartupOrchestrator(self._ctx, self._view)
         try:
