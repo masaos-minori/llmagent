@@ -8,14 +8,14 @@ description: |
 
 # Python Code Review Skill
 
-## Rule
+## Purpose
 
 Review first. Do not change code unless the user explicitly asks for implementation.
 
 Write review reports in Japanese unless requested otherwise.
 Keep file names, symbols, commands, config keys, and evidence labels in their original form.
 
-## Use When
+## When to use
 
 Use this skill for:
 
@@ -27,6 +27,8 @@ Use this skill for:
 - identifying documentation/code mismatches grounded in implementation evidence
 - converting review findings into actionable GitHub issues
 
+## When not to use
+
 Do not use this skill for:
 
 - direct implementation-only requests
@@ -35,69 +37,28 @@ Do not use this skill for:
 - non-Python targets
 - speculative findings without evidence
 
-## Review Focus
+---
 
-Check the following when relevant:
+## Phase overview
 
-- correctness and edge cases
-- state transitions, idempotency, caching, and data consistency
-- import direction and circular import risk
-- responsibility boundaries and cross-layer access
-- public contracts, typing, `Any`, optional values, and protocol usage
-- async/sync boundaries and blocking calls
-- exceptions, retries, timeouts, fail-fast/fail-open behavior
-- file, socket, DB, HTTP client, subprocess, and async task cleanup
-- configuration ownership, startup behavior, reload boundaries, and safe defaults
-- logging, diagnostics, and secret exposure risk
-- tests for critical behavior, edge cases, and failure paths
-- CI quality gates and type-checking coverage
+| Phase | Name | Goal |
+|---|---|---|
+| 1 | Scope and Intake | Fix the reviewed diff/PR/file boundary and its stated intent |
+| 2 | Correctness and Data Consistency | Edge cases, state transitions, typing, import direction |
+| 3 | Architecture and Boundaries | Dependency direction, layering, unjustified abstractions |
+| 4 | Async/Sync and Resource Lifecycle | Blocking calls in async paths, resource cleanup |
+| 5 | Error Handling, Configuration, and Logging | Exceptions, retries, fail-fast/fail-open, secret exposure |
+| 6 | Tests and CI | Coverage of critical behavior, failure paths, CI gates |
+| 7 | Documentation Mismatches | Evidence-grounded doc/code contradictions |
+| 8 | Evidence, Confidence, and Severity Assignment | Attach evidence, confidence, and severity to each finding |
+| 9 | Report Writing | Produce the Output Format below |
+| 10 | GitHub Issue Conversion | Convert findings into actionable issues |
 
-## Evidence Rules
+See `workflow.md` for detailed phase content and tooling.
 
-Every significant finding must include concrete evidence such as:
+---
 
-- file path
-- class, function, method, route, command, or config key
-- test name or CI workflow
-- observed current behavior
-
-Use existing repository evidence labels when available:
-
-- `Explicit in code`
-- `Strongly implied by code`
-- `Documentation only`
-- `Needs confirmation`
-- `Deprecated`
-- `Verified by test`
-- `Operationally observed`
-
-If behavior is unclear, mark it as `Needs confirmation` and state what must be checked.
-
-Use confidence levels:
-
-- High: directly verified
-- Medium: strongly implied
-- Low: plausible but requires confirmation
-
-## Severity
-
-Use these severities:
-
-- Critical: data loss, security exposure, destructive unintended action, production startup failure, silent corruption
-- High: normal-use runtime failure, incorrect result, broken workflow, major operational risk, missing validation at trust boundaries
-- Medium: maintainability risk, unclear ownership, type-safety degradation, incomplete failure handling, fragile tests, ambiguous config behavior
-- Low: naming, localized duplication, minor typing or documentation cleanup
-- Informational: observation with no immediate action
-
-## Documentation Guidance
-
-When reviewing or recommending documentation updates:
-
-- focus on intent, boundaries, constraints, decisions, operational notes, known issues, and Needs Confirmation items
-- do not recommend copying exhaustive method lists, DTO field tables, full config key tables, file catalogs, or long command examples into design documents
-- keep documentation recommendations concise and implementation-grounded
-
-## Rules
+## Core Review Rules (Strictly Enforced for AI)
 
 - Do not implement unless explicitly requested.
 - Separate fact, interpretation, suspected issue, and open question.
@@ -106,8 +67,34 @@ When reviewing or recommending documentation updates:
 - Do not over-report style-only issues.
 - Respect project conventions and explain trade-offs.
 - Protect secrets and sensitive data.
-- Keep recommendations actionable.
-- For tests, specify the behavior or failure mode to verify.
+- Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
+
+---
+
+## Evidence Rules
+
+Every significant finding must include concrete evidence such as file path; class, function,
+method, route, command, or config key; test name or CI workflow; and observed current behavior.
+
+Use existing repository evidence labels when available: `Explicit in code`, `Strongly implied
+by code`, `Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`,
+`Operationally observed`. If behavior is unclear, mark it `Needs confirmation` and state what
+must be checked.
+
+Use confidence levels: **High** (directly verified), **Medium** (strongly implied), **Low**
+(plausible but requires confirmation).
+
+## Severity
+
+Use these severities: **Critical** (data loss, security exposure, destructive unintended
+action, production startup failure, silent corruption), **High** (normal-use runtime failure,
+incorrect result, broken workflow, major operational risk, missing validation at trust
+boundaries), **Medium** (maintainability risk, unclear ownership, type-safety degradation,
+incomplete failure handling, fragile tests, ambiguous config behavior), **Low** (naming,
+localized duplication, minor typing or documentation cleanup), **Informational** (observation
+with no immediate action).
+
+---
 
 ## Output Format
 
@@ -155,27 +142,33 @@ For each finding:
 
 State whether to proceed, fix first, or investigate further.
 
-## GitHub Issue Conversion
+---
 
-When converting findings into GitHub issues:
+## Composes with
 
-- use one issue per actionable task
-- group related findings only when they must be fixed together
-- include reason for change, implementation intent, acceptance criteria, out of scope, and testing expectations
-- avoid Markdown that breaks when copied
-- do not include secrets or unnecessary code blocks
+- `python-implementation` — run if a finding requires a feature-level code change to fix
+- `python-refactoring` — run if a finding requires structural changes without behavior change
+- `python-documentation` — run if Documentation Notes require an update to existing docs
+
+## Called by
+
+- `python-issue-to-plan` — when a plan needs a review of existing code before scoping changes
+
+---
+
+## Improvement feedback
+
+After running this skill:
+- if a severity or confidence definition caused disagreement, refine its definition here
+- if a review phase produced no useful findings for a task type, note the condition in `workflow.md`
+- if a finding pattern recurred across reviews, add it as an explicit check in `workflow.md`
+
+---
 
 ## Final Rule
 
-Produce evidence-based Python code review from real code, configuration, tests, CI, and documentation context.
+Produce evidence-based Python code review from real code, configuration, tests, CI, and
+documentation context.
 
-Prioritize:
-
-1. correctness
-2. safety
-3. evidence
-4. operational reliability
-5. type safety
-6. testability
-7. maintainability
-8. readability
+Prioritize: correctness, safety, evidence, operational reliability, type safety, testability,
+maintainability, readability.

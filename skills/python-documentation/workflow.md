@@ -1,5 +1,20 @@
 # Python Documentation — Detailed Workflow
 
+## Project lint tools
+
+Run these when modifying `docs/`.
+
+| Tool | Target | When to run |
+|---|---|---|
+| `python tools/check_docs_consistency.py` | `docs/*.md` | After documentation consistency-sensitive changes |
+| `python tools/check_mcp_docs_consistency.py` | `docs/04_mcp_*.md` | After MCP documentation changes |
+| `python tools/gen_rag_reference.py` | RAG reference documentation | Needs confirmation before use; verify the current output target before running |
+
+Note: Do not run `python tools/gen_rag_reference.py` blindly. The configured output target
+may refer to an old split-document path. Verify the current target before use.
+
+---
+
 ## Toolchain
 
 | Tool | Phase | Role |
@@ -61,6 +76,23 @@ Build a repository map before writing anything.
 - repository inventory
 - major file list
 - packaging/runtime summary
+
+### Read in order
+
+Unless the task scope requires otherwise, read in this order:
+
+1. existing target documentation
+2. `README` or project overview
+3. `pyproject.toml` / `setup.*`
+4. entrypoints
+5. route or command registration
+6. configuration loading
+7. services, domain models, and repositories
+8. integrations and DB access
+9. tests
+10. CI/CD, Docker, deployment, and migrations
+
+Do not write documentation before reading the existing target document.
 
 ### Gate
 - [ ] package structure is understood
@@ -167,6 +199,36 @@ Convert analysis into maintainable documentation.
 - avoid duplication
 - do not hide uncertainty
 - keep changes minimal if docs already exist
+- preserve useful existing context; prefer Japanese prose for design text
+- avoid full implementation reference tables
+- keep important invariants explicit
+- separate current behavior from design intent where useful
+- move unresolved uncertainty to Needs Confirmation, and unresolved conflicts to Known Issues
+- keep changes small and reviewable
+
+### Remove or compress implementation-derived details
+
+Documentation should not copy details that can be mechanically confirmed from source code,
+command help, configuration files, or generated schemas.
+
+Normally remove, compress, or replace with source references:
+- complete file lists, complete public method lists, full function signatures
+- constructor parameter tables, public attribute tables
+- TypedDict, dataclass, DTO, and Pydantic model full field listings
+- complete CLI argument tables, complete configuration key tables
+- JSON examples that simply mirror DTO or schema fields
+- import lists, module-level constant listings
+
+Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
+invariants, failure behavior (fail-fast/fail-open), security and operational constraints,
+data consistency rules, Known Issues, Needs Confirmation items, deprecated behavior relevant
+to migration/compatibility, behavior verified by tests, operationally observed behavior.
+
+When removing implementation-derived content, replace it with a concise source reference.
+Example:
+
+- 完全な設定キーとデフォルト値は、実装上の設定定義および実際の設定ファイルを参照する。
+- この設計書では、設定の所有者、変更時の影響、再起動要否、失敗時の挙動、運用上の注意のみを扱う。
 
 ### Gate
 - [ ] required docs are covered
@@ -189,6 +251,55 @@ Remove contradictions across docs and code.
 ### Gate
 - [ ] major inconsistencies are removed
 - [ ] docs are traceable back to code
+
+---
+
+## Evidence and Source of Truth
+
+Code, configuration files, tests, and CI/CD are factual evidence for implemented behavior.
+Documentation should describe design intent, responsibility boundaries, architectural
+constraints, operational notes, failure behavior, confirmed behavior, known issues, and
+unresolved questions.
+
+When code and documentation conflict:
+- update documentation if the implemented behavior is clearly correct and current
+- register or update a Known Issue if the conflict cannot be resolved immediately
+- mark the item `Needs confirmation` if the implementation may be incomplete, buggy, provisional, or ambiguous
+- do not silently replace documented design intent with possibly buggy behavior
+
+Important behavioral claims must be traceable to evidence: public behavior, configuration
+ownership, runtime entrypoints, failure behavior, operational constraints, security-sensitive
+behavior, persistence/migration behavior, and documentation/code mismatch corrections. Do not
+add evidence labels to every sentence.
+
+Use the repository's established evidence labels: `Explicit in code`, `Strongly implied by code`,
+`Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`, `Operationally observed`.
+Do not introduce a parallel label system such as `Confirmed`, `Inferred`, or `Unknown`. When using
+`Needs confirmation`, include the required fields defined by the governance documentation.
+
+Do not invent missing behavior or assume framework patterns without evidence. Do not treat dead
+code, unused code, stale migrations, or obsolete documentation as active behavior. If behavior
+cannot be confirmed, mark it `Needs confirmation` instead of presenting it as fact.
+
+### Evidence tracking during analysis
+
+During analysis, track for each meaningful item: path, kind, why it matters, confirmed facts,
+evidence label, open questions, and target document.
+
+---
+
+## Boundaries
+
+- Do not expand scope beyond the requested target.
+- Do not expose secrets.
+- Do not paste long code blocks unless essential.
+- Do not infer runtime behavior from `requirements.txt` alone.
+- Do not trust README claims without verification.
+- Do not document private methods, functions, attributes, or classes as supported public APIs.
+  Private names starting with `_` are out of scope unless necessary to explain lifecycle,
+  safety, failure behavior, or an invariant — in that case, describe the behavior at
+  component level instead of exposing the private API as public.
+- Files under `__pycache__` are out of scope.
 
 ---
 
