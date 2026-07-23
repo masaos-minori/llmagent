@@ -121,3 +121,24 @@ Cross-cutting documentation rules and policies:
 - [Known Issues Template](00_governance_04_known-issues-template.md)
 - [Deprecated Items](00_governance_05_deprecated-items.md)
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
+
+## Markdown記法ルール
+
+### コードブロック
+- Pythonコードは ```python で囲む
+- Shellコマンドは ```bash で囲む
+- JSONは ```json で囲む
+
+### テーブル
+- 日本語見出しは日本語で記載
+- 技術用語は原文（英語）を併記
+
+### キーワード
+- 必須事項: 必須、禁止、必ず
+- 推奨事項: 推奨、すべき、避けるべき
+- 任意事項: 任意、必要に応じて
+
+### ドキュメントの境界
+- 各セクションは `##` で区切る
+- セクション内にセクションは入れない
+- 空行でセクションを明確に分離

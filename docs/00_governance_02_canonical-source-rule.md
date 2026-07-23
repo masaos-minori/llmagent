@@ -61,3 +61,20 @@ Cross-cutting documentation rules and policies:
 - [Deprecated Items](00_governance_05_deprecated-items.md)
 - [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
+
+## 領域別の正典入口
+
+| 領域 | 正典 |
+|---|---|
+| エージェント | `scripts/agent/` |
+| MCP サーバー | `mcp_servers/` |
+| DB | `db/` |
+| RAG | `rag/` |
+| シェアード | `scripts/shared/` |
+| テスト | `tests/` |
+| ルール | `rules/` |
+| ドキュメント | `docs/` |
+| ADR | `adr/` |
+| 設定 | `config/` |
+| スクリプト | `scripts/` |
+| デプロイ | `deploy/` |

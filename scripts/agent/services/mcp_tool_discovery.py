@@ -101,8 +101,13 @@ class McpToolDiscoveryService:
         tool_defs_finding = await self._check_tool_definitions_finding()
         if tool_defs_finding is not None:
             findings.append(tool_defs_finding)
+        unavailable_keys = frozenset(unreachable)
+        filtered_registry = RuntimeToolRegistry(
+            tools=dict(registry._tools),
+            unavailable_servers=unavailable_keys,
+        )
         return DiscoveryResult(
-            registry=registry,
+            registry=filtered_registry,
             findings=findings,
             unreachable=unreachable,
         )

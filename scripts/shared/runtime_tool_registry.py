@@ -47,8 +47,32 @@ class RuntimeToolRegistry:
     — single concrete implementation, no polymorphism need identified yet.
     """
 
-    def __init__(self, tools: dict[str, RuntimeTool] | None = None) -> None:
-        self._tools: dict[str, RuntimeTool] = dict(tools) if tools else {}
+    def __init__(
+        self,
+        tools: dict[str, RuntimeTool] | None = None,
+        unavailable_servers: frozenset[str] | None = None,
+        degraded_servers: frozenset[str] | None = None,
+    ) -> None:
+        self._unavailable_servers = unavailable_servers or frozenset()
+        self._degraded_servers = degraded_servers or frozenset()
+        self._tools: dict[str, RuntimeTool] = {}
+        if tools:
+            for name, tool in tools.items():
+                if tool.server_key in self._unavailable_servers:
+                    continue  # Exclude unavailable server tools
+                if tool.server_key in self._degraded_servers:
+                    continue  # Conservative default: exclude degraded server tools
+                self._tools[name] = tool
+
+    @property
+    def unavailable_servers(self) -> frozenset[str]:
+        """Return the set of server keys excluded due to being unavailable."""
+        return self._unavailable_servers
+
+    @property
+    def degraded_servers(self) -> frozenset[str]:
+        """Return the set of server keys excluded due to being degraded."""
+        return self._degraded_servers
 
     def resolve(self, tool_name: str) -> str | None:
         """Return the `server_key` that owns `tool_name`, or `None` if unknown.

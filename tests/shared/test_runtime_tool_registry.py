@@ -186,3 +186,73 @@ class TestRuntimeToolRegistry:
         assert row["config_dependent"] is False
         assert row["enabled"] is True
         assert row["server_key"] == "s"
+
+    def test_unavailable_servers_excludes_tools_from_unavailable_server(self) -> None:
+        tool_a = build_runtime_tool(name="tool_a", server_key="unreachable_server")
+        tool_b = build_runtime_tool(name="tool_b", server_key="healthy_server")
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            unavailable_servers=frozenset(["unreachable_server"]),
+        )
+        assert reg.resolve("tool_a") is None
+        assert reg.resolve("tool_b") == "healthy_server"
+        assert len(reg.all_tools()) == 1
+        assert reg.all_tools()[0].name == "tool_b"
+
+    def test_degraded_servers_excludes_tools_from_degraded_server(self) -> None:
+        tool_a = build_runtime_tool(name="tool_a", server_key="degraded_server")
+        tool_b = build_runtime_tool(name="tool_b", server_key="healthy_server")
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            degraded_servers=frozenset(["degraded_server"]),
+        )
+        assert reg.resolve("tool_a") is None
+        assert reg.resolve("tool_b") == "healthy_server"
+        assert len(reg.all_tools()) == 1
+        assert reg.all_tools()[0].name == "tool_b"
+
+    def test_both_unavailable_and_degraded_servers_filter_correctly(self) -> None:
+        tool_a = build_runtime_tool(name="tool_a", server_key="unavailable")
+        tool_b = build_runtime_tool(name="tool_b", server_key="degraded")
+        tool_c = build_runtime_tool(name="tool_c", server_key="healthy")
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b, "tool_c": tool_c},
+            unavailable_servers=frozenset(["unavailable"]),
+            degraded_servers=frozenset(["degraded"]),
+        )
+        assert reg.resolve("tool_a") is None
+        assert reg.resolve("tool_b") is None
+        assert reg.resolve("tool_c") == "healthy"
+        assert len(reg.all_tools()) == 1
+        assert reg.unavailable_servers == frozenset(["unavailable"])
+        assert reg.degraded_servers == frozenset(["degraded"])
+
+    def test_llm_tool_definitions_excludes_tools_from_unavailable_servers(self) -> None:
+        tool_a = build_runtime_tool(
+            name="tool_a", server_key="unavailable", enabled_for_llm=True
+        )
+        tool_b = build_runtime_tool(
+            name="tool_b", server_key="healthy", enabled_for_llm=True
+        )
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            unavailable_servers=frozenset(["unavailable"]),
+        )
+        defs = reg.llm_tool_definitions()
+        assert len(defs) == 1
+        assert defs[0]["name"] == "tool_b"
+
+    def test_diagnostics_excludes_tools_from_unavailable_servers(self) -> None:
+        tool_a = build_runtime_tool(
+            name="tool_a", server_key="unavailable", status="inactive"
+        )
+        tool_b = build_runtime_tool(
+            name="tool_b", server_key="healthy", status="active"
+        )
+        reg = RuntimeToolRegistry(
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            unavailable_servers=frozenset(["unavailable"]),
+        )
+        rows = reg.diagnostics()
+        assert len(rows) == 1
+        assert rows[0]["name"] == "tool_b"

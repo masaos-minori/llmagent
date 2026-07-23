@@ -11,7 +11,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from shared.logger import Logger
-from shared.mcp_config import SecurityProfile, StartupMode, TransportType
+from shared.mcp_config import (
+    McpServerHealthState,
+    SecurityProfile,
+    StartupMode,
+    TransportType,
+)
 
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
@@ -288,6 +293,8 @@ class StartupOrchestrator:
 
         self._display_pipeline_results(pipeline)
 
+        self._report_readiness(pipeline)
+
         if pipeline.has_fatal:
             fatal_str = "; ".join(pipeline.fatal_messages())
             logger.error(
@@ -307,6 +314,136 @@ class StartupOrchestrator:
                     self._view.write_fatal(f"  Remediation: {outcome.remediation}")
             elif outcome.status == StartupCheckStatus.SKIPPED:
                 self._view.write_warning(f"{OutputTag.SKIPPED} {outcome.message}")
+
+    def _report_readiness(self, pipeline: StartupValidationResult) -> None:
+        """Report aggregated readiness status after startup checks complete."""
+        mcp_ok = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "readiness" and o.status == StartupCheckStatus.OK
+        )
+        mcp_fail = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "readiness" and o.status == StartupCheckStatus.FATAL
+        )
+        mcp_skip = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "readiness" and o.status == StartupCheckStatus.SKIPPED
+        )
+        mcp_warn = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "readiness" and o.status == StartupCheckStatus.WARNING
+        )
+        rag_ok = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "rag_consistency" and o.status == StartupCheckStatus.OK
+        )
+        rag_fail = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "rag_consistency" and o.status == StartupCheckStatus.FATAL
+        )
+        rag_warn = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "rag_consistency" and o.status == StartupCheckStatus.WARNING
+        )
+        security_ok = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "security_audit" and o.status == StartupCheckStatus.OK
+        )
+        security_fail = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "security_audit" and o.status == StartupCheckStatus.FATAL
+        )
+        security_warn = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "security_audit" and o.status == StartupCheckStatus.WARNING
+        )
+        tool_disc_ok = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "mcp_tool_discovery" and o.status == StartupCheckStatus.OK
+        )
+        tool_disc_fail = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "mcp_tool_discovery" and o.status == StartupCheckStatus.FATAL
+        )
+        tool_disc_warn = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "mcp_tool_discovery"
+            and o.status == StartupCheckStatus.WARNING
+        )
+        tool_disc_skip = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "mcp_tool_discovery"
+            and o.status == StartupCheckStatus.SKIPPED
+        )
+        lines: list[str] = []
+        lines.append("Readiness Summary:")
+        lines.append(
+            f"  Security audit: {'OK' if security_ok else 'FAIL'} ({security_fail} fatal, {security_warn} warnings)"
+        )
+        lines.append(
+            f"  Service readiness: {'OK' if mcp_ok else 'FAIL'} ({mcp_fail} fatal, {mcp_warn} warnings, {mcp_skip} skipped)"
+        )
+        lines.append(
+            f"  Tool discovery: {'OK' if tool_disc_ok else 'FAIL'} ({tool_disc_fail} fatal, {tool_disc_warn} warnings, {tool_disc_skip} skipped)"
+        )
+        lines.append(
+            f"  RAG consistency: {'OK' if rag_ok else 'WARN'} ({rag_fail} fatal, {rag_warn} warnings)"
+        )
+        unreachable_count = sum(
+            1
+            for o in pipeline.outcomes
+            if o.source == "mcp_tool_discovery" and "unreachable" in o.message.lower()
+        )
+        if unreachable_count > 0:
+            lines.append(f"  Unreachable servers: {unreachable_count}")
+        degraded_keys = []
+        registry = (
+            self._ctx.services_required.health_registry
+            if self._ctx.services_required
+            else None
+        )
+        if registry is not None:
+            degraded_keys = [
+                key
+                for key in self._ctx.cfg.mcp.mcp_servers
+                if registry.get_state(key) == McpServerHealthState.DEGRADED
+            ]
+        if degraded_keys:
+            lines.append(f"  Degraded servers: {', '.join(degraded_keys)}")
+        unavailable_servers: frozenset[str] = frozenset()
+        degraded_servers: frozenset[str] = frozenset()
+        runtime_tools = (
+            self._ctx.services_required.runtime_tools
+            if self._ctx.services_required
+            else None
+        )
+        if runtime_tools is not None:
+            unavailable_servers = runtime_tools.unavailable_servers
+            degraded_servers = runtime_tools.degraded_servers
+        if unavailable_servers:
+            lines.append(
+                f"  Excluded tools (unavailable): {', '.join(sorted(unavailable_servers))}"
+            )
+        if degraded_servers:
+            lines.append(
+                f"  Excluded tools (degraded): {', '.join(sorted(degraded_servers))}"
+            )
+        self._view.write_warning("\n".join(lines))
+        logger.info("Readiness summary: %s", "; ".join(lines))
 
     async def _recover_pending_approvals(self) -> None:
         """Restore workflow approval-pending state from a previous session."""
