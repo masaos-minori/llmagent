@@ -195,3 +195,49 @@ class StateStore:
             (task_id, stage_id),
         )
         return int(rows[0][0])
+
+    # ── Diagnostic Queries ───────────────────────────────────────────────
+
+    def get_task_count(self, session_id: str) -> int:
+        """Return the number of tasks associated with a session."""
+        rows = self._db.fetchall(
+            "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
+            (session_id,),
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def get_workflow_count(self, session_id: str) -> int:
+        """Return the number of distinct workflows for a session."""
+        rows = self._db.fetchall(
+            "SELECT COUNT(DISTINCT workflow_id) as cnt"
+            " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
+            (session_id,),
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def get_approval_count(self, session_id: str) -> int:
+        """Return the number of approval events for tasks in a session."""
+        rows = self._db.fetchall(
+            "SELECT COUNT(*) as cnt FROM approvals"
+            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
+            (session_id,),
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def get_execute_attempt_count(self, session_id: str) -> int:
+        """Return the number of execute-stage attempts for tasks in a session."""
+        rows = self._db.fetchall(
+            "SELECT COUNT(*) as cnt FROM attempts"
+            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)"
+            " AND stage_id='execute'",
+            (session_id,),
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def get_artifact_uris(self, session_id: str) -> list[str]:
+        """Return artifact URIs for tasks in a session."""
+        rows = self._db.fetchall(
+            "SELECT uri FROM artifacts WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
+            (session_id,),
+        )
+        return [str(dict(r)["uri"]) for r in rows if dict(r).get("uri")]

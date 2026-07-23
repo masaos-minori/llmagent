@@ -16,7 +16,7 @@ from shared.mcp_config import (
     McpServerHealthRegistry,
     McpServerHealthState,
 )
-from shared.tool_lifecycle import LifecycleProtocol
+from shared.tool_lifecycle import LifecycleProtocol, ServerCooldownError
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
@@ -189,7 +189,12 @@ class ToolTransportInvoker:
             return err
 
         if self._lifecycle is not None:
-            await self._lifecycle.ensure_ready(server_key)
+            try:
+                await self._lifecycle.ensure_ready(server_key)
+            except ServerCooldownError as e:
+                msg = str(e)
+                logger.warning(msg)
+                return self._error_result(server_key, msg, error_type="transport")
 
         transport = self._transports.get(server_key)
         if transport is None:

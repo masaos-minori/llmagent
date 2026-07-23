@@ -9,6 +9,7 @@ Two protocols:
 
 from __future__ import annotations
 
+import subprocess
 from typing import Protocol, runtime_checkable
 
 from shared.mcp_config import McpServerConfig
@@ -46,8 +47,8 @@ class LifecycleManagerProtocol(Protocol):
 
     async def start_http_subprocess(
         self, server_key: str, cfg: McpServerConfig
-    ) -> None:
-        """Start a single HTTP subprocess MCP server."""
+    ) -> subprocess.Popen[bytes] | None:
+        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
         ...
 
     def get_process_snapshot(self, server_key: str) -> dict | None:

@@ -29,12 +29,12 @@ from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
 from mcp_servers.audit import _audit_log
-from mcp_servers.cicd.exception_handlers import setup_exception_handlers
 from mcp_servers.cicd.cicd_models import (
     CicdConfig,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, build_service
 from mcp_servers.cicd.cicd_tools import TOOL_LIST
+from mcp_servers.cicd.exception_handlers import setup_exception_handlers
 from mcp_servers.dispatch import (
     DispatchResult,
     ToolArgs,

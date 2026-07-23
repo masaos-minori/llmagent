@@ -41,7 +41,9 @@ class CiCdService(CiCdGuards):
 
             return GitHubActionsCompositeBackend._split_repo(repo)
         except ValueError as e:
-            from mcp_servers.cicd.cicd_models import CicdValidationError  # noqa: PLC0415
+            from mcp_servers.cicd.cicd_models import (
+                CicdValidationError,  # noqa: PLC0415
+            )
 
             raise CicdValidationError(str(e)) from e
 
@@ -91,7 +93,9 @@ class CiCdService(CiCdGuards):
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
         """Get the status of a specific workflow run."""
-        from mcp_servers.cicd.cicd_models import GetWorkflowStatusRequest  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_models import (
+            GetWorkflowStatusRequest,  # noqa: PLC0415
+        )
 
         req = GetWorkflowStatusRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)

@@ -20,7 +20,11 @@ from agent.factory import (
     init_tracer,
 )
 from agent.lifecycle import LifecycleState
-from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_config import (
+    McpServerConfig,
+    StartupMode,
+    TransportType,
+)
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -498,3 +502,70 @@ class TestLifecycleStateTracking:
         init_call = mock_info.call_args_list[0]
         assert "initializing state" in str(init_call).lower()
         assert "srv" in str(init_call)
+
+
+# ── _ServerLifecycleRouter.get_subprocess_server_configs ──────────────────────
+
+
+def _make_lifecycle_router(
+    configs: dict[str, McpServerConfig] | None = None,
+) -> _ServerLifecycleRouter:
+    if configs is None:
+        configs = {}
+    return _ServerLifecycleRouter(
+        server_configs=configs,
+        tool_executor=MagicMock(),
+    )
+
+
+class TestGetSubprocessServerConfigs:
+    """Tests for _ServerLifecycleRouter.get_subprocess_server_configs()."""
+
+    def test_returns_empty_when_no_servers(self) -> None:
+        router = _make_lifecycle_router()
+        result = router.get_subprocess_server_configs()
+        assert result == []
+
+    def test_returns_http_subprocess_servers_only(self) -> None:
+        router = _make_lifecycle_router(
+            {
+                "subprocess": McpServerConfig(
+                    transport=TransportType.HTTP,
+                    url="http://127.0.0.1:1111",
+                    startup_mode=StartupMode.SUBPROCESS,
+                    cmd=["echo", "test"],
+                ),
+                "persistent": McpServerConfig(
+                    transport=TransportType.HTTP,
+                    url="http://127.0.0.1:8888",
+                    startup_mode=StartupMode.PERSISTENT,
+                ),
+            }
+        )
+        result = router.get_subprocess_server_configs()
+        assert len(result) == 1
+        key, cfg = result[0]
+        assert key == "subprocess"
+        assert cfg.transport == TransportType.HTTP
+        assert cfg.startup_mode == StartupMode.SUBPROCESS
+
+    def test_returns_multiple_http_subprocess_servers(self) -> None:
+        router = _make_lifecycle_router(
+            {
+                "web": McpServerConfig(
+                    transport=TransportType.HTTP,
+                    url="http://127.0.0.1:2222",
+                    startup_mode=StartupMode.SUBPROCESS,
+                    cmd=["python", "-m", "mcp.server.stdio"],
+                ),
+                "shell": McpServerConfig(
+                    transport=TransportType.HTTP,
+                    url="http://127.0.0.1:3333",
+                    startup_mode=StartupMode.SUBPROCESS,
+                    cmd=["python", "-m", "mcp.server.stdio"],
+                ),
+            }
+        )
+        result = router.get_subprocess_server_configs()
+        keys = {k for k, _ in result}
+        assert keys == {"web", "shell"}

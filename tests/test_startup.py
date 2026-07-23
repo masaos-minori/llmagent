@@ -929,3 +929,147 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.SKIPPED
+
+
+# ── Helpers for _verify_mcp_health tests ──────────────────────────────────────
+
+
+class _AsyncClientMock:
+    """Minimal async context manager that mimics httpx.AsyncClient."""
+
+    def __init__(
+        self, get_return: MagicMock | None = None, timeout: float = 5.0
+    ) -> None:
+        self._get_return = get_return
+        self.timeout = timeout
+
+    async def __aenter__(self) -> _AsyncClientMock:
+        return self
+
+    async def __aexit__(self, *args: object, **kwargs: object) -> None:
+        pass
+
+    async def get(self, url: str, **_kw: object) -> MagicMock:
+        assert self._get_return is not None
+        return self._get_return
+
+
+def _make_http_mock(resp_status: int) -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = resp_status
+    return resp
+
+
+# ── StartupOrchestrator._verify_mcp_health ────────────────────────────────────
+
+
+class TestStartupVerifyMcpHealth:
+    """Tests for StartupOrchestrator._verify_mcp_health()."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_passes_for_all_servers(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+
+        mock_resp = _make_http_mock(200)
+        mock_client = _AsyncClientMock(get_return=mock_resp)
+
+        with patch("agent.startup.httpx.AsyncClient", return_value=mock_client):
+            await startup._verify_mcp_health()
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure_non_production_warns(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+
+        mock_resp_fail = _make_http_mock(503)
+
+        def client_factory(*_args, **_kwargs: object) -> _AsyncClientMock:
+            return _AsyncClientMock(get_return=mock_resp_fail)
+
+        with patch("agent.startup.httpx.AsyncClient", side_effect=client_factory):
+            await startup._verify_mcp_health()
+
+        startup._view.write_warning.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure_production_raises(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
+
+        mock_resp_fail = _make_http_mock(503)
+
+        with patch(
+            "agent.startup.httpx.AsyncClient",
+            return_value=_AsyncClientMock(get_return=mock_resp_fail),
+        ):
+            with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+                await startup._verify_mcp_health()
+
+    @pytest.mark.asyncio
+    async def test_health_check_passes_after_retry(self) -> None:
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+
+        mock_resp_fail = _make_http_mock(503)
+        mock_resp_ok = _make_http_mock(200)
+
+        call_count = [0]
+
+        def client_factory(*_args, **_kwargs: object) -> _AsyncClientMock:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return _AsyncClientMock(get_return=mock_resp_fail)
+            return _AsyncClientMock(get_return=mock_resp_ok)
+
+        with patch("agent.startup.httpx.AsyncClient", side_effect=client_factory):
+            await startup._verify_mcp_health()
+
+        startup._view.write_warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_non_subprocess_servers(self) -> None:
+        cfg_persistent = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8888",
+            startup_mode=StartupMode.PERSISTENT,
+            cmd=["echo", "persistent"],
+        )
+        startup = _make_startup(
+            {"persistent": cfg_persistent}, security_profile=SecurityProfile.LOCAL
+        )
+
+        with patch("agent.startup.httpx.AsyncClient") as MockClient:
+            await startup._verify_mcp_health()
+
+        MockClient.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_tools_service_none_raises(self) -> None:
+        cfg = _http_subprocess_cfg()
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.mcp_servers = {"web": cfg}
+        ctx.services_required.tools = None
+        ctx.services_required.lifecycle = AsyncMock()
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        with pytest.raises(RuntimeError, match="tools service not initialized"):
+            await startup._verify_mcp_health()
+
+    @pytest.mark.asyncio
+    async def test_lifecycle_service_none_raises(self) -> None:
+        cfg = _http_subprocess_cfg()
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.mcp_servers = {"web": cfg}
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.lifecycle = None
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        with pytest.raises(RuntimeError, match="lifecycle service not initialized"):
+            await startup._verify_mcp_health()

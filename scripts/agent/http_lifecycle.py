@@ -277,6 +277,8 @@ class HttpServerLifecycleManager:
                             len(stderr_full),
                             stderr_full[:500],
                         )
+                        self._http_procs.pop(server_key, None)
+                        self._http_pgids.pop(server_key, None)
                         raise HttpStartupError(failure)
                     try:
                         resp = await client.get(health_url)
@@ -303,6 +305,8 @@ class HttpServerLifecycleManager:
                 reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
                 stderr_full=stderr_full,
             )
+            self._http_procs.pop(server_key, None)
+            self._http_pgids.pop(server_key, None)
             raise HttpStartupError(timeout_failure)
         else:
             logger.info(

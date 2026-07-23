@@ -236,13 +236,16 @@ sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY
 `_servers_started = True`)。except節は`if _servers_started:`の場合のみ
 `await self._ctx.services_required.lifecycle.shutdown_all()`を呼び出す。
 
+ただし、`AgentREPL.run()`(`repl.py`)のtry/finallyブロックは、`_start_servers()`の失敗時にも
+起動されたMCPサブプロセスを終了する。`StartupOrchestrator._start_servers()`は起動済みサブプロセスの
+リストを返すようになり、`AgentREPL.run()`のfinally節で`proc.terminate()`が呼ばれる。
+
 したがって:
 
 - `_check_services()` / `_recover_pending_approvals()` / `_setup_prompt()`のいずれかが失敗した場合は、
   `_servers_started`が`True`のため`shutdown_all()`が呼ばれる。
-- `_start_servers()`自体が例外を送出して失敗した場合は、`_servers_started`が`False`のままとなるため
-  `shutdown_all()`は呼ばれない。複数のMCPサブプロセスのうち1台目が起動済みで2台目が起動失敗したケースでも、
-  この分岐では既に起動済みの1台目に対するロールバックは行われず、そのサブプロセスはorphan化しうる。
+- `_start_servers()`自体が例外を送出して失敗した場合でも、`AgentREPL.run()`のfinally節で
+  起動済みサブプロセスがすべて終了される。orphan化は発生しない。
 
 この仕様は`tests/test_startup.py`の`TestStartupRollback`クラス(docstring: "run() calls
 lifecycle.shutdown_all() iff _start_servers() succeeded before failure")で固定されており、
@@ -268,6 +271,59 @@ lifecycle.shutdown_all() iff _start_servers() succeeded before failure")で固�
 
 ---
 
+## Shutdown resource cleanup(シャットダウン時のリソースクリーンアップ)
+
+`AgentREPL.run()`(`repl.py`)のtry/finallyブロックは、起動成功・失敗を問わず
+finally節でリソースをクローズする。`_close_resources()`(`repl.py`)は以下の順序で実行する:
+
+### WAL checkpoint
+
+```python
+# WAL checkpoint before closing connections
+wal_backup_path: str | None = None
+with SQLiteHelper("session").open(write_mode=True) as db:
+    wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+    if wal_mode.lower() == "wal":
+        # Try PASSIVE checkpoint first (no exclusive lock required)
+        try:
+            db.checkpoint("PASSIVE")
+        except sqlite3.Error as passive_err:
+            # Retry TRUNCATE checkpoint with exponential backoff
+            for attempt in range(3):
+                try:
+                    db.checkpoint("TRUNCATE")
+                except sqlite3.Error as truncate_err:
+                    if attempt < 2:
+                        await asyncio.sleep(2 ** attempt)
+                    else:
+                        # Copy WAL file to backup location before closing connection
+                        wal_file = f"{db_path}-wal"
+                        shutil.copy2(wal_file, wal_backup_path)
+```
+
+1. PASSIVEチェックポイントを最初に試す（排他ロック不要）
+2. PASSIVEが失敗した場合、TRUNCATEを最大3回（指数バックオフ: 1s, 2s, 4s）リトライ
+3. 最終的にTRUNCATEが失敗した場合、WALファイルをバックアップコピー
+4. バックアップファイル名にはタイムスタンプを含む（連続再起動時の名前衝突防止）
+
+### Lifecycle shutdown
+
+```python
+await svc.lifecycle.shutdown_all()
+await svc.http.aclose()
+```
+
+### エラーハンドリング
+
+リソースクローズ中のエラーはすべて捕捉され、ERRORレベルでログに記録される。
+個別のエラーは `errors` リストにタプル `(name, message)` として蓄積され、
+最後にまとめてログ出力される。
+
+この仕様は`tests/test_repl.py`の`TestCloseResourcesWALCheckpoint`クラスで検証されており、
+PASSIVEチェックポイントの優先、TRUNCATEフォールバック、非WALモードでのスキップがテストされている。
+
+---
+
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
@@ -283,3 +339,5 @@ startup procedure
 operational verification
 health probes
 minimal agent db initialization
+shutdown resource cleanup
+WAL checkpoint

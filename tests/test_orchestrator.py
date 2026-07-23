@@ -964,19 +964,22 @@ class TestHandleHistoryCompressionPersist:
         ctx.session.replace_messages.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_compress_filters_ephemeral_and_memory_injected_from_db(
+    async def test_compress_passes_full_history_to_replace_messages(
         self,
     ) -> None:
-        """replace_messages() must not receive _memory_injected or _ephemeral messages."""
+        """replace_messages() receives full history; ephemeral/memory-injected filtering
+        is handled by _clear_previous_turn_ephemeral_messages() before every turn."""
         ctx = _make_ctx()
         kept = {"role": "user", "content": "hello"}
+        ephemeral_msg = {"role": "system", "content": "hint", "_ephemeral": True}
+        memory_injected_msg = {
+            "role": "system",
+            "content": "mem",
+            "_memory_injected": True,
+        }
         ctx.services_required.hist_mgr.compress = AsyncMock(
             return_value=(
-                [
-                    kept,
-                    {"role": "system", "content": "hint", "_ephemeral": True},
-                    {"role": "system", "content": "mem", "_memory_injected": True},
-                ],
+                [kept, ephemeral_msg, memory_injected_msg],
                 CompressResult(
                     compressed_count=1, protected_count=0, summary_added=False
                 ),
@@ -985,7 +988,10 @@ class TestHandleHistoryCompressionPersist:
         orch = Orchestrator(ctx)
         await orch._handle_history_compression()
         saved = ctx.session.replace_messages.call_args[0][0]
-        assert saved == [kept]
+        assert len(saved) == 3
+        assert saved[0] == kept
+        assert saved[1] == ephemeral_msg
+        assert saved[2] == memory_injected_msg
 
 
 class TestInitWorkflowTaskResumeReuse:

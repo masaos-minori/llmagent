@@ -6,6 +6,10 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 
+class ServerCooldownError(RuntimeError):
+    """Raised when a tool call is attempted while an MCP server is in cooldown."""
+
+
 @runtime_checkable
 class LifecycleProtocol(Protocol):
     """Protocol for MCP server lifecycle managers injected into ToolExecutor."""

@@ -13,7 +13,8 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
@@ -184,12 +185,13 @@ class Orchestrator:
         answer: str = ""
         error_kind: str | None = None
         is_partial: bool = False
+        task: TaskRecord | None = None
         try:
             (
                 workflow_id,
                 task,
             ) = self._init_workflow_task(
-                ctx, session_id, ctx.turn.pending_approval_task_id
+                ctx, session_id, ctx.turn.pending_approval_task_id, store
             )
             # Clear pending approval task ID after retrieval
             ctx.turn.pending_approval_task_id = None
@@ -236,7 +238,7 @@ class Orchestrator:
         finally:
             # Update task status before deactivating to prevent orphaned records
             try:
-                _task = locals().get("task")
+                _task = task
                 if _task is not None and _task.task_id:
                     if error_kind is not None:
                         store.update_task_status(_task.task_id, "failed")
@@ -248,17 +250,26 @@ class Orchestrator:
             store.close()
 
     def _init_workflow_task(
-        self, ctx: AgentContext, session_id: str, existing_task_id: str | None = None
+        self,
+        ctx: AgentContext,
+        session_id: str,
+        existing_task_id: str | None = None,
+        store: StateStore | None = None,
     ) -> tuple[str, TaskRecord]:
         """Create a workflow task and audit its start.
 
         If existing_task_id is provided, use that task instead of creating a new one.
+        The caller may pass a pre-opened StateStore via the `store` parameter to avoid
+        opening a second connection.
         """
         assert self._workflow_def is not None  # noqa: B101
-        if existing_task_id is None:
-            workflow_id = str(uuid.uuid4())
+        close_store = False
+        if store is None:
             store = StateStore()
-            try:
+            close_store = True
+        try:
+            if existing_task_id is None:
+                workflow_id = str(uuid.uuid4())
                 task = create_task(
                     store._db,
                     session_id=session_id,
@@ -266,23 +277,22 @@ class Orchestrator:
                     workflow_version=self._workflow_def.version,
                     workflow_id=workflow_id,
                 )
-            finally:
+                audit_workflow_start(
+                    ctx,
+                    task.task_id,
+                    self._workflow_def.version,
+                    workflow_id=workflow_id,
+                    session_id=session_id,
+                )
+            else:
+                _fetched = get_task_by_id(store._db, existing_task_id)
+                if _fetched is None:
+                    raise RuntimeError(f"Task {existing_task_id} not found")
+                task = _fetched
+                workflow_id = task.workflow_id or str(uuid.uuid4())
+        finally:
+            if close_store:
                 store.close()
-            audit_workflow_start(
-                ctx,
-                task.task_id,
-                self._workflow_def.version,
-                workflow_id=workflow_id,
-                session_id=session_id,
-            )
-        else:
-            store = StateStore()
-            _fetched = get_task_by_id(store._db, existing_task_id)
-            if _fetched is None:
-                raise RuntimeError(f"Task {existing_task_id} not found")
-            task = _fetched
-            workflow_id = task.workflow_id or str(uuid.uuid4())
-            store.close()
         return workflow_id, task
 
     def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
@@ -381,7 +391,12 @@ class Orchestrator:
                 )
 
     async def _handle_history_compression(self) -> None:
-        """Compress conversation history and replace messages if compression occurred."""
+        """Compress conversation history and replace messages if compression occurred.
+
+        Note: ephemeral/memory-injected messages are NOT filtered here because
+        _clear_previous_turn_ephemeral_messages() already strips them before every
+        turn. Passing the full history avoids double-filtering.
+        """
         ctx = self._ctx
         with self._llm_runner._span_ctx("compress"):
             ctx.conv.history, result = await ctx.services_required.hist_mgr.compress(
@@ -392,13 +407,7 @@ class Orchestrator:
                 or result.summary_added
                 or result.is_fallback
             ):
-                ctx.session.replace_messages(
-                    [
-                        m
-                        for m in ctx.conv.history
-                        if not m.get("_memory_injected") and not m.get("_ephemeral")
-                    ]
-                )
+                ctx.session.replace_messages(ctx.conv.history)
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         """Execute an LLM streaming turn with wait/start/end callbacks and error handling."""
@@ -420,16 +429,20 @@ class Orchestrator:
                 logger.info("LLM response: %s", result.answer)
                 if result.persist_as_assistant:
                     ctx.session.save("assistant", result.answer)
-                if self._on_llm_wait_end:
-                    self._on_llm_wait_end()
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
                     handle_llm_transport_error(
                         result.exception, ctx, self._diagnostic_store
                     )
+                    if self._on_llm_wait_end:
+                        self._on_llm_wait_end()
                     if self._on_error:
                         self._on_error(result.exception)
+                    if self._on_turn_end:
+                        self._on_turn_end()
                 else:
+                    if self._on_llm_wait_end:
+                        self._on_llm_wait_end()
                     if self._on_turn_end:
                         self._on_turn_end()
                 return result
@@ -456,11 +469,7 @@ class Orchestrator:
         error_kind = None
         is_partial = False
 
-        # Snapshot original and apply override for this turn
-        original_allowed = ctx.cfg.tool.allowed_tools
-        if self._allowed_tools is not None:
-            ctx.cfg.tool.allowed_tools = self._allowed_tools
-        try:
+        with self._tool_override(self._allowed_tools):
             self._clear_previous_turn_ephemeral_messages()
             await self._handle_memory_injection(line)
             classify_and_inject_mode(line, ctx)
@@ -477,10 +486,18 @@ class Orchestrator:
                 ):
                     is_partial = True
 
-        finally:
-            ctx.cfg.tool.allowed_tools = original_allowed  # always restore
-
         return answer, error_kind, is_partial
+
+    @contextmanager
+    def _tool_override(self, allowed: list[str] | None) -> Iterator[None]:
+        """Temporarily override allowed_tools for the duration of a turn."""
+        original = self._ctx.cfg.tool.allowed_tools
+        if allowed is not None:
+            self._ctx.cfg.tool.allowed_tools = allowed
+        try:
+            yield
+        finally:
+            self._ctx.cfg.tool.allowed_tools = original
 
     async def _handle_turn_end(
         self,
@@ -571,6 +588,15 @@ class Orchestrator:
                 self._consecutive_bg_failures += 1
                 if self._consecutive_bg_failures == 1:
                     logger.warning("First background task failure: %s", exc)
+                    # Surface first-turn failure to user immediately
+                    if isinstance(exc, Exception) and self._on_error is not None:
+                        try:
+                            self._on_error(exc)
+                        except Exception as notif_err:
+                            logger.error(
+                                "Failed to notify user of background task failure: %s",
+                                notif_err,
+                            )
                 elif self._consecutive_bg_failures >= BG_FAILURE_THRESHOLD:
                     logger.error(
                         "Consecutive background task failures (%d): %s",

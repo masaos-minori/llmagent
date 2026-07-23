@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shared.mcp_config import McpServerHealthRegistry
@@ -65,6 +66,10 @@ class ConversationState:
     system_prompt_content: str = ""
     shutdown_requested: bool = False
     is_processing: bool = False  # True while handle_turn() is executing
+    memory_disabled: bool = False  # True when memory injection failed during startup
+    memory_warning_shown: bool = (
+        False  # Whether the "memory disabled" warning was displayed
+    )
 
 
 @dataclass
@@ -180,7 +185,13 @@ class AgentContext:
         self.turn = TurnState()
         self.stats = RuntimeStats()
         self.workflow = WorkflowState()
-        self.cfg = build_agent_config()
+        try:
+            self.cfg = build_agent_config()
+        except Exception as e:
+            config_dir = Path(__file__).resolve().parent.parent.parent / "config"
+            raise RuntimeError(
+                f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"
+            ) from None
         self.session = AgentSession()
 
         # Wired by Orchestrator.__init__() to its DiagnosticStore instance.

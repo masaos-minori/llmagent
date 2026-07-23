@@ -8,8 +8,11 @@ command dispatch, and output display logic.
 
 from __future__ import annotations
 
+import asyncio
+import subprocess
 from typing import TYPE_CHECKING
 
+import httpx
 from shared.logger import Logger
 from shared.mcp_config import (
     McpServerHealthState,
@@ -56,13 +59,15 @@ class StartupOrchestrator:
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
 
-    async def run(self) -> tuple[CommandRegistry, Orchestrator]:
-        """Execute full startup sequence; return (cmds, orchestrator)."""
+    async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
+        """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
         self._initialize()
         _servers_started = False
+        self._spawned_subprocesses: list[subprocess.Popen] = []
         try:
             await self._start_servers()
             _servers_started = True
+            await self._verify_mcp_health()
             await self._check_services()
             await self._recover_pending_approvals()
             await self._setup_prompt()
@@ -75,12 +80,13 @@ class StartupOrchestrator:
                         "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
                         shutdown_err,
                     )
+            # Pass subprocess list to caller for termination
             raise setup_err
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
-        return self._cmds, self._orchestrator
+        return self._cmds, self._orchestrator, []  # empty list on success
 
     def _initialize(self) -> None:
         """Setup readline, wire DI, init CommandRegistry and Orchestrator."""
@@ -119,7 +125,7 @@ class StartupOrchestrator:
             tracer=tracer,
         )
 
-    async def _start_servers(self) -> None:
+    async def _start_servers(self) -> list[subprocess.Popen]:
         """Spawn subprocesses for HTTP subprocess MCP servers.
 
         Handles:
@@ -133,15 +139,18 @@ class StartupOrchestrator:
             raise RuntimeError("tools service not initialized")
         if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
+        spawned: list[subprocess.Popen] = []
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if (
                 cfg.startup_mode == StartupMode.SUBPROCESS
                 and cfg.transport == TransportType.HTTP
             ):
                 try:
-                    await ctx.services_required.lifecycle.start_http_subprocess(
+                    proc = await ctx.services_required.lifecycle.start_http_subprocess(
                         key, cfg
                     )
+                    if proc is not None:
+                        spawned.append(proc)
                 except (OSError, RuntimeError) as e:
                     if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
                         msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start: {e}"
@@ -154,6 +163,55 @@ class StartupOrchestrator:
                     )
                     self._view.write_warning(
                         f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start: {e}"
+                    )
+        return spawned
+
+    async def _verify_mcp_health(self) -> None:
+        """Verify health of all MCP subprocess servers after startup."""
+        ctx = self._ctx
+        if ctx.services_required.tools is None:
+            raise RuntimeError("tools service not initialized")
+        if ctx.services_required.lifecycle is None:
+            raise RuntimeError("lifecycle service not initialized")
+
+        subprocess_servers = [
+            (key, cfg)
+            for key, cfg in ctx.cfg.mcp.mcp_servers.items()
+            if cfg.startup_mode == StartupMode.SUBPROCESS
+            and cfg.transport == TransportType.HTTP
+        ]
+
+        for server_key, cfg in subprocess_servers:
+            url = cfg.url.rstrip("/") + "/health"
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url)
+                    if resp.status_code != httpx.codes.OK:
+                        raise RuntimeError(f"HTTP {resp.status_code}")
+                    logger.info("Post-startup health check passed for %r", server_key)
+            except Exception:
+                try:
+                    await asyncio.sleep(1.0)
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(url)
+                        if resp.status_code != httpx.codes.OK:
+                            raise RuntimeError(f"HTTP {resp.status_code}")
+                        logger.info(
+                            "Post-startup health check passed for %r (after retry)",
+                            server_key,
+                        )
+                except Exception as retry_err:
+                    if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
+                        msg = f"{OutputTag.FATAL} MCP subprocess {server_key!r} failed post-startup health check: {retry_err}"
+                        logger.error(msg)
+                        raise RuntimeError(msg) from retry_err
+                    logger.warning(
+                        "Post-startup health check failed for %r: %s",
+                        server_key,
+                        retry_err,
+                    )
+                    self._view.write_warning(
+                        f"{OutputTag.NON_FATAL} MCP subprocess {server_key!r} failed post-startup health check: {retry_err}"
                     )
 
     def _check_workflow_definition(self) -> None:
@@ -502,6 +560,7 @@ class StartupOrchestrator:
                     )
                     initial_prompt = initial_prompt + memory_block
             except Exception as exc:
+                ctx.conv.memory_disabled = True
                 logger.warning(
                     "Memory injection failed during startup: %s; continuing without memory",
                     exc,

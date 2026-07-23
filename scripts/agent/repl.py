@@ -24,8 +24,11 @@ AgentREPL responsibilities:
 
 import asyncio
 import json
+import os
+import shutil
 import signal
 import sqlite3
+import subprocess
 import time
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -38,7 +41,9 @@ from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
+from agent.output_tags import OutputTag
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from agent.session import SchemaMissingError
 
 if TYPE_CHECKING:
     from agent.orchestrator import Orchestrator
@@ -92,6 +97,7 @@ class AgentREPL:
         self._diagnostic_store = DiagnosticStore()
         self._turn_active: bool = False
         self._shutdown_event: asyncio.Event | None = None
+        self._input_coro: asyncio.Task[str] | None = None
 
     @property
     def _prompt(self) -> str:
@@ -116,10 +122,19 @@ class AgentREPL:
         """Extract and persist session memories before compression or resource close."""
         if ctx.services is not None and ctx.services.memory is not None:
             try:
-                history = [
-                    HistoryMessage(role=m["role"], content=m.get("content") or "")
-                    for m in ctx.conv.history
-                ]
+                history = []
+                for m in ctx.conv.history:
+                    expected_keys = {"role", "content"}
+                    extra_keys = set(m.keys()) - expected_keys
+                    if extra_keys:
+                        logger.warning(
+                            "Unexpected keys in history message: %s — full message: %s",
+                            extra_keys,
+                            m,
+                        )
+                    history.append(
+                        HistoryMessage(role=m["role"], content=m.get("content") or "")
+                    )
                 await ctx.services.memory.on_session_stop(
                     session_id=ctx.session.session_id,
                     history=history,
@@ -154,41 +169,16 @@ class AgentREPL:
             artifacts: list[str] = []
             if session_id is not None:
                 try:
-                    with SQLiteHelper("workflow").open(row_factory=True) as wdb:
-                        sid = str(session_id)
-                        rows = wdb.fetchall(
-                            "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
-                            (sid,),
-                        )
-                        task_count = int(rows[0]["cnt"]) if rows else 0
-                        rows = wdb.fetchall(
-                            "SELECT COUNT(DISTINCT workflow_id) as cnt"
-                            " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
-                            (sid,),
-                        )
-                        workflow_count = int(rows[0]["cnt"]) if rows else 0
-                        rows = wdb.fetchall(
-                            "SELECT COUNT(*) as cnt FROM approvals"
-                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
-                            (sid,),
-                        )
-                        approval_events = int(rows[0]["cnt"]) if rows else 0
-                        rows = wdb.fetchall(
-                            "SELECT COUNT(*) as cnt FROM attempts"
-                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)"
-                            " AND stage_id='execute'",
-                            (sid,),
-                        )
-                        retry_count = (
-                            max(0, int(rows[0]["cnt"]) - task_count) if rows else 0
-                        )
-                        art_rows = wdb.fetchall(
-                            "SELECT uri FROM artifacts WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
-                            (sid,),
-                        )
-                        artifacts = [
-                            uri for r in art_rows if (uri := dict(r).get("uri"))
-                        ]
+                    from agent.workflow.state_store import StateStore
+
+                    store = StateStore()
+                    sid = str(session_id)
+                    task_count = store.get_task_count(sid)
+                    workflow_count = store.get_workflow_count(sid)
+                    approval_events = store.get_approval_count(sid)
+                    execute_attempts = store.get_execute_attempt_count(sid)
+                    retry_count = max(0, execute_attempts - task_count)
+                    artifacts = store.get_artifact_uris(sid)
                 except (RuntimeError, sqlite3.Error):
                     pass
 
@@ -257,13 +247,76 @@ class AgentREPL:
         self._view.write_history()
         errors: list[tuple[str, str]] = []
         # WAL checkpoint before closing connections
+        wal_backup_path: str | None = None
         try:
             with SQLiteHelper("session").open(write_mode=True) as db:
-                db.checkpoint("TRUNCATE")
-            logger.info("WAL checkpoint completed on shutdown")
+                wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+                if wal_mode.lower() == "wal":
+                    # Try PASSIVE checkpoint first (no exclusive lock required)
+                    try:
+                        db.checkpoint("PASSIVE")
+                        logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
+                    except sqlite3.Error as passive_err:
+                        logger.warning(
+                            "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
+                            passive_err,
+                        )
+                        # Retry TRUNCATE checkpoint with exponential backoff
+                        truncated = False
+                        for attempt in range(3):
+                            try:
+                                db.checkpoint("TRUNCATE")
+                                logger.info(
+                                    "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
+                                    attempt + 1,
+                                )
+                                truncated = True
+                                break
+                            except sqlite3.Error as truncate_err:
+                                if attempt < 2:
+                                    logger.warning(
+                                        "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
+                                        attempt + 1,
+                                        truncate_err,
+                                    )
+                                    await asyncio.sleep(2**attempt)
+                                else:
+                                    logger.error(
+                                        "WAL TRUNCATE checkpoint failed after 3 attempts: %s",
+                                        truncate_err,
+                                    )
+                                    errors.append(
+                                        (
+                                            "wal_checkpoint_truncate",
+                                            f"{type(truncate_err).__name__}: {truncate_err}",
+                                        )
+                                    )
+                        if not truncated:
+                            # Copy WAL file to backup location before closing connection
+                            try:
+                                db_path = db.execute("PRAGMA database_list").fetchone()[
+                                    1
+                                ]
+                                if db_path:
+                                    wal_file = f"{db_path}-wal"
+                                    backup_dir = os.path.dirname(db_path) or "/tmp"
+                                    wal_backup_path = os.path.join(
+                                        backup_dir,
+                                        f"{os.path.basename(db_path)}-wal-backup-{int(time.time())}",
+                                    )
+                                    shutil.copy2(wal_file, wal_backup_path)
+                                    logger.warning(
+                                        "WAL file backed up to %s", wal_backup_path
+                                    )
+                            except Exception as backup_err:
+                                logger.error(
+                                    "Failed to backup WAL file: %s", backup_err
+                                )
+                else:
+                    logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
         except sqlite3.Error as e:
             errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
-            logger.warning("WAL checkpoint failed on shutdown: %s", e)
+            logger.error("WAL checkpoint failed on shutdown: %s", e)
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
         svc = self._ctx.services
         if svc is not None:
@@ -300,6 +353,12 @@ class AgentREPL:
                 continue
             if self._should_exit(line, ctx):
                 break
+            # Warn once about disabled memory
+            if ctx.conv.memory_disabled and not ctx.conv.memory_warning_shown:
+                ctx.conv.memory_warning_shown = True
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Memory is disabled for this session."
+                )
             self._turn_active = True
             ctx.conv.is_processing = True
             try:
@@ -329,6 +388,7 @@ class AgentREPL:
                 return await loop.run_in_executor(None, lambda: input(self._prompt))
 
             input_coro = asyncio.ensure_future(_input_task())
+            self._input_coro = input_coro
             shutdown_done = False
 
             async def _shutdown_watcher() -> None:
@@ -351,14 +411,22 @@ class AgentREPL:
                 t.cancel()
             if shutdown_done or shutdown_coro in done:
                 self._view.write_turn_end()
+                self._input_coro = None
                 return None
             try:
                 raw = input_coro.result()
+            except asyncio.CancelledError:
+                # Input was cancelled by signal handler — treat as shutdown
+                self._view.write_turn_end()
+                self._input_coro = None
+                return None
             except EOFError:
                 self._view.write_turn_end()
+                self._input_coro = None
                 return None
             except KeyboardInterrupt:
                 self._view.write_turn_end()
+                self._input_coro = None
                 return None
         else:
             try:
@@ -430,23 +498,19 @@ class AgentREPL:
             self._print_startup_banner()
             try:
                 ctx.session.start()
+            except SchemaMissingError as e:
+                self._view.write_fatal(str(e))
+                raise
             except RuntimeError as e:
-                msg = str(e)
-                if "no such table" in msg.lower():
-                    self._view.write_fatal(
-                        "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
-                    )
-                else:
-                    self._view.write_fatal(f"Session start failed: {msg}")
-                # Re-raise as RuntimeError with a clean message so the outer handler
-                # produces consistent formatting regardless of the original exception type.
-                raise RuntimeError(msg) from None
+                self._view.write_fatal(f"Session start failed: {e}")
+                raise
             except sqlite3.Error as e:
                 self._view.write_fatal(
-                    f"Database unavailable during session start: {e}. Check DB connectivity or run: bash deploy/init_db.sh"
+                    f"Database unavailable during session start ({e.__class__.__name__}): {e}. Check DB connectivity or run: bash deploy/init_db.sh"
                 )
-                # Wrap in RuntimeError so the outer handler treats it uniformly.
-                raise RuntimeError(f"Database unavailable: {e}") from None
+                raise RuntimeError(
+                    f"Database unavailable ({e.__class__.__name__}): {e}"
+                ) from None
             if (
                 ctx.services_required.tools is not None
                 and ctx.session.session_id is not None
@@ -476,27 +540,85 @@ class AgentREPL:
         self._shutdown_event = asyncio.Event()
 
         def _sigterm_handler() -> None:
-            """Handle SIGTERM by setting shutdown flag on context and event."""
+            """Handle SIGTERM by cancelling input and setting shutdown flag."""
             self._ctx.conv.shutdown_requested = True
             if self._shutdown_event is not None:
                 self._shutdown_event.set()
+            # Cancel the current input coroutine to wake up the wait loop immediately
+            if self._input_coro is not None and not self._input_coro.done():
+                try:
+                    self._input_coro.cancel()
+                except RuntimeError:
+                    pass  # Task already cancelled or not running
             logger.info("SIGTERM received; graceful shutdown initiated")
 
-        try:
-            loop.add_signal_handler(signal.SIGTERM, _sigterm_handler)
-            loop.add_signal_handler(signal.SIGINT, _sigterm_handler)
-        except NotImplementedError:
-            import signal as _signal
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                loop.add_signal_handler(sig, _sigterm_handler)
+            except NotImplementedError:
+                # asyncio.add_signal_handler is not supported on Windows.
+                # Try pywin32 console control handler as fallback.
+                try:
+                    import sys
 
-            _signal.signal(_signal.SIGTERM, lambda *_: _sigterm_handler())
-            _signal.signal(_signal.SIGINT, lambda *_: _sigterm_handler())
+                    # Only register if we're running in a console window
+                    if hasattr(sys, "frozen") or sys.stdout.isatty():
+                        try:
+                            import win32api
+                            import win32con
+
+                            def _console_ctrl_handler(ctrl_type: int) -> bool:
+                                if ctrl_type == win32con.CTRL_CLOSE_EVENT:
+                                    loop.call_soon_threadsafe(_sigterm_handler)
+                                return True
+
+                            win32api.SetConsoleCtrlHandler(_console_ctrl_handler, True)
+                            logger.debug(
+                                "Registered Windows console control handler for %s",
+                                sig,
+                            )
+                        except ImportError:
+                            # pywin32 not installed — cannot provide Windows signal handling
+                            logger.warning(
+                                "pywin32 not available; signal handling disabled on Windows. "
+                                "Install pywin32 for Ctrl+C/Ctrl+Break support."
+                            )
+                        except Exception as e:
+                            logger.error(
+                                "Failed to set Windows console control handler: %s", e
+                            )
+                    else:
+                        # Not in a console — no signal mechanism available on Windows
+                        logger.warning(
+                            "Signal handling not available on Windows outside console; "
+                            "use Ctrl+C or close the terminal to shut down"
+                        )
+                except Exception:
+                    pass
 
         startup = StartupOrchestrator(self._ctx, self._view)
+        _spawned_subprocesses: list[subprocess.Popen] = []
         try:
-            self._cmds, self._orchestrator = await startup.run()
+            self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()
         except Exception as e:
             self._view.write_fatal(f"Startup failed: {e}")
             raise
+        finally:
+            # Terminate any subprocesses started during partial startup
+            # Check both local variable (success path) and instance variable (exception path)
+            all_procs = _spawned_subprocesses
+            if hasattr(startup, "_spawned_subprocesses"):
+                all_procs = list(all_procs) + list(startup._spawned_subprocesses)
+            for proc in all_procs:
+                if proc.poll() is None:
+                    proc.terminate()
+            await self._close_resources()
+        # Show memory disabled warning immediately after startup if applicable
+        if self._ctx.conv.memory_disabled and not self._ctx.conv.memory_warning_shown:
+            self._ctx.conv.memory_warning_shown = True
+            self._view.write_warning(
+                f"{OutputTag.NON_FATAL} Memory is disabled for this session."
+            )
         await self._run_repl_loop()
 
 

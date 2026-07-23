@@ -5,6 +5,7 @@ AgentSession facade — delegates to domain-specific repository modules.
 """
 
 import logging
+import sqlite3
 
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
@@ -13,6 +14,10 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.session_message_repo import SessionMessageRepository
 
 logger = logging.getLogger(__name__)
+
+
+class SchemaMissingError(RuntimeError):
+    """Raised when required SQLite schema tables are missing."""
 
 
 class AgentSession:
@@ -94,13 +99,26 @@ class AgentSession:
     # ── Session lifecycle ────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Create a new session record in DB and store its ID. Raises sqlite3.Error on failure."""
+        """Create a new session record in DB and store its ID. Raises SchemaMissingError on missing schema."""
         with SQLiteHelper("session").open(write_mode=True) as db:
             try:
+                # Pre-flight check: verify required table exists before attempting INSERT
+                cursor = db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    ("sessions",),
+                )
+                if cursor.fetchone() is None:
+                    raise SchemaMissingError(
+                        "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
+                    )
                 cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
-            except Exception as e:
-                if "no such table" in str(e):
-                    raise RuntimeError(
+            except SchemaMissingError:
+                raise
+            except sqlite3.OperationalError as e:
+                # Fallback: check extended error code for SQLITE_NOTFOUND (1017)
+                err_code = e.args[0] if e.args else None
+                if err_code == 1017:
+                    raise SchemaMissingError(
                         "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
                     ) from e
                 raise

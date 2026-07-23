@@ -9,6 +9,7 @@ REPL instance state directly.
 from __future__ import annotations
 
 import logging
+import subprocess
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -22,6 +23,7 @@ from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry
 from shared.otel_tracer import build_tracer
 from shared.tool_executor import ToolExecutor
+from shared.tool_lifecycle import ServerCooldownError
 
 from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
@@ -43,6 +45,7 @@ _logger = logging.getLogger(__name__)
 
 # Cooldown duration for failed MCP subprocess starts (seconds)
 _COOLDOWN_SECONDS: float = 30.0
+_COOLDOWN_TIMEOUT_SEC: int = 30
 
 
 class _ServerLifecycleRouter:
@@ -124,7 +127,12 @@ class _ServerLifecycleRouter:
         ):
             return
         if self._in_cooldown(server_key):
-            return
+            remaining = _COOLDOWN_SECONDS - (
+                time.monotonic() - self._failed_starts[server_key]
+            )
+            raise ServerCooldownError(
+                f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
+            )
         if not self._http_mgr.verify_running(server_key):
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
@@ -150,21 +158,22 @@ class _ServerLifecycleRouter:
         self,
         server_key: str,
         cfg: McpServerConfig,
-    ) -> None:
-        """Start a single HTTP subprocess MCP server."""
+    ) -> subprocess.Popen[bytes] | None:
+        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
         if self._shutting_down:
             _logger.debug(
                 "Lifecycle: start_http_subprocess(%r) ignored — shutting down",
                 server_key,
             )
-            return
+            return None
         if self._in_cooldown(server_key):
-            return
+            return None
         self._set_state(server_key, LifecycleState.STARTING)
         try:
             await self._http_mgr.start(server_key, cfg)
             self._failed_starts.pop(server_key, None)
             self._set_state(server_key, LifecycleState.RUNNING)
+            return self._http_mgr._http_procs.get(server_key)
         except Exception:
             self._failed_starts[server_key] = time.monotonic()
             self._set_state(server_key, LifecycleState.FAILED)
@@ -220,6 +229,15 @@ class _ServerLifecycleRouter:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
         processes: list[ProcessInfoSnapshot] = self._http_mgr.list_processes()
         return processes
+
+    def get_subprocess_server_configs(self) -> list[tuple[str, McpServerConfig]]:
+        """Return (key, config) pairs for all HTTP subprocess-mode servers."""
+        return [
+            (key, cfg)
+            for key, cfg in self._server_configs.items()
+            if cfg.transport == TransportType.HTTP
+            and cfg.startup_mode == StartupMode.SUBPROCESS
+        ]
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:

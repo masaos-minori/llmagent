@@ -954,8 +954,8 @@ class TestProcessGroupShutdown:
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start("srv", cfg)
 
-        assert mgr._http_pgids["srv"] == 9999
-        assert mgr._http_pgids.get("srv") == 9999
+        assert mgr._http_pgids.get("srv") is None
+        assert "srv" not in mgr._http_procs
 
     @pytest.mark.asyncio
     async def test_shutdown_all_restores_sigint_handler_when_signal_signal_fails(

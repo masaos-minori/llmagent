@@ -49,9 +49,9 @@ from mcp_servers.github.exception_handlers import setup_exception_handlers
 from mcp_servers.github.github_models import (
     GitHubConfig,
 )
+from mcp_servers.github.github_tools import TOOL_LIST
 from mcp_servers.github.service_dispatch import GitHubService
 from mcp_servers.github.service_init import _GITHUB_TOKEN, build_service
-from mcp_servers.github.github_tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
