@@ -47,6 +47,8 @@ from agent.workflow import (
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 
+BG_FAILURE_THRESHOLD: int = 5
+
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
@@ -123,6 +125,7 @@ class Orchestrator:
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
         self._background_tasks: set[asyncio.Task[object]] = set()
+        self._consecutive_bg_failures: int = 0
         self._llm_runner = LLMTurnRunner(
             ctx,
             self._guard,
@@ -231,6 +234,16 @@ class Orchestrator:
         except WorkflowHaltError as exc:
             self._handle_workflow_halt(exc)
         finally:
+            # Update task status before deactivating to prevent orphaned records
+            try:
+                _task = locals().get("task")
+                if _task is not None and _task.task_id:
+                    if error_kind is not None:
+                        store.update_task_status(_task.task_id, "failed")
+                    else:
+                        store.update_task_status(_task.task_id, "completed")
+            except Exception as e:
+                logger.warning("Failed to update task status on engine exit: %s", e)
             self._deactivate_workflow(ctx)
             store.close()
 
@@ -544,15 +557,33 @@ class Orchestrator:
             _task = asyncio.create_task(self._on_first_turn(line))
             self._background_tasks.add(_task)
 
-            def _discard_and_log(task: asyncio.Task[Any]) -> None:
-                exc = task.exception()
-                if exc is not None:
-                    if isinstance(exc, asyncio.CancelledError):
-                        # Task was cancelled — do not log as error.
-                        pass
-                    else:
-                        logger.error("First-turn background task failed: %s", exc)
-                self._background_tasks.discard(task)
-
-            _task.add_done_callback(_discard_and_log)
+            _task.add_done_callback(self._discard_and_log)
         ctx.session.save("user", line)
+
+    def _discard_and_log(self, task: asyncio.Task[Any]) -> None:
+        """Callback for first-turn background task completion."""
+        exc = task.exception()
+        if exc is not None:
+            if isinstance(exc, asyncio.CancelledError):
+                # Task was cancelled — reset counter, do not log as error.
+                self._consecutive_bg_failures = 0
+            else:
+                self._consecutive_bg_failures += 1
+                if self._consecutive_bg_failures == 1:
+                    logger.warning("First background task failure: %s", exc)
+                elif self._consecutive_bg_failures >= BG_FAILURE_THRESHOLD:
+                    logger.error(
+                        "Consecutive background task failures (%d): %s",
+                        self._consecutive_bg_failures,
+                        exc,
+                    )
+                else:
+                    logger.warning(
+                        "Background task failure #%d: %s",
+                        self._consecutive_bg_failures,
+                        exc,
+                    )
+        else:
+            # Task completed successfully — reset counter
+            self._consecutive_bg_failures = 0
+        self._background_tasks.discard(task)

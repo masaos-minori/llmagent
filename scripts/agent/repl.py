@@ -255,18 +255,31 @@ class AgentREPL:
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
+        errors: list[tuple[str, str]] = []
         # WAL checkpoint before closing connections
         try:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 db.checkpoint("TRUNCATE")
             logger.info("WAL checkpoint completed on shutdown")
         except sqlite3.Error as e:
+            errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
             logger.warning("WAL checkpoint failed on shutdown: %s", e)
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
         svc = self._ctx.services
         if svc is not None:
-            await svc.lifecycle.shutdown_all()
-            await svc.http.aclose()
+            try:
+                await svc.lifecycle.shutdown_all()
+            except Exception as e:
+                errors.append(("lifecycle_shutdown", f"{type(e).__name__}: {e}"))
+                logger.error("Lifecycle shutdown failed: %s", e)
+            try:
+                await svc.http.aclose()
+            except Exception as e:
+                errors.append(("http_close", f"{type(e).__name__}: {e}"))
+                logger.error("HTTP client close failed: %s", e)
+        if errors:
+            summary = "; ".join(f"{name}: {err}" for name, err in errors)
+            logger.error("Resource close errors (%d): %s", len(errors), summary)
 
     # ── Main REPL loop ─────────────────────────────────────────────────────────
 
