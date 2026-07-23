@@ -41,17 +41,6 @@ source:
 - 各ファイルにtitle/category/tags/related documents/keywordsを含むYAML Front Matterを付与
 - 本ファイルはシステム全体の概要索引。各詳細ドキュメントセットは以下のカタログを参照
 
-## 他のドキュメントセット
-
-| ファイル | 内容 |
-|---|---|
-| [02_deployment-part1.md](02_deployment-part1.md) | 導入手順・デプロイ |
-| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAGドキュメントセットガイド(全ファイル一覧) |
-| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCPドキュメントセットガイド(全ファイル一覧) |
-| [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | Agentドキュメントセットガイド(全ファイル一覧) |
-| [06_eventbus_00_document-guide.md](06_eventbus_00_document-guide.md) | Event Busドキュメントセットガイド(全ファイル一覧) |
-| [90_shared_00_document-guide.md](90_shared_00_document-guide.md) | shared/DBドキュメントセットガイド(全ファイル一覧) |
-
 ## Related Documents
 
 - `01_overview-arch-01-process.md`
@@ -63,17 +52,3 @@ source:
 - `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
-- `02_deployment-part1.md`
-
-## Keywords
-
-system-overview
-architecture
-introduction
-index
-overview
-deployment
-rag
-mcp
-agent
-shared
