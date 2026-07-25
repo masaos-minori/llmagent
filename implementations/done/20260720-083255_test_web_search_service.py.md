@@ -6,7 +6,7 @@ Validation plan).
 ## Goal
 
 Add `tests/test_web_search_service.py`, a unit-test module covering
-`scripts/mcp_servers/web_search/service.py::search_web()` in isolation: success
+`scripts/mcp_servers/web_search/web_search_service.py::search_web()` in isolation: success
 path, zero-result path, provider-timeout path, provider-error path, and the
 health.py/metrics.py update side effects on each path.
 

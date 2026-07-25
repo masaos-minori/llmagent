@@ -1,6 +1,6 @@
 """tests/test_web_search_service.py
 
-Unit tests for mcp_servers/web_search/service.py::search_web(): the
+Unit tests for mcp_servers/web_search/web_search_service.py::search_web(): the
 orchestration layer covering the success path, the zero-result path (a
 normal success, not a failure — see formatters.py for the "no results" text),
 the provider-timeout path, the provider-error path, and the request-validation
@@ -58,7 +58,9 @@ class TestSearchWebSuccess:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return fake_results
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         resp = await service.search_web({"query": "hello", "max_results": 5})
 
@@ -84,7 +86,9 @@ class TestSearchWebZeroResults:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return []
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         resp = await service.search_web({"query": "hello", "max_results": 5})
 
@@ -102,7 +106,9 @@ class TestSearchWebProviderTimeout:
         async def _raise(*args: object, **kwargs: object) -> list[SearchResult]:
             raise WebSearchTimeoutError("DuckDuckGo search timed out after 10.0s")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
 
         with pytest.raises(WebSearchTimeoutError):
             await service.search_web({"query": "hello", "max_results": 5})
@@ -135,7 +141,9 @@ class TestSearchWebProviderError:
         async def _raise(*args: object, **kwargs: object) -> list[SearchResult]:
             raise exc_cls("boom")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
 
         with pytest.raises(exc_cls):
             await service.search_web({"query": "hello", "max_results": 5})
@@ -154,7 +162,9 @@ class TestSearchWebProviderError:
         async def _raise(*args: object, **kwargs: object) -> list[SearchResult]:
             raise WebSearchProviderError("boom")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
 
         for _ in range(health.DEGRADED_THRESHOLD):
             with pytest.raises(WebSearchProviderError):
@@ -195,7 +205,9 @@ class TestSearchWebValidationError:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return fake_results
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         resp = await service.search_web({"query": "hello"})
 
@@ -280,7 +292,7 @@ class TestFetchBrowserFetchError:
             raise httpx.ConnectError("boom")
 
         monkeypatch.setattr(
-            "mcp_servers.web_search.service._provider_fetch_browser", _raise
+            "mcp_servers.web_search.web_search_service._provider_fetch_browser", _raise
         )
         # Allow the request past _check_domain by not exercising it at all
         # (the provider is fully monkeypatched, so allowlist state is moot).
@@ -302,7 +314,7 @@ class TestFetchBrowserFetchError:
             raise httpx.ConnectError("boom")
 
         monkeypatch.setattr(
-            "mcp_servers.web_search.service._provider_fetch_browser", _raise
+            "mcp_servers.web_search.web_search_service._provider_fetch_browser", _raise
         )
 
         for _ in range(health.DEGRADED_THRESHOLD):

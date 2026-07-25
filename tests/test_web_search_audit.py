@@ -73,7 +73,9 @@ class TestAuditAlwaysFires:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return [SearchResult(title="t", url="u", body="b", provider="duckduckgo")]
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         resp = client.post(
             "/v1/call_tool", json={"name": "search_web", "args": {"query": "python"}}
@@ -93,7 +95,9 @@ class TestAuditAlwaysFires:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return []
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         resp = client.post(
             "/v1/call_tool", json={"name": "search_web", "args": {"query": "python"}}
@@ -139,7 +143,9 @@ class TestAuditAlwaysFires:
         async def _raise(*args: object, **kwargs: object) -> list[SearchResult]:
             raise WebSearchTimeoutError("DuckDuckGo search timed out after 10.0s")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
 
         resp = client.post(
             "/v1/call_tool", json={"name": "search_web", "args": {"query": "python"}}
@@ -159,7 +165,9 @@ class TestAuditAlwaysFires:
         async def _raise(*args: object, **kwargs: object) -> list[SearchResult]:
             raise RuntimeError("boom")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
 
         with pytest.raises(RuntimeError):
             client.post(

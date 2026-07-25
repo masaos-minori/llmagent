@@ -27,7 +27,9 @@ class TestSearchWebEmptyResults:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return []
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         assert await fdisp_search_web({"query": "x"}) == "No search results found."
 
@@ -44,7 +46,9 @@ class TestFdispSearchWebNormalResults:
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return fake_results
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
 
         out = await fdisp_search_web({"query": "x"})
 
@@ -68,7 +72,9 @@ class TestFdispBrowserFetch:
         async def _fake(args: dict[str, object]) -> BrowserFetchResponse:
             return mock_result
 
-        monkeypatch.setattr("mcp_servers.web_search.service.fetch_browser", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.fetch_browser", _fake
+        )
 
         out = await fdisp_browser_fetch({"url": "https://example.com/"})
 
@@ -90,7 +96,9 @@ class TestFdispBrowserFetch:
         async def _fake(args: dict[str, object]) -> BrowserFetchResponse:
             return mock_result
 
-        monkeypatch.setattr("mcp_servers.web_search.service.fetch_browser", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.fetch_browser", _fake
+        )
 
         out = await fdisp_browser_fetch({"url": "https://example.com/"})
 
@@ -112,7 +120,9 @@ class TestDispatchWebToolBrowserFetch:
         async def _fake(args: dict[str, object]) -> BrowserFetchResponse:
             return mock_result
 
-        monkeypatch.setattr("mcp_servers.web_search.service.fetch_browser", _fake)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.fetch_browser", _fake
+        )
 
         result = await dispatch_web_tool(
             "browser_fetch", {"url": "https://example.com/"}

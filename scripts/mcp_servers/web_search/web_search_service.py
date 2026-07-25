@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/web_search/service.py
+"""scripts/mcp_servers/web_search/web_search_service.py
 
 Orchestration layer for web-search-mcp: builds/validates a `SearchRequest`,
 calls `search_provider.search_duckduckgo`, measures latency, and updates
@@ -12,8 +12,8 @@ only *reads* their state (via `health.health_details()`/`is_degraded()` and
 update hooks directly — see that module's `call_tool()` for the audit-logging
 responsibility it retains instead.
 
-Dependency direction: mcp_servers.web_search.service -> mcp_servers.web_search.{search_provider, health, metrics, web_search_models}, shared.formatters, shared.logger
-Import from here: from mcp_servers.web_search.service import search_web
+Dependency direction: mcp_servers.web_search.web_search_service -> mcp_servers.web_search.{search_provider, health, metrics, web_search_models}, shared.formatters, shared.logger
+Import from here: from mcp_servers.web_search.web_search_service import search_web
 """
 
 from __future__ import annotations

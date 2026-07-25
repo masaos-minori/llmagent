@@ -3,7 +3,7 @@
 
 MCP tool dispatch formatters for web-search-mcp.
 
-Dependency direction: mcp_servers.web_search.formatters → shared.formatters, mcp_servers.web_search.service, mcp_servers.web_search.web_search_models
+Dependency direction: mcp_servers.web_search.formatters → shared.formatters, mcp_servers.web_search.web_search_service, mcp_servers.web_search.web_search_models
 Import from here:  from mcp_servers.web_search.formatters import fmt_search_result, fdisp_search_web
 """
 
@@ -14,7 +14,7 @@ from typing import Any
 from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 from mcp_servers.dispatch import DispatchResult, dispatch_tool
-from mcp_servers.web_search import service
+from mcp_servers.web_search import web_search_service as service
 from mcp_servers.web_search.web_search_models import BrowserFetchResponse, SearchResult
 
 

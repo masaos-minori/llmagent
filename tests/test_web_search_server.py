@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from mcp_servers.web_search import service, web_search_server
+from mcp_servers.web_search import web_search_server
+from mcp_servers.web_search import web_search_service as service
 from mcp_servers.web_search.web_search_models import (
     BrowserFetchResponse,
     WebSearchNetworkError,
@@ -37,7 +38,9 @@ class TestCallToolErrorClassification:
         async def _raise(*args: object, **kwargs: object) -> None:
             raise exc_cls("boom")
 
-        monkeypatch.setattr("mcp_servers.web_search.service.search_duckduckgo", _raise)
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
+        )
         client = TestClient(web_search_server.app)
 
         resp = client.post(
