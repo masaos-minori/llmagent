@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_reconnect.py — LLM SSE reconnect-aware streaming."""
+"""scripts/shared/llm_reconnect.py — LLM SSE reconnect-aware streaming."""
 
 import asyncio
 import logging

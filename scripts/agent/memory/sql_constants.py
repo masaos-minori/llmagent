@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/sql_constants.py — SQL constants and helpers for memory tables."""
+"""scripts/agent/memory/sql_constants.py — SQL constants and helpers for memory tables."""
 
 import sqlite3
 

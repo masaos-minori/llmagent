@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/subscribe_route.py — Subscribe endpoint handler."""
+"""scripts/eventbus/subscribe_route.py — Subscribe endpoint handler."""
 
 import asyncio
 import logging

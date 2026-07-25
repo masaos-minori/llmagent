@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses."""
+"""scripts/shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses."""
 
 from typing import TYPE_CHECKING
 

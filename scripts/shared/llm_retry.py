@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_retry.py — LLM HTTP retry with exponential backoff."""
+"""scripts/shared/llm_retry.py — LLM HTTP retry with exponential backoff."""
 
 import asyncio
 import logging

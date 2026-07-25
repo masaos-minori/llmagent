@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/import_ops.py — Import operations for memory tables."""
+"""scripts/agent/memory/import_ops.py — Import operations for memory tables."""
 
 import logging
 

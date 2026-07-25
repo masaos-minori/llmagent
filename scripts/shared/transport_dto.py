@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/transport_dto.py — Transport-level data classes for MCP tool execution."""
+"""scripts/shared/transport_dto.py — Transport-level data classes for MCP tool execution."""
 
 from dataclasses import dataclass
 

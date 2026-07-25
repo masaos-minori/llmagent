@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/count_ops.py — Count operations for memory tables."""
+"""scripts/agent/memory/count_ops.py — Count operations for memory tables."""
 
 from db.helper import SQLiteHelper
 

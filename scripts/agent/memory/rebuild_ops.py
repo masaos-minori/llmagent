@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/rebuild_ops.py — Rebuild operations for memory tables."""
+"""scripts/agent/memory/rebuild_ops.py — Rebuild operations for memory tables."""
 
 from db.helper import SQLiteHelper
 

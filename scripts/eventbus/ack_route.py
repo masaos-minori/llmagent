@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/ack_route.py — Ack/Nack endpoint handlers."""
+"""scripts/eventbus/ack_route.py — Ack/Nack endpoint handlers."""
 
 import logging
 from typing import Any

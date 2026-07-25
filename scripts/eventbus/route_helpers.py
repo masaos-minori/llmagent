@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/route_helpers.py — Shared helpers for route handlers."""
+"""scripts/eventbus/route_helpers.py — Shared helpers for route handlers."""
 
 import asyncio
 from typing import TYPE_CHECKING, Any, cast

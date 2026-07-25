@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_sse_helpers.py — SSE streaming helper methods for LLMClient."""
+"""scripts/shared/llm_sse_helpers.py — SSE streaming helper methods for LLMClient."""
 
 from collections.abc import Callable
 from typing import Any

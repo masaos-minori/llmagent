@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/artifact_ops.py — Artifact operations for workflow.sqlite."""
+"""scripts/agent/workflow/artifact_ops.py — Artifact operations for workflow.sqlite."""
 
 import uuid
 

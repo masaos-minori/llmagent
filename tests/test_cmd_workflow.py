@@ -5,6 +5,7 @@ Exercises the cross-session recovery scenario (ctx cache empty, DB has pending a
 
 from __future__ import annotations
 
+from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -69,6 +70,7 @@ def _make_mixin(workflow_db: str):
     mixin = _ConcreteWorkflowMixin.__new__(_ConcreteWorkflowMixin)
     mixin._ctx = ctx
     mixin._out = out
+    mixin.pending_approval_queue = deque()
     return mixin, ctx, messages, errors, workflow_db
 
 
@@ -146,8 +148,8 @@ class TestReject:
             assert task_record.status == "halted"
             s.close()
 
-    def test_approve_sets_pending_approval_task_id(self, store, workflow_db) -> None:
-        """Approve sets pending_approval_task_id for auto-resume."""
+    def test_approve_pushes_to_pending_approval_queue(self, store, workflow_db) -> None:
+        """Approve pushes task_id to pending_approval_queue for auto-resume."""
         task = create_task(store._db, "session-old", 4, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
@@ -159,4 +161,5 @@ class TestReject:
             mixin._cmd_approve(approval.approval_id)
 
         assert not errors
-        assert ctx.turn.pending_approval_task_id == task.task_id
+        assert hasattr(mixin, "pending_approval_queue")
+        assert mixin.pending_approval_queue[0] == task.task_id

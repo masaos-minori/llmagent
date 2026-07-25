@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/rag_consistency.py — RAG index consistency verification."""
+"""scripts/db/rag_consistency.py — RAG index consistency verification."""
 
 import dataclasses
 

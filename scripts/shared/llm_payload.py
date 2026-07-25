@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_payload.py — LLM request/response payload construction."""
+"""scripts/shared/llm_payload.py — LLM request/response payload construction."""
 
 from collections.abc import Callable
 from typing import Any, cast

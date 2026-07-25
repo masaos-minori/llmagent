@@ -1,4 +1,4 @@
-"""rebuild_ops.py — Memory rebuild operation handlers."""
+"""scripts/rebuild_ops.py — Memory rebuild operation handlers."""
 
 from __future__ import annotations
 

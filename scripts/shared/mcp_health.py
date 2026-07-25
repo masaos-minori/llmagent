@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/mcp_health.py — MCP server health tracking for dispatch gating."""
+"""scripts/shared/mcp_health.py — MCP server health tracking for dispatch gating."""
 
 import logging
 import time

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/config_errors.py — Configuration loading error classes."""
+"""scripts/shared/config_errors.py — Configuration loading error classes."""
 
 
 class ConfigMissingError(ValueError):

@@ -1,4 +1,4 @@
-"""shared/config_validator.py — Startup validator for RAG config cross-file consistency."""
+"""scripts/shared/config_validator.py — Startup validator for RAG config cross-file consistency."""
 
 from __future__ import annotations
 

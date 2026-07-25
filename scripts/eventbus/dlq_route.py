@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/dlq_route.py — Dead Letter Queue endpoint handlers."""
+"""scripts/eventbus/dlq_route.py — Dead Letter Queue endpoint handlers."""
 
 import logging
 from typing import Any

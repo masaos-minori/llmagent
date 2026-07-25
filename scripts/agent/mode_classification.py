@@ -1,4 +1,4 @@
-"""mode_classification.py — MDQ/RAG mode classification and system prompt injection."""
+"""scripts/mode_classification.py — MDQ/RAG mode classification and system prompt injection."""
 
 from __future__ import annotations
 

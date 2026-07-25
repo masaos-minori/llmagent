@@ -1,4 +1,4 @@
-"""scoring.py — Memory entry scoring functions for FTS5 search results."""
+"""scripts/scoring.py — Memory entry scoring functions for FTS5 search results."""
 
 from __future__ import annotations
 

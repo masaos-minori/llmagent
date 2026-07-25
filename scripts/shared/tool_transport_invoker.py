@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_transport_invoker.py — MCP transport invocation layer."""
+"""scripts/shared/tool_transport_invoker.py — MCP transport invocation layer."""
 
 from __future__ import annotations
 

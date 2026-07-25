@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/publish_route.py — Publish endpoint handler."""
+"""scripts/eventbus/publish_route.py — Publish endpoint handler."""
 
 import logging
 import os

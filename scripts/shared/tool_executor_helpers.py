@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_executor_helpers.py — Tool executor helper functions."""
+"""scripts/shared/tool_executor_helpers.py — Tool executor helper functions."""
 
 import hashlib
 

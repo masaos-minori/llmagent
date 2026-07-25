@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_lifecycle.py — MCP server lifecycle protocol."""
+"""scripts/shared/tool_lifecycle.py — MCP server lifecycle protocol."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/rotation.py — Database rotation operations."""
+"""scripts/db/rotation.py — Database rotation operations."""
 
 import logging
 import sqlite3

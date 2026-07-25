@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_hot_config.py — LLMClient hot-reloadable config fields."""
+"""scripts/shared/llm_hot_config.py — LLMClient hot-reloadable config fields."""
 
 from typing import Any, TypeVar
 

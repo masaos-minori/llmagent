@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/idempotency_ops.py — Idempotency operations for workflow.sqlite."""
+"""scripts/agent/workflow/idempotency_ops.py — Idempotency operations for workflow.sqlite."""
 
 import uuid
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_transport_errors.py — LLM transport error handling helpers."""
+"""scripts/shared/llm_transport_errors.py — LLM transport error handling helpers."""
 
 import httpx
 

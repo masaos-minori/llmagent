@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/fts_query.py — FTS5 query builder."""
+"""scripts/agent/memory/fts_query.py — FTS5 query builder."""
 
 import re  # noqa: PLC0415
 

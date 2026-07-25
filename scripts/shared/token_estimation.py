@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/token_estimation.py — Category-aware token estimation for LLM messages."""
+"""scripts/shared/token_estimation.py — Category-aware token estimation for LLM messages."""
 
 import logging
 from typing import cast

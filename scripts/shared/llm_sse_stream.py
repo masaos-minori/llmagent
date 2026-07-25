@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_sse_stream.py — LLM SSE streaming and byte reading."""
+"""scripts/shared/llm_sse_stream.py — LLM SSE streaming and byte reading."""
 
 import asyncio
 import logging

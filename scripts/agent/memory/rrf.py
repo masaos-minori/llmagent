@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/rrf.py — Reciprocal Rank Fusion merge logic."""
+"""scripts/agent/memory/rrf.py — Reciprocal Rank Fusion merge logic."""
 
 from agent.memory.types import MemoryHit
 

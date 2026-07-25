@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/http_transport.py — HTTP MCP transport implementation."""
+"""scripts/shared/http_transport.py — HTTP MCP transport implementation."""
 
 import asyncio
 import logging

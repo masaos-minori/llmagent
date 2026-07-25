@@ -1,4 +1,4 @@
-"""data_ops.py — Memory data operation handlers (list, search, show, pin, delete, prune)."""
+"""scripts/data_ops.py — Memory data operation handlers (list, search, show, pin, delete, prune)."""
 
 from __future__ import annotations
 

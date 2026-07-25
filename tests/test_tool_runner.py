@@ -688,3 +688,166 @@ class TestExecuteStandardSerialization:
         assert call_kwargs["trigger_tool"] == "write_file"
         assert call_kwargs["mode"] == "serial"
         assert call_kwargs["reason"] == "side_effect"
+
+
+class TestExecuteOneToolCallValidation:
+    @pytest.mark.asyncio
+    async def test_validation_failure_returns_error_result(self) -> None:
+        """When argument validation fails, an error result is returned without execution."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {
+            "type": "object",
+            "required": ["path"],
+            "properties": {"path": {"type": "string"}},
+        }
+        runtime_tool_mock.allow_extra_fields = False
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("read_text_file", '{"path": "/tmp/f", "extra": "malicious"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "read_text_file"
+        assert is_error is True
+        assert "extra" in text
+        assert "extra" in llm_text
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_validation_passes_when_runtime_tools_is_none(self) -> None:
+        """When no RuntimeToolRegistry is available, validation is skipped."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = None
+
+        tc = _tc("read_text_file", '{"path": "/tmp/f"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "read_text_file"
+        assert is_error is False
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "read_text_file", {"path": "/tmp/f"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_validation_passes_for_unknown_tool(self) -> None:
+        """When tool is not in registry, validation is skipped (lenient fallback)."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.side_effect = KeyError("unknown_tool")
+
+        tc = _tc("unknown_tool", '{"path": "/tmp/f"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "unknown_tool"
+        assert is_error is False
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "unknown_tool", {"path": "/tmp/f"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_validation_passes_for_empty_schema(self) -> None:
+        """When schema is empty, validation is skipped."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {}
+        runtime_tool_mock.allow_extra_fields = False
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("read_text_file", '{"any": "field"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "read_text_file"
+        assert is_error is False
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "read_text_file", {"any": "field"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_validation_passes_when_allow_extra_fields_true(self) -> None:
+        """Extra fields are allowed when allow_extra_fields=True on the RuntimeTool."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {
+            "type": "object",
+            "required": ["path"],
+            "properties": {"path": {"type": "string"}},
+        }
+        runtime_tool_mock.allow_extra_fields = True
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("read_text_file", '{"path": "/tmp/f", "extra": "allowed"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "read_text_file"
+        assert is_error is False
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "read_text_file", {"path": "/tmp/f", "extra": "allowed"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_type_mismatch_rejected(self) -> None:
+        """Type mismatches are rejected by jsonschema validation."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {
+            "type": "object",
+            "required": ["count"],
+            "properties": {"count": {"type": "integer"}},
+        }
+        runtime_tool_mock.allow_extra_fields = False
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("create_item", '{"count": "not_an_int"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, _, text, is_error, llm_text = result
+        assert name == "create_item"
+        assert is_error is True
+        assert "Type mismatch" in text
+        assert "Type mismatch" in llm_text
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_missing_required_field_rejected(self) -> None:
+        """Missing required fields are rejected."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {
+            "type": "object",
+            "required": ["path", "mode"],
+            "properties": {"path": {"type": "string"}, "mode": {"type": "string"}},
+        }
+        runtime_tool_mock.allow_extra_fields = False
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("read_text_file", '{"path": "/tmp/f"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, _, text, is_error, llm_text = result
+        assert name == "read_text_file"
+        assert is_error is True
+        assert "Missing required fields" in text
+        assert "mode" in text
+        ctx.services_required.tools.execute.assert_not_called()

@@ -1,4 +1,4 @@
-"""ETag manager for document freshness tracking."""
+"""scripts/ETag manager for document freshness tracking."""
 
 from __future__ import annotations
 

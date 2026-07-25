@@ -1,4 +1,4 @@
-"""session_title.py — Session title generation logic."""
+"""scripts/session_title.py — Session title generation logic."""
 
 from __future__ import annotations
 

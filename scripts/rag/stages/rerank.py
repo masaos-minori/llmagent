@@ -1,4 +1,4 @@
-"""Rerank stage for RAG pipeline."""
+"""scripts/Rerank stage for RAG pipeline."""
 
 from shared.types import RagConfig
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/otel_noop.py — No-op OpenTelemetry tracer and span for disabled tracing."""
+"""scripts/shared/otel_noop.py — No-op OpenTelemetry tracer and span for disabled tracing."""
 
 from typing import Any
 

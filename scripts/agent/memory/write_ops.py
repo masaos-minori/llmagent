@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/write_ops.py — Write operations for memory CRUD."""
+"""scripts/agent/memory/write_ops.py — Write operations for memory CRUD."""
 
 import logging
 

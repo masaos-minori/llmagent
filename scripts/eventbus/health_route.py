@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/health_route.py — Health check endpoint handler."""
+"""scripts/eventbus/health_route.py — Health check endpoint handler."""
 
 import logging
 

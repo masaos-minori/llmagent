@@ -1,1 +1,1 @@
-"""eventbus — HTTP publish / SSE subscribe / SQLite persistence / Replay / DLQ."""
+"""scripts/eventbus — HTTP publish / SSE subscribe / SQLite persistence / Replay / DLQ."""

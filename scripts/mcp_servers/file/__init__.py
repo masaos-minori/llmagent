@@ -1,4 +1,4 @@
-"""mcp_servers/file — File MCP server package."""
+"""scripts/mcp_servers/file — File MCP server package."""
 
 from __future__ import annotations
 

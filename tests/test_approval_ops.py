@@ -142,6 +142,23 @@ class TestResolveApproval:
         assert found is not None and found.status == "rejected"
         assert found.reason == "too risky"
 
+    def test_resolve_already_resolved_raises_runtime_error(self, store) -> None:
+        """Double-resolution must raise RuntimeError with 'already resolved' message."""
+        task = _make_task(store._db)
+        approval = request_approval(
+            store._db, task_id=task.task_id, workflow_id="wf-test-1"
+        )
+        resolve_approval(store._db, approval.approval_id, "approved")
+        # Second resolution should fail
+        with pytest.raises(RuntimeError, match="already resolved"):
+            resolve_approval(store._db, approval.approval_id, "rejected")
+
+    def test_resolve_nonexistent_approval_raises_runtime_error(self, store) -> None:
+        """Resolving a non-existent approval must raise RuntimeError with 'not found' message."""
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        with pytest.raises(RuntimeError, match="not found"):
+            resolve_approval(store._db, fake_id, "approved")
+
 
 class TestFindLatestPendingApproval:
     def test_returns_task_id_and_approval(self, store) -> None:

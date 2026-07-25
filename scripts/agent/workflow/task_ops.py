@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/task_ops — Task CRUD operations for workflow.sqlite."""
+"""scripts/agent/workflow/task_ops — Task CRUD operations for workflow.sqlite."""
 
 import uuid
 from typing import Any

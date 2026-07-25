@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/attempt_ops.py — Attempt operations for workflow.sqlite."""
+"""scripts/agent/workflow/attempt_ops.py — Attempt operations for workflow.sqlite."""
 
 import uuid
 

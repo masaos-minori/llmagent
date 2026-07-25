@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/approval_ops.py — Approval operations for workflow.sqlite."""
+"""scripts/agent/workflow/approval_ops.py — Approval operations for workflow.sqlite."""
 
 import uuid
 

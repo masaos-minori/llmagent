@@ -1,4 +1,4 @@
-"""MQE stage for RAG pipeline."""
+"""scripts/MQE stage for RAG pipeline."""
 
 from shared.types import RagConfig
 

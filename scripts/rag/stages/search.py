@@ -1,4 +1,4 @@
-"""Search stage for RAG pipeline."""
+"""scripts/Search stage for RAG pipeline."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Shared database maintenance utilities."""
+"""scripts/Shared database maintenance utilities."""
 
 from typing import Any
 

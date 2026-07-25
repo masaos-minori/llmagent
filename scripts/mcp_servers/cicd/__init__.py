@@ -1,4 +1,4 @@
-"""mcp_servers/cicd — CI/CD MCP server package (GitHub Actions backend)."""
+"""scripts/mcp_servers/cicd — CI/CD MCP server package (GitHub Actions backend)."""
 
 __all__ = ["server"]
 

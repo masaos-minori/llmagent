@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/pin_ops.py — Pin/unpin operations for memories."""
+"""scripts/agent/memory/pin_ops.py — Pin/unpin operations for memories."""
 
 from __future__ import annotations
 

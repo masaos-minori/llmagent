@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eventbus/replay_route.py — Replay endpoint handler."""
+"""scripts/eventbus/replay_route.py — Replay endpoint handler."""
 
 import logging
 from typing import Any

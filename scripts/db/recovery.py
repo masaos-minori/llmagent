@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/recovery.py — Corruption recovery operations."""
+"""scripts/db/recovery.py — Corruption recovery operations."""
 
 import logging
 import shutil
