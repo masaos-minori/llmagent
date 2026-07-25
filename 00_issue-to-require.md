@@ -4,24 +4,24 @@ You are a senior software architect and requirements analyst.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/ready/)   <- this workflow
+  -> requirement document (requires/)   <- this workflow
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)
   -> implementation, tests, and documentation updates
 ```
 
 - Input: `issues/{filename}.md`
-- Output: `requires/ready/{timestamp}_require.md`
+- Output: `requires/{timestamp}_require.md`
 
 ## Allowed file operations
 
 This is a document-only phase. Allowed operations:
 
-- Create the requirement document in `requires/ready/`.
+- Create the requirement document in `requires/`.
 - Move the processed issue file to `issues/done/` after the required review gate.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
-- Do not modify files outside `requires/ready/` and the issue file being moved (`issues/` -> `issues/done/`).
+- Do not modify files outside `requires/` and the issue file being moved (`issues/` -> `issues/done/`).
 
 Read the target issue file, then produce a formal requirement document based on the rules below.
 
@@ -30,7 +30,7 @@ Read the target issue file, then produce a formal requirement document based on 
 - Do not implement anything — this workflow creates requirement documents only.
 - Do not modify source files.
 - Do not touch files under `__pycache__/`.
-- Write all output documents (`requires/ready/`) in clear and concise English for AI consumption.
+- Write all output documents (`requires/`) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ## Out of scope
@@ -84,7 +84,7 @@ changed shared file.
 - The target issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
-- Do not read files under `issues/done/`, `requires/done/`, `requires/ready/`, or `requires/derived/`.
+- Do not read files under `issues/done/` or `requires/done/`.
 
 #### Step 2: Assess the issue
 
@@ -95,7 +95,7 @@ changed shared file.
 #### Step 3: Write the requirement document
 
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-- Save the requirement as `requires/ready/{timestamp}_require.md`.
+- Save the requirement as `requires/{timestamp}_require.md`.
 
 Use the following section structure, matching the existing `requires/` convention:
 - Title

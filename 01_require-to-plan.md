@@ -4,13 +4,13 @@ You are a senior software architect and planning specialist.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/ready/)
+  -> requirement document (requires/)
   -> work plan document (plans/)   <- this workflow
   -> file-level implementation procedure document (implementations/)
   -> implementation, tests, and documentation updates
 ```
 
-- Input: `requires/ready/{filename}_require.md`
+- Input: `requires/{filename}_require.md`
 - Output: `plans/{timestamp}_plan.md`
 
 ## Allowed file operations
@@ -18,11 +18,11 @@ issue file (issues/)
 This is a document-only phase. Allowed operations:
 
 - Create the work plan document in `plans/`.
-- Create derived unknown or risk documents in `requires/derived/` when required by Steps 5-6.
+- Create unresolved unknown or risk items as issue files in `issues/` when required by Steps 5-6.
 - Move the processed requirement file to `requires/done/` after the required review gate.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
-- Do not modify files outside `plans/`, `requires/derived/`, and the requirement file being moved.
+- Do not modify files outside `plans/`, `issues/`, and the requirement file being moved (`requires/` -> `requires/done/`).
 
 Read the target requirement file, then create a concrete work plan based on the rules below.
 
@@ -31,7 +31,7 @@ Read the target requirement file, then create a concrete work plan based on the 
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
 - Do not touch files under `__pycache__/`.
-- Write all output documents (plans/, requires/derived/) in clear and concise English for AI consumption.
+- Write all output documents (plans/, issues/) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
 ## Out of scope
@@ -83,12 +83,12 @@ changed shared file.
 
 #### Step 1: Identify the target requirement file(s)
 
-- The target requirement file(s) are provided by the user (e.g. `requires/ready/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
+- The target requirement file(s) are provided by the user (e.g. `requires/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
 - **Read ONLY the current target file.** Do not read ahead into files that will be processed in a later cycle.
-- Do not read files under `requires/done/`, `issues/`, or `requires/derived/`.
+- Do not read files under `requires/done/` or `issues/`.
 
 #### Step 2: Create a work plan file
 
@@ -144,18 +144,18 @@ If all unknowns were resolved in Step 4, skip this step.
 - If any `Unknowns` cannot be resolved through analysis:
   - Ask the user questions.
   - Reflect the answers in the work plan.
-  - If any unknowns still remain unresolved, output them as a GitHub Issue Markdown template file:
+  - If any unknowns still remain unresolved, output them as issue files under `issues/`, using the GitHub Issue Markdown template:
     - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-    - Filename: `requires/derived/{timestamp}_unknowns.md`
+    - Filename: `issues/{timestamp}_unknowns.md`
     - 1 issue = 1 section
 
 #### Step 6: Analyze risks
 
 - Analyze the `Risks` section in the work plan.
 - Add any necessary mitigation steps to the work plan.
-- If any risks remain unmitigated, output them as a GitHub Issue Markdown template file:
+- If any risks remain unmitigated, output them as issue files under `issues/`, using the GitHub Issue Markdown template:
   - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Filename: `requires/derived/{timestamp}_risks.md`
+  - Filename: `issues/{timestamp}_risks.md`
   - 1 issue = 1 section
 
 #### Step 7: Move the completed requirement file

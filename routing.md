@@ -47,10 +47,9 @@ The full pipeline runs across four top-level directories, in order:
 
 | Directory | Contents |
 |---|---|
-| `issues/` | Raw, unformatted issues — the pipeline entry point. Populated manually (code review findings, proposals, audit results). Consumed by `00_issue-to-require.md`. |
+| `issues/` | Raw, unformatted issues — the pipeline entry point. Populated manually (code review findings, proposals, audit results), and automatically by `01_require-to-plan.md` Steps 5-6 (unresolved unknowns and risks, filed as issues). Consumed by `00_issue-to-require.md`. |
 | `issues/done/` | Issue files consumed by `00_issue-to-require.md` — either converted into a requirement doc, or found already resolved/no longer applicable. |
-| `requires/ready/` | Formal requirement docs ready for `01_require-to-plan.md`, in the `Title/Priority/Target files/...` template. |
-| `requires/derived/` | Unknowns and risks generated as a byproduct of `01_require-to-plan.md` Steps 5-6. Not a workflow entry point. |
+| `requires/` | Formal requirement docs ready for `01_require-to-plan.md`, in the `Title/Priority/Target files/...` template. |
 | `requires/done/` | Requirement docs consumed by `01_require-to-plan.md`. |
 | `plans/` | Work plan docs produced by `01_require-to-plan.md`, ready for `02_plan-to-implementation-procedure.md`. |
 | `plans/done/` | Plan docs consumed by `02_plan-to-implementation-procedure.md`. |

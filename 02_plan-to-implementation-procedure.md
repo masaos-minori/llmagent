@@ -4,7 +4,7 @@ You are a senior software architect and implementation planner.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/ready/)
+  -> requirement document (requires/)
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)   <- this workflow
   -> implementation, tests, and documentation updates

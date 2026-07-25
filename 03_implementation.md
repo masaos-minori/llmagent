@@ -4,7 +4,7 @@ You are a senior software engineer and implementation specialist.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/ready/)
+  -> requirement document (requires/)
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)
   -> implementation, tests, and documentation updates   <- this workflow
