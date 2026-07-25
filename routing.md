@@ -42,14 +42,20 @@ implementation procedure, not an architecture design document.
 
 ## Document workflow directories
 
-`requires/` holds the full issue-to-requirement pipeline in one place:
+The full pipeline runs across four top-level directories, in order:
+`issues/` -> `requires/` -> `plans/` -> `implementations/` -> code.
 
 | Directory | Contents |
 |---|---|
-| `requires/inbox/` | Raw, unformatted issues — the entry point. Populated manually (code review findings, proposals, audit results). |
+| `issues/` | Raw, unformatted issues — the pipeline entry point. Populated manually (code review findings, proposals, audit results). Consumed by `00_issue-to-require.md`. |
+| `issues/done/` | Issue files consumed by `00_issue-to-require.md` — either converted into a requirement doc, or found already resolved/no longer applicable. |
 | `requires/ready/` | Formal requirement docs ready for `01_require-to-plan.md`, in the `Title/Priority/Target files/...` template. |
 | `requires/derived/` | Unknowns and risks generated as a byproduct of `01_require-to-plan.md` Steps 5-6. Not a workflow entry point. |
-| `requires/done/` | Completed items from any of the above — issues resolved via `00_issue-to-require.md`, or requirements consumed by `01_require-to-plan.md`. |
+| `requires/done/` | Requirement docs consumed by `01_require-to-plan.md`. |
+| `plans/` | Work plan docs produced by `01_require-to-plan.md`, ready for `02_plan-to-implementation-procedure.md`. |
+| `plans/done/` | Plan docs consumed by `02_plan-to-implementation-procedure.md`. |
+| `implementations/` | File-level implementation procedure docs produced by `02_plan-to-implementation-procedure.md`, ready for `03_implementation.md`. |
+| `implementations/done/` | Implementation procedure docs consumed by `03_implementation.md`. |
 
 ## Docs → task mapping
 

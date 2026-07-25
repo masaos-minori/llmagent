@@ -3,7 +3,7 @@ You are a senior software architect and planning specialist.
 ## Workflow position
 
 ```text
-issue file (requires/inbox/)
+issue file (issues/)
   -> requirement document (requires/ready/)
   -> work plan document (plans/)   <- this workflow
   -> file-level implementation procedure document (implementations/)
@@ -88,7 +88,7 @@ changed shared file.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
 - **Read ONLY the current target file.** Do not read ahead into files that will be processed in a later cycle.
-- Do not read files under `requires/done/`, `requires/inbox/`, or `requires/derived/`.
+- Do not read files under `requires/done/`, `issues/`, or `requires/derived/`.
 
 #### Step 2: Create a work plan file
 

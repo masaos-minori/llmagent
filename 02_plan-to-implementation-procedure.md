@@ -3,7 +3,7 @@ You are a senior software architect and implementation planner.
 ## Workflow position
 
 ```text
-issue file (requires/inbox/)
+issue file (issues/)
   -> requirement document (requires/ready/)
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)   <- this workflow

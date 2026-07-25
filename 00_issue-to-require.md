@@ -3,14 +3,14 @@ You are a senior software architect and requirements analyst.
 ## Workflow position
 
 ```text
-issue file (requires/inbox/)
+issue file (issues/)
   -> requirement document (requires/ready/)   <- this workflow
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)
   -> implementation, tests, and documentation updates
 ```
 
-- Input: `requires/inbox/{filename}.md`
+- Input: `issues/{filename}.md`
 - Output: `requires/ready/{timestamp}_require.md`
 
 ## Allowed file operations
@@ -18,15 +18,15 @@ issue file (requires/inbox/)
 This is a document-only phase. Allowed operations:
 
 - Create the requirement document in `requires/ready/`.
-- Move the processed issue file to `requires/done/` after the required review gate.
+- Move the processed issue file to `issues/done/` after the required review gate.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
-- Do not modify files outside `requires/ready/` and the issue file being moved.
+- Do not modify files outside `requires/ready/` and the issue file being moved (`issues/` -> `issues/done/`).
 
 Read the target issue file, then produce a formal requirement document based on the rules below.
 
 - **CRITICAL: Process target files ONE AT A TIME.** Complete Steps 1-4 for the current file before starting the next file. Never interleave steps across files.
-- **MANDATORY: After completing Step 3, you MUST move the issue file to `requires/done/` in Step 4.** Skipping this step is a failure condition.
+- **MANDATORY: After completing Step 3, you MUST move the issue file to `issues/done/` in Step 4.** Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates requirement documents only.
 - Do not modify source files.
 - Do not touch files under `__pycache__/`.
@@ -56,7 +56,7 @@ Do not perform any of the following as part of this workflow:
   cycle does not accumulate into the next. This delegation is for context isolation,
   **not parallel execution**: dispatch and await each sub-agent one at a time, never in
   parallel, and do not start the next file's cycle until the current file's Steps 1-4
-  (through moving it to `requires/done/` in Step 4) have completed.
+  (through moving it to `issues/done/` in Step 4) have completed.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
 
@@ -65,7 +65,7 @@ Do not perform any of the following as part of this workflow:
 Report progress at the start and end of each step.
 
 If multiple target issue files are specified, treat Steps 1-4 as one complete cycle per
-file: finish every step for the current file (through moving it to `requires/done/` in
+file: finish every step for the current file (through moving it to `issues/done/` in
 Step 4) before starting Step 1 for the next file. Do not batch-read multiple target files
 up front, and do not interleave steps across files.
 
@@ -81,15 +81,15 @@ changed shared file.
 
 #### Step 1: Identify the target issue file(s)
 
-- The target issue file(s) are provided by the user (e.g. `requires/inbox/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
+- The target issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
-- Do not read files under `requires/done/`, `requires/ready/`, or `requires/derived/`.
+- Do not read files under `issues/done/`, `requires/done/`, `requires/ready/`, or `requires/derived/`.
 
 #### Step 2: Assess the issue
 
 - Read the target issue file in full.
-- Verify any factual claims against current source (affected files, whether the described problem still reproduces). If the issue is already resolved or no longer applies, stop, report this, and move the file directly to `requires/done/` instead of continuing to Step 3.
+- Verify any factual claims against current source (affected files, whether the described problem still reproduces). If the issue is already resolved or no longer applies, stop, report this, and move the file directly to `issues/done/` instead of continuing to Step 3.
 - If the issue is too vague to act on (no identifiable target files or problem statement), stop and ask the user for clarification before proceeding.
 
 #### Step 3: Write the requirement document
@@ -131,7 +131,7 @@ Fill the Traceability section using this structure, leaving fields that do not a
 - In `review_mode = manual`, stop after Step 3 and wait for explicit user approval before
   performing this step. In `review_mode = autonomous`, proceed directly, reporting the
   requirement document path and a validation summary.
-- Move the issue file to `requires/done/` using git mv or cp + rm.
-- Verify the file exists in `requires/done/` after the move.
+- Move the issue file to `issues/done/` using git mv or cp + rm.
+- Verify the file exists in `issues/done/` after the move.
 - **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
 - Only after confirming the move succeeded, consider the cycle complete.
