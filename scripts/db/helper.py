@@ -210,15 +210,15 @@ class SQLiteHelper:
             self.conn = None
 
     @contextmanager
-    def begin_immediate(self) -> Generator[None]:
-        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers.
+    def _begin_transaction(self, mode: str) -> Generator[None]:
+        """Wrap a block in BEGIN <mode>...COMMIT with rollback on exception.
 
         Rolls back on any normal exception (not just sqlite3.Error), ensuring
         no dangling transaction remains. Re-raises the original exception.
         Does not catch BaseException (KeyboardInterrupt, SystemExit).
         """
         conn = self._require_conn()
-        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(f"BEGIN {mode}")
         try:
             yield
             conn.execute("COMMIT")
@@ -230,24 +230,16 @@ class SQLiteHelper:
             raise
 
     @contextmanager
-    def begin_exclusive(self) -> Generator[None]:
-        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations.
-
-        Rolls back on any normal exception (not just sqlite3.Error), ensuring
-        no dangling transaction remains. Re-raises the original exception.
-        Does not catch BaseException (KeyboardInterrupt, SystemExit).
-        """
-        conn = self._require_conn()
-        conn.execute("BEGIN EXCLUSIVE")
-        try:
+    def begin_immediate(self) -> Generator[None]:
+        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers."""
+        with self._begin_transaction("IMMEDIATE"):
             yield
-            conn.execute("COMMIT")
-        except Exception:
-            try:
-                conn.execute("ROLLBACK")
-            except sqlite3.OperationalError:
-                pass
-            raise
+
+    @contextmanager
+    def begin_exclusive(self) -> Generator[None]:
+        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations."""
+        with self._begin_transaction("EXCLUSIVE"):
+            yield
 
     def health_check(self) -> DbHealthMetrics:
         """Return DB health metrics (journal mode, quick_check, page stats)."""

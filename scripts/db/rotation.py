@@ -3,12 +3,11 @@
 
 import logging
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 
 from shared.config_loader import ConfigLoader
 
-from db.config import build_db_config
+from db.config import build_db_config, format_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")  # noqa: UP017
+    ts = format_timestamp()
     dest = dest_dir / f"{db_path.stem}_{ts}{db_path.suffix}"
 
     src = sqlite3.connect(str(db_path))

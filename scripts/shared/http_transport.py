@@ -104,14 +104,14 @@ class HttpTransport:
                     await asyncio.sleep(wait_sec)
                     continue
                 resp.raise_for_status()
-                result = self._parse_http_response(resp)
+                parsed = self._parse_http_response(resp)
                 return ToolCallResult(
-                    output=result.output,
-                    is_error=result.is_error,
-                    request_id=result.request_id,
+                    output=parsed.output,
+                    is_error=parsed.is_error,
+                    request_id=parsed.request_id,
                     server_key=self._server_key,
                     source="mcp",
-                    error_type=result.error_type,
+                    error_type=parsed.error_type,
                 )
             except httpx.TimeoutException as e:
                 msg = f"[TimeoutException] tool={name} url={self._base_url}: {e}"

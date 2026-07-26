@@ -12,6 +12,7 @@ sqlite_vec_so is optional; empty string means vec extension is not required.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 
 from shared.config_loader import ConfigLoader
@@ -55,6 +56,16 @@ class DbConfig:
             parent = Path(path_str).parent
             if not parent.exists():
                 raise ValueError(f"{label} parent directory does not exist: {parent}")
+
+
+_TIMESTAMP_FMT = "%Y%m%d_%H%M%S"
+
+
+def format_timestamp() -> str:
+    """Return UTC timestamp formatted as YYYYMMDD_HHMMSS."""
+    from datetime import datetime
+
+    return datetime.now(UTC).strftime(_TIMESTAMP_FMT)
 
 
 def build_db_config() -> DbConfig:

@@ -4,10 +4,9 @@
 import logging
 import shutil
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 
-from db.config import build_db_config
+from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
 from db.models import RecoveryResult
 
@@ -77,7 +76,7 @@ def _restore_from_backup(
             success=False, action="no_backup", detail=f"backup not found: {backup}"
         )
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")  # noqa: UP017
+    ts = format_timestamp()
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
     try:
         shutil.copy2(db_path, corrupt_archive)

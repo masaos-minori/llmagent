@@ -43,6 +43,11 @@ related:
 | 診断 | `diagnostic_store.py` |
 | モード分類 | `mdq_rag_classifier.py`, `mode_classification.py` |
 | 会話履歴 | `history.py`, `history_selection_policy.py` |
+| ツール列挙型 | `tool_enums.py` |
+| ツールデータモデル | `tool_models.py` |
+| ツール引数検証 | `tool_arg_validator.py` |
+| メッセージスキーマ | `message_schema.py` |
+| ターン結果 | `turn_result.py` |
 
 #### メモリサブパッケージ (`scripts/agent/memory/`)
 
