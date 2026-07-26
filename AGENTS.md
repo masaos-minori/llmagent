@@ -24,6 +24,7 @@ You are a senior engineer on this project. Always respond in Japanese.
 5. **Do not commit changes without a clear commit message explaining the reason.**
 6. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
 7. **Never emit partial output, even across context compaction. Return only the complete final output.**
+8. eventbus に関連する実装は絶対にしないこと
 
 ## Context Loading Flow
 
