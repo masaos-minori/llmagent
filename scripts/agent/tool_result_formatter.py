@@ -9,8 +9,19 @@ from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
 
-# Hint appended to history when a tool result is dropped due to the per-turn limit
-TURN_LIMIT_HINT = "[Result omitted: per-turn tool result limit reached.]"
+
+def turn_limit_hint(omitted_chars: int, omitted_lines: int, limit: int) -> str:
+    """Build the hint shown to the LLM in place of a tool result dropped for
+    exceeding the per-turn char limit.
+
+    Reports the omitted result's size (so the LLM can gauge how much was cut)
+    without including the omitted content itself.
+    """
+    return (
+        f"[Result omitted: per-turn tool result limit reached. "
+        f"Omitted result: {omitted_chars} chars, {omitted_lines} lines. "
+        f"Configured per-turn limit: {limit} chars.]"
+    )
 
 
 def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:

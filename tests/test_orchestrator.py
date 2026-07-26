@@ -5,12 +5,15 @@ Unit tests for Orchestrator: LLMTransportError handling in handle_turn() and _ru
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.context import ConversationState
 from agent.history import CompressResult
+from agent.message_schema import ValidationResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
@@ -35,6 +38,11 @@ def _make_ctx() -> MagicMock:
     # session / turn state
     ctx.conv.llm_url = "http://llm-test"
     ctx.conv.history = []
+    # Bind the real ConversationState.append_message so calls made through
+    # ctx.conv.append_message(...) actually mutate ctx.conv.history (with the
+    # same validation/sanitization behavior as production), instead of being
+    # swallowed as a no-op MagicMock call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
     ctx.stats.stat_turns = (
         1  # keep > 0 so create_task is not called in first handle_turn
     )
@@ -1136,3 +1144,158 @@ class TestEphemeralMessageLifecycle:
         second_payload = seen_payloads[1]
         assert sum(1 for m in second_payload if m.get("_ephemeral")) == 1
         assert sum(1 for m in second_payload if m.get("_memory_injected")) == 1
+
+
+class TestHistoryConstructionRoutedThroughAppendMessage:
+    """Regression coverage for plans/20260726-093008_plan.md: the three
+    history-construction call sites in orchestrator.py --
+    _handle_memory_injection(), _append_user_message(), and
+    _sync_system_prompt()'s insert branch -- route through
+    ConversationState.append_message() / message_schema.validate_message()
+    instead of raw ctx.conv.history.append()/.insert() calls, and produce the
+    same message content as before for well-formed input.
+    """
+
+    @pytest.mark.asyncio
+    async def test_handle_memory_injection_appends_unchanged_via_append_message(
+        self,
+    ) -> None:
+        ctx = _make_ctx()
+        memory = AsyncMock()
+        snippet = MagicMock()
+        snippet.text = "remembered fact"
+        memory.on_user_prompt = AsyncMock(return_value=[snippet])
+        ctx.services_required.memory = memory
+        orch = _make_orchestrator(ctx)
+
+        await orch._handle_memory_injection("what headings are here?")
+
+        assert len(ctx.conv.history) == 1
+        msg = ctx.conv.history[0]
+        assert msg["role"] == "system"
+        assert msg["_memory_injected"] is True
+        assert "remembered fact" in msg["content"]
+
+    @pytest.mark.asyncio
+    async def test_append_user_message_appends_unchanged_via_append_message(
+        self,
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = ""  # skip system-prompt sync noise
+        orch = _make_orchestrator(ctx)
+
+        orch._append_user_message("hello there")
+
+        assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
+
+    def test_sync_system_prompt_insert_branch_inserts_unchanged(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = "You are a helpful assistant."
+        ctx.conv.history = [{"role": "user", "content": "hi"}]
+        orch = _make_orchestrator(ctx)
+
+        orch._sync_system_prompt()
+
+        assert ctx.conv.history[0] == {
+            "role": "system",
+            "content": "You are a helpful assistant.",
+        }
+        assert ctx.conv.history[1] == {"role": "user", "content": "hi"}
+
+    def test_sync_system_prompt_insert_branch_drops_message_on_validation_failure(
+        self,
+    ) -> None:
+        """If validate_message() ever rejects the constructed system message,
+        _sync_system_prompt() must log and skip the insert rather than
+        inserting an unvalidated message."""
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = "You are a helpful assistant."
+        ctx.conv.history = [{"role": "user", "content": "hi"}]
+        orch = _make_orchestrator(ctx)
+
+        with patch(
+            "agent.orchestrator.validate_message",
+            return_value=ValidationResult(False, "forced failure"),
+        ):
+            orch._sync_system_prompt()
+
+        assert ctx.conv.history == [{"role": "user", "content": "hi"}]
+
+
+class TestDiscardAndLogConsecutiveFailures:
+    """Locks in BG_FAILURE_THRESHOLD's log-level-only effect and the
+    reset-on-success / reset-on-cancellation behavior of
+    _discard_and_log()'s self._consecutive_bg_failures counter."""
+
+    @staticmethod
+    def _fake_task(exc: BaseException | None) -> MagicMock:
+        """Build a fake asyncio.Task whose .exception() returns exc directly
+        (including a CancelledError instance, rather than raising it), per
+        the implementation procedure's stated test method."""
+        task = MagicMock()
+        task.exception.return_value = exc
+        return task
+
+    def test_four_consecutive_failures_each_log_via_warning(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        with (
+            patch("agent.orchestrator.logger.warning") as mock_warning,
+            patch("agent.orchestrator.logger.error") as mock_error,
+        ):
+            for _ in range(4):
+                orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+
+        assert orch._consecutive_bg_failures == 4
+        assert mock_warning.call_count == 4
+        mock_error.assert_not_called()
+
+    def test_fifth_consecutive_failure_logs_via_error(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        with (
+            patch("agent.orchestrator.logger.warning") as mock_warning,
+            patch("agent.orchestrator.logger.error") as mock_error,
+        ):
+            for _ in range(4):
+                orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+            assert mock_error.call_count == 0
+            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+
+        assert orch._consecutive_bg_failures == 5
+        assert mock_warning.call_count == 4
+        mock_error.assert_called_once()
+
+    def test_success_after_failures_resets_counter_to_zero(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        for _ in range(3):
+            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+        assert orch._consecutive_bg_failures == 3
+
+        orch._discard_and_log(self._fake_task(None))
+
+        assert orch._consecutive_bg_failures == 0
+
+    def test_cancelled_error_after_failures_resets_counter_and_logs_nothing(
+        self,
+    ) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        for _ in range(3):
+            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+        assert orch._consecutive_bg_failures == 3
+
+        with (
+            patch("agent.orchestrator.logger.warning") as mock_warning,
+            patch("agent.orchestrator.logger.error") as mock_error,
+        ):
+            orch._discard_and_log(self._fake_task(asyncio.CancelledError()))
+
+        assert orch._consecutive_bg_failures == 0
+        mock_warning.assert_not_called()
+        mock_error.assert_not_called()

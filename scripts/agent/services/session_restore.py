@@ -39,10 +39,14 @@ def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
             [{"role": "system", "content": ctx.conv.system_prompt_content}],
         )
         non_system = [m for m in messages if m["role"] != "system"]
-        ctx.conv.history = system_msgs + non_system
+        ctx.conv.replace_history(system_msgs + non_system)
     else:
-        ctx.conv.history = messages
+        ctx.conv.replace_history(messages)
     ctx.session.session_id = session_id
     reset_session_stats(ctx)
     logger.info("Session %s loaded: %s messages", session_id, len(messages))
+    # Note: n_messages reflects the originally fetched row count, not the
+    # post-sanitization stored count; a tampered/corrupted persisted row
+    # dropped by replace_history() would make this a slight overstatement.
+    # Acceptable for this defense-in-depth path (see implementation notes).
     return SessionRestoreResult(session_id=session_id, n_messages=len(messages))

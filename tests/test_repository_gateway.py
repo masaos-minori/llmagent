@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.repository_gateway import RepositoryGateway
-from agent.tool_enums import OperationType, RiskLevel
+from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
 
 
@@ -90,9 +90,6 @@ class TestWritePolicy:
                 return_value=OperationType.WRITE,
             ),
             patch("agent.repository_gateway.check_preflight"),
-            patch(
-                "agent.repository_gateway.classify_risk", return_value=RiskLevel.NONE
-            ),
         ):
             result = await gw.execute(
                 ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
@@ -100,35 +97,6 @@ class TestWritePolicy:
 
         assert result is expected
         executor.execute.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_write_tool_denied_by_user(self) -> None:
-        """Write tool blocked when user denies approval."""
-        executor = AsyncMock()
-        gw = _make_gateway(executor=executor)
-        ctx = _make_ctx()
-
-        with (
-            patch(
-                "agent.repository_gateway.classify_operation_type",
-                return_value=OperationType.WRITE,
-            ),
-            patch("agent.repository_gateway.check_preflight"),
-            patch(
-                "agent.repository_gateway.classify_risk", return_value=RiskLevel.HIGH
-            ),
-            patch(
-                "agent.tool_approval.run_approval_checks",
-                return_value=([], {"write_file"}),
-            ),
-        ):
-            result = await gw.execute(
-                ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
-            )
-
-        assert result.is_error is True
-        assert "Denied" in result.output
-        executor.execute.assert_not_awaited()
 
 
 class TestAudit:
@@ -146,9 +114,6 @@ class TestAudit:
                 return_value=OperationType.WRITE,
             ),
             patch("agent.repository_gateway.check_preflight"),
-            patch(
-                "agent.repository_gateway.classify_risk", return_value=RiskLevel.NONE
-            ),
         ):
             await gw.execute(ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"})
 

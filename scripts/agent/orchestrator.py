@@ -20,12 +20,14 @@ from typing import Any
 from shared.json_utils import dumps as _json_dumps
 from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
+from shared.types import LLMMessage
 
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_transport_errors import handle_llm_transport_error
 from agent.llm_turn_runner import LLMTurnRunner
 from agent.mdq_rag_classifier import MdqRagMode
+from agent.message_schema import validate_message
 from agent.mode_classification import classify_and_inject_mode
 from agent.output_tags import OutputTag
 from agent.tool_audit import (
@@ -48,6 +50,26 @@ from agent.workflow import (
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 
+# Threshold for the first-turn background task's consecutive-failure counter
+# (see `_discard_and_log` / `self._consecutive_bg_failures`).
+#
+# - Effect: log-level selection only. Below this threshold, failures log via
+#   `logger.warning`; at or above it, they log via `logger.error`. There is no
+#   circuit-breaking or task-disabling behavior — the background task keeps
+#   being scheduled on every first turn regardless of this counter's value.
+# - Scope: applies only to the first-turn session-title-generation background
+#   task (`self._on_first_turn`, scheduled from `_append_user_message`). It is
+#   not a general-purpose background-task failure budget.
+# - Reset semantics: the counter resets to 0 on a successful completion or on
+#   `asyncio.CancelledError`; it is NOT reset by `/clear` or `/session load`
+#   (see `_discard_and_log`'s docstring for why).
+# - Configurability: evaluated and deferred. Moving this into `AgentConfig`
+#   would require touching `config/agent.toml`, `config_dataclasses.py`,
+#   `config_validators.py`, and `config_builders.py` in addition to this file,
+#   which is disproportionate for a value whose only effect is a log-level
+#   choice. If this is revisited, `ToolConfig.tool_error_max_consecutive`
+#   (`scripts/agent/config_dataclasses.py:168`) is the copyable precedent for
+#   wiring a similar threshold through config.
 BG_FAILURE_THRESHOLD: int = 5
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
@@ -126,6 +148,12 @@ class Orchestrator:
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
         self._background_tasks: set[asyncio.Task[object]] = set()
+        # Scoped to a single background-task type today (the first-turn
+        # session-title-generation task handled by `_discard_and_log`). Do not
+        # reuse this single counter for a second, distinct background-task
+        # type — give any new task type its own counter instead, since a
+        # shared counter would conflate unrelated failure streams and distort
+        # the log-level threshold in `_discard_and_log`.
         self._consecutive_bg_failures: int = 0
         self._llm_runner = LLMTurnRunner(
             ctx,
@@ -382,12 +410,13 @@ class Orchestrator:
                 memory_block = "[Relevant memories]\n" + "\n".join(
                     f"- {snippet.text}" for snippet in memory_snippets
                 )
-                ctx.conv.history.append(
+                ctx.conv.append_message(
                     {
                         "role": "system",
                         "content": memory_block,
                         "_memory_injected": True,
-                    }
+                    },
+                    source="memory_injection",
                 )
 
     async def _handle_history_compression(self) -> None:
@@ -396,6 +425,12 @@ class Orchestrator:
         Note: ephemeral/memory-injected messages are NOT filtered here because
         _clear_previous_turn_ephemeral_messages() already strips them before every
         turn. Passing the full history avoids double-filtering.
+
+        Note: the compressed history is also NOT routed through
+        ConversationState.replace_history() — hist_mgr.compress() only produces
+        role/content-only summary messages (see history.py's
+        _build_summary_message()), which are already schema-conformant by
+        construction, so re-validating here would be redundant.
         """
         ctx = self._ctx
         with self._llm_runner._span_ctx("compress"):
@@ -560,15 +595,24 @@ class Orchestrator:
         if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
             ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
         else:
-            ctx.conv.history.insert(
-                0, {"role": "system", "content": ctx.conv.system_prompt_content}
-            )
+            msg: LLMMessage = {
+                "role": "system",
+                "content": ctx.conv.system_prompt_content,
+            }
+            result = validate_message(dict(msg))
+            if not result.success:
+                logger.error(
+                    "Dropping system prompt sync message that failed validation: %s",
+                    result.reason,
+                )
+                return
+            ctx.conv.history.insert(0, msg)
 
     def _append_user_message(self, line: str) -> None:
         """Append user message to history, sync system prompt, and increment turn counter."""
         ctx = self._ctx
         self._sync_system_prompt()
-        ctx.conv.history.append({"role": "user", "content": line})
+        ctx.conv.append_message({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
             _task = asyncio.create_task(self._on_first_turn(line))
@@ -578,7 +622,20 @@ class Orchestrator:
         ctx.session.save("user", line)
 
     def _discard_and_log(self, task: asyncio.Task[Any]) -> None:
-        """Callback for first-turn background task completion."""
+        """Callback for first-turn background task completion.
+
+        Cross-session accumulation: `self._consecutive_bg_failures` can span
+        multiple `/clear` / `/session load` cycles within one process
+        lifetime. `Orchestrator` is a long-lived singleton constructed once
+        (`startup.py:117`) and reused across
+        `conversation_service.clear_conversation` and
+        `agent/services/session_restore.py:46` — neither of those reset
+        points touches this counter, so a failure streak that started before
+        a `/clear` or session switch continues to count toward
+        `BG_FAILURE_THRESHOLD` afterward. Only a successful
+        completion or an `asyncio.CancelledError` completion of this
+        callback resets it to 0.
+        """
         exc = task.exception()
         if exc is not None:
             if isinstance(exc, asyncio.CancelledError):

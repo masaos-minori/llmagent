@@ -11,6 +11,8 @@ related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
   - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
+  - 05_agent_04_01_state-and-persistence-state-model-part1.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
 source:
   - 05_agent_03_01_turn-processing-flow-overview.md
 ---
@@ -52,7 +54,8 @@ User input (line)
        │         ヒントを"_ephemeral"付きsystemメッセージとして注入 (下記参照)
        │
        ③ ユーザーメッセージの追加
-        │    → ユーザーメッセージをctx.conv.historyに追加
+        │    → システムプロンプト同期 (下記参照)
+        │    → ユーザーメッセージをctx.conv.append_message()経由でctx.conv.historyに追加
         │    → AgentSession.save("user", content)
         │    → (最初のターンのみ) セッションタイトル生成のためasyncio.create_task
         │
@@ -70,7 +73,9 @@ User input (line)
        │              → execute_all_tool_calls()
        │                   → 副作用のあるツールが存在しない限り並列実行 (asyncio.gather)
        │                   → ToolExecutor.execute(tool_name, args)
-       │                   → ツール実行結果を"tool"ロールとして履歴に追加
+       │                   → ツール実行結果を"tool"ロールとしてctx.conv.append_message()経由で履歴に追加
+       │                        (拒否されたツール呼び出しはctx.conv.extend_messages()経由で追加; 詳細は
+       │                         05_agent_06_01_tool-execution-and-approval-execution.md §履歴への結果反映 参照)
        │              → 履歴をLLMに再送信
        │              → ToolLoopGuard: 重複排除/循環/リトライ/連続エラーのガード
        │
@@ -102,6 +107,12 @@ User input (line)
 - ターンの先頭に`"system"`ロールメッセージとして注入される
 - `/undo`はこれらの注入メッセージ(`_memory_injected`)およびモード分類の`_ephemeral`ヒントメッセージを、
   ユーザー+アシスタントのターンと共に削除する(`agent/services/undo_service.py`)
+- `Orchestrator._handle_memory_injection()`は生の`ctx.conv.history.append()`ではなく
+  `ctx.conv.append_message(msg, source="memory_injection")`を呼ぶ (`agent/orchestrator.py`)。
+  `TRUSTED_SOURCES["memory_injection"]`が`_memory_injected`キーを認可するため、この呼び出しは
+  検証を通過して従来通りメッセージを追加する。詳細は
+  [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+  §検証付き履歴変更メソッド を参照
 
 ---
 
@@ -114,13 +125,33 @@ User input (line)
   (`heading`, `outline`, `toc`, `.md`, `structure`など) でMDQ/RAGを判定する
 - MDQモードと判定されても`search_docs`ツールを持つMCPサーバーが利用不可の場合はRAGにフォールバックする
   (警告ログを出力)
-- 判定結果に応じたヒント文字列を`"system"`ロール・`_ephemeral: true`付きメッセージとして
-  `ctx.conv.history`に注入する。`_ephemeral`メッセージ(および`_memory_injected`メッセージ)は
+- 判定結果に応じたヒント文字列を`"system"`ロール・`_ephemeral: true`付きメッセージとして、
+  生の`ctx.conv.history.append()`ではなく`ctx.conv.append_message(msg, source="cmd_handler")`
+  経由で追加する(`agent/mode_classification.py`)。`TRUSTED_SOURCES["cmd_handler"]`が
+  `_ephemeral`キーを認可するため、この呼び出しは検証を通過して従来通りメッセージを追加する。
+  詳細は
+  [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+  §検証付き履歴変更メソッド を参照。`_ephemeral`メッセージ(および`_memory_injected`メッセージ)は
   `_process_turn()`の先頭、メモリ注入・モード分類より前に呼ばれる
   前ターン ephemeral メッセージクリア関数で、**前のターン**分のみが除去される
   (毎ターン再評価される一時的なヒント)。この呼び出し順序により、当該ターンで注入した内容は
   同一ターンのLLM呼び出しに正しく渡り、次ターン開始時にのみ除去される
   (システムプロンプト同期関数はシステムプロンプト本文の同期のみを担当し、この除去処理は行わない)
+
+---
+
+## システムプロンプト同期の詳細
+
+- `Orchestrator._sync_system_prompt()`はステップ③で、ユーザーメッセージ追加より前に呼ばれる
+  (`agent/orchestrator.py`)
+- `ctx.conv.history[0]`が既に`"system"`ロールの場合は`content`をその場で上書きする
+  (キー構成は変わらないため検証は行わない)
+- `ctx.conv.history[0]`が存在しないか`"system"`ロールでない場合は、新規に
+  `{"role": "system", "content": ...}`を構築し、`agent/message_schema.py::validate_message()`で
+  検証してから`ctx.conv.history.insert(0, msg)`する。このメッセージは常にrole/contentのみで
+  構成されるため検証は常に成功する設計だが、万一失敗した場合は`error`ログを出力して挿入をスキップする
+  (`ConversationState`はappendのみを提供し位置指定挿入を持たないため、この分岐は
+  `ConversationState.append_message()`を経由せず`orchestrator.py`内で直接検証する)
 
 ---
 
@@ -146,11 +177,16 @@ User input (line)
 - `05_agent_00_document-guide.md`
 - `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
+- `05_agent_04_01_state-and-persistence-state-model-part1.md`
+- `05_agent_06_01_tool-execution-and-approval-execution.md`
 
 ## Keywords
 
 one-turn processing flow
 memory injection detail
 mdq/rag mode classification
+system prompt sync detail
+validated history append/insert
+validated tool result/denied-message append
 workflow engine mandatory execution path
 history compression detail

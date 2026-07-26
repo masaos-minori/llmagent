@@ -11,7 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.context import ConversationState
+from agent.repository_gateway import RepositoryGateway
 from agent.tool_runner import (
+    _apply_turn_char_limit,
     _build_tool_meta,
     _compute_serial_overhead,
     _estimate_parallel_time,
@@ -73,6 +76,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.services_required.audit_logger = None
     ctx.services_required.gateway = None
+    ctx.services_required.runtime_tools = None
     ctx.services_required.tools = MagicMock()
     ctx.services_required.tools.execute = AsyncMock(
         return_value=ToolCallResult(
@@ -84,6 +88,12 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.conv = MagicMock()
     ctx.conv.history = []
+    # Bind the real ConversationState.append_message/extend_messages so calls
+    # made through ctx.conv.append_message(...)/extend_messages(...) actually
+    # mutate ctx.conv.history (with the same validation/sanitization behavior
+    # as production), instead of being swallowed as a no-op MagicMock call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
     ctx.session = MagicMock()
     ctx.session.session_id = None
     ctx.workflow.workflow_id = "wf-test-id"
@@ -596,6 +606,92 @@ class TestExecuteAllToolCalls:
 
         ctx.services_required.tools.execute.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_tool_result_and_denied_messages_routed_through_conv_helpers(
+        self,
+    ) -> None:
+        """Regression: both history mutation sites route through
+        ConversationState.append_message()/extend_messages() and produce the
+        same role/tool_call_id/content shape as the previous raw
+        history.append()/history.extend() calls.
+        """
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        write_call = {
+            "id": "call_write",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+        read_call = _tc("read_text_file")
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([read_call], ["call_write"]),
+        ):
+            await execute_all_tool_calls(ctx, [write_call, read_call], 0)
+
+        assert ctx.conv.history == [
+            {
+                "role": "tool",
+                "tool_call_id": "call_read_text_file",
+                "content": "result",
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "call_write",
+                "content": "Tool execution denied by user.",
+            },
+        ]
+
+
+class TestRunApprovalGateEndToEnd:
+    @pytest.mark.asyncio
+    async def test_run_approval_checks_invoked_exactly_once_through_gateway(
+        self,
+    ) -> None:
+        """Regression: _run_approval_gate() is the sole approval gate for the
+        batch. A risky write tool call must trigger exactly one interactive
+        approval prompt end-to-end, through both tool_runner's batch-level
+        gate and a real (non-mocked-away) RepositoryGateway.execute() ->
+        _gate_write(). If _gate_write() ever regains its own redundant
+        approval check, this test fails because the prompt would be invoked
+        twice.
+        """
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = None
+        ctx.conv.plan_mode = False
+
+        executor = AsyncMock()
+        executor.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="written", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+        gateway = RepositoryGateway(executor=executor, cfg=cfg, audit_logger=None)
+        ctx.services_required.gateway = gateway
+
+        write_call = {
+            "id": "call_write",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+
+        with patch(
+            "agent.tool_approval._prompt_user_approval",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as mock_prompt:
+            await execute_all_tool_calls(ctx, [write_call], 0)
+
+        mock_prompt.assert_awaited_once()
+        executor.execute.assert_awaited_once_with("write_file", {})
+
 
 class TestSerializationHelpers:
     def test_estimate_parallel_time_empty(self) -> None:
@@ -613,6 +709,28 @@ class TestSerializationHelpers:
     def test_compute_serial_overhead_rounds_to_two(self) -> None:
         result = _compute_serial_overhead(10.0, 3.0)
         assert result == round(10.0 / 3.0, 2)
+
+
+class TestApplyTurnCharLimit:
+    def test_apply_turn_char_limit_over_limit_returns_hint_with_sizes(self) -> None:
+        llm_text = "line1\nline2\nline3"
+        result = _apply_turn_char_limit(llm_text, turn_chars=0, limit=5)
+        assert str(len(llm_text)) in result
+        assert str(len(llm_text.splitlines())) in result
+        assert "5" in result
+        assert llm_text not in result
+
+    def test_apply_turn_char_limit_under_limit_returns_text_unchanged(self) -> None:
+        llm_text = "short text"
+        result = _apply_turn_char_limit(llm_text, turn_chars=0, limit=4000)
+        assert result == llm_text
+
+    def test_apply_turn_char_limit_exact_boundary_returns_text_unchanged(self) -> None:
+        llm_text = "12345"
+        turn_chars = 5
+        limit = turn_chars + len(llm_text)
+        result = _apply_turn_char_limit(llm_text, turn_chars=turn_chars, limit=limit)
+        assert result == llm_text
 
 
 class TestExecuteStandardSerialization:
@@ -850,4 +968,37 @@ class TestExecuteOneToolCallValidation:
         assert is_error is True
         assert "Missing required fields" in text
         assert "mode" in text
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_validation_failure_prevents_gateway_execute(self) -> None:
+        """When the gateway dispatch path is active, a validation rejection must
+        prevent gateway.execute() from being called."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        runtime_tool_mock = MagicMock()
+        runtime_tool_mock.input_schema = {
+            "type": "object",
+            "required": ["path"],
+            "properties": {"path": {"type": "string"}},
+        }
+        runtime_tool_mock.allow_extra_fields = False
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.return_value = runtime_tool_mock
+
+        tc = _tc("write_text_file", '{"path": "/tmp/f", "extra": "malicious"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "write_text_file"
+        assert is_error is True
+        assert "extra" in text
+        ctx.services_required.gateway.execute.assert_not_called()
         ctx.services_required.tools.execute.assert_not_called()

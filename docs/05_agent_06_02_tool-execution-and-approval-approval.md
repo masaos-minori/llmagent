@@ -165,15 +165,18 @@ toolロールメッセージとして返され、会話は自然に継続する)
 | `github_*` | `{owner}/{repo} {extra args JSON[:200]}` |
 | その他のツール | `json.dumps(args)[:300]` |
 
-### `TURN_LIMIT_HINT`
+### `turn_limit_hint(omitted_chars, omitted_lines, limit) -> str`
 
-ターン単位の上限によりツール実行結果が破棄された場合に履歴に追加されるヒント。形式:
+ターン単位の上限によりツール実行結果が破棄された場合に履歴に追加されるヒントを生成する関数。
+`_apply_turn_char_limit()`が破棄対象の結果の文字数 (`omitted_chars`)・行数
+(`omitted_lines`)・設定上の上限 (`limit`) を渡して呼び出す。形式:
 
 ``` text
-[Result omitted: per-turn tool result limit reached.]
+[Result omitted: per-turn tool result limit reached. Omitted result: {omitted_chars} chars, {omitted_lines} lines. Configured per-turn limit: {limit} chars.]
 ```
 
-このヒントは`tool_results_turn_max_chars` ([05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) 参照) を超過した場合に追加される。
+省略された結果の内容自体は含まれず、サイズと上限のみがLLMに伝えられる。このヒントは
+`tool_results_turn_max_chars` ([05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) 参照) を超過した場合に追加される。
 
 ---
 

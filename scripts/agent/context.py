@@ -23,15 +23,17 @@ Access pattern:
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from shared.mcp_config import McpServerHealthRegistry
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.types import LLMMessage
 
 from agent.config_builders import build_agent_config
+from agent.message_schema import ROLE_KEY_WHITELIST, TRUSTED_SOURCES, validate_message
 from agent.session import AgentSession
 
 if TYPE_CHECKING:
@@ -47,9 +49,34 @@ if TYPE_CHECKING:
     from agent.repository_gateway import RepositoryGateway
 
 
+logger = logging.getLogger(__name__)
+
+
 # ---------------------------------------------------------------------------
 # Sub-structures
 # ---------------------------------------------------------------------------
+
+
+def _sanitize_message(msg: LLMMessage, *, source: str = "") -> LLMMessage | None:
+    """Strip keys not allowed for *msg*'s role, returning ``None`` if unsalvageable.
+
+    Keeps only keys in ``ROLE_KEY_WHITELIST`` for the message's role, plus any
+    ephemeral keys authorized for *source* via ``TRUSTED_SOURCES``. Unknown
+    roles fall back to the minimal ``{"role", "content"}`` whitelist. Returns
+    ``None`` when the sanitized result would be missing ``role`` or
+    ``content``, signaling that the message must be dropped entirely.
+    """
+    role = msg.get("role")
+    allowed_keys = ROLE_KEY_WHITELIST.get(role, {"role", "content"})
+    allowed_ephemeral = TRUSTED_SOURCES.get(source, set())
+    sanitized: dict[str, Any] = {
+        key: value
+        for key, value in msg.items()
+        if key in allowed_keys or key in allowed_ephemeral
+    }
+    if "role" not in sanitized or "content" not in sanitized:
+        return None
+    return cast(LLMMessage, sanitized)
 
 
 @dataclass
@@ -70,6 +97,54 @@ class ConversationState:
     memory_warning_shown: bool = (
         False  # Whether the "memory disabled" warning was displayed
     )
+
+    def append_message(self, msg: LLMMessage, *, source: str = "") -> None:
+        """Validate *msg* and append it to history, sanitizing or dropping on failure.
+
+        *source* is validation-only metadata: it authorizes trusted ephemeral
+        keys (e.g. ``_memory_injected``) for the validation check, but is never
+        persisted onto the stored message or written into ``self.history``.
+
+        On validation failure the message is sanitized (disallowed/unauthorized
+        keys stripped) and a warning is logged. If sanitization would leave the
+        message without ``role`` or ``content``, it is dropped entirely and an
+        error is logged instead of appending a partially-valid message.
+        """
+        check_view: dict[str, Any] = dict(msg, source=source) if source else dict(msg)
+        result = validate_message(check_view)
+        if result.success:
+            self.history.append(msg)
+            return
+
+        role = msg.get("role", "<unknown>")
+        logger.warning(
+            "Sanitizing invalid message (role=%s, source=%s): %s",
+            role,
+            source or "<none>",
+            result.reason,
+        )
+        sanitized = _sanitize_message(msg, source=source)
+        if sanitized is None:
+            logger.error(
+                "Dropping message after sanitization removed required fields (role=%s)",
+                role,
+            )
+            return
+        self.history.append(sanitized)
+
+    def extend_messages(self, msgs: list[LLMMessage], *, source: str = "") -> None:
+        """Validate and append each message in *msgs* independently.
+
+        A single invalid message among several valid ones only affects that
+        message (sanitized or dropped); it does not block the others.
+        """
+        for msg in msgs:
+            self.append_message(msg, source=source)
+
+    def replace_history(self, msgs: list[LLMMessage], *, source: str = "") -> None:
+        """Clear history, then validate and append each message in *msgs*."""
+        self.history = []
+        self.extend_messages(msgs, source=source)
 
 
 @dataclass

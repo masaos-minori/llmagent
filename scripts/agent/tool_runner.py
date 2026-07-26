@@ -25,6 +25,7 @@ from shared.json_utils import (
 from shared.tool_constants import SHELL_TOOLS
 from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
+from shared.transport_dto import ToolCallResult
 from shared.types import LLMMessage
 
 from agent.tool_arg_validator import validate_tool_arguments
@@ -32,8 +33,8 @@ from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_result_formatter import (
-    TURN_LIMIT_HINT,
     mask_args,
+    turn_limit_hint,
 )
 from agent.tool_scheduler import build_execution_groups
 
@@ -111,6 +112,43 @@ async def _run_group_calls(
     )
 
 
+def _validate_tool_args(
+    ctx: AgentContext, name: str, args: dict
+) -> ToolCallResult | None:
+    """Validate tool call arguments against the registered RuntimeTool's input_schema.
+
+    Returns None for every lenient-fallback case (no registry, tool not
+    registered, schema absent/passes) and a synthetic error ToolCallResult
+    only on an actual validation failure.
+    """
+    registry = ctx.services_required.runtime_tools
+    if registry is None:
+        return None
+    try:
+        runtime_tool = registry.get(name)
+    except KeyError:
+        return None
+    result = validate_tool_arguments(
+        tool_name=name,
+        args=args,
+        input_schema=runtime_tool.input_schema,
+        allow_extra_fields=runtime_tool.allow_extra_fields,
+    )
+    if result.success:
+        return None
+    logger.warning(
+        "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
+    )
+    return ToolCallResult(
+        output=result.reason,
+        is_error=True,
+        request_id="",
+        server_key="",
+        source="validation",
+        error_type="validation",
+    )
+
+
 async def execute_one_tool_call(
     ctx: AgentContext,
     tc: dict,
@@ -136,21 +174,10 @@ async def execute_one_tool_call(
             f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
         ) from e
 
-    # Validate arguments against RuntimeTool schema when available
-    if ctx.services_required.runtime_tools is not None:
-        try:
-            rt_tool = ctx.services_required.runtime_tools.get(name)
-            input_schema = getattr(rt_tool, "input_schema", None) or {}
-            allow_extra = getattr(rt_tool, "allow_extra_fields", False)
-            vresult = validate_tool_arguments(name, args, input_schema, allow_extra)
-            if not vresult.success:
-                error_text = f"[validation failed] {vresult.reason}"
-                llm_text = error_text[: ctx.cfg.tool.tool_result_max_llm_chars]
-                return tc["id"], name, args, error_text, True, llm_text
-        except KeyError:
-            pass
-
-    if ctx.services_required.gateway is not None:
+    validation_error = _validate_tool_args(ctx, name, args)
+    if validation_error is not None:
+        result = validation_error
+    elif ctx.services_required.gateway is not None:
         result = await ctx.services_required.gateway.execute(ctx, name, args)
     else:
         result = await ctx.services_required.tools.execute(name, args)
@@ -205,7 +232,7 @@ def _collect_tool_result_msgs(
             limit=ctx.cfg.tool.tool_results_turn_max_chars,
         )
         turn_chars += len(llm_text)
-        ctx.conv.history.append(
+        ctx.conv.append_message(
             {"role": "tool", "tool_call_id": tc_id, "content": llm_text}
         )
         tool_msgs.append(("tool", llm_text, None, tc_id))
@@ -250,13 +277,14 @@ def _apply_turn_char_limit(
 ) -> str:
     """Apply per-turn char limit; return hint if exceeded."""
     if limit > 0 and (turn_chars + len(llm_text)) > limit:
+        omitted_chars = len(llm_text)
+        omitted_lines = len(llm_text.splitlines())
         logger.info(
             "Per-turn tool result limit reached: %s chars > %s; result replaced with hint",
-            turn_chars + len(llm_text),
+            turn_chars + omitted_chars,
             limit,
         )
-        hint: str = TURN_LIMIT_HINT
-        return hint
+        return turn_limit_hint(omitted_chars, omitted_lines, limit)
     return llm_text
 
 
@@ -481,7 +509,7 @@ async def execute_all_tool_calls(
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     denied_history, denied_msgs = _build_denied_messages(denied_ids)
-    ctx.conv.history.extend(denied_history)
+    ctx.conv.extend_messages(denied_history)
     tool_msgs.extend(denied_msgs)
     ctx.session.save_many(tool_msgs)
 
@@ -492,9 +520,12 @@ async def _run_approval_gate(
 ) -> tuple[list[dict], list[str]]:
     """Run approval checks and return (approved_calls, denied_ids).
 
-    When the workflow definition sets require_approval=true, workflow-level approval
-    gates are inserted between execute and verify stages. In this case, per-tool
-    approval is skipped during the execute stage to avoid double-prompting.
+    This is the sole per-tool-call approval gate for the batch: every tool
+    call in `tool_calls` is checked here, exactly once, before any of it
+    reaches execution. Calls that pass (`approved_calls`) proceed straight
+    to execution — including through `RepositoryGateway` for write/delete/
+    API-write tools — without any further approval check performed anywhere
+    downstream.
     """
     from agent.tool_approval import run_approval_checks  # noqa: PLC0415
 

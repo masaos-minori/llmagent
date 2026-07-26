@@ -83,6 +83,9 @@ class AgentREPL:
     All persistent session state is held in self._ctx (AgentContext).
     """
 
+    _WAL_CHECKPOINT_TIMEOUT_S: float = 30.0
+    _WAL_BACKUP_TIMEOUT_S: float = 10.0
+
     @cached_property
     def SLASH_COMMANDS(self) -> frozenset[str]:
         """Tab completion candidates derived from _COMMANDS + REPL-reserved commands."""
@@ -242,81 +245,133 @@ class AgentREPL:
         except (OSError, sqlite3.Error):
             logger.debug("Failed to persist session diagnostics", exc_info=True)
 
+    def _wal_checkpoint_sync(self) -> tuple[bool, list[tuple[str, str]]]:
+        """Attempt a WAL checkpoint (PASSIVE, falling back to TRUNCATE with retries).
+
+        Runs synchronously; intended to be invoked via `loop.run_in_executor(...)` since
+        `time.sleep()` blocks. Returns `(True, [])` on PASSIVE/TRUNCATE success or when
+        journal mode is not WAL; returns `(False, errors)` when TRUNCATE exhausts its
+        retries.
+        """
+        errors: list[tuple[str, str]] = []
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+            if wal_mode.lower() != "wal":
+                logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
+                return True, errors
+            # Try PASSIVE checkpoint first (no exclusive lock required)
+            try:
+                db.checkpoint("PASSIVE")
+                logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
+                return True, errors
+            except sqlite3.Error as passive_err:
+                logger.warning(
+                    "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
+                    passive_err,
+                )
+            # Retry TRUNCATE checkpoint with exponential backoff
+            for attempt in range(3):
+                try:
+                    db.checkpoint("TRUNCATE")
+                    logger.info(
+                        "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
+                        attempt + 1,
+                    )
+                    return True, errors
+                except sqlite3.Error as truncate_err:
+                    if attempt < 2:
+                        logger.warning(
+                            "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
+                            attempt + 1,
+                            truncate_err,
+                        )
+                        time.sleep(2**attempt)
+                    else:
+                        logger.error(
+                            "WAL TRUNCATE checkpoint failed after 3 attempts: %s",
+                            truncate_err,
+                        )
+                        errors.append(
+                            (
+                                "wal_checkpoint_truncate",
+                                f"{type(truncate_err).__name__}: {truncate_err}",
+                            )
+                        )
+            return False, errors
+
+    def _wal_backup_sync(self) -> tuple[str | None, list[tuple[str, str]]]:
+        """Copy the WAL file to a backup location. Runs synchronously via an executor.
+
+        Returns `(backup_path_or_None, errors)`.
+        """
+        errors: list[tuple[str, str]] = []
+        wal_backup_path: str | None = None
+        try:
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                db_path = db.execute("PRAGMA database_list").fetchone()[2]
+                if db_path:
+                    wal_file = f"{db_path}-wal"
+                    backup_dir = os.path.dirname(db_path) or "/tmp"
+                    wal_backup_path = os.path.join(
+                        backup_dir,
+                        f"{os.path.basename(db_path)}-wal-backup-{int(time.time())}",
+                    )
+                    shutil.copy2(wal_file, wal_backup_path)
+                    logger.warning("WAL file backed up to %s", wal_backup_path)
+        except Exception as backup_err:
+            logger.error("Failed to backup WAL file: %s", backup_err)
+            errors.append(("wal_backup", f"{type(backup_err).__name__}: {backup_err}"))
+        return wal_backup_path, errors
+
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
         errors: list[tuple[str, str]] = []
+        loop = asyncio.get_running_loop()
+
         # WAL checkpoint before closing connections
-        wal_backup_path: str | None = None
+        truncated_or_ok = False
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
-                if wal_mode.lower() == "wal":
-                    # Try PASSIVE checkpoint first (no exclusive lock required)
-                    try:
-                        db.checkpoint("PASSIVE")
-                        logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
-                    except sqlite3.Error as passive_err:
-                        logger.warning(
-                            "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
-                            passive_err,
-                        )
-                        # Retry TRUNCATE checkpoint with exponential backoff
-                        truncated = False
-                        for attempt in range(3):
-                            try:
-                                db.checkpoint("TRUNCATE")
-                                logger.info(
-                                    "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
-                                    attempt + 1,
-                                )
-                                truncated = True
-                                break
-                            except sqlite3.Error as truncate_err:
-                                if attempt < 2:
-                                    logger.warning(
-                                        "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
-                                        attempt + 1,
-                                        truncate_err,
-                                    )
-                                    await asyncio.sleep(2**attempt)
-                                else:
-                                    logger.error(
-                                        "WAL TRUNCATE checkpoint failed after 3 attempts: %s",
-                                        truncate_err,
-                                    )
-                                    errors.append(
-                                        (
-                                            "wal_checkpoint_truncate",
-                                            f"{type(truncate_err).__name__}: {truncate_err}",
-                                        )
-                                    )
-                        if not truncated:
-                            # Copy WAL file to backup location before closing connection
-                            try:
-                                db_path = db.execute("PRAGMA database_list").fetchone()[
-                                    1
-                                ]
-                                if db_path:
-                                    wal_file = f"{db_path}-wal"
-                                    backup_dir = os.path.dirname(db_path) or "/tmp"
-                                    wal_backup_path = os.path.join(
-                                        backup_dir,
-                                        f"{os.path.basename(db_path)}-wal-backup-{int(time.time())}",
-                                    )
-                                    shutil.copy2(wal_file, wal_backup_path)
-                                    logger.warning(
-                                        "WAL file backed up to %s", wal_backup_path
-                                    )
-                            except Exception as backup_err:
-                                logger.error(
-                                    "Failed to backup WAL file: %s", backup_err
-                                )
-                else:
-                    logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
+            truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
+                loop.run_in_executor(None, self._wal_checkpoint_sync),
+                timeout=self._WAL_CHECKPOINT_TIMEOUT_S,
+            )
+            errors.extend(checkpoint_errors)
+        except TimeoutError:
+            errors.append(
+                (
+                    "wal_checkpoint_timeout",
+                    f"TimeoutError: exceeded {self._WAL_CHECKPOINT_TIMEOUT_S}s",
+                )
+            )
+            logger.error(
+                "WAL checkpoint timed out after %.1fs on shutdown",
+                self._WAL_CHECKPOINT_TIMEOUT_S,
+            )
         except sqlite3.Error as e:
             errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
             logger.error("WAL checkpoint failed on shutdown: %s", e)
+
+        if not truncated_or_ok:
+            # Copy WAL file to backup location before closing connection
+            try:
+                _wal_backup_path, backup_errors = await asyncio.wait_for(
+                    loop.run_in_executor(None, self._wal_backup_sync),
+                    timeout=self._WAL_BACKUP_TIMEOUT_S,
+                )
+                errors.extend(backup_errors)
+            except TimeoutError:
+                errors.append(
+                    (
+                        "wal_backup_timeout",
+                        f"TimeoutError: exceeded {self._WAL_BACKUP_TIMEOUT_S}s",
+                    )
+                )
+                logger.error(
+                    "WAL backup timed out after %.1fs on shutdown",
+                    self._WAL_BACKUP_TIMEOUT_S,
+                )
+
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
         svc = self._ctx.services
         if svc is not None:

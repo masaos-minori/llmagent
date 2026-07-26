@@ -149,7 +149,7 @@ CLIサブコマンド名`/db session recover`と実装メソッド名`recover_se
 - `db/maintenance.py`にはメンテナンス関数 (`vacuum_db`, `checkpoint_wal`, `prune_old_memories`など) が含まれるが、`rag/`モジュールのインポートは一切ない; DBローテーションは`db/rotation.py`にある
 - `/db`コマンドはスコープによりサブコマンドをルーティングする: `/db rag <subcmd>`は`RagMaintenanceService`を対象とし、`/db session <subcmd>`は`DbMaintenanceService`を対象とする
 - `db/maintenance.py`の`prune_old_memories()`は`DbMaintenanceService`/`RagMaintenanceService`いずれの管轄でもなく、`agent/commands/memory_data_ops.py`から`/memory`系コマンド経由で直接呼び出される (Explicit in code)
-- `agent/repository_gateway.py`はDB永続化とは無関係で、ツール呼び出し (write/delete/API-write) のポリシー審査・承認・監査を行う実行ゲート層である。DB責務境界には関与しない
+- `agent/repository_gateway.py`はDB永続化とは無関係で、ツール呼び出し (write/delete/API-write) のポリシー審査・実行・監査を行う実行ゲート層である。承認プロンプトは発行しない (`tool_runner.execute_all_tool_calls()`のバッチレベルゲートが呼び出し前に一度だけ強制する)。DB責務境界には関与しない
 
 ## Related Documents
 

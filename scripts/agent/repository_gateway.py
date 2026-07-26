@@ -5,7 +5,8 @@ Single enforcement boundary for all repository write/delete/API-write operations
 Read-only tool calls are forwarded directly to ToolExecutor without checks.
 Write/delete/API-write tool calls are gated through:
   1. Policy preflight (tool_policy.check_preflight)
-  2. Approval prompt (tool_approval.run_approval_checks per call)
+  2. Approval, enforced upstream and once by tool_runner.execute_all_tool_calls()'s
+     batch-level gate, before any tool call reaches this executor
   3. Execution (ToolExecutor)
   4. Audit emission
 """
@@ -15,13 +16,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from shared.json_utils import dumps as json_dumps
 from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
-from agent.tool_enums import OperationType, RiskLevel
+from agent.tool_enums import OperationType
 from agent.tool_exceptions import PolicyViolationError
-from agent.tool_policy import check_preflight, classify_operation_type, classify_risk
+from agent.tool_policy import check_preflight, classify_operation_type
 
 if TYPE_CHECKING:
     from shared.logger import Logger
@@ -47,8 +47,16 @@ class RepositoryGateway:
     """Single write enforcement boundary for all repository mutation operations.
 
     Wraps ToolExecutor. Write/delete/API-write tool calls are gated through
-    policy checks, approval prompts, and audit logging. Read-only tool calls
-    are forwarded directly without additional checks.
+    policy checks and audit logging. Read-only tool calls are forwarded
+    directly without additional checks.
+
+    Precondition: this gateway does not itself prompt for interactive
+    approval. Callers must route write/risky tool calls through
+    tool_runner.execute_all_tool_calls() (which runs the batch-level
+    _run_approval_gate()), or otherwise call
+    tool_approval.run_approval_checks() themselves, before invoking
+    RepositoryGateway.execute(). Skipping that upstream gate means a
+    write/risky call reaches execution without ever having been approved.
     """
 
     def __init__(
@@ -85,31 +93,17 @@ class RepositoryGateway:
         args: dict[str, Any],
         op: OperationType,
     ) -> ToolCallResult:
-        """Enforce policy, prompt for approval, execute, audit."""
+        """Enforce policy, execute, audit.
+
+        Approval is expected to have already been granted by the caller's
+        batch-level gate (tool_runner.execute_all_tool_calls()'s
+        _run_approval_gate()); this method does not prompt.
+        """
         try:
             check_preflight(self._cfg, tool_name, args)
         except PolicyViolationError as exc:
             logger.warning("gateway.policy_denied tool=%r reason=%s", tool_name, exc)
             return _denied_result(f"Policy blocked: {exc}")
-
-        risk = classify_risk(self._cfg, tool_name, args)
-        if risk != RiskLevel.NONE:
-            from agent.tool_approval import run_approval_checks  # noqa: PLC0415
-
-            tool_call_dict = {
-                "id": f"gateway_{tool_name}",
-                "function": {
-                    "name": tool_name,
-                    "arguments": json_dumps(args),
-                },
-            }
-            approved_calls, denied_ids = await run_approval_checks(
-                ctx,
-                [tool_call_dict],
-            )
-            if tool_name in denied_ids or not approved_calls:
-                logger.info("gateway.approval_denied tool=%r", tool_name)
-                return _denied_result("Denied by user")
 
         result = await self._executor.execute(tool_name, args)
 

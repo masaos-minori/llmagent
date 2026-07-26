@@ -41,6 +41,8 @@ class RuntimeTool:
         requires_approval: True when the tool requires explicit user approval before execution.
         enabled_for_llm:   True when the tool is exposed to the LLM's tool-calling surface.
         capabilities:      Capability strings declared by the MCP server (empty tuple if absent).
+        allow_extra_fields: True when unexpected/unschemad argument fields should be
+                            tolerated instead of rejected by validate_tool_arguments().
     """
 
     name: str
@@ -57,6 +59,7 @@ class RuntimeTool:
     requires_approval: bool
     enabled_for_llm: bool
     capabilities: tuple[str, ...]
+    allow_extra_fields: bool = False
 
 
 def build_runtime_tool(
@@ -74,6 +77,7 @@ def build_runtime_tool(
     requires_approval: bool | None = None,
     enabled_for_llm: bool | None = None,
     capabilities: tuple[str, ...] | None = None,
+    allow_extra_fields: bool | None = None,
 ) -> RuntimeTool:
     """Build a `RuntimeTool`, applying safe defaults for omitted annotation fields.
 
@@ -86,6 +90,8 @@ def build_runtime_tool(
         - `requires_approval` defaults to `True`.
         - `enabled_for_llm` defaults to `False`.
         - `capabilities` defaults to an empty tuple when not explicitly supplied.
+        - `allow_extra_fields` defaults to False — extra/unschemad fields are rejected
+          unless a tool explicitly opts in.
     """
     resolved_input_schema = input_schema if input_schema is not None else {}
     resolved_raw_definition = raw_definition if raw_definition is not None else {}
@@ -101,6 +107,9 @@ def build_runtime_tool(
     )
     resolved_enabled_for_llm = enabled_for_llm if enabled_for_llm is not None else False
     resolved_capabilities = capabilities if capabilities is not None else ()
+    resolved_allow_extra_fields = (
+        allow_extra_fields if allow_extra_fields is not None else False
+    )
 
     return RuntimeTool(
         name=name,
@@ -117,4 +126,5 @@ def build_runtime_tool(
         requires_approval=resolved_requires_approval,
         enabled_for_llm=resolved_enabled_for_llm,
         capabilities=resolved_capabilities,
+        allow_extra_fields=resolved_allow_extra_fields,
     )

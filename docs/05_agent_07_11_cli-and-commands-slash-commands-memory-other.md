@@ -59,9 +59,11 @@ related:
 | Command | 副作用 | 関連する状態 |
 |---|---|---|
 | `/skill` | なし | `skills/`配下のディレクトリ名一覧を表示(`DESIGN.md`等のファイル単体エントリは除外)。LLM呼び出しは発生しない |
-| `/skill <name> [args]` | `ctx.conv.history`にephemeral systemメッセージを追加(`_ephemeral: True`, `_skill_ephemeral: True`) | `skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる。次のターン開始時に自動的に除去される |
+| `/skill <name> [args]` | `ctx.conv.append_message(msg, source="skill_mixin")`経由でephemeral systemメッセージを追加(`_skill_ephemeral: True`が実際にhistoryへ保存されるキー; 下記注記参照) | `skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる |
 
-> **注記:** `_skill_ephemeral: True`は`/skill`由来のメッセージのみを識別するための専用フラグであり、`mode_classification.py`や`memory injection`由来の`_ephemeral: True`メッセージには影響しない。実装は`agent/commands/cmd_skill.py`の`_SkillMixin`。
+> **注記:** `_cmd_skill()`が構築するメッセージは`_ephemeral: True`と`_skill_ephemeral: True`を同時に持つが、`TRUSTED_SOURCES["skill_mixin"]`(`agent/message_schema.py`)は`_skill_ephemeral`のみを認可するため、`append_message()`の検証に失敗し`_ephemeral`キーはサニタイズ(除去、`warning`ログ)されてから保存される。結果として`_skill_ephemeral: True`のみがhistoryに残る。これは既知かつ許容された挙動変更であり、影響はorchestratorの汎用的な`_ephemeral`ベースの前ターンクリア(`_clear_previous_turn_ephemeral_messages()`)がスキル注入メッセージを次ターン開始時に自動除去しなくなる点にある——スキル注入メッセージは代わりに、この`_cmd_skill()`自身が持つ`_skill_ephemeral`フィルタ(次回`/skill`実行時に前回分を置き換える処理)によってのみ除去され、次の`/skill`呼び出しまで履歴に残り続ける。`_skill_ephemeral: True`は`/skill`由来のメッセージのみを識別するための専用フラグであり、`mode_classification.py`や`memory injection`由来の`_ephemeral: True`メッセージには影響しない。実装は`agent/commands/cmd_skill.py`の`_SkillMixin`。詳細は
+> [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+> §検証付き履歴変更メソッド を参照。
 
 ### Otherカテゴリ
 

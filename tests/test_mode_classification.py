@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from agent.mode_classification import classify_and_inject_mode
+from agent.context import ConversationState
+from agent.mdq_rag_classifier import MdqRagMode
+from agent.mode_classification import _mode_hint, classify_and_inject_mode
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -24,6 +26,11 @@ def _make_ctx(
     )
     ctx.cfg.mcp.mcp_servers = {"mdq": server_cfg} if mdq_tool_names else {}
     ctx.conv.history = []
+    # Bind the real ConversationState.append_message so calls made through
+    # ctx.conv.append_message(...) actually validate/mutate ctx.conv.history
+    # (same as production), instead of being swallowed as a no-op MagicMock
+    # call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
     return ctx
 
 
@@ -73,6 +80,24 @@ class TestClassifyAndInjectMode:
 
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[0]["_ephemeral"] is True
+
+    def test_hint_routed_through_append_message_source_not_persisted(self) -> None:
+        """Regression: classify_and_inject_mode() routes its ephemeral hint
+        through ConversationState.append_message(source="cmd_handler"), which
+        authorizes "_ephemeral" for this message. The stored message must
+        keep "_ephemeral" intact (not sanitized away) and must never carry a
+        "source" key (validation-only metadata, never persisted)."""
+        ctx = _make_ctx(mdq_rag_mode="rag")
+        classify_and_inject_mode("hello", ctx)
+
+        assert ctx.conv.history == [
+            {
+                "role": "system",
+                "content": _mode_hint(MdqRagMode.RAG),
+                "_ephemeral": True,
+            }
+        ]
+        assert "source" not in ctx.conv.history[0]
 
     def test_repeated_calls_without_clearing_accumulate(self) -> None:
         """classify_and_inject_mode() itself has no dedup memory -- calling it

@@ -98,3 +98,15 @@ class TestRuntimeTool:
             name="t", server_key="s", capabilities=("read", "write")
         )
         assert tool.capabilities == ("read", "write")
+
+    def test_allow_extra_fields_defaults_to_false(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s")
+        assert tool.allow_extra_fields is False
+
+    def test_allow_extra_fields_explicit_true_is_honored(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s", allow_extra_fields=True)
+        assert tool.allow_extra_fields is True
+
+    def test_allow_extra_fields_explicit_false_is_honored(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s", allow_extra_fields=False)
+        assert tool.allow_extra_fields is False

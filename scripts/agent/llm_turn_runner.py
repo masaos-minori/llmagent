@@ -92,7 +92,7 @@ class LLMTurnRunner:
                 answer = self._finalize_answer_text(message)
                 return TurnResult(action="continue", answer=answer)
 
-            ctx.conv.history.append(message)
+            ctx.conv.append_message(message)
             ctx.session.save(
                 "assistant",
                 message.get("content") or "",
@@ -199,7 +199,7 @@ class LLMTurnRunner:
     def _finalize_answer_text(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
-        ctx.conv.history.append(message)
+        ctx.conv.append_message(message)
         return message.get("content") or ""
 
     def _filter_disabled_tool_definitions(

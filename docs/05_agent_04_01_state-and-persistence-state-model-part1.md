@@ -47,6 +47,46 @@ source:
 | `shutdown_requested` | `bool` | `False` | グレースフルシャットダウンフラグ |
 | `is_processing` | `bool` | `False` | `handle_turn()`実行中は`True` |
 
+#### 検証付き履歴変更メソッド
+
+`ConversationState`は`history`への生の`list.append()`/`list.extend()`/直接代入の代わりに、
+`agent/message_schema.py::validate_message()`経由で検証を強制する3つのメソッドを持つ
+(`agent/context.py`):
+
+| Method | Description |
+|---|---|
+| `append_message(msg, *, source="")` | `msg`を検証してから`history`へ追加する。検証失敗時は`ROLE_KEY_WHITELIST`/`TRUSTED_SOURCES`に基づき不正なキーを除去 (`warning`ログ) してから追加する。除去後に`role`または`content`が欠落する場合はメッセージ全体を破棄する (`error`ログ、`history`には追加しない) |
+| `extend_messages(msgs, *, source="")` | `msgs`の各メッセージに対して`append_message()`を個別に呼び出す。1件の不正なメッセージが他の正常なメッセージに影響することはない |
+| `replace_history(msgs, *, source="")` | `history`を空にしてから`extend_messages(msgs, source=source)`を呼ぶ |
+
+`source`は検証時にのみ使用されるメタデータで、信頼済みソース (`TRUSTED_SOURCES`: `cmd_handler`,
+`memory_injection`, `skill_mixin`) からのエフェメラルキー (`_ephemeral`, `_memory_injected`,
+`_skill_ephemeral`) を許可するために検証用の一時的なコピーにのみ付与される。`source`自体が
+`history`に保存されたメッセージやLLMへのペイロードに含まれることはない。
+
+呼び出し元の例: `Orchestrator._handle_memory_injection()`は`source="memory_injection"`付きで
+`append_message()`を、`Orchestrator._append_user_message()`は`source`なしで`append_message()`を
+それぞれ呼ぶ (`agent/orchestrator.py`)。`Orchestrator._sync_system_prompt()`の
+`history.insert(0, ...)`分岐は位置指定挿入のため`append_message()`は使わず、同じ
+`validate_message()`を直接呼んで検証してから挿入する。詳細は
+[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+を参照。`LLMTurnRunner.run()`のツール呼び出し分岐と`_finalize_answer_text()`も、どちらも`source`
+なしで`append_message()`を呼ぶ (`agent/llm_turn_runner.py`)。詳細は
+[05_agent_03_02_turn-processing-flow-llm-tool-loop.md](05_agent_03_02_turn-processing-flow-llm-tool-loop.md)
+§履歴への追加 を参照。
+
+`replace_history()`は`history`全体の一括置き換えを行う2箇所の呼び出し元でも使われる:
+`StartupOrchestrator._setup_prompt()`は起動時の初期`history`(システムプロンプト1件のみ)を
+`source`なしで`replace_history([...])`により構築し (`agent/startup.py`)、
+`session_restore.restore_session()`はセッション復元時に`ctx.session.fetch_messages()`が返した
+永続化済みメッセージ列を、同じく`source`なしで`replace_history(...)`により`history`へ反映する
+(`agent/services/session_restore.py`)。いずれも通常運用下では既存の`ROLE_KEY_WHITELIST`を
+満たす整形済みメッセージのみを扱うため検証は常に成功し保存内容は変化しないが、
+`restore_session()`側は改ざん・破損したDB行が予約済みエフェメラルキーを持ち込むケースに対する
+多層防御として`replace_history()`を経由する。当該行はサニタイズまたは破棄されるため
+`SessionRestoreResult.n_messages`(元の取得件数)が実際の保存件数をわずかに上回りうる
+(まれなケースであり許容されている)。
+
 ### TurnState (`ctx.turn`)
 
 ターンスコープ。ターン間でリセットされる。
@@ -114,8 +154,9 @@ source:
 
 ### RepositoryGateway (`agent/repository_gateway.py`)
 
-すべてのリポジトリ書込み/削除/API書込み操作の単一の強制境界。読み取り専用ツール呼び出しはノーチェックで`ToolExecutor`に直接転送される。書込み系操作は次の順で通過する: (1) ポリシー事前チェック (`tool_policy.check_preflight`)、(2) 承認プロンプト (`tool_approval.run_approval_checks`)、(3) `ToolExecutor`による実行、(4) 監査ログ出力。
-ポリシー違反時は`PolicyViolationError`を捕捉し `is_error=True, error_type="denied"`の`ToolCallResult`を返す (例外を上位に伝播させない)。承認が拒否された場合も同様に`denied`扱いの結果を返す。
+すべてのリポジトリ書込み/削除/API書込み操作の単一の強制境界。読み取り専用ツール呼び出しはノーチェックで`ToolExecutor`に直接転送される。書込み系操作は次の順で通過する: (1) ポリシー事前チェック (`tool_policy.check_preflight`)、(2) `ToolExecutor`による実行、(3) 監査ログ出力。
+承認プロンプトは`RepositoryGateway`自身では発行しない — `tool_runner.execute_all_tool_calls()`のバッチレベルゲート (`_run_approval_gate()`、内部で`tool_approval.run_approval_checks`を呼ぶ) が、書込み/リスクのあるツール呼び出しを`RepositoryGateway.execute()`に到達させる前に一度だけ承認を強制する、という前提(precondition)の上に成り立つ。この前提を経由しない直接呼び出しは、非対話的な`check_preflight()`以外の承認チェックを受けない。
+ポリシー違反時は`PolicyViolationError`を捕捉し `is_error=True, error_type="denied"`の`ToolCallResult`を返す (例外を上位に伝播させない)。承認が拒否された場合の`denied`扱いの結果は、上流の`tool_runner`バッチゲートが返す。
 
 *(根拠分類: Explicit in code — `agent/repository_gateway.py`, `agent/context.py`)*
 
@@ -132,9 +173,16 @@ source:
 
 AgentContext state model
 ConversationState
+append_message
+extend_messages
+replace_history
+validate_message
 TurnState
 WorkflowState
 RuntimeStats
 AppServices
 RepositoryGateway
 session persistence
+StartupOrchestrator._setup_prompt
+session_restore.restore_session
+bulk history replacement defense-in-depth

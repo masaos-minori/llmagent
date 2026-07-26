@@ -10,6 +10,7 @@ from agent.tool_result_formatter import (
     build_github_preview,
     build_preview,
     mask_args,
+    turn_limit_hint,
 )
 
 
@@ -141,6 +142,26 @@ class TestBuildPreview:
     def test_github_tool_missing_owner_repo(self) -> None:
         preview = build_preview("github_push_files", {})
         assert "?" in preview
+
+
+class TestTurnLimitHint:
+    def test_turn_limit_hint_multi_line_reports_chars_and_lines(self) -> None:
+        hint = turn_limit_hint(omitted_chars=1234, omitted_lines=42, limit=4000)
+        assert "1234 chars" in hint
+        assert "42 lines" in hint
+        assert "4000 chars" in hint
+
+    def test_turn_limit_hint_single_line_reports_one_line(self) -> None:
+        hint = turn_limit_hint(omitted_chars=10, omitted_lines=1, limit=100)
+        assert "10 chars" in hint
+        assert "1 lines" in hint
+        assert "100 chars" in hint
+
+    def test_turn_limit_hint_zero_length_edge_case(self) -> None:
+        hint = turn_limit_hint(omitted_chars=0, omitted_lines=0, limit=4000)
+        assert "0 chars" in hint
+        assert "0 lines" in hint
+        assert "4000 chars" in hint
 
 
 class TestBuildGithubPreview:

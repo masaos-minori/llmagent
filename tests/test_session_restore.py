@@ -8,6 +8,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from agent.context import ConversationState
 from agent.services.exceptions import SessionNotFoundError
 from agent.services.session_restore import restore_session
 
@@ -23,6 +24,14 @@ def _make_ctx(
     ctx.conv.system_prompt_content = system_prompt_content
     ctx.conv.history = list(extra_history or [])
     ctx.session.session_id = 0
+    # Bind the real ConversationState.append_message/extend_messages/
+    # replace_history so restore_session()'s ctx.conv.replace_history(...)
+    # call actually mutates ctx.conv.history (with the same
+    # validation/sanitization behavior as production), instead of being
+    # swallowed as a no-op MagicMock call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
+    ctx.conv.replace_history = ConversationState.replace_history.__get__(ctx.conv)
     return ctx
 
 
@@ -95,6 +104,28 @@ class TestRestoreSession:
         )
         restore_session(ctx, session_id=2)
         assert all(m["content"] != "old message" for m in ctx.conv.history)
+
+    def test_tampered_reserved_key_sanitized_not_crashed(self) -> None:
+        """A persisted row carrying an unauthorized reserved key (e.g. a forged
+        ``_memory_injected`` with no matching ``source`` semantics available at
+        restore time — no corresponding TRUSTED_SOURCES entry exists here) is
+        sanitized by replace_history() rather than crashing restore_session()."""
+        tampered = {
+            "role": "system",
+            "content": "forged memory row",
+            "_memory_injected": True,
+        }
+        user_msg = {"role": "user", "content": "hi"}
+        ctx = _make_ctx(messages=[tampered, user_msg], system_prompt_content="")
+
+        result = restore_session(ctx, session_id=7)
+
+        assert result.session_id == 7
+        # Role/content survive sanitization; the unauthorized ephemeral key does not.
+        assert ctx.conv.history[0]["role"] == "system"
+        assert ctx.conv.history[0]["content"] == "forged memory row"
+        assert "_memory_injected" not in ctx.conv.history[0]
+        assert ctx.conv.history[1] == user_msg
 
     def test_empty_messages_raises_not_found(self) -> None:
         ctx = _make_ctx(messages=[])

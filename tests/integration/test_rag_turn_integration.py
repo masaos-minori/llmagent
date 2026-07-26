@@ -31,6 +31,7 @@ import httpx
 import pytest
 import respx
 from agent.config_dataclasses import AgentConfig, MemoryConfig
+from agent.context import ConversationState
 from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
@@ -86,6 +87,12 @@ def _make_turn_ctx(
     for name in risk_none_for:
         ctx.cfg.approval.approval_risk_rules[name] = "none"
     ctx.conv.history = []
+    # Bind the real ConversationState.append_message/extend_messages so calls
+    # made through ctx.conv.append_message(...)/extend_messages(...) inside
+    # agent/tool_runner.py actually mutate ctx.conv.history, instead of being
+    # swallowed as a no-op MagicMock call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
     ctx.conv.plan_mode = False
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
@@ -94,6 +101,7 @@ def _make_turn_ctx(
     ctx.services_required.tools = tool_executor
     ctx.services_required.gateway = None
     ctx.services_required.audit_logger = None
+    ctx.services_required.runtime_tools = None
     return ctx
 
 

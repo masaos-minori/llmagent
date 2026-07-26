@@ -11,9 +11,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.context import ConversationState
 from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
+from shared.types import LLMMessage
 
 
 def _make_ctx() -> MagicMock:
@@ -25,6 +27,11 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_error_max_consecutive = 3
     ctx.cfg.tool.tool_definitions = []
     ctx.conv.history = []
+    # Bind the real ConversationState.append_message so calls made through
+    # ctx.conv.append_message(...) actually mutate ctx.conv.history (with the
+    # same validation/sanitization behavior as production), instead of being
+    # swallowed as a no-op MagicMock call.
+    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
     ctx.stats.stat_tool_errors = 0
     ctx.services_required.llm = AsyncMock()
     ctx.services_required.llm.stream = AsyncMock()
@@ -266,3 +273,53 @@ class TestRun:
                 stage_id="execute",
                 attempt_id="att-test-1",
             )
+
+
+class TestHistoryConstructionRoutedThroughAppendMessage:
+    """Regression coverage for plans/20260726-093008_plan.md: the two
+    history-construction call sites in llm_turn_runner.py -- the tool-call
+    branch in run()'s main loop and _finalize_answer_text() -- route through
+    ConversationState.append_message() instead of raw
+    ctx.conv.history.append() calls, and produce the same message content as
+    before for well-formed input.
+    """
+
+    def test_finalize_answer_text_appends_unchanged_via_append_message(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        message: LLMMessage = {"role": "assistant", "content": "Done"}
+
+        result = runner._finalize_answer_text(message)
+
+        assert result == "Done"
+        assert runner._ctx.conv.history == [message]
+
+    @pytest.mark.asyncio
+    async def test_tool_call_branch_appends_unchanged_via_append_message(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        tool_calls = [{"id": "c1", "function": {"name": "read_file"}}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Done"},
+            finish_reason="stop",
+        )
+
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(side_effect=[tool_response, final_response]),
+            ),
+            patch("agent.llm_turn_runner.execute_all_tool_calls"),
+        ):
+            await runner.run("http://llm", **WF_CTX)
+
+        assert runner._ctx.conv.history[0] == {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": tool_calls,
+        }

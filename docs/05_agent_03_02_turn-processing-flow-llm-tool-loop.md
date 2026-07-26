@@ -11,6 +11,7 @@ related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_01_turn-processing-flow-overview.md
   - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
+  - 05_agent_04_01_state-and-persistence-state-model-part1.md
 source:
   - 05_agent_03_01_turn-processing-flow-overview.md
 ---
@@ -30,6 +31,25 @@ source:
    - ツールを実行 → 結果を追加 → LLMに再送信
    - `max_tool_turns`回まで繰り返す
 5. `finish_reason == "stop"`または`max_tool_turns`超過の場合: 最終回答を返す
+
+### 履歴への追加 (`ctx.conv.append_message()`)
+
+`agent/llm_turn_runner.py`の2箇所の`ctx.conv.history`変更は、生の`list.append()`ではなく
+`ConversationState.append_message()`(検証付き; 詳細は
+[05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+§検証付き履歴変更メソッド を参照) を経由する:
+
+- ツール呼び出し分岐 (`LLMTurnRunner.run()`のメインループ、ステップ4): `finish_reason ==
+  "tool_calls"`かつ`tool_calls`を含むassistantメッセージを`source`指定なしで
+  `ctx.conv.append_message(message)`する
+- `_finalize_answer_text()` (ステップ5、`finish_reason != "tool_calls"`または`tool_calls`なしの場合の
+  done-turnメッセージ): 同じく`source`指定なしで`ctx.conv.append_message(message)`する
+
+両呼び出しは同一ターンイテレーション内では排他的 (片方のみが実行される)。いずれの`message`も
+LLMクライアントのストリーミング集約ロジック (`shared/llm_client.py`) が型付きデルタから構築した
+`role`/`content`/`tool_calls`のみで構成されるため、`ROLE_KEY_WHITELIST["assistant"]`と常に一致し
+検証は常に成功する — 保存内容は以前の生の`.append()`呼び出しと比較して変化しない
+(内部の呼び出し経路の変更のみ)。
 
 `ToolLoopGuard`は各ツールループの反復中に以下をガードする。実行順序は
 `check_all()`内で **循環検出 → 重複排除 → リトライ** の順 (Explicit in code、`tool_loop_guard.py`の
@@ -152,6 +172,7 @@ source:
 - `05_agent_00_document-guide.md`
 - `05_agent_03_01_turn-processing-flow-overview.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
+- `05_agent_04_01_state-and-persistence-state-model-part1.md`
 
 ## Keywords
 
@@ -159,3 +180,5 @@ LLM invocation and tool loop
 TurnLoopState
 guard methods
 error handling
+validated history append
+append_message

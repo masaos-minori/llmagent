@@ -12,6 +12,7 @@ related:
   - 05_agent_06_02_tool-execution-and-approval-approval.md
   - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
   - 05_agent_06_04_tool-execution-and-approval-canonical.md
+  - 05_agent_04_01_state-and-persistence-state-model-part1.md
 ---
 
 # エージェントのツール実行と承認
@@ -91,9 +92,41 @@ related:
 
 - `arguments` JSONを解析する; 不正なJSONの場合は`ToolArgumentsDecodeError`を発生させる
 - `ctx.services_required.tools`がNoneの場合`ToolExecutorUnavailableError`を発生させる
+- JSON解析後、ディスパッチ (gateway経由 or 直接executor) の前に`_validate_tool_args(ctx, name, args)`を呼び出し、`RuntimeTool.input_schema`に対するスキーマバリデーションを行う (下記「引数バリデーション」参照)
 - トランスポートエラーの場合: 失敗を`ctx.diagnostics`に保存する
 - 要約が有効かつ結果が閾値を超える場合: `summarize_tool_result()`を呼び出す → `llm_text`
 - それ以外: `tool_result_max_llm_chars`まで切り詰め + "\n... (truncated)"
+
+### 引数バリデーション (`_validate_tool_args()`, `agent/tool_arg_validator.py`)
+
+`execute_one_tool_call()`は`orjson.loads()`によるJSON解析の直後、gateway/直接executorへのディスパッチの前に`_validate_tool_args(ctx, name, args) -> ToolCallResult | None`を1回だけ呼び出す。ディスパッチ分岐ごとの重複バリデーションは行わない。
+
+- `ctx.services_required.runtime_tools`が`None`の場合 (デフォルト、`RuntimeToolRegistry`が未接続の場合): バリデーションはno-opで`None`を返す (既存の挙動と完全互換)
+- `registry.get(name)`が`KeyError`を送出した場合 (未登録ツール): `None`を返し、寛容にフォールバックする
+- 登録済みツールが見つかった場合: `agent/tool_arg_validator.py::validate_tool_arguments(tool_name, args, input_schema=runtime_tool.input_schema, allow_extra_fields=runtime_tool.allow_extra_fields)`を呼び出す
+  - 必須フィールド欠如、スキーマ未定義の余剰フィールド (`allow_extra_fields=True`の場合は許容)、`jsonschema`による型不一致の3種類をチェックする
+  - 検証成功時は`None`を返し、通常のディスパッチ (gateway or 直接executor) に進む
+  - 検証失敗時は合成の`ToolCallResult(is_error=True, source="validation", error_type="validation", output=<理由>)`を返し、`gateway.execute()`/`tools.execute()`のいずれも呼び出されない
+- `source="validation"`(非空文字列)を設定することで、`audit_tool_exec()`の早期リターンガード (`if not mcp_request_id and not source: return`) を回避し、拒否イベントも監査ログに記録される
+- **Residual risk (documented, not fixed):** MCPサーバー由来の構造的に不正なスキーマは`jsonschema.SchemaError`を送出しうるが、`_check_type_validation()`はこれを捕捉しない。`tool_arg_validator.py`内部の挙動でありスコープ外 (将来のフォローアップ候補)。
+
+### 履歴への結果反映 (`_collect_tool_result_msgs()`, `_build_denied_messages()`)
+
+`agent/tool_runner.py`の2箇所の`ctx.conv.history`変更は、生の`list.append()`/`list.extend()`ではなく
+`ConversationState`の検証付きメソッド (`ConversationState.append_message()`/`extend_messages()`;
+詳細は[05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+§検証付き履歴変更メソッド を参照) を経由する:
+
+- `_collect_tool_result_msgs()`: 各ツール結果ごとに`ctx.conv.append_message({"role": "tool",
+  "tool_call_id": tc_id, "content": llm_text})`を`source`指定なしで1件ずつ呼ぶ
+- `execute_all_tool_calls()`: `_build_denied_messages(denied_ids)`が構築した拒否メッセージのリスト
+  (`denied_history`) をまとめて`ctx.conv.extend_messages(denied_history)`で追加する。
+  `replace_history()`は使わない — 拒否メッセージは既存のターン履歴に**追記**するものであり、
+  履歴全体の置き換えではないため
+- どちらのメッセージ形状も`role`/`tool_call_id`/`content`のみで構成され、
+  `ROLE_KEY_WHITELIST["tool"]`と完全一致するため、検証は常に成功し、
+  以前の生の`.append()`/`.extend()`呼び出しと比較して保存内容は変化しない
+  (内部の呼び出し経路の変更のみであり、挙動に変化はない)
 
 ### シリアル化統計
 
@@ -148,6 +181,7 @@ grep round_exec /path/to/audit.log
 - `05_agent_06_02_tool-execution-and-approval-approval.md`
 - `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `05_agent_06_04_tool-execution-and-approval-canonical.md`
+- `05_agent_04_01_state-and-persistence-state-model-part1.md`
 
 ## Keywords
 
@@ -155,3 +189,9 @@ ToolExecutor
 parallel vs sequential execution
 DAG tool scheduler
 execute_one_tool_call
+tool argument validation
+validate_tool_arguments
+RuntimeToolRegistry
+validated history append/extend
+_collect_tool_result_msgs
+_build_denied_messages

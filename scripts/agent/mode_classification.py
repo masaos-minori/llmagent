@@ -35,4 +35,7 @@ def classify_and_inject_mode(query: str, ctx: AgentContext) -> None:
             mode = MdqRagMode.RAG
     hint = _mode_hint(mode)
     if hint:
-        ctx.conv.history.append({"role": "system", "content": hint, "_ephemeral": True})
+        ctx.conv.append_message(
+            {"role": "system", "content": hint, "_ephemeral": True},
+            source="cmd_handler",
+        )

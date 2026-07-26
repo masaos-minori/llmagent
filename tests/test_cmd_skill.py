@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from agent.commands.cmd_skill import _SkillMixin
 from agent.commands.output_port import CliOutputPort
+from agent.context import ConversationState
 
 
 @pytest.fixture
@@ -26,7 +27,10 @@ def skills_root(tmp_path: Path) -> Path:
 def _make_mixin(skills_root: Path) -> _SkillMixin:
     mixin = object.__new__(_SkillMixin)
     mixin._out = MagicMock(spec=CliOutputPort)
-    mixin._ctx = SimpleNamespace(conv=SimpleNamespace(history=[]))
+    # Real ConversationState (not a bare SimpleNamespace/list) so that
+    # _cmd_skill()'s ctx.conv.append_message(...) call exercises the actual
+    # validation/sanitization path, matching production behavior.
+    mixin._ctx = SimpleNamespace(conv=ConversationState())
     mixin._skills_dir = MagicMock(return_value=skills_root)
     return mixin
 
@@ -75,8 +79,28 @@ class TestCmdSkillLoad:
         msg = mixin._ctx.conv.history[0]
         assert msg["role"] == "system"
         assert msg["content"] == "Alpha content"
-        assert msg["_ephemeral"] is True
         assert msg["_skill_ephemeral"] is True
+
+    def test_appended_message_routed_through_append_message_strips_ephemeral(
+        self, skills_root: Path
+    ) -> None:
+        """Regression: _cmd_skill() routes its message through
+        ConversationState.append_message(source="skill_mixin"). TRUSTED_SOURCES
+        only authorizes "_skill_ephemeral" for "skill_mixin", not "_ephemeral",
+        so the "_ephemeral" key the call site still passes is stripped by the
+        sanitize-and-log fallback. This is a known, accepted retention-window
+        change (see the mode_classification/cmd_skill implementation procedure
+        doc); "_skill_ephemeral" must still persist so this file's own
+        skill-replacement filter keeps working. A future change to
+        TRUSTED_SOURCES["skill_mixin"] that starts authorizing "_ephemeral"
+        again should be a deliberate, reviewed change — this test should fail
+        loudly if that happens silently."""
+        mixin = _make_mixin(skills_root)
+        mixin._cmd_skill("alpha")
+        msg = mixin._ctx.conv.history[0]
+        assert "_ephemeral" not in msg
+        assert msg["_skill_ephemeral"] is True
+        assert "source" not in msg
 
     def test_args_appended_to_content(self, skills_root: Path) -> None:
         mixin = _make_mixin(skills_root)

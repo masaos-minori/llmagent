@@ -278,9 +278,35 @@ finally節でリソースをクローズする。`_close_resources()`(`repl.py`)
 
 ### WAL checkpoint
 
+チェックポイント処理（PASSIVE→TRUNCATEリトライ）とWALバックアップ処理はそれぞれ
+`_wal_checkpoint_sync()` / `_wal_backup_sync()` という同期ヘルパーに切り出されており、
+`_close_resources()` から `loop.run_in_executor(None, ...)` + `asyncio.wait_for(...,
+timeout=...)` で個別にタイムアウト付き実行される。チェックポイント側がタイムアウトしても
+バックアップ処理は独立して実行される。
+
 ```python
-# WAL checkpoint before closing connections
-wal_backup_path: str | None = None
+# _close_resources() (repl.py) — WAL checkpoint before closing connections
+truncated_or_ok = False
+try:
+    truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
+        loop.run_in_executor(None, self._wal_checkpoint_sync),
+        timeout=self._WAL_CHECKPOINT_TIMEOUT_S,  # 30.0s
+    )
+except TimeoutError:
+    errors.append(("wal_checkpoint_timeout", ...))
+
+if not truncated_or_ok:
+    try:
+        _wal_backup_path, backup_errors = await asyncio.wait_for(
+            loop.run_in_executor(None, self._wal_backup_sync),
+            timeout=self._WAL_BACKUP_TIMEOUT_S,  # 10.0s
+        )
+    except TimeoutError:
+        errors.append(("wal_backup_timeout", ...))
+```
+
+```python
+# _wal_checkpoint_sync() (repl.py) — runs in a worker thread via run_in_executor
 with SQLiteHelper("session").open(write_mode=True) as db:
     wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
     if wal_mode.lower() == "wal":
@@ -294,17 +320,25 @@ with SQLiteHelper("session").open(write_mode=True) as db:
                     db.checkpoint("TRUNCATE")
                 except sqlite3.Error as truncate_err:
                     if attempt < 2:
-                        await asyncio.sleep(2 ** attempt)
-                    else:
-                        # Copy WAL file to backup location before closing connection
-                        wal_file = f"{db_path}-wal"
-                        shutil.copy2(wal_file, wal_backup_path)
+                        time.sleep(2 ** attempt)  # worker thread: blocking sleep, not asyncio.sleep
 ```
 
-1. PASSIVEチェックポイントを最初に試す（排他ロック不要）
+```python
+# _wal_backup_sync() (repl.py) — runs in a worker thread via run_in_executor
+with SQLiteHelper("session").open(write_mode=True) as db:
+    db_path = db.execute("PRAGMA database_list").fetchone()[2]  # [2] = file path column
+    wal_file = f"{db_path}-wal"
+    shutil.copy2(wal_file, wal_backup_path)
+```
+
+1. PASSIVEチェックポイントを最初に試す（排他ロック不要）、`_WAL_CHECKPOINT_TIMEOUT_S`
+   （デフォルト30.0秒、`AgentREPL`のクラス属性）を超えると打ち切られる
 2. PASSIVEが失敗した場合、TRUNCATEを最大3回（指数バックオフ: 1s, 2s, 4s）リトライ
-3. 最終的にTRUNCATEが失敗した場合、WALファイルをバックアップコピー
+3. 最終的にTRUNCATEが失敗した場合、またはチェックポイント処理自体がタイムアウトした場合、
+   WALファイルをバックアップコピー（`_WAL_BACKUP_TIMEOUT_S`、デフォルト10.0秒で打ち切り）
 4. バックアップファイル名にはタイムスタンプを含む（連続再起動時の名前衝突防止）
+5. `PRAGMA database_list`の結果からDBファイルパスを読むインデックスは`[2]`（ファイルパス列）。
+   `[1]`はDB名列（例: `"main"`）であり誤り
 
 ### Lifecycle shutdown
 
@@ -317,10 +351,14 @@ await svc.http.aclose()
 
 リソースクローズ中のエラーはすべて捕捉され、ERRORレベルでログに記録される。
 個別のエラーは `errors` リストにタプル `(name, message)` として蓄積され、
-最後にまとめてログ出力される。
+最後にまとめてログ出力される。エラー名には `wal_checkpoint` / `wal_checkpoint_truncate` /
+`wal_backup` に加え、タイムアウト専用の `wal_checkpoint_timeout` / `wal_backup_timeout`
+がある（`asyncio.wait_for(...)` が送出する `TimeoutError` を捕捉した場合に追加される）。
 
 この仕様は`tests/test_repl.py`の`TestCloseResourcesWALCheckpoint`クラスで検証されており、
-PASSIVEチェックポイントの優先、TRUNCATEフォールバック、非WALモードでのスキップがテストされている。
+PASSIVEチェックポイントの優先、TRUNCATEフォールバック、非WALモードでのスキップに加え、
+チェックポイントのタイムアウト時にバックアップ処理が実行されること、および
+`PRAGMA database_list`のカラムインデックス`[2]`からDBパスを読み取ることがテストされている。
 
 ---
 

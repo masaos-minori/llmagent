@@ -468,6 +468,59 @@ class TestCloseResourcesWALCheckpoint:
             await repl._close_resources()
         mock_db.checkpoint.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_checkpoint_timeout_records_error_and_still_runs_backup(self) -> None:
+        """A checkpoint stage that exceeds the timeout is aborted (from the caller's
+        perspective) promptly, logs a timeout error, and the backup stage still runs."""
+        repl = _make_bare_repl()
+        repl._WAL_CHECKPOINT_TIMEOUT_S = 0.02
+        mock_db = MagicMock()
+        mock_db.execute.return_value.fetchone.return_value = ("wal",)
+        mock_db.checkpoint.side_effect = lambda mode: time.sleep(0.3)
+        mock_ctx_manager = MagicMock()
+        mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
+        mock_ctx_manager.__exit__ = MagicMock(return_value=None)
+        with (
+            patch("agent.repl.SQLiteHelper") as MockHelper,
+            patch("agent.repl.shutil.copy2"),
+            patch("agent.repl.logger") as mock_logger,
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            start = time.monotonic()
+            await repl._close_resources()
+            elapsed = time.monotonic() - start
+        assert (
+            elapsed < 0.2
+        )  # returns well before the 0.3s blocked checkpoint call finishes
+        error_messages = [c.args[0] for c in mock_logger.error.call_args_list]
+        assert any("timed out" in msg for msg in error_messages)
+        mock_db.execute.assert_any_call("PRAGMA database_list")
+
+    @pytest.mark.asyncio
+    async def test_pragma_database_list_reads_db_path_from_column_index_2(self) -> None:
+        """db_path is read from index [2] (file path) of PRAGMA database_list, not [1]
+        (the database name), when the backup stage runs."""
+        repl = _make_bare_repl()
+        mock_db = MagicMock()
+        mock_db.execute.return_value.fetchone.side_effect = [
+            ("wal",),
+            (0, "main", "/opt/llm/db/session.db"),
+        ]
+        mock_db.checkpoint.side_effect = sqlite3.Error("locked")
+        mock_ctx_manager = MagicMock()
+        mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
+        mock_ctx_manager.__exit__ = MagicMock(return_value=None)
+        with (
+            patch("agent.repl.SQLiteHelper") as MockHelper,
+            patch("agent.repl.shutil.copy2") as mock_copy2,
+            patch("agent.repl.time.sleep"),
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            await repl._close_resources()
+        mock_copy2.assert_called_once()
+        args, _ = mock_copy2.call_args
+        assert args[0] == "/opt/llm/db/session.db-wal"
+
 
 # ── AgentContext.__init__() config error message ──────────────────────────────
 

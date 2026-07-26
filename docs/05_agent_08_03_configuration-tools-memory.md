@@ -39,7 +39,7 @@ Source: `config/agent.toml`
 | `plan_blocked_tools` | `[write_file, create_directory, ...]` | `[write_file, create_directory, ...]` | プランモードで自動ブロックされる |
 | `max_tool_turns` | `5` | `5` | メッセージごとの最大ツール呼び出しターン数 |
 | `tool_result_max_llm_chars` | `8000` | `8000` | LLMコンテキストに追加されるツール実行結果の最大文字数 |
-| `tool_results_turn_max_chars` | `50000` | `50000` | 1ターン中にLLMコンテキストへ追加されるツール実行結果の累積最大文字数。複数のツール出力によるターンあたりの過剰なコンテキスト増大を防ぐ。超過した場合、省略された結果はTURN_LIMIT_HINTに置き換えられる。 |
+| `tool_results_turn_max_chars` | `50000` | `50000` | 1ターン中にLLMコンテキストへ追加されるツール実行結果の累積最大文字数。複数のツール出力によるターンあたりの過剰なコンテキスト増大を防ぐ。超過した場合、省略された結果は`turn_limit_hint()`が生成するヒント文字列 (省略サイズと上限値を含む) に置き換えられる。 |
 
 **実装上の補足:** DAG切替設定フィールドは存在しない。DAGスケジューリング(下記resource_scope規約)は`serial_tool_calls=False`(デフォルト)の場合に常時有効であり、「レガシー動作」へ切り替える設定フラグは実装上存在しない。`serial_tool_calls=True`の場合は[05_agent_06_01](05_agent_06_01_tool-execution-and-approval-execution.md#並列実行と逐次実行)記載の標準実行(副作用のあるツールが1つでもあれば逐次、なければ並列)が使われる。詳細: [05_agent_06_01 §並列実行と逐次実行](05_agent_06_01_tool-execution-and-approval-execution.md#並列実行と逐次実行)。
 

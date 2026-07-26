@@ -109,6 +109,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.workflow.workflow_id = "wf-test-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
+    ctx.services_required.runtime_tools = None
     ctx.services_required.tools = AsyncMock()
     return ctx
 

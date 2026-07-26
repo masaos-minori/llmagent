@@ -11,6 +11,7 @@ from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.context import ConversationState
 from agent.shared.health_models import (
     HealthCheckResult,
     ServiceWarning,
@@ -269,6 +270,13 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.services_required.memory = None  # memory disabled
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        # Bind the real ConversationState.append_message/extend_messages/
+        # replace_history so _setup_prompt()'s ctx.conv.replace_history(...)
+        # call actually mutates ctx.conv.history, instead of being swallowed
+        # as a no-op MagicMock call.
+        ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+        ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
+        ctx.conv.replace_history = ConversationState.replace_history.__get__(ctx.conv)
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 
@@ -320,6 +328,13 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.services_required.memory = None
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        # Bind the real ConversationState.append_message/extend_messages/
+        # replace_history so _setup_prompt()'s ctx.conv.replace_history(...)
+        # call actually mutates ctx.conv.history, instead of being swallowed
+        # as a no-op MagicMock call.
+        ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+        ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
+        ctx.conv.replace_history = ConversationState.replace_history.__get__(ctx.conv)
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 

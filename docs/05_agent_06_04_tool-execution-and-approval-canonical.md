@@ -62,9 +62,10 @@ related:
 User prompt
   └─► Orchestrator
         └─► WorkflowEngine (plan → execute → [approval gate] → verify)
-              └─► repository_gateway.py (tool-call batch)
-                    └─► run_approval_checks (per-tool, MEDIUM/HIGH risk)
+              └─► tool_runner.execute_all_tool_calls() (tool-call batch)
+                    └─► _run_approval_gate() → run_approval_checks (per-tool, MEDIUM/HIGH risk)
                           └─► stdin prompt → approved/denied
+                    └─► repository_gateway.py (approved calls only; no approval prompt of its own)
               └─► Approval gate [when require_approval=True]
                     └─► WorkflowPendingApprovalError
                           └─► /approve or /reject command

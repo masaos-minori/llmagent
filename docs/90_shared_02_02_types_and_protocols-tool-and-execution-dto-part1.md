@@ -64,6 +64,7 @@ class TransportErrorInfo:
 
 - `ToolCallResult` はすべてのツール呼び出し実行 (transport, cache) における正規の結果契約である
 - `source` フィールドは呼び出し元の種別(`"mcp"`/`"cache"`)を区別する。`from_transport()` は常に `source="mcp"` を設定する (Explicit in code: `scripts/shared/transport_dto.py`)
+- `agent/tool_runner.py::_validate_tool_args()` は、ディスパッチ (gateway/直接executor) を呼ばずにスキーマバリデーション失敗を表現するため、`source="validation"` / `error_type="validation"` を持つ合成の`ToolCallResult`をその場で構築する (`shared/transport_dto.py` 自体の定義・コメントは変更していない — 上記コードブロック参照)。この`source`値により`audit_tool_exec()`の早期リターンガードが回避され、拒否イベントも監査ログに記録される
 - `TransportErrorInfo` はオーディットログ用の構造化エラー情報として使われる
 - Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
@@ -152,6 +153,8 @@ class RuntimeTool:
     agent_safety_tier: AgentSafetyTier
     requires_approval: bool
     enabled_for_llm: bool
+    capabilities: tuple[str, ...]
+    allow_extra_fields: bool = False
 
 def build_runtime_tool(
     name: str,
@@ -167,12 +170,15 @@ def build_runtime_tool(
     agent_safety_tier: AgentSafetyTier | None = None,
     requires_approval: bool | None = None,
     enabled_for_llm: bool | None = None,
+    capabilities: tuple[str, ...] | None = None,
+    allow_extra_fields: bool | None = None,
 ) -> RuntimeTool
 ```
 
-- 13フィールドの正規化されたツール実行メタデータ (ルーティング、LLMスキーマ、スケジューラメタデータ、副作用検出、安全性ティア、承認要否) を1つの型で表現する
+- 15フィールドの正規化されたツール実行メタデータ (ルーティング、LLMスキーマ、スケジューラメタデータ、副作用検出、安全性ティア、承認要否、引数バリデーションの緩和フラグ) を1つの型で表現する
 - `AgentSafetyTier` の4値 (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) は `agent/tool_policy.py` の `_TIER_TO_RISK` dict のキー文字列と同一だが、`shared-is-leaf` インポート制約 (`shared` は `agent` をインポートしない) のため `agent.tool_enums` からインポートせず、本モジュール内でローカルな `Literal` 型として重複定義している
-- `build_runtime_tool()` はモジュール関数 (classmethodではない) で、未指定の注釈フィールドに安全側のデフォルトを適用する: `is_write` 省略時は `False`、`requires_serial` は `is_write` が明示指定されていない場合のみ `True`、`agent_safety_tier` 省略時は最も保守的な `"WRITE_DANGEROUS"`、`requires_approval` 省略時は `True`、`enabled_for_llm` 省略時は `False`
+- `build_runtime_tool()` はモジュール関数 (classmethodではない) で、未指定の注釈フィールドに安全側のデフォルトを適用する: `is_write` 省略時は `False`、`requires_serial` は `is_write` が明示指定されていない場合のみ `True`、`agent_safety_tier` 省略時は最も保守的な `"WRITE_DANGEROUS"`、`requires_approval` 省略時は `True`、`enabled_for_llm` 省略時は `False`、`capabilities` 省略時は空タプル、`allow_extra_fields` 省略時は `False`（未知/未スキーマの引数フィールドを許容せず拒否する保守的な既定値）
+- `allow_extra_fields` はツール単位のフラグで、`agent/tool_runner.py::_validate_tool_args()` が `ctx.services_required.runtime_tools.get(name)` で取得した `RuntimeTool` からこの値を読み取り、`agent/tool_arg_validator.py` の `validate_tool_arguments()` に `allow_extra_fields=` として渡す。`True` の場合のみ未スキーマの引数フィールドを拒否せず許容する。MCP サーバ側もこのフラグを明示的に立てるものはなく、全ツールがデフォルトの `False`（厳格拒否）で保持されている
 - **[Explicit in code]** web_search-mcp の `browser_fetch` ツールが `config_dependent: True` を採用したことで、`RuntimeTool` / `build_runtime_tool()` が初めて実データで使用されている。MCPツールディスカバリによる実データの投入も完了済み
 - Import: `from shared.runtime_tool import RuntimeTool, build_runtime_tool, AgentSafetyTier`
 
