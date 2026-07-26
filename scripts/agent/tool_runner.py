@@ -27,6 +27,7 @@ from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.types import LLMMessage
 
+from agent.tool_arg_validator import validate_tool_arguments
 from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
@@ -134,6 +135,20 @@ async def execute_one_tool_call(
         raise ToolArgumentsDecodeError(
             f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
         ) from e
+
+    # Validate arguments against RuntimeTool schema when available
+    if ctx.services_required.runtime_tools is not None:
+        try:
+            rt_tool = ctx.services_required.runtime_tools.get(name)
+            input_schema = getattr(rt_tool, "input_schema", None) or {}
+            allow_extra = getattr(rt_tool, "allow_extra_fields", False)
+            vresult = validate_tool_arguments(name, args, input_schema, allow_extra)
+            if not vresult.success:
+                error_text = f"[validation failed] {vresult.reason}"
+                llm_text = error_text[: ctx.cfg.tool.tool_result_max_llm_chars]
+                return tc["id"], name, args, error_text, True, llm_text
+        except KeyError:
+            pass
 
     if ctx.services_required.gateway is not None:
         result = await ctx.services_required.gateway.execute(ctx, name, args)

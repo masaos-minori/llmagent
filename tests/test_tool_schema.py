@@ -22,7 +22,7 @@ _SCHEM_MODULES: list[tuple[str, str]] = [
     ("mcp_servers.file.read_tools", "TOOL_LIST"),
     ("mcp_servers.file.write_tools", "TOOL_LIST"),
     ("mcp_servers.file.delete_tools", "TOOL_LIST"),
-    ("mcp_servers.git.tools", "TOOL_LIST"),
+    ("mcp_servers.git.git_tools", "TOOL_LIST"),
 ]
 
 

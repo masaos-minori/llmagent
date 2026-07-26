@@ -284,7 +284,7 @@ class TestStartHttpSubprocess:
         mock_proc = _make_mock_proc()
 
         T = 1000.0
-        monotonic_values = [T, T + 0.1, T + 1.1]
+        monotonic_values = [T, T + 0.1, T + 1.1, T + 1.1]
 
         fail_resp = MagicMock()
         fail_resp.status_code = 503

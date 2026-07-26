@@ -39,7 +39,21 @@ def request_approval(
 def resolve_approval(
     db: SQLiteHelper, approval_id: str, status: str, reason: str | None = None
 ) -> None:
-    """Set approval status to 'approved' or 'rejected'."""
+    """Set approval status to 'approved' or 'rejected'.
+
+    Raises RuntimeError if the approval does not exist or is already resolved.
+    """
+    rows = db.fetchall(
+        "SELECT status FROM approvals WHERE approval_id=?",
+        (approval_id,),
+    )
+    if not rows:
+        raise RuntimeError(f"Approval {approval_id!r} not found")
+    row = rows[0]
+    if row["status"] != "pending":
+        raise RuntimeError(
+            f"Approval {approval_id!r} already resolved (status={row['status']})"
+        )
     db.execute(
         "UPDATE approvals SET status=?, reason=?, resolved_at=? WHERE approval_id=?",
         (status, reason, _now(), approval_id),

@@ -148,8 +148,8 @@ class TestReject:
             assert task_record.status == "halted"
             s.close()
 
-    def test_approve_pushes_to_pending_approval_queue(self, store, workflow_db) -> None:
-        """Approve pushes task_id to pending_approval_queue for auto-resume."""
+    def test_approve_sets_pending_approval_task_id(self, store, workflow_db) -> None:
+        """Approve sets pending_approval_task_id for auto-resume."""
         task = create_task(store._db, "session-old", 4, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "pending_approval")
         approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
@@ -161,5 +161,4 @@ class TestReject:
             mixin._cmd_approve(approval.approval_id)
 
         assert not errors
-        assert hasattr(mixin, "pending_approval_queue")
-        assert mixin.pending_approval_queue[0] == task.task_id
+        assert ctx.turn.pending_approval_task_id == task.task_id
