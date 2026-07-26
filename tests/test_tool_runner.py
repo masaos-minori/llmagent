@@ -1002,3 +1002,79 @@ class TestExecuteOneToolCallValidation:
         assert "extra" in text
         ctx.services_required.gateway.execute.assert_not_called()
         ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_validation_fallback_to_tool_definitions_on_registry_miss(
+        self,
+    ) -> None:
+        """When tool is not in RuntimeToolRegistry but exists in tool_definitions,
+        validation uses the gateway-defined schema."""
+        tool_defs = [
+            {
+                "name": "unknown_tool",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string"}},
+                },
+            }
+        ]
+        cfg = _cfg(tool_definitions=tool_defs)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.side_effect = KeyError("unknown_tool")
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        tc = _tc("unknown_tool", '{"path": "/tmp/f", "extra": "malicious"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, _, text, is_error, llm_text = result
+        assert name == "unknown_tool"
+        assert is_error is True
+        assert "extra" in text
+        assert "extra" in llm_text
+        ctx.services_required.gateway.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_validation_passes_via_tool_definitions_when_registry_miss(
+        self,
+    ) -> None:
+        """When tool is not in RuntimeToolRegistry but exists in tool_definitions
+        with valid args, execution proceeds via the gateway."""
+        tool_defs = [
+            {
+                "name": "unknown_tool",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string"}},
+                },
+            }
+        ]
+        cfg = _cfg(tool_definitions=tool_defs)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.get.side_effect = KeyError("unknown_tool")
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        tc = _tc("unknown_tool", '{"path": "/tmp/f"}')
+        result = await execute_one_tool_call(ctx, tc, 0)
+
+        _, name, args, text, is_error, llm_text = result
+        assert name == "unknown_tool"
+        assert is_error is False
+        ctx.services_required.gateway.execute.assert_awaited_once_with(
+            ctx, "unknown_tool", {"path": "/tmp/f"}
+        )
+        ctx.services_required.tools.execute.assert_not_called()

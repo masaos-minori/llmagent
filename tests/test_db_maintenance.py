@@ -163,6 +163,30 @@ class TestPurgeOldSessions:
         rows = db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
         assert rows == 2
 
+    def test_boundary_below_max_sessions(self) -> None:
+        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(9)])
+        cfg = RetentionConfig(max_sessions=10, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 0
+
+    def test_boundary_at_max_sessions(self) -> None:
+        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(10)])
+        cfg = RetentionConfig(max_sessions=10, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 0
+
+    def test_boundary_above_max_sessions(self) -> None:
+        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(11)])
+        cfg = RetentionConfig(max_sessions=10, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 1
+
     def test_age_zero_skips_age_check(self) -> None:
         db = _make_session_db([("old", "2000-01-01 00:00:00")])
         cfg = RetentionConfig(max_sessions=100, max_age_days=0)

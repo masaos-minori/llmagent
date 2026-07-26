@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.ingester import RagIngester
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,17 +134,16 @@ class TestJsonLifecycle:
         assert "etag" in data
         assert "last_modified" in data
 
-    def test_chunk_splitter_processes_json(self, chunk_json: Path) -> None:
+    def test_chunk_splitter_processes_json(
+        self, chunk_json: Path, tmp_path: Path
+    ) -> None:
         """ChunkSplitter must process chunk JSON and produce heading chunks."""
-        # ChunkSplitter reads .json files from src_dir and splits them into chunks.
-        # The key invariant is that the full pipeline (crawler → chunk splitter → ingester)
-        # preserves all metadata from the crawler output through to the RAG database.
-        assert chunk_json.exists()
-        with open(chunk_json, encoding="utf-8") as f:
-            data = json.load(f)
-        assert "content" in data
-        assert "url" in data
-        assert "title" in data
+        chunker = ChunkSplitter(config={"rag_src_dir": str(tmp_path)})
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        result = chunker.process_file(chunk_json, force=True)
+        assert result >= 1
+        assert (chunk_dir / f"{chunk_json.stem}-0000.json").exists()
 
     def test_ingester_reads_chunk_json(self, chunk_json: Path, tmp_path: Path) -> None:
         """RagIngester must read chunk JSON and store it in the RAG database."""

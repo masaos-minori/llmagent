@@ -19,7 +19,7 @@ class TestRagToolsInRegistry:
             strict_mode=False,
             runtime_registry=runtime_registry,
         )
-        return set(resolver._runtime_registry.get_all_tool_names())
+        return {t.name for t in resolver._runtime_registry.all_tools()}
 
     def test_rag_run_pipeline_registered(self) -> None:
         tools = self._get_rag_tools_in_registry()
