@@ -123,6 +123,12 @@ class _WorkflowMixin(MixinBase):
 
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
+        if self._ctx.turn.pending_approval_task_id is not None:
+            logger.warning(
+                "Overwriting pending_approval_task_id %s with %s",
+                self._ctx.turn.pending_approval_task_id,
+                task_id,
+            )
         self._ctx.turn.pending_approval_task_id = task_id
         self._out.write(
             f"Approved: {approval.approval_id} — workflow will resume on next turn"

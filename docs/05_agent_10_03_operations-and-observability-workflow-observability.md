@@ -145,6 +145,8 @@ grep '"workflow_id":"<id>"' /opt/llm/logs/audit.log | jq .
 
 `DiagnosticStore.save()` は `workflow_id` と `task_id` を受け取れる引数を持つが(`session_diagnostics` テーブルにも同名カラムが存在)、`_persist_session_diagnostics()` からの `session_summary` 保存時にはこれらは指定されず、`workflow_id`/`task_id` はワークフロー単位ではなくJSON化された `content` 内の集計値としてのみ記録される(根拠: Explicit in code)。
 
+**機微フィールドの警告ログ:** `_persist_session_diagnostics()` は `summary` 構築後、`DiagnosticStore.save()` を呼び出す前に、`summary["artifacts"]`/`summary["rag_stage_outcomes"]` の元になったローカル変数 `artifacts`/`rag_stage_outcomes`(同一のオブジェクト)が非空かを判定し、非空であれば件数(`len(...)`)を含む `logger.warning` を1回(セッション終了ごとに1回、個々の artifact/RAG 出力単位ではない)出力する。`save()` はこの2フィールドを挿入前に無条件で `{"_redacted": true, "count": <元の要素数>}` に置き換えるため(詳細: [05_agent_09_01_data-layer-session-db.md §機微フィールドのフィルタリング](05_agent_09_01_data-layer-session-db.md))、この警告はオペレーターに「元データはログ上のカウント通り存在したが、`session_diagnostics` テーブルには保存されず redaction された」ことを可視化する。警告メッセージには件数のみが含まれ、artifact の URI や RAG ステージ出力の内容そのものはログに出力されない(根拠: Explicit in code)。
+
 セッション診断のクエリ:
 
 ```bash
@@ -168,6 +170,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT DISTINCT kind FROM session_diagnostic
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
+- `05_agent_09_01_data-layer-session-db.md`
 - `05_agent_10_01_operations-and-observability-startup-and-health.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
 - `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`

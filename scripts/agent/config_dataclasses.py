@@ -11,7 +11,8 @@ Defines:
   MCPConfig       - MCP server lifecycle settings
   ApprovalConfig  - Risk-based tool approval policy settings
   ObservabilityConfig - OpenTelemetry tracing, audit logging, and structured log settings
-  AgentConfig     - Composite: composes 7 domain-specific sub-configs
+  DiagnosticsConfig - Diagnostic storage encryption and retention settings
+  AgentConfig     - Composite: composes 8 domain-specific sub-configs
 
 Import from here:  from agent.config_dataclasses import AgentConfig, LLMConfig, ...
 """
@@ -368,6 +369,18 @@ class ObservabilityConfig:
     structured_log: bool = False
 
 
+@dataclass
+class DiagnosticsConfig:
+    """Diagnostic storage encryption and retention settings."""
+
+    # Fernet symmetric key for encrypting session_diagnostics.content when
+    # DiagnosticStore.save(encrypt=True) is used; "" disables encryption (opt-in).
+    encryption_key: str = ""
+    # session_diagnostics rows older than this are purged lazily on each save();
+    # <= 0 disables purge.
+    retention_days: int = 30
+
+
 # ---------------------------------------------------------------------------
 # Composite config
 # ---------------------------------------------------------------------------
@@ -377,7 +390,7 @@ class ObservabilityConfig:
 class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
-    Composes 7 domain-specific sub-configs.
+    Composes 8 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.use_semantic_cache, etc.
     security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
@@ -389,6 +402,7 @@ class AgentConfig:
     mcp: MCPConfig = field(default_factory=MCPConfig)
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
+    diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     security_lockdown_enabled: bool = False
     agent_memory_max_startup_snippets: int = 10
 

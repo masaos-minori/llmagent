@@ -26,6 +26,7 @@ from shared.production_config_validator import ProductionConfigValidator
 from agent.config_dataclasses import (
     AgentConfig,
     ApprovalConfig,
+    DiagnosticsConfig,
     LLMConfig,
     MCPConfig,
     MemoryConfig,
@@ -434,6 +435,18 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
     )
 
 
+def _build_diagnostics_config(cfg: dict[str, Any]) -> DiagnosticsConfig:
+    """Build DiagnosticsConfig from a raw config dict's [diagnostics] table."""
+    diagnostics_raw = _get_dict(cfg, "diagnostics") or {}
+    encryption_key = _get_str(diagnostics_raw, "encryption_key") or ""
+    _rd = _get_int(diagnostics_raw, "retention_days")
+    retention_days = _rd if _rd is not None else 30
+    return DiagnosticsConfig(
+        encryption_key=encryption_key,
+        retention_days=retention_days,
+    )
+
+
 def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfig:
     """Construct AgentConfig from a config dict.
 
@@ -484,4 +497,5 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             audit_log_file=_get_str(cfg, "audit_log_file") or "/opt/llm/logs/audit.log",
             structured_log=structured_log,
         ),
+        diagnostics=_build_diagnostics_config(cfg),
     )

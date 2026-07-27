@@ -519,6 +519,12 @@ class StartupOrchestrator:
         task_id, approval = results[-1]
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
+        if ctx.turn.pending_approval_task_id is not None:
+            logger.warning(
+                "Overwriting pending_approval_task_id %s with %s during recovery",
+                ctx.turn.pending_approval_task_id,
+                task_id,
+            )
         ctx.turn.pending_approval_task_id = task_id
         logger.warning(
             "Recovered %d pending approval(s); showing last: task=%s approval=%s reason=%s",

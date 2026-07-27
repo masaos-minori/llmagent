@@ -123,7 +123,7 @@ AND (? = '' OR m.branch = '' OR m.branch = ?)
 | `on_session_start()` | `list[MemorySnippet]` | importance 順の上位セマンティックエントリ（同期） |
 | `on_user_prompt(query, session_id)` | `list[MemorySnippet]` | 埋め込みを用いたセマンティック＋エピソディック検索（非同期） |
 
-`InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.5)` を使用する。
+`InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.5, max_snippet_length=500)` を使用する。
 
 **失敗モード:** クエリが空の場合に `InjectionValidationError`。
 
@@ -134,8 +134,20 @@ AND (? = '' OR m.branch = '' OR m.branch = ?)
 | `min_importance` | `float` | `0.5` | 検索対象とする importance の最小閾値 |
 | `format_prefix_semantic` | `str` | `"[Semantic memory]"` | セマンティックスニペットのプレフィックス |
 | `format_prefix_episodic` | `str` | `"[Episodic memory]"` | エピソディックスニペットのプレフィックス |
+| `max_snippet_length` | `int` | `500` | スニペットの最大文字数（`truncate_snippet()` に渡される） |
 
 **失敗モード:** クエリが空の場合に `InjectionValidationError`。
+
+**PII フィルタリングと長さ制限（`snippet_filter.py` 連携）:**
+
+`_build_snippets_from_entries()`（`on_session_start()` が使用）と `_build_snippets_from_hits()`（`on_user_prompt()` が使用）は、スニペット本文を組み立てる際に `agent.memory.snippet_filter` の関数を順に適用する:
+
+1. `filter_pii(snippet_text)` — 正規表現ベースの PII（メール、電話番号、クレジットカード番号、SSN、API キー、IP アドレス）を `[REDACTED_*]` に置換する。マッチがあった場合は `FilteredSnippet.was_filtered=True`。
+2. `truncate_snippet(filtered.text, self._policy.max_snippet_length)` — フィルタ後のテキストを `max_snippet_length` 文字に切り詰め、超過時は末尾に `...[truncated]` を付与する。マッチがあった場合は `TruncatedSnippet.was_truncated=True`。
+
+いずれかが `True` の場合、`logger.warning()` で件数・文字数のみを記録する（元のスニペット本文はログに出力しない — リダクションをログ経由で無効化しないため）。
+
+根拠: Explicit in code（`injection.py` の `_build_snippets_from_entries()` / `_build_snippets_from_hits()`、`snippet_filter.py` の `filter_pii()` / `truncate_snippet()`）。
 
 ### 9. `ingestion.py` — 抽出＋重複排除＋永続化
 

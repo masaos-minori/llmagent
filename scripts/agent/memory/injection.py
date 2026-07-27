@@ -16,6 +16,7 @@ from agent.memory.enums import MemoryType
 from agent.memory.exceptions import InjectionValidationError
 from agent.memory.models import MemorySnippet
 from agent.memory.retriever import HybridRetriever
+from agent.memory.snippet_filter import filter_pii, truncate_snippet
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class InjectionPolicy:
     min_importance: float = 0.5
     format_prefix_semantic: str = "[Semantic memory]"
     format_prefix_episodic: str = "[Episodic memory]"
+    max_snippet_length: int = 500
 
 
 class MemoryInjectionService:
@@ -82,6 +84,22 @@ class MemoryInjectionService:
         snippets: list[MemorySnippet] = []
         for entry in entries:
             snippet_text = entry.summary if entry.summary else entry.content[:100]
+            filtered = filter_pii(snippet_text)
+            snippet_text = filtered.text if filtered.text is not None else snippet_text
+            truncated = truncate_snippet(snippet_text, self._policy.max_snippet_length)
+            snippet_text = truncated.text
+            if filtered.was_filtered:
+                logger.warning(
+                    "MemoryInjectionService._build_snippets_from_entries: "
+                    "redacted PII from 1 snippet"
+                )
+            if truncated.was_truncated:
+                logger.warning(
+                    "MemoryInjectionService._build_snippets_from_entries: "
+                    "truncated snippet from %d chars to %d chars",
+                    truncated.original_length,
+                    self._policy.max_snippet_length,
+                )
             snippets.append(
                 MemorySnippet(
                     text=f"{prefix} {snippet_text}",
@@ -99,6 +117,22 @@ class MemoryInjectionService:
             snippet_text = (
                 hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
             )
+            filtered = filter_pii(snippet_text)
+            snippet_text = filtered.text if filtered.text is not None else snippet_text
+            truncated = truncate_snippet(snippet_text, self._policy.max_snippet_length)
+            snippet_text = truncated.text
+            if filtered.was_filtered:
+                logger.warning(
+                    "MemoryInjectionService._build_snippets_from_hits: "
+                    "redacted PII from 1 snippet"
+                )
+            if truncated.was_truncated:
+                logger.warning(
+                    "MemoryInjectionService._build_snippets_from_hits: "
+                    "truncated snippet from %d chars to %d chars",
+                    truncated.original_length,
+                    self._policy.max_snippet_length,
+                )
             snippets.append(
                 MemorySnippet(
                     text=f"{prefix} {snippet_text}",

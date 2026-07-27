@@ -9,6 +9,8 @@ StartupOrchestrator._start_servers().
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 import sqlite3
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -26,6 +28,7 @@ def _make_bare_repl() -> AgentREPL:
     ctx.conv.shutdown_requested = False
     ctx.services_required.llm.stat_partial_completions = 0
     ctx.session.session_id = 1
+    ctx.cfg.approval.allowed_root = "/opt/llm"
     ctx.stats.stat_partial_completions = 0
     ctx.stats.stat_turns = 0
     ctx.stats.stat_tool_calls = 0
@@ -297,6 +300,88 @@ class TestPersistSessionDiagnostics:
         with patch("agent.repl.SQLiteHelper", return_value=mock_helper):
             repl._persist_session_diagnostics(repl._ctx)
 
+    def test_warns_when_artifacts_present(self):
+        """Non-empty `artifacts` triggers a warning naming the sensitive fields."""
+        repl = self._make_repl()
+        repl._ctx.services = None
+
+        mock_state_store = MagicMock()
+        mock_state_store.get_task_count.return_value = 0
+        mock_state_store.get_workflow_count.return_value = 0
+        mock_state_store.get_approval_count.return_value = 0
+        mock_state_store.get_execute_attempt_count.return_value = 0
+        mock_state_store.get_artifact_uris.return_value = ["file:///tmp/a.txt"]
+        repl._diagnostic_store.fetch.return_value = []
+
+        with (
+            patch(
+                "agent.workflow.state_store.StateStore", return_value=mock_state_store
+            ),
+            patch("agent.repl.logger") as mock_logger,
+        ):
+            repl._persist_session_diagnostics(repl._ctx)
+
+        mock_logger.warning.assert_called_once()
+        args = mock_logger.warning.call_args.args
+        assert "sensitive fields" in args[0]
+        assert args[1] == 1  # artifacts count
+        assert args[2] == 0  # rag_stage_outcomes count
+
+    def test_warns_when_rag_stage_outcomes_present(self):
+        """Non-empty `rag_stage_outcomes` triggers a warning naming the sensitive fields."""
+        repl = self._make_repl()
+        repl._ctx.services = None
+
+        mock_state_store = MagicMock()
+        mock_state_store.get_task_count.return_value = 0
+        mock_state_store.get_workflow_count.return_value = 0
+        mock_state_store.get_approval_count.return_value = 0
+        mock_state_store.get_execute_attempt_count.return_value = 0
+        mock_state_store.get_artifact_uris.return_value = []
+        repl._diagnostic_store.fetch.return_value = [
+            {
+                "kind": "rag_query",
+                "content": json.dumps({"stage_results": [{"stage": "retrieve"}]}),
+            }
+        ]
+
+        with (
+            patch(
+                "agent.workflow.state_store.StateStore", return_value=mock_state_store
+            ),
+            patch("agent.repl.logger") as mock_logger,
+        ):
+            repl._persist_session_diagnostics(repl._ctx)
+
+        mock_logger.warning.assert_called_once()
+        args = mock_logger.warning.call_args.args
+        assert "sensitive fields" in args[0]
+        assert args[1] == 0  # artifacts count
+        assert args[2] == 1  # rag_stage_outcomes count
+
+    def test_no_warning_when_no_sensitive_fields(self):
+        """Empty `artifacts` and `rag_stage_outcomes` log no warning."""
+        repl = self._make_repl()
+        repl._ctx.services = None
+
+        mock_state_store = MagicMock()
+        mock_state_store.get_task_count.return_value = 0
+        mock_state_store.get_workflow_count.return_value = 0
+        mock_state_store.get_approval_count.return_value = 0
+        mock_state_store.get_execute_attempt_count.return_value = 0
+        mock_state_store.get_artifact_uris.return_value = []
+        repl._diagnostic_store.fetch.return_value = []
+
+        with (
+            patch(
+                "agent.workflow.state_store.StateStore", return_value=mock_state_store
+            ),
+            patch("agent.repl.logger") as mock_logger,
+        ):
+            repl._persist_session_diagnostics(repl._ctx)
+
+        mock_logger.warning.assert_not_called()
+
 
 # ── _read_input SIGTERM race (M-7) ─────────────────────────────────────────────
 
@@ -520,6 +605,273 @@ class TestCloseResourcesWALCheckpoint:
         mock_copy2.assert_called_once()
         args, _ = mock_copy2.call_args
         assert args[0] == "/opt/llm/db/session.db-wal"
+
+
+# ── _wal_backup_sync() path-containment security ───────────────────────────────
+
+
+class TestWalBackupPathSecurity:
+    """Tests for the path-traversal/symlink-escape protection and session-based
+    filename added to AgentREPL._wal_backup_sync()."""
+
+    @staticmethod
+    def _mock_helper_for_db_path(db_path: str):
+        """Return a SQLiteHelper patch whose PRAGMA database_list resolves to db_path."""
+        mock_db = MagicMock()
+        mock_db.execute.return_value.fetchone.return_value = (0, "main", db_path)
+        mock_ctx_manager = MagicMock()
+        mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
+        mock_ctx_manager.__exit__ = MagicMock(return_value=None)
+        return mock_ctx_manager
+
+    def test_rejects_path_outside_allowed_root(self, tmp_path) -> None:
+        """A db_path that resolves outside allowed_root is rejected: no copy is
+        attempted, the backup path is None, and a descriptive error is recorded."""
+        repl = _make_bare_repl()
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        repl._ctx.cfg.approval.allowed_root = str(allowed_root)
+        outside_db = tmp_path / "outside" / "session.db"
+        outside_db.parent.mkdir()
+        outside_db.write_text("db")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(outside_db))
+        with (
+            patch("agent.repl.SQLiteHelper") as MockHelper,
+            patch("agent.repl.shutil.copy2") as mock_copy2,
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        mock_copy2.assert_not_called()
+        assert backup_path is None
+        assert any(name == "wal_backup_path_rejected" for name, _ in errors)
+
+    def test_rejects_symlink_that_resolves_outside_allowed_root(self, tmp_path) -> None:
+        """A db_path inside allowed_root that is actually a symlink pointing
+        outside allowed_root must be rejected after resolving the symlink."""
+        repl = _make_bare_repl()
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        repl._ctx.cfg.approval.allowed_root = str(allowed_root)
+        outside_target = tmp_path / "outside" / "real.db"
+        outside_target.parent.mkdir()
+        outside_target.write_text("db")
+        symlinked_db = allowed_root / "session.db"
+        symlinked_db.symlink_to(outside_target)
+        mock_ctx_manager = self._mock_helper_for_db_path(str(symlinked_db))
+        with (
+            patch("agent.repl.SQLiteHelper") as MockHelper,
+            patch("agent.repl.shutil.copy2") as mock_copy2,
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        mock_copy2.assert_not_called()
+        assert backup_path is None
+        assert any(name == "wal_backup_path_rejected" for name, _ in errors)
+
+    def test_allows_symlink_that_resolves_inside_allowed_root(self, tmp_path) -> None:
+        """A symlinked db_path whose resolved target stays inside allowed_root
+        continues to back up normally, and the filename embeds the session id."""
+        repl = _make_bare_repl()
+        repl._ctx.session.session_id = 42
+        allowed_root = tmp_path / "allowed"
+        real_dir = allowed_root / "real"
+        real_dir.mkdir(parents=True)
+        repl._ctx.cfg.approval.allowed_root = str(allowed_root)
+        real_target = real_dir / "session.db"
+        real_target.write_text("db")
+        symlinked_db = allowed_root / "session.db"
+        symlinked_db.symlink_to(real_target)
+        # The WAL sidecar file is looked up next to the literal db_path string
+        # (pre-resolution), not the resolved target.
+        (allowed_root / "session.db-wal").write_text("wal")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(symlinked_db))
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        assert errors == []
+        assert backup_path is not None
+        assert "-wal-backup-42-" in backup_path
+        assert os.path.exists(backup_path)
+
+    def test_skipped_when_backup_dir_not_writable(self, tmp_path) -> None:
+        """When the backup directory is not writable, the backup is skipped with
+        a recorded error instead of attempting shutil.copy2()."""
+        repl = _make_bare_repl()
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        repl._ctx.cfg.approval.allowed_root = str(allowed_root)
+        db_path = allowed_root / "session.db"
+        db_path.write_text("db")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
+        with (
+            patch("agent.repl.SQLiteHelper") as MockHelper,
+            patch("agent.repl.os.access", return_value=False),
+            patch("agent.repl.shutil.copy2") as mock_copy2,
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        mock_copy2.assert_not_called()
+        assert backup_path is None
+        assert any(name == "wal_backup_dir_not_writable" for name, _ in errors)
+
+    def test_backup_allowed_when_allowed_root_unset(self, tmp_path) -> None:
+        """An empty allowed_root means unrestricted, matching
+        tool_policy.check_allowed_root()'s convention."""
+        repl = _make_bare_repl()
+        repl._ctx.cfg.approval.allowed_root = ""
+        db_path = tmp_path / "session.db"
+        db_path.write_text("db")
+        (tmp_path / "session.db-wal").write_text("wal")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        assert errors == []
+        assert backup_path is not None
+
+    def test_filename_falls_back_to_uuid_when_session_id_none(self, tmp_path) -> None:
+        """When session_id is unset (e.g. init failed before a session was
+        created), the filename falls back to a short uuid instead of raising."""
+        repl = _make_bare_repl()
+        repl._ctx.session.session_id = None
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        repl._ctx.cfg.approval.allowed_root = str(allowed_root)
+        db_path = allowed_root / "session.db"
+        db_path.write_text("db")
+        (allowed_root / "session.db-wal").write_text("wal")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = repl._wal_backup_sync()
+        assert errors == []
+        assert backup_path is not None
+        # filename shape: {basename}-wal-backup-{tag}-{timestamp}; tag is an
+        # 8-char hex uuid fragment, not the (absent) session id.
+        tag = os.path.basename(backup_path).split("-wal-backup-")[1].rsplit("-", 1)[0]
+        assert len(tag) == 8
+
+
+# ── _close_resources() independently-guarded service cleanup ──────────────────
+
+
+class TestCloseResourcesServiceCleanupGuards:
+    """Tests that lifecycle.shutdown_all() and http.aclose() are independently
+    guarded in AgentREPL._close_resources() so a None services object or a
+    failure in one call cannot block the other."""
+
+    @staticmethod
+    def _patch_wal_non_wal_mode():
+        """Return a SQLiteHelper patch that reports non-WAL journal mode, so the
+        checkpoint/backup stages complete quickly without further mocking."""
+        mock_db = MagicMock()
+        mock_db.execute.return_value.fetchone.return_value = ("delete",)
+        mock_ctx_manager = MagicMock()
+        mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
+        mock_ctx_manager.__exit__ = MagicMock(return_value=None)
+        return mock_ctx_manager
+
+    @pytest.mark.asyncio
+    async def test_services_none_does_not_raise(self) -> None:
+        """services=None must not raise or block WAL cleanup above it."""
+        repl = _make_bare_repl()
+        repl._ctx.services = None
+        mock_ctx_manager = self._patch_wal_non_wal_mode()
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            await repl._close_resources()  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_http_aclose_runs_when_lifecycle_shutdown_raises(self) -> None:
+        """A failure in lifecycle.shutdown_all() must not prevent http.aclose()
+        from being called — the two cleanup calls are independently guarded."""
+        repl = _make_bare_repl()
+        repl._ctx.services.lifecycle.shutdown_all = AsyncMock(
+            side_effect=RuntimeError("lifecycle boom")
+        )
+        mock_ctx_manager = self._patch_wal_non_wal_mode()
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            await repl._close_resources()
+        repl._ctx.services.http.aclose.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_lifecycle_shutdown_runs_when_http_aclose_raises(self) -> None:
+        """A failure in http.aclose() does not affect lifecycle.shutdown_all(),
+        which already ran independently above it."""
+        repl = _make_bare_repl()
+        repl._ctx.services.http.aclose = AsyncMock(
+            side_effect=RuntimeError("http boom")
+        )
+        mock_ctx_manager = self._patch_wal_non_wal_mode()
+        with patch("agent.repl.SQLiteHelper") as MockHelper:
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            await repl._close_resources()
+        repl._ctx.services.lifecycle.shutdown_all.assert_called_once()
+
+
+# ── run() _sigterm_handler _turn_active guard ──────────────────────────────────
+
+
+class TestSigtermHandlerTurnActiveGuard:
+    """Tests for the _turn_active guard in run()'s _sigterm_handler closure:
+    the input coroutine must only be cancelled while no turn is active."""
+
+    @staticmethod
+    async def _run_and_capture_handler(repl: AgentREPL) -> list:
+        """Drive run() far enough to register signal handlers, capture the
+        registered closure, then let startup fail so run() exits promptly."""
+        captured: list = []
+
+        def fake_add_signal_handler(sig, handler):
+            captured.append(handler)
+
+        loop = asyncio.get_running_loop()
+        with (
+            patch("agent.startup.StartupOrchestrator") as MockStartup,
+            patch("agent.repl.SQLiteHelper"),
+            patch.object(
+                loop, "add_signal_handler", side_effect=fake_add_signal_handler
+            ),
+        ):
+            MockStartup.return_value.run = AsyncMock(
+                side_effect=RuntimeError("stop-after-registration")
+            )
+            with pytest.raises(RuntimeError, match="stop-after-registration"):
+                await repl.run()
+        return captured
+
+    @pytest.mark.asyncio
+    async def test_input_coro_not_cancelled_when_turn_active(self) -> None:
+        repl = _make_bare_repl()
+        repl._turn_active = True
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        repl._input_coro = mock_task
+
+        handlers = await self._run_and_capture_handler(repl)
+        assert handlers, "signal handler was not registered via add_signal_handler"
+        handlers[0]()
+
+        mock_task.cancel.assert_not_called()
+        assert repl._ctx.conv.shutdown_requested is True
+        assert repl._shutdown_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_input_coro_cancelled_when_turn_not_active(self) -> None:
+        repl = _make_bare_repl()
+        repl._turn_active = False
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        repl._input_coro = mock_task
+
+        handlers = await self._run_and_capture_handler(repl)
+        assert handlers, "signal handler was not registered via add_signal_handler"
+        handlers[0]()
+
+        mock_task.cancel.assert_called_once()
+        assert repl._ctx.conv.shutdown_requested is True
+        assert repl._shutdown_event.is_set()
 
 
 # ── AgentContext.__init__() config error message ──────────────────────────────

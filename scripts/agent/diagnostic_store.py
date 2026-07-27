@@ -8,12 +8,22 @@ separate from normal conversation messages.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import orjson
+from cryptography.fernet import Fernet
 from db.helper import SQLiteHelper
+from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps
 
+from agent.config_dataclasses import DiagnosticsConfig
+
 logger = logging.getLogger(__name__)
+
+# Payload keys redacted by _filter_sensitive_fields(); may carry raw artifact
+# URIs or RAG stage outcome contents that should not be persisted unredacted.
+_SENSITIVE_FIELDS: tuple[str, ...] = ("artifacts", "rag_stage_outcomes")
 
 
 class DiagnosticStore:
@@ -23,6 +33,83 @@ class DiagnosticStore:
         """Initialize the diagnostic store with an optional session ID."""
         self.session_id = session_id
 
+    def _load_diagnostics_config(self) -> DiagnosticsConfig:
+        """Load diagnostics encryption/retention settings from agent.toml.
+
+        Reads config directly via ConfigLoader rather than the full
+        AgentConfig/build_agent_config() pipeline, since DiagnosticStore has
+        no AgentContext reference to draw a shared config instance from —
+        mirrors the RetentionConfig.from_config() pattern already used for
+        session retention (db/maintenance.py).
+        """
+        raw_cfg = ConfigLoader().load("agent.toml")
+        diagnostics_raw = raw_cfg.get("diagnostics", {})
+        if not isinstance(diagnostics_raw, dict):
+            diagnostics_raw = {}
+        return DiagnosticsConfig(
+            encryption_key=str(diagnostics_raw.get("encryption_key", "")),
+            retention_days=int(diagnostics_raw.get("retention_days", 30)),
+        )
+
+    def _filter_sensitive_fields(self, content: str) -> str:
+        """Redact sensitive fields from a JSON diagnostic payload.
+
+        Replaces `artifacts` and `rag_stage_outcomes` list values with
+        `{"_redacted": True, "count": <len>}` so downstream readers can tell
+        "filtered" apart from "field never populated", without leaking the
+        raw artifact URIs or RAG stage outcome contents. Content that is not
+        valid JSON, or not a JSON object, is returned unchanged.
+        """
+        try:
+            payload = orjson.loads(content)
+        except orjson.JSONDecodeError:
+            return content
+        if not isinstance(payload, dict):
+            return content
+        redacted = False
+        for field_name in _SENSITIVE_FIELDS:
+            value = payload.get(field_name)
+            if isinstance(value, list):
+                payload[field_name] = {"_redacted": True, "count": len(value)}
+                redacted = True
+        if not redacted:
+            return content
+        return dumps(payload)
+
+    def _encrypt_content(self, content: str, key: str) -> str:
+        """Encrypt content with Fernet using the configured key.
+
+        Pass-through (no-op) when key is empty, since encryption is opt-in
+        and requires a configured key.
+        """
+        if not key:
+            return content
+        return (
+            Fernet(key.encode("utf-8")).encrypt(content.encode("utf-8")).decode("utf-8")
+        )
+
+    def _purge_old_diagnostics(self) -> None:
+        """Delete diagnostic rows older than the configured retention period."""
+        retention_days = self._load_diagnostics_config().retention_days
+        if retention_days <= 0:
+            return
+        cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            cur = db.execute(
+                "DELETE FROM session_diagnostics WHERE created_at < ?",
+                (cutoff,),
+            )
+            db.commit()
+            deleted = cur.rowcount
+        if deleted > 0:
+            logger.info(
+                "Purged %d diagnostic row(s) older than %d day(s)",
+                deleted,
+                retention_days,
+            )
+
     def save(
         self,
         session_id: int | None,
@@ -30,8 +117,21 @@ class DiagnosticStore:
         content: str,
         workflow_id: str | None = None,
         task_id: str | None = None,
+        encrypt: bool = False,
     ) -> None:
-        """Persist one diagnostic entry."""
+        """Persist one diagnostic entry.
+
+        Purges expired rows first, then redacts sensitive fields (`artifacts`,
+        `rag_stage_outcomes`) from `content` unconditionally. When
+        `encrypt=True` and an encryption key is configured, the redacted
+        content is Fernet-encrypted before being written.
+        """
+        self._purge_old_diagnostics()
+        content = self._filter_sensitive_fields(content)
+        if encrypt:
+            diagnostics_cfg = self._load_diagnostics_config()
+            if diagnostics_cfg.encryption_key:
+                content = self._encrypt_content(content, diagnostics_cfg.encryption_key)
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "INSERT INTO session_diagnostics"

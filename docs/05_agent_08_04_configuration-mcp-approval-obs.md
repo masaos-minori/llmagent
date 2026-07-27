@@ -100,15 +100,30 @@ Source: `config/agent.toml`
 | `audit_log_file` | `"/opt/llm/logs/audit.log"` | 監査ログのパス (JSON-lines) |
 | `structured_log` | `False` | `agent.log`にJSON-lines形式を使用 |
 
+---
+
+## DiagnosticsConfig (`cfg.diagnostics.*`)
+
+Source: `config/agent.toml` `[diagnostics]`
+
+| Field | Default | Description |
+|---|---|---|
+| `encryption_key` | `""` | `DiagnosticStore.save(encrypt=True)`用のFernet対称鍵。空文字列は暗号化を無効化する(オプトイン) |
+| `retention_days` | `30` | `session_diagnostics`の行保持日数。`save()`実行のたびに遅延パージされる。0以下でパージ無効 |
+
+**現在の実装挙動:** `DiagnosticStore`(`agent/diagnostic_store.py`)は`AgentContext`経由で`ctx.cfg`を保持していないため、`cfg.diagnostics.*`をそのまま参照するのではなく、`ConfigLoader().load("agent.toml")`で`[diagnostics]`テーブルを直接読み込み、`DiagnosticsConfig`を都度構築する(`db/maintenance.py`の`RetentionConfig.from_config()`と同じパターン)。`AgentConfig.diagnostics`(`build_agent_config()`が構築する`cfg.diagnostics`)は他コンポーネントから同じ設定に一貫してアクセスできるようにするための設定サーフェスであり、`/reload`のホットリロード対象にはまだ組み込まれていない(`ObservabilityConfig`/`cfg.obs.*`と同様、`agent/services/config_reload.py`に`_apply_*`呼び出しなし)。(Explicit in code)
+
 ## Related Documents
 
 - `05_agent_00_document-guide.md`
 - `05_agent_08_01_configuration-loading-agent-config-part1.md`
 - `05_agent_08_02_configuration-llm-rag.md`
 - `05_agent_08_03_configuration-tools-memory.md`
+- `05_agent_09_01_data-layer-session-db.md`
 
 ## Keywords
 
 MCPConfig
 ApprovalConfig
 ObservabilityConfig
+DiagnosticsConfig

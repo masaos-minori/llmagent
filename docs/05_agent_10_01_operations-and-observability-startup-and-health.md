@@ -69,6 +69,11 @@ agent[:#1]>
 - **複数セッション時の動作:** 保留中の承認は同時に1件のみ追跡される。全セッションを通じた最新のレコードが復元される(セッション固有ではない)
 - **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`(`reason` が未設定の場合は `none` と表示される。根拠: `startup.py` の `_recover_pending_approvals()`、`approval.reason or 'none'`)
 - **確認方法:** `sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 1;"`
+- **上書き警告:** `_recover_pending_approvals()`は`ctx.turn.pending_approval_task_id`に既存の値
+  (起動処理内の他の経路で設定済みの値)がある状態で復元値を設定する場合、`startup.py`の
+  ロガーへ`WARNING`レベルでログを出力する(新旧両方のtask_idを含む)。`cmd_workflow.py`の
+  `/approve`と同じ上書き保護パターンであり、値は復元処理を中断せずに新しいtask_idへ上書き
+  される(根拠: `startup.py`の`_recover_pending_approvals()`)。
 
 ---
 
@@ -327,7 +332,17 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 # _wal_backup_sync() (repl.py) — runs in a worker thread via run_in_executor
 with SQLiteHelper("session").open(write_mode=True) as db:
     db_path = db.execute("PRAGMA database_list").fetchone()[2]  # [2] = file path column
+    resolved_db_path = os.path.realpath(db_path)
+    if not self._is_db_path_allowed(resolved_db_path):
+        # resolved path is outside cfg.approval.allowed_root -- skip, do not copy
+        errors.append(("wal_backup_path_rejected", ...))
+        return None, errors
+    if not os.path.isdir(backup_dir) or not os.access(backup_dir, os.W_OK):
+        errors.append(("wal_backup_dir_not_writable", ...))
+        return None, errors
     wal_file = f"{db_path}-wal"
+    session_tag = str(session_id) if session_id is not None else uuid.uuid4().hex[:8]
+    wal_backup_path = os.path.join(backup_dir, f"{basename}-wal-backup-{session_tag}-{int(time.time())}")
     shutil.copy2(wal_file, wal_backup_path)
 ```
 
@@ -336,29 +351,76 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 2. PASSIVEが失敗した場合、TRUNCATEを最大3回（指数バックオフ: 1s, 2s, 4s）リトライ
 3. 最終的にTRUNCATEが失敗した場合、またはチェックポイント処理自体がタイムアウトした場合、
    WALファイルをバックアップコピー（`_WAL_BACKUP_TIMEOUT_S`、デフォルト10.0秒で打ち切り）
-4. バックアップファイル名にはタイムスタンプを含む（連続再起動時の名前衝突防止）
-5. `PRAGMA database_list`の結果からDBファイルパスを読むインデックスは`[2]`（ファイルパス列）。
+4. コピー前に`os.path.realpath()`でシンボリックリンクを解決し、解決後のパスが
+   `self._ctx.cfg.approval.allowed_root`（`config/agent.toml`の`allowed_root`、
+   `tool_policy.py::check_allowed_root()`と同じディレクトリジェイル境界）の範囲内にあるかを
+   検証する（`_is_db_path_allowed()`）。`allowed_root`が未設定の場合は無制限として扱う
+   （"unset means unrestricted" — `check_allowed_root()`と同じ規約）。範囲外の場合は
+   `shutil.copy2()`を呼ばずにバックアップをスキップし、警告ログと`wal_backup_path_rejected`
+   エラーを記録する。単純な`str.startswith(allowed_root)`ではなく、セパレータ境界を含めた
+   比較（`resolved == allowed_root or resolved.startswith(allowed_root + os.sep)`）を行う
+   ことで、`/opt/llm`という`allowed_root`が`/opt/llmx/...`のような接頭辞注入パスに
+   誤って一致しないようにしている
+5. コピー先ディレクトリ（`backup_dir`）が存在し書き込み可能であることを
+   `os.path.isdir()` + `os.access(backup_dir, os.W_OK)`で事前確認する。書き込み不可の場合は
+   バックアップをスキップし、`wal_backup_dir_not_writable`エラーを記録する
+6. バックアップファイル名は`{basename}-wal-backup-{session_id}-{timestamp}`の形式。
+   `self._ctx.session.session_id`をセッション識別子として使用し、未設定
+   （セッション開始前に初期化が失敗した場合）は`uuid.uuid4().hex[:8]`にフォールバックする。
+   タイムスタンプ部分は連続再起動時の名前衝突防止のため引き続き付与される
+7. `PRAGMA database_list`の結果からDBファイルパスを読むインデックスは`[2]`（ファイルパス列）。
    `[1]`はDB名列（例: `"main"`）であり誤り
 
 ### Lifecycle shutdown
 
 ```python
-await svc.lifecycle.shutdown_all()
-await svc.http.aclose()
+# _close_resources() (repl.py) — each cleanup call independently guarded
+svc = self._ctx.services
+if svc is not None:
+    try:
+        await svc.lifecycle.shutdown_all()
+    except Exception as e:
+        errors.append(("lifecycle_shutdown", f"{type(e).__name__}: {e}"))
+svc = self._ctx.services
+if svc is not None:
+    try:
+        await svc.http.aclose()
+    except Exception as e:
+        errors.append(("http_close", f"{type(e).__name__}: {e}"))
 ```
+
+`ctx.services`が`None`(起動が完了しなかった場合)のときはどちらの呼び出しもスキップされる。
+`lifecycle.shutdown_all()`と`http.aclose()`は個別の`if svc is not None:`ガードとtry/exceptで
+保護されており、一方が失敗（または`svc`が`None`）してももう一方の呼び出しは実行される —
+このガードより上で無条件に実行されるWALチェックポイント/バックアップ処理もブロックしない。
 
 ### エラーハンドリング
 
 リソースクローズ中のエラーはすべて捕捉され、ERRORレベルでログに記録される。
 個別のエラーは `errors` リストにタプル `(name, message)` として蓄積され、
 最後にまとめてログ出力される。エラー名には `wal_checkpoint` / `wal_checkpoint_truncate` /
-`wal_backup` に加え、タイムアウト専用の `wal_checkpoint_timeout` / `wal_backup_timeout`
-がある（`asyncio.wait_for(...)` が送出する `TimeoutError` を捕捉した場合に追加される）。
+`wal_backup` に加え、タイムアウト専用の `wal_checkpoint_timeout` / `wal_backup_timeout`、
+および`lifecycle.shutdown_all()`失敗時の`lifecycle_shutdown`、`http.aclose()`失敗時の
+`http_close`がある（`asyncio.wait_for(...)` が送出する `TimeoutError` を捕捉した場合に追加される）。
+WALバックアップの経路検証・書き込み可否チェックの失敗時にはそれぞれ`wal_backup_path_rejected`
+（`allowed_root`範囲外への解決）、`wal_backup_dir_not_writable`（バックアップ先ディレクトリが
+存在しない、または書き込み不可）が記録される。いずれもfail-safe設計であり、例外を送出せず
+バックアップをスキップするのみでシャットダウン処理は継続する。
 
 この仕様は`tests/test_repl.py`の`TestCloseResourcesWALCheckpoint`クラスで検証されており、
 PASSIVEチェックポイントの優先、TRUNCATEフォールバック、非WALモードでのスキップに加え、
 チェックポイントのタイムアウト時にバックアップ処理が実行されること、および
 `PRAGMA database_list`のカラムインデックス`[2]`からDBパスを読み取ることがテストされている。
+`lifecycle.shutdown_all()` / `http.aclose()`の独立ガードは`TestCloseResourcesServiceCleanupGuards`
+クラスで検証されており、`services=None`時に例外を出さないこと、および一方の呼び出しが例外を
+送出してももう一方が実行されることがテストされている。
+
+パスの経路検証・シンボリックリンク解決・セッションIDベースのファイル名は
+`TestWalBackupPathSecurity`クラスで検証されており、`allowed_root`外に解決されるパスの拒否、
+`allowed_root`外を指すシンボリックリンクの拒否、`allowed_root`内に解決されるシンボリックリンク
+(既存デプロイとの互換性)の許可、バックアップ先ディレクトリが書き込み不可な場合のスキップ、
+`allowed_root`が未設定の場合の無制限動作、および`session_id`が`None`のときの
+uuidフォールバックがテストされている。
 
 ---
 
@@ -379,3 +441,5 @@ health probes
 minimal agent db initialization
 shutdown resource cleanup
 WAL checkpoint
+WAL backup path validation
+allowed_root containment check

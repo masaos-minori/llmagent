@@ -105,6 +105,7 @@ related:
 - `registry.get(name)`が`KeyError`を送出した場合 (未登録ツール): `None`を返し、寛容にフォールバックする
 - 登録済みツールが見つかった場合: `agent/tool_arg_validator.py::validate_tool_arguments(tool_name, args, input_schema=runtime_tool.input_schema, allow_extra_fields=runtime_tool.allow_extra_fields)`を呼び出す
   - 必須フィールド欠如、スキーマ未定義の余剰フィールド (`allow_extra_fields=True`の場合は許容)、`jsonschema`による型不一致の3種類をチェックする
+  - 上記3種類のチェックがすべて成功した場合のみ、`tool_name`をキーに`_CUSTOM_VALIDATORS`レジストリ (`register_custom_validator(tool_name)`デコレータで登録) からカスタムフックを検索して実行する (`_run_custom_validator()`)。未登録のツールはno-op (`ValidationResult(success=True)`) で従来通りの挙動を維持する。フック内で発生した例外は`_run_custom_validator()`が捕捉し、`ValidationResult(success=False, reason=...)`に変換する (伝播させない)
   - 検証成功時は`None`を返し、通常のディスパッチ (gateway or 直接executor) に進む
   - 検証失敗時は合成の`ToolCallResult(is_error=True, source="validation", error_type="validation", output=<理由>)`を返し、`gateway.execute()`/`tools.execute()`のいずれも呼び出されない
 - `source="validation"`(非空文字列)を設定することで、`audit_tool_exec()`の早期リターンガード (`if not mcp_request_id and not source: return`) を回避し、拒否イベントも監査ログに記録される

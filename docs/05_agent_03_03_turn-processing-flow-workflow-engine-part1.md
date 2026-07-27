@@ -68,6 +68,19 @@ source:
 
 `WorkflowDef.get_stage(stage_id)` — 指定したidの`StageDefinition`を返す。存在しない場合は`None`。
 
+### 既存タスクの再開 (`_init_workflow_task()`)
+
+`Orchestrator._init_workflow_task()`は、`existing_task_id`(`ctx.turn.pending_approval_task_id`
+経由; `/approve`実行後にのみ設定され、使用後は即座に`None`に戻る)が渡された場合、新規タスクを
+作成せず`get_task_by_id()`で既存の`TaskRecord`を取得して再利用する。このとき2つの検証を行う:
+- タスクが見つからない場合 → `RuntimeError(f"Task {existing_task_id} not found")`
+- タスクのステータスが`halted`の場合 → `RuntimeError(f"Task {existing_task_id} is halted and
+  cannot be automatically resumed")` — halted状態は`/reject`または明示的な停止操作によって
+  到達する終端/一時停止状態であり、ユーザーの明示的な操作なしに自動再開してはならないため
+
+いずれの`RuntimeError`も呼び出し元 (`_handle_workflow_engine()`) の`except`節では捕捉されず
+(捕捉対象は`WorkflowPendingApprovalError`と`WorkflowHaltError`のみ)、さらに上位へ伝播する。
+
 ワークフローパッケージ: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine)。
 
 デフォルトのリトライポリシー (`default.json`に`retry_policy`が定義されていない場合に適用):

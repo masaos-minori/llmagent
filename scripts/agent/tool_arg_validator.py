@@ -6,16 +6,36 @@ Rejects tool calls that contain unexpected or invalid fields according to the MC
 definition's inputSchema, preventing argument injection attacks.
 
 Validation location: execute_one_tool_call() after orjson.loads(), before calling executor.
+
+Custom validation hooks:
+    Tool-specific validation rules stricter than the generic schema checks can be
+    registered per tool name via the `register_custom_validator` decorator. A
+    registered hook runs only after the required-field, extra-field, and type checks
+    have already passed, and must return a `ValidationResult` rather than raising.
+
+    Usage:
+        @register_custom_validator("my_tool")
+        def _validate_my_tool(args: dict) -> ValidationResult:
+            if args.get("count", 0) > 100:
+                return ValidationResult(success=False, reason="count must be <= 100")
+            return ValidationResult(success=True)
+
+    `validate_tool_arguments()` looks up and runs the registered hook (if any) for
+    the given tool name; tools without a registered hook are unaffected.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import jsonschema
 
 logger = logging.getLogger(__name__)
+
+CustomValidator = Callable[[dict], "ValidationResult"]
+_CUSTOM_VALIDATORS: dict[str, CustomValidator] = {}
 
 
 @dataclass(frozen=True)
@@ -73,7 +93,53 @@ def validate_tool_arguments(
     if not result.success:
         return result
 
+    result = _run_custom_validator(tool_name, args)
+    if not result.success:
+        return result
+
     return ValidationResult(success=True)
+
+
+def register_custom_validator(
+    tool_name: str,
+) -> Callable[[CustomValidator], CustomValidator]:
+    """Decorator that registers a custom validation hook for tool_name.
+
+    The registered hook runs after the built-in required/extra-field/type checks
+    pass, and must return a `ValidationResult` (never raise for expected validation
+    failures — see `_run_custom_validator` for exception handling).
+    """
+
+    def decorator(fn: CustomValidator) -> CustomValidator:
+        """Register this hook under the given tool name."""
+        _CUSTOM_VALIDATORS[tool_name] = fn
+        return fn
+
+    return decorator
+
+
+def _run_custom_validator(tool_name: str, args: dict) -> ValidationResult:
+    """Run the registered custom validation hook for tool_name, if any.
+
+    Returns success when no hook is registered. Any exception raised by the hook
+    is caught and converted into a failed ValidationResult so a custom hook can
+    never crash the calling tool-execution pipeline.
+    """
+    hook = _CUSTOM_VALIDATORS.get(tool_name)
+    if hook is None:
+        return ValidationResult(success=True)
+
+    try:
+        return hook(args)
+    except Exception as exc:
+        # Broad catch is intentional: hooks are arbitrary registered callables and
+        # must never crash execute_one_tool_call(); any failure becomes a normal
+        # ValidationResult failure instead of propagating.
+        logger.error("Custom validator raised for %s: %s", tool_name, exc)
+        return ValidationResult(
+            success=False,
+            reason=f"Custom validation error for {tool_name}: {exc}",
+        )
 
 
 def _check_required_fields(

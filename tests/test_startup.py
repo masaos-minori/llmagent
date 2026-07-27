@@ -217,6 +217,76 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         )
 
     @pytest.mark.asyncio
+    async def test_startup_recovery_warns_on_pending_approval_task_id_overwrite(
+        self,
+    ) -> None:
+        """Recovery logs a warning when it overwrites an already-set pending_approval_task_id."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = "task-old"
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        with patch(
+            "agent.startup.find_all_pending_approvals",
+            return_value=[("task-456", approval)],
+        ):
+            with patch("agent.startup.logger") as mock_logger:
+                await startup._recover_pending_approvals()
+
+        assert ctx.turn.pending_approval_task_id == "task-456"
+        overwrite_calls = [
+            call_args
+            for call_args in mock_logger.warning.call_args_list
+            if "Overwriting pending_approval_task_id" in call_args[0][0]
+        ]
+        assert len(overwrite_calls) == 1
+        assert overwrite_calls[0][0][1] == "task-old"
+        assert overwrite_calls[0][0][2] == "task-456"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_no_warning_when_task_id_not_already_set(
+        self,
+    ) -> None:
+        """No overwrite warning is logged when pending_approval_task_id starts unset."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        ctx.turn.pending_approval_task_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        with patch(
+            "agent.startup.find_all_pending_approvals",
+            return_value=[("task-456", approval)],
+        ):
+            with patch("agent.startup.logger") as mock_logger:
+                await startup._recover_pending_approvals()
+
+        assert ctx.turn.pending_approval_task_id == "task-456"
+        overwrite_calls = [
+            call_args
+            for call_args in mock_logger.warning.call_args_list
+            if "Overwriting pending_approval_task_id" in call_args[0][0]
+        ]
+        assert not overwrite_calls
+
+    @pytest.mark.asyncio
     async def test_startup_recovery_no_pending_approval(self) -> None:
         """No warning or state change when there is no pending approval."""
         ctx = MagicMock()

@@ -162,3 +162,39 @@ class TestReject:
 
         assert not errors
         assert ctx.turn.pending_approval_task_id == task.task_id
+
+    def test_approve_warns_on_pending_approval_task_id_overwrite(
+        self, store, workflow_db, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A second approve before the first task_id is consumed logs a warning."""
+        task_a = create_task(store._db, "session-old", 5, "1.0.0", "wf-test")
+        update_task_status(store._db, task_a.task_id, "pending_approval")
+        approval_a = request_approval(
+            store._db, task_id=task_a.task_id, stage_id="plan"
+        )
+
+        task_b = create_task(store._db, "session-old", 6, "1.0.0", "wf-test")
+        update_task_status(store._db, task_b.task_id, "pending_approval")
+        approval_b = request_approval(
+            store._db, task_id=task_b.task_id, stage_id="execute"
+        )
+        store.close()
+
+        mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
+
+        with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+            mixin._cmd_approve(approval_a.approval_id)
+            assert not errors
+            assert ctx.turn.pending_approval_task_id == task_a.task_id
+
+            with caplog.at_level("WARNING", logger="agent.commands.cmd_workflow"):
+                mixin._cmd_approve(approval_b.approval_id)
+
+        assert not errors
+        assert ctx.turn.pending_approval_task_id == task_b.task_id
+        assert any(
+            "Overwriting pending_approval_task_id" in record.message
+            for record in caplog.records
+        )
+        assert any(task_a.task_id in record.message for record in caplog.records)
+        assert any(task_b.task_id in record.message for record in caplog.records)

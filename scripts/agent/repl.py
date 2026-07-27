@@ -30,6 +30,7 @@ import signal
 import sqlite3
 import subprocess
 import time
+import uuid
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -232,6 +233,18 @@ class AgentREPL:
                 "rag_stage_outcomes": rag_stage_outcomes,
             }
 
+            if artifacts or rag_stage_outcomes:
+                # `artifacts`/`rag_stage_outcomes` are the same list objects stored under
+                # `summary["artifacts"]`/`summary["rag_stage_outcomes"]` above; referencing
+                # them directly (instead of indexing the heterogeneous `summary` dict) keeps
+                # a single source of truth while giving mypy a concrete `Sized` type.
+                logger.warning(
+                    "Session diagnostics contain sensitive fields (artifacts=%d, "
+                    "rag_stage_outcomes=%d) that will be filtered before persistence",
+                    len(artifacts),
+                    len(rag_stage_outcomes),
+                )
+
             # Persist to queryable DiagnosticStore
             try:
                 self._diagnostic_store.save(
@@ -299,6 +312,22 @@ class AgentREPL:
                         )
             return False, errors
 
+    def _is_db_path_allowed(self, resolved_db_path: str) -> bool:
+        """Return True when `resolved_db_path` is inside `cfg.approval.allowed_root`.
+
+        Matches `tool_policy.check_allowed_root()`'s "unset means unrestricted"
+        convention. Uses an explicit separator-boundary comparison rather than
+        `str.startswith(allowed_root)` to avoid a prefix-injection bug (e.g. an
+        allowed_root of `/opt/llm` must not match `/opt/llmx/...`).
+        """
+        allowed_root = self._ctx.cfg.approval.allowed_root
+        if not allowed_root:
+            return True
+        resolved_root = os.path.realpath(allowed_root)
+        return resolved_db_path == resolved_root or resolved_db_path.startswith(
+            resolved_root + os.sep
+        )
+
     def _wal_backup_sync(self) -> tuple[str | None, list[tuple[str, str]]]:
         """Copy the WAL file to a backup location. Runs synchronously via an executor.
 
@@ -310,11 +339,46 @@ class AgentREPL:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 db_path = db.execute("PRAGMA database_list").fetchone()[2]
                 if db_path:
+                    resolved_db_path = os.path.realpath(db_path)
+                    if not self._is_db_path_allowed(resolved_db_path):
+                        logger.warning(
+                            "WAL backup skipped: resolved db path %s is outside allowed_root %s",
+                            resolved_db_path,
+                            self._ctx.cfg.approval.allowed_root,
+                        )
+                        errors.append(
+                            (
+                                "wal_backup_path_rejected",
+                                f"resolved db path {resolved_db_path} is outside allowed_root "
+                                f"{self._ctx.cfg.approval.allowed_root!r}",
+                            )
+                        )
+                        return wal_backup_path, errors
                     wal_file = f"{db_path}-wal"
                     backup_dir = os.path.dirname(db_path) or "/tmp"
+                    if not os.path.isdir(backup_dir) or not os.access(
+                        backup_dir, os.W_OK
+                    ):
+                        logger.warning(
+                            "WAL backup skipped: backup directory %s is not writable",
+                            backup_dir,
+                        )
+                        errors.append(
+                            (
+                                "wal_backup_dir_not_writable",
+                                f"backup directory not writable: {backup_dir}",
+                            )
+                        )
+                        return wal_backup_path, errors
+                    session_id = self._ctx.session.session_id
+                    session_tag = (
+                        str(session_id)
+                        if session_id is not None
+                        else uuid.uuid4().hex[:8]
+                    )
                     wal_backup_path = os.path.join(
                         backup_dir,
-                        f"{os.path.basename(db_path)}-wal-backup-{int(time.time())}",
+                        f"{os.path.basename(db_path)}-wal-backup-{session_tag}-{int(time.time())}",
                     )
                     shutil.copy2(wal_file, wal_backup_path)
                     logger.warning("WAL file backed up to %s", wal_backup_path)
@@ -373,6 +437,8 @@ class AgentREPL:
                 )
 
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
+        # Each cleanup call is independently guarded so a None services object (or a
+        # failure in one call) cannot prevent the other from running.
         svc = self._ctx.services
         if svc is not None:
             try:
@@ -380,6 +446,8 @@ class AgentREPL:
             except Exception as e:
                 errors.append(("lifecycle_shutdown", f"{type(e).__name__}: {e}"))
                 logger.error("Lifecycle shutdown failed: %s", e)
+        svc = self._ctx.services
+        if svc is not None:
             try:
                 await svc.http.aclose()
             except Exception as e:
@@ -595,12 +663,26 @@ class AgentREPL:
         self._shutdown_event = asyncio.Event()
 
         def _sigterm_handler() -> None:
-            """Handle SIGTERM by cancelling input and setting shutdown flag."""
+            """Handle SIGTERM by cancelling input and setting shutdown flag.
+
+            Dispatch differs by platform: on Unix this runs via
+            loop.add_signal_handler on the event loop thread; on Windows it runs
+            via loop.call_soon_threadsafe, scheduled from a console-ctrl handler
+            thread. Both paths invoke this same closure.
+            """
             self._ctx.conv.shutdown_requested = True
             if self._shutdown_event is not None:
                 self._shutdown_event.set()
-            # Cancel the current input coroutine to wake up the wait loop immediately
-            if self._input_coro is not None and not self._input_coro.done():
+            # Only cancel the input coroutine when no turn is active: _input_coro
+            # tracks the idle input wait, not an in-flight turn. Cancelling it
+            # while a turn is active would be a no-op at best; _repl_loop() already
+            # checks shutdown_requested after each turn and applies the
+            # _GRACEFUL_TIMEOUT wait to end the turn.
+            if (
+                not self._turn_active
+                and self._input_coro is not None
+                and not self._input_coro.done()
+            ):
                 try:
                     self._input_coro.cancel()
                 except RuntimeError:

@@ -105,12 +105,15 @@ def _patch_workflow_loader():
         yield mock_loader
 
 
-def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
+def _make_orchestrator(
+    ctx: MagicMock, on_error: Any = None, pause_on_critical_failure: bool = False
+) -> Orchestrator:
     on_first_turn = AsyncMock()
     orch = Orchestrator(
         ctx,
         on_error=on_error,
         on_first_turn=on_first_turn,
+        pause_on_critical_failure=pause_on_critical_failure,
     )
     orch._diagnostic_store = MagicMock()
     ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
@@ -1054,6 +1057,31 @@ class TestInitWorkflowTaskResumeReuse:
             )
             mock_audit.assert_not_called()
 
+    def test_resume_rejects_halted_task(self) -> None:
+        """A task whose persisted status is 'halted' must not be silently resumed."""
+        from unittest.mock import MagicMock, patch
+
+        halted_task = MagicMock()
+        halted_task.task_id = "halted-task-id"
+        halted_task.workflow_id = "halted-wf-id"
+        halted_task.status = "halted"
+
+        ctx = _make_ctx()
+
+        with (
+            patch("agent.orchestrator.get_task_by_id", return_value=halted_task),
+            patch("agent.orchestrator.create_task") as mock_create,
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+            with pytest.raises(RuntimeError, match="halted"):
+                orch._init_workflow_task(
+                    ctx, "test-session", existing_task_id="halted-task-id"
+                )
+            mock_create.assert_not_called()
+
 
 class TestEphemeralMessageLifecycle:
     """Regression coverage for requires/20260716_15_require.md /
@@ -1228,12 +1256,13 @@ class TestDiscardAndLogConsecutiveFailures:
     _discard_and_log()'s self._consecutive_bg_failures counter."""
 
     @staticmethod
-    def _fake_task(exc: BaseException | None) -> MagicMock:
+    def _fake_task(exc: BaseException | None, name: str = "test_bg_task") -> MagicMock:
         """Build a fake asyncio.Task whose .exception() returns exc directly
         (including a CancelledError instance, rather than raising it), per
         the implementation procedure's stated test method."""
         task = MagicMock()
         task.exception.return_value = exc
+        task.get_name.return_value = name
         return task
 
     def test_four_consecutive_failures_each_log_via_warning(self) -> None:
@@ -1299,3 +1328,122 @@ class TestDiscardAndLogConsecutiveFailures:
         assert orch._consecutive_bg_failures == 0
         mock_warning.assert_not_called()
         mock_error.assert_not_called()
+
+    def test_threshold_reached_notifies_exactly_once_with_task_name(self) -> None:
+        """_notify_bg_failure_threshold() must fire exactly once, at the failure
+        that makes the counter == BG_FAILURE_THRESHOLD (5), and the notification
+        message must include the task name."""
+        on_error = MagicMock()
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        for _ in range(4):
+            orch._discard_and_log(
+                self._fake_task(RuntimeError("boom"), name="my_bg_task")
+            )
+        # First failure already calls on_error once (existing behavior) — reset the mock
+        # so we can isolate the threshold-notification call.
+        on_error.reset_mock()
+
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        assert orch._consecutive_bg_failures == 5
+        on_error.assert_called_once()
+        err = on_error.call_args[0][0]
+        assert "my_bg_task" in str(err)
+        assert "5" in str(err)
+
+        # A sixth consecutive failure must not notify again (only == threshold, not >=).
+        on_error.reset_mock()
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        on_error.assert_not_called()
+
+    def test_threshold_notification_falls_back_to_critical_log_on_error_raising(
+        self,
+    ) -> None:
+        """If _on_error itself raises inside the threshold branch, the exception
+        must be caught and logged via logger.critical, never propagated out of
+        _discard_and_log()."""
+        on_error = MagicMock(side_effect=RuntimeError("notification channel down"))
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        with patch("agent.orchestrator.logger.critical") as mock_critical:
+            for _ in range(5):
+                orch._discard_and_log(
+                    self._fake_task(RuntimeError("boom"), name="my_bg_task")
+                )
+
+        assert orch._consecutive_bg_failures == 5
+        mock_critical.assert_called_once()
+        assert "my_bg_task" in str(mock_critical.call_args)
+
+    def test_threshold_reached_with_pause_enabled_sets_pause_state(self) -> None:
+        """When pause_on_critical_failure=True, reaching the threshold marks the
+        offending task type as paused in _bg_pause_state."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx, pause_on_critical_failure=True)
+
+        for _ in range(5):
+            orch._discard_and_log(
+                self._fake_task(RuntimeError("boom"), name="my_bg_task")
+            )
+
+        assert orch._bg_pause_state == {"my_bg_task": True}
+
+    def test_threshold_reached_with_pause_disabled_leaves_pause_state_empty(
+        self,
+    ) -> None:
+        """Default (pause_on_critical_failure=False) must not populate
+        _bg_pause_state even after the threshold is reached."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        for _ in range(5):
+            orch._discard_and_log(
+                self._fake_task(RuntimeError("boom"), name="my_bg_task")
+            )
+
+        assert orch._bg_pause_state == {}
+
+
+class TestHandleTurnPauseGuard:
+    """Locks in the handle_turn() early-return guard added for the opt-in
+    pause-on-critical-failure feature."""
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_blocked_when_task_type_paused(self) -> None:
+        on_error = MagicMock()
+        ctx = _make_ctx()
+        ctx.workflow.approval_pending = False
+        orch = _make_orchestrator(
+            ctx, on_error=on_error, pause_on_critical_failure=True
+        )
+        orch._bg_pause_state["my_bg_task"] = True
+
+        await orch.handle_turn("do something")
+
+        on_error.assert_called_once()
+        err = on_error.call_args[0][0]
+        assert isinstance(err, RuntimeError)
+        assert "my_bg_task" in str(err)
+        # LLM/workflow engine must not be invoked
+        ctx.services_required.llm.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_not_blocked_when_no_task_type_paused(self) -> None:
+        on_error = MagicMock()
+        ctx = _make_ctx()
+        ctx.workflow.approval_pending = False
+        orch = _make_orchestrator(
+            ctx, on_error=on_error, pause_on_critical_failure=True
+        )
+        orch._bg_pause_state["my_bg_task"] = False
+
+        with patch.object(
+            orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+        ):
+            await orch.handle_turn("do something")
+
+        for call in on_error.call_args_list:
+            err = call[0][0]
+            assert "paused due to repeated failures" not in str(err)

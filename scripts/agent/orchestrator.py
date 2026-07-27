@@ -133,6 +133,7 @@ class Orchestrator:
         on_llm_wait_start: Callable[[], Any] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
         tracer: Any = None,
+        pause_on_critical_failure: bool = False,
     ) -> None:
         """Initialize the orchestrator with context, callbacks, and diagnostic storage."""
         self._ctx = ctx
@@ -144,6 +145,16 @@ class Orchestrator:
         self._on_llm_wait_start = on_llm_wait_start
         self._on_llm_wait_end = on_llm_wait_end
         self._tracer = tracer
+        # Opt-in: when True, a background task type is paused (see
+        # `_bg_pause_state`) once its consecutive-failure count reaches
+        # `BG_FAILURE_THRESHOLD`. Defaults to False so existing callers are
+        # unaffected until they explicitly opt in.
+        self._pause_on_critical_failure = pause_on_critical_failure
+        # Per-task-type pause flags, keyed by `asyncio.Task.get_name()`. A
+        # `True` entry blocks further `handle_turn()` processing until the
+        # process is restarted (see `_notify_bg_failure_threshold` and the
+        # guard at the top of `handle_turn`).
+        self._bg_pause_state: dict[str, bool] = {}
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
@@ -191,6 +202,24 @@ class Orchestrator:
                     RuntimeError(
                         f"{OutputTag.WORKFLOW} Approval is pending — use /approve {ctx.turn.pending_approval_id} [reason] "
                         f"or /reject {ctx.turn.pending_approval_id} [reason]."
+                    )
+                )
+            return
+        # Guard: block turn processing while any background task type is
+        # paused (only reachable when `pause_on_critical_failure=True` was
+        # passed to __init__ and that task type has hit BG_FAILURE_THRESHOLD).
+        if any(self._bg_pause_state.values()):
+            paused = [
+                name for name, is_paused in self._bg_pause_state.items() if is_paused
+            ]
+            logger.warning(
+                "Turn blocked: agent paused due to background task failures: %s", paused
+            )
+            if self._on_error:
+                self._on_error(
+                    RuntimeError(
+                        f"{OutputTag.WORKFLOW} Agent paused due to repeated failures in: {paused}. "
+                        "Restart the process to clear pause state."
                     )
                 )
             return
@@ -316,6 +345,10 @@ class Orchestrator:
                 _fetched = get_task_by_id(store._db, existing_task_id)
                 if _fetched is None:
                     raise RuntimeError(f"Task {existing_task_id} not found")
+                if _fetched.status == "halted":
+                    raise RuntimeError(
+                        f"Task {existing_task_id} is halted and cannot be automatically resumed"
+                    )
                 task = _fetched
                 workflow_id = task.workflow_id or str(uuid.uuid4())
         finally:
@@ -615,7 +648,10 @@ class Orchestrator:
         ctx.conv.append_message({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
-            _task = asyncio.create_task(self._on_first_turn(line))
+            _task = asyncio.create_task(
+                self._on_first_turn(line),
+                name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
+            )
             self._background_tasks.add(_task)
 
             _task.add_done_callback(self._discard_and_log)
@@ -636,6 +672,7 @@ class Orchestrator:
         completion or an `asyncio.CancelledError` completion of this
         callback resets it to 0.
         """
+        task_name = task.get_name()
         exc = task.exception()
         if exc is not None:
             if isinstance(exc, asyncio.CancelledError):
@@ -644,7 +681,9 @@ class Orchestrator:
             else:
                 self._consecutive_bg_failures += 1
                 if self._consecutive_bg_failures == 1:
-                    logger.warning("First background task failure: %s", exc)
+                    logger.warning(
+                        "First background task failure (%s): %s", task_name, exc
+                    )
                     # Surface first-turn failure to user immediately
                     if isinstance(exc, Exception) and self._on_error is not None:
                         try:
@@ -656,17 +695,46 @@ class Orchestrator:
                             )
                 elif self._consecutive_bg_failures >= BG_FAILURE_THRESHOLD:
                     logger.error(
-                        "Consecutive background task failures (%d): %s",
+                        "Consecutive background task failures (%d) for '%s': %s",
                         self._consecutive_bg_failures,
+                        task_name,
                         exc,
                     )
+                    if self._consecutive_bg_failures == BG_FAILURE_THRESHOLD:
+                        self._notify_bg_failure_threshold(
+                            task_name, self._consecutive_bg_failures
+                        )
                 else:
                     logger.warning(
-                        "Background task failure #%d: %s",
+                        "Background task failure #%d (%s): %s",
                         self._consecutive_bg_failures,
+                        task_name,
                         exc,
                     )
         else:
             # Task completed successfully — reset counter
             self._consecutive_bg_failures = 0
         self._background_tasks.discard(task)
+
+    def _notify_bg_failure_threshold(self, task_name: str, count: int) -> None:
+        """Guarantee the user is notified when a background task hits the failure threshold."""
+        message = RuntimeError(
+            f"Background task '{task_name}' has failed {count} consecutive times "
+            f"(threshold: {BG_FAILURE_THRESHOLD})."
+        )
+        if self._on_error is not None:
+            try:
+                self._on_error(message)
+            except Exception as notif_err:
+                logger.critical(
+                    "Failed to notify user of threshold breach for '%s': %s",
+                    task_name,
+                    notif_err,
+                )
+        else:
+            logger.critical(str(message))
+        if self._pause_on_critical_failure:
+            self._bg_pause_state[task_name] = True
+            logger.warning(
+                "Background task type '%s' paused after reaching threshold.", task_name
+            )

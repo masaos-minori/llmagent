@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import pytest
 from agent.tool_arg_validator import (
+    _CUSTOM_VALIDATORS,
     ValidationResult,
+    register_custom_validator,
     validate_tool_arguments,
 )
 
@@ -253,3 +255,79 @@ class TestValidateToolArgumentsTypeValidation:
         result = validate_tool_arguments("set_value", {"value": None}, schema)
         assert result.success is False
         assert "Type mismatch" in result.reason
+
+
+class TestCustomValidatorHooks:
+    """Tests for register_custom_validator / _run_custom_validator wiring."""
+
+    _SCHEMA = {
+        "type": "object",
+        "required": ["count"],
+        "properties": {"count": {"type": "integer"}},
+    }
+
+    @pytest.fixture(autouse=True)
+    def _isolate_registry(self):
+        """Snapshot and restore the module-level registry so tests don't leak hooks."""
+        saved = dict(_CUSTOM_VALIDATORS)
+        _CUSTOM_VALIDATORS.clear()
+        yield
+        _CUSTOM_VALIDATORS.clear()
+        _CUSTOM_VALIDATORS.update(saved)
+
+    def test_no_hook_registered_is_noop(self) -> None:
+        result = validate_tool_arguments("unhooked_tool", {"count": 1}, self._SCHEMA)
+        assert result.success is True
+
+    def test_registered_hook_passes(self) -> None:
+        @register_custom_validator("hooked_tool")
+        def _validator(args: dict) -> ValidationResult:
+            return ValidationResult(success=True)
+
+        result = validate_tool_arguments("hooked_tool", {"count": 1}, self._SCHEMA)
+        assert result.success is True
+
+    def test_registered_hook_fails(self) -> None:
+        @register_custom_validator("hooked_tool")
+        def _validator(args: dict) -> ValidationResult:
+            return ValidationResult(success=False, reason="business rule violated")
+
+        result = validate_tool_arguments("hooked_tool", {"count": 1}, self._SCHEMA)
+        assert result.success is False
+        assert result.reason == "business rule violated"
+
+    def test_hook_raising_exception_is_converted_not_propagated(self) -> None:
+        @register_custom_validator("hooked_tool")
+        def _validator(args: dict) -> ValidationResult:
+            raise RuntimeError("boom")
+
+        result = validate_tool_arguments("hooked_tool", {"count": 1}, self._SCHEMA)
+        assert result.success is False
+        assert "Custom validation error for hooked_tool" in result.reason
+        assert "boom" in result.reason
+
+    def test_hook_not_called_when_earlier_checks_fail(self) -> None:
+        """Custom hooks must not run when required/extra/type checks already failed."""
+        calls: list[dict] = []
+
+        @register_custom_validator("hooked_tool")
+        def _validator(args: dict) -> ValidationResult:
+            calls.append(args)
+            return ValidationResult(success=True)
+
+        result = validate_tool_arguments("hooked_tool", {}, self._SCHEMA)
+        assert result.success is False
+        assert calls == []
+
+    def test_hook_skipped_when_schema_empty(self) -> None:
+        """Custom hooks are not invoked when input_schema is empty (lenient fallback)."""
+        calls: list[dict] = []
+
+        @register_custom_validator("hooked_tool")
+        def _validator(args: dict) -> ValidationResult:
+            calls.append(args)
+            return ValidationResult(success=True)
+
+        result = validate_tool_arguments("hooked_tool", {"count": 1}, {})
+        assert result.success is True
+        assert calls == []

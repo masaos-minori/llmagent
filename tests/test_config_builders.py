@@ -12,6 +12,7 @@ import pytest
 from agent.config_builders import (
     ConfigLoadError,
     _build_approval_config,
+    _build_diagnostics_config,
     _build_llm_config,
     _build_memory_config,
     _build_rag_config,
@@ -126,6 +127,28 @@ class TestBuildApprovalConfig:
             _build_approval_config({"approval_risk_rules": {"write_file": "extreme"}})
 
 
+# ── _build_diagnostics_config ─────────────────────────────────────────────────
+
+
+class TestBuildDiagnosticsConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_diagnostics_config({})
+        assert cfg.encryption_key == ""
+        assert cfg.retention_days == 30
+
+    def test_overrides_are_applied(self) -> None:
+        cfg = _build_diagnostics_config(
+            {"diagnostics": {"encryption_key": "abc123", "retention_days": 7}}
+        )
+        assert cfg.encryption_key == "abc123"
+        assert cfg.retention_days == 7
+
+    def test_missing_diagnostics_table_returns_defaults(self) -> None:
+        cfg = _build_diagnostics_config({"llm_url": "http://llm.local"})
+        assert cfg.encryption_key == ""
+        assert cfg.retention_days == 30
+
+
 # ── build_agent_config ────────────────────────────────────────────────────────
 
 
@@ -137,6 +160,11 @@ class TestBuildAgentConfig:
     def test_llm_defaults_reflected(self) -> None:
         cfg = build_agent_config(_MIN_CFG)
         assert cfg.llm.llm_url == ""
+
+    def test_diagnostics_defaults_reflected(self) -> None:
+        cfg = build_agent_config(_MIN_CFG)
+        assert cfg.diagnostics.encryption_key == ""
+        assert cfg.diagnostics.retention_days == 30
 
     def test_none_cfg_override_calls_load_config(self) -> None:
         with patch("agent.config_builders.ConfigLoader") as MockLoader:

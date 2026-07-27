@@ -22,7 +22,7 @@ source:
 
 ## 目的
 
-`AgentConfig`の完全な構造、全7つのサブ設定とそのフィールド、
+`AgentConfig`の完全な構造、全8つのサブ設定とそのフィールド、
 設定ファイルのレイアウト、検証ルール、`/reload`の対象範囲、フィールド間の制約を文書化する。
 
 ---
@@ -37,7 +37,7 @@ source:
 
 | File | Sub-config |
 |---|---|
-| `config/agent.toml` | すべてのサブ設定 (LLMConfig, RAGConfig, DbConfig, ToolConfig, MemoryConfig, ObservabilityConfig, ApprovalConfig, MCPConfig) |
+| `config/agent.toml` | すべてのサブ設定 (LLMConfig, RAGConfig, DbConfig, ToolConfig, MemoryConfig, ObservabilityConfig, ApprovalConfig, MCPConfig, DiagnosticsConfig) |
 
 過去の経緯: 以前のバージョンでは複数の個別ファイル (`common.toml`, `llm.toml`, `http.toml`, `context.toml`, `rag.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `tools_definitions.toml`、加えてサーバーごとの`*_mcp_server.toml`) を読み込んでいた。これらは`agent.toml`に統合され、分割されたファイルはもはや存在しない。
 
@@ -62,7 +62,7 @@ source:
 
 | ファイル | 責務 | ホットリロード |
 |---|---|---|
-| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル） | ほとんど可能; `use_memory_layer`/`memory_embed_enabled`は起動時のみ |
+| `config/agent.toml` | エージェントプロセス設定（LLM/RAG/DB/ツール/メモリ/観測/承認/MCPライフサイクル/診断） | ほとんど可能; `use_memory_layer`/`memory_embed_enabled`は起動時のみ; `diagnostics.*`は`/reload`未対応(未実装、`cfg.diagnostics`は静的) |
 | `config/*_mcp_server.toml` | MCPサーバー固有設定（allowlist/denylist/リソース制限/監査パス等） | 再起動必須（追加/削除/リネーム時） |
 
 #### 再起動が必要な設定

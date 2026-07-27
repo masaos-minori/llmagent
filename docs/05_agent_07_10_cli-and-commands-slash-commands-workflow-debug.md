@@ -56,6 +56,13 @@ None(クラッシュ後など)であっても、`approvals`DBテーブルから�
 `/approve`が成功すると、自動再開のために`ctx.turn.pending_approval_task_id`が
 設定される — 以前のステップの再実行は不要である。
 
+**上書き警告:** `/approve`は`ctx.turn.pending_approval_task_id`に既存の値(未消費の前回の
+承認)がある状態で新しい値を設定する場合、`cmd_workflow.py`のロガーへ`WARNING`レベルで
+ログを出力する(新旧両方のtask_idを含む)。値は処理を中断せずに新しいtask_idへ上書き
+される。単一フィールドのみをハンドオフに使うキュー未実装の現状の設計上の
+既知の制約であり、操作者が取りこぼしを追跡できるようにするための可観測性目的の警告で
+ある。`/reject`は`pending_approval_task_id`を一切設定しないため、この警告は適用されない。
+
 ### Debug / auditカテゴリ
 
 | Command | 副作用 | 関連する状態 |

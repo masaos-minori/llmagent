@@ -167,6 +167,15 @@ approval_github_allowed_repos = []
 
 system_prompt_tool = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
 
+# ── Diagnostics ───────────────────────────────────────────────────────────────
+
+[diagnostics]
+# Fernet symmetric key for encrypting session_diagnostics.content when
+# DiagnosticStore.save(encrypt=True) is used. "" disables encryption (opt-in).
+encryption_key = ""
+# session_diagnostics rows older than this are purged lazily on each save().
+retention_days = 30
+
 [system_prompts]
 default  = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
 strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"

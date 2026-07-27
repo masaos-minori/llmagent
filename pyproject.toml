@@ -115,7 +115,6 @@ source = ["scripts"]
 omit = [
     # Schema/migration DDL scripts — executed at deploy time, not during tests
     "scripts/db/create_schema.py",
-    "scripts/db/migrate.py",
     # FastAPI server entry points — start HTTP servers; not unit-testable
     "scripts/mcp_servers/file/*_server.py",
     "scripts/mcp_servers/github/server.py",

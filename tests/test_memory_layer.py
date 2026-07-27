@@ -51,6 +51,7 @@ def _make_injection_svc(
     max_semantic: int = 5,
     max_episodic: int = 3,
     min_importance: float = 0.0,
+    max_snippet_length: int = 500,
 ) -> tuple[MemoryInjectionService, MagicMock, MagicMock]:
     mock_retriever = MagicMock(spec=HybridRetriever)
     mock_embed = MagicMock(spec=EmbeddingClient)
@@ -59,6 +60,7 @@ def _make_injection_svc(
             max_semantic=max_semantic,
             max_episodic=max_episodic,
             min_importance=min_importance,
+            max_snippet_length=max_snippet_length,
         ),
         retriever=mock_retriever,
         embed_client=mock_embed,
@@ -113,6 +115,23 @@ class TestOnSessionStart:
         call_kwargs = mock_ret.top_semantic.call_args
         assert call_kwargs.kwargs.get("min_importance") == 0.6
 
+    def test_redacts_pii_from_entry_snippet(self) -> None:
+        svc, mock_ret, _ = _make_injection_svc()
+        entry = _make_entry(content="Contact user@example.com for details")
+        mock_ret.top_semantic.return_value = [entry]
+        snippets = svc.on_session_start()
+        assert len(snippets) == 1
+        assert "[REDACTED_EMAIL]" in snippets[0].text
+        assert "user@example.com" not in snippets[0].text
+
+    def test_truncates_entry_snippet_longer_than_max_length(self) -> None:
+        svc, mock_ret, _ = _make_injection_svc(max_snippet_length=50)
+        entry = _make_entry(content="word " * 30)
+        mock_ret.top_semantic.return_value = [entry]
+        snippets = svc.on_session_start()
+        assert len(snippets) == 1
+        assert "...[truncated]" in snippets[0].text
+
 
 # ── on_user_prompt() ─────────────────────────────────────────────────────────
 
@@ -134,6 +153,39 @@ class TestOnUserPrompt:
         assert len(snippets) == 2
         assert any("Semantic" in s.text for s in snippets)
         assert any("Episodic" in s.text for s in snippets)
+
+    @pytest.mark.asyncio
+    async def test_redacts_pii_from_hit_snippet(self) -> None:
+        svc, mock_ret, mock_embed = _make_injection_svc()
+        sem_entry = _make_entry(
+            memory_type="semantic", content="Call me at 555-123-4567"
+        )
+        mock_ret.search.side_effect = [
+            [MemoryHit(entry=sem_entry, score=1.0)],
+            [],
+        ]
+        mock_embed.fetch = AsyncMock(
+            return_value=EmbeddingResult(success=False, error_kind="disabled")
+        )
+        snippets = await svc.on_user_prompt("some query", session_id=1)
+        assert len(snippets) == 1
+        assert "[REDACTED_PHONE]" in snippets[0].text
+        assert "555-123-4567" not in snippets[0].text
+
+    @pytest.mark.asyncio
+    async def test_truncates_hit_snippet_longer_than_max_length(self) -> None:
+        svc, mock_ret, mock_embed = _make_injection_svc(max_snippet_length=50)
+        sem_entry = _make_entry(memory_type="semantic", content="word " * 30)
+        mock_ret.search.side_effect = [
+            [MemoryHit(entry=sem_entry, score=1.0)],
+            [],
+        ]
+        mock_embed.fetch = AsyncMock(
+            return_value=EmbeddingResult(success=False, error_kind="disabled")
+        )
+        snippets = await svc.on_user_prompt("some query", session_id=1)
+        assert len(snippets) == 1
+        assert "...[truncated]" in snippets[0].text
 
     @pytest.mark.asyncio
     async def test_raises_for_blank_query(self) -> None:

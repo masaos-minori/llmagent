@@ -39,6 +39,9 @@ User input (line)
   └─ Orchestrator.handle_turn(line)
        │  (workflow.approval_pendingの場合はここでブロックし、
        │   /approve または /reject を促すエラーを返して処理を終了する)
+       │  (続けて、いずれかのバックグラウンドタスク種別が_bg_pause_stateで
+       │   一時停止中の場合もここでブロックする。下記「バックグラウンドタスク失敗時の
+       │   閾値通知と一時停止」参照)
        │
        ① ターン開始処理
        │    → UUID4のcurrent_turn_idを生成
@@ -58,6 +61,8 @@ User input (line)
         │    → ユーザーメッセージをctx.conv.append_message()経由でctx.conv.historyに追加
         │    → AgentSession.save("user", content)
         │    → (最初のターンのみ) セッションタイトル生成のためasyncio.create_task
+        │         (タスクにはon_first_turnコールバックの__name__を明示的にname=として
+        │          付与する。下記「バックグラウンドタスク失敗時の閾値通知と一時停止」参照)
         │
         ④ 履歴圧縮の処理
        │    → HistoryManager.compress(history)
@@ -97,6 +102,32 @@ User input (line)
 (根拠: `agent/orchestrator.py`の`_handle_workflow_engine()`内`plan_fn`定義コメント)。
 ステージ構成の詳細は
 [05_agent_03_03_turn-processing-flow-workflow-engine-part1.md](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md)を参照。
+
+### バックグラウンドタスク失敗時の閾値通知と一時停止 (Explicit in code)
+
+最初のターンでスケジュールされるセッションタイトル生成タスク(`self._on_first_turn`)は、完了時に
+`Orchestrator._discard_and_log()`がコールバックとして呼ばれ、連続失敗回数
+(`self._consecutive_bg_failures`)を管理する。`asyncio.create_task(..., name=...)`で明示的に
+付与されたタスク名(`on_first_turn.__name__`、既定は`_generate_session_title`)は
+`task.get_name()`で読み戻され、ログメッセージに含められる。
+
+- 連続失敗回数が`BG_FAILURE_THRESHOLD`(既定5、`agent/orchestrator.py`のモジュール定数)に
+  **到達した瞬間**(`==`であり`>=`ではない)、`Orchestrator._notify_bg_failure_threshold()`が
+  1回だけ呼ばれる。
+- `_notify_bg_failure_threshold()`は`self._on_error`経由でユーザーに通知することを保証する:
+  `_on_error`自体が例外を送出した場合は`logger.critical()`にフォールバックし、例外を
+  `_discard_and_log()`の外へ伝播させない。
+- コンストラクタの新しいオプトインパラメータ`pause_on_critical_failure`(既定`False`)が
+  `True`の場合、閾値到達時に該当タスク種別を`self._bg_pause_state[task_name] = True`として
+  一時停止済みとマークする。`_bg_pause_state`はタスク種別ごと(`dict[str, bool]`)であり、
+  グローバルな一時停止フラグではない。
+- `handle_turn()`は`approval_pending`ガードの直後で`self._bg_pause_state`にTrueの
+  エントリが1つでもあれば早期リターンし、`_on_error`経由でユーザーに通知する
+  (`ctx.workflow.approval_pending`ガードと同じ形の早期リターン)。一時停止状態はプロセス内
+  メモリのみで保持され、`/resume`コマンドなど明示的に解除する手段は現状存在しない。
+  プロセスを再起動するまで解除されない。
+- `pause_on_critical_failure`は既定で`False`のため、既存の`Orchestrator(...)`呼び出し元
+  (`startup.py`など)はオプトインしない限りこの一時停止機構の影響を受けない。
 
 ---
 

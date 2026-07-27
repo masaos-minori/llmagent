@@ -9,6 +9,7 @@ import pytest
 from agent.config_dataclasses import (
     AgentConfig,
     ApprovalConfig,
+    DiagnosticsConfig,
     LLMConfig,
     MCPConfig,
     MemoryConfig,
@@ -202,6 +203,26 @@ class TestAgentConfigValidation:
         mem = MemoryConfig(use_memory_layer=True, memory_jsonl_dir="")
         with pytest.raises(ValueError, match="memory_jsonl_dir"):
             AgentConfig(memory=mem)
+
+    def test_default_diagnostics_config(self) -> None:
+        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
+        assert cfg.diagnostics.encryption_key == ""
+        assert cfg.diagnostics.retention_days == 30
+
+
+# ── DiagnosticsConfig ─────────────────────────────────────────────────────────
+
+
+class TestDiagnosticsConfigValidation:
+    def test_defaults(self) -> None:
+        cfg = DiagnosticsConfig()
+        assert cfg.encryption_key == ""
+        assert cfg.retention_days == 30
+
+    def test_custom_values(self) -> None:
+        cfg = DiagnosticsConfig(encryption_key="some-key", retention_days=7)
+        assert cfg.encryption_key == "some-key"
+        assert cfg.retention_days == 7
 
 
 # ── MCPConfig coercion ────────────────────────────────────────────────────────

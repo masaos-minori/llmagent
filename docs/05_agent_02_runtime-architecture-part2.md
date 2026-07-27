@@ -52,9 +52,18 @@ REPL loop
   設定して`asyncio.Event`をセットする。これによりREPLループが次の入力待ち/ターン完了後に終了する
   (`SystemExit(0)`への直接変換ではなく、フラグベースのグレースフルシャットダウン)。進行中のターンには
   最大10秒(`_GRACEFUL_TIMEOUT`)の猶予があり、超過するとタイムアウトしてループを抜ける。(Explicit in code)
+- ハンドラは`self._turn_active`が`False`のとき(=入力待ち状態)のみ`self._input_coro`を
+  キャンセルする。ターン進行中(`_turn_active == True`)は`_input_coro`をキャンセルせず、
+  `shutdown_requested`と`_shutdown_event`のセットのみ行って即座に返る。ハンドラはブロッキング
+  せず、ターン完了後の`_repl_loop()`側の`shutdown_requested`チェックと`_GRACEFUL_TIMEOUT`待ちに
+  終了処理を委ねる。Unix (`loop.add_signal_handler`) / Windows
+  (`loop.call_soon_threadsafe`、コンソール制御ハンドラスレッドから呼び出される) いずれの経路も
+  同一のハンドラ関数を呼び出す。(Explicit in code)
 - リソースクローズはWALチェックポイント実行後、`ctx.services.lifecycle.shutdown_all()`と
   `http.aclose()`を呼ぶ。`HttpServerLifecycleManager.shutdown_all()`は実行中に届いた2回目の
-  SIGINTを一時的に吸収し、クリーンアップの完了を保証する。(Explicit in code)
+  SIGINTを一時的に吸収し、クリーンアップの完了を保証する。この2つの呼び出しはそれぞれ独立して
+  `svc is not None`を確認し、個別のtry/exceptで保護される — 一方が`None`または例外で失敗しても
+  他方の呼び出しをブロックしない。(Explicit in code)
 
 ### StartupOrchestrator検証パイプライン
 
@@ -79,11 +88,19 @@ REPL loop
 | Method | Responsibility |
 |---|---|
 | `handle_turn(line)` | 最上位のターンハンドラー |
+| `_notify_bg_failure_threshold(task_name, count)` | バックグラウンドタスクが`BG_FAILURE_THRESHOLD`到達時に`_on_error`経由でユーザー通知を保証し、`pause_on_critical_failure`が有効ならタスク種別を一時停止する |
 
 `handle_turn()`は上記の流れを`WorkflowEngine`のplan/execute/verifyステージに
 乗せて実行する(`plan_fn`は現状no-op、`execute_fn`がLLMターン本体、`verify_fn`がturn_end処理)。
-`ctx.workflow.approval_pending`がTrueの間は新規ターンを拒否する。(Explicit in code — 詳細は
+`ctx.workflow.approval_pending`がTrueの間、および`self._bg_pause_state`のいずれかの
+タスク種別がTrue(一時停止中)の間は新規ターンを拒否する。(Explicit in code — 詳細は
 `05_agent_03`系の管轄)
+
+`__init__()`はオプトインの`pause_on_critical_failure: bool = False`キーワード引数を受け取り、
+`self._pause_on_critical_failure`として保持する。あわせて`self._bg_pause_state: dict[str, bool]`
+(タスク種別名 → 一時停止フラグ)を初期化する。既定では両方とも無効/空のため、既存の呼び出し元
+(`startup.py`)には影響しない。(Explicit in code — 詳細は
+[05_agent_03_01_turn-processing-flow-overview.md §バックグラウンドタスク失敗時の閾値通知と一時停止](05_agent_03_01_turn-processing-flow-overview.md)参照)
 
 ### AgentContext (`agent/context.py`)
 
