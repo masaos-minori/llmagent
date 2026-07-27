@@ -7,10 +7,12 @@ tags:
   - workflow-engine
   - partial-completion
   - state-changes
+  - adr-workflow-mandatory
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_01_turn-processing-flow-overview.md
   - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
+  - 02_deployment-part2.md
 source:
   - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
 ---
@@ -80,6 +82,50 @@ source:
 - `mode`: "required" — ワークフローは常に必須
 - `tracking`: "enabled" — ワークフロー定義は起動時に必ずロードされる
 
+### ワークフロー実行必須化 (ADR-Workflow-Mandatory)
+
+**Date:** 2026-07-23
+**Status:** Accepted
+
+#### コンテキスト
+
+本システムはLLMが計画したタスクを実行する。一部のツールは副作用を持ち、一部の操作は承認を要し、ツール実行は観測可能かつ回復可能でなければならない。LLMからツールへの直接パスは監査と回復を困難にする。
+
+#### 決定
+
+ワークフロー実行は必須である。ワークフロー定義はデプロイ時の必須アーティファクトである。ワークフローのバイパスモードはサポートしない。オプションのワークフローモードはサポートしない。ダイレクト実行へのフォールバックはサポートしない。(実装上の対応: 上記「WorkflowEngineとの統合」の起動時無条件ロード、および`workflow_mode`が設定キーとして存在しないこと — [01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md)参照)
+
+#### 根拠
+
+- 全ての副作用を伴う操作は追跡可能でなければならない
+- 承認状態はプロセス境界を越えて存続しなければならない
+- リトライおよび冪等性の挙動は一元管理されなければならない
+- 部分的なタスク完了は検査可能でなければならない
+- 回復には永続化されたタスク・試行状態が必要である
+- ツール実行はLLMの会話状態のみに依存すべきではない
+
+#### 検討した代替案
+
+| 代替案 | 却下理由 |
+|---|---|
+| ワークフローを介さないダイレクトツール実行 | 監査と回復が困難になる。承認・リトライロジックの永続状態がない |
+| オプションのワークフローモード | ワークフロー有効/無効間で挙動に一貫性がなくなる。オペレーターが実行パターンを予測できない |
+| ローカルモードでのワークフロー無効化 | ローカルモードでも監査証跡と承認追跡は必要。環境ごとに異なるルールは混乱を招く |
+| ワークフロー定義欠如時のフォールバック実行 | サイレントな機能低下は設定エラーを隠蔽する。起動失敗の方が即座にフィードバックを提供できる |
+| ワークフロー状態を伴わないツールごとのアドホック承認 | 承認状態がプロセス再起動を越えて存続しない。どの承認がどの試行に適用されたか追跡できない |
+
+#### 影響
+
+- デプロイにはワークフロー定義ファイルを含める必要がある
+- 必須のワークフローアーティファクトが欠如・不正な場合、起動は失敗しなければならない (デプロイ時チェックリスト・失敗モード → [02_deployment-part2.md §3.2](02_deployment-part2.md#32-デプロイメントチェックリスト) / [§3.3](02_deployment-part2.md#33-失敗モード))
+- ワークフロースキーマはサービス起動前に初期化されていなければならない (スキーマ責務 → [02_deployment-part2.md §3.1](02_deployment-part2.md#31-スキーマ適用))
+- オペレーターはワークフロー障害をプラットフォーム障害として扱わなければならない
+- 単純なチャットとツールを伴うタスクは同一の実行制御プレーンを共有する
+
+#### 非目標 (Non-Goals)
+
+本決定は以下を扱わない: 個々のワークフローステージの定義、承認ポリシーの再設計、EventBus統合の導入、ランタイム挙動の変更。
+
 ### 承認ゲート
 
 `WorkflowEngine(require_approval=True)`の場合、エンジンはexecuteステージ完了後、
@@ -142,6 +188,8 @@ for recovery steps when a rule is violated.
 - `05_agent_03_01_turn-processing-flow-overview.md`
 - `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
 - `05_agent_03_03_turn-processing-flow-workflow-engine-part2.md`
+- `02_deployment-part2.md`
+- `01_overview-arch-02-pipelines.md`
 
 ## Keywords
 
@@ -149,3 +197,5 @@ partial-completion model
 workflowengine integration
 state changes per turn
 turn-state mutation reference
+ADR-Workflow-Mandatory
+workflow execution mandatory

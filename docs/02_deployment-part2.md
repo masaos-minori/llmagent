@@ -58,10 +58,14 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook).
 
+このデプロイメント要件がなぜ必須なのか(監査・回復・承認状態の永続化という設計判断)については
+[ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md#ワークフロー実行必須化-adr-workflow-mandatory)を参照。
+
 ## Related Documents
 
 - `01_overview.md`
 - `02_deployment-part1.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
 
 ## Keywords
 
