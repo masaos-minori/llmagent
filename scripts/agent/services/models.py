@@ -47,7 +47,31 @@ class SessionTitleResult:
 
 @dataclass(frozen=True)
 class McpProbeResult:
-    """Result of probing an MCP server's health status."""
+    """Result of probing a single MCP server's health status.
+
+    Fields:
+        key: Server identifier/key
+        transport: Transport type string
+        startup_mode: Startup mode string
+        auth: Whether authentication is enabled
+        tier: Tool safety tier classification
+        role: Server role string
+        availability: Availability status enum
+        health: Health state string
+        endpoint: Resolved endpoint string
+        sandbox_backend: Sandbox backend identifier
+        managed: Whether the server is managed
+        pid: Process ID of the server
+        pgid: Process group ID of the server
+        running: Whether the server process is currently running
+        lifecycle_state: Current lifecycle state string
+        last_exit_code: Exit code of the last server process run
+        last_shutdown_result: Result of the last shutdown operation
+        restart_recommended: Whether a restart is recommended
+        operator_action_required: Whether manual intervention is needed
+        health_reason: Reason for current health state
+        stderr_log: Stderr log content from the server process
+    """
 
     key: str
     transport: str

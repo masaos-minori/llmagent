@@ -88,7 +88,8 @@ class ConfigReloadService:
     """Propagate an updated config dict to live service instances.
 
     Called by _ConfigMixin._cmd_reload() after a fresh config is loaded.
-    Uses public apply_config() APIs on each service — never writes private attrs.
+    Updates ctx.cfg via typed validators, syncs services via their public APIs,
+    and writes certain fields (e.g. system_prompt) directly to ctx.conv.
     """
 
     def __init__(self, ctx: AgentContext) -> None:
@@ -98,7 +99,7 @@ class ConfigReloadService:
     # ── Public entry point ────────────────────────────────────────────────────
 
     def apply_config(self, req: ConfigReloadRequest) -> ConfigReloadOutcome:
-        """Update ctx.cfg from a typed ConfigReloadRequest, sync services, return a report.
+        """Convert a typed ConfigReloadRequest to a dict and delegate to apply_config_dict().
 
         Raises ConfigReloadValidationError on type-level field violations.
         """

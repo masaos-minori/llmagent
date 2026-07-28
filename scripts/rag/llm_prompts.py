@@ -20,7 +20,7 @@ Provides:
    _build_rerank_prompt  — build Cross-Encoder scoring prompt
   _apply_rerank_scores  — parse LLM score output and return top_k candidates
 
-Import from here:  from rag.llm_prompts import RagLLM, RagExpansionError, ...
+Import from here:  from rag.llm_prompts import RagExpansionError, RagRerankError, ...
 """
 
 from __future__ import annotations

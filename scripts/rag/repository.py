@@ -7,9 +7,8 @@ Extracted from rag/pipeline.py.  Contains:
   - Japanese FTS5 tokenization helpers (Sudachi)
   - RagRepository  — all SQL confined here
   - RagScorer      — Reciprocal Rank Fusion (RRF)
-  - SemanticCache  — in-memory nearest-neighbour cache
   - Standalone helper functions: vector_search, fts_search, fetch_full_document,
-    deduplicate_chunks, cosine_sim, _dedup_hits
+    deduplicate_chunks, _dedup_hits
 """
 
 import logging

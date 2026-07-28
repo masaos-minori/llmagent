@@ -11,7 +11,7 @@ Pipeline order:
 
 Module layout:
   rag/repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
-  rag/llm.py         — RagLLM, get_embedding, summarize_tool_result
+  rag/llm_client.py  — RagLLM, get_embedding, summarize_tool_result
   rag/pipeline_service.py — External RAG service delegation
   rag/pipeline_refiner.py — Context refiner (chunk compression)
   rag/pipeline.py    — RagPipeline core orchestration (this file)

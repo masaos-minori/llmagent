@@ -5,6 +5,7 @@ Public API (import from this package directly):
     from agent.workflow import (
         WorkflowDef, StateStore, WorkflowEngine, WorkflowLoader,
         WorkflowHaltError, WorkflowLoadError, WorkflowPendingApprovalError,
+        WorkflowTimeoutError,
         TaskRecord, AttemptRecord, ApprovalRecord,
         ArtifactRef, StageDefinition, RetryPolicy,
     )

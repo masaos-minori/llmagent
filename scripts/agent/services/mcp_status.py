@@ -50,7 +50,7 @@ def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
 
 
 class McpStatusService:
-    """Probe all configured MCP servers and format their status table."""
+    """Probe all configured MCP servers and collect their health statuses."""
 
     def __init__(self, ctx: AgentContext) -> None:
         """Initialize the MCP status service with the agent context."""
@@ -130,7 +130,11 @@ class McpStatusService:
         key: str,
         cfg: Any,
     ) -> tuple[McpAvailability, str, str, bool, bool, str]:
-        """Resolve availability, endpoint string, sandbox_backend, restart_recommended, operator_action_required, and body reason for a single server."""
+        """Resolve availability, endpoint string, sandbox_backend, restart_recommended, operator_action_required, and body reason for a single server.
+
+        Returns meaningful values only for HTTP transport servers; for other transports
+        returns (UNKNOWN, "", "", False, False, "").
+        """
         if cfg.transport == TransportType.HTTP:
             (
                 availability,
