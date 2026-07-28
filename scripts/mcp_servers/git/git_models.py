@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
@@ -31,7 +32,7 @@ class GitConfig:
     audit_log_path: str = ""
 
     @classmethod
-    def from_dict(cls, d: dict[str, object]) -> GitConfig:
+    def from_dict(cls, d: dict[str, Any]) -> GitConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         allowed = d.get("allowed_repo_paths")
         if not isinstance(allowed, list):

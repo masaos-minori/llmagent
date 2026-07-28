@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from typing import Any
 
 from shared.logger import Logger as _SharedLogger
 
@@ -26,7 +27,7 @@ def _audit_log(
     error_type: str = "",
 ) -> None:
     """Emit one JSON-lines audit record for an MCP tool execution."""
-    record: dict[str, object] = {
+    record: dict[str, Any] = {
         "event": "mcp_tool_exec",
         "source": "mcp_server",
         "ts": time.time(),

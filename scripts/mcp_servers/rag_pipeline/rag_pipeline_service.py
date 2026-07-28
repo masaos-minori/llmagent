@@ -82,7 +82,7 @@ class RagPipelineMCPService:
         cfg = RagPipelineConfig.load()
 
         rag_cfg = build_rag_cfg_adapter(cfg)
-        module_cfg: dict[str, object] = {
+        module_cfg: dict[str, Any] = {
             "llm_url": build_llm_url(cfg.llm_url),
             "embed_url": build_embed_url(cfg.embed_url),
             "rag_db_path": cfg.rag_db_path,

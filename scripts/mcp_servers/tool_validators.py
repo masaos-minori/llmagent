@@ -15,20 +15,19 @@ which runs the registered validator (if any) and propagates ValueError.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
-_VALIDATORS: dict[str, Callable[[dict[str, object]], None]] = {}
+_VALIDATORS: dict[str, Callable[[dict[str, Any]], None]] = {}
 
 
 def register_validator(
     tool_name: str,
-) -> Callable[
-    [Callable[[dict[str, object]], None]], Callable[[dict[str, object]], None]
-]:
+) -> Callable[[Callable[[dict[str, Any]], None]], Callable[[dict[str, Any]], None]]:
     """Decorator that registers a validator function for tool_name."""
 
     def decorator(
-        fn: Callable[[dict[str, object]], None],
-    ) -> Callable[[dict[str, object]], None]:
+        fn: Callable[[dict[str, Any]], None],
+    ) -> Callable[[dict[str, Any]], None]:
         """Register this validator under the given tool name."""
         _VALIDATORS[tool_name] = fn
         return fn
@@ -36,7 +35,7 @@ def register_validator(
     return decorator
 
 
-def validate_tool_args(tool_name: str, args: dict[str, object]) -> None:
+def validate_tool_args(tool_name: str, args: dict[str, Any]) -> None:
     """Run the registered validator for tool_name; no-op if none registered."""
     fn = _VALIDATORS.get(tool_name)
     if fn:
@@ -60,7 +59,7 @@ def _assert_absolute_path(value: object, tool_name: str) -> None:
 
 
 @register_validator("git_commit")
-def _validate_git_commit(args: dict[str, object]) -> None:
+def _validate_git_commit(args: dict[str, Any]) -> None:
     """Validate git_commit arguments: message must be non-blank, repo_path must be absolute."""
     message = args.get("message", "")
     if not isinstance(message, str) or not message.strip():
@@ -70,7 +69,7 @@ def _validate_git_commit(args: dict[str, object]) -> None:
 
 
 @register_validator("git_push")
-def _validate_git_push(args: dict[str, object]) -> None:
+def _validate_git_push(args: dict[str, Any]) -> None:
     """Validate git_push arguments: repo_path must be absolute, remote must be non-blank."""
     repo_path = args.get("repo_path", "")
     _assert_absolute_path(repo_path, "git_push")
@@ -80,7 +79,7 @@ def _validate_git_push(args: dict[str, object]) -> None:
 
 
 @register_validator("trigger_workflow")
-def _validate_trigger_workflow(args: dict[str, object]) -> None:
+def _validate_trigger_workflow(args: dict[str, Any]) -> None:
     """Validate trigger_workflow arguments: repo and workflow_id must be non-blank."""
     repo = args.get("repo", "")
     if not isinstance(repo, str) or not repo.strip():
@@ -91,7 +90,7 @@ def _validate_trigger_workflow(args: dict[str, object]) -> None:
 
 
 @register_validator("shell_run")
-def _validate_shell_run(args: dict[str, object]) -> None:
+def _validate_shell_run(args: dict[str, Any]) -> None:
     """Validate shell_run argument: command must be non-blank (str or non-empty list)."""
     cmd = args.get("command", "")
     if isinstance(cmd, list):
