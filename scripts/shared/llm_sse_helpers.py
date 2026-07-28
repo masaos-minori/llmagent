@@ -40,7 +40,7 @@ class LlmSseHelpers:
         content_parts: list[str],
         tool_calls_map: dict[int, AccumulatedToolCall],
         finish_reason: str | None,
-    ) -> dict[str, object]:
+    ) -> dict[str, Any]:
         """Assemble the final response dict from streamed content and tool_call deltas."""
         content = "".join(content_parts)
         tool_calls = (
@@ -48,7 +48,7 @@ class LlmSseHelpers:
             if tool_calls_map
             else None
         )
-        message: dict[str, object] = {"role": "assistant", "content": content}
+        message: dict[str, Any] = {"role": "assistant", "content": content}
         if tool_calls:
             message["tool_calls"] = tool_calls
         return {"choices": [{"message": message, "finish_reason": finish_reason}]}

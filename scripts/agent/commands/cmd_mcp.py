@@ -66,7 +66,7 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
     return "\n".join(lines)
 
 
-def _format_tool_diagnostics_table(rows: list[dict[str, object]]) -> str:
+def _format_tool_diagnostics_table(rows: list[dict[str, Any]]) -> str:
     """Format per-tool diagnostics rows as a fixed-width table string."""
     col = "{:<28} {:<14} {:<10} {:<8} {:<16} {:<9}"
     lines = [

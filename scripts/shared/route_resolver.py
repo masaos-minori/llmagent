@@ -15,7 +15,7 @@ Live /v1/tools discovery is used for startup validation only, not routing.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_discovery_map(
-    server_tool_lists: dict[str, list[dict[str, object]]],
+    server_tool_lists: dict[str, list[dict[str, Any]]],
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Build routing map from per-server tool lists and detect duplicate ownership.
 

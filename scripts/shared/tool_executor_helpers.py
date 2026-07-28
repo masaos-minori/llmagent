@@ -2,6 +2,7 @@
 """scripts/shared/tool_executor_helpers.py — Tool executor helper functions."""
 
 import hashlib
+from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import (
@@ -80,7 +81,7 @@ def format_transport_error(
     return TransportErrorInfo(summary=summary, detail=detail)
 
 
-def tool_hash_key(name: str, args: dict[str, object]) -> str:
+def tool_hash_key(name: str, args: dict[str, Any]) -> str:
     """Return a stable MD5 hash for a (tool name, args) pair; used for failed-call tracking (NOT for cache keys). Cache keys use plain string concatenation: f'{name}:{json_dumps(args)}'."""
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
         f"{name}:{_json_dumps(args)}".encode(),

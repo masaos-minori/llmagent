@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class ToolDefinition:
     name: str
     server_key: str
     description: str = ""  # reserved for future use; not populated today
-    input_schema: dict[str, object] = field(
+    input_schema: dict[str, Any] = field(
         default_factory=dict
     )  # reserved for future use; not populated today
 

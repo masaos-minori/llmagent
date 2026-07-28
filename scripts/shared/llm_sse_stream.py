@@ -4,6 +4,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
+from typing import Any
 
 import httpx
 
@@ -51,7 +52,7 @@ class LlmSseStreamHandler:
         http: httpx.AsyncClient,
         url: str,
         history: list[LLMMessage],
-        tool_defs: list[dict[str, object]],
+        tool_defs: list[dict[str, Any]],
         temperature: float,
         max_tokens: int,
         malformed_retry: int,
@@ -136,13 +137,13 @@ class LlmSseStreamHandler:
     @staticmethod
     def _build_payload(
         history: list[LLMMessage],
-        tool_defs: list[dict[str, object]],
+        tool_defs: list[dict[str, Any]],
         temperature: float,
         max_tokens: int,
         stream: bool = True,
-    ) -> dict[str, object]:
+    ) -> dict[str, Any]:
         """Build the request payload for a chat completion request."""
-        payload: dict[str, object] = {
+        payload: dict[str, Any] = {
             "messages": history,
             "tools": tool_defs,
             "tool_choice": "auto",

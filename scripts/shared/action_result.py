@@ -6,7 +6,7 @@ Universal action/result contract for all machine-interpreted outputs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 ActionType = Literal[
     "continue",
@@ -25,6 +25,6 @@ class ActionResult:
     action: ActionType
     reason: str = ""
     required_context: list[str] = field(default_factory=list)
-    payload: dict[str, object] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     confidence: float = 1.0

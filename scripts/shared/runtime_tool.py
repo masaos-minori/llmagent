@@ -17,7 +17,7 @@ implementation steps.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 AgentSafetyTier = Literal["READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"]
 
@@ -49,8 +49,8 @@ class RuntimeTool:
     server_key: str
     server_url: str
     description: str
-    input_schema: dict[str, object]
-    raw_definition: dict[str, object]
+    input_schema: dict[str, Any]
+    raw_definition: dict[str, Any]
     status: str
     is_write: bool
     requires_serial: bool
@@ -67,8 +67,8 @@ def build_runtime_tool(
     server_key: str,
     server_url: str = "",
     description: str = "",
-    input_schema: dict[str, object] | None = None,
-    raw_definition: dict[str, object] | None = None,
+    input_schema: dict[str, Any] | None = None,
+    raw_definition: dict[str, Any] | None = None,
     status: str = "active",
     is_write: bool | None = None,
     requires_serial: bool | None = None,

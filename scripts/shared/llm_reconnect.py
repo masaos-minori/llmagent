@@ -4,6 +4,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -39,7 +40,7 @@ class LlmReconnectHandler:
         http: httpx.AsyncClient,
         url: str,
         history: list[LLMMessage],
-        tool_defs: list[dict[str, object]],
+        tool_defs: list[dict[str, Any]],
         temperature: float,
         max_tokens: int,
         malformed_retry: int,

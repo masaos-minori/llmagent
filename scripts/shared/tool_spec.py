@@ -7,6 +7,7 @@ Typed metadata for one tool call in the execution DAG.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,7 @@ class ToolSpec:
 
     call_id: str
     name: str
-    args: dict[str, object] = field(default_factory=dict)
+    args: dict[str, Any] = field(default_factory=dict)
     resource_scope: str = ""
     requires_serial: bool = False
     is_write: bool = False

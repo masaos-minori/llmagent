@@ -12,7 +12,7 @@ All functions use orjson for speed and deterministic output (sort_keys=True by d
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import orjson
 
@@ -79,7 +79,7 @@ def serialized_length(obj: object) -> int:
     return len(orjson.dumps(obj))
 
 
-def parse_http_json(resp: Response) -> dict[str, object]:
+def parse_http_json(resp: Response) -> dict[str, Any]:
     """Parse an HTTP response body as JSON and return a dict.
 
     Wrapper around ``orjson.loads(resp.content)`` that centralizes the
@@ -103,7 +103,7 @@ def parse_http_json(resp: Response) -> dict[str, object]:
     return data
 
 
-def extract_llm_content(data: dict[str, object]) -> str:
+def extract_llm_content(data: dict[str, Any]) -> str:
     """Extract and validate content text from an OpenAI-compatible chat completion response.
 
     Validates the nested structure: choices → choices[0] → message → content.

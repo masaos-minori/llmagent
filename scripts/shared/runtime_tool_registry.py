@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping, Sequence
-from typing import Literal
+from typing import Any, Literal
 
 from shared.runtime_tool import AgentSafetyTier, RuntimeTool
 from shared.tool_spec import ToolSpec
@@ -100,7 +100,7 @@ class RuntimeToolRegistry:
         """Return all registered tools."""
         return list(self._tools.values())
 
-    def llm_tool_definitions(self) -> list[dict[str, object]]:
+    def llm_tool_definitions(self) -> list[dict[str, Any]]:
         """Return LLM-facing tool definitions for tools enabled for LLM use.
 
         Re-keys `RuntimeTool.input_schema` to `parameters` to match the shape
@@ -134,7 +134,7 @@ class RuntimeToolRegistry:
         }
 
     def tool_spec_for_call(
-        self, call_id: str, name: str, args: dict[str, object]
+        self, call_id: str, name: str, args: dict[str, Any]
     ) -> ToolSpec:
         """Return a `ToolSpec` representing an actual tool call.
 
@@ -194,7 +194,7 @@ class RuntimeToolRegistry:
                 enabled_for_llm=enabled and tool.enabled_for_llm,
             )
 
-    def diagnostics(self) -> list[dict[str, object]]:
+    def diagnostics(self) -> list[dict[str, Any]]:
         """Return per-tool diagnostics rows for display in /mcp status.
 
         Each row contains: name, server_key, config_dependent, enabled,
@@ -208,7 +208,7 @@ class RuntimeToolRegistry:
         documented in docs/04_mcp_03_06_tool-runtime-availability-metadata.md:
         `enabled=True` iff `disabled_reason == ""`.
         """
-        rows: list[dict[str, object]] = []
+        rows: list[dict[str, Any]] = []
         for tool in sorted(self._tools.values(), key=lambda t: t.name):
             config_dep = tool.status != "active"
             raw_reason = tool.raw_definition.get("disabled_reason")

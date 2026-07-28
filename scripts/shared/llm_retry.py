@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+from typing import Any
 
 import httpx
 
@@ -16,7 +17,7 @@ class LlmRetryHandler:
     async def request_with_retry(
         http: httpx.AsyncClient,
         url: str,
-        payload: dict[str, object],
+        payload: dict[str, Any],
         max_retries: int,
         retry_base_delay: float,
     ) -> httpx.Response:

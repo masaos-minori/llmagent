@@ -12,8 +12,10 @@ Usage:
 
 from __future__ import annotations
 
+from typing import Any
 
-def get_str(d: dict[str, object], key: str, default: str = "") -> str:
+
+def get_str(d: dict[str, Any], key: str, default: str = "") -> str:
     """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
     v = d.get(key)
     if v is None:
