@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""config_loader.py
+"""scripts/shared/config_loader.py
 
 Shared configuration loader for agent pipeline modules.
 Supports both TOML (.toml) and JSON (.json) config files.
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +146,6 @@ class ConfigLoader:
         return self._config_dir / p.name
 
     @staticmethod
-    def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
+    def _filter_meta_keys(data: Mapping[str, Any]) -> dict[str, Any]:
         """Remove keys starting with underscore from the config data."""
         return {k: v for k, v in data.items() if not k.startswith("_")}

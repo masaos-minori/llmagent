@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
 from typing import Any
 
 
@@ -22,7 +23,7 @@ class ConfigValidationResult:
 class RagConfigValidator:
     """Validate RAG configuration for cross-file consistency."""
 
-    def validate(self, cfg: dict[str, Any]) -> ConfigValidationResult:
+    def validate(self, cfg: Mapping[str, Any]) -> ConfigValidationResult:
         """Validate RAG configuration and return results with errors and warnings."""
         errors: list[str] = []
         warnings: list[str] = []

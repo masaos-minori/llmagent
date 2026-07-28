@@ -1,4 +1,4 @@
-"""shared/llm_types.py
+"""scripts/shared/llm_types.py
 
 Typed DTOs for LLM response handling.
 

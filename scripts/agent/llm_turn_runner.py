@@ -180,7 +180,7 @@ class LLMTurnRunner:
     ) -> Any:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
-            attrs: dict[str, object] = {}
+            attrs: dict[str, object] = {}  # noqa: S603 — OTel span attribute keys vary by context
             if task_id:
                 attrs["workflow.task_id"] = task_id
             if session_id:

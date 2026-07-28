@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""shared/types.py
+"""scripts/shared/types.py
 
 Cross-layer type definitions shared by shared, rag, and agent packages.
 """
 
+from __future__ import annotations
+
 import dataclasses
-from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
+from typing import Literal, Protocol, TypedDict, runtime_checkable
 
 
 class _LLMMessageRequired(TypedDict):
@@ -18,7 +20,7 @@ class LLMMessage(_LLMMessageRequired, total=False):
     """OpenAI-compatible chat message; role always required; other fields depend on message type."""
 
     content: str | None  # text content; None for tool_calls-only assistant messages
-    tool_calls: list[dict[str, Any]]  # tool call requests on assistant messages
+    tool_calls: list[ToolCallDict]  # tool call requests on assistant messages
     tool_call_id: str  # tool result messages: ID from the triggering tool_call
     name: str  # tool result messages: name of the called tool
     importance: float  # message importance score for compression

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/shared/llm_sse_helpers.py — SSE streaming helper methods for LLMClient."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import orjson
@@ -55,7 +55,7 @@ class LlmSseHelpers:
 
     @staticmethod
     def process_sse_chunk(
-        chunk: dict[str, Any],
+        chunk: Mapping[str, Any],
         content_parts: list[str],
         tool_calls_map: dict[int, AccumulatedToolCall],
         on_token: Callable[[str], None] | None = None,
@@ -101,7 +101,7 @@ class LlmSseHelpers:
 
     @staticmethod
     def parse_usage(
-        data: dict[str, Any], on_usage: Callable[[int, int], None] | None = None
+        data: Mapping[str, Any], on_usage: Callable[[int, int], None] | None = None
     ) -> LLMUsage | None:
         """Extract token usage from response data; fire on_usage callback; return LLMUsage or None."""
         usage_raw = data.get("usage")

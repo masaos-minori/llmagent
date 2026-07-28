@@ -54,7 +54,7 @@ async def _probe_mcp_health_detail(
             body={},
         )
     try:
-        body: dict[str, object] = resp.json()
+        body: dict[str, object] = resp.json()  # noqa: S603 — MCP server response body structure varies
     except Exception as exc:  # noqa: BLE001 — health check must not fail on body parse errors
         return McpHealthProbeResult(
             reachable=True,

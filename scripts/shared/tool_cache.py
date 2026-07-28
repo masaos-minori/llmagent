@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import time
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -42,7 +43,7 @@ class ToolResultCache:
         self._max_size = max_size
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
 
-    def make_key(self, tool_name: str, args: dict[str, Any]) -> str:
+    def make_key(self, tool_name: str, args: Mapping[str, Any]) -> str:
         """Return the canonical cache key for a tool call."""
         return f"{tool_name}:{_json_dumps(args)}"
 

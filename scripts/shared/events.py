@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/events.py
+"""scripts/shared/events.py
 
 Typed event definitions for agent lifecycle and artifact notifications.
 

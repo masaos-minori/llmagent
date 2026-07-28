@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""logger.py
+"""scripts/shared/logger.py
 
 Shared logging setup for entry-point scripts.
 
@@ -42,7 +42,7 @@ class _ContextFilter(logging.Filter):
     def __init__(self) -> None:
         """Initialize with an empty context variable."""
         super().__init__()
-        self._cv: ContextVar[dict[str, Any]] = ContextVar("_log_context", default={})
+        self._cv: ContextVar[dict[str, Any]] = ContextVar("_log_context", default={})  # noqa: S603 — log context keys vary by caller
 
     def set(self, **fields: Any) -> None:
         """Set trace fields into the current context."""
@@ -66,7 +66,7 @@ class _JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record as a JSON string with trace fields included."""
-        entry: dict[str, Any] = {
+        entry: dict[str, Any] = {  # noqa: S603 — log entry keys vary by formatter
             "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
             "level": record.levelname,
             "func": record.funcName,
