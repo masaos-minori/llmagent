@@ -43,7 +43,7 @@ from mcp_servers.rag_pipeline.rag_pipeline_service import (
     _service,
 )
 from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
-from mcp_servers.server import MCPServer, ToolArgs
+from mcp_servers.server import MCPServer, ToolArgs, build_tools_response
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +162,7 @@ async def rag_invalidate_cache() -> JSONResponse:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """List available RAG tools with server_key="rag_pipeline"."""
-    return {
-        "tools": [{**t, "server_key": "rag_pipeline"} for t in TOOL_LIST],
-    }
+    return build_tools_response(TOOL_LIST, "rag_pipeline")
 
 
 async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:

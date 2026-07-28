@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -45,6 +45,7 @@ from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
     MCPServer,
+    _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
 )
@@ -60,7 +61,7 @@ app = FastAPI(
     description="CI/CD (GitHub Actions) MCP server",
 )
 
-attach_auth_middleware(app, _cfg.auth_token or "")
+attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
 setup_exception_handlers(app)
 
 

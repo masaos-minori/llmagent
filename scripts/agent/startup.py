@@ -32,6 +32,7 @@ from agent.repl_health import (
     check_routing_safety_tiers,
     check_workflow_definition,
 )
+from agent.secrets_masker import _mask_secrets
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
@@ -154,12 +155,13 @@ class StartupOrchestrator:
                 except (OSError, RuntimeError) as e:
                     if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
                         msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start: {e}"
-                        logger.error(msg)
-                        raise RuntimeError(msg) from e
+                        masked_msg = _mask_secrets(msg)
+                        logger.error(masked_msg)
+                        raise RuntimeError(masked_msg) from e
                     logger.error(
                         "Failed to start HTTP subprocess MCP server %r: %s",
                         key,
-                        e,
+                        _mask_secrets(str(e)),
                     )
                     self._view.write_warning(
                         f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start: {e}"
@@ -514,6 +516,9 @@ class StartupOrchestrator:
         finally:
             store.close()
         if not results:
+            logger.warning(
+                "No pending approvals found; existing approvals may have expired"
+            )
             return
         # Recover the most recent pending approval first
         task_id, approval = results[-1]
@@ -561,7 +566,7 @@ class StartupOrchestrator:
                             ctx.session.session_id,
                         )
                         memory_snippets = memory_snippets[:max_snippets]
-                    memory_block = "\n\n[Relevant memories]\n" + "\n".join(
+                    memory_block = "\n\n--- USER MEMORY ---\n" + "\n".join(
                         f"- {snippet.text}" for snippet in memory_snippets
                     )
                     initial_prompt = initial_prompt + memory_block

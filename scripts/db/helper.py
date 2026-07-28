@@ -33,7 +33,7 @@ def apply_connection_pragmas(
     """Apply WAL/synchronous=NORMAL/busy_timeout/foreign_keys pragmas to a connection."""
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")  # nosec B608
     if write_mode:
         conn.execute("PRAGMA foreign_keys=ON")
 
@@ -265,7 +265,7 @@ class SQLiteHelper:
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
             )
         conn = self._require_conn()
-        row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
+        row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()  # nosec B608
         result = WalCheckpointCounts(
             busy=int(row[0]),
             log_size=int(row[1]),

@@ -2,11 +2,14 @@
 """scripts/agent/workflow/approval_ops.py — Approval operations for workflow.sqlite."""
 
 import uuid
+from datetime import datetime, timedelta
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
 from agent.workflow.models import ApprovalRecord
+
+_APPROVAL_TTL_HOURS: int = 24
 
 
 def request_approval(
@@ -15,13 +18,15 @@ def request_approval(
     """Insert a pending approval gate for a task (or specific stage)."""
     approval_id = str(uuid.uuid4())
     now = _now()
+    expires_dt = datetime.utcnow() + timedelta(hours=_APPROVAL_TTL_HOURS)
+    expires_at = expires_dt.isoformat()
     db.execute(
         """
 
-        INSERT INTO approvals (approval_id, task_id, workflow_id, stage_id, status, created_at)
-        VALUES (?, ?, ?, ?, 'pending', ?)
+        INSERT INTO approvals (approval_id, task_id, workflow_id, stage_id, status, created_at, expires_at)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?)
         """,
-        (approval_id, task_id, workflow_id, stage_id, now),
+        (approval_id, task_id, workflow_id, stage_id, now, expires_at),
     )
     db.commit()
     return ApprovalRecord(
@@ -33,6 +38,7 @@ def request_approval(
         created_at=now,
         resolved_at=None,
         workflow_id=workflow_id,
+        expires_at=expires_at,
     )
 
 
@@ -193,11 +199,12 @@ def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalReco
     rows = db.fetchall(
         """
 
-        SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at
+        SELECT t.task_id, a.approval_id, a.workflow_id, a.stage_id, a.reason, a.created_at, a.resolved_at, a.expires_at
         FROM tasks t
         JOIN approvals a ON t.task_id = a.task_id
         WHERE t.status = 'pending_approval'
           AND a.status = 'pending'
+          AND (a.expires_at IS NULL OR a.expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         ORDER BY a.created_at DESC, a.rowid DESC
         """,
         (),
@@ -214,6 +221,7 @@ def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalReco
                 created_at=r["created_at"],
                 resolved_at=r["resolved_at"],
                 workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
+                expires_at=r.get("expires_at"),
             ),
         )
         for r in rows

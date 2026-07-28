@@ -2,6 +2,7 @@
 """scripts/eventbus/replay_route.py — Replay endpoint handler."""
 
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import Query, Request
@@ -53,7 +54,7 @@ async def replay(
             "items": [_row_to_dict(r) for r in rows],
         }
 
-    async def _sse_gen() -> Any:
+    async def _sse_gen() -> AsyncGenerator[str]:
         """Generate SSE stream events from fetched rows."""
         for row in rows:
             data = json_dumps(_row_to_dict(row))

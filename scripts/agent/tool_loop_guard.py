@@ -116,7 +116,7 @@ class ToolLoopGuard:
             "|".join(
                 sorted(
                     f"{tc.get('function', {}).get('name', '')}:{tc.get('function', {}).get('arguments', '{}')}"
-                    for tc in message["tool_calls"]
+                    for tc in message.get("tool_calls", [])
                 ),
             ).encode(),
             usedforsecurity=False,
@@ -146,7 +146,7 @@ class ToolLoopGuard:
     ) -> str | None:
         """Block re-execution of identical (tool, args); return exit msg when hit."""
         ctx = self._ctx
-        for tc in message["tool_calls"]:
+        for tc in message.get("tool_calls", []):
             func = tc.get("function", {})
             key = self._canonical_key(
                 func.get("name", ""),
@@ -175,7 +175,7 @@ class ToolLoopGuard:
         ctx = self._ctx
         if ctx.cfg.tool.tool_error_retry_max <= 0:
             return None
-        for tc in message["tool_calls"]:
+        for tc in message.get("tool_calls", []):
             func = tc.get("function", {})
             key = self._canonical_key(
                 func.get("name", ""),

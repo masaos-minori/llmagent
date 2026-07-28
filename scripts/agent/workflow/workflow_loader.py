@@ -62,13 +62,14 @@ def _validate(data: _WorkflowJson) -> None:
     for key in ("name", "version", "stages", "retry_policy"):
         if key not in data:
             raise WorkflowLoadError(f"missing required key: {key!r}")
-    if not isinstance(data["stages"], list) or not data["stages"]:
+    stages_data = data.get("stages", [])
+    if not isinstance(stages_data, list) or not stages_data:
         raise WorkflowLoadError("'stages' must be a non-empty list")
-    stage_ids = [s.get("id") for s in data["stages"]]
+    stage_ids = [s.get("id") for s in stages_data]
     for sid in stage_ids:
         if sid is None:
             continue
-        count = sum(1 for s in data["stages"] if s.get("id") == sid)
+        count = sum(1 for s in stages_data if s.get("id") == sid)
         if count > 1:
             raise WorkflowLoadError(f"duplicate stage id: {sid!r}")
     found_stage_ids = set(stage_ids)
@@ -77,14 +78,15 @@ def _validate(data: _WorkflowJson) -> None:
         raise WorkflowLoadError(
             f"required stages missing: {', '.join(sorted(missing_stages))}"
         )
-    for i, stage in enumerate(data["stages"]):
+    for i, stage in enumerate(stages_data):
         missing = _REQUIRED_STAGE_KEYS - stage.keys()
         if missing:
             raise WorkflowLoadError(f"stage[{i}] missing keys: {missing}")
-    missing_p = _REQUIRED_POLICY_KEYS - data["retry_policy"].keys()
+    retry_policy_data = data.get("retry_policy", {})
+    missing_p = _REQUIRED_POLICY_KEYS - retry_policy_data.keys()
     if missing_p:
         raise WorkflowLoadError(f"retry_policy missing keys: {missing_p}")
-    policy = data["retry_policy"]
+    policy = retry_policy_data
     max_attempts = int(policy["max_attempts"])
     if max_attempts < 1:
         raise WorkflowLoadError("retry_policy.max_attempts must be >= 1")
@@ -119,16 +121,16 @@ class WorkflowLoader:
                 timeout_sec=int(s["timeout_sec"]),
                 retryable=bool(s["retryable"]),
             )
-            for s in data["stages"]
+            for s in data.get("stages", [])
         ]
-        policy_data = data["retry_policy"]
+        policy_data = data.get("retry_policy", {})
         policy = RetryPolicy(
             max_attempts=int(policy_data["max_attempts"]),
             backoff_sec=int(policy_data["backoff_sec"]),
         )
         wdef = WorkflowDef(
-            name=data["name"],
-            version=data["version"],
+            name=data.get("name", ""),
+            version=data.get("version", ""),
             stages=stages,
             retry_policy=policy,
             require_approval=bool(data.get("require_approval", False)),

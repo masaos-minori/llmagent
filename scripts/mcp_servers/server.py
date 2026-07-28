@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import time
 import uuid
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
@@ -39,7 +38,7 @@ MCP_TOOL_SCHEMA_VERSION: str = "1.0"
 class _FastAPIApp(Protocol):
     """Minimal FastAPI app interface for middleware attachment."""
 
-    def middleware(self, type_: str) -> Callable[[Callable], Callable]:
+    def middleware(self, middleware_type: str) -> Callable[[Callable], Callable]:
         """Attach a middleware function to the FastAPI application."""
         ...
 
@@ -121,12 +120,6 @@ class MCPServer:
         dict[str, Any]
     ]  # tool definitions (retained for subclass reference)
 
-    # Lazily initialized by _ensure_error_tracking(); not set in __init__ since
-    # MCPServer has no __init__ (subclasses are plain attribute-holding classes).
-    _tool_error_timestamps: list[float]
-    _error_window_sec: float
-    _error_threshold: int
-
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
@@ -180,29 +173,6 @@ class MCPServer:
             "dependencies": deps,
             "details": {},
         }, status_code
-
-    def _ensure_error_tracking(self) -> None:
-        """Ensure per-instance error tracking lists are initialized (lazy init)."""
-        if not hasattr(self, "_tool_error_timestamps"):
-            object.__setattr__(self, "_tool_error_timestamps", [])
-            object.__setattr__(self, "_error_window_sec", 300.0)
-            object.__setattr__(self, "_error_threshold", 3)
-
-    def _record_tool_error(self, tool_name: str) -> None:
-        """Record a tool error timestamp; warn if repeated failures exceed threshold."""
-        self._ensure_error_tracking()
-        now = time.time()
-        cutoff = now - self._error_window_sec
-        timestamps = [t for t in self._tool_error_timestamps if t > cutoff]
-        object.__setattr__(self, "_tool_error_timestamps", timestamps)
-        self._tool_error_timestamps.append(now)
-        if len(self._tool_error_timestamps) >= self._error_threshold:
-            logger.warning(
-                "Repeated tool failures detected: %s failed %d times in %.0fs window",
-                tool_name,
-                len(self._tool_error_timestamps),
-                self._error_window_sec,
-            )
 
     def run_http(self) -> None:
         """Launch the HTTP server via uvicorn."""

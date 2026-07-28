@@ -27,14 +27,25 @@ class AgentSession:
     Imported by REPLAgent to decouple persistence from REPL logic.
     """
 
+    _repo: SessionMessageRepository | None = None
+
+    @property
+    def _message_repo(self) -> SessionMessageRepository:
+        if self._repo is None:
+            self._repo = SessionMessageRepository(
+                self.session_id, strict_mode=self._strict_mode
+            )
+        return self._repo
+
+    @_message_repo.setter
+    def _message_repo(self, value: SessionMessageRepository) -> None:
+        self._repo = value
+
     def __init__(self, *, strict_mode: bool = False) -> None:
         """Initialize the session manager with optional strict mode and message repository."""
         self.session_id: int | None = None  # current session DB row ID
         self._strict_mode = strict_mode
         self._title_pending: bool = False
-        self._message_repo = SessionMessageRepository(
-            self.session_id, strict_mode=strict_mode
-        )
         self._diagnostic_store = DiagnosticStore(self.session_id)
 
     # ── SessionMessageRepository delegation ──────────────────────────────────

@@ -23,6 +23,7 @@ from typing import IO
 import httpx
 from shared.mcp_config import McpServerConfig
 
+from agent.secrets_masker import _mask_secrets
 from agent.services.models import ProcessInfoSnapshot
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,12 @@ class HttpServerLifecycleManager:
 
     _STDERR_TAIL_BYTES = 64 * 1024
     _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
+    _ALLOWED_COMMANDS: frozenset[str] = frozenset(
+        {"node", "npm", "npx", "uvx", "python", "pipx"}
+    )
+    _PROTECTED_ENV_VARS: frozenset[str] = frozenset(
+        {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
+    )
 
     def __init__(self) -> None:
         """Initialize empty tracking dicts for HTTP subprocess servers."""
@@ -223,9 +230,25 @@ class HttpServerLifecycleManager:
         )
         env = None
         if cfg.env:
-            env = {**os.environ, **cfg.env}
+            env = dict(os.environ)
+            for key, value in cfg.env.items():
+                if key in self._PROTECTED_ENV_VARS:
+                    logger.warning(
+                        "Blocked protected env var override: %s=%s", key, value
+                    )
+                else:
+                    env[key] = value
         stderr_fh = self._open_stderr_log(server_key)
         self._stderr_files[server_key] = stderr_fh
+        if cfg.cmd:
+            cmd_basename = os.path.basename(cfg.cmd[0])
+            if cmd_basename not in self._ALLOWED_COMMANDS:
+                logger.error(
+                    "MCP subprocess rejected: command '%s' not in whitelist (%s)",
+                    cfg.cmd[0],
+                    ", ".join(sorted(self._ALLOWED_COMMANDS)),
+                )
+                return
         try:
             proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
                 cfg.cmd,
@@ -275,7 +298,7 @@ class HttpServerLifecycleManager:
                             "Lifecycle: %r exited early; stderr (%s chars): %s",
                             server_key,
                             len(stderr_full),
-                            stderr_full[:500],
+                            _mask_secrets(stderr_full[:500]),
                         )
                         self._http_procs.pop(server_key, None)
                         self._http_pgids.pop(server_key, None)

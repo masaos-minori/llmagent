@@ -202,7 +202,8 @@ CREATE TABLE IF NOT EXISTS approvals (
     reason      TEXT,
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     resolved_at TEXT,
-    workflow_id TEXT NOT NULL DEFAULT ''
+    workflow_id TEXT NOT NULL DEFAULT '',
+    expires_at  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS workflow_schema_version (

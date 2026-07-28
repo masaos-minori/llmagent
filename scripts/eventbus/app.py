@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -50,7 +51,7 @@ _DLQ_INTERVAL = 60.0
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> Any:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)

@@ -120,33 +120,64 @@ def _validate_tool_args(
     Returns None for every lenient-fallback case (no registry, tool not
     registered, schema absent/passes) and a synthetic error ToolCallResult
     only on an actual validation failure.
+
+    If the RuntimeTool registry does not contain the tool, falls back to
+    validating against ctx.cfg.tool.tool_definitions so read operations
+    (which may not be in the registry) also get validated.
     """
     registry = ctx.services_required.runtime_tools
-    if registry is None:
-        return None
-    try:
-        runtime_tool = registry.get(name)
-    except KeyError:
-        return None
-    result = validate_tool_arguments(
-        tool_name=name,
-        args=args,
-        input_schema=runtime_tool.input_schema,
-        allow_extra_fields=runtime_tool.allow_extra_fields,
-    )
-    if result.success:
-        return None
-    logger.warning(
-        "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
-    )
-    return ToolCallResult(
-        output=result.reason,
-        is_error=True,
-        request_id="",
-        server_key="",
-        source="validation",
-        error_type="validation",
-    )
+    if registry is not None:
+        try:
+            runtime_tool = registry.get(name)
+            result = validate_tool_arguments(
+                tool_name=name,
+                args=args,
+                input_schema=runtime_tool.input_schema,
+                allow_extra_fields=runtime_tool.allow_extra_fields,
+            )
+            if result.success:
+                return None
+            logger.warning(
+                "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
+            )
+            return ToolCallResult(
+                output=result.reason,
+                is_error=True,
+                request_id="",
+                server_key="",
+                source="validation",
+                error_type="validation",
+            )
+        except KeyError:
+            pass  # Fall through to gateway fallback
+
+    # Gateway fallback: check cfg.tool.tool_definitions
+    for td in ctx.cfg.tool.tool_definitions:
+        if td.get("name") == name:
+            input_schema = td.get("inputSchema") or {}
+            allow_extra = False
+            if isinstance(td.get("inputSchema"), dict):
+                allow_extra = bool(td["inputSchema"].get("allowExtraFields", False))
+            result = validate_tool_arguments(
+                tool_name=name,
+                args=args,
+                input_schema=input_schema,
+                allow_extra_fields=allow_extra,
+            )
+            if result.success:
+                return None
+            logger.warning(
+                "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
+            )
+            return ToolCallResult(
+                output=result.reason,
+                is_error=True,
+                request_id="",
+                server_key="",
+                source="validation",
+                error_type="validation",
+            )
+    return None
 
 
 async def execute_one_tool_call(

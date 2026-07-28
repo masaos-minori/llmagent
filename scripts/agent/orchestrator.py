@@ -70,7 +70,7 @@ from agent.workflow.workflow_loader import WORKFLOWS_DIR
 #   choice. If this is revisited, `ToolConfig.tool_error_max_consecutive`
 #   (`scripts/agent/config_dataclasses.py:168`) is the copyable precedent for
 #   wiring a similar threshold through config.
-BG_FAILURE_THRESHOLD: int = 5
+BG_FAILURE_THRESHOLD: int = 10
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -120,6 +120,8 @@ class Orchestrator:
     and side effects are routed via optional callbacks so this class has no
     direct I/O dependency.
     """
+
+    _EPHEMERAL_KEYS: frozenset[str] = frozenset({"_ephemeral", "_memory_injected"})
 
     def __init__(
         self,
@@ -173,7 +175,7 @@ class Orchestrator:
         )
         try:
             self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
-        except (WorkflowLoadError, Exception) as exc:
+        except (WorkflowLoadError, FileNotFoundError) as exc:
             raise RuntimeError(
                 f"{OutputTag.WORKFLOW} WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."
             ) from exc
@@ -440,7 +442,7 @@ class Orchestrator:
                 session_id=ctx.session.session_id,
             )
             if memory_snippets:
-                memory_block = "[Relevant memories]\n" + "\n".join(
+                memory_block = "--- USER MEMORY ---\n" + "\n".join(
                     f"- {snippet.text}" for snippet in memory_snippets
                 )
                 ctx.conv.append_message(
@@ -617,7 +619,7 @@ class Orchestrator:
         ctx.conv.history = [
             m
             for m in ctx.conv.history
-            if not m.get("_ephemeral") and not m.get("_memory_injected")
+            if not any(k in self._EPHEMERAL_KEYS for k in m.keys())
         ]
 
     def _sync_system_prompt(self) -> None:
@@ -694,23 +696,28 @@ class Orchestrator:
                                 notif_err,
                             )
                 elif self._consecutive_bg_failures >= BG_FAILURE_THRESHOLD:
-                    logger.error(
-                        "Consecutive background task failures (%d) for '%s': %s",
-                        self._consecutive_bg_failures,
-                        task_name,
-                        exc,
-                    )
-                    if self._consecutive_bg_failures == BG_FAILURE_THRESHOLD:
-                        self._notify_bg_failure_threshold(
-                            task_name, self._consecutive_bg_failures
+                    if (
+                        self._consecutive_bg_failures == BG_FAILURE_THRESHOLD
+                        or (self._consecutive_bg_failures - BG_FAILURE_THRESHOLD) % 5
+                        == 0
+                    ):
+                        logger.error(
+                            "Consecutive background task failures (%d) for '%s': %s",
+                            self._consecutive_bg_failures,
+                            task_name,
+                            exc,
                         )
-                else:
-                    logger.warning(
-                        "Background task failure #%d (%s): %s",
-                        self._consecutive_bg_failures,
-                        task_name,
-                        exc,
-                    )
+                        if self._consecutive_bg_failures == BG_FAILURE_THRESHOLD:
+                            self._notify_bg_failure_threshold(
+                                task_name, self._consecutive_bg_failures
+                            )
+                    else:
+                        logger.warning(
+                            "Background task failure #%d (%s): %s",
+                            self._consecutive_bg_failures,
+                            task_name,
+                            exc,
+                        )
         else:
             # Task completed successfully — reset counter
             self._consecutive_bg_failures = 0

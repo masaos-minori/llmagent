@@ -9,9 +9,12 @@ done directly inside cmd_context.py command handlers.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from shared.types import LLMMessage
 
 from agent.commands.mixin_base import reset_session_stats
+from agent.message_schema import validate_message
 from agent.services.enums import ConversationActionType
 from agent.services.exceptions import ConversationStateError
 from agent.services.models import ConversationActionResult
@@ -57,9 +60,12 @@ def switch_system_prompt(ctx: AgentContext, name: str) -> ConversationActionResu
     if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
         ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
     elif ctx.conv.system_prompt_content:
-        ctx.conv.history.insert(
-            0, {"role": "system", "content": ctx.conv.system_prompt_content}
-        )
+        msg = {"role": "system", "content": ctx.conv.system_prompt_content}
+        result = validate_message(msg)
+        if result.success:
+            ctx.conv.history.insert(0, cast("LLMMessage", msg))
+        else:
+            logger.warning("Skipping invalid system prompt: %s", result.reason)
     logger.info("System prompt switched to %r", name)
     return ConversationActionResult(
         action=ConversationActionType.SWITCH_PROMPT,

@@ -36,6 +36,7 @@ class ApprovalRecord:
     created_at: str  # ISO-8601
     resolved_at: str | None
     workflow_id: str = ""
+    expires_at: str | None = None
 
 
 @dataclass

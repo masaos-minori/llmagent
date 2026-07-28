@@ -273,10 +273,18 @@ class AgentREPL:
                 logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
                 return True, errors
             # Try PASSIVE checkpoint first (no exclusive lock required)
+            _passive_start = time.monotonic()
             try:
                 db.checkpoint("PASSIVE")
-                logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
-                return True, errors
+                elapsed = time.monotonic() - _passive_start
+                if elapsed > 5:
+                    logger.warning(
+                        "WAL PASSIVE checkpoint took %s seconds, falling back to TRUNCATE",
+                        round(elapsed, 2),
+                    )
+                else:
+                    logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
+                    return True, errors
             except sqlite3.Error as passive_err:
                 logger.warning(
                     "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",

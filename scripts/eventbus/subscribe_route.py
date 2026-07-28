@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import Query, Request
@@ -32,7 +33,7 @@ async def subscribe(
     if consumer_id and start_seq == 0:
         start_seq = read_offset(cfg.offsets_dir, consumer_id)
 
-    async def _sse_gen() -> Any:
+    async def _sse_gen() -> AsyncGenerator[str]:
         """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
         # Step 1: register with broker BEFORE replay to capture events published during replay
         sub = broker.subscribe(list(topic))
@@ -78,7 +79,7 @@ async def subscribe(
             logger.info(
                 "subscribe disconnected consumer=%s seq=%d",
                 consumer_id,
-                replay_ceil if "replay_ceil" in dir() else start_seq,
+                replay_ceil if locals().get("replay_ceil") is not None else start_seq,
             )
         finally:
             broker.unsubscribe(sub)

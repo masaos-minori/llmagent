@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   lint:
@@ -50,4 +50,4 @@ jobs:
         run: |
           uv run coverage run -m pytest tests/
           uv run coverage xml
-          uv run diff-cover coverage.xml --compare-branch=main --fail-under=90
+          uv run diff-cover coverage.xml --compare-branch=master --fail-under=90

@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -23,6 +23,7 @@ from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
     MCPServer,
+    _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
 )
@@ -52,7 +53,7 @@ app = FastAPI(
     description="web-search-mcp: web search (search_web) + read-only page fetch (browser_fetch)",
 )
 
-attach_auth_middleware(app, _cfg.browser_auth_token or "")
+attach_auth_middleware(cast(_FastAPIApp, app), _cfg.browser_auth_token or "")
 
 
 @app.exception_handler(WebSearchUpstreamError)

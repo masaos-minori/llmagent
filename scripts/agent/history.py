@@ -249,12 +249,12 @@ class HistoryManager:
                 m
                 for m in system_msgs
                 if isinstance(m.get("content"), str)
-                and str(m["content"]).startswith("[Conversation summary]")
+                and str(m.get("content", "")).startswith("[Conversation summary]")
             ),
             None,
         )
         if existing:
-            new_content = f"{existing['content']}\n\n{summary_text}"
+            new_content = f"{existing.get('content', '')}\n\n{summary_text}"
         else:
             new_content = f"[Conversation summary]\n{summary_text}"
         return {"role": "system", "content": new_content}

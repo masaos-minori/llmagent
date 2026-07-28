@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -40,6 +40,7 @@ from mcp_servers.server import (
     MCP_TOOL_SCHEMA_VERSION,
     MCPServer,
     ToolArgs,
+    _FastAPIApp,
     attach_auth_middleware,
 )
 
@@ -54,7 +55,7 @@ app = FastAPI(
     description="Local git operations MCP server",
 )
 
-attach_auth_middleware(app, _cfg.auth_token or "")
+attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
 
 
 @app.exception_handler(GitServiceError)

@@ -54,7 +54,7 @@ uv run pytest tests/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/
 ```bash
 uv run coverage run -m pytest tests/
 uv run coverage xml
-uv run diff-cover coverage.xml --compare-branch=main --fail-under=90
+  uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 ### 8. Pre-commit (final gate)
@@ -79,7 +79,7 @@ git diff --staged         # confirm what will be committed
 - `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
 - `uv run pytest` passes with no new failures
 - `uv run pytest tests/test_mdq_rag_boundary.py` passes (MDQ/RAG boundary clean)
-- `uv run diff-cover coverage.xml --compare-branch=main` ≥ 90% on changed lines
+- `uv run diff-cover coverage.xml --compare-branch=master` ≥ 90% on changed lines
 - `uv run pre-commit run --all-files` passes
 - diff reviewed and staged selectively with `git add <file>`
 - `deploy/deploy.sh` updated if a file under `scripts/` was added or removed
