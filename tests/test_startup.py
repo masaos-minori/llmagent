@@ -7,6 +7,7 @@ _start_subprocess_servers was moved to StartupOrchestrator._start_servers().
 
 from __future__ import annotations
 
+import subprocess
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -169,7 +170,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
 
         with patch(
             "agent.startup.find_all_pending_approvals",
-            return_value=[("task-old", approval1), ("task-new", approval2)],
+            return_value=[("task-new", approval2), ("task-old", approval1)],
         ):
             await startup._recover_pending_approvals()
 
@@ -177,6 +178,49 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert ctx.turn.pending_approval_id == "approval-new"
         assert ctx.turn.pending_approval_task_id == "task-new"
         assert len(view.write_warning.call_args[0][0]) > 0
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_selects_newest_not_oldest_pending_approval(
+        self,
+    ) -> None:
+        """Regression: _recover_pending_approvals must select newest, not oldest.
+
+        This test fails against the pre-fix code path (results[-1]).
+        """
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval1 = MagicMock()
+        approval1.approval_id = "approval-first"
+        approval1.reason = "first reason"
+
+        approval2 = MagicMock()
+        approval2.approval_id = "approval-second"
+        approval2.reason = "second reason"
+
+        approval3 = MagicMock()
+        approval3.approval_id = "approval-third"
+        approval3.reason = "third reason"
+
+        with patch(
+            "agent.startup.find_all_pending_approvals",
+            return_value=[
+                ("task-third", approval3),
+                ("task-second", approval2),
+                ("task-first", approval1),
+            ],
+        ):
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id == "approval-third"
+        assert ctx.turn.pending_approval_task_id == "task-third"
 
     @pytest.mark.asyncio
     async def test_startup_recovery_warning_contains_task_and_approval_id(self) -> None:
@@ -574,6 +618,46 @@ class TestStartupRollback:
             await orch.run()
 
         mock_lifecycle.shutdown_all.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_run_populates_spawned_subprocesses_on_exception_path(self) -> None:
+        """Regression: _spawned_subprocesses must be populated even when run() raises."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        fake_procs = [
+            MagicMock(spec=subprocess.Popen),
+            MagicMock(spec=subprocess.Popen),
+        ]
+        orch._start_servers = AsyncMock(return_value=fake_procs)
+        orch._check_services = AsyncMock(
+            side_effect=RuntimeError("health check failed")
+        )
+        orch._recover_pending_approvals = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+        mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")
+
+        with pytest.raises(RuntimeError, match="health check failed"):
+            await orch.run()
+
+        assert orch._spawned_subprocesses == fake_procs
+
+    @pytest.mark.asyncio
+    async def test_run_returns_spawned_subprocesses_on_success(self) -> None:
+        """Assert run()'s third return value equals the real spawned-process list."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        fake_procs = [
+            MagicMock(spec=subprocess.Popen),
+            MagicMock(spec=subprocess.Popen),
+        ]
+        orch._start_servers = AsyncMock(return_value=fake_procs)
+        orch._check_services = AsyncMock()
+        orch._recover_pending_approvals = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+        orch._cmds = MagicMock()
+        orch._orchestrator = MagicMock()
+
+        cmds, orchestrator, spawned = await orch.run()
+
+        assert spawned == fake_procs
 
 
 # ── StartupOrchestrator._check_services() severity classification ───────────

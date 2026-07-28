@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,6 +18,13 @@ from agent.message_schema import ValidationResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
+from agent.workflow import (
+    WorkflowHaltError,
+    WorkflowPendingApprovalError,
+    WorkflowTimeoutError,
+)
+from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
+from agent.workflow.task_ops import create_task
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
@@ -173,6 +181,217 @@ class TestHandleTurnInvokesWorkflowEngine:
             await orch.handle_turn("hello")
 
         mock_engine_instance.run.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_returns_normally_on_genuine_workflow_timeout(
+        self,
+    ) -> None:
+        """When WorkflowEngine.run() raises WorkflowTimeoutError, handle_turn() must return
+        normally and invoke _on_error with the timeout error instance."""
+        ctx = _make_ctx()
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        async def _raise_timeout(task, plan_fn, execute_fn, verify_fn):
+            raise WorkflowTimeoutError("stage timed out")
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_raise_timeout)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch.handle_turn("hello")
+
+        assert on_error.call_count == 1
+        exc_arg = on_error.call_args[0][0]
+        assert isinstance(exc_arg, WorkflowTimeoutError)
+        assert str(exc_arg) == "stage timed out"
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_does_not_raise_on_workflow_timeout(self) -> None:
+        """handle_turn() must NOT re-raise WorkflowTimeoutError — it is handled internally."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        async def _raise_timeout(task, plan_fn, execute_fn, verify_fn):
+            raise WorkflowTimeoutError("stage timed out")
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_raise_timeout)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            # Should NOT raise
+            await orch.handle_turn("hello")
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_returns_normally_on_genuine_asyncio_wait_for_timeout(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """When WorkflowEngine.run() raises WorkflowTimeoutError via a real asyncio.wait_for timeout,
+        handle_turn() must return normally and invoke _on_error."""
+
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "workflow.sqlite")
+        rag_path = str(tmp_path / "rag.sqlite")
+        session_path = str(tmp_path / "session.sqlite")
+
+        # Create temp DB schema before creating StateStore
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        # Replace StateStore with one that uses our temp DB (bypasses autouse fixture patch)
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        # Restore real classes that were patched by autouse _patch_workflow_loader fixture
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr("agent.orchestrator.WorkflowEngine", WorkflowEngine)
+        monkeypatch.setattr("agent.orchestrator.create_task", create_task)
+
+        ctx = _make_ctx()
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        # Set a real WorkflowDef (autouse fixture returns a mock with MagicMock values)
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+
+        # Patch _activate_workflow/_deactivate_workflow to set workflow state properly
+        # so _process_turn has valid task_id/workflow_id for the execute stage
+        def _fake_activate(ctx_obj, task):
+            ctx_obj.workflow.current_task_id = task.task_id
+            ctx_obj.workflow.workflow_id = task.workflow_id
+            ctx_obj.workflow.current_workflow_version = orch._workflow_def.version
+            ctx_obj.workflow.active = True
+
+        def _fake_deactivate(ctx_obj):
+            ctx_obj.workflow.active = False
+            ctx_obj.workflow.current_task_id = None
+            ctx_obj.workflow.workflow_id = None
+
+        with (
+            patch.object(orch, "_activate_workflow", side_effect=_fake_activate),
+            patch.object(orch, "_deactivate_workflow", side_effect=_fake_deactivate),
+        ):
+            # Should NOT raise — real WorkflowEngine will timeout after 0.01s
+            await orch.handle_turn("hello")
+
+        assert on_error.call_count == 1
+        exc_arg = on_error.call_args[0][0]
+        assert isinstance(exc_arg, WorkflowHaltError)
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_does_not_raise_on_real_asyncio_wait_for_timeout(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """handle_turn() must NOT re-raise WorkflowTimeoutError — it is handled internally by the real engine."""
+
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "workflow.sqlite")
+        rag_path = str(tmp_path / "rag.sqlite")
+        session_path = str(tmp_path / "session.sqlite")
+
+        # Create temp DB schema before creating StateStore
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        # Replace StateStore with one that uses our temp DB (bypasses autouse fixture patch)
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        # Restore real classes that were patched by autouse _patch_workflow_loader fixture
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr("agent.orchestrator.WorkflowEngine", WorkflowEngine)
+        monkeypatch.setattr("agent.orchestrator.create_task", create_task)
+
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        # Set a real WorkflowDef (autouse fixture returns a mock with MagicMock values)
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=1, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+
+        # Patch _activate_workflow/_deactivate_workflow to set workflow state properly
+        def _fake_activate(ctx_obj, task):
+            ctx_obj.workflow.current_task_id = task.task_id
+            ctx_obj.workflow.workflow_id = task.workflow_id
+            ctx_obj.workflow.current_workflow_version = orch._workflow_def.version
+            ctx_obj.workflow.active = True
+
+        def _fake_deactivate(ctx_obj):
+            ctx_obj.workflow.active = False
+            ctx_obj.workflow.current_task_id = None
+            ctx_obj.workflow.workflow_id = None
+
+        with (
+            patch.object(orch, "_activate_workflow", side_effect=_fake_activate),
+            patch.object(orch, "_deactivate_workflow", side_effect=_fake_deactivate),
+        ):
+            # Should NOT raise — real WorkflowEngine will timeout after 0.01s
+            await orch.handle_turn("hello")
 
 
 # ── handle_turn: LLMTransportError paths ─────────────────────────────────────
@@ -1447,3 +1666,212 @@ class TestHandleTurnPauseGuard:
         for call in on_error.call_args_list:
             err = call[0][0]
             assert "paused due to repeated failures" not in str(err)
+
+
+# ── _handle_workflow_engine: status preservation ──────────────────────────────
+
+
+class TestHandleWorkflowEngineStatusPreservation:
+    """Tests that _handle_workflow_engine does NOT overwrite terminal statuses
+    already persisted by WorkflowEngine.run() when an exception occurs."""
+
+    @pytest.mark.asyncio
+    async def test_preserves_pending_approval_status(self) -> None:
+        """When WorkflowEngine.run() raises WorkflowPendingApprovalError after
+        persisting 'pending_approval', the finally block must NOT overwrite it."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        mock_store = MagicMock()
+        mock_store.update_task_status = MagicMock()
+        mock_store.close = MagicMock()
+
+        async def _raise_pending_approval(task, plan_fn, execute_fn, verify_fn):
+            # Simulate WorkflowEngine.run() having already set pending_approval
+            mock_store.update_task_status("task-1", "pending_approval")
+            raise WorkflowPendingApprovalError(
+                approval_id="approval-1", task_id="task-1"
+            )
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_raise_pending_approval)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore", return_value=mock_store),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch._handle_workflow_engine("test line", ctx, time.time())
+
+        # The finally block should NOT have overwritten pending_approval
+        calls = [
+            c
+            for c in mock_store.update_task_status.call_args_list
+            if c[0][1] != "pending_approval"
+        ]
+        assert len(calls) == 0, (
+            f"Unexpected status writes: {mock_store.update_task_status.call_args_list}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_preserves_halted_status_via_halt_error(self) -> None:
+        """When WorkflowEngine.run() raises WorkflowHaltError after persisting 'halted',
+        the finally block must NOT overwrite it."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        mock_store = MagicMock()
+        mock_store.update_task_status = MagicMock()
+        mock_store.close = MagicMock()
+
+        async def _raise_halt(task, plan_fn, execute_fn, verify_fn):
+            mock_store.update_task_status("task-1", "halted")
+            raise WorkflowHaltError("halted")
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_raise_halt)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore", return_value=mock_store),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch._handle_workflow_engine("test line", ctx, time.time())
+
+        # The finally block should NOT have overwritten halted
+        calls = [
+            c
+            for c in mock_store.update_task_status.call_args_list
+            if c[0][1] != "halted"
+        ]
+        assert len(calls) == 0, (
+            f"Unexpected status writes: {mock_store.update_task_status.call_args_list}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_preserves_halted_status_via_timeout_error(self) -> None:
+        """When WorkflowEngine.run() raises WorkflowTimeoutError after persisting 'halted',
+        the finally block must NOT overwrite it."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        mock_store = MagicMock()
+        mock_store.update_task_status = MagicMock()
+        mock_store.close = MagicMock()
+
+        async def _raise_timeout(task, plan_fn, execute_fn, verify_fn):
+            mock_store.update_task_status("task-1", "halted")
+            raise WorkflowTimeoutError("timeout")
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_raise_timeout)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore", return_value=mock_store),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch._handle_workflow_engine("test line", ctx, time.time())
+
+        # The finally block should NOT have overwritten halted
+        calls = [
+            c
+            for c in mock_store.update_task_status.call_args_list
+            if c[0][1] != "halted"
+        ]
+        assert len(calls) == 0, (
+            f"Unexpected status writes: {mock_store.update_task_status.call_args_list}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_writes_completed_on_normal_success(self) -> None:
+        """Normal completion without any exception should still write 'completed'."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        mock_store = MagicMock()
+        mock_store.update_task_status = MagicMock()
+        mock_store.close = MagicMock()
+
+        async def _normal_run(task, plan_fn, execute_fn, verify_fn):
+            await plan_fn()
+            await execute_fn()
+            await verify_fn()
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_normal_run)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(
+                orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+            ),
+            patch.object(orch, "_deactivate_workflow"),
+            patch("agent.orchestrator.StateStore", return_value=mock_store),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch._handle_workflow_engine("test line", ctx, time.time())
+
+        # The finally block should have written 'completed'
+        mock_store.update_task_status.assert_called_with("task-1", "completed")
+
+    @pytest.mark.asyncio
+    async def test_writes_failed_on_execute_failure(self) -> None:
+        """Execute-stage failure (error_kind set) should still write 'failed'."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        mock_store = MagicMock()
+        mock_store.update_task_status = MagicMock()
+        mock_store.close = MagicMock()
+
+        async def _execute_fail(task, plan_fn, execute_fn, verify_fn):
+            await plan_fn()
+            await execute_fn()
+            await verify_fn()
+
+        mock_engine = MagicMock()
+        mock_engine.run = AsyncMock(side_effect=_execute_fail)
+
+        with (
+            patch.object(
+                orch,
+                "_init_workflow_task",
+                return_value=("wf-1", MagicMock(task_id="task-1")),
+            ),
+            patch.object(orch, "_activate_workflow"),
+            patch.object(orch, "_deactivate_workflow"),
+            patch.object(
+                orch,
+                "_process_turn",
+                new=AsyncMock(return_value=("ok", "execute", False)),
+            ),
+            patch("agent.orchestrator.StateStore", return_value=mock_store),
+            patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
+        ):
+            await orch._handle_workflow_engine("test line", ctx, time.time())
+
+        # The finally block should have written 'failed' because error_kind is set
+        mock_store.update_task_status.assert_called_with("task-1", "failed")

@@ -182,7 +182,8 @@ class VectorRetriever:
             d = dict(row)
             distance = float(d.pop("distance", 999.0))
             entry = row_to_entry(d)
-            # Negate distance: MemoryHit.score convention is higher-is-better
+            # Negate L2 (Euclidean) distance: MemoryHit.score convention is higher-is-better
+            # Embeddings are not normalized before insertion, so ranking is magnitude-sensitive.
             hits.append(MemoryHit(entry=entry, score=-distance))
         return hits
 

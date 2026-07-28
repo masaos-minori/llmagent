@@ -69,7 +69,7 @@ AgentREPL.run()
 - `save_many(messages)`は複数のメッセージを1つのトランザクションでバッチ処理する; 無効なロールは単一の警告ログと共にスキップされる
 - `replace_messages(messages)`は圧縮された履歴のスナップショットをDBに書き戻す; session_idがNoneの場合は黙ってスキップする
 - 診断データ (LLMトランスポートエラー、ガードヒント、セッションランタイムサマリー) は`DiagnosticStore` (`agent/diagnostic_store.py`) 経由で`session_diagnostics`テーブルに永続化される — `messages`テーブルとは別。部分完了の永続化モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)
-- `DiagnosticStore`のメソッド: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
+- `DiagnosticStore`のメソッド: `save(session_id, kind, content)`, `fetch(session_id)`
 - `AgentContext.diagnostics`は初期化時にorchestratorの診断ストアに接続される; `Orchestrator`が構築される前は`None`
 - 書き込まれる種別: `"mid_turn_error"` (`ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`からのLLMトランスポートエラー), `"guard_hint"` (`ToolLoopGuard`からの循環/重複排除/リトライイベント)
 - ガードヒントとターン中のエラーは診断データにのみ格納される — `ctx.conv.history`には現れない
@@ -82,9 +82,6 @@ AgentREPL.run()
 | `save_partial_completion()` | `partial_completion` | `llm_transport_errors.handle_partial_completion()` (LLM応答が部分的に切断された場合) |
 | `save_serialization_event()` | `serialization_event` | `tool_runner.py` (DAGツール実行のラウンド単位シリアル化イベント) |
 | `save_transport_failure()` | `transport_failure` | `tool_runner.py` (ツール実行のトランスポート層失敗) |
-| `save_loop_guard_hint()` | `loop_guard_hint` | 呼び出し元なし (grep上、定義のみで未使用) |
-
-**矛盾/未整理点:** `DiagnosticStore.save_loop_guard_hint()`は`kind="loop_guard_hint"`を書き込むメソッドとして定義されているが、実際に`ToolLoopGuard`が使うのは`save()`を直接呼ぶ`kind="guard_hint"`の経路 (ツールループガード関数内) であり、`save_loop_guard_hint()`はコードベース中どこからも呼ばれていない。同一目的のメソッドが2種類存在し、一方が死んでいる状態。
 
 *(根拠分類: Explicit in code — `agent/diagnostic_store.py`, `agent/tool_loop_guard.py`, `agent/llm_transport_errors.py`)*
 

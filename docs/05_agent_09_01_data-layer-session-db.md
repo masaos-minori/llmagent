@@ -87,13 +87,13 @@ source:
 
 インデックス: `idx_session_diagnostics_session`(`session_id` 列)。(Explicit in code: `db/schema_sql.py`)
 
-**現在の実装挙動:** `kind` に実際に使用される値は `agent/diagnostic_store.py`(`DiagnosticStore`)が書き込むもので、`llm_transport_error`、`serialization_event`、`partial_completion`、`transport_failure`、`loop_guard_hint` の5種。汎用の `save()` を通じて任意の文字列を渡すことも可能だが、上記5種が現状の呼び出し元。(Explicit in code)
+**現在の実装挙動:** `kind` に実際に使用される値は `agent/diagnostic_store.py`(`DiagnosticStore`)が書き込むもので、`llm_transport_error`、`serialization_event`、`partial_completion`、`transport_failure` の4種。汎用の `save()` を通じて任意の文字列を渡すことも可能だが、上記4種が現状の呼び出し元。(Explicit in code)
 
-**取得系メソッド:** `DiagnosticStore` は `fetch(session_id)`(全件、`created_at DESC`)、`fetch_by_kind(session_id, kind)`、`fetch_all(limit=50)`(全セッション横断、直近優先)を提供する。(Explicit in code)
+**取得系メソッド:** `DiagnosticStore` は `fetch(session_id)`(全件、`created_at DESC`)を提供する。`fetch_by_kind` / `fetch_all` は NC-013 で削除済み。(Explicit in code)
 
 **機微フィールドのフィルタリング:** `save()` は挿入前に `_filter_sensitive_fields()` を無条件に適用する。`content`(JSON文字列)をパースし、`artifacts` / `rag_stage_outcomes` キーの値が list 型であれば `{"_redacted": true, "count": <元の要素数>}` に置き換えて再シリアライズする(件数は保持され、生の artifact URI や RAG ステージ出力内容は保存されない)。`content` がJSONとしてパースできない場合、またはトップレベルがオブジェクトでない場合は無変更のまま保存される。(Explicit in code: `agent/diagnostic_store.py`)
 
-**暗号化(オプトイン):** `save(..., encrypt=True)` を指定し、かつ `config/agent.toml` の `[diagnostics] encryption_key` が空文字列でない場合、フィルタ後の `content` を Fernet 対称鍵暗号(`cryptography`パッケージ)で暗号化してから保存する。鍵が未設定の場合、`encrypt=True` を指定してもフィルタ後の平文のまま保存される(no-op)。`fetch()` / `fetch_by_kind()` / `fetch_all()` に復号処理は実装されていない — 暗号化された行はこれらのメソッドでは復号されずそのまま返る(follow-onとしてスコープ外)。設定の詳細は [05_agent_08_04_configuration-mcp-approval-obs.md §DiagnosticsConfig](05_agent_08_04_configuration-mcp-approval-obs.md) を参照。(Explicit in code)
+**暗号化(オプトイン):** `save(..., encrypt=True)` を指定し、かつ `config/agent.toml` の `[diagnostics] encryption_key` が空文字列でない場合、フィルタ後の `content` を Fernet 対称鍵暗号(`cryptography`パッケージ)で暗号化してから保存する。鍵が未設定の場合、`encrypt=True` を指定してもフィルタ後の平文のまま保存される(no-op)。`fetch()` に復号処理は実装されていない — 暗号化された行は復号されずそのまま返る(follow-onとしてスコープ外)。設定の詳細は [05_agent_08_04_configuration-mcp-approval-obs.md §DiagnosticsConfig](05_agent_08_04_configuration-mcp-approval-obs.md) を参照。(Explicit in code)
 
 **保持ポリシー(遅延パージ):** `save()` は挿入前に毎回 `_purge_old_diagnostics()` を呼び出し、`config/agent.toml` の `[diagnostics] retention_days`(既定30日。0以下でパージ無効)より古い `created_at` の行を `session_diagnostics` から削除する。これは [Session retention](#session-retentionセッション保持ポリシー) の `sqlite_retention_max_age_days`(`sessions`/`messages` 対象)とは独立した設定・削除ロジックであり、共有されない。(Explicit in code)
 

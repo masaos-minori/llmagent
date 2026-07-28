@@ -67,9 +67,9 @@ class LlmPayloadHandler:
     @staticmethod
     def build_payload(history: list[LLMMessage], tool_defs: list[dict[str, Any]], temperature: float, max_tokens: int, stream: bool = False) -> dict[str, Any]
     @staticmethod
-    def parse_response(raw: dict[str, Any], on_usage: object | None = None) -> LLMResponse
+    def parse_response(raw: dict[str, Any], on_usage: Callable[[int, int], None] | None = None) -> LLMResponse
     @staticmethod
-    def parse_non_stream_response(content: bytes, on_usage: object | None = None) -> LLMResponse
+    def parse_non_stream_response(content: bytes, on_usage: Callable[[int, int], None] | None = None) -> LLMResponse
 ```
 
 - history とツール定義から LLM リクエストペイロードを構築する
@@ -79,7 +79,7 @@ class LlmPayloadHandler:
   - `build_payload()` は `temperature: float` と `max_tokens: int` を必須引数に取る (旧記載には無かった)。返す payload には `messages` / `tools` / `tool_choice="auto"` / `temperature` / `max_tokens` が含まれ、`stream=True` のときのみ `"stream": True` を追加する
   - `parse_response()` の第一引数は `httpx.Response` ではなく、パース済みの `raw: dict[str, Any]` (LLM 応答 JSON)。`choices` が list でない/空、`choices[0]` が dict でない、`message` が dict でない場合は `ValueError` を送出する。`usage` は `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()` に委譲する
   - `parse_non_stream_response(content: bytes, ...)` という第三のメソッドが存在する (旧記載に無い)。`orjson.loads(content)` で bytes をデコードし、結果が dict でなければ `ValueError` を送出したうえで `parse_response()` に委譲する非ストリーミング用のエントリポイント
-- **[Needs confirmation]** `on_usage` の型は `object | None` としか宣言されておらず、実際の用途 (使用箇所でのコールバック形状) はこのモジュール単体からは断定できない
+- **[Explicit in code — 訂正]** `on_usage` は `Callable[[int, int], None] | None`、`shared.llm_sse_helpers.LlmSseHelpers.parse_usage()` から `on_usage(prompt_tokens, completion_tokens)` として呼び出される。唯一の生産環境呼び出し元は `scripts/agent/factory.py` の `_on_llm_usage`
 
 ---
 

@@ -46,7 +46,8 @@ _RAG_SCHEMA_TEMPLATE: str = """
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
         chunk_id  INTEGER PRIMARY KEY,
-        embedding float[DIMS]
+        embedding float[DIMS],
+        distance_metric=L2
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
         content,
@@ -133,7 +134,8 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         ON session_diagnostics(session_id);
     CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0(
         memory_id TEXT PRIMARY KEY,
-        embedding float[DIMS]
+        embedding float[DIMS],
+        distance_metric=L2
     );
 """
 

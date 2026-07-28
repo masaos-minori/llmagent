@@ -143,6 +143,16 @@ class TestEnsureReadySubprocess:
 
 
 class TestStartHttpSubprocess:
+    @pytest.fixture(autouse=True)
+    def _patch_allowed_commands(self):
+        """Include uvicorn in allowed commands so tests using _http_subprocess_cfg pass."""
+        from agent.http_lifecycle import HttpServerLifecycleManager
+
+        original = HttpServerLifecycleManager._ALLOWED_COMMANDS
+        patched = frozenset(original | {"uvicorn"})
+        with patch.object(HttpServerLifecycleManager, "_ALLOWED_COMMANDS", patched):
+            yield
+
     @pytest.mark.asyncio
     async def test_starts_process_and_polls_health(self) -> None:
         cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
@@ -349,6 +359,9 @@ class TestStartHttpSubprocess:
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
         mock_proc = _make_mock_proc()
+        # After terminate() is called, poll() should return exit code 1
+        # so _wait_exited resolves immediately without blocking for timeout
+        mock_proc.poll.side_effect = lambda: 1 if mock_proc.terminate.called else None
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
@@ -364,6 +377,34 @@ class TestStartHttpSubprocess:
         assert "s" not in mgr._http_mgr._http_pgids
         assert "s" not in mgr._http_mgr._stderr_files
         assert "s" not in mgr._http_mgr._stderr_log_paths
+        mock_proc.terminate.assert_called_once()
+
+    async def test_getpgid_failure_escalates_to_kill_on_non_exit(self) -> None:
+        """When terminate doesn't cause exit within timeout, kill() should be called."""
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+
+        mock_proc = _make_mock_proc()
+        # poll() always returns None — process never exits, forcing kill escalation
+        mock_proc.poll.return_value = None
+
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch(
+                "agent.http_lifecycle.os.getpgid",
+                side_effect=OSError("no such process"),
+            ),
+            patch("agent.http_lifecycle.os.killpg"),
+        ):
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert "s" not in mgr._http_mgr._http_procs
+        assert "s" not in mgr._http_mgr._http_pgids
+        assert "s" not in mgr._http_mgr._stderr_files
+        assert "s" not in mgr._http_mgr._stderr_log_paths
+        mock_proc.terminate.assert_called_once()
+        mock_proc.kill.assert_called_once()
 
 
 class TestRestart:

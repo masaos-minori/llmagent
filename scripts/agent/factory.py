@@ -133,7 +133,8 @@ class _ServerLifecycleRouter:
             raise ServerCooldownError(
                 f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
             )
-        if not self._http_mgr.verify_running(server_key):
+        os_alive = self._http_mgr.verify_running(server_key)
+        if not os_alive:
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
             )
@@ -146,6 +147,21 @@ class _ServerLifecycleRouter:
                 self._failed_starts[server_key] = time.monotonic()
                 self._set_state(server_key, LifecycleState.FAILED)
                 raise
+        else:
+            app_healthy = await self._http_mgr.verify_running_async(server_key, cfg)
+            if not app_healthy:
+                _logger.warning(
+                    "Lifecycle: %r OS-alive but app-unhealthy; restarting", server_key
+                )
+                self._set_state(server_key, LifecycleState.STARTING)
+                try:
+                    await self._http_mgr.restart(server_key, cfg)
+                    self._failed_starts.pop(server_key, None)
+                    self._set_state(server_key, LifecycleState.RUNNING)
+                except Exception:
+                    self._failed_starts[server_key] = time.monotonic()
+                    self._set_state(server_key, LifecycleState.FAILED)
+                    raise
 
     async def shutdown_all(self) -> None:
         """Shut down all managed HTTP subprocess servers."""

@@ -66,7 +66,7 @@ class StartupOrchestrator:
         _servers_started = False
         self._spawned_subprocesses: list[subprocess.Popen] = []
         try:
-            await self._start_servers()
+            self._spawned_subprocesses = await self._start_servers()
             _servers_started = True
             await self._verify_mcp_health()
             await self._check_services()
@@ -87,7 +87,7 @@ class StartupOrchestrator:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
-        return self._cmds, self._orchestrator, []  # empty list on success
+        return self._cmds, self._orchestrator, self._spawned_subprocesses
 
     def _initialize(self) -> None:
         """Setup readline, wire DI, init CommandRegistry and Orchestrator."""
@@ -521,7 +521,7 @@ class StartupOrchestrator:
             )
             return
         # Recover the most recent pending approval first
-        task_id, approval = results[-1]
+        task_id, approval = results[0]
         ctx.workflow.approval_pending = True
         ctx.turn.pending_approval_id = approval.approval_id
         if ctx.turn.pending_approval_task_id is not None:

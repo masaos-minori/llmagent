@@ -51,7 +51,7 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 > `SQLiteHelper("session")`を使い、session.sqliteの`memories`/`memories_fts`/`memories_vec`テーブルに
 > 永続化する。rag.sqliteとは別であり、RAGドキュメント/チャンクの埋め込みストアとは独立している。
 > `agent/memory/jsonl_store.py`の`JsonlMemoryStore`はこれとは別に、非正本の追記専用JSONLファイルへ
-> メモリをアーカイブする (バックアップ/監査用途と見られるが、読み出し経路の詳細はNeeds confirmation)。
+> メモリをアーカイブする (バックアップ/監査用途)。読み出しは `read_all()` / `read_active()` で可能。
 
 > **Note:** `/db session`スコープはsession.sqliteのメンテナンスを扱う。`/db`はworkflow.sqliteを直接メンテナンス対象として公開していない — ワークフロー状態は`WorkflowEngine`経由の`StateStore`のみによって管理される。
 
@@ -106,8 +106,8 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 | `count_pending_approvals(db)` | 承認待ち (pending) 件数を返す |
 | `find_approval_by_id(db, approval_id)` | approval_idで承認レコードを直接取得する。なければNone |
 
-`request_approval`の`workflow_id`引数はNeeds confirmation欄の`StateStore.create_task`同様、
-複数ワークフロー版の識別に使われると見られるが用途の詳細は未確認 (Needs confirmation)。
+`request_approval`の`workflow_id`引数は`approvals`テーブルに格納され、クエリ結果で返されるが、
+現在のコードベースではフィルタリングやルーティングには使用されていない（単なる追跡用）。
 
 ### 成果物操作 (`agent/workflow/artifact_ops.py`)
 

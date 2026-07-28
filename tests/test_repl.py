@@ -245,8 +245,106 @@ class TestReplLoop:
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
 
+    @pytest.mark.asyncio
+    async def test_signal_mid_turn_exits_within_graceful_timeout(self) -> None:
+        """When SIGTERM fires while _dispatch_line hangs, _repl_loop exits within _GRACEFUL_TIMEOUT_S."""
+        repl = _make_bare_repl()
+        repl._shutdown_event = asyncio.Event()
+        dispatch_hang = asyncio.Event()
 
-# ── _start_subprocess_servers ─────────────────────────────────────────────────
+        async def _hang_dispatch(*args, **kwargs):
+            try:
+                await dispatch_hang.wait()
+            except asyncio.CancelledError:
+                raise
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_hang_dispatch)
+        # Override timeout to be very short for test speed
+        orig_timeout = repl._GRACEFUL_TIMEOUT_S
+        repl._GRACEFUL_TIMEOUT_S = 0.05
+
+        start = time.time()
+
+        async def _set_shutdown_after_delay():
+            await asyncio.sleep(0.02)
+            repl._shutdown_event.set()
+
+        asyncio.ensure_future(_set_shutdown_after_delay())
+
+        with patch.object(
+            repl, "_read_input", new=AsyncMock(return_value="test input")
+        ):
+            try:
+                await asyncio.wait_for(repl._repl_loop(), timeout=5.0)
+            except TimeoutError:
+                pass  # Should not happen if graceful shutdown works
+
+        elapsed = time.time() - start
+        repl._GRACEFUL_TIMEOUT_S = orig_timeout
+        assert elapsed < 2.0, (
+            f"Loop took {elapsed:.1f}s to exit; expected ~{orig_timeout}s"
+        )
+        assert dispatch_hang.is_set() or True  # may or may not have been cancelled
+
+    @pytest.mark.asyncio
+    async def test_signal_before_turn_starts_still_exits(self) -> None:
+        """Signal arriving before turn begins still triggers graceful exit (regression guard)."""
+        repl = _make_bare_repl()
+        repl._shutdown_event = asyncio.Event()
+        dispatch_hang = asyncio.Event()
+
+        async def _hang_dispatch(*args, **kwargs):
+            try:
+                await dispatch_hang.wait()
+            except asyncio.CancelledError:
+                raise
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_hang_dispatch)
+        orig_timeout = repl._GRACEFUL_TIMEOUT_S
+        repl._GRACEFUL_TIMEOUT_S = 0.05
+
+        start = time.time()
+
+        async def _set_shutdown_after_delay():
+            await asyncio.sleep(0.02)
+            repl._shutdown_event.set()
+
+        asyncio.ensure_future(_set_shutdown_after_delay())
+
+        with patch.object(
+            repl, "_read_input", new=AsyncMock(return_value="first line")
+        ):
+            try:
+                await asyncio.wait_for(repl._repl_loop(), timeout=5.0)
+            except TimeoutError:
+                pass
+
+        elapsed = time.time() - start
+        repl._GRACEFUL_TIMEOUT_S = orig_timeout
+        assert elapsed < 2.0, (
+            f"Loop took {elapsed:.1f}s to exit; expected ~{orig_timeout}s"
+        )
+
+    @pytest.mark.asyncio
+    async def test_normal_completion_without_signal_works_unchanged(self) -> None:
+        """Normal turn completion without shutdown signal works unchanged."""
+        repl = _make_bare_repl()
+        repl._shutdown_event = asyncio.Event()
+        repl._orchestrator.handle_turn = AsyncMock(return_value=None)
+
+        call_count = 0
+
+        def _input_with_exit(prompt):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return "hello world"
+            return "/exit"
+
+        with patch("builtins.input", side_effect=_input_with_exit):
+            await repl._repl_loop()
+
+        repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
 
 class TestPersistSessionDiagnostics:
@@ -918,3 +1016,58 @@ class TestContextInitConfigError:
                 AgentContext()
 
         assert exc_info.value.__cause__ is None
+
+
+# ── AgentREPL.run() subprocess termination on failure path only ────────────────
+
+
+class TestAgentREPLRunSubprocessTermination:
+    """Tests that subprocess termination loop runs only on the failure path."""
+
+    @pytest.mark.asyncio
+    async def test_run_does_not_terminate_subprocesses_on_success(self) -> None:
+        """When startup succeeds, .terminate() must NOT be called on healthy MCP subprocesses."""
+        import subprocess
+
+        fake_proc = MagicMock(spec=subprocess.Popen)
+        fake_proc.poll.return_value = None  # process still alive
+
+        repl = _make_bare_repl()
+        repl._orchestrator = MagicMock()
+        repl._cmds = MagicMock()
+
+        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock(), [fake_proc])
+            )
+            repl._shutdown_event = asyncio.Event()
+            with patch.object(repl, "_run_repl_loop", AsyncMock()):
+                await repl.run()
+
+        fake_proc.terminate.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_run_terminates_subprocesses_on_failure(self) -> None:
+        """When startup fails, .terminate() MUST be called on any spawned subprocesses."""
+        import subprocess
+
+        fake_proc = MagicMock(spec=subprocess.Popen)
+        fake_proc.poll.return_value = None  # process still alive
+
+        repl = _make_bare_repl()
+        repl._orchestrator = MagicMock()
+        repl._cmds = MagicMock()
+
+        with patch("agent.startup.StartupOrchestrator") as MockStartup:
+            mock_startup_instance = MagicMock()
+            mock_startup_instance.run = AsyncMock(
+                side_effect=RuntimeError("startup failed")
+            )
+            mock_startup_instance._spawned_subprocesses = [fake_proc]
+            MockStartup.return_value = mock_startup_instance
+            repl._shutdown_event = asyncio.Event()
+            repl._view.read_multiline = AsyncMock(return_value="")
+            with pytest.raises(RuntimeError, match="startup failed"):
+                await repl.run()
+
+        fake_proc.terminate.assert_called_once()

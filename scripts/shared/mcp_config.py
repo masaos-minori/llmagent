@@ -7,6 +7,7 @@ Placed in shared/ so tool_executor.py can reference it without depending on agen
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -19,6 +20,8 @@ from shared.mcp_health import (  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
+
+_ENV_KEY_DENYLIST: tuple[str, ...] = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH")
 
 
 class TransportType(StrEnum):
@@ -116,6 +119,11 @@ class McpServerConfig:
             if not isinstance(k, str) or not isinstance(v, str):
                 raise ValueError(
                     f"{key_prefix}: env must be dict[str, str]; got key={k!r} value={v!r}"
+                )
+            if any(fnmatch.fnmatch(k, p) for p in _ENV_KEY_DENYLIST):
+                raise ValueError(
+                    f"{key_prefix}: env key {k!r} matches denylisted pattern; "
+                    "dangerous loader/interpreter env vars are not permitted"
                 )
 
         if self.transport == TransportType.HTTP and self.url:

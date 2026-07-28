@@ -85,6 +85,7 @@ class LlmSseStreamHandler:
                 await LlmSseStreamHandler._handle_status(resp, url)
 
                 byte_iter = resp.aiter_bytes().__aiter__()
+                is_done = False
                 while True:
                     raw_chunk, exhausted = await LlmSseStreamHandler.read_next_chunk(
                         byte_iter,
@@ -93,6 +94,14 @@ class LlmSseStreamHandler:
                         llm_stream_retry_on_heartbeat_timeout,
                     )
                     if exhausted:
+                        if not is_done and finish_reason is None:
+                            raise LLMTransportError(
+                                kind="PREMATURE_EOF",
+                                phase="in_stream",
+                                url=url,
+                                retryable=True,
+                                partial_text="".join(content_parts),
+                            )
                         break
 
                     payloads, is_done = parser.feed(raw_chunk)

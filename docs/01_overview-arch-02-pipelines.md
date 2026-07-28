@@ -63,7 +63,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 **ワークフローは常時必須(モード設定なし)**
 
-`workflow_mode` は設定キーとして存在しない(`build_agent_config()` の `_FORBIDDEN_KEYS` に含まれ、設定すると `ConfigLoadError` で起動不可)。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
+`workflow_mode` は有効な設定キーではない。`build_agent_config()` はこのキーを消費せず、設定ファイルに存在しても無視される（エラー・警告なし）。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
 
 詳細: [02_deployment-part1.md §Workflow deployment checklist](02_deployment-part1.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook) / [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md#ワークフロー実行必須化-adr-workflow-mandatory)
 

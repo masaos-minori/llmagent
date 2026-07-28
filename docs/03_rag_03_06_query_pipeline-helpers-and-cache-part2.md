@@ -112,15 +112,11 @@ class PipelineRunResult:
     reranked: list[RagHit]
     stage_results: list[StageResult]
     diagnostics: SearchDiagnostics
-    result_source: str | None = None
 ```
 
-`RagPipeline.run()` が返す。**`result_source` は常に `None`** である — `run()` はこれを設定することがない。
-
-**訂正（Explicit in code）:** 旧記述では「HTTPモードでHTTPのaugmentハンドラが `dataclasses.replace()` により設定する場合のためだけに存在する」としていたが、これは誤り。`dataclasses.replace()` が呼ばれているのは `PipelineRunResult` ではなく `SearchDiagnostics`（`self.last_search_diagnostics`、`scripts/rag/models_result.py` の別フィールド `result_source: ResultSource`）である。`PipelineRunResult.result_source`（`rag/types.py`）自体を設定するコードパスは現状のコードベース中に存在せず、実質的に未使用フィールドである（Needs confirmation: 将来的な利用予定か、除去すべき残置コードかは実装者に確認要）。
+`RagPipeline.run()` が返す。
 
 **混同注意:** 名前が同じ `result_source` でも型が異なる2つのフィールドが存在する。
-- `PipelineRunResult.result_source: str | None`（`rag/types.py`）— 常に `None`、未使用
 - `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `dataclasses.replace()` で更新する
 
 ---

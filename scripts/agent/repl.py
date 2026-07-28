@@ -86,6 +86,7 @@ class AgentREPL:
 
     _WAL_CHECKPOINT_TIMEOUT_S: float = 30.0
     _WAL_BACKUP_TIMEOUT_S: float = 10.0
+    _GRACEFUL_TIMEOUT_S: float = 10.0
 
     @cached_property
     def SLASH_COMMANDS(self) -> frozenset[str]:
@@ -475,7 +476,6 @@ class AgentREPL:
         if self._orchestrator is None:
             raise RuntimeError("_repl_loop called before _init_components()")
         loop = asyncio.get_running_loop()
-        _GRACEFUL_TIMEOUT: float = 10.0
         while True:
             line = await self._read_input(loop)
             if line is None:
@@ -493,16 +493,58 @@ class AgentREPL:
             self._turn_active = True
             ctx.conv.is_processing = True
             try:
-                await asyncio.wait_for(
-                    self._dispatch_line(line, ctx),
-                    timeout=_GRACEFUL_TIMEOUT if ctx.conv.shutdown_requested else None,
-                )
+                dispatch_task = asyncio.ensure_future(self._dispatch_line(line, ctx))
+                if (
+                    self._shutdown_event is not None
+                    and not self._shutdown_event.is_set()
+                ):
+                    shutdown_task = asyncio.ensure_future(self._shutdown_event.wait())
+                    done, pending = await asyncio.wait(
+                        {dispatch_task, shutdown_task},
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if dispatch_task in done:
+                        dispatch_task.result()  # propagate exception if any
+                        continue
+                    # shutdown_task completed first — cancel only shutdown_task, keep dispatch_task running
+                    assert shutdown_task in pending or shutdown_task in done
+                    if shutdown_task in pending:
+                        shutdown_task.cancel()
+                    try:
+                        await asyncio.wait_for(
+                            dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
+                        )
+                    except TimeoutError:
+                        logger.warning(
+                            "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
+                            self._GRACEFUL_TIMEOUT_S,
+                        )
+                        break
+                else:
+                    # _shutdown_event is None or already set — await the already-created dispatch_task
+                    try:
+                        await asyncio.wait_for(
+                            dispatch_task,
+                            timeout=self._GRACEFUL_TIMEOUT_S
+                            if ctx.conv.shutdown_requested
+                            else None,
+                        )
+                    except TimeoutError:
+                        if ctx.conv.shutdown_requested:
+                            logger.warning(
+                                "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
+                                self._GRACEFUL_TIMEOUT_S,
+                            )
+                            break
+                        raise
             except TimeoutError:
-                logger.warning(
-                    "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
-                    _GRACEFUL_TIMEOUT,
-                )
-                break
+                if ctx.conv.shutdown_requested:
+                    logger.warning(
+                        "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
+                        self._GRACEFUL_TIMEOUT_S,
+                    )
+                    break
+                raise
             finally:
                 self._turn_active = False
                 ctx.conv.is_processing = False
@@ -683,9 +725,10 @@ class AgentREPL:
                 self._shutdown_event.set()
             # Only cancel the input coroutine when no turn is active: _input_coro
             # tracks the idle input wait, not an in-flight turn. Cancelling it
-            # while a turn is active would be a no-op at best; _repl_loop() already
-            # checks shutdown_requested after each turn and applies the
-            # _GRACEFUL_TIMEOUT wait to end the turn.
+            # while a turn is active would be a no-op at best; _repl_loop() uses
+            # a task-race against _shutdown_event so that _GRACEFUL_TIMEOUT_S
+            # seconds after the signal fires (not after the next turn check),
+            # the in-flight turn is force-cut off.
             if (
                 not self._turn_active
                 and self._input_coro is not None
@@ -747,16 +790,15 @@ class AgentREPL:
             self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()
         except Exception as e:
             self._view.write_fatal(f"Startup failed: {e}")
-            raise
-        finally:
-            # Terminate any subprocesses started during partial startup
-            # Check both local variable (success path) and instance variable (exception path)
+            # Terminate any subprocesses started during partial (failed) startup.
             all_procs = _spawned_subprocesses
             if hasattr(startup, "_spawned_subprocesses"):
                 all_procs = list(all_procs) + list(startup._spawned_subprocesses)
             for proc in all_procs:
                 if proc.poll() is None:
                     proc.terminate()
+            raise
+        finally:
             await self._close_resources()
         # Show memory disabled warning immediately after startup if applicable
         if self._ctx.conv.memory_disabled and not self._ctx.conv.memory_warning_shown:

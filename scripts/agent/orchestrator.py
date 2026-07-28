@@ -46,6 +46,7 @@ from agent.workflow import (
     WorkflowLoader,
     WorkflowLoadError,
     WorkflowPendingApprovalError,
+    WorkflowTimeoutError,
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
@@ -244,6 +245,7 @@ class Orchestrator:
         answer: str = ""
         error_kind: str | None = None
         is_partial: bool = False
+        engine_status_handled: bool = False  # WorkflowEngine already persisted terminal status; do not overwrite in finally
         task: TaskRecord | None = None
         try:
             (
@@ -291,14 +293,16 @@ class Orchestrator:
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)
         except WorkflowPendingApprovalError as exc:
+            engine_status_handled = True
             self._handle_workflow_approval_pending(exc, session_id)
-        except WorkflowHaltError as exc:
+        except (WorkflowHaltError, WorkflowTimeoutError) as exc:
+            engine_status_handled = True
             self._handle_workflow_halt(exc)
         finally:
             # Update task status before deactivating to prevent orphaned records
             try:
                 _task = task
-                if _task is not None and _task.task_id:
+                if _task is not None and _task.task_id and not engine_status_handled:
                     if error_kind is not None:
                         store.update_task_status(_task.task_id, "failed")
                     else:
@@ -403,7 +407,9 @@ class Orchestrator:
             exc.approval_id,
         )
 
-    def _handle_workflow_halt(self, exc: WorkflowHaltError) -> None:
+    def _handle_workflow_halt(
+        self, exc: WorkflowHaltError | WorkflowTimeoutError
+    ) -> None:
         """Handle workflow halt event."""
         ctx = self._ctx
         logger.error("Turn halted by workflow engine: %s", exc)

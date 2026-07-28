@@ -4,7 +4,7 @@ Regression tests: diagnostic persistence isolation.
 
 Locks down:
   - DiagnosticStore.fetch() excludes rows from a different session_id.
-  - Entries saved with session_id=None are stored and retrievable via fetch_all().
+  - Entries saved with session_id=None are stored and retrievable via direct query.
   - AgentSession.save_diagnostic() routes to session_diagnostics, not messages.
 """
 
@@ -119,10 +119,12 @@ class TestDiagnosticNullSessionId:
                 kind="llm_transport_error", session_id=None, content="conn error"
             )
 
-            results = store.fetch_all()
+            rows = fake_db._conn.execute(
+                "SELECT id, session_id, kind, content, created_at FROM session_diagnostics WHERE session_id IS NULL"
+            ).fetchall()
 
-        assert len(results) == 1
-        assert results[0]["session_id"] is None
+        assert len(rows) == 1
+        assert rows[0][1] is None
 
 
 class TestSaveDiagnosticRoutesToDiagnosticsTable:

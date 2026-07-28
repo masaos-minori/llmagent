@@ -59,6 +59,8 @@ class HttpServerLifecycleManager:
     start_new_session=True and terminated via os.killpg() to include child processes.
     """
 
+    _HEALTH_RECHECK_INTERVAL_SEC: float = 10.0
+    _HEALTH_RECHECK_TIMEOUT_SEC: float = 1.5
     _STDERR_TAIL_BYTES = 64 * 1024
     _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
     _ALLOWED_COMMANDS: frozenset[str] = frozenset(
@@ -74,6 +76,7 @@ class HttpServerLifecycleManager:
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._stderr_log_paths: dict[str, str] = {}
+        self._last_health_check: dict[str, float] = {}
 
     def _open_stderr_log(self, server_key: str) -> IO[bytes]:
         """Open an append-mode file for the server's stderr output and track its path."""
@@ -163,6 +166,24 @@ class HttpServerLifecycleManager:
             return False
         return True
 
+    async def verify_running_async(self, server_key: str, cfg: McpServerConfig) -> bool:
+        """Check liveness via HTTP /health endpoint, rate-limited by re-check interval."""
+        if not self.verify_running(server_key):
+            return False
+        last_check = self._last_health_check.get(server_key, 0.0)
+        if time.monotonic() - last_check < self._HEALTH_RECHECK_INTERVAL_SEC:
+            return True
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=self._HEALTH_RECHECK_TIMEOUT_SEC)
+            ) as client:
+                resp = await client.get(cfg.url.rstrip("/") + "/health")
+                self._last_health_check[server_key] = time.monotonic()
+                return resp.status_code == HTTPStatus.OK
+        except (httpx.HTTPError, OSError):
+            self._last_health_check[server_key] = time.monotonic()
+            return False
+
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return {pid, pgid, running, last_exit_code} for a managed subprocess server, or None if unknown."""
         proc = self._http_procs.get(server_key)
@@ -228,6 +249,9 @@ class HttpServerLifecycleManager:
             server_key,
             cfg.cmd,
         )
+        # Note: cfg.env keys are already validated against a denylist in
+        # McpServerConfig._validate_cross_fields() at config-load time,
+        # so no additional filtering is performed here.
         env = None
         if cfg.env:
             env = dict(os.environ)
@@ -270,6 +294,27 @@ class HttpServerLifecycleManager:
                 server_key,
                 proc.pid,
             )
+            await self._terminate_with_timeout(proc, server_key)
+            poll_result = proc.poll()
+            if poll_result is None:
+                logger.warning(
+                    "Lifecycle: subprocess %r (pid=%d) still alive after terminate/kill; will be orphaned",
+                    server_key,
+                    proc.pid,
+                )
+            elif poll_result == 0:
+                logger.info(
+                    "Lifecycle: subprocess %r (pid=%d) already exited cleanly",
+                    server_key,
+                    proc.pid,
+                )
+            else:
+                logger.info(
+                    "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
+                    server_key,
+                    proc.pid,
+                    poll_result,
+                )
             stderr_fh.close()
             self._stderr_files.pop(server_key, None)
             self._stderr_log_paths.pop(server_key, None)
@@ -306,6 +351,7 @@ class HttpServerLifecycleManager:
                     try:
                         resp = await client.get(health_url)
                         if resp.status_code == HTTPStatus.OK:
+                            self._last_health_check[server_key] = time.monotonic()
                             logger.info(
                                 "Lifecycle: HTTP subprocess %r ready",
                                 server_key,
@@ -346,6 +392,7 @@ class HttpServerLifecycleManager:
             except OSError:
                 pass
         self._stderr_log_paths.pop(server_key, None)
+        self._last_health_check.pop(server_key, None)
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
@@ -416,6 +463,7 @@ class HttpServerLifecycleManager:
                             close_err,
                         )
             self._stderr_log_paths.clear()
+            self._last_health_check.clear()
         finally:
             if old_sigint is not None:
                 signal.signal(signal.SIGINT, old_sigint)

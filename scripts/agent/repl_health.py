@@ -513,6 +513,9 @@ def audit_security_defaults(
             )
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
+        # NOTE: Unlike other checks in this function, a configured-but-missing
+        # sandbox backend means shell commands would run completely unsandboxed,
+        # which is unacceptable in any environment (local or production).
         if shell_cfg.sandbox_backend == "firejail" and not _shutil.which("firejail"):
             msg = (
                 "shell_sandbox_backend=firejail but firejail binary not found in PATH. "

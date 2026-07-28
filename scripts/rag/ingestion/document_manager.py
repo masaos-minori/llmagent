@@ -58,7 +58,7 @@ class DocumentManager:
             return False
         if is_file_url(url):
             return self._handle_existing_file(url, existing_doc_id, etag, last_modified)
-        self._update_etag(etag, last_modified, fetched_at)
+        self._update_etag(existing_doc_id, etag, last_modified, fetched_at)
         return True
 
     def _handle_existing_file(
@@ -93,12 +93,13 @@ class DocumentManager:
 
     def _update_etag(
         self,
+        doc_id: int,
         etag: str | None,
         last_modified: str | None,
         new_fetched_at: str | None = None,
     ) -> None:
         """Refresh ETag/Last-Modified for an existing document (skip-case)."""
-        ETagManager(self._db, 0).update(etag, last_modified, new_fetched_at)
+        ETagManager(self._db, doc_id).update(etag, last_modified, new_fetched_at)
 
     @staticmethod
     def _is_file_unchanged(

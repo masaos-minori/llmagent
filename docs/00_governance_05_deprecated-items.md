@@ -7,16 +7,16 @@ This document manages references to old configuration files, concepts, and comma
 Old configuration file names and their replacements:
 
 - **config/rag_pipeline.toml**
-  - Current Replacement: none (replacement unknown)
-  - Status: Needs confirmation
-  - Notes: File may have been replaced during reorganization
-  - Evidence: Requires source code investigation
+  - Current Replacement: config/rag_pipeline_mcp_server.toml
+  - Status: Confirmed
+  - Notes: Each MCP server now loads its own `<key>_mcp_server.toml` per rules/coding.md MCP server addition convention
+  - Evidence: scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py:99-101, scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py:130,193, implementations/done/20260722-181341_03_rag_stale_config_references.md
 
 - **common.toml**
-  - Current Replacement: none (replacement unknown)
-  - Status: Needs confirmation
-  - Notes: May have been consolidated into area-specific configs
-  - Evidence: Requires source code investigation
+  - Current Replacement: config/agent.toml "Infrastructure (common)" section (lines 5-18)
+  - Status: Confirmed
+  - Notes: Consolidated into agent.toml which contains common, llm, http, rag, context, tools, memory, otel, security, system_prompts, tools_definitions, *_mcp_server transport sections
+  - Evidence: config/agent.toml lines 1-3 (header), lines 5-18 (Infrastructure (common))
 
 ## Deprecated Concepts
 
@@ -24,15 +24,15 @@ Obsolete architectural concepts:
 
 - **workflow optional mode**
   - Current Replacement: none (replacement unknown)
-  - Status: Needs confirmation
+  - Status: Confirmed
   - Notes: WorkflowEngine is now required, not optional
   - Evidence: Confirmed by current implementation
 
 - **shared common config**
-  - Current Replacement: none (replacement unknown)
-  - Status: Needs confirmation
-  - Notes: Config structure has evolved to area-specific files
-  - Evidence: Requires source code investigation
+  - Current Replacement: config/agent.toml "Infrastructure (common)" section (lines 5-18)
+  - Status: Confirmed
+  - Notes: Same deprecated architecture as common.toml entry below — one names the abstract concept, the other the specific file that embodied it; see common.toml entry for consolidated config details
+  - Evidence: config/agent.toml lines 1-3 (header), lines 5-18 (Infrastructure (common))
 
 ## Deprecated Commands
 

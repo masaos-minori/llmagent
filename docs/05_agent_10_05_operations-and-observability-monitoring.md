@@ -89,8 +89,7 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 > | `serialization_event` | `scripts/agent/tool_runner.py`(`DiagnosticStore.save_serialization_event`) | ラウンド単位の直列化実行イベント |
 > | `rag_query` | `scripts/agent/commands/cmd_rag_export.py` | RAGクエリのパイプライン診断(`stage_results`等)。`session_summary` の `rag_query_count`/`rag_stage_outcomes` の集計元 |
 >
-> `DiagnosticStore` には `save_loop_guard_hint`(kind=`loop_guard_hint`)というメソッドも定義されているが、現行コードからの呼び出し箇所は見当たらない。実際にツールループガードが保存する`kind`は `guard_hint`(ツールループガード関数による直接の`save()`呼び出し)である。`loop_guard_hint`というkind名は現状生成されない可能性がある(根拠: Needs confirmation)。
-> 同様に `fetch_by_kind` / `fetch_all` という参照系メソッドも `DiagnosticStore` に定義されているが、`scripts/agent/` 配下から実際に呼び出している箇所は確認できなかった(将来のCLI/API用途と推測されるが未確認)(根拠: Needs confirmation)。
+> `fetch_by_kind` / `fetch_all` は NC-013 で削除済み — 生産環境での呼び出し元なし。
 
 **各レコードのフィールド:**
 

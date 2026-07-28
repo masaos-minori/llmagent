@@ -83,7 +83,7 @@ options:
 
 ## 実装上の補足(この節のAUTO-GENERATEDマーカーについて)
 
-`tools/gen_rag_reference.py` の出力先は `docs/03_rag_05_configuration_and_operations.md` (`OPS_DOC`定数) だが、このファイルはドキュメント分割後の現構成には存在しない(分割後は `03_rag_05_1`〜`03_rag_05_8` に分かれている)。そのため本節の内容はツールによる自動更新が効かず、手動で追随させる必要がある。`--targets-file`引数は元のAUTO-GENERATED内容作成後に追加されたため、上記usageブロックは本修正で追記した。(Explicit in code / Needs confirmation — ツールのOPS_DOC定数を分割後のファイルに追随させる方針は未確認)
+`tools/gen_rag_reference.py` は CLI ヘルプセクションのみを自動生成してこのファイルに書き込む。config テーブルの出力は `--dry-run` でのみ表示され、ファイルには書かれない。
 
 ## chunk_splitter
 

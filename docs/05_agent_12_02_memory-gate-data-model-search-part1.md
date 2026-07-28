@@ -88,14 +88,18 @@ FTS のみへフォールバックする。一方、`VectorRetriever.knn_search(
 | `DEDUP_THRESHOLDS` | source_type 別の重複判定しきい値: RULE=0.98, DECISION=0.98, FAILURE=0.90, CONVERSATION=0.85 |
 | `RETENTION_DAYS` | source_type 別の保持日数: RULE=None（無期限）, DECISION=None（無期限）, FAILURE=180, CONVERSATION=90 |
 
-`DEDUP_THRESHOLDS` は `ingestion.py` の重複判定閾値取得関数が
-`entry.source_type` に応じて参照する。`RETENTION_DAYS` は `enums.py` に定義されているが、
-本ドキュメント担当範囲のモジュール（`store.py` / `retriever.py` / `services.py` /
-`ingestion.py`）内でこの値を参照する保持削除処理は確認できなかった
-（`rebuild_ops.py` 等の未読モジュールで使用されている可能性がある）。
+`DEDUP_THRESHOLDS` は `ingestion.py` の `_get_dedup_threshold()`（178-184行目）が
+`entry.source_type` に応じて参照し、`_has_near_duplicate()`（186-194行目）から
+呼び出される — 埋め込みインゲーション中に実際に使用されている。
+`RETENTION_DAYS` は `enums.py` に定義されているが、唯一の参照先である
+`JsonlMemoryStore.read_active()`（`jsonl_store.py:91-111`、98行目で参照）には
+リポジトリ全体で呼び出し元が存在しない（`grep -rn "read_active"` で定義のみ確認）。
+保持期間に基づくエクスプライズフィルタは定義されているが現在到達不能。
+詳細は NC-007 を参照: `requires/done/20260727-134808_require.md`。
 
 根拠分類: Explicit in code（`enums.py` の定数定義、`ingestion.py`
-重複判定閾値取得関数）／`RETENTION_DAYS` の利用箇所は Needs confirmation。
+`_get_dedup_threshold()` の消費パス）／`RETENTION_DAYS` の利用箇所は
+`read_active()` のみ、呼び出し元なし — 死コード。
 
 ---
 

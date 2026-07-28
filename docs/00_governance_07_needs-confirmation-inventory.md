@@ -57,9 +57,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Both appear in error classification without clear distinction
 - **Impact**: Incorrect error handling could cause silent failures
 - **Required Action**: Verify error type definitions in LLMClient implementation
-- **Status**: open
+- **Resolution**: Confirmed distinct — `PREMATURE_EOF` is raised when SSE stream ends before expected content-length in `scripts/shared/llm_sse_stream.py:90`. `UTF8_PARTIAL_DECODE_ERROR` handles JSON decode errors separately.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-002
 
@@ -70,9 +71,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Field exists but has no current usage path in codebase
 - **Impact**: Dead code may cause confusion; potential memory overhead
 - **Required Action**: Confirm with original author or check git history
-- **Status**: open
+- **Resolution**: Obsolete — `ResultSource` enum is actively used in `SearchDiagnostics.result_source` (`scripts/rag/models_result.py:102`). Referenced doc file no longer contains this section.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-003
 
@@ -83,12 +85,13 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: DocumentManager passes fixed value `0` instead of `existing_doc_id` for ETag updates
 - **Impact**: Existing document ETag updates may not function as intended
 - **Required Action**: Trace ETag update flow through DocumentManager
-- **Status**: open
+- **Resolution**: Fixed — `_update_etag()` in `document_manager.py` now accepts `doc_id: int` parameter and passes it to `ETagManager(self._db, doc_id)`. `handle_existing_document()` threads `existing_doc_id` through.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 - **Priority**: High
-- **Resolution Target**: Next sprint
-- **Blocking**: Yes
+- **Resolution Target**: N/A (resolved)
+- **Blocking**: No
 
 ### NC-004
 
@@ -99,9 +102,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Code comment says "Negate distance" but does not specify metric type
 - **Impact**: Distance metric affects search quality and ranking
 - **Required Action**: Check memories_vec table definition for metric specification
-- **Status**: open
+- **Resolution**: Confirmed L2/Euclidean — added explicit `distance_metric=L2` clause to both `memories_vec` and `chunks_vec` vec0 DDL in `schema_sql.py`. Retriever comment updated to name L2 and note magnitude sensitivity.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-005
 
@@ -125,9 +129,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: No code path sets PipelineRunResult.result_source; only SearchDiagnostics uses dataclasses.replace()
 - **Impact**: Dead field may confuse developers; potential hidden functionality
 - **Required Action**: Check git history for original intent; verify no plugin sets this field
-- **Status**: open
+- **Resolution**: Removed `result_source` field from `PipelineRunResult` in `scripts/rag/types.py`. Field was confirmed dead — no construction site passes `result_source=` argument, no reader exists. See implementation `implementations/20260728-174511_types.py.md`.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-007
 
@@ -138,9 +143,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Archive operation exists but read path details unclear
 - **Impact**: Archived data may be inaccessible after write
 - **Required Action**: Trace archive write and find corresponding read path
-- **Status**: open
+- **Resolution**: Read path confirmed — `JsonlMemoryStore.read_all()` returns all entries; `read_active()` filters by retention policy per source type. See `scripts/agent/memory/jsonl_store.py:72-111`.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-008
 
@@ -151,12 +157,13 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Parameter appears to distinguish multiple workflows but purpose unclear
 - **Impact**: Multi-workflow routing may fail silently
 - **Required Action**: Trace workflow_id usage in request_approval call chain
-- **Status**: open
+- **Resolution**: `workflow_id` is stored in `approvals` table and returned in query results, but current code does NOT filter/route by it. It serves only as a tracking field. No active filtering logic uses this column.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 - **Priority**: High
-- **Resolution Target**: Next sprint
-- **Blocking**: Yes
+- **Resolution Target**: N/A (resolved)
+- **Blocking**: No
 
 ### NC-009
 
@@ -167,9 +174,10 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Field exists but setting mechanism unknown
 - **Impact**: Run field may never be set, causing incorrect pipeline state
 - **Required Action**: Search codebase for explicit run field assignment
-- **Status**: open
+- **Resolution**: The `run` field no longer exists on `RagPipelineConfig`. This NC is obsolete — the field was removed in a prior implementation cycle.
+- **Status**: resolved
 - **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Last Reviewed**: 2026-07-29
 
 ### NC-010
 
@@ -180,11 +188,12 @@ To extract "Needs confirmation" items from source documents:
 - **Evidence**: Tool outputs to non-existent docs/03_rag_05_configuration_and_operations.md
 - **Impact**: Auto-generated content becomes stale; manual tracking required
 - **Required Action**: Determine if tool should be updated or if manual process is acceptable
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Resolution**: Resolved — OPS_DOC removed from `tools/gen_rag_reference.py`; CLI-help-only write path established via `CLI_HELP_DOC`. Config-table generation kept only under `--dry-run`. See implementation `implementations/20260728-175500_gen_rag_reference.py.md`.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 - **Priority**: Medium
-- **Resolution Target**: Current sprint
+- **Resolution Target**: N/A (resolved)
 - **Blocking**: No
 
 ### NC-011
@@ -195,10 +204,10 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Is the docstring reference to common.toml::embedding_dims intentional legacy text?
 - **Evidence**: Docstring references non-existent common.toml; actual config comes from ingester.toml
 - **Impact**: Misleading documentation may cause incorrect assumptions
-- **Required Action**: Confirm with original author that docstring is outdated
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Required Action**: Resolved — confirmed outdated; see docs/03_rag_02_04_ingestion_pipeline-ingester-part2.md §4.4 (~line 51): common.toml does not exist, actual config source is config/ingester.toml.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 
 ### NC-012
 
@@ -208,10 +217,10 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Is loop_guard_hint kind name ever generated in practice?
 - **Evidence**: Method defined but no caller found in scripts/agent/ tree
 - **Impact**: Dead method may indicate incomplete feature or unnecessary code
-- **Required Action**: Search entire codebase including tests for loop_guard_hint usage
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Required Action**: Resolved — `save_loop_guard_hint` method removed (confirmed zero production callers). `guard_hint` confirmed as the sole loop-guard kind. See implementations/done/20260728-175009_diagnostic_store.py.md.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 
 ### NC-013
 
@@ -221,9 +230,9 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Are fetch_by_kind/fetch_all methods intended for CLI/API use?
 - **Evidence**: Methods defined but no callers found in scripts/agent/ tree
 - **Impact**: Dead methods add maintenance burden; missing API breaks expected functionality
-- **Required Action**: Check if any CLI commands or external APIs expect these methods
-- **Status**: open
-- **Assigned To**: Unassigned
+- **Required Action**: Resolved — both methods removed (confirmed zero production callers). See implementations/done/20260728-180000_diagnostic_store.py.md.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
 
 ### NC-014
@@ -234,10 +243,10 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Should gen_rag_reference.py OPS_DOC constant be updated to split files?
 - **Evidence**: Same issue as NC-010; tool outputs to non-existent file
 - **Impact**: Same as NC-010
-- **Required Action**: Same as NC-010 — resolve at root cause level
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Required Action**: Resolved — NC-014 shares root cause with NC-010; resolved by sibling plan `implementations/20260728-175500_gen_rag_reference.py.md` (CLI-help-only write path). See also `plans/20260727-152003_plan.md`.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 - **Priority**: Medium
 - **Resolution Target**: Current sprint
 - **Blocking**: No
@@ -251,9 +260,9 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Where are RETENTION_DAYS and duplicate threshold functions used?
 - **Evidence**: Functions referenced but usages unclear
 - **Impact**: Unused functions add complexity; missing usage breaks deduplication
-- **Required Action**: Trace function call chains to find consumers
-- **Status**: open
-- **Assigned To**: Unassigned
+- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search-part1.md §実装上の補足.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
 
 ### NC-016
@@ -264,9 +273,9 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: What is the actual shape of the on_usage callback?
 - **Evidence**: Type declared as object | None; usage context unclear from this module alone
 - **Impact**: Callback signature mismatch could cause runtime errors
-- **Required Action**: Find actual callback invocation site to determine signature
-- **Status**: open
-- **Assigned To**: Unassigned
+- **Required Action**: Resolved — confirmed `Callable[[int, int], None] | None`, invoked as `on_usage(prompt_tokens, completion_tokens)` from `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()`. See docs/90_shared_03_04_runtime_and_execution-caching-and-reference-part2.md §18.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
 
 ### NC-017
@@ -277,10 +286,10 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Who calls SQLiteSessionStore directly?
 - **Evidence**: AgentSession uses SQLiteHelper directly, bypassing SQLiteSessionStore
 - **Impact**: Dead class adds confusion; potential missed abstraction opportunity
-- **Required Action**: Verify no test or external code uses SQLiteSessionStore
-- **Status**: open
-- **Assigned To**: Unassigned
-- **Last Reviewed**: 2026-07-22
+- **Required Action**: Resolved — confirmed zero production callers via full-repo grep and git history back to initial commit. Sole caller is tests/test_db_store_impl.py::TestSQLiteSessionStore (protocol-conformance test scaffolding). See implementations/20260728-182000_nc017_docs.md.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 
 ## Non-Goals
 

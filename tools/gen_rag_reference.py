@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""gen_rag_reference.py — Auto-generate RAG reference sections in docs.
+"""gen_rag_reference.py — Auto-generate CLI help sections in docs.
 
 Usage:
     python scripts/docs/gen_rag_reference.py          # writes to docs/
     python scripts/docs/gen_rag_reference.py --dry-run # print to stdout only
+
+Writes CLI help blocks for crawler/chunk_splitter/ingester into
+docs/03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md.
+Config table generation (--dry-run only) is kept for manual inspection.
 """
 
 from __future__ import annotations
@@ -19,8 +23,8 @@ CONFIG_PATHS = [
     Path("config/chunk_splitter.toml"),
     Path("config/ingester.toml"),
 ]
-OPS_DOC = Path("docs/03_rag_05_configuration_and_operations.md")
-GUARD_START = "<!-- AUTO-GENERATED: gen_rag_reference.py config -->"
+CLI_HELP_DOC = Path("docs/03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md")
+GUARD_START = "<!-- AUTO-GENERATED: gen_rag_reference.py cli-help -->"
 GUARD_END = "<!-- END AUTO-GENERATED -->"
 
 CLI_TOOLS = [
@@ -58,23 +62,26 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    config_section = generate_config_table()
     cli_section = "\n".join(generate_cli_help(path, name) for path, name in CLI_TOOLS)
-    generated = f"{GUARD_START}\n{config_section}\n\n{cli_section}\n{GUARD_END}"
+    generated = f"{GUARD_START}\n{cli_section}\n{GUARD_END}"
 
     if args.dry_run:
+        config_section = generate_config_table()
+        dry_run_block = f"\n<!-- DRY-RUN ONLY: config table (not written to any file) -->\n{config_section}\n"
+        print(dry_run_block)
+        print("---")
         print(generated)
         return
 
-    doc = OPS_DOC.read_text()
+    doc = CLI_HELP_DOC.read_text()
     start = doc.find(GUARD_START)
     end = doc.find(GUARD_END)
     if start != -1 and end != -1:
         updated = doc[:start] + generated + doc[end + len(GUARD_END) :]
     else:
         updated = doc + "\n\n" + generated
-    OPS_DOC.write_text(updated)
-    print(f"Updated {OPS_DOC}")
+    CLI_HELP_DOC.write_text(updated)
+    print(f"Updated {CLI_HELP_DOC}")
 
 
 if __name__ == "__main__":

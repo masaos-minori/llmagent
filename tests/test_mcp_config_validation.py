@@ -169,3 +169,21 @@ def test_https_url_valid():
 def test_error_includes_server_key():
     with pytest.raises(ValueError, match="my_special_server"):
         _http_cfg(key="my_special_server", call_timeout_sec=-1.0)
+
+
+# --- new: env denylist checks ---
+
+
+def test_env_denylisted_key_ld_preload_raises():
+    with pytest.raises(ValueError, match="denylisted"):
+        _http_cfg(env={"LD_PRELOAD": "/tmp/evil.so"})
+
+
+def test_env_denylisted_key_ld_library_path_raises():
+    with pytest.raises(ValueError, match="denylisted"):
+        _http_cfg(env={"LD_LIBRARY_PATH": "/tmp/evil"})
+
+
+def test_env_denylisted_key_pythonpath_raises():
+    with pytest.raises(ValueError, match="denylisted"):
+        _http_cfg(env={"PYTHONPATH": "/tmp/evil"})

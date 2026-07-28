@@ -41,4 +41,3 @@ class PipelineRunResult:
     reranked: list[RagHit]
     stage_results: list[StageResult]
     diagnostics: SearchDiagnostics
-    result_source: str | None = None
