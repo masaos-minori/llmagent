@@ -1,3 +1,12 @@
+---
+title: "AI Reading Metadata"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines metadata conventions for AI agents to select relevant documents when reading the design documentation set. It ensures AI agents can efficiently identify and retrieve appropriate documentation based on task context.

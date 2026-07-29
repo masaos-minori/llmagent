@@ -1,3 +1,12 @@
+---
+title: "Deprecated Items"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document manages references to old configuration files, concepts, and commands across the design documentation set. It prevents readers from following outdated information and ensures deprecated items are clearly distinguished from current specifications.

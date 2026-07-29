@@ -1,3 +1,12 @@
+---
+title: "Evidence Labels"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines evidence labels used throughout the design documentation set to indicate the strength of implementation grounding and confirmation status for each statement. These labels help readers assess confidence levels and identify areas needing verification.

@@ -1,3 +1,12 @@
+---
+title: "Documentation Governance"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines cross-cutting rules for maintaining the LLM agent design documentation set. It ensures consistency, traceability, and quality across all area documents by establishing shared conventions for document classification, update procedures, review gates, and change impact analysis.

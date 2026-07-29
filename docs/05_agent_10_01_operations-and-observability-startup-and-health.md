@@ -285,8 +285,7 @@ finally節でリソースをクローズする。`_close_resources()`(`repl.py`)
 
 チェックポイント処理（PASSIVE→TRUNCATEリトライ）とWALバックアップ処理はそれぞれ
 `_wal_checkpoint_sync()` / `_wal_backup_sync()` という同期ヘルパーに切り出されており、
-`_close_resources()` から `loop.run_in_executor(None, ...)` + `asyncio.wait_for(...,
-timeout=...)` で個別にタイムアウト付き実行される。チェックポイント側がタイムアウトしても
+`_close_resources()` から `loop.run_in_executor(None, ...)` + `asyncio.wait_for(timeout=...)` で個別にタイムアウト付き実行される。チェックポイント側がタイムアウトしても
 バックアップ処理は独立して実行される。
 
 ```python

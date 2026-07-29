@@ -1,3 +1,12 @@
+---
+title: "Canonical Source Rule"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines canonical source rules for resolving conflicts between documents and between code and documents in the LLM agent design documentation set. When inconsistencies arise, these rules determine which source takes precedence and how to resolve them.

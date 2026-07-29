@@ -1,3 +1,12 @@
+---
+title: "Known Issues Template"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines a common entry template for Known Issues / Inconsistencies documents across all areas of the design documentation set. It ensures consistent tracking, classification, and resolution of discrepancies between documentation and implementation.

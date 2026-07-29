@@ -85,8 +85,7 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
 
 これは見落としではない。`scripts/mcp_servers/mdq/server.py` の `MdqMCPServer`
 クラスの docstring には次のように明記されている:
-`"auth_token: empty string (no auth required — mdq has its own authorization
-via allowed_dirs)"`(Explicit in code)。実際の呼び出しは
+`"auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)"` (Explicit in code)。実際の呼び出しは
 `scripts/mcp_servers/mdq/server.py:308`: `attach_auth_middleware(cast(_FastAPIApp, app), "")`。
 
 代わりに、上記の `allowed_dirs`（デフォルト `[]`）ベースのパス認可が実際のセキュリティ

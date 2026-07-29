@@ -22,8 +22,8 @@ repos:
         pass_filenames: false
         types: [python]
       - id: docs-consistency
-        name: Check RAG documentation consistency
-        entry: python -m tools.check_docs_consistency
+        name: Check document quality
+        entry: python -m tools.check_doc_quality
         language: system
         pass_filenames: false
         types_or: [markdown]

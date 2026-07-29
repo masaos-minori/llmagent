@@ -1,3 +1,12 @@
+---
+title: "Known Issues Migration Plan"
+category: governance
+tags:
+  - governance
+related:
+  - 00_index.md
+  - 01_overview.md
+---
 ## Purpose
 
 This document defines the migration plan for transitioning existing Known Issues / Inconsistencies documents across all areas to the new common template defined in `00_governance_04_known-issues-template.md`. It ensures a controlled, gradual transition that preserves existing IDs and history.
