@@ -24,6 +24,10 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Issue creation / GitHub issue | issue, github issue, create issue, convert findings to issue | `skills/issue-creator/SKILL.md` |
 | Git commit / sync | commit, stage, push, pull, git sync, conflict, git workflow | `skills/git-commit-and-sync/SKILL.md` |
 
+## Tools
+
+Scripts in `tools/` for one-off operations on source code or documentation. Not triggered by routing; AI invokes these during investigation or refactoring tasks. See `tools/TOOL_DESCRIPTIONS.md` for details.
+
 ## Workflow files
 
 Invoke directly by filename. Not triggered by routing.

@@ -1,77 +1,145 @@
 #!/usr/bin/env python3
-"""Fix remaining D205: add blank line after docstring summary lines."""
+"""Fix D205: insert blank line after summary in triple-quoted strings/docstrings.
 
-import os
+Merged from fix_d205.py + fix_d205_v2.py. Supports both module-level and
+function/class docstrings, detects SQL string literals to avoid false positives.
+
+Usage:
+    python tools/fix_d205.py [--dir <path>] [--dry-run]
+
+Options:
+    --dir <path>   Directory to scan (default: scripts/)
+    --dry-run      Print changes without modifying files
+"""
+
+from pathlib import Path
 
 
-def fix_d205(filepath):
-    """Add blank line after docstring summary line if missing."""
-    try:
-        with open(filepath) as f:
-            content = f.read()
-    except Exception:
-        return False
-
+def fix_d205(content: str) -> tuple[str, list[int]]:
+    """Insert blank line after the first line of triple-quoted docstrings."""
     lines = content.split("\n")
-    new_lines = []
+    fixed_lines = []
+    changed_lines = []
+
     i = 0
-    fixed = False
-
     while i < len(lines):
-        new_lines.append(lines[i])
+        line = lines[i]
 
-        # Check if this line starts a docstring
-        stripped = lines[i].strip()
-        if stripped.startswith('"""'):
-            # Single-line docstring - no issue
-            if '"""' in stripped and stripped.count('"""') >= 2:
+        # Check if this line starts a triple-quoted string (module-level docstring)
+        # Pattern: starts with """ or ''' (possibly preceded by whitespace)
+        stripped = line.lstrip()
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            quote_type = '"""' if stripped.startswith('"""') else "'''"
+
+            # Find where the closing quotes end
+            close_idx = stripped.find(quote_type, len(quote_type))
+
+            if close_idx != -1:
+                # Single-line triple-quoted string like """short doc"""
+                # No blank line needed for single-line docstrings
+                fixed_lines.append(line)
                 i += 1
                 continue
 
-            # Multi-line docstring - find closing
+            # Multi-line docstring - find the closing quotes
             j = i + 1
+            found_close = False
             while j < len(lines):
-                if '"""' in lines[j]:
+                next_line = lines[j].lstrip()
+                if quote_type in next_line:
+                    found_close = True
                     break
                 j += 1
 
-            if j >= len(lines):
-                # Unclosed docstring - skip
+            if found_close:
+                # Check if there's already a blank line after the opening
+                # The opening line is lines[i], so we check lines[i+1]
+                if i + 1 < len(lines) and lines[i + 1].strip() == "":
+                    # Already has blank line, skip
+                    for k in range(i, j + 1):
+                        fixed_lines.append(lines[k])
+                    i = j + 1
+                    continue
+
+                # Need to insert blank line after the opening line
+                # But only if the next line is not already blank AND not part of SQL
+                # Check if this looks like a SQL string literal (contains CREATE, INSERT, SELECT, etc.)
+                sql_keywords = [
+                    "CREATE ",
+                    "INSERT ",
+                    "SELECT ",
+                    "DROP ",
+                    "UPDATE ",
+                    "DELETE ",
+                ]
+                is_sql = any(kw.upper() in line.upper() for kw in sql_keywords)
+
+                if not is_sql:
+                    fixed_lines.append(line)
+                    fixed_lines.append("")  # Insert blank line
+                    changed_lines.append(i + 1)  # Report as 1-indexed
+
+                    # Now add the remaining lines of the docstring
+                    for k in range(i + 1, j + 1):
+                        fixed_lines.append(lines[k])
+                    i = j + 1
+                    continue
+                else:
+                    # Skip SQL string literals
+                    for k in range(i, j + 1):
+                        fixed_lines.append(lines[k])
+                    i = j + 1
+                    continue
+            else:
+                # No closing found, just append
+                fixed_lines.append(line)
                 i += 1
-                continue
+        else:
+            fixed_lines.append(line)
+            i += 1
 
-            # Found closing on line j
-            # Check if line right after opening has blank line before description
-            # This handles both module-level and class/function docstrings
-            if i + 1 < len(lines):
-                next_line = lines[i + 1]
-                # If next line is NOT blank AND doesn't start with """ (closing), add blank line
-                if next_line.strip() and not next_line.strip().startswith('"""'):
-                    # Need to insert blank line after opening line
-                    new_lines.insert(i + 1, "")
-                    fixed = True
+    return "\n".join(fixed_lines), changed_lines
 
-            i = j + 1
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Fix D205: add blank line after docstring summary"
+    )
+    parser.add_argument(
+        "--dir", default=None, help="Directory to scan (default: scripts/)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print changes without modifying files"
+    )
+    args = parser.parse_args()
+
+    base_dir = (
+        Path(args.dir)
+        if args.dir
+        else Path(__file__).resolve().parent.parent / "scripts"
+    )
+    total_fixed = 0
+
+    for py_file in sorted(base_dir.rglob("*.py")):
+        try:
+            content = py_file.read_text(encoding="utf-8")
+        except Exception:
             continue
 
-        i += 1
+        new_content, changed = fix_d205(content)
 
-    if fixed:
-        new_content = "\n".join(new_lines)
-        with open(filepath, "w") as f:
-            f.write(new_content)
+        if changed:
+            if args.dry_run:
+                print(f"[DRY-RUN] {py_file}: {len(changed)} fixes")
+            else:
+                py_file.write_text(new_content, encoding="utf-8")
+                print(f"{py_file}: {len(changed)} fixes")
+            total_fixed += len(changed)
 
-    return fixed
+    print(f"\nTotal files modified: {total_fixed}")
 
 
 if __name__ == "__main__":
-    count = 0
-    for root, dirs, files in os.walk("scripts"):
-        dirs[:] = [d for d in dirs if d != "__pycache__"]
-        for fname in files:
-            if not fname.endswith(".py"):
-                continue
-            filepath = os.path.join(root, fname)
-            if fix_d205(filepath):
-                count += 1
-    print(f"Fixed {count} files")
+    main()
