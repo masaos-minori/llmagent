@@ -45,3 +45,25 @@ class TestSubprocessServerCmdPathsExist:
                 )
 
         assert not missing, "\n".join(missing)
+
+
+class TestSubprocessCmdNoSyncFlag:
+    def test_every_subprocess_cmd_has_no_sync(self) -> None:
+        cfg = build_agent_config()
+        subprocess_servers = {
+            key: server_cfg
+            for key, server_cfg in cfg.mcp.mcp_servers.items()
+            if server_cfg.startup_mode == StartupMode.SUBPROCESS
+        }
+        assert subprocess_servers, (
+            "expected at least one subprocess-mode MCP server in config"
+        )
+
+        missing = []
+        for key, server_cfg in subprocess_servers.items():
+            if "--no-sync" not in server_cfg.cmd:
+                missing.append(
+                    f"mcp_servers.{key}: cmd missing --no-sync flag: {server_cfg.cmd}"
+                )
+
+        assert not missing, "\n".join(missing)
