@@ -112,12 +112,13 @@ To extract "Needs confirmation" items from source documents:
 - **Source File**: `03_rag_04_03_dto-models_audit.md`
 - **Section**: §DTO purpose analysis
 - **Line Number**: ~40
-- **Question**: Are RagAuditRequest/RagAuditResponse dead code or forward-looking definitions?
-- **Evidence**: DTOs exist but are not used by any current audit/approval workflow
-- **Impact**: Dead code creates maintenance burden; missing code causes broken workflows
-- **Required Action**: Check git history for intent; verify no pending feature uses these
-- **Status**: open
-- **Assigned To**: Unassigned
+- **Question**: Are AuditLogRecord/ApprovalDecision dead code or forward-looking definitions?
+- **Evidence**: Zero callers found via repo-wide grep; classes were never imported from `scripts/` or `tests/`
+- **Impact**: Dead code creates maintenance burden
+- **Required Action**: Resolved — confirmed zero production callers via full-repo grep and git history back to initial commit. Both classes removed from `scripts/rag/models_audit.py`. See implementations/done/20260728-174511_models_audit.py.md.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-07-29
 - **Last Reviewed**: 2026-07-22
 
 ### NC-006

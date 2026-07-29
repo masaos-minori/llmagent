@@ -159,7 +159,7 @@ Cross-cutting documentation rules and policies:
 ## 未確認事項
 
 - [NC-002](00_governance_07_needs-confirmation-inventory.md#nc-002): ResultSourceフィールドの未使用理由
-- [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): RagAuditRequest/RagAuditResponseのデッドコード判定
+- [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): AuditLogRecord/ApprovalDecisionのデッドコード判定（resolved）
 - [NC-006](00_governance_07_needs-confirmation-inventory.md#nc-006): result_sourceフィールドの将来利用可否
 
 ## Related Documents
