@@ -74,6 +74,143 @@ class TestStreamLlm:
             await runner._stream_llm("http://llm", 0)
 
 
+class TestStreamLlmFinalAnswer:
+    @pytest.mark.asyncio
+    async def test_streams_without_tool_defs(self, runner: LLMTurnRunner) -> None:
+        expected = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
+        runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
+
+        response = await runner._stream_llm_final_answer()
+
+        assert response == expected
+        runner._ctx.services_required.llm.stream.assert_awaited_once_with(
+            runner.llm_url,
+            runner._ctx.conv.history,
+            [],
+        )
+
+    @pytest.mark.asyncio
+    async def test_propagates_transport_error(self, runner: LLMTurnRunner) -> None:
+        err = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
+        runner._ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+
+        with pytest.raises(LLMTransportError):
+            await runner._stream_llm_final_answer()
+
+
+class TestFinalizeAfterGuard:
+    @pytest.mark.asyncio
+    async def test_success_returns_continue_with_answer(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
+        runner._guard.check_all.return_value = "Blocked by guard"
+
+        with patch.object(
+            runner, "_stream_llm_final_answer", AsyncMock(return_value=final_response)
+        ):
+            result = await runner._finalize_after_guard()
+
+        assert result.action == "continue"
+        assert result.answer == "Final answer"
+        assert result.reason != "tool_loop_guard"
+
+    @pytest.mark.asyncio
+    async def test_fails_when_llm_returns_tool_calls(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": [{"id": "c1"}]},
+            finish_reason="tool_calls",
+        )
+        runner.llm_url = "http://llm"
+
+        with patch.object(
+            runner, "_stream_llm_final_answer", AsyncMock(return_value=final_response)
+        ):
+            result = await runner._finalize_after_guard()
+
+        assert result.action == "fail"
+        assert result.reason == "tool_loop_guard"
+
+    @pytest.mark.asyncio
+    async def test_fails_when_validation_fails(self, runner: LLMTurnRunner) -> None:
+        def _mock_validate(msg: dict) -> MagicMock:
+            mock_result = MagicMock()
+            mock_result.success = False
+            mock_result.reason = "Validation failed"
+            return mock_result
+
+        runner.llm_url = "http://llm"
+
+        with patch("agent.message_schema.validate_message", side_effect=_mock_validate):
+            result = await runner._finalize_after_guard()
+
+        assert result.action == "fail"
+        assert result.reason == "tool_loop_guard"
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_message_injected_on_success(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
+        runner.llm_url = "http://llm"
+
+        with patch.object(
+            runner, "_stream_llm_final_answer", AsyncMock(return_value=final_response)
+        ):
+            await runner._finalize_after_guard()
+
+        ephemeral_msgs = [
+            m for m in runner._ctx.conv.history if m.get("_ephemeral") is True
+        ]
+        assert len(ephemeral_msgs) == 1
+        assert ephemeral_msgs[0]["source"] == "loop_guard"
+
+    @pytest.mark.asyncio
+    async def test_history_not_modified_before_guard_check(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """History must not be modified before the guard check in run()."""
+        tool_calls = [{"id": "c1"}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
+
+        history_len_before = len(runner._ctx.conv.history)
+
+        with (
+            patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)),
+            patch.object(
+                runner,
+                "_stream_llm_final_answer",
+                AsyncMock(return_value=final_response),
+            ),
+        ):
+            runner._guard.check_all.return_value = "Blocked by guard"
+            result = await runner.run("http://llm", **WF_CTX)
+
+        assert result.action == "continue"
+        assert "Final answer" in result.answer
+        assert (
+            len(runner._ctx.conv.history) == history_len_before + 2
+        )  # ephemeral msg + final answer message added
+
+
 class TestFinalizeAnswer:
     def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant", "content": "Hello"}
@@ -201,13 +338,25 @@ class TestRun:
             message={"role": "assistant", "content": "", "tool_calls": tool_calls},
             finish_reason="tool_calls",
         )
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
 
-        with patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)):
+        with (
+            patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)),
+            patch.object(
+                runner,
+                "_stream_llm_final_answer",
+                AsyncMock(return_value=final_response),
+            ),
+        ):
             runner._guard.check_all.return_value = "Blocked by guard"
 
             result = await runner.run("http://llm", **WF_CTX)
 
-        assert "Blocked by guard" in result.answer
+        assert result.action == "continue"
+        assert "Final answer" in result.answer
 
     @pytest.mark.asyncio
     async def test_check_error_limit_triggers(self, runner: LLMTurnRunner) -> None:

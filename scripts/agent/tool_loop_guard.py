@@ -46,6 +46,12 @@ CYCLE_HINT = (
     " best answer with the information already available."
 )
 
+GUARD_HINT = (
+    "You have made repeated tool calls that were not executed. Please provide your"
+    " best answer based on the information already available in this conversation."
+    " Do not make any more tool calls."
+)
+
 
 @dataclass
 class TurnLoopState:

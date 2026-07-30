@@ -24,7 +24,7 @@ class TestValidateMessageRequiredFields:
         result = validate_message(
             {
                 "role": "assistant",
-                "content": None,
+                "content": "ok",
                 "tool_calls": [
                     {"id": "tc1", "function": {"name": "test", "arguments": "{}"}}
                 ],
@@ -78,7 +78,8 @@ class TestValidateMessageExtraKeys:
                 "content": "hello",
             }
         )
-        assert result.success is True
+        assert result.success is False
+        assert "Unexpected keys" in result.reason
 
     def test_extra_key_in_user_message_rejected(self) -> None:
         result = validate_message(
@@ -257,7 +258,8 @@ class TestTrustedSourceHelpers:
         assert "cmd_handler" in TRUSTED_SOURCES
         assert "memory_injection" in TRUSTED_SOURCES
         assert "skill_mixin" in TRUSTED_SOURCES
-        assert len(TRUSTED_SOURCES) == 3
+        assert "loop_guard" in TRUSTED_SOURCES
+        assert len(TRUSTED_SOURCES) == 4
 
     def test_role_key_whitelist_defined_correctly(self) -> None:
         assert "system" in ROLE_KEY_WHITELIST
@@ -265,3 +267,20 @@ class TestTrustedSourceHelpers:
         assert "assistant" in ROLE_KEY_WHITELIST
         assert "tool" in ROLE_KEY_WHITELIST
         assert len(ROLE_KEY_WHITELIST) == 4
+
+    def test_loop_guard_is_trusted_source(self) -> None:
+        assert is_trusted_source("loop_guard") is True
+
+    def test_get_allowed_ephemeral_keys_for_loop_guard(self) -> None:
+        assert get_allowed_ephemeral_keys("loop_guard") == {"_ephemeral"}
+
+    def test_validate_message_accepts_loop_guard_ephemeral_key(self) -> None:
+        result = validate_message(
+            {
+                "role": "system",
+                "content": "You are about to produce a final answer without calling any tools.",
+                "_ephemeral": True,
+                "source": "loop_guard",
+            }
+        )
+        assert result.success is True

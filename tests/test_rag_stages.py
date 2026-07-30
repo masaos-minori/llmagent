@@ -529,7 +529,7 @@ class TestMqeStage:
 
     @pytest.mark.asyncio
     async def test_run_llm_exception(self, mock_context, mock_llm):
-        """Test MqeStage propagates LLM exceptions (fail-fast)."""
+        """Non-RagExpansionError exceptions still propagate."""
         mock_llm.expand_queries.side_effect = Exception("LLM error")
 
         cfg = SimpleNamespace(use_mqe=True)
@@ -537,6 +537,20 @@ class TestMqeStage:
 
         with pytest.raises(Exception, match="LLM error"):
             await stage.run(mock_context)
+
+    @pytest.mark.asyncio
+    async def test_run_mqe_fallback_on_expansion_error(self, mock_context, mock_llm):
+        """RagExpansionError triggers fallback to original query."""
+        from rag.llm_prompts import RagExpansionError
+
+        mock_llm.expand_queries.side_effect = RagExpansionError("MQE failed")
+
+        cfg = SimpleNamespace(use_mqe=True)
+        stage = MqeStage(cfg, mock_llm)
+
+        await stage.run(mock_context)
+
+        assert mock_context.queries == [mock_context.query]
 
     @pytest.mark.asyncio
     async def test_run_empty_expansion(self, mock_context, mock_llm):
@@ -581,6 +595,17 @@ class TestRunMqe:
         cfg = SimpleNamespace(use_mqe=True)
 
         with pytest.raises(Exception, match="Error"):
+            await _run_mqe("original query", cfg, mock_llm)
+
+    @pytest.mark.asyncio
+    async def test_mqe_expansion_error_propagates(self, mock_llm):
+        """Test _run_mqe propagates RagExpansionError (fail-fast)."""
+        from rag.llm_prompts import RagExpansionError
+
+        mock_llm.expand_queries.side_effect = RagExpansionError("MQE failed")
+        cfg = SimpleNamespace(use_mqe=True)
+
+        with pytest.raises(RagExpansionError, match="MQE failed"):
             await _run_mqe("original query", cfg, mock_llm)
 
 
@@ -784,6 +809,35 @@ class TestRerankStage:
             await stage.run(mock_context)
 
     @pytest.mark.asyncio
+    async def test_run_rerank_fallback_on_rerank_error(self, mock_context, mock_llm):
+        """RagRerankError triggers fallback to RRF-ranked results."""
+        from rag.llm_prompts import RagRerankError
+
+        mock_context.merged = [
+            MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            MergedHit(chunk_id=2, content="result2", url="http://example.com/2"),
+            MergedHit(chunk_id=3, content="result3", url="http://example.com/3"),
+        ]
+
+        mock_llm.cross_encoder_rerank.side_effect = RagRerankError("Rerank failed")
+
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
+        stage = RerankStage(cfg, mock_llm)
+
+        await stage.run(mock_context)
+
+        # Fallback should deduplicate and apply rag_top_k to ctx.merged
+        assert len(mock_context.reranked) <= 3
+        chunk_ids = {r.chunk_id for r in mock_context.reranked}
+        assert chunk_ids.issubset({1, 2, 3})
+
+    @pytest.mark.asyncio
     async def test_run_empty_merged(self, mock_context, mock_llm):
         """Test RerankStage with empty merged results."""
         mock_context.merged = []
@@ -882,6 +936,25 @@ class TestRerank:
         )
 
         with pytest.raises(Exception, match="Error"):
+            await _rerank("test query", merged, cfg, mock_llm)
+
+    @pytest.mark.asyncio
+    async def test_rerank_rerank_error_propagates(self, mock_llm):
+        """Test _rerank propagates RagRerankError (fail-fast)."""
+        from rag.llm_prompts import RagRerankError
+
+        merged = [MergedHit(chunk_id=1, content="result1", url="http://example.com/1")]
+        mock_llm.cross_encoder_rerank.side_effect = RagRerankError("Rerank failed")
+
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
+
+        with pytest.raises(RagRerankError, match="Rerank failed"):
             await _rerank("test query", merged, cfg, mock_llm)
 
 

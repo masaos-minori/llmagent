@@ -160,19 +160,23 @@ class RagPipeline:
         """Return the execution status of a pipeline stage with an optional reason string."""
         name = type(stage).__name__
         if name == "MqeStage":
-            return self._mqe_status()
+            return self._mqe_status(ctx)
         if name == "SearchStage":
             return self._search_status(ctx)
         if name == "FusionStage":
             return self._fusion_status()
         if name == "RerankStage":
-            return self._rerank_status()
+            return self._rerank_status(ctx)
         return "success", None
 
-    def _mqe_status(self) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine MQE stage status based on configuration."""
+    def _mqe_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine MQE stage status based on configuration and context."""
         if not self._cfg.use_mqe:
             return "fallback", "use_mqe=False"
+        if ctx._fallback_reason == "mqe_exception":
+            return "fallback", "mqe_exception"
         return "success", None
 
     def _search_status(
@@ -189,10 +193,14 @@ class RagPipeline:
             return "fallback", "use_rrf=False"
         return "success", None
 
-    def _rerank_status(self) -> tuple[Literal["success", "fallback"], str | None]:
-        """Determine rerank stage status based on configuration."""
+    def _rerank_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
+        """Determine rerank stage status based on configuration and context."""
         if not self._cfg.use_rerank:
             return "fallback", "use_rerank=False"
+        if ctx._fallback_reason == "rerank_exception":
+            return "fallback", "rerank_exception"
         return "success", None
 
     async def _run_stage(

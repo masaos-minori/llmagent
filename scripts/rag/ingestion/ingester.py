@@ -13,6 +13,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 
 import argparse
 import dataclasses
+import datetime
 import shutil
 import sqlite3
 import time
@@ -22,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import httpx
+import orjson
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 from rag.ingestion.document_manager import DocumentManager
@@ -105,6 +107,8 @@ class RagIngester:
             logger.info("No chunk files to process")
             return None
         url_groups = self._group_chunks_by_url(chunk_files)
+
+        consistency_report: RagConsistencyReport | None = None
         with SQLiteHelper(
             db_path=self._rag_db_path,
             sqlite_vec_so=self._sqlite_vec_so,
@@ -113,6 +117,13 @@ class RagIngester:
         ).open(write_mode=True) as db:
             doc_mgr = DocumentManager(db)
             results = self._process_url_groups(doc_mgr, db, url_groups, force)
+            consistency_report = doc_mgr.check_consistency(
+                embed_failed=sum(
+                    r.n_embed_failed for r in results if r.n_embed_failed > 0
+                ),
+                on_ingest_complete=on_ingest_complete,
+            )
+
         total_success = sum(r.n_success for r in results)
         total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
         total_embed_failed = sum(
@@ -128,6 +139,14 @@ class RagIngester:
             total_skipped,
             extra={"stage_name": "ingester"},
         )
+        if consistency_report is None:
+            logger.warning("Consistency check failed after ingestion")
+        elif consistency_report.issues:
+            logger.warning(
+                "Ingestion completed with %d inconsistency issue(s): %s",
+                len(consistency_report.issues),
+                "; ".join(consistency_report.issues),
+            )
         # Invalidate RAG pipeline semantic cache after ingestion
         cfg = ConfigLoader().load("ingester.toml")
         url = cfg.get("rag_pipeline_service_url", "")
@@ -137,10 +156,7 @@ class RagIngester:
                 resp.raise_for_status()
             except httpx.HTTPError as e:
                 logger.warning(f"Cache invalidation failed: {e}")
-        return doc_mgr.check_consistency(
-            embed_failed=total_embed_failed,
-            on_ingest_complete=on_ingest_complete,
-        )
+        return consistency_report
 
     def ingest_url_group(
         self,
@@ -150,7 +166,7 @@ class RagIngester:
         chunk_files: list[Path],
         force: bool,
     ) -> IngestUrlResult:
-        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
+        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; routes files based on success/failure."""
         if not chunk_files:
             return self._skip_result(url)
 
@@ -189,11 +205,13 @@ class RagIngester:
             return self._skip_result(url)
 
         db.commit()
-        inserted, failed, embed_failed = self._ingest_chunk_files(doc_id, chunk_files)
+        inserted, failed, embed_failed, successful_paths, failed_paths = (
+            self._ingest_chunk_files(doc_id, chunk_files)
+        )
         self._log_ingestion_result(
             doc_id, url, inserted, len(chunk_files), failed, embed_failed
         )
-        self._move_to_registered(chunk_files)
+        self._route_chunk_files(successful_paths, failed_paths)
         return IngestUrlResult(
             url=url,
             n_success=inserted,
@@ -508,11 +526,13 @@ class RagIngester:
 
     def _ingest_chunk_files(
         self, doc_id: int, chunk_files: list[Path]
-    ) -> tuple[int, int, int]:
-        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed)."""
+    ) -> tuple[int, int, int, list[Path], list[tuple[Path, str]]]:
+        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed, successful_paths, failed_paths_with_reasons)."""
         inserted = 0
         failed = 0
         embed_failed = 0
+        successful_paths: list[Path] = []
+        failed_paths: list[tuple[Path, str]] = []
         with ThreadPoolExecutor(max_workers=self._embed_workers) as executor:
             futures = {
                 executor.submit(self._embed_and_store, doc_id, path): path
@@ -524,10 +544,14 @@ class RagIngester:
                     chunk_ok, embed_ok = future.result()
                     if chunk_ok:
                         inserted += 1
+                        successful_paths.append(path)
                     else:
                         failed += 1
                         if not embed_ok:
                             embed_failed += 1
+                            failed_paths.append((path, "embedding failed"))
+                        else:
+                            failed_paths.append((path, "storage failed"))
                 except (
                     httpx.HTTPStatusError,
                     httpx.RequestError,
@@ -537,7 +561,8 @@ class RagIngester:
                 ) as e:
                     self._log_ingest_failure(doc_id, path, e)
                     failed += 1
-        return inserted, failed, embed_failed
+                    failed_paths.append((path, str(e)))
+        return inserted, failed, embed_failed, successful_paths, failed_paths
 
     def _group_chunks_by_url(self, chunk_files: list[Path]) -> dict[str, list[Path]]:
         """Group chunk files by URL read from their JSON 'url' field."""
@@ -606,6 +631,91 @@ class RagIngester:
                         "stage_name": "ingester",
                     },
                 )
+
+    def _route_chunk_files(
+        self, successful_paths: list[Path], failed_paths: list[tuple[Path, str]]
+    ) -> None:
+        """Route chunk files based on success/failure: successful→registered/, failed→retry/ or failed/."""
+        self._registered_dir.mkdir(parents=True, exist_ok=True)
+        retry_dir = self._chunk_dir.parent / "retry"
+        retry_dir.mkdir(parents=True, exist_ok=True)
+        failed_dir = self._chunk_dir.parent / "failed"
+        failed_dir.mkdir(parents=True, exist_ok=True)
+
+        for path in successful_paths:
+            dest = self._registered_dir / path.name
+            try:
+                shutil.move(str(path), str(dest))
+            except OSError as e:
+                chunk_data = self._read_chunk_json(path)
+                chunk_url = chunk_data.get("url", "") if chunk_data else ""
+                logger.error(
+                    "move failed %s → %s: %s",
+                    path,
+                    dest,
+                    e,
+                    extra={
+                        "url": chunk_url,
+                        "source_type": "file",
+                        "stage_name": "ingester",
+                    },
+                )
+
+        for path, reason in failed_paths:
+            error_metadata = self._write_error_metadata(path, reason)
+            if error_metadata is not None:
+                error_path = failed_dir / f"{path.stem}.error.json"
+                try:
+                    error_path.write_bytes(orjson.dumps(error_metadata))
+                except OSError as e:
+                    logger.warning(
+                        "Failed to write .error.json metadata for %s: %s",
+                        path,
+                        e,
+                        extra={"stage_name": "ingester"},
+                    )
+
+            if "embedding" in reason.lower():
+                dest = retry_dir / path.name
+            else:
+                dest = failed_dir / path.name
+            try:
+                shutil.move(str(path), str(dest))
+            except OSError as e:
+                logger.warning(
+                    "Failed to move failed chunk %s → %s: %s",
+                    path,
+                    dest,
+                    e,
+                    extra={"stage_name": "ingester"},
+                )
+
+    def _write_error_metadata(self, path: Path, failure_reason: str) -> dict | None:
+        """Write .error.json metadata for a failed chunk."""
+        chunk_data = self._read_chunk_json(path)
+        if chunk_data is None:
+            return None
+
+        metadata = {
+            "schema_version": "1",
+            "created_by": "rag_ingester",
+            "failure_reason": failure_reason,
+            "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+
+        url = chunk_data.get("url", "")
+        if url:
+            metadata["url"] = url
+
+        chunk_index_raw = chunk_data.get("chunk_index", "")
+        if chunk_index_raw is not None:
+            metadata["chunk_index"] = str(chunk_index_raw)
+
+        source_file = chunk_data.get("source_file", "")
+        if source_file:
+            metadata["source_file"] = source_file
+
+        return metadata
 
 
 # ──────────────────────────────────────────────────────────────────────────────

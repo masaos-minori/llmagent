@@ -247,7 +247,13 @@ class WorkflowEngine:
         fn: StageCallback,
         attempt: int = 1,
     ) -> None:
-        """Run a single stage with idempotency check and timeout enforcement."""
+        """Run a single stage with idempotency check and timeout enforcement.
+
+        Note: Retry attempts use distinct event IDs in the format
+        '{task_id}:{stage_id}:{attempt}' where attempt is a 1-based
+        integer incremented for each retry. Each retry is treated as
+        a separate idempotency record.
+        """
         with self._span_ctx("workflow.stage") as span:
             span.set_attribute("workflow.stage_id", stage_id)
             span.set_attribute("workflow.attempt", attempt)

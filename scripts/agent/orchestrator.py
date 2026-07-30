@@ -162,6 +162,9 @@ class Orchestrator:
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
         self._background_tasks: set[asyncio.Task[object]] = set()
+        # Startup recovery for stale running attempts
+        self._state_store = StateStore()
+        self._state_store.recover_stale_attempts(self._state_store.get_connection())
         # Scoped to a single background-task type today (the first-turn
         # session-title-generation task handled by `_discard_and_log`). Do not
         # reuse this single counter for a second, distinct background-task
@@ -241,7 +244,7 @@ class Orchestrator:
         """Execute a turn through the workflow engine."""
         assert self._workflow_def is not None  # noqa: B101 only called when workflow_def exists
         session_id = _format_session_id(ctx.session.session_id) or "none"
-        store = StateStore()
+        store = self._state_store
         answer: str = ""
         error_kind: str | None = None
         is_partial: bool = False
@@ -555,7 +558,7 @@ class Orchestrator:
             result = await self._handle_llm_turn(ctx.conv.llm_url)
             answer = result.answer
             if result.action != "continue":
-                error_kind = result.error_kind
+                error_kind = result.error_kind or result.reason or result.action
                 if (
                     isinstance(result.exception, LLMTransportError)
                     and result.exception.partial_text

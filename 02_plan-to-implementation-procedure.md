@@ -1,4 +1,4 @@
-You are a senior software architect and implementation planner.
+You are a senior software architect and implementation writer.
 
 ## Workflow position
 

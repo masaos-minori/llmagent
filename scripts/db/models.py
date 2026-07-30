@@ -83,6 +83,14 @@ class RagConsistencyReport:
     fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
     embed_failed: int = 0  # embedding failures during ingestion
     issues: tuple[str, ...] = ()  # human-readable consistency issues
+    # Document-level checks
+    documents_without_chunks_count: int = 0  # documents with no chunks
+    chunks_without_vec_count: int = 0  # chunks without vector rows
+    duplicate_chunk_index_count: int = 0  # duplicate chunk_index within same doc_id
+    # URL-level checks
+    url_level_mismatches: dict[str, dict[str, int]] | None = (
+        None  # URL → {chunk_count, vec_count, fts_count}
+    )
     # Affected identifiers (up to 10 each; None when not applicable)
     affected_chunk_ids: tuple[int, ...] | None = None  # chunk_ids missing from FTS
     affected_doc_ids: tuple[int, ...] | None = (
@@ -93,6 +101,18 @@ class RagConsistencyReport:
     )
     affected_orphan_urls: tuple[str, ...] | None = (
         None  # URLs of docs with orphan vec rows
+    )
+    affected_docs_without_chunks: tuple[int, ...] | None = (
+        None  # doc_ids with no chunks
+    )
+    affected_chunks_without_vec: tuple[int, ...] | None = (
+        None  # chunk_ids without vectors
+    )
+    affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = (
+        None  # (doc_id, chunk_index) pairs
+    )
+    affected_url_mismatches: tuple[str, ...] | None = (
+        None  # URLs with mismatched counts
     )
 
 

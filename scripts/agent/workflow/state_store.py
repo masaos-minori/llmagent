@@ -7,6 +7,7 @@ CRUD operations and idempotency enforcement for workflow.sqlite.
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -16,6 +17,9 @@ from shared.json_utils import now_iso as _now
 from agent.workflow.models import AttemptRecord, TaskRecord
 
 logger = logging.getLogger(__name__)
+
+# Grace period in seconds — attempts younger than this are NOT considered stale.
+_STALE_GRACE_SEC = 30
 
 
 class StateStore:
@@ -241,3 +245,59 @@ class StateStore:
             (session_id,),
         )
         return [str(dict(r)["uri"]) for r in rows if dict(r).get("uri")]
+
+    # ── Startup Recovery ─────────────────────────────────────────────────────
+
+    def find_stale_running_attempts(self, db: SQLiteHelper) -> list[dict]:
+        """Find running attempts that exceed the configured grace period.
+
+        Returns a list of dicts with keys: attempt_id, started_at, elapsed_sec.
+        Only returns attempts older than _STALE_GRACE_SEC seconds.
+        """
+        rows = db.fetchall(
+            "SELECT attempt_id, started_at FROM attempts WHERE status='running'",
+        )
+        stale = []
+        now_ts = time.time()
+        for row in rows:
+            attempt_id = row["attempt_id"]
+            started_at = row["started_at"]
+            try:
+                started_ts = time.mktime(time.strptime(started_at, "%Y-%m-%dT%H:%M:%S"))
+            except ValueError:
+                continue
+            elapsed = now_ts - started_ts
+            if elapsed > _STALE_GRACE_SEC:
+                stale.append(
+                    {
+                        "attempt_id": attempt_id,
+                        "started_at": started_at,
+                        "elapsed_sec": elapsed,
+                    }
+                )
+        return stale
+
+    def recover_stale_attempts(self, db: SQLiteHelper) -> None:
+        """Mark stale running attempts as failed at startup.
+
+        An attempt is considered stale if it has been running longer than the
+        configured grace period (_STALE_GRACE_SEC).  This method is called once
+        during process initialization before any turn processing begins.
+        """
+        stale = self.find_stale_running_attempts(db)
+        for item in stale:
+            attempt_id = item["attempt_id"]
+            started_at = item["started_at"]
+            elapsed = item["elapsed_sec"]
+            logger.warning(
+                "Recovering stale attempt %s (started_at=%s, elapsed=%.1fs)",
+                attempt_id,
+                started_at,
+                elapsed,
+            )
+            db.execute(
+                "UPDATE attempts SET status='failed', ended_at=? WHERE attempt_id=?",
+                (_now(), attempt_id),
+            )
+        if stale:
+            db.commit()

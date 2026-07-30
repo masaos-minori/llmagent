@@ -15,7 +15,7 @@ import pytest
 from agent.context import ConversationState
 from agent.history import CompressResult
 from agent.message_schema import ValidationResult
-from agent.orchestrator import Orchestrator
+from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from agent.workflow import (
@@ -1496,7 +1496,8 @@ class TestDiscardAndLogConsecutiveFailures:
                 orch._discard_and_log(self._fake_task(RuntimeError("boom")))
 
         assert orch._consecutive_bg_failures == 4
-        assert mock_warning.call_count == 4
+        # Only the first failure logs a warning; 2nd-4th are silent until threshold
+        assert mock_warning.call_count == 1
         mock_error.assert_not_called()
 
     def test_fifth_consecutive_failure_logs_via_error(self) -> None:
@@ -1507,13 +1508,16 @@ class TestDiscardAndLogConsecutiveFailures:
             patch("agent.orchestrator.logger.warning") as mock_warning,
             patch("agent.orchestrator.logger.error") as mock_error,
         ):
-            for _ in range(4):
+            for _ in range(BG_FAILURE_THRESHOLD - 1):
                 orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+            # 2nd-(N-1)th failures are silent (no logging)
+            assert mock_warning.call_count == 1
             assert mock_error.call_count == 0
             orch._discard_and_log(self._fake_task(RuntimeError("boom")))
 
-        assert orch._consecutive_bg_failures == 5
-        assert mock_warning.call_count == 4
+        assert orch._consecutive_bg_failures == BG_FAILURE_THRESHOLD
+        # Only the first failure logged a warning; threshold failure logs error
+        assert mock_warning.call_count == 1
         mock_error.assert_called_once()
 
     def test_success_after_failures_resets_counter_to_zero(self) -> None:
@@ -1550,28 +1554,32 @@ class TestDiscardAndLogConsecutiveFailures:
 
     def test_threshold_reached_notifies_exactly_once_with_task_name(self) -> None:
         """_notify_bg_failure_threshold() must fire exactly once, at the failure
-        that makes the counter == BG_FAILURE_THRESHOLD (5), and the notification
+        that makes the counter == BG_FAILURE_THRESHOLD, and the notification
         message must include the task name."""
         on_error = MagicMock()
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx, on_error=on_error)
 
-        for _ in range(4):
+        # First failure calls _on_error (not _notify_bg_failure_threshold) — skip it
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        assert on_error.call_count == 1
+        on_error.reset_mock()
+
+        # 2nd-(N-1)th failures are silent (no logging, no notifications)
+        for _ in range(BG_FAILURE_THRESHOLD - 2):
             orch._discard_and_log(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
-        # First failure already calls on_error once (existing behavior) — reset the mock
-        # so we can isolate the threshold-notification call.
-        on_error.reset_mock()
 
+        # Nth failure (threshold) triggers _notify_bg_failure_threshold which calls _on_error
         orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
-        assert orch._consecutive_bg_failures == 5
+        assert orch._consecutive_bg_failures == BG_FAILURE_THRESHOLD
         on_error.assert_called_once()
         err = on_error.call_args[0][0]
         assert "my_bg_task" in str(err)
-        assert "5" in str(err)
+        assert str(BG_FAILURE_THRESHOLD) in str(err)
 
-        # A sixth consecutive failure must not notify again (only == threshold, not >=).
+        # A (N+1)th consecutive failure must not notify again (only == threshold, not >=).
         on_error.reset_mock()
         orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
         on_error.assert_not_called()
@@ -1586,13 +1594,21 @@ class TestDiscardAndLogConsecutiveFailures:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx, on_error=on_error)
 
+        # First failure also calls _on_error — it will raise too (logged as ERROR)
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+
         with patch("agent.orchestrator.logger.critical") as mock_critical:
-            for _ in range(5):
+            # 2nd-(N-1)th failures are silent
+            for _ in range(BG_FAILURE_THRESHOLD - 2):
                 orch._discard_and_log(
                     self._fake_task(RuntimeError("boom"), name="my_bg_task")
                 )
+            # Nth failure triggers _notify_bg_failure_threshold which calls _on_error
+            orch._discard_and_log(
+                self._fake_task(RuntimeError("boom"), name="my_bg_task")
+            )
 
-        assert orch._consecutive_bg_failures == 5
+        assert orch._consecutive_bg_failures == BG_FAILURE_THRESHOLD
         mock_critical.assert_called_once()
         assert "my_bg_task" in str(mock_critical.call_args)
 
@@ -1602,10 +1618,18 @@ class TestDiscardAndLogConsecutiveFailures:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx, pause_on_critical_failure=True)
 
-        for _ in range(5):
+        # First failure does NOT set pause state (only calls _on_error)
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        assert orch._bg_pause_state == {}
+
+        # 2nd-(N-1)th failures are silent
+        for _ in range(BG_FAILURE_THRESHOLD - 2):
             orch._discard_and_log(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
+
+        # Nth failure triggers _notify_bg_failure_threshold which sets pause state
+        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
 
         assert orch._bg_pause_state == {"my_bg_task": True}
 
@@ -1832,6 +1856,7 @@ class TestHandleWorkflowEngineStatusPreservation:
             patch("agent.orchestrator.StateStore", return_value=mock_store),
             patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
         ):
+            orch._state_store = mock_store
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
         # The finally block should have written 'completed'
@@ -1871,7 +1896,100 @@ class TestHandleWorkflowEngineStatusPreservation:
             patch("agent.orchestrator.StateStore", return_value=mock_store),
             patch("agent.orchestrator.WorkflowEngine", return_value=mock_engine),
         ):
+            orch._state_store = mock_store
             await orch._handle_workflow_engine("test line", ctx, time.time())
 
         # The finally block should have written 'failed' because error_kind is set
         mock_store.update_task_status.assert_called_with("task-1", "failed")
+
+
+class TestErrorKindPropagation:
+    """Tests for error_kind derivation from TurnResult."""
+
+    @pytest.mark.asyncio
+    async def test_error_kind_derived_from_reason_on_guard_fail(self) -> None:
+        """When guard triggers final-answer fallback that fails, error_kind uses result.reason."""
+        ctx = _make_ctx()
+        captured_events: list[str] = []
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured_events.append(s)
+        orch = _make_orchestrator(ctx)
+
+        tool_calls = [{"id": "c1"}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": [{"id": "c2"}]},
+            finish_reason="tool_calls",
+        )
+
+        with (
+            patch.object(
+                orch._llm_runner,
+                "_stream_llm",
+                AsyncMock(return_value=tool_response),
+            ),
+            patch.object(
+                orch._llm_runner,
+                "_stream_llm_final_answer",
+                AsyncMock(return_value=final_response),
+            ),
+            patch.object(
+                orch._llm_runner._guard, "check_all", return_value="Blocked by guard"
+            ),
+        ):
+            await orch.handle_turn("hello")
+
+        assert len(captured_events) > 0
+        event_dict = json.loads(captured_events[-1])
+        assert event_dict["error_kind"] is not None
+        assert "tool_loop_guard" in event_dict["error_kind"]
+
+    @pytest.mark.asyncio
+    async def test_error_kind_uses_action_when_no_reason(self) -> None:
+        """When result.reason is empty, error_kind falls back to result.action."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        stop_response = LLMResponse(
+            message=LLMMessage(role="assistant", content="ok", tool_calls=None),
+            finish_reason="stop",
+        )
+
+        async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
+            return stop_response
+
+        ctx.services_required.llm.stream = _mock_stream
+
+        result = await orch._llm_runner.run(
+            "http://llm-test",
+            workflow_id="wf-test",
+            task_id="task-test",
+            stage_id="execute",
+            attempt_id="att-test",
+        )
+
+        assert result.action == "continue"
+        assert result.answer == "ok"
+
+    @pytest.mark.asyncio
+    async def test_error_kind_propagates_through_handle_turn_on_transport_error(
+        self,
+    ) -> None:
+        """LLMTransportError during handle_turn must propagate error_kind to audit logger."""
+        ctx = _make_ctx()
+        captured_events: list[str] = []
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured_events.append(s)
+        orch = _make_orchestrator(ctx)
+
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert len(captured_events) > 0
+        event_dict = json.loads(captured_events[-1])
+        assert event_dict["error_kind"].startswith("CONNECT_ERROR")

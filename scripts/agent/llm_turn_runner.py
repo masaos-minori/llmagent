@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import logging
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from shared.json_utils import dumps, now_iso_raw
 from shared.llm_exceptions import LLMTransportError
 from shared.types import LLMMessage
 
+from agent.message_schema import TRUSTED_SOURCES
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
 from agent.turn_result import TurnResult
@@ -55,6 +56,7 @@ class LLMTurnRunner:
         self._ctx = ctx
         self._guard = guard
         self._tracer = tracer
+        self.llm_url: str = ""
 
     # ── Public entry point ────────────────────────────────────────────────────
 
@@ -92,20 +94,20 @@ class LLMTurnRunner:
                 answer = self._finalize_answer_text(message)
                 return TurnResult(action="continue", answer=answer)
 
-            ctx.conv.append_message(message)
-            ctx.session.save(
-                "assistant",
-                message.get("content") or "",
-                tool_calls=message.get("tool_calls"),
-            )
-
             if msg := self._guard.check_all(
                 state.seen_calls,
                 state.round_fingerprints,
                 state.failed_calls,
                 message,
             ):
-                return TurnResult(action="fail", answer=msg, reason="tool_loop_guard")
+                return await self._finalize_after_guard()
+
+            ctx.conv.append_message(message)
+            ctx.session.save(
+                "assistant",
+                message.get("content") or "",
+                tool_calls=message.get("tool_calls"),
+            )
 
             errors_before = ctx.stats.stat_tool_errors
             await execute_all_tool_calls(
@@ -219,6 +221,53 @@ class LLMTurnRunner:
             if name is None or name not in known_names or name in visible_names:
                 result.append(td)
         return result
+
+    async def _stream_llm_final_answer(self) -> Any:
+        """Call LLM with empty tool_defs to get a final answer."""
+        ctx = self._ctx
+        with self._span_ctx("final_answer"):
+            response = await ctx.services_required.llm.stream(
+                self.llm_url,
+                ctx.conv.history,
+                [],  # tool_defs=[]
+            )
+        return response
+
+    async def _finalize_after_guard(self) -> TurnResult:
+        """Handle final-answer fallback after ToolLoopGuard triggers."""
+        ctx = self._ctx
+        loop_guard_source = "loop_guard"
+        if loop_guard_source not in TRUSTED_SOURCES:
+            TRUSTED_SOURCES[loop_guard_source] = {"_ephemeral"}
+        ephemeral_msg: dict = {
+            "role": "system",
+            "content": "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history.",
+            "source": loop_guard_source,
+            "_ephemeral": True,
+        }
+        try:
+            from agent.message_schema import validate_message
+
+            result = validate_message(ephemeral_msg)
+            if not result.success:
+                logger.warning(
+                    "Ephemeral message injection failed validation: %s — falling back to hard stop",
+                    result.reason,
+                )
+                return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        except Exception as e:
+            logger.warning(
+                "Ephemeral message injection raised %s — falling back to hard stop",
+                type(e).__name__,
+            )
+            return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        ctx.conv.append_message(cast(LLMMessage, ephemeral_msg))
+        response = await self._stream_llm_final_answer()
+        message, finish_reason = response.message, response.finish_reason
+        if finish_reason == "tool_calls" and message.get("tool_calls"):
+            return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        answer = self._finalize_answer_text(message)
+        return TurnResult(action="continue", answer=answer)
 
     async def _stream_llm(
         self,

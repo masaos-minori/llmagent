@@ -24,10 +24,19 @@ def begin_stage_if_new(
 ) -> AttemptRecord | None:
     """Atomically check event_id and start attempt if new.
 
+    Note: 'processed_events' refers to events that have been STARTED,
+    not necessarily completed. An attempt may be in progress when
+    processed_events includes its event ID.
+
     Uses begin_immediate to hold the write lock across the check-then-insert.
     Returns AttemptRecord if the stage should run, None if already processed.
     No explicit commit() is called — begin_immediate handles the transaction.
     """
+    # processed_events semantics:
+    # - Contains event IDs for attempts that have been STARTED (not necessarily completed)
+    # - A running attempt's event ID will be in processed_events even though the attempt
+    #   is still in progress
+    # - Recovery logic marks stale running attempts as failed and removes their event IDs
     attempt_id = str(uuid.uuid4())
     now = _now()
     with db.begin_immediate():

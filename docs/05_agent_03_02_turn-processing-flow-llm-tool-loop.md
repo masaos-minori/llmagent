@@ -70,11 +70,24 @@ LLMクライアントのストリーミング集約ロジック (`shared/llm_cli
    部分的な失敗 (一部のみエラー) の場合はカウンタを維持し、全成功ラウンドでリセットされる
    (`ToolLoopGuard.update_errors`)。
 
-### ガードメソッドの構成 (Current behavior)
+### ガードメソッドの構成
 
 `check_all()`は内部で`check_cycle()` → `check_dedup()` → `check_retry()`を個別に呼び出す複合メソッドである
 (3つの個別メソッドはpublicとして存在する)。`check_error_limit()`は`check_all()`とは別に、
 ツール実行後の連続エラー数に対して呼び出される。
+
+### ToolLoopGuard発動時の最終回答フォールバック
+
+`ToolLoopGuard.check_all()`が発動した場合、ツール実行せずに最終回答フォールバックを試行する:
+
+1. 一時的システムメッセージを`ctx.conv.history`に注入（`source="loop_guard"`, `_ephemeral=True`）
+   - メッセージ内容: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
+   - `TRUSTED_SOURCES["loop_guard"] = {"_ephemeral"}`でスキーマ検証を通過
+2. `LLMTurnRunner._stream_llm_final_answer()`で`tool_defs=[]`のLLM呼び出しを実行
+3. レスポンスの`finish_reason`を確認:
+   - `finish_reason != "tool_calls"`の場合: 回答テキストを返す（`TurnResult(action="continue")`）
+   - `finish_reason == "tool_calls"`の場合: 失敗を返す（`TurnResult(action="fail", reason="tool_loop_guard")`）
+4. 元の未実行アシスタントメッセージは永続化しない
 
 ### TurnLoopState dataclass
 
@@ -111,6 +124,7 @@ LLMクライアントのストリーミング集約ロジック (`shared/llm_cli
 | `DEDUP_HINT` | `"[System] The same tool was called with identical arguments multiple times. Stop retrying and provide your best answer with the information already available."` | 重複排除ガード発動時、診断チャンネルに保存されるヒント |
 | `CYCLE_HINT` | `"[System] A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds. Stop and provide your best answer with the information already available."` | 循環検出ガード発動時のヒント |
 | `RETRY_HINT` | `"[System] A tool call that previously failed is being retried with the same arguments. Stop retrying and provide your best answer with the information already available."` | リトライガード発動時のヒント |
+| `GUARD_HINT` | `"You have made repeated tool calls that were not executed. Please provide your best answer based on the information already available in this conversation. Do not make any more tool calls."` | ToolLoopGuard発動時の最終回答フォールバック用システムメッセージ |
 
 > **Note:** ガードヒント (`DEDUP_HINT`, `CYCLE_HINT`, `RETRY_HINT`) はオフライン診断専用として
 > `session_diagnostics`に`kind='guard_hint'`で格納される (`hint`フィールドとして)。

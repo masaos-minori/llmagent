@@ -19,15 +19,16 @@ TRUSTED_SOURCES: dict[str, set[str]] = {
     "cmd_handler": {"_ephemeral"},
     "memory_injection": {"_memory_injected"},
     "skill_mixin": {"_skill_ephemeral"},
+    "loop_guard": {"_ephemeral"},
 }
 
 # ── Allowed keys per message role ────────────────────────────────────────────
 
 ROLE_KEY_WHITELIST: dict[str, set[str]] = {
-    "system": {"role", "content", "priority"},
-    "user": {"role", "content"},
-    "assistant": {"role", "content", "tool_calls"},
-    "tool": {"role", "content", "tool_call_id"},
+    "system": {"role", "content", "importance", "pinned"},
+    "user": {"role", "content", "importance", "pinned"},
+    "assistant": {"role", "content", "tool_calls", "importance", "pinned"},
+    "tool": {"role", "content", "tool_call_id", "name", "importance", "pinned"},
 }
 
 

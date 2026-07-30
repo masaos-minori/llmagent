@@ -66,11 +66,16 @@ class LLMMessage(TypedDict, total=False):
     name: str               # tool role only
     importance: float       # message importance score for compression prioritization
     pinned: bool            # preserve during history compression
+    _ephemeral: bool        # excluded from persistence/compression; dropped before the next turn
+    _skill_ephemeral: bool  # like _ephemeral, but scoped to skill-injected messages
+    _memory_injected: bool  # marks a message as memory-layer injected context
+    source: str             # trusted source identifier for ephemeral key injection validation
 ```
 
 - `total=False` は技術的には全フィールドが省略可能を意味するが、`role` は常に必須
 - 正典インポート: `from shared.types import LLMMessage`(agent/、rag/、shared/全体で20以上のモジュールから利用)
 - 実装上、`role` は `_LLMMessageRequired(TypedDict)` を継承する形で必須フィールドとして分離定義されている (Explicit in code)
+- `source`フィールドは`TRUSTED_SOURCES`キーに対応し、`loop_guard`などの信頼できるソースからのエフェメラルキー注入を検証するために使用される
 
 ### 関連TypedDict(ツール呼び出し表現用)
 

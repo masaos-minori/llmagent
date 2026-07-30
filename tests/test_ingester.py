@@ -708,3 +708,178 @@ class TestValidateArtifact:
             RagIngester._validate_artifact(self.BASE_PAYLOAD, "chunk", strict=True)
             is True
         )
+
+
+class TestPartialFailureHandling:
+    """Tests for partial failure handling during RAG ingestion."""
+
+    def test_consistency_check_runs_inside_db_context(self, tmp_path: Path) -> None:
+        """Consistency check should run inside the DB context, not after."""
+        conn, fake_db = _make_db()
+
+        # Add FTS tables so consistency check doesn't fail
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chunks_fts_docsize(
+                rowid INTEGER PRIMARY KEY,
+                fts_size INTEGER
+            );
+        """)
+        conn.execute("""
+            INSERT INTO chunks_fts_docsize(rowid, fts_size) VALUES(1, 1);
+        """)
+
+        conn.execute(
+            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text"),
+        )
+        conn.commit()
+
+        ingester = _make_ingester(tmp_path)
+        _write_chunk(tmp_path / "chunk", "c.json")
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_all(force=False)
+
+        assert result is not None
+
+    def test_embedding_failure_moves_to_retry_not_registered(
+        self, tmp_path: Path
+    ) -> None:
+        """Chunks that fail embedding should be moved to retry/, not registered/."""
+        conn, fake_db = _make_db()
+        url = "https://example.com/doc"
+        chunk_dir = tmp_path / "chunk"
+        path = _write_chunk(chunk_dir, "c.json")
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.content = orjson.dumps({"embedding": []})
+
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=bad_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                url,
+                [path],
+                force=False,
+            )
+
+        assert result.n_embed_failed == 1
+        assert not path.exists(), "Failed chunk should be moved from chunk/"
+        assert (chunk_dir.parent / "retry" / "c.json").exists()
+        assert not (tmp_path / "registered" / "c.json").exists()
+
+    def test_mixed_success_and_failure_routes_correctly(self, tmp_path: Path) -> None:
+        """Only successfully ingested chunks should be moved to registered/; failed→retry/."""
+        conn, fake_db = _make_db()
+
+        chunk_dir = tmp_path / "chunk"
+
+        path_ok = _write_chunk(
+            chunk_dir,
+            "c_ok.json",
+            dataclasses.replace(_DEFAULT_CHUNK, content="ok_marker_本文"),
+        )
+        path_fail = _write_chunk(chunk_dir, "c_fail.json")
+
+        ingester = _make_ingester(tmp_path)
+
+        def _side_effect(url, json=None, **kwargs):
+            resp = MagicMock()
+            resp.raise_for_status.return_value = None
+            content = json.get("content", "") if isinstance(json, dict) else ""
+            if "ok_marker" in content:
+                resp.content = orjson.dumps({"embedding": [0.1] * 384})
+            else:
+                resp.content = orjson.dumps({"embedding": []})
+            return resp
+
+        with (
+            patch.object(ingester._client, "post", side_effect=_side_effect),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/mixed",
+                [path_ok, path_fail],
+                force=False,
+            )
+
+        assert result.n_success == 1
+        assert result.n_embed_failed == 1
+        assert not path_ok.exists()
+        assert not path_fail.exists()
+        assert (tmp_path / "registered" / "c_ok.json").exists()
+        assert (chunk_dir.parent / "retry" / "c_fail.json").exists()
+
+    def test_embed_failed_count_reported_in_summary(self, tmp_path: Path) -> None:
+        """Ingestion summary should prominently display embed_failed count."""
+        conn, fake_db = _make_db()
+        url = "https://example.com/doc"
+        chunk_dir = tmp_path / "chunk"
+
+        path1 = _write_chunk(chunk_dir, "c1.json")
+        path2 = _write_chunk(chunk_dir, "c2.json")
+
+        ingester = _make_ingester(tmp_path)
+
+        def _side_effect(*args, **kwargs):
+            resp = MagicMock()
+            resp.raise_for_status.return_value = None
+            resp.content = orjson.dumps({"embedding": []})
+            return resp
+
+        with (
+            patch.object(ingester._client, "post", side_effect=_side_effect),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                url,
+                [path1, path2],
+                force=False,
+            )
+
+        assert result.n_embed_failed == 2
+
+    def test_retry_directory_created_for_embedding_failures(
+        self, tmp_path: Path
+    ) -> None:
+        """Embedding-failed chunks should be moved to retry/ directory."""
+        conn, fake_db = _make_db()
+        url = "https://example.com/doc"
+        chunk_dir = tmp_path / "chunk"
+
+        path = _write_chunk(chunk_dir, "c.json")
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.content = orjson.dumps({"embedding": []})
+
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=bad_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                url,
+                [path],
+                force=False,
+            )
+
+        assert result.n_embed_failed == 1
+        assert not path.exists()
+        assert (chunk_dir.parent / "retry" / "c.json").exists()

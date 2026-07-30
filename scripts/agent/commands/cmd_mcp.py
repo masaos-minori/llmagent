@@ -19,6 +19,7 @@ from agent.commands.mixin_base import MixinBase
 from agent.services.enums import McpAvailability
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
+from agent.shared.health_models import interpret_health_body
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,42 @@ def _format_tool_diagnostics_table(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _format_health_interpretation(result: McpProbeResult) -> str:
+    """Format health interpretation details for a single MCP server."""
+    max_detail_len = 200
+    lines: list[str] = []
+    try:
+        interp = interpret_health_body(result.body)
+        # Status comparison
+        agent_observed = "reachable" if result.reachable else "unreachable"
+        lines.append(f"  Self-reported: {interp.self_reported_status}")
+        lines.append(f"  Agent observed: {agent_observed}")
+        # Ready state
+        lines.append(f"  Ready: {interp.ready}")
+        # Dependency failures
+        if interp.dependency_summary:
+            lines.append("  Dependencies:")
+            for dep in interp.dependency_summary:
+                lines.append(f"    - {dep}")
+        # Details summary (truncated)
+        if interp.details_summary:
+            detail_text = "; ".join(interp.details_summary)
+            if len(detail_text) > max_detail_len:
+                detail_text = detail_text[:max_detail_len] + "..."
+            lines.append(f"  Details: {detail_text}")
+        # Action items
+        if interp.restart_recommended:
+            lines.append("  [!] Restart recommended")
+        if interp.operator_action_required:
+            lines.append("  [!] Operator action required")
+        # Parse failure
+        if interp.parse_failure_reason:
+            lines.append(f"  [!] Parse failure: {interp.parse_failure_reason}")
+    except Exception as e:
+        lines.append(f"  [!] Interpretation error: {e}")
+    return "\n".join(lines)
+
+
 class _McpMixin(MixinBase):
     """MCP server management slash-command handlers."""
 
@@ -124,6 +161,20 @@ class _McpMixin(MixinBase):
         self._out.write(
             f"\n  Servers     {len(rows)} configured ({ok_count} ok, {unreachable_count} unreachable)"
         )
+        # Show health interpretation details for servers with issues
+        has_interpretation = False
+        for r in rows:
+            if r.dependency_summary or r.parse_failure_reason or r.details_summary:
+                has_interpretation = True
+                break
+        if has_interpretation:
+            self._out.write("")
+            self._out.write("  Health interpretation:")
+            for r in sorted(rows, key=lambda x: x.key):
+                interp_lines = _format_health_interpretation(r)
+                if interp_lines.strip():
+                    self._out.write(f"\n  [{r.key}]")
+                    self._out.write(interp_lines)
         registry = ctx.services_required.health_registry
         degraded_keys = [
             key

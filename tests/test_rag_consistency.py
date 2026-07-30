@@ -151,7 +151,8 @@ class TestRagConsistency:
         assert report.chunks == 0
         assert report.fts == 0
         assert report.fts_gap == 0
-        assert is_consistent(report)
+        assert not is_consistent(report)
+        assert report.documents_without_chunks_count > 0
 
     def test_fts_gap_detected_after_broken_delete(self) -> None:
         db = _make_rag_db()
@@ -406,3 +407,145 @@ class TestRagConsistencySeverity:
         )
         assert not any("/db " in i for i in all_issues)
         assert not any("/db rag" in i for i in all_issues)
+
+
+class TestNewConsistencyChecks:
+    def test_documents_without_chunks_detected(self) -> None:
+        """Documents that exist without any chunks should be flagged."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        # Don't insert any chunks for this document
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.documents_without_chunks_count == 1
+        assert report.affected_docs_without_chunks is not None
+        assert doc_id in report.affected_docs_without_chunks
+        assert not is_consistent(report)
+        issues = summarize_issues(report)
+        assert any("[WARNING]" in i and "Documents without chunks" in i for i in issues)
+
+    def test_chunks_without_vectors_detected(self) -> None:
+        """Chunks that lack corresponding vector rows should be flagged."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "text without vector")
+        # Don't insert into chunks_vec
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.chunks_without_vec_count == 1
+        assert report.affected_chunks_without_vec is not None
+        assert chunk_id in report.affected_chunks_without_vec
+        assert not is_consistent(report)
+        issues = summarize_issues(report)
+        assert any("[CRITICAL]" in i and "Chunks without vector" in i for i in issues)
+
+    def test_duplicate_chunk_index_detected(self) -> None:
+        """Duplicate chunk_index values within the same document should be flagged."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        db.execute(
+            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (?, ?, 1)",
+            (doc_id, "first chunk"),
+        )
+        db.commit()
+
+        db.execute(
+            "INSERT INTO chunks (doc_id, content, chunk_index) VALUES (?, ?, 1)",
+            (doc_id, "second chunk"),
+        )
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.duplicate_chunk_index_count == 1
+        assert report.affected_duplicate_chunk_indices is not None
+        assert (doc_id, 1) in report.affected_duplicate_chunk_indices
+        assert not is_consistent(report)
+        issues = summarize_issues(report)
+        assert any("[CRITICAL]" in i and "Duplicate chunk_index" in i for i in issues)
+
+    def test_url_level_mismatches_detected(self) -> None:
+        """URLs with mismatched chunk/vector/FTS counts should be flagged."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_chunk(db, doc_id, "url mismatch test")
+        # Don't insert into chunks_vec — creates chunk_count != vec_count
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.url_level_mismatches is not None
+        assert len(report.url_level_mismatches) > 0
+        assert "Affected URLs" in str(summarize_issues(report))
+
+    def test_existing_checks_still_work(self) -> None:
+        """Existing checks should still work after adding new ones."""
+        db = _make_rag_db()
+        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
+        db.commit()
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.orphan_vec_count == 1
+        assert not is_consistent(report)
+
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "fts gap test")
+        db.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "fts gap test"),
+        )
+        db.commit()
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.fts_gap == 1
+        assert not is_consistent(report)
+
+    def test_is_consistent_false_on_new_failures(self) -> None:
+        """is_consistent() should return False when any new check fails."""
+        db = _make_rag_db()
+        _insert_doc(db)
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert not is_consistent(report)
+
+    def test_is_consistent_true_when_all_pass(self) -> None:
+        """is_consistent() should return True when all checks pass."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "consistent test")
+        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert is_consistent(report)
+        assert report.documents_without_chunks_count == 0
+        assert report.chunks_without_vec_count == 0
+        assert report.duplicate_chunk_index_count == 0
+        assert not report.url_level_mismatches
+
+    def test_url_mismatch_includes_repair_guidance(self) -> None:
+        """URL-level mismatch issue should include repair guidance."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_chunk(db, doc_id, "url repair guidance test")
+        # Don't insert into chunks_vec — creates chunk_count != vec_count
+
+        issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+        assert any("ingester.py --force" in i for i in issues)
+
+    def test_new_fields_have_defaults(self) -> None:
+        """New fields should have default values for backward compatibility."""
+        from db.models import RagConsistencyReport
+
+        report = RagConsistencyReport(
+            chunks=1,
+            fts=1,
+            vec=1,
+            orphan_vec_count=0,
+            fts_gap=0,
+            fts_orphan_count=0,
+            embed_failed=0,
+            affected_chunk_ids=None,
+            affected_doc_ids=None,
+            affected_orphan_chunk_ids=None,
+            affected_orphan_urls=None,
+        )
+        assert report.documents_without_chunks_count == 0
+        assert report.chunks_without_vec_count == 0
+        assert report.duplicate_chunk_index_count == 0
+        assert report.url_level_mismatches is None

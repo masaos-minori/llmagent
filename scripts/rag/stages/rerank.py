@@ -1,10 +1,15 @@
 """scripts/Rerank stage for RAG pipeline."""
 
+import logging
+
 from shared.types import RagConfig
 
 from rag.llm_client import RagLLM
+from rag.llm_prompts import RagRerankError
 from rag.repository import RagHit, deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
+
+logger = logging.getLogger(__name__)
 
 
 async def _rerank(
@@ -44,4 +49,9 @@ class RerankStage(PipelineStage):
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Execute reranking and store the reordered results in context."""
-        ctx.reranked = await _rerank(ctx.query, ctx.merged, self._cfg, self._llm)
+        try:
+            ctx.reranked = await _rerank(ctx.query, ctx.merged, self._cfg, self._llm)
+        except RagRerankError:
+            ctx.reranked = _rerank_fallback(ctx.merged, self._cfg)
+            ctx._fallback_reason = "rerank_exception"
+            logger.info("Rerank failed, falling back to RRF-ranked results")

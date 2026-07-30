@@ -47,6 +47,7 @@ class PipelineContext:
     search_diagnostics: SearchDiagnostics = dataclasses.field(
         default_factory=SearchDiagnostics
     )
+    _fallback_reason: str | None = None
 
 
 class PipelineStage(Protocol):

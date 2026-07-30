@@ -6,6 +6,7 @@ Uses a temp workflow.sqlite to avoid touching /opt/llm/db/.
 from __future__ import annotations
 
 import sqlite3
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -311,3 +312,144 @@ class TestStateStoreGetConnection:
         """get_connection() returns the same SQLiteHelper instance as _db."""
         conn = store.get_connection()
         assert conn is store._db
+
+
+class TestRecoverStaleAttempts:
+    def _insert_task_and_attempt(
+        self, store, attempt_id, task_id, stage_id, status, started_at
+    ):
+        """Helper to insert a task and its attempt together."""
+        store._db.execute(
+            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (task_id, "sess-test", 1, f"{task_id}:1", "pending", "1.0.0", "wf-test"),
+        )
+        store._db.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, ?, ?)",
+            (attempt_id, task_id, stage_id, status, started_at),
+        )
+        store._db.commit()
+
+    def test_stale_attempt_marked_failed(self, workflow_db) -> None:
+        """An attempt older than the grace period is marked as failed."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            self._insert_task_and_attempt(
+                s, "att-stale", "task-1", "execute", "running", "2026-01-01T00:00:00"
+            )
+
+            s.recover_stale_attempts(s._db)
+
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-stale'"
+            )
+            assert rows[0][0] == "failed"
+        finally:
+            s.close()
+
+    def test_fresh_attempt_not_marked_failed(self, workflow_db) -> None:
+        """An attempt within the grace period is NOT marked as failed."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            # Use current time so it's definitely within the grace period
+            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+            self._insert_task_and_attempt(
+                s, "att-fresh", "task-2", "execute", "running", now_ts
+            )
+
+            s.recover_stale_attempts(s._db)
+
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-fresh'"
+            )
+            assert rows[0][0] == "running"
+        finally:
+            s.close()
+
+    def test_completed_attempt_not_modified(self, workflow_db) -> None:
+        """A completed attempt is not modified by recovery."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            self._insert_task_and_attempt(
+                s, "att-done", "task-3", "plan", "completed", "2026-01-01T00:00:00"
+            )
+
+            s.recover_stale_attempts(s._db)
+
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id='att-done'"
+            )
+            assert rows[0][0] == "completed"
+        finally:
+            s.close()
+
+    def test_find_stale_returns_only_old_attempts(self, workflow_db) -> None:
+        """find_stale_running_attempts returns only attempts exceeding the grace period."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            self._insert_task_and_attempt(
+                s, "att-1", "task-1", "execute", "running", "2026-01-01T00:00:00"
+            )
+            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+            self._insert_task_and_attempt(
+                s, "att-2", "task-2", "execute", "running", now_ts
+            )
+
+            stale = s.find_stale_running_attempts(s._db)
+
+            stale_ids = [item["attempt_id"] for item in stale]
+            assert "att-1" in stale_ids
+            assert "att-2" not in stale_ids
+        finally:
+            s.close()
+
+    def test_recovered_attempt_has_ended_at_set(self, workflow_db) -> None:
+        """A recovered stale attempt has ended_at populated."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            self._insert_task_and_attempt(
+                s, "att-end", "task-4", "execute", "running", "2026-01-01T00:00:00"
+            )
+
+            s.recover_stale_attempts(s._db)
+
+            rows = s._db.fetchall(
+                "SELECT ended_at FROM attempts WHERE attempt_id='att-end'"
+            )
+            assert rows[0][0] is not None
+        finally:
+            s.close()

@@ -18,8 +18,9 @@
       "retryable": false
     }
   ],
-  "retry_policy": {
-    "max_attempts": 3,
-    "backoff_sec": 1
-  }
+   "retry_policy": {
+      "max_attempts": 3,
+      "backoff_sec": 1
+    },
+    "require_approval": false
 }

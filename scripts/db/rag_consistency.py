@@ -24,11 +24,83 @@ def check_rag_consistency(
     fts_gap = max(0, chunks - fts)
     fts_orphan_count = max(0, fts - chunks)
 
+    # Document-level checks
+    docs_without_chunks = db.execute(
+        "SELECT COUNT(*) FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"
+    ).fetchone()[0]
+    chunks_without_vec = db.execute(
+        "SELECT COUNT(*) FROM chunks WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks_vec)"
+    ).fetchone()[0]
+    dup_chunk_indices = db.execute(
+        "SELECT doc_id, chunk_index FROM chunks"
+        " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
+    ).fetchall()
+    duplicate_chunk_index_count = len(dup_chunk_indices)
+
+    # URL-level checks
+    url_chunk_counts: dict[str, int] = {}
+    try:
+        url_chunk_rows = db.execute(
+            "SELECT d.url, COUNT(c.chunk_id) FROM documents d"
+            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+            " GROUP BY d.url"
+        ).fetchall()
+        url_chunk_counts = dict(url_chunk_rows)
+    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+        pass
+    url_vec_counts: dict[str, int] = {}
+    try:
+        url_vec_rows = db.execute(
+            "SELECT d.url, COUNT(cv.chunk_id) FROM documents d"
+            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+            " LEFT JOIN chunks_vec cv ON c.chunk_id = cv.chunk_id"
+            " GROUP BY d.url"
+        ).fetchall()
+        url_vec_counts = dict(url_vec_rows)
+    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+        pass
+    url_fts_counts: dict[str, int] = {}
+    try:
+        url_fts_rows = db.execute(
+            "SELECT d.url, COUNT(cf.rowid) FROM documents d"
+            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+            " LEFT JOIN chunks_fts cf ON c.chunk_id = cf.rowid"
+            " GROUP BY d.url"
+        ).fetchall()
+        url_fts_counts = dict(url_fts_rows)
+    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+        pass
+
+    url_level_mismatches: dict[str, dict[str, int]] = {}
+    all_urls = (
+        set(url_chunk_counts.keys())
+        | set(url_vec_counts.keys())
+        | set(url_fts_counts.keys())
+    )
+    for url in all_urls:
+        chunk_count = url_chunk_counts.get(url, 0)
+        vec_count = url_vec_counts.get(url, 0)
+        fts_count = url_fts_counts.get(url, 0)
+        if (
+            chunk_count != vec_count
+            or chunk_count != fts_count
+            or vec_count != fts_count
+        ):
+            url_level_mismatches[url] = {
+                "chunk_count": chunk_count,
+                "vec_count": vec_count,
+                "fts_count": fts_count,
+            }
+
     # Collect affected identifiers (read-only; top 10 each)
     affected_chunk_ids: tuple[int, ...] | None = None
     affected_doc_ids: tuple[int, ...] | None = None
     affected_orphan_chunk_ids: tuple[int, ...] | None = None
     affected_orphan_urls: tuple[str, ...] | None = None
+    affected_docs_without_chunks: tuple[int, ...] | None = None
+    affected_chunks_without_vec: tuple[int, ...] | None = None
+    affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = None
+    affected_url_mismatches: tuple[str, ...] | None = None
     if fts_gap > 0:
         rows = db.execute(
             "SELECT chunk_id FROM chunks"
@@ -57,6 +129,27 @@ def check_rag_consistency(
             " ORDER BY d.url LIMIT 10"
         ).fetchall()
         affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
+    if docs_without_chunks > 0:
+        id_rows = db.execute(
+            "SELECT doc_id FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"
+            " ORDER BY doc_id LIMIT 10"
+        ).fetchall()
+        affected_docs_without_chunks = tuple(r[0] for r in id_rows)
+    if chunks_without_vec > 0:
+        id_rows = db.execute(
+            "SELECT chunk_id FROM chunks WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks_vec)"
+            " ORDER BY chunk_id LIMIT 10"
+        ).fetchall()
+        affected_chunks_without_vec = tuple(r[0] for r in id_rows)
+    if duplicate_chunk_index_count > 0:
+        limited_dups = db.execute(
+            "SELECT doc_id, chunk_index FROM chunks"
+            " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
+            " ORDER BY doc_id, chunk_index LIMIT 10"
+        ).fetchall()
+        affected_duplicate_chunk_indices = tuple((r[0], r[1]) for r in limited_dups)
+    if url_level_mismatches:
+        affected_url_mismatches = tuple(list(url_level_mismatches.keys())[:5])
 
     report = RagConsistencyReport(
         chunks=chunks,
@@ -70,17 +163,29 @@ def check_rag_consistency(
         affected_doc_ids=affected_doc_ids,
         affected_orphan_chunk_ids=affected_orphan_chunk_ids,
         affected_orphan_urls=affected_orphan_urls,
+        documents_without_chunks_count=docs_without_chunks,
+        chunks_without_vec_count=chunks_without_vec,
+        duplicate_chunk_index_count=duplicate_chunk_index_count,
+        url_level_mismatches=url_level_mismatches if url_level_mismatches else None,
+        affected_docs_without_chunks=affected_docs_without_chunks,
+        affected_chunks_without_vec=affected_chunks_without_vec,
+        affected_duplicate_chunk_indices=affected_duplicate_chunk_indices,
+        affected_url_mismatches=affected_url_mismatches,
     )
     return dataclasses.replace(report, issues=tuple(summarize_issues(report)))
 
 
 def is_consistent(report: RagConsistencyReport) -> bool:
-    """Return True when fts_gap == 0, fts_orphan_count == 0, orphan_vec_count == 0, and vec == chunks."""
+    """Return True when all consistency checks pass."""
     consistent: bool = (
         report.fts_gap == 0
         and report.fts_orphan_count == 0
         and report.orphan_vec_count == 0
         and report.vec == report.chunks
+        and report.documents_without_chunks_count == 0
+        and report.chunks_without_vec_count == 0
+        and report.duplicate_chunk_index_count == 0
+        and not report.url_level_mismatches
     )
     return consistent
 
@@ -144,5 +249,60 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
         issues.append(
             f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
             f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+    if report.documents_without_chunks_count > 0:
+        ids = (
+            ", ".join(str(i) for i in report.affected_docs_without_chunks[:10])
+            if report.affected_docs_without_chunks
+            else ""
+        )
+        detail = (
+            f" Affected doc_ids: [{ids}]."
+            if report.affected_docs_without_chunks
+            else ""
+        )
+        issues.append(
+            f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
+            f" Re-run ingestion for affected documents."
+        )
+    if report.chunks_without_vec_count > 0:
+        ids = (
+            ", ".join(str(i) for i in report.affected_chunks_without_vec[:10])
+            if report.affected_chunks_without_vec
+            else ""
+        )
+        detail = (
+            f" Affected chunk_ids: [{ids}]."
+            if report.affected_chunks_without_vec
+            else ""
+        )
+        issues.append(
+            f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected chunks."
+        )
+    if report.duplicate_chunk_index_count > 0:
+        pairs = (
+            ", ".join(
+                f"({d},{c})" for d, c in report.affected_duplicate_chunk_indices[:10]
+            )
+            if report.affected_duplicate_chunk_indices
+            else ""
+        )
+        detail = (
+            f" Affected (doc_id, chunk_index): [{pairs}]."
+            if report.affected_duplicate_chunk_indices
+            else ""
+        )
+        issues.append(
+            f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
+            f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+        )
+    if report.url_level_mismatches:
+        urls = ", ".join(list(report.url_level_mismatches.keys())[:5])
+        truncated = " ..." if len(report.url_level_mismatches) == 5 else ""
+        detail = f" Affected URLs: [{urls}{truncated}]."
+        issues.append(
+            f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(report.url_level_mismatches)}).{detail}"
+            f" Re-run ingestion for affected URLs."
         )
     return issues

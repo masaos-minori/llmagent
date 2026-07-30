@@ -8,6 +8,7 @@ tested without a running REPL.
 
 from __future__ import annotations
 
+import logging
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
@@ -20,6 +21,9 @@ from agent.repl_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
 from agent.services.models import McpProbeResult
+from agent.shared.health_models import McpHealthProbeResult, interpret_health_body
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -65,7 +69,9 @@ class McpStatusService:
             timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT)
         ) as probe:
             for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-                result = await self._probe_single_server(probe, ctx, key, cfg, tiers)
+                result = await self._probe_single_server_with_interpretation(
+                    probe, ctx, key, cfg, tiers
+                )
                 results.append(result)
         return results
 
@@ -122,6 +128,86 @@ class McpStatusService:
             operator_action_required=op_action_http,
             health_reason=health_reason,
         )
+
+    async def _probe_single_server_with_interpretation(
+        self,
+        probe: httpx.AsyncClient,
+        ctx: AgentContext,
+        key: str,
+        cfg: Any,
+        tiers: dict[str, str],
+    ) -> McpProbeResult:
+        """Probe a single MCP server and return its status result with interpretation fields."""
+        auth = bool(cfg.auth_token)
+        tier = _tier_for_server(cfg.tool_names, tiers)
+        (
+            availability,
+            sandbox_backend,
+            restart_rec_http,
+            op_action_http,
+            body_reason,
+            self_reported_status,
+            dep_summary,
+            detail_summary,
+            parse_failure_reason,
+            probe_result,
+        ) = await self._get_http_status_with_interpretation(probe, cfg.url)
+        health = _resolve_health_state(ctx, key).value.upper()
+        lifecycle = ctx.services_required.lifecycle
+        lifecycle_state = lifecycle.get_transport_state(key).value
+        snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
+        snapshot = snapshot_fn(key) if snapshot_fn is not None else None
+        restart_recommended = (
+            lifecycle_state == LifecycleState.FAILED.value
+        ) or restart_rec_http
+        health_reason = body_reason
+        if not health_reason and op_action_http:
+            health_reason = "operator_action_required"
+        elif not health_reason and restart_rec_http:
+            health_reason = "restart_recommended"
+        reachable = probe_result.reachable if probe_result else False
+        raw_body = probe_result.body if probe_result else {}
+        # Log dependency failures and parse failures
+        if dep_summary:
+            logger.warning(
+                "MCP server '%s' has dependency failures: %s",
+                key,
+                ", ".join(dep_summary),
+            )
+        if parse_failure_reason:
+            logger.warning(
+                "MCP server '%s' health parse failure: %s",
+                key,
+                parse_failure_reason,
+            )
+        result = McpProbeResult(
+            key=key,
+            transport=cfg.transport,
+            startup_mode=cfg.startup_mode,
+            auth=auth,
+            tier=tier,
+            role=cfg.role or "",
+            availability=availability,
+            health=health,
+            endpoint=cfg.url if cfg.transport == TransportType.HTTP else "",
+            sandbox_backend=sandbox_backend,
+            managed=snapshot is not None,
+            pid=snapshot.get("pid") if snapshot else None,
+            pgid=snapshot.get("pgid") if snapshot else None,
+            running=snapshot.get("running") if snapshot else None,
+            last_exit_code=snapshot.get("last_exit_code") if snapshot else None,
+            lifecycle_state=lifecycle_state,
+            restart_recommended=restart_recommended,
+            operator_action_required=op_action_http,
+            health_reason=health_reason,
+            reachable=reachable,
+            body=raw_body,
+            self_reported_status=self_reported_status,
+            dependency_summary=dep_summary,
+            details_summary=detail_summary,
+            parse_failure_reason=parse_failure_reason,
+        )
+        return result
 
     async def _resolve_endpoint(
         self,
@@ -189,6 +275,114 @@ class McpStatusService:
             probe_result.restart_recommended,
             probe_result.operator_action_required,
             reason,
+        )
+
+    async def _get_http_status_with_interpretation(
+        self, probe: httpx.AsyncClient, url: str
+    ) -> tuple[
+        McpAvailability,
+        str,
+        bool,
+        bool,
+        str,
+        str,
+        list[str],
+        list[str],
+        str | None,
+        McpHealthProbeResult,
+    ]:
+        """Probe the MCP server health endpoint and return availability with interpretation.
+
+        Returns (availability, sandbox, restart_rec, op_action, reason,
+                 self_reported_status, dep_summary, detail_summary, parse_failure_reason,
+                 probe_result).
+        """
+        from agent.repl_health import McpHealthProbeResult  # noqa: PLC0415
+
+        if not url:
+            return (
+                McpAvailability.NO_URL,
+                "",
+                False,
+                False,
+                "",
+                "",
+                [],
+                [],
+                None,
+                McpHealthProbeResult(
+                    reachable=False,
+                    status_code=None,
+                    restart_recommended=False,
+                    operator_action_required=False,
+                    body={},
+                ),
+            )
+        probe_result = await _probe_mcp_health_detail(probe, url)
+        sandbox = ""
+        reason = ""
+        self_reported_status = ""
+        dep_summary: list[str] = []
+        detail_summary: list[str] = []
+        parse_failure_reason: str | None = None
+        if probe_result.body and isinstance(probe_result.body, dict):
+            details = probe_result.body.get("details", {})
+            if isinstance(details, dict):
+                sb = details.get("sandbox_backend", "")
+                if sb:
+                    sandbox = str(sb)
+            reason_raw = probe_result.body.get("reason") or probe_result.body.get(
+                "message"
+            )
+            if reason_raw is not None:
+                reason = str(reason_raw)
+            # Interpret the health body for structured fields
+            try:
+                interp = interpret_health_body(probe_result.body)
+                self_reported_status = interp.self_reported_status
+                dep_summary = interp.dependency_summary
+                detail_summary = interp.details_summary
+            except Exception:  # noqa: BLE001 — non-crashing on interpretation error
+                pass
+        if probe_result.parse_failed:
+            parse_failure_reason = probe_result.parse_error
+        elif not probe_result.reachable or probe_result.status_code is None:
+            return (
+                McpAvailability.FAIL,
+                sandbox,
+                False,
+                False,
+                reason,
+                self_reported_status,
+                dep_summary,
+                detail_summary,
+                parse_failure_reason,
+                probe_result,
+            )
+        if probe_result.status_code == HTTPStatus.OK:
+            return (
+                McpAvailability.OK,
+                sandbox,
+                probe_result.restart_recommended,
+                probe_result.operator_action_required,
+                reason,
+                self_reported_status,
+                dep_summary,
+                detail_summary,
+                parse_failure_reason,
+                probe_result,
+            )
+        return (
+            McpAvailability.HTTP_ERROR,
+            sandbox,
+            probe_result.restart_recommended,
+            probe_result.operator_action_required,
+            reason,
+            self_reported_status,
+            dep_summary,
+            detail_summary,
+            parse_failure_reason,
+            probe_result,
         )
 
 

@@ -1,9 +1,14 @@
 """scripts/MQE stage for RAG pipeline."""
 
+import logging
+
 from shared.types import RagConfig
 
 from rag.llm_client import RagLLM
+from rag.llm_prompts import RagExpansionError
 from rag.stage import PipelineContext, PipelineStage
+
+logger = logging.getLogger(__name__)
 
 
 async def _run_mqe(query: str, cfg: RagConfig, llm: RagLLM) -> list[str]:
@@ -28,4 +33,9 @@ class MqeStage(PipelineStage):
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         """Execute multi-query expansion and store results in context."""
-        ctx.queries = await _run_mqe(ctx.query, self._cfg, self._llm)
+        try:
+            ctx.queries = await _run_mqe(ctx.query, self._cfg, self._llm)
+        except RagExpansionError:
+            ctx.queries = [ctx.query]
+            ctx._fallback_reason = "mqe_exception"
+            logger.info("MQE failed, using original query as fallback")

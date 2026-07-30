@@ -49,10 +49,18 @@ source:
 `Orchestrator.handle_turn()`は、常に`WorkflowEngine`経由で実行される。ワークフロー定義(`config/workflows/default.json`)は起動時に無条件にロードされ、存在しない・不正な場合は起動前に`RuntimeError`で中断する。ワークフロー状態が主たる実行モデルであり、
 会話履歴は従属的な関心事として維持される。
 
+### 起動時復旧（Stale Attempt Recovery）
+
+`Orchestrator.__init__()`で`StateStore.recover_stale_attempts()`を呼び出す。これはプロセス起動時に実行中の試行を検索し、それらを`failed`としてマークする。実行中の試行とは、`attempts`テーブルで`status='running'`のレコードのことである。このメソッドは`begin_immediate()`トランザクション内でラップされる。
+
+### `processed_events`のセマンティクス
+
+`processed_events`は「開始済み」を意味する（「完了済み」ではない）。ステージの重複実行を防止するために使用される。各ステージの実行中に`processed_events`レコードが作成され、同じステージの再実行が防止される。
+
 各ターンは`workflow.sqlite`に`task` / `attempt` / `processed_event`レコードを作成する:
 - `tasks` — ターンごとに1件; ステータス: `pending → running → [pending_approval →] completed | halted | failed`
 - `attempts` — ステージ実行 (plan/execute/verify) ごとに1件、リトライ追跡を含む
-- `processed_events` — 冪等性の担保; ステージの重複実行を防止
+- `processed_events` — 冪等性の担保; ステージの重複実行を防止（「開始済み」を記録）
 - `approvals` — 承認ゲートごとに1件; ステータス: `pending → approved | rejected`
 - `artifacts` — ステージコールバックが生成するURI
 

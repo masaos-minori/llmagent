@@ -71,6 +71,12 @@ class McpProbeResult:
         operator_action_required: Whether manual intervention is needed
         health_reason: Reason for current health state
         stderr_log: Stderr log content from the server process
+        reachable: Whether the HTTP endpoint was reachable
+        body: Raw /health response body (dict or empty dict on failure)
+        self_reported_status: Status value reported by the /health response
+        dependency_summary: List of failed dependency descriptions
+        details_summary: List of detail entry descriptions
+        parse_failure_reason: Reason why the /health body could not be parsed
     """
 
     key: str
@@ -94,6 +100,12 @@ class McpProbeResult:
     operator_action_required: bool = False
     health_reason: str = ""
     stderr_log: str = ""
+    reachable: bool = True
+    body: dict[str, object] = field(default_factory=dict)
+    self_reported_status: str = ""
+    dependency_summary: list[str] = field(default_factory=list)
+    details_summary: list[str] = field(default_factory=list)
+    parse_failure_reason: str | None = None
 
 
 @dataclass(frozen=True)
