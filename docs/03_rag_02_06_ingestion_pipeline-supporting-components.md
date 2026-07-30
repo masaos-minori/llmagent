@@ -39,7 +39,7 @@ source:
 | `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | 既存ドキュメントのETag/Last-Modifiedを更新する；etagとlast_modifiedの両方がNoneの場合は早期リターンする |
 
 **境界条件:**
-- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。[03_rag_02_05_ingestion_pipeline-document-manager.md](03_rag_02_05_ingestion_pipeline-document-manager.md) に記載の通り、`DocumentManager` のETag更新処理は `existing_doc_id` ではなく固定値 `0` を渡しており、既存ドキュメント再取得時のETag更新が意図通り機能しない可能性がある（Needs confirmation）。
+- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。**解決済み(NC-003)**: `document_manager.py`の`_update_etag()`は`doc_id: int`引数を受け取り`ETagManager(self._db, doc_id)`へ渡すよう修正済みで、`handle_existing_document()`が`existing_doc_id`を経路全体に渡すため、既存ドキュメント再取得時のETag更新は意図通り機能する。
 
 ## 4.9 設定（`config/ingester.toml`）
 

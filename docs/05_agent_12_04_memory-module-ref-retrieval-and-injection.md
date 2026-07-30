@@ -63,7 +63,7 @@ related:
 
 | Method | Returns | Description |
 |---|---|---|
-| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | KNN 検索。`MemoryHit.score` には `mv.distance` を符号反転した値（`-distance`）を格納する（コード上のコメントは “Negate distance” であり、距離指標がコサインか L2 かは `memories_vec` テーブル定義依存で本モジュールからは確認できない＝Needs confirmation）。クエリ結果が0件の場合は [] を返す。 |
+| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | KNN 検索。`MemoryHit.score` には `mv.distance` を符号反転した値（`-distance`）を格納する。**解決済み(NC-004)**: 距離指標はL2(ユークリッド距離)であることを確認済み — `memories_vec`/`chunks_vec`の両vec0 DDL(`schema_sql.py`)に明示的な`distance_metric=L2`句が追加されている。クエリ結果が0件の場合は [] を返す。 |
 
 **スコアリングの数式:**
 ``` text

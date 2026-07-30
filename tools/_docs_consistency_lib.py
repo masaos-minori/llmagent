@@ -158,6 +158,50 @@ def check_removed_file_references(docs_dir: Path, files: list[DocFile]) -> list[
 
 
 # ---------------------------------------------------------------------------
+# Directory-listing completeness — a doc that hand-enumerates a directory's
+# entries (a file tree, an ownership table, ...) drifts whenever an entry is
+# added on disk without updating the doc. Callers do their own doc-specific
+# extraction (table rows, ASCII tree branches, ...) and pass the resulting
+# name set here; this only does the "compare against disk" half so the
+# comparison logic isn't reimplemented per caller.
+# ---------------------------------------------------------------------------
+
+
+def check_directory_listing_completeness(
+    rel_doc_path: str,
+    line_no: int,
+    listed_names: frozenset[str],
+    actual_dir: Path,
+    *,
+    label: str | None = None,
+) -> list[Issue]:
+    """Flag directory entries that exist on disk but are absent from *listed_names*.
+
+    Best-effort: returns [] if *actual_dir* does not exist rather than raising,
+    since a doc describing a since-removed directory is a different kind of
+    drift (covered by check_removed_file_references-style checks).
+    """
+    if not actual_dir.is_dir():
+        return []
+    actual_names = {p.name for p in actual_dir.iterdir()}
+    missing = sorted(actual_names - listed_names)
+    if not missing:
+        return []
+    where = label or str(actual_dir)
+    return [
+        Issue(
+            file=rel_doc_path,
+            line_no=line_no,
+            severity="WARNING",
+            message=(
+                f"directory listing for {where} omits entries present on "
+                f"disk: {missing}"
+            ),
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Slash-command drift vs command_defs_list.py's _COMMANDS — shared because
 # both Agent and MCP docs cite REPL slash commands.
 # ---------------------------------------------------------------------------

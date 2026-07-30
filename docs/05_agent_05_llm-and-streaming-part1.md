@@ -173,10 +173,10 @@ dataclass。`LLMClient.call()`/`stream()`はいずれも`LLMResponse`を返す�
 ステータスは`HTTP_STATUS_FATAL`(`retryable=False`)となる
 (`shared/llm_transport_errors.py`の`LlmTransportErrorHandler`)。
 
-> **Needs confirmation**: `UTF8_PARTIAL_DECODE_ERROR`と`PREMATURE_EOF`は
-> `LLMErrorKind`に定義されているが、`llm_sse_stream.py`/`llm_transport_errors.py`/
-> `sse_parser.py`の範囲では発生箇所を確認できなかった。他モジュールから
-> raiseされている可能性がある。
+> **Resolved (NC-001)**: `UTF8_PARTIAL_DECODE_ERROR`と`PREMATURE_EOF`は明確に区別される。
+> `PREMATURE_EOF`はSSEストリームが期待されるcontent-lengthより前に終了した場合に
+> `scripts/shared/llm_sse_stream.py:90`でraiseされる。`UTF8_PARTIAL_DECODE_ERROR`は
+> JSONデコードエラーを別途処理する。
 
 ---
 

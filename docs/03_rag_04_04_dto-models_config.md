@@ -89,8 +89,9 @@ source:
   「`rag.models_config.*` はingestion TOML向けのファイル形式DTO」と明記されている。
   ただし前述の通り、ingestion側スクリプトも現状はdict直接参照であり、
   本ファイルのdataclassとの接続は確認できない。
-  [Needs confirmation] — 将来的な移行を見込んだ未接続の定義か、削除漏れかは
-  コードから判断できない。
+  [Resolved: NC-002] — 本ファイル記載の`ResultSource`は既に廃止されており、
+  現行の`ResultSource`は`scripts/rag/models_result.py:102`の
+  `SearchDiagnostics.result_source`として実際に使用されている(削除漏れではない)。
 
 ## Related Documents
 

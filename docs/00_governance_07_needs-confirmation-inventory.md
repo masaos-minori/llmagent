@@ -13,7 +13,7 @@ This document provides a centralized inventory of all "Needs confirmation" items
 
 ## Inventory Entry Fields
 
-Each entry must contain the following eleven fields:
+Each entry must contain the following fifteen fields:
 
 1. **ID** — Unique identifier in format `NC-{NNN}` (e.g., NC-001)
 2. **Source File** — Markdown file containing the item

@@ -47,7 +47,10 @@ related:
 リポジトリルート:
 ``` text
 conf.d/
-└─ github-mcp                           # GITHUB_TOKEN (Personal Access Token) 設定
+├─ cicd-mcp                             # GITHUB_TOKEN (Personal Access Token) 設定
+├─ git-mcp                              # allowed_repo_paths (fail-closed) / read_only 設定
+├─ github-mcp                           # GITHUB_TOKEN (Personal Access Token) 設定
+└─ web-search-mcp                       # 各検索プロバイダのAPIキー設定 (優先順位はweb_search_mcp_server.jsonで指定)
 ```
 
 ## Related Documents

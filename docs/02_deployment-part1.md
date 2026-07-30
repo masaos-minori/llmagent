@@ -35,28 +35,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --dev --system-certs
 ```
 
-`/opt/llm/venv/requirements.txt`:
-
-``` text
-fastapi>=0.111.0
-uvicorn[standard]>=0.30.0
-httpx>=0.27.0
-pydantic>=2.7.0
-requests>=2.32.0
-beautifulsoup4>=4.12.0
-lxml>=5.0.0
-trafilatura>=1.12.0
-langdetect>=1.0.9
-sudachipy>=0.6.8
-sudachidict-core
-huggingface-hub>=0.23.0
-duckduckgo-search>=6.0.0
-PyGithub>=2.3.0
-```
-
-```bash
-uv pip install -r /opt/llm/venv/requirements.txt
-```
+依存関係の管理は `pyproject.toml`/`uv.lock` に一本化されている(`requirements.txt`は存在しない)。
+`uv sync`が実行時・開発時の全依存パッケージを導入する。
 
 ### 1.3 llama.cpp のビルド
 

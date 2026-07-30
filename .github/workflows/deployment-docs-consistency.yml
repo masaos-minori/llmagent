@@ -1,0 +1,39 @@
+name: Deployment Docs Consistency
+
+on:
+  push:
+    paths:
+      - "docs/02_deployment*.md"
+      - "deploy/*.sh"
+      - "config/agent.toml"
+      - "scripts/db/config.py"
+      - "tools/check_deployment_docs_consistency.py"
+  pull_request:
+    paths:
+      - "docs/02_deployment*.md"
+      - "deploy/*.sh"
+      - "config/agent.toml"
+      - "scripts/db/config.py"
+      - "tools/check_deployment_docs_consistency.py"
+
+# Cancel in-progress runs for the same workflow + branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Deployment Docs Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run Deployment docs consistency checks
+        run: |
+          set -euo pipefail
+          python tools/check_deployment_docs_consistency.py

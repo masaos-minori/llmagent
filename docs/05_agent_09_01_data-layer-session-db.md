@@ -118,7 +118,7 @@ source:
 
 **規約:** 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない。これは薄いDBアダプタであり、ロール検証もcontentの正規化もJSONエンコードも行わない。これらの関心事はすべて `SessionMessageRepository` に属する。
 
-**現在の実装挙動(要確認含む):** `SQLiteSessionStore` は `scripts/db/store_impl.py` に実装され、`db/store_protocols.py` の `SessionStore` プロトコルの実装として存在する。ただし現状のREPL/エージェント実行経路(`agent/session.py` の `AgentSession`)は `SQLiteSessionStore` を経由せず、`SQLiteHelper` を直接呼び出して `sessions`/`messages` を操作している。`AgentSession` はコンストラクタで `SessionMessageRepository` を保持するファサードであり、`session.start()` / `set_title()` / `list_sessions()` / `delete_last_turn()` / `undo_last_turn()` / `delete_session()` を提供する。`SQLiteSessionStore` の実際の呼び出し元は本調査の範囲では確認できなかった(Needs confirmation)。
+**現在の実装挙動:** `SQLiteSessionStore` は `scripts/db/store_impl.py` に実装され、`db/store_protocols.py` の `SessionStore` プロトコルの実装として存在する。ただし現状のREPL/エージェント実行経路(`agent/session.py` の `AgentSession`)は `SQLiteSessionStore` を経由せず、`SQLiteHelper` を直接呼び出して `sessions`/`messages` を操作している。`AgentSession` はコンストラクタで `SessionMessageRepository` を保持するファサードであり、`session.start()` / `set_title()` / `list_sessions()` / `delete_last_turn()` / `undo_last_turn()` / `delete_session()` を提供する。**解決済み(NC-017)**: `SQLiteSessionStore` の実際の呼び出し元は本番コードには存在せず、唯一の呼び出し元は `tests/test_db_store_impl.py::TestSQLiteSessionStore`(プロトコル準拠を確認するテスト用スキャフォールド)であることを確認済み。
 
 共有層の責任境界の見方については
 [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) を参照。

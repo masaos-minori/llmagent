@@ -33,3 +33,9 @@ repos:
         language: system
         pass_filenames: false
         types_or: [python, markdown]
+      - id: tool-descriptions-sync
+        name: Check tools/TOOL_DESCRIPTIONS.md sync
+        entry: python -m tools.check_tool_descriptions_sync
+        language: system
+        pass_filenames: false
+        files: ^tools/(.*\.py|TOOL_DESCRIPTIONS\.md)$
