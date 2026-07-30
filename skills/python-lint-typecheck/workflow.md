@@ -98,20 +98,8 @@ ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.p
 
 ## Step 4: Suppression Governance
 
-Audit all existing suppressions:
-
-```bash
-rg '# noqa' scripts/ | grep -v '# noqa:'        # noqa without rule code
-rg '# type: ignore' scripts/ | grep -v '\['      # ignore without error code
-rg '# nosec' scripts/ | grep -v ' -- '           # nosec without comment
-```
-
-Every suppression must have:
-- `# noqa: <CODE>` — the specific ruff/flake8 rule code
-- `# type: ignore[<error-code>]` — the specific mypy error code
-- `# nosec <B-code> -- <reason>` — the bandit finding and why it is safe
-
-Suppressions without explanation are prohibited. Fix the root cause rather than suppress when feasible.
+Audit all existing suppressions using the commands and required format defined in
+`rules/coding.md` §Suppression governance. Fix the root cause rather than suppress when feasible.
 
 ---
 

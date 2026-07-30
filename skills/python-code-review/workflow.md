@@ -93,8 +93,7 @@ Do:
 
 For every finding, attach:
 - concrete evidence: file path, class/function/method/route/command/config key, test name, or CI workflow, and the observed current behavior
-- an evidence label from the repository's existing set: `Explicit in code`, `Strongly implied by code`, `Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`, `Operationally observed`
-- a confidence level: **High** (directly verified), **Medium** (strongly implied), **Low** (plausible but requires confirmation)
+- an evidence label and confidence level per `skills/DESIGN.md` §Shared Vocabulary
 - a severity: **Critical** (data loss, security exposure, destructive unintended action, production startup failure, silent corruption), **High** (normal-use runtime failure, incorrect result, broken workflow, major operational risk, missing validation at trust boundaries), **Medium** (maintainability risk, unclear ownership, type-safety degradation, incomplete failure handling, fragile tests, ambiguous config behavior), **Low** (naming, localized duplication, minor typing/documentation cleanup), **Informational** (observation with no immediate action)
 
 If behavior is unclear, mark it `Needs confirmation` and state what must be checked instead of guessing.

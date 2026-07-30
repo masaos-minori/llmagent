@@ -44,13 +44,8 @@ See `workflow.md` for detailed phase content including commands, tools, and fail
 These apply regardless of the refactor type. Do not violate.
 
 ### Code Correctness & Safety
-- Do not use `assert` in business logic — use explicit exceptions
-- Do not use `except Exception` — catch only specific types
-- Do not use `dict[str, Any]` outside external boundaries — convert to typed structures (e.g., `dataclasses`, `Pydantic`, or `TypedDict`) immediately
-- Do not perform unconditional string conversion (`str(args.get(...))`) — validate types first
-- Do not treat `None`, empty strings, and unset values as equivalent — handle each explicitly
-- Do not output directly with `print` — route through logging framework or a UI/CLI output interface
-- Do not use fail-open behavior for unknown tool names, tiers, or metadata — use fail-fast
+See `skills/DESIGN.md` §Pythonic safety constraints (exception handling, typed data, no raw
+`print`, fail-fast) — apply in full.
 
 ### Refactoring & Python Architecture Standards
 - **Maintain Backward Compatibility**: When migrating public APIs, do not abruptly delete old symbols. Retain them as deprecated aliases using `warnings.warn(..., DeprecationWarning)` until the migration is fully deprecated.

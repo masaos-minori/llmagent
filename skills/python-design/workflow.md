@@ -168,8 +168,7 @@ When reviewing or redesigning an existing Python codebase:
 - distinguish implemented behavior from desired design
 - preserve known issues and unresolved documentation/code mismatches
 
-Use established evidence labels when available: `Explicit in code`, `Strongly implied by code`,
-`Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`, `Operationally observed`.
+Use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary.
 
 ### New Design Work
 

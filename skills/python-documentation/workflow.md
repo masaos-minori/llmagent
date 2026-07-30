@@ -272,9 +272,7 @@ ownership, runtime entrypoints, failure behavior, operational constraints, secur
 behavior, persistence/migration behavior, and documentation/code mismatch corrections. Do not
 add evidence labels to every sentence.
 
-Use the repository's established evidence labels: `Explicit in code`, `Strongly implied by code`,
-`Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`, `Operationally observed`.
-Do not introduce a parallel label system such as `Confirmed`, `Inferred`, or `Unknown`. When using
+Use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary. When using
 `Needs confirmation`, include the required fields defined by the governance documentation.
 
 Do not invent missing behavior or assume framework patterns without evidence. Do not treat dead

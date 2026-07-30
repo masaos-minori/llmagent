@@ -52,6 +52,71 @@ When a document or skill file grows too large, split it according to these rules
 3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
 4. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
 
+## Shared Vocabulary
+
+Canonical definitions referenced by multiple skills. Do not redefine these inline in a
+`SKILL.md`/`workflow.md` — reference this section instead.
+
+### Evidence labels
+
+Use when describing current (not proposed) behavior in a review, design doc, or documentation
+update. Do not introduce a parallel label system (e.g. `Confirmed`, `Inferred`, `Unknown`).
+
+| Label | Meaning |
+|---|---|
+| `Explicit in code` | Directly visible in the current source |
+| `Strongly implied by code` | Not explicit, but strongly suggested by surrounding code/structure |
+| `Documentation only` | Backed only by docs, not verified against code |
+| `Needs confirmation` | Unclear; state what must be checked |
+| `Deprecated` | Exists but marked/intended for removal |
+| `Verified by test` | Confirmed by an existing or newly written test |
+| `Operationally observed` | Confirmed by runtime/log/production observation, not by reading source |
+
+If behavior is unclear, mark it `Needs confirmation` and state what must be checked instead of
+guessing. Do not treat dead code, unused code, stale migrations, or obsolete documentation as
+active behavior.
+
+### Confidence levels
+
+- **High** — directly verified
+- **Medium** — strongly implied
+- **Low** — plausible but requires confirmation
+
+### Tool availability guard
+
+Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `LibCST`,
+`mutmut`, `viztracer`, `pydeps`, `semgrep`) that may not be installed in the current environment.
+
+- Do not invent or assume the tool's output or success message.
+- Document `Tool [name] not available` in the findings.
+- Fall back to the nearest standard equivalent (e.g. `ruff`/`mypy` for static checks, `pdb`/
+  `traceback`/manual `rg` search for advanced tracing) and note that the fallback was used.
+
+### Pythonic safety constraints
+
+Applies to any skill that writes or transforms production Python code
+(`python-implementation`, `python-refactoring`, and any other skill producing code changes).
+
+- Never use mutable objects (`list`, `dict`, etc.) as default arguments — use `None` and
+  initialize inside the function.
+- Never use `except Exception` (or bare `except:`) without re-raising, unless logging and
+  safely terminating the process. Catch specific exception types. Use explicit exceptions
+  instead of `assert` in business logic.
+- Avoid raw `dict[str, Any]` for core domain data — use `dataclasses`, `Pydantic` models, or
+  `TypedDict`. Do not perform unconditional `str()` conversion; validate types first. Treat
+  `None`, empty string, and unset as distinct — do not collapse them.
+- Always use context managers (`with`/`async with`) for resource management (files, network
+  connections, locks).
+- Forbid unsafe dynamic execution: no `eval()`, `exec()`, or `pickle` on untrusted input; when
+  using `subprocess`, always set `shell=False` and pass arguments as a list.
+- In `async def` functions, never introduce blocking I/O (`time.sleep()`, sync file/network
+  calls) — use `await asyncio.sleep()` or run blocking paths in executors.
+- Use fail-fast for unknown tool names, tiers, or metadata — never fail-open.
+- No placeholders (`pass`, `...`, `# TODO`) in the final implementation — every logical path
+  must be fully implemented.
+- No debug artifacts before closing the task: remove `print()` statements, commented-out code,
+  and temporary debug variables — use the `logging` framework instead.
+
 ## Skill catalog
 
 | Skill | Directory | Purpose |

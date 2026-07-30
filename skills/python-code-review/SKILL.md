@@ -76,13 +76,7 @@ See `workflow.md` for detailed phase content and tooling.
 Every significant finding must include concrete evidence such as file path; class, function,
 method, route, command, or config key; test name or CI workflow; and observed current behavior.
 
-Use existing repository evidence labels when available: `Explicit in code`, `Strongly implied
-by code`, `Documentation only`, `Needs confirmation`, `Deprecated`, `Verified by test`,
-`Operationally observed`. If behavior is unclear, mark it `Needs confirmation` and state what
-must be checked.
-
-Use confidence levels: **High** (directly verified), **Medium** (strongly implied), **Low**
-(plausible but requires confirmation).
+Use the evidence labels and confidence levels defined in `skills/DESIGN.md` §Shared Vocabulary.
 
 ## Severity
 

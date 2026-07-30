@@ -57,7 +57,7 @@ Run all steps (1 through 10) sequentially. Do not skip any analysis.
 | 9 | Planning rules | Enforce evidence-based increments. **Always include a deployment/verification step**. |
 | 10 | Completion checklist | Verify all required sections are complete and blocking unknowns are resolved. |
 
-> **IMPORTANT — Tool Availability Guard (For AI):** If any specific tool mentioned above (e.g., `pydeps`, `radon`, `semgrep`) is not installed in the current environment, do not hallucinate its output. Skip the tool execution, document "Tool [name] not available" in the findings, and rely on manual static analysis of the codebase instead.
+> **IMPORTANT — Tool Availability Guard (For AI):** applies to `pydeps`, `radon`, `semgrep` and any other tool listed above — see `skills/DESIGN.md` §Tool availability guard.
 
 ---
 

@@ -74,16 +74,12 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Files under the `__pycache__` directory are out of scope for work.
 
 ### Pythonic Code Quality & Safety Constraints
-- **Never use mutable objects (`list`, `dict`, etc.) as default arguments** in functions or methods. Use `None` and initialize inside the function instead.
-- **Never catch broad exceptions** like `except Exception:` without re-raising, unless logging and safely terminating the process. Always catch specific exceptions.
-- **Always use context managers (`with` statements)** for resource management (files, network connections, locks) to ensure guaranteed release.
-- **Avoid raw `dict[str, Any]` for core domain data**. Use `dataclasses`, `Pydantic` models, or `TypedDict` to enforce structural type safety.
-- **Strictly forbid unsafe dynamic execution**: Do not use `eval()`, `exec()`, or `pickle` for untrusted input. When using `subprocess`, always set `shell=False` and pass arguments as a list.
-- **Ensure Async-Safety**: When modifying or adding `async def` functions, never introduce blocking I/O calls (e.g., standard `time.sleep()`, synchronous file/network I/O). Use `await asyncio.sleep()` or run blocking paths in executors.
+See `skills/DESIGN.md` §Pythonic safety constraints (mutable defaults, exception handling,
+typed data, resource management, dynamic execution, async safety) — apply in full.
 
 ### Production Readiness
-- **No Placeholders**: Never leave `pass`, `...`, or `# TODO` in the final implementation. Every logical path must be fully implemented.
-- **No Debug Artifacts**: Remove all `print()` statements, commented-out code, and temporary debug variables before moving to Phase 11. Use the proper `logging` library.
+See `skills/DESIGN.md` §Pythonic safety constraints (no placeholders, no debug artifacts) —
+apply before moving to Phase 11.
 
 ---
 

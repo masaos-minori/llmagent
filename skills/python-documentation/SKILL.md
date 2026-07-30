@@ -60,7 +60,7 @@ boundaries, and detailed gates.
 ## Core Documentation Rules (Strictly Enforced for AI)
 
 - **Source of truth**: code, configuration, tests, and CI/CD are factual evidence; documentation describes intent, boundaries, constraints, and known issues, not a copy of implementation detail.
-- **Evidence first**: use the repository's existing evidence labels (`Explicit in code`, `Needs confirmation`, etc.); do not introduce a parallel label system.
+- **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary; do not introduce a parallel label system.
 - **No hallucination**: do not invent missing behavior or assume framework patterns without evidence; mark unclear behavior `Needs confirmation` instead of stating it as fact.
 - **Remove or compress implementation-derived details**: do not copy file lists, full method/field/config-key tables, or JSON examples that mirror schema fields — replace with a concise source reference.
 - **Minimal diff**: fix errors, fill gaps, reduce duplication; do not rewrite or reorganize documents unless the task explicitly asks for it.
