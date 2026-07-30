@@ -34,20 +34,20 @@ related:
 - **Invariants (non-negotiable):**
   - `documents`と`chunks`は**正規のデータストア**であり、すべての変更操作はこれらを経由する。
   - `chunks_fts`と`chunks_vec`は**派生インデックス**であり、アプリケーションコードはこれらを読み取り専用として扱う必要がある。
-  - `chunks_fts`の同期: トリガーベース (`chunks_ai`/`chunks_au`/`chunks_ad`) で行われ、直接のINSERT/UPDATEは行わない。`chunks_fts`への手動編集は禁止されており、代わりに`/db rag rebuild-fts`を使用する。
+  - `chunks_fts`の同期: トリガーベース (`chunks_ai`/`chunks_au`/`chunks_ad`) で行われ、直接のINSERT/UPDATEは行わない。`chunks_fts`への手動編集は禁止されており、代わりに`/session rag-rebuild-fts`を使用する。
   - `chunks_vec`の同期: 取り込み時のINSERTと明示的なDELETEによって行われる。外部キー制約はない (sqlite-vecの制約による)。
   - 強制再挿入時の削除順序: `chunks_vec` を明示的に削除した後、`documents` を削除する（`ON DELETE CASCADE` により `chunks` が削除される）。`write_mode=True` の接続でのみ有効（`PRAGMA foreign_keys=ON` を有効化するため）。なお、`chunks_vec_ad` トリガーは `chunks` への直接削除に対する防御的なバックストップであり、上記の主経路ではない。
-  - RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。
+  - RAG整合性チェック (`/session rag-consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。
 - **Description:**
   - `documents`: 正規のURL/ドキュメントメタデータ (url、title、lang、fetched_at、etag、last_modified、chunking_strategy)。URLごとに1行。
   - `chunks`: 正規のチャンクテキストと位置情報 (content、normalized_content、chunk_index、chunk_type)。`doc_id`を介して`documents`への外部キー (ON DELETE CASCADE)。
-  - `chunks_fts`: 派生FTS5/BM25全文検索インデックス。`COALESCE(normalized_content, content)`を使用してトリガーにより自動同期される。BM25検索専用。手動で編集してはならず、修復には`/db rag rebuild-fts`を使用する。
+  - `chunks_fts`: 派生FTS5/BM25全文検索インデックス。`COALESCE(normalized_content, content)`を使用してトリガーにより自動同期される。BM25検索専用。手動で編集してはならず、修復には`/session rag-rebuild-fts`を使用する。
   - `chunks_vec`: 派生sqlite-vec KNNベクトルインデックス。float32埋め込みBLOB。KNN検索専用。
 - **RAG consistency checks:** 正規データと派生インデックス間の同期を検証する:
-  - `fts_gap`: `chunks_fts`に欠落しているチャンク数 (修復: `/db rag rebuild-fts`)
-  - `fts_orphan_count`: 対応するチャンクを持たないFTSエントリ (データ損失のリスク; 修復: `/db rag rebuild-fts`)
+  - `fts_gap`: `chunks_fts`に欠落しているチャンク数 (修復: `/session rag-rebuild-fts`)
+  - `fts_orphan_count`: 対応するチャンクを持たないFTSエントリ (データ損失のリスク; 修復: `/session rag-rebuild-fts`)
   - `orphan_vec_count`: 対応するチャンクを持たないベクトル行 (修復: `ingester.py --force`)
-- **Notes for AI reference:** sqlite-vecの仮想テーブルは標準的な外部キー制約をサポートしない。RAG整合性チェック (`/db consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。Source: `03_rag_04_05_dto-types.md §DB Schema`、`03_rag_05_1-configuration-reference.md §RAG index consistency checks`。
+- **Notes for AI reference:** sqlite-vecの仮想テーブルは標準的な外部キー制約をサポートしない。RAG整合性チェック (`/session rag-consistency`) は、正規の`chunks`と派生インデックスである`chunks_fts`および`chunks_vec`との同期を検証する。Source: `03_rag_04_05_dto-types.md §DB Schema`、`03_rag_05_1-configuration-reference.md §RAG index consistency checks`。
 
 ---
 

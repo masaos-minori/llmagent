@@ -192,8 +192,8 @@ if not is_consistent(report):
         print(issue)
 ```
 
-- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rag rebuild-fts`
-- `fts_orphan_count > 0` → FTS has more entries than chunks (`[CRITICAL]`); data loss risk; fix: `/db rag rebuild-fts` immediately (Explicit in code)
+- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/session rag-rebuild-fts`
+- `fts_orphan_count > 0` → FTS has more entries than chunks (`[CRITICAL]`); data loss risk; fix: `/session rag-rebuild-fts` immediately (Explicit in code)
 - `orphan_vec_count > 0` → vec trigger failed; fix: re-ingest affected URLs with `ingester.py --force`
 - `vec != chunks`(orphan以外の不一致)も `[WARNING]` として報告され、同じく `ingester.py --force` での再取込を促す (Explicit in code — `db/rag_consistency.py::summarize_issues`)
 - Read-only; does not repair inconsistencies.

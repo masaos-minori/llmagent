@@ -28,8 +28,8 @@ source:
 | Table | エージェントによる用途 |
 |---|---|
 | `documents` | `/db rag urls`(`rag_list_documents` MCP経由)、`/db rag clean`(`rag_delete_document` MCP経由) |
-| `chunks` | `/db rag stats`、`/db rag rebuild-fts` |
-| `chunks_fts` | `/db rag rebuild-fts`(FTS5仮想テーブル) |
+| `chunks` | `/db rag stats`、`/session rag-rebuild-fts` |
+| `chunks_fts` | `/session rag-rebuild-fts`(FTS5仮想テーブル) |
 | `chunks_vec` | `/db rag stats` |
 
 **責任境界:** `/db rag urls` と `/db rag clean` は rag-pipeline-mcp 経由で `rag_list_documents` と

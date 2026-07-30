@@ -46,7 +46,7 @@ rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレー
 
 ### 8b. RAG整合性検証 (Explicit in code)
 
-`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`（正確には`chunks_fts_docsize`カウント用の内部テーブル経由）/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用の検証関数である。`is_consistent()`は`fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`を満たす場合に整合とみなす。`summarize_issues()`は検出した不整合ごとに`[WARNING]`/`[CRITICAL]`のプレフィックス付きメッセージと復旧コマンド（`/db rag rebuild-fts`、`ingester.py --force`）を生成する。
+`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`（正確には`chunks_fts_docsize`カウント用の内部テーブル経由）/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用の検証関数である。`is_consistent()`は`fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`を満たす場合に整合とみなす。`summarize_issues()`は検出した不整合ごとに`[WARNING]`/`[CRITICAL]`のプレフィックス付きメッセージと復旧コマンド（`/session rag-rebuild-fts`、`ingester.py --force`）を生成する。
 
 ### 8c. mdq.sqlite限定の自動レガシースキーマ検出 (Explicit in code)
 
@@ -137,7 +137,7 @@ rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/sc
 
 - ファイルサイズの増大に伴い、バックアップとポイントインタイムリカバリが複雑化する
 - 複数環境で同一DBファイルを共有することは非対応（SQLiteは単一ファイル方式のため）
-- 規模が拡大するにつれ`/db consistency`の問題の修復が難しくなる
+- 規模が拡大するにつれ`/session rag-consistency`の問題の修復が難しくなる
 
 ### マイグレーション兆候チェックリスト
 
@@ -149,7 +149,7 @@ rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/sc
 - [ ] 取り込みキューの深さが一貫して未処理チャンクファイル1万件を超える
 - [ ] 複数のチームまたはプロセスが同時書き込みアクセスを必要とする
 
-通常運用でこれらの兆候を監視するには`/db health`と`/db consistency`を使用すること。
+通常運用でこれらの兆候を監視するには`/db health`と`/session rag-consistency`を使用すること。
 
 ### 限界が近づいた際に評価すべき事項
 

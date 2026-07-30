@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "stale_db_consistency_command": {
+      "pattern": "/db consistency\\b|/db rag rebuild-fts\\b",
+      "severity": "ERROR",
+      "description": "stale command reference (current command is /session rag-consistency or /session rag-rebuild-fts)"
+    },
+    "stale_rag_tool_names": {
+      "pattern": "`(?:ingest|get_document|delete_document|list_documents)`",
+      "severity": "WARNING",
+      "description": "reference to a RAG tool name that no longer exists (current tools are rag_run_pipeline, rag_debug_pipeline, rag_list_documents, rag_delete_document)"
+    },
+    "bare_mcp_server_filename": {
+      "pattern": "mcp_servers/[a-z_]+/(?:server|tools|models)\\.py",
+      "severity": "WARNING",
+      "description": "MCP server module filenames were renamed to <server>_server.py / <server>_tools.py / <server>_models.py; this bare form no longer exists"
+    }
+  }
+}

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """check_agent_docs_consistency.py — Lightweight CI check for Agent documentation drift.
 
-Mirrors tools/check_mcp_docs_consistency.py's architecture (typed DocFile/Issue
-dataclasses, one function per check, --skip flag registry, ERROR/WARNING
-severity). Runs consistency checks against docs/05_agent_*.md (and, for the
+Shares its DocFile/Issue dataclasses, file discovery, and generic checks
+(broken links, removed-file references, slash-command drift) with
+tools/check_mcp_docs_consistency.py via tools/_docs_consistency_lib.py.
+Runs consistency checks against docs/05_agent_*.md (and, for the
 DB-schema-drift check, docs/90_shared_04_*.md) and reports errors with
 file:line references. Exits non-zero if any ERROR-severity issues are found.
 
@@ -25,210 +26,28 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Data helpers — mirror tools/check_mcp_docs_consistency.py's shapes
-# ---------------------------------------------------------------------------
+if __package__ in (None, ""):
+    # Allow `python tools/check_agent_docs_consistency.py` (script form, as
+    # used by .github/workflows/agent-docs-consistency.yml) in addition to
+    # `python -m tools.check_agent_docs_consistency` / the pyproject.toml
+    # console-script entry point, both of which set up the package import
+    # path automatically.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-
-@dataclass(frozen=True)
-class DocFile:
-    """A single documentation file with its contents."""
-
-    path: Path
-    rel_path: str  # relative to docs/
-    lines: list[str] = field(default_factory=list)
-
-    @property
-    def line_count(self) -> int:
-        return len(self.lines)
-
-
-@dataclass(frozen=True)
-class Issue:
-    """A single consistency issue found."""
-
-    file: str  # relative path within docs/
-    line_no: int
-    severity: str  # "ERROR" or "WARNING"
-    message: str
-
-
-# ---------------------------------------------------------------------------
-# File discovery
-# ---------------------------------------------------------------------------
-
-
-def discover_md_files(docs_dir: Path, *, prefix: str) -> list[DocFile]:
-    """Return all *prefix*-matching .md files under *docs_dir*, sorted for determinism."""
-    result: list[DocFile] = []
-    for p in sorted(docs_dir.glob(f"{prefix}*.md")):
-        rel = str(p.relative_to(docs_dir))
-        content = p.read_text(encoding="utf-8")
-        lines = content.splitlines()
-        result.append(DocFile(path=p, rel_path=rel, lines=lines))
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Check 1: Broken internal Markdown links (also covers removed-file refs
-# expressed as [text](path.md) links, since a removed file simply fails to
-# resolve here)
-# ---------------------------------------------------------------------------
-
-_MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-
-
-def _split_link_target(target: str) -> tuple[str, str | None]:
-    """Split a link target into (file_part, anchor_part_or_None)."""
-    if "#" in target:
-        file_part, _, anchor = target.partition("#")
-        return file_part, anchor
-    return target, None
-
-
-def check_broken_internal_links(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Flag [text](path.md) / [text](path.md#anchor) links that don't resolve."""
-    issues: list[Issue] = []
-    existing_files = {f.name for f in docs_dir.glob("*.md")}
-
-    for doc in files:
-        for line_no, line in enumerate(doc.lines, start=1):
-            for match in _MD_LINK_RE.finditer(line):
-                target = match.group(1).strip()
-                # Skip external links and mailto/anchors-only-on-current-page checks
-                # that don't reference another doc file.
-                if target.startswith(("http://", "https://", "mailto:")):
-                    continue
-                file_part, _anchor = _split_link_target(target)
-                if not file_part:
-                    continue  # pure "#anchor" link within the same page
-                if "/" in file_part:
-                    continue  # relative paths outside docs/ are out of scope
-                if file_part not in existing_files:
-                    issues.append(
-                        Issue(
-                            file=doc.rel_path,
-                            line_no=line_no,
-                            severity="ERROR",
-                            message=(
-                                f"broken internal link target {file_part!r} "
-                                f"(referenced doc file does not exist under docs/)"
-                            ),
-                        )
-                    )
-    return issues
-
-
-# ---------------------------------------------------------------------------
-# Check 2: Removed-legacy-doc-file reference prohibition (bare filename
-# mentions, not wrapped in a Markdown link — e.g. inline-code `old_file.md`)
-# ---------------------------------------------------------------------------
-
-_BARE_MD_FILENAME_RE = re.compile(r"`(0[0-9]_[a-z0-9_-]+\.md)`")
-
-
-def check_removed_file_references(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Flag inline-code-quoted `NN_doc_name.md` mentions of files that don't exist.
-
-    Skips lines explicitly marked as historical ("削除済み" = "already
-    removed") -- this doc set's established convention for intentionally
-    naming a removed file as migration context (see e.g.
-    05_agent_00_document-guide.md's "Canonical Source Rules" section).
-    """
-    issues: list[Issue] = []
-    existing_files = {f.name for f in docs_dir.glob("*.md")}
-
-    for doc in files:
-        for line_no, line in enumerate(doc.lines, start=1):
-            if "削除済み" in line:
-                continue
-            for match in _BARE_MD_FILENAME_RE.finditer(line):
-                filename = match.group(1)
-                if filename not in existing_files:
-                    issues.append(
-                        Issue(
-                            file=doc.rel_path,
-                            line_no=line_no,
-                            severity="ERROR",
-                            message=(
-                                f"reference to removed/nonexistent doc file `{filename}`"
-                            ),
-                        )
-                    )
-    return issues
-
-
-# ---------------------------------------------------------------------------
-# Check 3: Slash-command drift vs command_defs_list.py's _COMMANDS
-# ---------------------------------------------------------------------------
-
-_COMMAND_DEF_RE = re.compile(r'CommandDef\(\s*"(/[a-z][a-z0-9_]*)"')
-_DOC_SLASH_COMMAND_RE = re.compile(
-    r"(?<![`/a-zA-Z0-9])/(mcp|db|debug|audit|memory|mdq|rag|help|config|"
-    r"stats|set|reload|context|compact|system|session|clear|undo|history|"
-    r"export|plan|approve|reject|skill)\b"
+from tools._docs_consistency_lib import (
+    DocFile,
+    Issue,
+    check_broken_internal_links,
+    check_command_drift,
+    check_removed_file_references,
+    discover_md_files,
+    report_and_exit,
 )
 
-
-def _extract_registered_command_names(repo_root: Path) -> frozenset[str] | None:
-    """Regex-extract slash command names from command_defs_list.py's CommandDef(...) calls.
-
-    Returns None if the source file cannot be found (best-effort; the caller
-    should skip the check rather than fail noisily).
-    """
-    src = repo_root / "scripts" / "agent" / "commands" / "command_defs_list.py"
-    if not src.is_file():
-        return None
-    content = src.read_text(encoding="utf-8")
-    return frozenset(_COMMAND_DEF_RE.findall(content))
-
-
-def check_command_drift(
-    docs_dir: Path, files: list[DocFile], repo_root: Path
-) -> list[Issue]:
-    """Flag doc-referenced /command names not present in _COMMANDS (WARNING).
-
-    Best-effort: only checks a fixed set of command-name keywords (see
-    _DOC_SLASH_COMMAND_RE) to avoid false positives on generic paths like
-    "/opt/llm" or URL paths that happen to start with a slash. Skips lines
-    marked historical ("removed", "旧" = "former", "削除済み" = "already
-    removed") -- this doc set's established convention for citing a removed
-    command as migration context (see e.g. 05_agent_07_07's migration notes).
-    """
-    registered = _extract_registered_command_names(repo_root)
-    if registered is None:
-        return []
-
-    issues: list[Issue] = []
-    for doc in files:
-        for line_no, line in enumerate(doc.lines, start=1):
-            if "旧" in line or "削除済み" in line or "removed" in line.lower():
-                continue
-            for match in _DOC_SLASH_COMMAND_RE.finditer(line):
-                cmd = f"/{match.group(1)}"
-                if cmd == "/exit":
-                    continue  # REPL-reserved, not in _COMMANDS by design
-                if cmd not in registered:
-                    issues.append(
-                        Issue(
-                            file=doc.rel_path,
-                            line_no=line_no,
-                            severity="WARNING",
-                            message=(
-                                f"doc references {cmd!r} which is not a "
-                                f"registered command in _COMMANDS "
-                                f"(command_defs_list.py)"
-                            ),
-                        )
-                    )
-    return issues
-
-
 # ---------------------------------------------------------------------------
-# Check 4: DB-schema drift vs schema_sql.py (best-effort)
+# Check: DB-schema drift vs schema_sql.py (best-effort)
 # ---------------------------------------------------------------------------
 
 _CREATE_TABLE_RE = re.compile(
@@ -283,7 +102,7 @@ def check_schema_drift(docs_dir: Path, repo_root: Path) -> list[Issue]:
 
 
 # ---------------------------------------------------------------------------
-# Check 5: Obsolete diagnostics / audit-event references (best-effort)
+# Check: Obsolete diagnostics / audit-event references (best-effort)
 # ---------------------------------------------------------------------------
 
 _EVENT_KIND_DEF_RE = re.compile(
@@ -399,21 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             check_obsolete_diagnostics_references(docs_dir, files, repo_root)
         )
 
-    errors = [i for i in all_issues if i.severity == "ERROR"]
-    warnings = [i for i in all_issues if i.severity == "WARNING"]
-    if all_issues:
-        for issue in sorted(all_issues, key=lambda i: (i.file, i.line_no)):
-            print(f"[{issue.severity}] {issue.file}:{issue.line_no}: {issue.message}")
-        parts = []
-        if errors:
-            parts.append(f"{len(errors)} error(s)")
-        if warnings:
-            parts.append(f"{len(warnings)} warning(s)")
-        print(f"\nFound {', '.join(parts)}.", file=sys.stderr)
-    else:
-        print("No issues found.")
-
-    return 1 if errors else 0
+    return report_and_exit(all_issues)
 
 
 if __name__ == "__main__":

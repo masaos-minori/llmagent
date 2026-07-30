@@ -448,7 +448,15 @@ def load_custom_rules(docs_dir: Path) -> None:
                         is_historical = any(
                             m.lower() in stripped.lower() for m in _HISTORICAL_MARKERS
                         )
-                        if pat.search(stripped) and not is_historical:
+                        # A line pairing the stale form with its current "/session ..."
+                        # replacement (e.g. a migration-notes mapping table row) is
+                        # documenting the rename, not repeating stale guidance.
+                        is_paired_with_replacement = "/session " in stripped
+                        if (
+                            pat.search(stripped)
+                            and not is_historical
+                            and not is_paired_with_replacement
+                        ):
                             issues.append(
                                 Issue(
                                     doc.rel_path, i, sev, f"{desc}: '{stripped[:80]}'"

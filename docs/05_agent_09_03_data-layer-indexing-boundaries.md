@@ -41,7 +41,7 @@ with SQLiteHelper().open(write_mode=True, row_factory=True) as db:
 - `chunks_au`(UPDATE後): 削除+再挿入
 - `chunks_ad`(DELETE後): `chunks_fts` から削除
 
-`/db rag rebuild-fts` は `chunks` のデータからFTS5インデックスを破棄・再作成する。
+`/session rag-rebuild-fts` は `chunks` のデータからFTS5インデックスを破棄・再作成する。
 `SELECT COUNT(*) FROM chunks_fts` ≠ `SELECT COUNT(*) FROM chunks` の場合に使用する。
 
 ---

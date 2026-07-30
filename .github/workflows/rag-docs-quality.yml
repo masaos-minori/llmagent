@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "docs/03_rag_*.md"
-      - "tools/check_docs_consistency.py"
+      - "tools/check_doc_quality.py"
+      - "config/doc_quality_rules.json"
   pull_request:
     paths:
       - "docs/03_rag_*.md"
-      - "tools/check_docs_consistency.py"
+      - "tools/check_doc_quality.py"
+      - "config/doc_quality_rules.json"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -30,4 +32,4 @@ jobs:
       - name: Run RAG docs quality checks
         run: |
           set -euo pipefail
-          python tools/check_docs_consistency.py
+          python tools/check_doc_quality.py docs/03_rag_*.md
