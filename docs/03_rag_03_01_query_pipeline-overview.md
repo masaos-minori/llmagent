@@ -46,7 +46,7 @@ RagPipeline.augment(query)
   → コンテキストブロック文字列を返す
 ```
 
-**呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（`RagPipelineMCPService`）。エージェントREPLは
+**呼び出し元:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`（`RagPipelineMCPService`）。エージェントREPLは
 `RagPipeline` を直接呼び出さない。
 
 ### augment() のフォールバックチェーン（`scripts/rag/pipeline.py`）
@@ -67,7 +67,7 @@ RagPipeline.augment(query)
 
 ``` text
 MCP クライアント
-  → scripts/mcp_servers/rag_pipeline/server.py (HTTP ルート)
+  → scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py (HTTP ルート)
     → RagPipelineMCPService.run_pipeline() (service.py)
       → RagPipeline.run() (scripts/rag/pipeline.py)
 ```

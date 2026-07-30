@@ -39,22 +39,20 @@ def delete_document(url: str) -> bool
 
 **削除順序 (重要):** このメソッドは孤立レコードを防ぐため、厳格な削除順序を強制する。
 
-1. まず`chunks_vec`の行を削除する (このドキュメントのチャンクに対応する埋め込みベクトル)
-2. `chunks`の行を削除する (トリガーにより`chunks_fts`が自動同期される)
-3. `documents`の行を削除する (親ドキュメント)
+1. まず`chunks_vec`の行を明示的に削除する (このドキュメントのチャンクに対応する埋め込みベクトル)
+2. `documents`の行を削除する (`ON DELETE CASCADE`により`chunks`の行が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
 
 この順序が必要な理由は、`chunks_vec`が`chunks`を指す外部キー制約を持たないためである。
-`chunks`を先に削除すると、孤立したベクトルレコードが残ってしまう。
+`chunks`テーブルへの明示的なDELETE文はコード上存在しない(詳細は`docs/03_rag_91_design_notes-part1.md` DESIGN-3を参照)。
 
 ```python
-# Order matters — chunks_vec before chunks before documents
+# Order matters — chunks_vec before documents (CASCADE removes chunks)
 db.execute(
     "DELETE FROM chunks_vec"
     " WHERE chunk_id IN"
     " (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
     (doc_id,),
 )
-db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
 db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 ```
 

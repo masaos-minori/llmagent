@@ -100,11 +100,11 @@ from rag.utils import (
 
 | スクリプト | 使用される関数 |
 |---|---|
-| `scripts/rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
 | `scripts/rag/ingestion/chunk_japanese.py` | `normalize_unicode` |
 | `scripts/rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
 | `scripts/rag/ingestion/crawler.py` | `validate_url` |
-| `scripts/rag/pipeline.py` | `sanitize_document`, `floats_to_blob` |
+| `scripts/rag/stages/augment.py` | `sanitize_document` |
+| `scripts/rag/repository.py` | `floats_to_blob` |
 | `scripts/rag/cache.py` | `cosine_sim` |
 
 ---

@@ -32,7 +32,7 @@ Webページとローカルファイルをクロールし、SQLiteにインデ�
 - インジェクションパイプライン: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
 - クエリパイプライン: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
 - ユーティリティ: `scripts/rag/utils.py`
-- MCPラッパー: `scripts/mcp_servers/rag_pipeline/server.py`（ポート8010）
+- MCPラッパー: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`（ポート8010）
 
 **対象に含まれないもの:**
 - MDQ（Markdown専用インデックス）— 別サービス。境界の定義は [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) を参照

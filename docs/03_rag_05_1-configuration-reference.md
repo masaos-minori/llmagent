@@ -73,9 +73,9 @@ crawler / chunk_splitter / ingester / rag-pipeline-mcpはそれぞれ独立し�
 
 ## 1.4 `config/rag_pipeline_mcp_server.toml`
 
-使用元: `rag-pipeline-mcp` のみ (rag-pipeline MCPサーバープロセス)。`mcp_servers/rag_pipeline/models.py` の `RagPipelineConfig.from_dict()` が読み込む。`agent.toml`は使用しない (冒頭コメントに明記)。
+使用元: `rag-pipeline-mcp` のみ (rag-pipeline MCPサーバープロセス)。`mcp_servers/rag_pipeline/rag_pipeline_models.py` の `RagPipelineConfig.from_dict()` が読み込む。`agent.toml`は使用しない (冒頭コメントに明記)。
 
-**注記（2026-07-13）:** `host`/`port` は `RagPipelineConfig` に一切読み込まれず未参照だったため設定ファイルから削除した。実際の値はハードコード: `http_host="127.0.0.1"`（`MCPServer` 基底クラス）、`http_port=8010`（`server.py`）。`http_timeout` は `service.py` で `120.0` としてハードコードされているが、これはMCPサーバー自体のHTTPクライアントタイムアウトであり、外部RAGサービスへのフォールバック呼び出しには別のタイムアウト（10秒）が使用される。
+**注記（2026-07-13）:** `host`/`port` は `RagPipelineConfig` に一切読み込まれず未参照だったため設定ファイルから削除した。実際の値はハードコード: `http_host="127.0.0.1"`（`MCPServer` 基底クラス）、`http_port=8010`（`rag_pipeline_server.py`）。`http_timeout` は `rag_pipeline_service.py` で `120.0` としてハードコードされているが、これはMCPサーバー自体のHTTPクライアントタイムアウトであり、外部RAGサービスへのフォールバック呼び出しには別のタイムアウト（10秒）が使用される。
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -99,17 +99,17 @@ crawler / chunk_splitter / ingester / rag-pipeline-mcpはそれぞれ独立し�
 | `semantic_cache_max_size` | `128` (コードデフォルト。運用設定ファイルでは`100`) | SemanticCacheの容量 |
 | `semantic_cache_threshold` | `0.92` | キャッシュヒット判定用のコサイン類似度閾値 |
 | `refiner_max_tokens` | `512` | Refiner LLMの最大トークン数 |
-| `refiner_max_chars_per_chunk` | `800` (`models.py` デフォルト値) | Refinerでのチャンクごとの最大文字数 |
+| `refiner_max_chars_per_chunk` | `800`(コードデフォルト。運用設定ファイルでは`300`) | Refinerでのチャンクごとの最大文字数 |
 | `refiner_timeout` | `30.0`(運用設定ファイル値) | Refiner LLMのタイムアウト (秒) |
 | `mqe_n_queries` | `3` | MQEで生成するクエリバリエーションの数 |
 | `mqe_prompt_template` | (組み込み) | MQEプロンプトテンプレート。プレースホルダー: `{n_queries}`、`{query}` |
 | `rerank_prompt_template` | (組み込み) | クロスエンコーダー用プロンプトテンプレート。プレースホルダー: `{query}`、`{items_text}` |
 
-**注記（2026-07-13）:** 外部RAGサービスへのフォールバック呼び出し（`call_rag_service()`）では、各試行ごとに `timeout=10.0` がハードコードされている（`pipeline_service.py:121`）。この値は設定ファイルや `RagPipelineConfig` から読み込まれておらず、変更するにはソースコードの修正が必要。
+**注記（2026-07-13）:** 外部RAGサービスへのフォールバック呼び出し（`call_rag_service()`）では、各試行ごとに `timeout=10.0` がハードコードされている（`scripts/rag/pipeline_service.py`）。この値は設定ファイルや `RagPipelineConfig` から読み込まれておらず、変更するにはソースコードの修正が必要。
 
 ## 実装上の補足 (Current behavior)
 
-- `top_k_search`・`top_k_rerank`・`rag_min_score`・`semantic_cache_max_size`は、`RagPipelineConfig`(`mcp_servers/rag_pipeline/models.py`)のコード上のデフォルト値と、実運用の`config/rag_pipeline_mcp_server.toml`に書かれている値が異なる。tomlに値がある限りコードデフォルトは使われないため実害はないが、tomlを削除・簡略化する場合はこの差に注意する必�がある。(Explicit in code)
+- `top_k_search`・`top_k_rerank`・`rag_min_score`・`semantic_cache_max_size`・`refiner_max_chars_per_chunk`は、`RagPipelineConfig`(`mcp_servers/rag_pipeline/rag_pipeline_models.py`)のコード上のデフォルト値と、実運用の`config/rag_pipeline_mcp_server.toml`に書かれている値が異なる。tomlに値がある限りコードデフォルトは使われないため実害はないが、tomlを削除・簡略化する場合はこの差に注意する必要がある。(Explicit in code)
 - `rag_pipeline_mcp_server.toml`は`agent.toml`とは完全に独立しており、両ファイルで`use_mqe`等の同名キーが別々の値を持ちうる。ファイル冒頭コメントに「`agent_rag`・`rag_llm`・`sqlite_helper`のモジュールレベルキャッシュを上書きし、RAGパイプラインをメインエージェントプロセスから独立実行させるため」と明記されている。(Explicit in code)
 
 ## 1.5 `config/agent.toml`

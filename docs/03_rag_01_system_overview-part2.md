@@ -68,7 +68,7 @@ config/crawler.toml [target_urls]
 | 5. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
 
 **エントリポイント:** `RagPipeline.augment(query) -> str`
-**呼び出し元:** `scripts/mcp_servers/rag_pipeline/service.py`（MCP HTTP、ポート8010経由）
+**呼び出し元:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`（MCP HTTP、ポート8010経由）
 
 ### セマンティックキャッシュ
 
@@ -95,9 +95,9 @@ config/crawler.toml [target_urls]
 | 言語判定 | CJK比率 ≥ 0.10 → `ja`; それ以外は `en`; 100文字未満はヒントへのフォールバック | `crawler.py` |
 | チャンクサイズ | 最小40文字、最大500文字 | `config/chunk_splitter.toml` |
 | チャンクの重複 | 50文字のスライディングウィンドウ | `config/chunk_splitter.toml` |
-| 埋め込み次元 | 384（本番環境、`config/agent.toml:43`）。dataclassのデフォルト値はなく、設定ファイルでのみ定義される。float32リトルエンディアンBLOB | `config/agent.toml` — `03_rag_90` DOC-03を参照 |
-| クロール深度 | 開始URLから最大6ホップ | `config/crawler.toml` |
-| クロールページ数上限 | サイトあたり最大500ページ | `config/crawler.toml` |
+| 埋め込み次元 | 384（本番環境、`config/agent.toml`の`embedding_dims`キー）。dataclassのデフォルト値はなく、設定ファイルでのみ定義される。float32リトルエンディアンBLOB | `config/agent.toml` — `03_rag_90` DOC-03を参照 |
+| クロール深度 | 運用値は3(開始URLから最大3ホップ、`config/crawler.toml`の`max_depth`)。コード側フォールバック値とは異なるため、参照時は運用設定ファイルの値を優先する | `config/crawler.toml` |
+| クロールページ数上限 | 運用値は200(サイトあたり最大200ページ、`config/crawler.toml`の`max_pages`)。500はコードのフォールバック値であり運用値ではない | `config/crawler.toml` |
 | DB | SQLiteシングルノードのみ | アーキテクチャ |
 
 ---
@@ -106,8 +106,8 @@ config/crawler.toml [target_urls]
 
 | ファイル | 責務 |
 |---|---|
-| `scripts/mcp_servers/rag_pipeline/server.py` | HTTPエントリポイント + ルート定義 |
-| `scripts/mcp_servers/rag_pipeline/service.py` | パイプラインアダプタ（ライフサイクル + レスポンス整形） |
+| `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | HTTPエントリポイント + ルート定義 |
+| `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` | パイプラインアダプタ（ライフサイクル + レスポンス整形） |
 | `scripts/rag/pipeline.py` | RAGのコアロジック |
 
 ## Related Chapters

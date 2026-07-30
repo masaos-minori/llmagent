@@ -55,6 +55,8 @@ from tools._docs_consistency_lib import (
     Issue,
     check_broken_internal_links,
     check_command_drift,
+    check_file_path_references,
+    check_function_references,
     check_removed_file_references,
     discover_md_files,
     is_historical_line,
@@ -215,128 +217,6 @@ def check_tool_name_drift(
                                 f"doc lists `{name}` as a tool, but no "
                                 f"scripts/mcp_servers/**/*.py TOOL_LIST "
                                 f"defines a tool with that name (best-effort "
-                                f"check; verify manually)"
-                            ),
-                        )
-                    )
-    return issues
-
-
-# ---------------------------------------------------------------------------
-# Check: scripts/-path reference existence (WARNING)
-# ---------------------------------------------------------------------------
-
-_PATH_REF_RE = re.compile(
-    r"`((?:scripts|config|docs)/[A-Za-z0-9_./-]+\.[a-z]+)(?::(\d+))?`"
-)
-
-
-def check_file_path_references(
-    docs_dir: Path, files: list[DocFile], repo_root: Path
-) -> list[Issue]:
-    """Flag backtick-quoted `scripts/...`, `config/...`, `docs/...` paths that don't exist.
-
-    When a `path:LINE` form is used, also flags the reference if the target
-    file has fewer than LINE lines (a weak but zero-false-positive check for
-    stale line-number citations; it cannot confirm the line still contains
-    the claimed content).
-    """
-    issues: list[Issue] = []
-    for doc in files:
-        for line_no, line in enumerate(doc.lines, start=1):
-            if is_historical_line(line):
-                continue
-            for match in _PATH_REF_RE.finditer(line):
-                rel_path, line_ref = match.group(1), match.group(2)
-                target = repo_root / rel_path
-                if not target.is_file():
-                    issues.append(
-                        Issue(
-                            file=doc.rel_path,
-                            line_no=line_no,
-                            severity="WARNING",
-                            message=(
-                                f"doc references `{rel_path}` which does not "
-                                f"exist in the repository (best-effort check; "
-                                f"verify manually)"
-                            ),
-                        )
-                    )
-                    continue
-                if line_ref is not None:
-                    try:
-                        actual_lines = len(
-                            target.read_text(encoding="utf-8").splitlines()
-                        )
-                    except OSError:
-                        continue
-                    if int(line_ref) > actual_lines:
-                        issues.append(
-                            Issue(
-                                file=doc.rel_path,
-                                line_no=line_no,
-                                severity="WARNING",
-                                message=(
-                                    f"doc references `{rel_path}:{line_ref}` "
-                                    f"but the file only has {actual_lines} "
-                                    f"lines (stale line-number citation)"
-                                ),
-                            )
-                        )
-    return issues
-
-
-# ---------------------------------------------------------------------------
-# Check: backtick-quoted function()-reference existence (WARNING)
-# ---------------------------------------------------------------------------
-
-_FUNC_REF_RE = re.compile(r"`([a-zA-Z_][a-zA-Z0-9_]{3,})\(\)`")
-_FUNC_DEF_RE = re.compile(
-    r"^\s*(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", re.MULTILINE
-)
-
-
-def _extract_defined_function_names(repo_root: Path) -> frozenset[str]:
-    """Regex-extract every `def name(` (sync or async) under scripts/."""
-    found: set[str] = set()
-    scripts_dir = repo_root / "scripts"
-    if not scripts_dir.is_dir():
-        return frozenset()
-    for py_file in scripts_dir.rglob("*.py"):
-        content = py_file.read_text(encoding="utf-8")
-        found.update(_FUNC_DEF_RE.findall(content))
-    return frozenset(found)
-
-
-def check_function_references(
-    docs_dir: Path, files: list[DocFile], repo_root: Path
-) -> list[Issue]:
-    """Flag backtick-quoted `func_name()` mentions with no matching `def` under scripts/.
-
-    Best-effort: only catches a function name that is entirely absent from
-    the codebase (e.g. renamed or never existed); cannot verify that a
-    still-existing function of that name lives where the doc claims.
-    """
-    defined = _extract_defined_function_names(repo_root)
-    if not defined:
-        return []
-
-    issues: list[Issue] = []
-    for doc in files:
-        for line_no, line in enumerate(doc.lines, start=1):
-            if is_historical_line(line):
-                continue
-            for match in _FUNC_REF_RE.finditer(line):
-                name = match.group(1)
-                if name not in defined:
-                    issues.append(
-                        Issue(
-                            file=doc.rel_path,
-                            line_no=line_no,
-                            severity="WARNING",
-                            message=(
-                                f"doc references `{name}()` which is not "
-                                f"defined anywhere under scripts/ (best-effort "
                                 f"check; verify manually)"
                             ),
                         )

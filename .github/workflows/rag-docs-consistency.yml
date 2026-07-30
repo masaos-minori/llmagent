@@ -1,0 +1,35 @@
+name: RAG Docs Consistency
+
+on:
+  push:
+    paths:
+      - "docs/03_rag_*.md"
+      - "config/crawler.toml"
+      - "tools/check_rag_docs_consistency.py"
+  pull_request:
+    paths:
+      - "docs/03_rag_*.md"
+      - "config/crawler.toml"
+      - "tools/check_rag_docs_consistency.py"
+
+# Cancel in-progress runs for the same workflow + branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: RAG Docs Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run RAG docs consistency checks
+        run: |
+          set -euo pipefail
+          python tools/check_rag_docs_consistency.py

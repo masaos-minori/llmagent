@@ -82,7 +82,7 @@ source:
 
 ### 7.1 モジュール概要
 
-`chunk_utils.py` — `ChunkEnglishMixin` と `ChunkJapaneseMixin` で共有されるバッファヘルパー。末尾重複バッファの管理と、最小/最大チャンクサイズ制約付きの項目蓄積を提供する。両ミックスインクラスと `chunk_splitter.py` からインポートされる。
+`chunk_utils.py` — `ChunkEnglishMixin` と `ChunkSplitter` から個別にインポートされるバッファヘルパー。末尾重複バッファの管理と、最小/最大チャンクサイズ制約付きの項目蓄積を提供する。**`ChunkJapaneseMixin`は本モジュールを一切インポートせず独自実装を使う**(共有ヘルパーとして設計されたが実際には未共有 — リファクタリング未完了)。
 
 **公開関数**
 
@@ -91,13 +91,13 @@ source:
 | `start_next_buf` | `(prev: str, next_item: str, sep: str, chunk_overlap: int) -> str` | prevからの末尾重複を任意で行いつつ、新しい蓄積バッファを開始する。`chunk_overlap=0` の場合はnext_itemをそのまま返す。それ以外の場合は、prevの末尾N文字（N = chunk_overlap）をnext_itemの先頭に付加する |
 | `merge_text_items` | `(items: list[str], sep: str, min_chunk: int, max_chunk: int, chunk_overlap: int) -> list[str]` | min_chunk ≤ len ≤ max_chunk を満たすように項目をチャンクへ蓄積する。短い末尾項目は破棄されず最後のチャンクに結合される |
 
-**ミックスインでの使用箇所:**
+**実際の使用箇所(コード確認済み):**
 
-| ミックスイン | 使用する関数 | 目的 |
+| 呼び出し元 | 使用する関数 | 目的 |
 |---|---|---|
-| `ChunkEnglishMixin` | `merge_text_items` | 重複を伴う段落/文の蓄積 |
-| `ChunkJapaneseMixin` | `start_next_buf`, `merge_text_items` | 重複を伴う文ペアの蓄積 |
-| `ChunkSplitter` | `merge_text_items` | コードブロックの蓄積（空行分割） |
+| `ChunkEnglishMixin`(`chunk_english.py`) | `start_next_buf` | 段落蓄積時の末尾重複処理 |
+| `ChunkSplitter._chunk_code`(`chunk_splitter.py`) | `merge_text_items` | コードブロックの蓄積（空行分割） |
+| `ChunkJapaneseMixin`(`chunk_japanese.py`) | (本モジュールをインポートしない) | 独自実装で文ペアの蓄積を行う。`chunk_utils.py`との共有は設計意図のみで実装未完了 |
 
 ---
 

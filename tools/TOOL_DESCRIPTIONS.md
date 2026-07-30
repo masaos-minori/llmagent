@@ -10,9 +10,10 @@
 
 | ファイル | 対象ドメイン | 主なチェック内容 |
 |---|---|---|
-| `_docs_consistency_lib.py` | (共通基盤、単体実行不可) | DocFile/Issueデータ型、ファイル探索、壊れた内部リンク・削除済みファイル参照・スラッシュコマンドドリフト・ディレクトリ一覧の網羅性の汎用チェック |
+| `_docs_consistency_lib.py` | (共通基盤、単体実行不可) | DocFile/Issueデータ型、ファイル探索、壊れた内部リンク・削除済みファイル参照・スラッシュコマンドドリフト・ディレクトリ一覧の網羅性・`scripts/`パス参照/関数参照の実在性の汎用チェック |
 | `check_agent_docs_consistency.py` | `docs/05_agent_*.md` | DBスキーマ名ドリフト(`scripts/db/schema_sql.py`)、診断イベント名ドリフト(`scripts/agent/`) |
 | `check_mcp_docs_consistency.py` | `docs/04_mcp_*.md` | MCPサーバーのポート番号ドリフト、ツール名ドリフト、`scripts/`パス参照・関数参照の実在性 |
+| `check_rag_docs_consistency.py` | `docs/03_rag_*.md` | クローラーのmax_depth/max_pages主張と`config/crawler.toml`実値の一致、`[debug]`出力例の実在性、`scripts/`パス参照・関数参照の実在性 |
 | `check_deployment_docs_consistency.py` | `docs/02_deployment*.md` | 「NつのSQLiteデータベース」等の個数主張、DB一覧表の網羅性、`*_db_path`設定キーの`agent.toml`実在性、MCPポート範囲の表記(`deploy/*.sh`も対象) |
 | `check_overview_docs_consistency.py` | `docs/01_overview*.md` | `conf.d/`ディレクトリ一覧の網羅性(`check_directory_listing_completeness()`の実利用例) |
 | `check_needs_confirmation_inventory.py` | `docs/*.md` 全体 | 「Needs confirmation」記載が`00_governance_07`の集中インベントリに登録されているか、resolved済みNC項目の該当箇所にマーカーが残っていないか、フィールド数宣言と実際のリスト項目数の一致 |

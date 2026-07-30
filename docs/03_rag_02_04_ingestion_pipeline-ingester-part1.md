@@ -66,19 +66,18 @@ SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済み�
 以下の削除順序は設計上の不変条件であり、ドキュメントレコードを削除するすべてのコードパスで維持されなければならない。
 
 ``` text
-chunks_vec（最初）→ chunks → documents
+chunks_vec（明示的に削除）→ documents（削除するとON DELETE CASCADEでchunksが連鎖削除される）
 ```
 
-**理由:** `chunks_vec` はsqlite-vecの仮想テーブルであり、`chunks` を指す外部キー制約を持たない。`chunks` を先に削除すると、孤立したベクトルレコードが残ってしまう。そのため、すべてのコードパスでこの順序が厳格に守られなければならない。
+**理由:** `chunks_vec` はsqlite-vecの仮想テーブルであり、`chunks` を指す外部キー制約を持たない。そのため`chunks_vec`のみ明示的な削除が必要であり、`chunks`自体への明示DELETE文はコード上存在しない(`documents`削除のCASCADEに委ねられる)。
 
-1. その文書のchunk_idsに対応する `chunks_vec` の行を削除する
-2. `chunks` の行を削除する（`chunks_fts` の自動同期トリガーが発火する）
-3. `documents` の行を削除する
+1. その文書のchunk_idsに対応する `chunks_vec` の行を明示的に削除する
+2. `documents` の行を削除する(`ON DELETE CASCADE`により`chunks`が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
 
 **影響を受けるコードパス:**
-- `DocumentManager.delete_existing_document()` — chunks_vec、chunks、documentsの各行を削除
-- `DocumentManager.delete_existing_document()` — MCPツール経路
-- 孤立したベクトルレコードを防ぐため、両者は同じ順序に従わなければならない
+- `DocumentManager.delete_existing_document()`(`scripts/rag/ingestion/document_manager.py`) — 取り込みパイプライン経路。内部的に共有ヘルパー`delete_document_chain()`を呼び出す
+- `DocumentManager.delete_document(url)`(`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCPツール(`rag_delete_document`)経路
+- 孤立したベクトルレコードを防ぐため、両経路とも同じ順序に従う(詳細は`docs/03_rag_91_design_notes-part1.md` DESIGN-3を参照)
 - **冪等性:** URLが既に `documents` に存在する場合はスキップする。ただし後述のスキップ経路のガードにより `etag`/`last_modified` はUPDATEされる。スキップ時は `chunking_strategy` は更新されない
 - **スキップ経路の古さガード:** 入力された `fetched_at`（チャンクペイロード）を、格納済みの `documents.fetched_at` と比較する。入力側が古い場合は更新をスキップする（より新しいクロールが優先される — 古いチャンクファイルがより新しいメタデータを上書きすることを防ぐ）。`fetched_at` が欠落している場合（鮮度情報を持たない旧形式のチャンク）は、埋め込みのみのセマンティクスを使用する: `COALESCE(etag, ?)` — 現在NULLの場合にのみ値を設定し、NULL以外の値を上書きすることはない。これにより、古いチャンクファイルのメタデータが、より新しいクロールで格納された値を置き換えてしまうことを防ぐ。
 - **埋め込み失敗の追跡:** チャンクと埋め込みの結果はタプルとして返される。

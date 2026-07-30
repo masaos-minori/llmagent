@@ -34,15 +34,18 @@ source:
 `crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
 WebのURLと異なり、HTTPの往復は発生しない。
 
-#### 鮮度判定（自動）
+#### 鮮度判定用データの生成(責務境界に注意)
 
 `crawl_file()` はmtime（ISO文字列）とファイル内容のSHA-256を計算し、
-それぞれクロールペイロードの `last_modified` と `etag` として格納する。
+それぞれクロールペイロードの `last_modified` と `etag` として格納するのみで、
+スキップ判定は一切行わない。常に無条件でJSONペイロードを出力する。
 URLは `file://{absolute_path}` として格納される。
 
-`file://` URLに対しては、スキップするか再インジェクションするかを判断する前に鮮度チェックが行われる。
+スキップするか再インジェクションするかを実際に判断するのは`WebCrawler`ではなく、
+ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
+`DocumentManager._is_file_unchanged()`/`_handle_existing_file()`である。
 
-| 条件 | 判定 |
+| 条件 | 判定(`DocumentManager`が実施) |
 |---|---|
 | `etag`（SHA-256）が同一 | スキップ — 内容は変化していない |
 | `etag` が異なる | 自動で再インジェクション（旧レコードを削除し再埋め込み） |

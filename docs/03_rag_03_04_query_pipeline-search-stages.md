@@ -104,10 +104,9 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
   `use_rrf=True`（デフォルト）を維持すること
 
 **可観測性:**
-- `/rag search --debug` は `[debug] fusion: use_rrf=False (rank signal disabled)` を表示する
 - `get_diagnostics()["fusion_mode"]` は `"rrf"` または `"dedup_only"` を返す
 - ログ: `INFO FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit`
-- 起動時: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics`（パイプライン初期化時に `config_validator.py` 経由で出力される）
+- 起動時: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics`（`RagConfigValidator.validate()`が警告内容を判定し、`scripts/rag/pipeline.py`の`RagPipeline.__init__`が`logger.warning()`で実際に出力する）
 
 ---
 

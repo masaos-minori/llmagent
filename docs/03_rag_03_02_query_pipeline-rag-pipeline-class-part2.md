@@ -97,7 +97,6 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 
 この分類結果は以下で確認できる。
 - `get_diagnostics()["http_result_kind"]`
-- `/rag search --debug`: `[debug] http mode: result_source=remote http_result_kind=success (empty response — no in-process fallback)`
 
 > **注意**: `get_diagnostics()["http_result_kind"]`（値: `remote_nonempty`/`remote_empty`/`in_process_fallback`）と
 > `SearchDiagnostics.http_result_kind`（`rag.models_result.HttpResultKind` enum、値:
@@ -122,7 +121,8 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 - `03_rag_01_system_overview-part1.md`
 - `03_rag_03_01_query_pipeline-overview.md`
 - `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_query_pipeline-stages.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
 - `03_rag_03_06_query_pipeline-helpers-and-cache-part1.md`
 - `03_rag_04_05_dto-types.md`
 - `03_rag_05_1-configuration-reference.md`
