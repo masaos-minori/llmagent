@@ -485,3 +485,82 @@ class TestPurgeOldDiagnostics:
         kinds = {r[0] for r in rows}
         assert "old_kind" not in kinds
         assert "new_kind" in kinds
+
+
+@pytest.mark.asyncio
+def test_save_rejects_sensitive_data_without_encryption(
+    fake_db: _FakeSQLiteHelper,
+) -> None:
+    """Verify refusal when sensitive data is present without a key."""
+    store = DiagnosticStore()
+    sensitive_content = '{"api_key": "sk-abcdefghijklmnop12345"}'
+    fake_cfg_loader = _FakeConfigLoader({"diagnostics": {"retention_days": 30}})
+
+    with (
+        patch(
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _: fake_db,
+        ),
+        patch(
+            "agent.diagnostic_store.ConfigLoader",
+            return_value=fake_cfg_loader,
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="Sensitive information detected"):
+            store.save(1, kind="test", content=sensitive_content)
+
+
+@pytest.mark.asyncio
+def test_save_successfully_encrypts_when_key_provided(
+    fake_db: _FakeSQLiteHelper,
+) -> None:
+    """Verify successful encryption when a key is provided."""
+    from cryptography.fernet import Fernet
+
+    key = Fernet.generate_key().decode("utf-8")
+    store = DiagnosticStore()
+    sensitive_content = '{"api_key": "sk-abcdefghijklmnop12345"}'
+    fake_cfg_loader = _FakeConfigLoader(
+        {"diagnostics": {"encryption_key": key, "retention_days": 30}}
+    )
+
+    with (
+        patch(
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _: fake_db,
+        ),
+        patch(
+            "agent.diagnostic_store.ConfigLoader",
+            return_value=fake_cfg_loader,
+        ),
+    ):
+        store.save(1, kind="test", content=sensitive_content, encrypt=True)
+
+    rows = fake_db.fetchall("SELECT content FROM session_diagnostics")
+    assert len(rows) == 1
+    decrypted = Fernet(key.encode("utf-8")).decrypt(rows[0][0].encode("utf-8"))
+    assert json.loads(decrypted) == {"api_key": "sk-abcdefghijklmnop12345"}
+
+
+@pytest.mark.asyncio
+def test_save_saves_non_sensitive_data_normally(fake_db: _FakeSQLiteHelper) -> None:
+    """Verify non-sensitive data is saved normally without encryption."""
+    store = DiagnosticStore()
+    safe_content = '{"message": "hello world"}'
+    fake_cfg_loader = _FakeConfigLoader({"diagnostics": {"retention_days": 30}})
+
+    with (
+        patch(
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _: fake_db,
+        ),
+        patch(
+            "agent.diagnostic_store.ConfigLoader",
+            return_value=fake_cfg_loader,
+        ),
+    ):
+        store.save(1, kind="test", content=safe_content)
+
+    rows = fake_db.fetchall("SELECT content FROM session_diagnostics")
+    assert len(rows) == 1
+    assert rows[0][0] == safe_content

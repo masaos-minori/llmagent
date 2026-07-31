@@ -8,6 +8,7 @@ separate from normal conversation messages.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -24,6 +25,12 @@ logger = logging.getLogger(__name__)
 # Payload keys redacted by _filter_sensitive_fields(); may carry raw artifact
 # URIs or RAG stage outcome contents that should not be persisted unredacted.
 _SENSITIVE_FIELDS: tuple[str, ...] = ("artifacts", "rag_stage_outcomes")
+
+_SENSITIVE_PATTERNS = [
+    re.compile(
+        r"(?i)(api[_-]?key|secret|token|password|access_token|auth_token)['\"]?[\s:=]+['\"]?([a-zA-Z0-9_\-\.]{16,})['\"]?"
+    ),
+]
 
 
 class DiagnosticStore:
@@ -128,10 +135,18 @@ class DiagnosticStore:
         """
         self._purge_old_diagnostics()
         content = self._filter_sensitive_fields(content)
-        if encrypt:
-            diagnostics_cfg = self._load_diagnostics_config()
-            if diagnostics_cfg.encryption_key:
-                content = self._encrypt_content(content, diagnostics_cfg.encryption_key)
+
+        diagnostics_cfg = self._load_diagnostics_config()
+        if not diagnostics_cfg.encryption_key:
+            for pattern in _SENSITIVE_PATTERNS:
+                if pattern.search(content):
+                    raise RuntimeError(
+                        "Sensitive information detected in diagnostic content without encryption enabled."
+                    )
+
+        if encrypt and diagnostics_cfg.encryption_key:
+            content = self._encrypt_content(content, diagnostics_cfg.encryption_key)
+
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "INSERT INTO session_diagnostics"
