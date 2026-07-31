@@ -275,9 +275,7 @@ add evidence labels to every sentence.
 Use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary. When using
 `Needs confirmation`, include the required fields defined by the governance documentation.
 
-Do not invent missing behavior or assume framework patterns without evidence. Do not treat dead
-code, unused code, stale migrations, or obsolete documentation as active behavior. If behavior
-cannot be confirmed, mark it `Needs confirmation` instead of presenting it as fact.
+Do not invent missing behavior or assume framework patterns without evidence.
 
 ### Evidence tracking during analysis
 

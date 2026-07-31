@@ -71,10 +71,7 @@ ast-grep --pattern 'def <symbol>($$$): $$$' --lang python scripts/
 
 #### import-linter — boundary contracts
 
-```bash
-lint-imports
-cat .importlinter
-```
+See `rules/toolchain.md` §3 for the `lint-imports` command.
 
 Identify which contracts are affected by the planned refactor.
 If the refactor changes a module boundary, plan the contract update as part of Phase 3.
@@ -270,12 +267,11 @@ If a step fails CI:
 
 ## Phase 6: CI Gate
 
-**Gate: pre-commit passes; lint-imports passes; diff-cover ≥ 90%**
+**Gate: pre-commit passes; lint-imports passes; diff-cover ≥ 90% (see `rules/toolchain.md` §7-8)**
 
 ```bash
 pre-commit run --all-files
 lint-imports
-diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 If `pre-commit` fails: fix the specific hook that failed, do not use `--no-verify`.

@@ -361,33 +361,4 @@ Before delivering the plan:
 
 ## Output format
 
-```markdown
-## Goal
-<one sentence>
-
-## Scope
-**In**: ...
-**Out**: ...
-
-## Assumptions
-1. ...
-
-## Unknowns
-| Unknown | Evidence missing | Resolution | Blocking |
-|---|---|---|---|
-
-## Affected Areas
-| File | Change | Blast radius | Churn | Bus factor |
-|---|---|---|---|---|
-
-## Implementation Steps
-1. ...
-
-## Validation Plan
-| Check | Tool | Target |
-|---|---|---|
-
-## Risks
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-```
+See `SKILL.md` §Output format for the exact Markdown structure to generate.

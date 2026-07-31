@@ -92,6 +92,21 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 - Fall back to the nearest standard equivalent (e.g. `ruff`/`mypy` for static checks, `pdb`/
   `traceback`/manual `rg` search for advanced tracing) and note that the fallback was used.
 
+### Import layer contract (enforced by `.importlinter`)
+
+Layers may only import from themselves and layers below:
+
+```
+shared → external only
+db     → shared
+rag    → db, shared
+mcp_servers → db, shared
+agent  → all layers
+```
+
+Violations fail `lint-imports`. Never import a lower layer from a higher one (e.g. `shared`
+must not import from `agent`, `rag`, `db`, or `mcp_servers`).
+
 ### Pythonic safety constraints
 
 Applies to any skill that writes or transforms production Python code

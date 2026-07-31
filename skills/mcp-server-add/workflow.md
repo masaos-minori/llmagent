@@ -2,8 +2,7 @@
 
 ## Prerequisites
 
-- For Option A: agent REPL must be running (`ps aux | grep agent.py`)
-- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer ≥ 8011
+See `SKILL.md` §Prerequisites.
 
 ## Idempotency note
 
@@ -11,7 +10,7 @@ The wizard does NOT check for existing files and will overwrite them.
 Before re-running: confirm no server already uses the same name or port.
 
 ```bash
-ls scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
+ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
 ```
 
 ---
@@ -25,9 +24,9 @@ From the running agent REPL:
 ```
 
 This calls the MCP installer and generates:
-- `scripts/mcp/<name>/server.py` — skeleton server module
-- `scripts/mcp/<name>/service.py` — service logic
-- `scripts/mcp/<name>/models.py` — Pydantic request/response models
+- `scripts/mcp_servers/<name>/server.py` — skeleton server module
+- `scripts/mcp_servers/<name>/service.py` — service logic
+- `scripts/mcp_servers/<name>/models.py` — Pydantic request/response models
 - `config/<name>_mcp_server.toml` — server config
 - `init.d/<name>` — optional startup script (subprocess management)
 
@@ -39,11 +38,11 @@ If `/mcp install` fails partway through:
 
 1. Check which files were created:
    ```bash
-   ls scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
+   ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
    ```
 2. Remove partially created files before retrying:
    ```bash
-   rm -rf scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name>
+   rm -rf scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name>
    ```
 3. Retry the wizard or switch to Option B
 
@@ -61,15 +60,15 @@ and the init script in `init.d/file-mcp`.
 
 Confirm:
 
-- `scripts/mcp/<name>/server.py` follows the module structure:
+- `scripts/mcp_servers/<name>/server.py` follows the module structure:
   - Inherits from `MCPServer` base class (`mcp/server.py`)
-  - Uses models defined in `scripts/mcp/<name>/models.py` (Pydantic `BaseModel` subclasses)
+  - Uses models defined in `scripts/mcp_servers/<name>/models.py` (Pydantic `BaseModel` subclasses)
   - Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`)
   - Uses `logger = logging.getLogger(__name__)` (standard library logging)
   - Comments and log messages in English
 - `config/<name>_mcp_server.toml` is valid TOML: `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`
 - `init.d/<name>` includes the correct `--port` argument
-- Syntax check: `python3 -m compileall -q scripts/mcp/<name>/`
+- Syntax check: `python3 -m compileall -q scripts/mcp_servers/<name>/`
 
 ---
 
@@ -80,9 +79,9 @@ Add `cp` lines for each new file:
 
 ```bash
 # In deploy/deploy.sh, add:
-cp scripts/mcp/<name>/server.py  /opt/llm/scripts/mcp/<name>/server.py
-cp scripts/mcp/<name>/service.py /opt/llm/scripts/mcp/<name>/service.py
-cp scripts/mcp/<name>/models.py  /opt/llm/scripts/mcp/<name>/models.py
+cp scripts/mcp_servers/<name>/server.py  /opt/llm/scripts/mcp_servers/<name>/server.py
+cp scripts/mcp_servers/<name>/service.py /opt/llm/scripts/mcp_servers/<name>/service.py
+cp scripts/mcp_servers/<name>/models.py  /opt/llm/scripts/mcp_servers/<name>/models.py
 cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
 ```
 
@@ -160,9 +159,4 @@ tail -20 /opt/llm/logs/agent.log
 
 ## Step 9: Completion checklist
 
-- `scripts/mcp/<name>/server.py` syntax check passes (`python3 -m compileall -q scripts/mcp/<name>/`)
-- `deploy/deploy.sh` updated with `cp` lines for all new files
-- `config/agent.toml mcp_servers.<name>` entry added (verified with `rg`)
-- service running and reachable (verify port health)
-- `/mcp` in agent REPL shows the new server as healthy
-- no errors in `agent.log` during tool invocation
+See `SKILL.md` §Completion checklist.

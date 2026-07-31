@@ -263,12 +263,7 @@ Add `.testmondata` to `.gitignore`.
 
 ## Step 11: Regression Quality Analysis
 
-```bash
-coverage run -m pytest tests/
-coverage xml
-diff-cover coverage.xml --compare-branch=master
-diff-cover coverage.xml --compare-branch=master --fail-under=90
-```
+See `rules/toolchain.md` §7 for the diff-cover sequence.
 
 For bug fixes: run mutmut on the exact lines that changed:
 

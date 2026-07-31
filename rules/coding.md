@@ -44,6 +44,29 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 
 # no print() in library modules
 ast-grep --pattern 'print($$$)' --lang python scripts/
+
+# no json.load() outside config_loader.py (see Key library choices — use orjson)
+ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v config_loader.py
+```
+
+## Bandit priority findings
+
+Must resolve before merge:
+
+| Code | Issue | Fix |
+|---|---|---|
+| B105/B106 | Hardcoded password/token | Move to env/conf.d |
+| B301/B302 | Pickle deserialization | Replace with JSON or Pydantic |
+| B501/B502 | TLS verification disabled | Never in production |
+| B608 | SQL injection in f-string query | Parameterized queries |
+| B404 | subprocess import | Acceptable; document why |
+| B603 | subprocess without shell=True | Preferred; document if shell=True needed |
+
+If a finding is a false positive, suppress with an inline justification (see Suppression
+governance above):
+
+```python
+result = subprocess.run(cmd)  # nosec B603 — cmd is a validated static list, no user input
 ```
 
 ## Key library choices

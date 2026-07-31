@@ -54,20 +54,7 @@ uv run pytest                   # run tests without activating venv
 
 - Full validation sequence: `rules/toolchain.md`
 - Library choices and coding conventions: `rules/coding.md`
-
-### Import layer contract (enforced by `.importlinter`)
-
-Layers may only import from themselves and layers below:
-
-```
-shared → external only
-db     → shared
-rag    → db, shared
-mcp_servers → db, shared
-agent  → all layers
-```
-
-Violations fail `lint-imports`. Never import a lower layer from a higher one (e.g. `shared` must not import from `agent`, `rag`, `db`, or `mcp_servers`).
+- Import layer contract (architectural rule): `skills/DESIGN.md` §Shared Vocabulary
 
 ### Execution policy
 

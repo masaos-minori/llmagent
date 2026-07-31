@@ -84,10 +84,7 @@ git diff HEAD~1 -- scripts/
 
 ## Phase 3: Architecture Boundary Analysis
 
-```bash
-lint-imports
-cat .importlinter
-```
+See `rules/toolchain.md` §3 for the `lint-imports` command.
 
 To add a new boundary contract:
 
@@ -242,23 +239,14 @@ bandit scripts/web_crawler.py
 bandit -r scripts/ -l -ii    # high severity only
 ```
 
-Priority findings:
-- `B105`/`B106`: hardcoded credentials → move to env/conf.d
-- `B301`/`B302`: pickle → replace with JSON or pydantic
-- `B501`/`B502`: TLS disabled → never in production
-- `B608`: SQL injection → parameterized queries
+Priority findings: see `rules/coding.md` §Bandit priority findings.
 
 ---
 
 ## Phase 9: Validation Orchestration
 
-See `rules/toolchain.md` for the full sequence.
-
-Additional constraint checks:
-```bash
-ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v 'config_loader.py'
-ast-grep --pattern 'except: $$$' --lang python scripts/
-```
+See `rules/toolchain.md` for the full sequence and `rules/coding.md` §Constraint checks for
+the `ast-grep` commands.
 
 ---
 
@@ -266,12 +254,7 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 
 #### diff-cover
 
-```bash
-coverage run -m pytest tests/
-coverage xml
-diff-cover coverage.xml --compare-branch=master
-diff-cover coverage.xml --compare-branch=master --fail-under=90
-```
+See `rules/toolchain.md` §7.
 
 #### pytest-benchmark
 

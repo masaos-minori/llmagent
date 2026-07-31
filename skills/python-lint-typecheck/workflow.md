@@ -55,16 +55,10 @@ After auto-fix, review the diff. Only accept changes that are correct — do not
 
 #### ast-grep — structural pattern enforcement
 
+See `rules/coding.md` §Constraint checks for the bare-except / print() / json.load checks.
+Additional pattern specific to this skill:
+
 ```bash
-# no bare except
-ast-grep --pattern 'except: $$$' --lang python scripts/
-
-# no print() in library modules
-ast-grep --pattern 'print($$$)' --lang python scripts/
-
-# no json.load() outside config_loader.py
-ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v config_loader.py
-
 # no top-level assignment patterns that indicate global state
 ast-grep --pattern '$VAR = []' --lang python scripts/
 ```
@@ -73,10 +67,7 @@ ast-grep --pattern '$VAR = []' --lang python scripts/
 
 ## Step 3: Architecture Integrity
 
-```bash
-lint-imports
-cat .importlinter
-```
+See `rules/toolchain.md` §3 for the `lint-imports` command.
 
 If `lint-imports` reports a violation:
 
@@ -215,33 +206,13 @@ bandit -r scripts/ -l -ii            # high severity only
 bandit scripts/<file>.py
 ```
 
-Priority findings — must resolve before merge:
-
-| Code | Issue | Fix |
-|---|---|---|
-| B105/B106 | Hardcoded password/token | Move to env/conf.d |
-| B301/B302 | Pickle deserialization | Replace with JSON or Pydantic |
-| B501/B502 | TLS verification disabled | Never in production |
-| B608 | SQL injection in f-string query | Parameterized queries |
-| B404 | subprocess import | Acceptable; document why |
-| B603 | subprocess without shell=True | Preferred; document if shell=True needed |
-
-If a finding is a false positive:
-
-```python
-result = subprocess.run(cmd)  # nosec B603 — cmd is a validated static list, no user input
-```
+Priority findings — must resolve before merge: see `rules/coding.md` §Bandit priority findings.
 
 ---
 
 ## Step 8: Diff Scope Enforcement
 
-```bash
-coverage run -m pytest tests/
-coverage xml
-diff-cover coverage.xml --compare-branch=master
-diff-cover coverage.xml --compare-branch=master --fail-under=90
-```
+See `rules/toolchain.md` §7.
 
 If coverage on changed lines is below 90%:
 

@@ -123,11 +123,7 @@ Concise constraints for an AI coding agent implementing this issue.
 
 ## Priority Guidance
 
-- **High** — correctness, data integrity, security-sensitive behavior, startup/deployment failure, workflow execution, public API behavior, production reliability, critical documentation/code mismatch.
-- **Medium** — maintainability, testability, type safety, unclear ownership, ambiguous configuration behavior, non-critical documentation/code mismatch.
-- **Low** — wording cleanup, small metadata cleanup, minor formatting, non-blocking consistency improvements.
-
-See `workflow.md` Phase 7 for the full guidance.
+See `workflow.md` Phase 7 for the High / Medium / Low criteria.
 
 ---
 

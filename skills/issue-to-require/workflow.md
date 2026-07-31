@@ -70,19 +70,8 @@ Use the section structure from `SKILL.md` §Output format, matching the existing
 - Tests
 - Traceability
 
-Fill the Traceability section using this structure, leaving fields that do not apply as `N/A`:
-
-```markdown
-## Traceability
-
-- Workflow phase: issue-to-requirement
-- Source issue: {path to the source issue file}
-- Source requirement: N/A
-- Source plan: N/A
-- Source implementation procedure: N/A
-- Generated at: {timestamp from Step 3}
-- Related target files: {target files from the issue}
-```
+Fill the Traceability section using the structure in `SKILL.md` §Output format, leaving
+fields that do not apply as `N/A`.
 
 ---
 

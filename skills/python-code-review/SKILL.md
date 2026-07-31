@@ -62,7 +62,6 @@ See `workflow.md` for detailed phase content and tooling.
 
 - Do not implement unless explicitly requested.
 - Separate fact, interpretation, suspected issue, and open question.
-- Do not treat dead code as active behavior.
 - Do not trust README or old docs without implementation verification.
 - Do not over-report style-only issues.
 - Respect project conventions and explain trade-offs.
