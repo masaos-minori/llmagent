@@ -82,6 +82,11 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`
+- `skills/python-implementation/SKILL.md`
+- `skills/python-lint-typecheck/SKILL.md`
+- `skills/python-test-and-fix/SKILL.md`
+- `skills/python-debug-root-cause/SKILL.md`
+- `skills/python-documentation/SKILL.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -106,7 +111,7 @@ changed shared file.
 
 #### Step 3: Implement the feature
 
-Implement the feature according to the plan. Follow:
+Implement the feature according to the plan. Apply the guidance loaded in Step 0 from:
 - `skills/python-implementation/SKILL.md`
 - `skills/python-lint-typecheck/SKILL.md`
 
@@ -116,7 +121,7 @@ After implementing:
 
 #### Step 4: Test the feature
 
-Test according to the plan. Follow:
+Test according to the plan. Apply the guidance loaded in Step 0 from:
 - `skills/python-test-and-fix/SKILL.md`
 - `skills/python-debug-root-cause/SKILL.md`
 
@@ -125,7 +130,7 @@ Test according to the plan. Follow:
 
 #### Step 5: Update documentation
 
-Update `docs/*.md` for every changed file. Follow:
+Update `docs/*.md` for every changed file. Apply the guidance loaded in Step 0 from:
 - `skills/python-documentation/SKILL.md`
 
 Determine which sections to update by looking up each changed file in `routing.md`'s

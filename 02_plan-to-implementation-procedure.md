@@ -84,6 +84,8 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`
+- `skills/python-design/SKILL.md`
+- `skills/python-design/workflow.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -109,10 +111,10 @@ changed shared file.
 #### Step 3: Create implementation procedure documents
 
 For the "Design decisions" / "Alternatives considered" / "Compatibility considerations" /
-"Security considerations" / "Rollback considerations" fields below, follow
-`skills/python-design/SKILL.md` + `skills/python-design/workflow.md` for how to reason
-about them — but draw only the few relevant bullets from that skill's broader template;
-do not produce its full 12-section architecture output here.
+"Security considerations" / "Rollback considerations" fields below, apply
+`skills/python-design/SKILL.md` + `skills/python-design/workflow.md` (loaded in Step 0)
+for how to reason about them — but draw only the few relevant bullets from that skill's
+broader template; do not produce its full 12-section architecture output here.
 
 For each item in `Implementation steps`:
 
