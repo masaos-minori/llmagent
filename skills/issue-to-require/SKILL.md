@@ -89,7 +89,7 @@ High / Medium / Low
 
 ## See Also
 See `workflow.md` for detailed phase content, review-mode gating, and the multi-file processing procedure.
-See `00_issue-to-require.md` for how this skill is invoked as part of the document-workflow pipeline.
+See `prompts/00_issue-to-require.md` for how this skill is invoked as part of the document-workflow pipeline.
 
 ## Composes with
 - `require-to-plan` — consumes the requirement document this skill produces
