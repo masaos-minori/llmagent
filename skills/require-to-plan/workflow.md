@@ -1,4 +1,4 @@
-# Issue To Plan — Detailed Workflow
+# Require To Plan — Detailed Workflow
 
 ## Toolchain
 
@@ -27,9 +27,9 @@
 
 ---
 
-## Step 1: Parse the Request
+## Step 1: Parse the Requirement Document
 
-Extract from the task description:
+Extract from the requirement document (`requires/*.md`):
 
 - **Task type**: new feature / bug fix / refactor / integration / performance / security
 - **Target scope**: which modules, endpoints, config keys, or DB tables are mentioned
@@ -38,7 +38,7 @@ Extract from the task description:
 - **Unknowns**: things that must be discovered before the plan can be concrete
 
 State ambiguities and unknowns explicitly. Do not guess at intent.
-If the task description is too vague to plan, identify the specific questions that need answers.
+If the requirement document is too vague to plan, identify the specific questions that need answers.
 
 ---
 

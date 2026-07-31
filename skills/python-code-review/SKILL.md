@@ -146,7 +146,7 @@ State whether to proceed, fix first, or investigate further.
 
 ## Called by
 
-- `python-issue-to-plan` — when a plan needs a review of existing code before scoping changes
+- `require-to-plan` — when a plan needs a review of existing code before scoping changes
 
 ---
 

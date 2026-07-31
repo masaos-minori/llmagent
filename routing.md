@@ -15,7 +15,8 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Test / pytest / flaky | test, pytest, flaky, coverage, assertion, regression | `skills/python-test-and-fix/SKILL.md` |
 | Refactor / rename / CST | refactor, rename, restructure, split, move, import cycle | `skills/python-refactoring/SKILL.md` |
 | Code review / PR review | review, code review, PR review, findings | `skills/python-code-review/SKILL.md` |
-| Plan / design / ticket | plan, design, analyze, assess, spec, ticket | `skills/python-issue-to-plan/SKILL.md` + `skills/python-issue-to-plan/workflow.md` |
+| Issue -> requirement | issue, raw issue, issue-to-require | `skills/issue-to-require/SKILL.md` + `skills/issue-to-require/workflow.md` |
+| Plan / design / ticket | plan, design, analyze, assess, spec, ticket | `skills/require-to-plan/SKILL.md` + `skills/require-to-plan/workflow.md` |
 | Architecture / module design | architecture, module, interface, data model, component | `skills/python-design/SKILL.md` + `skills/python-design/workflow.md` |
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `rules/env.md` + `docs/04_mcp_03_01_dispatch-and-routing.md` + `docs/04_mcp_06_02_configuration-file-inventory.md` |
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` |

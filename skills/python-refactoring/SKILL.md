@@ -71,7 +71,7 @@ See `skills/DESIGN.md` §Pythonic safety constraints (exception handling, typed 
 
 ### This skill may be triggered by
 - `python-debug-root-cause`
-- `python-issue-to-plan`
+- `require-to-plan`
 
 ---
 

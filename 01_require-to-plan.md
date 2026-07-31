@@ -76,8 +76,8 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`
-- `skills/python-issue-to-plan/SKILL.md`
-- `skills/python-issue-to-plan/workflow.md`
+- `skills/require-to-plan/SKILL.md`
+- `skills/require-to-plan/workflow.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -94,7 +94,7 @@ changed shared file.
 
 #### Step 2: Create a work plan file
 
-Apply `skills/python-issue-to-plan/SKILL.md` + `skills/python-issue-to-plan/workflow.md`
+Apply `skills/require-to-plan/SKILL.md` + `skills/require-to-plan/workflow.md`
 (loaded in Step 0) for the plan-creation approach (architecture/dependency/historical
 analysis, uncertainty tracking). This skill's guidance also applies to Steps 3-6 below
 (source-file analysis, unknowns, and risks).

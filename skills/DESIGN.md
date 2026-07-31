@@ -127,7 +127,8 @@ Applies to any skill that writes or transforms production Python code
 | `python-test-and-fix` | `skills/python-test-and-fix/` | pytest test writing, flaky test detection, fix validation |
 | `python-refactoring` | `skills/python-refactoring/` | Structural refactoring without behavior change |
 | `python-code-review` | `skills/python-code-review/` | Evidence-based review of existing Python code, PRs, and diffs |
-| `python-issue-to-plan` | `skills/python-issue-to-plan/` | Convert tickets or requests into implementation plans |
+| `issue-to-require` | `skills/issue-to-require/` | Convert raw issues into formal requirement documents |
+| `require-to-plan` | `skills/require-to-plan/` | Convert requirement documents into implementation plans |
 | `python-design` | `skills/python-design/` | Architecture and module interface design |
 | `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
 | `issue-creator` | `skills/issue-creator/` | Convert requests, findings, or plans into actionable GitHub Issues |

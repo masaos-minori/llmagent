@@ -1,19 +1,19 @@
 ---
-name: python-issue-to-plan
+name: require-to-plan
 description: |
-  Use this skill PROACTIVELY when converting a feature request, bug report,
-  ticket, or vague task into a concrete Python implementation plan.
+  Use this skill PROACTIVELY when converting a formal requirement document
+  (`requires/*.md`) into a concrete Python implementation plan.
   Covers: architecture analysis, dependency graphing, historical analysis,
   operational dependency inspection, validation quality analysis, and uncertainty tracking.
   Use when the task needs scope definition, affected files, implementation steps,
   test strategy, risks, assumptions, unknowns, or execution sequencing before coding.
 ---
 
-# Issue To Plan Skill
+# Require To Plan Skill
 
 ## Purpose
 
-Turn a task description into a concrete, reviewable implementation plan grounded in architecture analysis and historical data; clarify scope with evidence before coding.
+Turn a formal requirement document into a concrete, reviewable implementation plan grounded in architecture analysis and historical data; clarify scope with evidence before coding.
 
 ---
 
@@ -125,6 +125,9 @@ The plan file is the working document: update it as scope changes, and reference
 - `python-implementation` — execute after the plan is approved by the user
 - `python-refactoring` — if the plan involves structural module changes
 - `mcp-server-add` — if the plan includes adding a new MCP server
+
+## Called by
+- `issue-to-require` — the requirement document it produces is the input to this skill
 
 ## Improvement feedback
 

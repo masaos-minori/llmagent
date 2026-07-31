@@ -90,12 +90,12 @@ design checklist.
 
 ## Composes with
 
-- `python-issue-to-plan` — called when a plan identifies that architecture or design work is needed before implementation
+- `require-to-plan` — called when a plan identifies that architecture or design work is needed before implementation
 - `python-documentation` — used when the design task requires reviewing or updating existing Python documentation
 
 ## Called by
 
-- `python-issue-to-plan` — during planning phase when design decisions or architecture analysis are required
+- `require-to-plan` — during planning phase when design decisions or architecture analysis are required
 
 ---
 

@@ -61,7 +61,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 
 ## Called by
 
-- `python-issue-to-plan` — when a plan includes adding a new MCP server
+- `require-to-plan` — when a plan includes adding a new MCP server
 
 ## Prohibited behavior
 
