@@ -78,12 +78,28 @@ class HttpServerLifecycleManager:
         self._stderr_log_paths: dict[str, str] = {}
         self._last_health_check: dict[str, float] = {}
 
-    def _open_stderr_log(self, server_key: str) -> IO[bytes]:
+    def _compute_health_check_timeout(self, startup_timeout_sec: int) -> float:
+        """Compute health check request timeout based on startup timeout.
+
+        Returns a timeout value proportional to startup_timeout_sec, bounded
+        by [3.0, 15.0] seconds.
+        """
+        return min(max(startup_timeout_sec // 10, 3.0), 15.0)
+
+    def _open_stderr_log(self, server_key: str, cfg: McpServerConfig) -> IO[bytes]:
         """Open an append-mode file for the server's stderr output and track its path."""
         safe_key = re.sub(r"[^A-Za-z0-9_-]", "_", server_key)
         log_dir = Path("/opt/llm/logs/mcp_servers")
         log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Check if rotation needed before opening
         log_path = log_dir / f"{safe_key}.stderr.log"
+        if log_path.exists():
+            size_bytes = log_path.stat().st_size
+            max_bytes = int(cfg.max_stderr_log_size_mb * 1024 * 1024)
+            if size_bytes > max_bytes:
+                self._rotate_log(log_dir, safe_key, cfg)
+
         fh = log_path.open("ab")
         self._stderr_log_paths[server_key] = str(log_path)
         return fh
@@ -101,6 +117,24 @@ class HttpServerLifecycleManager:
                 return f.read().decode(errors="replace")
         except OSError:
             return ""
+
+    def _rotate_log(self, log_dir: Path, safe_key: str, cfg: McpServerConfig) -> None:
+        """Rotate stderr log file by shifting numbered backups."""
+        for i in range(cfg.max_stderr_log_files - 1, 0, -1):
+            old_path = log_dir / f"{safe_key}.stderr.log.{i}"
+            new_path = log_dir / f"{safe_key}.stderr.log.{i + 1}"
+            if old_path.exists():
+                try:
+                    os.replace(str(old_path), str(new_path))
+                except OSError:
+                    pass
+
+        current_path = log_dir / f"{safe_key}.stderr.log"
+        rotated_path = log_dir / f"{safe_key}.stderr.log.1"
+        try:
+            os.replace(str(current_path), str(rotated_path))
+        except OSError:
+            logger.warning("Failed to rotate log file %s", current_path)
 
     async def _wait_exited(self, proc: subprocess.Popen[bytes], timeout: float) -> bool:
         """Poll proc.poll() (non-blocking) until it exits or timeout elapses.
@@ -174,8 +208,9 @@ class HttpServerLifecycleManager:
         if time.monotonic() - last_check < self._HEALTH_RECHECK_INTERVAL_SEC:
             return True
         try:
+            hc_timeout = self._compute_health_check_timeout(cfg.startup_timeout_sec)
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(timeout=self._HEALTH_RECHECK_TIMEOUT_SEC)
+                timeout=httpx.Timeout(timeout=hc_timeout)
             ) as client:
                 resp = await client.get(cfg.url.rstrip("/") + "/health")
                 self._last_health_check[server_key] = time.monotonic()
@@ -184,19 +219,15 @@ class HttpServerLifecycleManager:
             self._last_health_check[server_key] = time.monotonic()
             return False
 
-    def get_process_snapshot(self, server_key: str) -> dict | None:
-        """Return {pid, pgid, running, last_exit_code} for a managed subprocess server, or None if unknown."""
-        proc = self._http_procs.get(server_key)
-        if proc is None:
-            return None
-        running = proc.poll() is None
-        pgid = getattr(self, "_http_pgids", {}).get(server_key)
-        return {
-            "pid": proc.pid,
-            "pgid": pgid,
-            "running": running,
-            "last_exit_code": proc.poll(),
-        }
+    def _cleanup_server_resources(self, server_key: str) -> str:
+        """Read stderr tail, close stderr file handle, and remove tracking data for a server."""
+        stderr_content = self._read_stderr_tail(server_key)
+        fh = self._stderr_files.pop(server_key, None)
+        if fh is not None:
+            fh.close()
+        self._stderr_log_paths.pop(server_key, None)
+        self._last_health_check.pop(server_key, None)
+        return stderr_content
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return a read-only snapshot for a managed subprocess, or None if unknown."""
@@ -216,6 +247,25 @@ class HttpServerLifecycleManager:
             last_exit_code=last_exit_code,
             stderr_log=stderr_log,
         )
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return a dict snapshot for a managed subprocess, or None if unknown."""
+        proc = self._http_procs.get(server_key)
+        if proc is None:
+            return None
+        running = proc.poll() is None
+        last_exit_code = proc.poll() if not running else None
+        pgid = getattr(self, "_http_pgids", {}).get(server_key)
+        stderr_log = getattr(self, "_stderr_log_paths", {}).get(server_key, "")
+        return {
+            "server_key": server_key,
+            "managed": True,
+            "pid": proc.pid,
+            "pgid": pgid,
+            "running": running,
+            "last_exit_code": last_exit_code,
+            "stderr_log": stderr_log,
+        }
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return snapshots for all currently managed subprocess servers."""
@@ -262,7 +312,7 @@ class HttpServerLifecycleManager:
                     )
                 else:
                     env[key] = value
-        stderr_fh = self._open_stderr_log(server_key)
+        stderr_fh = self._open_stderr_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
         if cfg.cmd:
             cmd_basename = os.path.basename(cfg.cmd[0])
@@ -288,52 +338,42 @@ class HttpServerLifecycleManager:
             raise
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
-        except OSError:
+        except OSError as e:
             logger.warning(
                 "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
                 server_key,
                 proc.pid,
             )
-            await self._terminate_with_timeout(proc, server_key)
-            poll_result = proc.poll()
-            if poll_result is None:
-                logger.warning(
-                    "Lifecycle: subprocess %r (pid=%d) still alive after terminate/kill; will be orphaned",
-                    server_key,
-                    proc.pid,
-                )
-            elif poll_result == 0:
-                logger.info(
-                    "Lifecycle: subprocess %r (pid=%d) already exited cleanly",
-                    server_key,
-                    proc.pid,
-                )
-            else:
-                logger.info(
-                    "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
-                    server_key,
-                    proc.pid,
-                    poll_result,
-                )
-            stderr_fh.close()
-            self._stderr_files.pop(server_key, None)
-            self._stderr_log_paths.pop(server_key, None)
-            self._http_procs.pop(server_key, None)
-            self._http_pgids.pop(server_key, None)
-            return
+            try:
+                await self._terminate_with_timeout(proc, server_key)
+                poll_result = proc.poll()
+                if poll_result is not None and poll_result != 0:
+                    logger.info(
+                        "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
+                        server_key,
+                        proc.pid,
+                        poll_result,
+                    )
+            finally:
+                # Always cleanup resources if getpgid fails, even if termination fails
+                stderr_fh.close()
+                self._stderr_files.pop(server_key, None)
+                self._stderr_log_paths.pop(server_key, None)
+                self._http_procs.pop(server_key, None)
+                self._http_pgids.pop(server_key, None)
+            raise e
         self._http_procs[server_key] = proc
 
         health_url = cfg.url.rstrip("/") + "/health"
         if cfg.startup_timeout_sec > 0:
             deadline = time.monotonic() + cfg.startup_timeout_sec
-            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=5.0)) as client:
+            hc_timeout = self._compute_health_check_timeout(cfg.startup_timeout_sec)
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=hc_timeout)
+            ) as client:
                 while time.monotonic() < deadline:
                     if proc.poll() is not None:
-                        stderr_full = self._read_stderr_tail(server_key)
-                        fh = self._stderr_files.pop(server_key, None)
-                        if fh is not None:
-                            fh.close()
-                        self._stderr_log_paths.pop(server_key, None)
+                        stderr_full = self._cleanup_server_resources(server_key)
                         failure = StartupFailure(
                             server_key=server_key,
                             reason="exited early",
@@ -363,11 +403,7 @@ class HttpServerLifecycleManager:
                         )
                     await asyncio.sleep(0.5)
 
-            stderr_full = self._read_stderr_tail(server_key)
-            fh = self._stderr_files.pop(server_key, None)
-            if fh is not None:
-                fh.close()
-            self._stderr_log_paths.pop(server_key, None)
+            stderr_full = self._cleanup_server_resources(server_key)
             await self._terminate_with_timeout(proc, server_key)
             timeout_failure = StartupFailure(
                 server_key=server_key,

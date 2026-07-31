@@ -64,6 +64,11 @@ class McpServerConfig:
     key: str = field(
         default="", compare=False, repr=False
     )  # server key from config; compare=False keeps equality unaffected
+    startup_stagger_delay_sec: float = (
+        0.0  # stagger delay between consecutive server starts
+    )
+    max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
+    max_stderr_log_files: int = 3  # number of rotated files to keep
 
     def __post_init__(self) -> None:
         """Validate enum types and cross-field constraints after initialization."""
@@ -133,6 +138,21 @@ class McpServerConfig:
                     f"{key_prefix}: url must be a valid HTTP/HTTPS URL, got {self.url!r}"
                 )
 
+        if self.startup_stagger_delay_sec < 0:
+            raise ValueError(
+                f"{key_prefix}: startup_stagger_delay_sec must be >= 0, got {self.startup_stagger_delay_sec}"
+            )
+
+        if self.max_stderr_log_size_mb <= 0:
+            raise ValueError(
+                f"{key_prefix}: max_stderr_log_size_mb must be > 0, got {self.max_stderr_log_size_mb}"
+            )
+
+        if self.max_stderr_log_files < 1:
+            raise ValueError(
+                f"{key_prefix}: max_stderr_log_files must be >= 1, got {self.max_stderr_log_files}"
+            )
+
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     """Build per-server transport config from [mcp_servers.<key>] sections in *_mcp_server.toml files."""
@@ -165,6 +185,9 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         url=v.get("url", ""),
         startup_mode=StartupMode(v.get("startup_mode", "none")),
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
+        startup_stagger_delay_sec=float(v.get("startup_stagger_delay_sec", 0.0)),
+        max_stderr_log_size_mb=float(v.get("max_stderr_log_size_mb", 100.0)),
+        max_stderr_log_files=int(v.get("max_stderr_log_files", 3)),
         tool_names=list(v.get("tool_names", [])),
         auth_token=v.get("auth_token", ""),
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),

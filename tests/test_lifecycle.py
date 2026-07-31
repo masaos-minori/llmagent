@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import signal
 import sys
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -371,7 +372,8 @@ class TestStartHttpSubprocess:
             ),
             patch("agent.http_lifecycle.os.killpg"),
         ):
-            await mgr.start_http_subprocess("s", cfg)
+            with pytest.raises(OSError, match="no such process"):
+                await mgr.start_http_subprocess("s", cfg)
 
         assert "s" not in mgr._http_mgr._http_procs
         assert "s" not in mgr._http_mgr._http_pgids
@@ -388,6 +390,7 @@ class TestStartHttpSubprocess:
         mock_proc = _make_mock_proc()
         # poll() always returns None — process never exits, forcing kill escalation
         mock_proc.poll.return_value = None
+        mock_proc.kill.return_value = None
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
@@ -397,7 +400,8 @@ class TestStartHttpSubprocess:
             ),
             patch("agent.http_lifecycle.os.killpg"),
         ):
-            await mgr.start_http_subprocess("s", cfg)
+            with pytest.raises(OSError, match="no such process"):
+                await mgr.start_http_subprocess("s", cfg)
 
         assert "s" not in mgr._http_mgr._http_procs
         assert "s" not in mgr._http_mgr._http_pgids
@@ -1037,3 +1041,44 @@ class TestProcessGroupShutdown:
         assert call_count >= 2
         assert last_call_args[0] == signal.SIGINT
         assert last_call_args[1] is original_handler
+
+
+class TestCleanupServerResources:
+    def test_removes_last_health_check_entry(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        mgr._last_health_check["srv"] = time.monotonic()
+        mgr._stderr_files["srv"] = MagicMock()
+        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+
+        result = mgr._cleanup_server_resources("srv")
+
+        assert "srv" not in mgr._last_health_check
+        assert "srv" not in mgr._stderr_files
+        assert "srv" not in mgr._stderr_log_paths
+        assert result == ""
+
+    def test_removes_stderr_file_handle_and_closes_it(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        mock_fh = MagicMock()
+        mgr._stderr_files["srv"] = mock_fh
+        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+
+        mgr._cleanup_server_resources("srv")
+
+        mock_fh.close.assert_called_once_with()
+
+    def test_returns_empty_string_when_no_stderr_tail(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        mgr._stderr_files["srv"] = MagicMock()
+        mgr._stderr_log_paths["srv"] = "/tmp/test.log"
+
+        result = mgr._cleanup_server_resources("srv")
+
+        assert result == ""
+
+    def test_graceful_on_missing_keys(self) -> None:
+        mgr = HttpServerLifecycleManager()
+
+        result = mgr._cleanup_server_resources("nonexistent")
+
+        assert result == ""
