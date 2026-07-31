@@ -1056,6 +1056,23 @@ class TestCheckServicesSeverityClassification:
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.FATAL
 
+    @pytest.mark.asyncio
+    async def test_mcp_tool_discovery_fatal_in_dev_on_exception(self) -> None:
+        """When discover_all() raises and production_mode=False, the outer except clause reports
+        FATAL (instead of SKIPPED), since a discovery-call failure means all tool calls fail this
+        session."""
+        ctx = _make_startup_ctx(production_mode=False)
+        pipeline, exc = await _run_check_services(
+            ctx,
+            McpToolDiscoveryService=MagicMock(
+                side_effect=RuntimeError("discover_all boom")
+            ),
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.FATAL
+
     # ── rag_consistency ──────────────────────────────────────────────────────
 
     @pytest.mark.asyncio

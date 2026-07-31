@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
+import time
 from typing import TYPE_CHECKING
 
 import httpx
@@ -38,6 +39,8 @@ from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 from agent.workflow.approval_ops import find_all_pending_approvals
 from agent.workflow.state_store import StateStore
+
+HEALTH_CHECK_RETRY_DELAY_SEC = 1.0
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -141,31 +144,62 @@ class StartupOrchestrator:
         if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
         spawned: list[subprocess.Popen] = []
+        last_startup_time = 0.0
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if (
                 cfg.startup_mode == StartupMode.SUBPROCESS
                 and cfg.transport == TransportType.HTTP
             ):
+                if last_startup_time > 0 and cfg.startup_stagger_delay_sec > 0:
+                    elapsed = time.monotonic() - last_startup_time
+                    stagger_delay = max(0.0, cfg.startup_stagger_delay_sec - elapsed)
+                    if stagger_delay > 0:
+                        await asyncio.sleep(stagger_delay)
+                        logger.info(
+                            "Staggering startup by %.1fs for %r", stagger_delay, key
+                        )
+
                 try:
                     proc = await ctx.services_required.lifecycle.start_http_subprocess(
                         key, cfg
                     )
                     if proc is not None:
                         spawned.append(proc)
+                        last_startup_time = time.monotonic()
                 except (OSError, RuntimeError) as e:
-                    if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
-                        msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start: {e}"
-                        masked_msg = _mask_secrets(msg)
-                        logger.error(masked_msg)
-                        raise RuntimeError(masked_msg) from e
-                    logger.error(
-                        "Failed to start HTTP subprocess MCP server %r: %s",
+                    # First attempt failure — log at INFO level
+                    logger.info(
+                        "First attempt failed for MCP subprocess %r: %s",
                         key,
                         _mask_secrets(str(e)),
                     )
-                    self._view.write_warning(
-                        f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start: {e}"
-                    )
+
+                    # Retry after delay
+                    await asyncio.sleep(HEALTH_CHECK_RETRY_DELAY_SEC)
+                    try:
+                        proc = (
+                            await ctx.services_required.lifecycle.start_http_subprocess(
+                                key, cfg
+                            )
+                        )
+                        if proc is not None:
+                            spawned.append(proc)
+                            last_startup_time = time.monotonic()
+                    except (OSError, RuntimeError) as retry_err:
+                        # Retry attempt failure — log at WARNING level
+                        if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:
+                            msg = f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start after retry: {retry_err}"
+                            masked_msg = _mask_secrets(msg)
+                            logger.error(masked_msg)
+                            raise RuntimeError(masked_msg) from retry_err
+                        logger.warning(
+                            "MCP subprocess %r failed to start after retry: %s",
+                            key,
+                            _mask_secrets(str(retry_err)),
+                        )
+                        self._view.write_warning(
+                            f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start after retry: {retry_err}"
+                        )
         return spawned
 
     async def _verify_mcp_health(self) -> None:
@@ -193,7 +227,7 @@ class StartupOrchestrator:
                     logger.info("Post-startup health check passed for %r", server_key)
             except Exception:
                 try:
-                    await asyncio.sleep(1.0)
+                    await asyncio.sleep(HEALTH_CHECK_RETRY_DELAY_SEC)
                     async with httpx.AsyncClient(timeout=5.0) as client:
                         resp = await client.get(url)
                         if resp.status_code != httpx.codes.OK:
@@ -308,15 +342,12 @@ class StartupOrchestrator:
             if not discovery.findings and not discovery.unreachable:
                 pipeline.add_ok("mcp_tool_discovery")
         except Exception as exc:  # noqa: BLE001
-            msg = f"MCP tool discovery failed - ALL tool calls will fail this session: {exc}"
-            if production_mode:
-                pipeline.add_fatal(
-                    "mcp_tool_discovery",
-                    msg,
-                    remediation="Investigate MCP server connectivity/discovery failure before restarting.",
-                )
-            else:
-                pipeline.add_skipped("mcp_tool_discovery", msg)
+            msg = f"MCP tool discovery failed: {exc}. No MCP tools will be available this session."
+            pipeline.add_fatal(
+                "mcp_tool_discovery",
+                msg,
+                remediation="Check MCP server connectivity and configuration.",
+            )
 
         # 5. Routing drift (static)
         try:

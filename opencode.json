@@ -11,9 +11,9 @@
             },
             "models": {
                 "local-model": {
-                    "name": "Qwen3.6 (llama.cpp)",
+                    "name": "llama.cpp",
                     "limit": {
-                        "context": 98304,
+                        "context": 65536,
                         "output": 8192
                     }
                 }

@@ -122,6 +122,14 @@ class ConfigReloadService:
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
         result = self._classify_mcp_server_changes(ctx, new_cfg)
+        for item in result.needs_restart:
+            if item.endswith(" (removed server)"):
+                server_key = item.replace("mcp_servers/", "").removesuffix(
+                    " (removed server)"
+                )
+                lifecycle = ctx.services_required.lifecycle
+                if lifecycle is not None:
+                    getattr(lifecycle, "_cleanup_server_resources")(server_key)
         self._apply_llm_prompt_params(ctx, new_cfg)
         self._apply_sse_reload_params(ctx, new_cfg)
         service_result = self._sync_services(new_cfg)
