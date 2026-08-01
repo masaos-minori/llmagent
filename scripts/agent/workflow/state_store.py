@@ -277,27 +277,41 @@ class StateStore:
                 )
         return stale
 
-    def recover_stale_attempts(self, db: SQLiteHelper) -> None:
-        """Mark stale running attempts as failed at startup.
+    def recover_stale_attempts(self, db: SQLiteHelper) -> int:
+        """Mark stale running attempts as failed using optimistic locking.
 
         An attempt is considered stale if it has been running longer than the
-        configured grace period (_STALE_GRACE_SEC).  This method is called once
+        configured grace period (_STALE_GRACE_SEC). This method is called once
         during process initialization before any turn processing begins.
+
+        Returns the number of successfully transitioned attempts.
         """
         stale = self.find_stale_running_attempts(db)
+        recovered_count = 0
         for item in stale:
             attempt_id = item["attempt_id"]
             started_at = item["started_at"]
             elapsed = item["elapsed_sec"]
             logger.warning(
-                "Recovering stale attempt %s (started_at=%s, elapsed=%.1fs)",
+                "Attempting recovery of stale attempt %s (started_at=%s, elapsed=%.1fs)",
                 attempt_id,
                 started_at,
                 elapsed,
             )
-            db.execute(
-                "UPDATE attempts SET status='failed', ended_at=? WHERE attempt_id=?",
+            # Optimistic lock: only update if status is still 'running'
+            cursor = db.execute(
+                "UPDATE attempts SET status='failed', ended_at=? WHERE attempt_id=? AND status='running'",
                 (_now(), attempt_id),
             )
+            if cursor.rowcount == 1:
+                recovered_count += 1
+                logger.info("Successfully marked attempt %s as failed", attempt_id)
+            else:
+                logger.info(
+                    "Failed to mark attempt %s as failed (already claimed or changed state)",
+                    attempt_id,
+                )
+
         if stale:
             db.commit()
+        return recovered_count

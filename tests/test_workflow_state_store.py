@@ -6,6 +6,7 @@ Uses a temp workflow.sqlite to avoid touching /opt/llm/db/.
 from __future__ import annotations
 
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -453,3 +454,80 @@ class TestRecoverStaleAttempts:
             assert rows[0][0] is not None
         finally:
             s.close()
+
+
+class TestStaleRecoveryConcurrency:
+    def test_concurrent_recovery_claims_only_once(self, workflow_db: Path) -> None:
+        import sqlite3
+        import time
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+        from db.config import DbConfig
+
+        # Setup: create a stale attempt manually in the DB
+        old_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 100))
+
+        # Use raw connection to seed data
+        conn = sqlite3.connect(str(workflow_db))
+        task_id = "task-concurrent"
+        attempt_id = "att-concurrent"
+        conn.execute(
+            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                task_id,
+                "sess-test",
+                1,
+                f"{task_id}:1",
+                "pending",
+                "1.0.0",
+                "wf-test",
+                old_ts,
+                old_ts,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+            (attempt_id, task_id, "execute", old_ts),
+        )
+        conn.commit()
+        conn.close()
+
+        results = []
+        errors = []
+
+        def worker():
+            try:
+                with patch(
+                    "db.helper.build_db_config",
+                    return_value=DbConfig(
+                        rag_db_path="/tmp/rag.sqlite",
+                        session_db_path="/tmp/session.sqlite",
+                        workflow_db_path=str(workflow_db),
+                    ),
+                ):
+                    s = StateStore()
+                    count = s.recover_stale_attempts(s.get_connection())
+                    results.append(count)
+                    s.close()
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=worker) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0, f"Errors occurred during concurrent recovery: {errors}"
+        assert sum(results) == 1, (
+            f"Expected exactly 1 attempt to be recovered, but got {sum(results)}"
+        )
+
+        # Verify final state in DB
+        conn = sqlite3.connect(str(workflow_db))
+        rows = conn.execute(
+            "SELECT status FROM attempts WHERE attempt_id=?", (attempt_id,)
+        ).fetchall()
+        assert rows[0][0] == "failed"
+        conn.close()
