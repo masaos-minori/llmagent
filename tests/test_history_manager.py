@@ -177,20 +177,46 @@ class TestCompressWithLLM:
         assert len(result) <= len(h)
 
     @pytest.mark.asyncio
-    async def test_returns_fallback_truncated_history_on_empty_llm_response(
+    async def test_returns_original_and_error_when_llm_fails_under_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # char_limit=1000 ensures we are under the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1000, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_fallback_when_llm_fails_over_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # char_limit=1 ensures we are over the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, cr = await mgr.compress(h)
+        # Since it's over limit and LLM failed, it should fall back to truncation
+        assert cr.is_fallback is True
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_returns_none_under_limit(
         self,
     ) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate an empty response that triggers HistoryCompressionError
         mock_resp = MagicMock()
         mock_resp.content = orjson.dumps({"choices": []})
         mock_resp.raise_for_status = MagicMock()
         mock_http.post.return_value = mock_resp
-
-        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
-        h = self._over_limit_history()
+        # char_limit=1000 ensures we are under the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1000, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
         result, cr = await mgr.compress(h)
-        assert cr.is_fallback is True
-        assert len(result) <= len(h)
+        assert result == h
+        assert cr.error is None
+        assert cr.is_fallback is False
 
     @pytest.mark.asyncio
     async def test_preserves_system_messages(self) -> None:
@@ -275,7 +301,9 @@ class TestCompressBoundary:
     @pytest.mark.asyncio
     async def test_compress_turns_one_with_single_turn_skips(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        mgr = _make_manager(
+            char_limit=1, compress_turns=1, protect_turns=1, http=mock_http
+        )
         h = _history(("user", "only question"), ("assistant", "only answer"))
         result, info = await mgr.compress(h)
         assert result == h
