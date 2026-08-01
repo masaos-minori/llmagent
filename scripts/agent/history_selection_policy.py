@@ -136,7 +136,7 @@ class HistorySelectionPolicy:
         turn_msgs = [m for m in history if m["role"] != "system"]
         n_protect = self._protect_turns * 2
         n_compress = self._compress_turns * 2
-        if len(turn_msgs) <= n_compress + n_protect:
+        if len(turn_msgs) < n_compress + n_protect:
             return None
 
         temporary, temporary_reasoning, factual, history_msgs = self.partition_by_class(

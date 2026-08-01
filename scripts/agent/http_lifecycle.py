@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import signal
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
@@ -64,7 +65,7 @@ class HttpServerLifecycleManager:
     _STDERR_TAIL_BYTES = 64 * 1024
     _TERMINATE_POLL_INTERVAL_SEC: float = 0.05
     _ALLOWED_COMMANDS: frozenset[str] = frozenset(
-        {"node", "npm", "npx", "uvx", "python", "pipx"}
+        {"node", "npm", "npx", "uvx", "python", "pipx", "uvicorn"}
     )
     _PROTECTED_ENV_VARS: frozenset[str] = frozenset(
         {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
@@ -162,14 +163,21 @@ class HttpServerLifecycleManager:
         if proc.poll() is not None:
             return
         pgid = self._http_pgids.get(server_key)
+        used_pgid = False
         if pgid is not None:
             try:
                 os.killpg(pgid, signal.SIGTERM)  # nosec B603
+                used_pgid = True
             except (ProcessLookupError, OSError):
                 proc.terminate()
         else:
             proc.terminate()
         if await self._wait_exited(proc, timeout):
+            if not used_pgid:
+                logger.warning(
+                    "Lifecycle: %r terminated, but children may remain (no pgid available)",
+                    server_key,
+                )
             return
         logger.warning(
             "Lifecycle: force-killing %r (terminate timed out)",
@@ -314,15 +322,51 @@ class HttpServerLifecycleManager:
                     env[key] = value
         stderr_fh = self._open_stderr_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
-        if cfg.cmd:
-            cmd_basename = os.path.basename(cfg.cmd[0])
-            if cmd_basename not in self._ALLOWED_COMMANDS:
-                logger.error(
-                    "MCP subprocess rejected: command '%s' not in whitelist (%s)",
-                    cfg.cmd[0],
-                    ", ".join(sorted(self._ALLOWED_COMMANDS)),
+        if not cfg.cmd or not cfg.cmd[0]:
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason="Empty command configuration",
+                    stderr_full="",
                 )
-                return
+            )
+
+        # Resolve the command to an absolute path, handling PATH lookup
+        cmd_executable = shutil.which(cfg.cmd[0])
+        if cmd_executable is None:
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=f"Command '{cfg.cmd[0]}' not found in PATH.",
+                    stderr_full="",
+                )
+            )
+
+        # Resolve symlinks to prevent bypass and get absolute path
+        cmd_path = os.path.realpath(cmd_executable)
+
+        # Verify the resolved path exists and is a regular file
+        if not os.path.isfile(cmd_path):
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=f"Resolved command '{cmd_path}' is not a regular file.",
+                    stderr_full="",
+                )
+            )
+
+        # Check against whitelist using the basename of the resolved path
+        base_name = os.path.basename(cmd_path)
+        if base_name not in self._ALLOWED_COMMANDS and not base_name.startswith(
+            "python3"
+        ):
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=f"Command '{cfg.cmd[0]}' (resolved to '{cmd_path}') is not in the allowed commands list.",
+                    stderr_full="",
+                )
+            )
         try:
             proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
                 cfg.cmd,
@@ -464,13 +508,18 @@ class HttpServerLifecycleManager:
         if old_sigint is not None:
             try:
                 signal.signal(signal.SIGINT, self._absorb_sigint_during_shutdown)
-            except ValueError as exc:
-                # signal.signal() failed — do not install the guard handler.
-                # Keep old_sigint intact so the finally block can restore the original handler.
-                logger.debug(
-                    "Lifecycle: could not install SIGINT guard handler: %s",
-                    exc,
-                )
+            except ValueError:
+                # If not on the main thread, attempt to schedule on the event loop.
+                try:
+                    asyncio.get_running_loop().call_soon_threadsafe(
+                        lambda: signal.signal(
+                            signal.SIGINT, self._absorb_sigint_during_shutdown
+                        )
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        "Lifecycle: could not schedule SIGINT guard handler: %s", exc
+                    )
 
         try:
             keys = list(self._http_procs.keys())
@@ -502,4 +551,12 @@ class HttpServerLifecycleManager:
             self._last_health_check.clear()
         finally:
             if old_sigint is not None:
-                signal.signal(signal.SIGINT, old_sigint)
+                try:
+                    signal.signal(signal.SIGINT, old_sigint)
+                except ValueError:
+                    try:
+                        asyncio.get_running_loop().call_soon_threadsafe(
+                            lambda: signal.signal(signal.SIGINT, old_sigint)
+                        )
+                    except Exception:
+                        pass

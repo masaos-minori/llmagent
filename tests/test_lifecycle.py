@@ -4,6 +4,10 @@ Unit tests for agent.factory._ServerLifecycleRouter.
 
 from __future__ import annotations
 
+import os
+
+os.environ["PYTHONPATH"] = "."
+
 import signal
 import sys
 import time
@@ -83,12 +87,16 @@ def _make_test_cfg(
         auth_token="",
         startup_mode=StartupMode.SUBPROCESS,
         startup_timeout_sec=startup_timeout_sec,
-        cmd=cmd or ["true"],
+        cmd=cmd if cmd is not None else ["true"],
     )
 
 
 def _patch_open_to_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def patched_open(self: HttpServerLifecycleManager, server_key: str) -> object:
+    def patched_open(
+        self: HttpServerLifecycleManager,
+        server_key: str,
+        cfg: McpServerConfig | None = None,
+    ) -> object:
         log_path = tmp_path / f"{server_key}.stderr.log"
         fh = log_path.open("ab")
         self._stderr_log_paths[server_key] = str(log_path)
@@ -119,12 +127,22 @@ class TestEnsureReady:
 class TestEnsureReadySubprocess:
     @pytest.mark.asyncio
     async def test_subprocess_http_already_running_noop(self) -> None:
+        """Verify that if a process is already running, ensure_ready does nothing."""
         proc = MagicMock()
         proc.poll.return_value = None  # still alive
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
         mgr._http_mgr._http_procs["srv"] = proc
+
+        with (
+            patch(
+                "agent.http_lifecycle.subprocess.Popen", return_value=_make_mock_proc()
+            ),
+            patch("agent.http_lifecycle.os.getpgid", return_value=9999),
+        ):
+            mgr._http_mgr.verify_running_async = AsyncMock(return_value=True)
+            await mgr.ensure_ready("srv")
         await mgr.ensure_ready("srv")
         # verify no attempt to start a new process
         ex.set_transport.assert_not_called()
@@ -350,8 +368,62 @@ class TestStartHttpSubprocess:
         assert call_kwargs["env"].get("MY_VAR") == "val"
 
     @pytest.mark.asyncio
-    async def test_health_poll_exception_is_logged_not_raised(self) -> None:
-        pytest.skip("source code cfg.cmd removed; skip until source fix")
+    async def test_starts_rejects_symlink_to_unauthorized_target(self) -> None:
+        """Verify that symlinked commands are correctly identified and blocked if they point to unauthorized targets."""
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+
+        with (
+            patch(
+                "agent.http_lifecycle.subprocess.Popen", return_value=_make_mock_proc()
+            ),
+            patch(
+                "agent.http_lifecycle.os.path.realpath",
+                return_value="/usr/bin/malicious",
+            ),
+            patch("agent.http_lifecycle.os.path.isfile", return_value=True),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.os.getpgid", return_value=9999),
+            patch("agent.http_lifecycle.os.killpg"),
+        ):
+            _wire_http_client(MockClient, status_code=200)
+            with pytest.raises(
+                HttpStartupError, match="is not in the allowed commands list"
+            ):
+                await mgr.start_http_subprocess("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_starts_rejects_empty_command(self) -> None:
+        """Verify that empty cmd results in a HttpStartupError."""
+        cfg = MagicMock(spec=McpServerConfig)
+        cfg.cmd = []
+        cfg.startup_mode = StartupMode.SUBPROCESS
+        cfg.env = {}
+        cfg.url = ""
+        cfg.auth_token = ""
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+
+        with pytest.raises(HttpStartupError, match="Empty command configuration"):
+            await mgr.start_http_subprocess("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_starts_rejects_non_existent_command(self) -> None:
+        """Verify that non-existent commands result in a HttpStartupError."""
+        cfg = _make_test_cfg(cmd=["nonexistent_cmd"])
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex)
+
+        with (
+            patch(
+                "agent.http_lifecycle.shutil.which",
+                return_value="/usr/bin/nonexistent_cmd",
+            ),
+            patch("agent.http_lifecycle.os.path.isfile", return_value=False),
+        ):
+            with pytest.raises(HttpStartupError, match="not a regular file"):
+                await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
     async def test_getpgid_failure_cleans_up_resources(self) -> None:

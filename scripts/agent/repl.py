@@ -255,6 +255,7 @@ class AgentREPL:
                 )
             except (RuntimeError, sqlite3.Error) as e:
                 logger.debug("DiagnosticStore.save failed: %s", e)
+                self._view.write_warning(f"Diagnostics could not be saved: {e}")
 
         except (OSError, sqlite3.Error):
             logger.debug("Failed to persist session diagnostics", exc_info=True)
@@ -750,7 +751,7 @@ class AgentREPL:
                     import sys
 
                     # Only register if we're running in a console window
-                    if hasattr(sys, "frozen") or sys.stdout.isatty():
+                    if hasattr(sys, "frozen"):
                         try:
                             import win32api
                             import win32con

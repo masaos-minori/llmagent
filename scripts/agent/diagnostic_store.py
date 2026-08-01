@@ -28,7 +28,7 @@ _SENSITIVE_FIELDS: tuple[str, ...] = ("artifacts", "rag_stage_outcomes")
 
 _SENSITIVE_PATTERNS = [
     re.compile(
-        r"(?i)(api[_-]?key|secret|token|password|access_token|auth_token)['\"]?[\s:=]+['\"]?([a-zA-Z0-9_\-\.]{16,})['\"]?"
+        r"(?i)(api[_-]?key|secret|token|password|access_token|auth_token|bearer|client_secret)['\"]?[\s:=]+['\"]?([a-zA-Z0-9_\-\.]{16,})['\"]?"
     ),
 ]
 

@@ -44,6 +44,7 @@ class CompressResult:
     protected_count: int
     summary_added: bool
     is_fallback: bool = False
+    error: str | None = None
 
 
 class HistoryManager:
@@ -283,7 +284,12 @@ class HistoryManager:
         if summary_text is None:
             if self._is_over_char_limit(history):
                 return self._fallback_truncate(history)
-            return history, _no_op
+            return history, CompressResult(
+                compressed_count=0,
+                protected_count=0,
+                summary_added=False,
+                error="compression returned None",
+            )
         return self._build_compressed_result(split, summary_text)
 
     def _is_over_char_limit(self, history: list[LLMMessage]) -> bool:
@@ -305,7 +311,7 @@ class HistoryManager:
         )
         new_history = list(history)
         for msg in candidates:
-            if not self._is_over_char_limit(new_history):
+            if not self._is_over_char_limit(new_history) or len(new_history) <= 1:
                 break
             new_history = [m for m in new_history if m is not msg]
 

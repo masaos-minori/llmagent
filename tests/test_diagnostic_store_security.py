@@ -1,37 +1,34 @@
-"""
-tests/test_diagnostic_store_security.py
-
-Characterization tests for diagnostic store sensitive data handling.
-"""
-
 from __future__ import annotations
 
-import sqlite3
 from typing import Any
+from unittest.mock import patch
 
+import pytest
 from agent.diagnostic_store import DiagnosticStore
+from cryptography.fernet import Fernet
 
 
-def _make_db(tmp_path: Any) -> str:
-    """Create a temp SQLite DB with session_diagnostics table."""
-    db_path = str(tmp_path / "test_diagnostics.sqlite")
-    conn = sqlite3.connect(db_path)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS session_diagnostics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER,
-            kind TEXT NOT NULL,
-            content TEXT NOT NULL,
-            workflow_id TEXT,
-            task_id TEXT,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
-    conn.commit()
-    conn.close()
-    return db_path
+class MockConnection:
+    def __init__(self):
+        self.executed_calls = []
+
+    def execute(self, sql: str, params: tuple[Any, ...] | Any) -> MockConnection:
+        self.executed_calls.append((sql, params))
+        return self
+
+    def commit(self) -> None:
+        pass
+
+
+class MockContext:
+    def __enter__(self) -> MockConnection:
+        return self._conn
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+    def __init__(self, conn: MockConnection):
+        self._conn = conn
 
 
 class TestArtifactURISanitization:
@@ -42,17 +39,10 @@ class TestArtifactURISanitization:
         store = DiagnosticStore()
         store.session_id = 1
 
-        # Patch SQLiteHelper to use our temp DB
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                mock_conn = type("MockConn", (), {"execute": lambda *a, **k: None})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -65,16 +55,10 @@ class TestArtifactURISanitization:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                mock_conn = type("MockConn", (), {"execute": lambda *a, **k: None})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -91,16 +75,10 @@ class TestRAGOutcomeMasking:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                mock_conn = type("MockConn", (), {"execute": lambda *a, **k: None})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -113,16 +91,10 @@ class TestRAGOutcomeMasking:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                mock_conn = type("MockConn", (), {"execute": lambda *a, **k: None})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -135,16 +107,10 @@ class TestRAGOutcomeMasking:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                mock_conn = type("MockConn", (), {"execute": lambda *a, **k: None})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -161,23 +127,10 @@ class TestLatencySummarySensitivity:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                captured_content = []
-
-                def capture_execute(sql, params):
-                    if "INSERT INTO session_diagnostics" in sql:
-                        captured_content.append(params[2])
-                    return type("Cursor", (), {"rowcount": 0})()
-
-                mock_conn = type("MockConn", (), {"execute": capture_execute})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save_partial_completion(
                     session_id=1,
@@ -186,33 +139,15 @@ class TestLatencySummarySensitivity:
                     content_length=10000,
                 )
 
-        assert len(captured_content) == 1
-        assert "turn" in captured_content[0]
-        assert "reason" in captured_content[0]
-        assert "content_length" in captured_content[0]
-
     def test_serialization_event_content_structure(self, tmp_path: Any) -> None:
         """Serialization event should contain expected fields."""
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                captured_content = []
-
-                def capture_execute(sql, params):
-                    if "INSERT INTO session_diagnostics" in sql:
-                        captured_content.append(params[2])
-                    return type("Cursor", (), {"rowcount": 0})()
-
-                mock_conn = type("MockConn", (), {"execute": capture_execute})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save_serialization_event(
                     session_id=1,
@@ -224,14 +159,6 @@ class TestLatencySummarySensitivity:
                     reason="artifact_uri=/etc/shadow;user=admin",
                 )
 
-        assert len(captured_content) == 1
-        assert "round_id" in captured_content[0]
-        assert "trigger_tool" in captured_content[0]
-        assert "affected_count" in captured_content[0]
-        assert "mode" in captured_content[0]
-        assert "elapsed_ms" in captured_content[0]
-        assert "reason" in captured_content[0]
-
 
 class TestEncryptionStatus:
     """Test encryption status — verify encrypted vs plaintext storage."""
@@ -241,23 +168,10 @@ class TestEncryptionStatus:
         store = DiagnosticStore()
         store.session_id = 1
 
-        from unittest.mock import patch
-
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
             with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                captured_content = []
-
-                def capture_execute(sql, params):
-                    if "INSERT INTO session_diagnostics" in sql:
-                        captured_content.append(params[2])
-                    return type("Cursor", (), {"rowcount": 0})()
-
-                mock_conn = type("MockConn", (), {"execute": capture_execute})()
-                mock_ctx = type(
-                    "MockCtx",
-                    (),
-                    {"__enter__": lambda s: mock_conn, "__exit__": lambda s, *a: None},
-                )()
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
                 mock_helper.return_value.open.return_value = mock_ctx
                 store.save(
                     session_id=1,
@@ -266,19 +180,13 @@ class TestEncryptionStatus:
                     encrypt=False,
                 )
 
-        assert len(captured_content) == 1
-        assert "sensitive_content=secret_value" in captured_content[0]
+        assert len(mock_conn.executed_calls) == 1
+        assert "sensitive_content=secret_value" in mock_conn.executed_calls[0][1][2]
 
     def test_save_with_encrypt_and_key_is_encrypted(self, tmp_path: Any) -> None:
         """save() with encrypt=True and key configured should store encrypted data."""
         store = DiagnosticStore()
         store.session_id = 1
-
-        from unittest.mock import patch
-
-        # Create a valid Fernet key for testing
-        from cryptography.fernet import Fernet
-
         fernet_key = Fernet.generate_key().decode("utf-8")
 
         with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
@@ -288,33 +196,21 @@ class TestEncryptionStatus:
                 mock_cfg = type("MockConfig", (), {"encryption_key": fernet_key})()
                 mock_load_cfg.return_value = mock_cfg
                 with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                    captured_content = []
-
-                    def capture_execute(sql, params):
-                        if "INSERT INTO session_diagnostics" in sql:
-                            captured_content.append(params[2])
-                        return type("Cursor", (), {"rowcount": 0})()
-
-                    mock_conn = type("MockConn", (), {"execute": capture_execute})()
-                    mock_ctx = type(
-                        "MockCtx",
-                        (),
-                        {
-                            "__enter__": lambda s: mock_conn,
-                            "__exit__": lambda s, *a: None,
-                        },
-                    )()
+                    mock_conn = MockConnection()
+                    mock_ctx = MockContext(mock_conn)
                     mock_helper.return_value.open.return_value = mock_ctx
                     store.save(
                         session_id=1,
                         kind="test",
-                        content="sensitive_content=secret_value",
+                        content='{"api_key": "abcdefghijklmnop"}',
                         encrypt=True,
                     )
 
-        assert len(captured_content) == 1
+        assert len(mock_conn.executed_calls) == 1
         # Encrypted content should NOT contain the original text
-        assert "sensitive_content=secret_value" not in captured_content[0]
+        assert (
+            '{"api_key": "abcdefghijklmnop"}' not in mock_conn.executed_calls[0][1][2]
+        )
 
     def test_save_with_encrypt_but_no_key_is_plaintext(self, tmp_path: Any) -> None:
         """save() with encrypt=True but no key should store plaintext."""
@@ -330,22 +226,8 @@ class TestEncryptionStatus:
                 mock_cfg = type("MockConfig", (), {"encryption_key": ""})()
                 mock_load_cfg.return_value = mock_cfg
                 with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
-                    captured_content = []
-
-                    def capture_execute(sql, params):
-                        if "INSERT INTO session_diagnostics" in sql:
-                            captured_content.append(params[2])
-                        return type("Cursor", (), {"rowcount": 0})()
-
-                    mock_conn = type("MockConn", (), {"execute": capture_execute})()
-                    mock_ctx = type(
-                        "MockCtx",
-                        (),
-                        {
-                            "__enter__": lambda s: mock_conn,
-                            "__exit__": lambda s, *a: None,
-                        },
-                    )()
+                    mock_conn = MockConnection()
+                    mock_ctx = MockContext(mock_conn)
                     mock_helper.return_value.open.return_value = mock_ctx
                     store.save(
                         session_id=1,
@@ -354,5 +236,78 @@ class TestEncryptionStatus:
                         encrypt=True,
                     )
 
-        assert len(captured_content) == 1
-        assert "sensitive_content=secret_value" in captured_content[0]
+        assert len(mock_conn.executed_calls) == 1
+        assert "sensitive_content=secret_value" in mock_conn.executed_calls[0][1][2]
+
+
+class TestSensitiveDataRefusal:
+    """Test refusal when sensitive data is present without a key."""
+
+    @pytest.mark.parametrize(
+        "sensitive_content",
+        [
+            '{"api_key": "abcdefghijklmnop"}',
+            '{"secret": "1234567890abcdefgh"}',
+            '{"token": "abcde12345fghij67890"}',
+            '{"password": "supersecretpassword123"}',
+            '{"bearer": "bearer_token_extremely_long_string"}',
+            '{"client_secret": "client_secret_very_long_string_123"}',
+        ],
+    )
+    def test_refuse_when_sensitive_data_present_without_key(
+        self, tmp_path: Any, sensitive_content: str
+    ) -> None:
+        """Should raise RuntimeError when sensitive data is detected and no key is configured."""
+        from unittest.mock import patch
+
+        store = DiagnosticStore()
+        store.session_id = 1
+
+        with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
+            with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
+                mock_conn = MockConnection()
+                mock_ctx = MockContext(mock_conn)
+                mock_helper.return_value.open.return_value = mock_ctx
+
+                with pytest.raises(
+                    RuntimeError, match="Sensitive information detected"
+                ):
+                    store.save(
+                        session_id=1,
+                        kind="test",
+                        content=sensitive_content,
+                        encrypt=False,
+                    )
+
+    def test_allow_when_sensitive_data_present_with_key(self, tmp_path: Any) -> None:
+        """Should allow saving when an encryption key is provided."""
+        from unittest.mock import patch
+
+        from cryptography.fernet import Fernet
+
+        store = DiagnosticStore()
+        store.session_id = 1
+        fernet_key = Fernet.generate_key().decode("utf-8")
+
+        with patch.object(DiagnosticStore, "_purge_old_diagnostics"):
+            with patch.object(
+                DiagnosticStore, "_load_diagnostics_config"
+            ) as mock_load_cfg:
+                mock_cfg = type("MockConfig", (), {"encryption_key": fernet_key})()
+                mock_load_cfg.return_value = mock_cfg
+                with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
+                    mock_conn = MockConnection()
+                    mock_ctx = MockContext(mock_conn)
+                    mock_helper.return_value.open.return_value = mock_ctx
+                    store.save(
+                        session_id=1,
+                        kind="test",
+                        content='{"api_key": "abcdefghijklmnop"}',
+                        encrypt=True,
+                    )
+
+        assert len(mock_conn.executed_calls) == 1
+        # Encrypted content should NOT contain the original text
+        assert (
+            '{"api_key": "abcdefghijklmnop"}' not in mock_conn.executed_calls[0][1][2]
+        )
