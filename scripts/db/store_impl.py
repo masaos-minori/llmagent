@@ -12,7 +12,7 @@ Classes:
 Protocols are defined in db/store_protocols.py.
 """
 
-from db.helper import SQLiteHelper
+from db.helper import SQLiteHelper, coalesce_str
 from db.models import DocumentRow, MessageRow, SessionRow
 from db.store_protocols import (
     MemoryDeleteResult,
@@ -103,7 +103,7 @@ class SQLiteDocumentStore:
             url=str(r[1]),
             title=r[2],
             lang=r[3],
-            fetched_at=str(r[4]) if r[4] is not None else "",
+            fetched_at=coalesce_str(r[4], ""),
         )
 
     def doc_list(self, lang: str | None, limit: int) -> list[DocumentRow]:
@@ -125,7 +125,7 @@ class SQLiteDocumentStore:
                 url=str(r[1]),
                 title=r[2],
                 lang=str(r[3]),
-                fetched_at=str(r[4]) if r[4] is not None else "",
+                fetched_at=coalesce_str(r[4], ""),
             )
             for r in rows
         ]
@@ -187,7 +187,7 @@ class SQLiteSessionStore:
         return [
             SessionRow(
                 session_id=int(r[0]),
-                created_at=str(r[1]) if r[1] is not None else "",
+                created_at=coalesce_str(r[1], ""),
                 title=r[2],
             )
             for r in rows
@@ -227,9 +227,9 @@ class SQLiteSessionStore:
         return [
             MessageRow(
                 role=str(r[0]),
-                content=str(r[1]) if r[1] is not None else "",
+                content=coalesce_str(r[1], ""),
                 tool_calls=r[2],
-                tool_call_id=r[3] if r[3] is not None else None,
+                tool_call_id=r[3],
             )
             for r in rows
         ]

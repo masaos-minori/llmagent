@@ -12,7 +12,24 @@ if TYPE_CHECKING:
     import httpx
 
     from rag.models_data import TwoStageFetchResult  # noqa: TCH004
+from rag.models_result import HttpResultKind
 from rag.stage import StageResult
+
+_HTTP_RESULT_KIND_MAP: dict[str, HttpResultKind] = {
+    "remote_nonempty": HttpResultKind.SUCCESS,
+    "remote_empty": HttpResultKind.EMPTY,
+    "in_process_fallback": HttpResultKind.ERROR,
+}
+
+
+def _map_http_result_kind(
+    kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback"]
+    | str
+    | None,
+) -> HttpResultKind:
+    if kind is None:
+        return HttpResultKind.NOT_USED
+    return _HTTP_RESULT_KIND_MAP[kind]
 
 
 class HttpAugmentResult:

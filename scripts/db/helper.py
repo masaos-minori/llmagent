@@ -24,6 +24,16 @@ logger = logging.getLogger(__name__)
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 
 
+def coalesce_str(value: str | None, default: str = "") -> str:
+    """Return value if not None, otherwise return default."""
+    return value if value is not None else default
+
+
+def coalesce_int(value: int | None, default: int = 0) -> int:
+    """Return value if not None, otherwise return default."""
+    return value if value is not None else default
+
+
 def apply_connection_pragmas(
     conn: sqlite3.Connection,
     *,

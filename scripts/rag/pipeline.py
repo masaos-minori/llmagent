@@ -36,7 +36,7 @@ from shared.types import (
 )
 
 from rag.cache import SemanticCache
-from rag.http_augment import HttpAugment
+from rag.http_augment import HttpAugment, _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import SearchDiagnostics
@@ -483,24 +483,17 @@ class RagPipeline:
         )
         result = await http_aug.run(query, history_context)
         # Apply diagnostics from HttpAugment result
-        if result.http_result_kind is not None:
-            self._http_result_kind = result.http_result_kind
-        # Update diagnostics based on result
-        from rag.models_result import HttpResultKind, ResultSource
+        from rag.models_result import ResultSource
 
         if result.result is not None:
             result_source = ResultSource.REMOTE
-            http_result_kind = (
-                HttpResultKind.EMPTY if result.result == "" else HttpResultKind.SUCCESS
-            )
         else:
             result_source = ResultSource.FALLBACK
-            http_result_kind = HttpResultKind.ERROR
 
         self.last_search_diagnostics = dataclasses.replace(
             self.last_search_diagnostics,
             result_source=result_source,
-            http_result_kind=http_result_kind,
+            http_result_kind=_map_http_result_kind(result.http_result_kind),
             remote_status_code=result.status_code,
             remote_latency_ms=result.latency_ms,
         )
@@ -555,7 +548,8 @@ class RagPipeline:
         fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
         fetch = self.last_fetch_result
         fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
-        http_result_kind = getattr(self, "_http_result_kind", None)
+        http_result_kind_raw = getattr(self, "_http_result_kind", None)
+        http_result_kind = _map_http_result_kind(http_result_kind_raw)
         refiner_fallbacks = [
             r
             for r in stage_results

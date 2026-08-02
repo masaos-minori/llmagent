@@ -7,14 +7,8 @@ from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
 
 
-def check_rag_consistency(
-    db: SQLiteHelper, embed_failed: int = 0
-) -> RagConsistencyReport:
-    """Return row counts from chunks, chunks_fts, and chunks_vec for consistency verification.
-
-    All queries are read-only. Orphan vec rows are chunk_id values in chunks_vec
-    with no matching row in chunks (possible when the chunks_vec_ad trigger fails).
-    """
+def _collect_basic_counts(db: SQLiteHelper) -> tuple[int, int, int, int, int, int]:
+    """Return (chunks, fts, vec, orphan_vec_count, fts_gap, fts_orphan_count)."""
     chunks = db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
     fts = db.execute("SELECT COUNT(*) FROM chunks_fts_docsize").fetchone()[0]
     vec = db.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0]
@@ -23,8 +17,11 @@ def check_rag_consistency(
     ).fetchone()[0]
     fts_gap = max(0, chunks - fts)
     fts_orphan_count = max(0, fts - chunks)
+    return chunks, fts, vec, orphan_vec_count, fts_gap, fts_orphan_count
 
-    # Document-level checks
+
+def _collect_document_checks(db: SQLiteHelper) -> tuple[int, int, int]:
+    """Return (docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count)."""
     docs_without_chunks = db.execute(
         "SELECT COUNT(*) FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"
     ).fetchone()[0]
@@ -36,8 +33,11 @@ def check_rag_consistency(
         " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
     ).fetchall()
     duplicate_chunk_index_count = len(dup_chunk_indices)
+    return docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count
 
-    # URL-level checks
+
+def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, int]]:
+    """Return URL-level mismatch map keyed by URL with chunk/vec/fts counts."""
     url_chunk_counts: dict[str, int] = {}
     try:
         url_chunk_rows = db.execute(
@@ -91,8 +91,29 @@ def check_rag_consistency(
                 "vec_count": vec_count,
                 "fts_count": fts_count,
             }
+    return url_level_mismatches
 
-    # Collect affected identifiers (read-only; top 10 each)
+
+def _collect_affected_identifiers(
+    db: SQLiteHelper,
+    *,
+    fts_gap: int,
+    orphan_vec_count: int,
+    docs_without_chunks: int,
+    chunks_without_vec: int,
+    duplicate_chunk_index_count: int,
+    url_level_mismatches: dict[str, dict[str, int]],
+) -> tuple[
+    tuple[int, ...] | None,
+    tuple[int, ...] | None,
+    tuple[int, ...] | None,
+    tuple[str, ...] | None,
+    tuple[int, ...] | None,
+    tuple[int, ...] | None,
+    tuple[tuple[int, int], ...] | None,
+    tuple[str, ...] | None,
+]:
+    """Collect affected identifiers for each issue type (read-only; top 10 each)."""
     affected_chunk_ids: tuple[int, ...] | None = None
     affected_doc_ids: tuple[int, ...] | None = None
     affected_orphan_chunk_ids: tuple[int, ...] | None = None
@@ -101,6 +122,7 @@ def check_rag_consistency(
     affected_chunks_without_vec: tuple[int, ...] | None = None
     affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = None
     affected_url_mismatches: tuple[str, ...] | None = None
+
     if fts_gap > 0:
         rows = db.execute(
             "SELECT chunk_id FROM chunks"
@@ -150,6 +172,52 @@ def check_rag_consistency(
         affected_duplicate_chunk_indices = tuple((r[0], r[1]) for r in limited_dups)
     if url_level_mismatches:
         affected_url_mismatches = tuple(list(url_level_mismatches.keys())[:5])
+
+    return (
+        affected_chunk_ids,
+        affected_doc_ids,
+        affected_orphan_chunk_ids,
+        affected_orphan_urls,
+        affected_docs_without_chunks,
+        affected_chunks_without_vec,
+        affected_duplicate_chunk_indices,
+        affected_url_mismatches,
+    )
+
+
+def check_rag_consistency(
+    db: SQLiteHelper, embed_failed: int = 0
+) -> RagConsistencyReport:
+    """Return row counts from chunks, chunks_fts, and chunks_vec for consistency verification.
+
+    All queries are read-only. Orphan vec rows are chunk_id values in chunks_vec
+    with no matching row in chunks (possible when the chunks_vec_ad trigger fails).
+    """
+    chunks, fts, vec, orphan_vec_count, fts_gap, fts_orphan_count = (
+        _collect_basic_counts(db)
+    )
+    docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count = (
+        _collect_document_checks(db)
+    )
+    url_level_mismatches = _collect_url_counts_and_mismatches(db)
+    (
+        affected_chunk_ids,
+        affected_doc_ids,
+        affected_orphan_chunk_ids,
+        affected_orphan_urls,
+        affected_docs_without_chunks,
+        affected_chunks_without_vec,
+        affected_duplicate_chunk_indices,
+        affected_url_mismatches,
+    ) = _collect_affected_identifiers(
+        db,
+        fts_gap=fts_gap,
+        orphan_vec_count=orphan_vec_count,
+        docs_without_chunks=docs_without_chunks,
+        chunks_without_vec=chunks_without_vec,
+        duplicate_chunk_index_count=duplicate_chunk_index_count,
+        url_level_mismatches=url_level_mismatches,
+    )
 
     report = RagConsistencyReport(
         chunks=chunks,

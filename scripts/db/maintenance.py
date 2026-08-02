@@ -55,6 +55,33 @@ class MaintenanceResult:
     data: dict | None = None
 
 
+# ── Error handling helper ──────────────────────────────────────────────────────
+
+
+def _handle_maintenance_error(
+    exc: Exception,
+    action: str,
+    mode: MaintenanceMode,
+    *,
+    extra_data: dict | None = None,
+) -> MaintenanceResult:
+    """Handle an error from a maintenance operation.
+
+    Returns a MaintenanceResult(success=False) in BEST_EFFORT mode,
+    or re-raises the exception in STRICT mode.
+    """
+    logger.error("%s failed: %s", action, exc)
+    if mode == MaintenanceMode.STRICT:
+        raise
+    return MaintenanceResult(
+        success=False,
+        action=f"{action}_failed",
+        mode=mode,
+        detail=str(exc),
+        data=extra_data,
+    )
+
+
 # ── Policy dataclasses ─────────────────────────────────────────────────────────
 
 
@@ -102,12 +129,7 @@ def vacuum_db(
         db.vacuum()
         return MaintenanceResult(success=True, action="vacuum", mode=mode)
     except (sqlite3.OperationalError, RuntimeError) as e:
-        logger.error("VACUUM failed: %s", e)
-        if mode == MaintenanceMode.STRICT:
-            raise
-        return MaintenanceResult(
-            success=False, action="vacuum_failed", mode=mode, detail=str(e)
-        )
+        return _handle_maintenance_error(e, "vacuum", mode)
 
 
 def purge_old_sessions(
@@ -163,15 +185,11 @@ def purge_old_sessions(
             data={"age_deleted": age_deleted, "count_deleted": count_deleted},
         )
     except sqlite3.Error as e:
-        logger.error("purge_old_sessions failed: %s", e)
-        if mode == MaintenanceMode.STRICT:
-            raise
-        return MaintenanceResult(
-            success=False,
-            action="purge_failed",
-            mode=mode,
-            detail=str(e),
-            data={"age_deleted": age_deleted, "count_deleted": count_deleted},
+        return _handle_maintenance_error(
+            e,
+            "purge",
+            mode,
+            extra_data={"age_deleted": age_deleted, "count_deleted": count_deleted},
         )
 
 
@@ -200,9 +218,4 @@ def prune_old_memories(
             data={"deleted": delete_result.deleted},
         )
     except sqlite3.Error as e:
-        logger.error("prune_old_memories failed: %s", e)
-        if mode == MaintenanceMode.STRICT:
-            raise
-        return MaintenanceResult(
-            success=False, action="prune_failed", mode=mode, detail=str(e)
-        )
+        return _handle_maintenance_error(e, "prune", mode)
