@@ -116,6 +116,23 @@ class RuntimeToolRegistry:
             if tool.enabled_for_llm
         ]
 
+    @staticmethod
+    def _build_tool_spec(
+        call_id: str,
+        name: str,
+        tool: RuntimeTool,
+        args: dict[str, Any] | None = None,
+    ) -> ToolSpec:
+        """Build a ToolSpec from a RuntimeTool."""
+        return ToolSpec(
+            call_id=call_id,
+            name=name,
+            args=args or {},
+            resource_scope=tool.resource_scope,
+            requires_serial=tool.requires_serial,
+            is_write=tool.is_write,
+        )
+
     def tool_spec_map(self) -> dict[str, ToolSpec]:
         """Return a `{name: ToolSpec}` map built from all registered tools.
 
@@ -123,13 +140,7 @@ class RuntimeToolRegistry:
         is for shape/config inspection, not for representing an actual call.
         """
         return {
-            name: ToolSpec(
-                call_id="",
-                name=name,
-                resource_scope=tool.resource_scope,
-                requires_serial=tool.requires_serial,
-                is_write=tool.is_write,
-            )
+            name: RuntimeToolRegistry._build_tool_spec("", name, tool)
             for name, tool in self._tools.items()
         }
 
@@ -141,14 +152,7 @@ class RuntimeToolRegistry:
         Raises `KeyError` (via `get()`) if `name` has no registry entry.
         """
         tool = self.get(name)
-        return ToolSpec(
-            call_id=call_id,
-            name=name,
-            args=args,
-            resource_scope=tool.resource_scope,
-            requires_serial=tool.requires_serial,
-            is_write=tool.is_write,
-        )
+        return RuntimeToolRegistry._build_tool_spec(call_id, name, tool, args)
 
     def is_side_effect(self, tool_name: str) -> bool:
         """Return whether `tool_name` has write/delete side effects.

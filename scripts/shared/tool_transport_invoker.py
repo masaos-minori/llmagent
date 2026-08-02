@@ -149,7 +149,7 @@ class ToolTransportInvoker:
     def _record_transport_error(
         self, server_key: str, e: TransportError
     ) -> ToolCallResult:
-        """Record a transport-layer error and update health state accordingly."""
+        """Record a transport-layer error and return an error result."""
         self.stat_transport_errors[server_key] = (
             self.stat_transport_errors.get(server_key, 0) + 1
         )
@@ -158,14 +158,7 @@ class ToolTransportInvoker:
             logger.warning(
                 "transport failure for %r: %s (state=%s)", server_key, e, state.value
             )
-        return ToolCallResult(
-            output=str(e),
-            is_error=True,
-            request_id="",
-            server_key=server_key,
-            source="mcp",
-            error_type="transport",
-        )
+        return self._error_result(server_key, str(e), error_type="transport")
 
     async def _execute_with_semaphore(
         self,

@@ -88,6 +88,24 @@ class ToolExecutor(ToolTransportInvoker):
             return self._error_result(server_key, msg, error_type="tool")
         return None
 
+    async def _ensure_lifecycle_ready(self, server_key: str) -> ToolCallResult | None:
+        """Ensure the MCP server lifecycle is ready; returns error result if not."""
+        if self._lifecycle is None:
+            return None
+        try:
+            await self._lifecycle.ensure_ready(server_key)
+        except (OSError, RuntimeError) as e:
+            msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
+            logger.error(msg)
+            if self._health_registry is not None:
+                self._health_registry.record_failure(server_key)
+            return self._error_result(server_key, msg, error_type="transport")
+        return None
+
+    def _resolve_transport(self, server_key: str) -> Any:
+        """Resolve the transport for a server key; returns None if missing."""
+        return self._transports.get(server_key)
+
     async def _raw_execute(
         self,
         tool_name: str,
@@ -105,22 +123,16 @@ class ToolExecutor(ToolTransportInvoker):
             return err
 
         # Lifecycle ensure_ready
-        if self._lifecycle is not None:
-            try:
-                await self._lifecycle.ensure_ready(server_key)
-            except (OSError, RuntimeError) as e:
-                msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
-                logger.error(msg)
-                if self._health_registry is not None:
-                    self._health_registry.record_failure(server_key)
-                return self._error_result(server_key, msg, error_type="transport")
+        lifecycle_err = await self._ensure_lifecycle_ready(server_key)
+        if lifecycle_err is not None:
+            return lifecycle_err
 
         # Transport resolution
-        transport = self._transports.get(server_key)
+        transport = self._resolve_transport(server_key)
         if transport is None:
-            msg = self._transport_missing_msg(server_key)
-            logger.error(msg)
-            return self._error_result(server_key, msg, error_type="tool")
+            return self._error_result(
+                server_key, self._transport_missing_msg(server_key), error_type="tool"
+            )
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
