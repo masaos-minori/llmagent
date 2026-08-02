@@ -43,7 +43,6 @@ async def test_write_warning_on_inconsistency():
         )
 
         # Call only the consistency portion; other checks are mocked
-        orch._check_embedding_dimensions = MagicMock()
         await orch._check_services()
 
     calls = [str(c) for c in orch._view.write_warning.call_args_list]
@@ -69,7 +68,6 @@ async def test_no_warning_on_consistent():
             registry=None, findings=[], unreachable=[]
         )
 
-        orch._check_embedding_dimensions = MagicMock()
         await orch._check_services()
 
     # write_warning may be called for other checks; check that RAG issue was not
@@ -96,7 +94,6 @@ async def test_no_crash_on_exception():
             registry=None, findings=[], unreachable=[]
         )
 
-        orch._check_embedding_dimensions = MagicMock()
         # Should not raise
         await orch._check_services()
 

@@ -210,19 +210,15 @@ class AgentREPL:
                 "tool_calls": stats.stat_tool_calls,
                 "tool_errors": stats.stat_tool_errors,
                 "partial_completions": stats.stat_partial_completions,
-                "parse_errors": llm.stat_parse_errors if llm is not None else 0,
-                "heartbeat_timeouts": (
-                    llm.stat_heartbeat_timeouts if llm is not None else 0
-                ),
-                "reconnects": llm.stat_reconnects if llm is not None else 0,
+                "parse_errors": getattr(llm, "stat_parse_errors", 0),
+                "heartbeat_timeouts": getattr(llm, "stat_heartbeat_timeouts", 0),
+                "reconnects": getattr(llm, "stat_reconnects", 0),
                 "semantic_cache_hits": stats.stat_semantic_cache_hits,
                 "input_tokens": stats.stat_input_tokens,
                 "output_tokens": stats.stat_output_tokens,
-                "compress_count": (
-                    hist_mgr.stat_compress_count if hist_mgr is not None else 0
-                ),
-                "fallback_truncate_count": (
-                    hist_mgr.stat_fallback_truncate_count if hist_mgr is not None else 0
+                "compress_count": getattr(hist_mgr, "stat_compress_count", 0),
+                "fallback_truncate_count": getattr(
+                    hist_mgr, "stat_fallback_truncate_count", 0
                 ),
                 "latency_summary": latency_summary,
                 "workflow_count": workflow_count,

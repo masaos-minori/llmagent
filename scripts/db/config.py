@@ -29,7 +29,6 @@ class DbConfig:
     sqlite_vec_so: str = ""  # empty = vec extension not required
     sqlite_timeout: int = 30
     sqlite_busy_timeout_ms: int = 30000
-    embedding_dims: int = 384
 
     def __post_init__(self) -> None:
         """Validate all database paths and configuration values after initialization."""
@@ -43,8 +42,6 @@ class DbConfig:
             raise ValueError("eventbus_db_path must not be empty")
         if self.sqlite_timeout < 1:
             raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
-        if self.embedding_dims < 1:
-            raise ValueError(f"embedding_dims must be >= 1, got {self.embedding_dims}")
         # DB files are created automatically by SQLite on first open;
         # validate that the parent directory exists rather than the file itself.
         for label, path_str in (
@@ -79,5 +76,4 @@ def build_db_config() -> DbConfig:
         sqlite_vec_so=cfg.get("sqlite_vec_so", ""),
         sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
         sqlite_busy_timeout_ms=int(cfg.get("sqlite_busy_timeout_ms", 30000)),
-        embedding_dims=int(cfg.get("embedding_dims", 384)),
     )

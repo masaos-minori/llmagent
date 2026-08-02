@@ -336,12 +336,6 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
     memory_min_importance = _mmi if _mmi is not None else 0.3
     _v = _get_bool(cfg, "memory_embed_enabled")
     memory_embed_enabled = _v if _v is not None else True
-    _mem_dim = _get_int(cfg, "memory_embed_dim")
-    memory_embed_dim = _mem_dim if _mem_dim is not None else 384
-    if memory_embed_dim < 1:
-        raise ConfigReloadValidationError(
-            f"memory_embed_dim must be >= 1, got {memory_embed_dim}"
-        )
     _mdt = _get_float(cfg, "memory_dedup_threshold")
     memory_dedup_threshold = _mdt if _mdt is not None else 0.3
     _mmc = _get_int(cfg, "memory_max_content_chars")
@@ -373,7 +367,6 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
         memory_max_inject_episodic=memory_max_inject_episodic,
         memory_min_importance=memory_min_importance,
         memory_embed_enabled=memory_embed_enabled,
-        memory_embed_dim=memory_embed_dim,
         memory_dedup_threshold=memory_dedup_threshold,
         memory_max_content_chars=memory_max_content_chars,
         memory_embed_timeout_sec=memory_embed_timeout_sec,

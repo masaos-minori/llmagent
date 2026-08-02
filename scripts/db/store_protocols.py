@@ -10,7 +10,7 @@ Protocol → SQLite implementation mapping (all in db/store_impl.py):
   MemoryDeleteStore  → SQLiteMemoryDeleteStore
 
 Embedding helpers (used by implementations and callers):
-  get_embedding_dims()     — return configured dimension count (default 384)
+  get_embedding_dims()     — return Qwen3 embedding dimension count (1024)
   get_embedding_bytes()    — return expected float32 BLOB byte size
   validate_embedding_blob(blob) — raises TypeError/ValueError on wrong size
 
@@ -20,14 +20,14 @@ Stable import surface: use db/store.py for all imports.
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from db.config import build_db_config
 from db.models import DocumentRow, MessageRow, SessionRow
+
+QWEN3_EMBEDDING_DIMS = 1024
 
 
 def get_embedding_dims() -> int:
-    """Return embedding dimensions from DbConfig; raises on config error."""
-    dims: int = build_db_config().embedding_dims
-    return dims
+    """Return the Qwen3 embedding dimension count."""
+    return QWEN3_EMBEDDING_DIMS
 
 
 def get_embedding_bytes() -> int:

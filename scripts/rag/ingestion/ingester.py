@@ -67,7 +67,6 @@ class RagIngester:
         self._embed_url: str = build_embed_url(cfg["embed_url"])
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
-        self._expected_dims: int = int(cfg.get("embedding_dims", 384))
         # DB settings stored explicitly to bypass build_db_config() / agent.toml
         self._rag_db_path: str = str(cfg.get("rag_db_path", ""))
         self._sqlite_vec_so: str = str(cfg.get("sqlite_vec_so", ""))
@@ -223,10 +222,9 @@ class RagIngester:
     # ── Embedding ─────────────────────────────────────────────────────────────
 
     def _get_embedding(self, text: str) -> list[float] | None:
-        """Return embedding vector for text; validates dimension against embedding_dims config.
+        """Return embedding vector for text.
 
-        Returns None on empty input, network failure, or dimension mismatch.
-        Expected dimension is read from common.toml::embedding_dims (default 384).
+        Returns None on empty input or network failure.
         """
         if not text or not text.strip():
             return None
@@ -234,18 +232,13 @@ class RagIngester:
             try:
                 resp = self._client.post(
                     self._embed_url,
-                    # E5 passage prefix is mandatory for document-side embedding
-                    json={"content": f"passage: {text}"},
+                    json={"content": text},
                 )
                 resp.raise_for_status()
                 data = parse_http_json(resp)
                 embedding = data.get("embedding")
                 if not isinstance(embedding, list) or not embedding:
                     raise ValueError("missing or empty 'embedding' field in response")
-                if len(embedding) != self._expected_dims:
-                    raise ValueError(
-                        f"embedding dimension mismatch: expected {self._expected_dims}, got {len(embedding)}"
-                    )
                 return embedding
             except (
                 httpx.RequestError,

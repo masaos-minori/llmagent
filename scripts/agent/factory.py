@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import httpx
+from db.store_protocols import get_embedding_dims
 from shared.git_helper import get_repo_info
 from shared.llm_client import LLMClient, build_embed_url, build_llm_url
 from shared.logger import Logger
@@ -338,6 +339,19 @@ def _build_history_manager(
     )
 
 
+def _resolve_branch_for_memory() -> str:
+    """Resolve git branch for memory layer; returns "" (global) on any failure."""
+    _git = get_repo_info()
+    if _git.success and _git.data:
+        _raw = _git.data.get("branch", "")
+        return "" if _raw == "HEAD (detached)" else _raw
+    _logger.warning(
+        "Memory branch resolution failed: %s; falling back to global scope",
+        _git.failure_reason if _git.failure_reason else "unknown",
+    )
+    return ""
+
+
 def _build_memory_services(
     ctx: AgentContext,
     http: httpx.AsyncClient,
@@ -368,20 +382,10 @@ def _build_memory_services(
         ctx, http, EmbeddingClient, EmbeddingClientConfig
     )
     retriever = _build_retriever(ctx, HybridRetriever, embed_client=embed_client)
-    store = MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)
+    store = MemoryStore(embed_dim=get_embedding_dims())
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
 
-    # Resolve branch context at build time; default to "" (global) on any failure.
-    _git = get_repo_info()
-    _branch = ""
-    if _git.success and _git.data:
-        _raw = _git.data.get("branch", "")
-        _branch = "" if _raw == "HEAD (detached)" else _raw
-    else:
-        _logger.warning(
-            "Memory branch resolution failed: %s; falling back to global scope",
-            _git.failure_reason if _git.failure_reason else "unknown",
-        )
+    _branch = _resolve_branch_for_memory()
 
     injection = _build_injection_service(
         embed_client,
@@ -421,7 +425,6 @@ def _build_embedding_client(
     cfg = config_cls(
         embed_url=build_embed_url(ctx.cfg.rag.embed_url),
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
-        embed_dim=ctx.cfg.memory.memory_embed_dim,
         local_only=ctx.cfg.memory.memory_local_only,
     )
     return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
@@ -488,6 +491,7 @@ def _build_ingestion_service[T](
         embed_client=embed_client,
         dedup_policy=dedup_policy,
         max_content_chars=ctx.cfg.memory.memory_max_content_chars,
+        branch=branch,
     )
 
 

@@ -268,24 +268,6 @@ class StartupOrchestrator:
             logger.error("Workflow schema preflight failed: %s", result.error)
             raise RuntimeError(result.error)
 
-    def _check_embedding_dimensions(self) -> None:
-        """Verify embedding dimension consistency between memory config and db config."""
-        from db.config import build_db_config  # noqa: PLC0415 — lazy
-
-        ctx = self._ctx
-        memory_dim = ctx.cfg.memory.memory_embed_dim
-        db_dim = build_db_config().embedding_dims
-        if memory_dim != db_dim:
-            logger.error(
-                "Embedding dimension mismatch: memory=%d, db=%d. Fix config/memory.toml or db/config.py.",
-                memory_dim,
-                db_dim,
-            )
-            raise RuntimeError(
-                f"Embedding dimension mismatch: memory={memory_dim}, db={db_dim}"
-            )
-        logger.info("Embedding dimensions consistent: %d", memory_dim)
-
     async def _check_services(self) -> None:
         """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
         ctx = self._ctx
@@ -305,14 +287,7 @@ class StartupOrchestrator:
                 remediation="Fix MCP server auth_token or sandbox config.",
             )
 
-        # 2. Embedding dimensions
-        try:
-            self._check_embedding_dimensions()
-            pipeline.add_ok("embedding_dimensions")
-        except RuntimeError as exc:
-            pipeline.add_fatal("embedding_dimensions", str(exc))
-
-        # 3. Service readiness
+        # 2. Service readiness
         try:
             result = await check_readiness(ctx, production_mode=production_mode)
             for msg in result.warning_messages():

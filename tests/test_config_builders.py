@@ -212,11 +212,6 @@ class TestBusinessRuleValidations:
         with pytest.raises(ConfigReloadValidationError, match="memory_retention_days"):
             _build_memory_config(cfg)
 
-    def test_memory_embed_dim_zero_rejected(self) -> None:
-        cfg = {**_MIN_CFG, "memory_embed_dim": 0}
-        with pytest.raises(ConfigReloadValidationError, match="memory_embed_dim"):
-            _build_memory_config(cfg)
-
     def test_memory_embed_timeout_sec_zero_rejected(self) -> None:
         cfg = {**_MIN_CFG, "memory_embed_timeout_sec": 0}
         with pytest.raises(

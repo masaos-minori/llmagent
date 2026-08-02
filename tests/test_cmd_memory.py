@@ -19,9 +19,7 @@ class _MockRebuildOps:
 
         # Create a minimal context for the real implementation
         ctx = SimpleNamespace(
-            cfg=SimpleNamespace(
-                memory=SimpleNamespace(memory_embed_enabled=True, memory_embed_dim=1536)
-            ),
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
             services=SimpleNamespace(audit_logger=None),
             services_required=SimpleNamespace(memory=mem, audit_logger=None),
             stats=SimpleNamespace(stat_memory_consistency_failures=0),

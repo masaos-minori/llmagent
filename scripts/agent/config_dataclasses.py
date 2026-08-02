@@ -217,8 +217,6 @@ class MemoryConfig:
     memory_min_importance: float = 0.3
     # Enable embedding generation and KNN search
     memory_embed_enabled: bool = True
-    # Dimension of embedding vectors; must match vec0 schema
-    memory_embed_dim: int = 384
     # L2 distance threshold for deduplication
     memory_dedup_threshold: float = 0.3
     # Max chars per extracted memory entry

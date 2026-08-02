@@ -14,7 +14,6 @@ sqlite_wal_checkpoint_mode = "TRUNCATE"
 sqlite_retention_max_sessions = 100
 sqlite_retention_max_age_days = 30
 sqlite_archive_dir = "/opt/llm/db/archive"
-embedding_dims = 384
 eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
@@ -85,7 +84,6 @@ memory_max_inject_semantic = 5
 memory_max_inject_episodic = 3
 memory_min_importance = 0.5
 memory_embed_enabled = true
-memory_embed_dim = 384
 memory_dedup_threshold = 0.3
 memory_local_only = false
 memory_embed_timeout_sec = 5.0

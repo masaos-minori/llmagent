@@ -50,7 +50,6 @@ class TestFactoryLocalOnlyPassthrough:
         ctx = MagicMock()
         ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
-        ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = True
 
         captured: list[object] = []
@@ -74,7 +73,6 @@ class TestFactoryLocalOnlyPassthrough:
         ctx = MagicMock()
         ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
-        ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = False
 
         captured: list[object] = []
@@ -98,7 +96,6 @@ class TestFactoryLocalOnlyPassthrough:
         ctx = MagicMock()
         ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
-        ctx.cfg.memory.memory_embed_dim = 384
         ctx.cfg.memory.memory_local_only = False  # explicitly set to False
 
         captured: list[object] = []

@@ -106,11 +106,9 @@ def _build_turn_end_llm_stats(
 ) -> dict[str, int]:
     """Build turn_end LLM stats fields."""
     return {
-        "parse_error_count": llm.stat_parse_errors if llm is not None else 0,
-        "heartbeat_timeout_count": llm.stat_heartbeat_timeouts
-        if llm is not None
-        else 0,
-        "reconnect_count": llm.stat_reconnects if llm is not None else 0,
+        "parse_error_count": getattr(llm, "stat_parse_errors", 0),
+        "heartbeat_timeout_count": getattr(llm, "stat_heartbeat_timeouts", 0),
+        "reconnect_count": getattr(llm, "stat_reconnects", 0),
     }
 
 

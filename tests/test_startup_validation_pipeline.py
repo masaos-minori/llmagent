@@ -75,7 +75,6 @@ def startup_instance(mock_ctx):
     instance = StartupOrchestrator.__new__(StartupOrchestrator)
     instance._ctx = mock_ctx
     instance._view = MagicMock()
-    instance._check_embedding_dimensions = MagicMock()
     return instance
 
 

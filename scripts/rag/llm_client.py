@@ -250,14 +250,10 @@ class RagLLM:
 async def get_embedding(
     text: str, client: httpx.AsyncClient, embed_url: str
 ) -> list[float]:
-    """Convert text to a 384-dimensional float embedding vector.
-
-    E5 model requires "query: " prefix for query input.
-    (Ingestion uses "passage: " prefix)
-    """
+    """Convert text to a float embedding vector."""
     resp = await client.post(
         embed_url,
-        json={"content": f"query: {text}"},
+        json={"content": text},
     )
     resp.raise_for_status()
     embedding = parse_http_json(resp).get("embedding")
