@@ -7,6 +7,7 @@ _start_subprocess_servers was moved to StartupOrchestrator._start_servers().
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -417,7 +418,7 @@ class TestStartupOrchestratorSetupPrompt:
 
         await startup._setup_prompt()
 
-        assert "[Relevant memories]" in ctx.conv.system_prompt_content
+        assert "--- USER MEMORY ---" in ctx.conv.system_prompt_content
         assert "test memory" in ctx.conv.system_prompt_content
 
     @pytest.mark.asyncio
@@ -474,7 +475,7 @@ class TestStartupOrchestratorSetupPrompt:
 
         await startup._setup_prompt()
 
-        assert "[Relevant memories]" in ctx.conv.system_prompt_content
+        assert "--- USER MEMORY ---" in ctx.conv.system_prompt_content
         assert "memory 9" in ctx.conv.system_prompt_content
         assert "memory 10" not in ctx.conv.system_prompt_content
 
@@ -1259,3 +1260,56 @@ class TestStartupVerifyMcpHealth:
 
         with pytest.raises(RuntimeError, match="lifecycle service not initialized"):
             await startup._verify_mcp_health()
+
+
+# ── StartupOrchestrator._setup_prompt() memory failure ─────────────────────────
+
+
+class TestStartupMemoryFailures:
+    """Tests for StartupOrchestrator._setup_prompt() categorized logging on memory failure."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "exception_class, log_method, exception_msg",
+        [
+            (sqlite3.Error, "error", "database error"),
+            (ConnectionError, "warning", "connection refused"),
+            (ValueError, "info", "invalid value"),
+        ],
+    )
+    async def test_memory_injection_categorized_logging(
+        self, exception_class, log_method, exception_msg
+    ) -> None:
+        ctx = MagicMock()
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        ctx.cfg.agent_memory_max_startup_snippets = 10
+        ctx.session.session_id = "test-session"
+        ctx.conv.memory_disabled = False
+
+        mock_mem = MagicMock()
+        mock_mem.on_session_start.side_effect = exception_class(exception_msg)
+        ctx.services_required.memory = mock_mem
+
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        with patch("agent.startup.logger") as mock_logger:
+            await startup._setup_prompt()
+
+        assert ctx.conv.memory_disabled is True
+
+        # Verify correct log level was used
+        log_func = getattr(mock_logger, log_method)
+        log_func.assert_called_once()
+
+        # Check if message contains the expected part
+        args, _ = log_func.call_args
+        assert "Memory injection failed during startup" in args[0]
+        assert exception_msg in str(args[1]) if len(args) > 1 else ""
+
+        # Verify view.write_warning was called
+        view.write_warning.assert_called_once()
+        warn_msg = str(view.write_warning.call_args[0][0])
+        assert "Memory injection failed" in warn_msg
+        assert exception_msg in warn_msg

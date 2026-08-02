@@ -455,6 +455,99 @@ class TestRecoverStaleAttempts:
         finally:
             s.close()
 
+    def test_recover_multiple_stale_attempts(self, workflow_db) -> None:
+        """Multiple stale attempts should all be marked as failed."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            old_ts = time.strftime(
+                "%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 100)
+            )
+
+            task_id = "task-multi"
+            conn = sqlite3.connect(str(workflow_db))
+            conn.execute(
+                "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    task_id,
+                    "sess-test",
+                    1,
+                    f"{task_id}:1",
+                    "pending",
+                    "1.0.0",
+                    "wf-test",
+                    old_ts,
+                    old_ts,
+                ),
+            )
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                ("att-multi-1", task_id, "execute", old_ts),
+            )
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                ("att-multi-2", task_id, "execute", old_ts),
+            )
+            conn.commit()
+            conn.close()
+
+            count = s.recover_stale_attempts(s._db)
+            assert count == 2
+
+            rows = s._db.fetchall(
+                "SELECT status FROM attempts WHERE attempt_id IN ('att-multi-1', 'att-multi-2')"
+            )
+            for row in rows:
+                assert row[0] == "failed"
+        finally:
+            s.close()
+
+    def test_recover_no_stale_attempts(self, workflow_db) -> None:
+        """Calling recover_stale_attempts when none are stale should return 0."""
+        from unittest.mock import patch
+
+        from agent.workflow.state_store import StateStore
+
+        with patch(
+            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
+        ):
+            s = StateStore()
+        try:
+            now_ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+            task_id = "task-none"
+            conn = sqlite3.connect(str(workflow_db))
+            conn.execute(
+                "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    task_id,
+                    "sess-test",
+                    1,
+                    f"{task_id}:1",
+                    "pending",
+                    "1.0.0",
+                    "wf-test",
+                    now_ts,
+                    now_ts,
+                ),
+            )
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
+                ("att-none", task_id, "execute", now_ts),
+            )
+            conn.commit()
+            conn.close()
+
+            count = s.recover_stale_attempts(s._db)
+            assert count == 0
+        finally:
+            s.close()
+
 
 class TestStaleRecoveryConcurrency:
     def test_concurrent_recovery_claims_only_once(self, workflow_db: Path) -> None:

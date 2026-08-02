@@ -98,6 +98,8 @@ source:
 | `last_error_kind` | `str\|None` | `None` | 直近のターン失敗時のエラー種別; 直近のターンが成功していれば`None` |
 | `pending_approval_id` | `str\|None` | `None` | 直近のワークフローターンが人間の承認待ちで一時停止した際の承認ID |
 | `pending_approval_task_id` | `str\|None` | `None` | `/approve`実行後に再開すべきタスクID; `/approve`コマンドがセットし、`Orchestrator.handle_turn()`がクリアする |
+| `tool_calls` | `list[dict[str, Any]]` | `[]` | 実行されたツール呼び出しのリスト; スレッドセーフなアクセスが必要 |
+| `turn_count` | `int` | `0` | 現在のターンの累計ツール呼び出し回数 |
 
 ### WorkflowState (`ctx.workflow`)
 

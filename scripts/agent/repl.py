@@ -254,6 +254,8 @@ class AgentREPL:
                     content=json.dumps(summary),
                 )
             except (RuntimeError, sqlite3.Error) as e:
+                # If diagnostic saving fails (e.g., due to encryption enforcement),
+                # log the error but do not crash the REPL.
                 logger.debug("DiagnosticStore.save failed: %s", e)
                 self._view.write_warning(f"Diagnostics could not be saved: {e}")
 
@@ -325,10 +327,8 @@ class AgentREPL:
     def _is_db_path_allowed(self, resolved_db_path: str) -> bool:
         """Return True when `resolved_db_path` is inside `cfg.approval.allowed_root`.
 
-        Matches `tool_policy.check_allowed_root()`'s "unset means unrestricted"
-        convention. Uses an explicit separator-boundary comparison rather than
-        `str.startswith(allowed_root)` to avoid a prefix-injection bug (e.g. an
-        allowed_root of `/opt/llm` must not match `/opt/llmx/...`).
+        Note: SQLite WAL files are always in the same directory as the DB file,
+        so validating the DB path is equivalent to validating the WAL path.
         """
         allowed_root = self._ctx.cfg.approval.allowed_root
         if not allowed_root:
@@ -403,66 +403,111 @@ class AgentREPL:
         errors: list[tuple[str, str]] = []
         loop = asyncio.get_running_loop()
 
-        # WAL checkpoint before closing connections
-        truncated_or_ok = False
-        try:
-            truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
-                loop.run_in_executor(None, self._wal_checkpoint_sync),
-                timeout=self._WAL_CHECKPOINT_TIMEOUT_S,
-            )
-            errors.extend(checkpoint_errors)
-        except TimeoutError:
-            errors.append(
-                (
-                    "wal_checkpoint_timeout",
-                    f"TimeoutError: exceeded {self._WAL_CHECKPOINT_TIMEOUT_S}s",
+        async def _do_cleanup():
+            nonlocal errors
+            # 1. Cancel all pending tasks (except this one)
+            pending_tasks = [
+                t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()
+            ]
+            if pending_tasks:
+                logger.info(
+                    "Cancelling %d pending tasks during shutdown", len(pending_tasks)
                 )
-            )
-            logger.error(
-                "WAL checkpoint timed out after %.1fs on shutdown",
-                self._WAL_CHECKPOINT_TIMEOUT_S,
-            )
-        except sqlite3.Error as e:
-            errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
-            logger.error("WAL checkpoint failed on shutdown: %s", e)
+                for t in pending_tasks:
+                    t.cancel()
 
-        if not truncated_or_ok:
-            # Copy WAL file to backup location before closing connection
+                results = await asyncio.gather(*pending_tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, Exception):
+                        errors.append(
+                            ("task_cancellation", f"{type(res).__name__}: {res}")
+                        )
+
+            # 2. WAL checkpoint before closing connections
+            truncated_or_ok = False
             try:
-                _wal_backup_path, backup_errors = await asyncio.wait_for(
-                    loop.run_in_executor(None, self._wal_backup_sync),
-                    timeout=self._WAL_BACKUP_TIMEOUT_S,
+                truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
+                    loop.run_in_executor(None, self._wal_checkpoint_sync),
+                    timeout=self._WAL_CHECKPOINT_TIMEOUT_S,
                 )
-                errors.extend(backup_errors)
+                errors.extend(checkpoint_errors)
             except TimeoutError:
                 errors.append(
                     (
-                        "wal_backup_timeout",
-                        f"TimeoutError: exceeded {self._WAL_BACKUP_TIMEOUT_S}s",
+                        "wal_checkpoint_timeout",
+                        f"TimeoutError: exceeded {self._WAL_CHECKPOINT_TIMEOUT_S}s",
                     )
                 )
                 logger.error(
-                    "WAL backup timed out after %.1fs on shutdown",
-                    self._WAL_BACKUP_TIMEOUT_S,
+                    "WAL checkpoint timed out after %.1fs on shutdown",
+                    self._WAL_CHECKPOINT_TIMEOUT_S,
                 )
+            except sqlite3.Error as e:
+                errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
+                logger.error("Unexpected error during WAL checkpoint: %s", e)
+            except Exception as e:
+                errors.append(("wal_checkpoint_error", f"{type(e).__name__}: {e}"))
+                logger.error("Unexpected error during WAL checkpoint: %s", e)
 
-        # ctx.services is None when build_agent_context() never completed (e.g. init failed).
-        # Each cleanup call is independently guarded so a None services object (or a
-        # failure in one call) cannot prevent the other from running.
-        svc = self._ctx.services
-        if svc is not None:
-            try:
-                await svc.lifecycle.shutdown_all()
-            except Exception as e:
-                errors.append(("lifecycle_shutdown", f"{type(e).__name__}: {e}"))
-                logger.error("Lifecycle shutdown failed: %s", e)
-        svc = self._ctx.services
-        if svc is not None:
-            try:
-                await svc.http.aclose()
-            except Exception as e:
-                errors.append(("http_close", f"{type(e).__name__}: {e}"))
-                logger.error("HTTP client close failed: %s", e)
+            if not truncated_or_ok:
+                # Copy WAL file to backup location before closing connection
+                try:
+                    _wal_backup_path, backup_errors = await asyncio.wait_for(
+                        loop.run_in_executor(None, self._wal_backup_sync),
+                        timeout=self._WAL_BACKUP_TIMEOUT_S,
+                    )
+                    errors.extend(backup_errors)
+                except TimeoutError:
+                    errors.append(
+                        (
+                            "wal_backup_timeout",
+                            f"TimeoutError: exceeded {self._WAL_BACKUP_TIMEOUT_S}s",
+                        )
+                    )
+                    logger.error(
+                        "WAL backup timed out after %.1fs on shutdown",
+                        self._WAL_BACKUP_TIMEOUT_S,
+                    )
+                except Exception as e:
+                    errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
+                    logger.error("Unexpected error during WAL backup: %s", e)
+
+            # 3. Concurrent Service Shutdown
+            svc = self._ctx.services
+            if svc is not None:
+                shutdown_tasks = []
+
+                # Attempt service lifecycle shutdown
+                shutdown_tasks.append(svc.lifecycle.shutdown_all())
+
+                # Attempt HTTP client close
+                shutdown_tasks.append(svc.http.aclose())
+
+                results = await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+                for i, res in enumerate(results):
+                    if isinstance(res, Exception):
+                        err_name = "lifecycle_shutdown" if i == 0 else "http_close"
+                        errors.append((err_name, f"{type(res).__name__}: {res}"))
+                        logger.error("%s failed: %s", err_name, res)
+            else:
+                logger.debug("No services available to shut down")
+
+        try:
+            await asyncio.wait_for(_do_cleanup(), timeout=self._GRACEFUL_TIMEOUT_S)
+        except TimeoutError:
+            errors.append(
+                (
+                    "shutdown_timeout",
+                    f"TimeoutError: exceeded {self._GRACEFUL_TIMEOUT_S}s",
+                )
+            )
+            logger.error(
+                "Shutdown sequence timed out after %.1fs", self._GRACEFUL_TIMEOUT_S
+            )
+        except Exception as e:
+            errors.append(("shutdown_error", f"{type(e).__name__}: {e}"))
+            logger.exception("Critical error during shutdown sequence")
+
         if errors:
             summary = "; ".join(f"{name}: {err}" for name, err in errors)
             logger.error("Resource close errors (%d): %s", len(errors), summary)

@@ -699,6 +699,74 @@ class TestCompressResult:
         assert result.compressed_count > 0
 
 
+# ── compress() — LLM returns None / raises HistoryCompressionError ─────────────
+
+
+class TestCompressLLMFailurePaths:
+    """Regression tests for compress() failure paths per implementations/20260731-201219_test_history_manager.py.md."""
+
+    @pytest.mark.asyncio
+    async def test_compress_returns_none_from_llm_under_limit_sets_error(self) -> None:
+        """compress() returns None from LLM call -> verify original messages are returned and CompressResult.error is set."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate empty response that triggers HistoryCompressionError in _call_compress_llm
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": []})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # char_limit large (under limit), but token_limit small to trigger compression via token path
+        # Each message 400 chars → ~100 tokens → 2 msgs × 100 = 200 tokens >> 10 token_limit
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=1, http=mock_http, token_limit=10
+        )
+        h = _history(("user", "x" * 400), ("assistant", "y" * 400))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_compress_raises_history_compression_error_sets_error(self) -> None:
+        """compress() raises HistoryCompressionError -> verify original messages are returned and CompressResult.error is set."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate a request error that raises HistoryCompressionError
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+
+        # char_limit large (under limit), but token_limit small to trigger compression via token path
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=1, http=mock_http, token_limit=10
+        )
+        h = _history(("user", "x" * 400), ("assistant", "y" * 400))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_compress_returns_none_with_over_char_triggers_fallback(self) -> None:
+        """compress() returns None but over_char is True -> verify fallback truncation is triggered."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate empty response that triggers HistoryCompressionError in _call_compress_llm
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": []})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Over char_limit triggers fallback truncation instead of returning original
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+        )
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert len(result) < len(h)
+        assert cr.compressed_count > 0
+
+
 # ── count_tokens_async() ───────────────────────────────────────────────────────
 
 
@@ -809,4 +877,83 @@ class TestFallbackTruncate:
         result, cr = await mgr.compress(h)
         assert cr.is_fallback is True
         assert mgr.stat_fallback_truncate_count == 1
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_fails_under_limit_explicit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # Under char_limit, but over token_limit to trigger compression attempt
+        # Each message 400 chars → ~100 tokens; 6 msgs × 100 = 600 >> 5 token_limit
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_returns_empty_summary_under_limit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": [{"message": {"content": ""}}]})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Under char_limit, but over token_limit to trigger compression attempt
+        # Each message 400 chars → ~100 tokens; 6 msgs × 100 = 600 >> 5 token_limit
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_fallback_when_llm_returns_empty_summary_over_limit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": [{"message": {"content": ""}}]})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Over char_limit triggers fallback on LLM failure
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert cr.is_fallback is True
         assert len(result) < len(h)

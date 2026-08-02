@@ -227,7 +227,7 @@ sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY
 
 ---
 
-## Rollback behavior on startup failure(起動失敗時のロールバック挙動)
+Note: When `start_new_session=True` is used, child processes may not be cleaned up via process group termination.
 
 `StartupOrchestrator.run()`(`agent/startup.py`)は`_start_servers()` → `_check_services()` →
 `_recover_pending_approvals()` → `_setup_prompt()` の順に実行し、いずれかが例外を送出すると

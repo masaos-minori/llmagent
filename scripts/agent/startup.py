@@ -9,6 +9,7 @@ command dispatch, and output display logic.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import subprocess
 import time
 from typing import TYPE_CHECKING
@@ -575,6 +576,13 @@ class StartupOrchestrator:
             f"Use /approve {approval.approval_id} [reason] or /reject {approval.approval_id} [reason]."
         )
 
+    def _classify_memory_failure(self, exc: Exception) -> str:
+        if isinstance(exc, (ConnectionError, TimeoutError)):
+            return "NETWORK_TRANSIENT"
+        if isinstance(exc, (sqlite3.Error, OSError)):
+            return "DATABASE_OR_IO"
+        return "UNKNOWN"
+
     async def _setup_prompt(self) -> None:
         """Inject semantic memories into the initial system prompt."""
         ctx = self._ctx
@@ -603,10 +611,22 @@ class StartupOrchestrator:
                     initial_prompt = initial_prompt + memory_block
             except Exception as exc:
                 ctx.conv.memory_disabled = True
-                logger.warning(
-                    "Memory injection failed during startup: %s; continuing without memory",
-                    exc,
-                )
+                category = self._classify_memory_failure(exc)
+                if category == "DATABASE_OR_IO":
+                    logger.error(
+                        "Memory injection failed during startup (DB/IO error): %s; continuing without memory",
+                        exc,
+                    )
+                elif category == "NETWORK_TRANSIENT":
+                    logger.warning(
+                        "Memory injection failed during startup (network transient): %s; continuing without memory",
+                        exc,
+                    )
+                else:
+                    logger.info(
+                        "Memory injection failed during startup (unknown error): %s; continuing without memory",
+                        exc,
+                    )
                 self._view.write_warning(
                     f"{OutputTag.NON_FATAL} Memory injection failed: {exc}"
                 )

@@ -494,6 +494,7 @@ def audit_security_defaults(
             raise
         logger.warning(msg)
         warnings.append(msg)
+        # If configuration is missing or cannot be loaded, skip shell-related security checks.
         shell_cfg = None
 
     if shell_cfg is not None:

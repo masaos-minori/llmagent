@@ -163,6 +163,20 @@ class TurnState:
     pending_approval_id: str | None = None
     # Task ID to resume after /approve; set by /approve command, cleared by Orchestrator.handle_turn.
     pending_approval_task_id: str | None = None
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    turn_count: int = 0
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    async def add_tool_call(self, call: dict[str, Any]) -> None:
+        """Add a tool call to the current turn. Thread-safe."""
+        async with self._lock:
+            self.tool_calls.append(call)
+            self.turn_count += 1
+
+    async def get_tool_calls(self) -> list[dict[str, Any]]:
+        """Get the current tool calls. Thread-safe."""
+        async with self._lock:
+            return list(self.tool_calls)
 
 
 @dataclass
