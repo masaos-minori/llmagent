@@ -62,17 +62,16 @@ async def search_docs(
 
     # Apply result size limits (request overrides bounded by config cap)
     request_results = getattr(req, "max_results_limit", None)
-    config_results = service.max_results_limit
     max_results = (
-        min(request_results, config_results)
-        if request_results is not None
-        else config_results
+        service.max_results_limit
+        if request_results is None
+        else min(request_results, service.max_results_limit)
     )
 
     request_chars = getattr(req, "max_total_result_chars", None)
     config_chars = service.max_total_result_chars
     max_chars = (
-        min(request_chars, config_chars) if request_chars is not None else config_chars
+        config_chars if request_chars is None else min(request_chars, config_chars)
     )
 
     results = result["results"]

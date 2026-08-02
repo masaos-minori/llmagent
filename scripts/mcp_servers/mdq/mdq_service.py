@@ -94,8 +94,13 @@ class MdqService:
         # Concurrency control for indexing operations
         self._index_lock: asyncio.Lock | None = None
         self._is_indexing: bool = False
-
         self._init_db()
+
+    def _ensure_index_lock(self) -> asyncio.Lock:
+        """Ensure _index_lock is initialized before use."""
+        if self._index_lock is None:
+            self._index_lock = asyncio.Lock()
+        return self._index_lock
 
     @property
     def allowed_dirs(self) -> list[str]:
@@ -262,9 +267,8 @@ class MdqService:
         self, req: IndexPathsRequest
     ) -> tuple[str, IndexPathsMetadata]:
         """Index a set of paths into the in-process SQLite DB."""
-        if self._index_lock is None:
-            self._index_lock = asyncio.Lock()
-        async with self._index_lock:
+        lock = self._ensure_index_lock()
+        async with lock:
             self._is_indexing = True
             try:
                 text, metadata = await _index_paths(self, req)
@@ -276,9 +280,8 @@ class MdqService:
         self, req: RefreshIndexRequest
     ) -> tuple[str, RefreshSummary]:
         """Incrementally refresh the index for a set of paths."""
-        if self._index_lock is None:
-            self._index_lock = asyncio.Lock()
-        async with self._index_lock:
+        lock = self._ensure_index_lock()
+        async with lock:
             self._is_indexing = True
             try:
                 self._validate_paths(req.paths)

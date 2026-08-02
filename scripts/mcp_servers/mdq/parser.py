@@ -158,15 +158,7 @@ async def parse_markdown(
 
         # Save previous section before starting a new one.
         if current_section is not None and current_section["content_lines"]:
-            if current_section["heading"] == "<root>":
-                # <root> content_lines list-truthiness is not enough: a lone blank
-                # line (e.g. right after frontmatter) yields a non-empty list but
-                # empty finalized content, so check the finalized content instead.
-                finalized = _finalize_section(current_section)
-                if finalized["content"]:
-                    sections.append(finalized)
-            else:
-                sections.append(_finalize_section(current_section))
+            _save_section_if_has_content(current_section, sections)
 
         # Update heading stack (pop ancestors of this level)
         while heading_stack and heading_stack[-1][0] >= heading_level_val:
@@ -196,14 +188,9 @@ async def parse_markdown(
 
         i += 1
 
-    # Save the last section (same <root>-only finalized-content check as above)
+    # Save the last section
     if current_section is not None and current_section["content_lines"]:
-        if current_section["heading"] == "<root>":
-            finalized = _finalize_section(current_section)
-            if finalized["content"]:
-                sections.append(finalized)
-        else:
-            sections.append(_finalize_section(current_section))
+        _save_section_if_has_content(current_section, sections)
 
     return sections, frontmatter_tags
 
@@ -221,6 +208,20 @@ def _finalize_section(section: dict) -> ParsedSection:
         "ordinal": section.get("ordinal", 0),
         "parent_heading": section["parent_heading"],
     }
+
+
+def _save_section_if_has_content(section: dict, sections: list[ParsedSection]) -> None:
+    """Append a finalized section if it has non-empty content.
+
+    For <root> sections, verifies the finalized content is non-empty because
+    a lone blank line yields a non-empty content_lines list but empty content.
+    """
+    if section["heading"] == "<root>":
+        finalized = _finalize_section(section)
+        if finalized["content"]:
+            sections.append(finalized)
+    else:
+        sections.append(_finalize_section(section))
 
 
 def _parse_atx_heading(line: str) -> tuple[int, str] | None:
