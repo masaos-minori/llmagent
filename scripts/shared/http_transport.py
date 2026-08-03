@@ -68,6 +68,25 @@ class HttpTransport:
     _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
     _RETRY_MAX: int = 3
 
+    def _transport_error(
+        self,
+        name: str,
+        prefix: str,
+        detail: str,
+        *,
+        break_flag: bool = False,
+        health_check: bool = True,
+    ) -> TransportError:
+        suffix = ""
+        if health_check:
+            suffix = " — check " + self._base_url + "/health"
+        msg = f"{prefix} tool={name} url={self._base_url}: {detail}{suffix}"
+        logger.warning(msg)
+        exc = TransportError(msg)
+        if break_flag:
+            raise exc
+        return exc
+
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
         """POST to /v1/call_tool and return ToolCallResult.
 
@@ -114,25 +133,18 @@ class HttpTransport:
                     error_type=parsed.error_type,
                 )
             except httpx.TimeoutException as e:
-                msg = f"[TimeoutException] tool={name} url={self._base_url}: {e}"
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break  # timeout = non-retryable
-            except httpx.HTTPStatusError as e:
-                msg = (
-                    f"[HTTPStatusError] tool={name} url={self._base_url}"
-                    f" status={e.response.status_code}"
-                    f" response={e.response.text[:300]!r}"
-                    f" — check {self._base_url}/health"
+                last_exc = self._transport_error(
+                    name, "[TimeoutException]", str(e), break_flag=True
                 )
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break
+            except httpx.HTTPStatusError as e:
+                last_exc = self._transport_error(
+                    name,
+                    "[HTTPStatusError]",
+                    f"status={e.response.status_code} response={e.response.text[:300]!r}",
+                    health_check=False,
+                )
             except (httpx.RequestError, ValueError) as e:
-                msg = f"[{type(e).__name__}] tool={name} url={self._base_url}: {e} — check {self._base_url}/health"
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break
+                last_exc = self._transport_error(name, f"[{type(e).__name__}]", str(e))
         else:
             msg = f"[Retry exhausted] tool={name} url={self._base_url} after {self._RETRY_MAX} attempts"
             logger.error(msg)
