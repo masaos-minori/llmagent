@@ -37,6 +37,8 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 
 ```bash
 uv run bandit -r scripts/ -c pyproject.toml
+uv run bandit -r scripts/ -l -ii            # high severity only
+uv run bandit scripts/<file>.py             # single-file scan
 ```
 
 Address high/medium severity findings before proceeding.

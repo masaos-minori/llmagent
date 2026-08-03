@@ -295,7 +295,7 @@ evidence label, open questions, and target document.
   Private names starting with `_` are out of scope unless necessary to explain lifecycle,
   safety, failure behavior, or an invariant — in that case, describe the behavior at
   component level instead of exposing the private API as public.
-- Files under `__pycache__` are out of scope.
+- Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
 
 ---
 

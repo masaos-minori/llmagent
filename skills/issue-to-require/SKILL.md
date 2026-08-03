@@ -38,7 +38,7 @@ multi-file processing rules.
 - **One file at a time**: complete Steps 1-4 for the current issue file before starting the next. Never interleave steps across files.
 - **No Guesswork**: verify factual claims (affected files, whether the described problem still reproduces) against current source before writing the requirement document.
 - **Mandatory move**: after Step 3, the source issue file must be moved to `issues/done/` in Step 4 (subject to `review_mode` gating — see `workflow.md`). Skipping this step is a failure condition.
-- Do not touch files under `__pycache__/`.
+- Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
 - Write the requirement document in clear and concise English for AI consumption.
 
 ---

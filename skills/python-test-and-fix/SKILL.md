@@ -86,7 +86,7 @@ Before committing any fix for a broken or failing test, the AI must explicitly d
 
 ## See Also
 See `workflow.md` for detailed phase content, plugin flags, and CLI commands.
-Run tests with `uv run pytest` (do not activate venv manually; do not use `~/.local/bin/pytest`).
+Run tests via `uv run pytest` (see `AGENTS.md` §Development); do not use `~/.local/bin/pytest`.
 
 ## Composes with
 - `python-implementation` — if Step 12 determines that the fix requires modifying application logic beyond the test suite.

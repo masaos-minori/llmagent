@@ -233,11 +233,7 @@ Do not log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DE
 
 ## Phase 8: Security Validation
 
-```bash
-bandit -r scripts/ -c pyproject.toml
-bandit scripts/web_crawler.py
-bandit -r scripts/ -l -ii    # high severity only
-```
+See `rules/toolchain.md` §5 for bandit commands.
 
 Priority findings: see `rules/coding.md` §Bandit priority findings.
 

@@ -67,8 +67,8 @@ Stop immediately if any command fails.
 - Always check status first.
 - Use explicit file paths for `git add` by default; never use `git add .`.
 - `git add -A` only when the user explicitly says "all changes".
-- Never run dangerous commands: `reset --hard`, `clean -fd`, `checkout -- .`, `restore .`.
-- Never force push, rebase, merge, or amend.
+- Never run dangerous commands: `reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`.
+- Never run history-rewriting or unsafe sync commands: `rebase`, `commit --amend`, `merge`, `merge --abort`, `pull` (without `--ff-only`), `pull --rebase`, `push --force`, `push --force-with-lease`, `push -f`.
 - Run `git pull --ff-only` before every push; if fast-forward is not possible, stop and report the divergence to the user — do not rebase or merge without explicit instruction.
 - Resolve only simple text conflicts; stop at any ambiguity.
 - Push only after explicit user approval.

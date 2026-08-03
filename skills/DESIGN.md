@@ -107,6 +107,26 @@ agent  → all layers
 Violations fail `lint-imports`. Never import a lower layer from a higher one (e.g. `shared`
 must not import from `agent`, `rag`, `db`, or `mcp_servers`).
 
+### Output language
+
+Write generated documents (review reports, design docs, documentation) in Japanese unless the
+target repository or user explicitly requires another language. Always preserve file names,
+module/symbol names, commands, configuration keys, type names, and evidence labels in their
+original form — do not translate identifiers.
+
+### Avoid implementation-reference duplication
+
+When writing a design document, review report, or documentation update, do not copy exhaustive
+file lists, method catalogs, DTO/config-key field tables, or long command/JSON examples into the
+document — recommend or write a concise, evidence-grounded summary instead, and point to the
+source for exhaustive detail.
+
+### Out-of-scope paths
+
+`__pycache__/`, `.venv/`, vendored/generated code, and build outputs are always out of scope for
+reading, editing, or analysis — do not touch or count them toward any task unless the task
+explicitly targets them.
+
 ### Pythonic safety constraints
 
 Applies to any skill that writes or transforms production Python code

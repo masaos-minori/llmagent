@@ -84,8 +84,7 @@ Do:
 Do:
 - identify documentation that now contradicts the changed behavior
 - ground every mismatch claim in the current implementation, not in memory of prior versions
-- do not recommend copying exhaustive method lists, DTO field tables, config key tables, file
-  catalogs, or long command examples into design documents — recommend a concise, evidence-grounded update instead
+- avoid implementation-reference duplication: see `skills/DESIGN.md` §Avoid implementation-reference duplication
 
 ---
 

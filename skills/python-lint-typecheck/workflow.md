@@ -200,11 +200,7 @@ For standard application code: mypy + pyright are sufficient. Do not run pyre by
 
 ## Step 7: Static Security Validation
 
-```bash
-bandit -r scripts/ -c pyproject.toml
-bandit -r scripts/ -l -ii            # high severity only
-bandit scripts/<file>.py
-```
+See `rules/toolchain.md` §5 for bandit commands.
 
 Priority findings — must resolve before merge: see `rules/coding.md` §Bandit priority findings.
 

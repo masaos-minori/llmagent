@@ -56,7 +56,6 @@ See `skills/DESIGN.md` §Pythonic safety constraints (exception handling, typed 
 ### Domain Models & Data Integrity
 - Define dedicated DTOs for audit logs, approval decisions, and execution results
 - Validate all LLM-derived JSON immediately after decoding; fail immediately on schema violation
-- Apply strict typing and strict conversion throughout
 
 ---
 

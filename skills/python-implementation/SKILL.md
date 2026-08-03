@@ -71,7 +71,7 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
 - Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished
-- Files under the `__pycache__` directory are out of scope for work.
+- Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
 
 ### Pythonic Code Quality & Safety Constraints
 See `skills/DESIGN.md` §Pythonic safety constraints (mutable defaults, exception handling,

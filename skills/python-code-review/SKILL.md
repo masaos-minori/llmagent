@@ -12,8 +12,7 @@ description: |
 
 Review first. Do not change code unless the user explicitly asks for implementation.
 
-Write review reports in Japanese unless requested otherwise.
-Keep file names, symbols, commands, config keys, and evidence labels in their original form.
+Output language: see `skills/DESIGN.md` §Output language.
 
 ## When to use
 

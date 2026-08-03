@@ -31,9 +31,7 @@ Do not use this skill for:
 
 ## Documentation Language
 
-Write design documentation in Japanese unless the target repository explicitly requires another language.
-
-Keep file names, symbols, commands, configuration keys, and evidence labels in their original form.
+See `skills/DESIGN.md` §Output language.
 
 ---
 

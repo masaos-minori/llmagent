@@ -21,11 +21,7 @@ operational risks — not on exhaustive implementation-reference detail.
 
 ## Documentation Language
 
-Write design documentation in Japanese unless the target repository or user explicitly
-requires another language.
-
-Keep file names, module names, symbols, commands, configuration keys, type names, and
-evidence labels in their original form.
+See `skills/DESIGN.md` §Output language.
 
 ---
 
@@ -73,7 +69,7 @@ See `workflow.md` for detailed phase content and the required output template.
 ## Core Design Rules (Strictly Enforced for AI)
 
 - **Design first**: do not implement unless explicitly requested.
-- **Avoid implementation-reference duplication**: no exhaustive file lists, method catalogs, DTO field tables, config key tables, or command/JSON examples unless required for a design decision.
+- **Avoid implementation-reference duplication**: see `skills/DESIGN.md` §Avoid implementation-reference duplication.
 - **Enforce one-way dependency direction**: prevent circular imports at the design stage, not during implementation.
 - **Isolate async and sync code**: no blocking calls inside `async def` pipelines without an explicit executor boundary.
 - **Design for immutability by default**: prefer frozen dataclasses, tuples, and `Mapping` for core domain data unless mutation is justified.

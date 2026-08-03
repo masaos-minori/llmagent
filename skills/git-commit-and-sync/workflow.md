@@ -17,10 +17,7 @@
 | `git push` | Push | push to remote after approval |
 | `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
 
-Forbidden commands — never run:
-`reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`,
-`rebase`, `commit --amend`, `merge`, `merge --abort`,
-`pull` (without `--ff-only`), `pull --rebase`, `push --force`, `push --force-with-lease`, `push -f`
+Forbidden commands: see `SKILL.md` § Core rules.
 
 ---
 
@@ -274,14 +271,4 @@ Report:
 - push result or reason push was skipped
 - any stop conditions triggered with explanation
 
----
-
-## Prohibited behavior
-
-- do not run destructive git commands
-- do not force push under any circumstances
-- do not rebase or amend published commits
-- do not push without user approval
-- do not resolve conflicts that require business or product decisions
-- do not stage files unrelated to the task
-- do not invent commit messages from unstaged changes
+Prohibited behavior: see `SKILL.md` § Core rules.
