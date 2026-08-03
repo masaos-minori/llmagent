@@ -81,19 +81,17 @@ class ProductionConfigValidator:
         for key in _REQUIRED_STRICT_KEYS:
             if not config.get(key, False):
                 msg = f"{key}=false — strict mode is required in production"
-                if is_production:
-                    errors.append(msg)
-                else:
-                    warnings.append(f"[local/development] {msg}")
+                e, w = self._format_error_or_warning(msg, is_production)
+                errors.extend(e)
+                warnings.extend(w)
 
         # Not-false keys: explicit false is an error (absent is acceptable)
         for key in _REQUIRED_NOT_FALSE_KEYS:
             if config.get(key) is False:
                 msg = f"{key}=false — strict mode is required in production"
-                if is_production:
-                    errors.append(msg)
-                else:
-                    warnings.append(f"[local/development] {msg}")
+                e, w = self._format_error_or_warning(msg, is_production)
+                errors.extend(e)
+                warnings.extend(w)
 
         # Bidirectional tool_safety_tiers validation
         raw_tiers = config.get("tool_safety_tiers")
@@ -106,33 +104,30 @@ class ProductionConfigValidator:
             )
             if missing_tiers:
                 tier_msg = "; ".join(missing_tiers)
-                if is_production:
-                    errors.append(f"Missing safety tiers: {tier_msg}")
-                else:
-                    warnings.append(
-                        f"[local/development] Missing safety tiers: {tier_msg}"
-                    )
+                e, w = self._format_error_or_warning(
+                    f"Missing safety tiers: {tier_msg}", is_production
+                )
+                errors.extend(e)
+                warnings.extend(w)
 
             unknown_tiers = _check_unknown_tool_safety_tiers(
                 tool_safety_tiers, known_tools=known_tools
             )
             if unknown_tiers:
                 tier_msg = "; ".join(unknown_tiers)
-                if is_production:
-                    errors.append(f"Unknown safety tier keys: {tier_msg}")
-                else:
-                    warnings.append(
-                        f"[local/development] Unknown safety tier keys: {tier_msg}"
-                    )
+                e, w = self._format_error_or_warning(
+                    f"Unknown safety tier keys: {tier_msg}", is_production
+                )
+                errors.extend(e)
+                warnings.extend(w)
 
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
             msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
-            if is_production:
-                errors.append(msg)
-            else:
-                warnings.append(f"[local/development] {msg}")
+            e, w = self._format_error_or_warning(msg, is_production)
+            errors.extend(e)
+            warnings.extend(w)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
@@ -145,6 +140,18 @@ class ProductionConfigValidator:
             for k in unknown_keys
         ]
         return ConfigValidationResult(errors=errors)
+
+    @staticmethod
+    def _format_error_or_warning(
+        msg: str, is_production: bool
+    ) -> tuple[list[str], list[str]]:
+        errors: list[str] = []
+        warnings: list[str] = []
+        if is_production:
+            errors.append(msg)
+        else:
+            warnings.append(f"[local/development] {msg}")
+        return errors, warnings
 
 
 __all__ = ["ConfigValidationResult", "ProductionConfigValidator"]
