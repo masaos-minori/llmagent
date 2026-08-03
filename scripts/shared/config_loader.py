@@ -58,13 +58,7 @@ class ConfigLoader:
     def load(self, *names: str) -> dict[str, Any]:
         """Read and merge one or more TOML or JSON config files; keys starting with '_' are excluded; raises ValueError on missing/parse error."""
         self._validate_names(names)
-        if self._allowed_files is not None:
-            for name in names:
-                _basename = Path(name).name
-                if _basename not in self._allowed_files:
-                    raise ConfigPermissionError(
-                        f"This process is not permitted to load '{_basename}'. Allowed: {sorted(self._allowed_files)}"
-                    )
+        self._check_permission(names)
         merged: dict[str, Any] = {}
         for name in names:
             filtered = self._filter_meta_keys(self._load_single(name))
@@ -83,13 +77,7 @@ class ConfigLoader:
         config files can each contribute a [mcp_servers.<key>] section without
         overwriting entries from previously loaded files.
         """
-        if self._allowed_files is not None:
-            for name in _BASE_CONFIG_FILES:
-                if name not in self._allowed_files:
-                    raise ConfigPermissionError(
-                        f"This process is not permitted to load '{name}' via load_all(). "
-                        f"Allowed: {sorted(self._allowed_files)}"
-                    )
+        self._check_permission(_BASE_CONFIG_FILES, "load_all()")
         merged: dict[str, Any] = {}
         for name in _BASE_CONFIG_FILES:
             try:
@@ -106,6 +94,17 @@ class ConfigLoader:
         return merged
 
     # -- Private helpers ----------------------------------------------------
+
+    def _check_permission(self, names: tuple[str, ...], context: str = "") -> None:
+        if self._allowed_files is not None:
+            for name in names:
+                _basename = Path(name).name
+                if _basename not in self._allowed_files:
+                    msg = f"This process is not permitted to load '{_basename}'."
+                    if context:
+                        msg += f" via {context}."
+                    msg += f" Allowed: {sorted(self._allowed_files)}"
+                    raise ConfigPermissionError(msg)
 
     @staticmethod
     def _validate_names(names: tuple[Any, ...]) -> None:
