@@ -12,7 +12,6 @@ tags:
 related:
   - 01_overview-arch-02-pipelines.md
   - 01_overview-arch-03-features.md
-  - 01_overview.md
 ---
 
 # 概要・アーキテクチャ
@@ -91,7 +90,7 @@ related:
 
 - `01_overview-arch-02-pipelines.md`
 - `01_overview-arch-03-features.md`
-- `01_overview.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

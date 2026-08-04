@@ -33,24 +33,8 @@ source:
 - [ ] `cicd_mcp_server.toml`の`repo_allowlist`が空でない(空 = すべてのリポジトリを拒否)
 - [ ] `github_mcp_server.toml`の`allowed_repos`が空でない(空 = すべてのGitHub書き込み操作を拒否)
 
-### firejailのインストール
-
-```bash
-# Debian/Ubuntu
-sudo apt-get install firejail
-
-# Alpine
-apk add firejail
-
-# Verify installation
-firejail --version
-```
-
-インストール後、`config/shell_mcp_server.toml`を更新する。
-
-```toml
-shell_sandbox_backend = "firejail"
-```
+### firejailのインストールと設定
+firejailのインストールおよびサンドボックスバックエンドの設定手順については、[docs/04_mcp_05_02_auth-profiles-and-sandboxing.md](docs/04_mcp_05_02_auth-profiles-and-sandboxing.md) の「サンドボックスバックエンド (shell-mcp)」セクションを参照してください。
 
 fail-open/closedポリシーの全体表については`04_mcp_05_01_access-control-and-allowlists.md`を参照。
 

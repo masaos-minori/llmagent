@@ -35,6 +35,7 @@
 | ファイル | 概要 |
 |---|---|
 | `validate_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/validate_docs_structure.py [glob ...]` |
+| `audit_docs.py` | ドキュメント構造検証・整形補助スクリプト: docs/*.md の構造規約を検証する。 |
 | `add_missing_frontmatter.py` | `docs/*.md` にYAML Front Matterが存在しないファイルを自動検出し、ファイル名からカテゴリとタイトルを推定してテンプレートを追加する。`--dry-run` で変更内容を表示、`--fix` で実際に適用。 |
 | `dedupe_front_matter_lists.py` | `docs/*.md` のYAML Front Matterにあるリストフィールド(`tags`/`related`/`source`)から重複エントリを除去する。初出順は維持し、本文には手を加えない。 |
 | `fix_d205.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |

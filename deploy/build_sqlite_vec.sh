@@ -38,14 +38,14 @@ echo "--- ビルド成果物を確認 ---"
 ls -l dist/vec0.so
 
 # ── config が参照するパスへコピー ─────────────────────────────────────────────
-# common.toml: sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
+# agent.toml: sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
 echo "--- ${VEC_SO_DEST} へコピー ---"
 cp dist/vec0.so "${VEC_SO_DEST}"
 
 echo "=== build_sqlite_vec.sh: 完了 ==="
 echo ""
 echo "インストール先: ${VEC_SO_DEST}"
-echo "  → config/common.toml の sqlite_vec_so と一致しています"
+echo "  → config/agent.toml の sqlite_vec_so と一致しています"
 echo ""
 echo "次のステップ:"
 echo "  bash deploy/init_db.sh  # DB スキーマ初期化 (vec0 仮想テーブルを含む)"

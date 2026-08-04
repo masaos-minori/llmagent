@@ -73,7 +73,7 @@ HTTP 4xx/5xx はトランスポートレベルのエラーを示す。
 
 ---
 
-## Pydantic モデル（`mcp_servers/models.py`）
+## Pydantic モデル（`scripts/mcp_servers/models.py`）
 
 ```python
 class CallToolRequest(BaseModel):
@@ -127,7 +127,7 @@ These fields are planned but NOT yet implemented:
 
 ---
 
-## MCPServer 基底クラス（`mcp_servers/server.py`）
+## MCPServer 基底クラス（`scripts/mcp_servers/server.py`）
 
 全 MCP サーバーは `MCPServer` を継承する。
 

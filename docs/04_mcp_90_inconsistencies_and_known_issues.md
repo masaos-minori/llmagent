@@ -62,8 +62,8 @@ related:
 - **Summary**: config_dependent は一部採用済みだが enabled/disabled_reason は未実装
 - **Current Description**: web_search-mcp の browser_fetch が config_dependent: True を採用したが enabled/disabled_reason は /v1/tools レスポンスに存在しない
 - **Observed Implementation**: RuntimeToolRegistry は McpToolDiscoveryService によりライブ検出され ToolExecutor.set_runtime_registry() で接続済み
-- **Impact**: 他の MCP サーバーの config_dependent 移行と enabled/disabled_reason の実装が必要
-- **Recommended Action**: 他の MCP サーバーの config_dependent 移行と enabled/disabled_reason の実装完了後、本エントリを削除
+- **Impact**: web-search-mcp のみ enabled/disabled_reason が未実装（他4サーバー — git-mcp/file-read-mcp/file-write-mcp/file-delete-mcp — は実装済み）
+- **Recommended Action**: web-search-mcp の enabled/disabled_reason 実装完了後、本エントリを削除
 - **Resolution Notes**: 部分的に実装済み
 
 ---

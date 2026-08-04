@@ -80,7 +80,7 @@ HTTP トランスポートエラー（4xx/5xx）は `HttpTransport.call()` に�
 
 ---
 
-## dispatch_tool ヘルパー（`mcp_servers/dispatch.py`）
+## dispatch_tool ヘルパー（`scripts/mcp_servers/dispatch.py`）
 
 ```python
 from mcp_servers.dispatch import ToolArgs, dispatch_tool

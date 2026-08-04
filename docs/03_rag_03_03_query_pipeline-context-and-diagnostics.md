@@ -46,16 +46,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 ```
 
-| フィールド | 型 | デフォルト | 説明 |
-|---|---|---|---|
-| `embed_ok` | int | 0 | 埋め込み成功件数 |
-| `embed_failed` | int | 0 | 埋め込み失敗件数 |
-| `fts_errors` | int | 0 | FTS5クエリのエラー件数 |
-| `result_source` | ResultSource | ResultSource.LOCAL | 最終結果のソース（HTTPモードのみ） |
-| `http_result_kind` | HttpResultKind | HttpResultKind.NOT_USED | HTTP RAG結果の分類（HTTPモードのみ） |
-| `remote_status_code` | int \| None | None | リモートサービスからのHTTPステータスコード（HTTPモードのみ） |
-| `remote_latency_ms` | float \| None | None | リモート呼び出しのレイテンシ（ミリ秒、HTTPモードのみ） |
-| `fallback_reason` | str \| None | None | HTTPモードが失敗した際のフォールバック理由（HTTPモードのみ） |
+詳細なフィールド一覧、型、およびデフォルト値については <a href="../03_rag_04_02_dto-models_result.md">docs/03_rag_04_02_dto-models_result.md</a> を参照してください。本節では、HTTPモードにおける各フィールドの境界条件と所有権について記述します。
 
 #### 境界条件 (Boundary and ownership)
 
@@ -86,6 +77,7 @@ pipeline.get_diagnostics() -> dict
 | `stage_results` | `list[dict]` | ステージごとの結果（`last_stage_results` と同じ） |
 | `timings` | `dict[str, float]` | 各ステージの実測秒数（`last_timings` と同じ） |
 | `fetch_result` | `dict \| None` | フェッチ結果: `{hits: int, min_score_applied: float}` または `None` |
+> **注意:** HTTPモードにおいて、`fetch_result` は、現在の呼び出しの結果ではなく、前回のインプロセス実行時の値が残っている（staleになる）可能性があります。これは `RagPipeline._run_http_augment()` が HTTP 成功時に `self.run()` を呼び出さないためです（詳細は `scripts/rag/pipeline.py:336`, `:408-414`, `:470-511` および `scripts/rag/pipeline_service.py:42-171` を参照）。
 | `fusion_mode` | `str` | `"rrf"` または `"dedup_only"` |
 | `http_result_kind` | `str \| None` | HTTPモードの分類（`_http_result_kind` と同じ） |
 | `fallback_count` | `int` | フォールバックが発生したステージ数 |

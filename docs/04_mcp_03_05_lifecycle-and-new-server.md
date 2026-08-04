@@ -50,7 +50,7 @@ related:
 
 要点:
 1. **`shared/tool_constants.py` の frozenset にツール名を追加する** [必須] — 内部レジストリ登録関数がインポート時にこれらの frozenset を読み込み、ルーティングレジストリを自動的に構築する。レジストリの手動編集は不要。
-2. **`GET /v1/tools` エンドポイントを追加する** [推奨] — `check_routing_drift_vs_live()` による起動時ドリフト検証を可能にする; ルーティングには影響しない。
+2. **`GET /v1/tools` エンドポイントを追加する** [推奨] — `validate_routing_against_live()` による起動時ドリフト検証を可能にする; ルーティングには影響しない。
 3. **サーバー設定に `tool_names` を追加する** [任意] — ドリフト検証のヒントのみ; ルーティングには不要。
 4. **`config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する** [ツールを LLM に見せる場合は必須]
 5. **`config/agent.toml` に `tool_safety_tiers` エントリを追加する** [必須 — 全てのツールは安全性ティアを宣言しなければならない]
@@ -88,7 +88,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### 手動での作業手順
 
-1. `mcp_servers/<name>/server.py` で `MCPServer` をサブクラス化し、`dispatch()` をオーバーライドする
+1. `scripts/mcp_servers/<name>/server.py` で `MCPServer` をサブクラス化し、`dispatch()` をオーバーライドする
 2. `server_key` フィールドを含むツール定義を返す `GET /v1/tools` エンドポイントを追加する
 3. `shared/tool_constants.py` の frozenset にツール名を追加する（このサーバーが所有）
 4. `config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する（OpenAI function-calling 形式）

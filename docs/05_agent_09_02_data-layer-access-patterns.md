@@ -41,7 +41,7 @@ source:
 ## RAG MCP Internal Path(RAG MCP内部パス)
 
 `RagPipelineMCPService` は `list_documents()` と `delete_document()` を、内部で保持する
-`DocumentManager`(`scripts/mcp_servers/rag_pipeline/document_manager.py`)に委譲する。
+`DocumentManager`(`scripts/mcp_servers/rag_pipeline/rag_pipeline_document_manager.py`)に委譲する。
 `DocumentManager` が `SQLiteHelper("rag")`(または設定された `rag_db_path` があればそちらのパス)を通じて
 `rag.sqlite` に直接アクセスする。これはRAG MCPサービス所有者の内部操作であり、
 エージェント層による直接DBアクセスではない。
@@ -50,7 +50,7 @@ source:
 `DocumentManager(rag_db_path=cfg.rag_db_path)` で再生成される。DB直接アクセスの実体クラスは
 `RagPipelineMCPService` 自身ではなく `DocumentManager` である点に注意。(Explicit in code)
 
-**許可されるもの:** `RagPipelineMCPService` / `DocumentManager`(scripts/mcp_servers/rag_pipeline/service.py, document_manager.py) — RAG MCPサービスは
+**許可されるもの:** `RagPipelineMCPService` / `DocumentManager`(scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py, rag_pipeline_document_manager.py) — RAG MCPサービスは
 これらの操作をその責任境界の一部として所有する。
 
 **許可されないもの:** エージェントのアプリケーションコード、他のMCPサービス、共有層コードが

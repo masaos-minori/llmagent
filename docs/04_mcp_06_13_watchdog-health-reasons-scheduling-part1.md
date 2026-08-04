@@ -53,21 +53,18 @@ probe_result.body["reason"] or probe_result.body["message"]
 # Step 2: Resolved to endpoint string  
 _resolve_endpoint() returns tuple including body_reason
 
-# Step 3: HealthRegistry receives it via record_failure(record_success())
-registry.record_failure(reason=str(body_reason))
+# Step 3: HealthRegistry receives it via record_failure(server_key)
+# Note: record_failure() does not take a 'reason' argument.
+# Although record_degraded(server_key, reason=None) exists, it is currently dead code.
+registry.record_failure(server_key)
 
-# Step 4: Displayed at two levels
-# - Per-server degraded reason: registry.get_degraded_reason(key)
-# - Global table column: McpProbeResult.health_reason derived below
+# Step 4: Current Status
+# Because record_degraded() is not used, get_degraded_reason() always returns None.
+# Refer to docs/04_mcp_06_12_watchdog-configuration-monitoring.md for details.
 ```
 
 #### degraded の理由一覧
-
-`McpServerHealthRegistry.get_degraded_reason()` が返す値:
-
-| 理由 | 設定元 | 発生条件 |
-|------|--------|----------|
-| ボディ理由 (`details.reason` / `message`) | `record_failure()` / `record_degraded()` | `/health` レスポンスのボディから抽出 |
+現在、`record_degraded()` が呼び出されないため、`get_degraded_reason()` は常に `None` を返します。
 
 - すべての degraded 理由は、`record_success()` によってクリアされる。
 

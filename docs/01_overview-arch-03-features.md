@@ -12,7 +12,6 @@ tags:
 related:
   - 01_overview-arch-01-process.md
   - 01_overview-arch-02-pipelines.md
-  - 01_overview.md
 ---
 
 # 概要・アーキテクチャ
@@ -27,19 +26,21 @@ related:
 
 | 機能 | 実装場所 |
 |---|---|
-| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/pipeline.py` |
-| MCP ツールコーリング (HTTP, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
-| メモリレイヤー (semantic/episodic) | `agent/memory/` |
-| セッション永続化・復元 | `agent/session.py`, `db/` |
-| コンテキスト圧縮 (LLM 要約) | `agent/history.py` |
-| ツール結果 TTL キャッシュ | `shared/tool_cache.py`, `shared/tool_executor.py` |
-| SSE ストリーミング | `shared/llm_client.py` |
-| スラッシュコマンド群 | `agent/commands/` |
-| ツールループガード (dedup/cycle/retry/error 上限) | `agent/tool_loop_guard.py` |
-| ワークフローエンジン (plan/execute/approval/verify) | `agent/workflow/` |
-| MDQ/RAG クエリルーティング | `agent/mdq_rag_classifier.py` |
-| 依存性注入ハブ (AgentContext) | `agent/context.py` |
-| 診断ストア (ターン/セッション統計) | `agent/diagnostic_store.py` |
+| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/` |
+| MCP ツールコーリング (HTTP, 11 サーバ) | `scripts/agent/`, `scripts/shared/` |
+| メモリレイヤー (semantic/episodic) | `scripts/agent/memory/` |
+| セッション永続化・復元 | `scripts/agent/`, `scripts/db/` |
+| コンテキスト圧縮 (LLM 要約) | `scripts/agent/` |
+| ツール結果 TTL キャッシュ | `scripts/shared/` |
+| SSE ストリーミング | `scripts/shared/` |
+| スラッシュコマンド群 | `scripts/agent/commands/` |
+| ツールループガード (dedup/cycle/retry/error 上限) | `scripts/agent/` |
+| ワークフローエンジン (plan/execute/approval/verify) | `scripts/agent/workflow/` |
+| MDQ/RAG クエリルーティング | `scripts/agent/` |
+| 依存性注入ハブ (AgentContext) | `scripts/agent/` |
+| 診断ストア (ターン/セッション統計) | `scripts/agent/` |
+
+詳細なファイル構成については [`01_overview-files-03-scripts-part*.md`](01_overview-files-03-scripts-part1.md) シリーズを参照してください。
 
 ### 実装上の補足
 
@@ -53,7 +54,7 @@ related:
 
 **ツールルーティング**
 
-`shared/route_resolver.py` がツール名をサーバキーに解決する。ルーティング優先順位は (1) 起動時の `/v1/tools` live discovery マップ、(2) `shared/tool_registry.py` の静的レジストリ。設定 `tool_names` はルーティングには使用せず、ドリフト検証用のメタデータのみ。(根拠: `shared/route_resolver.py`)
+`RuntimeToolRegistry` (`shared/route_resolver.py`) が唯一のルーティング権限を持つ。起動時の `/v1/tools` live discovery マップはバリデーション専用であり、ルーティングには使用されない。また、静的レジストリ (`tool_registry.py`) も現在はルーティングには使用されない。設定 `tool_names` はドリフト検証にのみ使用される。(根拠: `shared/route_resolver.py`)
 
 **sqlite-vec 拡張の適用範囲**
 
@@ -65,7 +66,7 @@ REPLループの `finally` ブロックで以下を実行する:
 
 1. セッション診断情報の保存 — ターン数・ツール呼出数・レイテンシ・ワークフロー統計を `DiagnosticStore` に保存
 2. セッションメモリの永続化 — セッション履歴からルールベースでメモリを抽出・永続化
-3. `session.sqlite` に対して WAL TRUNCATE チェックポイントを実行してからコネクションをクローズ
+3. `session.sqlite` に対して WAL TRUNCATE チェックポイントを実行してからコネクションをクローズ。チェックポイントが失敗した場合は、防御策として `_wal_backup_sync` による WAL ファイルのバックアップが試行されるが、例外は発生せずプロセスは正常に終了する。次回の起動時には SQLite が既存の WAL ファイルを読み込むため、データの損失は発生しない。ただし、繰り返し失敗する場合は WAL ファイルの肥大化に注意が必要である。(根拠: `agent/repl.py`)
 
 診断情報は `/db` コマンドで参照できる。(根拠: `agent/repl.py`)
 
@@ -75,7 +76,7 @@ REPLループの `finally` ブロックで以下を実行する:
 
 - `01_overview-arch-01-process.md`
 - `01_overview-arch-02-pipelines.md`
-- `01_overview.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

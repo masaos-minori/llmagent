@@ -82,13 +82,11 @@ MCPツールは任意のケイパビリティメタデータを宣言できる�
 - `process.execute`
 - `search.web`
 
-**現在採用しているツール:**
-
-- `browser_fetch` (`web_search-mcp`) — `("web_fetch",)`
+**注記:** `("web_fetch",)` という値はテスト用フィクスチャ（`tests/test_runtime_tool_routing_integration.py`）でのみ確認されており、プロダクション環境の MCP サーバーにおいてこの命名規則に基づいた `capabilities` を宣言しているものは現在存在しません。
 
 ## ステータス
 
-これは提案中の標準慣習であり、web_search-mcp の `browser_fetch` が `web_fetch` ケイパビリティを宣言したことで初めて実装に採用された。他のサーバーへの展開は将来の別途スコープされた作業である（リスク#1の緩和策 — 文書が「すでに実証済み」と読まれないようにするため）。
+これは提案中の標準慣習です。現時点では、プロダクション環境においてこの命名規則を正式に採用している MCP サーバーはありません。
 
 ## Related Documents
 

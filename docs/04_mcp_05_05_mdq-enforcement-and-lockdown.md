@@ -29,7 +29,7 @@ related:
 
 | 層 | DB | 機構 | コンテキスト |
 |---|---|---|---|
-| `mcp_servers/mdq/` | `mdq.sqlite` | 自身のサービス | 通常運用 |
+| `scripts/mcp_servers/mdq/` | `mdq.sqlite` | 自身のサービス | 通常運用 |
 | `scripts/mcp_servers/rag_pipeline/` | `rag.sqlite` | 自身のサービス | 通常運用 |
 | エージェント層 | `session.sqlite` | `SQLiteHelper("session")` | 通常運用 |
 | エージェント層 | `workflow.sqlite` | `SQLiteHelper("workflow")` | 通常運用 |
@@ -39,7 +39,7 @@ related:
 
 | 層 | DB | 理由 |
 |---|---|---|
-| `mcp_servers/mdq/` | `rag.sqlite` | クロス DB 依存 |
+| `scripts/mcp_servers/mdq/` | `rag.sqlite` | クロス DB 依存 |
 | `scripts/mcp_servers/rag_pipeline/` | `mdq.sqlite` | クロス DB 依存 |
 | エージェント層（通常時） | `mdq.sqlite` または `rag.sqlite` | 直接 DB アクセスではなく MCP ツールを使用すること |
 
@@ -66,7 +66,7 @@ mdq-mcp は他サーバーとの DB 境界とは別に、ファイルパス単�
   パス検証関数（`index_paths`/`refresh_index` ツールが使用）、および
   `search_docs`・`get_chunk`・`grep_docs`（**2026-07-20 に読み取り時の再チェックを追加**、
   下記参照）の計5ツール。違反時は `MdqAuthorizationError` を送出し、HTTP 層では 403 に
-  変換される(`scripts/mcp_servers/mdq/server.py` の例外ハンドラ) (Explicit in code)。
+  変換される(`scripts/mcp_servers/mdq/mdq_server.py` の例外ハンドラ) (Explicit in code)。
 - `search_docs`・`get_chunk`・`grep_docs` は、返却前にインデックス済みチャンクの
   `source_path` を現在の `allowed_dirs` に対して `authorize_path()` で再チェックする。
   `search_docs` と `grep_docs`（`paths` 未指定時）は未認可の行を無音で除外し件数にも
@@ -83,10 +83,10 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
 `attach_auth_middleware()` docstring: "When token is empty, auth is skipped..."）
 (Explicit in code)。
 
-これは見落としではない。`scripts/mcp_servers/mdq/server.py` の `MdqMCPServer`
+これは見落としではない。`scripts/mcp_servers/mdq/mdq_server.py` の `MdqMCPServer`
 クラスの docstring には次のように明記されている:
 `"auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)"` (Explicit in code)。実際の呼び出しは
-`scripts/mcp_servers/mdq/server.py:308`: `attach_auth_middleware(cast(_FastAPIApp, app), "")`。
+`scripts/mcp_servers/mdq/mdq_server.py:368`: `attach_auth_middleware(cast(_FastAPIApp, app), "")`。
 
 代わりに、上記の `allowed_dirs`（デフォルト `[]`）ベースのパス認可が実際のセキュリティ
 境界として機能する。`allowed_dirs = []` は fail-closed（全パスアクセス拒否）である
@@ -113,13 +113,13 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
   `_merge_hybrid()`, `_RRF_K`）と設定項目（`use_embedding`, `embedding_dims`,
   `vector_table`, `embedding_model`）を完全に削除した**(Explicit in code)。
   セマンティック検索が必要な場合は RAG パイプラインを使用する。
-- `scripts/mcp_servers/mdq/tools.py` の `TOOL_LIST` に `fts_consistency_check` と `fts_rebuild`
-  が `status: "admin"` として定義されていたが、`scripts/mcp_servers/mdq/server.py` の
+- `scripts/mcp_servers/mdq/mdq_tools.py` の `TOOL_LIST` に `fts_consistency_check` と `fts_rebuild`
+  が `status: "admin"` として定義されていたが、`scripts/mcp_servers/mdq/mdq_server.py` の
   `_DISPATCH_TABLE` にハンドラが登録されておらず、呼び出すと「Unknown tool」エラーとなる
   スキーマ・設定・実行経路間の不整合があった。運用上この2ツールを呼び出すクライアントは
   存在せず、正式な配線（safety tier・serialization・audit・テスト整備）を行う積極的な
-  要件もないため、**2026-07-16 に両ツールをスキーマ（`TOOL_LIST`）、モデル（`models.py`）、
-  サービス層（`service.py`）、`db_fts.py`、レジストリ（`tool_constants.py`）、設定
+  要件もないため、**2026-07-16 に両ツールをスキーマ（`TOOL_LIST`）、モデル（`mdq_models.py`）、
+  サービス層（`mdq_service.py`）、`db_fts.py`、レジストリ（`tool_constants.py`）、設定
   （`config/agent.toml`）から完全に削除した**。実装は git 履歴（`db_fts.py` 削除前の
   リビジョン）から復元可能(Explicit in code)。
 - `mdq_mcp_server.toml` の `concurrency_limit` は、`scripts/mcp_servers/mdq/` 配下および
@@ -129,16 +129,16 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
   達成されており、設定値には依存しない(Explicit in code)。
 - **直列化モデルの詳細:** `index_paths` と `refresh_index` はいずれも
   `MdqService._index_lock`（遅延生成される `asyncio.Lock`）を実行前に取得し、
-  同時実行を防ぐ(Explicit in code)。これは `tools.py` の `requires_serial: True`
+  同時実行を防ぐ(Explicit in code)。これは `mdq_tools.py` の `requires_serial: True`
   （`scripts/agent/tool_scheduler.py` が1エージェントターン内の同時ツール呼び出しに対して
   適用するグローバルなバリア）とは別の、独立した直列化機構である。両者は補完的であり、
   いずれも削除・統合の対象ではない。この直列化が実際に機能することは
   `tests/test_mdq_index_serialization.py` で検証されている。
 - `mdq_mcp_server.toml` の `enable_refresh` は、`refresh_index()` にゲートチェックが
   一度も実装されなかった（読み込まれるが常に無視される）ため、
-  **2026-07-16 に `service.py` と設定ファイルから削除した**。対照的に `enable_grep` は
+  **2026-07-16 に `mdq_service.py` と設定ファイルから削除した**。対照的に `enable_grep` は
   `grep_docs()` 内で実際に強制されており（`not self.enable_grep` の場合
-  `MdqValidationError` を発生させる）、`tests/test_mdq_service.py`
+  `MdqValidationError` を発生させる）、`tests/mcp_servers/mdq/test_mdq_service.py`
   の `TestGrepDocsConfigGate` でテストされている — 両者は設定上似ているが、
   一方のみが実際の挙動に接続されている(Explicit in code)。
 - `chunks` テーブルの `tags_json` と `token_count` は、これまで `scripts/mcp_servers/mdq/indexer.py`
@@ -155,16 +155,7 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
 
 ## Fail-open 対 Fail-closed のデフォルト
 
-Fail-open/fail-closed基本方針は docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md を参照。mdq-mcp 固有のロックダウン規則(deny-all時の挙動)は本ファイル末尾に別途記載。
-
-
-
-### 本番デプロイ前に確認すべき危険なデフォルト値
-
-- `shell-mcp`: `sandbox_backend = "none"`（デフォルト）は OS レベルのサンドボックスがないことを意味する。
-  本番環境では `"firejail"` を設定すること; `/health` レスポンスで確認可能。
-- `cicd-mcp`: `workflow_allowlist = []` は fail-closed（全拒否）である。エージェント層およびサーバ層の両方で警告が発生する (詳細は docs/04_mcp_05_01_access-control-and-allowlists.md を参照).
-- `github-mcp`: `allow_force_push = false`（デフォルト）; `require_pr_review = true`（デフォルト）。
+Fail-open/fail-closed基本方針は `docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` を参照。mdq-mcp 固有のロックダウン規則(deny-all時の挙動)は本ファイル末尾に別途記載。
 
 ### 起動時の audit
 
@@ -235,8 +226,6 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 
 | 設定 | デフォルト | fail-open 時の挙動 | 本番環境での推奨 |
 |---|---|---|---|
-| `tool_definitions_strict` | `true` | `false` = スキーマ不一致が WARNING に格下げされる | `true` を維持する |
-| `shell_sandbox_backend` | `"none"` | `"none"` = OS 分離なし | 本番環境では `"firejail"` を設定する |
 | `allowed_dirs`（mdq-mcp） | `[]` | `[]` = 全パスアクセスを拒否（fail-closed）; ただし起動時 audit の対象外(Explicit in code) | 読み取りを許可するディレクトリを明示的に列挙する |
 
 ## Related Documents

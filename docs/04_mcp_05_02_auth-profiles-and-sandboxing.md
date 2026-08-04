@@ -69,7 +69,7 @@ HTTP MCP サーバーに Bearer トークン認証が必須かどうかを制御
 報告される（[Configuration: Hot-reload eligibility](05_agent_08_01_configuration-loading-agent-config-part1.md#config-file-ownership-and-hot-reload-eligibility) を参照）。
 本番環境の認証検証は起動時にのみ実行される; これを弱めたり回避したりできるランタイムパスは存在しない。
 
-**Audit API の分離:** `agent/security_audit_config.py` は、MCP サーバーの config モデル（`mcp_servers.shell.models`, `mcp_servers.git.models`, `mcp_servers.github.models_config`, `mcp_servers.cicd.models`）をインポートする、エージェント層における唯一の許可されたポイントである。4つの狭いスコープの DTO（`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`）と、オプションの依存関係（`ImportError` → `None`）および config 読み込み失敗（`Exception` → `RuntimeError`）を処理する4つのローダー関数を公開する。
+**Audit API の分離:** `agent/security_audit_config.py` は、MCP サーバーの config モデル（`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.models_config`, `mcp_servers.cicd.cicd_models`）をインポートする、エージェント層における唯一の許可されたポイントである。4つの狭いスコープの DTO（`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`）と、オプションの依存関係（`ImportError` → `None`）および config 読み込み失敗（`Exception` → `RuntimeError`）を処理する4つのローダー関数を公開する。
 
 ---
 

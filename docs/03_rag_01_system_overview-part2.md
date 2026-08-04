@@ -59,13 +59,7 @@ config/crawler.toml [target_urls]
 
 **エージェントの1ターンごとに実行される5つの論理ステージ**
 
-| ステージ | クラス | 機能 |
-|---|---|---|
-| 1. MQE | `MqeStage` | 再現率向上のためクエリをN個のバリアントに展開する |
-| 2. Search | `SearchStage` | 各クエリバリアントに対しKNN（sqlite-vec）+ BM25（FTS5）を実行する |
-| 3. Fusion | `FusionStage` | RRF（Σ 1/(rrf_k+rank)）を用いて複数クエリの結果を統合する。`rrf_k` は設定で変更可能（デフォルト: 60） |
-| 4. Rerank | `RerankStage` | クロスエンコーダLLMによるスコアリング。`rag_min_score` でフィルタし、リランク後にchunk_id単位で重複排除する |
-| 5. Augment | `AugmentStage` | チャンクを `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` 形式に整形する |
+MQE→検索→融合→リランク→補強の5ステージ。各ステージの詳細は `docs/03_rag_03_02_query_pipeline-rag-pipeline-class-part1.md` 〜 `docs/03_rag_03_05_query_pipeline-augment-stages.md` を参照。
 
 **エントリポイント:** `RagPipeline.augment(query) -> str`
 **呼び出し元:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`（MCP HTTP、ポート8010経由）
@@ -104,11 +98,7 @@ config/crawler.toml [target_urls]
 
 ## MCPサーバーの責務分担
 
-| ファイル | 責務 |
-|---|---|
-| `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` | HTTPエントリポイント + ルート定義 |
-| `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` | パイプラインアダプタ（ライフサイクル + レスポンス整形） |
-| `scripts/rag/pipeline.py` | RAGのコアロジック |
+`rag_pipeline_server.py`, `rag_pipeline_service.py`, および `scripts/rag/pipeline.py` の責務の詳細は、`docs/03_rag_03_01_query_pipeline-overview.md` を参照してください。
 
 ## Related Chapters
 

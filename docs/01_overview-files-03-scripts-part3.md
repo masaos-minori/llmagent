@@ -11,7 +11,6 @@ related:
   - 01_overview-files-03-scripts-part2.md
   - 01_overview-files-03-scripts-part4.md
   - 01_overview-files-03-scripts-part5.md
-  - 01_overview.md
 ---
 
 
@@ -48,14 +47,8 @@ related:
 │   │   │    ├─ __init__.py                 # shared パッケージ初期化
 │   │   │    ├─ enums.py                    # 空ファイル: カナonicalな列挙型は agent.memory.enums / agent.tool_enums
 │   │   │    ├─ exceptions.py               # 空ファイル: カナonicalな例外は agent.commands/agent.services/agent.memory/agent.tool_exceptions
-│   │   │    ├─ health_models.py            # ヘルスチェックモデル
-│   │   │   │    ├─ ServiceWarning: label, url, message
-│   │   │   │    ├─ HealthCheckResult: warnings, errors; has_issues (prop), warning_messages(), error_messages()
-│   │   │   │    └─ McpHealthProbeResult: reachable, status_code, restart_recommended, operator_action_required, body
-│   │   │    └─ models.py                   # エージェント共通データモデル
-│   │   │       ├─ ToolApprovalEvent: event, task_id, tool, operation_type, resource_scope, risk, decision, args_preview, ts, workflow_id, session_id
-│   │   │       ├─ ApprovalDecisionEvent: event, task_id, tool, risk_level, decision, escalation_reason, ts, workflow_id, session_id
-│   │   │       └─ ToolExecEvent: event, task_id, tool, operation_type, resource_scope, mcp_request_id, is_error, args_preview, ts, source, error_type, workflow_id, session_id, artifact_uri
+│   │   │    ├─ health_models.py            # ヘルスチェックモデル（ServiceWarning/HealthCheckResult/McpHealthProbeResult を集約）。詳細は scripts/agent/shared/health_models.py の定義を参照。
+│   │   │    └─ models.py                   # エージェント共通データモデル（承認イベント・ツール実行イベントの監査データモデルを集約）。詳細は scripts/agent/shared/models.py の定義を参照。
 │   │   └─ workflow/                        # ワークフローエンジン
 │   │       ├─ models.py                    # ワークフローデータモデル
 │   │       ├─ state_store.py               # ワークフロー状態ストア
@@ -76,6 +69,7 @@ related:
 - `01_overview-files-03-scripts-part2.md`
 - `01_overview-files-03-scripts-part4.md`
 - `01_overview-files-03-scripts-part5.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

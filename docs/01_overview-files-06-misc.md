@@ -10,8 +10,9 @@ tags:
 related:
   - 01_overview-files-01-build.md
   - 01_overview-files-02-rag.md
+  - 01_overview-files-03-scripts-part1.md
+  - 01_overview-files-04-shared-part1.md
   - 01_overview-files-05-config.md
-  - 01_overview.md
 ---
 
 # ファイル構成
@@ -41,8 +42,11 @@ related:
 │       ├─ route_helpers.py             # ルートハンドラ共通ヘルパー
 │       ├─ schema.sql                   # イベントバスDBスキーマ
 │       └─ __init__.py                  # イベントバスパッケージ初期化
-├─ logs/                                # 各サービスのログファイル出力先
 ```
+
+イベントの配信失敗とリカバリフロー：
+メッセージの受信拒否（nack）が発生すると、`ack_route.py` を介して `db.py` の `delivery_failure_count` がインクリメントされます。このカウントが `max_retry` に達したイベントは、`dlq.py` によって `dlq_at` タイムスタンプが付与され、DLQ (Dead Letter Queue) へ昇格されます。DLQ の確認および復旧は `dlq_route.py` を通じて行われ、`dlq_list` による一覧取得や `dlq_requeue` によるアクティブキューへの再投入が可能です。なお、`offsets.py` と `replay_route.py` によるリプレイ機能は、コンシューマーのキャッチアップ（過去のオフセットからの再読み込み）のための独立した仕組みであり、DLQ からの復旧とは別のプロセスです。
+
 
 リポジトリルート:
 ``` text
@@ -60,6 +64,7 @@ conf.d/
 - `01_overview-files-03-scripts-part1.md`
 - `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

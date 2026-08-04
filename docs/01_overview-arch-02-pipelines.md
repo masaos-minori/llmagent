@@ -12,7 +12,6 @@ tags:
 related:
   - 01_overview-arch-01-process.md
   - 01_overview-arch-03-features.md
-  - 01_overview.md
 ---
 
 # 概要・アーキテクチャ
@@ -46,7 +45,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 - ターン処理は 4 層に分離されている: `AgentREPL`(REPL ループ) → `Orchestrator`(ターン制御・ワークフロー管理) → `LLMTurnRunner`(LLM ストリーミング + 内部ツールループ) → `agent/tool_runner.py`(ツール実行)。各層の責務は `agent/repl.py` の docstring で宣言されている。
 - MDQ/RAG ツール選択: `agent/mdq_rag_classifier.py` がクエリ文字列を解析し、Markdown 構造系キーワードを含む場合は MDQ ツール、それ以外は RAG ツールを優先するよう `system` ロールのエフェメラルメッセージとして hint をhistory に注入する。設定で固定も可能。(根拠: `agent/orchestrator.py`)
-- ツールループガード: 同一ターン内で重複ツール呼び出し (`dedup`)・失敗済み呼び出しの再試行 (`retry`)・ラウンド指紋の繰り返し (`cycle`)・連続エラー上限 (`consecutive_errors`) の 4 種の異常を検出して LLM に停止ヒントを返す。(根拠: `agent/tool_loop_guard.py`)
+- ツールループガード: ターン内での異常な繰り返しツール呼び出しパターンを検出し、LLM に停止ヒントを返して強制終了させる。詳細 → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (根拠: `agent/tool_loop_guard.py`)
 - ワークフローエンジン: `agent/workflow/workflow_engine.py` が plan → execute → [approval gate] → verify のステージ遷移を管理する。`/approve` / `/reject` スラッシュコマンドで人間承認ゲートを通過させる。ターン開始時に承認待ち状態であれば LLM 処理はブロックされる。(根拠: `agent/orchestrator.py`)
 
 **ターン内の処理順序**
@@ -94,7 +93,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 - `01_overview-arch-01-process.md`
 - `01_overview-arch-03-features.md`
-- `01_overview.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

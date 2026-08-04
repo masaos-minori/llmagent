@@ -45,18 +45,8 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 ```
 
 ### 新しいツールの追加
+詳細な手順は [Adding a new tool](docs/04_mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool) を参照してください。なお、 の  はルーティングの入力ではなく、あくまでドリフト検証用のメタデータです.
 
-| ステップ | アクション | 必須か |
-|---|---|---|
-| 1 | `shared/tool_constants.py` の適切な frozenset にツール名を追加する | **[必須]** |
-| 2 | レジストリはインポート時にこれらの frozenset から自動構築される — レジストリの手動編集は不要 | （自動） |
-| 3 | 所有する MCP サーバー（`mcp_servers/<name>/server.py`）に `dispatch()` ハンドラーを実装する | **[必須]** |
-| 4 | `/v1/tools` エンドポイントでツールを公開する（`server_key` フィールドを含むツール定義を返す） | **[推奨]** — `check_routing_drift_vs_live()` による起動時ドリフト検出を可能にする |
-| 5 | `config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する（OpenAI function-calling 形式） | **[必須]** — ツールを LLM に見せる場合 |
-| 6 | 新ツール用に `config/agent.toml` に `tool_safety_tiers` エントリを追加する | **[必須]** — 全てのツールは安全性ティアを宣言しなければならない |
-| 7 | `config/<key>_mcp_server.toml` の `[mcp_servers.<key>]` セクションの `tool_names` にツール名を追加する | **[任意]** — 起動時ドリフト検証のみを可能にする; ルーティングには不要 |
-
-**推奨手順**: ToolRegistry の frozenset に追加する（ステップ1）+ `/v1/tools` エンドポイントで公開する（ステップ4）。config の `tool_names`（ステップ7）はルーティングの入力ではない; あくまでドリフト検証用のメタデータである。未知のツールは即時失敗する — フォールバックは存在しない。`/v1/tools` でツールを公開することで、`check_routing_drift_vs_live()` による起動時ドリフト検出が可能になる; ルーティングには影響しない。
 
 ### 検証
 
@@ -113,6 +103,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 _SIDE_EFFECT_TOOLS = (
     WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
     | GIT_WRITE_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
+    | CICD_WRITE_TOOLS | RAG_WRITE_TOOLS | MDQ_WRITE_TOOLS
 )
 is_side_effect(tool_name: str) -> bool
 ```
@@ -120,7 +111,7 @@ is_side_effect(tool_name: str) -> bool
 `execute_all_tool_calls()` が副作用を持つツールを1つでも検出した場合、`serial_tool_calls`
 の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
 
-（注: `_SIDE_EFFECT_TOOLS` は `WRITE_TOOLS` / `DELETE_TOOLS` / `shell_run` に加え、Git 書き込み系（`GIT_WRITE_TOOLS`）と GitHub 書き込み・危険操作系（`GITHUB_WRITE_TOOLS`、`GITHUB_DANGEROUS_TOOLS`）も含む。Explicit in code: `shared/tool_executor_helpers.py`。）
+（注: `_SIDE_EFFECT_TOOLS` は `WRITE_TOOLS` / `DELETE_TOOLS` / `shell_run` に加え、Git 書き込み系（`GIT_WRITE_TOOLS`）、GitHub 書き込み・危険操作系（`GITHUB_WRITE_TOOLS`、`GITHUB_DANGEROUS_TOOLS`）、および CICD/RAG/MDQ 書き込み系（`CICD_WRITE_TOOLS`, `RAG_WRITE_TOOLS`, `MDQ_WRITE_TOOLS`）も含む。Explicit in code: `shared/tool_executor_helpers.py`。）
 
 ### 安全性ティア検証
 

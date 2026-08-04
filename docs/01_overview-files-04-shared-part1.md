@@ -8,7 +8,6 @@ tags:
   - file-structure
 related:
   - 01_overview-files-04-shared-part2.md
-  - 01_overview.md
 ---
 
 
@@ -29,8 +28,9 @@ related:
 │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
 │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 90_shared_04 §2
 │   └─ workflow.sqlite                # タスク追跡 + イベント処理 — see 90_shared_04 §7
+│   # 3-DB分割は、書き込み頻度が異なるデータ間でのSQLiteロック競合を回避するために設計されています（RAG: インジェスト時のみ、Session: 毎ターン、Workflow: 各イベント時）。各DBはWALモードで動作します。詳細はコミット `73bd9bb08` / `fa703f346` を参照してください。
 ├─ scripts/
-│   ├─ db/                                  # DB 層パッケージ
+│   ├─ db/                                  # DB 層パッケージ (詳細なファイル構成はディレクトリを参照)
 │   │   ├─ __init__.py                      # モジュール初期化
 │   │   ├─ create_schema.py                 # SQLite スキーマ初期化
 │   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
@@ -49,6 +49,7 @@ related:
 ## Related Documents
 
 - `01_overview-files-04-shared-part2.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

@@ -16,7 +16,7 @@ source:
 | 設定 | 影響 |
 |---|---|
 | `allowed_dirs` = `[]` | ファイルアクセスが完全に拒否される |
-| `allowed_repos` = `[]` + `fail_closed` | すべてのGitHub書き込みが拒否される |
+| `allowed_repos` = `[]`（fail-closed方針） | すべてのGitHub書き込みが拒否される |
 | `command_allowlist` = `[]` | すべてのshellコマンドが拒否される |
 | `repo_allowlist` = `[]` | すべてのcicd-mcpアクセスが拒否される |
 | `allowed_repo_paths` = `[]` | すべてのgit-mcpアクセスが拒否される |

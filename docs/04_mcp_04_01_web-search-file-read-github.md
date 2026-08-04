@@ -46,7 +46,7 @@ related:
 | `max_results_limit` | `20` | サーバー側の上限（`HARD_MAX_RESULTS_LIMIT=100`以下でなければならない） |
 | `search_timeout_sec` | `10.0` | プロバイダ呼び出しのタイムアウト秒数（`(0, 60.0]`の範囲） |
 
-**注記(2026-07-17):** 上記2キーは`mcp_servers/web_search/web_search_models.py`の`SearchRequest.max_results`（Pydantic `Field`の`ge`/`le`/デフォルト値）に、モジュールインポート時にロードされる`WebSearchConfig.load()`経由で直接反映される（`server.py`の既存の`_cfg: WebSearchConfig = WebSearchConfig.load()`パターンを踏襲）。以前はこれらのモジュール定数（`DEFAULT_MAX_RESULTS=5`, `MAX_RESULTS_LIMIT=20`）がハードコードされたバリデーション境界として使われており、config値と一致してはいたが読み込まれていなかった。
+**注記(2026-07-17):** 上記2キーは`mcp_servers/web_search/web_search_github_models.py`の`SearchRequest.max_results`（Pydantic `Field`の`ge`/`le`/デフォルト値）に、モジュールインポート時にロードされる`WebSearchConfig.load()`経由で直接反映される（`web_search_server.py`の既存の`_cfg: WebSearchConfig = WebSearchConfig.load()`パターンを踏襲）。以前はこれらのモジュール定数（`DEFAULT_MAX_RESULTS=5`, `MAX_RESULTS_LIMIT=20`）がハードコードされたバリデーション境界として使われており、config値と一致してはいたが読み込まれていなかった。
 
 **注記(2026-07-20):** `WebSearchConfig.from_dict()`は次の不変条件をバリデーションし、違反時は`ValueError`を送出する（モジュールインポート時に評価されるため、不正な設定はプロセス起動時にフェイルファーストで検出される）: `default_max_results >= 1`、`max_results_limit >= 1`、`default_max_results <= max_results_limit`、`max_results_limit <= HARD_MAX_RESULTS_LIMIT`、`search_timeout_sec`が`(0, 60.0]`の範囲内であること。また`SearchRequest.query`はフィールドバリデータで正規化される: 前後の空白をトリムし、トリム後に空文字列または制御文字（Unicode category `Cc`、NUL含む）を含む場合はリクエストを拒否する。`search_web`ツールの`inputSchema`（`web_search_tools.py`の`TOOL_LIST`）は`minLength`/`maxLength`/`minimum`/`maximum`をこれらの境界値と一致するように`get_max_results_limit()`経由で同じ`_cfg`シングルトンから取得しているため、`max_results_limit`のTOML変更は`_cfg`と同様にサーバー再起動後にのみ`/v1/tools`へ反映される。
 
@@ -58,7 +58,7 @@ related:
 
 **注記(2026-07-20):** `call_tool()` は dispatch 呼び出しを try/except/finally で包み、成功・バリデーションエラー・未知のツール名・プロバイダ障害（タイムアウト含む）のいずれの経路でも `_audit_log(...)` を必ず1回だけ発行する（従来は非送出の成功系のみ到達し、`WebSearchUpstreamError` 系の例外は audit をスキップして直接 502 ハンドラへ抜けていた）。audit レコードの `error_type` は `""`（成功）、`validation_error`/`unknown_tool`/`invalid_tool_name`/`dispatch_error`（dispatch 層で非送出のエラー）、または `timeout`/`network_error`/`parse_error`/`provider_error`（`WebSearchUpstreamError` の具象サブクラスに対する `isinstance` 判定）のいずれか。`detail` フィールドは `max_results`・`latency_ms`・80文字までの `query_preview`・`query_hash`（sha256 先頭16桁）を含む。新設の `scripts/mcp_servers/web_search/health.py`（プロバイダ健全性: 直近成功/失敗時刻、連続失敗数、`consecutive_failures >= 3` で degraded）と `scripts/mcp_servers/web_search/metrics.py`（クエリ本文を一切保持しない件数/平均レイテンシのみのカウンタ）はプロセス内メモリのみで永続化されず、`/health` の `details.provider`/`details.metrics` に反映される。degraded 判定時は `dependencies.web_search_provider` が非空になり HTTP 503 を返す。
 
-**注記(2026-07-20):** `health.record_success()`/`record_failure()`/`metrics.record_query()`の呼び出しは新設の `scripts/mcp_servers/web_search/web_search_service.py`（`SearchRequest`の構築、`search_provider.search_duckduckgo`呼び出し、レイテンシ計測を担うオーケストレーション層）に一本化されている。`formatters.py::fdisp_search_web()`が`service.search_web()`を呼び出し、その結果を整形する。`web_search_server.py::call_tool()`はこれらの更新フックを直接呼ばず、`_audit_log(...)`用の`outcome`/`error_type`分類のみを行う——health/metricsの二重計上を避けるため、パッケージ内で`health.record_*`/`metrics.record_query`を呼び出すのは`service.py`のみである。
+**注記(2026-07-20):** `health.record_success()`/`record_failure()`/`metrics.record_query()`の呼び出しは新設の `scripts/mcp_servers/web_search/web_search_service.py`（`SearchRequest`の構築、`search_provider.search_duckduckgo`呼び出し、レイテンシ計測を担うオーケストレーション層）に一本化されている。`formatters.py::fdisp_search_web()`が`service.search_web()`を呼び出し、その結果を整形する。`web_search_server.py::call_tool()`はこれらの更新フックを直接呼ばず、`_audit_log(...)`用の`outcome`/`error_type`分類のみを行う——health/metricsの二重計上を避けるため、パッケージ内で`health.record_*`/`metrics.record_query`を呼び出すのは`web_search_service.py`のみである。
 
 **注記(2026-07-20):** `browser_fetch`ツールは旧単独サーバー`browser-mcp`（ポート8016）から本サーバーへ統合された。読み取り専用のページ取得・テキスト抽出（対話操作なし; JavaScript実行なし）を行う。
 
@@ -143,8 +143,8 @@ When `browser_fetch` is called with a domain not in the allowlist, the server ra
 
 ### 実装上の補足（file-read-mcp）
 
-- `FileReadConfig.from_dict`（`read_models.py`）は toml の `max_read_bytes` を **KB 換算で読み替えて** 保持する（`max_file_size_kb = max_read_bytes // 1024`）。デフォルト値 1,000,000 の場合、実効上限は `1,000,000 // 1024 * 1024 = 999,424` バイトとなり、toml の値と厳密には一致しない。[Explicit in code]
-- 読み取り専用系エラーは `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 または 422 で登録されるが、`read_server.py` では 422 ハンドラのみ登録)に加え、`read_text_file` の `head`/`tail` 同時指定は Pydantic のモデルバリデーションで拒否される（`model_validator` により ValueError → FastAPI 標準の 422）。[Explicit in code]
+- `FileReadConfig.from_dict`（`read_github_models.py`）は toml の `max_read_bytes` を **KB 換算で読み替えて** 保持する（`max_file_size_kb = max_read_bytes // 1024`）。デフォルト値 1,000,000 の場合、実効上限は `1,000,000 // 1024 * 1024 = 999,424` バイトとなり、toml の値と厳密には一致しない。[Explicit in code]
+- 読み取り専用系エラーは `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 または 422 で登録されるが、`read_web_search_server.py` では 422 ハンドラのみ登録)に加え、`read_text_file` の `head`/`tail` 同時指定は Pydantic のモデルバリデーションで拒否される（`model_validator` により ValueError → FastAPI 標準の 422）。[Explicit in code]
 
 ---
 
@@ -181,7 +181,7 @@ github MCPサーバーの`enabled`/`disabled_reason`の計算ロジックは要�
 - `allow_force_push`（デフォルト `false`; force-push と rebase マージを許可するには `true` に設定）
 - `require_pr_review`（デフォルト `true`; レビューなしでのマージを許可するには `false` に設定）
 
-**ドメイン例外**（`scripts/mcp_servers/github/models_config.py` で定義、`models.py` で再エクスポート）: `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
+**ドメイン例外**（`scripts/mcp_servers/github/models_config.py` で定義、`github_models.py` で再エクスポート）: `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
 **ヘルス:** トークン設定時は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; 未設定時は `"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}` — ready 時は HTTP 200、degraded 時は 503。

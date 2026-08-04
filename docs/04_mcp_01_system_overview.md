@@ -68,7 +68,7 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 
 | サーバ | ポート | トランスポート | 起動モード | tool数 | 役割 |
 |---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | persistent | 1 | Web検索（DuckDuckGo） |
+| web-search-mcp | 8004 | HTTP | persistent | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web検索（DuckDuckGo） |
 | file-read-mcp | 8005 | HTTP | persistent | 9 | ローカルファイル読み取り |
 | github-mcp | 8006 | HTTP | persistent | 21 | GitHub API |
 | file-write-mcp | 8007 | HTTP | persistent | 4 | ローカルファイル書き込み |
@@ -76,7 +76,7 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 | shell-mcp | 8009 | HTTP | persistent | 1 | サンドボックス化されたshell実行 |
 | rag-pipeline-mcp | 8010 | HTTP | persistent | 4 | RAG検索パイプライン |
 | cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
-| mdq-mcp | 8013 | HTTP | persistent | 9 | Markdownコンテキスト圧縮 |
+| mdq-mcp | 8013 | HTTP | persistent | 7 | Markdownコンテキスト圧縮 |
 | git-mcp | 8014 | HTTP | persistent | 10 | ローカルgit操作 |
 
 ---
@@ -117,11 +117,12 @@ Agent ToolExecutor
 
 | コンポーネント | ファイル | 責務 |
 |---|---|---|
-| `MCPServer` | `mcp_servers/server.py` | 基底クラス: HTTP起動、`/v1/call_tool`、`/v1/tools`、`/health` |
-| `CallToolRequest` / `CallToolResponse` | `mcp_servers/models.py` | 全サーバ共通のPydanticモデル |
+| `MCPServer` | `scripts/mcp_servers/server.py` | 基底クラス: HTTP起動、`/v1/call_tool`、`/v1/tools`、`/health` |
+| `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | 全サーバ共通のPydanticモデル |
 | `ToolExecutor` | `shared/tool_executor.py` | ルーティング、TTLキャッシュ、並行実行、ヘルスレジストリ |
 | `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key の解決（`RuntimeToolRegistry.resolve()` のみを参照） |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **唯一のルーティング権威**。McpToolDiscoveryService によりライブ `/v1/tools` discoveryで構築される |
+実行時のルーティング権威は `RuntimeToolRegistry` である。`config/agent.toml` の `tool_names` フィールドはルーティングの入力ではない（観測・ドリフト検証専用）。詳細は `docs/04_mcp_06_03` を参照。
 | `ToolRegistry` | `shared/tool_registry.py` | tool定義と所有権に関するドリフト検出用のシードデータ（`tool_constants.py` のfrozensetからインポート時に構築。ルーティングには使われない） |
 | `McpServerConfig` | `shared/mcp_config.py` | サーバごとのtransport設定 |
 | `McpServerHealthRegistry` | `shared/mcp_health.py` | サーバごとのHEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN状態（`shared/mcp_config.py` は再エクスポートのみ） |
@@ -140,8 +141,8 @@ agent/factory.py
        → uses McpServerHealthRegistry (shared/mcp_health.py)
 
 MCP server processes (mcp_servers/<name>/server.py)
-   → inherit MCPServer (mcp_servers/server.py)
-   → use CallToolRequest / CallToolResponse (mcp_servers/models.py)
+   → inherit MCPServer (scripts/mcp_servers/server.py)
+   → use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
   → implement dispatch(name, args) → DispatchResult
 ```
 
@@ -151,9 +152,9 @@ MCP server processes (mcp_servers/<name>/server.py)
 
 | 制約 | 値 | 出典 |
 |---|---|---|
-| 最大レスポンスサイズ | 512 KB（`MCP_MAX_RESPONSE_BYTES = 524288`） | `mcp_servers/server.py` |
+| 最大レスポンスサイズ | 512 KB（`MCP_MAX_RESPONSE_BYTES = 524288`） | `scripts/mcp_servers/server.py` |
 
-| 認証ヘッダ | `Authorization: Bearer <token>`（`auth_token` 設定時） | `mcp_servers/server.py` |
+| 認証ヘッダ | `Authorization: Bearer <token>`（`auth_token` 設定時） | `scripts/mcp_servers/server.py` |
 | ヘルス状態の閾値 | 既定 `failure_threshold=3`回連続失敗 → UNAVAILABLE | `shared/mcp_health.py`（`McpServerHealthRegistry`） |
 
 ---

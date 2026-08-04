@@ -13,7 +13,6 @@ related:
   - 01_overview-files-01-build.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
-  - 01_overview.md
 ---
 
 # ファイル構成
@@ -29,6 +28,7 @@ related:
 ├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.json)
 │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.json)
 │   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
+│       ※ `registered/` 配下のファイル保持期間・クリーンアップ方針は本ドキュメント範囲では未確認(要確認)。
 ├─ sqlite-vec/
 │   └─ vec0.so                        # SQLite ベクトル検索拡張 (ロード可能拡張モジュール)
 ```
@@ -40,6 +40,7 @@ related:
 - `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

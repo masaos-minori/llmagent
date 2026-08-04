@@ -11,16 +11,13 @@ source:
   - 02_deployment-part1.md
 ---
 
-# 導入手順・デプロイ
+# 環境構築・サービス起動
 
 ## Embedding: multilingual-E5-small (384 dim)
 
 ### 1.1 Gentoo Linux パッケージ導入
 
-```bash
-# 必須パッケージ
-emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/sqlite dev-lang/python:3.13 dev-libs/libxml2 dev-libs/libxslt dev-vcs/git
-```
+OSのパッケージ導入手順については、[docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md) を参照してください。
 
 > Python の `sqlite3` モジュールがロード拡張に対応していない場合:
 > ```bash
@@ -40,25 +37,17 @@ uv sync --dev --system-certs
 
 ### 1.3 llama.cpp のビルド
 
-```bash
-git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
-cd /opt/llm/llama.cpp
-cmake -B build -DGGML_NATIVE=ON -DLLAMA_SERVER=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release -j$(nproc)
-```
+ビルド手順については、[docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md) を参照してください。
 
 ### 1.4 LLM モデルの取得
 
-```bash
-mkdir -p /opt/llm/models
-uv run --with huggingface-hub huggingface-cli download <repo>/<model> <file> --local-dir /opt/llm/models/
-```
+モデルファイルは `/opt/llm/models/` に配置します。ファイル名は、各サービスの構成（`model-path` 等）で使用される名称と一致させる必要があります。
 
 | モデル | ファイル名 |
 |---|---|
 | multilingual-e5-small (埋め込み) | multilingual-e5-small-Q8_0.gguf |
 | gemma-4-e4b-it (LLM) | gemma-4-e4b-it-Q4_K_M.gguf |
-| Qwen2.5-Coder-7B (LLM) | Qwen3.6-Instruct-Q4_K_M.gguf |
+| Qwopus3.6-35B-A3B-v1 (LLM) | Qwopus3.6-35B-A3B-v1-MTP-Q4_K_M.gguf |
 
 ---
 
@@ -73,6 +62,7 @@ bash deploy/build_sqlite_vec.sh
 ```
 
 Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agent.toml`)
+> ※以前のドキュメントおよびスクリプトでは config/common.toml と記載されていましたが、現在は config/agent.toml に修正されています。
 
 ### 2.2 Deploying scripts
 
@@ -82,12 +72,7 @@ Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agen
 bash deploy/deploy.sh
 ```
 
-deploy.sh does:
-- Copies Python scripts to `/opt/llm/scripts/` (includes `eventbus/` package)
-- Copies config files to `/opt/llm/config/` (includes `eventbus.toml`)
-- Copies JSON Schema to `/opt/llm/schemas/` (includes `event_envelope.json`)
-- Creates `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/`
-- Creates `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` (Event Bus)
+deploy.sh copies the runtime artifacts required for production operation (dependency definitions, scripts, configuration, and schemas) into `/opt/llm/` and creates the necessary directory structure. For exact details, refer to the comments in `deploy/deploy.sh`.
 
 **Workflow artifact responsibilities (deploy.sh):**
 - Checks that `config/workflows/default.json` exists — aborts before any copy if missing
@@ -112,12 +97,9 @@ MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent 
 
 ```bash
 bash deploy/setup_services.sh
-
-curl -s http://127.0.0.1:8081/health   # embed-llm
-curl -s http://127.0.0.1:8080/health   # agent-llm
-
-bash deploy/start_agent.sh
 ```
+
+サービス起動後、embed-llm/agent-llmそれぞれについてヘルスチェックエンドポイントへの疎通を確認する。具体的なコマンド例は [docs/02_deployment-operations.md](docs/02_deployment-operations.md) を参照。
 
 ### 実装上の補足(起動方法)
 
@@ -125,7 +107,7 @@ bash deploy/start_agent.sh
 
 > API キーの設定:
 > - Web 検索: DuckDuckGo — API キー不要
-> - GitHub 操作: `GITHUB_TOKEN` を `conf.d/github-mcp` に設定
+> - GitHub 操作: GITHUB_TOKEN をシェルで export するか、起動前に conf.d/github-mcp を source する
 
 ### 2.4 MCP サーバの確認
 

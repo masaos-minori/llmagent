@@ -135,8 +135,8 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 | レイヤー | ファイル・シンボル | 責務 |
 |---|---|---|
-| スキーマ定義 | `scripts/mcp_servers/mdq/tools.py::TOOL_LIST` | LLM に公開するツール名・入力スキーマ・ステータス |
-| 実行時ディスパッチ | `scripts/mcp_servers/mdq/server.py::_DISPATCH_TABLE` | ツール名 → ハンドラ関数のマッピング |
+| スキーマ定義 | `scripts/mcp_servers/mdq/mdq_tools.py::TOOL_LIST` | LLM に公開するツール名・入力スキーマ・ステータス |
+| 実行時ディスパッチ | `scripts/mcp_servers/mdq/mdq_server.py::_DISPATCH_TABLE` | ツール名 → ハンドラ関数のマッピング |
 | レジストリ登録 | `scripts/shared/tool_constants.py::MDQ_TOOLS` | `ToolRegistry` にツールを登録するための正典集合 |
 | デプロイ許可リスト | `config/agent.toml` の `[mcp_servers.mdq].tool_names` | 実際に起動・利用可能なツール名の一覧 |
 

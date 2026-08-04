@@ -29,22 +29,11 @@ source:
 
 ### 7.1 RagRepository (`scripts/rag/repository.py`)
 
-すべてのSQLを保有する。ステージから内部的に使用される。可観測性のため、呼び出しごとにquery / fts_query / top_k / elapsed_msをログに記録する。
-
-**SQLクエリ:**
-
-| メソッド | SQL |
-|---|---|
-| `vector_search` | `SELECT c.chunk_id, c.content, d.url, d.title, cv.distance FROM chunks_vec cv JOIN chunks c ON c.chunk_id = cv.chunk_id JOIN documents d ON d.doc_id = c.doc_id WHERE cv.embedding MATCH ? ORDER BY cv.distance LIMIT ?` |
-| `fts_search` | `SELECT c.chunk_id, c.content, d.url, d.title, bm25(chunks_fts) AS bm25_score FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid JOIN documents d ON d.doc_id = c.doc_id WHERE chunks_fts MATCH ? ORDER BY bm25(chunks_fts) LIMIT ?` |
+全てのSQLを管理する。可観測性のため、呼び出しごとに query / fts_query / top_k / elapsed_ms をログに記録する。詳細な実装とシグネチャについては scripts/rag/repository.py を参照してください。
 
 **日本語FTS5のトークン化:**
 
-| 定数 | 値 | 説明 |
-|---|---|---|
-| FTS5クエリ内のトークン数上限 | 20 | FTS5クエリのトークン数制限 |
-| 日本語トークンとして保持されるSudachiの品詞カテゴリ | `{"名詞", "動詞", "形容詞"}` | Sudachiの品詞カテゴリ | 
-
+FTS5クエリのトークン数上限は 20 であり、日本語トークンとしては Sudachi の品詞カテゴリ（`{"名詞", "動詞", "形容詞"}`）が使用されます。詳細は `scripts/rag/repository.py` を参照してください。
 **Sudachiの遅延ロード:**
 
 Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。
@@ -55,10 +44,10 @@ Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`
 
 **公開メソッド:**
 
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | sqlite-vecによるKNN；`distance` フィールドを持つRawHitを返す；`top_k`/`hits`/`elapsed_ms` をログに記録する |
-| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | FTS5によるBM25；`bm25_score` フィールドを持つRawHitを返す；FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）；`query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` をログに記録する |
+詳細は `scripts/rag/repository.py` を参照してください。
+
+- `vector_search`: `sqlite-vec` による KNN 実装。
+- `fts_search`: FTS5 による BM25 実装。FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）。
 
 **モジュールレベルの単独ラッパー:**
 - `vector_search(embedding, top_k, db)` → `RagRepository(db).vector_search()` に委譲する
@@ -69,9 +58,7 @@ Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`
 
 ### 7.2 RagScorer (`scripts/rag/repository.py`)
 
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `rrf_merge`（静的メソッド） | `(results_list: list[list[RawHit]] \| list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRFスコア Σ 1/(rrf_k+rank)；降順；`rrf_score` を割り当てる；RawHitまたはRagHitの結果リストを受け入れる |
+`rrf_merge`（静的メソッド）により、複数の検索結果リストを RRF（Reciprocal Rank Fusion）を用いてマージします。詳細は `scripts/rag/repository.py` を参照してください。
 
 ### 7.3 RagLLM (`scripts/rag/llm_client.py`)
 
@@ -87,19 +74,9 @@ llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8080/v1/chat/completi
 
 **訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py:49` に1箇所のみ存在する。
 
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `expand_queries` | `async (query: str, context: str = "") -> list[str]` | MQE；HTTP失敗、接続エラー、またはパース失敗時に `RagExpansionError` を発生させる |
-| `cross_encoder_rerank` | `async (query: str, candidates: list[RagHit], top_k: int, rag_min_score=0.0) -> list[RagHit]` | クロスエンコーダ；HTTP失敗、接続エラー、またはパース失敗時に `RagRerankError` を発生させる；`rag_min_score` でフィルタする |
-| `summarize_tool_result` | `async (text: str, tool_name: str, args: dict[str, object]) -> str` | LLM経由でツール出力を要約する；HTTPまたはパースの失敗時に例外を発生させる — 処理方法の判断は呼び出し元に委ねられる |
-| `refine_context` | `async (chunks: list[RagHit], query: str, max_tokens: int, per_chunk_chars: int, timeout: float) -> str` | 単一のLLM呼び出しでチャンクをクエリに関連する要点に圧縮する；エラー時に例外を発生させ呼び出し元がフォールバックできるようにする |
+`RagLLM` は、MQE によるクエリ展開 (`expand_queries`)、クロスエンコーダによる再ランキング (`cross_encoder_rerank`)、ツール出力の要約 (`summarize_tool_result`)、およびコンテキストのリファイニング (`refine_context`) を提供します。詳細なシグネチャについては `scripts/rag/llm_client.py` を参照してください。
 
-**モジュールレベルの関数:**
-
-| 関数 | シグネチャ | 説明 |
-|---|---|---|
-| `get_embedding` | `async (text, client, embed_url) -> list[float]` | テキストを埋め込みベクトルに変換する；`"query: "` プレフィックスを使用する（E5の規約）；HTTP失敗または埋め込みフィールドの欠落/空の場合に例外を発生させる |
-| `summarize_tool_result` | `async (text, tool_name, args, client, llm_url=None) -> str` | 単独利用可能な要約処理；`None` の場合はキャッシュされた設定から `llm_url` をロードする；LLM呼び出し失敗時に例外を発生させる |
+また、`get_embedding` や `summarize_tool_result` といったモジュールレベルの関数も提供されています。これらについても `scripts/rag/llm_client.py` を参照してください。
 
 ### 7.4 PipelineRunResult (`scripts/rag/types.py`)
 

@@ -47,9 +47,8 @@ grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 grep '"event":"mcp_tool_exec"' /opt/llm/logs/audit.log
 ```
 
-> **注記:** cicd-mcp、git-mcp、mdq-mcp は共有audit logのみを使用する。
-> cicd-mcp/git-mcp は `logging.getLogger(__name__)` のみを使用し、
-> mdq-mcp は `_audit_log()` 経由で共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録する。
+> **注記:** cicd-mcp、git-mcp、mdq-mcp は共有audit logのみを使用する（専用audit logファイルなし）。
+> いずれも `_audit_log()` 経由で共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録する。
 
 ## サーバ別ログファイル
 

@@ -11,7 +11,7 @@ source:
   - 02_deployment-part1.md
 ---
 
-# 導入手順・デプロイ
+# DB初期化・失敗モード
 
 ## 3. DB 初期化
 
@@ -54,10 +54,10 @@ bash deploy/init_db.sh
 | 症状 | 失敗スクリプト | 対処法 |
 |---|---|---|
 | `[FATAL] Missing required workflow definition` | deploy.sh | config/workflows/default.json を追加 |
-| `[FATAL] Invalid workflow definition` | deploy.sh | JSONバリデーションエラーを修正 |
-| `[FATAL] Checksum does not match source` | deploy.sh | deploy.sh を再実行、ディスク異常を確認 |
-| `[FATAL] Schema is missing or incomplete` | init_db.sh / setup_services.sh | init_db.sh を再実行 |
-| `[FATAL] Schema version mismatch` | setup_services.sh | init_db.sh でマイグレーション適用 |
+| `[FATAL] Workflow definition failed validation; aborting deployment.` | deploy.sh | JSONバリデーションエラーを修正 |
+| `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | deploy.sh を再実行、ディスク異常を確認 |
+| `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | init_db.sh を再実行 |
+| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | init_db.sh でマイグレーション適用 |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook).
 

@@ -15,56 +15,34 @@ source:
 # MCP Health Reasons and Scheduling
 
 
-## ツールエラーの監視
+## ツールエラーとトランスポートエラーの区別
 
-`ToolExecutor`は2種類のエラーカテゴリを区別する。
+MCPサーバーにおいて、エラーは以下の2つのカテゴリに分けられる。
 
-| カテゴリ | ログフィールド | 条件 |
-|----------|-----------|-----------|
-| トランスポートエラー | `error_type=transport` | ネットワーク障害、タイムアウト、サーバー到達不能 |
-| ツールエラー | `error_type=tool` | サーバーは到達可能だが、ツール実行が`is_error=true`を返した |
+1. **トランスポートエラー**: ネットワーク障害、タイムアウト、サーバー到達不能など、通信そのものの失敗。
+2. **ツールエラー**: サーバーには到達可能だが、特定のツール実行が失敗したもの（例: 不正な引数、上流APIのエラー）。
 
-トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。
-ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗した
-(例: 不正な引数、上流APIのエラー)。
+トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗したことを示す。
 
-トランスポートエラーは`HttpTransport`によって`TransportError`として発生し、
-トランスポートエラーハンドラによって捕捉される。ハンドラは`stat_transport_errors`をインクリメントし、
-`HealthRegistry.record_failure()`を呼び出す。
+#### エラーカウンタの追跡
+`ToolTransportInvoker` は、セッション中のトランスポートエラー数をメモリ内でカウントする (`stat_transport_errors`)。また、`ToolExecutor` も同様にツールエラー数をカウントする (`stat_tool_errors`)。
 
-### サーバーごとのツールエラーカウンタ
+**注意**: 現在の実装では、これらのカウンタに基づく自動的な警告ログやしきい値判定は存在しない。
 
-`ToolExecutor.stat_tool_errors`は`dict[str, int]`(server_key → カウント)で、
-プロセスの生存期間中利用可能である。エージェントコンテキストから参照する。
+#### 監査ログによる詳細確認
+ツールの実行結果に関する詳細は、構造化されたJSON形式の監査ログ (`audit_logger`) に出力される。各ログエントリは `ToolExecEvent` として構成され、以下のようなフィールドを含む。
 
-```python
-ctx.services.tools.stat_tool_errors   # {"rag_pipeline": 3, "github": 0}
-```
+- `"event"`: `"tool_exec"`
+- `"error_type"`: `"tool"`, `"transport"`, または `""` (成功時)
 
-#### 繰り返し発生する障害の警告
-
-サーバーごとのツールエラー数が`repeated_tool_error_threshold`(デフォルト: 3)の倍数に
-達した場合、次の警告がログに記録される。
-
-``` text
-WARNING repeated tool errors from 'rag_pipeline': 3 failures (error_type=tool)
-```
-
-このしきい値は`ToolExecutor`の構築時に設定可能である。カウンタはプロセス再起動時にリセットされる。
-ツールエラーはサーバーの自動再起動を引き起こさない — 自動的な復旧経路は存在しない
-([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。
-
-#### 監視用のgrepパターン
+これらのログを調査するには、`jq` や `grep` を使用してJSONフィールドを検索するのが適切である。
 
 ```bash
-# Find tool errors for a specific server
-grep "error_type=tool" agent.log | grep "rag_pipeline"
+# jqを使用した特定のエラータイプの抽出例
+cat agent.log | jq 'select(.error_type == "tool")'
 
-# Find repeated-failure warnings
-grep "repeated tool errors" agent.log
-
-# Find transport failures
-grep "error_type=transport" agent.log
+# grepを使用したJSON文字列の直接検索例
+grep '"error_type":"tool"' agent.log
 ```
 
 ---

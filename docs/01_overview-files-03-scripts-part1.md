@@ -11,7 +11,6 @@ related:
   - 01_overview-files-03-scripts-part3.md
   - 01_overview-files-03-scripts-part4.md
   - 01_overview-files-03-scripts-part5.md
-  - 01_overview.md
 ---
 
 
@@ -80,6 +79,7 @@ related:
 - `01_overview-files-03-scripts-part3.md`
 - `01_overview-files-03-scripts-part4.md`
 - `01_overview-files-03-scripts-part5.md`
+- [01_overview.md](01_overview.md)
 
 ## Keywords
 

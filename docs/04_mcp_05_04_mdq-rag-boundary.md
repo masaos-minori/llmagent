@@ -70,7 +70,7 @@ RAG はエージェント層の主要なドキュメント検索システムで�
 
 | システム | データベース | 所有者 | 管理者 |
 |---|---|---|---|
-| MDQ | `mdq.sqlite` | MCP 層（`mcp_servers/mdq/`） | mdq-mcp サーバー（ポート 8013） |
+| MDQ | `mdq.sqlite` | MCP 層（`scripts/mcp_servers/mdq/`） | mdq-mcp サーバー（ポート 8013） |
 | RAG | `rag.sqlite` | MCP 層（`scripts/mcp_servers/rag_pipeline/`） | rag-pipeline-mcp サーバー |
 
 いずれのシステムも他方のデータベースに直接アクセスすることはない。それぞれが独自のスキーマ、インデックス、検索ロジックを保持する。

@@ -109,6 +109,8 @@ subprocessクラッシュ後の `ensure_ready()` の成功。
 - `HALF_OPEN` 中の失敗は即座に `UNAVAILABLE` に戻り、cooldownがリセットされる。
 - `record_success()` は状態を `HEALTHY` に戻し、失敗カウント・degraded理由をクリアする。
 
+`[mcp_servers.*].tool_names` はcircuit breakerの状態やルーティングに影響しない — あくまで参考情報であり、ルーティングの入力ではない（`docs/04_mcp_06_03` と整合）。
+
 根拠: Explicit in code（`shared/mcp_health.py`）。`ToolExecutor` の実行処理内の
 ヘルスチェックがディスパッチ前のゲートとしてこの機構を参照する。
 

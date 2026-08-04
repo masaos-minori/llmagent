@@ -36,14 +36,7 @@ from rag.cache import SemanticCache  # defined in rag/cache.py:31; imported by r
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
 
-| メソッド / プロパティ | シグネチャ | 説明 |
-|---|---|---|
-| `lookup` | `(embedding, history_context="") -> str \| None` | 一致する `history_context` エントリの中でコサイン類似度がしきい値以上のものがあればキャッシュ結果を返す；埋め込み次元の不一致時は `ValueError` を発生させる；それ以外は `None` |
-| `put` | `(embedding, history_context, context_str) -> None` | エントリを保存する；`history_context` はキャッシュキーの一部；埋め込み次元の不一致時は `ValueError` を発生させる；その後 `prune()` を呼び出す |
-| `prune` | `() -> None` | `max_size <= 0` の場合は全エントリを即時空にする；`len > max_size` の場合は FIFO で `max_size` 件まで削除 |
-| `size` | プロパティ `int` | 現在のエントリ数 |
-| `invalidate` | `() -> None` | 世代カウンタをインクリメントし、キャッシュ済みエントリをすべてアトミックにクリアする |
-| `generation` | プロパティ `int` | キャッシュ無効化世代カウント（観測用のみ；エントリの鮮度フィルタには使用されない） |
+"`SemanticCache` は `CacheService` プロトコルを実装しており、`lookup()` および `put()` メソッドを提供します。また、FIFO方式による `prune()` による追い出し（eviction）、`size` プロパティ、およびアトミックにすべてのエントリをクリアして `generation` カウンタをインクリメントする `invalidate()` メソッドを備えています。詳細なシグネチャについては `scripts/rag/cache.py` を参照してください。"
 
 **テストで確認されている挙動（`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`）:** `invalidate()` 呼び出しにより `generation` が1増加し、既存エントリは即座に全て `lookup()` でヒットしなくなる（`size == 0` になる）。
 
