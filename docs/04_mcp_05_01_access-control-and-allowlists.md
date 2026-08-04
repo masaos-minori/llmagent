@@ -194,7 +194,7 @@ command_allowlist = ["ls", "cat", "grep", "git", "python3"]
 ``` text
 env_allowlist non-empty  → keep only listed keys (denylist ignored)
 env_allowlist empty      → remove denylist pattern matches
-both empty               → use req.env as-is
+both empty               → use req.env as is
 ```
 
 ---
@@ -218,11 +218,12 @@ workflow_allowlist = [
 ]
 ```
 
-`workflow_allowlist` が空の場合、起動時に以下の警告が出力される:
-`DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
+これらの警告は、エージェント層と cicd-mcp サーバ層における独立した別レイヤーの仕組みによって発生します。
 
-**この変更以前:** 空リストは全ワークフローを許可していた（fail-open）が、これは新規デプロイされたサーバーにおける
-設定ミスのリスクであった。
+- **エージェント層 (Agent REPL process)**: `scripts/agent/repl_health.py` の `audit_security_defaults()` において、`cicd_cfg` が存在し `workflow_allowlist` が空かつロックダウンされていない場合に、REPL 起動時の警告リスト (`warnings: list[str]`) に出力されます。
+  メッセージ: `DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
+- **cicd-mcp サーバ層 (cicd-mcp server process)**: `scripts/mcp_servers/cicd/service_guards.py` の `CiCdGuards.__init__` において、`workflow_allowlist` が空の場合、`mcp_servers.cicd.service_guards` ロガーを通じてサーバのログストリームに警告が記録されます。
+  メッセージ: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
 
 ## Related Documents
 

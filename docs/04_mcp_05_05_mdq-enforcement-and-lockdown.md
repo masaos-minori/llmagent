@@ -155,21 +155,15 @@ mdq-mcp は `attach_auth_middleware(app, "")` という空の Bearer トーク�
 
 ## Fail-open 対 Fail-closed のデフォルト
 
-「Fail-closed」とは、リストが空の場合にその設定がアクセスを拒否することを意味する。
-「Fail-open」とは、リストが空の場合にその設定が全アクセスを許可することを意味する。
+Fail-open/fail-closed基本方針は docs/04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md を参照。mdq-mcp 固有のロックダウン規則(deny-all時の挙動)は本ファイル末尾に別途記載。
 
-| サーバー | 設定 | デフォルト | 空の場合の挙動 |
-|---|---|---|---|
-| shell-mcp | `command_allowlist` | `[]` | **Fail-closed** — 全シェルコマンドを拒否 |
-| git-mcp | `allowed_repo_paths` | `[]` | **Fail-closed** — 全リポジトリアクセスを拒否 |
-| github-mcp | `allowed_repos` | `[]` | **Fail-closed** — 全 GitHub 書き込み操作を拒否 |
-| cicd-mcp | `workflow_allowlist` | `[]` | **Fail-closed** — 全ワークフロートリガーを拒否 |
+
 
 ### 本番デプロイ前に確認すべき危険なデフォルト値
 
 - `shell-mcp`: `sandbox_backend = "none"`（デフォルト）は OS レベルのサンドボックスがないことを意味する。
   本番環境では `"firejail"` を設定すること; `/health` レスポンスで確認可能。
-- `cicd-mcp`: `workflow_allowlist = []` は fail-closed（全拒否）である; 許可するワークフローを明示的に列挙すること。
+- `cicd-mcp`: `workflow_allowlist = []` は fail-closed（全拒否）である。エージェント層およびサーバ層の両方で警告が発生する (詳細は docs/04_mcp_05_01_access-control-and-allowlists.md を参照).
 - `github-mcp`: `allow_force_push = false`（デフォルト）; `require_pr_review = true`（デフォルト）。
 
 ### 起動時の audit
@@ -196,20 +190,6 @@ DENY-ALL 警告ロジックに含まれていない(Explicit in code)。した�
 これは、特定のツールカテゴリを完全に禁止したいセキュリティ制限付きデプロイメント
 （例: シェルコマンド禁止、DB クエリ禁止）における正しい挙動である。
 
-### deny-all を引き起こす設定
-
-| 設定 | サーバー | 空の場合の効果 |
-|---------|--------|-------------------|
-| `shell.command_allowlist` | shell-mcp | 全シェルコマンドを拒否 |
-| `git.allowed_repo_paths` | git-mcp | 全 git 操作を拒否 |
-| `github.allowed_repos` | github-mcp | 全リポジトリアクセスを拒否 |
-
-mdq-mcp の `allowed_dirs` も同種の fail-closed 設定（空 = 全パスアクセス拒否）だが、
-上表・`security_lockdown_enabled` による警告抑制ロジックのいずれにも含まれていない
-（前節「起動時の audit」参照）。mdq-mcp のロックダウンは設定ファイル上は成立するが、
-起動ログ上の deny-all 通知・抑制の対象にはならない(Explicit in code)。
-
-### 意図的なロックダウンの設定方法
 
 1. 該当する TOML で、対象の allowlist を空に設定する。
    ```toml
@@ -257,8 +237,6 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 |---|---|---|---|
 | `tool_definitions_strict` | `true` | `false` = スキーマ不一致が WARNING に格下げされる | `true` を維持する |
 | `shell_sandbox_backend` | `"none"` | `"none"` = OS 分離なし | 本番環境では `"firejail"` を設定する |
-| `workflow_allowlist`（cicd-mcp） | `[]` | `[]` = 全トリガーを拒否（fail-closed） | 許可するワークフローを明示的に列挙する |
-| `command_allowlist`（shell-mcp） | `[]` | `[]` = 全コマンドを拒否（fail-closed） | 許可するコマンドを列挙する |
 | `allowed_dirs`（mdq-mcp） | `[]` | `[]` = 全パスアクセスを拒否（fail-closed）; ただし起動時 audit の対象外(Explicit in code) | 読み取りを許可するディレクトリを明示的に列挙する |
 
 ## Related Documents

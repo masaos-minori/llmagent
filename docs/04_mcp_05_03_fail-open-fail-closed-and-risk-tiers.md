@@ -42,7 +42,7 @@ related:
 | `shell_sandbox_backend` | `shell_mcp_server.toml` | `"firejail"` + バイナリ欠落時は RuntimeError; `"firejail"` または `"none"` 以外の場合は WARNING; 本番環境で `"none"` の場合は RuntimeError |
 | `command_allowlist` | `shell_mcp_server.toml` | 空の場合（fail-closed）DENY-ALL 警告 |
 | `allowed_repo_paths` | `git_mcp_server.toml` | 空の場合（fail-closed）DENY-ALL 警告 |
-| `workflow_allowlist` | `cicd_mcp_server.toml` | 空の場合（fail-closed）DENY-ALL 警告 |
+| `workflow_allowlist` | `cicd_mcp_server.toml` | 空の場合、エージェント層およびサーバ層の両方で DENY-ALL 警告が発生 (詳細は docs/04_mcp_05_01_access-control-and-allowlists.md を参照) |
 
 空の allowlist に対する警告は以下の形式を使用する: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
 
