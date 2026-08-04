@@ -40,6 +40,7 @@ If not already loaded, read the following before starting:
 
 - Objective: synchronize the design documents under `docs/` with the implementation under `script/`. Treat the Python implementation as the single source of truth.
 - Work document-by-document. Do not read the entire repository, all documentation files, or all source files at once.
+- If multiple target documents are specified, process them in filename (lexicographic) order.
 - Use a search-first workflow: search → identify → inspect → update.
 
 #### Step 2: Read the document and related source code

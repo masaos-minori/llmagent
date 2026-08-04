@@ -82,6 +82,7 @@ changed shared file.
 #### Step 1: Identify the target issue file(s)
 
 - The target issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
+- If multiple target files are specified, process them in filename (lexicographic) order.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - Do not read files under `issues/done/` or `requires/done/`.

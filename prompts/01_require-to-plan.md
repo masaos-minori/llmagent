@@ -86,6 +86,7 @@ changed shared file.
 #### Step 1: Identify the target requirement file(s)
 
 - The target requirement file(s) are provided by the user (e.g. `requires/{filename}_require.md`), one path per file. The user may specify one file or a list of multiple files.
+- If multiple target files are specified, process them in filename (lexicographic) order.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
 - **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
