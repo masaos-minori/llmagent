@@ -43,7 +43,7 @@ class TestMergeOrder:
         loader = ConfigLoader(config_dir=tmp_path)
         result = loader.load("a.toml", "b.toml")
         assert result["section"]["foo"] == 3
-        assert result["section"]["bar"] == 2
+        assert "bar" not in result["section"]
         assert result["section"]["baz"] == 4
 
     def test_first_file_values_preserved_when_no_overlap(self, tmp_path: Path) -> None:
@@ -55,29 +55,33 @@ class TestMergeOrder:
         assert result["section"]["foo"] == 1
         assert result["other"]["bar"] == 2
 
-    def test_nested_dict_merge(self, tmp_path: Path) -> None:
-        """Nested dicts should be merged, not replaced entirely."""
+    def test_nested_dict_merge(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Nested dicts should be merged, not replaced entirely (load_all() only)."""
         (tmp_path / "a.toml").write_text(
-            '[mcp_servers]\n[server_a]\nurl = "http://localhost:1"\n'
+            '[mcp_servers.server_a]\nurl = "http://localhost:1"\n'
         )
         (tmp_path / "b.toml").write_text(
-            '[mcp_servers]\n[server_b]\nurl = "http://localhost:2"\n'
+            '[mcp_servers.server_b]\nurl = "http://localhost:2"\n'
+        )
+        monkeypatch.setattr(
+            "shared.config_loader._BASE_CONFIG_FILES", ("a.toml", "b.toml")
         )
         loader = ConfigLoader(config_dir=tmp_path)
-        result = loader.load("a.toml", "b.toml")
+        result = loader.load_all()
         assert result["mcp_servers"]["server_a"]["url"] == "http://localhost:1"
         assert result["mcp_servers"]["server_b"]["url"] == "http://localhost:2"
 
     def test_meta_keys_filtered_from_both_files(self, tmp_path: Path) -> None:
-        """Keys starting with '_' should be filtered from both files."""
-        (tmp_path / "a.toml").write_text("[section]\nfoo = 1\n_bar = 2\n")
-        (tmp_path / "b.toml").write_text("[section]\nbaz = 3\n_qux = 4\n")
+        """Top-level keys starting with '_' should be filtered from both files."""
+        (tmp_path / "a.toml").write_text('_meta = "from_a"\n[section]\nfoo = 1\n')
+        (tmp_path / "b.toml").write_text('_meta = "from_b"\n[section]\nbar = 2\n')
         loader = ConfigLoader(config_dir=tmp_path)
         result = loader.load("a.toml", "b.toml")
-        assert result["section"]["foo"] == 1
-        assert result["section"]["baz"] == 3
-        assert "_bar" not in result["section"]
-        assert "_qux" not in result["section"]
+        assert "_meta" not in result
+        assert result["section"] == {"bar": 2}
+        assert "foo" not in result["section"]
 
 
 class TestRestrictToIsolation:

@@ -27,7 +27,6 @@ def config() -> EmbeddingClientConfig:
         embed_url="http://localhost:8080/embed",
         circuit_open_after=3,
         circuit_reset_sec=60.0,
-        embed_dim=0,
     )
 
 
@@ -74,7 +73,6 @@ class TestGetStatus:
             embed_url="http://localhost:8080/embed",
             circuit_open_after=3,
             circuit_reset_sec=0.001,
-            embed_dim=0,
         )
         client = EmbeddingClient(cfg, enabled=True)
         client._fail_count = cfg.circuit_open_after

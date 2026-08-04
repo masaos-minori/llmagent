@@ -36,7 +36,7 @@ class SQLiteVectorStore:
         )
 
     def vec_search(self, embedding: bytes, k: int) -> list[tuple[int, float]]:
-        """Search for k nearest neighbors by cosine distance."""
+        """Search for k nearest neighbors by L2 (Euclidean) distance."""
         validate_embedding_blob(embedding)
         if k < 1:
             return []

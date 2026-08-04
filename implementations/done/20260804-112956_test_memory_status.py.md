@@ -23,7 +23,7 @@ from `EmbeddingClientConfig(...)` construction sites. No production source file 
   `circuit_reset_sec`, `local_only`. No `embed_dim` field exists.
 - Verified via `grep -n "embed_dim\|EmbeddingClientConfig" tests/agent/commands/test_memory_status.py`:
   the only two `embed_dim=0,` occurrences are at line 30 (fixture `config`, lines 25-31) and line 77
-  (inline construction inside `test_auto_reset_when_elapsed`, lines 73-78/lines 72-92 for the full
+  (inline construction inside `test_auto_reset_when_elapsed`, lines 73-78/lines 72-85 for the full
   test body). No assertion in the file reads `embed_dim`.
 - The baseline failure mode (from the source plan) is uniformly
   `TypeError: EmbeddingClientConfig.__init__() got an unexpected keyword argument 'embed_dim'`,
