@@ -34,7 +34,9 @@ class TestDictMergeConflictResolution:
         assert "url" not in result["mcp_servers"]["github"]
         assert result["mcp_servers"]["github"]["timeout"] == 30
 
-    def test_different_subsections_in_load_all_merged(self, tmp_path: Path) -> None:
+    def test_different_subsections_in_load_all_merged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Different subsections under the same parent are merged by load_all()."""
         (tmp_path / "extra_mcp.toml").write_text(
             '[mcp_servers.server_a]\nurl = "http://localhost:1"\n'
@@ -42,24 +44,14 @@ class TestDictMergeConflictResolution:
         (tmp_path / "extra_mcp2.toml").write_text(
             '[mcp_servers.server_b]\nurl = "http://localhost:2"\n'
         )
+        monkeypatch.setattr(
+            "shared.config_loader._BASE_CONFIG_FILES",
+            ("extra_mcp.toml", "extra_mcp2.toml"),
+        )
         loader = ConfigLoader(config_dir=tmp_path)
-        # load_all merges dict-valued keys one level deep
-        # We need to manually combine since load_all only loads _BASE_CONFIG_FILES
-        result_a = loader.load("extra_mcp.toml")
-        result_b = loader.load("extra_mcp2.toml")
-        merged: dict[str, Any] = {}
-        for key, val in result_a.items():
-            if isinstance(val, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **val}
-            else:
-                merged[key] = val
-        for key, val in result_b.items():
-            if isinstance(val, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **val}
-            else:
-                merged[key] = val
-        assert "server_a" in merged.get("mcp_servers", {})
-        assert "server_b" in merged.get("mcp_servers", {})
+        result = loader.load_all()
+        assert "server_a" in result.get("mcp_servers", {})
+        assert "server_b" in result.get("mcp_servers", {})
 
     def test_deep_nested_same_subsection_replaced(self, tmp_path: Path) -> None:
         """Deeply nested same subsection replaced by later file."""

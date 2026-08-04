@@ -111,16 +111,20 @@ uv run python -m compileall -q scripts/
 ## MCP documentation consistency
 
 ```bash
-# Run all checks (startup, failopen, routing, active, toolcount)
+# Run all checks
 uv run check-mcp-docs
 
 # Skip specific checks
-uv run check-mcp-docs --skip active --skip toolcount
+uv run check-mcp-docs --skip portdrift --skip tooldrift
 ```
 
 The `check-mcp-docs` entry point is registered in `pyproject.toml`. It verifies:
-- Valid startup modes (persistent/ondemand/subprocess)
-- No fail-open wording for workflow_allowlist
-- Routing authority language consistency
-- Active MCP issue cross-references (MCP-01 through MCP-08)
-- Tool count consistency against canonical frozensets
+- `check_port_drift` (ERROR) — doc-mentioned port next to a `<name>-mcp` token vs. the port
+  assigned in `config/agent.toml`'s `[mcp_servers.*]` sections
+- `check_tool_name_drift` (WARNING) — backtick-quoted tool name on a "Tools:"/"ツール:" line vs.
+  live `"name": "..."` entries in `scripts/mcp_servers/**/*.py` `TOOL_LIST` definitions
+- Generic checks provided via `tools/_docs_consistency_lib.py` (also used by
+  `tools/check_agent_docs_consistency.py` for the links/removed-file/command-drift checks):
+  broken internal Markdown links, removed-legacy-doc-file references, slash-command drift vs.
+  `command_defs_list.py`, `scripts/`-path reference existence, and backtick-quoted
+  function-reference existence

@@ -8,6 +8,7 @@ Unit tests for agent/factory.py:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -478,7 +479,11 @@ class TestLifecycleStateTracking:
         router = _make_router()
         states_during_start: list[LifecycleState] = []
 
-        async def capture_state_start(server_key: str, cfg: McpServerConfig) -> None:
+        async def capture_state_start(
+            server_key: str,
+            cfg: McpServerConfig,
+            shutdown_event: asyncio.Event | None = None,
+        ) -> None:
             states_during_start.append(router.get_transport_state(server_key))
 
         router._http_mgr.start.side_effect = capture_state_start

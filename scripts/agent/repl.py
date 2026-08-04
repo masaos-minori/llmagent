@@ -826,7 +826,9 @@ class AgentREPL:
                 except Exception:
                     pass
 
-        startup = StartupOrchestrator(self._ctx, self._view)
+        startup = StartupOrchestrator(
+            self._ctx, self._view, shutdown_event=self._shutdown_event
+        )
         _spawned_subprocesses: list[subprocess.Popen] = []
         try:
             self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()

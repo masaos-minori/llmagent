@@ -283,16 +283,40 @@ class HttpServerLifecycleManager:
             if (snap := self.get_process_info(key)) is not None
         ]
 
+    async def _interruptible_poll_sleep(
+        self, delay: float, shutdown_event: asyncio.Event | None
+    ) -> bool:
+        """Sleep for `delay` seconds, racing against `shutdown_event`.
+
+        Returns True iff the shutdown event fired before `delay` elapsed (caller
+        should abort the health-poll loop); returns False if the full delay
+        elapsed normally or no `shutdown_event` was configured.
+        """
+        if shutdown_event is None:
+            await asyncio.sleep(delay)
+            return False
+        sleep_task = asyncio.ensure_future(asyncio.sleep(delay))
+        shutdown_task = asyncio.ensure_future(shutdown_event.wait())
+        done, pending = await asyncio.wait(
+            {sleep_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+        return shutdown_task in done
+
     async def start(
         self,
         server_key: str,
         cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
     ) -> None:
         """Start an HTTP MCP server subprocess and poll /health until ready.
 
         Idempotent: reuses an already-running process.
         Stores the full stderr in StartupFailure when the process exits early
         or the health-poll times out; raises RuntimeError in both cases.
+        When `shutdown_event` fires mid-poll, aborts within roughly one poll
+        interval (0.5s) instead of waiting up to the full startup timeout.
         """
         existing = self._http_procs.get(server_key)
         if existing is not None and existing.poll() is None:
@@ -445,7 +469,16 @@ class HttpServerLifecycleManager:
                         logger.info(
                             "Lifecycle: health-check poll %r: %s", server_key, e
                         )
-                    await asyncio.sleep(0.5)
+                    if await self._interruptible_poll_sleep(0.5, shutdown_event):
+                        stderr_full = self._cleanup_server_resources(server_key)
+                        failure = StartupFailure(
+                            server_key=server_key,
+                            reason="shutdown requested",
+                            stderr_full=stderr_full,
+                        )
+                        self._http_procs.pop(server_key, None)
+                        self._http_pgids.pop(server_key, None)
+                        raise HttpStartupError(failure)
 
             stderr_full = self._cleanup_server_resources(server_key)
             await self._terminate_with_timeout(proc, server_key)

@@ -43,6 +43,11 @@ from agent.workflow.state_store import StateStore
 
 HEALTH_CHECK_RETRY_DELAY_SEC = 1.0
 
+
+class StartupInterrupted(RuntimeError):
+    """Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence."""
+
+
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
     from agent.commands.registry import CommandRegistry
@@ -57,34 +62,56 @@ class StartupOrchestrator:
     security audit, tool definition validation, and initial system prompt setup.
     """
 
-    def __init__(self, ctx: AgentContext, view: CLIView) -> None:
-        """Initialize with agent context and REPL view for output."""
+    def __init__(
+        self,
+        ctx: AgentContext,
+        view: CLIView,
+        shutdown_event: asyncio.Event | None = None,
+    ) -> None:
+        """Initialize with agent context, REPL view for output, and an optional shutdown event."""
         self._ctx = ctx
         self._view = view
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
+        self._spawned_subprocesses: list[subprocess.Popen] = []
+        self._shutdown_event = shutdown_event
+
+    async def _interruptible_sleep(self, delay: float) -> bool:
+        """Sleep for `delay` seconds, racing against `_shutdown_event`.
+
+        Returns True iff the shutdown event fired before `delay` elapsed (caller
+        should raise `StartupInterrupted`); returns False if the full delay elapsed
+        normally or no `shutdown_event` was configured.
+        """
+        if self._shutdown_event is None:
+            await asyncio.sleep(delay)
+            return False
+        sleep_task = asyncio.ensure_future(asyncio.sleep(delay))
+        shutdown_task = asyncio.ensure_future(self._shutdown_event.wait())
+        done, pending = await asyncio.wait(
+            {sleep_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+        return shutdown_task in done
 
     async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
         """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
         self._initialize()
-        _servers_started = False
-        self._spawned_subprocesses: list[subprocess.Popen] = []
         try:
             self._spawned_subprocesses = await self._start_servers()
-            _servers_started = True
             await self._verify_mcp_health()
             await self._check_services()
             await self._recover_pending_approvals()
             await self._setup_prompt()
         except Exception as setup_err:
-            if _servers_started:
-                try:
-                    await self._ctx.services_required.lifecycle.shutdown_all()
-                except Exception as shutdown_err:
-                    logger.error(
-                        "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
-                        shutdown_err,
-                    )
+            try:
+                await self._ctx.services_required.lifecycle.shutdown_all()
+            except Exception as shutdown_err:
+                logger.error(
+                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
+                    shutdown_err,
+                )
             # Pass subprocess list to caller for termination
             raise setup_err
         if self._cmds is None or self._orchestrator is None:
@@ -144,9 +171,12 @@ class StartupOrchestrator:
             raise RuntimeError("tools service not initialized")
         if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
-        spawned: list[subprocess.Popen] = []
         last_startup_time = 0.0
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
+            if self._shutdown_event is not None and self._shutdown_event.is_set():
+                raise StartupInterrupted(
+                    f"shutdown requested before starting MCP subprocess {key!r}"
+                )
             if (
                 cfg.startup_mode == StartupMode.SUBPROCESS
                 and cfg.transport == TransportType.HTTP
@@ -155,17 +185,20 @@ class StartupOrchestrator:
                     elapsed = time.monotonic() - last_startup_time
                     stagger_delay = max(0.0, cfg.startup_stagger_delay_sec - elapsed)
                     if stagger_delay > 0:
-                        await asyncio.sleep(stagger_delay)
+                        if await self._interruptible_sleep(stagger_delay):
+                            raise StartupInterrupted(
+                                f"shutdown requested during startup stagger delay for {key!r}"
+                            )
                         logger.info(
                             "Staggering startup by %.1fs for %r", stagger_delay, key
                         )
 
                 try:
                     proc = await ctx.services_required.lifecycle.start_http_subprocess(
-                        key, cfg
+                        key, cfg, shutdown_event=self._shutdown_event
                     )
                     if proc is not None:
-                        spawned.append(proc)
+                        self._spawned_subprocesses.append(proc)
                         last_startup_time = time.monotonic()
                 except (OSError, RuntimeError) as e:
                     # First attempt failure — log at INFO level
@@ -176,15 +209,18 @@ class StartupOrchestrator:
                     )
 
                     # Retry after delay
-                    await asyncio.sleep(HEALTH_CHECK_RETRY_DELAY_SEC)
+                    if await self._interruptible_sleep(HEALTH_CHECK_RETRY_DELAY_SEC):
+                        raise StartupInterrupted(
+                            f"shutdown requested during startup retry delay for {key!r}"
+                        )
                     try:
                         proc = (
                             await ctx.services_required.lifecycle.start_http_subprocess(
-                                key, cfg
+                                key, cfg, shutdown_event=self._shutdown_event
                             )
                         )
                         if proc is not None:
-                            spawned.append(proc)
+                            self._spawned_subprocesses.append(proc)
                             last_startup_time = time.monotonic()
                     except (OSError, RuntimeError) as retry_err:
                         # Retry attempt failure — log at WARNING level
@@ -201,7 +237,7 @@ class StartupOrchestrator:
                         self._view.write_warning(
                             f"{OutputTag.NON_FATAL} HTTP subprocess MCP server {key!r} failed to start after retry: {retry_err}"
                         )
-        return spawned
+        return self._spawned_subprocesses
 
     async def _verify_mcp_health(self) -> None:
         """Verify health of all MCP subprocess servers after startup."""
@@ -219,6 +255,10 @@ class StartupOrchestrator:
         ]
 
         for server_key, cfg in subprocess_servers:
+            if self._shutdown_event is not None and self._shutdown_event.is_set():
+                raise StartupInterrupted(
+                    f"shutdown requested before health check for {server_key!r}"
+                )
             url = cfg.url.rstrip("/") + "/health"
             try:
                 async with httpx.AsyncClient(timeout=5.0) as client:
@@ -227,8 +267,17 @@ class StartupOrchestrator:
                         raise RuntimeError(f"HTTP {resp.status_code}")
                     logger.info("Post-startup health check passed for %r", server_key)
             except Exception:
+                # NOTE: the interruptible-sleep check is deliberately outside the
+                # nested try/except below — raising StartupInterrupted from inside
+                # that try would be caught by its own `except Exception as retry_err`
+                # and either re-wrapped as a generic RuntimeError (production profile)
+                # or swallowed as a mere warning (non-production profile), defeating
+                # the prompt-interruption contract.
+                if await self._interruptible_sleep(HEALTH_CHECK_RETRY_DELAY_SEC):
+                    raise StartupInterrupted(
+                        f"shutdown requested during post-startup health check retry delay for {server_key!r}"
+                    ) from None
                 try:
-                    await asyncio.sleep(HEALTH_CHECK_RETRY_DELAY_SEC)
                     async with httpx.AsyncClient(timeout=5.0) as client:
                         resp = await client.get(url)
                         if resp.status_code != httpx.codes.OK:
@@ -355,8 +404,11 @@ class StartupOrchestrator:
                     pipeline.add_warning(
                         "rag_consistency", f"[RAG] Consistency issue: {issue}"
                     )
-        except Exception:  # noqa: BLE001
-            pipeline.add_skipped("rag_consistency", "RAG consistency check skipped")
+        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup
+            logger.warning("RAG consistency check failed: %s", exc)
+            pipeline.add_skipped(
+                "rag_consistency", f"RAG consistency check skipped: {exc}"
+            )
 
         self._display_pipeline_results(pipeline)
 
@@ -515,8 +567,6 @@ class StartupOrchestrator:
     async def _recover_pending_approvals(self) -> None:
         """Restore workflow approval-pending state from a previous session."""
         ctx = self._ctx
-        if ctx.workflow is None:
-            return
         store = StateStore()
         try:
             results = find_all_pending_approvals(store.get_connection())

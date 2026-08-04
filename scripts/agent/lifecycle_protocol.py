@@ -9,6 +9,7 @@ Two protocols:
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 from typing import Protocol, runtime_checkable
 
@@ -46,7 +47,10 @@ class LifecycleManagerProtocol(Protocol):
         ...
 
     async def start_http_subprocess(
-        self, server_key: str, cfg: McpServerConfig
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
     ) -> subprocess.Popen[bytes] | None:
         """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
         ...

@@ -7,8 +7,10 @@ _start_subprocess_servers was moved to StartupOrchestrator._start_servers().
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 import subprocess
+import time
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -21,7 +23,11 @@ from agent.shared.health_models import (
     StartupCheckStatus,
     StartupValidationResult,
 )
-from agent.startup import StartupOrchestrator
+from agent.startup import (
+    HEALTH_CHECK_RETRY_DELAY_SEC,
+    StartupInterrupted,
+    StartupOrchestrator,
+)
 from shared.mcp_config import (
     McpServerConfig,
     SecurityProfile,
@@ -35,6 +41,7 @@ from shared.mcp_config import (
 def _make_startup(
     mcp_servers: dict[str, McpServerConfig],
     security_profile: SecurityProfile = SecurityProfile.LOCAL,
+    shutdown_event: asyncio.Event | None = None,
 ) -> StartupOrchestrator:
     """Return a StartupOrchestrator with mocked ctx/view for _start_servers() tests."""
     ctx = MagicMock()
@@ -46,7 +53,7 @@ def _make_startup(
     ctx.services_required.lifecycle.start_http_subprocess = AsyncMock()
     view = MagicMock()
     view.write_warning = MagicMock()
-    return StartupOrchestrator(ctx, view)
+    return StartupOrchestrator(ctx, view, shutdown_event=shutdown_event)
 
 
 def _http_subprocess_cfg() -> McpServerConfig:
@@ -72,7 +79,7 @@ class TestStartupOrchestratorStartServers:
         await startup._start_servers()
 
         startup._ctx.services_required.lifecycle.start_http_subprocess.assert_called_once_with(
-            "web", cfg
+            "web", cfg, shutdown_event=None
         )
 
     @pytest.mark.asyncio
@@ -113,6 +120,91 @@ class TestStartupOrchestratorStartServers:
             await startup._start_servers()
 
         assert "web" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_retry_success_appends_to_spawned_subprocesses(self) -> None:
+        """A retry-success (first attempt raises, retry returns a Popen) must append
+        the retried proc onto self._spawned_subprocesses, not just the first-attempt
+        success path."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        retried_proc = MagicMock(spec=subprocess.Popen)
+        startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
+            side_effect=[RuntimeError("port busy"), retried_proc]
+        )
+
+        result = await startup._start_servers()
+
+        assert result == [retried_proc]
+        assert startup._spawned_subprocesses == [retried_proc]
+
+    @pytest.mark.asyncio
+    async def test_pre_set_shutdown_event_stops_before_second_server(self) -> None:
+        """A shutdown_event set before _start_servers() is called must stop the
+        per-server loop's pre-loop check before any further server is started."""
+        cfg = _http_subprocess_cfg()
+        shutdown_event = asyncio.Event()
+        shutdown_event.set()
+        startup = _make_startup(
+            {"first": cfg, "second": cfg},
+            security_profile=SecurityProfile.LOCAL,
+            shutdown_event=shutdown_event,
+        )
+
+        with pytest.raises(StartupInterrupted):
+            await startup._start_servers()
+
+        assert (
+            startup._ctx.services_required.lifecycle.start_http_subprocess.call_count
+            <= 1
+        )
+
+    @pytest.mark.asyncio
+    async def test_shutdown_event_during_retry_delay_raises_promptly(self) -> None:
+        """shutdown_event firing mid-retry-delay must interrupt _interruptible_sleep()
+        promptly, well before HEALTH_CHECK_RETRY_DELAY_SEC elapses."""
+        cfg = _http_subprocess_cfg()
+        shutdown_event = asyncio.Event()
+        startup = _make_startup(
+            {"web": cfg},
+            security_profile=SecurityProfile.LOCAL,
+            shutdown_event=shutdown_event,
+        )
+        startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
+            RuntimeError("port busy")
+        )
+
+        async def _fire_shutdown() -> None:
+            await asyncio.sleep(0.05)
+            shutdown_event.set()
+
+        fire_task = asyncio.ensure_future(_fire_shutdown())
+        start = time.monotonic()
+        with pytest.raises(StartupInterrupted):
+            await startup._start_servers()
+        elapsed = time.monotonic() - start
+        await fire_task
+
+        assert elapsed < HEALTH_CHECK_RETRY_DELAY_SEC / 2
+
+    @pytest.mark.asyncio
+    async def test_shutdown_event_passed_but_never_set_is_no_op(self) -> None:
+        """A real, never-set shutdown_event must not change _start_servers()
+        behavior relative to shutdown_event=None."""
+        cfg = _http_subprocess_cfg()
+        shutdown_event = asyncio.Event()
+        startup = _make_startup(
+            {"web": cfg},
+            security_profile=SecurityProfile.LOCAL,
+            shutdown_event=shutdown_event,
+        )
+
+        result = await startup._start_servers()
+
+        startup._ctx.services_required.lifecycle.start_http_subprocess.assert_called_once_with(
+            "web", cfg, shutdown_event=shutdown_event
+        )
+        assert result == startup._spawned_subprocesses
 
 
 # ── StartupOrchestrator._recover_pending_approvals ─────────────────────────────
@@ -610,7 +702,7 @@ class TestStartupRollback:
         mock_lifecycle.shutdown_all.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_no_rollback_on_start_servers_failure(self) -> None:
+    async def test_rollback_on_start_servers_failure(self) -> None:
         orch, mock_lifecycle = _make_rollback_startup()
         orch._start_servers = AsyncMock(side_effect=RuntimeError("server start failed"))
         orch._check_services = AsyncMock()
@@ -618,7 +710,73 @@ class TestStartupRollback:
         with pytest.raises(RuntimeError, match="server start failed"):
             await orch.run()
 
-        mock_lifecycle.shutdown_all.assert_not_awaited()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "security_profile",
+        [SecurityProfile.PRODUCTION, SecurityProfile.LOCAL],
+    )
+    async def test_rollback_on_partial_multi_server_failure(
+        self, security_profile: SecurityProfile
+    ) -> None:
+        """run() rolls back via shutdown_all() after a two-server startup where the
+        first server starts successfully and the second fails on both the first
+        attempt and the retry.
+
+        In PRODUCTION, the second server's retry failure makes `_start_servers()`
+        itself raise mid-loop (after `first_proc` was already appended). In a
+        non-production profile, `_start_servers()` swallows the retry failure and
+        returns normally with only `first_proc` recorded, so `_check_services()` is
+        mocked to fail instead to drive `run()` into its rollback path — both cases
+        exercise "one subprocess already started before the failure that triggers
+        rollback" from the plan's Goal.
+        """
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = security_profile
+        ctx.cfg.mcp.mcp_servers = {
+            "first": _http_subprocess_cfg(),
+            "second": _http_subprocess_cfg(),
+        }
+        ctx.services_required.tools = MagicMock()
+        mock_lifecycle = AsyncMock()
+        ctx.services_required.lifecycle = mock_lifecycle
+        first_proc = MagicMock(spec=subprocess.Popen)
+        mock_lifecycle.start_http_subprocess = AsyncMock(
+            side_effect=[
+                first_proc,
+                RuntimeError("port busy"),
+                RuntimeError("port busy"),
+            ]
+        )
+        view = MagicMock()
+        orch = StartupOrchestrator(ctx, view)
+        orch._initialize = MagicMock()
+        orch._check_services = AsyncMock(side_effect=RuntimeError("downstream failure"))
+        orch._recover_pending_approvals = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(RuntimeError):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+        assert orch._spawned_subprocesses == [first_proc]
+
+    @pytest.mark.asyncio
+    async def test_rollback_no_op_when_no_subprocess_started(self) -> None:
+        """run() still rolls back (safe no-op shutdown_all()) when _start_servers()
+        raises before any subprocess is spawned."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock(
+            side_effect=RuntimeError("no servers configured")
+        )
+        orch._check_services = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="no servers configured"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+        assert orch._spawned_subprocesses == []
 
     @pytest.mark.asyncio
     async def test_run_populates_spawned_subprocesses_on_exception_path(self) -> None:
@@ -659,6 +817,22 @@ class TestStartupRollback:
         cmds, orchestrator, spawned = await orch.run()
 
         assert spawned == fake_procs
+
+    @pytest.mark.asyncio
+    async def test_startup_interrupted_triggers_rollback_like_any_other_exception(
+        self,
+    ) -> None:
+        """StartupInterrupted must flow through run()'s existing rollback
+        `except Exception as setup_err:` block unchanged — no dedicated branch."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock(
+            side_effect=StartupInterrupted("shutdown requested")
+        )
+
+        with pytest.raises(StartupInterrupted, match="shutdown requested"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
 
 
 # ── StartupOrchestrator._check_services() severity classification ───────────
@@ -1108,14 +1282,27 @@ class TestCheckServicesSeverityClassification:
     @pytest.mark.asyncio
     async def test_rag_consistency_skipped_on_exception(self) -> None:
         ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
-            ctx,
-            RagMaintenanceService=MagicMock(side_effect=RuntimeError("db locked")),
-        )
+        with patch("agent.startup.logger") as mock_logger:
+            pipeline, exc = await _run_check_services(
+                ctx,
+                RagMaintenanceService=MagicMock(
+                    side_effect=RuntimeError("db locked")
+                ),
+            )
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.SKIPPED
+        assert "db locked" in outcomes[0].message
+
+        # Verify the exception is logged as a warning (non-fatal maintenance check).
+        warning_calls = [
+            call_args
+            for call_args in mock_logger.warning.call_args_list
+            if "RAG consistency check failed" in call_args[0][0]
+        ]
+        assert len(warning_calls) == 1
+        assert "db locked" in str(warning_calls[0][0][1])
 
 
 # ── Helpers for _verify_mcp_health tests ──────────────────────────────────────
@@ -1260,6 +1447,39 @@ class TestStartupVerifyMcpHealth:
 
         with pytest.raises(RuntimeError, match="lifecycle service not initialized"):
             await startup._verify_mcp_health()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_event_during_health_retry_delay_raises_promptly(
+        self,
+    ) -> None:
+        """shutdown_event firing mid-health-retry-delay must interrupt
+        _interruptible_sleep() promptly, mirroring the _start_servers() retry-delay
+        interruption behavior."""
+        cfg = _http_subprocess_cfg()
+        shutdown_event = asyncio.Event()
+        startup = _make_startup(
+            {"web": cfg},
+            security_profile=SecurityProfile.LOCAL,
+            shutdown_event=shutdown_event,
+        )
+        mock_resp_fail = _make_http_mock(503)
+
+        async def _fire_shutdown() -> None:
+            await asyncio.sleep(0.05)
+            shutdown_event.set()
+
+        fire_task = asyncio.ensure_future(_fire_shutdown())
+        start = time.monotonic()
+        with patch(
+            "agent.startup.httpx.AsyncClient",
+            return_value=_AsyncClientMock(get_return=mock_resp_fail),
+        ):
+            with pytest.raises(StartupInterrupted):
+                await startup._verify_mcp_health()
+        elapsed = time.monotonic() - start
+        await fire_task
+
+        assert elapsed < HEALTH_CHECK_RETRY_DELAY_SEC / 2
 
 
 # ── StartupOrchestrator._setup_prompt() memory failure ─────────────────────────

@@ -64,7 +64,7 @@ importance のヒューリスティック: `_importance_from_content()` によ�
 | `fetch(text)` | `EmbeddingResult` | リトライとサーキットブレーカーを伴う非同期の埋め込み |
 | `get_status()` | `EmbeddingClientStatus` | enabled、circuit_open、fail_count、resets_in_sec のスナップショット |
 
-`EmbeddingClientConfig`: embed_url, timeout=5.0, max_retries=2, circuit_open_after=3, circuit_reset_sec=60.0, query_prefix="query: ", embed_dim=384, local_only=False。
+`EmbeddingClientConfig`: embed_url, timeout=5.0, max_retries=2, circuit_open_after=3, circuit_reset_sec=60.0, local_only=False。
 
 **無効時の動作:** `enabled=False` の場合、`fetch()` は HTTP 呼び出しを行わずに即座に `EmbeddingResult(success=False, error_kind=DISABLED)` を返す。
 

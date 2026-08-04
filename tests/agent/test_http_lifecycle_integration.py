@@ -1068,3 +1068,71 @@ class TestErrorRecovery:
             await mgr.start("test", cfg)
 
         assert mgr._http_procs.get("test") is proc_mock
+
+
+class TestShutdownEventPollInterruption:
+    """New in implementations/20260804-151108_http_lifecycle.py.md:
+
+    start()'s health-poll-loop sleep races against an optional `shutdown_event`
+    so a shutdown fired mid-poll aborts within roughly one poll interval
+    instead of waiting up to the full `startup_timeout_sec`.
+    """
+
+    @pytest.mark.asyncio
+    async def test_shutdown_event_set_before_poll_raises_promptly(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        from http import HTTPStatus
+
+        cfg = _make_cfg(cmd=["node", "/fake/server.js"], startup_timeout_sec=30)
+        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
+        shutdown_event = asyncio.Event()
+        shutdown_event.set()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = HTTPStatus.SERVICE_UNAVAILABLE
+        mock_client = MagicMock()
+        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.get = AsyncMock(return_value=mock_resp)
+
+        with (
+            patch.object(subprocess, "Popen", return_value=proc_mock),
+            patch.object(os, "getpgid", return_value=9999),
+            patch.object(httpx, "AsyncClient", mock_client),
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await mgr.start("test", cfg, shutdown_event=shutdown_event)
+
+        failure = exc_info.value.failure
+        assert isinstance(failure, StartupFailure)
+        assert failure.server_key == "test"
+        assert failure.reason == "shutdown requested"
+        assert mgr._http_procs.get("test") is None
+        assert mgr._http_pgids.get("test") is None
+
+    @pytest.mark.asyncio
+    async def test_shutdown_event_never_set_is_noop(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """A real, never-set shutdown_event must not change start() behavior
+        relative to shutdown_event=None."""
+        from http import HTTPStatus
+
+        cfg = _make_cfg(cmd=["node", "/fake/server.js"], startup_timeout_sec=2)
+        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
+        shutdown_event = asyncio.Event()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = HTTPStatus.OK
+        mock_client = MagicMock()
+        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.get = AsyncMock(return_value=mock_resp)
+
+        with (
+            patch.object(subprocess, "Popen", return_value=proc_mock),
+            patch.object(os, "getpgid", return_value=9999),
+            patch.object(httpx, "AsyncClient", mock_client),
+        ):
+            await mgr.start("test", cfg, shutdown_event=shutdown_event)
+
+        assert mgr._http_procs.get("test") is proc_mock

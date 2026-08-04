@@ -8,6 +8,7 @@ REPL instance state directly.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import subprocess
 import time
@@ -175,6 +176,7 @@ class _ServerLifecycleRouter:
         self,
         server_key: str,
         cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
     ) -> subprocess.Popen[bytes] | None:
         """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
         if self._shutting_down:
@@ -187,7 +189,7 @@ class _ServerLifecycleRouter:
             return None
         self._set_state(server_key, LifecycleState.STARTING)
         try:
-            await self._http_mgr.start(server_key, cfg)
+            await self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)
             self._failed_starts.pop(server_key, None)
             self._set_state(server_key, LifecycleState.RUNNING)
             return self._http_mgr._http_procs.get(server_key)

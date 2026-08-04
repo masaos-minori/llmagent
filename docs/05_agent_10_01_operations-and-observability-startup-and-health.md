@@ -64,7 +64,7 @@ agent[:#1]>
 
 エージェント起動時に、前回のセッションで解決されなかった承認ゲート(つまり `/approve` も `/reject` も発行されなかったもの)が存在する場合、`startup.py` は保留中の承認状態を復元する:
 
-- **タイミング:** 起動時、`ctx.workflow is not None` の場合
+- **タイミング:** 起動時、常に実行される(`ctx.workflow` は `AgentContext.__init__()` で無条件に設定されるため、条件分岐はない)
 - **復元される内容:** `StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から取得される最新のグローバルな保留中承認
 - **複数セッション時の動作:** 保留中の承認は同時に1件のみ追跡される。全セッションを通じた最新のレコードが復元される(セッション固有ではない)
 - **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`(`reason` が未設定の場合は `none` と表示される。根拠: `startup.py` の `_recover_pending_approvals()`、`approval.reason or 'none'`)
@@ -216,7 +216,7 @@ sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY
 | `routing_drift_live` (`check_routing_drift_vs_live()`) | *(dead code — documented, not fixed)* | `_check_services()` also contains `if strict: pipeline.add_fatal("routing_drift_live", msg)` for each `drift_result.warning_messages()` entry. Reading `check_routing_drift_vs_live()` (`agent/repl_health.py`) in full shows this is **unreachable**: whenever `strict=True` and there is any actual duplicate/drift condition, the function raises `RuntimeError` *before* returning — so a `drift_result` returned (not raised) under `strict=True` can only ever have empty `warning_messages()`. The raise itself is caught by the generic `except Exception` above and reported as `SKIPPED`, not `FATAL`. | Newly identified during this review; mirrors the same pattern as `readiness`'s `error_messages()` loop — an `add_fatal` call sits in the code but the condition that would populate it can never occur at runtime. Documented here for accuracy; the code is intentionally left unmodified (out of scope — no existing severity classification was changed). |
 | `rag_consistency` (`RagMaintenanceService().consistency()`) | OK | `rag_check.is_consistent` is `True`. | — |
 | `rag_consistency` (`RagMaintenanceService().consistency()`) | WARNING | `rag_check.is_consistent` is `False` — one `WARNING` per entry in `rag_check.issues`. | RAG consistency issues (e.g. orphaned chunks) are recoverable and don't block startup. |
-| `rag_consistency` (`RagMaintenanceService().consistency()`) | SKIPPED | Any exception raised while constructing `RagMaintenanceService()` or calling `.consistency()`. | Same rationale as `routing_drift_live`'s `SKIPPED`: a live/dynamic check (touches the RAG DB) that may legitimately be unavailable — e.g. a fresh install with no RAG data yet — distinct from the static config checks (`routing_drift` / `routing_safety_tiers`) which use `WARNING` even on exception, since a failure reading local config is more likely a real config problem than an expected absence of data. |
+| `rag_consistency` (`RagMaintenanceService().consistency()`) | SKIPPED | Any exception raised while constructing `RagMaintenanceService()` or calling `.consistency()`. The exception is bound as `exc`, logged via `logger.warning("RAG consistency check failed: %s", exc)`, and its text is included in the `add_skipped` message (`f"RAG consistency check skipped: {exc}"`), so the failure reason reaches both the log file and the console. | Same rationale as `routing_drift_live`'s `SKIPPED`: a live/dynamic check (touches the RAG DB) that may legitimately be unavailable — e.g. a fresh install with no RAG data yet — distinct from the static config checks (`routing_drift` / `routing_safety_tiers`) which use `WARNING` even on exception, since a failure reading local config is more likely a real config problem than an expected absence of data. |
 
 補足:
 - `FATAL`は全チェック完了後に集約判定される。単一の`FATAL`でも起動全体が中断される。
@@ -236,27 +236,39 @@ Note: When `start_new_session=True` is used, child processes may not be cleaned 
 
 ### ロールバックが発火する条件
 
-`_servers_started`フラグは`_start_servers()`が例外を送出せず完了した直後にのみ`True`になる
-(`run()`の54-60行目付近: `_servers_started = False` → `await self._start_servers()` →
-`_servers_started = True`)。except節は`if _servers_started:`の場合のみ
-`await self._ctx.services_required.lifecycle.shutdown_all()`を呼び出す。
+`except Exception as setup_err:`節は、`try`ブロック内(`_start_servers()` /
+`_verify_mcp_health()` / `_check_services()` / `_recover_pending_approvals()` /
+`_setup_prompt()`)のどこで例外が送出されても、無条件に
+`await self._ctx.services_required.lifecycle.shutdown_all()`を呼び出す。以前存在した
+`_servers_started`フラグによるガード(`_start_servers()`が例外を送出せず完了した場合のみ
+ロールバックする、という条件分岐)は削除されており、`_start_servers()`自体が起動ループの
+途中で例外を送出した場合も含め、常にロールバックが発火する。
 
-ただし、`AgentREPL.run()`(`repl.py`)のtry/finallyブロックは、`_start_servers()`の失敗時にも
-起動されたMCPサブプロセスを終了する。`StartupOrchestrator._start_servers()`は起動済みサブプロセスの
-リストを返すようになり、`AgentREPL.run()`のfinally節で`proc.terminate()`が呼ばれる。
+`self._spawned_subprocesses: list[subprocess.Popen]`は`__init__()`で空リストとして初期化され、
+`_start_servers()`は起動に成功したサブプロセスをループの各反復でこのインスタンス属性へ
+直接`append()`する(ローカル変数へ一旦貯めてから返り値として代入する方式ではない)。そのため
+`_start_servers()`が複数サーバ起動ループの途中(例: 2台目のサーバの起動に失敗)で例外を送出しても、
+それ以前に起動済みの1台目のサブプロセスは既に`self._spawned_subprocesses`に記録されており、
+`run()`の except節が呼ぶ`shutdown_all()`によって確実に終了対象となる。
 
-したがって:
+`HttpServerLifecycleManager.shutdown_all()` / `_ServerLifecycleRouter.shutdown_all()`は
+追跡中のサブプロセスが0件でも安全な無処理(no-op)であるため、`_start_servers()`が1件も
+起動できないまま例外を送出した場合でも`shutdown_all()`の呼び出し自体は問題なく完了する。
 
-- `_check_services()` / `_recover_pending_approvals()` / `_setup_prompt()`のいずれかが失敗した場合は、
-  `_servers_started`が`True`のため`shutdown_all()`が呼ばれる。
-- `_start_servers()`自体が例外を送出して失敗した場合でも、`AgentREPL.run()`のfinally節で
-  起動済みサブプロセスがすべて終了される。orphan化は発生しない。
+この仕様は`tests/agent/test_startup.py`の`TestStartupRollback`クラスで固定されており、
+`test_rollback_on_start_servers_failure`が「`_start_servers()`自体が失敗した場合も
+`shutdown_all()`が呼ばれること」を、`test_rollback_on_partial_multi_server_failure`が
+「複数サーバのうち1台目起動後に2台目が失敗した場合も`shutdown_all()`が1回呼ばれ、
+`_spawned_subprocesses`に1台目のプロセスのみが記録されていること」を、
+`test_rollback_no_op_when_no_subprocess_started`が「1件もサブプロセスを起動できずに
+`_start_servers()`が失敗した場合も`shutdown_all()`が安全に呼ばれること」を、
+`test_rollback_on_check_services_failure`等が「`_start_servers()`成功後の後続失敗でも
+`shutdown_all()`が呼ばれること」を検証する。
 
-この仕様は`tests/test_startup.py`の`TestStartupRollback`クラス(docstring: "run() calls
-lifecycle.shutdown_all() iff _start_servers() succeeded before failure")で固定されており、
-`test_no_rollback_on_start_servers_failure`が「`_start_servers()`失敗時は`shutdown_all()`が
-呼ばれないこと」を、`test_rollback_on_check_services_failure`等が「`_start_servers()`成功後の
-後続失敗では`shutdown_all()`が呼ばれること」を検証する。
+なお`AgentREPL.run()`(`repl.py`)は`startup._spawned_subprocesses`を`hasattr()`ガード付きで
+読み取り、`proc.poll() is None`のプロセスに対して`finally`節でも`terminate()`を試みる。
+`shutdown_all()`が既に対象プロセスを終了させていた場合でも、`Popen.terminate()`は
+シグナル送信済みのプロセスに対して安全な無処理であるため、二重終了が問題になることはない。
 
 ### ロールバック自体が失敗した場合
 
@@ -273,6 +285,59 @@ lifecycle.shutdown_all() iff _start_servers() succeeded before failure")で固�
 この仕様は`tests/test_startup.py`の`test_rollback_shutdown_failure_preserves_original_error`
 (`mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")`を与えても
 `pytest.raises(RuntimeError, match="original error")`が成立することを検証)で固定されている。
+
+### 起動シーケンス中のSIGINT/SIGTERM中断
+
+`StartupOrchestrator.__init__()`は`shutdown_event: asyncio.Event | None = None`を追加の
+引数として受け取り、`self._shutdown_event`に保持する(デフォルトは`None`)。
+`_interruptible_sleep(delay: float) -> bool`は、`self._shutdown_event`が設定されている場合
+`asyncio.sleep(delay)`と`self._shutdown_event.wait()`を`asyncio.wait({...}, return_when=asyncio.FIRST_COMPLETED)`で競走させ(`AgentREPL._repl_loop()`, `repl.py:538-556`と同じレース方式)、`shutdown_event`が先に発火すれば`True`を返す
+(呼び出し側は`StartupInterrupted`を送出する)。`shutdown_event`が`None`の場合は単に
+`await asyncio.sleep(delay)`してから`False`を返す。
+
+`_start_servers()`と`_verify_mcp_health()`は、それぞれのサーバ反復ループの先頭で
+`self._shutdown_event.is_set()`を確認し、既にシャットダウンが要求されていればループ本体に
+入る前に`StartupInterrupted`(`RuntimeError`のサブクラス)を送出する。同様に、起動の
+stagger遅延、HTTPサブプロセス起動リトライ遅延、ヘルスチェックリトライ遅延の3箇所でも
+`_interruptible_sleep()`を使い、シャットダウンが遅延中に発火すればフルの遅延を待たずに
+`StartupInterrupted`を送出する。`StartupInterrupted`は`run()`の既存の
+`except Exception as setup_err:`節でそのまま捕捉されるため、上記「ロールバックが発火する条件」
+の無条件ロールバック経路をそのまま通る — 新しい第二のロールバック経路は導入していない。
+
+`_verify_mcp_health()`のリトライ遅延の中断チェックは、内側の`try`/`except Exception as retry_err:`の**外側**(最初の`except Exception:`節の直下、リトライの`try`に入る前)に置かれている。
+内側の`try`の中で`StartupInterrupted`を送出すると、それを囲む`except Exception as retry_err:`が
+`StartupInterrupted`ごと捕捉してしまい、本番プロファイルでは汎用的な`RuntimeError`へ
+再ラップされ、非本番プロファイルでは単なる警告としてループが継続してしまう(=中断が握り
+つぶされる)ため、意図的にこの位置に置いている。
+
+**現在の配線状態:** `AgentREPL.run()`(`repl.py`)は`StartupOrchestrator(self._ctx, self._view,
+shutdown_event=self._shutdown_event)`として自身の`self._shutdown_event`
+(`_repl_loop()`のSIGINT/SIGTERM処理と共有する同一の`asyncio.Event`)を渡しており、
+この中断経路は起動シーケンス中も有効に発火する。`shutdown_event`はキーワード引数であり
+デフォルトは`None`のままなので、`repl.py`以外から`StartupOrchestrator(ctx, view)`の
+2引数で構築する呼び出し箇所があれば、その呼び出しは従来どおり中断なしで動作する。
+
+### HTTPサブプロセスのヘルスポーリングループ中断
+
+`HttpServerLifecycleManager.start()`(`agent/http_lifecycle.py`)は`shutdown_event`を
+追加のキーワード引数(型は`asyncio.Event | None`、デフォルト`None`)として受け取る。
+内部のヘルスポーリングループ(`while time.monotonic() < deadline:`)は、応答待ちの
+たびに`await asyncio.sleep(0.5)`していた箇所を`_interruptible_poll_sleep(0.5, shutdown_event)`
+に置き換えており、これは`StartupOrchestrator._interruptible_sleep()`と
+同じ`asyncio.wait()` + `return_when=asyncio.FIRST_COMPLETED`のレース方式を持つが、
+モジュール間の結合を増やさないため`HttpServerLifecycleManager`側に別コピーとして
+実装されている(共通関数として切り出してはいない)。`shutdown_event`が先に発火すると、
+ポーリングループは`stderr_full`回収とトラッキング辞書(`_http_procs` / `_http_pgids`)の
+クリアのみを行い、`reason="shutdown requested"`の`StartupFailure`を持つ既存の
+`HttpStartupError`を送出する(呼び出し側に新しい`except`節は不要)。
+`_terminate_with_timeout()`はここでは呼ばれない — `_http_procs[server_key]`は既に
+ポーリング開始前に設定済みのため、呼び出し元の`shutdown_all()`ロールバック経路が
+同じプロセスを終了させる(ここで二重に終了処理を呼ぶと`shutdown_all()`との競合
+リスクがあるため)。`shutdown_event`が`None`の場合は従来どおり
+`await asyncio.sleep(delay)`のみを行い`False`を返すため、既存の呼び出し箇所(`restart()`、
+既存テスト)の挙動は変わらない。
+
+**現在の配線状態:** `_ServerLifecycleRouter.start_http_subprocess()`(`agent/factory.py`)は`shutdown_event: asyncio.Event | None = None`を追加のキーワード引数として受け取り、`self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)`としてそのまま`HttpServerLifecycleManager.start()`へ転送する(`ensure_ready()`と`restart()`の呼び出し箇所は起動時パス外のため対象外のまま)。`LifecycleManagerProtocol.start_http_subprocess()`(`agent/lifecycle_protocol.py`)のシグネチャにも同じ`shutdown_event`キーワード引数が追加されており、`StartupOrchestrator._start_servers()`(`startup.py`)側の呼び出し箇所(初回・リトライの2箇所)は`shutdown_event=self._shutdown_event`を渡すため、`repl.py`経由で起動された場合はこの中断経路が実際に発火する。
 
 ---
 
