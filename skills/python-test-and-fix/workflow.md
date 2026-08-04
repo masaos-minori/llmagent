@@ -23,11 +23,35 @@
 
 ## Test structure
 
+`tests/` mirrors the `scripts/` package layout: each `scripts/<package>/<module>.py` has its
+test at `tests/<package>/test_<module>.py`.
+
 ```
 tests/
-  conftest.py              # sys.path setup; shared fixtures
-  test_<module>.py         # one file per scripts/**/<module>.py
+  conftest.py                       # sys.path setup; shared fixtures
+  agent/
+    commands/test_<module>.py       # mirrors scripts/agent/commands/<module>.py
+    memory/test_<module>.py         # mirrors scripts/agent/memory/<module>.py
+    services/test_<module>.py       # mirrors scripts/agent/services/<module>.py
+    shared/test_<module>.py         # mirrors scripts/agent/shared/<module>.py
+    workflow/test_<module>.py       # mirrors scripts/agent/workflow/<module>.py
+    test_<module>.py                # mirrors scripts/agent/<module>.py directly
+  shared/test_<module>.py           # mirrors scripts/shared/<module>.py
+  mcp_servers/
+    <server>/test_<module>.py       # mirrors scripts/mcp_servers/<server>/<module>.py
+    test_<module>.py                # mirrors scripts/mcp_servers/<module>.py directly
+  rag/
+    ingestion/test_<module>.py      # mirrors scripts/rag/ingestion/<module>.py
+    test_<module>.py                # mirrors scripts/rag/<module>.py directly
+  db/test_<module>.py               # mirrors scripts/db/<module>.py
+  eventbus/test_<module>.py         # mirrors scripts/eventbus/<module>.py
+  tools/test_<module>.py            # mirrors tools/<module>.py
+  integration/                      # cross-module tests with no single scripts/ mirror
+  docs/                             # doc-consistency checks with no single scripts/ mirror
 ```
+
+When looking for or adding a test, mirror the target module's path under `scripts/`
+(or `tools/`) rather than assuming a flat `tests/test_<module>.py` layout.
 
 ---
 
