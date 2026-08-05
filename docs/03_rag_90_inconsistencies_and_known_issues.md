@@ -1,45 +1,34 @@
----
-title: "RAG Inconsistencies and Known Issues (Part 1)"
-category: rag
-tags:
-  - rag
-  - inconsistencies
-  - known-issues
-  - bugs
-  - open-questions
-related:
-  - 03_rag_00_document-guide.md
-  - 03_rag_91_design_notes-part1.md
-  - 03_rag_91_design_notes-part2.md
-source:
-  - 03_rag_90_inconsistencies_and_known_issues.md
----
 
-## 移行ノート
+## RAG-003: Unresolved usage status of `RegisteredDocument` DTO
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: design-gap
+- **Source**: `requires/20260802-192621_require.md`
+- **Owner**: Team
+- **First Found**: 2026-08-02
+- **Target**: `docs/03_rag_04_01_dto-models_data.md`
+- **Related**: N/A
+- **Summary**: `RegisteredDocument` in `scripts/rag/models_data.py` appears to be unused throughout the codebase.
+- **Current Description**: It is defined in `scripts/rag/models_data.py`, but grep shows zero external references. Its role as either a forward-looking placeholder or dead code is unconfirmed.
+- **Observed Implementation**: Definition exists in `the RegisteredDocument class`, but no imports or instantiations found in any other `.py` files.
+- **Impact**: Potential accumulation of dead code or confusion regarding intended data structures.
+- **Recommended Action**: Confirm with design/implementation owner whether this is a required future component or removable dead code.
+- **Resolution Notes**: N/A
 
-- 移行日: 2026-07-23
-- 移行元フォーマット: 既存のバレット形式（Type, Impact scope, Statement A/B, Current safe interpretation, Recommended action, Notes for AI reference）
-- 移行先フォーマット: 共通テンプレート（17フィールド）
-- 注: 既存のエントリ内容は維持。不足フィールドは「未確認」で埋める。
-
-# RAGの不整合と既知の問題
-
-このファイルは、RAGドキュメントの再構成中に発見された既知のバグ、仕様の矛盾、
-ドキュメント間の不整合、および未解決の疑問点をまとめたものである。
-
-各エントリは以下の形式を使用する: Type / Impact / Description / Safe interpretation / Recommended action / Source。
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_91_design_notes-part1.md`
-- `03_rag_91_design_notes-part2.md`
-
-
-## Keywords
-
-rag
-inconsistencies
-known-issues
-bugs
-open-questions
+## RAG-004: Unresolved usage status of `models_config.py` configuration dataclasses
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: design-gap
+- **Source**: `requires/20260802-192621_require.md`
+- **Owner**: Team
+- **First Found**: 2026-08-02
+- **Target**: `docs/03_rag_04_04_dto-models_config.md`
+- **Related**: N/A
+- **Summary**: Several dataclasses in `scripts/rag/models_config.py` appear to be unused.
+- **Current Description**: `MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, and `PipelineConfig` are defined in `scripts/rag/models_config.py` but do not appear to be imported or instantiated elsewhere. Configuration is currently handled via raw `dict` access from TOML files.
+- **Observed Implementation**: Grep confirms no imports or instantiations of these classes outside `scripts/rag/models_config.py`.
+- **Impact**: Potential accumulation of dead code or confusion regarding the intended configuration mechanism.
+- **Recommended Action**: Confirm with design/implementation owner whether these are intentional placeholders for a future validation layer or removable dead code.
+- **Resolution Notes**: N/A

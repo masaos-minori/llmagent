@@ -43,7 +43,7 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 
 コンストラクタなし（`PipelineStage` を継承）。
 
-**訂正（Explicit in code）:** チャンク整形関数の重複は解消済みである。`scripts/rag/stages/augment.py:11` のチャンク整形関数が唯一の実装であり、`scripts/rag/pipeline.py` はこれを `_augment_format_chunks` としてimportして使う（`from rag.stages.augment import _format_chunks as _augment_format_chunks`）。AugmentStage（augment.py内）と `RagPipeline.augment()` の生チャンクフォールバック（pipeline.py 461行目付近）はいずれも同一関数を呼び出す。
+**訂正（Explicit in code）:** チャンク整形関数の重複は解消済みである。`_format_chunks` 関数 のチャンク整形関数が唯一の実装であり、`scripts/rag/pipeline.py` はこれを `_augment_format_chunks` としてimportして使う（`from rag.stages.augment import _format_chunks as _augment_format_chunks`）。AugmentStage（augment.py内）と `RagPipeline.augment()` の生チャンクフォールバック（RagPipeline.augment() 内の処理）はいずれも同一関数を呼び出す。
 
 - `ctx.reranked` を `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` の形式のブロックとして整形する；titleが空の場合はURLをフォールバックとして使用する
 - `\n\n---\n\n` で連結し、`[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]` で囲む

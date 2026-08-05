@@ -31,7 +31,7 @@ source:
 `SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
 
 ```python
-from rag.cache import SemanticCache  # defined in rag/cache.py:31; imported by rag/pipeline.py:29
+from rag.cache import SemanticCache  # defined in SemanticCache クラス; imported by rag.pipeline
 
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```

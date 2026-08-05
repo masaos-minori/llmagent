@@ -68,7 +68,7 @@ from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8080/v1/chat/completions")
 ```
 
-**訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py:49` に1箇所のみ存在する。
+**訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py` に1箇所のみ存在する。
 
 `RagLLM` は、MQE によるクエリ展開 (`expand_queries`)、クロスエンコーダによる再ランキング (`cross_encoder_rerank`)、ツール出力の要約 (`summarize_tool_result`)、およびコンテキストのリファイニング (`refine_context`) を提供します。詳細なシグネチャについては `scripts/rag/llm_client.py` を参照してください。
 

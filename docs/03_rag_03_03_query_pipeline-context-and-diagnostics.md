@@ -55,16 +55,16 @@ from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 - `SearchDiagnostics.http_result_kind`（本節、`rag/models_result.py` の `HttpResultKind` enum）は
   `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` の4値。`pipeline.py` の HTTP augment実行内で
   `HttpResultKind.SUCCESS`（非空）・`HttpResultKind.EMPTY`（`""`）・`HttpResultKind.ERROR`（`None`）の
-  いずれかに設定される (`scripts/rag/pipeline.py:485-499`)。
+  いずれかに設定される (`RagPipeline._run_http_augment()` メソッド)。
 - `get_diagnostics()["http_result_kind"]`（`RagPipeline._http_result_kind` 属性経由、
-  `scripts/rag/http_augment.py:25-32,82-90`）は `"remote_nonempty"` / `"remote_empty"` /
+  `HttpAugment.run()`）は `"remote_nonempty"` / `"remote_empty"` /
   `"in_process_fallback"` の文字列リテラル3値。`HttpAugment.run()` 内で計算され、
-  `pipeline.py:482-483` でコピーされる。
+  `RagPipeline._run_http_augment()` でコピーされる。
 
 両者は同じHTTP呼び出し結果を別の粒度・別の語彙で表現した独立のフィールドであり、
 片方から他方を直接導出することはできない。
 
-### 4.3 get_diagnostics() の戻り値 (`scripts/rag/pipeline.py:544`)
+### 4.3 get_diagnostics() の戻り値 (`RagPipeline.get_diagnostics()`)
 
 ```python
 pipeline.get_diagnostics() -> dict
@@ -77,7 +77,7 @@ pipeline.get_diagnostics() -> dict
 | `stage_results` | `list[dict]` | ステージごとの結果（`last_stage_results` と同じ） |
 | `timings` | `dict[str, float]` | 各ステージの実測秒数（`last_timings` と同じ） |
 | `fetch_result` | `dict \| None` | フェッチ結果: `{hits: int, min_score_applied: float}` または `None` |
-> **注意:** HTTPモードにおいて、`fetch_result` は、現在の呼び出しの結果ではなく、前回のインプロセス実行時の値が残っている（staleになる）可能性があります。これは `RagPipeline._run_http_augment()` が HTTP 成功時に `self.run()` を呼び出さないためです（詳細は `scripts/rag/pipeline.py:336`, `:408-414`, `:470-511` および `scripts/rag/pipeline_service.py:42-171` を参照）。
+> **注意:** HTTPモードにおいて、`fetch_result` は、現在の呼び出しの結果ではなく、前回のインプロセス実行時の値が残っている（staleになる）可能性があります。これは `RagPipeline._run_http_augment()` が HTTP 成功時に `self.run()` を呼び出さないためです（詳細は RagPipeline.run() 内での self.last_fetch_result の更新、RagPipeline._run_http_augment() メソッド、および call_rag_service 関数を参照）。
 | `fusion_mode` | `str` | `"rrf"` または `"dedup_only"` |
 | `http_result_kind` | `str \| None` | HTTPモードの分類（`_http_result_kind` と同じ） |
 | `fallback_count` | `int` | フォールバックが発生したステージ数 |

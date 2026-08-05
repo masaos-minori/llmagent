@@ -56,7 +56,7 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 > `RuntimeError` は `SearchStage` 内部で捕捉され、クエリ単位で
 > `fts_errors` カウンタに計上されるのみで、例外として呼び出し元へは
 > 伝播しない。1クエリの検索失敗は残りのクエリの処理を止めない
-> (根拠分類: Explicit in code — `scripts/rag/stages/search.py:56-65`)。
+> (根拠分類: Explicit in code — `_search_all_queries()` メソッド)。
 >
 > **注記（2026-07-13）:** `RagPipeline.search_queries()` と `RagPipeline.rerank_candidates()` メソッドは
 > `pipeline.py` に定義されているが、いずれも呼び出し側が存在しない（デッドコード）。
@@ -82,7 +82,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 - `rrf_k` のデフォルト: 60；`cfg.rrf_k` で変更可能（RagConfig Protocolに `rrf_k` フィールドが含まれる）
 - 各 `MergedHit` に `rrf_score` を割り当て、`ctx.merged` に格納する
 
-> `use_rrf=False` は重複排除のみのフォールバックを発動させる（すべて `rrf_score=0.0`）。`pipeline.py:294` がRRF設定フラグを `FusionStage` に渡す。
+> `use_rrf=False` は重複排除のみのフォールバックを発動させる（すべて `rrf_score=0.0`）。RagPipeline.rerank_candidates() がRRF設定フラグを `FusionStage` に渡す。
 
 #### 検索品質のトレードオフ: `use_rrf=False` と `use_rrf=True`
 

@@ -127,7 +127,7 @@ def test_consistency_checks_detect_fts_gap(db):
     assert result.fts_gap > 0
 ```
 
-対応する実装(`test_consistency_check_detects_fts_gap`)は `tests/test_rag_index_integrity.py:298` に実在する。(Explicit in code)
+対応する実装(`test_consistency_check_detects_fts_gap`)は `tests/test_rag_index_integrity.pyのtest_consistency_check_detects_fts_gap関数` に実在する。(Explicit in code)
 
 ## Related Documents
 

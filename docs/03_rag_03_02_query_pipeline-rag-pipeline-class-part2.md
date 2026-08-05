@@ -102,7 +102,7 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 > `SearchDiagnostics.http_result_kind`（`rag.models_result.HttpResultKind` enum、値:
 > `success`/`empty`/`error`/`not_used`）は名前は似ているが異なる語彙を持つ別々のフィールドである。
 > 詳細は [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 参照。
-> (根拠分類: Explicit in code — `scripts/rag/http_augment.py:25-32`, `scripts/rag/pipeline.py:485-499`)
+> (根拠分類: Explicit in code — `HttpAugmentResult.__init__` および `RagPipeline._run_http_augment`)
 
 #### HTTP RAGリクエストの詳細
 

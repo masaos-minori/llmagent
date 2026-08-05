@@ -34,7 +34,7 @@ from rag.pipeline import RagPipeline, RagPipelineError
 > `rag/repository.py` で定義されている（`from rag.repository import fetch_full_document`）。
 > `sanitize_document` も同様に `rag/utils.py` の関数であり `rag.pipeline` には存在しない。
 > テスト・実装コードでの実際のインポートは `from rag.pipeline import RagPipeline, RagPipelineError` のみ。
-> (根拠分類: Explicit in code — `scripts/rag/pipeline.py` のimport文、`scripts/rag/repository.py:232`)
+> (根拠分類: Explicit in code — `scripts/rag/pipeline.py` のimport文、`scripts/rag/repository.py`の`fetch_full_document()`関数)
 
 ### コンストラクタ
 
@@ -78,7 +78,7 @@ RagPipeline(
 | `search_queries` | `async (queries, db) -> list[list[RagHit]]` | 単独利用可能なヘルパー: 並列埋め込み + 逐次DB検索；`SearchDiagnostics` を記録するSearchStageとは異なり、**診断情報を記録しない** |
 | `rerank_candidates` | `async (query, merged) -> list[RagHit]` | 単独利用可能なヘルパー: クロスエンコーダ、またはスライス+重複排除によるフォールバック + 重複排除 |
 | `get_diagnostics` | `() -> dict` | 直前のパイプライン実行に関する構造化された診断情報を返す；`run()`/`augment()` の前に呼び出しても安全 — 空/ゼロ値を返す |
-| `invalidate_cache` | `() -> None` | `semantic_cache`（`SemanticCache`）を全消去する；コーパスを変更する操作（例: MCPの`rag_delete_document`）の後に呼び出すことを想定；`SemanticCache.invalidate()` はスレッドセーフ (根拠分類: Explicit in code — `scripts/rag/pipeline.py:606-614` のdocstring) |
+| `invalidate_cache` | `() -> None` | `semantic_cache`（`SemanticCache`）を全消去する；コーパスを変更する操作（例: MCPの`rag_delete_document`）の後に呼び出すことを想定；`SemanticCache.invalidate()` はスレッドセーフ (根拠分類: Explicit in code — `RagPipeline.invalidate_cache()` メソッドのdocstring のdocstring) |
 
 ### 実装意図 (Implementation note)
 
