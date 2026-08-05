@@ -22,9 +22,7 @@ RAG MCPサービスの責務範囲内の処理である。
 `/db rag urls`コマンド (`rag_list_documents` MCPツール経由) で使用される、チャンク数付きの
 ドキュメント一覧を返す。
 
-```python
-def list_documents(lang: str | None = None, limit: int = 20) -> list[DocumentItem]
-```
+See `list_documents()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` (or the equivalent in `scripts/rag/ingestion/document_manager.py`) for the current signature.
 
 **アクセスパターン:** `documents`テーブルと`chunks`テーブルに対する読み取り専用クエリ。
 
@@ -62,55 +60,13 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 ---
 
 ## crawler
-
-``` yaml
-usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
-                   [--targets-file PATH]
-
-BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.json
-
-options:
-  -h, --help           show this help message and exit
-  --url URL [URL ...]  URLs to crawl (multiple allowed; defaults to all
-                       target_urls from config)
-  --lang {en,ja,auto}  Hint language when --url is given (default: en). 'auto'
-                       detects per-page language by CJK character ratio.
-  --targets-file PATH  Path to a TOML file containing target_urls = [[url,
-                       lang], ...] pairs. Mutually exclusive with --url.
-```
-
-## 実装上の補足(この節のAUTO-GENERATEDマーカーについて)
-
-`tools/gen_rag_reference.py` は CLI ヘルプセクションのみを自動生成してこのファイルに書き込む。config テーブルの出力は `--dry-run` でのみ表示され、ファイルには書かれない。
+For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
 
 ## chunk_splitter
-
-``` yaml
-usage: chunk_splitter.py [-h] [--file FILE] [--force]
-
-Chunking: rag-src/*.json → rag-src/chunk/{stem}-{idx:04d}.json
-
-options:
-  -h, --help   show this help message and exit
-  --file FILE  Process a single file (default: process all files in rag-
-               src/*.json)
-  --force      Re-process even if output chunks already exist
-```
+For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
 
 ## ingester
-
-``` yaml
-usage: ingester.py [-h] [--force]
-
-Embedding generation and DB ingestion: rag-src/chunk/*.json → SQLite → rag-
-src/registered/
-
-options:
-  -h, --help  show this help message and exit
-  --force     Force delete and re-ingest already registered URLs
-```
-
-<!-- END AUTO-GENERATED -->
+For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
 
 ## Related Documents
 
