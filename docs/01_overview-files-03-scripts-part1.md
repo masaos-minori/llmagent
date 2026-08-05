@@ -34,6 +34,7 @@ related:
 | ツール実行 | `tool_runner.py`, `tool_scheduler.py`, `tool_policy.py`, `tool_approval.py` |
 | ツールガード | `tool_loop_guard.py` |
 | ツール監査 | `security_audit_config.py`, `tool_audit.py` |
+| 書き込み境界 | `repository_gateway.py` |
 | 出力フォーマット | `output_tags.py`, `tool_output.py`, `tool_result_formatter.py` |
 | エラー処理 | `llm_transport_errors.py`, `tool_exceptions.py`, `error_injection_service.py` |
 | ライフサイクル | `lifecycle.py`, `lifecycle_protocol.py`, `http_lifecycle.py`, `repl_health.py` |

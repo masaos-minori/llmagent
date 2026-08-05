@@ -63,6 +63,11 @@ related:
 │   │       └─ __init__.py                  # workflow パッケージ初期化
 ```
 
+### 変更時の注意点
+
+- `AgentConfig` のフィールド変更時は `config_dataclasses.py`、`config_builders.py`、`services/config_validators.py` を併せて確認 — フィールドの定義・構築・検証ロジックが三者に分散しているため
+- `attempts` テーブルへの INSERT ロジック変更時は `idempotency_ops.py` と `attempt_ops.py` の両方を確認 — 両ファイルが同一テーブルのスキーマ/生成ロジックに依存しているため
+
 ## Related Documents
 
 - `01_overview-files-03-scripts-part1.md`

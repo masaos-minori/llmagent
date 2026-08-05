@@ -36,11 +36,7 @@ source:
 FTS5クエリのトークン数上限は 20 であり、日本語トークンとしては Sudachi の品詞カテゴリ（`{"名詞", "動詞", "形容詞"}`）が使用されます。詳細は `scripts/rag/repository.py` を参照してください。
 **Sudachiの遅延ロード:**
 
-Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。
-
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `tokenize_pos_filter` | `(text: str, keep_pos: frozenset[str]) -> list[str]` | part_of_speech()[0]がkeep_posに含まれるトークンについて normalized_form() を返す；トークナイズ失敗時はRuntimeErrorを発生させる |
+Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。`tokenize_pos_filter(text, keep_pos)` は `part_of_speech()[0]` が `keep_pos` に含まれるトークンについて `normalized_form()` を返し、トークナイズ失敗時は `RuntimeError` を発生させる。詳細は `scripts/rag/repository.py` を参照してください。
 
 **公開メソッド:**
 

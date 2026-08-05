@@ -43,7 +43,8 @@ related:
         │             │                  │
         ▼             ▼                  ▼
 :8081 embed-LLM  :8080 agent-LLM   MCP サーバ群 (http)
-(RAG 検索時)                       11 サーバ (:8004〜:8014)
+(RAG 検索時)                       (件数・ポートは `config/agent.toml` の
+                                   `[mcp_servers.*]` を参照)
 ```
 
 #### 実装上の補足
@@ -66,6 +67,8 @@ related:
 
 詳細 → [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
 
+以下の表は代表例であり、MCP サーバの件数・ポートの正は `config/agent.toml` の `[mcp_servers.*]` である。
+
 | サービス | ポート | モデル | 役割 |
 |---|---|---|---|
 | `agent-llm` | 8080 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
@@ -85,6 +88,8 @@ related:
 ### 実装上の補足(LLMサービスのURL/ポート)
 
 `agent-llm`/`embed-llm` の実際の接続先は `config/agent.toml` の `llm.llm_url` / `rag.embed_url` で個別ホスト・ポートとして設定するものであり、本表の `8080`/`8081` は代表値。稼働環境によっては別ホスト・別ポート(llama.cppのデフォルト`8080`系等)を指す場合がある。MCPサーバ群(`8004`〜`8015`)は `agent.toml` の `[mcp_servers.*].url` と一致する。(Explicit in code)
+
+ポート `8011` は廃止済み(旧 `sqlite-mcp`)であり、現在の表・`config/agent.toml` に意図的に存在しない。
 
 ## Related Documents
 

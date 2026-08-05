@@ -17,56 +17,64 @@ related:
 
 ## 3. ファイル構成
 
-デプロイ先のディレクトリ構成:
+`scripts/shared/` を正とする。以下はテーマ別に緩くグルーピングしたファイル一覧である。
 
-``` text
-│   ├─ shared/                              # 共有ユーティリティパッケージ (詳細はディレクトリを参照)
-│   │   ├─ __init__.py                      # shared パッケージ初期化
-│   │   ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
-│   │   ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス
-│   │   ├─ llm_exceptions.py                # エラー型定義
-│   │   ├─ llm_transport_errors.py          # LlmTransportErrorHandler
-│   │   ├─ llm_sse_stream.py               # LlmSseStreamHandler
-│   │   ├─ llm_sse_helpers.py              # LlmSseHelpers
-│   │   ├─ llm_reconnect.py               # LlmReconnectHandler
-│   │   ├─ llm_hot_config.py              # ホットリロード設定フィールド
-│   │   ├─ llm_retry.py                   # 指数バックオフ リクエストリトライ
-│   │   ├─ llm_payload.py                 # LlmPayloadHandler
-│   │   ├─ sse_parser.py                  # RobustSSEParser
-│   │   ├─ tool_executor.py               # ToolExecutor: MCP サーバルーティング・TTL キャッシュ
-│   │   ├─ tool_executor_helpers.py       # ツール実行ヘルパー関数
-│   │   ├─ tool_transport_invoker.py      # ToolTransportInvoker: MCP 呼び出し (ヘルス/ライフサイクル/セマフォ/呼び出し記録)
-│   │   ├─ tool_registry.py                # ToolDefinition / ToolRegistry クラス
-│   │   ├─ tool_spec.py                   # ToolSpec: ツール呼び出し実行メタデータ
-│   │   ├─ tool_cache.py                  # ToolResultCache: LRU キャッシュ + TTL (※注: 現在 ToolExecutor では未使用のスタンドアロン・ユーティリティ)
-│   │   ├─ tool_lifecycle.py              # LifecycleProtocol: MCP サーバライフサイクルプロトコル
-│   │   ├─ tool_routing_validation.py     # ドリフト検証関数
-│   │   ├─ tool_constants.py              # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
-│   │   ├─ types.py                        # 共通型定義
-│   │   ├─ mcp_config.py                  # McpServerConfig 等の設定データクラス
-│   │   ├─ mcp_health.py                  # McpServerHealthState / McpServerHealthRegistry — ディスパッチゲート用ヘルス追跡
-│   │   ├─ config_loader.py               # TOML/JSON 共通設定ローダー
-│   │   ├─ config_errors.py               # Configエラー型
-│   │   ├─ config_validator.py            # RagConfigValidator
-│   │   ├─ production_config_validator.py # 本番環境固有の設定検証
-│   │   ├─ route_resolver.py             # ToolRouteResolver: ツール名 → サーバキーマッピング
-│   │   ├─ db_maintenance.py              # count_table(): テーブル行数カウント共通ヘルパー
-│   │   ├─ action_result.py               # ActionResult データクラス
-│   │   ├─ events.py                       # ArtifactEvent / RetryEvent TypedDict
-│   │   ├─ transport_dto.py               # ToolCallResult / TransportErrorInfo データクラス
-│   │   ├─ formatters.py                  # MCP 全サーバ共通出力フォーマッタ
-│   │   ├─ git_helper.py                   # get_repo_info(): GitPython でブランチ・コミット情報取得
-│   │   ├─ http_transport.py              # HTTP トランスポート層
-│   │   ├─ json_utils.py                  # JSON ユーティリティ
-│   │   ├─ logger.py                       # ロギング設定
-│   │   ├─ otel_noop.py                      # OpenTelemetry ノップ実装
-│   │   ├─ otel_tracer.py                    # OpenTelemetry トレース
-│   │   ├─ token_counter.py                 # トークンカウンター
-│   │   └─ token_estimation.py              # トークン推定
-│   │   ├─ protocols/                       # 共有プロトコル定義
-│   │   │   ├─ __init__.py                  # プロトコルパッケージ初期化
-│   │   │   └─ shell.py                     # ShellPolicy プロトコル
-```
+**LLM クライアント/トランスポート**
+- `llm_client.py` — LLMClient: SSE ストリーミング・指数バックオフリトライ
+- `llm_types.py` — LLMUsage / LLMResponse データクラス
+- `llm_exceptions.py` — エラー型定義
+- `llm_transport_errors.py` — LlmTransportErrorHandler
+- `llm_sse_stream.py` — LlmSseStreamHandler
+- `llm_sse_helpers.py` — LlmSseHelpers
+- `llm_reconnect.py` — LlmReconnectHandler
+- `llm_hot_config.py` — ホットリロード設定フィールド
+- `llm_retry.py` — 指数バックオフ リクエストリトライ
+- `llm_payload.py` — LlmPayloadHandler
+- `sse_parser.py` — RobustSSEParser
+
+**ツールルーティング/実行**
+- `tool_executor.py` — ToolExecutor: MCP サーバルーティング・TTL キャッシュ
+- `tool_executor_helpers.py` — ツール実行ヘルパー関数
+- `tool_transport_invoker.py` — ToolTransportInvoker: MCP 呼び出し (ヘルス/ライフサイクル/セマフォ/呼び出し記録)
+- `tool_registry.py` — ToolDefinition / ToolRegistry クラス
+- `tool_spec.py` — ToolSpec: ツール呼び出し実行メタデータ
+- `tool_cache.py` — ToolResultCache: LRU キャッシュ + TTL (※注: 現在 ToolExecutor では未使用のスタンドアロン・ユーティリティ)
+- `tool_lifecycle.py` — LifecycleProtocol: MCP サーバライフサイクルプロトコル
+- `tool_routing_validation.py` — ドリフト検証関数
+- `tool_constants.py` — ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
+- `route_resolver.py` — ToolRouteResolver: ツール名 → サーバキーマッピング
+- `runtime_tool.py` — RuntimeTool: 正規化されたランタイムツールメタデータの frozen dataclass (name, server_key, description, input_schema, is_write, agent_safety_tier 等) と `build_runtime_tool()` コンストラクタ
+- `runtime_tool_registry.py` — RuntimeToolRegistry: `McpToolDiscoveryService.discover_all()` が起動時に構築するインメモリ `{name: RuntimeTool}` レジストリ。`ToolRouteResolver.resolve()` が参照する唯一のルーティング権威 (`tool_registry.ToolRegistry` へのフォールバックなし)
+
+**設定**
+- `config_loader.py` — TOML/JSON 共通設定ローダー
+- `config_utils.py` — 型付き設定値アクセサ (例: `get_str()`) — TOML/JSON 由来の生 dict から検証済みの値を読み取る
+- `config_errors.py` — Configエラー型
+- `config_validator.py` — RagConfigValidator
+- `production_config_validator.py` — 本番環境固有の設定検証
+- `mcp_config.py` — McpServerConfig 等の設定データクラス
+- `mcp_health.py` — McpServerHealthState / McpServerHealthRegistry — ディスパッチゲート用ヘルス追跡
+
+**その他ユーティリティ**
+- `types.py` — 共通型定義
+- `db_maintenance.py` — count_table(): テーブル行数カウント共通ヘルパー
+- `action_result.py` — ActionResult データクラス
+- `events.py` — ArtifactEvent / RetryEvent TypedDict
+- `transport_dto.py` — ToolCallResult / TransportErrorInfo データクラス
+- `formatters.py` — MCP 全サーバ共通出力フォーマッタ
+- `git_helper.py` — get_repo_info(): GitPython でブランチ・コミット情報取得
+- `http_transport.py` — HTTP トランスポート層
+- `json_utils.py` — JSON ユーティリティ
+- `logger.py` — ロギング設定
+- `otel_noop.py` — OpenTelemetry ノップ実装
+- `otel_tracer.py` — OpenTelemetry トレース
+- `token_counter.py` — トークンカウンター
+- `token_estimation.py` — トークン推定
+- `__init__.py` — shared パッケージ初期化
+
+**`protocols/`**
+- `protocols/__init__.py` — プロトコルパッケージ初期化
+- `protocols/shell.py` — ShellPolicy プロトコル
 
 ### 設計上の意図と動作仕様
 
