@@ -60,7 +60,8 @@ MDQ は、セマンティック埋め込みの品質よりも構造理解が重�
 
 RAG はエージェント層の主要なドキュメント検索システムである。全コンテンツタイプに対する汎用的な検索をサポートする。
 
-**ツール:** `ingest`, `search`, `get_document`, `delete_document`, `list_documents`（rag-pipeline-mcp 経由）
+**ツール:** `rag_run_pipeline` (パイプライン実行), `rag_debug_pipeline` (デバッグ実行・中間出力取得), `rag_list_documents` (ドキュメント一覧表示), `rag_delete_document` (ドキュメント削除)（rag-pipeline-mcp 経由）
+※ 単独の検索専用ツールは存在しません。検索は `rag_run_pipeline` または `rag_debug_pipeline` 内の不可分なステージとして実行されます。
 **データベース:** `rag.sqlite`
 **状態:** 本番運用可能
 

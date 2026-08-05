@@ -87,11 +87,20 @@ source:
 
 **SearchDiagnostics** — 単一の検索呼び出しに対する診断カウンタ。
 
+以下の表は、実行モード（ローカルまたはリモート）に応じて有効なフィールドをグループ化している。
+
+#### ローカル実行系カウンタ (常に集計)
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `embed_ok` | `int` | `0` | 成功した埋め込み呼び出し数 |
 | `embed_failed` | `int` | `0` | 失敗した埋め込み呼び出し数 |
 | `fts_errors` | `int` | `0` | FTS5クエリエラー数 |
+
+#### HTTP導入後追加フィールド (リモートモードでのみ意味を持つ)
+これらのフィールドは、検索がリモートHTTP RAGサービスに委ねられた場合にのみ意味を持ち、純粋なローカル実行時にはデフォルト値のままとなる。
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `result_source` | `ResultSource` | `LOCAL` | 結果の取得元 (remoteモード) |
 | `http_result_kind` | `HttpResultKind` | `NOT_USED` | HTTP結果の分類 (remoteモード) |
 | `remote_status_code` | `int \| None` | `None` | リモートRAGサービスからのHTTPステータスコード |

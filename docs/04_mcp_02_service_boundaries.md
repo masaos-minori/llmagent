@@ -16,32 +16,46 @@ source:
 
 ## Per-Server Responsibility Definitions
 
-### file-mcp (port 8004)
+### file-read-mcp (port 8005)
 
 **Responsibilities:**
-- Local file system operations within configured allowed directories
-- File read/write/delete/create operations
-- Directory listing and tree traversal
-- File metadata retrieval
+- Read-only local file operations (read, list, search, metadata)
 
 **Explicit Non-responsibilities:**
+- File write/delete operations
 - Remote repository operations
-- Code analysis or semantic understanding
-- Cross-repository search
-
-**Allowed operation types:**
-- File I/O within allowed_dirs boundaries
-- Metadata queries
-
-**Forbidden operation types:**
-- Network requests
-- Remote API calls
-- Operations outside allowed_dirs
+- Code analysis
 
 **Ownership rationale:**
-Centralizes all local file operations in a single server to enforce consistent access control via allowed_dirs configuration.
+Provides least-privilege access for reading local files.
 
-### rag-pipeline-mcp (port 8005)
+### file-write-mcp (port 8007)
+
+**Responsibilities:**
+- Local file write operations (write, edit, create directory, move)
+
+**Explicit Non-responsibilities:**
+- File read/delete operations
+- Remote repository operations
+- Code analysis
+
+**Ownership rationale:**
+Provides least-privilege access for writing local files.
+
+### file-delete-mcp (port 8008)
+
+**Responsibilities:**
+- Local file/directory deletion
+
+**Explicit Non-responsibilities:**
+- File read/write operations
+- Remote repository operations
+- Code analysis
+
+**Ownership rationale:**
+Provides least-privilege access for deleting local files.
+
+### rag-pipeline-mcp (port 8010)
 
 **Responsibilities:**
 - RAG ingestion pipeline execution
@@ -53,20 +67,10 @@ Centralizes all local file operations in a single server to enforce consistent a
 - Repository content modification
 - Code analysis
 
-**Allowed operation types:**
-- Pipeline execution (crawl, chunk, ingest)
-- Document CRUD operations
-- Pipeline diagnostics
-
-**Forbidden operation types:**
-- Direct database manipulation
-- File system operations outside rag_src_dir
-- External network requests
-
 **Ownership rationale:**
 Isolates RAG pipeline operations to prevent accidental interference with other subsystems and ensure proper data lifecycle management.
 
-### cicd-mcp (port 8006)
+### cicd-mcp (port 8012)
 
 **Responsibilities:**
 - GitHub Actions workflow triggering and monitoring
@@ -78,20 +82,10 @@ Isolates RAG pipeline operations to prevent accidental interference with other s
 - Code modification
 - Repository content changes
 
-**Allowed operation types:**
-- Workflow triggering
-- Status polling
-- Log retrieval
-
-**Forbidden operation types:**
-- Workflow cancellation
-- Workflow configuration changes
-- Repository modifications
-
 **Ownership rationale:**
 Provides focused CI/CD integration without exposing broader GitHub API capabilities that could interfere with code workflows.
 
-### mdq-mcp (port 8007)
+### mdq-mcp (port 8013)
 
 **Responsibilities:**
 - Markdown structural search and retrieval
@@ -102,17 +96,6 @@ Provides focused CI/CD integration without exposing broader GitHub API capabilit
 - Local file operations
 - Repository operations
 - Code analysis beyond markdown structure
-
-**Allowed operation types:**
-- FTS5-based search
-- Index path registration
-- Index refresh
-- Statistics queries
-
-**Forbidden operation types:**
-- Content modification
-- File system operations
-- Network requests
 
 **Ownership rationale:**
 Specialized for markdown structural analysis; FTS5 search is production-ready while hybrid search remains unimplemented.
@@ -129,20 +112,10 @@ Specialized for markdown structural analysis; FTS5 search is production-ready wh
 - File content analysis
 - RAG operations
 
-**Allowed operation types:**
-- Git read operations
-- Git write operations (add, commit, push, pull)
-- Branch management
-
-**Forbidden operation types:**
-- Remote repository content changes
-- Direct database operations
-- File system operations outside Git context
-
 **Ownership rationale:**
 Local Git operations require different authentication and error handling than remote GitHub operations.
 
-### shell-mcp (port 8008)
+### shell-mcp (port 8009)
 
 **Responsibilities:**
 - Shell command execution
@@ -152,18 +125,10 @@ Local Git operations require different authentication and error handling than re
 - Repository operations
 - Network requests
 
-**Allowed operation types:**
-- Command execution
-
-**Forbidden operation types:**
-- Interactive sessions
-- Background processes
-- Privilege escalation
-
 **Ownership rationale:**
 Minimal surface area for shell execution; isolated from other systems to prevent unintended side effects.
 
-### web-search-mcp (port 8009)
+### web-search-mcp (port 8004)
 
 **Responsibilities:**
 - Web search functionality
@@ -174,19 +139,10 @@ Minimal surface area for shell execution; isolated from other systems to prevent
 - Repository operations
 - Code modification
 
-**Allowed operation types:**
-- Web search queries
-- HTTP GET requests with rendering
-
-**Forbidden operation types:**
-- POST requests
-- Authentication flows
-- Local file access
-
 **Ownership rationale:**
 Consolidated from retired browser-mcp server; focuses on read-only web interaction.
 
-### github-mcp (port 8012)
+### github-mcp (port 8006)
 
 **Responsibilities:**
 - GitHub repository operations (search, branches, commits, issues, PRs)
@@ -199,18 +155,10 @@ Consolidated from retired browser-mcp server; focuses on read-only web interacti
 - RAG operations
 - CI/CD operations
 
-**Allowed operation types:**
-- GitHub API read operations
-- GitHub API write operations
-- Dangerous operations (with approval)
-
-**Forbidden operation types:**
-- Local file operations
-- Database manipulation
-- Network requests outside GitHub API
-
 **Ownership rationale:**
 Comprehensive GitHub integration requires careful separation of read/write/dangerous operations for security.
+
+For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership Matrix](04_mcp_01_tool_ownership_matrix.md).
 
 ## Key Boundary Rules
 
@@ -221,7 +169,7 @@ Comprehensive GitHub integration requires careful separation of read/write/dange
 
 ### File Operations vs RAG
 
-- `file-mcp`: Direct file I/O within allowed_dirs
+- `file-*`: Direct file I/O within allowed_dirs (split into read, write, delete)
 - `rag-pipeline-mcp`: Pipeline orchestration only; does not directly manipulate files outside rag_src_dir
 
 ### MDQ vs RAG

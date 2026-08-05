@@ -45,8 +45,31 @@ source:
 - `generation`: キャッシュ無効化用世代カウンタ
 
 ### TwoStageFetchResult — HTTP RAGサービス呼び出し結果
-- `hits`: インプロセス時は `RagHit`、HTTPモード時は `dict`（型が異なる）
+- `hits`: In-process時は `RagHit`、HTTPモード時は `dict`（型が異なる）
 - `min_score_applied`, `max_chunks_per_doc`: フィルタリングパラメータ
+
+### CrawlPayload — WebCrawlerの出力ペイロード
+以下は、WebCrawlerが生成するJSONペイロードの例である。
+
+```json
+{
+  "schema_version": "1",
+  "artifact_type": "crawl",
+  "created_by": "crawler",
+  "url": "https://example.com/page",
+  "title": "Page title",
+  "lang": "ja",
+  "fetched_at": "2024-01-01T12:00:00",
+  "content": "body text",
+  "code_blocks": ["block1", "block2"],
+  "etag": "optional-http-etag",
+  "last_modified": "optional-http-date"
+}
+```
+
+- Web: `etag` はHTTP ETag、`last_modified` はHTTP Last-Modified
+- ローカルファイル: `etag` はSHA-256ハッシュ、`last_modified` はmtime
+- `.py`ファイル: コンテンツを `code_blocks` に格納、`content` は空
 
 ## 永続化・検索・互換性に関わる制約
 

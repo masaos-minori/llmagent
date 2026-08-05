@@ -76,25 +76,7 @@ ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
 
 ### 2.4 出力JSON形式
 
-```json
-{
-  "schema_version": "1",
-  "artifact_type": "crawl",
-  "created_by": "crawler",
-  "url": "https://example.com/page",
-  "title": "Page title",
-  "lang": "ja",
-  "fetched_at": "2024-01-01T12:00:00",
-  "content": "body text",
-  "code_blocks": ["block1", "block2"],
-  "etag": "optional-http-etag",
-  "last_modified": "optional-http-date"
-}
-```
-
-- Web: `etag` はHTTP ETag、`last_modified` はHTTP Last-Modified
-- ローカルファイル: `etag` はSHA-256ハッシュ、`last_modified` はmtime
-- `.py`ファイル: コンテンツを `code_blocks` に格納、`content` は空
+詳細は [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) を参照。
 
 ### 2.5 エラーハンドリング
 
@@ -107,13 +89,7 @@ ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
 
 ### 2.6 ロギング
 
-- **ファイル:** `/opt/llm/logs/crawl.log` + stderr
-- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-
-| レベル | タイミング | 構造化フィールド |
-|---|---|---|
-| `INFO` | クロール開始、URL保存、URLスキップ | `url`、`source_type`（保存時）；`url`（スキップ時） |
-| `WARNING` | HTTPエラー、リトライ発生 | — |
+詳細は [docs/03_rag_05_3-logging.md](03_rag_05_3-logging.md) を参照。
 
 ### 2.7 設定（`config/crawler.toml`）
 

@@ -40,28 +40,8 @@ source:
 > `file-delete-mcp`) for least-privilege isolation. Port numbers and tool
 > membership above are kept in sync with the auto-generated reference table
 > below — see `tools/gen_mcp_reference.py`.
-
-## Mermaid Diagram
-
-```mermaid
-graph LR
-    A[READ_TOOLS] --> B1[file-read-mcp]
-    C[WRITE_TOOLS] --> B2[file-write-mcp]
-    D[DELETE_TOOLS] --> B3[file-delete-mcp]
-    E[RAG_READ_TOOLS] --> F[rag-pipeline-mcp]
-    G[RAG_WRITE_TOOLS] --> F
-    H[CICD_READ_TOOLS] --> I[cicd-mcp]
-    J[CICD_WRITE_TOOLS] --> I
-    K[MDQ_TOOLS] --> L[mdq-mcp]
-    M[GIT_READ_TOOLS] --> N[git-mcp]
-    O[GIT_WRITE_TOOLS] --> N
-    P[SHELL_TOOLS] --> Q[shell-mcp]
-    R[WEB_SEARCH_TOOLS] --> S[web-search-mcp]
-    T[GITHUB_READ_TOOLS] --> U[github-mcp]
-    V[GITHUB_WRITE_TOOLS] --> U
-    W[GITHUB_DANGEROUS_TOOLS] --> U
+],
 ```
-
 ## Design Intent
 
 This document provides a canonical mapping between MCP tools and their owning servers. It serves as the primary reference for understanding which server is responsible for which capability, and for determining risk tiers and approval requirements.
