@@ -15,7 +15,9 @@ related:
   - 03_rag_02_03_ingestion_pipeline-chunksplitter-part1.md
   - 03_rag_02_04_ingestion_pipeline-ingester-part1.md
   - 03_rag_02_07_ingestion_pipeline-utils.md
+  - 03_rag_04_01_dto-models_data.md
   - 03_rag_05_1-configuration-reference.md
+  - 03_rag_05_3-logging.md
 source:
   - 03_rag_02_02_ingestion_pipeline-crawler-part1.md
 ---
@@ -105,7 +107,9 @@ ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
 - `03_rag_02_03_ingestion_pipeline-chunksplitter-part1.md`
 - `03_rag_02_04_ingestion_pipeline-ingester-part1.md`
 - `03_rag_02_07_ingestion_pipeline-utils.md`
+- `03_rag_04_01_dto-models_data.md`
 - `03_rag_05_1-configuration-reference.md`
+- `03_rag_05_3-logging.md`
 - `03_rag_02_02_ingestion_pipeline-crawler-part1.md`
 
 ## Keywords

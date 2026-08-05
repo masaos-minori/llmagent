@@ -76,61 +76,14 @@ HTTP 200 — 完全に健全。
 ```
 HTTP 503 — PATH内に `sh` が見つからない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
 
-**rag-pipeline-mcp（port 8010）— degraded:**
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {"embed_url": "not configured"},
-  "details": {}
-}
-```
-HTTP 503 — embedding URLが設定されていない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
+他のサーバーも同じ `degraded` レスポンス形状（`status`/`ready`/`liveness`/`restart_recommended`/`operator_action_required`/`dependencies`/`details`）を共有し、`dependencies` の内容だけがサーバー固有の未充足条件を表す。いずれもHTTP 503を返し、`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
 
-**github-mcp（port 8006）— degraded:**
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {"github_token": "not_set"},
-  "details": {}
-}
-```
-HTTP 503 — GitHubトークンが設定されていない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
-
-**mdq-mcp（port 8013）— degraded:**
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {"db_file": "not found: /opt/llm/db/mdq.sqlite"},
-  "details": {"service": "mdq-mcp", "database": "/opt/llm/db/mdq.sqlite"}
-}
-```
-HTTP 503 — databaseファイルが見つからない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
-
-**git-mcp（port 8014）— degraded:**
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {"git": "git not found in PATH"},
-  "details": {}
-}
-```
-HTTP 503 — PATH内にgitが見つからない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
+| サーバー（port） | `dependencies` の例 | 意味 |
+|---|---|---|
+| rag-pipeline-mcp（8010） | `{"embed_url": "not configured"}` | embedding URLが設定されていない |
+| github-mcp（8006） | `{"github_token": "not_set"}` | GitHubトークンが設定されていない |
+| mdq-mcp（8013） | `{"db_file": "not found: /opt/llm/db/mdq.sqlite"}` | databaseファイルが見つからない |
+| git-mcp（8014） | `{"git": "git not found in PATH"}` | PATH内にgitが見つからない |
 
 ## /v1/tools による検証
 

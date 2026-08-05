@@ -16,6 +16,7 @@ related:
   - 01_overview-files-04-shared-part1.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
+  - 02_deployment-part1.md
 source:
   - 01_overview.md
 ---
@@ -33,6 +34,7 @@ source:
 | [01_overview-files-04-shared-part1.md](01_overview-files-04-shared-part1.md) 〜 part2 | 共有インフラのファイル構成(2分割) |
 | [01_overview-files-05-config.md](01_overview-files-05-config.md) | 設定ファイル構成 |
 | [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | その他のファイル構成 |
+| [02_deployment-part1.md](02_deployment-part1.md) | デプロイトポロジー(単一ホスト/複数ホスト前提)、環境構築・サービス起動 |
 
 ## 実装意図
 
@@ -52,3 +54,4 @@ source:
 - `01_overview-files-04-shared-part1.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
+- `02_deployment-part1.md`

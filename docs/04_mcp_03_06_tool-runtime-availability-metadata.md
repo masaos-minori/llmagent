@@ -75,7 +75,16 @@ When a client calls `/v1/tools`, the MCP server returns the current state of all
 - Current tool status (enabled/disabled)
 - Tool configuration dependencies
 
-Any changes to tool availability (e.g., due to health degradation, config reload) will be reflected in subsequent `/v1/tools` responses and will cause `RuntimeToolRegistry` to be updated accordingly.
+`RuntimeToolRegistry` is populated once at agent startup via `McpToolDiscoveryService.discover_all()`; neither `/reload` nor any live health-check path triggers a rebuild of the registry from a fresh `/v1/tools` fetch.
+
+## Reload vs. restart for RuntimeToolRegistry
+
+- `/reload` (`_ConfigMixin._cmd_reload()`) calls `ConfigReloadService.apply_config_dict()`, which calls `RuntimeToolRegistry.apply_policy()`.
+- `apply_policy()` only updates policy-derived fields (`agent_safety_tier`, `requires_approval`, `enabled_for_llm`) and does not touch `raw_definition`, `disabled_reason`, or `status`.
+- A full agent process restart is required for the registry's discovery-derived state (including `/mcp status`'s `DISABLED_REASON` column) to reflect config changes.
+- Per-server config files (e.g. `allowed_dirs` in `file_read_mcp_server.toml`) require restarting that MCP server process itself, separate from the agent restart above.
+
+`docs/04_mcp_06_17_local-to-production-auth-migration.md`の[`/reload`とフル再起動の違い](04_mcp_06_17_local-to-production-auth-migration.md#reloadとフル再起動の違い)は`[mcp_servers.*]`接続定義の再起動要件を扱っており、本節が扱うより広範な`RuntimeToolRegistry`可用性スナップショット要件とは範囲が異なる。
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 

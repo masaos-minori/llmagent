@@ -162,16 +162,16 @@ Cross-cutting documentation rules and policies:
 - [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): AuditLogRecord/ApprovalDecisionのデッドコード判定（resolved）
 - [NC-006](00_governance_07_needs-confirmation-inventory.md#nc-006): result_sourceフィールドの将来利用可否
 
+※ 本セクションには、ルーティングテーブルで定義された各セクションの主要ファイル、および本文中で明示的に参照されているファイルのみを記載しています。
+
 ## Related Documents
 
 - `04_mcp_01_system_overview.md`
-- `04_mcp_01_tool_ownership_matrix.md`
-- `04_mcp_02_service_boundaries.md`
 - `04_mcp_02_01_endpoints-and-transport.md`
 - `04_mcp_03_01_dispatch-and-routing.md`
 - `04_mcp_04_01_web-search-file-read-github.md`
 - `04_mcp_05_01_access-control-and-allowlists.md`
-- `04_mcp_06_02_configuration-file-inventory.md`
+- `04_mcp_06_01_purpose.md`
 - `04_mcp_07_tool_schema_export_policy.md`
 - `04_mcp_08_tool_capability_naming_convention.md`
 - `04_mcp_90_inconsistencies_and_known_issues.md`

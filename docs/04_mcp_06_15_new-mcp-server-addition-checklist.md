@@ -17,7 +17,7 @@ source:
 
 サーバーを追加する際:
 
-- [ ] `scripts/mcp_servers/<name>/server.py`を作成する(`MCPServer`を継承し、`dispatch()`をオーバーライドする)
+- [ ] `scripts/mcp_servers/<name>/<name>_server.py`を作成する(`MCPServer`を継承し、`dispatch()`をオーバーライドする)
 - [ ] `MCPServer`サブクラス内で`own_config_file = "<key>_mcp_server.toml"`を宣言する — `run_http()`が自動的に`ConfigLoader.restrict_to(own_config_file)`を呼び出す
 - [ ] `config/<key>_mcp_server.toml`を作成し、**サーバーが必要とするすべての設定**を含める(DBパス・外部URL等を含む;`agent.toml`は参照しない)
 - [ ] `config/agent.toml`の`[[tool_definitions]]`にツール定義を追加する

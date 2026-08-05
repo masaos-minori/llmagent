@@ -25,9 +25,11 @@ MCPサーバーにおいて、エラーは以下の2つのカテゴリに分け�
 トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗したことを示す。
 
 #### エラーカウンタの追跡
-`ToolTransportInvoker` は、セッション中のトランスポートエラー数をメモリ内でカウントする (`stat_transport_errors`)。また、`ToolExecutor` も同様にツールエラー数をカウントする (`stat_tool_errors`)。
+`ToolTransportInvoker` は、サーバーキーごとのツールエラー数(`stat_tool_errors`)とトランスポートエラー数(`stat_transport_errors`)を両方ともメモリ内でカウントする。`ToolExecutor` はこのクラスを継承するため両カウンタを引き継ぐが、独自に別のカウンタを持つわけではない。
 
 **注意**: 現在の実装では、これらのカウンタに基づく自動的な警告ログやしきい値判定は存在しない。
+
+**注意（混同防止）**: エージェントのセッション統計側にも同名の `stat_tool_errors` (`AgentContext.stats.stat_tool_errors`, `scripts/agent/context.py`) が別途存在するが、これは本節が説明する `ToolTransportInvoker` 側のカウンタとは別物であり、`/stats` などエージェント層の集計表示に使われる。
 
 #### 監査ログによる詳細確認
 ツールの実行結果に関する詳細は、構造化されたJSON形式の監査ログ (`audit_logger`) に出力される。各ログエントリは `ToolExecEvent` として構成され、以下のようなフィールドを含む。
