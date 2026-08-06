@@ -80,7 +80,9 @@ class TestDictMergeConflictResolution:
         assert "name" not in result["server"]
         assert result["server"]["version"] == "v2"
 
-    def test_parent_dict_merge_one_level_deep(self, tmp_path: Path) -> None:
+    def test_parent_dict_merge_one_level_deep(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Parent dicts are merged one level deep in load_all."""
         (tmp_path / "extra_mcp.toml").write_text(
             '[mcp_servers.github]\nurl = "https://api.github.com"\n'
@@ -88,24 +90,15 @@ class TestDictMergeConflictResolution:
         (tmp_path / "extra_mcp2.toml").write_text(
             "[mcp_servers.github]\ntimeout = 30\n"
         )
+        monkeypatch.setattr(
+            "shared.config_loader._BASE_CONFIG_FILES",
+            ("extra_mcp.toml", "extra_mcp2.toml"),
+        )
         loader = ConfigLoader(config_dir=tmp_path)
-        # Manually merge like load_all does
-        result_a = loader.load("extra_mcp.toml")
-        result_b = loader.load("extra_mcp2.toml")
-        merged: dict[str, Any] = {}
-        for key, val in result_a.items():
-            if isinstance(val, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **val}
-            else:
-                merged[key] = val
-        for key, val in result_b.items():
-            if isinstance(val, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **val}
-            else:
-                merged[key] = val
-        assert "github" in merged.get("mcp_servers", {})
-        assert "url" not in merged["mcp_servers"]["github"]
-        assert merged["mcp_servers"]["github"]["timeout"] == 30
+        result = loader.load_all()
+        assert "github" in result.get("mcp_servers", {})
+        assert "url" not in result["mcp_servers"]["github"]
+        assert result["mcp_servers"]["github"]["timeout"] == 30
 
 
 class TestExtensionLessPathResolution:
