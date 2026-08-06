@@ -77,6 +77,14 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 See `skills/DESIGN.md` §Pythonic safety constraints (mutable defaults, exception handling,
 typed data, resource management, dynamic execution, async safety) — apply in full.
 
+### Code Comments
+Write a comment only for a non-obvious WHY: a hidden constraint, the reason for a
+workaround, or behavior that would surprise a reader — information that cannot be
+recovered by reading the code itself. Do not write:
+- WHAT the code does (already visible from the code, e.g. `# get the user ID`)
+- change history (e.g. "added X", "previously implemented as Y")
+- task/ticket ID references (e.g. `(UZU-XXXX)`)
+
 ### Production Readiness
 See `skills/DESIGN.md` §Pythonic safety constraints (no placeholders, no debug artifacts) —
 apply before moving to Phase 11.
