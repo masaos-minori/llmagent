@@ -48,6 +48,10 @@ def resolve_approval(
     """Set approval status to 'approved' or 'rejected'.
 
     Raises RuntimeError if the approval does not exist or is already resolved.
+
+    Does not check the associated task's status: resolving an approval for a task whose status is
+    "halted" succeeds identically to a task whose status is "running". This is a documented, known
+    characteristic pending a product decision — see issues/done/20260804-135244_unknowns.md.
     """
     rows = db.fetchall(
         "SELECT status FROM approvals WHERE approval_id=?",
