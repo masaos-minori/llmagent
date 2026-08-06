@@ -36,10 +36,7 @@ source:
 
 **モジュールレベルの定数**
 
-| 定数 | 値 | 説明 |
-|---|---|---|
-| `MIN_HEADING_LINES_FOR_MARKDOWN` | 2 | .md以外のファイルでヒューリスティックなMarkdown判定を発動させるための最小見出し行数 |
-| `MARKDOWN_HEADING_RE` | `r"^#{1,6}"` | Markdown見出し（1〜6レベル）にマッチする正規表現パターン |
+このモジュールは以下の定数を定義しています。詳細はソースコードを参照してください。特に、`MIN_HEADING_LINES_FOR_MARKDOWN = 2` の根拠は未確認です（Needs Confirmation）。
 
 **Typed dict**
 
@@ -58,11 +55,7 @@ source:
 
 **公開メソッド**
 
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `__init__` | `(config: dict \| None = None) -> None` | `chunk_splitter.toml` をロードし、Sudachiトークナイザ（SplitMode.C、`core` 辞書）を初期化する |
-| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | rag-src/内の全 *.json ファイル（またはターゲット単体）を処理する。書き込んだチャンクの総数を返す |
-| `process_file` | `(src_path: Path, force: bool = False) -> int` | クローラのJSONファイルを読み込みチャンクに分割してchunk_dirへ書き込む。チャンク数を返す。force=Falseの場合、既にチャンク済みのファイルはスキップする |
+このモジュールは以下の公開メソッドを提供します。詳細はソースコードを参照してください。
 
 ### 3.1.1 Markdown見出しチャンク化の設定
 

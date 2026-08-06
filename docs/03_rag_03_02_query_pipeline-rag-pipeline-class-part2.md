@@ -104,15 +104,6 @@ HTTP 200で応答したが、関連コンテキストが見つからなかった
 > 詳細は [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 参照。
 > (根拠分類: Explicit in code — `HttpAugmentResult.__init__` および `RagPipeline._run_http_augment`)
 
-#### HTTP RAGリクエストの詳細
-
-| 項目 | 値 |
-|---|---|
-| エンドポイント | `{rag_url}/v1/call_tool` |
-| リクエストボディ | `{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [history_context]}}`（history_contextが空の場合は空リスト） |
-| 最大試行回数 | 合計3回（初回 + 2回のリトライ） |
-| リトライのバックオフ | 指数的: `min(2**attempt, 5)` 秒 |
-
 ---
 
 ### Related Documents

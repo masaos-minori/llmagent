@@ -31,9 +31,7 @@ See `list_documents()` in `scripts/mcp_servers/rag_pipeline/document_manager.py`
 `/db rag clean`コマンド (`rag_delete_document` MCPツール経由) で使用される、ドキュメントと
 関連するチャンク/埋め込みの削除処理。
 
-```python
-def delete_document(url: str) -> bool
-```
+See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` for the current signature.
 
 **削除順序 (重要):** このメソッドは孤立レコードを防ぐため、厳格な削除順序を強制する。
 
@@ -59,13 +57,7 @@ db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 ---
 
-## crawler
-For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
-
-## chunk_splitter
-For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
-
-## ingester
+## CLI Tools
 For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.
 
 ## Related Documents

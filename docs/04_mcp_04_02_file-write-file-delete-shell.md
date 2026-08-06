@@ -127,6 +127,8 @@ related:
 > **本番環境での強制:** 本番モード（`agent.toml` の `security_profile = "production"`）では、
 > `sandbox_backend = "none"` は許可されない。この組み合わせが検出された場合、エージェントは起動時に `RuntimeError` を発生させる。
 > 本番環境では `sandbox_backend = "firejail"` を設定するか、shell-mcp を無効化すること。
+> 
+> > **注意**: shell-mcp 自体は本番モードのチェックや強制を行いません。本番環境での強制は、Agent の起動シーケンス（`scripts/agent/startup.py` から呼び出される `scripts/agent/repl_health.py::audit_security_defaults()`）によって行われます。shell-mcp が Agent の起動パスとは独立して実行された場合、この強制はバイパスされます。
 
 ---
 

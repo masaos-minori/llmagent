@@ -36,21 +36,7 @@ source:
 SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済みチャンクは
 `rag-src/registered/` へ移動する。
 
-**Dataclass**
-
-| クラス | 用途 |
-|---|---|
-| `IngestUrlResult` | `ingest_url_group()` が返すURL単位のインジェクション結果。フィールド: `url`、`n_success`、`n_failed`、`skipped`、`n_embed_failed`（デフォルト0） |
-
-**公開メソッド**
-
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `__init__` | `(config: dict \| None = None)` | `ingester.toml` をロードし、`httpx.Client` を初期化する |
-| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | チャンクファイルをURLごとにグループ化し、各グループを処理する。整合性レポートを返すか、インジェクション後の整合性チェックが失敗した場合（チェック中にDBエラーが発生する稀な失敗ケース）はNoneを返す。チャンクファイルが存在しない場合もNoneを返す。`on_ingest_complete` コールバックは整合性チェック完了後に呼び出される（ただし、chunk_dirに*.jsonファイルがない場合は呼び出されない）。CLI `main()` は現在このパラメータを渡さないため、CLIパスではこのコールバックは実行されない |
-| `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | 1つのURLグループをchunk_indexの昇順で処理する。処理後（スキップした場合も含む）にファイルをregistered/へ移動する。`{n_success, n_failed, n_embed_failed, skipped}` を返す |
-| `close` | `() -> None` | 内部の `httpx.Client` を閉じる |
-| `__del__` | `() -> None` | 安全のためのクリーンアップ: 未クローズであればhttpx.Clientを閉じる（明示的なcloseの呼び忘れに対応） |
+データクラスと公開メソッドの完全な一覧は `scripts/rag/ingestion/ingester.py` を参照。
 
 ### 4.2 動作の詳細
 

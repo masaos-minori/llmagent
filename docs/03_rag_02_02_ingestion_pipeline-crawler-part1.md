@@ -41,36 +41,19 @@ source:
 |---|---|
 | `CrawlPayload` | クロール出力JSONファイル用の型付きdict（url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by） |
 
-**公開メソッド**
+**公開メソッド** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
 
-| メソッド | シグネチャ | 説明 |
-|---|---|---|
-| `__init__` | `(config: dict \| None = None)` | `crawler.toml` をロードする。AsyncClientは `crawl_site()` メソッド内で生成される |
-| `crawl` | `async (targets: list[tuple[str, str]] \| None = None) -> None` | 指定されたすべての対象、または targets が None の場合は設定の target_urls をクロールする |
-| `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | asyncio.Semaphoreによる並行数制御とFIRST_COMPLETEDループを用いて、同一オリジン内をmax_depthの階層まで非同期BFSクロールする |
-| `crawl_file` | `(path: Path, lang: str) -> int` | ローカルファイルをクロール結果JSONとしてrag-src/に保存する。.pyファイルはコードブロックとして格納される。成功時は1、失敗時は0を返す |
-
-**モジュールレベルのユーティリティ**
-
-| 関数 | 説明 |
-|---|---|
-| `url_to_slug(url)` | URLをファイルシステムで安全なASCIIスラグに変換する（最大80文字） |
-| `normalize_url(url)` | フラグメントと末尾のスラッシュを除去する |
-| `same_origin(url, base)` | スキームとホスト名が一致する場合にTrueを返す |
+**モジュールレベルのユーティリティ** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
 
 ### 2.1.1 設定パラメータ
 
-| パラメータ | デフォルト | 説明 |
+| パラメータ | コードフォールバック値 | 本番環境値 (config/crawler.toml) |
 |---|---|---|
-| `crawl_delay` | 1.5 | BFSクロール中のリクエスト間隔（秒）。最小1.0を推奨 |
-| `max_depth` | 3 | BFSクロールの最大深度（起点URLからのURLホップ数）。コードは設定から直接読み込み、フォールバックはない |
-| `min_chunk` | 40 | チャンクの最小文字数。これ未満のチャンクはノイズとして破棄される |
-| `fetch_retry` | 3 | HTTP取得失敗時のリトライ上限（指数バックオフ） |
-| `fetch_timeout` | 15 | HTTPリクエストのタイムアウト（秒） |
-| `crawl_concurrency` | 3 | asyncio.Semaphoreによる最大並行取得タスク数 |
-| `max_pages` | 500 | 開始URLごとにクロールする最大ページ数 |
-| `skip_nofollow` | False | rel="nofollow"が付いたリンクをスキップする |
-| `skip_external` | True | クロスオリジンのリンクをスキップする（デフォルトでは同一オリジンのみ） |
+| max_depth | なし | 3 |
+| max_pages | 500 | 200 |
+| skip_nofollow | False | true |
+
+> 全パラメータ一覧は [§1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md) を参照してください。
 
 ### 2.1.2 crawl_fileの動作
 

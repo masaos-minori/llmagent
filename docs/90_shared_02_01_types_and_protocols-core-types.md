@@ -123,7 +123,7 @@ class RagConfig(Protocol):
 - `RagPipeline`(`scripts/rag/pipeline.py`)で使用され、`scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` から利用される
 - `agent/` は `RagConfig` を直接使用しない(インプロセスのRAGパイプラインを持たない)
 - `SimpleNamespace` アダプタでこのプロトコルを満たすことができる
-- ファイル形式のDTOではない。設定ファイル用DTOは別に存在する: `mcp_servers.rag_pipeline.models.RagPipelineConfig`(MCP TOML)、`rag.models_config.*`(ingestion TOML)。MCPアダプタは `build_rag_cfg_adapter()`(`scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`)を参照 (Explicit in code)
+- ファイル形式のDTOではない。設定ファイル用DTOは別に存在する: `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig`(MCP TOML)、`rag.models_config.*`(ingestion TOML)。MCPアダプタは `build_rag_cfg_adapter()`(`scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`)を参照 (Explicit in code)
 
 ---
 

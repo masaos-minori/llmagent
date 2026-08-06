@@ -50,14 +50,9 @@ Content-Type: application/json
 - `embedding_dims`: `config/ingester.toml` で指定（デフォルト384）
 - docstringの `common.toml::embedding_dims` は古い記述（`common.toml` は存在しない）
 
-### 4.5 更新されるDBテーブル
+### 4.5 データベース更新
 
-| テーブル | 操作 |
-|---|---|
-| `documents` | 存在確認のためSELECT；DELETE+INSERT（`force=True`）またはスキップ+UPDATE etag（`force=False`）；`url`、`title`、`lang`、`etag`、`last_modified`、`chunking_strategy`、`fetched_at` を格納 |
-| `chunks` | INSERT（FK → documents；ON DELETE CASCADE） |
-| `chunks_vec` | ベクトルのBLOBをINSERT |
-| `chunks_fts` | `chunks_ai` トリガーにより自動同期される（`COALESCE(normalized_content, content)`） |
+現在のDBスキーマ定義 → [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ### 4.6 エラーハンドリング
 
@@ -75,12 +70,7 @@ Content-Type: application/json
 
 - **ファイル:** `/opt/llm/logs/ingest.log` + stderr
 - **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-
-| レベル | タイミング | 構造化フィールド |
-|---|---|---|
-| `INFO` | 処理済みチャンク、DB挿入、ファイル移動、スキップされたURL | `doc_id`、`source_type`、`stage_name`（挿入時）；`url`（スキップ時） |
-| `WARNING` | 埋め込みAPIエラー、リトライ、埋め込みスキップ | `source_type`、`stage_name` |
-| `ERROR` | チャンクファイル読み込みエラー、ファイル移動エラー、URLグループの失敗（トレースバック付き） | — |
+- 詳細なログメッセージ形式 → `scripts/rag/ingestion/ingester.py`
 
 ETagManagerの詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 設定の詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)

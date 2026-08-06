@@ -86,6 +86,13 @@ RAG はエージェント層の主要なドキュメント検索システムで�
 2. **管理者バイパス:** エージェント REPL の `/db` コマンドは、保守作業のために `rag.sqlite` に直接アクセスできる。これは管理者専用であり、通常の運用には含まれない。
 3. **直接 DB アクセス（非推奨）:** アプリケーションコードは `mdq.sqlite` や `rag.sqlite` に対して `sqlite3` を直接 import してはならない。常に MCP ツールを使用すること。
 
+### RAG and Agent Responsibility Boundary
+
+RagPipeline (`scripts/rag/pipeline.py`) はコアなRAGロジックを担います。
+rag-pipeline-mcp (`scripts/mcp_servers/rag_pipeline/`) は、RagPipelineMCPService / RagPipelineMCPServer を通じて生産環境の境界を提供します。
+直接インポートはテストや開発用途のみです。
+なお、これは現在 **慣習** であり、`.importlinter` で強制されているわけではありません（`agent -> rag` の方向は現在許可されています）。
+
 ---
 
 ### ルーティング方針
@@ -107,7 +114,7 @@ LLM がそれに従わない場合もあり得るため、決定的なルーテ�
 |---|---|
 | MDQ が選択され、mdq-mcp が利用不可 | WARNING をログ出力; RAG ヒントにフォールバック |
 | RAG が選択され、rag-pipeline-mcp が利用不可 | エラーを返す; フォールバックなし |
-| オーバーライドモードで、強制指定したサーバーが利用不可 | エラーを返す |
+| Override mode (`config_mode` = `mdq` or `rag`) | System prompt routing hint (`mdq_rag_classifier.py::resolve_mode()`, `mode_classification.py::classify_and_inject_mode()`); tool call failure returns error via `tool_transport_invoker.py` |
 
 RAG は常に本番環境で優先されるフォールバックである。
 

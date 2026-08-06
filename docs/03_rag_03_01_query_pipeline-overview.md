@@ -59,7 +59,7 @@ RagPipeline.augment(query)
 4. リファイナー: `refine_context()` → 圧縮テキスト（確定）または `None`（フォールバック）
 5. 生チャンク: チャンク整形関数で整形（最終）
 
-**identity vs truthiness（Explicit in code）:** HTTPおよびリファイナーの結果判定は `is not None` によるidentityチェックであり、truthinessチェックではない。そのためHTTPモードが返す `""`（空文字）は有効な結果として扱われ、明示的な `None` のときのみフォールバックする。
+**identity vs truthiness（Explicit in code）:** HTTPおよびリファイナーの結果判定は `is not None` によるidentityチェックであり、truthinessチェックではない。そのためHTTPモードが返す `""`（空文字）は有効な結果として扱われ、明示的な `None` のときのみフォールバックする。「」は有効な(空の)結果として扱われ、Noneは未実行を表す。これにより「検索したが0件だった」と「まだ検索していない」を区別できる。
 
 **DB接続失敗時（Explicit in code）:** `self._rag_db_path` からのDBオープンが `sqlite3.OperationalError` / `sqlite3.DatabaseError` を送出した場合、`augment()` は `RagPipelineError` を再送出する（キャッチしてフォールバックしない）。
 

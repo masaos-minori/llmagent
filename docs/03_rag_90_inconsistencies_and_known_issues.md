@@ -1,4 +1,10 @@
 
+## Migration Note
+
+This document was populated on 2026-08-06 based on the audit of requirement `requires/20260802-184051_require.md`. All candidate items from the original review's list were re-verified against current source and sibling issue outcomes; every item was confirmed resolved (moved to `issues/done/` by prior commits). No new entries were added from that list. Previous entries (`RAG-001`, `RAG-002`) were removed as they were resolved design decisions, not bugs. The remaining entries below represent genuinely open issues not covered by that resolution pass.
+
+---
+
 ## RAG-003: Unresolved usage status of `RegisteredDocument` DTO
 - **Status**: open
 - **Severity**: Low
