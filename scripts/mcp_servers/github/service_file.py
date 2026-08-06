@@ -124,7 +124,7 @@ class FileOps(GitHubSecurityGuards):
             branch_ref = repo.get_git_ref(f"heads/{req.branch}")
             parent_commit = repo.get_git_commit(branch_ref.object.sha)
             # Create individual blobs then assemble them into a single tree
-            from github import InputGitTreeElement  # noqa: PLC0415
+            from github import InputGitTreeElement
 
             tree_elements = [
                 InputGitTreeElement(

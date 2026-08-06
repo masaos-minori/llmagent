@@ -45,7 +45,7 @@ def service(tmp_path: Path) -> MdqService:
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:
-        import os  # noqa: PLC0415
+        import os
 
         os.close(fd)
 
@@ -817,14 +817,14 @@ class TestMdqService:
         assert "Title" in result
 
     def test_db_path_configurable(self) -> None:
-        from tempfile import mkstemp  # noqa: PLC0415
+        from tempfile import mkstemp
 
         fd, db = mkstemp(suffix=".db")
         try:
             svc = MdqService(db_path=db)
             assert svc.db_path == db
         finally:
-            import os  # noqa: PLC0415
+            import os
 
             os.close(fd)
 
@@ -855,7 +855,7 @@ class TestChunkIdStability:
         self, service: MdqService, md_file: Path
     ) -> None:
         """Index same file twice; chunk IDs are identical."""
-        import sqlite3  # noqa: PLC0415
+        import sqlite3
 
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
         conn = sqlite3.connect(service.db_path)
@@ -877,7 +877,7 @@ class TestChunkIdStability:
         self, service: MdqService, tmp_path: Path
     ) -> None:
         """Editing content and re-indexing changes the chunk ID."""
-        import sqlite3  # noqa: PLC0415
+        import sqlite3
 
         f = tmp_path / "edit.md"
         f.write_text("# Title\n\nOriginal content.", encoding="utf-8")
@@ -908,7 +908,7 @@ class TestChunkIdStability:
         )
         assert "Title" in search_text
 
-        import sqlite3  # noqa: PLC0415
+        import sqlite3
 
         conn = sqlite3.connect(service.db_path)
         conn.row_factory = sqlite3.Row
@@ -962,7 +962,7 @@ class TestTruncation:
         self, service: MdqService, tmp_path: Path
     ) -> None:
         """get_chunk truncates content exceeding max_chars_per_chunk."""
-        import sqlite3  # noqa: PLC0415
+        import sqlite3
 
         f = tmp_path / "big.md"
         f.write_text("# Big\n\n" + "X" * 2000, encoding="utf-8")

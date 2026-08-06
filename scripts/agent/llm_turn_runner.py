@@ -255,7 +255,7 @@ class LLMTurnRunner:
                     result.reason,
                 )
                 return TurnResult(action="fail", answer="", reason="tool_loop_guard")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — ephemeral message validation failure must fall back to a hard stop rather than crash the turn
             logger.warning(
                 "Ephemeral message injection raised %s — falling back to hard stop",
                 type(e).__name__,

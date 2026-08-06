@@ -44,10 +44,10 @@ class _SudachiTokenizer:
     def _ensure_loaded(self) -> None:
         """Lazily initialize the Sudachi tokenizer on first use."""
         if self._tkn is None:
-            from sudachipy import (  # noqa: PLC0415
+            from sudachipy import (
                 dictionary as _sd_dict,
             )
-            from sudachipy import (  # noqa: PLC0415
+            from sudachipy import (
                 tokenizer as _sd_tok,
             )
 

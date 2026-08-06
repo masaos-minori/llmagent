@@ -648,7 +648,7 @@ class TestFormatTransportError:
         retryable: bool = False,
         partial: bool = False,
     ) -> TransportErrorInfo:
-        from shared.tool_executor_helpers import format_transport_error  # noqa: PLC0415
+        from shared.tool_executor_helpers import format_transport_error
 
         return format_transport_error(
             source=source,

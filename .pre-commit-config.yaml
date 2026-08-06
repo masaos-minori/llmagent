@@ -39,3 +39,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^tools/(.*\.py|TOOL_DESCRIPTIONS\.md)$
+      - id: check-suppression-justification
+        name: Check noqa/type:ignore/nosec suppression justifications
+        entry: python -m tools.check_suppression_justification
+        language: system
+        pass_filenames: false
+        types: [python]

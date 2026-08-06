@@ -86,9 +86,16 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP"]
+select = ["E", "W", "F", "I", "UP", "BLE001"]
 # E501 is not auto-fixable in string literals; ruff format handles code line length
 ignore = ["E501"]
+# PLC0415 (import-outside-top-level) intentionally excluded: ~1193 net-new findings
+# measured against this codebase (see plans/done/20260806-133908_plan.md) — a
+# disproportionate blast radius for a single-plan increment.
+# RUF100 (unused-noqa) intentionally deferred: 224 findings measured via
+# `uv run ruff check --select RUF100 scripts/ tests/ --statistics` (see
+# plans/done/20260806-134805_plan.md) — spans rule codes beyond BLE001/PLC0415;
+# out of scope for this increment. Re-evaluate as its own dedicated requirement.
 
 [tool.ruff.format]
 quote-style = "double"

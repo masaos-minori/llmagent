@@ -549,7 +549,7 @@ class HttpServerLifecycleManager:
                             signal.SIGINT, self._absorb_sigint_during_shutdown
                         )
                     )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 — scheduling the SIGINT guard handler is best-effort; failure must not block shutdown
                     logger.debug(
                         "Lifecycle: could not schedule SIGINT guard handler: %s", exc
                     )
@@ -591,5 +591,5 @@ class HttpServerLifecycleManager:
                         asyncio.get_running_loop().call_soon_threadsafe(
                             lambda: signal.signal(signal.SIGINT, old_sigint)
                         )
-                    except Exception:
+                    except Exception:  # noqa: BLE001 — restoring the original SIGINT handler is best-effort; failure must not block shutdown
                         pass

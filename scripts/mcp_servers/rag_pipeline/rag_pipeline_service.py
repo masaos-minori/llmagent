@@ -76,7 +76,7 @@ class RagPipelineMCPService:
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
         from rag.pipeline import (
-            RagPipeline,  # noqa: PLC0415 — lazy: avoids circular import (_pipeline typed as Any)
+            RagPipeline,  # lazy: avoids circular import (_pipeline typed as Any)
         )
 
         cfg = RagPipelineConfig.load()

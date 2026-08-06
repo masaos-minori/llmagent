@@ -276,7 +276,7 @@ class AgentContext:
         self.workflow = WorkflowState()
         try:
             self.cfg = build_agent_config()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — any config-load failure must be wrapped into one RuntimeError with context
             config_dir = Path(__file__).resolve().parent.parent.parent / "config"
             raise RuntimeError(
                 f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"

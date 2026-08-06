@@ -162,7 +162,7 @@ class TestIncrementalRefresh:
         self, service: MdqService, tmp_path: Path
     ) -> None:
         """Force-index, record IDs, force-index again (unchanged); IDs are identical."""
-        import sqlite3  # noqa: PLC0415
+        import sqlite3
 
         f = tmp_path / "stable.md"
         f.write_text("# Stable\n\nContent.")

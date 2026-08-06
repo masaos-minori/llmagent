@@ -363,22 +363,22 @@ def _build_memory_services(
         return None
 
     # Deferred imports to reduce startup cost when memory is disabled
-    from agent.memory.embedding_client import (  # noqa: PLC0415 — lazy
+    from agent.memory.embedding_client import (  # lazy
         EmbeddingClient,
         EmbeddingClientConfig,
     )
-    from agent.memory.enums import DedupPolicy  # noqa: PLC0415 — lazy
-    from agent.memory.ingestion import (  # noqa: PLC0415 — lazy
+    from agent.memory.enums import DedupPolicy  # lazy
+    from agent.memory.ingestion import (  # lazy
         MemoryIngestionService,
     )
-    from agent.memory.injection import (  # noqa: PLC0415 — lazy
+    from agent.memory.injection import (  # lazy
         InjectionPolicy,
         MemoryInjectionService,
     )
-    from agent.memory.jsonl_store import JsonlMemoryStore  # noqa: PLC0415 — lazy
-    from agent.memory.retriever import HybridRetriever  # noqa: PLC0415 — lazy
-    from agent.memory.services import MemoryServices  # noqa: PLC0415 — lazy
-    from agent.memory.store import MemoryStore  # noqa: PLC0415 — lazy
+    from agent.memory.jsonl_store import JsonlMemoryStore  # lazy
+    from agent.memory.retriever import HybridRetriever  # lazy
+    from agent.memory.services import MemoryServices  # lazy
+    from agent.memory.store import MemoryStore  # lazy
 
     embed_client = _build_embedding_client(
         ctx, http, EmbeddingClient, EmbeddingClientConfig

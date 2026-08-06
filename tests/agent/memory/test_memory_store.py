@@ -118,7 +118,7 @@ class _FakeSQLiteHelper:
         except BaseException:
             try:
                 self._conn.execute("ROLLBACK")
-            except Exception:
+            except Exception:  # noqa: BLE001 — rollback-on-error is best-effort; must not mask the original exception being re-raised
                 pass
             raise
 
@@ -413,7 +413,7 @@ def _make_concurrent_store() -> tuple[MemoryStore, str]:
             except BaseException:
                 try:
                     self._conn.execute("ROLLBACK")
-                except Exception:
+                except Exception:  # noqa: BLE001 — rollback-on-error is best-effort; must not mask the original exception being re-raised
                     pass
                 raise
 

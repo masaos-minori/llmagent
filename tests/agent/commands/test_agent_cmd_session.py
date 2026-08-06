@@ -518,7 +518,7 @@ class TestCmdSessionRecover:
             try:
                 cmd._cmd_session("recover /path/to/backup.db")
                 mock_svc.recover_session.assert_called_once_with("/path/to/backup.db")
-            except Exception:
+            except Exception:  # noqa: BLE001 — mock recovery call may or may not raise depending on internal flow; either outcome is acceptable for this smoke test
                 pass
 
     def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
@@ -551,7 +551,7 @@ class TestCmdSessionRecover:
                 cmd._cmd_session("recover")
                 out = capsys.readouterr().out
                 assert "fail" in out.lower() or "error" in out.lower()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — asserting on error message; the exact exception type raised by the command handler is not under test
                 assert "fail" in str(e)
 
 

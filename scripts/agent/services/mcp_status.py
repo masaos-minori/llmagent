@@ -297,7 +297,7 @@ class McpStatusService:
                  self_reported_status, dep_summary, detail_summary, parse_failure_reason,
                  probe_result).
         """
-        from agent.repl_health import McpHealthProbeResult  # noqa: PLC0415
+        from agent.repl_health import McpHealthProbeResult
 
         if not url:
             return (

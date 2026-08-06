@@ -17,7 +17,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_web_search_health_returns_200_when_healthy(self) -> None:
         """web-search-mcp has no dependency checks — always healthy."""
-        from mcp_servers.web_search.web_search_server import app  # noqa: PLC0415
+        from mcp_servers.web_search.web_search_server import app
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -32,7 +32,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_git_health_returns_503_when_git_not_in_path(self) -> None:
         """git-mcp returns 503 when git is not found in PATH."""
-        from mcp_servers.git.git_server import app as git_app  # noqa: PLC0415
+        from mcp_servers.git.git_server import app as git_app
 
         client = TestClient(git_app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -53,9 +53,9 @@ class TestHealthHTTPStatusCodes:
 
     def test_cicd_health_returns_503_when_github_token_not_set(self) -> None:
         """cicd-mcp returns 503 when GITHUB_TOKEN is not set."""
-        import os  # noqa: PLC0415
+        import os
 
-        from mcp_servers.cicd.cicd_server import app as cicd_app  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_server import app as cicd_app
 
         # Save original value and remove GITHUB_TOKEN if present
         original_token = os.environ.get("GITHUB_TOKEN")
@@ -76,7 +76,7 @@ class TestHealthHTTPStatusCodes:
 
     def test_health_response_shape_when_healthy(self) -> None:
         """Verify the full response shape for a healthy server."""
-        from mcp_servers.web_search.web_search_server import app  # noqa: PLC0415
+        from mcp_servers.web_search.web_search_server import app
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/health")
@@ -95,9 +95,9 @@ class TestHealthHTTPStatusCodes:
 
     def test_health_response_shape_when_degraded(self) -> None:
         """Verify the full response shape for a degraded server."""
-        import os  # noqa: PLC0415
+        import os
 
-        from mcp_servers.cicd.cicd_server import app as cicd_app  # noqa: PLC0415
+        from mcp_servers.cicd.cicd_server import app as cicd_app
 
         original_token = os.environ.get("GITHUB_TOKEN")
         try:
@@ -127,7 +127,7 @@ class TestFileServerHealth:
 
     def test_file_read_health_ok_when_workspace_exists(self) -> None:
         """file-read-mcp returns 200 when workspace dependency is healthy."""
-        from mcp_servers.file.read_server import app as read_app  # noqa: PLC0415
+        from mcp_servers.file.read_server import app as read_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
             client = TestClient(read_app, raise_server_exceptions=False)
@@ -142,7 +142,7 @@ class TestFileServerHealth:
 
     def test_file_read_health_degraded_when_workspace_missing(self) -> None:
         """file-read-mcp returns 503 when workspace directory is absent."""
-        from mcp_servers.file.read_server import app as read_app  # noqa: PLC0415
+        from mcp_servers.file.read_server import app as read_app
 
         with patch(
             "mcp_servers.file.common._build_health_deps",
@@ -159,7 +159,7 @@ class TestFileServerHealth:
 
     def test_file_write_health_ok_when_workspace_exists(self) -> None:
         """file-write-mcp returns 200 when workspace dependency is healthy."""
-        from mcp_servers.file.write_server import app as write_app  # noqa: PLC0415
+        from mcp_servers.file.write_server import app as write_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
             client = TestClient(write_app, raise_server_exceptions=False)
@@ -173,7 +173,7 @@ class TestFileServerHealth:
 
     def test_file_write_health_degraded_when_workspace_missing(self) -> None:
         """file-write-mcp returns 503 when workspace directory is absent."""
-        from mcp_servers.file.write_server import app as write_app  # noqa: PLC0415
+        from mcp_servers.file.write_server import app as write_app
 
         with patch(
             "mcp_servers.file.common._build_health_deps",
@@ -189,7 +189,7 @@ class TestFileServerHealth:
 
     def test_file_delete_health_ok_when_workspace_exists(self) -> None:
         """file-delete-mcp returns 200 when workspace dependency is healthy."""
-        from mcp_servers.file.delete_server import app as delete_app  # noqa: PLC0415
+        from mcp_servers.file.delete_server import app as delete_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
             client = TestClient(delete_app, raise_server_exceptions=False)
@@ -203,7 +203,7 @@ class TestFileServerHealth:
 
     def test_file_delete_health_degraded_when_workspace_missing(self) -> None:
         """file-delete-mcp returns 503 when workspace directory is absent."""
-        from mcp_servers.file.delete_server import app as delete_app  # noqa: PLC0415
+        from mcp_servers.file.delete_server import app as delete_app
 
         with patch(
             "mcp_servers.file.common._build_health_deps",
@@ -224,7 +224,7 @@ class TestRagPipelineServerHealth:
     def test_degraded_when_embed_url_not_configured(self) -> None:
         """rag-pipeline-mcp returns 503 when embed_url is absent from config."""
         from mcp_servers.rag_pipeline.rag_pipeline_server import (
-            app as rag_app,  # noqa: PLC0415
+            app as rag_app,
         )
 
         cfg: dict = {}
@@ -242,7 +242,7 @@ class TestRagPipelineServerHealth:
     def test_ok_when_embed_url_configured(self) -> None:
         """rag-pipeline-mcp returns 200 when embed_url is present in config."""
         from mcp_servers.rag_pipeline.rag_pipeline_server import (
-            app as rag_app,  # noqa: PLC0415
+            app as rag_app,
         )
 
         cfg = {"embed_url": "http://localhost:11434/api/embeddings"}

@@ -36,7 +36,7 @@ class RepoInfoResult:
 def get_repo_info(path: str = ".") -> RepoInfoResult:
     """Return current branch and last commit info, or a RepoInfoResult with failure_reason on error."""
     try:
-        import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
+        import git  # lazy import keeps startup fast when gitpython is unused
     except ImportError:
         logger.debug("get_repo_info: GitPython not installed")
         return _failure(FailureReason.GITPYTHON_NOT_INSTALLED)

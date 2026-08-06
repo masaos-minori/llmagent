@@ -46,7 +46,7 @@ def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, 
             " GROUP BY d.url"
         ).fetchall()
         url_chunk_counts = dict(url_chunk_rows)
-    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
         pass
     url_vec_counts: dict[str, int] = {}
     try:
@@ -57,7 +57,7 @@ def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, 
             " GROUP BY d.url"
         ).fetchall()
         url_vec_counts = dict(url_vec_rows)
-    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
         pass
     url_fts_counts: dict[str, int] = {}
     try:
@@ -68,7 +68,7 @@ def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, 
             " GROUP BY d.url"
         ).fetchall()
         url_fts_counts = dict(url_fts_rows)
-    except Exception:  # noqa: S110 — read-only query; failure indicates DB corruption
+    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
         pass
 
     url_level_mismatches: dict[str, dict[str, int]] = {}

@@ -300,7 +300,7 @@ async def check_tool_definitions_runtime(ctx: AgentContext) -> HealthCheckResult
 
 def check_workflow_definition(workflows_dir: Path | None = None) -> None:
     """Raise RuntimeError if the workflow definition file is missing."""
-    from agent.workflow.workflow_loader import (  # noqa: PLC0415 — lazy to avoid circular import
+    from agent.workflow.workflow_loader import (  # lazy to avoid circular import
         WORKFLOWS_DIR,
     )
 
@@ -334,8 +334,8 @@ class SchemaCheckResult:
 
 def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
     """Return SchemaCheckResult indicating whether the workflow DB schema is valid."""
-    from db.helper import SQLiteHelper  # noqa: PLC0415
-    from db.schema_sql import WORKFLOW_SCHEMA_VERSION  # noqa: PLC0415
+    from db.helper import SQLiteHelper
+    from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
     db = SQLiteHelper(target="workflow", db_path=db_path)
 
@@ -345,7 +345,7 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
 
     try:
         db.open(write_mode=_WORKFLOW_SCHEMA_READ_ONLY, row_factory=False)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — workflow DB open failure must be reported as a schema-check failure, not raised
         return SchemaCheckResult(valid=False, error=f"Failed to open workflow DB: {e}")
 
     try:
@@ -394,7 +394,7 @@ def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]
     When strict=True, raises RuntimeError if any drift is detected.
     """
     from shared.tool_routing_validation import (
-        validate_routing_against_config,  # noqa: PLC0415
+        validate_routing_against_config,
     )
 
     try:
@@ -421,7 +421,7 @@ def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]
 
 def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
     """Check that all registered tools have a declared safety tier. Returns warning messages."""
-    from shared.tool_routing_validation import check_tool_safety_tiers  # noqa: PLC0415
+    from shared.tool_routing_validation import check_tool_safety_tiers
 
     tool_safety_tiers = getattr(ctx.cfg.approval, "tool_safety_tiers", {})
     warnings: list[str] = check_tool_safety_tiers(tool_safety_tiers=tool_safety_tiers)
@@ -547,7 +547,7 @@ def audit_security_defaults(
             from shared.tool_registry import get_registry
 
             known_tools = set(get_registry().get_all_tool_names())
-        except Exception:
+        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; fall back to unrestricted set rather than abort startup
             known_tools = None
 
     github_cfg = None

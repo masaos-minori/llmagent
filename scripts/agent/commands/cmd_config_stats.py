@@ -47,7 +47,7 @@ def _get_mem_fts_fallback(ctx) -> int:
 def _get_rag_db_configured(ctx) -> bool:
     """Return True when a RAG DB path is configured."""
     try:
-        from db.config import build_db_config as _build_db_cfg  # noqa: PLC0415 — lazy
+        from db.config import build_db_config as _build_db_cfg  # lazy
 
         _build_db_cfg()
         return True

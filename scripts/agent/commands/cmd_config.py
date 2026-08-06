@@ -41,11 +41,11 @@ class _ConfigMixin(
         take effect immediately without restarting the agent.
         """
         from agent.services.config_reload import (
-            ConfigReloadService,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+            ConfigReloadService,  # lazy: deferred to avoid import cost
         )
 
         try:
-            from shared.config_loader import (  # noqa: PLC0415
+            from shared.config_loader import (
                 _BASE_CONFIG_FILES,
                 ConfigLoader,
             )

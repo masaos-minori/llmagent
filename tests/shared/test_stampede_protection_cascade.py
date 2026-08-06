@@ -50,7 +50,7 @@ class TestConcurrentRequestExceptionPropagation:
         async def _waiter(i: int) -> None:
             try:
                 await inflight
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 exceptions_received.append(exc)
 
         tasks = [asyncio.create_task(_waiter(i)) for i in range(5)]
@@ -198,7 +198,7 @@ class TestPartialSuccessScenario:
                 await executor._execute_with_stampede_protection(
                     cache_key, "test_tool", {}
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 exceptions_received.append(exc)
 
         await asyncio.gather(*[_caller() for _ in range(3)])

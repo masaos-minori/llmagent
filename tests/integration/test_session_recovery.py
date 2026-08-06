@@ -155,7 +155,7 @@ def test_e05_concurrent_session_start_under_exclusive_lock(
     conn.execute("PRAGMA journal_mode=WAL")
     try:
         conn.executescript(build_session_schema_sql(4))
-    except Exception:
+    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
         pass  # memories_vec may be unavailable without sqlite-vec; ignore
     conn.commit()
     conn.close()

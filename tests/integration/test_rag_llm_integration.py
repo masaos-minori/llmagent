@@ -184,7 +184,7 @@ async def test_c05_llm_empty_stream_returns_empty_content():
                 )
                 # Empty content should not raise; text will be empty string
                 assert resp.text == "" or resp.text is not None
-            except Exception:
+            except Exception:  # noqa: BLE001 — SSE parsing may fail on non-standard stream; not a crash, tolerated in this test
                 pass  # SSE parsing may fail on non-standard stream; not a crash
 
 
@@ -303,7 +303,7 @@ async def test_c09_llm_429_retry_succeeds():
                         "max_tokens": 10,
                     },
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 — retry exhaustion is expected; only asserting that request_with_retry attempted at least twice
                 pass
 
     assert call_count >= 2

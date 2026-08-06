@@ -45,7 +45,7 @@ def _build_session_memory_db(db_path: str) -> None:
     # Use dim=4 so memories_vec is optional (skipped if vec extension absent)
     try:
         conn.executescript(build_session_schema_sql(4))
-    except Exception:
+    except Exception:  # noqa: BLE001 — memories_vec may fail if sqlite-vec is not available; ignore
         # memories_vec may fail if sqlite-vec is not available; ignore
         pass
     conn.commit()

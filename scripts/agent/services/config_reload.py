@@ -313,7 +313,7 @@ class ConfigReloadService:
         from the reported config. This method only compares; it never writes.
         """
         from agent.config_builders import (
-            _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
+            _build_mcp_servers,  # lazy: avoids circular import at module level
         )
 
         result = ConfigReloadOutcome()

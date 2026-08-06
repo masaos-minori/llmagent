@@ -131,7 +131,7 @@ def _run_custom_validator(tool_name: str, args: dict) -> ValidationResult:
 
     try:
         return hook(args)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — hooks are arbitrary registered callables and must never crash execute_one_tool_call()
         # Broad catch is intentional: hooks are arbitrary registered callables and
         # must never crash execute_one_tool_call(); any failure becomes a normal
         # ValidationResult failure instead of propagating.

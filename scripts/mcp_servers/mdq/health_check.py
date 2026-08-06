@@ -35,7 +35,7 @@ def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
             f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"
         ).fetchone()
         return result["cnt"] if result is not None else 0
-    except Exception:
+    except sqlite3.OperationalError:
         return None
 
 

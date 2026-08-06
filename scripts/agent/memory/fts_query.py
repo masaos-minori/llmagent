@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/agent/memory/fts_query.py — FTS5 query builder."""
 
-import re  # noqa: PLC0415
+import re
 
 
 def build_fts_query(text: str) -> str:

@@ -308,7 +308,7 @@ class Orchestrator:
                         store.update_task_status(_task.task_id, "failed")
                     else:
                         store.update_task_status(_task.task_id, "completed")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — task-status update failure on engine exit must not block workflow deactivation
                 logger.warning("Failed to update task status on engine exit: %s", e)
             self._deactivate_workflow(ctx)
             store.close()
@@ -395,7 +395,7 @@ class Orchestrator:
         )
         ctx.turn.pending_approval_id = exc.approval_id
         ctx.workflow.approval_pending = True
-        from agent.tool_output import emit_approval_pending_notice  # noqa: PLC0415
+        from agent.tool_output import emit_approval_pending_notice
 
         emit_approval_pending_notice(
             approval_id=exc.approval_id,
@@ -697,7 +697,7 @@ class Orchestrator:
                     if isinstance(exc, Exception) and self._on_error is not None:
                         try:
                             self._on_error(exc)
-                        except Exception as notif_err:
+                        except Exception as notif_err:  # noqa: BLE001 — caller-supplied error callback must not raise and crash the background-task monitor
                             logger.error(
                                 "Failed to notify user of background task failure: %s",
                                 notif_err,
@@ -739,7 +739,7 @@ class Orchestrator:
         if self._on_error is not None:
             try:
                 self._on_error(message)
-            except Exception as notif_err:
+            except Exception as notif_err:  # noqa: BLE001 — caller-supplied error callback must not raise and crash the background-task monitor
                 logger.critical(
                     "Failed to notify user of threshold breach for '%s': %s",
                     task_name,

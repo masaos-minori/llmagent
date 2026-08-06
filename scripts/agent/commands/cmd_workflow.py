@@ -87,7 +87,7 @@ class _WorkflowMixin(MixinBase):
         After approval, the workflow engine will auto-resume on the next turn.
         """
         from agent.workflow import (
-            StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
+            StateStore,  # lazy: avoids startup cost
         )
 
         store = StateStore()
@@ -143,7 +143,7 @@ class _WorkflowMixin(MixinBase):
         resume paths that don't go through this command.
         """
         from agent.workflow import (
-            StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
+            StateStore,  # lazy: avoids startup cost
         )
 
         store = StateStore()

@@ -178,7 +178,7 @@ def interpret_health_body(body: dict[str, object]) -> HealthInterpretation:
         details_raw = cast(list[dict[str, object]], body.get("details") or [])
         restart_rec = bool(body.get("restart_recommended"))
         op_action = bool(body.get("operator_action_required"))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — health body may have unexpected shape from any MCP server; parse failures fall back to unknown status
         return HealthInterpretation(
             self_reported_status="unknown",
             ready=False,

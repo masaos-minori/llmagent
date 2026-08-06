@@ -558,7 +558,7 @@ async def _run_approval_gate(
     API-write tools — without any further approval check performed anywhere
     downstream.
     """
-    from agent.tool_approval import run_approval_checks  # noqa: PLC0415
+    from agent.tool_approval import run_approval_checks
 
     result: tuple[list[dict[Any, Any]], list[str]] = await run_approval_checks(
         ctx, tool_calls

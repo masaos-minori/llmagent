@@ -17,6 +17,9 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 
 **ruff:** `line-length = 120`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
 - `ignore = ["E501"]` — E501 not auto-fixable in string literals; `ruff format` enforces length in code
+- `RUF100` (unused-noqa) intentionally deferred — 224 findings measured (see
+  `plans/done/20260806-134805_plan.md`); spans rule codes beyond `BLE001`/`PLC0415`,
+  out of scope for this increment.
 
 **mypy:** `python_version = "3.13"`, `files = ["scripts/"]`, `ignore_missing_imports = true`
 - Pre-existing errors exist. Fix incrementally; do not suppress with `type: ignore` without justification.
@@ -28,13 +31,22 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 ## Suppression governance
 
 Every `# noqa`, `# type: ignore`, and `# nosec` requires an inline justification.
-Suppressions without explanation are prohibited.
+Suppressions without explanation are prohibited. The primary enforcement mechanism is
+the automated `tools/check_suppression_justification.py` check, wired into
+`.pre-commit-config.yaml`'s `check-suppression-justification` hook. The `rg` one-liners
+below are a secondary, human-readable illustration for manually spot-checking a specific
+file — not the sole enforcement mechanism.
 
 ```bash
-rg '# noqa' scripts/ | grep -v '# noqa:'        # noqa without rule code
-rg '# type: ignore' scripts/ | grep -v '\['      # ignore without error code
-rg '# nosec' scripts/ | grep -v ' — '           # nosec without comment
+rg '# noqa' scripts/ | grep -v '# noqa:.*—'      # noqa without rule code or justification
+rg '# type: ignore' scripts/ | grep -v '\[.*—'    # ignore without error code or justification
+rg '# nosec' scripts/ | grep -v ' — '             # nosec without comment
 ```
+
+`pyproject.toml`'s `[tool.ruff.lint] select` currently includes `BLE001` (active).
+`PLC0415` (import-outside-top-level) is an intentionally-excluded exception — see the
+inline comment above `ignore = ["E501"]` in `pyproject.toml` and
+`plans/done/20260806-133908_plan.md` for the measured evidence (~1193 net-new findings).
 
 ## Constraint checks (run before every commit)
 

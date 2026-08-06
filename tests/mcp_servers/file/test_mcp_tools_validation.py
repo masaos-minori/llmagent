@@ -75,7 +75,7 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
             resp = httpx.get(url, timeout=1.0)
             if resp.status_code == 200:
                 return True
-        except Exception:
+        except Exception:  # noqa: BLE001 — health-check polling must tolerate connection errors during startup and simply retry
             pass
         time.sleep(0.3)
     return False

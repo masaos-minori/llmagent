@@ -28,7 +28,7 @@ def service(tmp_path: Path) -> MdqService:
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:
-        import os  # noqa: PLC0415
+        import os
 
         os.close(fd)
 

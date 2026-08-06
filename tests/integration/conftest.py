@@ -124,7 +124,7 @@ def corrupt_wal_db(tmp_path: Path) -> str:
     conn.execute("PRAGMA journal_mode=WAL")
     try:
         conn.executescript(build_session_schema_sql(4))
-    except Exception:
+    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
         pass  # memories_vec may be unavailable without sqlite-vec; ignore
     if _has_table(conn, "sessions"):
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")

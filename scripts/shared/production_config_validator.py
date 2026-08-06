@@ -36,7 +36,7 @@ def _check_missing_tool_safety_tiers(
             from shared.tool_registry import get_registry
 
             known_tools = set(get_registry().get_all_tool_names())
-        except Exception:
+        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
             return []
     missing = [t for t in sorted(known_tools) if t not in tool_safety_tiers]
     return [f"'{t}' not in tool_safety_tiers" for t in missing]
@@ -52,7 +52,7 @@ def _check_unknown_tool_safety_tiers(
             from shared.tool_registry import get_registry
 
             known_tools = set(get_registry().get_all_tool_names())
-        except Exception:
+        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
             return []
     unknown = sorted(set(tool_safety_tiers) - known_tools)
     return [f"'{k}' not a registered tool name" for k in unknown]

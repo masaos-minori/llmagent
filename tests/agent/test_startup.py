@@ -1285,9 +1285,7 @@ class TestCheckServicesSeverityClassification:
         with patch("agent.startup.logger") as mock_logger:
             pipeline, exc = await _run_check_services(
                 ctx,
-                RagMaintenanceService=MagicMock(
-                    side_effect=RuntimeError("db locked")
-                ),
+                RagMaintenanceService=MagicMock(side_effect=RuntimeError("db locked")),
             )
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "rag_consistency"]

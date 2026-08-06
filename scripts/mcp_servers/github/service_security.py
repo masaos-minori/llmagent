@@ -48,7 +48,7 @@ class GitHubSecurityGuards:
 
         Empty allowed_repos denies all repositories (fail-closed).
         """
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubAuthorizationError,
         )
 
@@ -63,7 +63,7 @@ class GitHubSecurityGuards:
 
     def _assert_allowed_path(self, path: str) -> None:
         """Raise GitHubAuthorizationError if path matches a denied glob pattern."""
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubAuthorizationError,
         )
 
@@ -75,7 +75,7 @@ class GitHubSecurityGuards:
 
     def _assert_max_file_size(self, content: str, path: str) -> None:
         """Raise GitHubValidationError if file content exceeds max_file_size_kb."""
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubValidationError,
         )
 
@@ -94,7 +94,7 @@ class GitHubSecurityGuards:
         Raises GitHubAuditError when audit_log_path is configured and write fails.
         Skips silently when audit_log_path is empty.
         """
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubAuditError,
         )
 
@@ -117,7 +117,7 @@ class GitHubSecurityGuards:
         Patterns follow fnmatch glob syntax: 'main' matches exactly, 'release/*'
         matches any release branch. An empty list means no branch restrictions.
         """
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubAuthorizationError,
         )
 
@@ -156,7 +156,7 @@ class GitHubSecurityGuards:
 
         Declared as NoReturn so callers do not need to write their own raise.
         """
-        from mcp_servers.github.models_config import (  # noqa: PLC0415
+        from mcp_servers.github.models_config import (
             GitHubAuthorizationError,
             GitHubConflictError,
             GitHubNotFoundError,

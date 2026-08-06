@@ -107,7 +107,7 @@ class StartupOrchestrator:
         except Exception as setup_err:
             try:
                 await self._ctx.services_required.lifecycle.shutdown_all()
-            except Exception as shutdown_err:
+            except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original startup error
                 logger.error(
                     "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
                     shutdown_err,
@@ -136,7 +136,7 @@ class StartupOrchestrator:
     def _init_command_registry(self) -> None:
         """Build the command registry from the context."""
         from agent.commands.registry import (
-            CommandRegistry,  # noqa: PLC0415 — lazy: deferred to avoid circular import at module level
+            CommandRegistry,  # lazy: deferred to avoid circular import at module level
         )
 
         self._cmds = CommandRegistry(self._ctx)
@@ -266,7 +266,7 @@ class StartupOrchestrator:
                     if resp.status_code != httpx.codes.OK:
                         raise RuntimeError(f"HTTP {resp.status_code}")
                     logger.info("Post-startup health check passed for %r", server_key)
-            except Exception:
+            except Exception:  # noqa: BLE001 — any health-check failure (network, HTTP, timeout) triggers a retry rather than aborting startup
                 # NOTE: the interruptible-sleep check is deliberately outside the
                 # nested try/except below — raising StartupInterrupted from inside
                 # that try would be caught by its own `except Exception as retry_err`
@@ -311,7 +311,7 @@ class StartupOrchestrator:
     def _check_workflow_schema(self) -> None:
         """Preflight check for workflow DB schema before Orchestrator.__init__()."""
         from agent.repl_health import (
-            check_workflow_schema,  # noqa: PLC0415 — lazy import: avoids a module-level import cycle with agent.repl_health, loaded only when the workflow schema check runs
+            check_workflow_schema,  # lazy import: avoids a module-level import cycle with agent.repl_health, loaded only when the workflow schema check runs
         )
 
         result = check_workflow_schema()
@@ -636,7 +636,7 @@ class StartupOrchestrator:
                         f"- {snippet.text}" for snippet in memory_snippets
                     )
                     initial_prompt = initial_prompt + memory_block
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — memory injection failures are classified and downgraded; startup must proceed without memory
                 ctx.conv.memory_disabled = True
                 category = self._classify_memory_failure(exc)
                 if category == "DATABASE_OR_IO":

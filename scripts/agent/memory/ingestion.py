@@ -129,7 +129,7 @@ class MemoryIngestionService:
         """Fetch embedding and return result (with fallback on failure)."""
         try:
             return await self._embed_client.fetch(content)
-        except Exception:
+        except Exception:  # noqa: BLE001 — embedding fetch failure must fall back to storing without embedding, not abort ingestion
             return EmbeddingResult(
                 success=False,
                 error_kind=EmbeddingErrorKind.UNKNOWN_ERROR,

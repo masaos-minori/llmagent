@@ -74,7 +74,7 @@ class _SessionMixin(MixinBase):
 
     def _session_list(self, limit_arg: str) -> None:
         """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
-        from agent.commands.session_title import (  # noqa: PLC0415 — lazy import
+        from agent.commands.session_title import (  # lazy import
             SESSION_TITLE_MAX_CHARS,
             SESSION_TITLE_TRUNCATE_AT,
         )
@@ -226,10 +226,10 @@ class _SessionMixin(MixinBase):
 
     def _load_session(self, session_id: int) -> None:
         """Restore a previous session via session_restore service."""
-        from agent.services.exceptions import (  # noqa: PLC0415 — lazy import
+        from agent.services.exceptions import (  # lazy import
             SessionNotFoundError,
         )
-        from agent.services.session_restore import (  # noqa: PLC0415 — lazy import
+        from agent.services.session_restore import (  # lazy import
             restore_session,
         )
 

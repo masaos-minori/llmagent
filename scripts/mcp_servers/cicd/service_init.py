@@ -29,7 +29,7 @@ def build_service(cfg: CicdConfig) -> CiCdService:
             "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
         )
     http = httpx.AsyncClient(timeout=30.0)
-    from .service_github_actions_composite import (  # noqa: PLC0415
+    from .service_github_actions_composite import (
         GitHubActionsCompositeBackend,
     )
 

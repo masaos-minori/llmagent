@@ -89,8 +89,8 @@ class _MemoryMixin(MixinBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the memory mixin via MixinBase constructor and data/rebuild operations."""
         super().__init__(*args, **kwargs)
-        from agent.commands.memory_data_ops import MemoryDataOps  # noqa: PLC0415
-        from agent.commands.memory_rebuild_ops import MemoryRebuildOps  # noqa: PLC0415
+        from agent.commands.memory_data_ops import MemoryDataOps
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
 
         self._data_ops = MemoryDataOps(self._ctx, self._out)
         self._rebuild_ops = MemoryRebuildOps(self._ctx, self._out)

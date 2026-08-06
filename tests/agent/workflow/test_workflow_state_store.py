@@ -603,7 +603,7 @@ class TestStaleRecoveryConcurrency:
                     count = s.recover_stale_attempts(s.get_connection())
                     results.append(count)
                     s.close()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         threads = [threading.Thread(target=worker) for _ in range(2)]

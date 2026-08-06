@@ -131,8 +131,8 @@ async def health() -> JSONResponse:
         embed_url = cfg.get("embed_url")
         if not embed_url or not isinstance(embed_url, str):
             deps["embed_url"] = "not configured"
-    except Exception:
-        deps["config"] = "check failed"  # noqa: BLE001 — health check must not fail on config errors
+    except Exception:  # noqa: BLE001 — health check must not fail on config errors
+        deps["config"] = "check failed"
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
     result: JSONResponse = make_health_response(deps, details)
     return result
@@ -146,7 +146,7 @@ async def rag_invalidate_cache() -> JSONResponse:
         return JSONResponse(
             content={"status": "ok", "message": "Semantic cache invalidated"}
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — top-level HTTP handler must not crash on cache-invalidation errors; return a 500 response instead
         logger.error(f"Failed to invalidate cache: {e}")
         return JSONResponse(
             status_code=500,

@@ -24,8 +24,8 @@ class GitHubActionsCompositeBackend(CiBackend):
         max_log_size_kb: int = 256,
     ) -> None:
         """Initialize with GitHub token, HTTP client, and optional log size limit."""
-        from .service_github_actions import GitHubActionsBackend  # noqa: PLC0415
-        from .service_github_actions_job import (  # noqa: PLC0415
+        from .service_github_actions import GitHubActionsBackend
+        from .service_github_actions_job import (
             GitHubActionsJobBackend,
         )
 
@@ -42,7 +42,7 @@ class GitHubActionsCompositeBackend(CiBackend):
     @staticmethod
     def _split_repo(repo: str) -> tuple[str, str]:
         """Split 'owner/repo' slug into (owner, repo)."""
-        from .service_github_actions import GitHubActionsBackend  # noqa: PLC0415
+        from .service_github_actions import GitHubActionsBackend
 
         return GitHubActionsBackend._split_repo(repo)
 

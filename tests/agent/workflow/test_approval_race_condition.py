@@ -61,7 +61,7 @@ class TestConcurrentResolutionDetection:
         def resolve():
             try:
                 resolve_approval(db, "test-approval-1", "approved")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(exc)
 
         t1 = threading.Thread(target=resolve)
@@ -85,7 +85,7 @@ class TestConcurrentResolutionDetection:
             try:
                 resolve_approval(db, "test-approval-1", "approved")
                 success_count[0] += 1
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(exc)
 
         t1 = threading.Thread(target=resolve)
@@ -110,7 +110,7 @@ class TestConcurrentResolutionDetection:
                     resolve_approval, db, "test-approval-1", "approved"
                 )
                 results.append((idx, None))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 results.append((idx, exc))
 
         await asyncio.gather(resolve(1), resolve(2))
@@ -160,7 +160,7 @@ class TestCheckAndResolveAtomicity:
         def resolve():
             try:
                 resolve_approval(db, "test-approval-1", "approved")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(exc)
 
         t1 = threading.Thread(target=resolve)

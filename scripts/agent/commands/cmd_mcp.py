@@ -129,7 +129,7 @@ def _format_health_interpretation(result: McpProbeResult) -> str:
         # Parse failure
         if interp.parse_failure_reason:
             lines.append(f"  [!] Parse failure: {interp.parse_failure_reason}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — status display must not abort on unexpected health-interpretation shape
         lines.append(f"  [!] Interpretation error: {e}")
     return "\n".join(lines)
 

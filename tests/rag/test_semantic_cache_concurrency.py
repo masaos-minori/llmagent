@@ -27,7 +27,7 @@ class TestSemanticCacheConcurrency:
             barrier.wait()
             try:
                 cache.lookup(_vec(1.0))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         threads = [threading.Thread(target=_lookup) for _ in range(_THREADS)]
@@ -46,7 +46,7 @@ class TestSemanticCacheConcurrency:
             barrier.wait()
             try:
                 cache.put(_vec(float(i) / _THREADS), "", f"ctx{i}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         threads = [threading.Thread(target=_put, args=(i,)) for i in range(_THREADS)]
@@ -66,14 +66,14 @@ class TestSemanticCacheConcurrency:
             barrier.wait()
             try:
                 cache.put(_vec(float(i) / _THREADS), "", f"ctx{i}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         def _lookup() -> None:
             barrier.wait()
             try:
                 cache.lookup(_vec(0.5))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         threads = [
@@ -96,7 +96,7 @@ class TestSemanticCacheConcurrency:
                 cache.put(_vec(float(i) / _THREADS), "", f"ctx{i}")
                 cache.lookup(_vec(float(i) / _THREADS))
                 cache.prune()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         threads = [threading.Thread(target=_work, args=(i,)) for i in range(_THREADS)]

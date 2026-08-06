@@ -238,7 +238,7 @@ async def index_paths(
         if p.is_file() and p.suffix == ".md":
             try:
                 await _index_single_file(service, p)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — a single file's indexing failure must not abort the batch; record it and continue
                 logger.error("Failed to index %s: %s", path_str, e)
                 failed_count += 1
             else:
@@ -246,7 +246,7 @@ async def index_paths(
         elif p.is_dir():
             try:
                 await _index_directory(service, p)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — a single directory's indexing failure must not abort the batch; record it and continue
                 logger.error("Failed to index %s: %s", path_str, e)
                 failed_count += 1
             else:
@@ -272,7 +272,7 @@ async def refresh_paths(
     Returns structured summary with indexed_count, skipped_count, deleted_count,
     failed_count, and elapsed_seconds.
     """
-    import time  # noqa: PLC0415
+    import time
 
     start = time.time()
     indexed_count = 0
@@ -328,7 +328,7 @@ async def refresh_paths(
                             )
                     else:
                         logger.warning("Path is not a file or directory: %s", path_str)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — a single path's forced re-index failure must not abort the batch; record it and continue
                     logger.error("Failed to index %s: %s", path_str, e)
                     failed_count += 1
                 continue
@@ -351,7 +351,7 @@ async def refresh_paths(
                     )
                     conn.commit()
                     indexed_count += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — a single file's incremental refresh failure must not abort the batch; record it and continue
                     logger.error("Failed to refresh %s: %s", path_str, e)
                     failed_count += 1
 
@@ -374,7 +374,7 @@ async def refresh_paths(
                         )
                         conn.commit()
                         indexed_count += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — a single directory's incremental refresh failure must not abort the batch; record it and continue
                     logger.error("Failed to refresh directory %s: %s", path_str, e)
                     failed_count += 1
 
@@ -397,7 +397,7 @@ async def refresh_paths(
                         # File was deleted — remove from index
                         delete_file_from_index(service, conn, Path(file_path))
                         deleted_count += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
                 logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
 
         elapsed = time.time() - start

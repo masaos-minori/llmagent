@@ -186,7 +186,7 @@ class _ConfigDisplayMixin(MixinBase):
         """Print retrieval settings including DB path and search parameters."""
         self._out.write("Search settings:")
         from db.config import (
-            build_db_config as _build_db_cfg,  # noqa: PLC0415 — lazy
+            build_db_config as _build_db_cfg,  # lazy
         )
 
         try:
@@ -200,7 +200,7 @@ class _ConfigDisplayMixin(MixinBase):
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
         from agent.config_builders import (
-            _CONFIG_DIR,  # noqa: PLC0415 — lazy: avoids circular import at module level
+            _CONFIG_DIR,  # lazy: avoids circular import at module level
         )
 
         self._out.write("Config files:")

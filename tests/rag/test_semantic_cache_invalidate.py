@@ -57,13 +57,13 @@ class TestSemanticCacheInvalidate:
         def invalidate() -> None:
             try:
                 cache.invalidate()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         def put_after() -> None:
             try:
                 cache.put(_emb(1), "", "result_B")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
         t1 = threading.Thread(target=invalidate)

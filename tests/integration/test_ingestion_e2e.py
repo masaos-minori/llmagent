@@ -107,7 +107,7 @@ class TestFullIngestionPipeline:
             # Should handle the exception without crashing
             try:
                 ingester.ingest_all()
-            except Exception:
+            except Exception:  # noqa: BLE001 — expected: embedding failure propagates up; asserting only that it does not hang
                 pass  # Expected — embedding failure propagates up
         ingester.close()
 

@@ -89,7 +89,7 @@ async def _fetch_embedding(
     except httpx.HTTPError as e:
         logger.warning("EmbeddingClient._fetch_embedding HTTP error: %s", e)
         return EmbeddingResult(success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — classification fallback for any error not covered by the specific httpx/ValueError branches above
         logger.warning("EmbeddingClient._fetch_embedding unexpected error: %s", e)
         return EmbeddingResult(
             success=False, error_kind=EmbeddingErrorKind.UNKNOWN_ERROR

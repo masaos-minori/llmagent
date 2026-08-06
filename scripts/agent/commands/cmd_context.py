@@ -136,10 +136,10 @@ class _ContextMixin(MixinBase, TokenDisplay):
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
-        from agent.services.exceptions import (  # noqa: PLC0415 — lazy import
+        from agent.services.exceptions import (  # lazy import
             NothingToUndoError,
         )
-        from agent.services.undo_service import (  # noqa: PLC0415 — lazy import
+        from agent.services.undo_service import (  # lazy import
             undo_last_turn,
         )
 

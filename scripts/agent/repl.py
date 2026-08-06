@@ -388,7 +388,7 @@ class AgentREPL:
                     )
                     shutil.copy2(wal_file, wal_backup_path)
                     logger.warning("WAL file backed up to %s", wal_backup_path)
-        except Exception as backup_err:
+        except Exception as backup_err:  # noqa: BLE001 — WAL backup is best-effort during shutdown; failure must be recorded, not raised
             logger.error("Failed to backup WAL file: %s", backup_err)
             errors.append(("wal_backup", f"{type(backup_err).__name__}: {backup_err}"))
         return wal_backup_path, errors
@@ -441,7 +441,7 @@ class AgentREPL:
             except sqlite3.Error as e:
                 errors.append(("wal_checkpoint", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL checkpoint: %s", e)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — shutdown must capture any unexpected WAL checkpoint failure without aborting teardown
                 errors.append(("wal_checkpoint_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL checkpoint: %s", e)
 
@@ -464,7 +464,7 @@ class AgentREPL:
                         "WAL backup timed out after %.1fs on shutdown",
                         self._WAL_BACKUP_TIMEOUT_S,
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — shutdown must capture any unexpected WAL backup failure without aborting teardown
                     errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                     logger.error("Unexpected error during WAL backup: %s", e)
 
@@ -748,7 +748,7 @@ class AgentREPL:
         then enters the main input loop.
         """
         from agent.startup import (
-            StartupOrchestrator,  # noqa: PLC0415 — lazy: avoids circular import at module level
+            StartupOrchestrator,  # lazy: avoids circular import at module level
         )
 
         loop = asyncio.get_running_loop()
@@ -813,7 +813,7 @@ class AgentREPL:
                                 "pywin32 not available; signal handling disabled on Windows. "
                                 "Install pywin32 for Ctrl+C/Ctrl+Break support."
                             )
-                        except Exception as e:
+                        except Exception as e:  # noqa: BLE001 — Windows console handler setup is best-effort and must not abort startup
                             logger.error(
                                 "Failed to set Windows console control handler: %s", e
                             )
@@ -823,7 +823,7 @@ class AgentREPL:
                             "Signal handling not available on Windows outside console; "
                             "use Ctrl+C or close the terminal to shut down"
                         )
-                except Exception:
+                except Exception:  # noqa: BLE001 — signal handling setup is best-effort and must not abort agent startup
                     pass
 
         startup = StartupOrchestrator(

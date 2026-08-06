@@ -71,9 +71,9 @@ def build_tracer(
 def _import_sdk() -> Any | None:
     """Lazy-import the OpenTelemetry SDK; returns None on ImportError."""
     try:
-        from opentelemetry.sdk.resources import Resource  # noqa: PLC0415
-        from opentelemetry.sdk.trace import TracerProvider  # noqa: PLC0415
-        from opentelemetry.sdk.trace.export import (  # noqa: PLC0415
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
             ConsoleSpanExporter,
             SimpleSpanProcessor,
         )
@@ -129,10 +129,10 @@ def _attach_otlp_exporter(provider: Any, otlp_endpoint: str, service_name: str) 
 def _import_otlp() -> Any | None:
     """Lazy-import the OTLP exporter; returns None on ImportError."""
     try:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # noqa: PLC0415
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter,
         )
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor  # noqa: PLC0415
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         return type(
             "OTLP",
@@ -151,7 +151,7 @@ class _ConsoleProcessor:
 
     def __init__(self) -> None:
         """Initialize by creating the underlying OpenTelemetry processor."""
-        from opentelemetry.sdk.trace.export import (  # noqa: PLC0415
+        from opentelemetry.sdk.trace.export import (
             ConsoleSpanExporter,
             SimpleSpanProcessor,
         )
