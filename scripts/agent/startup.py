@@ -310,7 +310,9 @@ class StartupOrchestrator:
 
     def _check_workflow_schema(self) -> None:
         """Preflight check for workflow DB schema before Orchestrator.__init__()."""
-        from agent.repl_health import check_workflow_schema  # noqa: PLC0415
+        from agent.repl_health import (
+            check_workflow_schema,  # noqa: PLC0415 — lazy import: avoids a module-level import cycle with agent.repl_health, loaded only when the workflow schema check runs
+        )
 
         result = check_workflow_schema()
         if not result.valid:
@@ -345,7 +347,7 @@ class StartupOrchestrator:
                 pipeline.add_fatal("readiness", msg)
             if not result.has_issues:
                 pipeline.add_ok("readiness")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — an unexpected readiness-probe failure must be captured and reported as a pipeline fatal rather than crashing startup outright
             pipeline.add_fatal("readiness", f"Readiness check failed: {exc}")
 
         # 4. MCP tool discovery and validation (consolidated)
@@ -366,7 +368,7 @@ class StartupOrchestrator:
                 )
             if not discovery.findings and not discovery.unreachable:
                 pipeline.add_ok("mcp_tool_discovery")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — a broad catch prevents one failing MCP server discovery from aborting the whole startup sequence
             msg = f"MCP tool discovery failed: {exc}. No MCP tools will be available this session."
             pipeline.add_fatal(
                 "mcp_tool_discovery",
@@ -382,14 +384,14 @@ class StartupOrchestrator:
                 pipeline.add_warning("routing_drift", msg)
         except RuntimeError as exc:
             pipeline.add_fatal("routing_drift", str(exc))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — unexpected routing-drift check failures are downgraded to a warning rather than allowed to abort startup
             pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
 
         # 5b. Routing safety tiers
         try:
             for msg in check_routing_safety_tiers(ctx):
                 pipeline.add_warning("routing_safety_tiers", msg)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — unexpected routing-safety-tier check failures are downgraded to a warning rather than allowed to abort startup
             pipeline.add_warning(
                 "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
             )
