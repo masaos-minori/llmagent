@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/checks/check_no_compat.py
+"""tools/check_no_compat.py
 
 CI check for backward compatibility leftovers in active source code and docs:
 - Backward compatibility references
@@ -8,7 +8,7 @@ CI check for backward compatibility leftovers in active source code and docs:
 - Module-level _cfg cache references
 
 Usage:
-    python -m scripts.checks.check_no_compat [--allowlist <path>]
+    python -m tools.check_no_compat [--allowlist <path>]
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
 # Patterns that should not appear in active source code or docs
 COMPAT_PATTERNS = {
@@ -86,46 +86,54 @@ COMPAT_PATTERNS = {
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
 DEFAULT_ALLOWLIST = {
     # Migration notes that document historical changes
-    ROOT_DIR / "docs" / "05_agent_09_data-layer.md",
     ROOT_DIR / "docs" / "03_rag_00_document-guide.md",  # documents removed rag.llm stub
-    # This checker's own docstring describing what it checks
-    ROOT_DIR / "scripts" / "checks" / "check_no_compat.py",
     # Test file intentionally referencing the removed re-export stub
-    ROOT_DIR / "tests" / "test_rag_get_cfg.py",
+    ROOT_DIR / "tests" / "agent" / "test_rag_get_cfg.py",
     # Test files with assertions about absence of removed compatibility patterns
-    ROOT_DIR / "tests" / "test_route_resolver.py",
-    ROOT_DIR / "tests" / "test_mcp_rag_pipeline.py",
-    ROOT_DIR / "tests" / "test_rag_pipeline_mcp_service.py",
+    ROOT_DIR / "tests" / "shared" / "test_route_resolver.py",
+    ROOT_DIR / "tests" / "mcp_servers" / "rag_pipeline" / "test_mcp_rag_pipeline.py",
+    ROOT_DIR
+    / "tests"
+    / "mcp_servers"
+    / "rag_pipeline"
+    / "test_rag_pipeline_mcp_service.py",
     # Test file with description mentioning static fallback as a concept
-    ROOT_DIR / "tests" / "test_rag_tools_consistency.py",
+    ROOT_DIR / "tests" / "shared" / "test_rag_tools_consistency.py",
     # Tests intentionally referencing removed commands
-    ROOT_DIR / "tests" / "test_cmd_registry_note_removal.py",
-    ROOT_DIR / "tests" / "test_removed_commands.py",
-    ROOT_DIR / "tests" / "test_create_schema.py",
-    # Script documenting historical command name changes
-    ROOT_DIR / "scripts" / "checks" / "check_docs_consistency.py",
+    ROOT_DIR / "tests" / "agent" / "commands" / "test_cmd_registry_note_removal.py",
+    ROOT_DIR / "tests" / "agent" / "commands" / "test_removed_commands.py",
+    ROOT_DIR / "tests" / "db" / "test_create_schema.py",
     # Docs documenting removed features (POST /v1/search, /mcp install, /note, /db aliases)
     ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
-    ROOT_DIR / "docs" / "05_agent_07_cli-and-commands.md",
     ROOT_DIR / "docs" / "05_agent_90_inconsistencies_and_known_issues.md",
+    # Migration notes doc (split from the former 05_agent_07_cli-and-commands.md) documenting removed /note and /db aliases
+    ROOT_DIR / "docs" / "05_agent_07_07_cli-and-commands-migration-notes.md",
     # Doc documenting verification task for deleted commands
     ROOT_DIR / "docs" / "05_agent_00_document-guide.md",
-    # Doc describing removed static fallback routing
-    ROOT_DIR / "docs" / "90_shared_02_types_and_protocols.md",
-    # Doc still mentioning static fallback in architecture description
-    ROOT_DIR / "docs" / "05_agent_02_runtime-architecture.md",
     # Docs documenting deleted source files (07_ref-sqlite.md, 07_spec_db.md) and stale issue IDs (DESIGN-01/02)
     ROOT_DIR / "docs" / "90_shared_00_document-guide.md",
-    # Doc documenting deleted workflow_schema.py entry point
-    ROOT_DIR / "docs" / "90_shared_04_db_architecture_and_schema.md",
-    # plan 56 patterns — test file intentionally referencing re-export stub concept
-    ROOT_DIR / "tests" / "test_rag_get_cfg.py",
+    # Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point
+    ROOT_DIR
+    / "docs"
+    / "90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md",
+    # Doc recording removed direct-execution-fallback behavior as a deprecated item
+    ROOT_DIR / "docs" / "00_governance_05_deprecated-items.md",
+    # Doc explicitly stating the absence of a compatibility shim (negation, not a leftover)
+    ROOT_DIR / "docs" / "04_mcp_03_06_tool-runtime-availability-metadata.md",
+    # Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)
+    ROOT_DIR / "tests" / "conftest.py",
+    ROOT_DIR / "tests" / "agent" / "services" / "test_mcp_tool_discovery.py",
+    ROOT_DIR / "tests" / "agent" / "test_startup_routing_drift.py",
+    ROOT_DIR / "tests" / "shared" / "test_tool_registry.py",
+    ROOT_DIR / "tests" / "shared" / "test_tool_registry_counts.py",
+    # CI guard test that references the helper name as a string to assert its absence from production code
+    ROOT_DIR / "tests" / "shared" / "test_tool_registry_reset_protection.py",
     # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
-    ROOT_DIR / "tests" / "test_check_no_compat.py",
+    ROOT_DIR / "tests" / "tools" / "test_check_no_compat.py",
     # The checker itself (self-reference for new location)
     ROOT_DIR / "tools" / "check_no_compat.py",
     # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
-    ROOT_DIR / "tests" / "test_mcp_tool_schema_exports.py",
+    ROOT_DIR / "tests" / "mcp_servers" / "test_mcp_tool_schema_exports.py",
     # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy
     ROOT_DIR / "docs" / "04_mcp_07_tool_schema_export_policy.md",
     # Definition site of test-only reset helper (not a misuse)

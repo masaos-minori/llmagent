@@ -17,7 +17,7 @@
 | `check_deployment_docs_consistency.py` | `docs/02_deployment*.md` | 「NつのSQLiteデータベース」等の個数主張、DB一覧表の網羅性、`*_db_path`設定キーの`agent.toml`実在性、MCPポート範囲の表記(`deploy/*.sh`も対象) |
 | `check_overview_docs_consistency.py` | `docs/01_overview*.md` | `conf.d/`ディレクトリ一覧の網羅性(`check_directory_listing_completeness()`の実利用例) |
 | `check_needs_confirmation_inventory.py` | `docs/*.md` 全体 | 「Needs confirmation」記載が`00_governance_07`の集中インベントリに登録されているか、resolved済みNC項目の該当箇所にマーカーが残っていないか、フィールド数宣言と実際のリスト項目数の一致 |
-| `check_no_compat.py` | `scripts/`, `docs/` | 後方互換スタブ・shimの残存検出 |
+| `check_no_compat.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出 |
 | `check_suppression_justification.py` | `scripts/`, `tests/` | `# noqa`/`# type: ignore`/`# nosec` にルール/エラーコードとem-dash(` — `)区切りの正当化理由が伴っているかを検出。`DEFAULT_ALLOWLIST`で既存の非準拠行をベースライン許容 |
 | `check_doc_quality.py` | `docs/*.md` 全体 | コアチェック(壊れた見出し、不正なMarkdownテーブル、閉じられていないコードブロック、JSON例のフェンス漏れ、重複見出し番号、Migration Notesの配置、解決済みissueの記載等)+ カスタムルール(`config/doc_quality_rules.json`から動的ロード)。`--core-only`/`--custom-only`/`--skip <check>`/`--only <check>`でフィルタリング可能 |
 

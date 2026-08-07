@@ -1,5 +1,5 @@
-"""tests/test_check_no_compat.py
-Tests for scripts/checks/check_no_compat.py.
+"""tests/tools/test_check_no_compat.py
+Tests for tools/check_no_compat.py.
 """
 
 from __future__ import annotations
@@ -11,8 +11,24 @@ import pytest
 
 from tools.check_no_compat import (
     COMPAT_PATTERNS,
+    ROOT_DIR,
     check_compat_patterns,
 )
+
+
+class TestRootDirResolution:
+    """ROOT_DIR must resolve to the actual repository root.
+
+    Regression test for a bug where an extra `.parent` made ROOT_DIR resolve
+    one directory too high, causing main()'s default scan to silently see
+    zero files (dirs_to_scan entries all failed their exists() guard).
+    """
+
+    def test_root_dir_resolves_to_repository_root(self) -> None:
+        assert (ROOT_DIR / "scripts").exists()
+        assert (ROOT_DIR / "docs").exists()
+        assert (ROOT_DIR / "tests").exists()
+        assert (ROOT_DIR / "tools").exists()
 
 
 class TestPatternDetection:
