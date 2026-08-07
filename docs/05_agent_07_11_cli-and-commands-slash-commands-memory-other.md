@@ -5,75 +5,62 @@ tags:
   - agent
   - cli
   - slash-commands
-  - memory
-  - mdq
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_07_01_cli-and-commands-cli-reference.md
-  - 05_agent_07_02_cli-and-commands-cliview.md
-  - 05_agent_07_03_cli-and-commands-command-registry.md
-  - 05_agent_07_04_cli-and-commands-purpose.md
-  - 05_agent_07_05_cli-and-commands-repl-io.md
-  - 05_agent_07_06_cli-and-commands-hot-reload.md
-  - 05_agent_07_07_cli-and-commands-migration-notes.md
-  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
-  - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
-  - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
+source:
+  - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands
 
 - システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-## Memoryカテゴリ
+## Purpose
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/memory list [semantic\|episodic] [n]` | なし | メモリエントリを表示 |
-| `/memory search <query>` | なし | メモリに対するFTS5検索 |
-| `/memory show <id>` | なし | メモリエントリの全文表示 |
-| `/memory pin <id>` | pinnedフラグをUPDATE | セッション開始のたびにエントリが注入される |
-| `/memory unpin <id>` | pinnedフラグをUPDATE | セッション開始時の注入を解除 |
-| `/memory delete <id>` | エントリをDELETE | 即時反映 |
-| `/memory prune [days]` | N日より古いエントリをDELETE | デフォルトは`memory_retention_days`を使用 |
-| `/memory status` | なし | メモリモードのラベル(例: Hybrid mode / Degraded mode / Memory layer disabled)、埋め込みの状態、サーキットの状態、検索モードを表示。メモリ無効時にも動作する |
-| `/memory check-consistency` | なし | JSONL、SQLite、FTS5、vecの行数を比較 |
-| `/memory rebuild [--dry-run]` | JSONLから全メモリをDELETE + INSERT | JSONLが正典のソースであり、SQLiteをクリアして再挿入する |
+Memory、MDQ、Skillカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+
+## Design Intent
+
+### Memoryカテゴリ
+
+長期記憶に関するコマンド群。`/memory rebuild`はJSONLから全メモリをDELETE + INSERTする（JSONLが正典のソース）。
 
 ### MDQカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/mdq status` | なし | ヘルスとインデックス統計を表示(`stats` MCPツールを呼び出す) |
-| `/mdq index <path> [--force]` | ファイル/ディレクトリをインデックス | mdq.sqliteが更新される |
-| `/mdq refresh <path> [--force]` | 変更されたファイルの差分更新 | mdq.sqliteが更新される |
-| `/mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25\|grep]` | FTS5検索 | なし |
-| `/mdq outline <path> [--max-depth N]` | なし | 見出し階層を表示 |
-| `/mdq get <chunk_id> [--with-neighbors]` | なし | チャンクの内容を表示 |
-| `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | チャンクに対する正規表現検索 | なし |
-
-> **注記:** すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール(ポート8013)を呼び出す。MDQは`mdq.sqlite`(`rag.sqlite`とは別)を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
+すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール（ポート8013）を呼び出す。MDQは`mdq.sqlite`（`rag.sqlite`とは別）を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
 
 ### Skillカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/skill` | なし | `skills/`配下のディレクトリ名一覧を表示(`DESIGN.md`等のファイル単体エントリは除外)。LLM呼び出しは発生しない |
-| `/skill <name> [args]` | `ctx.conv.append_message(msg, source="skill_mixin")`経由でephemeral systemメッセージを追加(`_skill_ephemeral: True`が実際にhistoryへ保存されるキー; 下記注記参照) | `skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる |
+`/skill`は`skills/`配下のディレクトリ名一覧を表示する（LLM呼び出しは発生しない）。
 
-> **注記:** `_cmd_skill()`が構築するメッセージは`_ephemeral: True`と`_skill_ephemeral: True`を同時に持つが、`TRUSTED_SOURCES["skill_mixin"]`(`agent/message_schema.py`)は`_skill_ephemeral`のみを認可するため、`append_message()`の検証に失敗し`_ephemeral`キーはサニタイズ(除去、`warning`ログ)されてから保存される。結果として`_skill_ephemeral: True`のみがhistoryに残る。これは既知かつ許容された挙動変更であり、影響はorchestratorの汎用的な`_ephemeral`ベースの前ターンクリア(`_clear_previous_turn_ephemeral_messages()`)がスキル注入メッセージを次ターン開始時に自動除去しなくなる点にある——スキル注入メッセージは代わりに、この`_cmd_skill()`自身が持つ`_skill_ephemeral`フィルタ(次回`/skill`実行時に前回分を置き換える処理)によってのみ除去され、次の`/skill`呼び出しまで履歴に残り続ける。`_skill_ephemeral: True`は`/skill`由来のメッセージのみを識別するための専用フラグであり、`mode_classification.py`や`memory injection`由来の`_ephemeral: True`メッセージには影響しない。実装は`agent/commands/cmd_skill.py`の`_SkillMixin`。詳細は
-> [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
-> §検証付き履歴変更メソッド を参照。
+`/skill <name> [args]`は`skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる。
+
+**既知の制限:** `_cmd_skill()`が構築するメッセージは`_ephemeral: True`と`_skill_ephemeral: True`を同時に持つが、`TRUSTED_SOURCES["skill_mixin"]`は`_skill_ephemeral`のみを認可するため、`append_message()`の検証に失敗し`_ephemeral`キーはサニタイズ（除去、`warning`ログ）されてから保存される。結果として`_skill_ephemeral: True`のみがhistoryに残る。これは既知かつ許容された挙動変更であり、影響はorchestratorの汎用的な`_ephemeral`ベースの前ターンクリアがスキル注入メッセージを次ターン開始時に自動除去しなくなる点にある。
 
 ### Otherカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/help` | なし | このヘルプ出力を表示 |
+`/help`はこのヘルプ出力を表示する。
 
----
+## Responsibility Boundary
 
-## Related Documents
+- **Memory**: 長期記憶のエントリ管理
+- **MDQ**: ドキュメントインデックスと検索
+- **Skill**: スキル注入
+- **Other**: ヘルプ表示
+
+## Key Constraints
+
+- 不明
+
+## Operational Notes
+
+- 不明
+
+## Known Limitations
+
+- `/skill`のephemeralメッセージは`_skill_ephemeral: True`のみがhistoryに残る
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_07_01_cli-and-commands-cli-reference.md`
@@ -90,5 +77,5 @@ related:
 ## Keywords
 
 memory category
-MDQ category
-other category
+mdq category
+skill category

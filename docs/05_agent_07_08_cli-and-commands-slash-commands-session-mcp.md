@@ -5,94 +5,59 @@ tags:
   - agent
   - cli
   - slash-commands
-  - session
-  - mcp
-  - config
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_07_01_cli-and-commands-cli-reference.md
-  - 05_agent_07_02_cli-and-commands-cliview.md
-  - 05_agent_07_03_cli-and-commands-command-registry.md
-  - 05_agent_07_04_cli-and-commands-purpose.md
-  - 05_agent_07_05_cli-and-commands-repl-io.md
-  - 05_agent_07_06_cli-and-commands-hot-reload.md
-  - 05_agent_07_07_cli-and-commands-migration-notes.md
-  - 05_agent_07_09_cli-and-commands-slash-commands-context-db.md
-  - 04_mcp_06_12_watchdog-configuration-monitoring.md
-  - 05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
-  - 05_agent_07_11_cli-and-commands-slash-commands-memory-other.md
+source:
+  - 05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md
 ---
 
 # Agent CLI and Commands
 
 - システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
-## スラッシュコマンドリファレンス
+## Purpose
+
+Session、MCP、Config/Statsカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+
+## Design Intent
 
 ### Sessionカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/session list [n]` | なし | `sessions`テーブルを読み取り |
-| `/session load <id>` | `ctx.conv.history`を置き換え | `ctx.session.session_id`が更新される |
-| `/session rename <title>` | `sessions.title`をUPDATE | なし |
-| `/session delete <id>` | セッション+メッセージをDELETE(CASCADE) | 現在のセッションは削除不可 |
-| `/clear [new]` | 履歴をリセット、統計情報とキャッシュをクリア | `new` → 新しいDBセッションを開始 |
-| `/undo` | 履歴+DBから直近のuser+assistantターンをpop | メモリ注入も削除される |
-| `/history [n]` | なし | 直近N件のuser/assistantメッセージを表示 |
-| `/session export markdown\|json [file]` | ファイル書き込み(ファイル名指定時) | なし |
+セッション管理と履歴操作に関するコマンド群。`/clear new`は新しいDBセッションを開始する。`/undo`は履歴+DBから直近のuser+assistantターンをpopする。
 
 #### Session DB操作サブコマンド
 
-旧`/db session <subcmd>`サブコマンドはすべて`/session <subcmd>`へ移管された。これらのコマンドの詳細な動作は`05_agent_07_09_cli-and-commands-slash-commands-context-db.md`を参照。
-
-| Command | 副作用 | Notes |
-|---|---|---|
-| `/session stats` | なし | セッション/メッセージ数 |
-| `/session health` | なし | 整合性チェック結果(`integrity_ok`)とDBファイルサイズ |
-| `/session checkpoint [MODE]` | WALチェックポイント | WALをメインDBにフラッシュ |
-| `/session vacuum` | VACUUM | 空きページを回収 |
-| `/session purge [--max-sessions N] [--max-age-days N]` | 古いセッションをDELETE | 件数または経過日数に基づく |
-| `/session recover [backup-path]` | 整合性チェック、破損時はバックアップから復元 | Sessionのみ |
-| `/session rag-consistency` | なし | RAGインデックス整合性チェック結果(`is_consistent`、不整合時は`issues`一覧) |
-| `/session rag-rebuild-fts` | FTS再構築(delete-all + 再挿入) | `chunks_fts`をchunksから再構築(対象: rag.sqlite) |
+旧`/db session <subcmd>`サブコマンドはすべて`/session <subcmd>`へ移管された。詳細は[Context/DBカテゴリ](05_agent_07_09_cli-and-commands-slash-commands-context-db.md)を参照。
 
 ### MCPカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/mcp` | 全MCPサーバーへのHTTPプローブ | ヘルステーブルを表示(実行中の設定のみ) |
-| `/mcp status` | 全MCPサーバーへのHTTPプローブ | ヘルステーブルを表示(実行中の設定のみ) |
-| `/mcp tools` | なし | RuntimeToolRegistryのツール一覧を表示 |
+`/mcp` / `/mcp status`は**現在実行中の**MCPサーバー設定のヘルスビューであり、保留中の`/reload`変更のプレビューではない。
 
-`/mcp` / `/mcp status`は**現在実行中の**MCPサーバー設定のヘルスビューであり、
-保留中の`/reload`変更のプレビューではない。
-
-`/mcp tools` は McpToolDiscoveryService によってライブ検出された RuntimeToolRegistry
-のツール一覧を表示する。各ツールの状態（active/inactive）、シリアライズ要件、
-承認フラグ、ケイパビリティなどが表示される。
-
-`/mcp status`の出力にはサーバー一覧テーブルに加え、DEGRADED/UNAVAILABLE状態の
-`/reload`が`[RESTART]`項目を報告した後も、`/mcp`はエージェントが実際に
-再起動されるまで、リロード前のサーバー・URL・認証状態を表示し続ける。
-
-`/mcp status`の出力にはサーバー一覧テーブルに加え、DEGRADED/UNAVAILABLE状態の
-サーバー一覧(`ServerHealthRegistry`経由)、直列化(serialization)イベント統計
-(発生回数・平均影響ツール数・理由別内訳・上位トリガー)が含まれる
-(根拠: Explicit in code — `agent/commands/cmd_mcp.py`)。
-MCP watchdog(バックグラウンドの自動ヘルスポーリング・自動再起動ループ)は2026-07-16に
-削除されたため、Watchdogの有効/無効状態は表示されない
-([04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md)参照)。
+`/mcp status`の出力にはサーバー一覧テーブル、DEGRADED/UNAVAILABLE状態のサーバー一覧、直列化イベント統計が含まれる。
 
 ### Config / statsカテゴリ
 
-| Command | 副作用 | 関連する状態 |
-|---|---|---|
-| `/config` | なし | 設定ファイルのパスと値を表示 |
-| `/stats` | なし | セッションのメトリクスを表示 |
-| `/reload` | すべての設定ファイルをリロード | `ctx.cfg`を更新しサービスに同期 |
+設定ファイルの表示と監視に関するコマンド群。`/reload`はすべての設定ファイルをリロードし、`ctx.cfg`を更新してサービスに同期する。
 
-## Related Documents
+## Responsibility Boundary
+
+- **Session**: セッションと履歴のライフサイクル管理
+- **MCP**: MCPサーバーのヘルスとツール一覧
+- **Config/Stats**: 設定とメトリクスの表示
+
+## Key Constraints
+
+- 不明
+
+## Operational Notes
+
+- 不明
+
+## Known Limitations
+
+- 不明
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_07_01_cli-and-commands-cli-reference.md`
@@ -111,8 +76,5 @@ MCP watchdog(バックグラウンドの自動ヘルスポーリング・自動�
 
 slash command reference
 session category
-session db ops
-mcp status
-serialization events
-MCP category
+mcp category
 config/stats category

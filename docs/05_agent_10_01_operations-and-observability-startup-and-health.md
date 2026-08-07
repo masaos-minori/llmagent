@@ -22,488 +22,76 @@ source:
 
 - 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## Purpose(目的)
+## 目的
 
-起動手順、運用確認、ヘルスチェック、監査ログ、
-OTelトレーシング、`/context` と `/stats` の解釈、トラブルシューティングを文書化する。
+エージェントの起動手順、運用確認、ヘルスチェック、シャットダウン時のリソースクリーンアップを文書化する。
 
----
+## 設計意図
 
-## Startup Procedure(起動手順)
+起動プロセスは3つのフェーズに分かれる: サーバースタート、ヘルスチェック、承認状態の復元。いずれかのフェーズで例外が発生するとロールバックが発火し、起動済みサブプロセスを確実に終了する。
 
-```bash
-# 1. Deploy files (if changed)
-cp -r scripts/agent   /opt/llm/scripts/agent
-cp -r scripts/shared  /opt/llm/scripts/shared
+`StartupOrchestrator` は起動シーケンス全体を一元管理する。起動失敗時は `shutdown_all()` を通じて全リソースをクローズし、元の例外を再送出する。ロールバック自体が失敗しても元の例外は保持される（ログのみ記録）。
 
-# 2. Activate venv
-source /opt/llm/venv/bin/activate
+SIGTERM/SIGINT は起動シーケンス中にも有効に発火する。`asyncio.wait(FIRST_COMPLETED)` で遅延タイマーと競走させ、シャットダウンイベントが先に発火すれば遅延を待たずに中断する。
 
-# 3. Start agent
-cd /opt/llm/scripts && python -m agent
-```
+## 責務境界
 
-期待される起動バナー:
-``` text
-DB: 12,345 chunks | Tools: 14
-Memory: disabled
-Type /help for commands, /exit to quit.
+- **対象**: エージェントプロセスの起動〜シャットダウンまでのライフサイクル
+- **対象外**: MCPサーバーの実装、RAGパイプラインの詳細、LLMエンドポイントの内部動作
+- **所有者**: `agent/startup.py` (`StartupOrchestrator`)、`agent/repl.py` (`AgentREPL`)
 
-agent[:#1]>
-```
+## 主要な制約
 
-**Memoryの行:** `CliView.write_startup_banner()`(`cli_view.py`)は引数 `memory_mode: str | None = None` を受け取り、`None` でない場合のみ `Memory: <mode>` 行を表示する。`repl.py` の `_print_startup_banner()` は常に `ctx.cfg.memory.use_memory_layer` から `"enabled"`/`"disabled"` を計算して渡すため、この行は常に表示される。
+- ワークフロー定義ファイルは起動時に必ずロードされる。欠落または不正がある場合は起動に失敗させる。Direct execution fallback は提供しない。
+- 本番モードではヘルスプローブの到達不能は起動失敗（FATAL）として扱う。ローカルモードでは警告のみで継続する。
+- 埋め込み次元の不一致は起動失敗として扱う。これはベクトル検索のデータ破損を防ぐため。
+- セッション起動時の rolling upgrade では、古いプロセスのシャットダウン前に新しいプロセスの起動を検証し、問題があれば古いプロセスを維持する。
 
-**Workflowの行:** `write_startup_banner()` は `workflow_status` が空文字でない場合のみ `Workflow: <status>` 行を追加表示する。`_get_workflow_status()` は `self._orchestrator is None` なら `"unknown"`、`orchestrator.workflow_status()["tracking"] == "enabled"` なら `"enabled"` を返す。ワークフロー定義は起動時に必ずロードされるため、本番環境では常に `"enabled"` が表示される。
+## 運用上の注意
 
-**終了案内の文言:** 最終行は実装上 `"Type /help for commands, /exit to quit."` の固定文字列であり、"Ctrl-C or Ctrl-D" という文言はバナーには含まれない(旧記載は誤り)。ただし実際の終了経路としては `/exit` に加え、`repl.py` の `_read_input()` が `EOFError`(Ctrl-D)・`KeyboardInterrupt`(Ctrl-C)を捕捉して `None` を返し、`_repl_loop()` がそれを見てループを終了するため、Ctrl-C/Ctrl-Dによる終了自体は現在も機能する(根拠: Explicit in code)。
+### 起動時検証の重大度マッピング
 
----
+| 重大度 | 意味 | 挙動 |
+|---|---|---|
+| FATAL | 起動できない条件 | 全チェック完了後に `RuntimeError` を送出し、起動を中断する |
+| WARNING | チェックを実行したが問題を検出した | 起動を継続するが、オペレーターが確認すべき状態 |
+| SKIPPED | チェック自体を実行できなかった | 起動を継続する。環境依存のチェックが利用不可の場合に発生する |
+| OK | チェックを正常に実行した | 正常状態を示す（ただし security_audit の OK は「問題なし」ではなく「チェック完了」を意味する） |
 
-### Workflow Pending Approval Recovery
+**重要な注意点:**
+- `routing_drift_live` と `routing_safety_tiers` は正常時に何のoutcomeも記録されない（silence means healthy）。
+- `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
+- `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
 
-エージェント起動時に、前回のセッションで解決されなかった承認ゲート(つまり `/approve` も `/reject` も発行されなかったもの)が存在する場合、`startup.py` は保留中の承認状態を復元する:
+### 保留中の承認状態の復元
 
-- **タイミング:** 起動時、常に実行される(`ctx.workflow` は `AgentContext.__init__()` で無条件に設定されるため、条件分岐はない)
-- **復元される内容:** `StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から取得される最新のグローバルな保留中承認
-- **複数セッション時の動作:** 保留中の承認は同時に1件のみ追跡される。全セッションを通じた最新のレコードが復元される(セッション固有ではない)
-- **起動時警告の形式:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve <approval_id> [reason] or /reject <approval_id> [reason].`(`reason` が未設定の場合は `none` と表示される。根拠: `startup.py` の `_recover_pending_approvals()`、`approval.reason or 'none'`)
-- **確認方法:** `sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 1;"`
-- **上書き警告:** `_recover_pending_approvals()`は`ctx.turn.pending_approval_task_id`に既存の値
-  (起動処理内の他の経路で設定済みの値)がある状態で復元値を設定する場合、`startup.py`の
-  ロガーへ`WARNING`レベルでログを出力する(新旧両方のtask_idを含む)。`cmd_workflow.py`の
-  `/approve`と同じ上書き保護パターンであり、値は復元処理を中断せずに新しいtask_idへ上書き
-  される(根拠: `startup.py`の`_recover_pending_approvals()`)。
+エージェント起動時に前回のセッションで解決されなかった承認ゲートが存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
 
----
+既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
 
-## Operational Verification(運用確認)
+### シャットダウン時のリソースクリーンアップ
 
-### LLMサービスの確認
+`finally` ブロックで以下の順序でリソースをクローズする:
 
-```bash
-curl -s http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":5}' -H 'Content-Type: application/json'
-```
+1. WALチェックポイント（PASSIVE→TRUNCATEフォールバック）
+2. WALバックアップ（パス検証付き）
+3. `lifecycle.shutdown_all()`
+4. `http.aclose()`
 
-### 埋め込みサービスの確認
-
-```bash
-curl -s http://127.0.0.1:8081/health
-```
-
-### MCPサーバの状態
-
-``` text
-agent[:#1]> /mcp
-```
-
-期待される結果: すべてのサーバが `OK` ステータスで表示される。
-
-### Minimal Agent DB Initialization(エージェントDBの最小初期化)
-
-#### 使用場面
-
-- 初めてのローカル開発時: session.sqlite と workflow.sqlite がまだ存在しない。
-- いずれかのデータベースファイルを削除した後: スキーマが存在しない場合、起動時にエージェントが `OperationalError: no such table: sessions` を発生させる。
-
-#### session.sqlite の初期化
-
-```bash
-PYTHONPATH=scripts uv run python - <<PY
-from db.create_schema import create_session_schema
-create_session_schema()
-print("session schema OK")
-PY
-```
-
-作成されるテーブル: `sessions`、`messages`、`memories`、`memories_fts`(FTS5仮想テーブル)、`memory_links`、`session_diagnostics`、`memories_vec`(vec0仮想テーブル)。
-
-実装上の補足: `memory_links` テーブル(`src_id`/`dst_id` による関連メモリ間のリンク、`memories.memory_id` へのFK付き)は既存ドキュメントの一覧に含まれていなかった。根拠: `db/schema_sql.py` の `_SESSION_SCHEMA_TEMPLATE`(Explicit in code)。
-
-#### workflow.sqlite の初期化
-
-エージェント設定で `workflow_db_path` が設定されている場合のみ必要。
-
-```bash
-PYTHONPATH=scripts uv run python - <<PY
-from db.create_schema import create_workflow_schema
-create_workflow_schema()
-print("workflow schema OK")
-PY
-```
-
-作成されるテーブル: `tasks`、`attempts`、`processed_events`、`artifacts`、`approvals`、`workflow_schema_version`(適用済みマイグレーションのバージョン記録用)。
-
-実装上の補足: `create_workflow_schema()` はテーブル作成後に `apply_workflow_migrations()`(`db/schema_sql.py`)を呼び出し、`attempts.error_kind`/`attempts.error_detail`/`artifacts.workflow_id`/`artifacts.attempt_number`/`processed_events.workflow_id` の列を `ALTER TABLE ... ADD COLUMN` で追加する。列が既に存在する場合の `duplicate column name` エラーのみ握りつぶし、それ以外の `OperationalError` は再送出される。最後に `workflow_schema_version` へ現在のスキーマバージョンを記録する(既存レコードと同一なら再挿入しない)。根拠: `db/schema_sql.py` の `apply_workflow_migrations()`、`db/create_schema.py` の `_record_workflow_schema_version()`(Explicit in code)。
-
-#### テーブルの検証
-
-```bash
-sqlite3 /opt/llm/db/session.sqlite  ".tables"
-# Expected: memories  memories_fts  memories_vec  memory_links  messages  session_diagnostics  sessions
-
-sqlite3 /opt/llm/db/workflow.sqlite ".tables"
-# Expected: approvals  artifacts  attempts  processed_events  tasks  workflow_schema_version
-```
-
-#### 再実行の安全性
-
-両関数とも `CREATE TABLE IF NOT EXISTS` を使用する — 既存のDBに対して再実行しても安全であり、追加的なマイグレーションパッチのみが適用される。
-
-#### エラーの文脈
-
-エージェント起動時の `sqlite3.OperationalError: no such table: sessions` は、session.sqliteのスキーマが初期化されていないことを意味する。上記の `create_session_schema()` コマンドを実行すること。
-
----
-
-### DB verification(DBの検証)
-
-検証すべき3つのプラットフォームデータベース:
-
-```bash
-# rag.sqlite — RAG documents, chunks, embeddings
-sqlite3 /opt/llm/db/rag.sqlite "SELECT lang, COUNT(*) AS docs FROM documents GROUP BY lang;"
-sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) AS chunks FROM chunks;"
-sqlite3 /opt/llm/db/rag.sqlite "SELECT chunk_id, LENGTH(embedding) AS bytes FROM chunks_vec LIMIT 3;"
-# Expected bytes: 1536 (384 dimensions × 4 bytes)
-
-# session.sqlite — agent sessions and messages
-sqlite3 /opt/llm/db/session.sqlite "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT 5;"
-sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) AS messages FROM messages;"
-
-# workflow.sqlite — task tracking and event processing
-sqlite3 /opt/llm/db/workflow.sqlite "SELECT COUNT(*) AS tasks FROM tasks;"
-sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY status;"
-```
-
-3つすべてのスキーマ詳細: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`。
-
----
-
-## Startup Validation Severity Mapping(起動時検証の重大度マッピング)
-
-`StartupOrchestrator._check_services()`(`agent/startup.py`)は8個のチェックを実行し、各結果を
-`StartupValidationResult`(`agent/shared/health_models.py`)に `OK` / `WARNING` / `FATAL` / `SKIPPED`
-のいずれかとして記録する。`FATAL`が1件でも記録されると、全チェック完了後に`_check_services()`が
-`RuntimeError`を送出し起動を中断する(`if pipeline.has_fatal: raise RuntimeError(...)`)。
-
-以下は`agent/startup.py`の`_check_services()`本体と、そこから呼び出される
-`agent/repl_health.py`の各チェック関数本体を全文読んで抽出した、正確な分岐条件の一次情報である
-(呼び出し箇所の`add_fatal`/`add_warning`/`add_ok`だけでなく、各チェック関数の内部ロジックまで確認済み)。
-
-| Check (source) | Severity | Condition | Rationale |
-|---|---|---|---|
-| `security_audit` (`audit_security_defaults()`) | FATAL | `audit_security_defaults()` raises `RuntimeError`. In `production_mode=True`: any HTTP MCP server without `auth_token`; `shell`/`github`/`git`/`cicd` audit config fails to load; `shell_sandbox_backend="none"`; `ProductionConfigValidator` reports errors. Independent of `production_mode`: `shell_sandbox_backend="firejail"` configured but the `firejail` binary is not on `PATH` (always raises, even outside production). | Production mode enforces auth/sandbox hardening as hard requirements; a missing `firejail` binary makes the configured sandbox non-functional regardless of security profile, so it is always fatal. |
-| `security_audit` (`audit_security_defaults()`) | WARNING | Same checks as above but `production_mode=False` (or non-fatal findings even in production, e.g. GitHub `allow_force_push=true` / `require_pr_review=false`, DENY-ALL empty allowlists for `shell.command_allowlist` / `git.allowed_repo_paths` / `github.allowed_repos` / `cicd.workflow_allowlist` when `security_lockdown_enabled=False`). | Risky-but-not-fatal defaults in local/dev mode; the operator is warned but startup proceeds. |
-| `security_audit` (`audit_security_defaults()`) | OK | `pipeline.add_ok("security_audit")` runs unconditionally right after the warnings loop, whenever `audit_security_defaults()` returns without raising. | Note: unlike the other checks below, `security_audit`'s `OK` does **not** mean "no issues" — it is recorded even when one or more `WARNING` outcomes were just added for this same source in the same run; it only signals that the audit function completed without raising. |
-| `embedding_dimensions` (埋め込み次元検証) | FATAL | `ctx.cfg.memory.memory_embed_dim != build_db_config().embedding_dims`. | A silent embedding-dimension mismatch would corrupt vector search at query time; caught once at startup instead. |
-| `embedding_dimensions` (埋め込み次元検証) | OK | Dimensions match. | — |
-| `readiness` (準備状態チェック) | FATAL | `production_mode=True` and `check_service_health()` finds an unreachable/non-200 LLM or embed-LLM service (`result.has_issues`) — チェック関数が `RuntimeError` を内部で送出し、`_check_services()` の汎用例外ハンドラで捕捉。 | Production deployments must not start serving with a known-broken LLM/embedding backend. |
-| `readiness` (準備状態チェック) | WARNING | `production_mode=False` and `result.has_issues` (same underlying probe failures as above, but non-fatal in dev). | Local/dev environments tolerate a temporarily unreachable service; the operator is warned instead of blocked. |
-| `readiness` (準備状態チェック) | OK | `not result.has_issues` (both LLM and embed-LLM health probes returned HTTP 200). | — |
-| `readiness` (準備状態チェック) | *(dead code — documented, not fixed)* | `_check_services()` も `error_messages()` ループを含むが、これは**実行時に到達しない**: `HealthCheckResult.errors` はコードベース全体で一切設定されない — すべての `HealthCheckResult(...)` 構築は `warnings=` のみ渡す。このループを実際の準備状態 FATAL トリガーとして読むべきではない — 実際のトリガーは上記の production-mode raise で、汎用例外ハンドラで捕捉される。 | Documented as-is per explicit reviewer decision; the code is intentionally left unmodified since removing it is a separate refactor outside this change's scope. |
-| `tool_definitions` (ツール定義チェック) | WARNING | `tool_result.warning_messages()` が非空 (ツール名ミスマッチ)、**または** 厳密モード (`tool_definitions_strict=True`) の `RuntimeError` ("all servers unreachable" または "mismatch detected") — `_check_services()` の汎用例外ハンドラで捕捉され WARNING にダウングレードされる。 | `tool_definitions` never reaches `FATAL` from `_check_services()`, even when the underlying strict-mode check would otherwise raise — the outer `except` always turns it into a `WARNING`. |
-| `tool_definitions` (ツール定義チェック) | OK | `not tool_result.has_issues` (includes the case where no tool definitions are configured or no servers are reachable — チェック関数は空の `HealthCheckResult()` を返す)。 | — |
-| `routing_drift` (ルーティングドリフトチェック) | FATAL | `routing_drift_strict=True`(`ctx.cfg.tool.routing_drift_strict`)かつドリフトを検出した場合。`check_routing_drift(ctx, strict=True)` が内部で `RuntimeError` を送出し、`_check_services()` の `except RuntimeError` 節(汎用 `except Exception` より前に評価される)で捕捉され `pipeline.add_fatal("routing_drift", ...)` に回される。 | Previously `strict=` was never passed to `check_routing_drift(ctx)` at this call site, so `routing_drift_strict=True` had no effect and the broad `except Exception` clause would have downgraded any `RuntimeError` to a warning anyway. Both are now fixed: the flag is wired through, and a narrow `except RuntimeError` clause (evaluated before the broad one) routes it to `add_fatal` instead. |
-| `routing_drift` (ルーティングドリフトチェック) | WARNING | ドリフトを検出したメッセージ(`routing_drift_strict=False`の場合)、または `check_routing_drift()` からの `RuntimeError` 以外の予期せぬ例外。 | Non-strict drift, and any non-`RuntimeError` failure from the check, still fall through to the generic `except Exception` handler as a warning — never fatal, and never recorded as an explicit `OK` either (see next row). |
-| `routing_drift` (ルーティングドリフトチェック) | *(no outcome emitted)* | ドリフトなし (空リストを返す)。 | Unlike most other checks, there is no `pipeline.add_ok("routing_drift")` call anywhere in `_check_services()` — a clean result produces zero recorded outcomes for this source, not an explicit `OK` entry. |
-| `routing_safety_tiers` (ルーティング安全性ティアチェック) | WARNING | レジストされたツールに宣言された安全性ティアがないメッセージ、または予期せぬ例外。 | Same rationale as `routing_drift` — a static config check, warning-only. |
-| `routing_safety_tiers` (`check_routing_safety_tiers()`) | *(no outcome emitted)* | The check returns an empty list. | As with `routing_drift`, no `add_ok` call exists for this source — silence means healthy. |
-| `routing_drift_live` (`check_routing_drift_vs_live()`) | WARNING | `strict=False` (from `ctx.cfg.tool.tool_definitions_strict`, default `False`) and `drift_result.warning_messages()` non-empty (live `/v1/tools` drift or duplicate tool ownership). | Live routing drift in non-strict mode is informational only. |
-| `routing_drift_live` (`check_routing_drift_vs_live()`) | OK | `not drift_result.has_issues` (all servers reachable, no drift, no duplicates). | — |
-| `routing_drift_live` (`check_routing_drift_vs_live()`) | SKIPPED | `production_mode=False` and any exception from the outer discovery call (including a `check_routing_drift_vs_live()` `RuntimeError` under `strict=True`) — caught by `_check_services()`'s `except Exception as exc:` block, which now branches on `production_mode` (see next row). | Live/dynamic checks may legitimately be unavailable in some valid environments (e.g. MCP servers not yet started); `SKIPPED` distinguishes "could not check" from "checked and found a problem" (`WARNING`). |
-| `mcp_tool_discovery` (outer `except Exception` around `McpToolDiscoveryService(ctx).discover_all()`) | FATAL | The outer discovery call raises for any reason (including the `check_routing_drift_vs_live()` cases above). A discovery-call failure means every tool call will fail for the entire session — an outage-grade condition, unlike a per-server finding (handled separately inside the `try` block and never escalated by this except clause). | Previously, this was only fatal in `production_mode=True`; it is now always fatal to ensure developers catch tool discovery issues immediately during local development. |
-| `routing_drift_live` (`check_routing_drift_vs_live()`) | *(dead code — documented, not fixed)* | `_check_services()` also contains `if strict: pipeline.add_fatal("routing_drift_live", msg)` for each `drift_result.warning_messages()` entry. Reading `check_routing_drift_vs_live()` (`agent/repl_health.py`) in full shows this is **unreachable**: whenever `strict=True` and there is any actual duplicate/drift condition, the function raises `RuntimeError` *before* returning — so a `drift_result` returned (not raised) under `strict=True` can only ever have empty `warning_messages()`. The raise itself is caught by the generic `except Exception` above and reported as `SKIPPED`, not `FATAL`. | Newly identified during this review; mirrors the same pattern as `readiness`'s `error_messages()` loop — an `add_fatal` call sits in the code but the condition that would populate it can never occur at runtime. Documented here for accuracy; the code is intentionally left unmodified (out of scope — no existing severity classification was changed). |
-| `rag_consistency` (`RagMaintenanceService().consistency()`) | OK | `rag_check.is_consistent` is `True`. | — |
-| `rag_consistency` (`RagMaintenanceService().consistency()`) | WARNING | `rag_check.is_consistent` is `False` — one `WARNING` per entry in `rag_check.issues`. | RAG consistency issues (e.g. orphaned chunks) are recoverable and don't block startup. |
-| `rag_consistency` (`RagMaintenanceService().consistency()`) | SKIPPED | Any exception raised while constructing `RagMaintenanceService()` or calling `.consistency()`. The exception is bound as `exc`, logged via `logger.warning("RAG consistency check failed: %s", exc)`, and its text is included in the `add_skipped` message (`f"RAG consistency check skipped: {exc}"`), so the failure reason reaches both the log file and the console. | Same rationale as `routing_drift_live`'s `SKIPPED`: a live/dynamic check (touches the RAG DB) that may legitimately be unavailable — e.g. a fresh install with no RAG data yet — distinct from the static config checks (`routing_drift` / `routing_safety_tiers`) which use `WARNING` even on exception, since a failure reading local config is more likely a real config problem than an expected absence of data. |
-
-補足:
-- `FATAL`は全チェック完了後に集約判定される。単一の`FATAL`でも起動全体が中断される。
-- `WARNING`と`SKIPPED`はいずれも起動を継続させるが意味が異なる: `WARNING`は「チェックを実行し問題を検出した」、`SKIPPED`は「チェック自体を実行できなかった」ことを示す。
-- 表中の *(dead code — documented, not fixed)* / *(no outcome emitted)* は、コード上に存在するが実行時には到達しない分岐、または「正常時に何のoutcomeも記録されない」挙動についての注記であり、レビュー時にコードの意図を明確化するために追記したものである(該当コード自体は変更していない)。
-- テストによる裏付け: `tests/test_startup.py`の`TestCheckServicesSeverityClassification`が、上表の各行に対応する回帰テストを提供する。`routing_drift`のFATAL行(`routing_drift_strict=True`時)とWARNING行(`routing_drift_strict=False`時)は、`TestCheckServicesSeverityClassification`クラス自体にはまだ個別テストがないが、`tests/test_startup_validation_pipeline.py`の`test_routing_drift_strict_true_raises_fatal`(FATAL、`check_routing_drift()`の`RuntimeError`が`_check_services()`経由で伝播し起動を中断することを検証)と`test_routing_drift_strict_false_warns_only`(WARNING、ドリフトメッセージが起動を中断しないことを検証)によって、`_check_services()`経由のエンドツーエンドの回帰カバレッジが確保されている。
-- 回帰テスト: `tests/test_startup.py`の`test_mcp_tool_discovery_fatal_in_production_on_exception`および`test_mcp_tool_discovery_fatal_in_dev_on_exception`が、`production_mode`に関わらずこの分岐が`FATAL`になることを検証する。
-
----
-
-Note: When `start_new_session=True` is used, child processes may not be cleaned up via process group termination.
-
-`StartupOrchestrator.run()`(`agent/startup.py`)は`_start_servers()` → `_check_services()` →
-`_recover_pending_approvals()` → `_setup_prompt()` の順に実行し、いずれかが例外を送出すると
-`except Exception as setup_err:` 節でロールバックを試みる。ロールバックの発火条件と、
-ロールバック自体が失敗した場合の挙動には、以下2点の仕様がある。
-
-### ロールバックが発火する条件
-
-`except Exception as setup_err:`節は、`try`ブロック内(`_start_servers()` /
-`_verify_mcp_health()` / `_check_services()` / `_recover_pending_approvals()` /
-`_setup_prompt()`)のどこで例外が送出されても、無条件に
-`await self._ctx.services_required.lifecycle.shutdown_all()`を呼び出す。以前存在した
-`_servers_started`フラグによるガード(`_start_servers()`が例外を送出せず完了した場合のみ
-ロールバックする、という条件分岐)は削除されており、`_start_servers()`自体が起動ループの
-途中で例外を送出した場合も含め、常にロールバックが発火する。
-
-`self._spawned_subprocesses: list[subprocess.Popen]`は`__init__()`で空リストとして初期化され、
-`_start_servers()`は起動に成功したサブプロセスをループの各反復でこのインスタンス属性へ
-直接`append()`する(ローカル変数へ一旦貯めてから返り値として代入する方式ではない)。そのため
-`_start_servers()`が複数サーバ起動ループの途中(例: 2台目のサーバの起動に失敗)で例外を送出しても、
-それ以前に起動済みの1台目のサブプロセスは既に`self._spawned_subprocesses`に記録されており、
-`run()`の except節が呼ぶ`shutdown_all()`によって確実に終了対象となる。
-
-`HttpServerLifecycleManager.shutdown_all()` / `_ServerLifecycleRouter.shutdown_all()`は
-追跡中のサブプロセスが0件でも安全な無処理(no-op)であるため、`_start_servers()`が1件も
-起動できないまま例外を送出した場合でも`shutdown_all()`の呼び出し自体は問題なく完了する。
-
-この仕様は`tests/agent/test_startup.py`の`TestStartupRollback`クラスで固定されており、
-`test_rollback_on_start_servers_failure`が「`_start_servers()`自体が失敗した場合も
-`shutdown_all()`が呼ばれること」を、`test_rollback_on_partial_multi_server_failure`が
-「複数サーバのうち1台目起動後に2台目が失敗した場合も`shutdown_all()`が1回呼ばれ、
-`_spawned_subprocesses`に1台目のプロセスのみが記録されていること」を、
-`test_rollback_no_op_when_no_subprocess_started`が「1件もサブプロセスを起動できずに
-`_start_servers()`が失敗した場合も`shutdown_all()`が安全に呼ばれること」を、
-`test_rollback_on_check_services_failure`等が「`_start_servers()`成功後の後続失敗でも
-`shutdown_all()`が呼ばれること」を検証する。
-
-なお`AgentREPL.run()`(`repl.py`)は`startup._spawned_subprocesses`を`hasattr()`ガード付きで
-読み取り、`proc.poll() is None`のプロセスに対して`finally`節でも`terminate()`を試みる。
-`shutdown_all()`が既に対象プロセスを終了させていた場合でも、`Popen.terminate()`は
-シグナル送信済みのプロセスに対して安全な無処理であるため、二重終了が問題になることはない。
-
-### ロールバック自体が失敗した場合
-
-`shutdown_all()`の呼び出しは`try`/`except Exception as shutdown_err:`で囲まれており、
-ロールバックが失敗しても`shutdown_err`は`logger.error()`で
-`"CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s"`として
-`/opt/llm/logs/agent.log`にのみ記録される。except節は最終的に常に元の例外(`setup_err`)を
-再送出し(`raise setup_err`)、`shutdown_err`の内容は再送出される例外に一切含まれない。
-
-呼び出し元`repl.py`は`run()`から伝播した例外を`self._view.write_fatal(f"Startup failed: {e}")`で
-画面表示するが、この`e`は常に元の`setup_err`であるため、ロールバック失敗自体の情報は
-コンソール画面には表示されず、ログファイルのみで確認できる。
-
-この仕様は`tests/test_startup.py`の`test_rollback_shutdown_failure_preserves_original_error`
-(`mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")`を与えても
-`pytest.raises(RuntimeError, match="original error")`が成立することを検証)で固定されている。
+各ステップは独立してガードされており、一方が失敗しても他のステップは実行される。WALバックアップは `allowed_root` 範囲内のパスのみ許可し、シンボリックリンクを解決してから検証する。
 
 ### 起動シーケンス中のSIGINT/SIGTERM中断
 
-`StartupOrchestrator.__init__()`は`shutdown_event: asyncio.Event | None = None`を追加の
-引数として受け取り、`self._shutdown_event`に保持する(デフォルトは`None`)。
-`_interruptible_sleep(delay: float) -> bool`は、`self._shutdown_event`が設定されている場合
-`asyncio.sleep(delay)`と`self._shutdown_event.wait()`を`asyncio.wait({...}, return_when=asyncio.FIRST_COMPLETED)`で競走させ(`AgentREPL._repl_loop()`, `repl.py:538-556`と同じレース方式)、`shutdown_event`が先に発火すれば`True`を返す
-(呼び出し側は`StartupInterrupted`を送出する)。`shutdown_event`が`None`の場合は単に
-`await asyncio.sleep(delay)`してから`False`を返す。
+起動シーケンス中にSIGINT/SIGTERMを受信した場合、`ShutdownInterrupted` が送出され、ロールバックが発火する。HTTPサブプロセスのヘルスポーリングループもシャットダウンイベントで即時中断する。
 
-`_start_servers()`と`_verify_mcp_health()`は、それぞれのサーバ反復ループの先頭で
-`self._shutdown_event.is_set()`を確認し、既にシャットダウンが要求されていればループ本体に
-入る前に`StartupInterrupted`(`RuntimeError`のサブクラス)を送出する。同様に、起動の
-stagger遅延、HTTPサブプロセス起動リトライ遅延、ヘルスチェックリトライ遅延の3箇所でも
-`_interruptible_sleep()`を使い、シャットダウンが遅延中に発火すればフルの遅延を待たずに
-`StartupInterrupted`を送出する。`StartupInterrupted`は`run()`の既存の
-`except Exception as setup_err:`節でそのまま捕捉されるため、上記「ロールバックが発火する条件」
-の無条件ロールバック経路をそのまま通る — 新しい第二のロールバック経路は導入していない。
+## 既知の制限 / 未解決事項
 
-`_verify_mcp_health()`のリトライ遅延の中断チェックは、内側の`try`/`except Exception as retry_err:`の**外側**(最初の`except Exception:`節の直下、リトライの`try`に入る前)に置かれている。
-内側の`try`の中で`StartupInterrupted`を送出すると、それを囲む`except Exception as retry_err:`が
-`StartupInterrupted`ごと捕捉してしまい、本番プロファイルでは汎用的な`RuntimeError`へ
-再ラップされ、非本番プロファイルでは単なる警告としてループが継続してしまう(=中断が握り
-つぶされる)ため、意図的にこの位置に置いている。
+- `startup.py` の一部分岐はテストで確認済みだが、本番環境での実際の動作は限定的にしか検証されていない。
+- WALチェックポイントのタイムアウト値（デフォルト30秒）は実環境での負荷に応じて調整が必要になる可能性がある。
+- ロールバック失敗時の情報はコンソール画面に表示されず、ログファイルのみで確認できる。
 
-**現在の配線状態:** `AgentREPL.run()`(`repl.py`)は`StartupOrchestrator(self._ctx, self._view,
-shutdown_event=self._shutdown_event)`として自身の`self._shutdown_event`
-(`_repl_loop()`のSIGINT/SIGTERM処理と共有する同一の`asyncio.Event`)を渡しており、
-この中断経路は起動シーケンス中も有効に発火する。`shutdown_event`はキーワード引数であり
-デフォルトは`None`のままなので、`repl.py`以外から`StartupOrchestrator(ctx, view)`の
-2引数で構築する呼び出し箇所があれば、その呼び出しは従来どおり中断なしで動作する。
+## 関連資料
 
-### HTTPサブプロセスのヘルスポーリングループ中断
-
-`HttpServerLifecycleManager.start()`(`agent/http_lifecycle.py`)は`shutdown_event`を
-追加のキーワード引数(型は`asyncio.Event | None`、デフォルト`None`)として受け取る。
-内部のヘルスポーリングループ(`while time.monotonic() < deadline:`)は、応答待ちの
-たびに`await asyncio.sleep(0.5)`していた箇所を`_interruptible_poll_sleep(0.5, shutdown_event)`
-に置き換えており、これは`StartupOrchestrator._interruptible_sleep()`と
-同じ`asyncio.wait()` + `return_when=asyncio.FIRST_COMPLETED`のレース方式を持つが、
-モジュール間の結合を増やさないため`HttpServerLifecycleManager`側に別コピーとして
-実装されている(共通関数として切り出してはいない)。`shutdown_event`が先に発火すると、
-ポーリングループは`stderr_full`回収とトラッキング辞書(`_http_procs` / `_http_pgids`)の
-クリアのみを行い、`reason="shutdown requested"`の`StartupFailure`を持つ既存の
-`HttpStartupError`を送出する(呼び出し側に新しい`except`節は不要)。
-`_terminate_with_timeout()`はここでは呼ばれない — `_http_procs[server_key]`は既に
-ポーリング開始前に設定済みのため、呼び出し元の`shutdown_all()`ロールバック経路が
-同じプロセスを終了させる(ここで二重に終了処理を呼ぶと`shutdown_all()`との競合
-リスクがあるため)。`shutdown_event`が`None`の場合は従来どおり
-`await asyncio.sleep(delay)`のみを行い`False`を返すため、既存の呼び出し箇所(`restart()`、
-既存テスト)の挙動は変わらない。
-
-**現在の配線状態:** `_ServerLifecycleRouter.start_http_subprocess()`(`agent/factory.py`)は`shutdown_event: asyncio.Event | None = None`を追加のキーワード引数として受け取り、`self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)`としてそのまま`HttpServerLifecycleManager.start()`へ転送する(`ensure_ready()`と`restart()`の呼び出し箇所は起動時パス外のため対象外のまま)。`LifecycleManagerProtocol.start_http_subprocess()`(`agent/lifecycle_protocol.py`)のシグネチャにも同じ`shutdown_event`キーワード引数が追加されており、`StartupOrchestrator._start_servers()`(`startup.py`)側の呼び出し箇所(初回・リトライの2箇所)は`shutdown_event=self._shutdown_event`を渡すため、`repl.py`経由で起動された場合はこの中断経路が実際に発火する。
-
----
-
-## Shutdown resource cleanup(シャットダウン時のリソースクリーンアップ)
-
-`AgentREPL.run()`(`repl.py`)のtry/finallyブロックは、起動成功・失敗を問わず
-finally節でリソースをクローズする。`_close_resources()`(`repl.py`)は以下の順序で実行する:
-
-### WAL checkpoint
-
-チェックポイント処理（PASSIVE→TRUNCATEリトライ）とWALバックアップ処理はそれぞれ
-`_wal_checkpoint_sync()` / `_wal_backup_sync()` という同期ヘルパーに切り出されており、
-`_close_resources()` から `loop.run_in_executor(None, ...)` + `asyncio.wait_for(timeout=...)` で個別にタイムアウト付き実行される。チェックポイント側がタイムアウトしても
-バックアップ処理は独立して実行される。
-
-```python
-# _close_resources() (repl.py) — WAL checkpoint before closing connections
-truncated_or_ok = False
-try:
-    truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
-        loop.run_in_executor(None, self._wal_checkpoint_sync),
-        timeout=self._WAL_CHECKPOINT_TIMEOUT_S,  # 30.0s
-    )
-except TimeoutError:
-    errors.append(("wal_checkpoint_timeout", ...))
-
-if not truncated_or_ok:
-    try:
-        _wal_backup_path, backup_errors = await asyncio.wait_for(
-            loop.run_in_executor(None, self._wal_backup_sync),
-            timeout=self._WAL_BACKUP_TIMEOUT_S,  # 10.0s
-        )
-    except TimeoutError:
-        errors.append(("wal_backup_timeout", ...))
-```
-
-```python
-# _wal_checkpoint_sync() (repl.py) — runs in a worker thread via run_in_executor
-with SQLiteHelper("session").open(write_mode=True) as db:
-    wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
-    if wal_mode.lower() == "wal":
-        # Try PASSIVE checkpoint first (no exclusive lock required)
-        try:
-            db.checkpoint("PASSIVE")
-        except sqlite3.Error as passive_err:
-            # Retry TRUNCATE checkpoint with exponential backoff
-            for attempt in range(3):
-                try:
-                    db.checkpoint("TRUNCATE")
-                except sqlite3.Error as truncate_err:
-                    if attempt < 2:
-                        time.sleep(2 ** attempt)  # worker thread: blocking sleep, not asyncio.sleep
-```
-
-```python
-# _wal_backup_sync() (repl.py) — runs in a worker thread via run_in_executor
-with SQLiteHelper("session").open(write_mode=True) as db:
-    db_path = db.execute("PRAGMA database_list").fetchone()[2]  # [2] = file path column
-    resolved_db_path = os.path.realpath(db_path)
-    if not self._is_db_path_allowed(resolved_db_path):
-        # resolved path is outside cfg.approval.allowed_root -- skip, do not copy
-        errors.append(("wal_backup_path_rejected", ...))
-        return None, errors
-    if not os.path.isdir(backup_dir) or not os.access(backup_dir, os.W_OK):
-        errors.append(("wal_backup_dir_not_writable", ...))
-        return None, errors
-    wal_file = f"{db_path}-wal"
-    session_tag = str(session_id) if session_id is not None else uuid.uuid4().hex[:8]
-    wal_backup_path = os.path.join(backup_dir, f"{basename}-wal-backup-{session_tag}-{int(time.time())}")
-    shutil.copy2(wal_file, wal_backup_path)
-```
-
-1. PASSIVEチェックポイントを最初に試す（排他ロック不要）、`_WAL_CHECKPOINT_TIMEOUT_S`
-   （デフォルト30.0秒、`AgentREPL`のクラス属性）を超えると打ち切られる
-2. PASSIVEが失敗した場合、TRUNCATEを最大3回（指数バックオフ: 1s, 2s, 4s）リトライ
-3. 最終的にTRUNCATEが失敗した場合、またはチェックポイント処理自体がタイムアウトした場合、
-   WALファイルをバックアップコピー（`_WAL_BACKUP_TIMEOUT_S`、デフォルト10.0秒で打ち切り）
-4. コピー前に`os.path.realpath()`でシンボリックリンクを解決し、解決後のパスが
-   `self._ctx.cfg.approval.allowed_root`（`config/agent.toml`の`allowed_root`、
-   `tool_policy.py::check_allowed_root()`と同じディレクトリジェイル境界）の範囲内にあるかを
-   検証する（`_is_db_path_allowed()`）。`allowed_root`が未設定の場合は無制限として扱う
-   （"unset means unrestricted" — `check_allowed_root()`と同じ規約）。範囲外の場合は
-   `shutil.copy2()`を呼ばずにバックアップをスキップし、警告ログと`wal_backup_path_rejected`
-   エラーを記録する。単純な`str.startswith(allowed_root)`ではなく、セパレータ境界を含めた
-   比較（`resolved == allowed_root or resolved.startswith(allowed_root + os.sep)`）を行う
-   ことで、`/opt/llm`という`allowed_root`が`/opt/llmx/...`のような接頭辞注入パスに
-   誤って一致しないようにしている
-5. コピー先ディレクトリ（`backup_dir`）が存在し書き込み可能であることを
-   `os.path.isdir()` + `os.access(backup_dir, os.W_OK)`で事前確認する。書き込み不可の場合は
-   バックアップをスキップし、`wal_backup_dir_not_writable`エラーを記録する
-6. バックアップファイル名は`{basename}-wal-backup-{session_id}-{timestamp}`の形式。
-   `self._ctx.session.session_id`をセッション識別子として使用し、未設定
-   （セッション開始前に初期化が失敗した場合）は`uuid.uuid4().hex[:8]`にフォールバックする。
-   タイムスタンプ部分は連続再起動時の名前衝突防止のため引き続き付与される
-7. `PRAGMA database_list`の結果からDBファイルパスを読むインデックスは`[2]`（ファイルパス列）。
-   `[1]`はDB名列（例: `"main"`）であり誤り
-
-### Lifecycle shutdown
-
-```python
-# _close_resources() (repl.py) — each cleanup call independently guarded
-svc = self._ctx.services
-if svc is not None:
-    try:
-        await svc.lifecycle.shutdown_all()
-    except Exception as e:
-        errors.append(("lifecycle_shutdown", f"{type(e).__name__}: {e}"))
-svc = self._ctx.services
-if svc is not None:
-    try:
-        await svc.http.aclose()
-    except Exception as e:
-        errors.append(("http_close", f"{type(e).__name__}: {e}"))
-```
-
-`ctx.services`が`None`(起動が完了しなかった場合)のときはどちらの呼び出しもスキップされる。
-`lifecycle.shutdown_all()`と`http.aclose()`は個別の`if svc is not None:`ガードとtry/exceptで
-保護されており、一方が失敗（または`svc`が`None`）してももう一方の呼び出しは実行される —
-このガードより上で無条件に実行されるWALチェックポイント/バックアップ処理もブロックしない。
-
-### エラーハンドリング
-
-リソースクローズ中のエラーはすべて捕捉され、ERRORレベルでログに記録される。
-個別のエラーは `errors` リストにタプル `(name, message)` として蓄積され、
-最後にまとめてログ出力される。エラー名には `wal_checkpoint` / `wal_checkpoint_truncate` /
-`wal_backup` に加え、タイムアウト専用の `wal_checkpoint_timeout` / `wal_backup_timeout`、
-および`lifecycle.shutdown_all()`失敗時の`lifecycle_shutdown`、`http.aclose()`失敗時の
-`http_close`がある（`asyncio.wait_for(...)` が送出する `TimeoutError` を捕捉した場合に追加される）。
-WALバックアップの経路検証・書き込み可否チェックの失敗時にはそれぞれ`wal_backup_path_rejected`
-（`allowed_root`範囲外への解決）、`wal_backup_dir_not_writable`（バックアップ先ディレクトリが
-存在しない、または書き込み不可）が記録される。いずれもfail-safe設計であり、例外を送出せず
-バックアップをスキップするのみでシャットダウン処理は継続する。
-
-この仕様は`tests/test_repl.py`の`TestCloseResourcesWALCheckpoint`クラスで検証されており、
-PASSIVEチェックポイントの優先、TRUNCATEフォールバック、非WALモードでのスキップに加え、
-チェックポイントのタイムアウト時にバックアップ処理が実行されること、および
-`PRAGMA database_list`のカラムインデックス`[2]`からDBパスを読み取ることがテストされている。
-`lifecycle.shutdown_all()` / `http.aclose()`の独立ガードは`TestCloseResourcesServiceCleanupGuards`
-クラスで検証されており、`services=None`時に例外を出さないこと、および一方の呼び出しが例外を
-送出してももう一方が実行されることがテストされている。
-
-パスの経路検証・シンボリックリンク解決・セッションIDベースのファイル名は
-`TestWalBackupPathSecurity`クラスで検証されており、`allowed_root`外に解決されるパスの拒否、
-`allowed_root`外を指すシンボリックリンクの拒否、`allowed_root`内に解決されるシンボリックリンク
-(既存デプロイとの互換性)の許可、バックアップ先ディレクトリが書き込み不可な場合のスキップ、
-`allowed_root`が未設定の場合の無制限動作、および`session_id`が`None`のときの
-uuidフォールバックがテストされている。
-
----
-
-## Related Documents
-
-- `05_agent_00_document-guide.md`
-- `05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `05_agent_10_03_operations-and-observability-workflow-observability.md`
-- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md`
-- `05_agent_10_05_operations-and-observability-monitoring.md`
-- `05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
-
-## Keywords
-
-startup procedure
-operational verification
-health probes
-minimal agent db initialization
-shutdown resource cleanup
-WAL checkpoint
-WAL backup path validation
-allowed_root containment check
+- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) — session_diagnostics の役割
+- [05_agent_09_02_data-layer-access-patterns.md](05_agent_09_02_data-layer-access-patterns.md) — DBアクセスパターン
+- [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md) — 設定ファイル

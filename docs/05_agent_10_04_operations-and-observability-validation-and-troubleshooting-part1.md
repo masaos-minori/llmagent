@@ -4,8 +4,7 @@ category: agent
 tags:
   - agent
   - operations
-  - startup-validation
-  - mcp-reload
+  - validation
   - troubleshooting
 related:
   - 05_agent_00_document-guide.md
@@ -22,152 +21,111 @@ source:
 
 - 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## Workflow Startup Validation(ワークフロー起動時検証)
+## ワークフロー起動時検証
 
-エージェントは、オーケストレータを初期化する前に、ワークフロー定義ファイルが存在することを
-無条件に検証する — これを無効化・縮退させる設定は存在しない。
-ファイルが存在しない場合、実用的なガイダンスを伴う `RuntimeError` が発生する。
+エージェントはオーケストレータを初期化する前に、ワークフロー定義ファイルが存在することを無条件に検証する。このチェックを無効化・縮退させる設定は存在しない。
 
 **期待されるパス:** `config/workflows/default.json`
 
-**対処方法:** 期待されるパスにワークフロー定義をデプロイすること。このチェックをスキップする
-設定トグルは存在しない — ワークフロー必須であり、ワークフロー定義なしでの起動はできない。
+### 重大度マッピング
 
-このプリフライトチェック（`agent/startup.py` の
-`StartupOrchestrator` の初期化処理。`agent/repl_health.py` の
-`check_workflow_definition()` をラップ）は `Orchestrator.__init__()` の前に実行され、
-期待されるファイルパスを含まない可能性のある分かりにくい `WorkflowLoadError` ではなく、
-明確なエラーメッセージを生成する。`Orchestrator.__init__()` 自体も、プリフライトチェックを
-通過した後に `WorkflowLoader().load()` が何らかの理由で失敗した場合、無条件に `RuntimeError` を発生させる。
+| 重大度 | 意味 | 挙動 |
+|---|---|---|
+| FATAL | 起動できない条件 | 全チェック完了後に `RuntimeError` を送出し、起動を中断する |
+| WARNING | チェックを実行したが問題を検出した | 起動を継続するが、オペレーターが確認すべき状態 |
+| SKIPPED | チェック自体を実行できなかった | 起動を継続する。環境依存のチェックが利用不可の場合に発生する |
+| OK | チェックを正常に実行した | 正常状態を示す（ただし security_audit の OK は「問題なし」ではなく「チェック完了」を意味する） |
 
-**補足(起動シーケンス):** `StartupOrchestrator` の初期化処理の実際の呼び出し順は
-コマンドレジストリ初期化 → ワークフロー定義検証 → ワークフロースキーマ検証 →
-Orchestrator初期化 である。つまりワークフロー定義ファイルの存在検証
-の直後に、`workflow.sqlite` の必須テーブル・必須カラム・
-`workflow_schema_version` の一致を検証する関数(`agent/repl_health.py`)が
-同じ初期化処理内で連続実行され、いずれも `Orchestrator.__init__()` より前に完了する。
-どちらも失敗時は `RuntimeError` を送出し、`StartupOrchestrator.run()` 側で捕捉されずに
-起動そのものを中断させる(根拠: Explicit in code)。
+**重要な注意点:**
+- `routing_drift_live` と `routing_safety_tiers` は正常時に何のoutcomeも記録されない（silence means healthy）。
+- `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
+- `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
 
-**補足(`Orchestrator.__init__()` のエラーメッセージ):** `WorkflowLoader().load()` が
-`WorkflowLoadError` または任意の例外を送出した場合、`Orchestrator.__init__()` は
-`f"[workflow] WorkflowLoader failed: {exc}. Expected definition at: {WORKFLOWS_DIR / 'default.json'}."`
-という書式で `RuntimeError` を再送出する。期待パスは常にメッセージに含まれる
-(根拠: Explicit in code)。
+### 起動シーケンス中のSIGINT/SIGTERM中断
 
-For the exact validation rules applied, see
-[05_agent_03_03 §ワークフローローダーの検証ルール](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md).
+起動シーケンス中にSIGINT/SIGTERMを受信した場合、`ShutdownInterrupted` が送出され、ロールバックが発火する。HTTPサブプロセスのヘルスポーリングループもシャットダウンイベントで即時中断する。
 
-**注記:** この検証は常にエージェント起動時に一度だけ実行される — これは設定項目ではなく、
-`/reload` で変更することはできない。修正するには、ワークフロー定義ファイルをデプロイして
-エージェントを再起動する必要がある。
+### 保留中の承認状態の復元
 
-See also: [workflow_schema_version and schema version mismatch recovery](90_shared_04_02_db_architecture_and_schema-schema-reference-part2.md).
+エージェント起動時に前回のセッションで解決されなかった承認ゲートが存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
 
----
+既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
 
-## Workflow Deployment Runbook
+### シャットダウン時のリソースクリーンアップ
 
-Workflow is a **mandatory** deployment artifact — there is no config setting, environment
-variable, or deploy flag to disable or bypass it. Every failure mode below has a concrete
-recovery path; none of them involve "turning workflow off."
+`finally` ブロックで以下の順序でリソースをクローズする:
 
-### Quick validation commands
+1. WALチェックポイント（PASSIVE→TRUNCATEフォールバック）
+2. WALバックアップ（パス検証付き）
+3. `lifecycle.shutdown_all()`
+4. `http.aclose()`
+
+各ステップは独立してガードされており、一方が失敗しても他のステップは実行される。WALバックアップは `allowed_root` 範囲内のパスのみ許可し、シンボリックリンクを解決してから検証する。
+
+## ワークフローデプロイメントランブック
+
+ワークフローは **必須** のデプロイメントアーティファクトであり、これを無効またはバイパスするための設定項目、環境変数、デプロイフラグは存在しない。
+
+### クイック検証コマンド
 
 ```bash
-# Validate a workflow definition file directly (does not start any service)
+# ワークフロー定義ファイルを直接検証（サービスを開始しない）
 PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
 
-# Check workflow DB schema tables and version (against the deployed DB)
+# ワークフローDBスキーマのテーブルとバージョンを確認
 sqlite3 /opt/llm/db/workflow.sqlite ".tables"
 sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
 ```
 
-### Missing `config/workflows/default.json`
+### よくある障害と対応
 
-**Symptom:** `deploy.sh` prints `[FATAL] Missing required workflow definition: config/workflows/default.json` and exits before copying anything.
+#### `config/workflows/default.json` の欠落
 
-**Recovery:**
-```bash
-git checkout HEAD -- config/workflows/default.json   # restore from version control
-bash deploy/deploy.sh                                 # re-run deployment
-```
+**症状:** `deploy.sh` が `[FATAL] Missing required workflow definition: config/workflows/default.json` を出力して終了する。
 
-### Invalid workflow JSON (parse error)
+**対応:** バージョン管理から復元して再デプロイする。
 
-**Symptom:** `deploy.sh` (or the validator CLI directly) prints `[FATAL] Invalid workflow definition ...: <JSON parse error>`.
+#### ワークフローJSONのパースエラー
 
-**Recovery:** Fix the reported JSON syntax error, then re-validate before re-deploying:
-```bash
-PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
-```
+**症状:** `deploy.sh` またはバリデータCLIが `[FATAL] Invalid workflow definition ...: <JSON parse error>` を出力する。
 
-### Missing required stages
+**対応:** 報告されたJSON構文エラーを修正し、再デプロイ前に再検証する。
 
-**Symptom:** The validator reports `required stages missing: <names>`.
+#### 必須ステージの欠落
 
-**Recovery:** Ensure the workflow definition's `stages` array includes objects with `id` values `plan`, `execute`, and `verify` (each also carrying `timeout_sec`, `retryable`).
+**症状:** バリデータが `required stages missing: <names>` を報告する。
 
-### Invalid retry policy
+**対応:** ワークフロー定義の `stages` 配列に `plan`, `execute`, `verify` の `id` を持つオブジェクトを含める。
 
-**Symptom:** The validator reports one of: `retry_policy.max_attempts must be >= 1` or `retry_policy.backoff_sec must be >= 0`.
+#### 不正なリトライポリシー
 
-**Recovery:** Correct the named `retry_policy` field per the message, then re-validate.
+**症状:** バリデータが `retry_policy.max_attempts must be >= 1` または `retry_policy.backoff_sec must be >= 0` を報告する。
 
-> **注記(2026-07-17):** `retry_policy.backoff` and `stages[].description` were removed from the schema.
-> `backoff` was always `"fixed"` in practice — no other backoff strategy was ever implemented
-> (`_SUPPORTED_BACKOFF` previously enforced this, but the field itself carried no other information) —
-> and `description` was never read by any code path. The stale `retry_policy.backoff must be one of:
-> exponential, fixed` example message this note used to flag as a documentation/implementation
-> mismatch no longer applies, since the `backoff` validation branch itself was removed along with
-> the field.
+**対応:** 報告されたフィールドを修正し、再検証する。
 
-### Missing or incomplete `workflow.sqlite`
+#### `workflow.sqlite` の欠落または不完全
 
-**Symptom:** `init_db.sh` or `setup_services.sh` prints `[FATAL] Workflow database schema is missing or incomplete.` naming one or more missing tables.
+**症状:** `init_db.sh` または `setup_services.sh` が `[FATAL] Workflow database schema is missing or incomplete.` を出力する。
 
-**Recovery:**
-```bash
-bash deploy/init_db.sh   # (re-)creates workflow.sqlite; safe to re-run (idempotent)
-```
+**対応:** デプロイスクリプトを再実行する。
 
-### Schema version mismatch
+#### スキーマバージョンの不整合
 
-**Symptom:** Agent startup or `setup_services.sh` reports `Workflow schema version mismatch: expected <X>, found <Y>`.
+**症状:** エージェント起動またはデプロイスクリプトが `Workflow schema version mismatch: expected <X>, found <Y>` を報告する。
 
-**Recovery:**
-```bash
-bash deploy/init_db.sh   # applies pending migrations and records the current version
-```
+**対応:** デプロイスクリプトを再実行してマイグレーションを適用する。
 
-### Workflow definition update requires a restart
+#### ワークフロー定義の更新には再起動が必要
 
-**Symptom:** A new `config/workflows/default.json` was deployed, but the running agent does not pick it up.
+**説明:** ワークフロー定義はエージェント起動時に一度だけ検証・読み込みされる。ホットリロード可能な設定ではない — `/reload` では適用されない。
 
-**Explanation:** The workflow definition is validated and loaded exactly once, at agent boot (`StartupOrchestrator` の初期化処理 in `agent/startup.py`, then `Orchestrator.__init__()`). It is **not** a hot-reloadable setting — `/reload` does not apply to it.
+**対応:** 新しい定義をデプロイ後、エージェントプロセスを完全に再起動する。
 
-**Recovery:** Deploy the new definition (`deploy.sh`), then fully restart the agent process. There is no partial-update path.
+## 関連資料
 
----
-
-## Related Documents
-
-- `05_agent_00_document-guide.md`
-- `05_agent_10_01_operations-and-observability-startup-and-health.md`
-- `05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `05_agent_10_03_operations-and-observability-workflow-observability.md`
-- `05_agent_10_05_operations-and-observability-monitoring.md`
-- `05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
-- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md`
-
-## Keywords
-
-workflow startup validation
-MCP server reload
-/context
-/stats
-partial completion
-troubleshooting
-retry_policy.backoff
-workflow_schema_version
-check_workflow_schema
+- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
+- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
+- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
+- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
+- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG診断とメモリ
+- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part2.md) — 追加検証とトラブルシューティング

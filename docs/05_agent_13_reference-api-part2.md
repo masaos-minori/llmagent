@@ -9,12 +9,48 @@ tags:
 related:
   - 05_agent_00_document-guide.md
 source:
-  - 05_agent_13_reference-api-part1.md
+  - 05_agent_13_reference-api-part2.md
 ---
 
-# Agent Reference API
+# Agent Reference API — Part 2
 
-- ドキュメントガイド → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
+## Purpose
+
+役割、主要な公開 API、呼び出し元、呼び出し先、関連する設定、失敗時の動作を含む、
+モジュールごとの簡潔な API リファレンス。完全なメソッドシグネチャはリンク先の各章を参照。
+
+## Design Intent
+
+API レファレンスは「API は何か」「どのように動作するか」に焦点を当てる。「なぜこの API がこのように設計されたか」は設計文書の範囲である。
+
+## Responsibility Boundary
+
+- このファイルが所有するもの: 関数シグネチャ、パラメータ型、戻り値、エラー条件
+- このファイルが所有しないもの: コンポーネントのコンテキスト、データフロー、実行時の動作
+
+## Key Constraints
+
+- API レファレンスの詳細は Canonical Source Rule で定められた正本にのみ存在する
+- 他章での API/type/method 詳細の重複は禁止（Canonical Source Rule）
+- 不完全な実装変更は `Needs Confirmation` マークで明示する
+
+## Operational Notes
+
+- REPL ループドライバからの呼び出しは常に `await` 形式
+- 失敗時はエラー種別ごとに異なるフォールバック動作が存在する
+- メモリレイヤーはオプションであり、`ctx.services.memory is None` の場合に安全にガードできる設計になっている
+
+## Known Limitations
+
+- 一部の呼び出し先は間接的な依存関係を含んでいる
+- 旧版ドキュメントと現行コードの差分は `Needs Confirmation` マークで明示されている
+
+## Related Docs
+
+- `05_agent_00_document-guide.md`
+- `05_agent_13_reference-api-part1.md`
+
+---
 
 ## HistoryManager（`agent/history.py`）
 
@@ -101,15 +137,3 @@ source:
 
 **有効化:** `use_memory_layer=True`（デフォルト）の場合、`ctx.services.memory` が有効になる。
 メモリサービスにアクセスする前に必ず null チェックを行うこと。
-
-## Related Documents
-
-- `05_agent_00_document-guide.md`
-- `05_agent_13_reference-api-part1.md`
-
-## Keywords
-
-agent
-reference
-api
-types

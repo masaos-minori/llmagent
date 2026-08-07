@@ -6,7 +6,6 @@ tags:
   - documentation
   - guide
   - routing
-  - file-index
 related:
   - 05_agent_01_system-overview.md
   - 05_agent_02_runtime-architecture-part1.md
@@ -17,119 +16,93 @@ related:
 
 # Agent Documentation Guide
 
-再構成されたAgentドキュメントセットのエントリポイントである。
-最初に本ファイルを読み、どの章を開くべきかを判断すること。
+## Purpose
 
----
+This document is the entry point for the restructured Agent documentation set. It guides readers to the right chapter based on their concern, not by listing every file.
 
-## 設計意図
+## Design Intent
 
-### ドキュメントセットの目的
+The value of this document is navigation logic — human-curated guidance on which chapter addresses which question. Mechanical inventories (file lists, keyword enumerations, implementation-diff-memo-style notes) are delegated to code search via the Canonical Source Rule.
 
-これらのファイルはLLM Agent REPLシステムを文書化するものである。LLM Agent REPLシステムとは、LLMのfunction
-callingを用いてMCPツールサーバーと対話し、会話履歴を維持し、ターミナルに
-回答を返すCLIツールである。これらのファイルが正式なリファレンスである(元のモノリシックなソース
-ファイルは削除済み)。
+## Responsibility Boundary
 
----
+- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, Canonical Source Rule definition, handling of Known Issues / Deprecated Items / Needs Confirmation entries.
+- **Out of scope**: Detailed file indexes, keyword lists duplicatable by code search, implementation diff memos ("confirmed at file X line Y").
 
-## 現在の実装挙動
+## Key Constraints
 
-### 推奨読書順序（人間向け）
+- When a fact is mechanically derivable from code, point to the source rather than transcribing it.
+- Unrecoverable design rationales must be explicitly marked `Needs Confirmation` rather than silently dropped.
+- Do not modify other documents in the `05_agent_*.md` set.
+- Do not add new content beyond what exists in the current document.
+- Do not change the doc set directory structure.
 
-``` text
-01 Overview → 02 Runtime Architecture → 03 Turn Processing Flow
-  → 04 State/Persistence → 05 LLM/Streaming → 06 Tool Execution/Approval
-  → 07 CLI/Commands → 08 Configuration → 09 Data Layer
-  → 10 Operations/Observability → 11 Extension Points → 12 Memory → 13 Reference API
-```
+## Operational Notes
 
----
+- Recommended reading order for humans: Overview → Runtime Architecture → Turn Processing Flow → State/Persistence → LLM/Streaming → Tool Execution/Approval → CLI/Commands → Configuration → Data Layer → Operations/Observability → Extension Points → Memory → Reference API.
+- The canonical query routing table maps questions to chapters; use it to find the right chapter before searching code.
 
-## 責務境界
+## Known Limitations
 
-### エージェントクエリルーティングテーブル
+- [NC-001](00_governance_07_needs-confirmation-inventory.md#nc-001): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
+- [NC-004](00_governance_07_needs-confirmation-inventory.md#nc-004): Distance measurement cosine/L2 determination impossibility
 
-| Question | File |
-|---|---|
-| エージェントとは何か。主要コンポーネント/依存関係、関数シグネチャは | `05_agent_01` / `05_agent_02` / `05_agent_13` |
-| 1ユーザーターンの流れ、履歴圧縮、永続化vsメモリ状態は | `05_agent_03` / `05_agent_04` |
-| SSEストリーミング、リトライ、`LLMTransportError`とは | `05_agent_05` |
-| ツール実行/承認、`/plan`モード、スラッシュコマンド、`/reload`は | `05_agent_06` / `05_agent_07` |
-| 設定フィールド・デフォルト値・制御ファイルは | `05_agent_08` |
-| 使用するSQLiteテーブル、起動/検証/トラブルシューティング、監査ログは | `05_agent_09` / `05_agent_10` |
-| 新規MCPサーバー追加は | `04_mcp_06_15` |
-| メモリレイヤーは | `05_agent_12` |
-| クラスXの定義場所と呼び出し元は | `05_agent_13` → `05_agent_02` |
----
+## Related Docs
 
-## Canonical Source Rules
-
-削除済みの`05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md`ファイルは、上記の02〜13章に統合されている。既知の問題と未解決の論点: [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md)。
-
----
-
-## File Index
-
-| Chapter | Files |
-|---|---|
-| 00 | [document-guide.md](05_agent_00_document-guide.md) — this file |
-| 01 | [system-overview.md](05_agent_01_system-overview.md) — purpose, tool-calling model, component map |
-| 02 | [runtime-architecture.md](05_agent_02_runtime-architecture-part1.md) — dependency diagram, responsibilities |
-| 03 turn processing | [overview](05_agent_03_01_turn-processing-flow-overview.md), [llm-tool-loop](05_agent_03_02_turn-processing-flow-llm-tool-loop.md), [workflow-engine](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md) |
-| 04 state/persistence | [state-model](05_agent_04_01_state-and-persistence-state-model-part1.md), [history-compression](05_agent_04_02_state-and-persistence-history-compression.md), [platform-databases](05_agent_04_03_state-and-persistence-platform-databases.md) |
-| 05 | [llm-and-streaming.md](05_agent_05_llm-and-streaming-part1.md) — LLMClient API, SSE, reconnect |
-| 06 tool exec/approval | [execution](05_agent_06_01_tool-execution-and-approval-execution.md), [approval](05_agent_06_02_tool-execution-and-approval-approval.md), [concurrency-safety](05_agent_06_03_tool-execution-and-approval-concurrency-safety.md), [canonical](05_agent_06_04_tool-execution-and-approval-canonical.md) |
-| 07 CLI/commands | [cli-reference](05_agent_07_01_cli-and-commands-cli-reference.md), [cliview](05_agent_07_02_cli-and-commands-cliview.md), [command-registry](05_agent_07_03_cli-and-commands-command-registry.md), [purpose](05_agent_07_04_cli-and-commands-purpose.md), [repl-io](05_agent_07_05_cli-and-commands-repl-io.md), [hot-reload](05_agent_07_06_cli-and-commands-hot-reload.md), [migration-notes](05_agent_07_07_cli-and-commands-migration-notes.md) |
-| 07 slash commands | [session-mcp](05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md), [context-db](05_agent_07_09_cli-and-commands-slash-commands-context-db.md), [workflow-debug](05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md), [memory-other](05_agent_07_11_cli-and-commands-slash-commands-memory-other.md) |
-| 08 configuration | [loading-agent-config](05_agent_08_01_configuration-loading-agent-config-part1.md), [llm-rag](05_agent_08_02_configuration-llm-rag.md), [tools-memory](05_agent_08_03_configuration-tools-memory.md), [mcp-approval-obs](05_agent_08_04_configuration-mcp-approval-obs.md) |
-| 09 data layer | [session-db](05_agent_09_01_data-layer-session-db.md), [access-patterns](05_agent_09_02_data-layer-access-patterns.md), [indexing-boundaries](05_agent_09_03_data-layer-indexing-boundaries.md) |
-| 10 operations | [startup-and-health](05_agent_10_01_operations-and-observability-startup-and-health.md), [audit-and-otel](05_agent_10_02_operations-and-observability-audit-and-otel.md), [workflow-observability](05_agent_10_03_operations-and-observability-workflow-observability.md), [validation-and-troubleshooting](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md), [monitoring](05_agent_10_05_operations-and-observability-monitoring.md), [rag-diagnostics-and-memory](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) |
-
-| 12 memory | [overview-and-modes](05_agent_12_01_memory-overview-and-modes-part1.md), [gate-data-model-search](05_agent_12_02_memory-gate-data-model-search-part1.md), [module-ref-core-and-store](05_agent_12_03_memory-module-ref-core-and-store.md), [module-ref-retrieval-and-injection](05_agent_12_04_memory-module-ref-retrieval-and-injection.md), [module-ref-extraction-and-facade](05_agent_12_05_memory-module-ref-extraction-and-facade.md), [module-ref-ops-and-scoring](05_agent_12_06_memory-module-ref-ops-and-scoring.md) |
-| 13 | [reference-api.md](05_agent_13_reference-api-part1.md) — per-module API: role, callers, callees, config, failure |
-| 90 | [inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md) — known bugs, spec conflicts, open questions |
-
----
-
-## Governance
-
-Cross-cutting documentation rules and policies:
-
+### Governance
 - [Documentation Governance](00_governance_01_documentation-governance.md)
 - [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
 - [Evidence Labels](00_governance_03_evidence-labels.md)
 - [Known Issues Template](00_governance_04_known-issues-template.md)
 - [Deprecated Items](00_governance_05_deprecated-items.md)
 - [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
+- [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
 
-## Documentation Consistency Checklist
+### Query Routing Table
 
-スキーマ/コマンド参照の変更時は、`05_agent_01_system-overview.md`§Slash Commandsと`05_agent_07_cli-and-commands-*.md`が`scripts/agent/commands/registry.py`と一致(CommandDef毎にドキュメント項目あり、削除済みコマンド参照なし)、`05_agent_09_data-layer-*.md`が`scripts/db/schema_sql.py`/`init_db.sh`と一致、診断ドキュメントが`session_diagnostics`のみ参照(削除済み`diagnostics.jsonl`参照なし)を確認すること。
+| Question | File |
+|---|---|
+| What is the agent? Major components/deps, function signatures | `05_agent_01` / `05_agent_02` / `05_agent_13` |
+| 1-user-turn flow, history compression, persistence vs memory state | `05_agent_03` / `05_agent_04` |
+| SSE streaming, retry, `LLMTransportError` | `05_agent_05` |
+| Tool execution/approval, `/plan` mode, slash commands, `/reload` | `05_agent_06` / `05_agent_07` |
+| Config fields, defaults, control files | `05_agent_08` |
+| SQLite tables used, startup/validation/troubleshooting, audit log | `05_agent_09` / `05_agent_10` |
+| Adding a new MCP server | `04_mcp_06_15` |
+| Memory layer | `05_agent_12` |
+| Where is class X defined and who calls it | `05_agent_13` → `05_agent_02` |
 
----
+### Consistency Checklist
 
-## Known Limitations
+When schema/command references change, verify that `05_agent_01_system-overview.md` §Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
 
-古いモノリシックなソースファイル(`05_agent.md`等)は削除済みで本セットが正式リファレンス。メモリレイヤー(`agent/memory/`)は`05_agent_12_memory-*.md`で詳述、`05_agent_02`§Memory Servicesで概要。
+### Document Set Chapters
 
-## 未確認事項
+| Chapter | Content |
+|---|---|
+| 00 | This file |
+| 01 | System overview — purpose, tool-calling model, component map |
+| 02 | Runtime architecture — dependency diagram, responsibilities |
+| 03 | Turn processing flow — overview, LLM-tool loop, workflow engine |
+| 04 | State/persistence — state model, history compression, platform databases |
+| 05 | LLM/streaming — LLMClient API, SSE, reconnect |
+| 06 | Tool exec/approval — execution, approval, concurrency safety, canonical |
+| 07 | CLI/commands — CLI reference, CLIView, command registry, purpose, REPL I/O, hot-reload, migration notes |
+| 08 | Configuration — loading agent config, LLM/RAG, tools/memory, MCP/approval/observability |
+| 09 | Data layer — session DB, access patterns, indexing boundaries |
+| 10 | Operations — startup/health, audit/OTel, workflow observability, validation/troubleshooting, monitoring, RAG diagnostics/memory |
+| 12 | Memory — overview/modes, gate/data-model/search, module refs (core/store, retrieval/injection, extraction/facade, ops/scoring) |
+| 13 | Reference API — per-module API: role, callers, callees, config, failure |
+| 90 | Inconsistencies and known issues — known bugs, spec conflicts, open questions |
 
-- [NC-001](00_governance_07_needs-confirmation-inventory.md#nc-001): UTF8_PARTIAL_DECODE_ERROR と PREMATURE_EOF の区別
-- [NC-004](00_governance_07_needs-confirmation-inventory.md#nc-004): 距離計測のcosine/L2判定不能
+### Removed Files
 
-## Related Documents
+Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integrated into chapters 02-13 above. See [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md) for known issues and unresolved items.
+
+### Additional References
 
 - `05_agent_01_system-overview.md`
 - `05_agent_02_runtime-architecture-part1.md`
 - `05_agent_05_llm-and-streaming-part1.md`
 - `05_agent_13_reference-api-part1.md`
 - `05_agent_90_inconsistencies_and_known_issues.md`
-
-## Keywords
-
-agent
-documentation
-guide
-routing
-file-index

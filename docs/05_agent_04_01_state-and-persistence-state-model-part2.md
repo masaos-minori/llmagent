@@ -21,18 +21,15 @@ source:
 - ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 - データレイヤー (スキーマ) → [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
-## セッション永続化 (`AgentSession`)
+## Purpose
 
-`AgentSession` (`agent/session.py`) が`session.sqlite`を管理する。
+セッション永続化と会話履歴のデータベース間関係について文書化する。
 
-### ターンごとに永続化される内容
+## Design Intent
 
-| Event | Table | Content |
-|---|---|---|
-| セッション開始 | `sessions` | session_id, created_at, title |
-| 各メッセージ | `messages` | role, content, tool_calls, tool_call_id, session_id |
+### セッション永続化の設計意図
 
-### セッションのライフサイクル
+`AgentSession`が`session.sqlite`を管理する。セッションのライフサイクルは以下の通り：
 
 ``` text
 AgentREPL.run()
@@ -42,11 +39,21 @@ AgentREPL.run()
   → /session delete <id>              — sessions + messagesをDELETE (CASCADE)
 ```
 
-### セッションタイトル生成
+### メッセージ保存ルール
 
-最初のユーザーターンにおいて、`cmd_session.py`内のセッションタイトル生成が`SessionTitleService.generate()`を呼び出し、LLMベースの短いタイトルを生成する。これはasyncioのバックグラウンドタスクとして実行される (`asyncio.create_task()`によるfire-and-forget)。
+`save(role, content)`は有効なロールのみを保存する：`user`, `assistant`, `tool`, `system`。無効なロールや`session_id`欠落は警告としてログに記録され、カウントされる。`strict_mode=True`の場合、両条件ともスキップの代わりに`RuntimeError`を発生させる。
 
-### セッションタイトル生成失敗時の挙動
+`save_many(messages)`は複数のメッセージを1つのトランザクションでバッチ処理する。`replace_messages(messages)`は圧縮された履歴のスナップショットをDBに書き戻す。
+
+### DiagnosticStoreの分離設計
+
+診断データ（LLMトランスポートエラー、ガードヒント、セッションランタイムサマリー）は`DiagnosticStore`経由で`session_diagnostics`テーブルに永続化される。`messages`テーブルとは別であり、部分完了の永続化モデルについては[05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)を参照。
+
+**現在の実装挙動:** DiagnosticStoreは`session_diagnostics`テーブルにのみ書き込む。診断データは`session_diagnostics`を通じてのみ永続化され、`diagnostics.jsonl`への二重永続化は行われない。
+
+### セッションタイトル生成のフォールバック判断
+
+最初のユーザーターンにおいて、セッションタイトル生成が失敗した場合のフォールバック：
 
 | Failure case | Fallback title | Log |
 |---|---|---|
@@ -55,41 +62,15 @@ AgentREPL.run()
 | `first_input`が空 | `"(New Session)"` | WARNING |
 | `set_title()`のDB書き込みが失敗 | タイトルは永続化されない; エラーがログに記録される | ERROR |
 
-すべての失敗ケースはノンブロッキングであり、セッションは通常通り継続する。
-フォールバック時、監査ログエントリが発行される: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`。
-`set_title_pending`は結果にかかわらず`finally`ブロックで`False`にリセットされる。
+すべての失敗ケースはノンブロッキングであり、セッションは通常通り継続する。フォールバック時、監査ログエントリが発行される：`session_title_fallback session_id=<id> fallback=<title> reason=<error>`。`set_title_pending`は結果にかかわらず`finally`ブロックで`False`にリセットされる。
 
-### メッセージ保存ルール
+## Responsibility Boundary
 
-- `save(role, content)`は有効なロールのみを保存する: `user`, `assistant`, `tool`, `system`
-- 無効なロールは警告としてログに記録され、カウントされる (`stat_skipped_invalid_role`)
-- `session_id`が欠落している場合は警告としてログに記録され、カウントされる (`stat_skipped_no_session`)
-- `strict_mode=True`の場合、両条件ともスキップの代わりに`RuntimeError`を発生させる
-- カウンタは`session.skipped_no_session_count`と`session.skipped_invalid_role_count`からアクセス可能
-- `save_many(messages)`は複数のメッセージを1つのトランザクションでバッチ処理する; 無効なロールは単一の警告ログと共にスキップされる
-- `replace_messages(messages)`は圧縮された履歴のスナップショットをDBに書き戻す; session_idがNoneの場合は黙ってスキップする
-- 診断データ (LLMトランスポートエラー、ガードヒント、セッションランタイムサマリー) は`DiagnosticStore` (`agent/diagnostic_store.py`) 経由で`session_diagnostics`テーブルに永続化される — `messages`テーブルとは別。部分完了の永続化モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)
-- `DiagnosticStore`のメソッド: `save(session_id, kind, content)`, `fetch(session_id)`
-- `AgentContext.diagnostics`は初期化時にorchestratorの診断ストアに接続される; `Orchestrator`が構築される前は`None`
-- 書き込まれる種別: `"mid_turn_error"` (`ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`からのLLMトランスポートエラー), `"guard_hint"` (`ToolLoopGuard`からの循環/重複排除/リトライイベント)
-- ガードヒントとターン中のエラーは診断データにのみ格納される — `ctx.conv.history`には現れない
-- 診断データは`DiagnosticStore`経由で`session_diagnostics`テーブルに格納される; `messages`には決して存在せず、したがって`fetch_messages()`からは返されない
+### セッション永続化
 
-**現在の実装挙動 (`DiagnosticStore`の全種別):** `agent/diagnostic_store.py`が持つ専用書込みメソッドと対応する`kind`は以下の通り。上記の`mid_turn_error`/`guard_hint`は呼び出し元 (`error_injection_service.py`, `llm_transport_errors.py`, `llm_turn_runner.py`, `tool_loop_guard.py`) が`save()`を直接呼んで書く一方、以下は`DiagnosticStore`自身の専用メソッド経由で書かれる。
+`AgentSession`が`session.sqlite`の`sessions`テーブルと`messages`テーブルを管理する。詳細は[05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)を参照。
 
-| Method | `kind` | Caller |
-|---|---|---|
-| `save_partial_completion()` | `partial_completion` | `llm_transport_errors.handle_partial_completion()` (LLM応答が部分的に切断された場合) |
-| `save_serialization_event()` | `serialization_event` | `tool_runner.py` (DAGツール実行のラウンド単位シリアル化イベント) |
-| `save_transport_failure()` | `transport_failure` | `tool_runner.py` (ツール実行のトランスポート層失敗) |
-
-*(根拠分類: Explicit in code — `agent/diagnostic_store.py`, `agent/tool_loop_guard.py`, `agent/llm_transport_errors.py`)*
-
-> **現在の挙動:** DiagnosticStoreは`session_diagnostics`テーブルにのみ書き込む。診断データは`session_diagnostics`を通じてのみ永続化され、`diagnostics.jsonl`への二重永続化は行われない。
-
----
-
-## 会話履歴とデータベースの関係
+### 会話履歴とデータベースの関係
 
 ``` text
 ctx.conv.history (in-memory list)
@@ -100,12 +81,33 @@ AgentSession (session.sqlite: sessions + messages)
 - セッション中はhistoryが正となるソースである
 - データベースは永続的なバックアップである
 - `/session load <id>`はデータベースから`ctx.conv.history`を再構築する
-- `delete_last_turn()`はDBから最後の (最大2件の) 行を削除する
+- `delete_last_turn()`はDBから最後の（最大2件の）行を削除する
 - `undo_last_turn()`は最後の`role='user'`メッセージ以降のすべてを削除する
 
----
+## Key Constraints
 
-## Related Documents
+### 有効なロールのみ保存
+
+`user`, `assistant`, `tool`, `system`以外のロールは保存されない。
+
+### strict_modeの動作
+
+`strict_mode=True`の場合、無効なロールや`session_id`欠落は例外を発生させる。
+
+### DiagnosticStoreの分離
+
+診断データは`session_diagnostics`テーブルにのみ書き込まれる。`messages`には決して存在しない。
+
+## Operational Notes
+
+- セッションタイトル生成の失敗はノンブロッキングであり、セッションは通常通り継続する。
+- DiagnosticStoreは`session_diagnostics`テーブルにのみ書き込む。`diagnostics.jsonl`への二重永続化は行われない。
+
+## Known Limitations
+
+- 不明
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_04_02_state-and-persistence-history-compression.md`

@@ -13,175 +13,117 @@ related:
   - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
   - 05_agent_04_01_state-and-persistence-state-model-part1.md
 source:
-  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
 ---
 
 # エージェントターン処理フロー
 
 - ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
 
-## LLM呼び出しとツールループ
+## Purpose
 
-`LLMTurnRunner.run(llm_url)`が内部ループを管理する:
+LLM呼び出しとツールループの処理フローを文書化する。ストリーミング応答の収集、
+複数回のツール呼び出し、およびそのガード機構について記述する。
 
-1. ペイロードを構築: `history + tool_definitions + temperature + max_tokens + stream=True`
-2. SSEストリーミングでLLMに送信
-3. `content_parts` (テキスト) と `tool_calls_map` (関数呼び出し) を収集
-4. `finish_reason == "tool_calls"`の場合:
-   - ツールを実行 → 結果を追加 → LLMに再送信
-   - `max_tool_turns`回まで繰り返す
-5. `finish_reason == "stop"`または`max_tool_turns`超過の場合: 最終回答を返す
+## Design Intent
 
-### 履歴への追加 (`ctx.conv.append_message()`)
+### ToolLoopGuard の役割と設計意図
 
-`agent/llm_turn_runner.py`の2箇所の`ctx.conv.history`変更は、生の`list.append()`ではなく
-`ConversationState.append_message()`(検証付き; 詳細は
+ツールループ内では、LLMが同一ツールを無限に呼び出す可能性がある。これを防ぐため、
+ToolLoopGuard が以下の4つのガードを順次実行する：
+
+1. **循環検出** — 直近Nラウンド内で同一のツール呼び出しセットが繰り返された場合
+2. **重複排除** — 同一の`(name, args)`が一定回数以上検出された場合
+3. **リトライ抑制** — 失敗したツール呼び出しが再度同じ引数で呼ばれた場合
+4. **連続エラー** — あるラウンドの全ツールが一定回数連続でエラーとなった場合
+
+いずれかが発動すると、それ以降のチェックは行われずループを終了する。
+ガード発動後は、ツールを一切呼び出さずに最終回答を生成するフォールバックを試みる。
+
+### 不完全な出力の分離
+
+LLMストリーミング中にトランスポートエラーが発生し、部分完了が生じた場合、
+その出力は通常の会話履歴から分離される。これにより、以降のLLMコンテキストが
+汚染されない。部分的なコンテンツは `session_diagnostics` テーブルに格納され、
+`/stats` コマンドで確認できる。
+
+## Responsibility Boundary
+
+### LLM呼び出しとツールループ
+
+`LLMTurnRunner.run(llm_url)`が内部ループを管理する：
+
+- ペイロードを構築: `history + tool_definitions + temperature + max_tokens + stream=True`
+- SSEストリーミングでLLMに送信
+- `content_parts`（テキスト）と `tool_calls_map`（関数呼び出し）を収集
+- `finish_reason == "tool_calls"`の場合：ツールを実行 → 結果を追加 → LLMに再送信
+  - `max_tool_turns`回まで繰り返す
+- `finish_reason == "stop"`または`max_tool_turns`超過の場合：最終回答を返す
+
+### 履歴への追加
+
+`ctx.conv.append_message()`は検証付きのメソッドであり、生の`list.append()`ではなく
+これを介してのみ履歴を変更する（詳細は
 [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
-§検証付き履歴変更メソッド を参照) を経由する:
-
-- ツール呼び出し分岐 (`LLMTurnRunner.run()`のメインループ、ステップ4): `finish_reason ==
-  "tool_calls"`かつ`tool_calls`を含むassistantメッセージを`source`指定なしで
-  `ctx.conv.append_message(message)`する
-- `_finalize_answer_text()` (ステップ5、`finish_reason != "tool_calls"`または`tool_calls`なしの場合の
-  done-turnメッセージ): 同じく`source`指定なしで`ctx.conv.append_message(message)`する
-
-両呼び出しは同一ターンイテレーション内では排他的 (片方のみが実行される)。いずれの`message`も
-LLMクライアントのストリーミング集約ロジック (`shared/llm_client.py`) が型付きデルタから構築した
-`role`/`content`/`tool_calls`のみで構成されるため、`ROLE_KEY_WHITELIST["assistant"]`と常に一致し
-検証は常に成功する — 保存内容は以前の生の`.append()`呼び出しと比較して変化しない
-(内部の呼び出し経路の変更のみ)。
-
-`ToolLoopGuard`は各ツールループの反復中に以下をガードする。実行順序は
-`check_all()`内で **循環検出 → 重複排除 → リトライ** の順 (Explicit in code、`tool_loop_guard.py`の
-`check_all`)。いずれかが発動した時点でそれ以降のチェックは行われずループを終了する。
-
-- **循環検出:** 直近の`tool_cycle_detect_window`ラウンド内で同一のツール呼び出しセットのフィンガープリント
-  (ラウンド内の全`(name, args)`をソートしMD5化したもの) が繰り返された場合 → ループを終了;
-  ユーザーには`"Cyclic tool call pattern detected."`が表示される;
-  ヒントは`session_diagnostics`に格納される (`kind='guard_hint'`, `guard_type='cycle'`)。
-- **重複排除:** 同一の`(name, args)`が`tool_dedup_max_repeats`回以上検出された場合 → ループを終了;
-  ユーザーには`"Repeated tool call detected."`が表示される; ヒントは`session_diagnostics`に格納される
-  (`kind='guard_hint'`, `guard_type='dedup'`)。
-- **リトライ:** エラーとなった`(name, args)`が再度呼び出された場合 (`tool_error_retry_max > 0`の場合のみ有効)
-  → ループを終了; ユーザーには`"Repeated failed tool call detected."`が表示される;
-  ヒントは`session_diagnostics`に格納される (`kind='guard_hint'`, `guard_type='retry'`)。
-- **連続エラー:** あるラウンドの全ツールが`tool_error_max_consecutive`回連続でエラーとなった場合
-   → ループを終了; ユーザーには`"Too many consecutive tool errors."`が表示される。
-   部分的な失敗 (一部のみエラー) の場合はカウンタを維持し、全成功ラウンドでリセットされる
-   (`ToolLoopGuard.update_errors`)。
-
-### ガードメソッドの構成
-
-`check_all()`は内部で`check_cycle()` → `check_dedup()` → `check_retry()`を個別に呼び出す複合メソッドである
-(3つの個別メソッドはpublicとして存在する)。`check_error_limit()`は`check_all()`とは別に、
-ツール実行後の連続エラー数に対して呼び出される。
+§検証付き履歴変更メソッド を参照）。
 
 ### ToolLoopGuard発動時の最終回答フォールバック
 
-`ToolLoopGuard.check_all()`が発動した場合、ツール実行せずに最終回答フォールバックを試行する:
+ガードが発動した場合、一時的なシステムメッセージを注入してLLMに再呼び出しする：
 
-1. 一時的システムメッセージを`ctx.conv.history`に注入（`source="loop_guard"`, `_ephemeral=True`）
-   - メッセージ内容: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
-   - `TRUSTED_SOURCES["loop_guard"] = {"_ephemeral"}`でスキーマ検証を通過
-2. `LLMTurnRunner._stream_llm_final_answer()`で`tool_defs=[]`のLLM呼び出しを実行
-3. レスポンスの`finish_reason`を確認:
-   - `finish_reason != "tool_calls"`の場合: 回答テキストを返す（`TurnResult(action="continue")`）
-   - `finish_reason == "tool_calls"`の場合: 失敗を返す（`TurnResult(action="fail", reason="tool_loop_guard")`）
-4. 元の未実行アシスタントメッセージは永続化しない
+- システムメッセージ: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
+- `tool_defs=[]`でLLM呼び出しを実行
+- `finish_reason != "tool_calls"`の場合：回答テキストを返す
+- `finish_reason == "tool_calls"`の場合：失敗を返す
 
-### TurnLoopState dataclass
+元の未実行アシスタントメッセージは永続化しない。
 
-ターンごとのループ状態を保持する (Explicit in code; `tool_loop_guard.py`):
+### ガード発動時のヒント
 
-| Field | Type | Description |
-|---|---|---|
-| `seen_calls` | `dict[str, int]` | 現在のターンで検出されたツール呼び出しフィンガープリントごとの出現回数 |
-| `failed_calls` | `set[str]` | 失敗したツール呼び出しフィンガープリント |
-| `consecutive_errors` | `int` | 全ツールが失敗した連続ラウンド数 |
-| `round_fingerprints` | `list[str]` | 直近N ラウンド分のフィンガープリント (循環検出ウィンドウ) |
+各ガード発動時に `session_diagnostics` に `kind='guard_hint'` でヒントが保存される：
 
-> **Doc/code差異:** 旧版では`seen_calls`を`set[str]`と記載していたが、実装は`dict[str, int]`であり
-> 呼び出し回数を値として保持する (`tool_dedup_max_repeats`との比較に使用)。
-
-### ガードメソッド
-
-| Method | Responsibility |
+| ガード種別 | ヒント内容 |
 |---|---|
-| `check_cycle(round_fingerprints, message)` | 循環検出のみを実行 |
-| `check_dedup(seen_calls, message)` | 重複排除のみを実行 |
-| `check_retry(failed_calls, message)` | リトライ抑制のみを実行 |
-| `check_all(seen_calls, round_fingerprints, failed_calls, message)` | 循環・重複排除・リトライの順に各チェックを実行し、いずれかのガードが発動した場合ヒントを返す |
-| `check_error_limit(consecutive_errors)` | 連続エラー上限をチェックし、超過時はメッセージを返す |
+| cycle | "A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds." |
+| dedup | "The same tool was called with identical arguments multiple times." |
+| retry | "A tool call that previously failed is being retried with the same arguments." |
 
-### ガード定数 (Explicit in code)
+これらのヒントはオフライン診断専用として保存され、`ctx.conv.history`には注入されない。
+ループ終了時にユーザーに表示される短い文言とは別の情報である。
 
-`DEDUP_HINT` / `CYCLE_HINT` / `RETRY_HINT`は、ループ終了時にユーザーへ表示される短い文言
-(`"Repeated tool call detected."`等、上記ガード説明を参照)とは**別物**であり、
-`session_diagnostics`にのみ保存されるLLM向けの長い指示文である:
+## Key Constraints
 
-| Constant | Value | Purpose |
-|---|---|---|
-| `DEDUP_HINT` | `"[System] The same tool was called with identical arguments multiple times. Stop retrying and provide your best answer with the information already available."` | 重複排除ガード発動時、診断チャンネルに保存されるヒント |
-| `CYCLE_HINT` | `"[System] A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds. Stop and provide your best answer with the information already available."` | 循環検出ガード発動時のヒント |
-| `RETRY_HINT` | `"[System] A tool call that previously failed is being retried with the same arguments. Stop retrying and provide your best answer with the information already available."` | リトライガード発動時のヒント |
-| `GUARD_HINT` | `"You have made repeated tool calls that were not executed. Please provide your best answer based on the information already available in this conversation. Do not make any more tool calls."` | ToolLoopGuard発動時の最終回答フォールバック用システムメッセージ |
+### メッセージ型ホワイトリスト
 
-> **Note:** ガードヒント (`DEDUP_HINT`, `CYCLE_HINT`, `RETRY_HINT`) はオフライン診断専用として
-> `session_diagnostics`に`kind='guard_hint'`で格納される (`hint`フィールドとして)。
-> これらは`ctx.conv.history`には注入されず、LLMからは見えない。
-> いずれかのガードが発動した時点でループは即座に終了する。
+LLMクライアントのストリーミング集約ロジックが型付きデルタから構築するメッセージは、
+`role`/`content`/`tool_calls`のみで構成されるため、検証は常に成功する。
+保存内容は以前の生の`.append()`呼び出しと比較して変化しない。
 
----
+### 不完全な出力の扱い
 
-## エラーハンドリング
-
-### LLMトランスポートエラー (ストリーム開始前)
-
-条件: コンテンツを受信する前に`LLMTransportError`が発生 (`partial_text == ""`)。
-
-処理:
-- assistantメッセージを履歴に保存しない
-- ユーザーメッセージを履歴からポップする (履歴汚染を防止)
-- ユーザーにエラーを表示; REPLは継続
-
-### LLMトランスポートエラー (部分完了)
-
-条件: `partial_text`が空でない状態で`LLMTransportError`が発生。
-
-処理:
-- **診断チャンネルのみ**: `ctx.session.save_diagnostic()`経由で`[INCOMPLETE: {kind}]`プレフィックス付きメッセージを永続化 — `ctx.conv.history`には追加されない (`DiagnosticStore`経由で`session_diagnostics`テーブルに格納)
-- `stat_partial_completions += 1`
-
-不完全な出力は通常の会話履歴から分離されるため、以降のLLMコンテキストを汚染しない。部分的なコンテンツは`session_diagnostics`テーブルへのDBクエリを通じてアクセス可能なまま残る。
-
-各ターンの後、REPLの行ディスパッチャーが`handle_turn()`の前後で`stat_partial_completions`を比較する。増加していれば、ユーザーに見える警告が出力される:
-
-``` text
-[warn] Partial LLM completion stored. Use /stats to see count or query session_diagnostics table.
-```
-
-`/stats`も0より大きい場合はカウントを表示する: `Partial compl : N  (stored in session_diagnostics)`。
-
-### ツール継続の失敗 (turn > 0)
-
-条件: ツール継続ターン中にLLMトランスポートエラーが発生。
-
-処理:
-- 合成された`tool`ロールのエラーメッセージ (`name="llm_transport_error"`) を履歴に追加
-- 失敗を`session_diagnostics`に格納
-- 会話は継続する (LLMはこのエラーをツール実行結果として認識する)
+- トランスポートエラー発生時、`partial_text`が空でない場合は`session_diagnostics`に
+  `[INCOMPLETE: {kind}]`プレフィックス付きで永続化する
+- `ctx.conv.history`には追加しない
+- 各ターン後にREPLが`stat_partial_completions`を比較し、増加していれば警告を出力する
 
 ### 連続ツールエラー
 
-条件: あるラウンドの全ツールが`tool_error_max_consecutive`回連続で失敗。
+- あるラウンドの全ツールが`tool_error_max_consecutive`回連続で失敗した場合、ツールループを抜ける
+- 部分的な失敗（一部のみエラー）の場合はカウンタを維持し、全成功ラウンドでリセットされる
 
-処理:
-- ツールループを抜ける
-- `"Too many consecutive tool errors."`メッセージを返す
+## Operational Notes
 
----
+- ガード発動後の最終回答フォールバックは、一時的なシステムメッセージを注入して
+  ツールなしで回答を生成させるアプローチを取る
+- 不完全な出力は`/stats`コマンドで確認可能だが、通常の会話履歴からはアクセスできない
 
-## Related Documents
+## Known Limitations
+
+- 循環検出はフィンガープリントベースのため、順序は異なるが機能的に等価なツール呼び出しは
+  別パターンとして検知されない
+- リトライ抑制は`tool_error_retry_max > 0`の場合のみ有効
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_03_01_turn-processing-flow-overview.md`

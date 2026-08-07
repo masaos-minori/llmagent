@@ -24,51 +24,53 @@ source:
 > **本章の対象範囲:** ランタイムの振る舞い、モジュールグラフ、データフロー、コンポーネントのライフサイクル。
 > 関数シグネチャ、パラメータ型、戻り値については → [05_agent_13 §Reference API](05_agent_13_reference-api-part1.md)を参照。
 
----
+## Responsibility Boundary
 
-## Component Dependency Diagram
+### コンポーネント依存関係
 
 ``` text
-agent/__main__.py
-  └─ AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
-       ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
-       ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
-       │    ├─ AgentConfig               — hot-reloadable runtime configuration
-       │    ├─ AgentSession              — SQLite session/message persistence
-       │    ├─ ConversationState         — history list, LLM URL, flags
-       │    ├─ TurnState                 — current turn UUID (reset per turn)
-       │    ├─ RuntimeStats              — cumulative session metrics
-       │    ├─ WorkflowState             — active task ID, approval_pending flag (transient)
-       │    └─ AppServices               — all service references (injected by factory.py)
-       │         ├─ LLMClient            — SSE streaming, retry
-       │         ├─ ToolExecutor         — MCP routing, TTL cache
-       │         ├─ HistoryManager       — char counting, LLM compression
-       │         ├─ ServerLifecycleRouter — HTTP subprocess lifecycle
-       │         ├─ audit_logger         — JSON-lines audit.log writer
-       │         └─ MemoryServices?      — optional semantic memory layer
-       ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
-       ├─ CommandRegistry                — all /cmd dispatch (13 direct mixins + 2 nested via _ConfigMixin = 15 total)
-       └─ Orchestrator (agent/orchestrator.py) — turn-level facade
-            ├─ LLMTurnRunner             — SSE stream + inner tool-call loop
-            ├─ ToolLoopGuard             — dedup/cycle/retry/error guards
-            ├─ WorkflowDef (agent/workflow/) — plan/execute/verifyの3ステージ定義。ロード失敗時は起動時RuntimeError
-            └─ DiagnosticStore           — ctx.diagnosticsに束縛されるターン診断ストア
+AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
+   ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
+   ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
+   │    ├─ LLMClient            — SSE streaming, retry
+   │    ├─ ToolExecutor         — MCP routing, TTL cache
+   │    ├─ HistoryManager       — char counting, LLM compression
+   │    └─ ServerLifecycleRouter — HTTP subprocess lifecycle
+   ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
+   └─ Orchestrator (agent/orchestrator.py) — turn-level facade
+        └─ LLMTurnRunner             — SSE stream + inner tool-call loop
 ```
 
-### 依存グラフの補足
+### 責務境界の補足
 
-- `Orchestrator.__init__()`は`WorkflowLoader().load()`で`WorkflowDef`を読み込み、失敗時は
-  `RuntimeError`を送出する(起動が止まる)。各ターンは`WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`
-  経由で実行される。(Explicit in code)
-- `AppServices.lifecycle`の実行時実装(`LifecycleManagerProtocol`準拠)は`agent/factory.py`内に定義されており、
-  HTTPサブプロセスの起動・終了は`agent/http_lifecycle.py`の`HttpServerLifecycleManager`に委譲される。
-  クラス名はプライベート命名のため本書では割愛する。(Explicit in code)
-- `AgentContext.diagnostics`(`DiagnosticStore | None`)は上図に含まれていなかった属性で、
-  `Orchestrator.__init__()`実行後にのみ設定される。(Explicit in code)
+- `AgentContext`は共有される可変状態とコンポーネント参照のハブ。`factory.build_agent_context()`が
+  すべてのサービスを注入する。
+- `Orchestrator`は1回のユーザーターンをエンドツーエンドで処理し、LLMストリーミングとツールループを
+  `LLMTurnRunner`に委譲する。
+- `AppServices.lifecycle`の実行時実装は`agent/factory.py`内に定義されており、HTTPサブプロセスの
+  起動・終了は`agent/http_lifecycle.py`に委譲される。
 
----
+## Key Constraints
 
-## Related Documents
+- `Orchestrator.__init__()`は`WorkflowLoader().load()`でワークフロー定義を読み込み、失敗時は
+  `RuntimeError`を送出する（起動が止まる）。
+- MCPサブプロセス起動後に例外が発生した場合、起動済みのMCPサブプロセスはロールバックされる。
+- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する。
+
+## Operational Notes
+
+- `AgentContext.diagnostics`は上図に含まれていなかった属性で、`Orchestrator.__init__()`実行後に
+  設定される。
+- `handle_turn()`はワークフローエンジン経由でplan/execute/verifyステージを実行する。
+  `ctx.workflow.approval_pending`がTrueの間、およびバックグラウンドタスクが一時停止中の間は
+  新規ターンを拒否する。（詳細は[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+
+## Known Limitations
+
+- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。（詳細は
+  [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_02_runtime-architecture-part2.md`
