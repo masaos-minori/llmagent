@@ -19,91 +19,42 @@ source:
   - 05_agent_12_02_memory-gate-data-model-search-part1.md
 ---
 
-# Memory Layer — Module Reference
+# Memory Layer — Activation Gate, Data Model, and Search (Part 1)
 
 - 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-## アクティベーションゲート
+## Purpose
 
-### Activation gate
+メモリ操作の実行タイミングを制御する3層のアクティベーションゲートと、各モジュールが無効化時にどのように振る舞うかを定義する。
 
-メモリ層には、メモリ操作の実行タイミングを制御する3層のアクティベーションゲートがある。
+## Design Intent
 
-**レイヤー1: config によるバイパス**
-- `use_memory_layer` config フラグ（デフォルト: `True`）
-- `False` の場合、メモリサービスは構築されず、`ctx.services.memory` は `None` になる
-- すべての呼び出し元は `if ctx.services.memory is None: return` でガードする
-- injection、ingestion、retrieval を完全にバイパスする
+メモリ層は3つの独立したゲートで制御している。config フラグによる完全バイパス、埋め込みクライアントの有効化によるフェーズドフォールバック、およびファサード経由の単一エントリポイント。これはメモリレイヤーが optional であることを実装的に保証するため。
 
-**レイヤー2: 埋め込みクライアントの有効化**
-- 埋め込みクライアントの有効化フラグが HTTP と埋め込み呼び出しをゲートする
-- `False` の場合: `fetch()` は即座に `EmbeddingResult(success=False, error_kind=DISABLED)` を返す
-- 埋め込みが利用できない場合、`HybridRetriever.search()` は FTS5 のみにフォールバックする
+## Responsibility Boundary
 
-**レイヤー3: サービスファサードの呼び出し**
-- `MemoryServices` が単一のエントリポイントである（`on_session_start`、`on_user_prompt`、`on_session_stop`）
-- すべてのメモリ操作はこのファサードを経由する。サブサービスへの直接アクセスはテスト専用である
+- メモリレイヤーが所有するもの: メモリ操作のライフサイクル（セッション開始時注入、ユーザープロンプト応答、セッション終了時抽出）
+- メモリレイヤーが所有しないもの: LLM コンテキスト生成、ツール実行、RAG ドキュメント検索
 
-### モジュール別の無効化時の動作
+## Key Constraints
 
-### Module-specific behavior when disabled
+- `use_memory_layer = false` を設定すると、メモリサービスは構築されずすべてのメモリ操作が完全にバイパスされる
+- 埋め込みエンドポイントが利用不可能な場合、`HybridRetriever.search()` は FTS5 のみにフォールバックする
+- `VectorRetriever.knn_search()` は `memories_vec` テーブルが存在しない場合に `OperationalError` を送出する（テーブル未初期化状態で埋め込みが有効な場合は例外が伝播する）
 
-| Module | Disabled condition | Behavior |
-|---|---|---|
-| `services.py` | `use_memory_layer=False`（レイヤー1） | `ctx.services.memory` が `None` になる。呼び出し元はスキップする |
-| `injection.py` | レイヤー1でバイパス | `MemoryInjectionService` は構築されず、スニペットは注入されない |
-| `ingestion.py` | レイヤー1でバイパス | `MemoryIngestionService` は構築されず、エントリは書き込まれない |
-| `embedding_client.py` | `enabled=False`（レイヤー2） | `fetch()` は HTTP 呼び出しを行わずに `EmbeddingResult(error_kind=DISABLED)` を返す |
-| `retriever.py` | レイヤー2が無効 | `HybridRetriever.search()` は `embedding=None` の場合 FTS5 のみで結果を返す（`last_retrieval_mode="fts_only"`、`fts_fallback_count` を加算） |
-| `jsonl_store.py` | レイヤー1でバイパス | `write()` は呼び出されず、ファイルは変更されない |
-| `store.py` | レイヤー1でバイパス | `upsert()` は呼び出されず、SQLite インデックスは変更されない |
-| `extract.py` | レイヤー1でバイパス | `extract_memories()` は呼び出されない |
-| `mapper.py` | 該当なし（純粋なユーティリティ） | 常に利用可能 |
-| `models.py` | 該当なし（純粋なデータ） | 常に利用可能 |
-| `types.py` | 該当なし（純粋なデータ） | 常に利用可能 |
-| `enums.py` | 該当なし（純粋なデータ） | 常に利用可能 |
-| `exceptions.py` | 該当なし（純粋なデータ） | 常に利用可能 |
+## Operational Notes
 
-### 境界条件: `knn_search()` の空リスト判定と例外の違い
+- `/memory status` で現在のモードを確認できる
+- 埋め込みが利用できない場合、システムは FTS のみにフォールバックする（手動操作不要）
+- `DEDUP_THRESHOLDS` は source_type 別の重複判定しきい値として `ingestion.py` で実際に消費されている
+- `RETENTION_DAYS` は定義されているが現在到達不能（死コード）。詳細は NC-007 を参照
 
-`HybridRetriever.search()` は、呼び出し時点で `embedding=None`（埋め込み無効・未取得）の
-場合、または `VectorRetriever.knn_search()` が空リストを返した場合（KNN 結果 0 件）に
-FTS のみへフォールバックする。一方、`VectorRetriever.knn_search()` 自体は
-`memories_vec` テーブルが存在しない場合に `sqlite3.OperationalError` を送出する
-（docstring 明記）。`HybridRetriever.search()` はこの例外を捕捉していないため、
-テーブル未初期化状態で埋め込みが有効な場合は例外が呼び出し元まで伝播する。
+## Known Limitations
 
-根拠分類: Explicit in code（`retriever.py` `VectorRetriever.knn_search` docstring
-「raises OperationalError when table missing」、`HybridRetriever.search()` に
-`knn_search` 呼び出しへの try/except なし）。
+- `RETENTION_DAYS` の保持期間に基づくエクスプライズフィルタは現在到達不能（NC-007）
 
-### 実装上の補足: DedupPolicy と保持期間
-
-`enums.py` は重複排除・保持関連の定数も定義する。
-
-| 定数 | 内容 |
-|---|---|
-| `DedupPolicy` | `action: DedupAction = SKIP_NEW`, `threshold: float = 0.3`（`ingestion.py` のデフォルト重複排除ポリシー） |
-| `DEDUP_THRESHOLDS` | source_type 別の重複判定しきい値: RULE=0.98, DECISION=0.98, FAILURE=0.90, CONVERSATION=0.85 |
-| `RETENTION_DAYS` | source_type 別の保持日数: RULE=None（無期限）, DECISION=None（無期限）, FAILURE=180, CONVERSATION=90 |
-
-`DEDUP_THRESHOLDS` は `ingestion.py` の `_get_dedup_threshold()`（178-184行目）が
-`entry.source_type` に応じて参照し、`_has_near_duplicate()`（186-194行目）から
-呼び出される — 埋め込みインゲーション中に実際に使用されている。
-`RETENTION_DAYS` は `enums.py` に定義されているが、唯一の参照先である
-`JsonlMemoryStore.read_active()`（`jsonl_store.py:91-111`、98行目で参照）には
-リポジトリ全体で呼び出し元が存在しない（`grep -rn "read_active"` で定義のみ確認）。
-保持期間に基づくエクスプライズフィルタは定義されているが現在到達不能。
-詳細は NC-007 を参照: `requires/done/20260727-134808_require.md`。
-
-根拠分類: Explicit in code（`enums.py` の定数定義、`ingestion.py`
-`_get_dedup_threshold()` の消費パス）／`RETENTION_DAYS` の利用箇所は
-`read_active()` のみ、呼び出し元なし — 死コード。
-
----
-
-## Related Documents
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_12_01_memory-overview-and-modes-part1.md`
@@ -112,15 +63,3 @@ FTS のみへフォールバックする。一方、`VectorRetriever.knn_search(
 - `05_agent_12_05_memory-module-ref-extraction-and-facade.md`
 - `05_agent_12_06_memory-module-ref-ops-and-scoring.md`
 - `05_agent_12_02_memory-gate-data-model-search-part2.md`
-
-## Keywords
-
-activation gate
-disabled behavior by module
-MemoryEntry
-MemorySnippet
-JSONL format
-FTS5
-KNN
-hybrid RRF
-disabled behavior

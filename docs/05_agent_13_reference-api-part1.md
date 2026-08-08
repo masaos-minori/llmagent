@@ -12,17 +12,46 @@ source:
   - 05_agent_13_reference-api-part1.md
 ---
 
-# Agent Reference API
+# Agent Reference API — Part 1
 
-- ドキュメントガイド → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
-
-## 目的
+## Purpose
 
 役割、主要な公開 API、呼び出し元、呼び出し先、関連する設定、失敗時の動作を含む、
 モジュールごとの簡潔な API リファレンス。完全なメソッドシグネチャはリンク先の各章を参照。
 
 > **本章の範囲:** 関数シグネチャ、パラメータ型、戻り値、エラー条件。
 > コンポーネントのコンテキスト、データフロー、実行時の動作については → [05_agent_02 §Runtime Architecture](05_agent_02_runtime-architecture-part1.md) を参照。
+
+## Design Intent
+
+API レファレンスは「API は何か」「どのように動作するか」に焦点を当てる。「なぜこの API がこのように設計されたか」は設計文書の範囲である。
+
+## Responsibility Boundary
+
+- このファイルが所有するもの: 関数シグネチャ、パラメータ型、戻り値、エラー条件
+- このファイルが所有しないもの: コンポーネントのコンテキスト、データフロー、実行時の動作
+
+## Key Constraints
+
+- API レファレンスの詳細は Canonical Source Rule で定められた正本にのみ存在する
+- 他章での API/type/method 詳細の重複は禁止（Canonical Source Rule）
+- 不完全な実装変更は `Needs Confirmation` マークで明示する
+
+## Operational Notes
+
+- REPL ループドライバからの呼び出しは常に `await` 形式
+- 失敗時はエラー種別ごとに異なるフォールバック動作が存在する
+- メモリレイヤーはオプションであり、`ctx.services.memory is None` の場合に安全にガードできる設計になっている
+
+## Known Limitations
+
+- 一部の呼び出し先は間接的な依存関係を含んでいる（例: `factory.build_agent_context()` は `StartupOrchestrator` を経由して呼ばれる）
+- 旧版ドキュメントと現行コードの差分は `Needs Confirmation` マークで明示されている
+
+## Related Docs
+
+- `05_agent_00_document-guide.md`
+- `05_agent_13_reference-api-part2.md`
 
 ---
 
@@ -31,16 +60,9 @@ source:
 - **役割:** REPL コーディネーター。薄い起動／ループドライバ
 - **主要な API:** `await AgentREPL().run()`
 - **呼び出し元:** `agent/__main__.py`
-- **呼び出し先:** `agent.startup.StartupOrchestrator`（`run()` 内で構築・実行し、`CommandRegistry` と `Orchestrator` を受け取る）、`CLIView`
+- **呼び出し先:** `agent/startup.StartupOrchestrator`（`run()` 内で構築・実行し、`CommandRegistry` と `Orchestrator` を受け取る）、`CLIView`
 - **設定:** `AgentConfig` 全体
 - **失敗時:** 未処理の例外はイベントループに伝播する。`finally` は常にリソースをクローズする
-
-> **根拠分類: Explicit in code（訂正）。** `factory.build_agent_context(ctx, view)` は
-> `AgentREPL` から直接呼ばれない。`AgentREPL.run()` が `StartupOrchestrator(self._ctx, self._view)`
-> を生成して `await startup.run()` を呼び、その内部で `factory.build_agent_context()` が実行される
-> （`agent/startup.py` 内 `build_agent_context(ctx, self._view)` 呼び出し箇所を確認）。
-> 戻り値 `(cmds, orchestrator)` を `AgentREPL` が受け取って `self._cmds` / `self._orchestrator` に格納する。
-> 旧版の「呼び出し先」に `factory.build_agent_context()` を直接列挙していたため、間接呼び出しである旨を明記した。
 
 完全な詳細: [05_agent_02_runtime-architecture-part1.md §AgentREPL](05_agent_02_runtime-architecture-part1.md)
 
@@ -55,12 +77,6 @@ source:
 - **設定:** `cfg.llm.*`、`cfg.tool.*`、`cfg.memory.*`
 - **失敗時:** `LLMTransportError` は内部で捕捉される。REPL は継続する。`__init__()` 時点で `WorkflowLoader().load()` が失敗すると `RuntimeError` を送出し、`Orchestrator` 自体の構築が失敗する（ワークフロー定義は必須）
 
-> **根拠分類: Explicit in code（追記/訂正）。** 呼び出し先に `MemoryInjectionService` を直接列挙していたが、
-> メモリ注入処理は `ctx.services_required.memory`（`MemoryServices` ファサード）
-> の `on_user_prompt()` を呼ぶのみで、`MemoryInjectionService` を直接参照しない。
-> また `Orchestrator.__init__()` は `WorkflowLoader().load()` に失敗すると即座に `RuntimeError` を送出する
-> （フォールバック動作なし）。ワークフローエンジン関連の呼び出し先が旧版に欠落していたため追記した。
-
 完全な詳細: [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 
 ---
@@ -73,12 +89,6 @@ source:
 - **呼び出し先:** なし（純粋な状態保持クラス）
 - **設定:** `AgentConfig` が `ctx.cfg` として保持される
 - **失敗時:** `ctx.services_required`（プロパティ）は `ctx.services` が `None`（`factory.build_agent_context()` 完了前）の場合に `RuntimeError` を送出する。`ctx.services` 自体への直接アクセスは失敗しない（`None` を返すのみ）
-
-> **根拠分類: Explicit in code（追記）。** `agent/context.py::AgentContext` は上記に加え
-> `ctx.workflow`（`WorkflowState`: `active`、`current_task_id`、`workflow_id`、`approval_pending` 等。
-> ワークフロー実行中の表示用キャッシュであり、正本は `StateStore`（`workflow.sqlite`））と
-> `ctx.diagnostics`（`DiagnosticStore | None`。`Orchestrator.__init__()` がインスタンスを設定するまで `None`）を保持する。
-> 旧版はこれらのフィールドを列挙していなかったため追記した。
 
 完全な詳細: [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
 
@@ -119,8 +129,7 @@ source:
 - **設定:** 直接の設定なし。コンストラクタは `server_configs` を後方互換のために受け取るが読み取らない
 - **失敗時:** ツール名がレジストリに見つからない場合、フォールバックなしで即時 `ValueError` を発生させる
 
-> **根拠分類: Explicit in code / Document inconsistency の修正。**
-> 旧版は「4層カスケード（live discovery > ToolRegistry > config `tool_names` > 静的定数）」
+> **根拠分類: Explicit in code（訂正）。** 旧版は「4層カスケード（live discovery > ToolRegistry > config `tool_names` > 静的定数）」
 > および失敗時 `KeyError` と記載していたが、その後 `shared/route_resolver.py::ToolRouteResolver.resolve()`
 > の実装が `ToolRegistry` のみを参照し、一致しない場合は `ValueError` を送出する形に一度修正された。
 > しかし現行コードはさらに `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`）への移行を経ており、
@@ -131,17 +140,3 @@ source:
 > 本ファイルのみ旧記述が残っていたため修正した。
 
 完全な詳細: [04_mcp_03_01_dispatch-and-routing.md §ルーティングの信頼できる情報源](04_mcp_03_01_dispatch-and-routing.md)
-
----
-
-## Related Documents
-
-- `05_agent_00_document-guide.md`
-- `05_agent_13_reference-api-part2.md`
-
-## Keywords
-
-agent
-reference
-api
-types

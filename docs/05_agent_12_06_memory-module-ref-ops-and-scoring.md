@@ -15,95 +15,55 @@ related:
   - 05_agent_12_03_memory-module-ref-core-and-store.md
   - 05_agent_12_04_memory-module-ref-retrieval-and-injection.md
   - 05_agent_12_05_memory-module-ref-extraction-and-facade.md
+source:
+  - 05_agent_12_06_memory-module-ref-ops-and-scoring.md
 ---
 
-# Memory Layer — Module Reference
+# Memory Layer — Module Reference: Ops and Scoring
 
 - 運用と可観測性 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 - 設定 → [05_agent_08_03_configuration-tools-memory.md](05_agent_08_03_configuration-tools-memory.md)
 
-## 14. `mapper.py` — 行変換ユーティリティ
+## Purpose
 
-| Function | Returns | Description |
-|---|---|---|
-| `row_to_entry(dict)` | `MemoryEntry` | SQLite の行を MemoryEntry に変換する |
+メモリレイヤーの書き込み操作、スコアリング、RRFマージ、FTS5クエリビルダーの責務範囲を定義する。
 
-float から BLOB への変換、タイムスタンプ付与、ISO 8601 タイムスタンプ生成のための内部ヘルパー関数。
+## Design Intent
 
-### 15. `write_ops.py` — 書き込み操作
+メモリレイヤーは optional であるため、すべての公開 API は `ctx.services.memory is None` の場合に安全にガードできる設計になっている。コア型は不変の DTO として定義され、JSONL と SQLite の両方のストレージ層と互換性がある。
 
-| Function | Returns | Description |
-|---|---|---|
-| `add(entry, embedding=None, embed_dim=None)` | `None` | 挿入＋FTS 同期。原子性のために BEGIN IMMEDIATE を使用する。`embedding` が提供された場合、memories_vec にも書き込む。 |
-| `upsert(entry, embedding=None, embed_dim=None)` | `None` | 挿入または置換＋FTS 同期。`embedding` が提供された場合、memories_vec にも upsert する。 |
-| `delete(memory_id)` | `bool` | ID によるエントリの削除 |
-| `clear_by_session(session_id)` | `int` | 1セッション分の一括削除 |
+## Responsibility Boundary
 
-### 16. `pin_ops.py` — pin/unpin 操作
+- メモリレイヤーが所有するもの: メモリエントリの永続化、検索、注入
+- メモリレイヤーが所有しないもの: LLM コンテキスト生成、ツール実行、RAG ドキュメント検索
 
-| Function | Returns | Description |
-|---|---|---|
-| `pin(memory_id, conn=None)` | `bool` | pinned=1 を設定する。見つかった場合は True を返す。`conn` が提供された場合、その接続を使用する（呼び出し元がコミットする必要がある）。 |
-| `unpin(memory_id, conn=None)` | `bool` | pinned=0 を設定する。見つかった場合は True を返す。`conn` が提供された場合、その接続を使用する（呼び出し元がコミットする必要がある）。 |
+## Key Constraints
 
-### 17. `count_ops.py` — 診断用カウント
+- `use_memory_layer = false` を設定すると、メモリサービスは構築されずすべてのメモリ操作が完全にバイパスされる
+- `VectorRetriever.knn_search()` は `memories_vec` テーブルが存在しない場合に `OperationalError` を送出する（テーブル未初期化状態で埋め込みが有効な場合は例外が伝播する）
+- `EmbeddingClient.enabled=False` の場合、`fetch()` は HTTP 呼び出しを行わずに即座に `EmbeddingResult(success=False, error_kind=DISABLED)` を返す
+- 埋め込み取得が失敗した場合も処理は継続し、埋め込みなしでエントリを保存する（`stat_embed_skip` カウンタが増加）
+- `JsonlMemoryStore` は追記専用アーカイブ。削除および pin/unpin の状態変更は再生されない
+- 自動抽出（`on_session_stop`）は `DedupAction.SKIP_NEW` による重複排除を適用するが、手動書き込みは意図的にこの重複排除をバイパスする
+- 埋め込み取得後、KNN 近傍5件を検索し、source_type ごとの閾値より距離が近い既存エントリがあれば新規エントリを破棄する（SKIP_NEW）
+- 埋め込み取得が失敗した場合、埋め込みなしで SQLite/JSONL への保存を継続する（フェイルオープン）
+- JSONL への書き込みが `OSError` で失敗した場合、警告ログを出して処理を継続する（SQLite が正本であるため致命的エラーとしない）
+- `memory_links` への挿入が `sqlite3.OperationalError`/`IntegrityError` で失敗した場合も警告ログのみで処理を継続する
 
-| Function | Returns | Description |
-|---|---|---|
-| `count_entries()` | `int` | memories テーブルの行数（診断用） |
-| `count_by_type()` | `dict[str, int]` | 全行に対する {memory_type: count}（診断用） |
-| `count_by_source_type()` | `dict[str, int]` | 全行に対する {source_type: count}（診断用） |
-| `count_vec()` | `int` | memories_vec の行数（利用不可の場合は OperationalError を発生させる） |
-| `count_prunable(days)` | `int` | `days` 日より古いエントリの件数 |
+## Operational Notes
 
-### 18. `rebuild_ops.py` — 再構築操作
+- `/memory status` で現在のモードを確認できる（Disabled / FTS-only / Degraded / Hybrid）
+- `get_stats()` は以下のキーを持つ: total, semantic, episodic, by_source, embed_skip, last_retrieval_mode, fts_fallback_count
+- 埋め込み取得が失敗した場合、`stat_embed_skip` カウンタが増加し、`on_session_stop()` のサマリーでログ出力される
+- `import_from_jsonl()` は JSONL アーカイブから SQLite にエントリをインポートする。削除および pin/unpin の状態変更は再生されない
+- FTS5 インデックスの再構築には `rebuild_fts()` を使用し、vec インデックスの再構築には `rebuild_vec()` を使用する
 
-| Function | Returns | Description |
-|---|---|---|
-| `rebuild_fts()` | `int` | memories テーブルから FTS5 インデックスを再構築する。挿入された行数を返す |
-| `rebuild_vec()` | `int` | memories テーブルから vec インデックスを再構築する。挿入された行数を返す |
+## Known Limitations
 
-### 19. `import_ops.py` — インポート操作
+- 1件のソースメッセージが複数チャンクに分割された場合、検索時にはそれぞれが独立したヒットとして現れる（フラグメンテーション）
+- `RETENTION_DAYS` の保持期間に基づくエクスプライズフィルタは現在到達不能（NC-007）
 
-| Function | Returns | Description |
-|---|---|---|
-| `import_from_jsonl(jsonl_store, *, dry_run=False, embed_dim=None)` | `tuple[int, int]` | JSONL アーカイブから SQLite にエントリをインポートする。(jsonl_count, inserted_count) を返す。`dry_run=True` の場合、挿入せずに件数のみを返す。削除および pin/unpin の状態変更は再生しない。 |
-
-### 20. `scoring.py` — ブーストを伴う BM25 スコアリング
-
-**定数:**
-- `_PIN_BOOST = 0.3` — pin されたエントリへの pin ブースト
-- `_IMPORTANCE_BOOST_SCALE = 0.5` — importance のスケール係数（importance × 0.5）
-- `_RECENCY_MAX_BOOST = 0.2` — 7日以内のエントリに対する recency ブーストの最大値
-- `_CONTEXT_MATCH_BOOST = 0.1` — project/repo が一致した場合の基本のコンテキスト一致ブースト
-- `_RECENCY_DAYS = 7.0` — recency のウィンドウ（日数）
-
-| Function / Constant | Returns | Description |
-|---|---|---|
-| `score(bm25_rank, entry, project, repo[, recency_days, branch])` | `float` | 合成スコア: `-bm25_rank + importance_boost + pin_boost + recency_decay + context_match`。数式: `score = -bm25_rank + (importance_w × importance × 0.5) + (0.3 if pinned else 0) + (recency_w × recency_boost(created_at)) + context_boost(entry, project, repo, branch)` |
-| `recency_boost(created_at[, recency_days])` | `float` | エントリの経過時間に反比例するブースト: `_RECENCY_MAX_BOOST × (1 - age_days / recency_days)`。経過日数が recency_days 以上の場合は 0.0 を返す |
-| `context_boost(entry, project, repo[, branch])` | `float` | ブランチ一致: 0.15。project/repo 一致: 0.1。不一致: 0.0 |
-
-### 21. `rrf.py` — Reciprocal Rank Fusion によるマージ
-
-| Constant / Function | Returns | Description |
-|---|---|---|
-| `RRF_K` | `60` | Reciprocal rank fusion の定数 |
-| `rrf_merge(hit_lists, k=60)` | `list[MemoryHit]` | RRF スコアリングを用いて複数のランク付き hit リストをランク位置ごとにマージする（各リストは 1.0 / (k + rank + 1) を寄与する） |
-
-### 22. `fts_query.py` — FTS5 クエリビルダー
-
-| Function / Constant | Returns | Description |
-|---|---|---|
-| `build_fts_query(text: str)` | `str` | トークンのクォート処理を伴う FTS5 MATCH クエリを構築する |
-
-### 23. `sql_constants.py` — SQL 定数
-
-内部ヘルパーモジュール。公開 API なし。
-
----
-
-## Related Documents
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_12_01_memory-overview-and-modes-part1.md`
@@ -111,16 +71,3 @@ float から BLOB への変換、タイムスタンプ付与、ISO 8601 タイ�
 - `05_agent_12_03_memory-module-ref-core-and-store.md`
 - `05_agent_12_04_memory-module-ref-retrieval-and-injection.md`
 - `05_agent_12_05_memory-module-ref-extraction-and-facade.md`
-
-## Keywords
-
-mapper.py
-write_ops.py
-pin_ops.py
-count_ops.py
-rebuild_ops.py
-import_ops.py
-scoring.py
-rrf.py
-fts_query.py
-sql_constants.py

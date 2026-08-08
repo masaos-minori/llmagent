@@ -5,12 +5,8 @@ tags:
   - agent
   - data-layer
   - session-sqlite
-  - rag-sqlite
-  - sqlite-databases
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_09_02_data-layer-access-patterns.md
-  - 05_agent_09_03_data-layer-indexing-boundaries.md
 source:
   - 05_agent_09_01_data-layer-session-db.md
 ---
@@ -19,95 +15,29 @@ source:
 
 - 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
 
-## Purpose(目的)
+## Purpose
 
-エージェント層で使用されるSQLiteテーブル構造、データ所有権の境界、
-およびエージェント層とRAG層の間の責任境界を文書化する。
+セッションDBの責任範囲、データ所有権の境界、およびRAG層との責任境界について文書化する。
 
----
+## Design Intent
 
-## SQLite Databases(SQLiteデータベース)
+### データベースの責任分割
 
-| Database | Path | Owner | Purpose |
-|---|---|---|---|
-| `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | セッション、メッセージ |
-| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | RAG layer | ドキュメント、チャンク、ベクトル |
-| `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdownドキュメントのインデックス化とコンテキスト圧縮 |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | タスク、試行、処理済みイベント、承認、アーティファクト |
-
----
-
-## session.sqlite Tables(session.sqlite のテーブル)
-
-| Table | Purpose |
-|---|---|
-| `sessions` | セッションのメタデータ |
-| `messages` | 会話履歴(LLMに可視) |
-| `memories` | インデックス化されたメモリエントリ |
-| `memories_fts` | メモリ内容に対するFTS5インデックス |
-| `memory_links` | メモリ間の多対多リンク |
-| `memories_vec` | 任意のKNN埋め込み |
-| `session_diagnostics` | 診断イベント(LLM転送エラー、ガードヒント) |
-
-### `sessions` table
-
-| Column | Type | Description |
+| Database | Owner | Responsibility |
 |---|---|---|
-| `session_id` | INTEGER PK | 自動増分 |
-| `created_at` | TEXT | ISO-8601形式のタイムスタンプ |
-| `title` | TEXT | セッションタイトル(最大50文字)。最初のターンでLLMが生成する |
+| `session.sqlite` | Agent layer | セッション、メッセージ、メモリ、診断 |
+| `rag.sqlite` | RAG layer | ドキュメント、チャンク、ベクトル |
+| `mdq.sqlite` | MCP (mdq-mcp) | Markdownドキュメントのインデックス化とコンテキスト圧縮 |
+| `workflow.sqlite` | Workflow engine | タスク、試行、処理済みイベント、承認、アーティファクト |
 
-### `messages` table
+**Design judgment**: `session_diagnostics` は `messages` と分離されている — 診断イベントはLLMに可視ではないため、会話履歴とは別管理とする。
 
-| Column | Type | Description |
-|---|---|---|
-| `message_id` | INTEGER PK | 自動増分 |
-| `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` — `diagnostic` **ではない** |
-| `content` | TEXT | メッセージのテキスト内容 |
-| `tool_calls` | TEXT | JSON形式でシリアライズされたtool_calls(assistantロールのみ) |
-| `tool_call_id` | TEXT | ツール呼び出しの応答関連付けID(toolロールのみ) |
-| `created_at` | TEXT | 行作成時のタイムスタンプ |
-
-**有効なロール:** `user`、`assistant`、`tool`、`system`。診断イベントは `messages` テーブルには保存されない。`DiagnosticStore.save()` を通じて `session_diagnostics` テーブルにのみ永続化される。
-
-### `session_diagnostics` table
-
-診断イベント(LLM転送エラー、ガードヒント、部分完了)を保存する。`messages` テーブルとは分離されており、`fetch_messages()` から参照されることはない。
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | INTEGER PK | 自動増分 |
-| `session_id` | INTEGER | 関連するセッション(セッション確立前のイベントの場合はNULLの可能性あり) |
-| `kind` | TEXT | イベント種別 |
-| `content` | TEXT | 診断ペイロード |
-| `workflow_id` | TEXT | 任意のワークフローID |
-| `task_id` | TEXT | 任意のタスクID |
-| `created_at` | TEXT | 行作成時のタイムスタンプ |
-
-インデックス: `idx_session_diagnostics_session`(`session_id` 列)。(Explicit in code: `db/schema_sql.py`)
-
-**現在の実装挙動:** `kind` に実際に使用される値は `agent/diagnostic_store.py`(`DiagnosticStore`)が書き込むもので、`llm_transport_error`、`serialization_event`、`partial_completion`、`transport_failure` の4種。汎用の `save()` を通じて任意の文字列を渡すことも可能だが、上記4種が現状の呼び出し元。(Explicit in code)
-
-**取得系メソッド:** `DiagnosticStore` は `fetch(session_id)`(全件、`created_at DESC`)を提供する。`fetch_by_kind` / `fetch_all` は NC-013 で削除済み。(Explicit in code)
-
-**機微フィールドのフィルタリング:** `save()` は挿入前に `_filter_sensitive_fields()` を無条件に適用する。`content`(JSON文字列)をパースし、`artifacts` / `rag_stage_outcomes` キーの値が list 型であれば `{"_redacted": true, "count": <元の要素数>}` に置き換えて再シリアライズする(件数は保持され、生の artifact URI や RAG ステージ出力内容は保存されない)。`content` がJSONとしてパースできない場合、またはトップレベルがオブジェクトでない場合は無変更のまま保存される。(Explicit in code: `agent/diagnostic_store.py`)
-
-**暗号化(オプトイン):** `save(..., encrypt=True)` を指定し、かつ `config/agent.toml` の `[diagnostics] encryption_key` が空文字列でない場合、フィルタ後の `content` を Fernet 対称鍵暗号(`cryptography`パッケージ)で暗号化してから保存する。鍵が未設定の場合、`encrypt=True` を指定してもフィルタ後の平文のまま保存される(no-op)。`fetch()` に復号処理は実装されていない — 暗号化された行は復号されずそのまま返る(follow-onとしてスコープ外)。設定の詳細は [05_agent_08_04_configuration-mcp-approval-obs.md §DiagnosticsConfig](05_agent_08_04_configuration-mcp-approval-obs.md) を参照。(Explicit in code)
-
-**保持ポリシー(遅延パージ):** `save()` は挿入前に毎回 `_purge_old_diagnostics()` を呼び出し、`config/agent.toml` の `[diagnostics] retention_days`(既定30日。0以下でパージ無効)より古い `created_at` の行を `session_diagnostics` から削除する。これは [Session retention](#session-retentionセッション保持ポリシー) の `sqlite_retention_max_age_days`(`sessions`/`messages` 対象)とは独立した設定・削除ロジックであり、共有されない。(Explicit in code)
-
-### SessionMessageRepository vs SQLiteSessionStore
-
-| Component | Role | Validation | Persistence |
-|---|---|---|---|
-| `SessionMessageRepository` | 会話メッセージのビジネスロジック層 | ロール検証、strict_mode、スキップカウンタ、content=Noneの正規化、tool_callsのJSONエンコード/デコード | セッション依存の永続化 |
-| `SQLiteSessionStore` | DBアダプタ層 | スキーマ整合性のみ | 単純なDB操作(INSERT/LIST) |
+### SessionMessageRepository vs SQLiteSessionStore の責任分割
 
 `SessionMessageRepository` が担うもの:
-- ロール検証(`user` / `assistant` / `tool` / `system`)
-- strict_modeの動作(スキップ時に `RuntimeError` を発生)
-- セッション不在時の保存回避(スキップカウンタ)
+- ロール検証 (`user` / `assistant` / `tool` / `system`)
+- strict_modeの動作 (スキップ時に `RuntimeError` を発生)
+- セッション不在時の保存回避
 - `content=None` の正規化
 - tool_callsのJSONエンコード/デコード
 
@@ -116,20 +46,57 @@ source:
 - スキーマに準拠した永続化
 - 最小限の検証のみ
 
-**規約:** 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない。これは薄いDBアダプタであり、ロール検証もcontentの正規化もJSONエンコードも行わない。これらの関心事はすべて `SessionMessageRepository` に属する。
+**Design judgment**: 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない。これは薄いDBアダプタであり、ロール検証もcontentの正規化もJSONエンコードも行わない。これらの関心事はすべて `SessionMessageRepository` に属する。
 
-**現在の実装挙動:** `SQLiteSessionStore` は `scripts/db/store_impl.py` に実装され、`db/store_protocols.py` の `SessionStore` プロトコルの実装として存在する。ただし現状のREPL/エージェント実行経路(`agent/session.py` の `AgentSession`)は `SQLiteSessionStore` を経由せず、`SQLiteHelper` を直接呼び出して `sessions`/`messages` を操作している。`AgentSession` はコンストラクタで `SessionMessageRepository` を保持するファサードであり、`session.start()` / `set_title()` / `list_sessions()` / `delete_last_turn()` / `undo_last_turn()` / `delete_session()` を提供する。**解決済み(NC-017)**: `SQLiteSessionStore` の実際の呼び出し元は本番コードには存在せず、唯一の呼び出し元は `tests/test_db_store_impl.py::TestSQLiteSessionStore`(プロトコル準拠を確認するテスト用スキャフォールド)であることを確認済み。
+### セッション保持ポリシー
 
-共有層の責任境界の見方については
-[90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) を参照。
+`db/maintenance.py` の `purge_old_sessions()` が、`RetentionConfig`に基づき古いセッションを年齢基準→件数基準の順で削除する。`sessions` 削除は `ON DELETE CASCADE` により `messages` にも伝播する。
 
-### Session retention(セッション保持ポリシー)
+### メモリテーブルの所有権
 
-`db/maintenance.py` の `purge_old_sessions()` が、`RetentionConfig`(`agent.toml` の `sqlite_retention_max_sessions`(既定100)・`sqlite_retention_max_age_days`(既定90、0で無効化))に基づき、古いセッションを年齢基準→件数基準の順で削除する。`sessions` 削除は `ON DELETE CASCADE` により `messages` にも伝播する。`MaintenanceMode.STRICT`(既定)ではDBエラー時に例外を送出し、`BEST_EFFORT` では `MaintenanceResult(success=False)` を返す。(Explicit in code)
+`use_memory_layer=True` の場合、メモリサブシステムはJSONLとSQLiteの両方を使用する:
 
----
+| Storage | Path | Contents |
+|---|---|---|
+| JSONL | `{memory_jsonl_dir}/memories.jsonl` | インポート/エクスポートおよび災害復旧用の追記専用アーカイブ |
+| SQLite: `memories` | `session.sqlite` | 現在のメモリ状態の正本 |
+| SQLite: `memories_fts` | 同じDB | メモリ内容に対するFTS5インデックス |
+| SQLite: `memory_links` | 同じDB | メモリ間の多対多リンク |
+| SQLite: `memories_vec` | 同じDB | 任意のKNN埋め込み |
 
-## Related Documents
+**Design judgment**: SQLiteのメモリテーブルが現在のメモリ状態の正本である。JSONLはインポート/エクスポートおよび災害復旧用の追記専用アーカイブとして保持される。削除およびpin/unpin状態の変更はJSONLから再生されない。
+
+### session_diagnostics の役割
+
+- 診断イベント(LLM転送エラー、ガードヒント、部分完了)を保存
+- `messages` テーブルとは分離されており、`fetch_messages()` から参照されることはない
+- `save()` は挿入前に `_filter_sensitive_fields()` を無条件に適用し、機微フィールドをフィルタリング
+- `encrypt=True` で暗号化可能だが、`fetch()` に復号処理は実装されていない
+- `_purge_old_diagnostics()` で保持ポリシー (既定30日) を適用
+
+**Design judgment**: 機微フィールドのフィルタリングは暗号化とは独立して適用される。暗号化キーが未設定の場合でもフィルタリングは有効。
+
+## Responsibility Boundary
+
+- **正典**: `shared/tool_executor.py`, `agent/diagnostic_store.py`, `db/maintenance.py`
+- **Schema**: `schema_sql.py` (詳細なスキーマ定義の権威)
+
+## Key Constraints
+
+- `messages` テーブルの有効なロール: `user` / `assistant` / `tool` / `system` — `diagnostic` **ではない**
+- 診断イベントは `session_diagnostics` テーブルにのみ永続化される
+- 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない
+- JSONLは追記専用アーカイブ — 削除や状態変更は再生されない
+
+## Operational Notes
+
+- 不明
+
+## Known Limitations
+
+- 暗号化された `session_diagnostics` の行は `fetch()` で復号されない
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_09_02_data-layer-access-patterns.md`
@@ -138,7 +105,7 @@ source:
 ## Keywords
 
 session.sqlite
-sessions table
-messages table
 session_diagnostics
-rag.sqlite
+SessionMessageRepository
+SQLiteSessionStore
+session retention

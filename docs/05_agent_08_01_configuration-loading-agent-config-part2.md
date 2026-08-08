@@ -5,13 +5,8 @@ tags:
   - agent
   - configuration
   - config-loading
-  - agentconfig
-  - hot-reload
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_08_02_configuration-llm-rag.md
-  - 05_agent_08_03_configuration-tools-memory.md
-  - 05_agent_08_04_configuration-mcp-approval-obs.md
 source:
   - 05_agent_08_01_configuration-loading-agent-config-part1.md
 ---
@@ -20,57 +15,58 @@ source:
 
 - 運用 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 
-## AgentConfig構造
+## Purpose
 
-`AgentConfig`は`cfg.llm.*`, `cfg.rag.*`などとしてアクセスされる7つのドメインサブ設定と、
-2つのトップレベルのスカラーフィールドで構成される。
+`AgentConfig`の構造とフィールド間制約について文書化する。
 
-```python
-@dataclass
-class AgentConfig:
-    llm:      LLMConfig
-    rag:      RAGConfig
-    tool:     ToolConfig
-    memory:   MemoryConfig
-    mcp:      MCPConfig
-    approval: ApprovalConfig
-    obs:      ObservabilityConfig
-    security_lockdown_enabled:  bool = False
-```
+## Design Intent
 
-`security_lockdown_enabled`は、意図的なロックダウン運用のためDENY-ALL承認警告を抑制する。
+### 構造の概要
 
-**`workflow_mode`と`workflow_require_approval`は有効なキーではない**。
-`build_agent_config()` はこれらのキーを消費せず、設定ファイルに存在しても無視される（エラー・警告なし）。
+`AgentConfig`は7つのドメインサブ設定とスカラーフィールドで構成される:
+- `llm`, `rag`, `tool`, `memory`, `mcp`, `approval`, `obs`
+- `security_lockdown_enabled`: DENY-ALL承認警告の抑制
 
-**現在の挙動:** エージェントは無条件に有効なワークフロー定義を要求する。
-`StartupOrchestrator` の初期化処理は、`Orchestrator.__init__()`の**前**に
-2つのプレフライトチェックを順に呼び出す (`agent/startup.py:85-86`):
-1. ワークフロー定義の存在チェック — `agent/repl_health.py`内の
-    ワークフロー定義検証関数をラップ。`config/workflows/default.json`が
-    存在しない場合、期待されるパスを明記した実行可能なメッセージと共に
-    `RuntimeError`を発生させる。
- 2. ワークフロースキーマ検証 — `agent/repl_health.py`内の
-    ワークフロースキーマ検証関数をラップし、ワークフローDBスキーマを検証する。
-    失敗時はログ出力の上`RuntimeError`を再送出する
-    (根拠: Explicit in code — `agent/startup.py:156-164`)。
+### 無効なキー
 
-`Orchestrator.__init__()`自体 (`agent/orchestrator.py:126-132`) はその後無条件に
-`WorkflowLoader().load()`を呼び出し、いかなる失敗 (`WorkflowLoadError`など) に対しても
-`RuntimeError`を発生させる — これをスキップまたは縮退させるモードは存在しない。
-いずれのチェックも`StartupOrchestrator.run()`によって捕捉されない; 失敗はREPLに伝播し、
-起動を中止させる。この失敗はエージェント起動時に発生するものであり、最初のターンで
-発生するものではない。これが「起動時のみ」であるのは、常に起動時に一度だけ実行される
-という意味であり、単にホットリロードできない設定トグルだからではない。
+`workflow_mode`と`workflow_require_approval`は有効なキーではない。
+`build_agent_config()`はこれらのキーを消費せず、エラー・警告なしで無視される。
 
-フィールド間の検証:
+### ワークフロー必須の設計判断
+
+エージェントは無条件に有効なワークフロー定義を要求する。
+`StartupOrchestrator`の初期化処理は`Orchestrator.__init__()`の前に
+2つのプレフライトチェックを呼び出す:
+1. ワークフロー定義の存在チェック
+2. ワークフロースキーマ検証
+
+いずれのチェックも`StartupOrchestrator.run()`によって捕捉されない;
+失敗はREPLに伝播し、起動を中止させる。
+
+### フィールド間検証
+
 - `rag.use_semantic_cache=True` → `rag.embed_url`は非空である必要がある
 - `memory.use_memory_layer=True` → `memory.memory_jsonl_dir`は非空である必要がある
 - `memory.memory_embed_enabled=True` → `rag.embed_url`は非空である必要がある
 
----
+## Responsibility Boundary
 
-## Related Documents
+- **正典**: `agent/config_builders.py`の`AgentConfig`データクラス
+
+## Key Constraints
+
+- ワークフロー定義は必須（スキップ不可）
+- 無効なキーは静かに無視される
+
+## Operational Notes
+
+- 不明
+
+## Known Limitations
+
+- 不明
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_08_02_configuration-llm-rag.md`
@@ -81,7 +77,5 @@ class AgentConfig:
 ## Keywords
 
 configuration loading
-config file ownership
 hot-reload eligibility
-reload execution pipeline
 AgentConfig structure

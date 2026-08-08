@@ -5,55 +5,66 @@ tags:
   - agent
   - system
   - overview
-  - architecture
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_02_runtime-architecture-part1.md
+  - 05_agent_03_01_turn-processing-flow-overview.md
+  - 05_agent_07_01_cli-and-commands-cli-reference.md
 ---
 
 # Agent System Overview
 
-- ドキュメントガイド → [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
-
 ## Purpose
 
-LLMのfunction callingを用いてMCPツールサーバーと対話し、マルチターンの会話履歴を維持し、
-ターミナルに回答を返すCLI REPLインターフェースを提供する。
+Provides a CLI REPL interface that communicates with MCP tool servers via LLM function calling, maintains multi-turn conversation history, and returns answers to the terminal.
 
----
+## Design Intent
 
-## Scope
+The system overview should answer "what does this agent do" and "how does it fit into the broader system," not "which class maps to which file." Component-level detail belongs in owning chapters; this chapter provides only the high-level map.
 
-**対象範囲:**
-- CLI REPL (`python -m agent`、エントリポイント: `scripts/agent/__main__.py`)
-- MCPツールサーバーとの通信(HTTP)
-- SQLiteセッション永続化によるマルチターン会話
-- スラッシュコマンドインターフェース
-- SSEストリーミングによるLLM応答
+## Responsibility Boundary
 
-**対象外:**
-- RAGパイプライン内部(`scripts/mcp_servers/rag_pipeline/`がMCP経由でこれを担う)
-- MCPサーバーの実装
-- Embeddingサーバー
+**In scope:**
+- CLI REPL (`python -m agent`, entry point: `scripts/agent/__main__.py`)
+- Communication with MCP tool servers (HTTP)
+- Multi-turn conversation via SQLite session persistence
+- Slash command interface
+- SSE streaming for LLM responses
 
----
+**Out of scope:**
+- RAG pipeline internals (`scripts/mcp_servers/rag_pipeline/` handles this via MCP)
+- MCP server implementations
+- Embedding servers
 
-## Entry Point and Interaction Model
+### High-Level Component Responsibilities
 
-``` python
-python -m agent   (scripts/agent/__main__.py)
-  → asyncio.run(AgentREPL().run())
-  → REPL loop: "> " prompt
-  → User text → LLM (SSE streaming) → tool_calls → MCP → answer
-```
+| Component | Responsibility |
+|---|---|
+| `AgentREPL` | Manages startup flow and REPL loop |
+| `Orchestrator` | Memory injection → compression → LLM → tool loop |
+| `AgentContext` | Session-scoped DI hub |
+| `LLMClient` | SSE streaming, retry |
+| `ToolExecutor` | MCP routing, TTL cache |
+| `HistoryManager` | Character counting, LLM-based compression |
+| `CommandRegistry` | All `/cmd` dispatch |
+| `CLIView` | readline, progress display, multiline input |
+| `AgentSession` | sessions/messages SQLite |
+| `AgentConfig` | 7 sub-configs, hot-reload |
+| `MemoryServices` | Optional semantic memory layer |
 
-- プロンプト: REPLプロンプティプロパティが返す固定文字列`"> "`(セッションIDは含まない)
-- 行編集: readline (bash互換のキーバインド)
-- 履歴ファイル: `~/.agent_history`
-- 複数行入力: 末尾の`\`で次の行へ継続、`agent/cli_view.py`の`read_multiline()`が表示する固定プロンプト`"... "`で継続入力
+## Key Constraints
 
----
+| Constraint | Value |
+|---|---|
+| Max tool turns per message | `max_tool_turns` (default 5) |
+| History compression threshold | `context_char_limit` (default 8000 chars) |
+| HTTP timeout | `http_timeout` (default 30.0 sec) |
+| LLM retry limit | `llm_max_retries` (default 3) |
+| Tool result cache TTL | `tool_cache_ttl` (default 300 sec) |
 
-## Overall Tool-Calling Model
+## Operational Notes
+
+### Overall Tool-Calling Model
 
 ``` text
 [1] User enters question at REPL prompt
@@ -64,118 +75,38 @@ python -m agent   (scripts/agent/__main__.py)
 [6] Final answer displayed; conversation history carried to next turn
 ```
 
-MCPサーバーはHTTP POST `/v1/call_tool`経由で呼び出される。
+MCP servers are called via HTTP POST `/v1/call_tool`.
 
-### ワークフローエンジン経由の実行
+### Workflow Engine Execution
 
-`agent/orchestrator.py`の`Orchestrator.handle_turn()`は、起動時に`WorkflowLoader().load()`で
-読み込んだ`WorkflowDef`(`config/workflows/default.json`相当)を用い、各ユーザーターンを
-`WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`の3ステージ(plan/execute/verify)として
-実行する。上記の`[1]-[6]`のシンプルな模式図は`execute_fn`内で行われるLLMターン処理(メモリ注入 →
-ユーザーメッセージ追加 → 履歴圧縮 → LLMターン)に相当する。ワークフロー定義のロードに失敗した場合、
-`Orchestrator.__init__()`は`RuntimeError`を送出し起動が止まる。承認待ち(`ctx.workflow.approval_pending`)
-中は新規ターンを受け付けず、`/approve`または`/reject`を促すエラーを返す。(Explicit in code)
-詳細は`05_agent_03`系(turn processing flow)を参照。(Strongly implied by code — 本ドキュメントの管轄外のため詳細記述は行わない)
+`agent/orchestrator.py`'s `Orchestrator.handle_turn()` uses a `WorkflowDef` loaded at startup via `WorkflowLoader().load()` (equivalent to `config/workflows/default.json`) to execute each user turn as three stages (plan/execute/verify) via `WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`. The simple pattern diagram above corresponds to the LLM turn processing within `execute_fn` (memory injection → user message addition → history compression → LLM turn). If workflow definition loading fails, `Orchestrator.__init__()` raises `RuntimeError` and startup stops. During approval pending (`ctx.workflow.approval_pending`), new turns are rejected with an error prompting `/approve` or `/reject`. See `05_agent_03` (turn processing flow) for details.
 
----
+### Session, SSE, and History Compression
 
-## High-Level Component Map
+**Sessions:** A SQLite session row is created each time REPL is executed. Messages are persisted per turn. Past conversations can be restored via `/session load <id>`.
 
-| Component | Class | File | Role |
-|---|---|---|---|
-| REPLコーディネーター | `AgentREPL` | `agent/repl.py` | 起動フローとREPLループを管理する |
-| ターンオーケストレーション | `Orchestrator` | `agent/orchestrator.py` | メモリ注入 → 圧縮 → LLM → ツールループ |
-| 共有状態 | `AgentContext` | `agent/context.py` | セッション単位のDIハブ |
-| LLM通信 | `LLMClient` | `shared/llm_client.py` | SSEストリーミング、リトライ |
-| ツールルーティング | `ToolExecutor` | `shared/tool_executor.py` | MCPルーティング、TTLキャッシュ |
-| 履歴管理 | `HistoryManager` | `agent/history.py` | 文字数カウント、LLMによる圧縮 |
-| スラッシュコマンド | `CommandRegistry` | `agent/commands/registry.py` | すべての`/cmd`ディスパッチ |
-| CLI表示 | `CLIView` | `agent/cli_view.py` | readline、進捗表示、複数行入力 |
-| セッション永続化 | `AgentSession` | `agent/session.py` | sessions/messages SQLite |
-| 設定 | `AgentConfig` | `agent/config_dataclasses.py` | 7つのサブ設定、ホットリロード |
-| メモリサービス | `MemoryServices` | `agent/memory/` | オプションのセマンティックメモリレイヤー |
+**SSE Streaming:** LLM responses are streamed token-by-token via Server-Sent Events. `LLMClient` handles reconnection (up to `sse_reconnect_max`), heartbeat timeouts, and partial completion processing.
 
----
+**History Compression:** When `ctx.conv.history` exceeds `context_char_limit` (default 8000 chars), `HistoryManager.compress()` summarizes the oldest turns via LLM. The most recent `history_protect_turns` (default 2) turns are always protected.
 
-## Session, SSE, and History Compression (Summary)
+### Slash Commands
 
-**セッション:** REPLを実行するたびにSQLiteにセッション行が作成される。メッセージはターンごとに
-永続化される。`/session load <id>`で過去の会話を復元できる。
+For the canonical command list, see [05_agent_07 §Slash Command Reference](05_agent_07_01_cli-and-commands-cli-reference.md). The source of truth is `scripts/agent/commands/command_defs_list.py`'s `_COMMANDS`. When adding commands, update both this summary and the full reference table in the canonical command chapter.
 
-**SSEストリーミング:** LLMの応答はServer-Sent Eventsによりトークンごとにストリーミングされる。`LLMClient`が
-再接続(`sse_reconnect_max`まで)、ハートビートタイムアウト、部分的な補完の処理を担う。
+## Known Limitations
 
-**履歴圧縮:** `ctx.conv.history`が`context_char_limit`(デフォルト
-8000文字)を超えると、`HistoryManager.compress()`が最も古いターンをLLMで要約する。
-直近の`history_protect_turns`(デフォルト2)ターンは常に保護される。
+N/A — no known limitations documented beyond those tracked in `05_agent_90_inconsistencies_and_known_issues.md`.
 
----
+## Related Docs
 
-## Slash Command Categories (Summary)
-
-> **本リストを最新に保つために:** 新しいコマンドを追加した場合は、本サマリーと[05_agent_07 §Slash Command Reference](05_agent_07_01_cli-and-commands-cli-reference.md)の完全な参照テーブルの両方を更新すること。手順の詳細は[05_agent_07 §Maintaining the Command List](05_agent_07_01_cli-and-commands-cli-reference.md)を参照。
-
-| Category | Commands |
-|---|---|
-| セッション | `/session list\|load\|rename\|delete`, `/clear [new]`, `/undo`, `/history`, `/export` |
-| MCP | `/mcp status` |
-| 設定/統計 | `/config`, `/stats`, `/set`, `/reload` |
-| コンテキスト | `/context`, `/compact`, `/system` |
-| プラン | `/plan` |
-| ワークフロー | `/approve <approval_id> [reason]`, `/reject <approval_id> [reason]` |
-| デバッグ/監査 | `/debug`, `/audit` |
-| エクスポート/コンパクト | `/export`, `/compact` |
-| メモリ | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
-| MDQ | `/mdq status\|index\|refresh\|search\|outline\|get\|grep` |
-| スキル | `/skill [name] [args]` |
-| その他 | `/help` |
-
-### コマンド一覧とタブ補完
-
-`scripts/agent/commands/command_defs_list.py`の`_COMMANDS`(単一の正本)がコマンド一覧の
-正本であり、`agent/repl.py`の`AgentREPL.SLASH_COMMANDS`(readlineタブ補完用リスト、
-`cached_property`)は`builtin_command_names() | reserved_repl_command_names()`として
-`_COMMANDS`の全コマンド名に`/exit`(REPL予約コマンド)を加えたもので導出される。
-`/mdq`、`/skill`、`/memory`を含め、現在タブ補完から除外されているコマンドは
-存在しない。(Explicit in code — `repl.py:52-89`)
-
----
-
-## Major Constraints
-
-| Constraint | Value |
-|---|---|
-| 1メッセージあたりの最大ツールターン数 | `max_tool_turns` (default 5) |
-| 履歴圧縮の閾値 | `context_char_limit` (default 8000 chars) |
-| HTTPタイムアウト | `http_timeout` (default 30.0 sec) |
-| LLMリトライ上限 | `llm_max_retries` (default 3) |
-| ツール結果キャッシュのTTL | `tool_cache_ttl` (default 300 sec) |
-
----
-
-## Related Chapters
-
-| Topic | File |
-|---|---|
-| ランタイムコンポーネントアーキテクチャ | [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md) |
-| ターン処理フロー | [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) |
-| 状態と永続化 | [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md) |
-| LLMとストリーミング | [05_agent_05_llm-and-streaming-part1.md](05_agent_05_llm-and-streaming-part1.md) |
-| ツール実行と承認 | [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md) |
-| CLIとコマンド | [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md) |
-| 設定 | [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md) |
-| データレイヤー | [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) |
-| 運用と可観測性 | [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) |
-
-| APIリファレンス | [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md) |
-
-## Related Documents
-
-- `05_agent_00_document-guide.md`
-
-## Keywords
-
-agent
-system
-overview
-architecture
+- [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
+- [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+- [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+- [05_agent_05_llm-and-streaming-part1.md](05_agent_05_llm-and-streaming-part1.md)
+- [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
+- [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md)
+- [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md)
+- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
+- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+- [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md)

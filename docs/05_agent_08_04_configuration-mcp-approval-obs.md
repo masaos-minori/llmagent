@@ -4,14 +4,8 @@ category: agent
 tags:
   - agent
   - configuration
-  - mcpconfig
-  - approvalconfig
-  - observabilityconfig
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_08_01_configuration-loading-agent-config-part1.md
-  - 05_agent_08_02_configuration-llm-rag.md
-  - 05_agent_08_03_configuration-tools-memory.md
 source:
   - 05_agent_08_01_configuration-loading-agent-config-part1.md
 ---
@@ -20,100 +14,101 @@ source:
 
 - 運用 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 
-## MCPConfig (`cfg.mcp.*`)
+## Purpose
 
-**所有権:** `config/agent.toml` はエージェントプロセスのMCPライフサイクルおよびトランスポート設定のみを含む。
-`config/*_mcp_server.toml` は各MCPサーバーのアプリケーション設定を所有する。
+MCP設定、承認設定、観測設定の構造と制約について文書化する。
 
-### Agent-side MCP fields (agent.toml `[mcp_servers.<key>]`)
+## Design Intent
 
-以下の4つのフィールドのみが agent.toml に含まれる:
+### MCP設定
 
-| Field | Default | Description |
-|---|---|---|
-| `startup_mode` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
-| `transport` | 必須 | `TransportType.HTTP`（`"http"`） |
-| `url` | 必須 | HTTPサーバのベースURL |
-| `cmd` | `[]` | subprocess起動コマンド |
+#### 所有権の責任分割
 
-**注記(2026-07-17):** `healthcheck_mode`（および`HealthcheckMode` enum）は削除された。HTTPが唯一サポートされるtransportであり、`healthcheck_mode`は設定値に関わらず常に`_derive_healthcheck_mode()`によって`"http"`に導出されていた — 実装されたことのない第2のヘルスチェック方式のための不要な配線だった。
+- `config/agent.toml`: エージェントプロセスのMCPライフサイクルおよびトランスポート設定のみ
+- `config/*_mcp_server.toml`: 各MCPサーバーのアプリケーション設定（allowlists/denylists、リソース制限、監査パス、シークレット参照）
 
-### Server-local application config (*_mcp_server.toml)
+#### Agent-side MCPフィールド
 
-各MCPサーバーのアプリケーション設定は対応する `*_mcp_server.toml` ファイルに記述する:
+- `startup_mode`: "none" / "persistent" / "subprocess"
+- `transport`: TransportType.HTTP（"http"）
+- `url`: HTTPサーバのベースURL
+- `cmd`: subprocess起動コマンド
 
-- allowlists / denylists
-- リソース制限
-- 監査パス
-- GitHub `allowed_repos`
-- shell `command_allowlist`
-- file server `allowed_dirs`
-- シークレット参照 (`auth_token_env`, `auth_token_file`)
+#### プロセス分離
 
-**プロセス分離:** 各MCPサーバーは独立したプロセスであり、自身の設定ファイルのみを読み込む。`agent.toml` は読み込まない。
+各MCPサーバーは独立したプロセスであり、自身の設定ファイルのみを読み込む。
 
-GitHub MCPエンドポイントは`mcp_servers.github.url` (`McpServerConfig`のエントリ) のみを
-通じて設定される — レガシーなトップレベルの`github_server_url`キーは削除されており、
-存在する場合`build_agent_config()`によって`ConfigLoadError`で拒否される。
+### 承認設定
 
-`McpServerConfig`のフィールドについては[04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)を参照。
+#### Risk Rules
 
-ツールの実行時可用性（`config_dependent` / `enabled` / `disabled_reason`）とRuntimeToolRegistryでの扱いについては[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)を参照。
+- `none`: デフォルトではなし
+- `medium`: write_file, edit_file, create_directory, move_file, github_系操作
+- `high`: delete_file, delete_directory, shell_run, github_push_files, github_merge_pull_request
 
----
+#### エスカレーション
 
-## ApprovalConfig (`cfg.approval.*`)
+- `approval_protected_paths`: highへエスカレート（/opt/, /etc/, /boot/, /usr/, /bin/, /sbin/）
+- `approval_high_risk_branches`: main, master
 
-Source: `config/agent.toml`
+#### 自動承認
 
-| Field | Default | Description |
-|---|---|---|
-| `approval_risk_rules` | (下記参照) | tool → none/medium/high |
-| `approval_protected_paths` | `[/opt/, /etc/, /boot/, /usr/, /bin/, /sbin/]` | highへエスカレート |
-| `approval_high_risk_branches` | `[main, master]` | GitHubブランチのエスカレーション |
-| `approval_shell_safe_prefixes` | `[ls, cat, echo, git log, ...]` | shell_runの自動承認プレフィックス |
-| `approval_resource_keys` | `{path_keys: [...], branch_keys: [...]}` | リソース識別のための引数キー |
-| `approval_dry_run_tools` | `[write_file, edit_file, delete_file, delete_directory, move_file]` | dry_run=Trueで事前実行 |
-| `tool_safety_tiers` | `{}` | tool → READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN |
+- `approval_shell_safe_prefixes`: shell_runの自動承認プレフィックス
 
-`tool_safety_tiers`のキーはサーバーキーではなく、実際に登録されたツール名でなければならない。未知のキーは起動時に検出される: ローカル/開発環境では警告、本番環境では致命的な`RuntimeError` (`ProductionConfigValidator.validate_unknown_tool_safety_tiers()`経由)。
-| `allowed_root` | `""` | ファイルパスジェイル (空 = 無効) |
-| `approval_github_allowed_repos` | `[]` | GitHub書き込み許可リスト (空 = すべて拒否) |
-| `gitops_push_blocked` | `False` | GitHubへの書き込みをグローバルにすべてブロック |
+#### Safety Tiers
 
-**デフォルトの`approval_risk_rules`:**
-- `none`: (デフォルトではなし)
-- `medium`: write_file, edit_file, create_directory, move_file, github_create_branch, github_create_pull_request, github_update_pull_request, github_create_issue, github_add_issue_comment
-- `high`: delete_file, delete_directory, shell_run, github_push_files, github_create_or_update_file, github_delete_file, github_merge_pull_request
+- `tool_safety_tiers`: tool → READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN
 
----
+**CRITICAL**: `tool_safety_tiers`のキーはサーバーキーではなく、実際に登録されたツール名でなければならない。未知のキーは起動時に検出される: ローカル/開発環境では警告、本番環境では致命的なRuntimeError。
 
-## ObservabilityConfig (`cfg.obs.*`)
+#### Dry Run
 
-Source: `config/agent.toml`
+- `approval_dry_run_tools`: dry_run=Trueで事前実行されるツール
 
-| Field | Default | Description |
-|---|---|---|
-| `otel_enabled` | `False` | OpenTelemetryを有効化 |
-| `otel_endpoint` | `""` | OTLP HTTPエンドポイント (`""` = ConsoleSpanExporter) |
-| `otel_service_name` | `"llm-agent"` | OTelサービス名 |
-| `audit_log_file` | `"/opt/llm/logs/audit.log"` | 監査ログのパス (JSON-lines) |
-| `structured_log` | `False` | `agent.log`にJSON-lines形式を使用 |
+#### GitHub書き込み制御
 
----
+- `approval_github_allowed_repos`: GitHub書き込み許可リスト（空 = すべて拒否）
+- `gitops_push_blocked`: GitHubへの書き込みをグローバルにすべてブロック
 
-## DiagnosticsConfig (`cfg.diagnostics.*`)
+#### ファイルパス制限
 
-Source: `config/agent.toml` `[diagnostics]`
+- `allowed_root`: ファイルパスジェイル（空 = 無効）
 
-| Field | Default | Description |
-|---|---|---|
-| `encryption_key` | `""` | `DiagnosticStore.save(encrypt=True)`用のFernet対称鍵。空文字列は暗号化を無効化する(オプトイン) |
-| `retention_days` | `30` | `session_diagnostics`の行保持日数。`save()`実行のたびに遅延パージされる。0以下でパージ無効 |
+### 観測設定
 
-**現在の実装挙動:** `DiagnosticStore`(`agent/diagnostic_store.py`)は`AgentContext`経由で`ctx.cfg`を保持していないため、`cfg.diagnostics.*`をそのまま参照するのではなく、`ConfigLoader().load("agent.toml")`で`[diagnostics]`テーブルを直接読み込み、`DiagnosticsConfig`を都度構築する(`db/maintenance.py`の`RetentionConfig.from_config()`と同じパターン)。`AgentConfig.diagnostics`(`build_agent_config()`が構築する`cfg.diagnostics`)は他コンポーネントから同じ設定に一貫してアクセスできるようにするための設定サーフェスであり、`/reload`のホットリロード対象にはまだ組み込まれていない(`ObservabilityConfig`/`cfg.obs.*`と同様、`agent/services/config_reload.py`に`_apply_*`呼び出しなし)。(Explicit in code)
+- `otel_enabled`: OpenTelemetryを有効化
+- `otel_endpoint`: OTLP HTTPエンドポイント（"" = ConsoleSpanExporter）
+- `otel_service_name`: OTelサービス名
+- `audit_log_file`: 監査ログのパス（JSON-lines）
+- `structured_log`: agent.logにJSON-lines形式を使用
 
-## Related Documents
+### 診断設定
+
+- `encryption_key`: DiagnosticStore.save(encrypt=True)用のFernet対称鍵（空文字列 = 暗号化無効）
+- `retention_days`: session_diagnosticsの行保持日数（0以下 = パージ無効）
+
+## Responsibility Boundary
+
+- **正典**: `config/agent.toml`のMCP/Approval/Observability/Diagnosticsセクション
+- **バリデーション**: `agent/services/config_validators.py`
+- **データクラス**: `agent/config_dataclasses.py`の`McpServerConfig` / `ApprovalConfig` / `ObservabilityConfig` / `DiagnosticsConfig`
+
+## Key Constraints
+
+- `tool_safety_tiers`のキーは実際に登録されたツール名でなければならない — 未知のキーは本番環境でfatal
+- `allowed_tools=[]`（空）は「すべて許可」を意味する
+- `approval_github_allowed_repos=[]`（空）は「すべて拒否」を意味する
+- `/reload`で`cfg.diagnostics.*`は変更できない（未実装）
+
+## Operational Notes
+
+- 不明
+
+## Known Limitations
+
+- `/reload`で`cfg.diagnostics.*`は変更できない（未実装）
+
+## Related Docs
 
 - `05_agent_00_document-guide.md`
 - `05_agent_08_01_configuration-loading-agent-config-part1.md`
