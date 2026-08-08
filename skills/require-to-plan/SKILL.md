@@ -90,10 +90,9 @@ Generate your final response using the exact Markdown structure below. Do not om
 | UNK-01 | | | | |
 
 ## 5. Affected Areas & Tool Evidence
-- **Affected Files**: [Paths to files to be modified/added]
-- **Blast Radius**: [Downstream modules or features that could be impacted]
-- **Risk Metrics**: [Note any high-churn or low-coverage areas discovered via git/validation tools]
-- **Deploy Impact**: [Impact on deploy.sh, environment variables, or ports]
+| File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
+|---|---|---|---|---|---|
+| | | | | | [existing / add cp line / remove cp line] |
 
 ## 6. Implementation Steps
 1. **Phase 1: Preparation / Refactoring (if needed)**
@@ -111,6 +110,12 @@ Generate your final response using the exact Markdown structure below. Do not om
 ## 8. Risks & Mitigations
 - **Risk**: [Description] → **Mitigation**: [Description]
 ```
+
+Notes on filling section 5: populate Churn/Bus Factor from Step 4 (Historical Analysis) and
+Blast Radius from Step 3 (Dependency Graphing) — mark `N/A` if that step was skipped (Path A).
+Always state the `deploy.sh` impact explicitly. If documentation must be updated, name the
+target doc via `docs/00_index.md` §タスク別ドキュメント参照 (or `routing.md` §Docs → task
+mapping for new modules) — do not hardcode doc filenames here, they change as docs are split.
 
 ## See Also
 See `workflow.md` for detailed phase content and commands.

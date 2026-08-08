@@ -94,18 +94,10 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 
 ### Import layer contract (enforced by `.importlinter`)
 
-Layers may only import from themselves and layers below:
-
-```
-shared → external only
-db     → shared
-rag    → db, shared
-mcp_servers → db, shared
-agent  → all layers
-```
-
-Violations fail `lint-imports`. Never import a lower layer from a higher one (e.g. `shared`
-must not import from `agent`, `rag`, `db`, or `mcp_servers`).
+Layers may only import from themselves and layers below. The canonical layer diagram lives in
+`rules/env.md` §Architecture (includes the current `eventbus` isolation rule and `agent`'s actual
+scope) — do not restate or re-derive the diagram here. Violations fail `lint-imports`. Never
+import a lower layer from a higher one.
 
 ### Output language
 

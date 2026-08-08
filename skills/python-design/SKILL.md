@@ -70,14 +70,14 @@ See `workflow.md` for detailed phase content and the required output template.
 
 - **Design first**: do not implement unless explicitly requested.
 - **Avoid implementation-reference duplication**: see `skills/DESIGN.md` §Avoid implementation-reference duplication.
-- **Enforce one-way dependency direction**: prevent circular imports at the design stage, not during implementation.
-- **Isolate async and sync code**: no blocking calls inside `async def` pipelines without an explicit executor boundary.
+- **Enforce one-way dependency direction**: apply `skills/DESIGN.md` §Import layer contract at the design stage, not during implementation.
+- **Isolate async and sync code**: apply `skills/DESIGN.md` §Pythonic safety constraints (no blocking calls inside `async def` without an explicit executor boundary).
 - **Design for immutability by default**: prefer frozen dataclasses, tuples, and `Mapping` for core domain data unless mutation is justified.
 - **Validate only at system boundaries**: pass trusted, type-safe objects into internal services.
 - **Use abstractions only when justified**: no abstract factories, `Protocol`, or `abc.ABC` without a concrete requirement.
 - **Include failure paths and resource lifecycle explicitly**: a design is incomplete if it only describes the happy path.
 - **Do not write production code blocks**: use pseudocode or minimal typed signatures to illustrate interfaces.
-- **Keep proposed design separate from implemented behavior**: for existing-codebase review, use evidence labels and mark unclear behavior `Needs confirmation`; for new design, mark assumptions and open questions clearly.
+- **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` §Evidence labels; for new design, mark assumptions and open questions clearly.
 
 See `workflow.md` for the full rule set, evidence-label usage, and the Python-specific
 design checklist.

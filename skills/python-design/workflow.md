@@ -61,12 +61,10 @@ For each module in the design:
 - **Public API**: functions or classes exposed to other modules
 - **Dependency direction**: which modules it imports and which import it
 
-Design package layout at responsibility level. Do not list every planned file unless the
-file boundary itself is a design decision.
-
-Keep interface design at contract level: externally relevant public contracts, caller-visible
-behavior, and input/output type boundaries for major use cases. Do not list every public
-function or method unless necessary to explain a design decision.
+Design package layout and interface contracts at responsibility level (externally relevant
+public contracts, caller-visible behavior, input/output type boundaries for major use cases).
+Apply `skills/DESIGN.md` §Avoid implementation-reference duplication — list a file, function,
+or method only when the boundary itself is a design decision.
 
 Validate with:
 ```bash
@@ -87,8 +85,9 @@ For each entity:
 Use Pydantic `BaseModel` at module boundaries, plain dataclasses internally.
 
 Keep data model design at semantic level: ownership, lifecycle, validation boundaries,
-compatibility constraints, and invariants. Avoid exhaustive DTO, dataclass, TypedDict, or
-schema field listings unless the fields are required to explain a design decision.
+compatibility constraints, and invariants. Apply `skills/DESIGN.md` §Avoid
+implementation-reference duplication — avoid exhaustive field listings unless required to
+explain a design decision.
 
 ---
 
@@ -106,8 +105,9 @@ logger = logging.getLogger(__name__)
 logger.error("descriptive_message key=value key2=%s", val)
 ```
 
-Explicitly design context managers (`with` / `async with`) for files, sockets, database
-connections, HTTP clients, and async clients.
+Apply `skills/DESIGN.md` §Pythonic safety constraints: design explicit context managers
+(`with` / `async with`) for files, sockets, database connections, HTTP clients, and async
+clients.
 
 ---
 
@@ -140,17 +140,16 @@ strategy, and documentation update points if relevant.
 Check:
 - [ ] every functional requirement has a corresponding module or interface
 - [ ] every non-functional requirement is addressed (latency, security, etc.)
-- [ ] dependency direction matches the import-linter contracts, and circular imports are avoided
-- [ ] type boundaries are explicit; `Any` and untyped dictionaries are avoided or isolated
 - [ ] external inputs are validated before reaching domain logic
-- [ ] sync/async boundaries are explicit and blocking calls are isolated behind executors
-- [ ] resource lifecycles, retries, and error classification are explicit
 - [ ] logs are useful without exposing secrets
 - [ ] tests are feasible without real external services
 - [ ] abstractions are justified and the design is no larger than the problem requires
 - [ ] no assumption is untested or contradictory
 - [ ] the implementation plan covers all modules and is small enough for independent phases
 - [ ] open questions and implementation-verification items are listed
+- [ ] design complies with `skills/DESIGN.md` §Import layer contract and §Pythonic safety
+      constraints (dependency direction, `Any`/untyped-dict avoidance, sync/async isolation,
+      resource lifecycle, retries/error classification)
 
 If a section is not relevant, omit it instead of filling it with generic text.
 
@@ -160,15 +159,10 @@ If a section is not relevant, omit it instead of filling it with generic text.
 
 ### Existing Codebase Design Review
 
-When reviewing or redesigning an existing Python codebase:
-- use the repository's existing evidence labels when describing current behavior
-- do not introduce a competing evidence label system
-- do not present unverified behavior as fact
-- mark unclear implementation behavior as `Needs confirmation`
+When reviewing or redesigning an existing Python codebase, apply `skills/DESIGN.md` §Evidence
+labels and §Confidence levels to describe current behavior. In addition:
 - distinguish implemented behavior from desired design
 - preserve known issues and unresolved documentation/code mismatches
-
-Use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary.
 
 ### New Design Work
 
@@ -190,7 +184,7 @@ Verification Item.
 - Keep modules small and explicit; avoid monolithic files or dumping unrelated behavior into `utils.py`.
 - Prefer simple functions over classes when state is not required. Use classes for state, lifecycle, dependency injection, polymorphism, or a stable public concept.
 - Include failure paths explicitly — timeouts, disconnected states, partial failures, malformed inputs, invalid configuration, and resource cleanup.
-- Do not over-specify generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees) that can be confirmed from implementation.
+- Apply `skills/DESIGN.md` §Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees).
 - Respect project-specific constraints: if a general rule conflicts with an existing project convention, document the exception and explain why it is acceptable.
 - Separate current design from future extensions.
 
@@ -213,12 +207,3 @@ fill irrelevant sections just to satisfy the template.
 10. **Test Strategy** — unit/integration/contract test targets, mocking and fixture strategy, external dependency isolation, type-checking expectations, regression tests for failure paths.
 11. **Implementation Plan** — ordered phases, measurable milestones, dependency-aware task order, migration path, rollback strategy, documentation update points.
 12. **Risks and Open Questions** — risks and mitigations, dynamic-typing/third-party/concurrency/operational risks, unresolved design decisions, assumptions requiring confirmation, implementation verification items.
-
----
-
-## Python-specific Design Checks
-
-Use these checks before finalizing the design, in addition to the Step 9 checklist:
-- Is every detailed artifact included because it supports a design decision?
-- Is the design smaller than the problem requires, not larger?
-- Are errors classified and are retries bounded?

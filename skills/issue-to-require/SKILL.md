@@ -39,7 +39,7 @@ multi-file processing rules.
 - **No Guesswork**: verify factual claims (affected files, whether the described problem still reproduces) against current source before writing the requirement document.
 - **Mandatory move**: after Step 3, the source issue file must be moved to `issues/done/` in Step 4 (subject to `review_mode` gating — see `workflow.md`). Skipping this step is a failure condition.
 - Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
-- Write the requirement document in clear and concise English for AI consumption.
+- Exception to `skills/DESIGN.md` §Output language: write the requirement document in clear and concise English (it feeds directly into `require-to-plan` for AI consumption).
 
 ---
 

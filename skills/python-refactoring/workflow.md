@@ -107,30 +107,14 @@ If coverage is below 80%: write characterization tests for the uncovered paths b
 
 #### hypothesis — property-based invariants
 
-```python
-from hypothesis import given, settings
-from hypothesis import strategies as st
-
-@given(st.text())
-@settings(max_examples=500)
-def test_normalize_does_not_change_type(text):
-    from rag_utils import normalize_unicode
-    result = normalize_unicode(text)
-    assert isinstance(result, str)
-```
-
-Write property tests for parsers, normalizers, and data transformers that are in the refactor scope.
+For parsers, normalizers, and data transformers in the refactor scope, write property tests
+per `skills/python-test-and-fix/workflow.md` §Step 7 (Contract Validation).
 
 #### mutmut — test suite strength
 
-```bash
-mutmut run --paths-to-mutate scripts/<module>.py
-mutmut results
-mutmut show <id>
-```
-
-If surviving mutants > 0: add tests that kill them before proceeding.
-Do not proceed to Phase 3 with surviving mutants on the refactored path.
+Run mutation testing per `skills/python-test-and-fix/workflow.md` §Step 4 (Mutation Testing)
+against the refactored path. If surviving mutants > 0: add tests that kill them before
+proceeding to Phase 3.
 
 ---
 

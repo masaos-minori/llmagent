@@ -287,20 +287,15 @@ Add `.testmondata` to `.gitignore`.
 
 ## Step 11: Regression Quality Analysis
 
-See `rules/toolchain.md` §7 for the diff-cover sequence.
-
-For bug fixes: run mutmut on the exact lines that changed:
-
-```bash
-mutmut run --paths-to-mutate scripts/<module>.py
-mutmut results
-```
-
-Target: 0 surviving mutants on the bug-fix code path.
+See `rules/toolchain.md` §7 for the diff-cover sequence, and Step 4 above for the mutmut
+commands. Target: 0 surviving mutants on the bug-fix code path.
 
 ---
 
 ## Step 12: Fix Strategy
+
+Applies `SKILL.md` §Core Testing Rules ("Do Not Fix Tests by Blindly Changing Expectations").
+Document the outcome using `SKILL.md` §Mandatory Record Template.
 
 When a test fails:
 

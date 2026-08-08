@@ -30,7 +30,7 @@ Before reading any code, classify the task:
 
 - **Task type**: new feature / bug fix / refactor / integration / cleanup
 - **Target scope**: identify target files and likely call paths
-- **Blast radius**: is this a shared utility (`llm_client`, `rag_utils`, `formatters`) or a leaf module?
+- **Blast radius**: shared utility or leaf module? (see Phase 2 §pydeps for how to assess this)
 - **Interface impact**: does this change a public function signature, a config key, or a DB schema?
 
 If requirements are ambiguous, state what is unknown and proceed conservatively.
@@ -138,13 +138,15 @@ Do not introduce a new pattern unless the existing pattern is demonstrably insuf
 
 #### Error handling rules
 
+Applies `skills/DESIGN.md` §Pythonic safety constraints (specific exceptions, no bare
+`except Exception` without re-raising, fail-fast) to this phase:
+
 - raise specific exceptions with descriptive messages
-- do not swallow exceptions silently
 - add context to errors when it improves diagnosis:
   ```python
   raise ValueError(f"floats_to_blob: expected list[float], got {type(v).__name__}")
   ```
-- fail fast on invalid input at public boundaries; trust internal invariants
+- trust internal invariants; validate only at public boundaries
 - log errors with sufficient context before re-raising
 
 #### File editing rules
@@ -157,25 +159,9 @@ Do not introduce a new pattern unless the existing pattern is demonstrably insuf
 
 #### LibCST — CST-based refactor transforms
 
-Use LibCST when a refactor must preserve comments, formatting, or docstrings.
-
-```python
-import libcst as cst
-
-class RenameArg(cst.CSTTransformer):
-    def leave_Arg(self, original_node: cst.Arg, updated_node: cst.Arg) -> cst.Arg:
-        if (
-            isinstance(updated_node.keyword, cst.Name)
-            and updated_node.keyword.value == "old_name"
-        ):
-            return updated_node.with_changes(keyword=cst.Name("new_name"))
-        return updated_node
-
-source = open("scripts/tool_executor.py").read()
-tree = cst.parse_module(source)
-new_tree = tree.visit(RenameArg())
-open("scripts/tool_executor.py", "w").write(new_tree.code)
-```
+If a change within this task must preserve comments, formatting, or docstrings during a
+rename/structural edit, use the LibCST transform recipe in
+`skills/python-refactoring/workflow.md` §Phase 3 (Semantic Transformation).
 
 After any LibCST transform: run `ruff format scripts/` and `ruff check scripts/ --fix`.
 

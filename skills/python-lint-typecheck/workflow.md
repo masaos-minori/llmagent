@@ -96,42 +96,9 @@ Audit all existing suppressions using the commands and required format defined i
 
 ## Step 5: Semantic Refactor Safety
 
-Use LibCST when a rename or structural change must preserve comments and docstrings.
-
-```python
-import libcst as cst
-
-class RenameFunctionArg(cst.CSTTransformer):
-    def leave_Param(
-        self, original_node: cst.Param, updated_node: cst.Param
-    ) -> cst.Param:
-        if (
-            isinstance(updated_node.name, cst.Name)
-            and updated_node.name.value == "old_param"
-        ):
-            return updated_node.with_changes(name=cst.Name("new_param"))
-        return updated_node
-
-source = open("scripts/agent/repl.py").read()
-tree = cst.parse_module(source)
-new_tree = tree.visit(RenameFunctionArg())
-open("scripts/agent/repl.py", "w").write(new_tree.code)
-```
-
-After any LibCST transform:
-
-```bash
-ruff format scripts/
-ruff check scripts/ --fix
-python3 -m compileall -q scripts/   # syntax check
-```
-
-Verify no old symbol names remain:
-
-```bash
-rg "old_param" scripts/
-ast-grep --pattern 'old_param' --lang python scripts/
-```
+If a rename or structural change must preserve comments and docstrings, use the LibCST
+transform recipe and post-transform verification commands in
+`skills/python-refactoring/workflow.md` §Phase 3 (Semantic Transformation).
 
 ---
 

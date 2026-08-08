@@ -83,10 +83,8 @@ For documentation-related issues, focus on: design intent, responsibility bounda
 constraints, design decisions, operational notes, failure behavior, Known Issues, Needs
 Confirmation items.
 
-Avoid asking implementers to add: exhaustive file lists, complete public method catalogs,
-complete DTO/TypedDict/dataclass/Pydantic field tables, complete configuration key tables,
-complete CLI argument tables, long command examples, full JSON payload examples that simply
-mirror schemas.
+Apply `skills/DESIGN.md` §Avoid implementation-reference duplication to what implementers are
+asked to add.
 
 If implementation-derived details are currently present, prefer in this order: remove,
 compress, replace with source reference, move to Known Issues, move to Needs Confirmation.
@@ -127,11 +125,8 @@ out-of-scope items.
 
 ### Evidence and assumptions
 
-When the issue is based on code review or investigation:
-- include evidence where available
-- distinguish confirmed facts from assumptions
-- mark unknowns explicitly
-- do not present suspected behavior as confirmed
+When the issue is based on code review or investigation, apply `skills/DESIGN.md` §Evidence
+labels and §Confidence levels — do not invent a parallel confirmed/assumption/unknown scheme.
 
 When the issue is based on a user request only:
 - state assumptions clearly

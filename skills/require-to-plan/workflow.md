@@ -180,8 +180,8 @@ If a single author owns > 70% of a file: flag as high bus factor.
 
 ```bash
 lsof -p <PID> | grep -E 'REG|IPv4|IPv6'      # open files and sockets
-lsof -i :8004 -i :8005 -i :8006              # MCP server ports
-lsof /opt/llm/db/llm.db                       # who has the SQLite file open
+lsof -i :<PORT>                              # affected service port — see rules/env.md
+lsof <path/to/*.sqlite>                      # who has the SQLite file open — see rules/env.md
 ```
 
 Before planning a change to MCP servers or the DB: confirm no process holds locks.
@@ -247,23 +247,13 @@ Record the current diff-cover baseline. The plan must include raising it to ≥ 
 
 ## Step 7: Uncertainty Tracking
 
-For each unknown, fill in this template:
+For each unknown, add a row to the "Unknowns & Gaps" table defined in `SKILL.md` §Output
+format §4 (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`).
 
-```
-UNKNOWN: <what is unknown>
-Evidence missing: <what information would resolve it>
-Resolution: <how to get that information>
-Blocking: yes / no
-```
-
-Example:
-
-```
-UNKNOWN: Whether sqlite-vec supports concurrent writes from multiple threads
-Evidence missing: No test exists; documentation is sparse
-Resolution: Write a benchmark test with ThreadPoolExecutor(4) against the DB
-Blocking: yes — affects whether RagIngester can be parallelized safely
-```
+Example row: `UNK-01 | Whether sqlite-vec supports concurrent writes from multiple threads |
+No test exists; documentation is sparse | Write a benchmark test with
+ThreadPoolExecutor(4) against the DB | True — affects whether RagIngester can be
+parallelized safely`
 
 A plan with unresolved blocking unknowns is not complete.
 
@@ -271,64 +261,19 @@ A plan with unresolved blocking unknowns is not complete.
 
 ## Step 8: Produce a Concrete Plan
 
-Structure the plan as:
+Fill in the exact template from `SKILL.md` §Output format, section by section, using the
+evidence gathered above:
 
-### 1. Goal
-
-One sentence: what will be true when this is done.
-
-### 2. Scope
-
-**In scope**: specific files, functions, config keys, DB tables, endpoints
-**Out of scope**: what will NOT change (prevents scope creep)
-
-### 3. Assumptions
-
-Numbered list. Each assumption must be falsifiable.
-
-### 4. Unknowns
-
-From Step 7. Flag blocking unknowns explicitly.
-
-### 5. Affected Areas
-
-| File | Change | Blast radius | Churn (30d) | Bus factor | deploy.sh |
-|---|---|---|---|---|---|
-| `scripts/agent/repl.py` | add new handler | high (imported by 3) | 12 commits | 1 author | existing |
-| `scripts/mcp/<name>/server.py` | create | low | 0 commits | — | add cp line |
-| `config/agent.toml` | add config key | low | 3 commits | 2 authors | existing |
-
-Always include `deploy/deploy.sh` impact: "existing", "add cp line", or "remove cp line".
-
-When listing affected documentation, use the current split structure:
-- slash command changes → `docs/05_agent_07_cli-and-commands.md`
-- RAG pipeline changes → `docs/03_rag_02_ingestion_pipeline.md`
-- AgentConfig field changes → `docs/05_agent_08_configuration.md`
-- MCP server/tool changes → `docs/04_mcp_04_server_catalog.md`
-- new modules → `routing.md` (always update when new modules are added)
-
-### 6. Implementation Steps
-
-Ordered list. Each step:
-- is independently committable
-- has a clear completion criterion
-- includes the deploy step if production files change
-
-### 7. Validation Plan
-
-| Check | Tool | Target |
-|---|---|---|
-| Lint | `ruff check scripts/` | 0 errors |
-| Type check | `mypy scripts/` | no new errors |
-| Architecture | `lint-imports` | 0 violations |
-| Security | `bandit` | no HIGH unaddressed |
-| Tests | `pytest` | all pass |
-| Coverage | `diff-cover` | ≥ 90% on changed lines |
-| Pre-commit | `pre-commit run --all-files` | pass |
-
-### 8. Risks
-
-Each risk: description + likelihood (low/med/high) + mitigation.
+| Section | Populate from |
+|---|---|
+| 1. Goal | Step 1 (parsed request) |
+| 2. Scope | Step 1, refined by Steps 2-5 findings |
+| 3. Assumptions | Falsifiable assumptions surfaced across Steps 1-6 |
+| 4. Unknowns & Gaps | Step 7 |
+| 5. Affected Areas & Tool Evidence | Steps 2-6 (architecture, blast radius, churn/bus-factor, validation baseline) |
+| 6. Implementation Steps | Ordered, independently committable; include the deploy step if `scripts/`/`config/` changes |
+| 7. Validation Plan | Per-file/module test strategy; for the project-wide gate sequence (lint/type/arch/security/test/coverage), see `rules/toolchain.md` |
+| 8. Risks & Mitigations | Risk + likelihood (low/med/high) + mitigation |
 
 ---
 

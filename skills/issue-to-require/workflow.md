@@ -97,7 +97,6 @@ Do not perform any of the following as part of this workflow:
 - moving existing documentation files
 - changing workflow directory structure
 - changing implementation behavior during document-only phases
-- processing files under `__pycache__/`
 - interleaving multiple target files
 - parallel processing of target-file cycles
 - modifying source code files

@@ -102,19 +102,14 @@ If a service fails to start:
 **Gate: service is running; no new errors in logs**
 
 ```bash
-curl -s http://127.0.0.1:<PORT>/health
+curl -s http://127.0.0.1:<PORT>/health   # see rules/env.md for the port of each restarted service
 
-tail -20 /opt/llm/logs/agent.log
-tail -20 /opt/llm/logs/file-mcp.log
+tail -20 /opt/llm/logs/<service>.log     # see rules/env.md for log locations
 ```
 
-If the agent was restarted, verify basic operation:
-
-```bash
-source /opt/llm/venv/bin/activate
-python3 /opt/llm/scripts/agent.py
-# In the REPL: /mcp   (verify all MCP servers show healthy)
-```
+If the agent was restarted, verify basic operation: start the agent REPL per `rules/env.md`
+(do not activate the venv directly — run via `uv run`), then in the REPL run `/mcp` and
+confirm all MCP servers show healthy.
 
 ---
 

@@ -136,26 +136,15 @@ http GET http://localhost:8004/health Accept:application/json
 #### sqlite3 CLI
 
 ```bash
-sqlite3 /opt/llm/db/llm.db
-# .tables  .schema chunks  PRAGMA integrity_check;  PRAGMA wal_checkpoint;
+sqlite3 <path/to/rag|session|workflow|eventbus>.sqlite   # see rules/env.md §SQLite schema
+# .tables  .schema <table>  PRAGMA integrity_check;  PRAGMA wal_checkpoint;
 ```
 
 #### Service status
 
 ```bash
-# For all service names and ports, see rules/env.md
-curl -s http://127.0.0.1:8004/health   # web-search-mcp
-curl -s http://127.0.0.1:8005/health   # file-read-mcp
-curl -s http://127.0.0.1:8006/health   # github-mcp
-curl -s http://127.0.0.1:8007/health   # file-write-mcp
-curl -s http://127.0.0.1:8008/health   # file-delete-mcp
-curl -s http://127.0.0.1:8009/health   # shell-mcp
-curl -s http://127.0.0.1:8010/health   # rag-pipeline-mcp
-curl -s http://127.0.0.1:8012/health   # cicd-mcp
-curl -s http://127.0.0.1:8013/health   # mdq-mcp
-curl -s http://127.0.0.1:8014/health   # git-mcp
-curl -s http://127.0.0.1:8081/health   # embed-llm
-curl -s http://127.0.0.1:8080/health   # agent-llm
+# For all service names and ports, see rules/env.md; substitute <PORT> for the affected service
+curl -s http://127.0.0.1:<PORT>/health
 ```
 
 #### MCP server health check (from agent REPL)
