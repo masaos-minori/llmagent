@@ -183,7 +183,7 @@ def main() -> int:
     parser.add_argument(
         "files",
         nargs="*",
-        help="Files to check (default: scripts/, docs/, tests/)",
+        help="Files to check (default: scripts/, docs/, tests/, tools/)",
     )
     args = parser.parse_args()
 
@@ -212,7 +212,15 @@ def main() -> int:
                 files.extend(d.glob("**/*.md"))
         files = sorted(set(files))  # Deduplicate
     else:
-        files = [Path(f) for f in args.files]
+        files = []
+        for f in args.files:
+            p = Path(f).resolve()
+            if p.is_dir():
+                files.extend(p.glob("**/*.py"))
+                files.extend(p.glob("**/*.md"))
+            else:
+                files.append(p)
+        files = sorted(set(files))
 
     total_issues = 0
     for filepath in files:
@@ -222,7 +230,11 @@ def main() -> int:
         issues = check_all(content, filepath, allowlist)
         if issues:
             total_issues += len(issues)
-            print(f"\n--- {filepath.relative_to(ROOT_DIR)} ---", file=sys.stderr)
+            try:
+                display_path = filepath.relative_to(ROOT_DIR)
+            except ValueError:
+                display_path = filepath
+            print(f"\n--- {display_path} ---", file=sys.stderr)
             for issue in issues:
                 print(issue, file=sys.stderr)
 

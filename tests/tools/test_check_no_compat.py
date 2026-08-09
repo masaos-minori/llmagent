@@ -5,6 +5,7 @@ Tests for tools/check_no_compat.py.
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from tools.check_no_compat import (
     COMPAT_PATTERNS,
     ROOT_DIR,
     check_compat_patterns,
+    main,
 )
 
 
@@ -64,6 +66,53 @@ class TestPatternDetection:
         dirty.write_text("# re-export stub for compatibility\n")
         issues = check_compat_patterns(dirty.read_text(), dirty, {dirty})
         assert issues == []
+
+
+class TestDirectoryPositionalArgument:
+    """A directory passed as a positional file argument must be expanded into its
+    contained files (mirroring the no-args scan), not crash with IsADirectoryError.
+    """
+
+    def test_directory_with_violation_is_expanded_and_flagged(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (tmp_path / "dirty.py").write_text("# re-export stub for compatibility\n")
+        (tmp_path / "clean.py").write_text("# nothing to see here\n")
+        monkeypatch.setattr(sys, "argv", ["check_no_compat", str(tmp_path)])
+
+        exit_code = main()
+
+        assert exit_code == 1
+        assert "dirty.py" in capsys.readouterr().err
+
+    def test_directory_with_no_violations_returns_clean_without_crashing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / "clean.py").write_text("# nothing to see here\n")
+        monkeypatch.setattr(sys, "argv", ["check_no_compat", str(tmp_path)])
+
+        exit_code = main()
+
+        assert exit_code == 0
+
+    def test_relative_directory_argument_does_not_crash(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Regression test: expanded glob results must be resolved to absolute
+        paths, or filepath.relative_to(ROOT_DIR) raises ValueError for any
+        relative directory argument that yields a match or allowlist check."""
+        (tmp_path / "clean.py").write_text("# nothing to see here\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["check_no_compat", "."])
+
+        exit_code = main()
+
+        assert exit_code == 0
 
 
 def _check(content: str) -> list[str]:
