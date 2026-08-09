@@ -290,17 +290,15 @@ evidence gathered above:
 
 ## Step 10: Completion Checklist
 
-Before delivering the plan:
+Before delivering the plan, cross-check against the Step 7-9 gates stated above — do not re-derive them, just confirm:
 
 - [ ] goal is one sentence and verifiable
 - [ ] scope has explicit in/out boundaries
-- [ ] all assumptions are falsifiable
-- [ ] no blocking unknowns remain unresolved
-- [ ] affected areas table has tool evidence (not guesses)
-- [ ] implementation steps are ordered and independently committable
+- [ ] assumptions are falsifiable (Step 8 §3)
+- [ ] Step 7 gate met: no blocking unknowns remain unresolved
+- [ ] Step 9 rules followed: claims backed by tool evidence, implementation steps independently revertable, deploy step included if production files change
 - [ ] validation plan has full table with tools and targets
 - [ ] risks are stated with mitigations
-- [ ] deploy step included if production files change
 
 ---
 

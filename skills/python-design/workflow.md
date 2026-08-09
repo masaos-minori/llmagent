@@ -1,7 +1,5 @@
 # Python Program Design Workflow
 
-Design first. Do not implement unless explicitly requested.
-
 ## Step 1: Understand the Task
 
 Read the task description and extract:
@@ -179,7 +177,6 @@ Verification Item.
 
 ## Rules
 
-- Do not modify source files during design; do not generate production code unless explicitly requested.
 - Use pseudocode or interface sketches only when the design needs them.
 - Keep modules small and explicit; avoid monolithic files or dumping unrelated behavior into `utils.py`.
 - Prefer simple functions over classes when state is not required. Use classes for state, lifecycle, dependency injection, polymorphism, or a stable public concept.

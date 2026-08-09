@@ -11,7 +11,8 @@ description: |
 
 ## Purpose
 
-Design first. Do not implement unless the user explicitly asks for implementation.
+Design first — do not modify source code or implement unless the user explicitly requests it
+(see `skills/DESIGN.md` §Analysis-only phase constraint).
 
 Produce output that is clear and structured, minimal and YAGNI-compliant, type-safe,
 testable, and focused on design decisions, responsibility boundaries, constraints, and
@@ -68,7 +69,6 @@ See `workflow.md` for detailed phase content and the required output template.
 
 ## Core Design Rules (Strictly Enforced for AI)
 
-- **Design first**: do not implement unless explicitly requested.
 - **Avoid implementation-reference duplication**: see `skills/DESIGN.md` §Avoid implementation-reference duplication.
 - **Enforce one-way dependency direction**: apply `skills/DESIGN.md` §Import layer contract at the design stage, not during implementation.
 - **Isolate async and sync code**: apply `skills/DESIGN.md` §Pythonic safety constraints (no blocking calls inside `async def` without an explicit executor boundary).

@@ -321,10 +321,13 @@ Return results in a strict final format.
 - next modules / packages / paths to inspect
 
 ### Final Gate
-- [ ] setup-to-start path is understandable
-- [ ] entrypoints and dependencies are traceable
-- [ ] unknowns remain visible
-- [ ] docs do not conflict with implementation
+
+Cross-check against each Phase's gate stated above — do not re-derive them, just confirm:
+
+- [ ] Phase 3 gate met: setup-to-start path is traceable
+- [ ] Phase 4 gate met: entrypoints and dependencies are traceable
+- [ ] Phase 8 gate met: unknowns remain visible
+- [ ] Phase 9 gate met: docs do not conflict with implementation
 
 ---
 

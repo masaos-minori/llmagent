@@ -14,7 +14,7 @@ Create issues only. Do not implement, refactor, or edit project files unless the
 
 Exception to `skills/DESIGN.md` §Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that requirement inside the issue.
 
-Keep Markdown safe to copy and paste. Avoid nested triple-backtick code blocks inside issue templates unless absolutely necessary.
+See `workflow.md` §Phase 9 for markdown-safety rules.
 
 ## When to use
 

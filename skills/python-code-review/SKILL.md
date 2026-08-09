@@ -10,7 +10,7 @@ description: |
 
 ## Purpose
 
-Review first. Do not change code unless the user explicitly asks for implementation.
+Review first — do not change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` §Analysis-only phase constraint).
 
 Output language: see `skills/DESIGN.md` §Output language.
 
@@ -59,7 +59,6 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Core Review Rules (Strictly Enforced for AI)
 
-- Do not implement unless explicitly requested.
 - Separate fact, interpretation, suspected issue, and open question.
 - Do not trust README or old docs without implementation verification.
 - Do not over-report style-only issues.

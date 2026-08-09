@@ -20,7 +20,7 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 
 ## Core Debugging Rules (Strictly Enforced for AI)
 
-- **Do Not Touch Production Code Early**: Never modify application logic during the investigation phases (Phases 1-7). Code changes are strictly forbidden until a reproducible test case is established in Phase 8.
+- **Do Not Touch Production Code Early**: No code changes during investigation (Phases 1-7) — see `skills/DESIGN.md` §Analysis-only phase constraint. This skill's write phase is Phase 8 (Minimal Fix), not before.
 - **No Tool Hallucination**: applies to `viztracer`, `py-spy`, `mitmproxy` — see `skills/DESIGN.md` §Tool availability guard (fallback: `pdb`, `traceback`, `logging`).
 - **Evidence-Driven**: Every bug report must be backed by an actual log snippet, stack trace, or test failure output. Do not assume the cause without copying the exact error message.
 

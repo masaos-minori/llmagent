@@ -147,11 +147,9 @@ When the issue is based on a user request only:
 
 Before finalizing issues, verify:
 - [ ] each issue is actionable
-- [ ] each issue has a clear reason for change
-- [ ] each issue has clear implementation intent
-- [ ] acceptance criteria are verifiable
-- [ ] out-of-scope items are explicit
-- [ ] testing expectations are included or intentionally marked not required
-- [ ] related tasks are grouped only when appropriate
-- [ ] Markdown is safe to copy and paste
-- [ ] no secrets or sensitive data are included
+- [ ] Reason for Change and Implementation Intent meet Phase 3
+- [ ] Acceptance Criteria and Testing Expectations meet Phase 5
+- [ ] Out of Scope items are explicit, per Phase 4
+- [ ] grouping follows Phase 2 criteria
+- [ ] Markdown safety follows Phase 9
+- [ ] no secrets or sensitive data are included (see `SKILL.md` Core Principles)

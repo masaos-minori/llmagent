@@ -19,12 +19,7 @@
 
 ## Step 1: Identify Failure Source
 
-**Fast path** — if the failing tool is already identified from the error message, skip to that step:
-- `ruff` error → Step 2
-- `mypy`/`pyright` error → Step 6
-- `lint-imports` violation → Step 3
-- `bandit` finding → Step 7
-- Suppression without justification → Step 4
+**Fast path** — see `SKILL.md` §Routing (Fast Path Assessment) for the failure-type → step mapping.
 
 **Full diagnosis** — if the cause is unknown, run all tools first:
 

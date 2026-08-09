@@ -64,6 +64,5 @@ Exceptions that require user confirmation: pushing to remote repos, modifying sh
 
 ### Test coverage
 
-Unit tests exist for many modules. Refactoring that touches a tested module must first acquire
-behavior-lock tests (using the `python-test-and-fix` skill) — see
-`skills/python-refactoring/workflow.md` §Phase 2 for the current list of covered modules.
+Refactoring tasks: see `skills/python-refactoring/workflow.md` §Phase 2 for the behavior-lock
+test requirement and the current list of covered modules.

@@ -33,6 +33,7 @@ Before running the full sequence, look at the error log and check if the failure
 - [ ] **Import / Layering Violation (`lint-imports`)** → Start directly at **Step 3**
 - [ ] **Type Error (`mypy` / `pyright`)** → Start directly at **Step 6**
 - [ ] **Security Finding (`bandit`)** → Start directly at **Step 7**
+- [ ] **Suppression without justification (`# noqa`/`# type: ignore`/`# nosec`)** → Start directly at **Step 4**
 
 *If multiple tools are failing or the source is ambiguous, you must run the full sequence from Step 1.*
 

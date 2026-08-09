@@ -340,14 +340,14 @@ def client():  # ambiguous — which client?
 
 ## Completion checklist
 
-- failure classified before any code change
-- reproducing test written before fixing implementation
-- mock only at true I/O boundaries (http, subprocess, filesystem, DB)
-- no `mocker.patch` on internal helpers
+Cross-check against each Step's stated criteria above — do not re-derive them, just confirm:
+
+- Step 1: failure classified before any code change; reproducing test written for bug-class failures
+- Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
+- Step 3: no flakiness introduced (`pytest --reruns 5` passes)
+- Step 11 target met: 0 surviving mutants on bug-fix path
 - `diff-cover coverage.xml --compare-branch=master --fail-under=90` passes
-- `pytest --reruns 5` passes — no flakiness introduced
-- `mutmut` 0 surviving mutants on bug-fix path
-- `.testmondata` not committed
+- Step 10 / 13: `.testmondata` not committed
 
 ---
 

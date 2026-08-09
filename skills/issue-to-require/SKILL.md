@@ -35,9 +35,9 @@ multi-file processing rules.
 ## Core Execution Rules (Strictly Enforced)
 
 - **Document-only phase**: this skill creates the requirement document in `requires/` and moves the processed issue file to `issues/done/`. It must not modify source code files or `docs/*.md`.
-- **One file at a time**: complete Steps 1-4 for the current issue file before starting the next. Never interleave steps across files.
+- **One file at a time**: see `workflow.md` §Multi-file processing.
 - **No Guesswork**: verify factual claims (affected files, whether the described problem still reproduces) against current source before writing the requirement document.
-- **Mandatory move**: after Step 3, the source issue file must be moved to `issues/done/` in Step 4 (subject to `review_mode` gating — see `workflow.md`). Skipping this step is a failure condition.
+- **Mandatory move**: see `workflow.md` §Step 4.
 - Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
 - Exception to `skills/DESIGN.md` §Output language: write the requirement document in clear and concise English (it feeds directly into `require-to-plan` for AI consumption).
 

@@ -251,24 +251,15 @@ Do not run the suggestion without user approval.
 ## Phase 12: Report
 
 Report:
-- branch
+- branch and commit SHA
 - staged files
 - commit message
 - pull result (fast-forward, conflict resolved, or failed)
 - conflict files and resolution summary (if applicable)
 - validation result (if tests were run)
-- push result
+- push result (or reason push was skipped)
 - remaining uncommitted changes
+- stop conditions triggered, with explanation
 - warnings
-
----
-
-## Output expectations
-
-- branch and commit SHA
-- list of committed files
-- pull result and conflict summary
-- push result or reason push was skipped
-- any stop conditions triggered with explanation
 
 Prohibited behavior: see `SKILL.md` § Core rules.

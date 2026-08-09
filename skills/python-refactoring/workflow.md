@@ -292,16 +292,14 @@ When a module is added or removed, compose with the `deploy` skill:
 
 ## Completion checklist
 
-- blast radius table documented
-- characterization tests written; coverage ≥ 80%
-- surviving mutants on refactored paths: 0 for small modules; for files > 300 lines, kill all mutants on the directly changed paths
-- `ruff check scripts/` — 0 errors
-- `PYTHONPATH=scripts mypy scripts/ tests/` — error count not increased
-- `PYTHONPATH=scripts lint-imports` — passes or contracts updated
-- `diff-cover coverage.xml --compare-branch=master --fail-under=90` — passes
-- `pre-commit run --all-files` — passes
-- all commits are bisect-safe (each passes tests independently)
-- no old symbol names remain in `scripts/`
+Cross-check against each Phase's gate stated above — do not re-derive them, just confirm:
+
+- Phase 1 gate met: blast radius documented
+- Phase 2 gate met: characterization tests written, coverage ≥ 80%, 0 surviving mutants (kill all mutants on directly changed paths for files > 300 lines)
+- Phase 3 gate met: ruff clean, no old symbol names remain
+- Phase 4 gate met: mypy error count not increased
+- Phase 5 gate met: every commit bisect-safe (passes pytest + ruff + mypy independently)
+- Phase 6 gate met: lint-imports passes (or contracts updated), diff-cover ≥ 90%, pre-commit passes
 
 ---
 

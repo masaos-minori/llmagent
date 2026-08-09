@@ -92,6 +92,20 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 - Fall back to the nearest standard equivalent (e.g. `ruff`/`mypy` for static checks, `pdb`/
   `traceback`/manual `rg` search for advanced tracing) and note that the fallback was used.
 
+### Analysis-only phase constraint
+
+Applies to any skill whose core procedure is read-only by design (currently `python-design`,
+`python-code-review`, `python-debug-root-cause`) — i.e. skills whose purpose is to produce an
+analysis, review, or design artifact rather than change code.
+
+- Do not modify source code, tests, or other production files while executing the skill's
+  analysis/review/design phases.
+- State this constraint once, in the skill's Purpose/description section. Do not repeat it in
+  every phase, rule list, or workflow step within the same skill.
+- Proceed to writing/editing only when the user explicitly requests implementation, or the
+  skill's own procedure reaches a phase specifically designated for writing output (e.g. writing
+  a design doc or review report, which is the skill's actual deliverable — not source code).
+
 ### Import layer contract (enforced by `.importlinter`)
 
 Layers may only import from themselves and layers below. The canonical layer diagram lives in
