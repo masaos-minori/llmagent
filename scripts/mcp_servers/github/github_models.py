@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/models.py
+"""scripts/mcp_servers/github/github_models.py
 
 Re-export stub for github-mcp server models.
 

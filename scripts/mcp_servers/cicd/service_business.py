@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_business.py
+"""scripts/mcp_servers/cicd/service_business.py
 
 CiCdService: dispatch handlers with allowlist guards, assembled from domain modules.
 

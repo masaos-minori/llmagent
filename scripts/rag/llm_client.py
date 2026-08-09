@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rag/llm_client.py
+"""scripts/rag/llm_client.py
 
 RagLLM class and module-level LLM functions for the RAG pipeline.
 

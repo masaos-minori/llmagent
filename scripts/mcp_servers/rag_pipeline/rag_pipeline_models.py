@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers.rag_pipeline.models
+"""scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py
 
 Pydantic request/response models and config adapter for rag-pipeline-mcp.
 

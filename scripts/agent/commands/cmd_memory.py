@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_memory.py
+"""scripts/agent/commands/cmd_memory.py
 
 /memory slash-command mixin for CommandRegistry.
 

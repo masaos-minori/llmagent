@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""chunk_english.py
+"""scripts/rag/ingestion/chunk_english.py
 
 ChunkEnglishMixin: paragraph/sentence-level chunking for English text.
 

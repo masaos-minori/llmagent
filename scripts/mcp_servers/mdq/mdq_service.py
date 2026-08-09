@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/service.py
+"""scripts/mcp_servers/mdq/mdq_service.py
 
 Main service class for Mdq functionality — SQLite FTS5-backed.
 """

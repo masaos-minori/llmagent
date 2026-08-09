@@ -1,4 +1,4 @@
-"""agent/services/session_restore.py
+"""scripts/agent/services/session_restore.py
 
 Session restore service — rebuild history and switch the active session.
 

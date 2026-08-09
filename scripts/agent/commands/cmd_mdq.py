@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_mdq.py
+"""scripts/agent/commands/cmd_mdq.py
 
 MDQ (Markdown Query) slash-command mixin for CommandRegistry.
 

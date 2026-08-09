@@ -1,4 +1,4 @@
-"""rag/cache.py
+"""scripts/rag/cache.py
 
 SemanticCache — in-memory nearest-neighbour embedding cache with dimension validation.
 

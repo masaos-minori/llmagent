@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_constants.py
+"""scripts/shared/tool_constants.py
 
 Canonical frozenset definitions for MCP tool classification.
 

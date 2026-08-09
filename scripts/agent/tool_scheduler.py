@@ -1,4 +1,4 @@
-"""agent/tool_scheduler.py
+"""scripts/agent/tool_scheduler.py
 
 Resource-scoped dependency scheduler for tool call batches.
 

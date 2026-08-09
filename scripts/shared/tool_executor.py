@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tool_executor.py
+"""scripts/shared/tool_executor.py
 
 MCP tool execution layer.
 

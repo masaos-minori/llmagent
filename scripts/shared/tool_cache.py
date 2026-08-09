@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_cache.py
+"""scripts/shared/tool_cache.py
 
 Cache entry dataclass and ToolResultCache for a standalone tool-result cache.
 

@@ -1,4 +1,4 @@
-"""rag/enums.py
+"""scripts/rag/enums.py
 
 StrEnum definitions for the RAG and ingestion layer.
 """

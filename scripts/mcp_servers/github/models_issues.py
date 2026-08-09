@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/models_issues.py
+"""scripts/mcp_servers/github/models_issues.py
 
 Pydantic request/response models for issues operations.
 

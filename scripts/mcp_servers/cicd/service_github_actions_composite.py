@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_github_actions_composite.py
+"""scripts/mcp_servers/cicd/service_github_actions_composite.py
 
 GitHubActionsCompositeBackend: composite of workflow and job backends.
 

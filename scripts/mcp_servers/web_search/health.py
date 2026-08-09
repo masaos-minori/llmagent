@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/web_search/health.py
+"""scripts/mcp_servers/web_search/health.py
 
 In-process DuckDuckGo provider health tracking for web-search-mcp.
 

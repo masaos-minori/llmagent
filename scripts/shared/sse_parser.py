@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/sse_parser.py
+"""scripts/shared/sse_parser.py
 
 Stateful SSE parser for LLM streaming responses.
 

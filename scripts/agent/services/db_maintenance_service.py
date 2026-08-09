@@ -1,4 +1,4 @@
-"""agent/services/db_maintenance_service.py
+"""scripts/agent/services/db_maintenance_service.py
 
 DbMaintenanceService — maintenance operations on session.sqlite only.
 

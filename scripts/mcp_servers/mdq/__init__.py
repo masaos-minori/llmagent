@@ -1,4 +1,4 @@
-"""scripts/mcp_servers/mdq — MDQ MCP server package."""
+"""scripts/mcp_servers/mdq/__init__.py — MDQ MCP server package."""
 
 from __future__ import annotations
 

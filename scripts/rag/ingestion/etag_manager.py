@@ -1,4 +1,6 @@
-"""scripts/ETag manager for document freshness tracking."""
+"""scripts/rag/ingestion/etag_manager.py
+
+ETag manager for document freshness tracking."""
 
 from __future__ import annotations
 

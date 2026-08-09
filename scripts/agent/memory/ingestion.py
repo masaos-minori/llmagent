@@ -1,4 +1,4 @@
-"""agent/memory/ingestion.py
+"""scripts/agent/memory/ingestion.py
 
 MemoryIngestionService — on_session_stop / write_* / dedup policy.
 

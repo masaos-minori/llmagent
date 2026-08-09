@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/helper.py
+"""scripts/db/helper.py
 
 SQLite connection manager for RAG, session, workflow, and eventbus databases.
 

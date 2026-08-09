@@ -1,4 +1,4 @@
-"""agent/memory/mapper.py
+"""scripts/agent/memory/mapper.py
 
 Shared SQLite row → MemoryEntry conversion helper, plus shared utilities.
 

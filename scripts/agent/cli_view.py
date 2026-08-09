@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""cli_view.py
+"""scripts/agent/cli_view.py
 
 CLI presentation layer: readline setup, multiline continuation input,
 and progress display.

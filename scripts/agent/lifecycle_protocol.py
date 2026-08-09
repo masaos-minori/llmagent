@@ -1,4 +1,4 @@
-"""agent/lifecycle_protocol.py
+"""scripts/agent/lifecycle_protocol.py
 
 LifecycleManager protocol types for structural subtyping.
 

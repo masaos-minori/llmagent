@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/web_search/search_provider.py
+"""scripts/mcp_servers/web_search/search_provider.py
 
 Search provider implementations for web-search-mcp.
 

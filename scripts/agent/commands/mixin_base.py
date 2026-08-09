@@ -1,4 +1,4 @@
-"""agent/commands/mixin_base.py
+"""scripts/agent/commands/mixin_base.py
 
 Common type-annotation base for all CommandRegistry mixin classes.
 

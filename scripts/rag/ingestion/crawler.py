@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Crawler.py
+"""scripts/rag/ingestion/crawler.py
 
 BFS web crawler that saves extracted text and code blocks to rag-src/.
 Entry point: python Crawler.py [--url URL ...] [--lang {en,ja}]

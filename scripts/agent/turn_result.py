@@ -1,4 +1,4 @@
-"""agent/turn_result.py
+"""scripts/agent/turn_result.py
 
 TurnResult frozen dataclass for LLM turn lifecycle.
 

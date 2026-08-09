@@ -1,4 +1,4 @@
-"""agent/commands/cmd_workflow.py
+"""scripts/agent/commands/cmd_workflow.py
 
 Workflow approval mixin for CommandRegistry.
 

@@ -1,4 +1,4 @@
-"""agent/http_lifecycle.py
+"""scripts/agent/http_lifecycle.py
 
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 

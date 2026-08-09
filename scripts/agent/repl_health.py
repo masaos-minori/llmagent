@@ -1,4 +1,6 @@
-"""MCP server health monitoring and startup validation for AgentREPL.
+"""scripts/agent/repl_health.py
+
+MCP server health monitoring and startup validation for AgentREPL.
 
 Standalone async functions taking AgentContext as first argument.
 Extracted from agent/repl.py to allow targeted loading when modifying

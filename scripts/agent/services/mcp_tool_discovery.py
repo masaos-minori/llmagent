@@ -1,4 +1,4 @@
-"""agent/services/mcp_tool_discovery.py
+"""scripts/agent/services/mcp_tool_discovery.py
 
 McpToolDiscoveryService — discover live MCP tools at startup and build a
 `RuntimeToolRegistry`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/models_repository.py
+"""scripts/mcp_servers/github/models_repository.py
 
 Pydantic request/response models for repository/branch/commit operations.
 

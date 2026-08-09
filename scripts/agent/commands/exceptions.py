@@ -1,4 +1,4 @@
-"""agent/commands/exceptions.py
+"""scripts/agent/commands/exceptions.py
 
 Domain exceptions for built-in slash-command handlers.
 """

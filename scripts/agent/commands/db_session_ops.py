@@ -1,4 +1,4 @@
-"""scripts/db_session_ops.py — Session database operation handlers."""
+"""scripts/agent/commands/db_session_ops.py — Session database operation handlers."""
 
 from __future__ import annotations
 

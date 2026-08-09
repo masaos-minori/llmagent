@@ -1,4 +1,4 @@
-"""mcp_servers/github/service_dispatch.py
+"""scripts/mcp_servers/github/service_dispatch.py
 
 GitHubService dispatch formatters and dispatch table builder.
 

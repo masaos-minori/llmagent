@@ -1,4 +1,4 @@
-"""agent/shared/exceptions.py
+"""scripts/agent/shared/exceptions.py
 
 No public exceptions. Canonical sources:
   - command errors  -> agent.commands.exceptions

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/config_dataclasses.py
+"""scripts/agent/config_dataclasses.py
 
 All configuration dataclass definitions for the agent pipeline.
 

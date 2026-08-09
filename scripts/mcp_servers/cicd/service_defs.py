@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_defs.py
+"""scripts/mcp_servers/cicd/service_defs.py
 
 Constants and CiBackend protocol for cicd-mcp.
 

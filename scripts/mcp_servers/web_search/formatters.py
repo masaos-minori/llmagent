@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/web_search/formatters.py
+"""scripts/mcp_servers/web_search/formatters.py
 
 MCP tool dispatch formatters for web-search-mcp.
 

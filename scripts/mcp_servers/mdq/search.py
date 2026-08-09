@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/search.py
+"""scripts/mcp_servers/mdq/search.py
 
 Search functionality using FTS5 (BM25).
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/service_file.py
+"""scripts/mcp_servers/github/service_file.py
 
 File operations (get/create/update/push/delete) for GitHubService.
 

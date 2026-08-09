@@ -1,4 +1,4 @@
-"""agent/tool_approval.py
+"""scripts/agent/tool_approval.py
 
 Interactive tool approval flow: risk-based prompts and plan-mode blocking.
 

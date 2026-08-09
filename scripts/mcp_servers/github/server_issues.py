@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/server_issues.py
+"""scripts/mcp_servers/github/server_issues.py
 
 FastAPI routes for GitHub issues operations.
 

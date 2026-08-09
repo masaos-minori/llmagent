@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_debug.py
+"""scripts/agent/commands/cmd_debug.py
 
 Debug-mode toggle mixin for CommandRegistry.
 

@@ -1,4 +1,4 @@
-"""agent/commands/enums.py
+"""scripts/agent/commands/enums.py
 
 Domain enums for built-in slash-command handlers.
 """

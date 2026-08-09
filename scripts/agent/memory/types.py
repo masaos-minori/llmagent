@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/types.py
+"""scripts/agent/memory/types.py
 
 Data types for the persistent semantic memory layer.
 """

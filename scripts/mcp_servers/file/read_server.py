@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/read_server.py
+"""scripts/mcp_servers/file/read_server.py
 
 MCP server for read-only filesystem operations (port 8005).
 

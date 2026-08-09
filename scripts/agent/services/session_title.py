@@ -1,4 +1,4 @@
-"""agent/services/session_title.py
+"""scripts/agent/services/session_title.py
 
 SessionTitleService — generate and persist a session title via LLM.
 

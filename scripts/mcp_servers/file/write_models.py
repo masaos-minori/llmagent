@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""file_write_mcp_models.py
+"""scripts/mcp_servers/file/write_models.py
 
 Config loading and Pydantic request/response models for file-write-mcp.
 """

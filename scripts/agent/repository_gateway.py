@@ -1,4 +1,4 @@
-"""agent/repository_gateway.py
+"""scripts/agent/repository_gateway.py
 
 Single enforcement boundary for all repository write/delete/API-write operations.
 

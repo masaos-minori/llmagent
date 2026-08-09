@@ -1,4 +1,4 @@
-"""agent/services/models.py
+"""scripts/agent/services/models.py
 
 Immutable DTO models for the agent/services subsystem.
 

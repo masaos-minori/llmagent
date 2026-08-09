@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/tools_issues.py
+"""scripts/mcp_servers/github/tools_issues.py
 
 MCP tool schema definitions for GitHub issues operations.
 """

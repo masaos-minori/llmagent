@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/maintenance.py
+"""scripts/db/maintenance.py
 
 SQLite operational maintenance: WAL checkpoint, VACUUM, DB rotation,
 session retention, and corruption recovery.

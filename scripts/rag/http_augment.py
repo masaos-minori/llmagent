@@ -1,4 +1,6 @@
-"""scripts/HTTP augment for RAG pipeline."""
+"""scripts/rag/http_augment.py
+
+HTTP augment for RAG pipeline."""
 
 from __future__ import annotations
 

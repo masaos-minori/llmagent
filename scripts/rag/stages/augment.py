@@ -1,4 +1,6 @@
-"""scripts/Augment stage for RAG pipeline."""
+"""scripts/rag/stages/augment.py
+
+Augment stage for RAG pipeline."""
 
 from rag.repository import RagHit
 from rag.stage import PipelineContext, PipelineStage

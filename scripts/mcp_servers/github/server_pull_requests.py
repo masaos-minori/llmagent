@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/server_pull_requests.py
+"""scripts/mcp_servers/github/server_pull_requests.py
 
 FastAPI routes for GitHub pull request operations.
 

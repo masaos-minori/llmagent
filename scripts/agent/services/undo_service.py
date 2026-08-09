@@ -1,4 +1,4 @@
-"""agent/services/undo_service.py
+"""scripts/agent/services/undo_service.py
 
 Undo service — rolls back the last user+assistant turn.
 

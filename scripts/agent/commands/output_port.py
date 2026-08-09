@@ -1,4 +1,4 @@
-"""agent/commands/output_port.py
+"""scripts/agent/commands/output_port.py
 
 OutputPort Protocol and CliOutputPort implementation for command handlers.
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shell_mcp_server.py
+"""scripts/mcp_servers/shell/shell_server.py
 
 MCP server for sandboxed shell command execution (port 8009).
 

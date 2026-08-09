@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/models.py
+"""scripts/mcp_servers/cicd/cicd_models.py
 
 Config loading, Pydantic models, and domain exceptions for cicd-mcp.
 """

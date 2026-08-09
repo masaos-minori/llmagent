@@ -1,4 +1,6 @@
-"""scripts/Entry point: python -m mcp_servers.mdq.server"""
+"""scripts/mcp_servers/mdq/__main__.py
+
+Entry point: python -m mcp_servers.mdq.server"""
 
 from mcp_servers.mdq.mdq_server import MdqMCPServer
 

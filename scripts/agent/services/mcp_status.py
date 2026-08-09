@@ -1,4 +1,4 @@
-"""agent/services/mcp_status.py
+"""scripts/agent/services/mcp_status.py
 
 McpStatusService — probe all MCP servers and format the status table.
 

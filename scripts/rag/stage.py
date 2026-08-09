@@ -1,4 +1,4 @@
-"""rag/stage.py
+"""scripts/rag/stage.py
 
 PipelineStage Protocol and shared PipelineContext dataclass.
 """

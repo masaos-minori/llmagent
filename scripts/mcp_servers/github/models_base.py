@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/models_base.py
+"""scripts/mcp_servers/github/models_base.py
 
 Shared Pydantic models used across multiple domain modules.
 

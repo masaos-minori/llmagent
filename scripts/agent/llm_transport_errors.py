@@ -1,4 +1,4 @@
-"""scripts/llm_transport_errors.py — LLM transport error handling for Orchestrator."""
+"""scripts/agent/llm_transport_errors.py — LLM transport error handling for Orchestrator."""
 
 from __future__ import annotations
 

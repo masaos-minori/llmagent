@@ -1,4 +1,4 @@
-"""rag/exceptions.py
+"""scripts/rag/exceptions.py
 
 Exception hierarchy for the RAG and ingestion layer.
 """

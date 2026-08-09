@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/delete_formatter.py
+"""scripts/mcp_servers/file/delete_formatter.py
 
 Output formatters for file-delete-mcp operations.
 

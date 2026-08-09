@@ -1,4 +1,4 @@
-"""agent/shared/enums.py
+"""scripts/agent/shared/enums.py
 
 No public enums. Canonical sources:
   - ExtractionDecision, RetrievalMode -> agent.memory.enums

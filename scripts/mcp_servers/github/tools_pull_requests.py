@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/tools_pull_requests.py
+"""scripts/mcp_servers/github/tools_pull_requests.py
 
 MCP tool schema definitions for GitHub pull request operations.
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/workflow_loader.py
+"""scripts/agent/workflow/workflow_loader.py
 
 Load and validate workflow definitions from config/workflows/*.json.
 """

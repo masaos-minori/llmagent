@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_github_actions.py
+"""scripts/mcp_servers/cicd/service_github_actions.py
 
 GitHubActionsBackend: GitHub Actions REST API client (HTTP).
 

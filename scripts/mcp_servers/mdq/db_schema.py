@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/db_schema.py
+"""scripts/mcp_servers/mdq/db_schema.py
 
 Database schema creation for MdqService.
 

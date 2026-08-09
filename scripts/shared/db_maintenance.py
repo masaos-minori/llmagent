@@ -1,4 +1,6 @@
-"""scripts/Shared database maintenance utilities."""
+"""scripts/shared/db_maintenance.py
+
+Shared database maintenance utilities."""
 
 from typing import Any
 

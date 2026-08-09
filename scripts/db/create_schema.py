@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""create_schema.py
+"""scripts/db/create_schema.py
 
 現行スキーマをDDLのみで作成する。スキーマ変更が必要な場合はDBを再作成すること。
 

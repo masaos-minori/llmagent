@@ -1,4 +1,4 @@
-"""scripts/mcp_servers/web_search — Web Search MCP server package."""
+"""scripts/mcp_servers/web_search/__init__.py — Web Search MCP server package."""
 
 from __future__ import annotations
 

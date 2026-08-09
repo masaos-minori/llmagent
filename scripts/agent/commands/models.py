@@ -1,4 +1,4 @@
-"""agent/commands/models.py
+"""scripts/agent/commands/models.py
 
 Frozen dataclass ViewModels and DTOs for built-in slash-command handlers.
 """

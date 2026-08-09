@@ -1,4 +1,4 @@
-"""agent/tool_enums.py
+"""scripts/agent/tool_enums.py
 
 Enum types for the tool execution subsystem.
 """

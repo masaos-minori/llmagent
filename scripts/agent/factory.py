@@ -1,4 +1,4 @@
-"""agent/factory.py
+"""scripts/agent/factory.py
 
 AgentContext assembly factory.
 Service injection into ctx.services is separated from AgentREPL to enable testing.

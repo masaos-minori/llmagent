@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/store_protocols.py
+"""scripts/db/store_protocols.py
 
 Public storage-layer contracts for the RAG pipeline and session/memory layers.
 

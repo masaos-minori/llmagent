@@ -1,4 +1,4 @@
-"""agent/__main__.py
+"""scripts/agent/__main__.py
 
 Entry point for `python -m agent` invocation.
 

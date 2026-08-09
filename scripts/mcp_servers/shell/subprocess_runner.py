@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/shell/subprocess_runner.py
+"""scripts/mcp_servers/shell/subprocess_runner.py
 
 Subprocess execution logic for shell-mcp.
 

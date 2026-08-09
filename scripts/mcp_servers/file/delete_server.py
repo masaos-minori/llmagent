@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""file_delete_mcp_server.py
+"""scripts/mcp_servers/file/delete_server.py
 
 MCP server for delete filesystem operations (port 8008).
 

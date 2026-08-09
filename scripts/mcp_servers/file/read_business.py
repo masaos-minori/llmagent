@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/read_business.py
+"""scripts/mcp_servers/file/read_business.py
 
 ReadFileService business operations for file-read-mcp.
 

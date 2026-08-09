@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/lifecycle.py
+"""scripts/agent/lifecycle.py
 
 LifecycleState enum shared by lifecycle managers and callers.
 

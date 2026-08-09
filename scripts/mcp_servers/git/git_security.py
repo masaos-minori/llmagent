@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/git/git_security.py
+"""scripts/mcp_servers/git/git_security.py
 
 Shared security guards for GitService: repo-path allowlist and read-only check.
 

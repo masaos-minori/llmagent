@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/tools.py
+"""scripts/mcp_servers/cicd/cicd_tools.py
 
 MCP tool schema definitions for cicd-mcp server (inputSchema format).
 """

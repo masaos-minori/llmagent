@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""github_mcp_server.py
+"""scripts/mcp_servers/github/github_server.py
 
 GitHub operations MCP server equivalent to @modelcontextprotocol/server-github.
 

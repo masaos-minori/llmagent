@@ -1,4 +1,4 @@
-"""agent/memory/models.py
+"""scripts/agent/memory/models.py
 
 Frozen dataclass DTOs for the persistent memory layer.
 """

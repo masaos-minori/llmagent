@@ -1,4 +1,4 @@
-"""shared/llm_client.py
+"""scripts/shared/llm_client.py
 
 LLM communication layer with robust SSE streaming.
 

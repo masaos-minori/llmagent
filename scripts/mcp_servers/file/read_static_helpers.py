@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/read_static_helpers.py
+"""scripts/mcp_servers/file/read_static_helpers.py
 
 Static helper functions for ReadFileService, extracted to reduce read_service.py size.
 

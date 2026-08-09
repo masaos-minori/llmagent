@@ -1,4 +1,4 @@
-"""shared/token_counter.py
+"""scripts/shared/token_counter.py
 
 Accurate token counting via llamacpp /tokenize endpoint.
 

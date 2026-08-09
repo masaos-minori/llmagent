@@ -1,3 +1,5 @@
+"""scripts/eventbus/db.py"""
+
 from __future__ import annotations
 
 import logging

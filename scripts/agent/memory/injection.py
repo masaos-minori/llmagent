@@ -1,4 +1,4 @@
-"""agent/memory/injection.py
+"""scripts/agent/memory/injection.py
 
 MemoryInjectionService — on_session_start / on_user_prompt lifecycle hooks.
 

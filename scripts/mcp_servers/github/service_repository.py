@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/service_repository.py
+"""scripts/mcp_servers/github/service_repository.py
 
 Repository/branch/commit/code search operations for GitHubService.
 

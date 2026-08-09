@@ -1,4 +1,4 @@
-"""command_defs_list.py — Built-in slash command definitions for AgentREPL.
+"""scripts/agent/commands/command_defs_list.py — Built-in slash command definitions for AgentREPL.
 
 This module is the SINGLE SOURCE OF TRUTH for the _COMMANDS list.
 All built-in slash commands are defined here and only here.

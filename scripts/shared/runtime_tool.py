@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/runtime_tool.py
+"""scripts/shared/runtime_tool.py
 
 Normalized runtime tool-metadata shape.
 

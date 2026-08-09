@@ -1,4 +1,6 @@
-"""scripts/Search stage for RAG pipeline."""
+"""scripts/rag/stages/search.py
+
+Search stage for RAG pipeline."""
 
 from __future__ import annotations
 

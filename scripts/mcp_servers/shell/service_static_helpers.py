@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/shell/service_static_helpers.py
+"""scripts/mcp_servers/shell/service_static_helpers.py
 
 Static helper functions for ShellService, extracted to reduce service.py size.
 

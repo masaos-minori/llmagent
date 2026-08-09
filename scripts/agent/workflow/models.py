@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/models.py
+"""scripts/agent/workflow/models.py
 
 Dataclasses for the Metadata DB entities and workflow definition schema.
 """

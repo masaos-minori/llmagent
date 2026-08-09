@@ -1,4 +1,4 @@
-"""agent/memory — Persistent memory layer.
+"""scripts/agent/memory/__init__.py — Persistent memory layer.
 
 Sub-modules:
   embedding_client  : HTTP embedding client with retry/circuit-breaker

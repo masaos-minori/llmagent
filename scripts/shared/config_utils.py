@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/config_utils.py — Typed config value accessors.
+"""scripts/shared/config_utils.py — Typed config value accessors.
 
 Provides helpers for reading typed values from raw config dicts
 (e.g. loaded from TOML or JSON) with built-in type validation.

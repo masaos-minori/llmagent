@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/llm_exceptions.py
+"""scripts/shared/llm_exceptions.py
 
 Structured exception for LLM HTTP/SSE transport failures.
 

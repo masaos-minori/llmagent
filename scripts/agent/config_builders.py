@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/config_builders.py
+"""scripts/agent/config_builders.py
 
 Constants, builder functions, ConfigLoadError, load_config, and build_agent_config.
 

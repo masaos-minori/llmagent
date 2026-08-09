@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_rag_export.py
+"""scripts/agent/commands/cmd_rag_export.py
 
 Compact mixin for CommandRegistry.
 

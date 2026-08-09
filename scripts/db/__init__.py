@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db — SQLite database layer for RAG and session management.
+"""scripts/db/__init__.py — SQLite database layer for RAG and session management.
 
 Public API (import from db.* submodules directly for clarity):
   - db.config:     DbConfig, build_db_config

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/config.py
+"""scripts/db/config.py
 
 DbConfig dataclass and builder for SQLite database paths.
 

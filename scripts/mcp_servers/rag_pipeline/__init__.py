@@ -1,4 +1,4 @@
-"""scripts/mcp_servers/rag_pipeline — RAG Pipeline MCP server package."""
+"""scripts/mcp_servers/rag_pipeline/__init__.py — RAG Pipeline MCP server package."""
 
 from __future__ import annotations
 

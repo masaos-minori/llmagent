@@ -1,4 +1,4 @@
-"""agent/shared/models.py
+"""scripts/agent/shared/models.py
 
 Cross-cutting frozen dataclass DTOs for the agent layer.
 """

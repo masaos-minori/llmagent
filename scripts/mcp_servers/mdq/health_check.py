@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/health_check.py
+"""scripts/mcp_servers/mdq/health_check.py
 
 Health check logic for mdq-mcp server.
 

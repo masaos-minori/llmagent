@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""registry.py
+"""scripts/agent/commands/registry.py
 
 Slash-command registry for AgentREPL.
 

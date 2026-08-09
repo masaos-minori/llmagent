@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/state_store.py
+"""scripts/agent/workflow/state_store.py
 
 CRUD operations and idempotency enforcement for workflow.sqlite.
 """

@@ -1,4 +1,4 @@
-"""typed_validators.py
+"""scripts/agent/services/typed_validators.py
 
 Typed boundary extraction helpers for config reload operations.
 

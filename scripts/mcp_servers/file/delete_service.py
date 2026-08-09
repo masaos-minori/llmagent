@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""file_delete_mcp_service.py
+"""scripts/mcp_servers/file/delete_service.py
 
 DeleteFileService business logic, audit log, and lazy singleton proxy for file-delete-mcp.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/server.py
+"""scripts/mcp_servers/mdq/mdq_server.py
 
 Markdown Context Compression Engine MCP server (port 8013).
 

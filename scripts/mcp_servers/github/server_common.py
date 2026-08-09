@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/server_common.py
+"""scripts/mcp_servers/github/server_common.py
 
 Shared FastAPI route helpers for github-mcp server endpoints.
 

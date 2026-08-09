@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/rag_pipeline/tools.py
+"""scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py
 
 MCP tool schema definitions for rag-pipeline-mcp server (inputSchema format).
 """

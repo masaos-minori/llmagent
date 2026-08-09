@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/route_resolver.py
+"""scripts/shared/route_resolver.py
 
 Tool-name to server-key resolution for ToolExecutor.
 

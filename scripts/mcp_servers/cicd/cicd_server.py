@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/server.py
+"""scripts/mcp_servers/cicd/cicd_server.py
 
 CI/CD MCP server (GitHub Actions backend, port 8012).
 

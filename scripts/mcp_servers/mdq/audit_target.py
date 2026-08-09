@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/audit_target.py
+"""scripts/mcp_servers/mdq/audit_target.py
 
 Audit target extraction for mdq-mcp server tools.
 

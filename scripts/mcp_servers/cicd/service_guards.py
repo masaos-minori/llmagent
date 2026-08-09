@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_guards.py
+"""scripts/mcp_servers/cicd/service_guards.py
 
 CiCdService security guard mixin: repo_allowlist + workflow_allowlist enforcement.
 

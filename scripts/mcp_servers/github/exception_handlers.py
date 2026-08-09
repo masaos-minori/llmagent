@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/exception_handlers.py
+"""scripts/mcp_servers/github/exception_handlers.py
 
 Domain exception → HTTP status handlers for github-mcp.
 

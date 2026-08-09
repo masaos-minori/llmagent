@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/web_search/metrics.py
+"""scripts/mcp_servers/web_search/metrics.py
 
 Lightweight, in-process query metrics for web-search-mcp.
 

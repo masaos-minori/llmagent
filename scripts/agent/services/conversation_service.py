@@ -1,4 +1,4 @@
-"""agent/services/conversation_service.py
+"""scripts/agent/services/conversation_service.py
 
 Conversation lifecycle operations that should not live in command handlers.
 

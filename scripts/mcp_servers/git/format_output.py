@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/git/format_output.py
+"""scripts/mcp_servers/git/format_output.py
 
 Output formatting for git-mcp operations.
 

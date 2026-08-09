@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rag/repository.py
+"""scripts/rag/repository.py
 
 RAG data-access layer: FTS5/vector search, RRF merge, and document fetching.
 

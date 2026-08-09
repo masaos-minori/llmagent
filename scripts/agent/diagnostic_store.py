@@ -1,4 +1,4 @@
-"""agent/diagnostic_store.py
+"""scripts/agent/diagnostic_store.py
 
 DiagnosticStore — dedicated storage for runtime diagnostics.
 Diagnostic data is stored in the session_diagnostics table,

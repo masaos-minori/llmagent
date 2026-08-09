@@ -1,4 +1,4 @@
-"""agent/tool_exceptions.py
+"""scripts/agent/tool_exceptions.py
 
 Domain exceptions for the tool execution subsystem.
 """

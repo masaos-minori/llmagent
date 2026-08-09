@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service.py
+"""scripts/mcp_servers/cicd/cicd_service.py
 
 Re-export stub for mcp/cicd/service modules.
 

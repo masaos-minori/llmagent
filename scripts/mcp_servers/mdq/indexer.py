@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/indexer.py
+"""scripts/mcp_servers/mdq/indexer.py
 
 Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 """

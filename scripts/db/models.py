@@ -1,4 +1,4 @@
-"""db/models.py
+"""scripts/db/models.py
 
 Typed DTOs for db-layer operation results.
 

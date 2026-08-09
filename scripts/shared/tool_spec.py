@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_spec.py
+"""scripts/shared/tool_spec.py
 
 Typed metadata for one tool call in the execution DAG.
 """

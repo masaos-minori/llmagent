@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/git/service.py
+"""scripts/mcp_servers/git/git_service.py
 
 GitService: local git operations via GitPython with repo-path allowlist and read_only guard.
 

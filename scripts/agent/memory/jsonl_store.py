@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/jsonl_store.py
+"""scripts/agent/memory/jsonl_store.py
 
 Append-only JSONL archive for MemoryEntry.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/write_formatter.py
+"""scripts/mcp_servers/file/write_formatter.py
 
 Output formatters for file-write-mcp operations.
 

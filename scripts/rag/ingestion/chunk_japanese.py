@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""chunk_japanese.py
+"""scripts/rag/ingestion/chunk_japanese.py
 
 ChunkJapaneseMixin: morphological-analysis-based chunking for Japanese text.
 

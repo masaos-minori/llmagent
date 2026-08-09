@@ -1,3 +1,5 @@
+"""scripts/eventbus/config.py"""
+
 from __future__ import annotations
 
 import ipaddress

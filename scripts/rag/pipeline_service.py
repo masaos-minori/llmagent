@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rag/pipeline_service.py — External RAG service delegation.
+"""scripts/rag/pipeline_service.py — External RAG service delegation.
 
 Contains the HTTP delegate logic for external RAG pipeline services.
 Imported by rag/pipeline.py during orchestrator construction.

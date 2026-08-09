@@ -1,4 +1,4 @@
-"""agent/output_tags.py
+"""scripts/agent/output_tags.py
 
 Canonical bracket-prefix tags for REPL/CLI status messages (warnings, errors,
 tool-execution status, workflow status). Centralizes tags previously

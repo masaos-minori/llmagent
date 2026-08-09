@@ -1,4 +1,6 @@
-"""scripts/Document management for RagIngester."""
+"""scripts/rag/ingestion/document_manager.py
+
+Document management for RagIngester."""
 
 from __future__ import annotations
 

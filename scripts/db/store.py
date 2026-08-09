@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db/store.py
+"""scripts/db/store.py
 
 Stable public import surface for the DB store layer.
 

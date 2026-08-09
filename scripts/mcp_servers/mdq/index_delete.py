@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/index_delete.py
+"""scripts/mcp_servers/mdq/index_delete.py
 
 File deletion logic for mdq indexer.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/service_issues.py
+"""scripts/mcp_servers/github/service_issues.py
 
 Issues, comments, and search issues operations for GitHubService.
 

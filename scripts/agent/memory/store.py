@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/memory/store.py
+"""scripts/agent/memory/store.py
 
 Read-only CRUD layer for the memories / memories_fts / memories_vec SQLite tables.
 

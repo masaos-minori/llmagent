@@ -1,4 +1,4 @@
-"""agent/services/config_validators.py
+"""scripts/agent/services/config_validators.py
 
 Validation functions extracted from config_dataclasses.py __post_init__ methods.
 

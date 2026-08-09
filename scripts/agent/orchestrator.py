@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/orchestrator.py
+"""scripts/agent/orchestrator.py
 
 Turn-level orchestration facade.
 

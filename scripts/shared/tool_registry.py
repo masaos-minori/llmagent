@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_registry.py
+"""scripts/shared/tool_registry.py
 
 Tool ownership registry and routing seed data. RuntimeToolRegistry
 (shared/runtime_tool_registry.py) is the sole runtime routing authority, populated from

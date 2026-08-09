@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/json_utils.py
+"""scripts/shared/json_utils.py
 
 String-producing JSON serialization helpers.
 

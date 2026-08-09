@@ -1,4 +1,4 @@
-"""agent/shared/health_models.py
+"""scripts/agent/shared/health_models.py
 
 DTOs for service health check results.
 """

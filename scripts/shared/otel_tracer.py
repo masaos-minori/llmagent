@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""otel_tracer.py
+"""scripts/shared/otel_tracer.py
 
 OpenTelemetry tracer initialisation for the agent pipeline.
 

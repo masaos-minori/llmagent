@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_github_actions_job.py
+"""scripts/mcp_servers/cicd/service_github_actions_job.py
 
 GitHubActionsJobBackend: GitHub Actions job log operations.
 

@@ -1,4 +1,4 @@
-"""mcp_servers/github -- GitHub MCP server package.
+"""scripts/mcp_servers/github/__init__.py -- GitHub MCP server package.
 
 Sub-modules:
     service_init   — client init + build_service()

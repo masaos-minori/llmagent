@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/read_tools.py
+"""scripts/mcp_servers/file/read_tools.py
 
 MCP tool schema definitions for file-read-mcp server (inputSchema format).
 

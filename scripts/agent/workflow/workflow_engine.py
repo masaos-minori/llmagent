@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/workflow/workflow_engine.py
+"""scripts/agent/workflow/workflow_engine.py
 
 Stage transition engine: plan -> execute -> [approval gate] -> verify -> (retry loop).
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/db_grep.py
+"""scripts/mcp_servers/mdq/db_grep.py
 
 Grep operations for MdqService.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/service_init.py
+"""scripts/mcp_servers/cicd/service_init.py
 
 build_service factory for cicd-mcp.
 

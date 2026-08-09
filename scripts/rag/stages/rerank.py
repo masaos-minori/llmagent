@@ -1,4 +1,6 @@
-"""scripts/Rerank stage for RAG pipeline."""
+"""scripts/rag/stages/rerank.py
+
+Rerank stage for RAG pipeline."""
 
 import logging
 

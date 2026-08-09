@@ -1,3 +1,5 @@
+"""scripts/eventbus/dlq.py"""
+
 from __future__ import annotations
 
 import logging

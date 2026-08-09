@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shell_mcp_models.py
+"""scripts/mcp_servers/shell/shell_models.py
 
 Config loading, Pydantic models, and domain exceptions for shell-mcp.
 """

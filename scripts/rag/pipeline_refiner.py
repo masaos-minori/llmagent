@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rag/pipeline_refiner.py — Context refiner for RAG pipeline.
+"""scripts/rag/pipeline_refiner.py — Context refiner for RAG pipeline.
 
 Contains the chunk refinement logic (compressing reranked hits
 into query-relevant key points via LLM).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/file/read_security.py
+"""scripts/mcp_servers/file/read_security.py
 
 ReadSecurityGuards mixin for read-only filesystem operations.
 

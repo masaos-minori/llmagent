@@ -1,4 +1,4 @@
-"""scripts/token_display.py — Token count display logic."""
+"""scripts/agent/commands/token_display.py — Token count display logic."""
 
 from __future__ import annotations
 

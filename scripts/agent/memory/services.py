@@ -1,4 +1,4 @@
-"""agent/memory/services.py
+"""scripts/agent/memory/services.py
 
 MemoryServices — facade over the three memory service instances.
 

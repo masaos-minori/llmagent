@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/server.py
+"""scripts/mcp_servers/server.py
 
 Base class for MCP (Model Context Protocol) servers.
 Provides HTTP launch logic shared by all MCP server scripts.

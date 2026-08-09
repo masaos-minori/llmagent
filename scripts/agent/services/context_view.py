@@ -1,4 +1,4 @@
-"""agent/services/context_view.py
+"""scripts/agent/services/context_view.py
 
 Context state aggregation service for /context command.
 

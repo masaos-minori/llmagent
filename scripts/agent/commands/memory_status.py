@@ -1,4 +1,4 @@
-"""scripts/status.py — Memory layer status display logic."""
+"""scripts/agent/commands/memory_status.py — Memory layer status display logic."""
 
 from __future__ import annotations
 

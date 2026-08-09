@@ -1,4 +1,4 @@
-"""mcp_servers/github/formatter.py
+"""scripts/mcp_servers/github/formatter.py
 
 Presentation helpers extracted from service.py.
 

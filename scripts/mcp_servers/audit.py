@@ -1,4 +1,4 @@
-"""mcp_servers/audit.py
+"""scripts/mcp_servers/audit.py
 
 Structured audit logging helper extracted from mcp/server.py.
 

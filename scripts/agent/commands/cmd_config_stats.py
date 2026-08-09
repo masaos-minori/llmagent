@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_config_stats.py
+"""scripts/agent/commands/cmd_config_stats.py
 
 Stats collection and display for _ConfigMixin.
 

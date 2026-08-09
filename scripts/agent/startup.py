@@ -1,4 +1,4 @@
-"""agent/startup.py
+"""scripts/agent/startup.py
 
 Startup orchestration for AgentREPL.
 

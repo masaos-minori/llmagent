@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/service_security.py
+"""scripts/mcp_servers/github/service_security.py
 
 GitHubSecurityGuards: security policy enforcement mixin for GitHubService.
 

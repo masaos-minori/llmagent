@@ -1,4 +1,4 @@
-"""agent/security_audit_config.py
+"""scripts/agent/security_audit_config.py
 
 Narrow API for security audit access to MCP server config models.
 

@@ -1,4 +1,4 @@
-"""agent/tool_policy.py
+"""scripts/agent/tool_policy.py
 
 Tool risk classification and pre-flight access checks.
 

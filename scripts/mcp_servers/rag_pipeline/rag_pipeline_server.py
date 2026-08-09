@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers.rag_pipeline.server
+"""scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py
 
 RAG Pipeline MCP server (port 8010).
 

@@ -1,4 +1,4 @@
-"""agent/services/exceptions.py
+"""scripts/agent/services/exceptions.py
 
 Domain exceptions for the agent/services subsystem.
 """

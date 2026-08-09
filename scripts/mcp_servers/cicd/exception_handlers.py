@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/cicd/exception_handlers.py
+"""scripts/mcp_servers/cicd/exception_handlers.py
 
 Domain exception → HTTP status handlers for cicd-mcp.
 

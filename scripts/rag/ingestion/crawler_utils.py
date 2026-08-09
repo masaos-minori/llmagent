@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""crawler_utils.py
+"""scripts/rag/ingestion/crawler_utils.py
 
 Pure-function utilities for WebCrawler: URL helpers, content extraction,
 language detection, and target URL parsing.

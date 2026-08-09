@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""chunk_utils.py
+"""scripts/rag/ingestion/chunk_utils.py
 
 Shared buffer helpers for ChunkEnglishMixin and ChunkJapaneseMixin.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""file_write_mcp_service.py
+"""scripts/mcp_servers/file/write_service.py
 
 WriteFileService business logic and lazy singleton proxy for file-write-mcp.
 

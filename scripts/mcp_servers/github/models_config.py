@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/models_config.py
+"""scripts/mcp_servers/github/models_config.py
 
 Typed config loading and domain exceptions for github-mcp server.
 

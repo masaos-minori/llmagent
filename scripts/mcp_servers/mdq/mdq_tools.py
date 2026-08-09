@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/mdq/tools.py
+"""scripts/mcp_servers/mdq/mdq_tools.py
 
 MCP tool schema definitions for mdq-mcp server (inputSchema format).
 """

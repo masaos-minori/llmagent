@@ -1,4 +1,4 @@
-"""agent/commands/utils.py
+"""scripts/agent/commands/utils.py
 
 Shared utilities for command mixins.
 

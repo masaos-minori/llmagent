@@ -1,4 +1,6 @@
-"""scripts/MQE stage for RAG pipeline."""
+"""scripts/rag/stages/mqe.py
+
+MQE stage for RAG pipeline."""
 
 import logging
 

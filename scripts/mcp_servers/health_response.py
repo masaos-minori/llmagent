@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/health_response.py — Common health response builder for MCP servers.
+"""scripts/mcp_servers/health_response.py — Common health response builder for MCP servers.
 
 All MCP servers share the same /health endpoint JSON structure; this module
 eliminates duplication of the JSONResponse payload construction.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/shell/service.py
+"""scripts/mcp_servers/shell/shell_service.py
 
 ShellService business logic and lazy singleton proxy for shell-mcp.
 

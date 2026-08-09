@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/rag_pipeline/service.py
+"""scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py
 
 RagPipelineMCPService: wraps RagPipeline for use in rag-pipeline-mcp server.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/server_file.py
+"""scripts/mcp_servers/github/server_file.py
 
 FastAPI routes for GitHub file operations.
 

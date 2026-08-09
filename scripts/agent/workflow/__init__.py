@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package: agent.workflow — Workflow definition, loading, execution, and state persistence.
+"""Package: scripts/agent/workflow/__init__.py — Workflow definition, loading, execution, and state persistence.
 
 Public API (import from this package directly):
     from agent.workflow import (

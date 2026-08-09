@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/protocols/shell.py
+"""scripts/shared/protocols/shell.py
 
 Execution policy dataclass for shell-mcp.
 

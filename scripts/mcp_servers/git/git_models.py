@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/git/models.py
+"""scripts/mcp_servers/git/git_models.py
 
 Config loading and Pydantic request models for git-mcp.
 """

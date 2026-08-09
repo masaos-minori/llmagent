@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/git/server.py
+"""scripts/mcp_servers/git/git_server.py
 
 Local git operations MCP server (port 8014).
 

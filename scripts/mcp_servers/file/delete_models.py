@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""file_delete_mcp_models.py
+"""scripts/mcp_servers/file/delete_models.py
 
 Config loading and Pydantic request/response models for file-delete-mcp.
 """

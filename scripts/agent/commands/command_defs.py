@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent/commands/command_defs.py
+"""scripts/agent/commands/command_defs.py
 
 Declarative slash-command definition classes for CommandRegistry.
 

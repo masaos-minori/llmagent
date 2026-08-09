@@ -1,4 +1,4 @@
-"""agent/memory/enums.py
+"""scripts/agent/memory/enums.py
 
 Domain enums for the persistent memory layer.
 """

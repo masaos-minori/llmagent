@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/rag_pipeline/document_manager.py
+"""scripts/mcp_servers/rag_pipeline/document_manager.py
 
 Document management for rag_pipeline MCP service.
 

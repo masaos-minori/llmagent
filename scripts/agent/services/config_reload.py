@@ -1,4 +1,4 @@
-"""agent/services/config_reload.py
+"""scripts/agent/services/config_reload.py
 
 ConfigReloadService — applies reloaded configuration to live service instances.
 

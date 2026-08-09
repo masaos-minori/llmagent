@@ -1,4 +1,6 @@
-"""scripts/Fusion (RRF) stage for RAG pipeline."""
+"""scripts/rag/stages/fusion.py
+
+Fusion (RRF) stage for RAG pipeline."""
 
 import logging
 

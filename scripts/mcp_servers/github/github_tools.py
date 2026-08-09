@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcp_servers/github/tools.py
+"""scripts/mcp_servers/github/github_tools.py
 
 MCP tool schema definitions for github-mcp server (inputSchema format).
 

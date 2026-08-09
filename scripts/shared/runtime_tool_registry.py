@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/runtime_tool_registry.py
+"""scripts/shared/runtime_tool_registry.py
 
 In-memory registry of `RuntimeTool` instances, populated by
 `McpToolDiscoveryService.discover_all()` at startup and wired into

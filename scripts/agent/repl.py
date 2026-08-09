@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""AgentREPL
+"""scripts/agent/repl.py
+
+AgentREPL
 
 Interactive REPL agent with MCP tool calling.
 Imported by agent.py as the entry point.
