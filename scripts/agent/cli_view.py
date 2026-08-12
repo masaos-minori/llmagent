@@ -87,7 +87,6 @@ class Reader(Protocol):
 
 class CLIView:
     """Manages terminal I/O: readline history, tab completion, multiline
-
     continuation input, and progress status line.
     """
 

@@ -182,6 +182,11 @@ class TestDisplayHelpers:
         captured = capsys.readouterr()
         assert captured.out == "[warn] disk space low\n"
 
+    def test_write_fatal(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_fatal("unrecoverable error")
+        captured = capsys.readouterr()
+        assert captured.out == "[fatal] unrecoverable error\n"
+
 
 # ── write_startup_banner ───────────────────────────────────────────────────────
 
