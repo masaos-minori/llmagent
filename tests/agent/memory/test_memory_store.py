@@ -15,7 +15,12 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
-from agent.memory.count_ops import count_by_type
+from agent.memory.count_ops import (
+    count_by_type,
+    count_entries,
+    count_prunable,
+    count_vec,
+)
 from agent.memory.pin_ops import pin, unpin
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
@@ -299,6 +304,47 @@ class TestSearchByType:
         assert store.search_by_type("semantic") == []
 
 
+# ── list_entries() ───────────────────────────────────────────────────────────
+# Characterization tests: list_entries() had no direct test coverage before
+# extracting the shared _MEMORY_COLUMNS SELECT-column-list constant.
+
+
+class TestListEntries:
+    def test_no_filter_returns_all(self, store: MemoryStore) -> None:
+        add(_make_entry(content="one"))
+        add(_make_entry(content="two"))
+        results = store.list_entries()
+        assert len(results) == 2
+
+    def test_filters_by_source_type(self, store: MemoryStore) -> None:
+        add(dataclasses.replace(_make_entry(content="rule one"), source_type="rule"))
+        add(
+            dataclasses.replace(
+                _make_entry(content="conv one"), source_type="conversation"
+            )
+        )
+        results = store.list_entries(source_type="rule")
+        assert len(results) == 1
+        assert results[0].content == "rule one"
+
+    def test_filters_by_branch_including_branchless(self, store: MemoryStore) -> None:
+        add(dataclasses.replace(_make_entry(content="on main"), branch="main"))
+        add(dataclasses.replace(_make_entry(content="on other"), branch="other"))
+        add(dataclasses.replace(_make_entry(content="no branch"), branch=""))
+        results = store.list_entries(branch="main")
+        contents = {r.content for r in results}
+        assert contents == {"on main", "no branch"}
+
+    def test_respects_limit(self, store: MemoryStore) -> None:
+        for _ in range(5):
+            add(_make_entry())
+        results = store.list_entries(limit=2)
+        assert len(results) == 2
+
+    def test_returns_empty_when_none(self, store: MemoryStore) -> None:
+        assert store.list_entries() == []
+
+
 # ── count_by_type() ──────────────────────────────────────────────────────────
 
 
@@ -313,6 +359,61 @@ class TestCountByType:
 
     def test_empty_returns_empty_dict(self, store: MemoryStore) -> None:
         assert count_by_type() == {}
+
+
+# ── count_vec() / count_entries() / count_prunable() ─────────────────────────
+# Characterization tests: previously exercised only via mocks (test_agent_cmd_context.py,
+# test_agent_cmd_memory.py) — added here to lock behavior before extracting the shared
+# scalar-count pattern.
+
+
+class TestCountVec:
+    def test_counts_rows_in_memories_vec(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        db_conn.execute(
+            "INSERT INTO memories_vec (memory_id, embedding) VALUES ('m1', NULL)"
+        )
+        db_conn.execute(
+            "INSERT INTO memories_vec (memory_id, embedding) VALUES ('m2', NULL)"
+        )
+        db_conn.commit()
+        assert count_vec() == 2
+
+    def test_empty_returns_zero(self, store: MemoryStore) -> None:
+        assert count_vec() == 0
+
+
+class TestCountEntries:
+    def test_counts_all_memory_rows(self, store: MemoryStore) -> None:
+        add(_make_entry(memory_type="semantic"))
+        add(_make_entry(memory_type="episodic"))
+        assert count_entries() == 2
+
+    def test_empty_returns_zero(self, store: MemoryStore) -> None:
+        assert count_entries() == 0
+
+
+class TestCountPrunable:
+    def test_counts_entries_older_than_threshold(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        old_entry = _make_entry(memory_id="old-1")
+        add(old_entry)
+        db_conn.execute(
+            "UPDATE memories SET created_at = datetime('now', '-10 days') WHERE memory_id='old-1'"
+        )
+        db_conn.commit()
+        recent_entry = dataclasses.replace(
+            _make_entry(memory_id="recent-1"), created_at="", updated_at=""
+        )
+        add(recent_entry)
+
+        assert count_prunable(5) == 1
+        assert count_prunable(20) == 0
+
+    def test_empty_returns_zero(self, store: MemoryStore) -> None:
+        assert count_prunable(30) == 0
 
 
 # ── pin() / unpin() ──────────────────────────────────────────────────────────

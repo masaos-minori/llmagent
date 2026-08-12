@@ -527,6 +527,34 @@ class TestCmdReload:
         assert "Skipped: [1 items]" in out
         assert "  [SKIP] - debug" in out
 
+    def test_reload_shows_startup_only_items(self, capsys: Any) -> None:
+        """Characterization test for the startup_only item-listing branch."""
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(
+            applied=[], needs_restart=[], startup_only=["use_memory_layer"]
+        )
+        with (
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert (
+            "Config reloaded — startup-only settings cannot apply without restart"
+            in out
+        )
+        assert "Startup-only (ignored): [1 items]" in out
+        assert "  [STARTUP-ONLY] - use_memory_layer" in out
+
     def test_reload_no_changes_shows_message(self, capsys: Any) -> None:
         from unittest.mock import patch
 

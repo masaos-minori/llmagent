@@ -34,6 +34,12 @@ class _ConfigMixin(
         """Initialize the config mixin via multiple inheritance constructors."""
         super().__init__(*args, **kwargs)
 
+    def _write_item_list(self, items: list[str], header: str, item_label: str) -> None:
+        """Write '<header>: [N items]' followed by one '  [item_label] - <item>' per item."""
+        self._out.write(f"{header}: [{len(items)} items]")
+        for item in items:
+            self._out.write(f"  [{item_label}] - {item}")
+
     def _cmd_reload(self) -> None:
         """Reload all config/*.toml files and apply runtime-configurable parameters.
 
@@ -69,25 +75,17 @@ class _ConfigMixin(
                 self._out.write(
                     "WARNING: Some settings require restart to take effect."
                 )
-                count = len(result.needs_restart)
-                self._out.write(f"Restart required: [{count} items]")
-                for item in result.needs_restart:
-                    self._out.write(f"  [RESTART] - {item}")
+                self._write_item_list(
+                    result.needs_restart, "Restart required", "RESTART"
+                )
             if result.applied:
-                count = len(result.applied)
-                self._out.write(f"Applied (runtime): [{count} items]")
-                for item in result.applied:
-                    self._out.write(f"  [OK] - {item}")
+                self._write_item_list(result.applied, "Applied (runtime)", "OK")
             if result.skipped:
-                count = len(result.skipped)
-                self._out.write(f"Skipped: [{count} items]")
-                for item in result.skipped:
-                    self._out.write(f"  [SKIP] - {item}")
+                self._write_item_list(result.skipped, "Skipped", "SKIP")
             if result.startup_only:
-                count = len(result.startup_only)
-                self._out.write(f"Startup-only (ignored): [{count} items]")
-                for item in result.startup_only:
-                    self._out.write(f"  [STARTUP-ONLY] - {item}")
+                self._write_item_list(
+                    result.startup_only, "Startup-only (ignored)", "STARTUP-ONLY"
+                )
             logger.info(
                 "Config reloaded: applied=%s, needs_restart=%s",
                 result.applied,

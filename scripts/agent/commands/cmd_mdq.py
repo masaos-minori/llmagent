@@ -13,12 +13,29 @@ Provides _MdqMixin with:
   _cmd_mdq_grep     — /mdq grep <pattern>: search with regex
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 
+if TYPE_CHECKING:
+    from shared.tool_executor import ToolExecutor
+
 logger = logging.getLogger(__name__)
+
+
+def _parse_int_flag(parts: list[str], part: str) -> int | None:
+    """Parse '--flag=N' or '--flag N' (space-separated) into int; None on failure."""
+    try:
+        return (
+            int(part.split("=")[1])
+            if "=" in part
+            else int(parts[parts.index(part) + 1])
+        )
+    except (ValueError, IndexError):
+        return None
 
 
 class _MdqMixin(MixinBase):
@@ -27,6 +44,29 @@ class _MdqMixin(MixinBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the MDQ mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
+
+    def _require_tools(self) -> ToolExecutor | None:
+        """Return ctx.services.tools if available; else write a not-available message and return None."""
+        ctx = self._ctx
+        if ctx.services is None or ctx.services.tools is None:
+            self._out.write("MCP tool executor not available.")
+            return None
+        return ctx.services.tools
+
+    async def _execute_mdq(
+        self,
+        tools: ToolExecutor,
+        tool_name: str,
+        tool_args: dict[str, Any],
+        success_label: str,
+    ) -> None:
+        """Execute an MDQ tool call and write '[mdq] error: ...' or the success label + output."""
+        result = await tools.execute(tool_name, tool_args)
+        if result.is_error:
+            self._out.write(f"[mdq] error: {result.output}")
+            return
+        self._out.write(f"[mdq] {success_label}")
+        self._out.write(result.output)
 
     async def _cmd_mdq(self, args: str) -> None:
         """Dispatch /mdq subcommands.
@@ -72,28 +112,18 @@ class _MdqMixin(MixinBase):
 
         Usage: /mdq status
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
-
-        result = await ctx.services.tools.execute("stats", {})
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] stats")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "stats", {}, "stats")
 
     async def _cmd_mdq_index(self, args: str) -> None:
         """Index a Markdown path into the MDQ store.
 
         Usage: /mdq index <path> [--force]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -108,23 +138,15 @@ class _MdqMixin(MixinBase):
         if force:
             tool_args["force"] = True
 
-        result = await ctx.services.tools.execute("index_paths", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] index")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "index_paths", tool_args, "index")
 
     async def _cmd_mdq_refresh(self, args: str) -> None:
         """Incrementally refresh the index for changed Markdown files.
 
         Usage: /mdq refresh <path> [--force]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -139,23 +161,15 @@ class _MdqMixin(MixinBase):
         if force:
             tool_args["force"] = True
 
-        result = await ctx.services.tools.execute("refresh_index", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] refresh")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "refresh_index", tool_args, "refresh")
 
     async def _cmd_mdq_search(self, args: str) -> None:
         """Search indexed Markdown content.
 
         Usage: /mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25|grep]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -170,14 +184,9 @@ class _MdqMixin(MixinBase):
 
         for part in parts[1:]:
             if part.startswith("--limit"):
-                try:
-                    tool_args["limit"] = (
-                        int(part.split("=")[1])
-                        if "=" in part
-                        else int(parts[parts.index(part) + 1])
-                    )
-                except (ValueError, IndexError):
-                    pass
+                limit = _parse_int_flag(parts, part)
+                if limit is not None:
+                    tool_args["limit"] = limit
             elif part.startswith("--path-prefix"):
                 tool_args["path_prefix"] = (
                     part.split("=", 1)[1]
@@ -193,23 +202,15 @@ class _MdqMixin(MixinBase):
             elif part.startswith("--mode="):
                 tool_args["mode"] = part.split("=", 1)[1]
 
-        result = await ctx.services.tools.execute("search_docs", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] search")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "search_docs", tool_args, "search")
 
     async def _cmd_mdq_outline(self, args: str) -> None:
         """Get the heading hierarchy of a Markdown file.
 
         Usage: /mdq outline <path> [--max-depth N]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -222,32 +223,19 @@ class _MdqMixin(MixinBase):
 
         for part in parts[1:]:
             if part.startswith("--max-depth"):
-                try:
-                    tool_args["max_outline_items"] = (
-                        int(part.split("=")[1])
-                        if "=" in part
-                        else int(parts[parts.index(part) + 1])
-                    )
-                except (ValueError, IndexError):
-                    pass
+                max_depth = _parse_int_flag(parts, part)
+                if max_depth is not None:
+                    tool_args["max_outline_items"] = max_depth
 
-        result = await ctx.services.tools.execute("outline", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] outline")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "outline", tool_args, "outline")
 
     async def _cmd_mdq_get(self, args: str) -> None:
         """Retrieve a Markdown chunk by ID.
 
         Usage: /mdq get <chunk_id> [--with-neighbors]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -261,23 +249,15 @@ class _MdqMixin(MixinBase):
         if "--with-neighbors" in parts:
             tool_args["with_neighbors"] = True
 
-        result = await ctx.services.tools.execute("get_chunk", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] get")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "get_chunk", tool_args, "get")
 
     async def _cmd_mdq_grep(self, args: str) -> None:
         """Search Markdown chunks with a regex pattern.
 
         Usage: /mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]
         """
-        ctx = self._ctx
-        if ctx.services is None or ctx.services.tools is None:
-            self._out.write("MCP tool executor not available.")
+        tools = self._require_tools()
+        if tools is None:
             return
 
         parts = args.strip().split()
@@ -301,38 +281,16 @@ class _MdqMixin(MixinBase):
                     tool_args["paths"] = []
                 tool_args["paths"].append(path_val)
             elif part.startswith("--max-chars"):
-                try:
-                    tool_args["max_chars_per_match"] = (
-                        int(part.split("=")[1])
-                        if "=" in part
-                        else int(parts[parts.index(part) + 1])
-                    )
-                except (ValueError, IndexError):
-                    pass
+                max_chars = _parse_int_flag(parts, part)
+                if max_chars is not None:
+                    tool_args["max_chars_per_match"] = max_chars
             elif part.startswith("--context-before"):
-                try:
-                    tool_args["context_before"] = (
-                        int(part.split("=")[1])
-                        if "=" in part
-                        else int(parts[parts.index(part) + 1])
-                    )
-                except (ValueError, IndexError):
-                    pass
+                context_before = _parse_int_flag(parts, part)
+                if context_before is not None:
+                    tool_args["context_before"] = context_before
             elif part.startswith("--context-after"):
-                try:
-                    tool_args["context_after"] = (
-                        int(part.split("=")[1])
-                        if "=" in part
-                        else int(parts[parts.index(part) + 1])
-                    )
-                except (ValueError, IndexError):
-                    pass
+                context_after = _parse_int_flag(parts, part)
+                if context_after is not None:
+                    tool_args["context_after"] = context_after
 
-        result = await ctx.services.tools.execute("grep_docs", tool_args)
-
-        if result.is_error:
-            self._out.write(f"[mdq] error: {result.output}")
-            return
-
-        self._out.write("[mdq] grep")
-        self._out.write(result.output)
+        await self._execute_mdq(tools, "grep_docs", tool_args, "grep")

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from agent.commands.output_port import OutputPort
 from agent.context import AgentContext
 from agent.memory.pin_ops import pin as pin_mem
 from agent.memory.pin_ops import unpin as unpin_mem
-from agent.memory.types import MemoryQuery
+from agent.memory.types import MemoryEntry, MemoryQuery
 from agent.memory.write_ops import delete as write_delete
 
 if TYPE_CHECKING:
@@ -17,10 +18,15 @@ if TYPE_CHECKING:
 from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
 
 
+def _summary_preview(entry: MemoryEntry, max_chars: int = 60) -> str:
+    """Return a single-line, length-capped preview: entry.summary or a content excerpt."""
+    return (entry.summary or entry.content[:max_chars]).replace("\n", " ")[:max_chars]
+
+
 class MemoryDataOps:
     """Handles memory data operations: list, search, show, pin, delete, prune."""
 
-    def __init__(self, ctx: AgentContext, out: Any) -> None:
+    def __init__(self, ctx: AgentContext, out: OutputPort) -> None:
         """Initialize the memory data operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
@@ -80,7 +86,7 @@ class MemoryDataOps:
         self._out.write(f"  {'-' * 36}  {'-' * 8}  {'-' * 4}  {'-' * 3}  {'-' * 40}")
         for e in entries:
             pin_mark = "Y" if e.pinned else "-"
-            summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
+            summary = _summary_preview(e)
             self._out.write(
                 f"  {e.memory_id:36}  {e.memory_type:8}  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
@@ -108,7 +114,7 @@ class MemoryDataOps:
         self._out.write(f"  Results for {query!r}:")
         for hit in hits:
             e = hit.entry
-            summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
+            summary = _summary_preview(e)
             self._out.write(
                 f"    [{hit.score:+.3f}] {e.memory_type:8}  {e.memory_id[:12]}…  {summary}",
             )

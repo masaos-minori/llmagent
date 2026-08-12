@@ -114,6 +114,16 @@ class CommandRegistry(
         self._out.write("")
         self._out.write(f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}")
 
+    @staticmethod
+    async def _invoke_handler(
+        handler: Callable[..., Any], cmd: CommandDef, *args: str
+    ) -> None:
+        """Call handler with args, awaiting it when cmd.is_async."""
+        if cmd.is_async:
+            await handler(*args)
+        else:
+            handler(*args)
+
     async def dispatch(self, line: str) -> bool:
         """Dispatch a slash command; return True if matched, False otherwise.
 
@@ -130,17 +140,11 @@ class CommandRegistry(
             if cmd.prefix:
                 if line == cmd.name or line.startswith(cmd.name + " "):
                     args = line[len(cmd.name) :].strip()
-                    if cmd.is_async:
-                        await handler(args)
-                    else:
-                        handler(args)
+                    await self._invoke_handler(handler, cmd, args)
                     return True
             else:
                 if line == cmd.name:
-                    if cmd.is_async:
-                        await handler()
-                    else:
-                        handler()
+                    await self._invoke_handler(handler, cmd)
                     return True
 
         return False

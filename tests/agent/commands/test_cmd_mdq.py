@@ -168,6 +168,24 @@ class TestMdqSearchCommand:
         assert "Usage" in out
         ctx.services_required.tools.execute.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_limit_flag_space_separated(self) -> None:
+        """Characterization test: '--limit N' (space-separated) form."""
+        ctx = _ctx_with_result("results")
+        mdq = _Mdq(ctx)
+        await mdq._cmd_mdq_search("myquery --limit 7")
+        call_args = ctx.services_required.tools.execute.call_args
+        assert call_args[0][1]["limit"] == 7
+
+    @pytest.mark.asyncio
+    async def test_limit_flag_invalid_value_ignored(self) -> None:
+        """Characterization test: an unparseable --limit value is silently dropped."""
+        ctx = _ctx_with_result("results")
+        mdq = _Mdq(ctx)
+        await mdq._cmd_mdq_search("myquery --limit notanumber")
+        call_args = ctx.services_required.tools.execute.call_args
+        assert "limit" not in call_args[0][1]
+
 
 # ── /mdq outline ──────────────────────────────────────────────────────────────
 
@@ -189,6 +207,14 @@ class TestMdqOutlineCommand:
         await mdq._cmd_mdq_outline("/docs/file.md")
         out = capsys.readouterr().out
         assert "# Section" in out
+
+    @pytest.mark.asyncio
+    async def test_max_depth_flag_passed(self) -> None:
+        ctx = _ctx_with_result("# Section")
+        mdq = _Mdq(ctx)
+        await mdq._cmd_mdq_outline("/docs/file.md --max-depth=3")
+        call_args = ctx.services_required.tools.execute.call_args
+        assert call_args[0][1]["max_outline_items"] == 3
 
     @pytest.mark.asyncio
     async def test_empty_args_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
@@ -253,6 +279,18 @@ class TestMdqGrepCommand:
         call_args = ctx.services_required.tools.execute.call_args
         assert call_args[0][0] == "grep_docs"
         assert call_args[0][1]["paths"] == ["/docs"]
+
+    @pytest.mark.asyncio
+    async def test_max_chars_and_context_flags_passed(self) -> None:
+        ctx = _ctx_with_result("matches")
+        mdq = _Mdq(ctx)
+        await mdq._cmd_mdq_grep(
+            "pattern --max-chars=50 --context-before=2 --context-after=3"
+        )
+        call_args = ctx.services_required.tools.execute.call_args
+        assert call_args[0][1]["max_chars_per_match"] == 50
+        assert call_args[0][1]["context_before"] == 2
+        assert call_args[0][1]["context_after"] == 3
 
     @pytest.mark.asyncio
     async def test_empty_args_shows_usage(self, capsys: pytest.CaptureFixture) -> None:

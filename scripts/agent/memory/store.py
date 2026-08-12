@@ -24,6 +24,10 @@ from agent.memory.types import MemoryEntry
 
 logger = logging.getLogger(__name__)
 
+_MEMORY_COLUMNS = """memory_id, memory_type, source_type, session_id, turn_id,
+                      project, repo, branch, content, summary, tags,
+                      importance, pinned, created_at, updated_at"""
+
 
 class MemoryStore:
     """CRUD operations for memories, memories_fts, and memories_vec tables.
@@ -48,13 +52,11 @@ class MemoryStore:
         """Return recent entries of memory_type ordered by importance DESC, created_at DESC."""
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
-                """SELECT memory_id, memory_type, source_type, session_id, turn_id,
-                          project, repo, branch, content, summary, tags,
-                          importance, pinned, created_at, updated_at
+                f"""SELECT {_MEMORY_COLUMNS}
                    FROM memories
                    WHERE memory_type = ? AND importance >= ?
                    ORDER BY pinned DESC, importance DESC, created_at DESC
-                   LIMIT ?""",
+                   LIMIT ?""",  # nosec B608 — _MEMORY_COLUMNS is a static module constant, no user input; params via ?
                 (memory_type, min_importance, limit),
             )
             return [row_to_entry(r) for r in rows]
@@ -76,9 +78,7 @@ class MemoryStore:
             params.append(branch)
         where = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         params.append(limit)
-        sql = f"""SELECT memory_id, memory_type, source_type, session_id, turn_id,
-                         project, repo, branch, content, summary, tags,
-                         importance, pinned, created_at, updated_at
+        sql = f"""SELECT {_MEMORY_COLUMNS}
                   FROM memories
                   {where}
                   ORDER BY pinned DESC, importance DESC, created_at DESC
@@ -109,10 +109,8 @@ class MemoryStore:
         """Return one MemoryEntry by memory_id, or None if not found."""
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
-                """SELECT memory_id, memory_type, source_type, session_id, turn_id,
-                          project, repo, branch, content, summary, tags,
-                          importance, pinned, created_at, updated_at
-                   FROM memories WHERE memory_id=?""",
+                f"""SELECT {_MEMORY_COLUMNS}
+                   FROM memories WHERE memory_id=?""",  # nosec B608 — _MEMORY_COLUMNS is a static module constant, no user input; params via ?
                 (memory_id,),
             )
         return row_to_entry(rows[0]) if rows else None

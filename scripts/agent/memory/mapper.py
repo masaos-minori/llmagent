@@ -44,16 +44,24 @@ def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> byt
     return struct.pack(f"{len(values)}f", *values)
 
 
-def _opt_str(d: Mapping[str, object], key: str) -> str:
-    """Return string value for key, or "" if absent or None; raises MemorySchemaError on wrong type."""
+def _opt_str_default(
+    d: Mapping[str, object], key: str, default: str | None
+) -> str | None:
+    """Return string value for key, or `default` if absent or None; raises MemorySchemaError on wrong type."""
     v = d.get(key)
     if v is None:
-        return ""
+        return default
     if not isinstance(v, str):
         raise MemorySchemaError(
             f"Field {key!r} must be str or None, got {type(v).__name__}"
         )
     return v
+
+
+def _opt_str(d: Mapping[str, object], key: str) -> str:
+    """Return string value for key, or "" if absent or None; raises MemorySchemaError on wrong type."""
+    result = _opt_str_default(d, key, "")
+    return result if result is not None else ""
 
 
 def _require(d: Mapping[str, object], key: str) -> object:
@@ -78,14 +86,7 @@ def _opt_int(d: Mapping[str, object], key: str) -> int | None:
 
 def _opt_str_or_none(d: Mapping[str, object], key: str) -> str | None:
     """Return string value for key, or None if absent; raises MemorySchemaError on wrong type."""
-    v = d.get(key)
-    if v is None:
-        return None
-    if not isinstance(v, str):
-        raise MemorySchemaError(
-            f"Field {key!r} must be str or None, got {type(v).__name__}"
-        )
-    return v
+    return _opt_str_default(d, key, None)
 
 
 def _parse_tags(raw: object) -> list[str]:

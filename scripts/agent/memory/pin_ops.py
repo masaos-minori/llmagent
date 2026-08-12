@@ -8,12 +8,14 @@ import sqlite3
 from shared.json_utils import now_iso
 
 
-def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
-    """Set pinned=1 for memory_id; return True when found."""
+def _set_pinned(
+    memory_id: str, value: int, conn: sqlite3.Connection | None = None
+) -> bool:
+    """Set memories.pinned=value for memory_id; return True when found."""
     if conn is not None:
         cur = conn.execute(
-            "UPDATE memories SET pinned=1, updated_at=? WHERE memory_id=?",
-            (now_iso(), memory_id),
+            "UPDATE memories SET pinned=?, updated_at=? WHERE memory_id=?",
+            (value, now_iso(), memory_id),
         )
         conn.commit()
         return cur.rowcount > 0
@@ -22,32 +24,18 @@ def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
 
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute(
-            "UPDATE memories SET pinned=1, updated_at=? WHERE memory_id=?",
-            (now_iso(), memory_id),
+            "UPDATE memories SET pinned=?, updated_at=? WHERE memory_id=?",
+            (value, now_iso(), memory_id),
         )
         db.commit()
-    pinned: bool = cur.rowcount > 0
-    return pinned
+    return cur.rowcount > 0
+
+
+def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
+    """Set pinned=1 for memory_id; return True when found."""
+    return _set_pinned(memory_id, 1, conn)
 
 
 def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
     """Set pinned=0 for memory_id; return True when found."""
-    if conn is not None:
-        cur = conn.execute(
-            "UPDATE memories SET pinned=0, updated_at=? WHERE memory_id=?",
-            (now_iso(), memory_id),
-        )
-        conn.commit()
-        unpinned: bool = cur.rowcount > 0
-        return unpinned
-
-    from db.helper import SQLiteHelper
-
-    with SQLiteHelper("session").open(write_mode=True) as db:
-        cur = db.execute(
-            "UPDATE memories SET pinned=0, updated_at=? WHERE memory_id=?",
-            (now_iso(), memory_id),
-        )
-        db.commit()
-    unpinned2: bool = cur.rowcount > 0
-    return unpinned2
+    return _set_pinned(memory_id, 0, conn)

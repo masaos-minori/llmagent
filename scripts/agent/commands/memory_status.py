@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agent.memory.services import MemoryServices
 
 
 @dataclass
@@ -67,9 +70,7 @@ def build_status_table(status: MemoryStatus) -> list[list[str]]:
     return rows
 
 
-def build_memory_status(
-    mem: Any,  # MemoryServices | None
-) -> MemoryStatus | None:
+def build_memory_status(mem: MemoryServices | None) -> MemoryStatus | None:
     """Build a MemoryStatus from a MemoryServices instance."""
     if mem is None:
         return None

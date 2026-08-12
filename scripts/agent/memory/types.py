@@ -129,7 +129,7 @@ class MemoryQuery:
         if not self.query.strip():
             raise ValueError("MemoryQuery.query must not be empty")
         coerced = _coerce_str_enum_or_none(self.memory_type, MemoryType)
-        object.__setattr__(self, "memory_type", cast(MemoryType | None, coerced))
+        self.memory_type = cast(MemoryType | None, coerced)
         if self.limit < 1:
             raise ValueError(f"MemoryQuery.limit must be >= 1, got {self.limit}")
 

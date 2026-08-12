@@ -22,6 +22,10 @@ TRUSTED_SOURCES: dict[str, set[str]] = {
     "loop_guard": {"_ephemeral"},
 }
 
+# All ephemeral keys authorized for at least one trusted source, derived from
+# TRUSTED_SOURCES so this set cannot drift out of sync with it.
+_ALL_EPHEMERAL_KEYS: frozenset[str] = frozenset().union(*TRUSTED_SOURCES.values())
+
 # ── Allowed keys per message role ────────────────────────────────────────────
 
 ROLE_KEY_WHITELIST: dict[str, set[str]] = {
@@ -60,11 +64,7 @@ def validate_message(msg: dict) -> ValidationResult:
     extra_keys = set(msg.keys()) - allowed_keys
     if extra_keys:
         # Check if extra keys are ephemeral keys injected by an untrusted source
-        ephemeral_keys = extra_keys & {
-            "_ephemeral",
-            "_memory_injected",
-            "_skill_ephemeral",
-        }
+        ephemeral_keys = extra_keys & _ALL_EPHEMERAL_KEYS
         if ephemeral_keys:
             source = msg.get("source", "")
             if source not in TRUSTED_SOURCES:

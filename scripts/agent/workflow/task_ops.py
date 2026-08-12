@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """scripts/agent/workflow/task_ops.py — Task CRUD operations for workflow.sqlite."""
 
+import sqlite3
 import uuid
-from typing import Any
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
@@ -66,7 +66,7 @@ def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
     db.commit()
 
 
-def _row_to_task(r: Any) -> TaskRecord:
+def _row_to_task(r: sqlite3.Row) -> TaskRecord:
     """Convert a database row into a TaskRecord dataclass instance."""
     row = dict(r)
     return TaskRecord(

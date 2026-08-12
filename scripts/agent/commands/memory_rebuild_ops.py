@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from agent.commands.output_port import OutputPort
 from agent.context import AgentContext
 from agent.memory.import_ops import import_from_jsonl
 from agent.memory.rebuild_ops import rebuild_fts, rebuild_vec
@@ -30,7 +31,7 @@ class RebuildResult:
 class MemoryRebuildOps:
     """Handles memory rebuild operations (rebuild, rebuild-fts, rebuild-vec, check-consistency)."""
 
-    def __init__(self, ctx: AgentContext, out: Any) -> None:
+    def __init__(self, ctx: AgentContext, out: OutputPort) -> None:
         """Initialize the memory rebuild operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
@@ -150,7 +151,6 @@ class MemoryRebuildOps:
         self._out.write_table(["Metric", "Value"], rows)
         if not ok:
             self._ctx.stats.stat_memory_consistency_failures += 1
-            embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
             fts_gap = abs(report.memories - report.fts)
             vec_gap = abs(report.memories - report.vec)
             self._out.write(

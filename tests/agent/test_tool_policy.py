@@ -169,6 +169,15 @@ class TestCheckAllowedRoot:
         )
         assert check_allowed_root(cfg, "write_file", {})
 
+    def test_configured_path_key_absent_from_args_allows(self) -> None:
+        """A path_key configured but missing from args must be skipped
+        (not treated as a violation)."""
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        assert check_allowed_root(cfg, "write_file", {})
+
 
 class TestCfgHelperDefaults:
     def test_unknown_tool_defaults_to_high_risk(self) -> None:
@@ -266,6 +275,17 @@ class TestEscalateForPath:
         cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
         assert _escalate_for_path(cfg, "medium", {"path": "/opt/llm/x"}) is None
 
+    def test_configured_path_key_absent_from_args_skipped(self) -> None:
+        """A path_key configured but missing from args must be skipped (not
+        treated as a match), leaving the risk unescalated."""
+        from agent.tool_policy import _escalate_for_path
+
+        cfg = _cfg(
+            approval_protected_paths=["/etc"],
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        assert _escalate_for_path(cfg, "medium", {}) is None
+
 
 class TestEscalateForGithubBranch:
     def test_non_github_tool_returns_none(self) -> None:
@@ -279,6 +299,19 @@ class TestEscalateForGithubBranch:
 
         cfg = _cfg()
         assert _escalate_for_github_branch(cfg, "github_push_files", "high", {}) is None
+
+    def test_configured_branch_key_absent_from_args_skipped(self) -> None:
+        """A branch_key configured but missing from args must be skipped (not
+        treated as a match), leaving the risk unescalated."""
+        from agent.tool_policy import _escalate_for_github_branch
+
+        cfg = _cfg(
+            approval_high_risk_branches=["main"],
+            approval_resource_keys={"path_keys": [], "branch_keys": ["branch"]},
+        )
+        assert (
+            _escalate_for_github_branch(cfg, "github_push_files", "medium", {}) is None
+        )
 
     def test_high_risk_branch_escalates(self) -> None:
         from agent.tool_policy import _escalate_for_github_branch

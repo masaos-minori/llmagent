@@ -132,6 +132,23 @@ async def test_dispatch_empty_returns_false() -> None:
     assert result is False
 
 
+async def test_dispatch_exact_match_async_command_is_awaited() -> None:
+    """dispatch() awaits the handler for an exact-match, is_async CommandDef (e.g. /compact)."""
+    from unittest.mock import AsyncMock
+
+    registry = _make_registry()
+    compact_cmd = next((c for c in _COMMANDS if c.name == "/compact"), None)
+    assert compact_cmd is not None, "/compact not found in _COMMANDS"
+    assert compact_cmd.prefix is False
+    assert compact_cmd.is_async is True
+    registry._cmd_compact = AsyncMock()  # type: ignore[method-assign] — intentional test-only monkeypatch of a bound method
+
+    result = await registry.dispatch("/compact")
+
+    assert result is True
+    registry._cmd_compact.assert_awaited_once_with()
+
+
 # --- CommandDef metadata integrity ---
 
 

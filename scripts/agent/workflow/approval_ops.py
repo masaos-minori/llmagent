@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """scripts/agent/workflow/approval_ops.py — Approval operations for workflow.sqlite."""
 
+import sqlite3
 import uuid
 from datetime import datetime, timedelta
 
@@ -10,6 +11,23 @@ from shared.json_utils import now_iso as _now
 from agent.workflow.models import ApprovalRecord
 
 _APPROVAL_TTL_HOURS: int = 24
+
+
+def _approval_from_row(
+    r: sqlite3.Row, status: str, *, expires_at: str | None = None
+) -> ApprovalRecord:
+    """Build an ApprovalRecord from an `approvals` table row."""
+    return ApprovalRecord(
+        approval_id=r["approval_id"],
+        task_id=r["task_id"],
+        stage_id=r["stage_id"],
+        status=status,
+        reason=r["reason"],
+        created_at=r["created_at"],
+        resolved_at=r["resolved_at"],
+        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
+        expires_at=expires_at,
+    )
 
 
 def request_approval(
@@ -86,16 +104,7 @@ def get_latest_approval(db: SQLiteHelper, task_id: str) -> ApprovalRecord | None
     if not rows:
         return None
     r = rows[0]
-    return ApprovalRecord(
-        approval_id=r["approval_id"],
-        task_id=r["task_id"],
-        stage_id=r["stage_id"],
-        status=r["status"],
-        reason=r["reason"],
-        created_at=r["created_at"],
-        resolved_at=r["resolved_at"],
-        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
-    )
+    return _approval_from_row(r, status=r["status"])
 
 
 def find_pending_approval_by_session(
@@ -119,16 +128,7 @@ def find_pending_approval_by_session(
     if not rows:
         return None
     r = rows[0]
-    return r["task_id"], ApprovalRecord(
-        approval_id=r["approval_id"],
-        task_id=r["task_id"],
-        stage_id=r["stage_id"],
-        status="pending",
-        reason=r["reason"],
-        created_at=r["created_at"],
-        resolved_at=r["resolved_at"],
-        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
-    )
+    return r["task_id"], _approval_from_row(r, status="pending")
 
 
 def count_pending_approvals(db: SQLiteHelper) -> int:
@@ -156,16 +156,7 @@ def find_approval_by_id(db: SQLiteHelper, approval_id: str) -> ApprovalRecord | 
     if not rows:
         return None
     r = rows[0]
-    return ApprovalRecord(
-        approval_id=r["approval_id"],
-        task_id=r["task_id"],
-        stage_id=r["stage_id"],
-        status=r["status"],
-        reason=r["reason"],
-        created_at=r["created_at"],
-        resolved_at=r["resolved_at"],
-        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
-    )
+    return _approval_from_row(r, status=r["status"])
 
 
 def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord] | None:
@@ -186,16 +177,7 @@ def find_latest_pending_approval(db: SQLiteHelper) -> tuple[str, ApprovalRecord]
     if not rows:
         return None
     r = rows[0]
-    return r["task_id"], ApprovalRecord(
-        approval_id=r["approval_id"],
-        task_id=r["task_id"],
-        stage_id=r["stage_id"],
-        status="pending",
-        reason=r["reason"],
-        created_at=r["created_at"],
-        resolved_at=r["resolved_at"],
-        workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
-    )
+    return r["task_id"], _approval_from_row(r, status="pending")
 
 
 def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalRecord]]:
@@ -216,17 +198,7 @@ def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalReco
     return [
         (
             r["task_id"],
-            ApprovalRecord(
-                approval_id=r["approval_id"],
-                task_id=r["task_id"],
-                stage_id=r["stage_id"],
-                status="pending",
-                reason=r["reason"],
-                created_at=r["created_at"],
-                resolved_at=r["resolved_at"],
-                workflow_id=r["workflow_id"] if "workflow_id" in r.keys() else "",
-                expires_at=r.get("expires_at"),
-            ),
+            _approval_from_row(r, status="pending", expires_at=r.get("expires_at")),
         )
         for r in rows
     ]

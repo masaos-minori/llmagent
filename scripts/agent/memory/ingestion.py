@@ -97,14 +97,7 @@ class MemoryIngestionService:
 
     async def _persist_entry_with_dedup(self, entry: MemoryEntry) -> None:
         """Embed, dedup-check, and persist a single memory entry."""
-        embed_result = await self._fetch_embed_result(entry.content)
-        if not embed_result.success:
-            self.stat_embed_skip += 1
-            logger.info(
-                "memory.embed_skip: stored without embedding (reason=%s) memory_id=%r",
-                embed_result.error_kind,
-                entry.memory_id,
-            )
+        embed_result = await self._fetch_embed_result_tracked(entry)
         if self._should_skip_dedup(embed_result, entry.memory_id, entry):
             return
         await self._persist_entry_with_embedding(entry, embed_result)
@@ -115,6 +108,11 @@ class MemoryIngestionService:
         Used by write_semantic() and write_episodic() (manual writes).
         Automatic session extraction uses on_session_stop() which applies dedup.
         """
+        embed_result = await self._fetch_embed_result_tracked(entry)
+        await self._persist_entry_with_embedding(entry, embed_result)
+
+    async def _fetch_embed_result_tracked(self, entry: MemoryEntry) -> EmbeddingResult:
+        """Fetch the embedding for entry.content; on failure, record the skip stat and log."""
         embed_result = await self._fetch_embed_result(entry.content)
         if not embed_result.success:
             self.stat_embed_skip += 1
@@ -123,7 +121,7 @@ class MemoryIngestionService:
                 embed_result.error_kind,
                 entry.memory_id,
             )
-        await self._persist_entry_with_embedding(entry, embed_result)
+        return embed_result
 
     async def _fetch_embed_result(self, content: str) -> EmbeddingResult:
         """Fetch embedding and return result (with fallback on failure)."""

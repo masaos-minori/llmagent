@@ -15,6 +15,16 @@ logger = logging.getLogger(__name__)
 
 _VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
 
+_INSERT_MESSAGE_SQL = (
+    "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id)"
+    " VALUES (?, ?, ?, ?, ?)"
+)
+
+
+def _tool_calls_json(tool_calls: object | None) -> str | None:
+    """Return tool_calls serialized to JSON, or None when empty/absent."""
+    return _json_dumps(tool_calls) if tool_calls else None
+
 
 class SessionMessageRepository:
     """Repository for session message operations."""
@@ -54,10 +64,10 @@ class SessionMessageRepository:
                 )
             return
         norm_content = content if content is not None else ""
-        tc_json = _json_dumps(tool_calls) if tool_calls else None
+        tc_json = _tool_calls_json(tool_calls)
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
-                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
+                _INSERT_MESSAGE_SQL,
                 (self.session_id, role, norm_content, tc_json, tool_call_id),
             )
             db.commit()
@@ -92,7 +102,7 @@ class SessionMessageRepository:
                 self.session_id,
                 role,
                 content if content is not None else "",
-                _json_dumps(tc) if tc else None,
+                _tool_calls_json(tc),
                 tc_id,
             )
             for role, content, tc, tc_id in messages
@@ -106,10 +116,7 @@ class SessionMessageRepository:
         if not rows:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
-            db.executemany(
-                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
-                rows,
-            )
+            db.executemany(_INSERT_MESSAGE_SQL, rows)
             db.commit()
         # sqlite3.Error propagates to caller
 
@@ -128,17 +135,13 @@ class SessionMessageRepository:
                 logger.warning("replace_messages: skipping invalid role %r", role)
                 continue
             content = msg.get("content") or ""
-            tool_calls = msg.get("tool_calls")
-            tc_json = _json_dumps(tool_calls) if tool_calls else None
+            tc_json = _tool_calls_json(msg.get("tool_calls"))
             tool_call_id = msg.get("tool_call_id")
             rows.append((session_id, role, content, tc_json, tool_call_id))
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
             if rows:
-                db.executemany(
-                    "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
-                    rows,
-                )
+                db.executemany(_INSERT_MESSAGE_SQL, rows)
             db.commit()
 
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:

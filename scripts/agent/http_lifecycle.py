@@ -237,8 +237,10 @@ class HttpServerLifecycleManager:
         self._last_health_check.pop(server_key, None)
         return stderr_content
 
-    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
-        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+    def _snapshot_fields(
+        self, server_key: str
+    ) -> tuple[subprocess.Popen[bytes], bool, int | None, int | None, str] | None:
+        """Return (proc, running, last_exit_code, pgid, stderr_log), or None if unknown."""
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
@@ -246,6 +248,14 @@ class HttpServerLifecycleManager:
         last_exit_code = proc.poll() if not running else None
         pgid = getattr(self, "_http_pgids", {}).get(server_key)
         stderr_log = getattr(self, "_stderr_log_paths", {}).get(server_key, "")
+        return proc, running, last_exit_code, pgid, stderr_log
+
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return a read-only snapshot for a managed subprocess, or None if unknown."""
+        fields = self._snapshot_fields(server_key)
+        if fields is None:
+            return None
+        proc, running, last_exit_code, pgid, stderr_log = fields
         return ProcessInfoSnapshot(
             server_key=server_key,
             managed=True,
@@ -258,13 +268,10 @@ class HttpServerLifecycleManager:
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return a dict snapshot for a managed subprocess, or None if unknown."""
-        proc = self._http_procs.get(server_key)
-        if proc is None:
+        fields = self._snapshot_fields(server_key)
+        if fields is None:
             return None
-        running = proc.poll() is None
-        last_exit_code = proc.poll() if not running else None
-        pgid = getattr(self, "_http_pgids", {}).get(server_key)
-        stderr_log = getattr(self, "_stderr_log_paths", {}).get(server_key, "")
+        proc, running, last_exit_code, pgid, stderr_log = fields
         return {
             "server_key": server_key,
             "managed": True,

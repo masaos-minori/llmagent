@@ -49,6 +49,8 @@ class StartupInterrupted(RuntimeError):
 
 
 if TYPE_CHECKING:
+    from shared.mcp_config import McpServerConfig
+
     from agent.cli_view import CLIView
     from agent.commands.registry import CommandRegistry
 
@@ -157,6 +159,23 @@ class StartupOrchestrator:
             tracer=tracer,
         )
 
+    async def _start_http_subprocess_once(
+        self, key: str, cfg: McpServerConfig
+    ) -> float | None:
+        """Attempt one start_http_subprocess() call.
+
+        On success, tracks the spawned process and returns the new
+        last_startup_time (`time.monotonic()`); returns None when the
+        lifecycle manager reports no process was started.
+        """
+        proc = await self._ctx.services_required.lifecycle.start_http_subprocess(
+            key, cfg, shutdown_event=self._shutdown_event
+        )
+        if proc is not None:
+            self._spawned_subprocesses.append(proc)
+            return time.monotonic()
+        return None
+
     async def _start_servers(self) -> list[subprocess.Popen]:
         """Spawn subprocesses for HTTP subprocess MCP servers.
 
@@ -194,12 +213,9 @@ class StartupOrchestrator:
                         )
 
                 try:
-                    proc = await ctx.services_required.lifecycle.start_http_subprocess(
-                        key, cfg, shutdown_event=self._shutdown_event
-                    )
-                    if proc is not None:
-                        self._spawned_subprocesses.append(proc)
-                        last_startup_time = time.monotonic()
+                    started_at = await self._start_http_subprocess_once(key, cfg)
+                    if started_at is not None:
+                        last_startup_time = started_at
                 except (OSError, RuntimeError) as e:
                     # First attempt failure — log at INFO level
                     logger.info(
@@ -214,14 +230,9 @@ class StartupOrchestrator:
                             f"shutdown requested during startup retry delay for {key!r}"
                         )
                     try:
-                        proc = (
-                            await ctx.services_required.lifecycle.start_http_subprocess(
-                                key, cfg, shutdown_event=self._shutdown_event
-                            )
-                        )
-                        if proc is not None:
-                            self._spawned_subprocesses.append(proc)
-                            last_startup_time = time.monotonic()
+                        started_at = await self._start_http_subprocess_once(key, cfg)
+                        if started_at is not None:
+                            last_startup_time = started_at
                     except (OSError, RuntimeError) as retry_err:
                         # Retry attempt failure — log at WARNING level
                         if ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION:

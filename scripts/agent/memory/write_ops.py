@@ -118,8 +118,7 @@ def delete(memory_id: str) -> bool:
                 (memory_id,),
             )
         db.commit()
-    deleted_flag: bool = deleted
-    return deleted_flag
+    return deleted
 
 
 def clear_by_session(session_id: int) -> int:

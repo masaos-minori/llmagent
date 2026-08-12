@@ -306,6 +306,60 @@ class TestFindLatestPendingApproval:
         returned_task_id, returned_approval = result
 
 
+class TestDiagnosticQueries:
+    """Characterization tests for StateStore's session-scoped diagnostic counters.
+
+    These methods (get_task_count, get_workflow_count, get_approval_count,
+    get_execute_attempt_count, get_artifact_uris) were previously exercised only
+    via mocks in tests/agent/test_repl.py — added here to lock behavior before
+    extracting the shared count-query pattern.
+    """
+
+    def test_get_task_count(self, store) -> None:
+        create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
+        create_task(store._db, "sess-diag", 2, "1.0.0", "wf-a")
+        create_task(store._db, "sess-other", 1, "1.0.0", "wf-a")
+
+        assert store.get_task_count("sess-diag") == 2
+        assert store.get_task_count("sess-other") == 1
+        assert store.get_task_count("sess-none") == 0
+
+    def test_get_workflow_count_counts_distinct(self, store) -> None:
+        create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
+        create_task(store._db, "sess-diag", 2, "1.0.0", "wf-a")
+        create_task(store._db, "sess-diag", 3, "1.0.0", "wf-b")
+
+        assert store.get_workflow_count("sess-diag") == 2
+        assert store.get_workflow_count("sess-none") == 0
+
+    def test_get_approval_count(self, store) -> None:
+        task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
+        request_approval(store._db, task.task_id)
+        request_approval(store._db, task.task_id, stage_id="execute")
+
+        assert store.get_approval_count("sess-diag") == 2
+        assert store.get_approval_count("sess-none") == 0
+
+    def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
+        task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
+        start_attempt(store._db, task.task_id, "execute")
+        start_attempt(store._db, task.task_id, "execute")
+        start_attempt(store._db, task.task_id, "plan")
+
+        assert store.get_execute_attempt_count("sess-diag") == 2
+        assert store.get_execute_attempt_count("sess-none") == 0
+
+    def test_get_artifact_uris(self, store) -> None:
+        task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
+        record_artifact(store._db, task.task_id, "execute", "file:///tmp/a.txt")
+        record_artifact(store._db, task.task_id, "execute", "file:///tmp/b.txt")
+
+        uris = store.get_artifact_uris("sess-diag")
+
+        assert sorted(uris) == ["file:///tmp/a.txt", "file:///tmp/b.txt"]
+        assert store.get_artifact_uris("sess-none") == []
+
+
 class TestStateStoreGetConnection:
     def test_get_connection_returns_same_instance_as_private_attribute(
         self, store

@@ -139,6 +139,20 @@ class TestStartupOrchestratorStartServers:
         assert startup._spawned_subprocesses == [retried_proc]
 
     @pytest.mark.asyncio
+    async def test_no_process_returned_does_not_append(self) -> None:
+        """start_http_subprocess() returning None (e.g. server already running)
+        must not be treated as a spawned process."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg}, security_profile=SecurityProfile.LOCAL)
+        startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
+            return_value=None
+        )
+
+        result = await startup._start_servers()
+
+        assert result == []
+
+    @pytest.mark.asyncio
     async def test_pre_set_shutdown_event_stops_before_second_server(self) -> None:
         """A shutdown_event set before _start_servers() is called must stop the
         per-server loop's pre-loop check before any further server is started."""

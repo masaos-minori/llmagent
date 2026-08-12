@@ -8,6 +8,7 @@ of the approval/execution stack.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -70,6 +71,14 @@ def classify_operation_type(tool_name: str) -> OperationType:
     return OperationType.READ
 
 
+def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
+    """Yield each non-empty string value present in args for the given keys."""
+    for key in keys:
+        val = args.get(key)
+        if isinstance(val, str) and val:
+            yield val
+
+
 def _escalate_for_path(
     cfg: AgentConfig,
     base: RiskLevel,
@@ -79,10 +88,7 @@ def _escalate_for_path(
     if base == RiskLevel.HIGH:
         return None
     path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for key in path_keys:
-        val = args.get(key)
-        if not isinstance(val, str) or not val:
-            continue
+    for val in _iter_string_arg_values(args, path_keys):
         if any(val.startswith(p) for p in cfg.approval.approval_protected_paths):
             return RiskLevel.HIGH
     return None
@@ -98,10 +104,7 @@ def _escalate_for_github_branch(
     if not tool_name.startswith("github_") or base == RiskLevel.HIGH:
         return None
     branch_keys = cfg.approval.approval_resource_keys.get("branch_keys", [])
-    for key in branch_keys:
-        val = args.get(key)
-        if not isinstance(val, str) or not val:
-            continue
+    for val in _iter_string_arg_values(args, branch_keys):
         if val in cfg.approval.approval_high_risk_branches:
             return RiskLevel.HIGH
     return None
@@ -178,10 +181,7 @@ def check_allowed_root(
         return True
     root = Path(cfg.approval.allowed_root).resolve()
     path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
-    for key in path_keys:
-        val = args.get(key)
-        if not isinstance(val, str) or not val:
-            continue
+    for val in _iter_string_arg_values(args, path_keys):
         try:
             resolved = Path(val).resolve()
         except (ValueError, OSError):

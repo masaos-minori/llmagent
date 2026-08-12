@@ -286,6 +286,28 @@ class TestCmdMcpStatus:
         assert "[UNAVAILABLE] svc:" not in out
 
     @pytest.mark.asyncio
+    async def test_degraded_server_shown_with_reason(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Characterization test: DEGRADED servers get their own block with the recorded reason."""
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+
+        registry = MagicMock()
+        registry.get_state.return_value = McpServerHealthState.DEGRADED
+        registry.get_degraded_reason.return_value = "circuit_open"
+        ctx.services_required.health_registry = registry
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "  Degraded servers:" in out
+        assert "    [DEGRADED] svc: circuit_open" in out
+
+    @pytest.mark.asyncio
     async def test_no_unavailable_block_when_all_healthy(
         self, capsys: pytest.CaptureFixture
     ) -> None:

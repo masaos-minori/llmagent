@@ -7,9 +7,9 @@ CRUD operations and idempotency enforcement for workflow.sqlite.
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
 import uuid
-from typing import Any
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
@@ -99,7 +99,7 @@ class StateStore:
         )
         self._db.commit()
 
-    def _row_to_task(self, r: Any) -> TaskRecord:
+    def _row_to_task(self, r: sqlite3.Row) -> TaskRecord:
         """Convert a database row dict into a TaskRecord."""
         row = dict(r)
         return TaskRecord(
@@ -202,41 +202,42 @@ class StateStore:
 
     # ── Diagnostic Queries ───────────────────────────────────────────────
 
+    def _scalar_count(self, sql: str, params: tuple[object, ...]) -> int:
+        """Run a `COUNT(*) as cnt`-style query and return the scalar result."""
+        rows = self._db.fetchall(sql, params)
+        return int(rows[0]["cnt"]) if rows else 0
+
     def get_task_count(self, session_id: str) -> int:
         """Return the number of tasks associated with a session."""
-        rows = self._db.fetchall(
+        return self._scalar_count(
             "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
             (session_id,),
         )
-        return int(rows[0]["cnt"]) if rows else 0
 
     def get_workflow_count(self, session_id: str) -> int:
         """Return the number of distinct workflows for a session."""
-        rows = self._db.fetchall(
+        return self._scalar_count(
             "SELECT COUNT(DISTINCT workflow_id) as cnt"
             " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
             (session_id,),
         )
-        return int(rows[0]["cnt"]) if rows else 0
 
     def get_approval_count(self, session_id: str) -> int:
         """Return the number of approval events for tasks in a session."""
-        rows = self._db.fetchall(
+        return self._scalar_count(
             "SELECT COUNT(*) as cnt FROM approvals"
             " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
             (session_id,),
         )
-        return int(rows[0]["cnt"]) if rows else 0
 
     def get_execute_attempt_count(self, session_id: str) -> int:
         """Return the number of execute-stage attempts for tasks in a session."""
-        rows = self._db.fetchall(
+        return self._scalar_count(
             "SELECT COUNT(*) as cnt FROM attempts"
             " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)"
             " AND stage_id='execute'",
             (session_id,),
         )
-        return int(rows[0]["cnt"]) if rows else 0
 
     def get_artifact_uris(self, session_id: str) -> list[str]:
         """Return artifact URIs for tasks in a session."""
@@ -244,7 +245,8 @@ class StateStore:
             "SELECT uri FROM artifacts WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
             (session_id,),
         )
-        return [str(dict(r)["uri"]) for r in rows if dict(r).get("uri")]
+        uris = (dict(r) for r in rows)
+        return [str(d["uri"]) for d in uris if d.get("uri")]
 
     # ── Startup Recovery ─────────────────────────────────────────────────────
 

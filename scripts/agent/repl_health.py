@@ -10,6 +10,7 @@ health check behaviour.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from http import HTTPStatus
 from pathlib import Path
@@ -430,6 +431,27 @@ def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
     return warnings
 
 
+def _load_audit_config_or_warn[T](
+    loader: Callable[[], T],
+    production_mode: bool,
+    warnings: list[str],
+) -> T | None:
+    """Call *loader*; on RuntimeError, raise in production mode or append a warning.
+
+    Returns the loaded config, or None when the load failed (non-production mode).
+    """
+    try:
+        return loader()
+    except RuntimeError as exc:
+        msg = str(exc)
+        if production_mode:
+            logger.error(msg)
+            raise
+        logger.warning(msg)
+        warnings.append(msg)
+        return None
+
+
 def audit_security_defaults(
     ctx: AgentContext, production_mode: bool = False
 ) -> list[str]:
@@ -486,18 +508,11 @@ def audit_security_defaults(
             " (intentional lockdown acknowledged)"
         )
 
-    # Check shell sandbox and command_allowlist
-    try:
-        shell_cfg = load_shell_audit_config()
-    except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
-        # If configuration is missing or cannot be loaded, skip shell-related security checks.
-        shell_cfg = None
+    # Check shell sandbox and command_allowlist.
+    # If configuration is missing or cannot be loaded, skip shell-related security checks.
+    shell_cfg = _load_audit_config_or_warn(
+        load_shell_audit_config, production_mode, warnings
+    )
 
     if shell_cfg is not None:
         import shutil as _shutil
@@ -552,16 +567,9 @@ def audit_security_defaults(
         except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; fall back to unrestricted set rather than abort startup
             known_tools = None
 
-    github_cfg = None
-    try:
-        github_cfg = load_github_audit_config()
-    except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
+    github_cfg = _load_audit_config_or_warn(
+        load_github_audit_config, production_mode, warnings
+    )
 
     result = ProductionConfigValidator().validate(
         {
@@ -586,16 +594,9 @@ def audit_security_defaults(
         warnings.append(warning)
 
     # Check git allowed_repo_paths
-    try:
-        git_cfg = load_git_audit_config()
-    except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
-        git_cfg = None
+    git_cfg = _load_audit_config_or_warn(
+        load_git_audit_config, production_mode, warnings
+    )
 
     if git_cfg is not None and not git_cfg.allowed_repo_paths and not lockdown:
         fail_closed_empty.append("git.allowed_repo_paths")
@@ -619,16 +620,9 @@ def audit_security_defaults(
         warnings.append(msg)
 
     # Check cicd workflow_allowlist (fail-closed — empty = deny all workflow triggers)
-    try:
-        cicd_cfg = load_cicd_audit_config()
-    except RuntimeError as exc:
-        msg = str(exc)
-        if production_mode:
-            logger.error(msg)
-            raise
-        logger.warning(msg)
-        warnings.append(msg)
-        cicd_cfg = None
+    cicd_cfg = _load_audit_config_or_warn(
+        load_cicd_audit_config, production_mode, warnings
+    )
 
     if cicd_cfg is not None and not cicd_cfg.workflow_allowlist and not lockdown:
         fail_closed_empty.append("cicd.workflow_allowlist")

@@ -292,9 +292,8 @@ class AgentContext:
     @property
     def services_required(self) -> AppServices:
         """Return services, raising RuntimeError when not yet initialized."""
-        svc: AppServices | None = self.services
-        if svc is None:
+        if self.services is None:
             raise RuntimeError(
                 "AgentContext.services not initialized — call build_agent_context() first"
             )
-        return svc
+        return self.services

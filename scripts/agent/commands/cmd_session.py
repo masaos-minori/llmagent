@@ -13,6 +13,7 @@ Provides _SessionMixin with:
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from agent.commands.db_session_ops import DbSessionOps
 from agent.commands.mixin_base import MixinBase
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the session mixin via MixinBase constructor and sub-components."""
         super().__init__(*args, **kwargs)
         self._title_gen = SessionTitleGen(self._ctx, self._out)
@@ -39,8 +40,8 @@ class _SessionMixin(MixinBase):
         """Generate and persist a session title via LLM (background task)."""
         await self._title_gen.generate(first_input)
 
-    def _session_load_safe(self, arg: str) -> None:
-        """Parse arg as an integer session ID and load it; print error on invalid."""
+    def _parse_positive_session_id(self, arg: str) -> int | None:
+        """Parse arg as a positive session ID; write a validation error and return None on failure."""
         try:
             sid = int(arg)
             if sid <= 0:
@@ -49,19 +50,20 @@ class _SessionMixin(MixinBase):
             self._out.write_validation_error(
                 "Invalid session ID: must be a positive integer"
             )
+            return None
+        return sid
+
+    def _session_load_safe(self, arg: str) -> None:
+        """Parse arg as an integer session ID and load it; print error on invalid."""
+        sid = self._parse_positive_session_id(arg)
+        if sid is None:
             return
         self._load_session(sid)
 
     def _session_delete(self, arg: str) -> None:
         """Parse arg as an integer session ID and delete it; guard current session."""
-        try:
-            sid = int(arg)
-            if sid <= 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            self._out.write_validation_error(
-                "Invalid session ID: must be a positive integer"
-            )
+        sid = self._parse_positive_session_id(arg)
+        if sid is None:
             return
         if sid == self._ctx.session.session_id:
             self._out.write_validation_error("Cannot delete the current session.")

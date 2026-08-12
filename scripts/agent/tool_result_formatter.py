@@ -76,5 +76,4 @@ def build_preview(tool_name: str, args: dict[str, Any]) -> str:
         return _preview_shell_cmd(args)
     if tool_name.startswith("github_"):
         return build_github_preview(args)
-    raw: str = _json_dumps(args)
-    return raw[:300]
+    return _json_dumps(args)[:300]

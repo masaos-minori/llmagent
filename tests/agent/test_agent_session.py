@@ -204,12 +204,14 @@ class TestSave:
         # No start() called — session_id is None
         session.save("user", "orphan")
         # No error; nothing written (session_id is None → early return)
+        assert session.skipped_no_session_count == 1
 
     def test_invalid_role_is_skipped(self, session: AgentSession) -> None:
         session.start()
         session.save("invalid_role", "content")
         msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is None or len(msgs) == 0
+        assert session.skipped_invalid_role_count == 1
 
 
 # ── save_many() ───────────────────────────────────────────────────────────────

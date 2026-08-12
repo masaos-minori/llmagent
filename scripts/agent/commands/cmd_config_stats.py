@@ -12,11 +12,14 @@ Import from here:  from agent.commands.cmd_config_stats import _ConfigStatsMixin
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import LatencySnapshot, StatsViewModel
 from agent.services.context_view import _int_safe
+
+if TYPE_CHECKING:
+    from agent.context import AgentContext
 
 
 def _safe[T](obj: object | None, attr: str, default: T) -> T:
@@ -24,7 +27,7 @@ def _safe[T](obj: object | None, attr: str, default: T) -> T:
     return getattr(obj, attr) if obj is not None else default
 
 
-def _get_mem_circuit_open(ctx) -> bool:
+def _get_mem_circuit_open(ctx: AgentContext) -> bool:
     """Return True if the memory embedding circuit breaker is open."""
     mem = ctx.services_required.memory
     if mem is None:
@@ -36,7 +39,7 @@ def _get_mem_circuit_open(ctx) -> bool:
     return bool(status.circuit_open)
 
 
-def _get_mem_fts_fallback(ctx) -> int:
+def _get_mem_fts_fallback(ctx: AgentContext) -> int:
     """Return the FTS fallback count from the memory retriever."""
     mem = ctx.services_required.memory
     if mem is None:

@@ -177,8 +177,7 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens
-        token_count: int = estimate_tokens(history)[0]
-        return token_count
+        return estimate_tokens(history)[0]
 
     async def count_tokens_async(
         self,
@@ -196,10 +195,9 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens, True
-        token_result: tuple[int, bool] = await get_token_count(
+        return await get_token_count(
             history, self._tokenize_url, self._http, warn_once=self._warn_once
         )
-        return token_result
 
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.

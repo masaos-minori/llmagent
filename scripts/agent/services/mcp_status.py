@@ -75,60 +75,6 @@ class McpStatusService:
                 results.append(result)
         return results
 
-    async def _probe_single_server(
-        self,
-        probe: httpx.AsyncClient,
-        ctx: AgentContext,
-        key: str,
-        cfg: Any,
-        tiers: dict[str, str],
-    ) -> McpProbeResult:
-        """Probe a single MCP server and return its status result."""
-        auth = bool(cfg.auth_token)
-        tier = _tier_for_server(cfg.tool_names, tiers)
-        (
-            availability,
-            endpoint,
-            sandbox_backend,
-            restart_rec_http,
-            op_action_http,
-            body_reason,
-        ) = await self._resolve_endpoint(probe, ctx, key, cfg)
-        health = _resolve_health_state(ctx, key).value.upper()
-        lifecycle = ctx.services_required.lifecycle
-        lifecycle_state = lifecycle.get_transport_state(key).value
-        snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
-        snapshot = snapshot_fn(key) if snapshot_fn is not None else None
-        restart_recommended = (
-            lifecycle_state == LifecycleState.FAILED.value
-        ) or restart_rec_http
-        health_reason = body_reason
-        if not health_reason and op_action_http:
-            health_reason = "operator_action_required"
-        elif not health_reason and restart_rec_http:
-            health_reason = "restart_recommended"
-        return McpProbeResult(
-            key=key,
-            transport=cfg.transport,
-            startup_mode=cfg.startup_mode,
-            auth=auth,
-            tier=tier,
-            role=cfg.role or "",
-            availability=availability,
-            health=health,
-            endpoint=endpoint,
-            sandbox_backend=sandbox_backend,
-            managed=snapshot is not None,
-            pid=snapshot.get("pid") if snapshot else None,
-            pgid=snapshot.get("pgid") if snapshot else None,
-            running=snapshot.get("running") if snapshot else None,
-            last_exit_code=snapshot.get("last_exit_code") if snapshot else None,
-            lifecycle_state=lifecycle_state,
-            restart_recommended=restart_recommended,
-            operator_action_required=op_action_http,
-            health_reason=health_reason,
-        )
-
     async def _probe_single_server_with_interpretation(
         self,
         probe: httpx.AsyncClient,
@@ -208,36 +154,6 @@ class McpStatusService:
             parse_failure_reason=parse_failure_reason,
         )
         return result
-
-    async def _resolve_endpoint(
-        self,
-        probe: httpx.AsyncClient,
-        ctx: AgentContext,
-        key: str,
-        cfg: Any,
-    ) -> tuple[McpAvailability, str, str, bool, bool, str]:
-        """Resolve availability, endpoint string, sandbox_backend, restart_recommended, operator_action_required, and body reason for a single server.
-
-        Returns meaningful values only for HTTP transport servers; for other transports
-        returns (UNKNOWN, "", "", False, False, "").
-        """
-        if cfg.transport == TransportType.HTTP:
-            (
-                availability,
-                sandbox_backend,
-                restart_rec,
-                op_action,
-                body_reason,
-            ) = await self._get_http_status(probe, cfg.url)
-            return (
-                availability,
-                cfg.url,
-                sandbox_backend,
-                restart_rec,
-                op_action,
-                body_reason,
-            )
-        return McpAvailability.UNKNOWN, "", "", False, False, ""
 
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str

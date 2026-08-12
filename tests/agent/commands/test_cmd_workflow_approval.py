@@ -228,6 +228,50 @@ def test_reject_halts_task(store, workflow_db: str) -> None:
     assert task_row is not None and task_row.status == "halted"
 
 
+# ── reject: zero pending ──────────────────────────────────────────────────────
+
+
+def test_reject_no_pending(workflow_db: str) -> None:
+    """Characterization test: reject's 'no pending approval' branch, mirroring approve's."""
+    mixin, _ctx, _messages, errors = _make_mixin(workflow_db)
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+        mixin._cmd_reject(fake_id)
+    assert errors
+    assert "No pending approval" in errors[0]
+
+
+# ── approve/reject: explicit ID not found ──────────────────────────────────────
+
+
+def test_approve_explicit_id_not_found(store, workflow_db: str) -> None:
+    """Characterization test: approve's 'not found or not pending' branch."""
+    _create_pending(store._db)
+    store.close()
+
+    mixin, _ctx, _messages, errors = _make_mixin(workflow_db)
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+        mixin._cmd_approve(fake_id)
+
+    assert errors
+    assert "not found or not pending" in errors[0]
+
+
+def test_reject_explicit_id_not_found(store, workflow_db: str) -> None:
+    """Characterization test: reject's 'not found or not pending' branch."""
+    _create_pending(store._db)
+    store.close()
+
+    mixin, _ctx, _messages, errors = _make_mixin(workflow_db)
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+        mixin._cmd_reject(fake_id)
+
+    assert errors
+    assert "not found or not pending" in errors[0]
+
+
 # ── reject: multiple pending, no ID → fail closed ─────────────────────────────
 
 

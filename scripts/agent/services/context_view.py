@@ -8,7 +8,8 @@ can be tested independently of the REPL.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
 from shared.git_helper import get_repo_info
 from shared.json_utils import serialized_length, tool_call_serialized_length
@@ -37,16 +38,24 @@ def _int_safe(obj: object | None, attr: str, default: int = 0) -> int:
     return val
 
 
-def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
-    """Compute per-category character counts (system / history / tool_messages)."""
-    system = 0
-    history = 0
-    tool_messages = 0
+def _iter_message_parts(
+    messages: list[LLMMessage],
+) -> Iterator[tuple[str, str, list[Any]]]:
+    """Yield (role, text, tool_calls) for each message, normalizing missing/non-str content."""
     for m in messages:
         role = m.get("role", "")
         content_raw = m.get("content")
         text = content_raw if isinstance(content_raw, str) else ""
         tool_calls = m.get("tool_calls") or []
+        yield role, text, tool_calls
+
+
+def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
+    """Compute per-category character counts (system / history / tool_messages)."""
+    system = 0
+    history = 0
+    tool_messages = 0
+    for role, text, tool_calls in _iter_message_parts(messages):
         if role == "system":
             system += len(text)
         elif role == "tool":
@@ -104,12 +113,7 @@ def _token_breakdown(
     hist_tokens = 0
     tool_tokens = 0
 
-    for m in messages:
-        role = m.get("role", "")
-        content_raw = m.get("content")
-        text = content_raw if isinstance(content_raw, str) else ""
-        tool_calls = m.get("tool_calls") or []
-
+    for role, text, tool_calls in _iter_message_parts(messages):
         if role == "system":
             if text:
                 sys_tokens += int(len(text) / _RATIO_SYSTEM)

@@ -23,6 +23,7 @@ from agent.services.models import ConfigReloadRequest
 if TYPE_CHECKING:
     from shared.runtime_tool import AgentSafetyTier
 
+    from agent.config_dataclasses import AgentConfig
     from agent.context import AgentContext
 
 from agent.services.typed_validators import (
@@ -221,7 +222,9 @@ class ConfigReloadService:
         self._apply_rag_params(cfg, new_cfg)
         self._apply_llm_retry_params(cfg, new_cfg)
 
-    def _apply_llm_context_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+    def _apply_llm_context_params(
+        self, cfg: AgentConfig, new_cfg: dict[str, Any]
+    ) -> None:
         """Apply LLM context window settings."""
         _apply_int(
             new_cfg,
@@ -234,7 +237,7 @@ class ConfigReloadService:
             lambda v: setattr(cfg.llm, "context_compress_turns", v),
         )
 
-    def _apply_tool_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+    def _apply_tool_params(self, cfg: AgentConfig, new_cfg: dict[str, Any]) -> None:
         """Apply tool execution settings."""
         _apply_float(
             new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v)
@@ -255,7 +258,7 @@ class ConfigReloadService:
             lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)),
         )
 
-    def _apply_rag_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+    def _apply_rag_params(self, cfg: AgentConfig, new_cfg: dict[str, Any]) -> None:
         """Apply RAG (retrieval-augmented generation) settings."""
         _apply_bool(
             new_cfg,
@@ -289,7 +292,9 @@ class ConfigReloadService:
             lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v),
         )
 
-    def _apply_llm_retry_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+    def _apply_llm_retry_params(
+        self, cfg: AgentConfig, new_cfg: dict[str, Any]
+    ) -> None:
         """Apply LLM retry settings."""
         _apply_int(
             new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v)

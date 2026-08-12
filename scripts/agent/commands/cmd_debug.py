@@ -24,23 +24,24 @@ class _DebugMixin(MixinBase):
         """Initialize the debug mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
+    def _set_log_level(self, level: int, label: str, info_msg: str) -> None:
+        """Set _DEBUG_LOGGER_NAMES loggers to level, then report label and log info_msg."""
+        for name in _DEBUG_LOGGER_NAMES:
+            logging.getLogger(name).setLevel(level)
+        self._out.write(f"Log level: {label}")
+        logger.info(info_msg)
+
     def _cmd_debug(self, args: str = "") -> None:
         """Toggle RAG debug output, or change log level with '/debug verbose|normal'."""
         ctx = self._ctx
         sub = args.strip().lower()
 
         if sub == "verbose":
-            for name in _DEBUG_LOGGER_NAMES:
-                logging.getLogger(name).setLevel(logging.DEBUG)
-            self._out.write("Log level: DEBUG")
-            logger.info("Log level set to DEBUG")
+            self._set_log_level(logging.DEBUG, "DEBUG", "Log level set to DEBUG")
             return
 
         if sub == "normal":
-            for name in _DEBUG_LOGGER_NAMES:
-                logging.getLogger(name).setLevel(logging.INFO)
-            self._out.write("Log level: INFO")
-            logger.info("Log level restored to INFO")
+            self._set_log_level(logging.INFO, "INFO", "Log level restored to INFO")
             return
 
         # No subcommand — toggle RAG pipeline step debug output

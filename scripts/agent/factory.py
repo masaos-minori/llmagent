@@ -12,7 +12,7 @@ import asyncio
 import logging
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -96,6 +96,22 @@ class _ServerLifecycleRouter:
             )
         self._states[server_key] = new_state
 
+    async def _run_lifecycle_transition(
+        self,
+        server_key: str,
+        op: Callable[[], Awaitable[None]],
+    ) -> None:
+        """Run *op* as a STARTING transition, marking RUNNING on success or FAILED on error."""
+        self._set_state(server_key, LifecycleState.STARTING)
+        try:
+            await op()
+            self._failed_starts.pop(server_key, None)
+            self._set_state(server_key, LifecycleState.RUNNING)
+        except Exception:
+            self._failed_starts[server_key] = time.monotonic()
+            self._set_state(server_key, LifecycleState.FAILED)
+            raise
+
     def _in_cooldown(self, server_key: str) -> bool:
         """Return True if the server is within its cooldown window."""
         last_failure = self._failed_starts.get(server_key, 0)
@@ -140,30 +156,18 @@ class _ServerLifecycleRouter:
             _logger.info(
                 "Lifecycle: %r not running; starting via ensure_ready", server_key
             )
-            self._set_state(server_key, LifecycleState.STARTING)
-            try:
-                await self._http_mgr.start(server_key, cfg)
-                self._failed_starts.pop(server_key, None)
-                self._set_state(server_key, LifecycleState.RUNNING)
-            except Exception:
-                self._failed_starts[server_key] = time.monotonic()
-                self._set_state(server_key, LifecycleState.FAILED)
-                raise
+            await self._run_lifecycle_transition(
+                server_key, lambda: self._http_mgr.start(server_key, cfg)
+            )
         else:
             app_healthy = await self._http_mgr.verify_running_async(server_key, cfg)
             if not app_healthy:
                 _logger.warning(
                     "Lifecycle: %r OS-alive but app-unhealthy; restarting", server_key
                 )
-                self._set_state(server_key, LifecycleState.STARTING)
-                try:
-                    await self._http_mgr.restart(server_key, cfg)
-                    self._failed_starts.pop(server_key, None)
-                    self._set_state(server_key, LifecycleState.RUNNING)
-                except Exception:
-                    self._failed_starts[server_key] = time.monotonic()
-                    self._set_state(server_key, LifecycleState.FAILED)
-                    raise
+                await self._run_lifecycle_transition(
+                    server_key, lambda: self._http_mgr.restart(server_key, cfg)
+                )
 
     async def shutdown_all(self) -> None:
         """Shut down all managed HTTP subprocess servers."""
@@ -187,16 +191,13 @@ class _ServerLifecycleRouter:
             return None
         if self._in_cooldown(server_key):
             return None
-        self._set_state(server_key, LifecycleState.STARTING)
-        try:
-            await self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)
-            self._failed_starts.pop(server_key, None)
-            self._set_state(server_key, LifecycleState.RUNNING)
-            return self._http_mgr._http_procs.get(server_key)
-        except Exception:
-            self._failed_starts[server_key] = time.monotonic()
-            self._set_state(server_key, LifecycleState.FAILED)
-            raise
+        await self._run_lifecycle_transition(
+            server_key,
+            lambda: self._http_mgr.start(
+                server_key, cfg, shutdown_event=shutdown_event
+            ),
+        )
+        return self._http_mgr._http_procs.get(server_key)
 
     async def restart(self, server_key: str) -> None:
         """Restart a single HTTP subprocess MCP server."""
@@ -214,15 +215,9 @@ class _ServerLifecycleRouter:
             return
         if self._in_cooldown(server_key):
             return
-        self._set_state(server_key, LifecycleState.STARTING)
-        try:
-            await self._http_mgr.restart(server_key, cfg)
-            self._failed_starts.pop(server_key, None)
-            self._set_state(server_key, LifecycleState.RUNNING)
-        except Exception:
-            self._failed_starts[server_key] = time.monotonic()
-            self._set_state(server_key, LifecycleState.FAILED)
-            raise
+        await self._run_lifecycle_transition(
+            server_key, lambda: self._http_mgr.restart(server_key, cfg)
+        )
 
     async def shutdown_idle(self) -> None:
         """No-op for idle shutdown — only applies to stdio servers."""

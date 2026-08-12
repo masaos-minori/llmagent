@@ -105,8 +105,7 @@ class RepositoryGateway:
                 "Skipping gateway preflight: workflow approval pending (id=%s)",
                 ctx.turn.pending_approval_id,
             )
-            result = await self._executor.execute(tool_name, args)
-            return result
+            return await self._executor.execute(tool_name, args)
 
         try:
             check_preflight(self._cfg, tool_name, args)

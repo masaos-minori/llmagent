@@ -110,40 +110,6 @@ def _classify_content(
     return None
 
 
-def _make_entry(
-    *,
-    memory_type: MemoryType,
-    source_type: SourceType,
-    tags: list[str],
-    content: str,
-    session_id: int | None,
-    turn_id: str | None,
-    project: str,
-    repo: str,
-    branch: str,
-    importance: float,
-    now: str,
-) -> MemoryEntry:
-    """Build a MemoryEntry with a new UUID and computed summary."""
-    return MemoryEntry(
-        memory_id=str(uuid.uuid4()),
-        memory_type=memory_type,
-        source_type=source_type,
-        session_id=session_id,
-        turn_id=turn_id,
-        project=project,
-        repo=repo,
-        branch=branch,
-        content=content,
-        summary=_make_summary(content),
-        tags=tags,
-        importance=importance,
-        pinned=False,
-        created_at=now,
-        updated_at=now,
-    )
-
-
 def _make_entry_with_importance(
     *,
     memory_type: MemoryType,

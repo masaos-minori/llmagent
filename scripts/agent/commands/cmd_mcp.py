@@ -10,9 +10,10 @@ Formatting (table, next-steps) is handled in this module — not in the services
 """
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
-from shared.mcp_health import McpServerHealthState
+from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
@@ -141,6 +142,28 @@ class _McpMixin(MixinBase):
         """Initialize the MCP mixin via MixinBase constructor."""
         super().__init__(*args, **kwargs)
 
+    def _write_servers_in_state(
+        self,
+        registry: McpServerHealthRegistry | None,
+        server_keys: Iterable[str],
+        state: McpServerHealthState,
+        label: str,
+    ) -> None:
+        """Write a '<label> servers:' block listing server_keys currently in `state`."""
+        keys = [
+            key
+            for key in server_keys
+            if registry is not None and registry.get_state(key) == state
+        ]
+        if not keys:
+            return
+        self._out.write("")
+        self._out.write(f"  {label} servers:")
+        for key in keys:
+            reason = registry.get_degraded_reason(key) if registry else None
+            reason_str = f": {reason}" if reason else ""
+            self._out.write(f"    [{label.upper()}] {key}{reason_str}")
+
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table."""
         ctx = self._ctx
@@ -176,32 +199,15 @@ class _McpMixin(MixinBase):
                     self._out.write(f"\n  [{r.key}]")
                     self._out.write(interp_lines)
         registry = ctx.services_required.health_registry
-        degraded_keys = [
-            key
-            for key in ctx.cfg.mcp.mcp_servers
-            if registry is not None
-            and registry.get_state(key) == McpServerHealthState.DEGRADED
-        ]
-        if degraded_keys:
-            self._out.write("")
-            self._out.write("  Degraded servers:")
-            for key in degraded_keys:
-                reason = registry.get_degraded_reason(key) if registry else None
-                reason_str = f": {reason}" if reason else ""
-                self._out.write(f"    [DEGRADED] {key}{reason_str}")
-        unavailable_keys = [
-            key
-            for key in ctx.cfg.mcp.mcp_servers
-            if registry is not None
-            and registry.get_state(key) == McpServerHealthState.UNAVAILABLE
-        ]
-        if unavailable_keys:
-            self._out.write("")
-            self._out.write("  Unavailable servers:")
-            for key in unavailable_keys:
-                reason = registry.get_degraded_reason(key) if registry else None
-                reason_str = f": {reason}" if reason else ""
-                self._out.write(f"    [UNAVAILABLE] {key}{reason_str}")
+        self._write_servers_in_state(
+            registry, ctx.cfg.mcp.mcp_servers, McpServerHealthState.DEGRADED, "Degraded"
+        )
+        self._write_servers_in_state(
+            registry,
+            ctx.cfg.mcp.mcp_servers,
+            McpServerHealthState.UNAVAILABLE,
+            "Unavailable",
+        )
         from agent.tool_runner import get_serialization_stats
 
         stats = get_serialization_stats()

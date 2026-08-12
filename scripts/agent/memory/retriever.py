@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any
 
 from db.helper import SQLiteHelper
 
@@ -251,8 +250,7 @@ class HybridRetriever:
         self.last_retrieval_mode = "hybrid"
         merged = rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
         # hit.score is set to the RRF score by rrf_merge; already sorted by rrf_merge.
-        result: list[Any] = merged[: query.limit]
-        return result
+        return merged[: query.limit]
 
     def knn_search(
         self,

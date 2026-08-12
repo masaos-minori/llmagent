@@ -74,13 +74,18 @@ class MemoryInjectionService:
         )
         return snippets
 
-    def _build_snippets_from_entries(
+    def _build_snippets(
         self,
         entries: Sequence[MemoryEntry],
         prefix: str,
         source: str,
+        log_method_name: str,
     ) -> list[MemorySnippet]:
-        """Build MemorySnippet list from ranked entries."""
+        """Build MemorySnippet list from ranked entries.
+
+        `log_method_name` is embedded in warning logs to preserve the exact
+        message text previously emitted by each of this method's two callers.
+        """
         snippets: list[MemorySnippet] = []
         for entry in entries:
             snippet_text = entry.summary if entry.summary else entry.content[:100]
@@ -90,13 +95,13 @@ class MemoryInjectionService:
             snippet_text = truncated.text
             if filtered.was_filtered:
                 logger.warning(
-                    "MemoryInjectionService._build_snippets_from_entries: "
-                    "redacted PII from 1 snippet"
+                    "MemoryInjectionService.%s: redacted PII from 1 snippet",
+                    log_method_name,
                 )
             if truncated.was_truncated:
                 logger.warning(
-                    "MemoryInjectionService._build_snippets_from_entries: "
-                    "truncated snippet from %d chars to %d chars",
+                    "MemoryInjectionService.%s: truncated snippet from %d chars to %d chars",
+                    log_method_name,
                     truncated.original_length,
                     self._policy.max_snippet_length,
                 )
@@ -108,38 +113,24 @@ class MemoryInjectionService:
             )
         return snippets
 
+    def _build_snippets_from_entries(
+        self,
+        entries: Sequence[MemoryEntry],
+        prefix: str,
+        source: str,
+    ) -> list[MemorySnippet]:
+        """Build MemorySnippet list from ranked entries."""
+        return self._build_snippets(
+            entries, prefix, source, "_build_snippets_from_entries"
+        )
+
     def _build_snippets_from_hits(
         self, hits: Sequence[MemoryHit], prefix: str, source: str
     ) -> list[MemorySnippet]:
         """Build MemorySnippet list from ranked hits."""
-        snippets: list[MemorySnippet] = []
-        for hit in hits:
-            snippet_text = (
-                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
-            )
-            filtered = filter_pii(snippet_text)
-            snippet_text = filtered.text if filtered.text is not None else snippet_text
-            truncated = truncate_snippet(snippet_text, self._policy.max_snippet_length)
-            snippet_text = truncated.text
-            if filtered.was_filtered:
-                logger.warning(
-                    "MemoryInjectionService._build_snippets_from_hits: "
-                    "redacted PII from 1 snippet"
-                )
-            if truncated.was_truncated:
-                logger.warning(
-                    "MemoryInjectionService._build_snippets_from_hits: "
-                    "truncated snippet from %d chars to %d chars",
-                    truncated.original_length,
-                    self._policy.max_snippet_length,
-                )
-            snippets.append(
-                MemorySnippet(
-                    text=f"{prefix} {snippet_text}",
-                    source=source,
-                )
-            )
-        return snippets
+        return self._build_snippets(
+            [hit.entry for hit in hits], prefix, source, "_build_snippets_from_hits"
+        )
 
     async def on_user_prompt(
         self,

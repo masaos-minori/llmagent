@@ -112,6 +112,19 @@ async def _run_group_calls(
     )
 
 
+def _reject_validation(name: str, reason: str) -> ToolCallResult:
+    """Build the synthetic error ToolCallResult for a failed argument validation."""
+    logger.warning("tool_arg_validation_rejected tool=%r reason=%s", name, reason)
+    return ToolCallResult(
+        output=reason,
+        is_error=True,
+        request_id="",
+        server_key="",
+        source="validation",
+        error_type="validation",
+    )
+
+
 def _validate_tool_args(
     ctx: AgentContext, name: str, args: dict
 ) -> ToolCallResult | None:
@@ -137,17 +150,7 @@ def _validate_tool_args(
             )
             if result.success:
                 return None
-            logger.warning(
-                "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
-            )
-            return ToolCallResult(
-                output=result.reason,
-                is_error=True,
-                request_id="",
-                server_key="",
-                source="validation",
-                error_type="validation",
-            )
+            return _reject_validation(name, result.reason)
         except KeyError:
             pass  # Fall through to gateway fallback
 
@@ -166,17 +169,7 @@ def _validate_tool_args(
             )
             if result.success:
                 return None
-            logger.warning(
-                "tool_arg_validation_rejected tool=%r reason=%s", name, result.reason
-            )
-            return ToolCallResult(
-                output=result.reason,
-                is_error=True,
-                request_id="",
-                server_key="",
-                source="validation",
-                error_type="validation",
-            )
+            return _reject_validation(name, result.reason)
     return None
 
 
@@ -560,10 +553,7 @@ async def _run_approval_gate(
     """
     from agent.tool_approval import run_approval_checks
 
-    result: tuple[list[dict[Any, Any]], list[str]] = await run_approval_checks(
-        ctx, tool_calls
-    )
-    return result
+    return await run_approval_checks(ctx, tool_calls)
 
 
 def _build_denied_messages(

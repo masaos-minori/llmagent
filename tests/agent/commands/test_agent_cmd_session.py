@@ -5,7 +5,7 @@ Behavior-lock tests for _SessionMixin slash-command handlers.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_session import _SessionMixin
@@ -166,6 +166,36 @@ class TestCmdSessionDelete:
         cmd = _make_cmd()
         cmd._cmd_session("delete abc")
         assert "Invalid" in capsys.readouterr().out
+
+
+class TestCmdSessionLoad:
+    """Characterization tests for _session_load_safe — previously untested."""
+
+    def test_load_valid_id_calls_load_session(self) -> None:
+        cmd = _make_cmd()
+        with patch.object(cmd, "_load_session") as mock_load:
+            cmd._cmd_session("load 5")
+        mock_load.assert_called_once_with(5)
+
+    def test_load_invalid_id_shows_validation_error(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        with patch.object(cmd, "_load_session") as mock_load:
+            cmd._cmd_session("load abc")
+        out = capsys.readouterr().out
+        assert "Invalid session ID" in out
+        mock_load.assert_not_called()
+
+    def test_load_zero_id_shows_validation_error(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        with patch.object(cmd, "_load_session") as mock_load:
+            cmd._cmd_session("load 0")
+        out = capsys.readouterr().out
+        assert "Invalid session ID" in out
+        mock_load.assert_not_called()
 
 
 class TestCmdSessionRename:
@@ -480,6 +510,38 @@ class TestCmdSessionPurge:
             MockSvc.return_value = mock_svc
             with pytest.raises(sqlite3.Error, match="purge error"):
                 cmd._cmd_session("purge")
+
+    def test_purge_with_non_numeric_max_sessions_treated_as_none(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A non-numeric --max-sessions value falls back to None rather than raising."""
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("purge --max-sessions not-a-number")
+            mock_svc.purge.assert_called_once_with(None, None)
+
+    def test_purge_with_non_numeric_max_age_days_treated_as_none(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A non-numeric --max-age-days value falls back to None rather than raising."""
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
+            MockSvc.return_value = mock_svc
+            cmd._cmd_session("purge --max-age-days not-a-number")
+            mock_svc.purge.assert_called_once_with(None, None)
 
 
 # ── /session recover ────────────────────────────────────────────────────────────

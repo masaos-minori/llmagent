@@ -451,6 +451,39 @@ class TestAuditSecurityDefaults:
         shell_warnings = [w for w in warnings if "shell config" in w.lower()]
         assert len(shell_warnings) == 1
 
+    def test_shell_config_load_failure_raises_in_production_mode(self) -> None:
+        """load_shell_audit_config() raising RuntimeError in production mode must re-raise."""
+        ctx = self._make_ctx()
+        with (
+            patch(
+                "agent.repl_health.load_shell_audit_config",
+                side_effect=RuntimeError(
+                    "Security audit: failed to load shell config: no file"
+                ),
+            ),
+            pytest.raises(RuntimeError, match="shell config"),
+        ):
+            audit_security_defaults(ctx, production_mode=True)
+
+    def test_github_config_load_failure_raises_in_production_mode(self) -> None:
+        """load_github_audit_config() raising RuntimeError in production mode must re-raise.
+
+        Covers the pre-initialized-to-None variant of the load-or-warn pattern
+        (github_cfg = None set before the try, unlike shell_cfg/git_cfg/cicd_cfg).
+        """
+        ctx = self._make_ctx()
+        with (
+            patch("agent.repl_health.load_shell_audit_config", return_value=None),
+            patch(
+                "agent.repl_health.load_github_audit_config",
+                side_effect=RuntimeError(
+                    "Security audit: failed to load github config: no file"
+                ),
+            ),
+            pytest.raises(RuntimeError, match="github config"),
+        ):
+            audit_security_defaults(ctx, production_mode=True)
+
     def test_git_config_empty_allowed_repo_paths_warns(self) -> None:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
         ctx = self._make_ctx()

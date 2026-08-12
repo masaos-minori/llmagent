@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from agent.commands.output_port import OutputPort
 from agent.commands.utils import parse_command_args
+from agent.context import AgentContext
 from agent.services.db_maintenance_service import DbMaintenanceService
+
+
+def _parse_optional_int(raw: str | bool | None) -> int | None:
+    """Parse raw as int; return None when raw is empty/falsy or not a valid integer."""
+    try:
+        return int(raw) if raw else None
+    except (ValueError, TypeError):
+        return None
 
 
 class DbSessionOps:
     """Handles session database operations: health, checkpoint, vacuum, purge, recover."""
 
-    def __init__(self, ctx: Any, out: Any) -> None:
+    def __init__(self, ctx: AgentContext, out: OutputPort) -> None:
         """Initialize the database session operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
@@ -42,16 +50,8 @@ class DbSessionOps:
     def purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
         parsed = parse_command_args(rest.split())
-        max_sessions_raw = parsed.flags.get("max-sessions")
-        max_age_days_raw = parsed.flags.get("max-age-days")
-        try:
-            max_sessions = int(max_sessions_raw) if max_sessions_raw else None
-        except (ValueError, TypeError):
-            max_sessions = None
-        try:
-            max_age_days = int(max_age_days_raw) if max_age_days_raw else None
-        except (ValueError, TypeError):
-            max_age_days = None
+        max_sessions = _parse_optional_int(parsed.flags.get("max-sessions"))
+        max_age_days = _parse_optional_int(parsed.flags.get("max-age-days"))
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
         self._out.write_success(
             f"Purged: {result.sessions_removed} session(s) removed [Session]"

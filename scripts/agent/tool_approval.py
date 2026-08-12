@@ -82,8 +82,7 @@ async def _build_preview_with_dry_run(
         tool_name not in ctx.cfg.approval.approval_dry_run_tools
         or ctx.services_required.tools is None
     ):
-        preview_str: str = preview
-        return preview_str
+        return preview
     if not _is_dry_run_capable(tool_name):
         logger.warning(
             "Tool %s does not support dry_run; using static preview", tool_name
@@ -96,7 +95,6 @@ async def _build_preview_with_dry_run(
         )
         dry_text = result.output
         is_error = result.is_error
-        _x_req = result.request_id
         if is_error:
             raise ApprovalPreviewBlockingError(
                 f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
@@ -108,8 +106,7 @@ async def _build_preview_with_dry_run(
         raise ApprovalPreviewError(
             f"Dry-run execution failed for {tool_name!r}: {e}"
         ) from e
-    final_preview: str = preview
-    return final_preview
+    return preview
 
 
 async def _prompt_user_approval(risk: RiskLevel) -> bool:

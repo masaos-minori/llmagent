@@ -486,6 +486,21 @@ class Orchestrator:
             ):
                 ctx.session.replace_messages(ctx.conv.history)
 
+    def _call_on_llm_wait_end(self) -> None:
+        """Invoke on_llm_wait_end if configured."""
+        if self._on_llm_wait_end:
+            self._on_llm_wait_end()
+
+    def _call_on_turn_end(self) -> None:
+        """Invoke on_turn_end if configured."""
+        if self._on_turn_end:
+            self._on_turn_end()
+
+    def _call_on_error(self, exc: Exception) -> None:
+        """Invoke on_error with exc if configured."""
+        if self._on_error:
+            self._on_error(exc)
+
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         """Execute an LLM streaming turn with wait/start/end callbacks and error handling."""
         ctx = self._ctx
@@ -511,25 +526,18 @@ class Orchestrator:
                     handle_llm_transport_error(
                         result.exception, ctx, self._diagnostic_store
                     )
-                    if self._on_llm_wait_end:
-                        self._on_llm_wait_end()
-                    if self._on_error:
-                        self._on_error(result.exception)
-                    if self._on_turn_end:
-                        self._on_turn_end()
+                    self._call_on_llm_wait_end()
+                    self._call_on_error(result.exception)
+                    self._call_on_turn_end()
                 else:
-                    if self._on_llm_wait_end:
-                        self._on_llm_wait_end()
-                    if self._on_turn_end:
-                        self._on_turn_end()
+                    self._call_on_llm_wait_end()
+                    self._call_on_turn_end()
                 return result
         except LLMTransportError as e:
             # Reached when run() is mocked with side_effect=e (tests) or re-raises
             handle_llm_transport_error(e, ctx, self._diagnostic_store)
-            if self._on_llm_wait_end:
-                self._on_llm_wait_end()
-            if self._on_error:
-                self._on_error(e)
+            self._call_on_llm_wait_end()
+            self._call_on_error(e)
             return TurnResult(
                 action="fail",
                 answer="",

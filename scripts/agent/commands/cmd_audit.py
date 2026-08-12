@@ -38,6 +38,14 @@ class _AuditMixin(MixinBase):
         """Resolve the audit log file path from config."""
         return pathlib.Path(self._ctx.cfg.obs.audit_log_file)
 
+    def _existing_audit_log_path(self) -> pathlib.Path | None:
+        """Return the audit log path if it exists; else write a not-found message and return None."""
+        path = self._audit_log_path()
+        if not path.exists():
+            self._out.write(f"Audit log not found: {path}")
+            return None
+        return path
+
     def _iter_audit_lines(self, path: pathlib.Path) -> Iterator[dict[str, Any]]:
         """Yield parsed JSONL records from path, skipping non-JSON lines."""
         with path.open(encoding="utf-8") as f:
@@ -52,9 +60,8 @@ class _AuditMixin(MixinBase):
 
     def _audit_tail(self, n: int) -> None:
         """Display the last N lines of the audit log file."""
-        path = self._audit_log_path()
-        if not path.exists():
-            self._out.write(f"Audit log not found: {path}")
+        path = self._existing_audit_log_path()
+        if path is None:
             return
         try:
             with path.open(encoding="utf-8") as f:
@@ -70,9 +77,8 @@ class _AuditMixin(MixinBase):
 
     def _audit_turn(self, task_id: str) -> None:
         """Display all audit log entries for the given task ID."""
-        path = self._audit_log_path()
-        if not path.exists():
-            self._out.write(f"Audit log not found: {path}")
+        path = self._existing_audit_log_path()
+        if path is None:
             return
         count = 0
         try:
@@ -88,9 +94,8 @@ class _AuditMixin(MixinBase):
 
     def _audit_tool(self, tool_name: str) -> None:
         """Scan the audit log for events matching the given tool name and display them."""
-        path = self._audit_log_path()
-        if not path.exists():
-            self._out.write(f"Audit log not found: {path}")
+        path = self._existing_audit_log_path()
+        if path is None:
             return
         try:
             tail: collections.deque[dict[str, Any]] = collections.deque(

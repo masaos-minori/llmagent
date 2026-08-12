@@ -512,6 +512,13 @@ class AgentREPL:
 
     # ── Main REPL loop ─────────────────────────────────────────────────────────
 
+    def _log_graceful_shutdown_timeout(self) -> None:
+        """Log that a turn did not complete within the graceful shutdown timeout."""
+        logger.warning(
+            "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
+            self._GRACEFUL_TIMEOUT_S,
+        )
+
     async def _repl_loop(self) -> None:
         """Process user input lines until /exit, EOF, or shutdown request."""
         ctx = self._ctx
@@ -559,10 +566,7 @@ class AgentREPL:
                             dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
                         )
                     except TimeoutError:
-                        logger.warning(
-                            "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
-                            self._GRACEFUL_TIMEOUT_S,
-                        )
+                        self._log_graceful_shutdown_timeout()
                         break
                 else:
                     # _shutdown_event is None or already set — await the already-created dispatch_task
@@ -575,18 +579,12 @@ class AgentREPL:
                         )
                     except TimeoutError:
                         if ctx.conv.shutdown_requested:
-                            logger.warning(
-                                "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
-                                self._GRACEFUL_TIMEOUT_S,
-                            )
+                            self._log_graceful_shutdown_timeout()
                             break
                         raise
             except TimeoutError:
                 if ctx.conv.shutdown_requested:
-                    logger.warning(
-                        "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
-                        self._GRACEFUL_TIMEOUT_S,
-                    )
+                    self._log_graceful_shutdown_timeout()
                     break
                 raise
             finally:
@@ -594,6 +592,11 @@ class AgentREPL:
                 ctx.conv.is_processing = False
             if ctx.conv.shutdown_requested:
                 break
+
+    def _abort_input(self) -> None:
+        """Signal end-of-turn display and clear the tracked input task."""
+        self._view.write_turn_end()
+        self._input_coro = None
 
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
         """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
@@ -627,23 +630,19 @@ class AgentREPL:
             for t in pending:
                 t.cancel()
             if shutdown_done or shutdown_coro in done:
-                self._view.write_turn_end()
-                self._input_coro = None
+                self._abort_input()
                 return None
             try:
                 raw = input_coro.result()
             except asyncio.CancelledError:
                 # Input was cancelled by signal handler — treat as shutdown
-                self._view.write_turn_end()
-                self._input_coro = None
+                self._abort_input()
                 return None
             except EOFError:
-                self._view.write_turn_end()
-                self._input_coro = None
+                self._abort_input()
                 return None
             except KeyboardInterrupt:
-                self._view.write_turn_end()
-                self._input_coro = None
+                self._abort_input()
                 return None
         else:
             try:

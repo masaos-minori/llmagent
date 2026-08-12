@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,7 @@ from shared.json_utils import (
     now_iso_raw,
 )
 from shared.tool_executor_helpers import tool_hash_key
-from shared.types import LLMMessage
+from shared.types import LLMMessage, ToolCallFunction
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -106,8 +107,19 @@ class ToolLoopGuard:
             parsed = orjson.loads(arguments_str)
         except (orjson.JSONDecodeError, TypeError):
             parsed = {}
-        hash_key: str = tool_hash_key(name, parsed)
-        return hash_key
+        return tool_hash_key(name, parsed)
+
+    def _iter_tool_call_keys(
+        self, message: LLMMessage
+    ) -> Iterator[tuple[ToolCallFunction, str]]:
+        """Yield (function_dict, canonical_key) for each tool call in message."""
+        for tc in message.get("tool_calls", []):
+            func = tc.get("function", {})
+            key = self._canonical_key(
+                func.get("name", ""),
+                func.get("arguments", "{}"),
+            )
+            yield func, key
 
     def check_cycle(
         self,
@@ -152,12 +164,7 @@ class ToolLoopGuard:
     ) -> str | None:
         """Block re-execution of identical (tool, args); return exit msg when hit."""
         ctx = self._ctx
-        for tc in message.get("tool_calls", []):
-            func = tc.get("function", {})
-            key = self._canonical_key(
-                func.get("name", ""),
-                func.get("arguments", "{}"),
-            )
+        for func, key in self._iter_tool_call_keys(message):
             seen_calls[key] = seen_calls.get(key, 0) + 1
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
@@ -181,12 +188,7 @@ class ToolLoopGuard:
         ctx = self._ctx
         if ctx.cfg.tool.tool_error_retry_max <= 0:
             return None
-        for tc in message.get("tool_calls", []):
-            func = tc.get("function", {})
-            key = self._canonical_key(
-                func.get("name", ""),
-                func.get("arguments", "{}"),
-            )
+        for func, key in self._iter_tool_call_keys(message):
             if key in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)

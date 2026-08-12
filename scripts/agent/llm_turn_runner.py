@@ -226,12 +226,11 @@ class LLMTurnRunner:
         """Call LLM with empty tool_defs to get a final answer."""
         ctx = self._ctx
         with self._span_ctx("final_answer"):
-            response = await ctx.services_required.llm.stream(
+            return await ctx.services_required.llm.stream(
                 self.llm_url,
                 ctx.conv.history,
                 [],  # tool_defs=[]
             )
-        return response
 
     async def _finalize_after_guard(self) -> TurnResult:
         """Handle final-answer fallback after ToolLoopGuard triggers."""
@@ -277,9 +276,8 @@ class LLMTurnRunner:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
         logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
-        response = await ctx.services_required.llm.stream(
+        return await ctx.services_required.llm.stream(
             llm_url,
             ctx.conv.history,
             self._filter_disabled_tool_definitions(ctx.cfg.tool.tool_definitions),
         )
-        return response

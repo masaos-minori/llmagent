@@ -133,6 +133,38 @@ class TestRowToEntry:
         entry = row_to_entry(row)
         assert entry.tags == []
 
+    def test_non_str_optional_field_raises(self) -> None:
+        """A non-str value in an optional str field (e.g. project) raises MemorySchemaError.
+
+        Characterization test for _opt_str's type-check branch — previously uncovered.
+        """
+        import pytest
+
+        row = {
+            "memory_id": 8,
+            "memory_type": "episodic",
+            "content": "data",
+            "project": 123,
+        }
+        with pytest.raises(Exception, match="must be str or None"):
+            row_to_entry(row)
+
+    def test_non_str_optional_or_none_field_raises(self) -> None:
+        """A non-str value in an optional-or-None str field (turn_id) raises MemorySchemaError.
+
+        Characterization test for _opt_str_or_none's type-check branch — previously uncovered.
+        """
+        import pytest
+
+        row = {
+            "memory_id": 9,
+            "memory_type": "episodic",
+            "content": "data",
+            "turn_id": 123,
+        }
+        with pytest.raises(Exception, match="must be str or None"):
+            row_to_entry(row)
+
     def test_sqlite_row_conversion(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row

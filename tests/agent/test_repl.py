@@ -544,6 +544,22 @@ class TestReadInputShutdownRace:
         result = await repl._read_input(loop)
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_input_coro_cancelled_directly_returns_none(self):
+        """Covers the M-7 race: _sigterm_handler() cancels _input_coro directly
+        (independent of shutdown_event), so input_coro.result() raises
+        asyncio.CancelledError rather than shutdown_coro winning the race."""
+        repl = _make_repl_for_shutdown()
+        loop = asyncio.get_event_loop()
+
+        with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
+            read_task = asyncio.ensure_future(repl._read_input(loop))
+            await asyncio.sleep(0.05)
+            assert repl._input_coro is not None
+            repl._input_coro.cancel()
+            result = await asyncio.wait_for(read_task, timeout=1.0)
+        assert result is None
+
 
 # ── AgentREPL.run() sqlite3.Error message format ──────────────────────────────
 

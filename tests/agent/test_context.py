@@ -1,8 +1,25 @@
 import asyncio
 
 import pytest
+from agent.context import AgentContext
 
 from scripts.agent.context import TurnState
+
+
+class TestServicesRequired:
+    """Characterization tests for AgentContext.services_required — previously untested."""
+
+    def test_raises_when_services_not_initialized(self) -> None:
+        ctx = AgentContext.__new__(AgentContext)
+        ctx.services = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            _ = ctx.services_required
+
+    def test_returns_services_when_set(self) -> None:
+        ctx = AgentContext.__new__(AgentContext)
+        sentinel = object()
+        ctx.services = sentinel
+        assert ctx.services_required is sentinel
 
 
 @pytest.mark.asyncio

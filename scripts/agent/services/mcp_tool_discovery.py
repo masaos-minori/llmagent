@@ -73,6 +73,28 @@ class DiscoveryResult:
     unreachable: list[str]
 
 
+def _warning_fetch_result(
+    msg: str,
+) -> tuple[list[_RawEntry], list[StartupCheckOutcome], bool]:
+    """Build a (no entries, one WARNING finding, unreachable=True) fetch result."""
+    return (
+        [],
+        [
+            StartupCheckOutcome(
+                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+            )
+        ],
+        True,
+    )
+
+
+def _warning_entry(msg: str) -> tuple[None, StartupCheckOutcome]:
+    """Build a (rejected entry, one WARNING finding) validation result."""
+    return None, StartupCheckOutcome(
+        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+    )
+
+
 class McpToolDiscoveryService:
     """Discover live MCP tools and build a `RuntimeToolRegistry`."""
 
@@ -131,53 +153,25 @@ class McpToolDiscoveryService:
                 timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT),
             )
         except (httpx.HTTPError, OSError) as e:
-            msg = f"{key} unreachable at {cfg.url}/v1/tools: {e}"
-            return (
-                [],
-                [
-                    StartupCheckOutcome(
-                        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
-                    )
-                ],
-                True,
+            return _warning_fetch_result(
+                f"{key} unreachable at {cfg.url}/v1/tools: {e}"
             )
 
         if resp.status_code != HTTPStatus.OK:
-            msg = f"{key} /v1/tools returned HTTP {resp.status_code}"
-            return (
-                [],
-                [
-                    StartupCheckOutcome(
-                        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
-                    )
-                ],
-                True,
+            return _warning_fetch_result(
+                f"{key} /v1/tools returned HTTP {resp.status_code}"
             )
 
         try:
             body: object = resp.json()
         except ValueError as e:
-            msg = f"{key}: /v1/tools response is not valid JSON: {e}"
-            return (
-                [],
-                [
-                    StartupCheckOutcome(
-                        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
-                    )
-                ],
-                True,
+            return _warning_fetch_result(
+                f"{key}: /v1/tools response is not valid JSON: {e}"
             )
 
         if not isinstance(body, dict):
-            msg = f"{key}: /v1/tools response is not a JSON object (got {type(body).__name__})"
-            return (
-                [],
-                [
-                    StartupCheckOutcome(
-                        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
-                    )
-                ],
-                True,
+            return _warning_fetch_result(
+                f"{key}: /v1/tools response is not a JSON object (got {type(body).__name__})"
             )
 
         schema_version = body.get("schema_version")
@@ -190,15 +184,8 @@ class McpToolDiscoveryService:
 
         tools = body.get("tools")
         if not isinstance(tools, list):
-            msg = f"{key}: /v1/tools 'tools' field must be a list (got {type(tools).__name__})"
-            return (
-                [],
-                [
-                    StartupCheckOutcome(
-                        source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
-                    )
-                ],
-                True,
+            return _warning_fetch_result(
+                f"{key}: /v1/tools 'tools' field must be a list (got {type(tools).__name__})"
             )
 
         entries: list[_RawEntry] = []
@@ -227,32 +214,26 @@ class McpToolDiscoveryService:
         findings, not FATAL.
         """
         if not isinstance(entry, dict):
-            msg = f"{server_key}: /v1/tools tool entry is not an object (got {type(entry).__name__})"
-            return None, StartupCheckOutcome(
-                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+            return _warning_entry(
+                f"{server_key}: /v1/tools tool entry is not an object (got {type(entry).__name__})"
             )
 
         name = entry.get("name")
         if not isinstance(name, str) or not name.strip():
-            msg = f"{server_key}: /v1/tools entry has invalid name {name!r}"
-            return None, StartupCheckOutcome(
-                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+            return _warning_entry(
+                f"{server_key}: /v1/tools entry has invalid name {name!r}"
             )
 
         description = entry.get("description")
         if not isinstance(description, str):
-            msg = f"{server_key}: tool {name!r} has invalid description {description!r}"
-            return None, StartupCheckOutcome(
-                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
+            return _warning_entry(
+                f"{server_key}: tool {name!r} has invalid description {description!r}"
             )
 
         input_schema = entry.get("inputSchema", entry.get("input_schema"))
         if not isinstance(input_schema, dict):
-            msg = (
+            return _warning_entry(
                 f"{server_key}: tool {name!r} has invalid inputSchema {input_schema!r}"
-            )
-            return None, StartupCheckOutcome(
-                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
             )
 
         for field_name, expected_type in (
@@ -263,22 +244,16 @@ class McpToolDiscoveryService:
             ("enabled", bool),
         ):
             if field_name in entry and not isinstance(entry[field_name], expected_type):
-                msg = (
+                return _warning_entry(
                     f"{server_key}: tool {name!r} has invalid {field_name} "
                     f"{entry[field_name]!r} (expected {expected_type.__name__})"
-                )
-                return None, StartupCheckOutcome(
-                    source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
                 )
 
         capabilities = entry.get("capabilities")
         if capabilities is not None and not isinstance(capabilities, list):
-            msg = (
+            return _warning_entry(
                 f"{server_key}: tool {name!r} on server {server_key!r}: "
                 "capabilities must be a list"
-            )
-            return None, StartupCheckOutcome(
-                source=_SOURCE, status=StartupCheckStatus.WARNING, message=msg
             )
 
         return entry, None

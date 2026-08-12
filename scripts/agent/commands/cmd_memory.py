@@ -147,8 +147,6 @@ class _MemoryMixin(MixinBase):
             )
             return
 
-        assert mem is not None
-
         status = build_memory_status(mem)
         assert status is not None
         if not status.embedding_enabled:

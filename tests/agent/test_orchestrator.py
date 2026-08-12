@@ -715,6 +715,103 @@ class TestHandleTurnLLMTransportError:
         )
 
 
+# ── _handle_llm_turn: optional wait/turn callbacks ───────────────────────────
+
+
+class TestHandleLlmTurnOptionalCallbacks:
+    """Characterization tests for _handle_llm_turn's optional callback invocations.
+
+    These callbacks (on_llm_wait_start/end, on_turn_start/end) previously had no
+    test coverage at all — none of the existing tests configure them.
+    """
+
+    @pytest.mark.asyncio
+    async def test_wait_and_turn_callbacks_invoked_on_success(self) -> None:
+        ctx = _make_ctx()
+        on_turn_start = MagicMock()
+        on_turn_end = MagicMock()
+        on_llm_wait_start = AsyncMock()
+        on_llm_wait_end = MagicMock()
+        orch = Orchestrator(
+            ctx,
+            on_turn_start=on_turn_start,
+            on_turn_end=on_turn_end,
+            on_llm_wait_start=on_llm_wait_start,
+            on_llm_wait_end=on_llm_wait_end,
+        )
+        orch._diagnostic_store = MagicMock()
+        ctx.diagnostics = orch._diagnostic_store
+
+        with patch.object(
+            orch._llm_runner,
+            "run",
+            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
+        ):
+            await orch.handle_turn("hello")
+
+        on_llm_wait_start.assert_called_once()
+        on_turn_start.assert_called_once()
+        on_llm_wait_end.assert_called_once()
+        on_turn_end.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_wait_end_error_and_turn_end_invoked_when_run_returns_exception(
+        self,
+    ) -> None:
+        """Covers the in-try `result.exception is not None` branch (run() caught the
+        error internally and returned it on the TurnResult), distinct from the
+        `except LLMTransportError` branch exercised by other tests in this file.
+        """
+        ctx = _make_ctx()
+        on_error = MagicMock()
+        on_turn_end = MagicMock()
+        on_llm_wait_end = MagicMock()
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+        orch = Orchestrator(
+            ctx,
+            on_error=on_error,
+            on_turn_end=on_turn_end,
+            on_llm_wait_end=on_llm_wait_end,
+        )
+        orch._diagnostic_store = MagicMock()
+        ctx.diagnostics = orch._diagnostic_store
+
+        with patch.object(
+            orch._llm_runner,
+            "run",
+            AsyncMock(
+                return_value=TurnResult(
+                    action="fail",
+                    answer="",
+                    exception=err,
+                    persist_as_assistant=False,
+                )
+            ),
+        ):
+            await orch.handle_turn("hello")
+
+        on_error.assert_called_once_with(err)
+        on_llm_wait_end.assert_called_once()
+        on_turn_end.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_wait_end_invoked_in_except_branch(self) -> None:
+        """Covers the `except LLMTransportError` branch's on_llm_wait_end call,
+        reached when run() itself raises (rather than returning a TurnResult
+        with exception set)."""
+        ctx = _make_ctx()
+        on_llm_wait_end = MagicMock()
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+        orch = Orchestrator(ctx, on_llm_wait_end=on_llm_wait_end)
+        orch._diagnostic_store = MagicMock()
+        ctx.diagnostics = orch._diagnostic_store
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        on_llm_wait_end.assert_called_once()
+
+
 # ── _run_turn: tool-continuation LLMTransportError ───────────────────────────
 
 

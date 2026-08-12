@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
+from agent.commands.output_port import OutputPort
+from agent.context import AgentContext
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.session_title import SessionTitleService
 
@@ -17,7 +18,7 @@ SESSION_TITLE_TRUNCATE_AT = SESSION_TITLE_MAX_CHARS - 3
 class SessionTitleGen:
     """Handles session title generation (LLM-based with fallback)."""
 
-    def __init__(self, ctx: Any, out: Any) -> None:
+    def __init__(self, ctx: AgentContext, out: OutputPort) -> None:
         """Initialize the session title generator with context and output port."""
         self._ctx = ctx
         self._out = out

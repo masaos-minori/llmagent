@@ -12,7 +12,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.workflow.approval_ops import (
@@ -22,6 +23,9 @@ from agent.workflow.approval_ops import (
 )
 from agent.workflow.models import ApprovalRecord
 from agent.workflow.task_ops import update_task_status
+
+if TYPE_CHECKING:
+    from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +84,19 @@ class _WorkflowMixin(MixinBase):
             )
         )
 
-    def _cmd_approve(self, arg: str) -> None:
-        """Approve the pending workflow-level approval gate (approvals table only).
+    def _resolve_pending_approval(
+        self,
+        arg: str,
+        decision: str,
+        usage: str,
+        after_resolve: Callable[[SQLiteHelper, ApprovalRecord], None] | None = None,
+    ) -> ApprovalRecord | None:
+        """Validate arg, resolve the matching approval gate to `decision`, emit audit.
 
-        Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
-        After approval, the workflow engine will auto-resume on the next turn.
+        Returns the resolved ApprovalRecord, or None when validation/resolution
+        failed (a validation-error message has already been written in that case).
+        `after_resolve`, when given, runs after resolve_approval() and before the
+        audit emission, while the store connection is still open.
         """
         from agent.workflow import (
             StateStore,  # lazy: avoids startup cost
@@ -95,31 +107,46 @@ class _WorkflowMixin(MixinBase):
             explicit_id, reason = _parse_approval_arg(arg)
 
             if explicit_id is None:
-                self._out.write_validation_error(
-                    "Approval ID required. Use: /approve <approval_id> [reason]"
-                )
-                return
+                self._out.write_validation_error(usage)
+                return None
 
             count = count_pending_approvals(store._db)
             if count == 0:
                 self._out.write_validation_error("No pending approval.")
-                return
+                return None
 
             approval = find_approval_by_id(store._db, explicit_id)
             if approval is None or approval.status != "pending":
                 self._out.write_validation_error(
                     f"Approval {explicit_id!r} not found or not pending."
                 )
-                return
-            task_id = approval.task_id
+                return None
 
-            resolve_approval(store._db, approval.approval_id, "approved", reason)
-            self._emit_approval_audit(approval, "approved", reason)
+            resolve_approval(store._db, approval.approval_id, decision, reason)
+            if after_resolve is not None:
+                after_resolve(store._db, approval)
+            self._emit_approval_audit(approval, decision, reason)
+            return approval
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
-            return
+            return None
         finally:
             store.close()
+
+    def _cmd_approve(self, arg: str) -> None:
+        """Approve the pending workflow-level approval gate (approvals table only).
+
+        Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
+        After approval, the workflow engine will auto-resume on the next turn.
+        """
+        approval = self._resolve_pending_approval(
+            arg,
+            "approved",
+            "Approval ID required. Use: /approve <approval_id> [reason]",
+        )
+        if approval is None:
+            return
+        task_id = approval.task_id
 
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
@@ -142,41 +169,16 @@ class _WorkflowMixin(MixinBase):
         halts on a rejected-status approval record as a defensive fallback for
         resume paths that don't go through this command.
         """
-        from agent.workflow import (
-            StateStore,  # lazy: avoids startup cost
+        approval = self._resolve_pending_approval(
+            arg,
+            "rejected",
+            "Approval ID required. Use: /reject <approval_id> [reason]",
+            after_resolve=lambda db, appr: update_task_status(
+                db, appr.task_id, "halted"
+            ),
         )
-
-        store = StateStore()
-        try:
-            explicit_id, reason = _parse_approval_arg(arg)
-
-            if explicit_id is None:
-                self._out.write_validation_error(
-                    "Approval ID required. Use: /reject <approval_id> [reason]"
-                )
-                return
-
-            count = count_pending_approvals(store._db)
-            if count == 0:
-                self._out.write_validation_error("No pending approval.")
-                return
-
-            approval = find_approval_by_id(store._db, explicit_id)
-            if approval is None or approval.status != "pending":
-                self._out.write_validation_error(
-                    f"Approval {explicit_id!r} not found or not pending."
-                )
-                return
-            task_id = approval.task_id
-
-            resolve_approval(store._db, approval.approval_id, "rejected", reason)
-            update_task_status(store._db, task_id, "halted")
-            self._emit_approval_audit(approval, "rejected", reason)
-        except RuntimeError as exc:
-            self._out.write_validation_error(f"Failed to resolve approval: {exc}")
+        if approval is None:
             return
-        finally:
-            store.close()
 
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False

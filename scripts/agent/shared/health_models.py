@@ -94,25 +94,28 @@ class StartupValidationResult:
 
     def add_fatal(self, source: str, message: str, remediation: str = "") -> None:
         """Add a fatal outcome to the validation result."""
-        self.outcomes.append(
-            StartupCheckOutcome(source, StartupCheckStatus.FATAL, message, remediation)
-        )
+        self._add(source, StartupCheckStatus.FATAL, message, remediation)
 
     def add_warning(self, source: str, message: str) -> None:
         """Add a warning outcome to the validation result."""
-        self.outcomes.append(
-            StartupCheckOutcome(source, StartupCheckStatus.WARNING, message)
-        )
+        self._add(source, StartupCheckStatus.WARNING, message)
 
     def add_ok(self, source: str) -> None:
         """Add an OK outcome to the validation result."""
-        self.outcomes.append(StartupCheckOutcome(source, StartupCheckStatus.OK))
+        self._add(source, StartupCheckStatus.OK)
 
     def add_skipped(self, source: str, message: str = "") -> None:
         """Add a skipped outcome to the validation result."""
-        self.outcomes.append(
-            StartupCheckOutcome(source, StartupCheckStatus.SKIPPED, message)
-        )
+        self._add(source, StartupCheckStatus.SKIPPED, message)
+
+    def _add(
+        self,
+        source: str,
+        status: StartupCheckStatus,
+        message: str = "",
+        remediation: str = "",
+    ) -> None:
+        self.outcomes.append(StartupCheckOutcome(source, status, message, remediation))
 
     @property
     def has_fatal(self) -> bool:
