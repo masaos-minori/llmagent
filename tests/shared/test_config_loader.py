@@ -155,12 +155,15 @@ class TestExtensionResolution:
         result = loader.load("test.json")
         assert result["section"]["foo"] == 1
 
-    def test_missing_json_extension_appended(self, tmp_path: Path) -> None:
-        """Missing .json extension defaults to .toml."""
+    def test_explicit_json_name_does_not_fall_back_to_toml(
+        self, tmp_path: Path
+    ) -> None:
+        """An explicit .json name is resolved as-is; it is not substituted with a
+        same-stem .toml file, even if one exists."""
         (tmp_path / "test.toml").write_text("[section]\nfoo = 1\n")
         loader = ConfigLoader(config_dir=tmp_path)
-        result = loader.load("test.json")
-        assert result["section"]["foo"] == 1
+        with pytest.raises(ConfigMissingError, match="Config file not found"):
+            loader.load("test.json")
 
 
 class TestGlobalStateCleanup:
