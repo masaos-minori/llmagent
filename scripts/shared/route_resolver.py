@@ -15,7 +15,7 @@ Live /v1/tools discovery is used for startup validation only, not routing.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -124,7 +124,7 @@ class ToolRouteResolver:
         """Replace the RuntimeToolRegistry consulted by resolve(), in place."""
         self._runtime_registry = registry
 
-    def _raise_strict_error(self, tool_name: str) -> None:
+    def _raise_strict_error(self, tool_name: str) -> NoReturn:
         """Raise ValueError when strict_mode is enabled and no mapping found."""
         raise ValueError(
             f"ToolRouteResolver: tool {tool_name!r} not found in RuntimeToolRegistry "

@@ -99,6 +99,48 @@ class TestResolveRetryable:
         assert LlmReconnectHandler.resolve_retryable(e, False, False) is True
 
 
+# ── _evaluate_stream_error ────────────────────────────────────────────────────
+
+
+class TestEvaluateStreamError:
+    def test_heartbeat_timeout_increments_count_and_sets_stat(self) -> None:
+        e = LLMTransportError(
+            "HEARTBEAT_TIMEOUT", "in_stream", "http://example.com", retryable=False
+        )
+        should_retry, count = LlmReconnectHandler._evaluate_stream_error(
+            e, [], {}, True, False, 0
+        )
+        assert should_retry is True
+        assert count == 1
+        assert e.stat_heartbeat_timeouts == 1
+
+    def test_heartbeat_timeout_count_accumulates_across_calls(self) -> None:
+        e = LLMTransportError("HEARTBEAT_TIMEOUT", "in_stream", "http://example.com")
+        _, count = LlmReconnectHandler._evaluate_stream_error(e, [], {}, True, False, 2)
+        assert count == 3
+        assert e.stat_heartbeat_timeouts == 3
+
+    def test_has_partial_content_blocks_retry_even_if_retryable(self) -> None:
+        e = LLMTransportError(
+            "CONNECT_ERROR", "pre_stream", "http://example.com", retryable=True
+        )
+        should_retry, count = LlmReconnectHandler._evaluate_stream_error(
+            e, ["partial"], {}, True, True, 0
+        )
+        assert should_retry is False
+        assert count == 0
+
+    def test_non_retryable_blocks_retry(self) -> None:
+        e = LLMTransportError(
+            "CONNECT_ERROR", "pre_stream", "http://example.com", retryable=False
+        )
+        should_retry, count = LlmReconnectHandler._evaluate_stream_error(
+            e, [], {}, True, True, 0
+        )
+        assert should_retry is False
+        assert count == 0
+
+
 # ── stream (reconnect logic) ─────────────────────────────────────────────────
 
 

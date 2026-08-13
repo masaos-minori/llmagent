@@ -122,6 +122,11 @@ async def _fetch_token_count(
     )
     resp.raise_for_status()
     data = parse_http_json(resp)
+    return _extract_n_tokens(data)
+
+
+def _extract_n_tokens(data: dict[str, object]) -> int:
+    """Extract the token count from a decoded /tokenize response payload."""
     n_tokens_raw = data.get("n_tokens")
     tokens_raw = data.get("tokens")
     if isinstance(n_tokens_raw, int) and n_tokens_raw > 0:

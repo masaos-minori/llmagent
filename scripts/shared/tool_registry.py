@@ -54,6 +54,21 @@ class ToolDefinition:
     )  # reserved for future use; not populated today
 
 
+def _diff_messages(
+    subject_tools: set[str],
+    other_tools: set[str],
+    server_key: str,
+    subject_label: str,
+    other_label: str,
+) -> list[str]:
+    """Build mismatch messages for tools in `subject_tools` but absent from `other_tools`."""
+    missing = subject_tools - other_tools
+    return [
+        f"[{server_key}] tool {t!r} in {subject_label} but not in {other_label}"
+        for t in sorted(missing)
+    ]
+
+
 class ToolRegistry:
     """Central registry of MCP tools. Single source of truth for tool ownership."""
 
@@ -105,20 +120,12 @@ class ToolRegistry:
         config_set = set(config_tool_names)
 
         mismatches: list[str] = []
-        in_config_not_registry = config_set - registry_tools
-        if in_config_not_registry:
-            mismatches.extend(
-                f"[{server_key}] tool {t!r} in config but not in registry"
-                for t in sorted(in_config_not_registry)
-            )
-
-        in_registry_not_config = registry_tools - config_set
-        if in_registry_not_config:
-            mismatches.extend(
-                f"[{server_key}] tool {t!r} in registry but not in config"
-                for t in sorted(in_registry_not_config)
-            )
-
+        mismatches.extend(
+            _diff_messages(config_set, registry_tools, server_key, "config", "registry")
+        )
+        mismatches.extend(
+            _diff_messages(registry_tools, config_set, server_key, "registry", "config")
+        )
         return mismatches
 
     def validate_live_tools_match(
@@ -150,12 +157,11 @@ class ToolRegistry:
                         f"[{server_key}] tool {t!r} is registered to server '{owner}', not '{server_key}'"
                     )
 
-        in_registry_not_live = registry_tools - live_set
-        if in_registry_not_live:
-            mismatches.extend(
-                f"[{server_key}] tool {t!r} in registry but not in live response"
-                for t in sorted(in_registry_not_live)
+        mismatches.extend(
+            _diff_messages(
+                registry_tools, live_set, server_key, "registry", "live response"
             )
+        )
 
         return mismatches
 
@@ -194,17 +200,21 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
         WRITE_TOOLS,
     )
 
-    # Register each tool set with its server key.
-    _register_set(registry, READ_TOOLS, "file_read")
-    _register_set(registry, WRITE_TOOLS, "file_write")
-    _register_set(registry, DELETE_TOOLS, "file_delete")
-    _register_set(registry, RAG_TOOLS, "rag_pipeline")
-    _register_set(registry, CICD_TOOLS, "cicd")
-    _register_set(registry, MDQ_TOOLS, "mdq")
-    _register_set(registry, GIT_TOOLS, "git")
-    _register_set(registry, SHELL_TOOLS, "shell")
-    _register_set(registry, GITHUB_TOOLS, "github")
-    _register_set(registry, WEB_SEARCH_TOOLS, "web_search")
+    # Register each tool set with its server key, in the same order as before.
+    tool_sets_by_server: tuple[tuple[frozenset[str], str], ...] = (
+        (READ_TOOLS, "file_read"),
+        (WRITE_TOOLS, "file_write"),
+        (DELETE_TOOLS, "file_delete"),
+        (RAG_TOOLS, "rag_pipeline"),
+        (CICD_TOOLS, "cicd"),
+        (MDQ_TOOLS, "mdq"),
+        (GIT_TOOLS, "git"),
+        (SHELL_TOOLS, "shell"),
+        (GITHUB_TOOLS, "github"),
+        (WEB_SEARCH_TOOLS, "web_search"),
+    )
+    for tool_names, server_key in tool_sets_by_server:
+        _register_set(registry, tool_names, server_key)
 
 
 def _register_set(

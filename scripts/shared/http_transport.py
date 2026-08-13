@@ -2,6 +2,7 @@
 """scripts/shared/http_transport.py — HTTP MCP transport implementation."""
 
 import asyncio
+import dataclasses
 import logging
 from typing import Any
 
@@ -124,14 +125,7 @@ class HttpTransport:
                     continue
                 resp.raise_for_status()
                 parsed = self._parse_http_response(resp)
-                return ToolCallResult(
-                    output=parsed.output,
-                    is_error=parsed.is_error,
-                    request_id=parsed.request_id,
-                    server_key=self._server_key,
-                    source="mcp",
-                    error_type=parsed.error_type,
-                )
+                return dataclasses.replace(parsed, server_key=self._server_key)
             except httpx.TimeoutException as e:
                 last_exc = self._transport_error(
                     name, "[TimeoutException]", str(e), break_flag=True

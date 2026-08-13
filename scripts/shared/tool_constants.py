@@ -172,7 +172,7 @@ def get_all_mcp_tool_names() -> frozenset[str]:
     This is the source of truth for the full set of MCP tool names,
     used to verify tool-name coverage and detect naming conflicts.
     """
-    return frozenset(
+    return (
         READ_TOOLS
         | WRITE_TOOLS
         | DELETE_TOOLS
@@ -182,5 +182,5 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | GIT_TOOLS
         | SHELL_TOOLS
         | WEB_SEARCH_TOOLS
-        | GITHUB_TOOLS,
+        | GITHUB_TOOLS
     )

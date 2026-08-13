@@ -9,13 +9,29 @@ Verifies:
   - Multiple build_tracer() calls do NOT modify the global trace provider (R10)
   - _NoOpTracer.start_as_current_span() works as a context manager
   - _NoOpSpan.set_attribute() accepts calls without raising
+  - build_tracer(enabled=True, otlp_endpoint=<set>) attaches an OTLP exporter
+  - Fallback paths (SDK unavailable, OTLP exporter unavailable) return/attach
+    the NoOp tracer / ConsoleSpanExporter respectively, with a warning logged
+  - _import_sdk()/_import_otlp() return None on ImportError
+  - _ConsoleProcessor delegates shutdown()/force_flush() to the wrapped processor
 """
 
 from __future__ import annotations
 
+import logging
+import sys
+from typing import Any
+
+import pytest
 from shared.otel_noop import NoOpSpan as _NoOpSpan
 from shared.otel_noop import NoOpTracer as _NoOpTracer
-from shared.otel_tracer import build_tracer
+from shared.otel_tracer import (
+    _attach_otlp_exporter,
+    _ConsoleProcessor,
+    _import_otlp,
+    _import_sdk,
+    build_tracer,
+)
 
 # ── build_tracer(enabled=False) ───────────────────────────────────────────────
 
@@ -96,3 +112,77 @@ class TestGlobalProviderIsolation:
         global_provider_before = trace.get_tracer_provider()
         build_tracer(enabled=False)
         assert trace.get_tracer_provider() is global_provider_before
+
+
+# ── SDK/OTLP unavailable fallback paths ───────────────────────────────────────
+
+
+class TestImportSdkFallback:
+    def test_import_sdk_returns_none_on_import_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(sys.modules, "opentelemetry.sdk.resources", None)
+        assert _import_sdk() is None
+
+    def test_build_tracer_falls_back_to_noop_when_sdk_unavailable(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr("shared.otel_tracer._import_sdk", lambda: None)
+        with caplog.at_level(logging.WARNING, logger="shared.otel_tracer"):
+            tracer = build_tracer(enabled=True)
+        assert isinstance(tracer, _NoOpTracer)
+        assert "opentelemetry-sdk not installed" in caplog.text
+
+
+class TestImportOtlpFallback:
+    def test_import_otlp_returns_none_on_import_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(
+            sys.modules,
+            "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+            None,
+        )
+        assert _import_otlp() is None
+
+
+class _FakeProvider:
+    """Records add_span_processor() calls without requiring a real TracerProvider."""
+
+    def __init__(self) -> None:
+        self.processors: list[Any] = []
+
+    def add_span_processor(self, processor: Any) -> None:
+        self.processors.append(processor)
+
+
+class TestAttachOtlpExporter:
+    def test_attaches_otlp_processor_when_available(self) -> None:
+        provider = _FakeProvider()
+        _attach_otlp_exporter(provider, "http://localhost:4318", "svc")
+        assert len(provider.processors) == 1
+
+    def test_falls_back_to_console_when_otlp_unavailable(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr("shared.otel_tracer._import_otlp", lambda: None)
+        provider = _FakeProvider()
+        with caplog.at_level(logging.WARNING, logger="shared.otel_tracer"):
+            _attach_otlp_exporter(provider, "http://localhost:4318", "svc")
+        assert len(provider.processors) == 1
+        assert isinstance(provider.processors[0], _ConsoleProcessor)
+        assert "opentelemetry-exporter-otlp not installed" in caplog.text
+
+    def test_build_tracer_with_otlp_endpoint_returns_non_noop_tracer(self) -> None:
+        tracer = build_tracer(
+            enabled=True, service_name="svc", otlp_endpoint="http://localhost:4318"
+        )
+        assert not isinstance(tracer, _NoOpTracer)
+
+
+class TestConsoleProcessorDelegation:
+    def test_shutdown_and_force_flush_delegate_without_raising(self) -> None:
+        processor = _ConsoleProcessor()
+        processor.shutdown()
+        result = processor.force_flush()
+        assert isinstance(result, bool)

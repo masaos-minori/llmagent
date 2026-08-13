@@ -22,6 +22,11 @@ from typing import Any, Literal
 AgentSafetyTier = Literal["READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"]
 
 
+def _or_default[T](value: T | None, default: T) -> T:
+    """Return *value* unless it is `None`, in which case return *default*."""
+    return value if value is not None else default
+
+
 @dataclass(frozen=True)
 class RuntimeTool:
     """Normalized runtime metadata for a single tool.
@@ -93,23 +98,20 @@ def build_runtime_tool(
         - `allow_extra_fields` defaults to False — extra/unschemad fields are rejected
           unless a tool explicitly opts in.
     """
-    resolved_input_schema = input_schema if input_schema is not None else {}
-    resolved_raw_definition = raw_definition if raw_definition is not None else {}
-    resolved_is_write = is_write if is_write is not None else False
-    resolved_requires_serial = (
-        requires_serial if requires_serial is not None else is_write is None
-    )
+    resolved_input_schema = _or_default(input_schema, {})
+    resolved_raw_definition = _or_default(raw_definition, {})
+    resolved_is_write = _or_default(is_write, False)
+    resolved_requires_serial = _or_default(requires_serial, is_write is None)
+    # Kept as an explicit ternary (not routed through `_or_default`): pyright widens a
+    # `Literal[...]`-typed TypeVar argument to `str`, which would break the
+    # `AgentSafetyTier` return type below even though mypy accepts it.
     resolved_agent_safety_tier = (
         agent_safety_tier if agent_safety_tier is not None else "WRITE_DANGEROUS"
     )
-    resolved_requires_approval = (
-        requires_approval if requires_approval is not None else True
-    )
-    resolved_enabled_for_llm = enabled_for_llm if enabled_for_llm is not None else False
-    resolved_capabilities = capabilities if capabilities is not None else ()
-    resolved_allow_extra_fields = (
-        allow_extra_fields if allow_extra_fields is not None else False
-    )
+    resolved_requires_approval = _or_default(requires_approval, True)
+    resolved_enabled_for_llm = _or_default(enabled_for_llm, False)
+    resolved_capabilities = _or_default(capabilities, ())
+    resolved_allow_extra_fields = _or_default(allow_extra_fields, False)
 
     return RuntimeTool(
         name=name,

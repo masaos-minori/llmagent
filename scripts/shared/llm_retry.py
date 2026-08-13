@@ -9,6 +9,19 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 503})
+
+
+def _is_transient_http_error(exc: httpx.HTTPStatusError) -> bool:
+    """Return True if the HTTP status error is transient and worth retrying."""
+    return exc.response.status_code in _TRANSIENT_HTTP_STATUS_CODES
+
+
+def _backoff_delay(retry_base_delay: float, attempt: int) -> float:
+    """Compute the exponential backoff delay for a zero-indexed attempt."""
+    growth: int = 2**attempt
+    return retry_base_delay * growth
+
 
 class LlmRetryHandler:
     """Exponential-backoff retry for LLM HTTP requests."""
@@ -30,14 +43,14 @@ class LlmRetryHandler:
                 return resp
             except httpx.HTTPStatusError as e:
                 # Re-raise immediately for non-transient HTTP errors
-                if e.response.status_code not in (429, 503):
+                if not _is_transient_http_error(e):
                     raise
                 last_exc = e
             except httpx.RequestError as e:
                 # Connection resets and other network errors are transient
                 last_exc = e
             if attempt < max_retries - 1:
-                delay = retry_base_delay * (2**attempt)
+                delay = _backoff_delay(retry_base_delay, attempt)
                 logger.warning(
                     "LLM request failed (attempt %d/%d): %s, retrying in %.1fs",
                     attempt + 1,

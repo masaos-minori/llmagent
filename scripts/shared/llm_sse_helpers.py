@@ -89,7 +89,7 @@ class LlmSseHelpers:
         for raw_payload in payloads:
             try:
                 chunk = orjson.loads(raw_payload)
-            except (orjson.JSONDecodeError, ValueError):
+            except ValueError:  # orjson.JSONDecodeError is a ValueError subclass
                 continue
             reason = LlmSseHelpers.process_sse_chunk(
                 chunk, content_parts, tool_calls_map, on_token

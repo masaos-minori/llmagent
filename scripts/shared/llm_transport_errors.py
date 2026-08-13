@@ -5,6 +5,10 @@ import httpx
 
 from shared.llm_exceptions import LLMTransportError
 
+# HTTP status codes treated as transient (safe to retry): 429 Too Many Requests,
+# 503 Service Unavailable.
+_RETRYABLE_HTTP_STATUS_CODES = (429, 503)
+
 
 class LlmTransportErrorHandler:
     """Static methods for translating HTTP/stream errors into LLMTransportError."""
@@ -13,7 +17,7 @@ class LlmTransportErrorHandler:
     def raise_http_status_error(e: httpx.HTTPStatusError, url: str) -> None:
         """Convert an httpx HTTP status error into LLMTransportError and raise it."""
         code = e.response.status_code
-        retryable = code in (429, 503)
+        retryable = code in _RETRYABLE_HTTP_STATUS_CODES
         raise LLMTransportError(
             kind="HTTP_STATUS_RETRYABLE" if retryable else "HTTP_STATUS_FATAL",
             phase="pre_stream",
@@ -26,7 +30,7 @@ class LlmTransportErrorHandler:
     def translate_stream_error(e: Exception, url: str) -> LLMTransportError:
         """Translate a stream-level exception into LLMTransportError.
 
-        HTTP status errors are handled separately in _raise_http_status_error.
+        HTTP status errors are handled separately in raise_http_status_error.
         """
         if isinstance(e, httpx.ConnectError):
             return LLMTransportError(

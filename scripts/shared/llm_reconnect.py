@@ -32,8 +32,36 @@ class LlmReconnectHandler:
             return heartbeat_timeout_retry
         if e.kind == "MALFORMED_SSE_FRAME":
             return malformed_chunk_retry
-        retryable: bool = e.retryable
-        return retryable
+        return e.retryable
+
+    @staticmethod
+    def _evaluate_stream_error(
+        e: LLMTransportError,
+        content_parts: list[str],
+        tool_calls_map: dict[int, AccumulatedToolCall],
+        heartbeat_timeout_retry: bool,
+        malformed_chunk_retry: bool,
+        heartbeat_timeout_count: int,
+    ) -> tuple[bool, int]:
+        """Evaluate a stream error: update heartbeat-timeout count, decide whether to retry.
+
+        Returns (should_retry, updated_heartbeat_timeout_count). Mutates
+        `e.stat_heartbeat_timeouts` for HEARTBEAT_TIMEOUT errors so the count is visible on
+        the exception if it is re-raised.
+        """
+        has_partial = (
+            bool(content_parts) or bool(tool_calls_map) or bool(e.partial_text)
+        )
+        effective_retryable = LlmReconnectHandler.resolve_retryable(
+            e,
+            heartbeat_timeout_retry,
+            malformed_chunk_retry,
+        )
+        if e.kind == "HEARTBEAT_TIMEOUT":
+            heartbeat_timeout_count += 1
+            e.stat_heartbeat_timeouts = heartbeat_timeout_count
+        should_retry = not has_partial and effective_retryable
+        return should_retry, heartbeat_timeout_count
 
     @staticmethod
     async def stream(
@@ -83,18 +111,17 @@ class LlmReconnectHandler:
                 parse_errors += attempt_parse_errors
                 break  # success
             except LLMTransportError as e:
-                has_partial = (
-                    bool(content_parts) or bool(tool_calls_map) or bool(e.partial_text)
+                should_retry, heartbeat_timeout_count = (
+                    LlmReconnectHandler._evaluate_stream_error(
+                        e,
+                        content_parts,
+                        tool_calls_map,
+                        llm_stream_retry_on_heartbeat_timeout,
+                        llm_stream_retry_on_malformed_chunk,
+                        heartbeat_timeout_count,
+                    )
                 )
-                effective_retryable = LlmReconnectHandler.resolve_retryable(
-                    e,
-                    llm_stream_retry_on_heartbeat_timeout,
-                    llm_stream_retry_on_malformed_chunk,
-                )
-                if e.kind == "HEARTBEAT_TIMEOUT":
-                    heartbeat_timeout_count += 1
-                    e.stat_heartbeat_timeouts = heartbeat_timeout_count
-                if has_partial or not effective_retryable:
+                if not should_retry:
                     raise
                 if attempt >= reconnect_max:
                     raise

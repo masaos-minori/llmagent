@@ -82,7 +82,6 @@ class LLMClient:
         self.stat_retries: int = 0
         self.stat_reconnects: int = 0
         self.stat_heartbeat_timeouts: int = 0
-        self._heartbeat_timeout_counter: int = 0
 
         self.stat_parse_errors: int = 0
         self.stat_partial_completions: int = 0
@@ -123,7 +122,7 @@ class LLMClient:
     ) -> httpx.Response:
         """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
         try:
-            response: httpx.Response = await LlmRetryHandler.request_with_retry(
+            return await LlmRetryHandler.request_with_retry(
                 self._http,
                 url,
                 payload,
@@ -133,7 +132,6 @@ class LLMClient:
         except (httpx.HTTPStatusError, httpx.RequestError):
             self.stat_retries += 1
             raise
-        return response
 
     # ── Payload construction ──────────────────────────────────────────────────
 
@@ -144,18 +142,13 @@ class LLMClient:
         stream: bool = False,
     ) -> dict[str, Any]:
         """Build the request payload for a chat completion request."""
-        payload: dict[str, Any] = LlmPayloadHandler.build_payload(
+        return LlmPayloadHandler.build_payload(
             history,
             tool_defs,
             self._temperature,
             self._max_tokens,
             stream,
         )
-        return payload
-
-    def _parse_response(self, raw: dict[str, Any]) -> LLMResponse:
-        """Validate and parse raw LLM JSON into LLMResponse DTO; raises ValueError on schema mismatch."""
-        return LlmPayloadHandler.parse_response(raw, self._on_usage)
 
     # ── Non-streaming call ────────────────────────────────────────────────────
 

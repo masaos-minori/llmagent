@@ -20,6 +20,8 @@ import sys
 from contextvars import ContextVar
 from typing import Any
 
+from shared.json_utils import dumps as _json_dumps
+
 _fallback_logger = logging.getLogger("shared.logger.fallback")
 if not _fallback_logger.handlers:
     _fallback_logger.addHandler(logging.StreamHandler(sys.stderr))
@@ -78,8 +80,6 @@ class _JsonFormatter(logging.Formatter):
                 entry[key] = val
         if record.exc_info:
             entry["exc"] = self.formatException(record.exc_info)
-        from shared.json_utils import dumps as _json_dumps
-
         formatted: str = _json_dumps(entry)
         return formatted
 

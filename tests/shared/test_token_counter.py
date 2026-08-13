@@ -14,6 +14,7 @@ import orjson
 import pytest
 from shared.token_counter import (
     _estimate_chars,
+    _extract_n_tokens,
     _serialise_for_tokenize,
     _WarnOnce,
     get_token_count,
@@ -84,6 +85,26 @@ def test_serialise_skips_empty_content() -> None:
     assert "assistant:" not in result
     # _serialise_for_tokenize uses _json_dumps (OPT_SORT_KEYS); match same encoding
     assert _json_dumps(tc) in result
+
+
+# ── _extract_n_tokens ──────────────────────────────────────────────────────────
+
+
+def test_extract_n_tokens_prefers_n_tokens_field() -> None:
+    assert _extract_n_tokens({"n_tokens": 7, "tokens": [1, 2, 3]}) == 7
+
+
+def test_extract_n_tokens_falls_back_to_tokens_list() -> None:
+    assert _extract_n_tokens({"tokens": [1, 2, 3, 4]}) == 4
+
+
+def test_extract_n_tokens_zero_with_tokens_list_uses_list_length() -> None:
+    assert _extract_n_tokens({"n_tokens": 0, "tokens": [1, 2]}) == 2
+
+
+def test_extract_n_tokens_returns_zero_when_neither_field_usable() -> None:
+    assert _extract_n_tokens({}) == 0
+    assert _extract_n_tokens({"n_tokens": 0, "tokens": "not-a-list"}) == 0
 
 
 # ── get_token_count — tokenize_url="" (disabled) ───────────────────────────────
@@ -159,6 +180,17 @@ async def test_n_tokens_zero_falls_back() -> None:
     assert is_exact is False
 
 
+@pytest.mark.asyncio
+async def test_response_missing_both_fields_falls_back() -> None:
+    """Neither n_tokens nor tokens present -> _fetch_token_count returns 0, falls back."""
+
+    http = _make_http(body={})
+    msgs = _history(("user", "abcd"))  # 4 chars -> 1 token
+    count, is_exact = await get_token_count(msgs, "http://host/tokenize", http)
+    assert count == 1
+    assert is_exact is False
+
+
 # ── get_token_count — warn-once behaviour ─────────────────────────────────────
 
 
@@ -177,6 +209,40 @@ async def test_warn_only_once_on_repeated_failure(
         await get_token_count(msgs, "http://host/tokenize", http, warn_once=warn_once)
     warnings = [r for r in caplog.records if "unavailable" in r.message]
     assert len(warnings) == 1
+
+
+@pytest.mark.asyncio
+async def test_warn_once_resets_after_subsequent_success(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A successful call after a failure resets warn_once so the next failure warns again."""
+    import logging
+
+    http = AsyncMock(spec=httpx.AsyncClient)
+    msgs = _history(("user", "x" * 8))
+    warn_once = _WarnOnce()
+
+    with caplog.at_level(logging.WARNING, logger="shared.token_counter"):
+        http.post.side_effect = httpx.ConnectError("refused")
+        await get_token_count(msgs, "http://host/tokenize", http, warn_once=warn_once)
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.content = orjson.dumps({"n_tokens": 5})
+        success_response.raise_for_status.return_value = None
+        http.post.side_effect = None
+        http.post.return_value = success_response
+        count, is_exact = await get_token_count(
+            msgs, "http://host/tokenize", http, warn_once=warn_once
+        )
+        assert count == 5
+        assert is_exact is True
+
+        http.post.side_effect = httpx.ConnectError("refused")
+        await get_token_count(msgs, "http://host/tokenize", http, warn_once=warn_once)
+
+    warnings = [r for r in caplog.records if "unavailable" in r.message]
+    assert len(warnings) == 2
 
 
 # ── _estimate_tokens ───────────────────────────────────────────────────────────

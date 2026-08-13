@@ -9,7 +9,14 @@ Dependency direction: shared -> external only.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import ClassVar
+
+
+def _check_min(name: str, value: float, minimum: float) -> None:
+    """Raise ValueError if value is below minimum, using the shared message shape."""
+    if value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}, got {value}")
 
 
 @dataclass(frozen=True)
@@ -35,18 +42,10 @@ class ShellPolicy:
     env_allowlist: tuple[str, ...]
     env_denylist: tuple[str, ...]
 
-    _VALID_KILL_POLICIES: frozenset[str] = field(
-        default=frozenset({"sigterm_then_sigkill", "sigkill_only"}),
-        init=False,
-        repr=False,
-        compare=False,
+    _VALID_KILL_POLICIES: ClassVar[frozenset[str]] = frozenset(
+        {"sigterm_then_sigkill", "sigkill_only"}
     )
-    _VALID_SANDBOX_BACKENDS: frozenset[str] = field(
-        default=frozenset({"firejail", "none"}),
-        init=False,
-        repr=False,
-        compare=False,
-    )
+    _VALID_SANDBOX_BACKENDS: ClassVar[frozenset[str]] = frozenset({"firejail", "none"})
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
@@ -58,11 +57,7 @@ class ShellPolicy:
             raise ValueError(
                 f"sandbox_backend must be one of {sorted(self._VALID_SANDBOX_BACKENDS)!r}, got {self.sandbox_backend!r}"
             )
-        if self.timeout_sec < 1:
-            raise ValueError(f"timeout_sec must be >= 1, got {self.timeout_sec}")
-        if self.max_output_kb < 1:
-            raise ValueError(f"max_output_kb must be >= 1, got {self.max_output_kb}")
-        if self.max_memory_mb < 1:
-            raise ValueError(f"max_memory_mb must be >= 1, got {self.max_memory_mb}")
-        if self.kill_grace_sec < 0:
-            raise ValueError(f"kill_grace_sec must be >= 0, got {self.kill_grace_sec}")
+        _check_min("timeout_sec", self.timeout_sec, 1)
+        _check_min("max_output_kb", self.max_output_kb, 1)
+        _check_min("max_memory_mb", self.max_memory_mb, 1)
+        _check_min("kill_grace_sec", self.kill_grace_sec, 0)

@@ -43,7 +43,7 @@ def get_repo_info(path: str = ".") -> RepoInfoResult:
     try:
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
-        branch = head.ref.name if not repo.head.is_detached else "HEAD (detached)"
+        branch = head.ref.name if not head.is_detached else "HEAD (detached)"
         return RepoInfoResult(
             success=True,
             data={

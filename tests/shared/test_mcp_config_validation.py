@@ -187,3 +187,41 @@ def test_env_denylisted_key_ld_library_path_raises():
 def test_env_denylisted_key_pythonpath_raises():
     with pytest.raises(ValueError, match="denylisted"):
         _http_cfg(env={"PYTHONPATH": "/tmp/evil"})
+
+
+# --- new: startup_stagger_delay_sec / stderr log rotation checks ---
+
+
+def test_startup_stagger_delay_negative_raises():
+    with pytest.raises(ValueError, match="startup_stagger_delay_sec"):
+        _http_cfg(startup_stagger_delay_sec=-1.0)
+
+
+def test_startup_stagger_delay_zero_is_valid():
+    cfg = _http_cfg(startup_stagger_delay_sec=0.0)
+    assert cfg.startup_stagger_delay_sec == 0.0
+
+
+def test_max_stderr_log_size_mb_zero_raises():
+    with pytest.raises(ValueError, match="max_stderr_log_size_mb"):
+        _http_cfg(max_stderr_log_size_mb=0)
+
+
+def test_max_stderr_log_size_mb_negative_raises():
+    with pytest.raises(ValueError, match="max_stderr_log_size_mb"):
+        _http_cfg(max_stderr_log_size_mb=-1.0)
+
+
+def test_max_stderr_log_size_mb_positive_is_valid():
+    cfg = _http_cfg(max_stderr_log_size_mb=50.0)
+    assert cfg.max_stderr_log_size_mb == 50.0
+
+
+def test_max_stderr_log_files_zero_raises():
+    with pytest.raises(ValueError, match="max_stderr_log_files"):
+        _http_cfg(max_stderr_log_files=0)
+
+
+def test_max_stderr_log_files_one_is_valid():
+    cfg = _http_cfg(max_stderr_log_files=1)
+    assert cfg.max_stderr_log_files == 1

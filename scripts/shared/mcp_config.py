@@ -88,6 +88,17 @@ class McpServerConfig:
         """Validate cross-field constraints such as required URLs and timeouts."""
         key_prefix = f"McpServerConfig[{self.key!r}]" if self.key else "McpServerConfig"
 
+        self._validate_startup_requirements(key_prefix)
+        self._validate_timeouts(key_prefix)
+        self._validate_tool_names(key_prefix)
+        self._validate_auth_token(key_prefix)
+        self._validate_env(key_prefix)
+        self._validate_url_scheme(key_prefix)
+        self._validate_startup_stagger_delay(key_prefix)
+        self._validate_stderr_log_rotation(key_prefix)
+
+    def _validate_startup_requirements(self, key_prefix: str) -> None:
+        """Validate that url/cmd are present when required by transport/startup_mode."""
         if self.transport == TransportType.HTTP and not self.url:
             raise ValueError(
                 f"{key_prefix}: url must not be empty when transport='http'"
@@ -97,6 +108,8 @@ class McpServerConfig:
                 f"{key_prefix}: cmd must not be empty when startup_mode='subprocess'"
             )
 
+    def _validate_timeouts(self, key_prefix: str) -> None:
+        """Validate that timeout fields are non-negative."""
         if self.call_timeout_sec < 0:
             raise ValueError(
                 f"{key_prefix}: call_timeout_sec must be >= 0, got {self.call_timeout_sec}"
@@ -106,6 +119,8 @@ class McpServerConfig:
                 f"{key_prefix}: startup_timeout_sec must be >= 0, got {self.startup_timeout_sec}"
             )
 
+    def _validate_tool_names(self, key_prefix: str) -> None:
+        """Validate that tool_names entries are non-empty strings with no duplicates."""
         for i, name in enumerate(self.tool_names):
             if not isinstance(name, str) or not name:
                 raise ValueError(
@@ -115,11 +130,15 @@ class McpServerConfig:
             dupes = sorted({n for n in self.tool_names if self.tool_names.count(n) > 1})
             raise ValueError(f"{key_prefix}: duplicate tool_names: {dupes}")
 
+    def _validate_auth_token(self, key_prefix: str) -> None:
+        """Validate that auth_token is a str."""
         if not isinstance(self.auth_token, str):
             raise ValueError(
                 f"{key_prefix}: auth_token must be str, got {type(self.auth_token).__name__}"
             )
 
+    def _validate_env(self, key_prefix: str) -> None:
+        """Validate env is dict[str, str] and contains no denylisted keys."""
         for k, v in self.env.items():
             if not isinstance(k, str) or not isinstance(v, str):
                 raise ValueError(
@@ -131,6 +150,8 @@ class McpServerConfig:
                     "dangerous loader/interpreter env vars are not permitted"
                 )
 
+    def _validate_url_scheme(self, key_prefix: str) -> None:
+        """Validate that an HTTP url has a valid http/https scheme and netloc."""
         if self.transport == TransportType.HTTP and self.url:
             parsed = urlparse(self.url)
             if parsed.scheme not in ("http", "https") or not parsed.netloc:
@@ -138,11 +159,15 @@ class McpServerConfig:
                     f"{key_prefix}: url must be a valid HTTP/HTTPS URL, got {self.url!r}"
                 )
 
+    def _validate_startup_stagger_delay(self, key_prefix: str) -> None:
+        """Validate that startup_stagger_delay_sec is non-negative."""
         if self.startup_stagger_delay_sec < 0:
             raise ValueError(
                 f"{key_prefix}: startup_stagger_delay_sec must be >= 0, got {self.startup_stagger_delay_sec}"
             )
 
+    def _validate_stderr_log_rotation(self, key_prefix: str) -> None:
+        """Validate stderr log rotation size and file-count limits."""
         if self.max_stderr_log_size_mb <= 0:
             raise ValueError(
                 f"{key_prefix}: max_stderr_log_size_mb must be > 0, got {self.max_stderr_log_size_mb}"

@@ -146,6 +146,18 @@ class TestValidateAllRouting:
         result = validate_all_routing()
         assert result == {}
 
+    def test_live_only_drift_not_merged_with_existing_config_key(self) -> None:
+        """Live drift for a server key absent from config drift is assigned directly
+        (exercises the `else` branch of the merge loop, distinct from the
+        already-covered same-key extend branch above)."""
+        _reset_registry_for_testing()
+        result = validate_all_routing(
+            server_configs=None,
+            live_tool_lists={"unregistered_server": ["totally_fake_tool"]},
+        )
+        assert "unregistered_server" in result
+        assert "totally_fake_tool" in result["unregistered_server"][0]
+
 
 class TestStartupValidationStrictMode:
     """Tests for the four strict-mode drift conditions checked at startup.

@@ -96,6 +96,14 @@ class TestRestrictToIsolation:
         with pytest.raises(ConfigPermissionError, match="not permitted"):
             loader.load("a.toml", "b.toml")
 
+    def test_restricted_load_all_denies_unauthorized(self, tmp_path: Path) -> None:
+        """load_all() under restrict_to() should raise with 'load_all()' in the message."""
+        (tmp_path / "agent.toml").write_text("[section]\nfoo = 1\n")
+        ConfigLoader.restrict_to("other.toml")
+        loader = ConfigLoader(config_dir=tmp_path)
+        with pytest.raises(ConfigPermissionError, match="load_all"):
+            loader.load_all()
+
     def test_restricted_load_allows_authorized(self, tmp_path: Path) -> None:
         """Loading authorized file should succeed."""
         ConfigLoader.restrict_to("a.toml")

@@ -8,6 +8,15 @@ if TYPE_CHECKING:
     from shared.tool_registry import ToolRegistry
 
 
+def _resolve_registry(registry: "ToolRegistry | None") -> "ToolRegistry":
+    """Return `registry`, or the default singleton registry when `registry` is None."""
+    if registry is None:
+        from shared.tool_registry import get_registry
+
+        return get_registry()
+    return registry
+
+
 def validate_routing_against_config(
     registry: "ToolRegistry | None" = None,
     server_configs: dict[str, "McpServerConfig"] | None = None,
@@ -17,10 +26,7 @@ def validate_routing_against_config(
     Returns {server_key: [mismatch_messages]} for servers with mismatches.
     Empty dict means no drift detected.
     """
-    if registry is None:
-        from shared.tool_registry import get_registry
-
-        registry = get_registry()
+    registry = _resolve_registry(registry)
     if server_configs is None:
         return {}
 
@@ -44,10 +50,7 @@ def validate_routing_against_live(
     Returns {server_key: [mismatch_messages]} for servers with mismatches.
     Empty dict means no drift detected.
     """
-    if registry is None:
-        from shared.tool_registry import get_registry
-
-        registry = get_registry()
+    registry = _resolve_registry(registry)
     if live_tool_lists is None:
         return {}
 
@@ -94,10 +97,7 @@ def check_tool_safety_tiers(
     """
     if not tool_safety_tiers:
         return []
-    if registry is None:
-        from shared.tool_registry import get_registry
-
-        registry = get_registry()
+    registry = _resolve_registry(registry)
     missing = [
         t for t in sorted(registry.get_all_tool_names()) if t not in tool_safety_tiers
     ]
@@ -119,9 +119,6 @@ def check_unknown_tool_safety_tiers(
     """
     if not tool_safety_tiers:
         return []
-    if registry is None:
-        from shared.tool_registry import get_registry
-
-        registry = get_registry()
+    registry = _resolve_registry(registry)
     known = registry.get_all_tool_names()
     return sorted(set(tool_safety_tiers) - known)

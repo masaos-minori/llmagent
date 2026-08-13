@@ -32,12 +32,8 @@ class LlmSseStreamHandler:
         try:
             coro = _anext_or_done(byte_iter)
             if heartbeat_timeout > 0:
-                chunk_result: tuple[bytes, bool] = await asyncio.wait_for(
-                    coro, timeout=heartbeat_timeout
-                )
-                return chunk_result
-            chunk_result2: tuple[bytes, bool] = await coro
-            return chunk_result2
+                return await asyncio.wait_for(coro, timeout=heartbeat_timeout)
+            return await coro
         except TimeoutError:
             raise LLMTransportError(
                 kind="HEARTBEAT_TIMEOUT",

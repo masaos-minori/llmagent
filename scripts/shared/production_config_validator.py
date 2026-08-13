@@ -28,19 +28,31 @@ _REQUIRED_STRICT_KEYS = (
 _REQUIRED_NOT_FALSE_KEYS: tuple[str, ...] = ()
 
 
+def _resolve_known_tools(known_tools: set[str] | None) -> set[str] | None:
+    """Resolve the known tool name set, falling back to the tool registry.
+
+    Returns `None` if `known_tools` was not provided and the registry lookup
+    fails, signaling the caller to skip its check.
+    """
+    if known_tools is not None:
+        return known_tools
+    try:
+        from shared.tool_registry import get_registry
+
+        return set(get_registry().get_all_tool_names())
+    except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
+        return None
+
+
 def _check_missing_tool_safety_tiers(
     tool_safety_tiers: Mapping[str, object],
     known_tools: set[str] | None = None,
 ) -> list[str]:
     """Return tool names that are registered but missing from tool_safety_tiers."""
-    if known_tools is None:
-        try:
-            from shared.tool_registry import get_registry
-
-            known_tools = set(get_registry().get_all_tool_names())
-        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
-            return []
-    missing = [t for t in sorted(known_tools) if t not in tool_safety_tiers]
+    resolved_tools = _resolve_known_tools(known_tools)
+    if resolved_tools is None:
+        return []
+    missing = [t for t in sorted(resolved_tools) if t not in tool_safety_tiers]
     return [f"'{t}' not in tool_safety_tiers" for t in missing]
 
 
@@ -49,14 +61,10 @@ def _check_unknown_tool_safety_tiers(
     known_tools: set[str] | None = None,
 ) -> list[str]:
     """Return tool_safety_tiers keys that are not registered tool names."""
-    if known_tools is None:
-        try:
-            from shared.tool_registry import get_registry
-
-            known_tools = set(get_registry().get_all_tool_names())
-        except Exception:  # noqa: BLE001 — tool registry lookup is best-effort; skip this check rather than fail production config validation
-            return []
-    unknown = sorted(set(tool_safety_tiers) - known_tools)
+    resolved_tools = _resolve_known_tools(known_tools)
+    if resolved_tools is None:
+        return []
+    unknown = sorted(set(tool_safety_tiers) - resolved_tools)
     return [f"'{k}' not a registered tool name" for k in unknown]
 
 
@@ -83,17 +91,13 @@ class ProductionConfigValidator:
         for key in _REQUIRED_STRICT_KEYS:
             if not config.get(key, False):
                 msg = f"{key}=false — strict mode is required in production"
-                e, w = self._format_error_or_warning(msg, is_production)
-                errors.extend(e)
-                warnings.extend(w)
+                self._record(errors, warnings, msg, is_production)
 
         # Not-false keys: explicit false is an error (absent is acceptable)
         for key in _REQUIRED_NOT_FALSE_KEYS:
             if config.get(key) is False:
                 msg = f"{key}=false — strict mode is required in production"
-                e, w = self._format_error_or_warning(msg, is_production)
-                errors.extend(e)
-                warnings.extend(w)
+                self._record(errors, warnings, msg, is_production)
 
         # Bidirectional tool_safety_tiers validation
         raw_tiers = config.get("tool_safety_tiers")
@@ -106,30 +110,27 @@ class ProductionConfigValidator:
             )
             if missing_tiers:
                 tier_msg = "; ".join(missing_tiers)
-                e, w = self._format_error_or_warning(
-                    f"Missing safety tiers: {tier_msg}", is_production
+                self._record(
+                    errors, warnings, f"Missing safety tiers: {tier_msg}", is_production
                 )
-                errors.extend(e)
-                warnings.extend(w)
 
             unknown_tiers = _check_unknown_tool_safety_tiers(
                 tool_safety_tiers, known_tools=known_tools
             )
             if unknown_tiers:
                 tier_msg = "; ".join(unknown_tiers)
-                e, w = self._format_error_or_warning(
-                    f"Unknown safety tier keys: {tier_msg}", is_production
+                self._record(
+                    errors,
+                    warnings,
+                    f"Unknown safety tier keys: {tier_msg}",
+                    is_production,
                 )
-                errors.extend(e)
-                warnings.extend(w)
 
         # allowed_tools visibility
         allowed_tools = config.get("allowed_tools")
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
             msg = "allowed_tools=[] (all tools allowed; use allowlist to restrict)"
-            e, w = self._format_error_or_warning(msg, is_production)
-            errors.extend(e)
-            warnings.extend(w)
+            self._record(errors, warnings, msg, is_production)
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
@@ -142,6 +143,19 @@ class ProductionConfigValidator:
             for k in unknown_keys
         ]
         return ConfigValidationResult(errors=errors)
+
+    @classmethod
+    def _record(
+        cls,
+        errors: list[str],
+        warnings: list[str],
+        msg: str,
+        is_production: bool,
+    ) -> None:
+        """Format `msg` as an error or warning and append it to the matching list."""
+        e, w = cls._format_error_or_warning(msg, is_production)
+        errors.extend(e)
+        warnings.extend(w)
 
     @staticmethod
     def _format_error_or_warning(

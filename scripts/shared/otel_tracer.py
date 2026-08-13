@@ -16,6 +16,7 @@ not install opentelemetry-sdk.
 from __future__ import annotations
 
 import logging
+from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
 from shared.otel_noop import NoOpTracer
@@ -78,15 +79,11 @@ def _import_sdk() -> Any | None:
             SimpleSpanProcessor,
         )
 
-        return type(
-            "SDK",
-            (),
-            {
-                "Resource": Resource,
-                "TracerProvider": TracerProvider,
-                "ConsoleSpanExporter": ConsoleSpanExporter,
-                "SimpleSpanProcessor": SimpleSpanProcessor,
-            },
+        return SimpleNamespace(
+            Resource=Resource,
+            TracerProvider=TracerProvider,
+            ConsoleSpanExporter=ConsoleSpanExporter,
+            SimpleSpanProcessor=SimpleSpanProcessor,
         )
     except ImportError:
         return None
@@ -134,13 +131,9 @@ def _import_otlp() -> Any | None:
         )
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-        return type(
-            "OTLP",
-            (),
-            {
-                "OTLPSpanExporter": OTLPSpanExporter,
-                "BatchSpanProcessor": BatchSpanProcessor,
-            },
+        return SimpleNamespace(
+            OTLPSpanExporter=OTLPSpanExporter,
+            BatchSpanProcessor=BatchSpanProcessor,
         )
     except ImportError:
         return None

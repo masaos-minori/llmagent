@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 import httpx
 
-from shared.http_transport import TransportError
+from shared.http_transport import HttpTransport, TransportError
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
@@ -102,7 +102,7 @@ class ToolExecutor(ToolTransportInvoker):
             return self._error_result(server_key, msg, error_type="transport")
         return None
 
-    def _resolve_transport(self, server_key: str) -> Any:
+    def _resolve_transport(self, server_key: str) -> HttpTransport | None:
         """Resolve the transport for a server key; returns None if missing."""
         return self._transports.get(server_key)
 

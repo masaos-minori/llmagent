@@ -137,22 +137,23 @@ class ToolTransportInvoker:
             return self._error_result(server_key, msg, error_type="tool")
         return None
 
+    @staticmethod
+    def _increment_counter(counter: dict[str, int], key: str) -> None:
+        """Increment the count for a key in a get-or-default error counter dict."""
+        counter[key] = counter.get(key, 0) + 1
+
     def _record_success(self, server_key: str, result: ToolCallResult) -> None:
         """Record a successful call for health tracking; increment tool error counter on tool errors."""
         if self._health_registry is not None:
             self._health_registry.record_success(server_key)
         if result.is_error and result.error_type == "tool":
-            self.stat_tool_errors[server_key] = (
-                self.stat_tool_errors.get(server_key, 0) + 1
-            )
+            self._increment_counter(self.stat_tool_errors, server_key)
 
     def _record_transport_error(
         self, server_key: str, e: TransportError
     ) -> ToolCallResult:
         """Record a transport-layer error and return an error result."""
-        self.stat_transport_errors[server_key] = (
-            self.stat_transport_errors.get(server_key, 0) + 1
-        )
+        self._increment_counter(self.stat_transport_errors, server_key)
         if self._health_registry is not None:
             state = self._health_registry.record_failure(server_key)
             logger.warning(

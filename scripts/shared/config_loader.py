@@ -82,11 +82,7 @@ class ConfigLoader:
         for name in _BASE_CONFIG_FILES:
             try:
                 data = self._filter_meta_keys(self._load_single(name))
-                for key, val in data.items():
-                    if isinstance(val, dict) and isinstance(merged.get(key), dict):
-                        merged[key] = {**merged[key], **val}
-                    else:
-                        merged[key] = val
+                self._merge_one_level(merged, data)
             except ConfigMissingError:
                 if strict and name in _REQUIRED_CONFIG_FILES:
                     raise
@@ -96,15 +92,16 @@ class ConfigLoader:
     # -- Private helpers ----------------------------------------------------
 
     def _check_permission(self, names: tuple[str, ...], context: str = "") -> None:
-        if self._allowed_files is not None:
-            for name in names:
-                _basename = Path(name).name
-                if _basename not in self._allowed_files:
-                    msg = f"This process is not permitted to load '{_basename}'."
-                    if context:
-                        msg += f" via {context}."
-                    msg += f" Allowed: {sorted(self._allowed_files)}"
-                    raise ConfigPermissionError(msg)
+        if self._allowed_files is None:
+            return
+        for name in names:
+            basename = Path(name).name
+            if basename not in self._allowed_files:
+                msg = f"This process is not permitted to load '{basename}'."
+                if context:
+                    msg += f" via {context}."
+                msg += f" Allowed: {sorted(self._allowed_files)}"
+                raise ConfigPermissionError(msg)
 
     @staticmethod
     def _validate_names(names: tuple[Any, ...]) -> None:
@@ -148,3 +145,12 @@ class ConfigLoader:
     def _filter_meta_keys(data: Mapping[str, Any]) -> dict[str, Any]:
         """Remove keys starting with underscore from the config data."""
         return {k: v for k, v in data.items() if not k.startswith("_")}
+
+    @staticmethod
+    def _merge_one_level(merged: dict[str, Any], data: Mapping[str, Any]) -> None:
+        """Merge `data` into `merged` in place, combining dict values one level deep."""
+        for key, val in data.items():
+            if isinstance(val, dict) and isinstance(merged.get(key), dict):
+                merged[key] = {**merged[key], **val}
+            else:
+                merged[key] = val

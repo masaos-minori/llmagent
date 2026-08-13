@@ -47,3 +47,14 @@ class TestRealAgentTomlSafetyTiers:
 
     def test_search_web_is_read_only(self) -> None:
         assert _real_tool_safety_tiers()["search_web"] == "READ_ONLY"
+
+
+class TestUnknownToolSafetyTiersEarlyReturn:
+    """check_unknown_tool_safety_tiers() must short-circuit on a falsy
+    tool_safety_tiers argument without touching the registry."""
+
+    def test_returns_empty_when_tool_safety_tiers_empty_dict(self) -> None:
+        assert check_unknown_tool_safety_tiers(tool_safety_tiers={}) == []
+
+    def test_returns_empty_when_tool_safety_tiers_none(self) -> None:
+        assert check_unknown_tool_safety_tiers(tool_safety_tiers=None) == []

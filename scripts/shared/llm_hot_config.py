@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """scripts/shared/llm_hot_config.py — LLMClient hot-reloadable config fields."""
 
-from typing import Any, TypeVar
-
-_F = TypeVar("_F")
+from typing import Any
 
 
 class LlmHotConfigHandler:

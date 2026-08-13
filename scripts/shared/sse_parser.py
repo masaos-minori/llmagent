@@ -22,6 +22,8 @@ from shared.llm_exceptions import LLMTransportError
 class RobustSSEParser:
     """Stateful SSE parser: incremental UTF-8 decoder + heartbeat tracking + malformed frame budget; one instance per connection."""
 
+    _DATA_PREFIX = "data:"
+
     def __init__(self, malformed_retry: int, heartbeat_timeout: float) -> None:
         """Initialize with malformed retry budget and heartbeat timeout duration."""
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
@@ -57,26 +59,27 @@ class RobustSSEParser:
         """Parse one SSE text line; returns None to skip, (None, True) for [DONE], (payload_str, False) for valid data; raises MALFORMED_SSE_FRAME on budget exhaustion."""
         if self._is_keepalive(line):
             return None
-        if not line.startswith("data:"):
+        if not line.startswith(self._DATA_PREFIX):
             return None
-        payload = line[5:].lstrip(" ")
+        payload = line[len(self._DATA_PREFIX) :].lstrip(" ")
         if payload.strip() == "[DONE]":
-            self._last_event_at = time.monotonic()
+            self._mark_activity()
             return None, True
         if not self._is_valid_json(payload):
             return None
-        self._last_event_at = time.monotonic()
+        self._mark_activity()
         return payload, False
 
     def _is_keepalive(self, line: str) -> bool:
         """Return True for blank lines and SSE comments (keepalive)."""
-        if not line:
-            self._last_event_at = time.monotonic()
-            return True
-        if line.startswith(":"):
-            self._last_event_at = time.monotonic()
+        if not line or line.startswith(":"):
+            self._mark_activity()
             return True
         return False
+
+    def _mark_activity(self) -> None:
+        """Record the current time as the last observed SSE event/keepalive."""
+        self._last_event_at = time.monotonic()
 
     def _is_valid_json(self, payload: str) -> bool:
         """Validate that payload is valid JSON; track malformed count."""

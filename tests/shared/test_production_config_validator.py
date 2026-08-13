@@ -154,6 +154,26 @@ class TestProductionConfigValidatorSafetyTiers:
         assert not any("safety tier" in err.lower() for err in result.errors)
 
 
+class TestProductionConfigValidatorRegistryLookupFallback:
+    """Tests for the best-effort tool registry lookup fallback (known_tools=None)."""
+
+    def test_registry_lookup_failure_skips_tool_safety_tier_checks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When resolving known_tools from the registry raises, both the missing-
+        and unknown-tier checks are skipped (best-effort) rather than propagating."""
+
+        def _raise() -> None:
+            raise RuntimeError("registry unavailable")
+
+        monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
+        config = {"tool_safety_tiers": {"mystery_tool": "low"}}
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
+        assert not any("safety tier" in err.lower() for err in result.errors)
+
+
 class TestProductionConfigValidatorAllowedTools:
     """Tests for allowed_tools=[] visibility check."""
 
