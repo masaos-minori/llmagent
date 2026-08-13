@@ -211,6 +211,27 @@ class TestBeginExclusiveRollback:
         assert len(rows) == 0
 
 
+class TestSQLiteHelperTargetValidation:
+    """Characterization tests for SQLiteHelper.__init__'s target resolution —
+    previously untested branches (DbTarget enum member, invalid string target)."""
+
+    def test_dbtarget_enum_member_resolves_to_value(self) -> None:
+        """Passing a DbTarget enum member resolves to its string value."""
+        from db.helper import DbTarget
+
+        h = SQLiteHelper(DbTarget.RAG)
+        assert h._target == "rag"
+        assert h._default_load_vec is True
+
+    def test_invalid_string_target_raises_value_error(self) -> None:
+        """An unrecognized string target raises ValueError with the expected message."""
+        with pytest.raises(
+            ValueError,
+            match=r"target must be 'rag', 'session', 'workflow', or 'eventbus', got: 'bogus'",
+        ):
+            SQLiteHelper("bogus")
+
+
 class TestSQLiteHelperMissingDbPathMessage:
     def test_missing_workflow_db_path_mentions_agent_toml(self) -> None:
         """Missing workflow_db_path must mention agent.toml, not common.toml."""

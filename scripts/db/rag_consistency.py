@@ -37,33 +37,37 @@ def _collect_document_checks(db: SQLiteHelper) -> tuple[int, int, int]:
     return docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count
 
 
+def _safe_url_count_query(db: SQLiteHelper, sql: str) -> dict[str, int]:
+    """Run a (url, count) query; return {} on failure (indicates DB corruption)."""
+    try:
+        rows = db.execute(sql).fetchall()
+        return dict(rows)
+    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
+        return {}
+
+
 def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, int]]:
     """Return URL-level mismatch map keyed by URL with chunk/vec/fts counts."""
-    url_chunk_counts: dict[str, int] = {}
-    url_chunk_rows = db.execute(
+    url_chunk_counts = _safe_url_count_query(
+        db,
         "SELECT d.url, COUNT(c.chunk_id) FROM documents d"
         " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
-        " GROUP BY d.url"
-    ).fetchall()
-    url_chunk_counts = dict(url_chunk_rows)
-
-    url_vec_counts: dict[str, int] = {}
-    url_vec_rows = db.execute(
+        " GROUP BY d.url",
+    )
+    url_vec_counts = _safe_url_count_query(
+        db,
         "SELECT d.url, COUNT(cv.chunk_id) FROM documents d"
         " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
         " LEFT JOIN chunks_vec cv ON c.chunk_id = cv.chunk_id"
-        " GROUP BY d.url"
-    ).fetchall()
-    url_vec_counts = dict(url_vec_rows)
-
-    url_fts_counts: dict[str, int] = {}
-    url_fts_rows = db.execute(
+        " GROUP BY d.url",
+    )
+    url_fts_counts = _safe_url_count_query(
+        db,
         "SELECT d.url, COUNT(cf.rowid) FROM documents d"
         " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
         " LEFT JOIN chunks_fts cf ON c.chunk_id = cf.rowid"
-        " GROUP BY d.url"
-    ).fetchall()
-    url_fts_counts = dict(url_fts_rows)
+        " GROUP BY d.url",
+    )
 
     url_level_mismatches: dict[str, dict[str, int]] = {}
     all_urls = (

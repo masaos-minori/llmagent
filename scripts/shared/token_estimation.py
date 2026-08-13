@@ -79,16 +79,12 @@ def estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
             "list[ToolCallDict]", tool_calls_raw if tool_calls_raw is not None else []
         )
 
-        if role == "system":
-            if text:
-                total += estimate_tokens_for_text(
-                    text, "system", RATIO_SYSTEM, breakdown
-                )
+        if role == "system" and text:
+            total += estimate_tokens_for_text(text, "system", RATIO_SYSTEM, breakdown)
         elif role == "assistant" and tool_calls:
             total += estimate_tokens_for_assistant_with_tool_calls(
                 text, tool_calls, breakdown
             )
-        else:
-            if text:
-                total += estimate_tokens_for_text(text, "text", RATIO_TEXT, breakdown)
+        elif text:
+            total += estimate_tokens_for_text(text, "text", RATIO_TEXT, breakdown)
     return total, breakdown

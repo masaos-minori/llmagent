@@ -82,6 +82,14 @@ def _handle_maintenance_error(
     )
 
 
+# ── Config loading helper ──────────────────────────────────────────────────────
+
+
+def _load_agent_config():
+    """Load agent.toml — shared entry point for maintenance-related config keys."""
+    return ConfigLoader().load("agent.toml")
+
+
 # ── Policy dataclasses ─────────────────────────────────────────────────────────
 
 
@@ -95,7 +103,7 @@ class RetentionConfig:
     @classmethod
     def from_config(cls) -> "RetentionConfig":
         """Construct from agent.toml values; raises on config load failure."""
-        cfg = ConfigLoader().load("agent.toml")
+        cfg = _load_agent_config()
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
             max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
@@ -108,7 +116,7 @@ class RetentionConfig:
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
-        cfg = ConfigLoader().load("agent.toml")
+        cfg = _load_agent_config()
         raw_mode: str | None = cfg.get("sqlite_wal_checkpoint_mode")
         if raw_mode is None or not isinstance(raw_mode, str):
             raw_mode = "TRUNCATE"
@@ -132,6 +140,44 @@ def vacuum_db(
         return _handle_maintenance_error(e, "vacuum", mode)
 
 
+def _delete_sessions_by_age(db: SQLiteHelper, max_age_days: int) -> int:
+    """Delete sessions older than max_age_days; returns rows deleted (0 if disabled)."""
+    if max_age_days <= 0:
+        return 0
+    cur = db.execute(
+        "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
+        (f"-{max_age_days} days",),
+    )
+    deleted = cur.rowcount
+    if deleted:
+        logger.info(
+            "Retention: removed %s sessions older than %s days",
+            deleted,
+            max_age_days,
+        )
+    return deleted
+
+
+def _delete_sessions_beyond_limit(db: SQLiteHelper, max_sessions: int) -> int:
+    """Delete sessions beyond the max_sessions most-recent limit; returns rows deleted."""
+    rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
+    if len(rows) <= max_sessions:
+        return 0
+    to_delete = [row[0] for row in rows[max_sessions:]]
+    placeholders = ",".join("?" * len(to_delete))
+    cur = db.execute(
+        f"DELETE FROM sessions WHERE session_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
+        tuple(to_delete),
+    )
+    deleted = cur.rowcount
+    logger.info(
+        "Retention: removed %s sessions beyond limit of %s",
+        deleted,
+        max_sessions,
+    )
+    return deleted
+
+
 def purge_old_sessions(
     db: SQLiteHelper,
     cfg: RetentionConfig | None = None,
@@ -149,33 +195,8 @@ def purge_old_sessions(
     count_deleted = 0
 
     try:
-        if cfg.max_age_days > 0:
-            cur = db.execute(
-                "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
-                (f"-{cfg.max_age_days} days",),
-            )
-            age_deleted = cur.rowcount
-            if age_deleted:
-                logger.info(
-                    "Retention: removed %s sessions older than %s days",
-                    age_deleted,
-                    cfg.max_age_days,
-                )
-
-        rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
-        if len(rows) > cfg.max_sessions:
-            to_delete = [row[0] for row in rows[cfg.max_sessions :]]
-            placeholders = ",".join("?" * len(to_delete))
-            cur = db.execute(
-                f"DELETE FROM sessions WHERE session_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
-                tuple(to_delete),
-            )
-            count_deleted = cur.rowcount
-            logger.info(
-                "Retention: removed %s sessions beyond limit of %s",
-                count_deleted,
-                cfg.max_sessions,
-            )
+        age_deleted = _delete_sessions_by_age(db, cfg.max_age_days)
+        count_deleted = _delete_sessions_beyond_limit(db, cfg.max_sessions)
 
         db.commit()
         return MaintenanceResult(

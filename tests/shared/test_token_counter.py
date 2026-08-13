@@ -286,6 +286,22 @@ def test_estimate_tokens_system_message() -> None:
     assert total == breakdown["system"]
 
 
+def test_estimate_tokens_system_message_empty_content() -> None:
+    """A system message with empty content contributes nothing to any category."""
+    msgs: list[LLMMessage] = [{"role": "system", "content": ""}]
+    total, breakdown = _estimate_tokens(msgs)
+    assert total == 0
+    assert breakdown == {"text": 0, "tool_calls": 0, "system": 0}
+
+
+def test_estimate_tokens_user_message_empty_content() -> None:
+    """A non-system, non-tool-call message with empty content contributes nothing."""
+    msgs: list[LLMMessage] = [{"role": "user", "content": ""}]
+    total, breakdown = _estimate_tokens(msgs)
+    assert total == 0
+    assert breakdown == {"text": 0, "tool_calls": 0, "system": 0}
+
+
 def test_estimate_tokens_mixed_history() -> None:
     msgs: list[LLMMessage] = [
         {"role": "system", "content": "Be helpful"},

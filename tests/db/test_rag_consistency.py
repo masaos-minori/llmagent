@@ -108,6 +108,36 @@ def _insert_chunk(db: _FakeSQLiteHelper, doc_id: int, content: str) -> int:
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 
+class TestCollectUrlCountsAndMismatchesErrorHandling:
+    """Characterization tests for the per-query try/except fallback in
+    _collect_url_counts_and_mismatches — previously uncovered."""
+
+    def test_missing_fts_table_falls_back_to_zero_fts_count(self) -> None:
+        from db.rag_consistency import _collect_url_counts_and_mismatches
+
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_chunk(db, doc_id, "hello world")
+        db.execute("DROP TABLE chunks_fts")
+        db.commit()
+
+        result = _collect_url_counts_and_mismatches(db)
+
+        assert result["https://example.com/doc"]["chunk_count"] == 1
+        assert result["https://example.com/doc"]["fts_count"] == 0
+
+    def test_missing_documents_table_returns_empty_mismatches(self) -> None:
+        from db.rag_consistency import _collect_url_counts_and_mismatches
+
+        db = _make_rag_db()
+        db.execute("DROP TABLE documents")
+        db.commit()
+
+        result = _collect_url_counts_and_mismatches(db)
+
+        assert result == {}
+
+
 class TestRagConsistency:
     def test_consistency_report_counts_match(self) -> None:
         db = _make_rag_db()

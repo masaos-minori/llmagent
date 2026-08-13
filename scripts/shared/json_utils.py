@@ -61,15 +61,6 @@ def now_iso_raw() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def tool_call_serialized_length(tool_call: object) -> int:
-    """Return the byte length of a tool call dict when serialized to JSON.
-
-    Wrapper around ``len(orjson.dumps(tc))`` that centralizes the serialization
-    so it cannot drift across the codebase.
-    """
-    return len(orjson.dumps(tool_call))
-
-
 def serialized_length(obj: object) -> int:
     """Return the byte length of obj when serialized to JSON.
 
@@ -77,6 +68,15 @@ def serialized_length(obj: object) -> int:
     so it cannot drift across the codebase.
     """
     return len(orjson.dumps(obj))
+
+
+def tool_call_serialized_length(tool_call: object) -> int:
+    """Return the byte length of a tool call dict when serialized to JSON.
+
+    Delegates to :func:`serialized_length`, which centralizes the
+    serialization so it cannot drift across the codebase.
+    """
+    return serialized_length(tool_call)
 
 
 def parse_http_json(resp: Response) -> dict[str, Any]:

@@ -35,6 +35,13 @@ class LlmPayloadHandler:
         return payload
 
     @staticmethod
+    def _require_dict_field(value: object, field_repr: str) -> dict[str, Any]:
+        """Validate that a raw response field is a dict; raise ValueError with field context."""
+        if not isinstance(value, dict):
+            raise ValueError(f"Unexpected LLM response: {field_repr} is not a dict")
+        return value
+
+    @staticmethod
     def parse_response(
         raw: dict[str, Any],
         on_usage: Callable[[int, int], None] | None = None,
@@ -43,12 +50,10 @@ class LlmPayloadHandler:
         choices = raw.get("choices")
         if not isinstance(choices, list) or not choices:
             raise ValueError("Unexpected LLM response: missing or empty 'choices'")
-        choice = choices[0]
-        if not isinstance(choice, dict):
-            raise ValueError("Unexpected LLM response: choices[0] is not a dict")
-        message_raw = choice.get("message")
-        if not isinstance(message_raw, dict):
-            raise ValueError("Unexpected LLM response: 'message' is not a dict")
+        choice = LlmPayloadHandler._require_dict_field(choices[0], "choices[0]")
+        message_raw = LlmPayloadHandler._require_dict_field(
+            choice.get("message"), "'message'"
+        )
         finish_reason = choice.get("finish_reason")
         if finish_reason is not None and not isinstance(finish_reason, str):
             finish_reason = None

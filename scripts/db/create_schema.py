@@ -33,6 +33,21 @@ from db.store_protocols import get_embedding_dims
 logger = logging.getLogger(__name__)
 
 
+def _execute_schema_ddl(db: SQLiteHelper, sql: str, error_label: str) -> None:
+    """Execute schema DDL, logging and re-raising on SQLite errors.
+
+    Args:
+        db: Open SQLiteHelper connection to execute the script against.
+        sql: DDL script to execute.
+        error_label: Schema name used in the log message on failure (e.g. "RAG").
+    """
+    try:
+        db.executescript(sql)
+    except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+        logger.error("Failed to execute %s schema DDL: %s", error_label, e)
+        raise
+
+
 def _record_workflow_schema_version(db: SQLiteHelper) -> None:
     """Idempotently record WORKFLOW_SCHEMA_VERSION as the current version."""
     row = db.execute(
@@ -50,11 +65,7 @@ def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
     with SQLiteHelper("rag").open(write_mode=True) as db:
-        try:
-            db.executescript(build_rag_schema_sql(dims))
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error("Failed to execute RAG schema DDL: %s", e)
-            raise
+        _execute_schema_ddl(db, build_rag_schema_sql(dims), "RAG")
     logger.info("RAG schema created successfully.")
 
 
@@ -62,22 +73,14 @@ def create_session_schema() -> None:
     """Create session.sqlite tables for conversations and memory."""
     dims = get_embedding_dims()
     with SQLiteHelper("session").open(write_mode=True, load_vec=True) as db:
-        try:
-            db.executescript(build_session_schema_sql(dims))
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error("Failed to execute session schema DDL: %s", e)
-            raise
+        _execute_schema_ddl(db, build_session_schema_sql(dims), "session")
     logger.info("Session schema created successfully.")
 
 
 def create_workflow_schema() -> None:
     """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts, approvals)."""
     with SQLiteHelper("workflow").open(write_mode=True) as db:
-        try:
-            db.executescript(build_workflow_schema_sql())
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error("Failed to execute workflow schema DDL: %s", e)
-            raise
+        _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
         assert db.conn is not None, (
             "Workflow DB connection must be open when applying migrations"
         )

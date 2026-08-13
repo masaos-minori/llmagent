@@ -9,6 +9,7 @@ Schema creation is DDL-only. Idempotency is guaranteed by CREATE ... IF NOT EXIS
 No migration helpers exist.
 """
 
+import logging
 import sqlite3
 from collections.abc import Generator
 from pathlib import Path
@@ -166,7 +167,6 @@ def rag_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     cfg = _make_db_config(db_file, "rag")
     with (
         patch("db.helper.build_db_config", return_value=cfg),
-        patch("db.store_protocols.build_db_config", return_value=cfg),
         patch(
             "db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0
         ),
@@ -185,7 +185,6 @@ def session_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     cfg = _make_db_config(db_file, "session")
     with (
         patch("db.helper.build_db_config", return_value=cfg),
-        patch("db.store_protocols.build_db_config", return_value=cfg),
         patch(
             "db.create_schema.build_session_schema_sql",
             return_value=_SESSION_SCHEMA_NO_VEC0,
@@ -232,7 +231,6 @@ class TestCreateRagSchema:
         cfg = _make_db_config(db_file, "rag")
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_rag_schema_sql",
                 return_value=_RAG_SCHEMA_NO_VEC0,
@@ -285,7 +283,6 @@ class TestCreateSessionSchema:
         cfg = _make_db_config(db_file, "session")
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_session_schema_sql",
                 return_value=_SESSION_SCHEMA_NO_VEC0,
@@ -372,7 +369,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -399,7 +395,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -418,7 +413,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -442,7 +436,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -481,7 +474,6 @@ class TestCreateWorkflowSchema:
             )
             with (
                 patch("db.helper.build_db_config", return_value=cfg),
-                patch("db.store_protocols.build_db_config", return_value=cfg),
                 patch(
                     "db.create_schema.build_workflow_schema_sql",
                     return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -503,7 +495,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -534,7 +525,6 @@ class TestCreateWorkflowSchema:
         )
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
@@ -653,3 +643,102 @@ class TestTimestampDefaults:
                     f"events.{col_name} uses datetime('now')"
                 )
         conn.close()
+
+
+# ── DDL error propagation (behavior lock for the refactor extracting the shared ────
+# try/except/log/raise pattern out of the four create_*_schema functions) ─────────
+
+
+class TestSchemaDdlErrorPropagation:
+    """Lock the DDL-execution error path shared by all create_*_schema functions:
+    a sqlite3.OperationalError raised while executing the DDL script must be logged
+    with the schema-specific label and re-raised unchanged (not swallowed)."""
+
+    def test_create_rag_schema_propagates_and_logs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        db_file = tmp_path / "rag_bad.sqlite"
+        cfg = _make_db_config(db_file, "rag")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_rag_schema_sql", return_value="NOT VALID SQL;"
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
+            caplog.at_level(logging.ERROR, logger="db.create_schema"),
+        ):
+            with pytest.raises(sqlite3.OperationalError):
+                cs.create_rag_schema()
+        assert "Failed to execute RAG schema DDL" in caplog.text
+
+    def test_create_session_schema_propagates_and_logs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        db_file = tmp_path / "session_bad.sqlite"
+        cfg = _make_db_config(db_file, "session")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_session_schema_sql",
+                return_value="NOT VALID SQL;",
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
+            caplog.at_level(logging.ERROR, logger="db.create_schema"),
+        ):
+            with pytest.raises(sqlite3.OperationalError):
+                cs.create_session_schema()
+        assert "Failed to execute session schema DDL" in caplog.text
+
+    def test_create_workflow_schema_propagates_and_logs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        db_file = tmp_path / "workflow_bad.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value="NOT VALID SQL;",
+            ),
+            caplog.at_level(logging.ERROR, logger="db.create_schema"),
+        ):
+            with pytest.raises(sqlite3.OperationalError):
+                cs.create_workflow_schema()
+        assert "Failed to execute workflow schema DDL" in caplog.text
+
+    # Note: create_eventbus_schema's DDL-error path is intentionally not covered
+    # here — AGENTS.md Global Rule 8 forbids new implementation/test work tied to
+    # eventbus; create_eventbus_schema was excluded from the _execute_schema_ddl
+    # extraction for the same reason and keeps its own inline try/except.
+
+
+class TestCreateSchemaWrapper:
+    """Lock create_schema()'s convenience-wrapper behavior: calls all four
+    schema-creation functions, in order, exactly once each."""
+
+    def test_calls_all_four_in_order(self) -> None:
+        calls: list[str] = []
+        with (
+            patch(
+                "db.create_schema.create_rag_schema",
+                side_effect=lambda: calls.append("rag"),
+            ),
+            patch(
+                "db.create_schema.create_session_schema",
+                side_effect=lambda: calls.append("session"),
+            ),
+            patch(
+                "db.create_schema.create_workflow_schema",
+                side_effect=lambda: calls.append("workflow"),
+            ),
+            patch(
+                "db.create_schema.create_eventbus_schema",
+                side_effect=lambda: calls.append("eventbus"),
+            ),
+        ):
+            cs.create_schema()
+        assert calls == ["rag", "session", "workflow", "eventbus"]

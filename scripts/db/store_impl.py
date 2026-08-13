@@ -12,12 +12,31 @@ Classes:
 Protocols are defined in db/store_protocols.py.
 """
 
+from typing import Any
+
 from db.helper import SQLiteHelper, coalesce_str
 from db.models import DocumentRow, MessageRow, SessionRow
 from db.store_protocols import (
     MemoryDeleteResult,
     validate_embedding_blob,
 )
+
+
+def _scalar_count(db: SQLiteHelper, sql: str) -> int:
+    """Run a `SELECT count(*)` query and return the scalar result, or 0 if no row."""
+    rows = db.fetchall(sql)
+    return int(rows[0][0]) if rows else 0
+
+
+def _row_to_document(r: Any) -> DocumentRow:
+    """Map a (doc_id, url, title, lang, fetched_at) row to a DocumentRow."""
+    return DocumentRow(
+        doc_id=int(r[0]),
+        url=str(r[1]),
+        title=r[2],
+        lang=str(r[3]),
+        fetched_at=coalesce_str(r[4], ""),
+    )
 
 
 class SQLiteVectorStore:
@@ -52,8 +71,7 @@ class SQLiteVectorStore:
 
     def vec_count(self) -> int:
         """Return the number of vectors stored in chunks_vec."""
-        rows = self._db.fetchall("SELECT count(*) FROM chunks_vec")
-        return int(rows[0][0]) if rows else 0
+        return _scalar_count(self._db, "SELECT count(*) FROM chunks_vec")
 
 
 class SQLiteDocumentStore:
@@ -97,14 +115,7 @@ class SQLiteDocumentStore:
         )
         if not rows:
             return None
-        r = rows[0]
-        return DocumentRow(
-            doc_id=int(r[0]),
-            url=str(r[1]),
-            title=r[2],
-            lang=r[3],
-            fetched_at=coalesce_str(r[4], ""),
-        )
+        return _row_to_document(rows[0])
 
     def doc_list(self, lang: str | None, limit: int) -> list[DocumentRow]:
         """List documents optionally filtered by language."""
@@ -119,16 +130,7 @@ class SQLiteDocumentStore:
                 "SELECT doc_id, url, title, lang, fetched_at FROM documents ORDER BY fetched_at DESC LIMIT ?",
                 (limit,),
             )
-        return [
-            DocumentRow(
-                doc_id=int(r[0]),
-                url=str(r[1]),
-                title=r[2],
-                lang=str(r[3]),
-                fetched_at=coalesce_str(r[4], ""),
-            )
-            for r in rows
-        ]
+        return [_row_to_document(r) for r in rows]
 
     def doc_delete(self, url: str) -> bool:
         """Delete a document by URL; returns True if deleted."""
@@ -160,8 +162,7 @@ class SQLiteDocumentStore:
 
     def chunk_count(self) -> int:
         """Return the number of chunks stored."""
-        rows = self._db.fetchall("SELECT count(*) FROM chunks")
-        return int(rows[0][0]) if rows else 0
+        return _scalar_count(self._db, "SELECT count(*) FROM chunks")
 
 
 class SQLiteSessionStore:

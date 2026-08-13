@@ -12,17 +12,22 @@ from db.config import build_db_config, format_timestamp
 logger = logging.getLogger(__name__)
 
 
+def _resolve_archive_dir() -> str:
+    """Resolve the default archive directory from agent.toml, falling back to a hardcoded path."""
+    cfg = ConfigLoader().load("agent.toml")
+    raw_archive_dir: str | None = cfg.get("sqlite_archive_dir")
+    if raw_archive_dir is None or not isinstance(raw_archive_dir, str):
+        return "/opt/llm/db/archive"
+    return raw_archive_dir
+
+
 def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
     """Create a WAL-consistent backup of db_path using the SQLite online backup API."""
     if not db_path.exists():
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        cfg = ConfigLoader().load("agent.toml")
-        raw_archive_dir: str | None = cfg.get("sqlite_archive_dir")
-        if raw_archive_dir is None or not isinstance(raw_archive_dir, str):
-            raw_archive_dir = "/opt/llm/db/archive"
-        archive_dir = raw_archive_dir
+        archive_dir = _resolve_archive_dir()
 
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)

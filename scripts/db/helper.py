@@ -29,11 +29,6 @@ def coalesce_str(value: str | None, default: str = "") -> str:
     return value if value is not None else default
 
 
-def coalesce_int(value: int | None, default: int = 0) -> int:
-    """Return value if not None, otherwise return default."""
-    return value if value is not None else default
-
-
 def apply_connection_pragmas(
     conn: sqlite3.Connection,
     *,
@@ -93,12 +88,12 @@ class SQLiteHelper:
 
         if isinstance(target, DbTarget):
             resolved = target.value
-        else:
-            if target not in ("rag", "session", "workflow", "eventbus"):
-                raise ValueError(
-                    f"target must be 'rag', 'session', 'workflow', or 'eventbus', got: {target!r}"
-                )
+        elif target in ("rag", "session", "workflow", "eventbus"):
             resolved = target
+        else:
+            raise ValueError(
+                f"target must be 'rag', 'session', 'workflow', or 'eventbus', got: {target!r}"
+            )
         self._target = resolved
         self._default_load_vec = resolved == "rag"
         try:

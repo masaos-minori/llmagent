@@ -58,11 +58,20 @@ class RuntimeToolRegistry:
         self._tools: dict[str, RuntimeTool] = {}
         if tools:
             for name, tool in tools.items():
-                if tool.server_key in self._unavailable_servers:
-                    continue  # Exclude unavailable server tools
-                if tool.server_key in self._degraded_servers:
-                    continue  # Conservative default: exclude degraded server tools
+                if self._is_excluded_server(tool.server_key):
+                    continue
                 self._tools[name] = tool
+
+    def _is_excluded_server(self, server_key: str) -> bool:
+        """Return whether tools from `server_key` should be excluded.
+
+        A server is excluded if it is unavailable, or degraded (conservative
+        default: exclude degraded server tools too).
+        """
+        return (
+            server_key in self._unavailable_servers
+            or server_key in self._degraded_servers
+        )
 
     @property
     def unavailable_servers(self) -> frozenset[str]:
