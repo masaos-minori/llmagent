@@ -56,6 +56,7 @@ Budget breakdown:
 
 **実装上の注意点:**
 - `/context` の Token estimate値はカテゴリ別推定のまま変わらず、`/tokenize` の値が実際に使われるのは次ターンの履歴圧縮判定であり、`/context` の表示値ではない。
+- カテゴリ別推定の比率定数（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5）は `shared/token_estimation.py` の `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` を単一の正とする。`agent/services/context_view.py::_token_breakdown` はこれらをインポートして使用し、以前ローカルに重複定義していた同名の比率定数は廃止済み。
 - `/context` の `Approval pending` はターン状態から算出される。一方、`/stats` の `Approval pending` はワークフロー状態を参照する。両フィールドは orchestrator と startup コマンドで常にペアでセット/クリアされているため実運用上の値は一致するが、参照しているフィールドはコマンドごとに異なる実装になっている。
 
 ## `/stats` の解釈

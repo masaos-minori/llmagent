@@ -13,7 +13,7 @@ import git
 import pytest
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.token_display import _token_source_label
-from agent.services.context_view import _format_memory_status
+from agent.services.context_view import _build_budget, _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
 from shared.transport_dto import ToolCallResult
 
@@ -288,6 +288,54 @@ class TestBudgetBreakdown:
         messages = [{"role": "user", "content": "question"}]
         result = _budget_breakdown(messages)
         assert result.history == 8
+
+
+# ── _token_breakdown ──────────────────────────────────────────────────────────
+
+
+class TestTokenBreakdown:
+    """Equivalence guard for _token_breakdown's category-aware ratio arithmetic.
+
+    Pins today's token counts for a representative mixed message list. Tied to the
+    current RATIO_TEXT/RATIO_TOOL_CALL/RATIO_SYSTEM values (4.0/2.5/3.5) — if those
+    ratios are intentionally retuned in the future, update these expected values
+    rather than treating a failure here as a regression.
+    """
+
+    def test_token_breakdown_representative_mix(self) -> None:
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that writes concise code.",
+            },
+            {
+                "role": "user",
+                "content": "Please read the config file and summarize it.",
+            },
+            {
+                "role": "assistant",
+                "content": "Sure, let me check.",
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "read_file",
+                            "arguments": '{"path": "config.yaml"}',
+                        },
+                    }
+                ],
+            },
+            {"role": "tool", "content": "key: value\nother_key: other_value\n"},
+            {
+                "role": "assistant",
+                "content": "The config file defines two keys: key and other_key.",
+            },
+        ]
+        result = _build_budget(messages, token_is_exact=False)
+        assert result.token_system == 15
+        assert result.token_history == 28
+        assert result.token_tool_messages == 50
 
 
 # ── _format_memory_status ─────────────────────────────────────────────────────

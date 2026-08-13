@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.git_helper import get_repo_info
 from shared.json_utils import serialized_length, tool_call_serialized_length
+from shared.token_estimation import RATIO_SYSTEM, RATIO_TEXT, RATIO_TOOL_CALL
 from shared.types import LLMMessage
 
 from agent.services.exceptions import ContextStateBuildError
@@ -105,10 +106,6 @@ def _token_breakdown(
     - text from user/assistant/tool → history or tool_messages by role
     - tool_calls JSON → tool_messages
     """
-    _RATIO_TEXT: float = 4.0
-    _RATIO_TOOL_CALL: float = 2.5
-    _RATIO_SYSTEM: float = 3.5
-
     sys_tokens = 0
     hist_tokens = 0
     tool_tokens = 0
@@ -116,19 +113,19 @@ def _token_breakdown(
     for role, text, tool_calls in _iter_message_parts(messages):
         if role == "system":
             if text:
-                sys_tokens += int(len(text) / _RATIO_SYSTEM)
+                sys_tokens += int(len(text) / RATIO_SYSTEM)
         elif role == "assistant" and tool_calls:
             if text:
-                hist_tokens += int(len(text) / _RATIO_TEXT)
+                hist_tokens += int(len(text) / RATIO_TEXT)
             for tc in tool_calls:
-                tool_tokens += int(tool_call_serialized_length(tc) / _RATIO_TOOL_CALL)
+                tool_tokens += int(tool_call_serialized_length(tc) / RATIO_TOOL_CALL)
         elif role == "tool":
             if text:
-                tool_tokens += int(len(text) / _RATIO_TEXT)
+                tool_tokens += int(len(text) / RATIO_TEXT)
         else:
             # user, assistant (text-only)
             if text:
-                hist_tokens += int(len(text) / _RATIO_TEXT)
+                hist_tokens += int(len(text) / RATIO_TEXT)
 
     return sys_tokens or None, hist_tokens or None, tool_tokens or None
 
