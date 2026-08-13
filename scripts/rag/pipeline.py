@@ -468,7 +468,10 @@ class RagPipeline:
                 return refined_text
         context_block: str = _augment_format_chunks(pipeline_result.reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
-            self.semantic_cache.put(emb, history_context, context_block)
+            if not self.semantic_cache.put(emb, history_context, context_block):
+                logger.warning(
+                    "Failed to store embedding in semantic cache (dimension mismatch)"
+                )
         return context_block
 
     async def _run_http_augment(

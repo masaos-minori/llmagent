@@ -48,7 +48,7 @@ search_timeout_sec = 30
 enable_grep = true
 
 # Historical notes on config keys removed from this file (audit_log_path,
-# concurrency_limit, max_search_results, use_embedding/embedding_dims/
+# concurrency_limit, max_search_results, use_embedding/
 # vector_table/embedding_model, summary_cache_enabled/summary_threshold/
 # summary_model, enable_refresh, status) have moved to
 # docs/mdq_config_history.md.

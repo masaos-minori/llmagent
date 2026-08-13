@@ -121,30 +121,28 @@ def _collect_affected_identifiers(
     affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = None
     affected_url_mismatches: tuple[str, ...] | None = None
 
-    if fts_gap > 0:
-        rows = db.execute(
-            "SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize LIMIT 10"
-        ).fetchall()
-        affected_chunk_ids = tuple(r[0] for r in rows)
-        doc_rows = db.execute(
-            "SELECT c.doc_id FROM chunks c "
-            "WHERE c.chunk_id IN (SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize) "
-            "ORDER BY c.doc_id LIMIT 10"
-        ).fetchall()
-        affected_doc_ids = tuple(r[0] for r in doc_rows) if doc_rows else None
-    if orphan_vec_count > 0:
-        id_rows = db.execute(
-            "SELECT chunk_id FROM chunks_vec EXCEPT SELECT chunk_id FROM chunks LIMIT 10"
-        ).fetchall()
-        affected_orphan_chunk_ids = tuple(r[0] for r in id_rows)
-        url_rows = db.execute(
-            "SELECT DISTINCT d.url FROM chunks_vec cv "
-            "JOIN chunks c ON cv.chunk_id = c.chunk_id "
-            "JOIN documents d ON c.doc_id = d.doc_id "
-            "WHERE cv.chunk_id NOT IN (SELECT chunk_id FROM chunks) "
-            "ORDER BY d.url LIMIT 10"
-        ).fetchall()
-        affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
+    rows = db.execute(
+        "SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize LIMIT 10"
+    ).fetchall()
+    affected_chunk_ids = tuple(r[0] for r in rows) if rows else None
+    doc_rows = db.execute(
+        "SELECT c.doc_id FROM chunks c "
+        "WHERE c.chunk_id IN (SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize) "
+        "ORDER BY c.doc_id LIMIT 10"
+    ).fetchall()
+    affected_doc_ids = tuple(r[0] for r in doc_rows) if doc_rows else None
+    id_rows = db.execute(
+        "SELECT chunk_id FROM chunks_vec EXCEPT SELECT chunk_id FROM chunks LIMIT 10"
+    ).fetchall()
+    affected_orphan_chunk_ids = tuple(r[0] for r in id_rows) if id_rows else None
+    url_rows = db.execute(
+        "SELECT DISTINCT d.url FROM chunks_vec cv "
+        "JOIN chunks c ON cv.chunk_id = c.chunk_id "
+        "JOIN documents d ON c.doc_id = d.doc_id "
+        "WHERE cv.chunk_id NOT IN (SELECT chunk_id FROM chunks) "
+        "ORDER BY d.url LIMIT 10"
+    ).fetchall()
+    affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
     if docs_without_chunks > 0:
         id_rows = db.execute(
             "SELECT doc_id FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"

@@ -59,7 +59,6 @@ def _make_db_cfg(
     cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
     cfg.sqlite_timeout = 30
     cfg.sqlite_busy_timeout_ms = 30000
-    cfg.embedding_dims = 384
     cfg.embed_url = _TEST_EMBED_URL
     return cfg
 

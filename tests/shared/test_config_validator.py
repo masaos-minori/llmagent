@@ -12,24 +12,6 @@ class TestRagConfigValidator:
         assert result.ok is True
         assert len(result.errors) == 0
 
-    def test_embedding_dim_mismatch(self) -> None:
-        result = self.validator.validate(
-            {
-                "rag": {"embedding_dim": 768, "vec_dim": 1536},
-            }
-        )
-        assert result.ok is False
-        assert len(result.errors) == 1
-        assert "embedding_dim=768 != vec_dim=1536" in result.errors[0]
-
-    def test_embedding_dim_match(self) -> None:
-        result = self.validator.validate(
-            {
-                "rag": {"embedding_dim": 768, "vec_dim": 768},
-            }
-        )
-        assert result.ok is True
-
     def test_use_rrf_false_warning(self) -> None:
         result = self.validator.validate(
             {
@@ -68,15 +50,13 @@ class TestRagConfigValidator:
         result = self.validator.validate(
             {
                 "rag": {
-                    "embedding_dim": 768,
-                    "vec_dim": 1536,
                     "use_rrf": False,
                     "semantic_cache_threshold": 0.2,
                 },
             }
         )
-        assert result.ok is False
-        assert len(result.errors) == 1
+        assert result.ok is True
+        assert len(result.errors) == 0
         assert len(result.warnings) == 2
 
     def test_no_rag_key(self) -> None:
@@ -86,13 +66,13 @@ class TestRagConfigValidator:
     def test_flat_shape_uses_root_dict(self) -> None:
         result = self.validator.validate(
             {
-                "embedding_dim": 768,
-                "vec_dim": 1536,
+                "use_rrf": False,
+                "semantic_cache_threshold": 0.2,
             }
         )
-        assert result.ok is False
-        assert len(result.errors) == 1
-        assert "embedding_dim=768 != vec_dim=1536" in result.errors[0]
+        assert result.ok is True
+        assert len(result.errors) == 0
+        assert len(result.warnings) == 2
 
     def test_flat_config_negative_max_size_error(self) -> None:
         result = self.validator.validate(

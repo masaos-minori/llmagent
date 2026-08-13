@@ -26,8 +26,11 @@ class CacheService(Protocol):
 
     def put(
         self, embedding: list[float], history_context: str, context_str: str
-    ) -> None:
-        """Store an embedding-context pair in the cache."""
+    ) -> bool:
+        """Store an embedding-context pair in the cache.
+
+        Returns True on success, False if dimension mismatch prevents insertion.
+        """
         ...
 
 
@@ -46,13 +49,16 @@ class SemanticCache:
     def lookup(self, embedding: list[float], history_context: str = "") -> str | None:
         """Return cached context for the nearest embedding with matching history_context, or None on miss.
 
-        Raises ValueError if embedding dimension differs from stored entries.
+        Returns None if embedding dimension differs from stored entries (treated as cache miss).
         """
         with self._lock:
             if self._dim is not None and len(embedding) != self._dim:
-                raise ValueError(
-                    f"SemanticCache dimension mismatch: expected {self._dim}, got {len(embedding)}",
+                logger.warning(
+                    "SemanticCache dimension mismatch: expected %d, got %d",
+                    self._dim,
+                    len(embedding),
                 )
+                return None  # Treat as cache miss
             best_sim = -1.0
             best_ctx: str | None = None
             for entry in self._entries:
@@ -69,18 +75,21 @@ class SemanticCache:
 
     def put(
         self, embedding: list[float], history_context: str, context_str: str
-    ) -> None:
-        """Add a new entry, then prune if over capacity.
+    ) -> bool:
+        """Store an embedding-context pair in the cache.
 
-        Raises ValueError if embedding dimension differs from previously stored entries.
+        Returns True on success, False if dimension mismatch prevents insertion.
         """
         with self._lock:
             if self._dim is None:
                 self._dim = len(embedding)
             elif len(embedding) != self._dim:
-                raise ValueError(
-                    f"SemanticCache dimension mismatch: expected {self._dim}, got {len(embedding)}",
+                logger.warning(
+                    "SemanticCache dimension mismatch during put: expected %d, got %d",
+                    self._dim,
+                    len(embedding),
                 )
+                return False  # Don't insert incompatible entry
             self._entries.append(
                 CacheEntry(
                     embedding=embedding,
@@ -90,6 +99,7 @@ class SemanticCache:
                 )
             )
             self.prune()
+            return True
 
     def prune(self) -> None:
         """Remove oldest entries (FIFO) when len(self._entries) > max_size.

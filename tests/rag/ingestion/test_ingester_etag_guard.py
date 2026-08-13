@@ -32,7 +32,8 @@ class TestUpdateEtagGuard:
             "2026-06-02T10:00:00",
             42,
         )
-        db.commit.assert_called_once()
+        # Transaction ownership moved to caller; no internal commit
+        db.commit.assert_not_called()
 
     def test_stale_incoming_skips_update(self) -> None:
         etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
@@ -52,7 +53,8 @@ class TestUpdateEtagGuard:
         etag_mgr.update("etag-x", "Mon, 01 Jun 2026", None)
 
         db.execute.assert_called_once()
-        db.commit.assert_called_once()
+        # Transaction ownership moved to caller; no internal commit
+        db.commit.assert_not_called()
         db.fetchall.assert_not_called()
         sql = db.execute.call_args[0][0]
         assert "COALESCE(etag, ?)" in sql
@@ -87,4 +89,26 @@ class TestUpdateEtagGuard:
 
         db.execute.assert_not_called()
         db.fetchall.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_datetime_comparison_with_z_suffix(self) -> None:
+        """Verify timezone-aware datetime comparison handles 'Z' suffix."""
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00+00:00")
+
+        with patch("rag.ingestion.etag_manager.logger") as mock_logger:
+            etag_mgr.update("etag-z", "Mon, 01 Jun 2026", "2026-06-01T10:00:00Z")
+
+        db.execute.assert_not_called()
+        db.commit.assert_not_called()
+        mock_logger.info.assert_called_once()
+        logged_msg = mock_logger.info.call_args[0][0]
+        assert "stale" in logged_msg
+
+    def test_invalid_timestamp_treated_as_non_stale(self) -> None:
+        """Invalid timestamps should be treated as non-stale (conservative fallback)."""
+        etag_mgr, db = _make_etag_mgr("not-a-date")
+
+        etag_mgr.update("etag-invalid", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
+
+        db.execute.assert_called_once()
         db.commit.assert_not_called()

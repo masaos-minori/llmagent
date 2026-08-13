@@ -6,7 +6,6 @@ invalidation, history-context separation, dimension mismatch, lock re-entrancy.
 
 from __future__ import annotations
 
-import pytest
 from rag.cache import SemanticCache
 
 
@@ -76,17 +75,15 @@ class TestSemanticCacheHistoryContext:
 
 
 class TestSemanticCacheDimensionMismatch:
-    def test_embedding_dimension_mismatch_raises(self) -> None:
-        """put()/lookup() with a different dimension than established must raise ValueError."""
+    def test_embedding_dimension_mismatch_returns_none_or_false(self) -> None:
+        """put()/lookup() with a different dimension than established must degrade gracefully."""
         cache = SemanticCache(max_size=10, threshold=0.0)
         cache.put([1.0], "", "result_a")  # establishes dim=1
-        with pytest.raises(ValueError):
-            cache.put([1.0, 0.0], "", "result_b")  # dim=2 mismatch
+        assert cache.put([1.0, 0.0], "", "result_b") is False  # dim=2 mismatch
 
         cache2 = SemanticCache(max_size=10, threshold=0.0)
         cache2.put([1.0], "", "result_a")  # establishes dim=1
-        with pytest.raises(ValueError):
-            cache2.lookup([1.0, 0.0])  # lookup dim=2 mismatch
+        assert cache2.lookup([1.0, 0.0]) is None  # lookup dim=2 mismatch
 
 
 class TestSemanticCacheLockReEntrancy:

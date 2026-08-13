@@ -4,6 +4,8 @@ ETag manager for document freshness tracking."""
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from db.helper import SQLiteHelper
 from shared.logger import Logger
 
@@ -49,11 +51,34 @@ class ETagManager:
         """Return True when the incoming data is older than stored fetched_at."""
         if new_fetched_at is None:
             return False
+
+        # Parse incoming timestamp
+        try:
+            new_dt = datetime.fromisoformat(new_fetched_at.replace("Z", "+00:00"))
+            if new_dt.tzinfo is None:
+                new_dt = new_dt.replace(tzinfo=UTC)
+        except ValueError:
+            logger.error(f"Invalid timestamp format: {new_fetched_at}")
+            return False  # Treat invalid timestamps as non-stale
+
+        # Fetch stored timestamp
         rows = self._db.fetchall(
             "SELECT fetched_at FROM documents WHERE doc_id = ?", (self._doc_id,)
         )
         stored_fetched_at = rows[0][0] if rows else None
-        return bool(stored_fetched_at and new_fetched_at < stored_fetched_at)
+        if not stored_fetched_at:
+            return False
+
+        # Parse stored timestamp
+        try:
+            stored_dt = datetime.fromisoformat(stored_fetched_at.replace("Z", "+00:00"))
+            if stored_dt.tzinfo is None:
+                stored_dt = stored_dt.replace(tzinfo=UTC)
+        except ValueError:
+            logger.error(f"Invalid timestamp format: {stored_fetched_at}")
+            return False  # Treat invalid timestamps as non-stale
+
+        return new_dt < stored_dt
 
     def _update_with_freshness(
         self,
@@ -66,7 +91,6 @@ class ETagManager:
             "UPDATE documents SET etag = ?, last_modified = ?, fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
             (etag, last_modified, fetched_at, self._doc_id),
         )
-        self._db.commit()
 
     def _update_null_fill(self, etag: str | None, last_modified: str | None) -> None:
         """Fill NULL only; never overwrite existing values."""
@@ -75,7 +99,6 @@ class ETagManager:
             " WHERE doc_id = ?",
             (etag, last_modified, self._doc_id),
         )
-        self._db.commit()
 
     def _log_updated(self) -> None:
         """Log the etag update."""

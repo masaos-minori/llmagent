@@ -29,10 +29,6 @@ class RagConfigValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
-        embed_dim_error = self._check_embedding_dim(rag)
-        if embed_dim_error is not None:
-            errors.append(embed_dim_error)
-
         use_rrf_warning = self._check_use_rrf(rag)
         if use_rrf_warning is not None:
             warnings.append(use_rrf_warning)
@@ -51,15 +47,6 @@ class RagConfigValidator:
     def _extract_rag_section(cfg: Mapping[str, Any]) -> Mapping[str, Any]:
         """Normalize nested {"rag": {...}} (agent.toml) and flat {...} (MCP module_cfg) shapes."""
         return cfg["rag"] if "rag" in cfg else cfg
-
-    @staticmethod
-    def _check_embedding_dim(rag: Mapping[str, Any]) -> str | None:
-        """Return an error message when embedding_dim and vec_dim disagree."""
-        embed_dim = rag.get("embedding_dim")
-        vec_dim = rag.get("vec_dim")
-        if embed_dim and vec_dim and embed_dim != vec_dim:
-            return f"embedding_dim={embed_dim} != vec_dim={vec_dim}"
-        return None
 
     @staticmethod
     def _check_use_rrf(rag: Mapping[str, Any]) -> str | None:

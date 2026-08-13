@@ -34,15 +34,19 @@ _RAG_SCHEMA_TEMPLATE: str = """
         last_modified      TEXT,
         chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
     );
-    CREATE TABLE IF NOT EXISTS chunks (
+   CREATE TABLE IF NOT EXISTS chunks (
         chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
         doc_id             INTEGER NOT NULL
-                               REFERENCES documents(doc_id) ON DELETE CASCADE,
+                           REFERENCES documents(doc_id) ON DELETE CASCADE,
         chunk_index        INTEGER NOT NULL,
         content            TEXT    NOT NULL,
         normalized_content TEXT,
         chunk_type         TEXT    NOT NULL DEFAULT 'text',
-        source_file        TEXT    NOT NULL DEFAULT ''
+        source_file        TEXT    NOT NULL DEFAULT '',
+        UNIQUE (doc_id, chunk_index),
+        CHECK (chunk_index >= 0),
+        CHECK (chunk_type IN ('text', 'code')),
+        CHECK (length(content) > 0)
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
         chunk_id  INTEGER PRIMARY KEY,

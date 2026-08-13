@@ -53,6 +53,7 @@ class IngestionFailureReason(StrEnum):
     VALIDATION_FAILED = "validation_failed"
     EMBEDDING_FAILED = "embedding_failed"
     STORAGE_FAILED = "storage_failed"
+    UNEXPECTED_FAILURE = "unexpected_failure"
 
 
 @dataclass(frozen=True)
@@ -732,7 +733,13 @@ class RagIngester:
             except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
                 logger.exception("ingest_url_group failed: %s", url)
                 results.append(
-                    IngestUrlResult(url=url, n_success=0, n_failed=-1, skipped=False)
+                    IngestUrlResult(
+                        url=url,
+                        n_success=0,
+                        n_failed=0,
+                        skipped=False,
+                        failure_reason=IngestionFailureReason.UNEXPECTED_FAILURE,
+                    )
                 )
         return results
 
