@@ -24,86 +24,18 @@ source:
 
 **責務:** ツールディスパッチのコアエンジン — ツール→サーバの解決、キャッシュ、同時実行数制限、ヘルスゲーティング、トランスポート通信を担う。
 
-**`ToolCallResult` データクラス(結果の契約、`shared/transport_dto.py`、frozen dataclass):**
-```python
-@dataclass(frozen=True)
-class ToolCallResult:
-    output: str          # Tool output string (truncated if > MCP_MAX_RESPONSE_BYTES)
-    is_error: bool       # True if the tool call failed
-    request_id: str      # X-Request-Id from the MCP server response; "" for cache hits
-    server_key: str      # Server key used for routing (e.g. "file_read", "shell")
-    source: str = ""      # "mcp" for MCP tools, "cache" for cache hits, "" for error paths
-    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
-```
+**`ToolCallResult` データクラス(結果の契約、`shared/transport_dto.py`、frozen dataclass):** frozen dataclass with output (truncated if > MCP_MAX_RESPONSE_BYTES), is_error, request_id (X-Request-Id from MCP server, empty for cache hits), server_key (routing target), source ('mcp'/'cache'/empty), error_type ('transport'/'tool'/empty). error_type used by health gate and error counter aggregation.
 
-**訂正 (Explicit in code):** 旧記述は `source` / `error_type` フィールドを欠いていた。`error_type` はエラーの分類(トランスポート層/ツール層)を示し、ヘルスゲートやエラーカウンタ集計(`get_error_counters()`)で参照される。
+**実行フロー:** TTL+LRU cache check (success results only); stampede protection shares Future for same-key concurrent calls; resolve tool_name → server_key via ToolRouteResolver; startup_mode=none gate rejects disabled servers; McpServerHealthRegistry.is_unavailable() blocks UNAVAILABLE dispatch (HALF_OPEN allows one attempt per cooldown); lifecycle.ensure_ready() if configured; execute via HttpTransport.call() behind per-server-key semaphore; cache success results only; return ToolCallResult.
 
-**実行フロー:**
-``` text
-ToolExecutor.execute(tool_name, args) -> ToolCallResult
-  1. TTL + LRU キャッシュチェック(is_error=Falseの結果のみ;キャッシュミス時のみ以降へ進む)
-  2. stampede protection(_inflight）→ 同一キーの同時実行はFutureを共有
-  3. ToolRouteResolver.resolve(tool_name) → server_key
-  4. startup_mode=none ゲート → 無効化されたサーバは即エラー
-  5. McpServerHealthRegistry.is_unavailable(server_key) → UNAVAILABLEならブロック(HALF_OPENは1回だけ許可)
-  6. lifecycle.ensure_ready(server_key)(設定されている場合)
-  7. ツール呼び出しの実行(tool_name, args)
-       → セマフォ取得(server_key に concurrency_limits が設定されている場合)
-       → HttpTransport.call()
-  8. キャッシュ保存(is_error=Falseのみ;TTLは設定から取得)
-  9. ToolCallResult を返す
-```
+**キャッシュの挙動:** Success results only (is_error=False excluded); TTL+LRU eviction configurable via tool_cache_ttl_sec/tool_cache_maxsize; key = (tool_name, serialized_args); side-effect tools fully bypass cache.
 
-**訂正 (Explicit in code):** 旧記述はルーティング解決(3)をキャッシュチェック(1)より前に置いていたが、実装では `execute()` → キャッシュ関数でキャッシュキー(`tool_name` と引数のみ)を先に判定し、キャッシュミス時のみ 同時実行保護関数 経由で 基本実行関数 に入り、その内部でルーティング・startup_modeゲート・ヘルスチェック・lifecycle待機を行う。また 基本実行関数 が例外を送出した場合、待機中の全同時呼び出しにも同じ例外が伝播する(stampede保護のフェイルセーフ)。
+**ヘルスゲート:** McpServerHealthRegistry.is_unavailable() blocks dispatch when UNAVAILABLE; consecutive transport failures transition HEALTHY→DEGRADED→UNAVAILABLE (failure_threshold reaches UNAVAILABLE); success response resets to HEALTHY (clears failure count/degraded reason). HALF_OPEN exists as experimental circuit-breaker recovery: after half_open_cooldown_sec in UNAVAILABLE, one dispatch attempt allowed; failure during HALF_OPEN returns immediately to UNAVAILABLE; record_degraded() does not override UNAVAILABLE/HALF_OPEN states.
 
-**キャッシュの挙動:**
-- `is_error=False` の結果のみキャッシュされる
-- TTL + LRU退避(`tool_cache_ttl_sec`、`tool_cache_maxsize` で設定可能)
-- キャッシュキー: `(tool_name, serialized_args)`
-- 副作用のあるツールはキャッシュを完全にバイパスする
+**同時実行の挙動:** concurrency_limits maps server_key → max concurrent calls; semaphore-based throttling in ToolTransportInvoker; execute_all_tool_calls() serializes entire round when any side-effect tool detected regardless of serial_tool_calls setting.
 
-**ヘルスゲート:**
-- `McpServerHealthRegistry.is_unavailable(server_key)` はUNAVAILABLE時にディスパッチをブロックする
-- 連続したトランスポート失敗 → DEGRADED → UNAVAILABLE の状態遷移(`failure_threshold` 到達でUNAVAILABLE)
-- 成功レスポンス → HEALTHYにリセット(失敗カウント・degraded理由もクリア)
-
-**訂正・追記 (Explicit in code, `shared/mcp_health.py`):** `McpServerHealthState` には `HEALTHY` / `DEGRADED` / `UNAVAILABLE` に加えて `HALF_OPEN` と `UNKNOWN` が存在する。`is_unavailable()` は単純なgetterではなく、UNAVAILABLE状態が `half_open_cooldown_sec` を超えて継続すると副作用としてHALF_OPENへ遷移し、その呼び出し限りで1回だけ試行ディスパッチを許可する(サーキットブレーカー的挙動)。HALF_OPEN中に失敗すると即座にUNAVAILABLEへ戻る(`record_failure()` 内で `was_half_open` を判定)。`record_degraded()` はUNAVAILABLE/HALF_OPEN状態を上書きしない(ガード付き)。
-
-**同時実行の挙動:**
-- `concurrency_limits` 辞書は server_key → 最大同時呼び出し数 をマッピングする
-- ツール実行層でのセマフォベースのスロットリング（`ToolTransportInvoker` のセマフォ初期化処理）
-- `execute_all_tool_calls()`(`agent/tool_runner.py`)が副作用のあるツールを検出すると、`serial_tool_calls` の設定に関わらずそのラウンドの全呼び出しが直列化される
-
-**副作用の検出:**
-```python
-_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"}) | GIT_WRITE_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
-is_side_effect(tool_name: str) -> bool
-```
-
-> **訂正 (Explicit in code):** `_SIDE_EFFECT_TOOLS` / `is_side_effect()` は `shared/tool_executor.py` ではなく `shared/tool_executor_helpers.py` に定義されている。また `execute_all_tool_calls()` と `serial_tool_calls` による直列化判定は `ToolExecutor` 自身のメソッドではなく `agent/tool_runner.py`(agentレイヤー)が呼び出し元であり、`is_side_effect()` の判定結果を用いてラウンド単位で並列/直列を切り替える。`ToolExecutor.execute()` は単一のツール呼び出し単位のAPIであり、ラウンド全体の直列化制御は行わない。集合には旧記述にない `GIT_WRITE_TOOLS` / `GITHUB_WRITE_TOOLS` / `GITHUB_DANGEROUS_TOOLS` も含まれる。
+**副作用の検出:** _SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | {'shell_run'} | GIT_WRITE_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS; is_side_effect(tool_name) checks membership; defined in tool_executor_helpers.py not tool_executor.py; execute_all_tool_calls() in agent/tool_runner.py uses this to switch parallel/serial per-round.
 
 **ルーティング (Explicit in code):** `shared/runtime_tool_registry.py` の `RuntimeToolRegistry` が唯一のルーティング権威(sole routing authority)。`ToolRouteResolver.resolve()`(`shared/route_resolver.py`)は `RuntimeToolRegistry.resolve()` のみを参照し、未知のツールは即座に `ValueError` で失敗する。`shared/tool_registry.py` の `ToolRegistry` はルーティング判断には一切使われず、起動時のドリフト検証(`shared/tool_routing_validation.py`)専用のシードデータに格下げされている。設定ファイルの `tool_names` はドリフト検証専用のメタデータであり、実行時のルーティング判断には使われない。旧「2段カスケード」方式(ライブ検出→レジストリの順で解決)は現行コードには存在しない。ルーティングの詳細は [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) を参照。
 
 ---
-
-## Related Documents
-
-- `90_shared_00_document-guide.md`
-- `90_shared_03_01_runtime_and_execution-config-and-logging.md`
-- `90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md`
-- `90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md`
-- `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part2.md`
-
-## Keywords
-
-LLMClient
-McpServerConfig
-McpServerHealthRegistry
-execution flow summary
-import boundaries
-ToolRegistry
-RuntimeToolRegistry
-ToolRouteResolver
-HALF_OPEN
-tool_executor_helpers
-stampede protection

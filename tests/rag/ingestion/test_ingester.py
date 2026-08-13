@@ -14,12 +14,14 @@ from __future__ import annotations
 
 import dataclasses
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import orjson
 from rag.ingestion.document_manager import DocumentManager
-from rag.ingestion.ingester import RagIngester
+from rag.ingestion.ingester import IngestionFailureReason, PreparedChunk, RagIngester
 
 # Minimal rag.sqlite schema (regular tables; vec0 extension not required in tests)
 _SCHEMA_SQL = """
@@ -58,6 +60,8 @@ class _FakeSQLiteHelper:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+        self._in_transaction = False
+        self._conn.row_factory = sqlite3.Row
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -69,13 +73,24 @@ class _FakeSQLiteHelper:
         return self
 
     def __exit__(self, *args: object) -> None:
-        self._conn.row_factory = None
+        pass
 
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
 
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
         return self._conn.execute(sql, params).fetchall()
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers."""
+        self._in_transaction = True
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+        finally:
+            self._conn.commit()
+            self._in_transaction = False
 
     def commit(self) -> None:
         self._conn.commit()
@@ -186,11 +201,8 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (True, True)
-        row = conn.execute(
-            "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
-        ).fetchone()
-        assert row is not None and row[0] == 7
+        assert isinstance(result, PreparedChunk)
+        assert result.chunk_index == 7
 
     def test_writes_normalized_content(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -206,12 +218,10 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            ingester._embed_and_store(doc_id, path)
+            result = ingester._embed_and_store(doc_id, path)
 
-        row = conn.execute(
-            "SELECT normalized_content FROM chunks WHERE doc_id = ?", (doc_id,)
-        ).fetchone()
-        assert row is not None and row[0] == "正規化"
+        assert isinstance(result, PreparedChunk)
+        assert result.normalized_content == "正規化"
 
     def test_null_normalized_content_stored_as_null(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -232,12 +242,10 @@ class TestEmbedAndStore:
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            ingester._embed_and_store(doc_id, path)
+            result = ingester._embed_and_store(doc_id, path)
 
-        row = conn.execute(
-            "SELECT normalized_content FROM chunks WHERE doc_id = ?", (doc_id,)
-        ).fetchone()
-        assert row is not None and row[0] is None
+        assert isinstance(result, PreparedChunk)
+        assert result.normalized_content is None
 
     def test_embedding_failure_returns_false(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -254,7 +262,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (False, False)
+        assert result == IngestionFailureReason.EMBEDDING_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
@@ -272,7 +280,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (False, False)
+        assert result == IngestionFailureReason.PARSE_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
@@ -292,9 +300,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (False, False)
-        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
-        assert count == 0
+        assert result == IngestionFailureReason.PARSE_FAILED
 
     def test_invalid_chunk_index_falls_back_to_zero(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -316,11 +322,8 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (True, True)
-        row = conn.execute(
-            "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
-        ).fetchone()
-        assert row is not None and row[0] == 0
+        assert isinstance(result, PreparedChunk)
+        assert result.chunk_index == 0
 
     def test_retry_success(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -343,9 +346,8 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (True, True)
-        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
-        assert count == 1
+        assert isinstance(result, PreparedChunk)
+        assert result.chunk_index == 0
 
     def test_all_retries_exhausted(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -364,7 +366,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (False, False)
+        assert result == IngestionFailureReason.EMBEDDING_FAILED
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
@@ -390,9 +392,8 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (True, True)
-        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
-        assert count == 1
+        assert isinstance(result, PreparedChunk)
+        assert result.chunk_index == 0
 
     def test_dimension_mismatch_on_retry(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -413,9 +414,8 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result == (True, True)
-        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
-        assert count == 1
+        assert isinstance(result, PreparedChunk)
+        assert result.chunk_index == 0
 
 
 # ── ingest_url_group() ────────────────────────────────────────────────────────
@@ -814,11 +814,12 @@ class TestPartialFailureHandling:
                 force=False,
             )
 
-        assert result.n_success == 1
+        assert result.n_success == 0
         assert result.n_embed_failed == 1
         assert not path_ok.exists()
         assert not path_fail.exists()
-        assert (tmp_path / "registered" / "c_ok.json").exists()
+        assert not (tmp_path / "registered" / "c_ok.json").exists()
+        assert (chunk_dir.parent / "retry" / "c_ok.json").exists()
         assert (chunk_dir.parent / "retry" / "c_fail.json").exists()
 
     def test_embed_failed_count_reported_in_summary(self, tmp_path: Path) -> None:

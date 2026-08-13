@@ -34,11 +34,11 @@ source:
 
 ## 8. 永続データの全体像
 
-| DBファイル | テーブル | 用途 |
-|---|---|---|
-| `rag.sqlite` | `documents`、`chunks`、`chunks_fts`、`chunks_vec` | RAGドキュメント索引 + ベクトル + FTS検索 |
-| `session.sqlite` | `sessions`、`messages`、`memories`、`memories_fts`、`memories_vec`、`memory_links` | Agentの会話状態 + メモリ層 |
-| `workflow.sqlite` | `tasks`、`attempts`、`processed_events`、`approvals`、`artifacts` | ワークフローエンジンのタスク追跡 |
+| DBファイル | 用途 |
+|---|---|
+| `rag.sqlite` | RAGドキュメント索引 + ベクトル + FTS検索 |
+| `session.sqlite` | Agentの会話状態 + メモリ層 |
+| `workflow.sqlite` | ワークフローエンジンのタスク追跡 |
 
 3つのDBはすべてWALモードと `busy_timeout` を使用する。sqlite-vec は `rag.sqlite`(target=`"rag"`)のみでロードされる。
 
@@ -46,17 +46,13 @@ source:
 
 ## 9. 主要な制約
 
-| 制約 | 値 |
-|---|---|
-| インポート方向 | `shared/` → 外部のみ、`db/` → `shared/` のみ |
-| JSONライブラリ | `orjson`(標準の`json`ではない）; `orjson.dumps()` は `bytes` を返す |
-| HTTPクライアント | `httpx`(`requests`ではない）; 非同期は `httpx.AsyncClient` |
-| 設定形式 | `/opt/llm/config/` 配下のTOML / JSON;`_`始まりのキーは除外される |
-| ログメッセージ | 英語のみ(コードコメント・ログに日本語は使わない） |
-| SQLite WAL | 全接続で `PRAGMA journal_mode=WAL` を使用 |
-| `agent.toml` | 所有権テーブル全体は [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership を参照 |
-| 埋め込み次元 | `agent.toml` の `embedding_dims`(デフォルト384） |
-| セキュリティプロファイル | `mcp_config.py` の `SecurityProfile` enum(`local`/`production`）。`production_config_validator.py` の `ProductionConfigValidator` が production 時に strict キー・`tool_safety_tiers`・`allowed_tools` を検証 |
+- **インポート方向:** `shared/` → 外部のみ、`db/` → `shared/` のみ
+- **JSONライブラリ:** `orjson`(標準の`json`ではない）; `orjson.dumps()` は `bytes` を返す
+- **HTTPクライアント:** `httpx`(`requests`ではない）; 非同期は `httpx.AsyncClient`
+- **設定形式:** `/opt/llm/config/` 配下のTOML / JSON — 所有権テーブルは[§2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-config-ownership)参照
+- **ログメッセージ:** 英語のみ(コードコメント・ログに日本語は使わない）
+- **SQLite WAL:** 全接続で `PRAGMA journal_mode=WAL` を使用
+- **セキュリティプロファイル:** `mcp_config.py` の `SecurityProfile` enum(`local`/`production`）。`production_config_validator.py` の `ProductionConfigValidator` が production 時に strict キー・`tool_safety_tiers`・`allowed_tools` を検証
 
 ---
 
@@ -72,24 +68,4 @@ source:
 
 ## 11. AIリファレンスガイド
 
-| 質問 | 参照先 |
-|---|---|
-| shared/にはどんな型/DTOが定義されているか | [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md) |
-| ConfigLoaderはどう動作するか | [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md) |
-| どんなSQLiteスキーマが存在するか | [90_shared_04_01_db_architecture_and_schema-overview-and-config.md](90_shared_04_01_db_architecture_and_schema-overview-and-config.md) |
-| SQLiteHelperのAPIは何か | [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md) |
-| どんな不具合・不整合が存在するか | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) |
-
-## Related Documents
-
-- `90_shared_00_document-guide.md`
-- `90_shared_01_01_overview-purpose-and-scope.md`
-- `90_shared_01_02_overview-layer-responsibilities.md`
-
-## Keywords
-
-import direction
-constraints
-persistent data
-executive summary
-ai reference guide
+各章のタイトルから対応するドキュメントを特定できる: 型/DTO → [§2](90_shared_02_01_types_and_protocols-core-types.md)、ConfigLoader → [§3](90_shared_03_01_runtime_and_execution-config-and-logging.md)、SQLiteスキーマ → [§4](90_shared_04_01_db_architecture_and_schema-overview-and-config.md)、SQLiteHelper API → [§5](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)、不整合 → [§90](90_shared_90_inconsistencies_and_known_issues.md)。

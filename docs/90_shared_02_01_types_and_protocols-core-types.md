@@ -34,143 +34,46 @@ source:
 
 ## 2. 型定義の全体構造
 
-| 型 | 種別 | ファイル | 利用レイヤー |
-|---|---|---|---|
-| `LLMMessage` | TypedDict | `shared/types.py` | All layers |
-| `RagConfig` | Protocol | `shared/types.py` | `rag/`, `scripts/mcp_servers/rag_pipeline/` |
-| `RagHit` / `RawHit` / `MergedHit` / `RankedHit` | dataclass / Union alias | `shared/types.py` | `rag/`, `agent/`, `shared/` |
-| `LLMUsage` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
-| `LLMResponse` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
-| `ActionResult` | frozen dataclass | `shared/action_result.py` | `agent/` |
-| `ArtifactEvent` | TypedDict | `shared/events.py` | `agent/`, `mcp_servers/github/` |
-| `ShellPolicy` | dataclass | `shared/protocols/shell.py` | `mcp_servers/shell/` |
-| `DbConfig` | dataclass | `db/config.py` | `db/`, `agent/` |
-| `CallToolRequest` / `CallToolResponse` | Pydantic models | `mcp_servers/models.py` | `mcp_servers/` only |
-| Tool frozensets | `frozenset[str]` | `shared/tool_constants.py` | `shared/`, `agent/`, `mcp_servers/` |
-| `ToolCallResult` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `mcp_servers/`, `shared/` |
-| `TransportErrorInfo` | frozen dataclass | `shared/transport_dto.py` | `agent/`, `shared/` (audit logs) |
-| `ToolSpec` | frozen dataclass | `shared/tool_spec.py` | `agent/` (DAG mode) |
-| `CacheEntry` | frozen dataclass | `shared/tool_cache.py` | `shared/` (ToolExecutor cache) |
-| `ToolDefinition` | frozen dataclass | `shared/tool_registry.py` | `shared/`, `mcp_servers/` |
+主要な共通型一覧（詳細はコード参照）:
+
+- `LLMMessage` (TypedDict) — `shared/types.py` — 全レイヤーで利用
+- `RagConfig` (Protocol) — `shared/types.py` — `rag/`, `scripts/mcp_servers/rag_pipeline/`
+- `RagHit` / `RawHit` / `MergedHit` / `RankedHit` (dataclass / Union alias) — `shared/types.py` — `rag/`, `agent/`, `shared/`
+- `LLMUsage` / `LLMResponse` (frozen dataclass) — `shared/llm_types.py` — `agent/`, `shared/`
+- `ActionResult` (frozen dataclass) — `shared/action_result.py` — `agent/`
+- `ArtifactEvent` (TypedDict) — `shared/events.py` — `agent/`, `mcp_servers/github/`
+- `ShellPolicy` (dataclass) — `shared/protocols/shell.py` — `mcp_servers/shell/`
+- `DbConfig` (dataclass) — `db/config.py` — `db/`, `agent/`
+- `CallToolRequest` / `CallToolResponse` (Pydantic) — `mcp_servers/models.py` — `mcp_servers/` 専用
+- Tool frozensets — `shared/tool_constants.py` — `shared/`, `agent/`, `mcp_servers/`
+- `ToolCallResult` / `TransportErrorInfo` (frozen dataclass) — `shared/transport_dto.py`
+- `ToolSpec` (frozen dataclass) — `shared/tool_spec.py` — `agent/` (DAG mode)
+- `CacheEntry` (frozen dataclass) — `shared/tool_cache.py` — `shared/` (ToolExecutor cache)
+- `ToolDefinition` (frozen dataclass) — `shared/tool_registry.py` — `shared/`, `mcp_servers/`
 
 ---
 
 ## 3. `LLMMessage` (`shared/types.py`)
 
-```python
-class LLMMessage(TypedDict, total=False):
-    role: Literal["user", "assistant", "tool", "system"]  # always required in practice
-    content: str | None   # None when message contains only tool_calls
-    tool_calls: list[dict]   # assistant role only
-    tool_call_id: str        # tool role only
-    name: str               # tool role only
-    importance: float       # message importance score for compression prioritization
-    pinned: bool            # preserve during history compression
-    _ephemeral: bool        # excluded from persistence/compression; dropped before the next turn
-    _skill_ephemeral: bool  # like _ephemeral, but scoped to skill-injected messages
-    _memory_injected: bool  # marks a message as memory-layer injected context
-    source: str             # trusted source identifier for ephemeral key injection validation
-```
+`role` (required), `content`/`tool_calls` (roleに応じて条件付き), `importance`/`pinned` (圧縮), `_ephemeral`/_`skill_ephemeral`/_`memory_injected` (ライフサイクル), `source` (検証) のフィールドカテゴリを持つ TypedDict。正典インポートは `from shared.types import LLMMessage`。`_LLMMessageRequired(TypedDict)` を継承して `role` を必須フィールドとして分離定義している。(Explicit in code)
 
-- `total=False` は技術的には全フィールドが省略可能を意味するが、`role` は常に必須
-- 正典インポート: `from shared.types import LLMMessage`(agent/、rag/、shared/全体で20以上のモジュールから利用)
-- 実装上、`role` は `_LLMMessageRequired(TypedDict)` を継承する形で必須フィールドとして分離定義されている (Explicit in code)
-- `source`フィールドは`TRUSTED_SOURCES`キーに対応し、`loop_guard`などの信頼できるソースからのエフェメラルキー注入を検証するために使用される
-
-### 関連TypedDict(ツール呼び出し表現用)
-
-`shared/types.py` には `LLMMessage.tool_calls` の要素や、ストリーミング時の差分表現のための補助的な `TypedDict` も定義されている。
-
-| 型 | 用途 |
-|---|---|
-| `ToolCallFunction` | ツール呼び出し内の `name` / `arguments`(JSON文字列) |
-| `ToolCallDict` | assistant メッセージの `tool_calls` 1件分(`id` / `type` / `function`) |
-| `ToolCallFunctionDelta` | ストリーミング時の関数部分の差分(`total=False`) |
-| `ToolCallDelta` | ストリーミング時の1ツール呼び出し分の差分(`total=False`) |
-| `AccumulatedToolCall` | ストリーミング差分から組み立てた完全なツール呼び出し |
-
-(Explicit in code: `scripts/shared/types.py`)
+ストリーミング時のツール呼び出し差分表現のための補助 TypedDict (`ToolCallFunctionDelta`, `ToolCallDelta`, `AccumulatedToolCall` など) も定義されている。(Explicit in code: `scripts/shared/types.py`)
 
 ---
 
 ## 4. `RagConfig` (`shared/types.py`)
 
-```python
-@runtime_checkable
-class RagConfig(Protocol):
-    semantic_cache_max_size: int
-    semantic_cache_threshold: float
-    use_mqe: bool
-    top_k_search: int
-    use_rerank: bool
-    rag_top_k: int
-    max_chunks_per_doc: int
-    top_k_rerank: int
-    rag_min_score: float
-    use_rrf: bool
-    rrf_k: int
-    use_search: bool
-    rag_service_url: str
-    rag_auth_token: str
-    use_refiner: bool
-    refiner_max_tokens: int
-    refiner_max_chars_per_chunk: int
-    refiner_timeout: float
-    use_semantic_cache: bool
-```
-
-- `@runtime_checkable` — `isinstance()` チェックが可能
-- `RagPipeline`(`scripts/rag/pipeline.py`)で使用され、`scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` から利用される
-- `agent/` は `RagConfig` を直接使用しない(インプロセスのRAGパイプラインを持たない)
-- `SimpleNamespace` アダプタでこのプロトコルを満たすことができる
-- ファイル形式のDTOではない。設定ファイル用DTOは別に存在する: `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig`(MCP TOML)、`rag.models_config.*`(ingestion TOML)。MCPアダプタは `build_rag_cfg_adapter()`(`scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`)を参照 (Explicit in code)
+セマンティックキャッシュ設定、検索パラメータ (`top_k_search`, `rag_top_k`)、リランクパラメータ (`use_rerank`, `top_k_rerank`, `rag_min_score`, `use_rrf`, `rrf_k`)、リファイナ設定 (`max_tokens`, `max_chars_per_chunk`, `timeout`)、サービスURL/認証。`@runtime_checkable` で `isinstance()` チェックが可能。`SimpleNamespace` アダプタでプロトコルを満たせる。ファイル形式のDTOではない。設定ファイル用DTOは別: `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig`(MCP TOML)、`rag.models_config.*`(ingestion TOML)。MCPアダプタは `build_rag_cfg_adapter()` を参照。(Explicit in code)
 
 ---
 
 ## 5. `RawHit`, `MergedHit`, `RankedHit`, `RagHit` (`shared/types.py`)
 
-```python
-@dataclasses.dataclass
-class RawHit:
-    """Search result from vector_search or fts_search."""
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
+`RawHit` (base: `chunk_id`, `content`, `url`, `title`, `distance`, `bm25_score`) → `MergedHit` が `rrf_score` を追加 → `RankedHit` が `rerank_score | None` を追加。`shared/types.py` に正典として定義され、パイプラインの各ステージでフィールドが段階的に追加される。(Explicit in code: `scripts/shared/types.py`)
 
-@dataclasses.dataclass
-class MergedHit:
-    """RawHit after RRF merge; carries aggregated rrf_score."""
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
-    rrf_score: float = 0.0
+**実装上の補足:** `MergedHit` / `RankedHit` も `distance` / `bm25_score` を保持し続け、すべてのフィールドにデフォルト値があるため `chunk_id` と `content` 以外は省略可能。`rerank_score` のみ `None` を許容する。
 
-@dataclasses.dataclass
-class RankedHit:
-    """MergedHit after cross-encoder rerank; carries rerank_score."""
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
-    rrf_score: float = 0.0
-    rerank_score: float | None = None
-
-RagHit = RawHit | MergedHit | RankedHit
-```
-
-- `shared/types.py` に正典として定義されており、パイプラインの各ステージでフィールドが段階的に追加される
-- **実装上の補足 (Current behavior):** 実コードでは `MergedHit` / `RankedHit` も `distance` / `bm25_score` を保持し続ける(前段の値をそのまま引き継ぐ)。またすべてのフィールドにデフォルト値が設定されており、`chunk_id` と `content` 以外は省略可能。`rerank_score` のみ `None` を許容する (Explicit in code: `scripts/shared/types.py`)
-- **インポート:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
-- `scripts/rag/types.py` はこれらの名前をもはや再エクスポートしない — 後方互換用の再エクスポートは削除済み。`shared.types` から直接インポートすること
-- `rag/`、`agent/` から利用される
+**インポート:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`。`scripts/rag/types.py` はこれらの名前を再エクスポートしない — `shared.types` から直接インポートすること。
 
 ---
 
@@ -179,17 +82,3 @@ RagHit = RawHit | MergedHit | RankedHit
 - `90_shared_00_document-guide.md`
 - `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`
 - `90_shared_02_03_types_and_protocols-reference.md`
-
-## Keywords
-
-types
-protocols
-LLMMessage
-RagConfig
-RawHit
-MergedHit
-RankedHit
-RagHit
-ToolCallDict
-AccumulatedToolCall
-rrf_k

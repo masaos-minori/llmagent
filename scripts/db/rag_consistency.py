@@ -2,6 +2,7 @@
 """scripts/db/rag_consistency.py — RAG index consistency verification."""
 
 import dataclasses
+import sqlite3
 
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
@@ -39,37 +40,30 @@ def _collect_document_checks(db: SQLiteHelper) -> tuple[int, int, int]:
 def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, int]]:
     """Return URL-level mismatch map keyed by URL with chunk/vec/fts counts."""
     url_chunk_counts: dict[str, int] = {}
-    try:
-        url_chunk_rows = db.execute(
-            "SELECT d.url, COUNT(c.chunk_id) FROM documents d"
-            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
-            " GROUP BY d.url"
-        ).fetchall()
-        url_chunk_counts = dict(url_chunk_rows)
-    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
-        pass
+    url_chunk_rows = db.execute(
+        "SELECT d.url, COUNT(c.chunk_id) FROM documents d"
+        " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+        " GROUP BY d.url"
+    ).fetchall()
+    url_chunk_counts = dict(url_chunk_rows)
+
     url_vec_counts: dict[str, int] = {}
-    try:
-        url_vec_rows = db.execute(
-            "SELECT d.url, COUNT(cv.chunk_id) FROM documents d"
-            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
-            " LEFT JOIN chunks_vec cv ON c.chunk_id = cv.chunk_id"
-            " GROUP BY d.url"
-        ).fetchall()
-        url_vec_counts = dict(url_vec_rows)
-    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
-        pass
+    url_vec_rows = db.execute(
+        "SELECT d.url, COUNT(cv.chunk_id) FROM documents d"
+        " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+        " LEFT JOIN chunks_vec cv ON c.chunk_id = cv.chunk_id"
+        " GROUP BY d.url"
+    ).fetchall()
+    url_vec_counts = dict(url_vec_rows)
+
     url_fts_counts: dict[str, int] = {}
-    try:
-        url_fts_rows = db.execute(
-            "SELECT d.url, COUNT(cf.rowid) FROM documents d"
-            " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
-            " LEFT JOIN chunks_fts cf ON c.chunk_id = cf.rowid"
-            " GROUP BY d.url"
-        ).fetchall()
-        url_fts_counts = dict(url_fts_rows)
-    except Exception:  # noqa: BLE001, S110 — read-only query; failure indicates DB corruption
-        pass
+    url_fts_rows = db.execute(
+        "SELECT d.url, COUNT(cf.rowid) FROM documents d"
+        " LEFT JOIN chunks c ON d.doc_id = c.doc_id"
+        " LEFT JOIN chunks_fts cf ON c.chunk_id = cf.rowid"
+        " GROUP BY d.url"
+    ).fetchall()
+    url_fts_counts = dict(url_fts_rows)
 
     url_level_mismatches: dict[str, dict[str, int]] = {}
     all_urls = (
@@ -125,30 +119,26 @@ def _collect_affected_identifiers(
 
     if fts_gap > 0:
         rows = db.execute(
-            "SELECT chunk_id FROM chunks"
-            " WHERE chunk_id NOT IN (SELECT id FROM chunks_fts_docsize)"
-            " ORDER BY chunk_id LIMIT 10"
+            "SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize LIMIT 10"
         ).fetchall()
         affected_chunk_ids = tuple(r[0] for r in rows)
         doc_rows = db.execute(
-            "SELECT c.doc_id FROM chunks c"
-            " WHERE c.chunk_id NOT IN (SELECT id FROM chunks_fts_docsize)"
-            " ORDER BY c.doc_id LIMIT 10"
+            "SELECT c.doc_id FROM chunks c "
+            "WHERE c.chunk_id IN (SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize) "
+            "ORDER BY c.doc_id LIMIT 10"
         ).fetchall()
         affected_doc_ids = tuple(r[0] for r in doc_rows) if doc_rows else None
     if orphan_vec_count > 0:
         id_rows = db.execute(
-            "SELECT chunk_id FROM chunks_vec"
-            " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
-            " ORDER BY chunk_id LIMIT 10"
+            "SELECT chunk_id FROM chunks_vec EXCEPT SELECT chunk_id FROM chunks LIMIT 10"
         ).fetchall()
         affected_orphan_chunk_ids = tuple(r[0] for r in id_rows)
         url_rows = db.execute(
-            "SELECT DISTINCT d.url FROM chunks_vec cv"
-            " LEFT JOIN chunks c ON cv.chunk_id = c.chunk_id"
-            " LEFT JOIN documents d ON c.doc_id = d.doc_id"
-            " WHERE c.chunk_id IS NULL AND d.url IS NOT NULL"
-            " ORDER BY d.url LIMIT 10"
+            "SELECT DISTINCT d.url FROM chunks_vec cv "
+            "JOIN chunks c ON cv.chunk_id = c.chunk_id "
+            "JOIN documents d ON c.doc_id = d.doc_id "
+            "WHERE cv.chunk_id NOT IN (SELECT chunk_id FROM chunks) "
+            "ORDER BY d.url LIMIT 10"
         ).fetchall()
         affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
     if docs_without_chunks > 0:
@@ -193,13 +183,12 @@ def check_rag_consistency(
     All queries are read-only. Orphan vec rows are chunk_id values in chunks_vec
     with no matching row in chunks (possible when the chunks_vec_ad trigger fails).
     """
-    chunks, fts, vec, orphan_vec_count, fts_gap, fts_orphan_count = (
-        _collect_basic_counts(db)
-    )
-    docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count = (
-        _collect_document_checks(db)
-    )
-    url_level_mismatches = _collect_url_counts_and_mismatches(db)
+    diagnostic_errors = []
+
+    # Initialize default values
+    chunks = fts = vec = orphan_vec_count = fts_gap = fts_orphan_count = 0
+    docs_without_chunks = chunks_without_vec = duplicate_chunk_index_count = 0
+    url_level_mismatches = {}
     (
         affected_chunk_ids,
         affected_doc_ids,
@@ -209,15 +198,48 @@ def check_rag_consistency(
         affected_chunks_without_vec,
         affected_duplicate_chunk_indices,
         affected_url_mismatches,
-    ) = _collect_affected_identifiers(
-        db,
-        fts_gap=fts_gap,
-        orphan_vec_count=orphan_vec_count,
-        docs_without_chunks=docs_without_chunks,
-        chunks_without_vec=chunks_without_vec,
-        duplicate_chunk_index_count=duplicate_chunk_index_count,
-        url_level_mismatches=url_level_mismatches,
-    )
+    ) = (None,) * 8
+
+    try:
+        chunks, fts, vec, orphan_vec_count, fts_gap, fts_orphan_count = (
+            _collect_basic_counts(db)
+        )
+    except sqlite3.Error as e:
+        diagnostic_errors.append(f"Basic counts collection failed: {e}")
+
+    try:
+        docs_without_chunks, chunks_without_vec, duplicate_chunk_index_count = (
+            _collect_document_checks(db)
+        )
+    except sqlite3.Error as e:
+        diagnostic_errors.append(f"Document checks collection failed: {e}")
+
+    try:
+        url_level_mismatches = _collect_url_counts_and_mismatches(db)
+    except sqlite3.Error as e:
+        diagnostic_errors.append(f"URL mismatch collection failed: {e}")
+
+    try:
+        (
+            affected_chunk_ids,
+            affected_doc_ids,
+            affected_orphan_chunk_ids,
+            affected_orphan_urls,
+            affected_docs_without_chunks,
+            affected_chunks_without_vec,
+            affected_duplicate_chunk_indices,
+            affected_url_mismatches,
+        ) = _collect_affected_identifiers(
+            db,
+            fts_gap=fts_gap,
+            orphan_vec_count=orphan_vec_count,
+            docs_without_chunks=docs_without_chunks,
+            chunks_without_vec=chunks_without_vec,
+            duplicate_chunk_index_count=duplicate_chunk_index_count,
+            url_level_mismatches=url_level_mismatches,
+        )
+    except sqlite3.Error as e:
+        diagnostic_errors.append(f"Affected identifiers collection failed: {e}")
 
     report = RagConsistencyReport(
         chunks=chunks,
@@ -239,6 +261,7 @@ def check_rag_consistency(
         affected_chunks_without_vec=affected_chunks_without_vec,
         affected_duplicate_chunk_indices=affected_duplicate_chunk_indices,
         affected_url_mismatches=affected_url_mismatches,
+        diagnostic_errors=tuple(diagnostic_errors) if diagnostic_errors else None,
     )
     return dataclasses.replace(report, issues=tuple(summarize_issues(report)))
 
@@ -254,6 +277,7 @@ def is_consistent(report: RagConsistencyReport) -> bool:
         and report.chunks_without_vec_count == 0
         and report.duplicate_chunk_index_count == 0
         and not report.url_level_mismatches
+        and not report.diagnostic_errors
     )
     return consistent
 

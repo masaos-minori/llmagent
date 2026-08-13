@@ -6,12 +6,27 @@ Boundary tests for WebCrawler HTTP retry, 304 skip, max_pages limit, and externa
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 import respx
 from httpx import Response
 
 from scripts.rag.ingestion.crawler import WebCrawler
+
+
+def _get_base_cfg(tmp_path: Path) -> dict[str, Any]:
+    """Return a minimal valid config for WebCrawler."""
+    db_path = tmp_path / "test_rag.db"
+    return {
+        "rag_src_dir": str(tmp_path),
+        "rag_db_path": str(db_path),
+        "crawl_delay": 0,
+        "max_depth": 1,
+        "min_chunk": 10,
+        "fetch_retry": 2,
+        "target_urls": [],
+    }
 
 
 @pytest.mark.asyncio
@@ -28,7 +43,7 @@ async def test_retry_on_503_then_succeeds(tmp_path: Path) -> None:
 
     with respx.mock:
         route = respx.get("http://example.com").mock(side_effect=side_effect)
-        crawler = WebCrawler(config={"rag_src_dir": str(tmp_path)})
+        crawler = WebCrawler(config=_get_base_cfg(tmp_path))
         await crawler.crawl_site("http://example.com", "en")
         assert route.calls.called
         assert call_count >= 2
@@ -39,7 +54,7 @@ async def test_skip_304_response(tmp_path: Path) -> None:
     """Verify 304 response is handled without fetching content."""
     with respx.mock:
         respx.get("http://example.com").mock(return_value=Response(status_code=304))
-        crawler = WebCrawler(config={"rag_src_dir": str(tmp_path)})
+        crawler = WebCrawler(config=_get_base_cfg(tmp_path))
         await crawler.crawl_site("http://example.com", "en")
         assert respx.get("http://example.com").called
 
@@ -54,7 +69,9 @@ async def test_max_pages_boundary(tmp_path: Path) -> None:
                     status_code=200, text=f"<html><body>Page {i}</body></html>"
                 )
             )
-        crawler = WebCrawler(config={"rag_src_dir": str(tmp_path), "max_pages": 1})
+        cfg = _get_base_cfg(tmp_path)
+        cfg["max_pages"] = 1
+        crawler = WebCrawler(config=cfg)
         await crawler.crawl()
         assert len(respx.calls) <= 1
 
@@ -69,8 +86,8 @@ async def test_external_link_filter(tmp_path: Path) -> None:
                 text='<html><body><a href="http://external.com/link">External</a></body></html>',
             )
         )
-        crawler = WebCrawler(
-            config={"rag_src_dir": str(tmp_path), "skip_external": True}
-        )
+        cfg = _get_base_cfg(tmp_path)
+        cfg["skip_external"] = True
+        crawler = WebCrawler(config=cfg)
         await crawler.crawl_site("http://example.com", "en")
         assert not respx.get("http://external.com/link").called

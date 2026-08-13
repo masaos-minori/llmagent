@@ -548,9 +548,9 @@ class TestBuildFtsQuery:
         assert '"' in result
         assert len(result) > 0
 
-    def test_empty_string_returns_empty_quote(self) -> None:
+    def test_empty_string_returns_empty(self) -> None:
         result = _build_fts_query("")
-        assert result == '""'
+        assert result == ""
 
     def test_numbers_only(self) -> None:
         result = _build_fts_query("123 456")
@@ -574,9 +574,9 @@ class TestBuildFtsQuery:
         result = _build_fts_query("test こんにちは")
         assert len(result) > 0
 
-    def test_only_spaces_returns_empty_quote(self) -> None:
+    def test_only_spaces_returns_empty(self) -> None:
         result = _build_fts_query("   ")
-        assert result == '""'
+        assert result == ""
 
 
 # ── FTS Trigger Concurrency ───────────────────────────────────────────────────
@@ -905,3 +905,37 @@ class TestFtsTriggerConcurrency:
         after_del = repo.fts_search("original_content", top_k=10)
         del_result_ids = {r.chunk_id for r in after_del}
         assert del_result_ids.isdisjoint(delete_ids)
+
+
+class TestRagRepositoryHardening:
+    def test_invalid_top_k_raises_error(self) -> None:
+        mock_db = MagicMock()
+        repo = RagRepository(mock_db)
+        with pytest.raises(ValueError, match="Must be an integer greater than zero"):
+            repo.vector_search([0.1] * 3, top_k=0)
+        with pytest.raises(ValueError, match="Must be an integer greater than zero"):
+            repo.vector_search([0.1] * 3, top_k=-1)
+        with pytest.raises(ValueError, match="Must be an integer greater than zero"):
+            repo.vector_search([0.1] * 3, top_k=False)
+        with pytest.raises(ValueError, match="Must be an integer greater than zero"):
+            repo.vector_search([0.1] * 3, top_k="5")
+
+    def test_fts_search_empty_or_punctuation_returns_empty(self) -> None:
+        mock_db = MagicMock()
+        repo = RagRepository(mock_db)
+        assert repo.fts_search("", top_k=10) == []
+        assert repo.fts_search("   ", top_k=10) == []
+        assert repo.fts_search("!!!", top_k=10) == []
+        assert repo.fts_search("???", top_k=10) == []
+
+
+class TestBuildFtsQueryLogging:
+    def test_logs_truncation(self, caplog):
+        words = " ".join(f"word{i}" for i in range(25))
+        _build_fts_query(words)
+        assert any("truncated=True" in record.message for record in caplog.records)
+
+    def test_logs_no_truncation(self, caplog):
+        words = "hello world"
+        _build_fts_query(words)
+        assert any("truncated=False" in record.message for record in caplog.records)

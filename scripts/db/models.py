@@ -114,6 +114,9 @@ class RagConsistencyReport:
     affected_url_mismatches: tuple[str, ...] | None = (
         None  # URLs with mismatched counts
     )
+    diagnostic_errors: tuple[str, ...] | None = (
+        None  # Errors during diagnostic execution
+    )
 
 
 @dataclass(frozen=True)

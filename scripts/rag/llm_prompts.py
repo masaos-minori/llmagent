@@ -27,13 +27,13 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
 import orjson
 from shared.types import (
-    RagHit,  # noqa: F401 — imported for use in this module
+    RagConfig,
+    RagHit,
     RankedHit,
 )
 
@@ -117,18 +117,18 @@ class MqeParseResult:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _mqe_prompt(query: str, context: str, cfg: Mapping[str, object]) -> str:
+def _mqe_prompt(query: str, context: str, cfg: RagConfig) -> str:
     """Build the MQE rephrasing prompt, prepending conversation context when given.
-
+    ...
     context holds recent user utterances; it is search-only and is never sent
     directly to the final LLM answer prompt.
     """
-    template = cfg.get("mqe_prompt_template", "")
+    template = cfg.mqe_prompt_template
     if not isinstance(template, str):
         raise TypeError(
             f"mqe_prompt_template must be str, got {type(template).__name__}"
         )
-    n_queries = cfg.get("mqe_n_queries", 3)
+    n_queries = cfg.mqe_n_queries
     if not isinstance(n_queries, int):
         raise TypeError(f"mqe_n_queries must be int, got {type(n_queries).__name__}")
     prompt = template.format(
@@ -161,15 +161,13 @@ def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
     return MqeParseResult(queries=[original_query] + valid)
 
 
-def _build_rerank_prompt(
-    query: str, candidates: list[RagHit], cfg: Mapping[str, object]
-) -> str:
+def _build_rerank_prompt(query: str, candidates: list[RagHit], cfg: RagConfig) -> str:
     """Build the Cross-Encoder scoring prompt from the configured template."""
     items_text = ""
     for i, chunk in enumerate(candidates, start=1):
         preview = chunk.content[:300].replace("\n", " ")
         items_text += f"\n{i}. {preview}"
-    template = cfg.get("rerank_prompt_template", "")
+    template = cfg.rerank_prompt_template
     if not isinstance(template, str):
         raise TypeError(
             f"rerank_prompt_template must be str, got {type(template).__name__}"

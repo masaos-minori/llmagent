@@ -76,13 +76,11 @@ class TestFullIngestionPipeline:
         with patch.object(ingester, "_process_url_groups") as mock_process:
             mock_process.return_value = [mock_result]
             mock_report = MagicMock()
-            with patch("rag.ingestion.ingester.SQLiteHelper") as mock_helper:
-                mock_ctx = MagicMock()
-                mock_ctx.__enter__ = MagicMock(return_value=MagicMock())
-                mock_ctx.__exit__ = MagicMock(return_value=None)
-                mock_helper.return_value = mock_ctx
+            with patch("rag.ingestion.ingester.SQLiteHelper") as mock_helper_class:
+                mock_db = MagicMock()
+                mock_helper_class.return_value.open.return_value.__enter__.return_value = mock_db
                 with patch(
-                    "rag.ingestion.document_manager.check_rag_consistency",
+                    "rag.ingestion.document_manager.DocumentManager.check_consistency",
                     return_value=mock_report,
                 ):
                     # ingest_all() is synchronous — returns RagConsistencyReport or None
@@ -101,14 +99,17 @@ class TestFullIngestionPipeline:
 
         ingester = RagIngester(mock_cfg)
 
-        # Mock embedding call to fail
-        with patch.object(ingester, "_ingest_chunk_files") as mock_process:
+        # Mock _process_url_groups to fail
+        with patch.object(ingester, "_process_url_groups") as mock_process:
             mock_process.side_effect = Exception("Embedding API unavailable")
-            # Should handle the exception without crashing
-            try:
-                ingester.ingest_all()
-            except Exception:  # noqa: BLE001 — expected: embedding failure propagates up; asserting only that it does not hang
-                pass  # Expected — embedding failure propagates up
+
+            # We must also mock SQLiteHelper so it doesn't fail before reaching _process_url_groups
+            with patch("rag.ingestion.ingester.SQLiteHelper") as mock_helper_class:
+                mock_helper_class.return_value.open.return_value.__enter__.return_value = MagicMock()
+
+                # Should raise because ingest_all doesn't catch it
+                with pytest.raises(Exception, match="Embedding API unavailable"):
+                    ingester.ingest_all()
         ingester.close()
 
     @pytest.mark.asyncio

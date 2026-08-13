@@ -9,68 +9,38 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
-@dataclass
-class MqeConfig:
-    """Configuration for MQE (query expansion) feature."""
+@dataclass(frozen=True)
+class RagConfigImpl:
+    """Concrete implementation of RagConfig Protocol."""
 
-    use_mqe: bool = True
-    mqe_url: str = ""
-    mqe_timeout: float = 5.0
-
-
-@dataclass
-class FusionConfig:
-    """Configuration for result fusion (RRF ranking)."""
-
-    rrf_k: int = 60
-
-
-@dataclass
-class RerankConfig:
-    """Configuration for document reranking."""
-
-    use_rerank: bool = True
-    rerank_url: str = ""
-    rerank_timeout: float = 10.0
-    rerank_max_tokens: int = 512
-
-
-@dataclass
-class SearchConfig:
-    """Configuration for semantic search."""
-
-    use_search: bool = True
-    embed_url: str = ""
-    embed_timeout: float = 5.0
-    top_k_search: int = 10
-    rag_min_score: float = 0.0
-    use_rrf: bool = True
-
-
-@dataclass
-class ChunkSplitterConfig:
-    """Configuration for text chunk splitting during ingestion."""
-
-    chunk_size: int = 500
-    chunk_overlap: int = 50
-    lang: str = "en"
-    md_index_enable: bool = False
-
-
-@dataclass
-class IngesterConfig:
-    """Configuration for the RAG ingestion layer."""
-
-    embed_url: str = ""
-    embed_timeout: float = 5.0
-    batch_size: int = 32
-
-
-@dataclass
-class PipelineConfig:
-    """Top-level configuration for the RAG pipeline."""
-
-    mqe: MqeConfig = field(default_factory=MqeConfig)
-    fusion: FusionConfig = field(default_factory=FusionConfig)
-    rerank: RerankConfig = field(default_factory=RerankConfig)
-    search: SearchConfig = field(default_factory=SearchConfig)
+    semantic_cache_max_size: int
+    semantic_cache_threshold: float
+    use_mqe: bool
+    top_k_search: int
+    use_rerank: bool
+    rag_top_k: int
+    max_chunks_per_doc: int
+    top_k_rerank: int
+    rag_min_score: float
+    use_rrf: bool
+    rrf_k: int
+    use_search: bool
+    rag_service_url: str
+    rag_auth_token: str | None
+    use_refiner: bool
+    refiner_max_tokens: int
+    refiner_max_chars_per_chunk: int
+    refiner_timeout: float
+    use_semantic_cache: bool
+    llm_url: str
+    embed_url: str
+    rag_db_path: str
+    sqlite_vec_so: str
+    sqlite_timeout: int
+    sqlite_busy_timeout_ms: int
+    embed_retry: int
+    embed_workers: int
+    rag_pipeline_service_url: str | None
+    mqe_prompt_template: str
+    mqe_n_queries: int
+    rerank_prompt_template: str

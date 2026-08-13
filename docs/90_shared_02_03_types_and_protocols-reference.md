@@ -41,40 +41,13 @@ class DbConfig:
 
 ## 10. ツール定数 (`shared/tool_constants.py`)
 
-すべての定数は `frozenset[str]` である。`ToolRegistry` のシードデータとして、また `ToolExecutor` の副作用分類に使用される。
-
-| Constant | Tool names |
-|---|---|
-| `READ_TOOLS` | `list_directory`, `list_directory_with_sizes`, `directory_tree`, `read_text_file`, `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info` (9 tools) |
-| `WRITE_TOOLS` | `write_file`, `edit_file`, `create_directory`, `move_file` (4 tools) |
-| `DELETE_TOOLS` | `delete_file`, `delete_directory` (2 tools) |
-| `RAG_TOOLS` | `rag_run_pipeline`, `rag_debug_pipeline` |
-| `CICD_TOOLS` | `trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs` |
-| `MDQ_TOOLS` | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs` (7 tools) |
-| `GIT_TOOLS` | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
-| `SHELL_TOOLS` | `shell_run` |
-| `WEB_SEARCH_TOOLS` | `search_web` |
-
-`shared/tool_executor.py` および `agent/tool_runner.py` からも参照される。
+すべての定数は `frozenset[str]` である。`ToolRegistry` のシードデータとして、また `ToolExecutor` の副作用分類に使用される。READ/WRITE/DELETE/RAG/CICD/MDQ/GIT/SHELL/WEB_SEARCH のカテゴリごとに定義され、`shared/tool_executor.py` および `agent/tool_runner.py` からも参照される。(Explicit in code: `scripts/shared/tool_constants.py`)
 
 ---
 
 ## 11. `CallToolRequest` / `CallToolResponse` リファレンス
 
-`mcp_servers/models.py` で定義されている (`shared/` ではない。`mcp_servers` パッケージは PyPI の Model Context Protocol SDK `mcp` との名前衝突を避けるため `mcp` から改称された):
-
-```python
-class CallToolRequest(BaseModel):
-    name: str
-    args: dict = {}
-
-class CallToolResponse(BaseModel):
-    result: str
-    is_error: bool
-```
-
-これらは MCP サーバー内でのみ使用される Pydantic モデルである。`shared/` レイヤーのコードは
-`mcp_servers/` からインポートしない。`shared/tool_executor.py` の `ToolCallResult` dataclass と混同しないこと。
+`mcp_servers/models.py` で定義されている (`shared/` ではない。`mcp_servers` パッケージは PyPI の Model Context Protocol SDK `mcp` との名前衝突を避けるため `mcp` から改称された)。これらは MCP サーバー内でのみ使用される Pydantic モデルであり、`shared/` レイヤーのコードは `mcp_servers/` からインポートしない。`shared/tool_executor.py` の `ToolCallResult` dataclass と混同しないこと。(Explicit in code: `scripts/mcp_servers/models.py`)
 
 ---
 
@@ -91,18 +64,4 @@ class CallToolResponse(BaseModel):
 **AI ガイダンス:** 関数が `RagConfig` を受け取る場合、必要なフィールドを持つオブジェクトであれば
 (`SimpleNamespace` を含め) プロトコルを満たす。`AgentConfig` でなければならないと仮定しないこと。
 
-## Related Documents
 
-- `90_shared_00_document-guide.md`
-- `90_shared_02_01_types_and_protocols-core-types.md`
-- `90_shared_02_02_types_and_protocols-tool-and-execution-dto-part1.md`
-
-## Keywords
-
-tool constants
-CallToolRequest
-CallToolResponse
-Protocol
-TypedDict
-dataclass
-DTO

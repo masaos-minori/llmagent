@@ -127,7 +127,22 @@ class TestRagConsistency:
         assert is_consistent(report)
         assert summarize_issues(report) == []
 
-    def test_orphan_vec_detected(self) -> None:
+    def test_is_consistent_false_on_diagnostic_errors(self) -> None:
+        from db.models import RagConsistencyReport
+
+        report = RagConsistencyReport(
+            chunks=1,
+            fts=1,
+            vec=1,
+            orphan_vec_count=0,
+            fts_gap=0,
+            fts_orphan_count=0,
+            embed_failed=0,
+            issues=(),
+            diagnostic_errors=("Test error",),
+        )
+        assert not is_consistent(report)
+
         db = _make_rag_db()
         db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
         db.commit()

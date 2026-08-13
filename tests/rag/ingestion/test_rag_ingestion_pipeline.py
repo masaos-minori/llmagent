@@ -40,14 +40,21 @@ def _make_rag_db(tmp_path: Path) -> sqlite3.Connection:
             last_modified      TEXT,
             chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
         );
-        CREATE TABLE IF NOT EXISTS chunks (
-            chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            doc_id             INTEGER NOT NULL
+         CREATE TABLE IF NOT EXISTS chunks (
+             chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+             doc_id             INTEGER NOT NULL
                                REFERENCES documents(doc_id) ON DELETE CASCADE,
-            chunk_index        INTEGER NOT NULL,
-            content            TEXT    NOT NULL,
-            normalized_content TEXT
-        );
+             chunk_index        INTEGER NOT NULL,
+             content            TEXT    NOT NULL,
+             normalized_content TEXT,
+             chunk_type         TEXT,
+             source_file        TEXT
+         );
+         CREATE TABLE IF NOT EXISTS chunks_vec (
+             chunk_id           INTEGER PRIMARY KEY REFERENCES chunks(chunk_id) ON DELETE CASCADE,
+             embedding          BLOB
+         );
+
         """
     )
     conn.commit()
@@ -61,11 +68,25 @@ def _make_fake_sqlite_helper(conn: sqlite3.Connection) -> MagicMock:
     This is needed because _handle_existing_file accesses stored["etag"], stored["last_modified"].
     """
     conn.row_factory = sqlite3.Row
-    mock_ctx = MagicMock()
-    mock_ctx.__enter__ = MagicMock(return_value=conn)
-    mock_ctx.__exit__ = MagicMock(return_value=False)
     mock_sh = MagicMock()
-    mock_sh.open = MagicMock(return_value=mock_ctx)
+    mock_sh.execute = MagicMock(side_effect=conn.execute)
+    mock_sh.fetchall = MagicMock(
+        side_effect=lambda sql, params=(): conn.execute(sql, params).fetchall()
+    )
+
+    class BeginImmediateContext:
+        def __enter__(self):
+            conn.execute("BEGIN IMMEDIATE")
+            return conn
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type is None:
+                conn.execute("COMMIT")
+            else:
+                conn.execute("ROLLBACK")
+
+    mock_sh.begin_immediate.return_value = BeginImmediateContext()
+    mock_sh.open.return_value.__enter__.return_value = mock_sh
     return mock_sh
 
 
@@ -138,7 +159,14 @@ class TestJsonLifecycle:
         self, chunk_json: Path, tmp_path: Path
     ) -> None:
         """ChunkSplitter must process chunk JSON and produce heading chunks."""
-        chunker = ChunkSplitter(config={"rag_src_dir": str(tmp_path)})
+        config = {
+            "rag_src_dir": str(tmp_path),
+            "min_chunk": 10,
+            "max_chunk": 1000,
+            "en_stopwords": [],
+            "ja_stop_pos": [],
+        }
+        chunker = ChunkSplitter(config=config)
         chunk_dir = tmp_path / "chunk"
         chunk_dir.mkdir(exist_ok=True)
         result = chunker.process_file(chunk_json, force=True)
@@ -182,6 +210,7 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
+            patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128),
         ):
             result = ingester.ingest_all()
             assert result is not None
@@ -224,6 +253,7 @@ class TestJsonLifecycle:
                 "rag.ingestion.document_manager.check_rag_consistency",
                 return_value=mock_report,
             ),
+            patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128),
         ):
             ingester.ingest_all()
 
@@ -243,6 +273,12 @@ class TestJsonLifecycle:
 
 class TestReingest:
     """Tests for local file SHA-256 re-ingestion behavior."""
+
+    @pytest.fixture(autouse=True)
+    def mock_embedding(self):
+        """Automatically mock _get_embedding for all tests in this class."""
+        with patch.object(RagIngester, "_get_embedding", return_value=[0.1] * 128):
+            yield
 
     @pytest.fixture
     def tmp_dir(self, tmp_path: Path) -> Path:

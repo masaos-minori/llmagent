@@ -20,10 +20,7 @@ source:
 
 ## 移行ノート
 
-- 移行日: 2026-07-23
-- 移行元フォーマット: 既存のバレット形式（Type, Impact scope, Statement A/B, Current safe interpretation, Recommended action, Notes for AI reference）
-- 移行先フォーマット: 共通テンプレート（17フィールド）
-- 注: 既存のエントリ内容は維持。不足フィールドは「未確認」で埋める。
+Migration date: 2026-07-23; Source format: existing bullet format (Type, Impact scope, Statement A/B, Current safe interpretation, Recommended action, Notes for AI reference); Destination format: common template (17 fields); Note: existing entry content preserved; missing fields filled with 'unconfirmed'.
 
 # Shared/DB の不整合と既知の問題
 
@@ -37,37 +34,8 @@ source:
 
 ### SHARED-001: recover_corruption() が実ページ破損時に sqlite3.DatabaseError を捕捉せず伝播する
 
-- **ID**: SHARED-001
-- **Title**: recover_corruption() が実ページ破損時に sqlite3.DatabaseError を捕捉せず伝播する
-- **Status**: open
-- **Severity**: High
-- **Area**: Shared/DB
-- **Type**: implementation-bug
-- **Source**: db/recovery.py::_run_integrity_check(), db/recovery.py::recover_corruption()
-- **Owner**: Unassigned
-- **First Found**: 未確認
-- **Target**: db/recovery.py
-- **Related**: tests/integration/test_session_recovery.py
-- **Summary**: _run_integrity_check() が sqlite3.DatabaseError を捕捉せず、recover_corruption() が RecoveryResult を返さない
-- **Current Description**: except 節が (sqlite3.OperationalError, ValueError, RuntimeError) のみを捕捉。DatabaseError は OperationalError のサブクラスではないため捕捉されない
-- **Observed Implementation**: PRAGMA journal_mode=WAL 実行時に sqlite3.DatabaseError が送出され、recover_corruption() の呼び出し元まで未処理のまま伝播
-- **Impact**: 物理破損したファイルに対して recover_corruption() が例外を送出しうる
-- **Recommended Action**: _run_integrity_check() の except 節に sqlite3.DatabaseError（または共通基底の sqlite3.Error）を追加
-- **Resolution Notes**: 完了待ち
+recover_corruption() は実ページ破損時に sqlite3.DatabaseError を捕捉せず伝播する。Status: open / Severity: High / Type: implementation-bug。影響: 物理的に破損したファイルに対して例外が発生する可能性がある。対応: _run_integrity_check() の except 節に sqlite3.DatabaseError（または共通基底 sqlite3.Error）を追加。
 
 ---
 
-## Related Documents
 
-- [90_shared_00_document-guide.md](90_shared_00_document-guide.md)
-- [90_shared_01_03_overview-constraints-and-reference.md](90_shared_01_03_overview-constraints-and-reference.md)
-- [90_shared_02_01_types_and_protocols-core-types.md](90_shared_02_01_types_and_protocols-core-types.md)
-- [90_shared_03_01_runtime_and_execution-config-and-logging.md](90_shared_03_01_runtime_and_execution-config-and-logging.md)
-
-## Keywords
-
-inconsistency
-known issue
-bug
-documentation gap
-design concern

@@ -20,6 +20,8 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 import httpx
@@ -36,6 +38,35 @@ from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
+# Accepted lang values enforced by the documents.lang CHECK constraint
+_VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Type definitions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class IngestionFailureReason(StrEnum):
+    """Reason why a chunk ingestion failed."""
+
+    PARSE_FAILED = "parse_failed"
+    VALIDATION_FAILED = "validation_failed"
+    EMBEDDING_FAILED = "embedding_failed"
+    STORAGE_FAILED = "storage_failed"
+
+
+@dataclass(frozen=True)
+class PreparedChunk:
+    """Immutable DTO representing a prepared chunk ready for atomic insertion."""
+
+    doc_id: int
+    chunk_index: int
+    content: str
+    normalized_content: str | None
+    embedding_blob: bytes  # Result of floats_to_blob()
+    chunk_type: str
+    source_file: str
+
 
 @dataclasses.dataclass(frozen=True)
 class IngestUrlResult:
@@ -46,10 +77,7 @@ class IngestUrlResult:
     n_failed: int
     skipped: bool
     n_embed_failed: int = 0  # embedding failures (separate from parse/DB failures)
-
-
-# Accepted lang values enforced by the documents.lang CHECK constraint
-_VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
+    failure_reason: IngestionFailureReason | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -74,6 +102,7 @@ class RagIngester:
         self._sqlite_busy_timeout_ms: int = int(
             cfg.get("sqlite_busy_timeout_ms", 30000)
         )
+        self._rag_pipeline_service_url: str = cfg.get("rag_pipeline_service_url", "")
         self._client = httpx.Client(timeout=60)
 
     def close(self) -> None:
@@ -113,7 +142,7 @@ class RagIngester:
             sqlite_vec_so=self._sqlite_vec_so,
             sqlite_timeout=self._sqlite_timeout,
             sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-        ).open(write_mode=True) as db:
+        ).open(write_mode=True, row_factory=True) as db:
             doc_mgr = DocumentManager(db)
             results = self._process_url_groups(doc_mgr, db, url_groups, force)
             consistency_report = doc_mgr.check_consistency(
@@ -146,12 +175,12 @@ class RagIngester:
                 len(consistency_report.issues),
                 "; ".join(consistency_report.issues),
             )
-        # Invalidate RAG pipeline semantic cache after ingestion
-        cfg = ConfigLoader().load("ingester.toml")
-        url = cfg.get("rag_pipeline_service_url", "")
-        if url:
+        # Invalidate RAG pipeline semantic cache after ingestion (only when at least one URL group succeeded)
+        if any(r.n_success > 0 for r in results) and self._rag_pipeline_service_url:
             try:
-                resp = self._client.post(url + "/rag_invalidate_cache")
+                resp = self._client.post(
+                    self._rag_pipeline_service_url + "/rag_invalidate_cache"
+                )
                 resp.raise_for_status()
             except httpx.HTTPError as e:
                 logger.warning(f"Cache invalidation failed: {e}")
@@ -186,7 +215,7 @@ class RagIngester:
         fetched_at = first_data.get("fetched_at")
         chunking_strategy = first_data.get("chunking_strategy", "text")
 
-        doc_id = self._get_or_create_document(
+        doc_id, skip, replace = self._get_or_create_document(
             doc_mgr,
             db,
             url,
@@ -198,23 +227,55 @@ class RagIngester:
             chunking_strategy,
             fetched_at,
         )
-        if doc_id is None:
+        if skip:
             logger.info("already registered, skipping", extra={"url": url})
             self._move_to_registered(chunk_files)
             return self._skip_result(url)
 
-        db.commit()
-        inserted, failed, embed_failed, successful_paths, failed_paths = (
-            self._ingest_chunk_files(doc_id, chunk_files)
+        effective_doc_id = doc_id if doc_id is not None else -1
+
+        prepared_chunks, prepared_paths, failed_paths, embed_failed = (
+            self._prepare_chunks(effective_doc_id, chunk_files)
         )
+
+        if len(prepared_chunks) > 0 and len(failed_paths) == 0:
+            self._commit_url_transaction(
+                doc_mgr,
+                db,
+                url,
+                doc_id,
+                prepared_chunks,
+                prepared_paths,
+                force,
+                replace,
+                title,
+                lang,
+                etag,
+                last_modified,
+                chunking_strategy,
+                fetched_at,
+            )
+            self._route_chunk_files(prepared_paths, failed_paths)
+        else:
+            failed_all = [
+                (p, "embedding_partial_failure") for p in prepared_paths
+            ] + failed_paths
+            self._route_chunk_files([], failed_all)
+
+        n_success = len(prepared_chunks) if len(failed_paths) == 0 else 0
+
         self._log_ingestion_result(
-            doc_id, url, inserted, len(chunk_files), failed, embed_failed
+            doc_id if doc_id is not None else -1,
+            url,
+            n_success,
+            len(chunk_files),
+            len(failed_paths),
+            embed_failed,
         )
-        self._route_chunk_files(successful_paths, failed_paths)
         return IngestUrlResult(
             url=url,
-            n_success=inserted,
-            n_failed=failed,
+            n_success=n_success,
+            n_failed=len(failed_paths),
             skipped=False,
             n_embed_failed=embed_failed,
         )
@@ -370,8 +431,10 @@ class RagIngester:
         last_modified: str | None = None,
         chunking_strategy: str = "text",
         fetched_at: str | None = None,
-    ) -> int | None:
-        """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
+    ) -> tuple[int | None, bool, bool]:
+        """Register a URL in documents and return its doc_id and whether replacement is needed.
+        Returns (None, True) if already registered and skip=True.
+        """
         if not self._validate_lang(lang):
             raise ValueError(
                 f"unsupported lang value: {lang!r} (must be one of {sorted(_VALID_LANGS)})",
@@ -382,7 +445,7 @@ class RagIngester:
         ).fetchone()
         if existing_row:
             existing_doc_id: int = existing_row[0]
-            if doc_mgr.handle_existing_document(
+            doc_id, skip, replace = doc_mgr.handle_existing_document(
                 url,
                 existing_doc_id,
                 force,
@@ -390,13 +453,13 @@ class RagIngester:
                 last_modified,
                 fetched_at,
                 lambda u: u.startswith("file://"),
-            ):
-                return None
-            doc_mgr.delete_existing_document(existing_doc_id)
-        cur = self._insert_document(
-            db, url, title, lang, etag, last_modified, chunking_strategy, fetched_at
-        )
-        return cur.lastrowid
+            )
+            if skip:
+                return None, True, False
+            if replace:
+                return existing_doc_id, False, True
+            return existing_doc_id, False, False
+        return None, False, False
 
     def _insert_document(
         self,
@@ -449,29 +512,60 @@ class RagIngester:
             (chunk_id, floats_to_blob(embedding)),
         )
 
+    def _insert_chunks_batch(
+        self,
+        db: SQLiteHelper,
+        prepared_chunks: list[PreparedChunk],
+    ) -> int:
+        """Insert multiple prepared chunks atomically within a single transaction. Returns the number of inserted chunks."""
+        n = len(prepared_chunks)
+        if n == 0:
+            return 0
+        inserted = 0
+        for pc in prepared_chunks:
+            try:
+                cur = db.execute(
+                    "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        pc.doc_id,
+                        pc.chunk_index,
+                        pc.content,
+                        pc.normalized_content or None,
+                        pc.chunk_type,
+                        pc.source_file,
+                    ),
+                )
+                chunk_id = cur.lastrowid
+                db.execute(
+                    "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+                    (chunk_id, pc.embedding_blob),
+                )
+                inserted += 1
+            except sqlite3.IntegrityError:
+                pass
+        return inserted
+
     # ── Bulk file processing ──────────────────────────────────────────────────
 
     def _read_chunk_json(self, path: Path) -> ChunkJsonRaw | None:
         """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
         return _read_chunk_json_raw(path)
 
-    def _embed_and_store(self, doc_id: int, path: Path) -> tuple[bool, bool]:
-        """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes.
-
-        Returns (chunk_ok, embed_ok).
-        chunk_ok=False means total failure (parse/DB error or embed failure).
-        embed_ok=False specifically means embedding failed (content was valid).
-        """
+    def _embed_and_store(
+        self, doc_id: int, path: Path
+    ) -> PreparedChunk | IngestionFailureReason:
+        """Embed one chunk without DB access; returns a PreparedChunk ready for atomic insertion or a failure reason."""
         data = self._read_chunk_json(path)
         if data is None:
-            return False, False
+            return IngestionFailureReason.PARSE_FAILED
         if not self._validate_artifact(data, "chunk"):
             logger.warning(
                 "artifact validation failed for %s",
                 path.name,
                 extra={"source_type": "file", "stage_name": "ingester"},
             )
-            return False, False
+            return IngestionFailureReason.VALIDATION_FAILED
         content: str = data.get("content", "")
         nc_raw = data.get("normalized_content")
         normalized_content: str | None = (
@@ -497,35 +591,25 @@ class RagIngester:
                     "stage_name": "ingester",
                 },
             )
-            return False, False
-        with SQLiteHelper(
-            db_path=self._rag_db_path,
-            sqlite_vec_so=self._sqlite_vec_so,
-            sqlite_timeout=self._sqlite_timeout,
-            sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
-        ).open(write_mode=True) as db:
-            self._insert_chunk(
-                db,
-                doc_id,
-                idx,
-                content,
-                normalized_content,
-                embedding,
-                chunk_type,
-                source_file,
-            )
-            db.commit()
-        return True, True
+            return IngestionFailureReason.EMBEDDING_FAILED
+        return PreparedChunk(
+            doc_id=doc_id,
+            chunk_index=idx,
+            content=content,
+            normalized_content=normalized_content,
+            embedding_blob=floats_to_blob(embedding),
+            chunk_type=chunk_type,
+            source_file=source_file,
+        )
 
-    def _ingest_chunk_files(
+    def _prepare_chunks(
         self, doc_id: int, chunk_files: list[Path]
-    ) -> tuple[int, int, int, list[Path], list[tuple[Path, str]]]:
-        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed, successful_paths, failed_paths_with_reasons)."""
-        inserted = 0
-        failed = 0
-        embed_failed = 0
-        successful_paths: list[Path] = []
+    ) -> tuple[list[PreparedChunk], list[Path], list[tuple[Path, str]], int]:
+        """Embed chunk files in parallel via ThreadPoolExecutor; returns (prepared_chunks, prepared_paths, failed_paths_with_reasons, embed_failed_count)."""
+        prepared_chunks: list[PreparedChunk] = []
+        prepared_paths: list[Path] = []
         failed_paths: list[tuple[Path, str]] = []
+        embed_failed = 0
         with ThreadPoolExecutor(max_workers=self._embed_workers) as executor:
             futures = {
                 executor.submit(self._embed_and_store, doc_id, path): path
@@ -534,17 +618,21 @@ class RagIngester:
             for future in as_completed(futures):
                 path = futures[future]
                 try:
-                    chunk_ok, embed_ok = future.result()
-                    if chunk_ok:
-                        inserted += 1
-                        successful_paths.append(path)
-                    else:
-                        failed += 1
-                        if not embed_ok:
+                    result = future.result()
+                    if isinstance(result, PreparedChunk):
+                        prepared_chunks.append(result)
+                        prepared_paths.append(path)
+                    elif isinstance(result, IngestionFailureReason):
+                        reason_str = (
+                            result.value if hasattr(result, "value") else str(result)
+                        )
+                        if "embedding" in reason_str.lower():
                             embed_failed += 1
-                            failed_paths.append((path, "embedding failed"))
-                        else:
-                            failed_paths.append((path, "storage failed"))
+                        failed_paths.append((path, reason_str))
+                    else:
+                        failed_paths.append(
+                            (path, f"unexpected result type: {type(result).__name__}")
+                        )
                 except (
                     httpx.HTTPStatusError,
                     httpx.RequestError,
@@ -553,9 +641,54 @@ class RagIngester:
                     TypeError,
                 ) as e:
                     self._log_ingest_failure(doc_id, path, e)
-                    failed += 1
                     failed_paths.append((path, str(e)))
-        return inserted, failed, embed_failed, successful_paths, failed_paths
+        return prepared_chunks, prepared_paths, failed_paths, embed_failed
+
+    def _commit_url_transaction(
+        self,
+        doc_mgr: DocumentManager,
+        db: SQLiteHelper,
+        url: str,
+        doc_id: int | None,
+        prepared_chunks: list[PreparedChunk],
+        prepared_paths: list[Path],
+        force: bool,
+        replace: bool,
+        title: str,
+        lang: str,
+        etag: str | None,
+        last_modified: str | None,
+        chunking_strategy: str,
+        fetched_at: str | None,
+    ) -> None:
+        """Atomically commit all database changes for a URL inside BEGIN IMMEDIATE transaction."""
+        with db.begin_immediate():
+            if doc_id is None or replace:
+                if replace and doc_id is not None:
+                    doc_mgr.delete_existing_document(doc_id)
+                cursor = self._insert_document(
+                    db,
+                    url,
+                    title,
+                    lang,
+                    etag,
+                    last_modified,
+                    chunking_strategy,
+                    fetched_at,
+                )
+                if cursor.lastrowid is None:
+                    raise RuntimeError("Failed to retrieve lastrowid after insertion")
+                new_doc_id: int = cursor.lastrowid
+                prepared_chunks = [
+                    dataclasses.replace(pc, doc_id=new_doc_id) for pc in prepared_chunks
+                ]
+                doc_id = new_doc_id
+
+            # Now insert the prepared chunks using the (possibly new/updated) doc_id
+            self._insert_chunks_batch(db, prepared_chunks)
+
+        # Commit succeeded — move files to registered/
+        self._move_to_registered(prepared_paths)
 
     def _group_chunks_by_url(self, chunk_files: list[Path]) -> dict[str, list[Path]]:
         """Group chunk files by URL read from their JSON 'url' field."""

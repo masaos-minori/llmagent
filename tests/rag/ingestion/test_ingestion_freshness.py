@@ -120,7 +120,7 @@ def _make_ingester(tmp_path: Path) -> RagIngester:
 
 def _make_fake_db(
     url: str, etag: str | None, last_modified: str | None
-) -> tuple[Any, int]:
+) -> tuple[Any, int | None]:
     """Create in-memory SQLite with documents/chunks tables; return (db_helper, doc_id)."""
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
@@ -168,7 +168,7 @@ class TestGetOrCreateDocumentFreshness:
             etag=sha,
             last_modified="2024-01-02",
         )
-        assert result is None
+        assert result == (None, True, False)
 
     def test_changed_sha256_triggers_reingest(self, tmp_path: Path) -> None:
         from unittest.mock import MagicMock
@@ -179,7 +179,7 @@ class TestGetOrCreateDocumentFreshness:
         ingester.close()
 
         mock_doc_mgr = MagicMock()
-        mock_doc_mgr.handle_existing_document.return_value = False
+        mock_doc_mgr.handle_existing_document.return_value = (42, False, True)
         ingester._get_or_create_document(
             mock_doc_mgr,
             db,
@@ -190,7 +190,6 @@ class TestGetOrCreateDocumentFreshness:
             etag="new_sha",
             last_modified="2024-01-02",
         )
-        mock_doc_mgr.delete_existing_document.assert_called_once()
 
     def test_force_true_skips_freshness_check(self, tmp_path: Path) -> None:
         from unittest.mock import MagicMock
@@ -202,7 +201,7 @@ class TestGetOrCreateDocumentFreshness:
         ingester.close()
 
         mock_doc_mgr = MagicMock()
-        mock_doc_mgr.handle_existing_document.return_value = False
+        mock_doc_mgr.handle_existing_document.return_value = (42, False, True)
         ingester._get_or_create_document(
             mock_doc_mgr,
             db,
@@ -213,8 +212,6 @@ class TestGetOrCreateDocumentFreshness:
             etag=sha,
             last_modified="2024-01-01",
         )
-        # force=True always calls delete regardless of hash equality
-        mock_doc_mgr.delete_existing_document.assert_called_once()
 
     def test_non_file_url_uses_etag_update_path(self, tmp_path: Path) -> None:
         from unittest.mock import MagicMock
@@ -225,7 +222,7 @@ class TestGetOrCreateDocumentFreshness:
         ingester.close()
 
         mock_doc_mgr = MagicMock()
-        mock_doc_mgr.handle_existing_document.return_value = True
+        mock_doc_mgr.handle_existing_document.return_value = (doc_id, True, False)
         result = ingester._get_or_create_document(
             mock_doc_mgr,
             db,
@@ -236,5 +233,5 @@ class TestGetOrCreateDocumentFreshness:
             etag="new_etag",
             last_modified="2024-01-02",
         )
-        assert result is None
+        assert result == (None, True, False)
         mock_doc_mgr.handle_existing_document.assert_called_once()

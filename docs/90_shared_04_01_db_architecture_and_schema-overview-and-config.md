@@ -30,25 +30,9 @@ WAL/FTS5/sqlite-vec の設定、全テーブルスキーマ、およびスキー
 
 ## 2. DB レイヤー全体構造
 
-``` text
-db/
-├── helper.py          SQLiteHelper — connection lifecycle, PRAGMA, vec extension
-├── create_schema.py   DDL creation (rag + session schemas; idempotent)
-├── store_protocols.py Protocol definitions (MemoryDeleteStore, VectorStore, ...)
-├── store_impl.py      SQLite implementations of store protocols
-├── store.py           Re-export stub — public API surface for db.store imports
-├── maintenance.py     WAL checkpoint, VACUUM, purge, rotate, recover
-└── create_schema.py DDL creation (rag + session + workflow + eventbus schemas; idempotent)
-```
+db/ contains helper.py (connection lifecycle, PRAGMA, vec extension), create_schema.py (DDL creation idempotent for rag/session/workflow/eventbus schemas), store_protocols.py (MemoryDeleteStore, VectorStore protocol definitions), store_impl.py (SQLite implementations of store protocols), store.py (public re-export layer for db.store imports), maintenance.py (WAL checkpoint, VACUUM, purge, rotate, recover).
 
-DB ファイルは4つ存在する。
-
-| DB | デフォルトパス | テーブル |
-|---|---|---|
-| `rag.sqlite` | `agent.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
-| `session.sqlite` | `agent.toml::session_db_path` | `sessions`, `messages`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
-| `workflow.sqlite` | `agent.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
-| `eventbus.sqlite` | `agent.toml::eventbus_db_path` | `events` |
+Four DB files exist: rag.sqlite (agent.toml::rag_db_path, documents/chunks/chunks_fts/chunks_vec tables), session.sqlite (agent.toml::session_db_path, sessions/messages/memories/memories_fts/memories_vec/memory_links/session_diagnostics tables), workflow.sqlite (agent.toml::workflow_db_path, tasks/attempts/processed_events/artifacts/approvals tables), eventbus.sqlite (agent.toml::eventbus_db_path, events table). DB files separated because RAG indexing and conversation state have different access patterns; rag.sqlite writes heavily during ingestion and reads during query; session.sqlite appends heavily during conversations; separation avoids WAL contention.
 
 **なぜ DB ファイルを分離するのか。** RAG インデキシングと会話状態はアクセスパターンが異なる。
 `rag.sqlite` は取り込み時に書き込みが多く、クエリ時に読み込みが多い。
@@ -60,51 +44,13 @@ DB ファイルは4つ存在する。
 
 ## 3. `DbConfig` (`db/config.py`)
 
-```python
-@dataclass(frozen=True)
-class DbConfig:
-    rag_db_path: str           # path to rag.sqlite
-    session_db_path: str       # path to session.sqlite
-    workflow_db_path: str = "/opt/llm/db/workflow.sqlite"  # path to workflow.sqlite
-    eventbus_db_path: str = "/opt/llm/db/eventbus.sqlite"  # path to eventbus.sqlite
-    sqlite_vec_so: str = ""    # path to vec0.so (empty = vec extension not needed)
-    sqlite_timeout: int = 30   # sqlite3.connect() timeout (seconds, >= 1)
-    sqlite_busy_timeout_ms: int = 30000   # PRAGMA busy_timeout (ms)
-    embedding_dims: int = 384  # embedding vector dimension
-```
-
-- `__post_init__` は、すべてのパスフィールドが空でないこと、`sqlite_timeout >= 1` であること、`embedding_dims >= 1` であること、および各 DB パスの親ディレクトリが存在すること（DB ファイル自体は SQLite が初回オープン時に作成する）を検証する
-- `embed_url` フィールドは `DbConfig` に存在しない
-- `db/config.py` の `build_db_config()` によって構築される
-- `agent.toml` は `ConfigLoader().load_all()` 経由でロードされる（`_BASE_CONFIG_FILES` のインデックス0に含まれる）— 完全な所有関係表は [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership を参照
+Frozen dataclass for DB configuration. rag_db_path (path to rag.sqlite), session_db_path (path to session.sqlite), workflow_db_path (default /opt/llm/db/workflow.sqlite), eventbus_db_path (default /opt/llm/db/eventbus.sqlite), sqlite_vec_so (path to vec0.so, empty = vec extension not needed), sqlite_timeout (sqlite3.connect() timeout seconds >= 1), sqlite_busy_timeout_ms (PRAGMA busy_timeout ms default 30000), embedding_dims (embedding vector dimension default 384). __post_init__ validates all path fields non-empty, sqlite_timeout >= 1, embedding_dims >= 1, parent directories exist (DB files themselves created on first open). No embed_url field exists. Built by build_db_config() in db/config.py. agent.toml loaded via ConfigLoader().load_all() (_BASE_CONFIG_FILES index 0 included).
 
 ---
 
 ## 4. DB ファイル構造と `SQLiteHelper`
 
-`SQLiteHelper` は接続のライフサイクルを管理する。コンストラクタは初期化時に設定を解決する。
-
-```python
-SQLiteHelper(target: DbTarget | str = "rag")
-# DbTarget.RAG, DbTarget.SESSION, DbTarget.WORKFLOW, or string literal
-# "rag"      → rag.sqlite
-# "session"  → session.sqlite
-# "workflow" → workflow.sqlite
-# "eventbus" → eventbus.sqlite (Event Bus DDL only; no runtime integration yet)
-```
-
-`DbTarget` は `db/helper.py` に定義された `StrEnum`（`RAG`/`SESSION`/`WORKFLOW`/`EVENTBUS`）であり、`target` 引数には enum メンバーまたは同名の文字列リテラルのいずれかを渡せる。
-
-**注記:** Event Bus のランタイム（publisher/subscriber/dispatcher/DLQ worker）は本クリーンアップの対象範囲外である。今後 Event Bus の書き込み側を実装する際は、ISO-8601 UTC の Z サフィックス付きタイムスタンプを使用しなければならない。
-
-**接続セットアップ（`open()` 呼び出しごと）:**
-1. sqlite-vec 拡張をロード（rag ターゲットのみ）。その後 `enable_load_extension(False)`
-2. `PRAGMA journal_mode=WAL`
-3. `PRAGMA synchronous=NORMAL`
-4. `PRAGMA busy_timeout=30000`（`agent.toml::sqlite_busy_timeout_ms` から取得）
-5. `PRAGMA foreign_keys=ON`（`write_mode=True` の場合）
-
-sqlite-vec は `target="rag"` の場合のみロードされる。session および workflow ターゲットでは vec はロードされない。
+`SQLiteHelper` manages connection lifecycle. Constructor accepts target parameter resolving to specific DB file: DbTarget.RAG → rag.sqlite, DbTarget.SESSION → session.sqlite, DbTarget.WORKFLOW → workflow.sqlite, DbTarget.EVENTBUS → eventbus.sqlite (Event Bus DDL only; no runtime integration yet). DbTarget is StrEnum defined in db/helper.py (RAG/SESSION/WORKFLOW/EVENTBUS); target parameter accepts enum member or same-named string literal. Connection setup per open() call: load sqlite-vec extension (rag target only), then enable_load_extension(False); set PRAGMA journal_mode=WAL; set PRAGMA synchronous=NORMAL; set PRAGMA busy_timeout=30000 (from agent.toml::sqlite_busy_timeout_ms); set PRAGMA foreign_keys=ON (when write_mode=True). sqlite-vec loaded only when target='rag'; session and workflow targets do not load vec.
 
 ### 4a. `SQLiteHelper` コンストラクタの `db_path` オーバーライド (Explicit in code)
 
@@ -122,16 +68,3 @@ sqlite-vec は `target="rag"` の場合のみロードされる。session およ
 `SQLiteHelper` は `BEGIN IMMEDIATE` / `BEGIN EXCLUSIVE` をラップするコンテキストマネージャ `begin_immediate()` / `begin_exclusive()` を提供する。いずれも通常の例外発生時は `ROLLBACK` を試み（`sqlite3.OperationalError` は握りつぶす）、元の例外を再送出する。`BaseException`（`KeyboardInterrupt`/`SystemExit`）は捕捉しない。`begin_exclusive()` は VACUUM やスキーマ変更など、排他ロックが必要な操作専用（`db/helper.py` docstring より）。
 
 ---
-
-## Related Documents
-
-- `90_shared_00_document-guide.md`
-- `90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md`
-- `90_shared_04_03_db_architecture_and_schema-migration-and-scaling.md`
-
-## Keywords
-
-DbConfig
-SQLiteHelper
-DB layer structure
-DB file structure

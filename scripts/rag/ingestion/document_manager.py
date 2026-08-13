@@ -54,14 +54,52 @@ class DocumentManager:
         last_modified: str | None,
         fetched_at: str | None,
         is_file_url: Callable[[str], bool],
-    ) -> bool:
-        """Handle an existing document; return True when the caller should skip insertion."""
+    ) -> tuple[int, bool, bool]:
+        """Handle an existing document case.
+
+        Returns:
+            Tuple of (existing_doc_id, skip_flag, replace_chunks_flag)
+            - When force=True: (existing_doc_id, False, True) — caller should delete then proceed
+            - When force=False and file unchanged: (existing_doc_id, True, False) — skip
+            - When force=False and file changed: (existing_doc_id, False, True) — caller should delete then proceed
+        """
         if force:
-            return False
+            return existing_doc_id, False, True
         if is_file_url(url):
-            return self._handle_existing_file(url, existing_doc_id, etag, last_modified)
+            stored = self._db.execute(
+                "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
+                (existing_doc_id,),
+            ).fetchone()
+            if stored is None:
+                return existing_doc_id, False, False
+            if self._is_file_unchanged(
+                stored["etag"], stored["last_modified"], etag, last_modified
+            ):
+                logger.info(
+                    "file:// unchanged (sha256 match): %s",
+                    url,
+                    extra={"stage_name": "ingester"},
+                )
+                return existing_doc_id, True, False
+            logger.info(
+                "file:// changed — auto re-ingesting: %s",
+                url,
+                extra={"stage_name": "ingester"},
+            )
+            return existing_doc_id, False, True
+
+        stored = self._db.execute(
+            "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
+            (existing_doc_id,),
+        ).fetchone()
+        if stored is None:
+            return existing_doc_id, False, False
+
+        if stored["etag"] == etag and stored["last_modified"] == last_modified:
+            return existing_doc_id, True, False
+
         self._update_etag(existing_doc_id, etag, last_modified, fetched_at)
-        return True
+        return existing_doc_id, False, True
 
     def _handle_existing_file(
         self,

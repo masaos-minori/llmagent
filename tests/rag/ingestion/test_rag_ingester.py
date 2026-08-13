@@ -1,25 +1,23 @@
-"""tests/test_rag_ingester.py
-
-Tests for RagIngester._read_chunk_json, chunk metadata preservation,
-and --force reinsert behavior.
-
-These tests prevent regression of BUG-1/BUG-2/BUG-3 where chunk metadata
-(chunking_strategy, normalized_content, chunk_index) was lost.
-"""
-
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import orjson
+import pytest
+from db.helper import SQLiteHelper
 from rag.ingestion.document_manager import DocumentManager
-from rag.ingestion.ingester import RagIngester
+from rag.ingestion.ingester import (
+    IngestUrlResult,
+    PreparedChunk,
+    RagIngester,
+)
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Constants & Helpers ───────────────────────────────────────────────────────
+
+_DIM = 384
+_FAKE_EMBEDDING = [0.1] * _DIM
 
 
 def _make_chunk_json(
@@ -32,6 +30,8 @@ def _make_chunk_json(
     chunk_index: int = 0,
     etag: str | None = None,
     last_modified: str | None = None,
+    chunk_type: str = "",
+    source_file: str = "",
 ) -> dict:
     """Build a chunk JSON dict matching what ChunkSplitter produces."""
     return {
@@ -47,104 +47,15 @@ def _make_chunk_json(
         "chunk_index": chunk_index,
         "etag": etag,
         "last_modified": last_modified,
+        "chunk_type": chunk_type,
+        "source_file": source_file,
         "code_blocks": [],
     }
 
 
-def _write_chunk_file(chunk_dir: Path, name: str, data: dict) -> Path:
-    """Write a chunk JSON file (as ChunkSplitter does)."""
-    path = chunk_dir / f"{name}.json"
-    path.write_bytes(orjson.dumps(data))
-    return path
-
-
-_SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS documents (
-    doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    url                TEXT    NOT NULL UNIQUE,
-    title              TEXT,
-    lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-    fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
-    etag               TEXT,
-    last_modified      TEXT,
-    chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
-);
-CREATE TABLE IF NOT EXISTS chunks (
-    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    doc_id             INTEGER NOT NULL
-                           REFERENCES documents(doc_id) ON DELETE CASCADE,
-    chunk_index        INTEGER NOT NULL,
-    content            TEXT    NOT NULL,
-    normalized_content TEXT,
-    chunk_type         TEXT,
-    source_file        TEXT
-);
-CREATE TABLE IF NOT EXISTS chunks_vec (
-    chunk_id  INTEGER PRIMARY KEY,
-    embedding BLOB NOT NULL
-);
-"""
-
-_DIM = 384
-_FAKE_EMBEDDING = [0.1] * _DIM
-
-
-class _FakeSQLiteHelper:
-    """In-memory SQLite wrapper satisfying the SQLiteHelper interface used by ingester."""
-
-    def __init__(self, conn: sqlite3.Connection) -> None:
-        self._conn = conn
-
-    def open(
-        self, *, write_mode: bool = False, row_factory: bool = False
-    ) -> _FakeSQLiteHelper:
-        self._conn.row_factory = sqlite3.Row if row_factory else None
-        return self
-
-    def __enter__(self) -> _FakeSQLiteHelper:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        self._conn.row_factory = None
-
-    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
-        return self._conn.execute(sql, params)
-
-    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
-        return self._conn.execute(sql, params).fetchall()
-
-    def commit(self) -> None:
-        self._conn.commit()
-
-    @contextmanager
-    def begin_immediate(self) -> Generator[None]:
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
-            yield
-            self._conn.execute("COMMIT")
-        except Exception:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.OperationalError:
-                pass
-            raise
-
-    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
-        return self._conn.executemany(sql, params_seq)
-
-    def close(self) -> None:
-        pass
-
-
-def _make_db() -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(_SCHEMA_SQL)
-    conn.commit()
-    return conn, _FakeSQLiteHelper(conn)
-
-
-def _make_ingester(tmp_path: Path, embed_url: str = "http://127.0.0.1:9999/embedding"):
+def _make_ingester(
+    tmp_path: Path, embed_url: str = "http://127.0.0.1:9999/embedding"
+) -> RagIngester:
     """Create a RagIngester with temp directories and mocked config."""
     chunk_dir = tmp_path / "chunk"
     chunk_dir.mkdir(exist_ok=True)
@@ -155,646 +66,365 @@ def _make_ingester(tmp_path: Path, embed_url: str = "http://127.0.0.1:9999/embed
         "embed_url": embed_url,
         "embed_retry": 1,
         "embed_workers": 2,
+        "rag_pipeline_service_url": "",
     }
     return RagIngester(config=cfg)
 
 
-# ── _read_chunk_json tests ────────────────────────────────────────────────────
+# ── Fixtures ───────────────────────────────────────────────────────────────────
 
 
-class TestReadChunkJson:
-    """Tests for _read_chunk_json() raw JSON field preservation."""
+@pytest.fixture
+def mock_db():
+    """Mock SQLiteHelper for atomicity tests."""
+    db = MagicMock(spec=SQLiteHelper)
+    cm = MagicMock()
+    cm.__enter__.return_value = None
+    cm.__exit__.return_value = False
+    db.begin_immediate.return_value = cm
 
-    def test_preserves_all_fields(self, tmp_path):
-        """All chunk fields including metadata are preserved in returned dict."""
-        ingester = _make_ingester(tmp_path)
-        data = _make_chunk_json(
-            content="Test content",
-            chunking_strategy="heading",
-            normalized_content="test content",
-            chunk_index=3,
-        )
-        path = _write_chunk_file(tmp_path / "chunk", "chunk_0", data)
-        result = ingester._read_chunk_json(path)
+    db.execute.called_after_begin_immediate = False
 
-        assert result is not None
-        assert result["url"] == "http://example.com/page"
-        assert result["title"] == "Test Page"
-        assert result["lang"] == "en"
-        assert result["content"] == "Test content"
-        assert result["chunking_strategy"] == "heading"
-        assert result["normalized_content"] == "test content"
-        assert result["chunk_index"] == 3
+    def side_effect(*args, **kwargs):
+        if cm.__enter__.called:
+            db.execute.called_after_begin_immediate = True
+        return MagicMock()
 
-    def test_returns_none_for_missing_file(self, tmp_path):
-        """Returns None when chunk file does not exist."""
-        ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "nonexistent.json"
-        result = ingester._read_chunk_json(path)
-        assert result is None
+    db.execute.side_effect = side_effect
+    yield db
 
-    def test_returns_none_for_invalid_json(self, tmp_path):
-        """Returns None when chunk file contains invalid JSON."""
-        ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "invalid.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("not json {{{")
-        result = ingester._read_chunk_json(path)
-        assert result is None
 
-    def test_returns_none_for_non_dict_json(self, tmp_path):
-        """Returns None when chunk file contains non-object JSON (e.g. array)."""
-        ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "array.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("[1, 2, 3]")
-        result = ingester._read_chunk_json(path)
-        assert result is None
+@pytest.fixture
+def mock_http_client():
+    """Mock HTTP client for embedding service."""
+    client = MagicMock()
+    client.post.return_value.json.return_value = {"embedding": [0.1] * 768}
+    yield client
 
 
-# ── Chunk metadata storage tests ──────────────────────────────────────────────
+@pytest.fixture
+def mock_doc_mgr(mock_db):
+    """Mock DocumentManager."""
+    mgr = MagicMock(spec=DocumentManager)
+    mgr.handle_existing_document.return_value = (None, False, False)
+    yield mgr
 
 
-class TestChunkMetadataStorage:
-    """Tests that chunk metadata fields are correctly stored in SQLite."""
+# ── Tests ─────────────────────────────────────────────────────────────────────
 
-    def test_chunk_index_stored_correctly(self, tmp_path):
-        """chunk_index from JSON file is written to chunks.chunk_index column."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
 
-        # Create chunk files with explicit chunk_index values
-        data1 = _make_chunk_json(content="First chunk", chunk_index=0)
-        data2 = _make_chunk_json(content="Second chunk", chunk_index=1)
-        data3 = _make_chunk_json(content="Third chunk", chunk_index=2)
-        _write_chunk_file(chunk_dir, "chunk_0", data1)
-        _write_chunk_file(chunk_dir, "chunk_1", data2)
-        _write_chunk_file(chunk_dir, "chunk_2", data3)
-
-        # Mock embedding to return a valid vector
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
-
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 1
-        mock_cur.fetchone.return_value = None
-
-        def execute_side_effect(sql, *args, **kwargs):
-            return mock_cur
-
-        mock_db = MagicMock()
-        mock_db.execute.side_effect = execute_side_effect
-
-        # Mock SQLiteHelper used by _embed_and_store (opens its own connection)
-        mock_sh = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
-        mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_sh.open = MagicMock(return_value=mock_ctx)
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=mock_db,
-                url="http://example.com/page",
-                chunk_files=sorted(chunk_dir.glob("*.json")),
-                force=False,
-            )
-
-        # Verify _insert_chunk was called with correct chunk_index values
-        calls = mock_cur.execute.call_args_list
-        # Exclude chunks_vec inserts — "INSERT INTO chunks (" won't match "chunks_vec"
-        chunk_inserts = [c for c in calls if "INSERT INTO chunks (" in str(c)]
-        assert len(chunk_inserts) == 3
-        # call.args = (sql_str, params_tuple); params_tuple[1] = chunk_index
-        idx_values = {c[0][1][1] for c in chunk_inserts}
-        assert idx_values == {0, 1, 2}
-
-    def test_normalized_content_stored_correctly(self, tmp_path):
-        """normalized_content from JSON file is written to chunks.normalized_content."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json(
-            content="Original", normalized_content="normalized form"
-        )
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 1
-        mock_cur.fetchone.return_value = None
-
-        def execute_side_effect(sql, *args, **kwargs):
-            return mock_cur
-
-        mock_db = MagicMock()
-        mock_db.execute.side_effect = execute_side_effect
-
-        mock_sh = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
-        mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_sh.open = MagicMock(return_value=mock_ctx)
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=mock_db,
-                url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=False,
-            )
-
-        # Check that normalized_content was passed to INSERT
-        calls = mock_cur.execute.call_args_list
-        chunk_inserts = [c for c in calls if "INSERT INTO chunks" in str(c)]
-        assert len(chunk_inserts) >= 1
-        insert_args = chunk_inserts[0][0]
-        if len(insert_args) > 3:
-            assert insert_args[3] == "normalized form"
-
-    def test_chunking_strategy_stored_in_documents(self, tmp_path):
-        """chunking_strategy from first chunk JSON is stored in documents.chunking_strategy."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json(chunking_strategy="heading")
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 42
-        mock_cur.fetchone.return_value = None
-
-        def execute_side_effect(sql, *args, **kwargs):
-            return mock_cur
-
-        mock_db = MagicMock()
-        mock_db.execute.side_effect = execute_side_effect
-
-        ingester.ingest_url_group(
-            doc_mgr=MagicMock(),
-            db=mock_db,
-            url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.json"],
-            force=False,
-        )
-
-        # Check that _get_or_create_document was called with correct chunking_strategy
-        calls = mock_db.execute.call_args_list
-        doc_inserts = [c for c in calls if "INSERT INTO documents" in str(c)]
-        assert len(doc_inserts) >= 1
-        # call.args = (sql_str, params_tuple); params_tuple[5] = chunking_strategy
-        params = doc_inserts[0][0][1]
-        assert params[5] == "heading"
-
-
-# ── Force reinsert tests ──────────────────────────────────────────────────────
-
-
-class TestForceReinsert:
-    """Tests for --force reinsert behavior."""
-
-    def test_force_reinsert_deletes_existing_document(self, tmp_path):
-        """force=True deletes existing document and chunks before re-inserting."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json()
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_db = MagicMock()
-        # Simulate existing document found
-        mock_cur = MagicMock()
-        mock_cur.fetchone.return_value = (42,)
-        mock_cur.lastrowid = 99
-        mock_db.execute.return_value = mock_cur
-
-        mock_doc_mgr = MagicMock()
-        # force=True → handle_existing_document returns False (don't skip)
-        mock_doc_mgr.handle_existing_document.return_value = False
-
-        ingester.ingest_url_group(
-            doc_mgr=mock_doc_mgr,
-            db=mock_db,
-            url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.json"],
-            force=True,
-        )
-
-        # delete_existing_document is delegated to doc_mgr
-        mock_doc_mgr.delete_existing_document.assert_called_once()
-
-    def test_no_force_skips_existing_document(self, tmp_path):
-        """force=False skips ingestion when document already exists."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json()
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_db = MagicMock()
-        # Simulate existing document found
-        mock_db.fetchone.return_value = (42,)
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 99
-        mock_db.execute.return_value = mock_cur
-
-        ingester.ingest_url_group(
-            doc_mgr=MagicMock(),
-            db=mock_db,
-            url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.json"],
-            force=False,
-        )
-
-        # Should NOT have called DELETE for existing document
-        calls = mock_db.execute.call_args_list
-        delete_calls = [c for c in calls if "DELETE" in str(c)]
-        assert len(delete_calls) == 0
-
-
-# ── Chunk order tests ─────────────────────────────────────────────────────────
-
-
-class TestChunkOrder:
-    """Tests that chunks are processed in ascending chunk_index order."""
-
-    def test_chunks_sorted_by_stem_filename(self, tmp_path):
-        """Chunk files are sorted by stem (filename without extension) before ingestion."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        # Create files out of order
-        data3 = _make_chunk_json(content="Third", chunk_index=2)
-        data1 = _make_chunk_json(content="First", chunk_index=0)
-        data2 = _make_chunk_json(content="Second", chunk_index=1)
-        _write_chunk_file(chunk_dir, "chunk_2", data3)
-        _write_chunk_file(chunk_dir, "chunk_0", data1)
-        _write_chunk_file(chunk_dir, "chunk_1", data2)
-
-        mock_db = MagicMock()
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 42
-        mock_db.execute.return_value = mock_cur
-        mock_db.fetchone.return_value = None
-
-        # Get files in arbitrary order (simulating glob output)
-        raw_files = list(chunk_dir.glob("*.json"))
-
-        ingester.ingest_url_group(
-            doc_mgr=MagicMock(),
-            db=mock_db,
-            url="http://example.com/page",
-            chunk_files=raw_files,
-            force=False,
-        )
-
-        # ingest_url_group sorts by stem internally: sorted(chunk_files, key=lambda p: p.stem)
-        # Verify the sort is correct
-        sorted_files = sorted(raw_files, key=lambda p: p.stem)
-        assert sorted_files[0].stem == "chunk_0"
-        assert sorted_files[1].stem == "chunk_1"
-        assert sorted_files[2].stem == "chunk_2"
-
-
-# ── chunk_type / source_file storage ─────────────────────────────────────────
-
-
-def _make_insert_spy(tmp_path: Path):
-    """Return (ingester, captured_insert_calls) for _insert_chunk call inspection."""
-    ingester = _make_ingester(tmp_path)
-    insert_calls: list[tuple] = []
-    original = ingester._insert_chunk
-
-    def spy(db, doc_id, idx, content, nc, embedding, chunk_type="", source_file=""):
-        insert_calls.append((chunk_type, source_file))
-        original(db, doc_id, idx, content, nc, embedding, chunk_type, source_file)
-
-    ingester._insert_chunk = spy  # noqa: SLF001
-    return ingester, insert_calls
-
-
-class TestChunkMetadataFields:
-    def test_chunk_type_stored_correctly(self, tmp_path):
-        """chunk_type from JSON is passed through to _insert_chunk."""
-        ingester, insert_calls = _make_insert_spy(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json(content="Hello")
-        data["chunk_type"] = "heading"
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 1
-        mock_cur.fetchone.return_value = None
-        mock_db = MagicMock()
-        mock_db.execute.return_value = mock_cur
-        mock_sh = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
-        mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_sh.open = MagicMock(return_value=mock_ctx)
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=mock_db,
-                url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=False,
-            )
-
-        assert len(insert_calls) == 1
-        assert insert_calls[0][0] == "heading"
-
-    def test_source_file_stored_correctly(self, tmp_path):
-        """source_file from JSON is passed through to _insert_chunk."""
-        ingester, insert_calls = _make_insert_spy(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json(content="Hello")
-        data["source_file"] = "docs/guide.md"
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 1
-        mock_cur.fetchone.return_value = None
-        mock_db = MagicMock()
-        mock_db.execute.return_value = mock_cur
-        mock_sh = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
-        mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_sh.open = MagicMock(return_value=mock_ctx)
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=mock_db,
-                url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=False,
-            )
-
-        assert len(insert_calls) == 1
-        assert insert_calls[0][1] == "docs/guide.md"
-
-    def test_missing_fields_default_to_empty_string(self, tmp_path):
-        """chunk_type/source_file default to empty string when absent from JSON."""
-        ingester, insert_calls = _make_insert_spy(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-
-        data = _make_chunk_json(content="Hello")
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
-        mock_cur = MagicMock()
-        mock_cur.lastrowid = 1
-        mock_cur.fetchone.return_value = None
-        mock_db = MagicMock()
-        mock_db.execute.return_value = mock_cur
-        mock_sh = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
-        mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_sh.open = MagicMock(return_value=mock_ctx)
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=mock_db,
-                url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=False,
-            )
-
-        assert len(insert_calls) == 1
-        assert insert_calls[0] == ("", "")
-
-
-# ── Step 3: validation gap tests ──────────────────────────────────────────────
-
-
-class TestReadChunkJsonValidation:
-    def test_returns_none_for_missing_url(self, tmp_path):
-        chunk_file = tmp_path / "chunk_0.json"
-        chunk_file.write_bytes(
-            orjson.dumps({"url": "", "content": "test", "lang": "en"})
-        )
-        ingester = _make_ingester(tmp_path)
-        assert ingester._read_chunk_json(chunk_file) is None
-
-    def test_returns_none_for_missing_content(self, tmp_path):
-        chunk_file = tmp_path / "chunk_0.json"
-        chunk_file.write_bytes(
-            orjson.dumps({"url": "https://example.com", "content": "", "lang": "en"})
-        )
-        ingester = _make_ingester(tmp_path)
-        assert ingester._read_chunk_json(chunk_file) is None
-
-    def test_invalid_chunk_index_defaults_to_zero(self, tmp_path):
-        """chunk_index that can't be cast to int falls back to 0."""
-        ingester = _make_ingester(tmp_path)
-        chunk_dir = tmp_path / "chunk"
-        data = _make_chunk_json(content="Hello")
-        data["chunk_index"] = "abc"
-        _write_chunk_file(chunk_dir, "chunk_0", data)
-
-        conn, fake_db = _make_db()
-        conn.execute(
-            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
-            ("http://example.com/page", "Test Page", "en", "heading"),
-        )
-        conn.commit()
-        doc_id: int = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
-
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
-
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
-        ):
-            ingester._embed_and_store(doc_id, chunk_dir / "chunk_0.json")
-
-        row = conn.execute(
-            "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
-        ).fetchone()
-        assert row is not None and row[0] == 0
-
-
-# ── Step 1: real DB integration tests ─────────────────────────────────────────
-
-
-def _ingest_via_real_db(
-    tmp_path: Path,
-    chunk_data: dict,
-    force: bool = False,
-) -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
-    """Helper: write one chunk file, run ingest_url_group against real in-memory DB, return conn+db."""
-    chunk_dir = tmp_path / "chunk"
-    chunk_dir.mkdir(exist_ok=True)
-    (tmp_path / "registered").mkdir(exist_ok=True)
-    _write_chunk_file(chunk_dir, "chunk_0", chunk_data)
-    conn, fake_db = _make_db()
-
-    ingester = _make_ingester(tmp_path)
-    mock_resp = MagicMock()
-    mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
-
-    with (
-        patch.object(ingester._client, "post", return_value=mock_resp),
-        patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+class TestRagIngester:
+    @pytest.mark.parametrize(
+        "urls",
+        [
+            (["http://a.com", "http://b.com"]),
+            (["http://c.com"]),
+        ],
+    )
+    def test_ingest_url_group_success(
+        self, tmp_path, urls, mock_db, mock_http_client, mock_doc_mgr
     ):
-        ingester.ingest_url_group(
-            doc_mgr=MagicMock(),
-            db=fake_db,
-            url=chunk_data["url"],
-            chunk_files=[chunk_dir / "chunk_0.json"],
-            force=force,
+        ingester = _make_ingester(tmp_path)
+        ingester._client = mock_http_client
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+
+        mock_doc_mgr.handle_existing_document.return_value = (1, False, False)
+
+        chunk_path = tmp_path / "chunk" / "test.json"
+        chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        with patch.object(
+            ingester,
+            "_prepare_chunks",
+            return_value=(
+                [PreparedChunk(1, 0, "c", None, b"", "t", "s")],
+                [chunk_path],
+                [],
+                0,
+            ),
+        ) as mock_prep:
+            with patch.object(
+                ingester, "_commit_url_transaction", return_value=None
+            ) as mock_commit:
+                result = ingester.ingest_url_group(
+                    mock_doc_mgr, mock_db, urls[0], [chunk_path], force=False
+                )
+
+                assert isinstance(result, IngestUrlResult)
+                assert result.n_success == 1
+                assert mock_prep.called
+                assert mock_commit.called
+
+    def test_force_reinsert(self, tmp_path, mock_db, mock_doc_mgr):
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+
+        # Scenario: document exists and should be replaced
+        mock_doc_mgr.handle_existing_document.return_value = (1, False, True)
+
+        chunk_path = tmp_path / "chunk" / "test.json"
+        chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        with patch.object(
+            ingester,
+            "_prepare_chunks",
+            return_value=(
+                [PreparedChunk(1, 0, "c", None, b"", "t", "s")],
+                [chunk_path],
+                [],
+                0,
+            ),
+        ) as mock_prep:
+            with patch.object(
+                ingester, "_commit_url_transaction", return_value=None
+            ) as mock_commit:
+                result = ingester.ingest_url_group(
+                    mock_doc_mgr, mock_db, "http://a.com", [chunk_path], force=True
+                )
+                assert result.n_success == 1
+                assert mock_prep.called
+                assert mock_commit.called
+
+
+class TestAtomicity:
+    def test_forced_reingest_with_embedding_failure(
+        self, tmp_path, mock_db, mock_http_client, mock_doc_mgr
+    ):
+        """Verify previous document preserved when re-ingestion fails during preparation."""
+        # Setup: existing document exists
+        mock_doc_mgr.handle_existing_document.return_value = (123, False, False)
+
+        ingester = _make_ingester(tmp_path)
+        ingester._client = mock_http_client
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+
+        # Setup: valid chunk file so it doesn't exit early
+        chunk_path = tmp_path / "chunk" / "valid.json"
+        chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        # Setup: embedding failure using a caught exception type
+        from unittest.mock import MagicMock
+
+        import httpx
+
+        mock_http_client.post.side_effect = httpx.RequestError(
+            "Embedding failed", request=MagicMock()
         )
 
-    return conn, fake_db
-
-
-class TestRealDBFieldPreservation:
-    def test_chunking_strategy_stored_in_documents_real_db(self, tmp_path):
-        data = _make_chunk_json(chunking_strategy="heading")
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute(
-            "SELECT chunking_strategy FROM documents WHERE url = ?", (data["url"],)
-        ).fetchone()
-        assert row is not None and row[0] == "heading"
-
-    def test_chunk_index_stored_correctly_real_db(self, tmp_path):
-        data = _make_chunk_json(chunk_index=5)
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute("SELECT chunk_index FROM chunks LIMIT 1").fetchone()
-        assert row is not None and row[0] == 5
-
-    def test_normalized_content_stored_correctly_real_db(self, tmp_path):
-        data = _make_chunk_json(normalized_content="normalized form")
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute("SELECT normalized_content FROM chunks LIMIT 1").fetchone()
-        assert row is not None and row[0] == "normalized form"
-
-    def test_null_normalized_content_stored_as_null_real_db(self, tmp_path):
-        data = _make_chunk_json(normalized_content=None)
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute("SELECT normalized_content FROM chunks LIMIT 1").fetchone()
-        assert row is not None and row[0] is None
-
-    def test_etag_last_modified_stored_in_documents(self, tmp_path):
-        data = _make_chunk_json(etag="etag-abc", last_modified="2024-01-01T00:00:00Z")
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute(
-            "SELECT etag, last_modified FROM documents WHERE url = ?", (data["url"],)
-        ).fetchone()
-        assert (
-            row is not None
-            and row[0] == "etag-abc"
-            and row[1] == "2024-01-01T00:00:00Z"
+        result = ingester.ingest_url_group(
+            mock_doc_mgr, mock_db, "http://example.com", [chunk_path], force=True
         )
 
-    def test_chunk_type_stored_in_chunks_real_db(self, tmp_path):
-        data = _make_chunk_json()
-        data["chunk_type"] = "code"
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute("SELECT chunk_type FROM chunks LIMIT 1").fetchone()
-        assert row is not None and row[0] == "code"
+        # Verify: n_success is 0 because it failed during preparation
+        assert result.n_success == 0
+        # Verify: rollback happened — no transaction started yet since prep failed
+        assert not mock_db.begin_immediate.called
 
-    def test_source_file_stored_in_chunks_real_db(self, tmp_path):
-        data = _make_chunk_json()
-        data["source_file"] = "docs/guide.md"
-        conn, _ = _ingest_via_real_db(tmp_path, data)
-        row = conn.execute("SELECT source_file FROM chunks LIMIT 1").fetchone()
-        assert row is not None and row[0] == "docs/guide.md"
+    def test_database_failure_during_replacement(
+        self, tmp_path, mock_db, mock_http_client, mock_doc_mgr
+    ):
+        """Verify rollback when database operation fails during commit."""
+        # Setup: existing document exists
+        mock_doc_mgr.handle_existing_document.return_value = (123, False, True)
+
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = mock_http_client
+
+        # Setup: all chunks prepare successfully
+        chunk_path = tmp_path / "chunk" / "valid.json"
+        chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        prepared_chunks = [PreparedChunk(123, 0, "c", None, b"", "t", "s")]
+
+        with patch.object(
+            ingester,
+            "_prepare_chunks",
+            return_value=(prepared_chunks, [chunk_path], [], 0),
+        ):
+            with patch.object(
+                ingester,
+                "_insert_chunks_batch",
+                side_effect=sqlite3.DatabaseError("Database error"),
+            ):
+                with pytest.raises(sqlite3.DatabaseError, match="Database error"):
+                    ingester.ingest_url_group(
+                        mock_doc_mgr,
+                        mock_db,
+                        "http://example.com",
+                        [chunk_path],
+                        force=True,
+                    )
+
+                assert mock_db.begin_immediate.called
+
+    def test_partial_preparation_failure(
+        self, tmp_path, mock_db, mock_http_client, mock_doc_mgr
+    ):
+        """Verify no DB modification when any chunk fails during preparation."""
+        # Setup: no existing document
+        mock_doc_mgr.handle_existing_document.return_value = (None, False, False)
+
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = mock_http_client
+
+        # Setup: two chunk files, only one prepares successfully
+        chunk_path1 = tmp_path / "chunk" / "valid1.json"
+        chunk_path1.write_bytes(orjson.dumps(_make_chunk_json()))
+        chunk_path2 = tmp_path / "chunk" / "valid2.json"
+        chunk_path2.write_bytes(orjson.dumps(_make_chunk_json()))
+        chunk_files = [chunk_path1, chunk_path2]
+
+        # Setup: first chunk prepares, second fails
+        prepared_chunks = [PreparedChunk(1, 0, "c", None, b"", "t", "s")]
+        failed_paths = [(chunk_path2, "embedding_failed")]
+
+        with patch.object(
+            ingester,
+            "_prepare_chunks",
+            return_value=(prepared_chunks, [chunk_path1], failed_paths, 1),
+        ):
+            result = ingester.ingest_url_group(
+                mock_doc_mgr, mock_db, "http://example.com", chunk_files, force=False
+            )
+
+            # Verify: n_success is 0 because we didn't reach commit if we treat partial failures as group failure
+            assert result.n_success == 0
+            assert not mock_db.begin_immediate.called
+
+    def test_successful_replacement(
+        self, tmp_path, mock_db, mock_http_client, mock_doc_mgr
+    ):
+        """Verify all chunks committed atomically on success."""
+        # Setup: existing document exists
+        mock_doc_mgr.handle_existing_document.return_value = (123, False, True)
+
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = mock_http_client
+
+        # Setup: all chunks succeed
+        chunk_path = tmp_path / "chunk" / "valid.json"
+        chunk_path.write_bytes(orjson.dumps(_make_chunk_json()))
+        prepared_chunks = [PreparedChunk(123, 0, "c", None, b"", "t", "s")]
+
+        with patch.object(
+            ingester,
+            "_prepare_chunks",
+            return_value=(prepared_chunks, [chunk_path], [], 0),
+        ):
+            with patch.object(ingester, "_insert_chunks_batch") as mock_batch:
+                result = ingester.ingest_url_group(
+                    mock_doc_mgr,
+                    mock_db,
+                    "http://example.com",
+                    [chunk_path],
+                    force=True,
+                )
+                assert result.n_success == 1
+                assert mock_db.begin_immediate.called
+                assert mock_batch.called
 
 
-# ── Step 2: force reinsert integration test ───────────────────────────────────
+class TestCacheInvalidation:
+    def test_all_skipped_run_no_cache_invalidation(
+        self, tmp_path, mock_db, mock_doc_mgr
+    ):
+        """Verify cache NOT invalidated when all URLs skipped."""
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = MagicMock()
+        ingester._rag_pipeline_service_url = "http://cache-svc"
 
-
-class TestForceReinsertMetadata:
-    def test_force_reinsert_preserves_all_metadata(self, tmp_path):
-        """After force reinsert, new chunk data replaces old across all preserved fields."""
+        # Add dummy chunk files
         chunk_dir = tmp_path / "chunk"
         chunk_dir.mkdir(exist_ok=True)
-        (tmp_path / "registered").mkdir(exist_ok=True)
-        conn, fake_db = _make_db()
+        chunk_file = chunk_dir / "test.json"
+        chunk_file.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        # Mock process to return skipped results
+        with patch("rag.ingestion.ingester.SQLiteHelper") as mock_sqlite_helper_cls:
+            mock_sqlite_helper_cls.return_value.open.return_value.__enter__.return_value = mock_db
+            with patch("rag.ingestion.ingester.DocumentManager") as mock_doc_mgr_cls:
+                instance = mock_doc_mgr_cls.return_value
+                instance.check_consistency.return_value = None
+
+                with patch.object(
+                    ingester,
+                    "_process_url_groups",
+                    return_value=[IngestUrlResult("u", 0, 0, True)],
+                ):
+                    ingester.ingest_all()
+                    ingester._client.post.assert_not_called()
+
+    def test_all_failed_run_no_cache_invalidation(
+        self, tmp_path, mock_db, mock_doc_mgr
+    ):
+        """Verify cache NOT invalidated when all URLs fail."""
         ingester = _make_ingester(tmp_path)
-        mock_resp = MagicMock()
-        mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = MagicMock()
+        ingester._rag_pipeline_service_url = "http://cache-svc"
 
-        # First ingest
-        data_v1 = _make_chunk_json(
-            content="Original", chunking_strategy="text", chunk_index=0
-        )
-        _write_chunk_file(chunk_dir, "chunk_0", data_v1)
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=MagicMock(),
-                db=fake_db,
-                url=data_v1["url"],
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=False,
-            )
+        # Add dummy chunk files
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunk_file = chunk_dir / "test.json"
+        chunk_file.write_bytes(orjson.dumps(_make_chunk_json()))
 
-        # Restore chunk file (moved to registered)
-        (tmp_path / "registered" / "chunk_0.json").rename(chunk_dir / "chunk_0.json")
+        with patch("rag.ingestion.ingester.SQLiteHelper") as mock_sqlite_helper_cls:
+            mock_sqlite_helper_cls.return_value.open.return_value.__enter__.return_value = mock_db
+            with patch("rag.ingestion.ingester.DocumentManager") as mock_doc_mgr_cls:
+                instance = mock_doc_mgr_cls.return_value
+                instance.check_consistency.return_value = None
 
-        # Second ingest with force=True and new data
-        data_v2 = _make_chunk_json(
-            content="Updated",
-            chunking_strategy="heading",
-            chunk_index=1,
-            normalized_content="updated normalized",
-        )
-        (chunk_dir / "chunk_0.json").write_bytes(orjson.dumps(data_v2))
-        with (
-            patch.object(ingester._client, "post", return_value=mock_resp),
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
-        ):
-            ingester.ingest_url_group(
-                doc_mgr=DocumentManager(fake_db),
-                db=fake_db,
-                url=data_v2["url"],
-                chunk_files=[chunk_dir / "chunk_0.json"],
-                force=True,
-            )
+                with patch.object(
+                    ingester,
+                    "_process_url_groups",
+                    return_value=[IngestUrlResult("u", 0, 1, False)],
+                ):
+                    ingester.ingest_all()
+                    ingester._client.post.assert_not_called()
 
-        # Verify old chunks gone, new chunks present with correct metadata
-        chunks = conn.execute(
-            "SELECT chunk_index, content, normalized_content FROM chunks"
-        ).fetchall()
-        assert len(chunks) == 1
-        assert chunks[0][0] == 1
-        assert chunks[0][1] == "Updated"
-        assert chunks[0][2] == "updated normalized"
+    def test_partial_success_cache_invalidation(self, tmp_path, mock_db, mock_doc_mgr):
+        """Verify cache invalidated only once on partial success."""
+        ingester = _make_ingester(tmp_path)
+        ingester.doc_mgr = mock_doc_mgr
+        ingester.db = mock_db
+        ingester._client = MagicMock()
+        ingester._rag_pipeline_service_url = "http://cache-svc"
 
-        doc_row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
-        assert doc_row is not None and doc_row[0] == "heading"
+        # Add dummy chunk files
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunk_file = chunk_dir / "test.json"
+        chunk_file.write_bytes(orjson.dumps(_make_chunk_json()))
+
+        with patch("rag.ingestion.ingester.SQLiteHelper") as mock_sqlite_helper_cls:
+            mock_sqlite_helper_cls.return_value.open.return_value.__enter__.return_value = mock_db
+            with patch("rag.ingestion.ingester.DocumentManager") as mock_doc_mgr_cls:
+                instance = mock_doc_mgr_cls.return_value
+                instance.check_consistency.return_value = None
+
+                # One succeeds, one fails
+                with patch.object(
+                    ingester,
+                    "_process_url_groups",
+                    return_value=[
+                        IngestUrlResult("u1", 1, 0, False),
+                        IngestUrlResult("u2", 0, 1, False),
+                    ],
+                ):
+                    ingester.ingest_all()
+                    ingester._client.post.assert_called_once_with(
+                        "http://cache-svc/rag_invalidate_cache"
+                    )

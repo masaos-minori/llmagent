@@ -90,13 +90,31 @@ def _build_fts_query(text: str) -> str:
     else:
         tokens = re.findall(r"[a-zA-Z0-9]+", text)
     if not tokens:
-        return '""'
+        return ""
+
+    original_token_count = len(tokens)
     # Strip double-quotes (FTS5 metachar) and whitespace; drop empty tokens
     sanitized = [
         s for s in (t.replace('"', "").strip() for t in tokens[:_MAX_FTS_TOKENS]) if s
     ]
+    used_token_count = len(sanitized)
+    truncated = original_token_count > _MAX_FTS_TOKENS
+
+    if truncated:
+        logger.info(
+            "FTS query construction: original=%d, used=%d, truncated=True",
+            original_token_count,
+            used_token_count,
+        )
+    else:
+        logger.info(
+            "FTS query construction: original=%d, used=%d, truncated=False",
+            original_token_count,
+            used_token_count,
+        )
+
     if not sanitized:
-        return '""'
+        return ""
     return " ".join(f'"{t}"' for t in sanitized)
 
 
@@ -130,6 +148,12 @@ class RagRepository:
         """Initialize with a database helper instance."""
         self._db = db
 
+    def _validate_top_k(self, top_k: Any) -> None:
+        if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k <= 0:
+            raise ValueError(
+                f"Invalid top_k: {top_k}. Must be an integer greater than zero."
+            )
+
     @staticmethod
     def _execute_with_timing(
         sql: str, params: tuple[object, ...], db: SQLiteHelper
@@ -142,6 +166,7 @@ class RagRepository:
 
     def vector_search(self, embedding: list[float], top_k: int) -> list[RagHit]:
         """Retrieve top_k chunks by L2-distance KNN (smaller distance = higher similarity)."""
+        self._validate_top_k(top_k)
         rows, elapsed_ms = self._execute_with_timing(
             self._SQL_VEC, (floats_to_blob(embedding), top_k), self._db
         )
@@ -169,6 +194,10 @@ class RagRepository:
         Raises sqlite3.OperationalError on FTS syntax errors — callers must handle.
         """
         fts_query = _build_fts_query(query)
+        if not fts_query:
+            logger.info("fts_search: empty query, returning early")
+            return []
+        self._validate_top_k(top_k)
         rows, elapsed_ms = self._execute_with_timing(
             self._SQL_FTS, (fts_query, top_k), self._db
         )

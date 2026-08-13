@@ -20,24 +20,11 @@ source:
 
 ## Consumer ID の安定性
 
-Consumer ID は常にクライアントが `consumer_id` クエリパラメータで指定するものであり、
-サーバ側で自動生成されることはない。
-
-再起動後にオフセットの再開（resume）を機能させるには、consumer は再起動をまたいで
-永続する安定した consumer_id を使用しなければならない。
-
-2 つの consumer が同じ consumer_id を使用した場合、オフセットファイルに対しては
-最後に書き込んだものが優先される（衝突検知は行われない）。
+Consumer ID はクライアントが `consumer_id` パラメータで指定し、サーバー側では自動生成されない。再起動後も安定したIDを使用すること。PIDのような揮発性IDを使用してはならない。同一IDの複数consumerは最後の書き込みが優先され、サーバーは衝突を検出しない。
 
 ## Related Documents
 
+- `06_eventbus_02_02_subscribe-ack.md` — subscribe/ack プロトコル詳細
+- `06_eventbus_03_persistence_schema_and_replay.md` — オフセット永続化詳細
 - `06_eventbus_05_03_health-endpoint-semantics.md`
 - `06_eventbus_05_05_delivery-operations.md`
-
-## Keywords
-
-event-bus
-consumer-id
-offset-resume
-reconnect
-stability

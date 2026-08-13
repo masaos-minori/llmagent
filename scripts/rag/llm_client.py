@@ -14,8 +14,7 @@ Import from here:  from rag.llm_client import RagLLM, get_embedding, summarize_t
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -30,7 +29,8 @@ from shared.json_utils import (
 from shared.llm_client import build_embed_url, build_llm_url
 from shared.types import (
     LLMMessage,
-    RagHit,  # noqa: F401 — imported for use in this module
+    RagConfig,
+    RagHit,
 )
 
 from rag.llm_prompts import (
@@ -98,12 +98,12 @@ class RagLLM:
         self,
         client: httpx.AsyncClient,
         llm_url: str,
-        cfg: Mapping[str, object] | None = None,
+        cfg: RagConfig | None = None,
     ) -> None:
         """Initialize with HTTP client, LLM URL, and optional config mapping."""
         self._client = client
         self._llm_url = llm_url
-        self._cfg: Mapping[str, object] = cfg if cfg is not None else {}
+        self._cfg: RagConfig | dict[str, object] = cfg if cfg is not None else {}
 
     async def _call_llm(
         self,
@@ -131,7 +131,14 @@ class RagLLM:
         """
         try:
             raw = await self._call_llm(
-                [{"role": "user", "content": _mqe_prompt(query, context, self._cfg)}],
+                [
+                    {
+                        "role": "user",
+                        "content": _mqe_prompt(
+                            query, context, cast(RagConfig, self._cfg)
+                        ),
+                    }
+                ],
                 _MQE_TEMPERATURE,
                 _MQE_MAX_TOKENS,
             )
@@ -164,7 +171,9 @@ class RagLLM:
                 [
                     {
                         "role": "user",
-                        "content": _build_rerank_prompt(query, candidates, self._cfg),
+                        "content": _build_rerank_prompt(
+                            query, candidates, cast(RagConfig, self._cfg)
+                        ),
                     }
                 ],
                 _RERANK_TEMPERATURE,

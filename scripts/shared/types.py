@@ -98,12 +98,24 @@ class RagConfig(Protocol):
     rrf_k: int
     use_search: bool
     rag_service_url: str
-    rag_auth_token: str
+    rag_auth_token: str | None
     use_refiner: bool
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
     use_semantic_cache: bool
+    llm_url: str
+    embed_url: str
+    rag_db_path: str
+    sqlite_vec_so: str
+    sqlite_timeout: int
+    sqlite_busy_timeout_ms: int
+    embed_retry: int
+    embed_workers: int
+    rag_pipeline_service_url: str | None
+    mqe_prompt_template: str
+    mqe_n_queries: int
+    rerank_prompt_template: str
 
 
 # ── RAG hit types ─────────────────────────────────────────────────────────────

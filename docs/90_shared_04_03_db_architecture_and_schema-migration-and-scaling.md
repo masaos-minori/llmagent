@@ -37,26 +37,26 @@ create_schema()
 
 上記の「rag/session/eventbusは互換マイグレーションに非対応」という原則は、この3つのDBに限定したものである。`workflow.sqlite`はその対象外であり、`db/schema_sql.py`が専用の増分マイグレーション機構を実装している。
 
-- `_WORKFLOW_MIGRATIONS: list[tuple[str, str]]` — マイグレーションID文字列と`ALTER TABLE ... ADD COLUMN`のSQL文のペアのリスト（例: `error_kind`/`error_detail`列を`attempts`に追加、`workflow_id`/`attempt_number`列を`artifacts`に追加等）
-- `apply_workflow_migrations(conn)` — リストを順に適用する。`sqlite3.OperationalError`のうち文字列に`"duplicate column name"`を含むものだけ握りつぶし（既に適用済みとみなしてログに記録）、それ以外のエラーは再送出する
-- `create_workflow_schema()`（`db/create_schema.py`）は`build_workflow_schema_sql()`によるベーステーブル作成の直後に`apply_workflow_migrations()`を呼び出し、続けて`WORKFLOW_SCHEMA_VERSION`（現在`"1.0.0"`）を`workflow_schema_version`テーブルに記録する
-- 新規作成されたDBでは、ベーススキーマ（`_WORKFLOW_SCHEMA`）に該当カラムが既に含まれているため、これらのマイグレーションは実質的にno-op（`duplicate column name`で握りつぶされる）となる。既存の旧DBに対して増分カラムを追加する用途で機能する
+- `db/schema_sql.py`が`list[tuple[str, str]]`形式のマイグレーションリスト（ID + SQL文ペア）を保持し、`apply_workflow_migrations()`で順次適用する
+- `sqlite3.OperationalError`のうち`"duplicate column name"`を含むものだけを握り潰し（既に適用済みとみなす）、他は再送出する
+- `create_workflow_schema()`はベーステーブル作成後、マイグレーション適用→バージョン記録を行う
+- 新規DBではベーススキーマに既にカラムが含まれるためマイグレーションはno-op。既存DBに対してのみ増分カラム追加として機能する
 
 rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレーション機構は存在しない。
 
 ### 8b. RAG整合性検証 (Explicit in code)
 
-`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`（正確には`chunks_fts_docsize`カウント用の内部テーブル経由）/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用の検証関数である。`is_consistent()`は`fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`を満たす場合に整合とみなす。`summarize_issues()`は検出した不整合ごとに`[WARNING]`/`[CRITICAL]`のプレフィックス付きメッセージと復旧コマンド（`/session rag-rebuild-fts`、`ingester.py --force`）を生成する。
+`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用検証関数である。整合条件と不整合メッセージ生成ロジックの詳細はコード参照。
 
 ### 8c. mdq.sqlite限定の自動レガシースキーマ検出 (Explicit in code)
 
-`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`（21-44行目）は、MDQサービスの起動のたびに自動実行される、rag/session/eventbusともworkflowとも異なる第三のスキーマ更新パターンである。
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`は、MDQサービス起動時に自動実行される、rag/session/eventbusともworkflowとも異なる第三のスキーマ更新パターンである。
 
 - **トリガー:** MDQサービス起動ごとに毎回呼び出される（明示的なマイグレーションコマンドは不要）
-- **検出:** `PRAGMA table_info(chunks)`で`chunks`テーブルの先頭カラムを調べ、旧スキーマ（`id INTEGER PRIMARY KEY` + `chunk_id TEXT UNIQUE`）かどうかを判定する
-- **アクション:** 旧スキーマを検出した場合、`chunks`/`chunks_fts`テーブルおよび関連トリガーを無条件に`DROP`し、直後の`CREATE TABLE IF NOT EXISTS`が現行スキーマ（`chunk_id TEXT PRIMARY KEY`）で再作成する
+- **検出:** `PRAGMA table_info(chunks)`で旧スキーマかどうかを判定
+- **アクション:** 旧スキーマ検出時、`chunks`/`chunks_fts`テーブルおよび関連トリガーを無条件に`DROP`し、現行スキーマで再作成
 - **対比:** 8aのworkflow.sqliteのようなバージョン管理カラムや明示的なALTER TABLEマイグレーションリストは存在しない — 起動時に毎回スキーマ形状を検査し、古ければ黙って作り直すだけの機構である
-- **データ損失に関する注意:** 旧スキーマ検出時の`DROP`は無条件であり、`chunks`/`chunks_fts`の既存データは再作成後に失われる
+- **データ損失に関する注意:** 旧スキーマ検出時の`DROP`は無条件であり、既存データは再作成後に失われる
 
 rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/schema_sql.py`）はMDQのスキーマ/ハイブリッド検索クリーンアップ作業とは無関係であり、影響を受けない。
 
@@ -64,44 +64,19 @@ rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/sc
 
 ## 9. 制約一覧
 
-| Constraint | Value |
-|---|---|
-| SQLite version | 3.35+ required |
-| sqlite-vec path | `/opt/llm/sqlite-vec/vec0.so` (from `agent.toml::sqlite_vec_so`) |
-| WAL mode | All connections; `PRAGMA journal_mode=WAL` |
-| busy_timeout | 30,000 ms default (`agent.toml::sqlite_busy_timeout_ms`) |
-| Embedding dimension | 384 default (`agent.toml::embedding_dims`) |
-| Float format | float32 little-endian BLOB |
-| Single-node only | No distributed/replica support |
-| `agent.toml` loading | Included in `ConfigLoader().load_all()` at index 0 — see [90_shared_03](90_shared_03_01_runtime_and_execution-config-and-logging.md) §2a Config Ownership for ownership table |
+SQLite 3.35+ required; sqlite-vec path /opt/llm/sqlite-vec/vec0.so (agent.toml::sqlite_vec_so); WAL mode on all connections (PRAGMA journal_mode=WAL); busy_timeout 30,000 ms default (agent.toml::sqlite_busy_timeout_ms); embedding dimension 384 default (agent.toml::embedding_dims); float format float32 little-endian BLOB; single-node only (no distributed/replica support); agent.toml included in ConfigLoader().load_all() at index 0 (see 90_shared_03 §2a).
 
 ---
 
 ## 9a. AIリファレンスガイド
 
-| 質問 | 回答 |
-|---|---|
-| rag.sqliteのスキーマはどこにあるか？ | 本ドキュメント§5 |
-| session.sqliteのスキーマはどこにあるか？ | 本ドキュメント§6 |
-| `SQLiteHelper`はworkflow.sqliteをサポートしているか？ | サポートしている — `target="workflow"`（仕様書には未記載、§4参照） |
-| 埋め込み次元数はどのように設定されるか？ | `agent.toml::embedding_dims`（デフォルト384） |
-| スキーマを初期化するものは何か？ | `create_schema()` — べき等なDDLのみの初期化であり、マイグレーションではない |
-| DBトリガーは文書化されているか？ | されている — chunks_fts自動同期トリガー（§5）、memories_fts自動同期トリガー（§6） |
+rag.sqlite schema location: this doc §5; session.sqlite schema location: this doc §6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see §4); embedding dimension set via agent.toml::embedding_dims (default 384); schema initializer: create_schema() — idempotent DDL-only initialization, not migration; DB triggers documented: chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6).
 
 ---
 
 ## 10. 正典（Source of Truth）
 
-| カテゴリ | ソース |
-|---|---|
-| DDLソース | `db/schema_sql.py` |
-| スキーマ初期化エントリポイント | `db/create_schema.py::create_schema()` |
-| デプロイ初期化エントリポイント | `deploy/init_db.sh` |
-| DB接続ヘルパー | `db/helper.py::SQLiteHelper` |
-| DBファイル | `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite` |
-| Event Busスキーマ（DDLのみ） | `scripts/eventbus/schema.sql` |
-| `mdq.sqlite`スキーマ/自動更新ソース | `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`（§8c参照） |
-| 削除済みエントリポイント | `db/workflow_schema.py` — plan 54で削除 |
+DDL source: db/schema_sql.py; schema initialization entry point: db/create_schema.py::create_schema(); deploy initialization entry point: deploy/init_db.sh; DB connection helper: db/helper.py::SQLiteHelper; DB files: rag.sqlite, session.sqlite, workflow.sqlite, eventbus.sqlite; Event Bus schema (DDL only): scripts/eventbus/schema.sql; mdq.sqlite schema/auto-update source: scripts/mcp_servers/mdq/db_schema.py::create_production_tables() (see §8c); deleted entry point: db/workflow_schema.py — removed in plan 54.
 
 **注記:** Event Busランタイム（publisher/subscriber/dispatcher/DLQワーカー）は本クリーンアップの対象外である。今後のEvent Bus書き込み処理はISO-8601 UTC Zサフィックス形式のタイムスタンプを使用しなければならない。
 
@@ -176,16 +151,4 @@ rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/sc
 - [ ] スキーマの挙動を反映するようテストは更新されているか？
 - [ ] RAG、session、workflow、eventbus、MDQのいずれに影響するか？
 
-## Related Documents
 
-- `90_shared_00_document-guide.md`
-- `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`
-- `90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md`
-
-## Keywords
-
-schema generation
-migration approach
-constraint list
-source of truth
-scaling limits

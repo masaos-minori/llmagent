@@ -23,7 +23,7 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
-from typing import Literal
+from typing import Literal, cast
 
 import httpx
 from db.helper import SQLiteHelper
@@ -38,6 +38,7 @@ from shared.types import (
 from rag.cache import SemanticCache
 from rag.http_augment import HttpAugment, _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
+from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import SearchDiagnostics
 from rag.pipeline_refiner import RefineResult, refine_context
@@ -100,7 +101,6 @@ class RagPipeline:
     ) -> None:
         """Initialize with HTTP client, config, and optional status/clear callbacks."""
         self._http = http
-        self._cfg = cfg
         self._on_status = on_status or (lambda _: None)
         self._on_clear = on_clear or (lambda: None)
         # Populated after each run(); enables two-stage fetch by callers
@@ -115,34 +115,38 @@ class RagPipeline:
         self.stat_search_embed_failed: int = 0
         self.stat_search_fts_errors: int = 0
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
-        self.semantic_cache: SemanticCache = SemanticCache(
-            max_size=cfg.semantic_cache_max_size,
-            threshold=cfg.semantic_cache_threshold,
-        )
-        # module_cfg: explicit override bypasses load_all() / agent.toml.
-        # When None, falls back to _ModuleConfig.get() (agent process path).
-        _resolved_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
+
+        # Resolve configuration: priority: module_cfg > ConfigLoader().load_all()
+        _raw_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
         validator = RagConfigValidator()
-        result = validator.validate(_resolved_cfg)
-        for warning in result.warnings:
+        validation_result = validator.validate(_raw_cfg)
+        for warning in validation_result.warnings:
             logger.warning("rag config warning: %s", warning)
-        for error in result.errors:
+        for error in validation_result.errors:
             logger.error("rag config error: %s", error)
-        if not result.ok:
-            raise ValueError(f"RAG config validation failed: {result.errors}")
+        if not validation_result.ok:
+            raise ValueError(
+                f"RAG config validation failed: {validation_result.errors}"
+            )
+
+        self._cfg = RagConfigImpl(**_raw_cfg)
+        self.semantic_cache: SemanticCache = SemanticCache(
+            max_size=self._cfg.semantic_cache_max_size,
+            threshold=self._cfg.semantic_cache_threshold,
+        )
+
         self._llm = RagLLM(
             self._http,
-            build_llm_url(_resolved_cfg.get("llm_url", "")),
-            cfg=_resolved_cfg,
+            build_llm_url(self._cfg.llm_url),
+            cfg=cast(RagConfig, self._cfg),
         )
-        self._embed_url: str = build_embed_url(_resolved_cfg.get("embed_url", ""))
+        self._embed_url: str = build_embed_url(self._cfg.embed_url)
         # DB settings stored for augment(); used when db_path is provided explicitly.
-        self._rag_db_path: str = _resolved_cfg.get("rag_db_path", "")
-        self._sqlite_vec_so: str = _resolved_cfg.get("sqlite_vec_so", "")
-        self._sqlite_timeout: int = int(_resolved_cfg.get("sqlite_timeout", 30))
-        self._sqlite_busy_timeout_ms: int = int(
-            _resolved_cfg.get("sqlite_busy_timeout_ms", 30000)
-        )
+        self._rag_db_path: str = self._cfg.rag_db_path
+        self._sqlite_vec_so: str = self._cfg.sqlite_vec_so
+        self._sqlite_timeout: int = self._cfg.sqlite_timeout
+        self._sqlite_busy_timeout_ms: int = self._cfg.sqlite_busy_timeout_ms
+
         logger.info(
             "RagPipeline init: use_rrf=%s rrf_k=%d",
             self._cfg.use_rrf,
@@ -310,10 +314,10 @@ class RagPipeline:
             ctx = PipelineContext(query=query, history_context=history_context)
             self.last_timings = {}
             pre_augment_stages: list = [
-                MqeStage(self._cfg, self._llm),
-                SearchStage(self._cfg, self._http, self._embed_url),
+                MqeStage(cast(RagConfig, self._cfg), self._llm),
+                SearchStage(cast(RagConfig, self._cfg), self._http, self._embed_url),
                 FusionStage(use_rrf=self._cfg.use_rrf, rrf_k=self._cfg.rrf_k),
-                RerankStage(self._cfg, self._llm),
+                RerankStage(cast(RagConfig, self._cfg), self._llm),
             ]
             for stage in pre_augment_stages:
                 await self._run_stage(stage, ctx, db)
