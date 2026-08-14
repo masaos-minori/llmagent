@@ -35,6 +35,10 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["query"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "browser_fetch",
@@ -62,5 +66,9 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
 ]

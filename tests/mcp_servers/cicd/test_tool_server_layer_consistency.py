@@ -286,6 +286,7 @@ _SERVERS: dict[str, _ServerLayers] = {
         tools_set=SHELL_TOOLS,
         write_tools=SHELL_TOOLS,
         needs_tmp_path=True,
+        schema_declares_flags=True,
     ),
     "cicd": _ServerLayers(
         registry_key="cicd",
@@ -307,6 +308,7 @@ _SERVERS: dict[str, _ServerLayers] = {
         dispatch_fn=_rag_pipeline_dispatch,
         tools_set=RAG_TOOLS,
         write_tools=RAG_WRITE_TOOLS,
+        schema_declares_flags=True,
     ),
     "file_read": _ServerLayers(
         registry_key="file_read",
@@ -368,13 +370,14 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
     """Write tools are recognized as side-effecting by whichever mechanism this
     server's schema uses.
 
-    MDQ's schema declares "is_write" explicitly per tool (mirrors the original
-    MDQ-only guardrail). Every other server's schema does not declare the key
-    at all; for those, the schema-independent runtime fallback is
-    shared.tool_executor_helpers.is_side_effect(), so the equivalent guardrail
-    is verifying the write-tool set is recognized there instead — this is the
-    same class of bug this whole test module (and the classify_operation_type
-    fix) guards against, applied to the other serialization mechanism.
+    MDQ, shell, and rag_pipeline declare "is_write" explicitly per tool as part
+    of the schema-2.0 rollout (see ToolSpec.is_write in agent/tool_scheduler.py).
+    The remaining servers' schemas do not declare the key at all; for those, the
+    schema-independent runtime fallback is shared.tool_executor_helpers.is_side_effect(),
+    so the equivalent guardrail is verifying the write-tool set is recognized there
+    instead — this is the same class of bug this whole test module (and the
+    classify_operation_type fix) guards against, applied to the other
+    serialization mechanism.
     """
     layers = _SERVERS[server_key]
     if layers.schema_declares_flags:
@@ -388,11 +391,12 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
 
 @pytest.mark.parametrize("server_key", sorted(_SERVERS))
 def test_serial_tools_flagged_requires_serial(server_key: str) -> None:
-    """MDQ's schema explicitly requires_serial=True for its write tools (a
-    per-tool design choice — see ToolSpec.requires_serial in
-    agent/tool_scheduler.py). No other server's schema declares this key
-    today; guard that invariant so a future addition is a deliberate,
-    reviewed change rather than silent drift.
+    """MDQ, shell, and rag_pipeline explicitly declare requires_serial for their
+    write tools (a per-tool design choice — see ToolSpec.requires_serial in
+    agent/tool_scheduler.py, and the schema-2.0 rollout that extended this
+    declaration beyond MDQ). Servers whose schema does not declare this key
+    must not carry a stray True value on any tool; guard that invariant so a
+    future addition is a deliberate, reviewed change rather than silent drift.
     """
     layers = _SERVERS[server_key]
     if layers.schema_declares_flags:

@@ -29,6 +29,10 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["query"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "rag_debug_pipeline",
@@ -45,6 +49,10 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["query"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "rag_list_documents",
@@ -64,6 +72,10 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": [],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "rag_delete_document",
@@ -79,5 +91,9 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["url"],
         },
         "status": "production",
+        "is_write": True,
+        "requires_serial": True,
+        "resource_scope_kind": "rag_store",
+        "resource_scope_keys": [],
     },
 ]

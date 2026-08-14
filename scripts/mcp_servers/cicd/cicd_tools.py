@@ -44,6 +44,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "cicd_workflow",
+        "resource_scope_keys": ["repo", "workflow", "ref"],
     },
     {
         "name": "get_workflow_runs",
@@ -70,6 +74,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "cicd_workflow",
+        "resource_scope_keys": ["repo", "workflow"],
     },
     {
         "name": "get_workflow_status",
@@ -92,6 +100,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "cicd_workflow",
+        "resource_scope_keys": ["repo", "run_id"],
     },
     {
         "name": "get_workflow_logs",
@@ -115,5 +127,9 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "cicd_workflow",
+        "resource_scope_keys": ["repo", "run_id"],
     },
 ]

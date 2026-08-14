@@ -53,5 +53,9 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": True,
+        "requires_serial": True,
+        "resource_scope_kind": "process",
+        "resource_scope_keys": [],
     },
 ]

@@ -18,6 +18,8 @@ class MCPToolSchema(TypedDict):
     status: str
     is_write: NotRequired[bool]
     requires_serial: NotRequired[bool]
+    resource_scope_kind: NotRequired[str]
+    resource_scope_keys: NotRequired[list[str]]
 
 
 TOOL_LIST: list[MCPToolSchema] = [
@@ -76,6 +78,10 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["query"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "get_chunk",
@@ -98,6 +104,10 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["chunk_id"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "outline",
@@ -122,6 +132,10 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["path"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "index_paths",
@@ -141,6 +155,8 @@ TOOL_LIST: list[MCPToolSchema] = [
         "status": "production",
         "is_write": True,
         "requires_serial": True,
+        "resource_scope_kind": "mdq_store",
+        "resource_scope_keys": ["paths"],
     },
     {
         "name": "refresh_index",
@@ -164,12 +180,18 @@ TOOL_LIST: list[MCPToolSchema] = [
         "status": "production",
         "is_write": True,
         "requires_serial": True,
+        "resource_scope_kind": "mdq_store",
+        "resource_scope_keys": ["paths"],
     },
     {
         "name": "stats",
         "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
     {
         "name": "grep_docs",
@@ -209,6 +231,10 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["pattern"],
         },
         "status": "production",
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": [],
     },
 ]
 
