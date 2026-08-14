@@ -23,7 +23,10 @@ if TYPE_CHECKING:
 
 import httpx
 
-from shared.http_transport import HttpTransport, TransportError
+from shared.http_transport import (  # noqa: F401 -- re-exported: tests/shared/test_tool_executor.py imports TransportError from this module
+    HttpTransport,
+    TransportError,
+)
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
@@ -106,6 +109,18 @@ class ToolExecutor(ToolTransportInvoker):
         """Resolve the transport for a server key; returns None if missing."""
         return self._transports.get(server_key)
 
+    def _run_gate_chain(self, server_key: str) -> ToolCallResult | None:
+        """Run the startup-mode and health gates in order; return the first error, or None if both pass.
+
+        The lifecycle gate (_ensure_lifecycle_ready) is async and stays a separate
+        await in _raw_execute immediately after this call, preserving call order.
+        """
+        if err := self._check_startup_mode(server_key):
+            return err
+        if err := self._check_health(server_key):
+            return err
+        return None
+
     async def _raw_execute(
         self,
         tool_name: str,
@@ -114,12 +129,7 @@ class ToolExecutor(ToolTransportInvoker):
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
 
-        # Startup mode gate (startup_mode=none is disabled by design)
-        if err := self._check_startup_mode(server_key):
-            return err
-
-        # Health check
-        if err := self._check_health(server_key):
+        if err := self._run_gate_chain(server_key):
             return err
 
         # Lifecycle ensure_ready
@@ -136,13 +146,9 @@ class ToolExecutor(ToolTransportInvoker):
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
-
-        try:
-            result = await self._execute_with_semaphore(transport, tool_name, args, sem)
-            self._record_success(server_key, result)
-            return result
-        except TransportError as e:
-            return self._record_transport_error(server_key, e)
+        return await self._invoke_and_record(
+            server_key, transport, tool_name, args, sem
+        )
 
     async def _execute_with_cache(
         self,

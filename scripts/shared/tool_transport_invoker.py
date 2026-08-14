@@ -172,6 +172,22 @@ class ToolTransportInvoker:
         async with self._maybe_semaphore(sem):
             return await transport.call(tool_name, args)
 
+    async def _invoke_and_record(
+        self,
+        server_key: str,
+        transport: HttpTransport,
+        tool_name: str,
+        args: dict[str, Any],
+        sem: asyncio.Semaphore | None,
+    ) -> ToolCallResult:
+        """Execute the transport call under the semaphore and record success/transport-error; shared by invoke() and ToolExecutor._raw_execute."""
+        try:
+            result = await self._execute_with_semaphore(transport, tool_name, args, sem)
+            self._record_success(server_key, result)
+            return result
+        except TransportError as e:
+            return self._record_transport_error(server_key, e)
+
     async def invoke(
         self,
         server_key: str,
@@ -198,10 +214,6 @@ class ToolTransportInvoker:
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
-
-        try:
-            result = await self._execute_with_semaphore(transport, tool_name, args, sem)
-            self._record_success(server_key, result)
-            return result
-        except TransportError as e:
-            return self._record_transport_error(server_key, e)
+        return await self._invoke_and_record(
+            server_key, transport, tool_name, args, sem
+        )
