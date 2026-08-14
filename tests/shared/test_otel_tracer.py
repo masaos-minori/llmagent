@@ -26,6 +26,7 @@ import pytest
 from shared.otel_noop import NoOpSpan as _NoOpSpan
 from shared.otel_noop import NoOpTracer as _NoOpTracer
 from shared.otel_tracer import (
+    _attach_console_exporter,
     _attach_otlp_exporter,
     _ConsoleProcessor,
     _import_otlp,
@@ -172,12 +173,31 @@ class TestAttachOtlpExporter:
         assert len(provider.processors) == 1
         assert isinstance(provider.processors[0], _ConsoleProcessor)
         assert "opentelemetry-exporter-otlp not installed" in caplog.text
+        assert (
+            caplog.records[-1].getMessage()
+            == "opentelemetry-exporter-otlp not installed; falling back to ConsoleSpanExporter"
+        )
 
     def test_build_tracer_with_otlp_endpoint_returns_non_noop_tracer(self) -> None:
         tracer = build_tracer(
             enabled=True, service_name="svc", otlp_endpoint="http://localhost:4318"
         )
         assert not isinstance(tracer, _NoOpTracer)
+
+
+class TestAttachConsoleExporter:
+    def test_logs_exact_message_and_attaches_one_console_processor(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        provider = _FakeProvider()
+        with caplog.at_level(logging.INFO, logger="shared.otel_tracer"):
+            _attach_console_exporter(provider, "svc")
+        assert len(provider.processors) == 1
+        assert isinstance(provider.processors[0], _ConsoleProcessor)
+        assert (
+            caplog.records[-1].getMessage()
+            == "OTel tracer configured: ConsoleSpanExporter service=svc"
+        )
 
 
 class TestConsoleProcessorDelegation:

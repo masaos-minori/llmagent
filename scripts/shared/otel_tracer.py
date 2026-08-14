@@ -16,6 +16,7 @@ not install opentelemetry-sdk.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
@@ -97,20 +98,33 @@ def _attach_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> No
     _attach_otlp_exporter(provider, otlp_endpoint, service_name)
 
 
-def _attach_console_exporter(provider: Any, service_name: str) -> None:
-    """Attach ConsoleSpanExporter to the given provider."""
+def _attach_console_processor(
+    provider: Any, log_fn: Callable[..., None], message: str, *args: Any
+) -> None:
+    """Attach a ConsoleSpanExporter-backed processor and log the given message."""
     processor = _ConsoleProcessor()
     provider.add_span_processor(processor)
-    logger.info("OTel tracer configured: ConsoleSpanExporter service=%s", service_name)
+    log_fn(message, *args)
+
+
+def _attach_console_exporter(provider: Any, service_name: str) -> None:
+    """Attach ConsoleSpanExporter to the given provider."""
+    _attach_console_processor(
+        provider,
+        logger.info,
+        "OTel tracer configured: ConsoleSpanExporter service=%s",
+        service_name,
+    )
 
 
 def _attach_otlp_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> None:
     """Attach OTLP exporter to the given provider."""
     otlp = _import_otlp()
     if otlp is None:
-        provider.add_span_processor(_ConsoleProcessor())
-        logger.warning(
-            "opentelemetry-exporter-otlp not installed; falling back to ConsoleSpanExporter"
+        _attach_console_processor(
+            provider,
+            logger.warning,
+            "opentelemetry-exporter-otlp not installed; falling back to ConsoleSpanExporter",
         )
         return
 
