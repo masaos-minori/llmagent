@@ -20,7 +20,9 @@ from agent.tool_audit import audit_tool_exec as _audit_tool_exec
 from agent.tool_audit import log_approval_decision
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
+from agent.tool_preparation import PreparedToolCall
 from agent.tool_runner import execute_one_tool_call
+from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -730,21 +732,24 @@ class TestLogApprovalDecision:
 # ── run_approval_checks() ─────────────────────────────────────────────────────
 
 
+def _pc(name: str, args: dict, call_id: str = "call_1") -> PreparedToolCall:
+    """Build a PreparedToolCall for run_approval_checks() unit tests."""
+    return PreparedToolCall(
+        call_id=call_id,
+        name=name,
+        args=args,
+        spec=ToolSpec(call_id=call_id, name=name, args=args),
+        original_call={"id": call_id, "function": {"name": name, "arguments": "{}"}},
+    )
+
+
 class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_approved_calls_returned(self) -> None:
         cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
         ctx = _make_ctx(cfg)
-        tool_calls = [
-            {
-                "id": "call_1",
-                "function": {
-                    "name": "list_directory",
-                    "arguments": '{"path": "/tmp"}',
-                },
-            }
-        ]
-        approved, denied = await run_approval_checks(ctx, tool_calls)
+        prepared = [_pc("list_directory", {"path": "/tmp"})]
+        approved, denied = await run_approval_checks(ctx, prepared)
         assert len(approved) == 1
         assert denied == []
 
@@ -753,17 +758,9 @@ class TestRunApprovalChecks:
         cfg = _make_cfg(approval_risk_rules={"write_file": "medium"})
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
-        tool_calls = [
-            {
-                "id": "call_1",
-                "function": {
-                    "name": "write_file",
-                    "arguments": '{"path": "/tmp/f"}',
-                },
-            }
-        ]
+        prepared = [_pc("write_file", {"path": "/tmp/f"})]
         with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
-            approved, denied = await run_approval_checks(ctx, tool_calls)
+            approved, denied = await run_approval_checks(ctx, prepared)
         assert approved == []
         assert denied == ["call_1"]
 
@@ -776,16 +773,8 @@ class TestRunApprovalChecks:
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
         ctx.services_required.audit_logger = MagicMock()
-        tool_calls = [
-            {
-                "id": "call_1",
-                "function": {
-                    "name": "write_file",
-                    "arguments": '{"path": "/tmp/f"}',
-                },
-            }
-        ]
-        approved, denied = await run_approval_checks(ctx, tool_calls)
+        prepared = [_pc("write_file", {"path": "/tmp/f"})]
+        approved, denied = await run_approval_checks(ctx, prepared)
         assert approved == []
         assert denied == ["call_1"]
         # Should not prompt the user
@@ -801,31 +790,7 @@ class TestRunApprovalChecks:
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
         ctx.services_required.audit_logger = MagicMock()
-        tool_calls = [
-            {
-                "id": "call_1",
-                "function": {
-                    "name": "list_directory",
-                    "arguments": '{"path": "/tmp"}',
-                },
-            }
-        ]
-        approved, denied = await run_approval_checks(ctx, tool_calls)
+        prepared = [_pc("list_directory", {"path": "/tmp"})]
+        approved, denied = await run_approval_checks(ctx, prepared)
         assert len(approved) == 1
         assert denied == []
-
-    @pytest.mark.asyncio
-    async def test_invalid_json_arguments_does_not_crash(self) -> None:
-        cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
-        ctx = _make_ctx(cfg)
-        tool_calls = [
-            {
-                "id": "call_1",
-                "function": {
-                    "name": "list_directory",
-                    "arguments": "not valid json",
-                },
-            }
-        ]
-        approved, denied = await run_approval_checks(ctx, tool_calls)
-        assert len(approved) == 1

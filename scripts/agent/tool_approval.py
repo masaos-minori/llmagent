@@ -12,7 +12,6 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-import orjson
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
@@ -30,6 +29,7 @@ from agent.tool_output import (
     emit_skipped,
 )
 from agent.tool_policy import check_preflight, classify_risk
+from agent.tool_preparation import PreparedToolCall
 from agent.tool_result_formatter import build_preview, mask_args
 
 if TYPE_CHECKING:
@@ -186,34 +186,27 @@ async def check_approval(
 
 async def run_approval_checks(
     ctx: AgentContext,
-    tool_calls: list[dict],
-) -> tuple[list[dict], list[str]]:
-    """Run plan-mode block and interactive approval for each tool call.
+    prepared_calls: list[PreparedToolCall],
+) -> tuple[list[PreparedToolCall], list[str]]:
+    """Run plan-mode block and interactive approval for each prepared tool call.
 
     Returns (approved_calls, denied_ids). Runs serially — approval is interactive.
-    Invalid JSON arguments are treated as empty dicts; approval continues normally.
+    `args` is already parsed and validated by the preparation phase
+    (agent.tool_preparation.prepare_tool_calls) before this function is ever called.
     """
-    approved_calls: list[dict] = []
+    approved_calls: list[PreparedToolCall] = []
     denied_ids: list[str] = []
-    for tc in tool_calls:
-        tc_name = tc["function"]["name"]
-        args_str = tc["function"].get("arguments", "{}")
-        try:
-            args_preview: dict[str, Any] = orjson.loads(args_str)
-        except orjson.JSONDecodeError:
-            logger.warning(
-                "run_approval_checks: invalid JSON for %r; proceeding with empty args",
-                tc_name,
-            )
-            args_preview = {}
+    for pc in prepared_calls:
+        tc_name = pc.name
+        args_preview = pc.args
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
             emit_plan_blocked(tc_name, _json_dumps(masked_preview))
             logger.info("Plan mode blocked tool: %s", tc_name)
-            denied_ids.append(tc["id"])
+            denied_ids.append(pc.call_id)
             continue
         if not await check_approval(ctx, tc_name, args_preview):
-            denied_ids.append(tc["id"])
+            denied_ids.append(pc.call_id)
             continue
-        approved_calls.append(tc)
+        approved_calls.append(pc)
     return approved_calls, denied_ids
