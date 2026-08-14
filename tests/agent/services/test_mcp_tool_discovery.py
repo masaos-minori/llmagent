@@ -86,7 +86,11 @@ class TestDiscoverAllHappyPath:
                         {
                             "name": "grep",
                             "description": "search files",
-                            "inputSchema": {"type": "object"},
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
                         }
                     ]
                 },
@@ -101,15 +105,17 @@ class TestDiscoverAllHappyPath:
         assert tool.server_key == "search_server"
         assert tool.server_url == "http://127.0.0.1:9000"
         assert tool.description == "search files"
-        assert tool.input_schema == {"type": "object"}
+        assert tool.input_schema == {"type": "object", "properties": {}}
         assert tool.is_write is False
-        assert tool.requires_serial is True  # safe default when is_write omitted
+        assert tool.requires_serial is False  # declared, not defaulted
+        assert tool.resource_scope_kind == ""
+        assert tool.resource_scope_keys == ()
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 0
         assert result.unreachable == []
 
     @pytest.mark.asyncio
-    async def test_explicit_is_write_true_defaults_requires_serial_false(self) -> None:
+    async def test_explicit_write_tool_all_fields_round_trip(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
             _resp(
@@ -119,8 +125,11 @@ class TestDiscoverAllHappyPath:
                         {
                             "name": "write_file",
                             "description": "writes a file",
-                            "inputSchema": {},
+                            "inputSchema": {"type": "object", "properties": {}},
                             "is_write": True,
+                            "requires_serial": True,
+                            "resource_scope_kind": "process",
+                            "resource_scope_keys": [],
                         }
                     ]
                 },
@@ -132,7 +141,9 @@ class TestDiscoverAllHappyPath:
 
         tool = result.registry.get("write_file")
         assert tool.is_write is True
-        assert tool.requires_serial is False
+        assert tool.requires_serial is True
+        assert tool.resource_scope_kind == "process"
+        assert tool.resource_scope_keys == ()
 
 
 # ── enabled_for_llm derivation from `enabled` key ─────────────────────────────
@@ -145,7 +156,19 @@ class TestDiscoverAllEnabledForLlm:
         http.get = _async_result(
             _resp(
                 200,
-                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
         )
         ctx = _make_ctx({"srv": _server()}, http)
@@ -165,8 +188,12 @@ class TestDiscoverAllEnabledForLlm:
                         {
                             "name": "read_file",
                             "description": "d",
-                            "inputSchema": {},
+                            "inputSchema": {"type": "object", "properties": {}},
                             "enabled": True,
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
                         }
                     ]
                 },
@@ -189,9 +216,13 @@ class TestDiscoverAllEnabledForLlm:
                         {
                             "name": "delete_file",
                             "description": "d",
-                            "inputSchema": {},
+                            "inputSchema": {"type": "object", "properties": {}},
                             "enabled": False,
                             "disabled_reason": "feature flag off",
+                            "is_write": True,
+                            "requires_serial": True,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
                         }
                     ]
                 },
@@ -303,7 +334,15 @@ class TestDiscoverAllMalformedEntries:
                 {
                     "tools": [
                         {"description": "no name", "inputSchema": {}},
-                        {"name": "grep", "description": "d", "inputSchema": {}},
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        },
                     ]
                 },
             )
@@ -316,6 +355,197 @@ class TestDiscoverAllMalformedEntries:
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 1
         assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+
+
+# ── schema-2.0 four-field contract: required, not defaulted ───────────────────
+
+
+class TestDiscoverAllSchemaV2Contract:
+    """Schema-2.0 four-field contract: required, not defaulted."""
+
+    @pytest.mark.asyncio
+    async def test_complete_declaration_round_trips_all_four_fields(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "move_file",
+                            "description": "moves a file",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "source": {"type": "string"},
+                                    "destination": {"type": "string"},
+                                },
+                            },
+                            "is_write": True,
+                            "requires_serial": True,
+                            "resource_scope_kind": "filesystem",
+                            "resource_scope_keys": ["source", "destination"],
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"fs": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        tool = result.registry.get("move_file")
+        assert tool.is_write is True
+        assert tool.requires_serial is True
+        assert tool.resource_scope_kind == "filesystem"
+        assert tool.resource_scope_keys == ("source", "destination")
+
+    @pytest.mark.asyncio
+    async def test_missing_is_write_produces_warning_and_is_excluded(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any("is_write" in f.message for f in result.findings)
+
+    @pytest.mark.asyncio
+    async def test_missing_requires_serial_produces_warning_and_is_excluded(
+        self,
+    ) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any("requires_serial" in f.message for f in result.findings)
+
+    @pytest.mark.asyncio
+    async def test_missing_resource_scope_kind_produces_warning_and_is_excluded(
+        self,
+    ) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any("resource_scope_kind" in f.message for f in result.findings)
+
+    @pytest.mark.asyncio
+    async def test_missing_resource_scope_keys_produces_warning_and_is_excluded(
+        self,
+    ) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "incomplete_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any("resource_scope_keys" in f.message for f in result.findings)
+
+    @pytest.mark.asyncio
+    async def test_resource_scope_keys_referencing_unknown_arg_produces_warning_and_is_excluded(
+        self,
+    ) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "tools": [
+                        {
+                            "name": "bad_scope_tool",
+                            "description": "d",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {"path": {"type": "string"}},
+                            },
+                            "is_write": True,
+                            "requires_serial": True,
+                            "resource_scope_kind": "filesystem",
+                            "resource_scope_keys": ["path", "missing_arg"],
+                        }
+                    ]
+                },
+            )
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any("missing_arg" in f.message for f in result.findings)
 
 
 # ── whole-server unreachable/malformed responses ──────────────────────────────
@@ -422,7 +652,19 @@ class TestDiscoverAllUnreachableServers:
                 raise httpx.ConnectError("refused")
             return _resp(
                 200,
-                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -450,7 +692,19 @@ class TestDiscoverAllDuplicates:
         async def _get(url: str, timeout: float = 5.0) -> MagicMock:
             return _resp(
                 200,
-                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "grep",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -597,8 +851,12 @@ async def test_resource_scope_type_checked_when_present_synthetic() -> None:
                     {
                         "name": "test_tool",
                         "description": "desc",
-                        "inputSchema": {},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "resource_scope": 123,
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -626,8 +884,12 @@ async def test_resource_scope_type_checked_when_present_synthetic() -> None:
                     {
                         "name": "test_tool_ok",
                         "description": "desc",
-                        "inputSchema": {},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "resource_scope": "filesystem",
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -652,8 +914,12 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                     {
                         "name": "test_tool",
                         "description": "desc",
-                        "inputSchema": {},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "enabled": "yes",
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -681,8 +947,12 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                     {
                         "name": "test_tool_ok",
                         "description": "desc",
-                        "inputSchema": {},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "enabled": False,
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -707,7 +977,11 @@ async def test_missing_schema_version_tolerated() -> None:
                     {
                         "name": "legacy_tool",
                         "description": "legacy",
-                        "inputSchema": {},
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -732,7 +1006,11 @@ async def test_missing_capabilities_tolerated() -> None:
                     {
                         "name": "read_file",
                         "description": "reads a file",
-                        "inputSchema": {"type": "object"},
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -759,8 +1037,12 @@ async def test_capabilities_present_and_valid_normalizes_to_tuple() -> None:
                     {
                         "name": "delete_file",
                         "description": "deletes a file",
-                        "inputSchema": {"type": "object"},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "capabilities": ["filesystem.read", "filesystem.write"],
+                        "is_write": True,
+                        "requires_serial": True,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -786,8 +1068,12 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
                     {
                         "name": "bad_tool",
                         "description": "malformed capabilities",
-                        "inputSchema": {"type": "object"},
+                        "inputSchema": {"type": "object", "properties": {}},
                         "capabilities": "filesystem.read",
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
                     }
                 ]
             },
@@ -815,7 +1101,19 @@ class TestDriftDetection:
         async def _get(url: str, timeout: float = 5.0) -> MagicMock:
             return _resp(
                 200,
-                {"tools": [{"name": "tool_a", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "tool_a",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -846,7 +1144,19 @@ class TestDriftDetection:
         async def _get(url: str, timeout: float = 5.0) -> MagicMock:
             return _resp(
                 200,
-                {"tools": [{"name": "tool_a", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "tool_a",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -874,7 +1184,19 @@ class TestDriftDetection:
         async def _get(url: str, timeout: float = 5.0) -> MagicMock:
             return _resp(
                 200,
-                {"tools": [{"name": "tool_a", "description": "d", "inputSchema": {}}]},
+                {
+                    "tools": [
+                        {
+                            "name": "tool_a",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ]
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -921,7 +1243,11 @@ class TestDriftDetection:
                                 {
                                     "name": "tool_a",
                                     "description": "d",
-                                    "inputSchema": {},
+                                    "inputSchema": {"type": "object", "properties": {}},
+                                    "is_write": False,
+                                    "requires_serial": False,
+                                    "resource_scope_kind": "",
+                                    "resource_scope_keys": [],
                                 }
                             ]
                         },
@@ -930,7 +1256,15 @@ class TestDriftDetection:
                     200,
                     {
                         "tools": [
-                            {"name": "tool_b", "description": "d", "inputSchema": {}}
+                            {
+                                "name": "tool_b",
+                                "description": "d",
+                                "inputSchema": {"type": "object", "properties": {}},
+                                "is_write": False,
+                                "requires_serial": False,
+                                "resource_scope_kind": "",
+                                "resource_scope_keys": [],
+                            }
                         ]
                     },
                 )
@@ -976,7 +1310,11 @@ class TestDriftDetection:
                                 {
                                     "name": "tool_a",
                                     "description": "d",
-                                    "inputSchema": {},
+                                    "inputSchema": {"type": "object", "properties": {}},
+                                    "is_write": False,
+                                    "requires_serial": False,
+                                    "resource_scope_kind": "",
+                                    "resource_scope_keys": [],
                                 }
                             ]
                         },
@@ -985,7 +1323,15 @@ class TestDriftDetection:
                     200,
                     {
                         "tools": [
-                            {"name": "tool_a", "description": "d", "inputSchema": {}}
+                            {
+                                "name": "tool_a",
+                                "description": "d",
+                                "inputSchema": {"type": "object", "properties": {}},
+                                "is_write": False,
+                                "requires_serial": False,
+                                "resource_scope_kind": "",
+                                "resource_scope_keys": [],
+                            }
                         ]
                     },
                 )
@@ -1043,7 +1389,15 @@ class TestUnifiedSeverity:
                 200,
                 {
                     "tools": [
-                        {"name": "dup_tool", "description": "d", "inputSchema": {}}
+                        {
+                            "name": "dup_tool",
+                            "description": "d",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
                     ]
                 },
             )

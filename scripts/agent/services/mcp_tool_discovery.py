@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
+from shared.resource_scope import validate_tool_schema_v2
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
@@ -62,6 +63,15 @@ _SOURCE = "mcp_tool_discovery"
 # Raw tool entry as received from a server's /v1/tools response, tagged with
 # the owning server's key and base URL: (server_key, server_url, entry).
 _RawEntry = tuple[str, str, dict[str, object]]
+
+# Schema-2.0 fields every discovered tool entry MUST declare. A missing field is a hard
+# rejection (per-tool WARNING/FATAL finding), not silently defaulted by build_runtime_tool().
+_REQUIRED_SCHEMA_V2_FIELDS = (
+    "is_write",
+    "requires_serial",
+    "resource_scope_kind",
+    "resource_scope_keys",
+)
 
 
 @dataclass(frozen=True)
@@ -208,10 +218,14 @@ class McpToolDiscoveryService:
 
         Rules: entry is a dict; `name` is a non-empty string; `description`
         is present and is a str (empty string allowed); `inputSchema` or
-        `input_schema` is a dict; optional `status`/`is_write`/
-        `requires_serial`/`resource_scope`/`enabled`/`capabilities` are
-        type-checked only if present. Schema errors are per-tool WARNING
-        findings, not FATAL.
+        `input_schema` is a dict; `is_write`, `requires_serial`,
+        `resource_scope_kind`, `resource_scope_keys` are REQUIRED — a missing
+        field, or one that fails `validate_tool_schema_v2()`'s schema-2.0
+        contract (type/known-kind/scope-key-vs-inputSchema.properties
+        checks), rejects the entry with a per-tool finding; it is never
+        silently defaulted. Optional `status`/`resource_scope` (legacy
+        singular)/`enabled`/`capabilities` remain type-checked only if
+        present. Schema errors are per-tool WARNING findings, not FATAL.
         """
         if not isinstance(entry, dict):
             return _warning_entry(
@@ -236,10 +250,22 @@ class McpToolDiscoveryService:
                 f"{server_key}: tool {name!r} has invalid inputSchema {input_schema!r}"
             )
 
+        missing_fields = [f for f in _REQUIRED_SCHEMA_V2_FIELDS if f not in entry]
+        if missing_fields:
+            return _warning_entry(
+                f"{server_key}: tool {name!r} missing required schema-2.0 field(s): "
+                f"{', '.join(missing_fields)}"
+            )
+
+        schema_errors = validate_tool_schema_v2(entry)
+        if schema_errors:
+            return _warning_entry(
+                f"{server_key}: tool {name!r} failed schema-2.0 validation: "
+                f"{'; '.join(schema_errors)}"
+            )
+
         for field_name, expected_type in (
             ("status", str),
-            ("is_write", bool),
-            ("requires_serial", bool),
             ("resource_scope", str),
             ("enabled", bool),
         ):
@@ -267,6 +293,12 @@ class McpToolDiscoveryService:
         reported by more than one distinct server are excluded from the
         registry entirely (per this module's docstring), each producing one
         FATAL finding — tool is unusable when duplicated across servers.
+
+        Every entry reaching this method has already passed
+        `_validate_and_normalize_entry()`'s hard schema-2.0 requirement, so
+        `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`
+        are guaranteed present — they are indexed directly (`entry[...]`), not
+        defaulted via `.get()`.
         """
         by_name: dict[str, list[_RawEntry]] = {}
         for server_key, server_url, entry in entries:
@@ -297,8 +329,10 @@ class McpToolDiscoveryService:
                 input_schema=entry.get("inputSchema", entry.get("input_schema")),  # type: ignore[arg-type]
                 raw_definition=entry,
                 status=str(entry.get("status", "active")),
-                is_write=entry.get("is_write"),  # type: ignore[arg-type]
-                requires_serial=entry.get("requires_serial"),  # type: ignore[arg-type]
+                is_write=entry["is_write"],  # type: ignore[arg-type]
+                requires_serial=entry["requires_serial"],  # type: ignore[arg-type]
+                resource_scope_kind=str(entry["resource_scope_kind"]),
+                resource_scope_keys=tuple(entry["resource_scope_keys"]),  # type: ignore[arg-type]
                 enabled_for_llm=bool(entry.get("enabled", True)),
                 capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
             )

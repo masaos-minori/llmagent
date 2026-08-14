@@ -17,6 +17,7 @@ import pytest
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from shared.mcp_config import (
     McpServerConfig,
+    SecurityProfile,
     StartupMode,
     TransportType,
 )
@@ -77,7 +78,8 @@ def _make_runtime_registry(
         status="active",
         is_write=False,
         requires_serial=True,
-        resource_scope="",
+        resource_scope_kind="",
+        resource_scope_keys=(),
         agent_safety_tier="READ_ONLY",
         requires_approval=False,
         enabled_for_llm=True,
@@ -91,7 +93,8 @@ def _make_runtime_registry(
             status="active",
             is_write=False,
             requires_serial=False,
-            resource_scope="",
+            resource_scope_kind="",
+            resource_scope_keys=(),
             agent_safety_tier="READ_ONLY",
             requires_approval=False,
             enabled_for_llm=True,
@@ -179,7 +182,8 @@ class TestRuntimeRegistryPriorityInResolve:
             status="active",
             is_write=False,
             requires_serial=True,
-            resource_scope="",
+            resource_scope_kind="",
+            resource_scope_keys=(),
             agent_safety_tier="READ_ONLY",
             requires_approval=False,
             enabled_for_llm=True,
@@ -191,7 +195,8 @@ class TestRuntimeRegistryPriorityInResolve:
             status="active",
             is_write=True,
             requires_serial=True,
-            resource_scope="",
+            resource_scope_kind="",
+            resource_scope_keys=(),
             agent_safety_tier="WRITE_DANGEROUS",
             requires_approval=True,
             enabled_for_llm=True,
@@ -335,14 +340,22 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
                 {
                     "name": "visible_tool",
                     "description": "stays visible",
-                    "inputSchema": {"type": "object"},
+                    "inputSchema": {"type": "object", "properties": {}},
+                    "is_write": False,
+                    "requires_serial": False,
+                    "resource_scope_kind": "",
+                    "resource_scope_keys": [],
                 },
                 {
                     "name": "hidden_tool",
                     "description": "explicitly disabled",
-                    "inputSchema": {"type": "object"},
+                    "inputSchema": {"type": "object", "properties": {}},
                     "enabled": False,
                     "disabled_reason": "config-gated",
+                    "is_write": False,
+                    "requires_serial": False,
+                    "resource_scope_kind": "",
+                    "resource_scope_keys": [],
                 },
             ]
         }
@@ -366,3 +379,34 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         # Confirms the value came from the real _dedupe_and_build()/
         # build_runtime_tool() path, not a hand-built fixture.
         assert result.registry.get("hidden_tool").enabled_for_llm is False
+
+    async def test_incomplete_tool_declaration_excluded_from_routing(self) -> None:
+        """A tool missing a schema-2.0 field is excluded from the registry,
+        so routing raises for it instead of resolving to a defaulted spec."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "tools": [
+                {
+                    "name": "incomplete_tool",
+                    "description": "d",
+                    "inputSchema": {"type": "object", "properties": {}},
+                    "is_write": False,
+                    "requires_serial": False,
+                    "resource_scope_kind": "",
+                    # resource_scope_keys deliberately omitted
+                }
+            ]
+        }
+        http.get = AsyncMock(return_value=resp)
+        ctx = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {"srv": _http()}
+        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.services_required.http = http
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+        resolver = ToolRouteResolver({}, runtime_registry=result.registry)
+
+        with pytest.raises(ValueError, match="Unknown tool"):
+            resolver.resolve("incomplete_tool")
