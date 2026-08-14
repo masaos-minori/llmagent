@@ -20,7 +20,7 @@ class LlmHotConfigHandler:
     )
 
     @staticmethod
-    def apply_one(instance: object, field: str, kwarg: str, value: Any) -> None:
+    def apply_one(instance: object, field: str, value: Any) -> None:
         """Set a single config field on an instance."""
         setattr(instance, field, value)
 
@@ -52,4 +52,4 @@ class LlmHotConfigHandler:
         )
         for attr, kwarg in LlmHotConfigHandler.HOT_CONFIG_FIELDS:
             if (value := args.get(kwarg)) is not None:
-                LlmHotConfigHandler.apply_one(instance, attr, kwarg, value)
+                LlmHotConfigHandler.apply_one(instance, attr, value)

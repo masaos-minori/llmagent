@@ -20,19 +20,18 @@ class MockInstance:
 def test_apply_one_sets_field() -> None:
     """apply_one sets a single field via setattr."""
     inst = MockInstance()
-    LlmHotConfigHandler.apply_one(inst, "_temperature", "temperature", 0.9)
+    LlmHotConfigHandler.apply_one(inst, "_temperature", 0.9)
     assert inst._temperature == 0.9
 
 
 def test_apply_one_sets_non_float_field() -> None:
     """apply_one works with non-float types (int, bool)."""
     inst = MockInstance()
-    LlmHotConfigHandler.apply_one(inst, "_max_tokens", "max_tokens", 200)
+    LlmHotConfigHandler.apply_one(inst, "_max_tokens", 200)
     assert inst._max_tokens == 200
     LlmHotConfigHandler.apply_one(
         inst,
         "_llm_stream_retry_on_heartbeat_timeout",
-        "stream_retry_on_heartbeat_timeout",
         False,
     )
     assert inst._llm_stream_retry_on_heartbeat_timeout is False
