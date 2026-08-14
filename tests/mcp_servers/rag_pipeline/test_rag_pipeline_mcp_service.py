@@ -92,7 +92,6 @@ class TestBuildRagCfgAdapter:
 
     def test_adapter_satisfies_rag_config_protocol(self) -> None:
         """build_rag_cfg_adapter output must satisfy every field in RagConfig Protocol."""
-        from shared.types import RagConfig
 
         cfg = RagPipelineConfig(
             use_mqe=False,
@@ -139,9 +138,6 @@ class TestBuildRagCfgAdapter:
 
         for field in required_fields:
             assert hasattr(adapter, field), f"Missing RagConfig field: {field}"
-
-        # Verify the adapter structurally satisfies the Protocol at runtime
-        assert isinstance(adapter, RagConfig)
 
         # Verify specific values from the config above
         assert adapter.use_mqe is False

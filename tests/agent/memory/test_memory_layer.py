@@ -398,9 +398,7 @@ class TestEmbeddingClientTimeout:
 
         client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
 
-        async def _slow_embed(
-            text: str, http: object, url: str, query_prefix: str, embed_dim: int
-        ) -> EmbeddingResult:
+        async def _slow_embed(text: str, http: object, url: str) -> EmbeddingResult:
             await asyncio.sleep(10)
             return EmbeddingResult(success=True, embedding=[0.1])
 

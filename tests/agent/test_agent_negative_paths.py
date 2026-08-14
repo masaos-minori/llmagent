@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.memory.scoring import recency_boost
@@ -46,28 +47,32 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
         "approval_github_allowed_repos": [],
         "allowed_root": "",
-        "security_profile": "development",
+        "security_profile": "local",
         "security_lockdown_enabled": False,
-        "memory_local_only": False,
+        "memory_local_only": True,
+        "memory_embed_enabled": False,
+        "mcp_servers": {
+            "test_server": {"transport": "http", "url": "http://localhost:8011"}
+        },
     }
     merged = {**defaults, **overrides}
     return build_agent_config(merged)
 
 
 class TestSecurityProfileInvalidValue:
-    """AGENT-1: Invalid security_profile value should be silently ignored."""
+    """AGENT-1: Invalid security_profile value should raise ValueError."""
 
-    def test_invalid_security_profile_returns_none(self) -> None:
-        result = _cfg(security_profile="INVALID_PROFILE")
-        assert result.mcp.security_profile is None
+    def test_invalid_security_profile_raises_value_error(self) -> None:
+        with pytest.raises(ValueError):
+            _cfg(security_profile="INVALID_PROFILE")
 
-    def test_empty_string_security_profile_returns_none(self) -> None:
-        result = _cfg(security_profile="")
-        assert result.mcp.security_profile is None
+    def test_empty_string_security_profile_raises_value_error(self) -> None:
+        with pytest.raises(ValueError):
+            _cfg(security_profile="")
 
-    def test_numeric_security_profile_returns_none(self) -> None:
-        result = _cfg(security_profile="123")
-        assert result.mcp.security_profile is None
+    def test_numeric_security_profile_raises_value_error(self) -> None:
+        with pytest.raises(ValueError):
+            _cfg(security_profile="123")
 
 
 class TestRecencyDaysBoundary:
@@ -111,31 +116,31 @@ class TestForceOverwriteClobberRisk:
     """AGENT-4: force/overwrite/clobber should not elevate read-type tools."""
 
     def test_read_tool_force_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "NONE"})
+        cfg = _cfg(approval_risk_rules={"read_file": "none"})
         result = classify_risk(cfg, "read_file", {"force": True})
         assert result == RiskLevel.NONE
 
     def test_read_tool_overwrite_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "NONE"})
+        cfg = _cfg(approval_risk_rules={"read_file": "none"})
         result = classify_risk(cfg, "read_file", {"overwrite": True})
         assert result == RiskLevel.NONE
 
     def test_read_tool_clobber_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "NONE"})
+        cfg = _cfg(approval_risk_rules={"read_file": "none"})
         result = classify_risk(cfg, "read_file", {"clobber": True})
         assert result == RiskLevel.NONE
 
     def test_write_tool_force_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "MEDIUM"})
+        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
         result = classify_risk(cfg, "write_file", {"force": True})
         assert result == RiskLevel.HIGH
 
     def test_write_tool_overwrite_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "MEDIUM"})
+        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
         result = classify_risk(cfg, "write_file", {"overwrite": True})
         assert result == RiskLevel.HIGH
 
     def test_write_tool_clobber_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "MEDIUM"})
+        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
         result = classify_risk(cfg, "write_file", {"clobber": True})
         assert result == RiskLevel.HIGH

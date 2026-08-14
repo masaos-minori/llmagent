@@ -6,6 +6,7 @@ deduplicate_chunks, _dedup_hits, and FTS query building.
 from __future__ import annotations
 
 import concurrent.futures
+import logging
 import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -931,11 +932,13 @@ class TestRagRepositoryHardening:
 
 class TestBuildFtsQueryLogging:
     def test_logs_truncation(self, caplog):
+        caplog.set_level(logging.INFO)
         words = " ".join(f"word{i}" for i in range(25))
         _build_fts_query(words)
         assert any("truncated=True" in record.message for record in caplog.records)
 
     def test_logs_no_truncation(self, caplog):
+        caplog.set_level(logging.INFO)
         words = "hello world"
         _build_fts_query(words)
         assert any("truncated=False" in record.message for record in caplog.records)

@@ -307,7 +307,8 @@ class TestHttpTransportErrors:
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
         with pytest.raises(TransportError) as exc_info:
             await transport.call("my_tool", {})
-        assert "HTTPStatusError" in str(exc_info.value)
+        assert "[HTTPStatusError]" in str(exc_info.value)
+        assert "status=500" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_request_error_raises_transport_error(self) -> None:

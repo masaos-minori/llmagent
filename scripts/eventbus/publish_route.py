@@ -8,9 +8,9 @@ from typing import Any
 
 import jsonschema
 from fastapi import HTTPException, Request
-from shared.json_utils import dumps as json_dumps
 
 from eventbus.db import insert_event
+from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import get_broker, get_config, get_db, run_with_db_lock
 
 logger = logging.getLogger(__name__)

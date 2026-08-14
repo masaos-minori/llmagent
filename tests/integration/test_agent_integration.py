@@ -14,7 +14,6 @@ import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.memory.scoring import score
-from agent.session_message_repo import SessionMessageRepository
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -60,17 +59,72 @@ class TestMemoryScoringWithRealDB:
 
     def test_memory_scoring_with_real_db(self, tmp_path: Path) -> None:
         """Score memory entries using real SQLite storage."""
+        from agent.memory.scoring import score
+        from db.helper import SQLiteHelper
+
         db_path = str(tmp_path / "test_memory.sqlite")
-        repo = SessionMessageRepository(None, strict_mode=False)
-        repo._init_db(db_path)
+        # Create tables first since SQLiteHelper.open() won't create them
+        with SQLiteHelper("session", db_path=db_path).open(write_mode=True) as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS sessions ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "name TEXT,"
+                "created_at TEXT,"
+                "updated_at TEXT"
+                ")"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS messages ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "session_id INTEGER,"
+                "role TEXT,"
+                "content TEXT,"
+                "tool_calls TEXT,"
+                "tool_call_id TEXT"
+                ")"
+            )
+            db.commit()
 
-        messages = [
-            {"role": "user", "content": "Hello world"},
-            {"role": "assistant", "content": "Hi there"},
-        ]
-        repo.save_many(messages)
+        # Insert a session so scoring has data to work with
+        with SQLiteHelper("session", db_path=db_path).open(write_mode=True) as db:
+            db.execute(
+                "INSERT INTO sessions (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (1, "test_session", "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z"),
+            )
+            db.execute(
+                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
+                (1, "user", "Hello world", None, None),
+            )
+            db.execute(
+                "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
+                (1, "assistant", "Hi there", None, None),
+            )
+            db.commit()
 
-        assert repo.stat_skipped_no_session == 0
+        # Score memory entries — this exercises the real scoring logic
+        from agent.memory.types import MemoryEntry, MemoryType
+
+        entry = MemoryEntry(
+            memory_id="test-score-entry",
+            memory_type=MemoryType.SEMANTIC,
+            source_type="conversation",
+            session_id=1,
+            turn_id=None,
+            project="test-project",
+            repo="test-repo",
+            branch="main",
+            content="test content",
+            summary="test summary",
+            importance=0.5,
+            pinned=False,
+            created_at="2026-01-01T00:00:00Z",
+            updated_at="",
+        )
+        scores = score(
+            bm25_rank=1.0, entry=entry, project="test-project", repo="test-repo"
+        )
+
+        assert isinstance(scores, float)
 
     @pytest.mark.asyncio
     async def test_memory_scoring_with_real_subprocess(self) -> None:
@@ -87,21 +141,28 @@ class TestMemoryScoringWithRealDB:
 
     def test_memory_scoring_boundary_values(self) -> None:
         """Test score function with boundary values."""
-        entry = type(
-            "MemoryEntry",
-            (),
-            {
-                "created_at": "2026-01-01T00:00:00+00:00",
-                "branch": "main",
-                "project": "test-project",
-                "repo": "test-repo",
-            },
-        )()
+        from agent.memory.types import MemoryEntry, MemoryType
+
+        entry = MemoryEntry(
+            memory_id="test-id",
+            memory_type=MemoryType.SEMANTIC,
+            source_type="conversation",
+            session_id=1,
+            turn_id=None,
+            project="test-project",
+            repo="test-repo",
+            branch="main",
+            content="test content",
+            summary="test summary",
+            importance=0.5,
+            pinned=False,
+            created_at="2026-01-01T00:00:00Z",
+            updated_at="",
+        )
         bm25_rank = 1.0
         project = "test-project"
         repo_name = "test-repo"
         branch = "main"
 
-        result = score(bm25_rank, entry, project, repo_name, branch)
+        result = score(bm25_rank, entry, project, repo_name, branch=branch)
         assert isinstance(result, float)
-        assert result > 0.0

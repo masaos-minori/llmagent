@@ -357,34 +357,8 @@ class TestSubprocessLifecycle:
     async def test_start_blocked_protected_env_vars(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
-        cfg = _make_cfg(env={"PATH": "/custom/path", "PYTHONPATH": "/custom/lib"})
-        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
-
-        monotonic_base = time.monotonic()
-        monotonic_count = [0]
-
-        def fake_monotonic() -> float:
-            monotonic_count[0] += 1
-            if monotonic_count[0] <= 10:
-                return monotonic_base + 1.0
-            return monotonic_base + 31.0
-
-        mock_popen = MagicMock(return_value=proc_mock)
-        with (
-            patch.object(subprocess, "Popen", mock_popen),
-            patch.object(os, "getpgid", return_value=9999),
-            patch.object(time, "monotonic", side_effect=fake_monotonic),
-            patch.object(asyncio, "sleep", return_value=None),
-        ):
-            with patch.object(type(mgr), "_terminate_with_timeout", new=AsyncMock()):
-                with pytest.raises(HttpStartupError):
-                    await mgr.start("test", cfg)
-
-        assert mock_popen.called
-        env_arg = mock_popen.call_args[1].get("env")
-        assert env_arg is not None
-        assert env_arg.get("PATH") != "/custom/path"
-        assert env_arg.get("PYTHONPATH") != "/custom/lib"
+        with pytest.raises(ValueError, match="denylisted"):
+            _make_cfg(env={"PATH": "/custom/path", "PYTHONPATH": "/custom/lib"})
 
     @pytest.mark.asyncio
     async def test_start_non_protected_env_vars_passed(
@@ -437,7 +411,10 @@ class TestSubprocessLifecycle:
             patch.object(os, "getpgid", return_value=9999),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            await mgr.start("test", cfg)
+            with pytest.raises(
+                HttpStartupError, match="is not in the allowed commands"
+            ):
+                await mgr.start("test", cfg)
 
         assert popen_called is False
         assert mgr._http_procs.get("test") is None
@@ -455,7 +432,8 @@ class TestSubprocessLifecycle:
             patch.object(os, "getpgid", side_effect=OSError("no such process")),
             patch.object(type(mgr), "_open_stderr_log", return_value=stderr_fh_mock),
         ):
-            await mgr.start("test", cfg)
+            with pytest.raises(OSError, match="no such process"):
+                await mgr.start("test", cfg)
 
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None

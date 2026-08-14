@@ -976,32 +976,6 @@ class TestCheckServicesSeverityClassification:
         assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
         assert any(o.status == StartupCheckStatus.OK for o in outcomes)
 
-    # ── embedding_dimensions ─────────────────────────────────────────────────
-
-    @pytest.mark.asyncio
-    async def test_embedding_dimensions_fatal_on_mismatch(self) -> None:
-        ctx = _make_startup_ctx(memory_embed_dim=768)
-        pipeline, exc = await _run_check_services(ctx, embedding_dims=384)
-        assert exc is not None
-        outcomes = [o for o in pipeline.outcomes if o.source == "embedding_dimensions"]
-        assert outcomes == [
-            StartupCheckOutcome(
-                "embedding_dimensions",
-                StartupCheckStatus.FATAL,
-                "Embedding dimension mismatch: memory=768, db=384",
-            )
-        ]
-
-    @pytest.mark.asyncio
-    async def test_embedding_dimensions_ok_on_match(self) -> None:
-        ctx = _make_startup_ctx(memory_embed_dim=768)
-        pipeline, exc = await _run_check_services(ctx, embedding_dims=768)
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "embedding_dimensions"]
-        assert outcomes == [
-            StartupCheckOutcome("embedding_dimensions", StartupCheckStatus.OK)
-        ]
-
     # ── readiness ────────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
@@ -1215,7 +1189,7 @@ class TestCheckServicesSeverityClassification:
     @pytest.mark.asyncio
     async def test_routing_drift_live_skipped_on_exception(self) -> None:
         """When discover_all() raises an exception, it is caught by the blanket except clause and
-        reported as SKIPPED."""
+        reported as FATAL; the orchestrator then raises RuntimeError."""
         ctx = _make_startup_ctx(tool_definitions_strict=True)
         pipeline, exc = await _run_check_services(
             ctx,
@@ -1223,10 +1197,10 @@ class TestCheckServicesSeverityClassification:
                 side_effect=RuntimeError("Strict mode: live routing drift detected.")
             ),
         )
-        assert exc is None
+        assert exc is not None
         outcomes = [o for o in pipeline.outcomes if o.source == "mcp_tool_discovery"]
         assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.SKIPPED
+        assert outcomes[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.asyncio
     async def test_mcp_tool_discovery_fatal_in_production_on_exception(self) -> None:

@@ -2,11 +2,55 @@
 Coverage for config loading and LLM error paths in rag.pipeline and rag.llm.
 """
 
+from __future__ import annotations
+
+from dataclasses import replace as dc_replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from rag.models_config import RagConfigImpl
 from shared.config_loader import ConfigLoader
+
+_RAG_CFG_BASE = RagConfigImpl(
+    semantic_cache_max_size=0,
+    semantic_cache_threshold=0.0,
+    use_semantic_cache=False,
+    use_mqe=False,
+    top_k_search=5,
+    use_rerank=False,
+    rag_top_k=3,
+    max_chunks_per_doc=5,
+    top_k_rerank=10,
+    rag_min_score=0.0,
+    use_rrf=True,
+    rrf_k=60,
+    use_search=True,
+    rag_service_url="",
+    rag_auth_token="",
+    use_refiner=False,
+    refiner_max_tokens=512,
+    refiner_max_chars_per_chunk=800,
+    refiner_timeout=30.0,
+    rag_db_path=":memory:",
+    sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+    sqlite_timeout=5,
+    sqlite_busy_timeout_ms=5000,
+    embed_retry=3,
+    embed_workers=4,
+    rag_pipeline_service_url=None,
+    mqe_prompt_template="Expand query: {query}",
+    mqe_n_queries=3,
+    rerank_prompt_template="Rerank results for: {query}",
+    llm_url="http://localhost:8000/v1/chat/completions",
+    embed_url="http://localhost:8000/v1/embeddings",
+)
+
+
+def _make_rag_cfg(**overrides) -> RagConfigImpl:
+    if overrides:
+        return dc_replace(_RAG_CFG_BASE, **overrides)
+    return _RAG_CFG_BASE
 
 
 class TestRagPipelineGetCfg:
@@ -38,7 +82,7 @@ class TestRagLlmExceptions:
         )
         mock_client.post.return_value = mock_response
 
-        llm = RagLLM(mock_client, "http://llm/v1/chat", cfg={"use_mqe": True})
+        llm = RagLLM(mock_client, "http://llm/v1/chat", cfg=_make_rag_cfg(use_mqe=True))
         with pytest.raises(RagExpansionError, match="MQE expansion failed"):
             await llm.expand_queries("test query")
 
@@ -60,7 +104,7 @@ class TestRagLlmExceptions:
         llm = RagLLM(
             mock_client,
             "http://llm/v1/chat",
-            cfg={"use_mqe": True, "mqe_prompt_template": "{query}", "mqe_n_queries": 3},
+            cfg=_make_rag_cfg(use_mqe=True, mqe_prompt_template="{query}"),
         )
         with pytest.raises(RagExpansionError):
             await llm.expand_queries("test query")
@@ -80,7 +124,7 @@ class TestRagLlmExceptions:
         )
         mock_client.post.return_value = mock_response
 
-        llm = RagLLM(mock_client, "http://llm/v1/chat")
+        llm = RagLLM(mock_client, "http://llm/v1/chat", cfg=_make_rag_cfg())
         candidates = [MergedHit(chunk_id=1, content="text", url="u")]
         with pytest.raises(RagRerankError, match="rerank LLM call failed"):
             await llm.cross_encoder_rerank("query", candidates, top_k=1)

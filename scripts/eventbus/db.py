@@ -7,9 +7,22 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from db.helper import apply_connection_pragmas
-
 logger = logging.getLogger(__name__)
+
+_DEFAULT_BUSY_TIMEOUT_MS = 30_000
+
+
+def _apply_eventbus_pragmas(
+    conn: sqlite3.Connection,
+    *,
+    busy_timeout_ms: int = _DEFAULT_BUSY_TIMEOUT_MS,
+) -> None:
+    """Apply WAL/synchronous=NORMAL/busy_timeout/foreign_keys pragmas to a connection."""
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")  # nosec B608 — busy_timeout_ms is a configurable integer, not user input
+    conn.execute("PRAGMA foreign_keys=ON")
+
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 _db_lock = threading.Lock()
@@ -35,7 +48,7 @@ def open_db(db_path: str) -> sqlite3.Connection:
     try:
         conn = sqlite3.connect(db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        apply_connection_pragmas(conn, write_mode=True)
+        _apply_eventbus_pragmas(conn)
         _init_schema(conn)
         return conn
     except sqlite3.Error as exc:

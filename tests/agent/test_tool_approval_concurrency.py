@@ -27,13 +27,11 @@ class _QueueInput:
         return await self._queue.get()
 
     def make_input_mock(self) -> MagicMock:
-        mock = MagicMock()
-        mock.return_value = asyncio.create_task(self._get_impl())
-        return mock
+        async def _impl(_prompt: str) -> str:
+            val = await self._queue.get()
+            return val.strip().lower()
 
-    async def _get_impl(self) -> str:
-        val = await self._queue.get()
-        return val.strip().lower()
+        return MagicMock(side_effect=_impl)
 
 
 @pytest.mark.asyncio
@@ -42,7 +40,7 @@ async def test_rapid_successive_approvals_no_race() -> None:
     from agent.tool_approval import _prompt_user_approval
 
     q = _QueueInput()
-    responses = ["yes", "no", "yes"]
+    responses = ["y", "n", "yes"]
     for r in responses:
         await q.enqueue(r)
 
@@ -53,11 +51,14 @@ async def test_rapid_successive_approvals_no_race() -> None:
         call_count += 1
         return await func(*args, **kwargs)
 
-    with patch("asyncio.to_thread", side_effect=_mock_to_thread):
+    with (
+        patch("asyncio.to_thread", side_effect=_mock_to_thread),
+        patch("builtins.input", side_effect=q.make_input_mock()),
+    ):
         results = []
         for i in range(len(responses)):
             if i < len(responses) - 1:
-                result = await _prompt_user_approval(RiskLevel.LOW)
+                result = await _prompt_user_approval(RiskLevel.NONE)
             else:
                 result = await _prompt_user_approval(RiskLevel.HIGH)
             results.append(result)
@@ -72,9 +73,9 @@ async def test_rapid_mixed_approvals_no_race() -> None:
     from agent.tool_approval import _prompt_user_approval
 
     q = _QueueInput()
-    # Mix of LOW/MEDIUM (expect y/n) and HIGH (expect yes/no)
+    # Mix of NONE/MEDIUM (expect y/n) and HIGH (expect yes/no)
     responses = [
-        ("y", RiskLevel.LOW),
+        ("y", RiskLevel.NONE),
         ("n", RiskLevel.MEDIUM),
         ("yes", RiskLevel.HIGH),
         ("no", RiskLevel.HIGH),
@@ -90,7 +91,10 @@ async def test_rapid_mixed_approvals_no_race() -> None:
         call_count += 1
         return await func(*args, **kwargs)
 
-    with patch("asyncio.to_thread", side_effect=_mock_to_thread):
+    with (
+        patch("asyncio.to_thread", side_effect=_mock_to_thread),
+        patch("builtins.input", side_effect=q.make_input_mock()),
+    ):
         results = []
         for resp, risk in responses:
             result = await _prompt_user_approval(risk)
@@ -112,14 +116,20 @@ async def test_high_risk_requires_full_yes_not_abbreviated() -> None:
     async def _mock_to_thread(func, *args, **kwargs):
         return await func(*args, **kwargs)
 
-    with patch("asyncio.to_thread", side_effect=_mock_to_thread):
+    with (
+        patch("asyncio.to_thread", side_effect=_mock_to_thread),
+        patch("builtins.input", side_effect=q.make_input_mock()),
+    ):
         result = await _prompt_user_approval(RiskLevel.HIGH)
 
     assert result is False
 
     await q.enqueue("YES")
 
-    with patch("asyncio.to_thread", side_effect=_mock_to_thread):
+    with (
+        patch("asyncio.to_thread", side_effect=_mock_to_thread),
+        patch("builtins.input", side_effect=q.make_input_mock()),
+    ):
         result = await _prompt_user_approval(RiskLevel.HIGH)
 
     assert result is True

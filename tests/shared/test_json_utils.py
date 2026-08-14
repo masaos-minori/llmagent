@@ -409,7 +409,7 @@ class TestNowIso:
 
     def test_now_iso_date_changes_at_midnight(self) -> None:
         result = now_iso()
-        today = datetime.date.today().strftime("%Y-%m-%d")
+        today = datetime.datetime.now(datetime.UTC).date().strftime("%Y-%m-%d")
         assert result.startswith(today)
 
     def test_now_iso_utc_timezone(self) -> None:

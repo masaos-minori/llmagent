@@ -41,7 +41,7 @@ def _ephemeral_msgs(ctx: MagicMock) -> list[dict]:
 class TestClassifyAndInjectMode:
     def test_mdq_query_with_tools_available_injects_mdq_hint(self) -> None:
         ctx = _make_ctx(mdq_rag_mode="mdq", mdq_tool_names=["search_docs"])
-        classify_and_inject_mode("show me the headings", ctx)
+        classify_and_inject_mode("show me the structure", ctx)
 
         hints = _ephemeral_msgs(ctx)
         assert len(hints) == 1

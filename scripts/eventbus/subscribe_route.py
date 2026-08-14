@@ -8,8 +8,8 @@ from typing import Any
 
 from fastapi import Query, Request
 from fastapi.responses import StreamingResponse
-from shared.json_utils import dumps as json_dumps
 
+from eventbus.json_utils import dumps as json_dumps
 from eventbus.route_helpers import _row_to_dict, get_broker, get_db, run_with_db_lock
 
 logger = logging.getLogger(__name__)

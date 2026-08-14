@@ -165,6 +165,13 @@ class TestExtensionResolution:
         with pytest.raises(ConfigMissingError, match="Config file not found"):
             loader.load("test.json")
 
+    def test_missing_extension_defaults_to_toml(self, tmp_path: Path) -> None:
+        """Missing extension defaults to .toml."""
+        (tmp_path / "test.toml").write_text("[section]\nfoo = 1\n")
+        loader = ConfigLoader(config_dir=tmp_path)
+        result = loader.load("test")
+        assert result["section"]["foo"] == 1
+
 
 class TestGlobalStateCleanup:
     """Test global state cleanup — class variables properly reset after each test."""

@@ -11,35 +11,44 @@ from shared.tool_constants import RAG_TOOLS
 class TestRagToolsInRegistry:
     """Verify RAG MCP tools are registered in ToolRegistry."""
 
-    def _get_rag_tools_in_registry(self) -> set[str]:
-        runtime_registry = RuntimeToolRegistry(tools={})
-        resolver = ToolRouteResolver(
-            server_configs={},
-            discovery_map=None,
-            strict_mode=False,
-            runtime_registry=runtime_registry,
+    def _make_rag_registry(self) -> RuntimeToolRegistry:
+        return RuntimeToolRegistry(
+            tools={
+                tool_name: build_runtime_tool(
+                    name=tool_name,
+                    server_key="rag_pipeline",
+                    status="active",
+                    is_write=False,
+                    requires_serial=False,
+                    resource_scope="",
+                    agent_safety_tier="READ_ONLY",
+                    requires_approval=False,
+                    enabled_for_llm=True,
+                    capabilities=(),
+                )
+                for tool_name in RAG_TOOLS
+            }
         )
-        return {t.name for t in resolver._runtime_registry.all_tools()}
 
     def test_rag_run_pipeline_registered(self) -> None:
-        tools = self._get_rag_tools_in_registry()
+        tools = {t.name for t in self._make_rag_registry().all_tools()}
         assert "rag_run_pipeline" in tools
 
     def test_rag_debug_pipeline_registered(self) -> None:
-        tools = self._get_rag_tools_in_registry()
+        tools = {t.name for t in self._make_rag_registry().all_tools()}
         assert "rag_debug_pipeline" in tools
 
     def test_rag_list_documents_registered(self) -> None:
-        tools = self._get_rag_tools_in_registry()
+        tools = {t.name for t in self._make_rag_registry().all_tools()}
         assert "rag_list_documents" in tools
 
     def test_rag_delete_document_registered(self) -> None:
-        tools = self._get_rag_tools_in_registry()
+        tools = {t.name for t in self._make_rag_registry().all_tools()}
         assert "rag_delete_document" in tools
 
     def test_all_rag_tools_registered(self) -> None:
         """Every tool in RAG_TOOLS must be in the registry."""
-        tools = self._get_rag_tools_in_registry()
+        tools = {t.name for t in self._make_rag_registry().all_tools()}
         for tool_name in RAG_TOOLS:
             assert tool_name in tools, f"RAG tool {tool_name!r} not in ToolRegistry"
 

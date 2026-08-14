@@ -4,7 +4,7 @@ Verifies that _check_services() emits write_warning on RAG inconsistency.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -38,8 +38,8 @@ async def test_write_warning_on_inconsistency():
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_mcp.return_value.discover_all.return_value = MagicMock(
-            registry=None, findings=[], unreachable=[]
+        mock_mcp.return_value.discover_all = AsyncMock(
+            return_value=MagicMock(registry=None, findings=[], unreachable=[])
         )
 
         # Call only the consistency portion; other checks are mocked
@@ -64,8 +64,8 @@ async def test_no_warning_on_consistent():
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_mcp.return_value.discover_all.return_value = MagicMock(
-            registry=None, findings=[], unreachable=[]
+        mock_mcp.return_value.discover_all = AsyncMock(
+            return_value=MagicMock(registry=None, findings=[], unreachable=[])
         )
 
         await orch._check_services()
@@ -90,8 +90,8 @@ async def test_no_crash_on_exception():
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
-        mock_mcp.return_value.discover_all.return_value = MagicMock(
-            registry=None, findings=[], unreachable=[]
+        mock_mcp.return_value.discover_all = AsyncMock(
+            return_value=MagicMock(registry=None, findings=[], unreachable=[])
         )
 
         # Should not raise

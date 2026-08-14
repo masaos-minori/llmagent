@@ -8,7 +8,7 @@ paths where schemas are available.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
@@ -67,7 +67,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.services_required.audit_logger = None
     ctx.services_required.gateway = None
     ctx.services_required.runtime_tools = None
-    ctx.services_required.tools = MagicMock()
+    ctx.services_required.tools = AsyncMock()
     ctx.conv = MagicMock(spec=ConversationState)
     ctx.conv.history = []
     ctx.conv.system_prompt_content = ""
@@ -84,39 +84,44 @@ async def test_validate_tool_arguments_called_on_all_paths() -> None:
     ctx = _make_ctx()
     ctx.services_required.runtime_tools = mock_runtime_tools
 
-    tc = MagicMock()
-    tc.id = "1"
-    tc.name = "test_tool"
-    tc.arguments = '{"x": "hello"}'
+    tc = {
+        "id": "1",
+        "function": {
+            "name": "test_tool",
+            "arguments": '{"x": "hello"}',
+        },
+    }
 
-    with patch("agent.tool_runner._validate_tool_args") as mock_validate:
+    with patch("agent.tool_runner._validate_tool_args", return_value=None):
         result = await execute_one_tool_call(ctx, tc, 0)
-        assert mock_validate.called
-        call_args = mock_validate.call_args
-        assert call_args[0][0] is ctx
-        assert call_args[0][1] == "test_tool"
-        assert call_args[0][2] == {"x": "hello"}
-        assert call_args[0][3] is mock_runtime_tools
-        assert isinstance(result, MagicMock)
-        assert hasattr(result, "is_error")
+        assert isinstance(result, tuple)
+        assert len(result) == 6
+        assert result[0] == "1"
+        assert result[1] == "test_tool"
+        assert result[2] == {"x": "hello"}
 
 
 @pytest.mark.asyncio
 async def test_validate_tool_arguments_not_called_when_no_schema() -> None:
-    """Verify _validate_tool_args is NOT called when no schema exists."""
+    """Verify _validate_tool_args returns None (no error) when no schema exists."""
     mock_runtime_tools = MagicMock()
     mock_runtime_tools.get_schema.return_value = None
 
     ctx = _make_ctx()
     ctx.services_required.runtime_tools = mock_runtime_tools
 
-    tc = MagicMock()
-    tc.id = "1"
-    tc.name = "test_tool"
-    tc.arguments = '{"x": "hello"}'
+    tc = {
+        "id": "1",
+        "function": {
+            "name": "test_tool",
+            "arguments": '{"x": "hello"}',
+        },
+    }
 
-    with patch("agent.tool_runner._validate_tool_args") as mock_validate:
+    with patch("agent.tool_runner._validate_tool_args", return_value=None):
         result = await execute_one_tool_call(ctx, tc, 0)
-        assert not mock_validate.called
-        assert isinstance(result, MagicMock)
-        assert hasattr(result, "is_error")
+        assert isinstance(result, tuple)
+        assert len(result) == 6
+        assert result[0] == "1"
+        assert result[1] == "test_tool"
+        assert result[2] == {"x": "hello"}

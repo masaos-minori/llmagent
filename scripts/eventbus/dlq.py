@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import orjson
-from shared.json_utils import now_iso
+
+from eventbus.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
 

@@ -187,10 +187,10 @@ class TestMessageStructureValidation:
         assert result.success is True
         assert result.reason == ""
 
-    def test_system_with_priority_accepted(self) -> None:
-        """System message with priority field passes validation."""
+    def test_system_with_importance_accepted(self) -> None:
+        """System message with importance field passes validation."""
         result = validate_message(
-            {"role": "system", "content": "instructions", "priority": "high"}
+            {"role": "system", "content": "instructions", "importance": "high"}
         )
         assert result.success is True
         assert result.reason == ""
@@ -391,10 +391,12 @@ class TestEphemeralOnlyFromTrustedSources:
             "cmd_handler",
             "memory_injection",
             "skill_mixin",
+            "loop_guard",
         }
         assert TRUSTED_SOURCES["cmd_handler"] == {"_ephemeral"}
         assert TRUSTED_SOURCES["memory_injection"] == {"_memory_injected"}
         assert TRUSTED_SOURCES["skill_mixin"] == {"_skill_ephemeral"}
+        assert TRUSTED_SOURCES["loop_guard"] == {"_ephemeral"}
 
 
 # ── Filtering preserves persistent messages — without ephemeral keys preserved ──

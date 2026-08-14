@@ -186,6 +186,19 @@ class TestRagPipelineErrorOnDbOpen:
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=500,
             refiner_timeout=10.0,
+            llm_url="http://localhost:8000/v1/chat/completions",
+            embed_url="http://localhost:8000/v1/embeddings",
+            rag_db_path=":memory:",
+            sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+            sqlite_timeout=5,
+            sqlite_busy_timeout_ms=5000,
+            embed_retry=3,
+            embed_workers=4,
+            rag_pipeline_service_url=None,
+            mqe_prompt_template="Expand query: {query}",
+            mqe_n_queries=3,
+            rerank_prompt_template="Rerank results for: {query}",
+            rag_auth_token="",
         )
         http = MagicMock()
         with patch("rag.pipeline._ModuleConfig.get", return_value={}):
@@ -253,6 +266,19 @@ class TestGetDiagnostics:
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=500,
             refiner_timeout=10.0,
+            llm_url="http://localhost:8000/v1/chat/completions",
+            embed_url="http://localhost:8000/v1/embeddings",
+            rag_db_path=":memory:",
+            sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+            sqlite_timeout=5,
+            sqlite_busy_timeout_ms=5000,
+            embed_retry=3,
+            embed_workers=4,
+            rag_pipeline_service_url=None,
+            mqe_prompt_template="Expand query: {query}",
+            mqe_n_queries=3,
+            rerank_prompt_template="Rerank results for: {query}",
+            rag_auth_token="",
         )
         http = MagicMock()
         with patch("rag.pipeline._ModuleConfig.get", return_value={}):
@@ -324,6 +350,19 @@ class TestInvalidateCache:
             refiner_max_tokens=256,
             refiner_max_chars_per_chunk=500,
             refiner_timeout=10.0,
+            llm_url="http://localhost:8000/v1/chat/completions",
+            embed_url="http://localhost:8000/v1/embeddings",
+            rag_db_path=":memory:",
+            sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+            sqlite_timeout=5,
+            sqlite_busy_timeout_ms=5000,
+            embed_retry=3,
+            embed_workers=4,
+            rag_pipeline_service_url=None,
+            mqe_prompt_template="Expand query: {query}",
+            mqe_n_queries=3,
+            rerank_prompt_template="Rerank results for: {query}",
+            rag_auth_token="",
         )
         http = MagicMock()
         with patch("rag.pipeline._ModuleConfig.get", return_value={}):

@@ -23,7 +23,7 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import httpx
 from db.helper import SQLiteHelper
@@ -40,7 +40,7 @@ from rag.http_augment import HttpAugment, _map_http_result_kind
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
-from rag.models_result import SearchDiagnostics
+from rag.models_result import HttpResultKind, SearchDiagnostics
 from rag.pipeline_refiner import RefineResult, refine_context
 from rag.repository import (
     RagRepository,
@@ -116,20 +116,68 @@ class RagPipeline:
         self.stat_search_fts_errors: int = 0
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
 
-        # Resolve configuration: priority: module_cfg > ConfigLoader().load_all()
-        _raw_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
-        validator = RagConfigValidator()
-        validation_result = validator.validate(_raw_cfg)
-        for warning in validation_result.warnings:
-            logger.warning("rag config warning: %s", warning)
-        for error in validation_result.errors:
-            logger.error("rag config error: %s", error)
-        if not validation_result.ok:
-            raise ValueError(
-                f"RAG config validation failed: {validation_result.errors}"
+        # Resolve configuration: priority: cfg > module_cfg > ConfigLoader().load_all()
+        self._cfg: RagConfig
+        if isinstance(cfg, RagConfigImpl):
+            self._cfg = cfg
+        else:
+            _raw_cfg: dict[str, Any] = {}
+            if isinstance(cfg, dict):
+                _raw_cfg = cfg
+            elif cfg is not None and hasattr(cfg, "__dict__"):
+                _raw_cfg = cfg.__dict__
+            else:
+                _raw_cfg = module_cfg if module_cfg is not None else _ModuleConfig.get()
+            # Fill missing RagConfigImpl fields from any non-dict config source
+            # Dataclass fields without explicit init args don't appear in __dict__
+            _required_fields = frozenset(
+                {
+                    "llm_url",
+                    "embed_url",
+                    "rag_db_path",
+                    "sqlite_vec_so",
+                    "sqlite_timeout",
+                    "sqlite_busy_timeout_ms",
+                    "embed_retry",
+                    "embed_workers",
+                    "rag_pipeline_service_url",
+                    "mqe_prompt_template",
+                    "mqe_n_queries",
+                    "rerank_prompt_template",
+                    "use_search",
+                    "rag_service_url",
+                }
             )
-
-        self._cfg = RagConfigImpl(**_raw_cfg)
+            _defaults_for_missing = {
+                "llm_url": "",
+                "embed_url": "",
+                "rag_db_path": "",
+                "sqlite_vec_so": "",
+                "sqlite_timeout": 30,
+                "sqlite_busy_timeout_ms": 30000,
+                "mqe_n_queries": 3,
+                "mqe_prompt_template": "",
+                "rerank_prompt_template": "",
+                "embed_retry": 3,
+                "embed_workers": 4,
+                "rag_pipeline_service_url": None,
+                "use_search": True,
+                "rag_service_url": None,
+            }
+            for k in _required_fields:
+                if k not in _raw_cfg:
+                    _raw_cfg[k] = _defaults_for_missing[k]
+            validator = RagConfigValidator()
+            validation_result = validator.validate(_raw_cfg)
+            for warning in validation_result.warnings:
+                logger.warning("rag config warning: %s", warning)
+            for error in validation_result.errors:
+                logger.error("rag config error: %s", error)
+            if not validation_result.ok:
+                raise ValueError(
+                    f"RAG config validation failed: {validation_result.errors}"
+                )
+            self._cfg = cast(RagConfig, RagConfigImpl(**_raw_cfg))
         self.semantic_cache: SemanticCache = SemanticCache(
             max_size=self._cfg.semantic_cache_max_size,
             threshold=self._cfg.semantic_cache_threshold,
@@ -555,8 +603,13 @@ class RagPipeline:
         fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
         fetch = self.last_fetch_result
         fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
-        http_result_kind_raw = getattr(self, "_http_result_kind", None)
-        http_result_kind = _map_http_result_kind(http_result_kind_raw)
+        http_result_kind_raw = getattr(
+            self.last_search_diagnostics, "http_result_kind", None
+        )
+        if isinstance(http_result_kind_raw, HttpResultKind):
+            http_result_kind = http_result_kind_raw
+        else:
+            http_result_kind = _map_http_result_kind(http_result_kind_raw)
         refiner_fallbacks = [
             r
             for r in stage_results

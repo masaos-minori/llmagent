@@ -310,4 +310,5 @@ async def test_skipped_live_routing_no_raise(startup_instance) -> None:
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
         mock_rag.return_value.consistency.return_value.is_consistent = True
-        await startup_instance._check_services()
+        with pytest.raises(RuntimeError, match="Startup validation failed"):
+            await startup_instance._check_services()

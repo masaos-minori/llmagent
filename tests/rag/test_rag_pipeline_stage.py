@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from rag.models_config import RagConfigImpl
 from rag.stage import PipelineContext
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
@@ -38,10 +39,57 @@ class _RagCfg:
     refiner_max_tokens: int = 512
     refiner_max_chars_per_chunk: int = 800
     refiner_timeout: float = 30.0
+    rag_db_path: str = ":memory:"
+    sqlite_vec_so: str = "/opt/llm/sqlite-vec/vec0.so"
+    sqlite_timeout: int = 5
+    sqlite_busy_timeout_ms: int = 5000
+    embed_retry: int = 3
+    embed_workers: int = 4
+    rag_pipeline_service_url: str | None = None
+    mqe_prompt_template: str = "Expand query: {query}"
+    mqe_n_queries: int = 3
+    rerank_prompt_template: str = "Rerank results for: {query}"
+    llm_url: str = "http://localhost:8000/v1/chat/completions"
+    embed_url: str = "http://localhost:8000/v1/embeddings"
 
 
-def _make_rag_cfg(**overrides) -> _RagCfg:
-    return dataclasses.replace(_RagCfg(), **overrides)
+def _make_rag_cfg(**overrides) -> RagConfigImpl:
+    base = RagConfigImpl(
+        semantic_cache_max_size=0,
+        semantic_cache_threshold=0.0,
+        use_semantic_cache=False,
+        use_mqe=False,
+        top_k_search=5,
+        use_rerank=False,
+        rag_top_k=3,
+        max_chunks_per_doc=5,
+        top_k_rerank=10,
+        rag_min_score=0.0,
+        use_rrf=True,
+        rrf_k=60,
+        use_search=True,
+        rag_service_url="",
+        rag_auth_token="",
+        use_refiner=False,
+        refiner_max_tokens=512,
+        refiner_max_chars_per_chunk=800,
+        refiner_timeout=30.0,
+        rag_db_path=":memory:",
+        sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+        sqlite_timeout=5,
+        sqlite_busy_timeout_ms=5000,
+        embed_retry=3,
+        embed_workers=4,
+        rag_pipeline_service_url=None,
+        mqe_prompt_template="Expand query: {query}",
+        mqe_n_queries=3,
+        rerank_prompt_template="Rerank results for: {query}",
+        llm_url="http://localhost:8000/v1/chat/completions",
+        embed_url="http://localhost:8000/v1/embeddings",
+    )
+    if overrides:
+        return dataclasses.replace(base, **overrides)
+    return base
 
 
 class TestPipelineContextFields:

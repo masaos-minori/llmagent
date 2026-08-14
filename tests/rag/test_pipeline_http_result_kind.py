@@ -57,7 +57,7 @@ async def test_remote_nonempty(monkeypatch) -> None:
         await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
-    assert diag["http_result_kind"] == "remote_nonempty"
+    assert diag["http_result_kind"] == HttpResultKind.SUCCESS
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.REMOTE
     assert sd.remote_status_code == 200
@@ -95,7 +95,7 @@ async def test_remote_empty(monkeypatch) -> None:
     mock_open.assert_not_called()
 
     diag = pipeline.get_diagnostics()
-    assert diag["http_result_kind"] == "remote_empty"
+    assert diag["http_result_kind"] == HttpResultKind.EMPTY
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.REMOTE
     assert sd.http_result_kind == HttpResultKind.EMPTY
@@ -148,7 +148,7 @@ async def test_in_process_fallback(monkeypatch) -> None:
             await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
-    assert diag["http_result_kind"] == "in_process_fallback"
+    assert diag["http_result_kind"] == HttpResultKind.ERROR
     sd = pipeline.last_search_diagnostics
     assert sd.result_source == ResultSource.FALLBACK
     assert sd.http_result_kind == HttpResultKind.ERROR
@@ -184,4 +184,4 @@ async def test_no_http_mode(monkeypatch) -> None:
         await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
-    assert diag["http_result_kind"] is None
+    assert diag["http_result_kind"] == HttpResultKind.NOT_USED
