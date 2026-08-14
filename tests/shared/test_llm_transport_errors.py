@@ -100,12 +100,13 @@ class TestResolveRetryable:
         e = LLMTransportError(
             "HEARTBEAT_TIMEOUT", "pre_stream", "http://example.com", retryable=False
         )
-        retryable, counter = LlmTransportErrorHandler.resolve_retryable(
-            e,
-            heartbeat_timeout_retry=True,
-            malformed_chunk_retry=False,
-            heartbeat_timeout_counter=2,
-        )
+        with pytest.warns(DeprecationWarning):
+            retryable, counter = LlmTransportErrorHandler.resolve_retryable(
+                e,
+                heartbeat_timeout_retry=True,
+                malformed_chunk_retry=False,
+                heartbeat_timeout_counter=2,
+            )
         assert retryable is True
         assert counter == 3
 
@@ -113,12 +114,13 @@ class TestResolveRetryable:
         e = LLMTransportError(
             "HEARTBEAT_TIMEOUT", "pre_stream", "http://example.com", retryable=True
         )
-        retryable, counter = LlmTransportErrorHandler.resolve_retryable(
-            e,
-            heartbeat_timeout_retry=False,
-            malformed_chunk_retry=False,
-            heartbeat_timeout_counter=0,
-        )
+        with pytest.warns(DeprecationWarning):
+            retryable, counter = LlmTransportErrorHandler.resolve_retryable(
+                e,
+                heartbeat_timeout_retry=False,
+                malformed_chunk_retry=False,
+                heartbeat_timeout_counter=0,
+            )
         assert retryable is False
         assert counter == 1
 
@@ -126,12 +128,13 @@ class TestResolveRetryable:
         e = LLMTransportError(
             "MALFORMED_SSE_FRAME", "in_stream", "http://example.com", retryable=False
         )
-        retryable, counter = LlmTransportErrorHandler.resolve_retryable(
-            e,
-            heartbeat_timeout_retry=False,
-            malformed_chunk_retry=True,
-            heartbeat_timeout_counter=5,
-        )
+        with pytest.warns(DeprecationWarning):
+            retryable, counter = LlmTransportErrorHandler.resolve_retryable(
+                e,
+                heartbeat_timeout_retry=False,
+                malformed_chunk_retry=True,
+                heartbeat_timeout_counter=5,
+            )
         assert retryable is True
         assert counter == 5
 
@@ -141,11 +144,24 @@ class TestResolveRetryable:
         e = LLMTransportError(
             "CONNECT_ERROR", "pre_stream", "http://example.com", retryable=True
         )
-        retryable, counter = LlmTransportErrorHandler.resolve_retryable(
-            e,
-            heartbeat_timeout_retry=False,
-            malformed_chunk_retry=False,
-            heartbeat_timeout_counter=7,
-        )
+        with pytest.warns(DeprecationWarning):
+            retryable, counter = LlmTransportErrorHandler.resolve_retryable(
+                e,
+                heartbeat_timeout_retry=False,
+                malformed_chunk_retry=False,
+                heartbeat_timeout_counter=7,
+            )
         assert retryable is True
         assert counter == 7
+
+    def test_resolve_retryable_emits_deprecation_warning(self) -> None:
+        e = LLMTransportError(
+            "CONNECT_ERROR", "pre_stream", "http://example.com", retryable=True
+        )
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            LlmTransportErrorHandler.resolve_retryable(
+                e,
+                heartbeat_timeout_retry=False,
+                malformed_chunk_retry=False,
+                heartbeat_timeout_counter=0,
+            )
