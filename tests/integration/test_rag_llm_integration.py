@@ -188,32 +188,13 @@ async def test_c05_llm_empty_stream_returns_empty_content():
                 pass  # SSE parsing may fail on non-standard stream; not a crash
 
 
-# ── TC-C06: LLM returns invalid JSON for tool call → ToolArgumentsDecodeError ─
-
-
-@pytest.mark.asyncio
-async def test_c06_invalid_tool_arguments_raises_decode_error():
-    from agent.tool_exceptions import ToolArgumentsDecodeError
-    from agent.tool_runner import execute_one_tool_call
-
-    ctx = MagicMock()
-    ctx.services_required.tools = MagicMock()
-    ctx.services_required.gateway = None
-    ctx.cfg.tool.tool_summarize_results = False
-    ctx.diagnostics = None
-    ctx.turn.current_turn_id = "t1"
-    ctx.session.session_id = "s1"
-
-    bad_tc = {
-        "id": "call1",
-        "function": {
-            "name": "read_text_file",
-            "arguments": "not valid json {{{",
-        },
-    }
-
-    with pytest.raises(ToolArgumentsDecodeError):
-        await execute_one_tool_call(ctx, bad_tc, turn=1)
+# ── TC-C06: LLM returns invalid JSON for tool call ───────────────────────────
+#
+# Superseded: argument parsing/decoding moved from agent.tool_runner into the
+# fail-closed agent.tool_preparation.prepare_tool_calls() phase, which rejects
+# malformed JSON with a synthetic "validation"-kind failure result instead of
+# raising ToolArgumentsDecodeError (now unused in production). This scenario
+# is covered by test_tool_preparation.py::test_malformed_json_rejected_with_validation_kind.
 
 
 # ── TC-C07: ToolLoopGuard fires on repeated identical tool ───────────────────

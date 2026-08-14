@@ -37,6 +37,7 @@ from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 from shared.mcp_config import McpServerConfig, TransportType
 from shared.tool_executor import ToolExecutor
+from shared.tool_spec import ToolSpec
 
 _TEST_URL = "http://127.0.0.1:19100"
 _HTTP_KEY = "rag_pipeline"
@@ -65,6 +66,31 @@ def _make_http_executor(http: httpx.AsyncClient, tool_names: list[str]) -> ToolE
     )
     executor._resolver.resolve = lambda _: _HTTP_KEY
     return executor
+
+
+def _default_runtime_tools() -> MagicMock:
+    """Permissive RuntimeToolRegistry stub for agent.tool_preparation.prepare_tool_calls(),
+
+    which now runs unconditionally before approval/execution and requires a
+    real registry (fail-closed) — resolves any tool name to an unscoped,
+    non-write ToolSpec since these tests exercise the RAG tool-call
+    round-trip, not scheduling/scope behavior.
+    """
+    registry = MagicMock()
+
+    def _get(name: str) -> MagicMock:
+        tool = MagicMock()
+        tool.is_write = False
+        tool.input_schema = {}
+        tool.allow_extra_fields = True
+        return tool
+
+    def _spec_for_call(call_id: str, name: str, args: dict) -> ToolSpec:
+        return ToolSpec(call_id=call_id, name=name, args=args, is_write=False)
+
+    registry.get = MagicMock(side_effect=_get)
+    registry.tool_spec_for_call = MagicMock(side_effect=_spec_for_call)
+    return registry
 
 
 def _make_turn_ctx(
@@ -101,7 +127,7 @@ def _make_turn_ctx(
     ctx.services_required.tools = tool_executor
     ctx.services_required.gateway = None
     ctx.services_required.audit_logger = None
-    ctx.services_required.runtime_tools = None
+    ctx.services_required.runtime_tools = _default_runtime_tools()
     return ctx
 
 

@@ -131,13 +131,6 @@ class HttpTransport:
                     name, "[TimeoutException]", str(e), break_flag=True
                 )
             except httpx.HTTPStatusError as e:
-                if e.response.status_code not in self._RETRYABLE_STATUS:
-                    raise self._transport_error(
-                        name,
-                        "[HTTPStatusError]",
-                        f"status={e.response.status_code} response={e.response.text[:300]!r}",
-                        health_check=False,
-                    )
                 last_exc = self._transport_error(
                     name,
                     "[HTTPStatusError]",
