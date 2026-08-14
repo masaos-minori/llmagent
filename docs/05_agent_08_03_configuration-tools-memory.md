@@ -51,7 +51,7 @@ source:
 
 - `tool_concurrency_limits`: サーバーキー → 最大並行呼び出し数
 
-#### resource_scope_kind/resource_scope_keys 規約（DAGモード、`serial_tool_calls=False`のとき常時有効）
+#### resource_scope_kind/resource_scope_keys 規約（`build_execution_groups()`が常時使用するDAGスケジューラ全体で有効。`serial_tool_calls=True`時は`force_serial`によりコンフリクトグラフ自体はバイパスされる）
 
 スコープは `config/agent.toml` のデフォルトではなく、各MCPサーバーが `/v1/tools` で宣言する
 `resource_scope_kind`/`resource_scope_keys`（スキーマ2.0契約、必須フィールド）と、実際の呼び出し

@@ -91,7 +91,7 @@ declaration) drive scheduling:
 
 - `requires_serial`: Controls whether the tool requires serialized execution (forms a solo serial-barrier group)
 - `resource_scopes`: Tuple of kind-prefixed resource-scope strings (e.g. `"filesystem:/a/b.txt"`) the call occupies; conflicting scopes across calls form a serialized conflict-graph group (`shared/resource_scope.py::_scopes_conflict()` — exact match, or ancestor/descendant for `"filesystem:"` scopes)
-- `is_write`: Indicates whether the tool performs write operations (a write tool with no resolved scope falls into the conservative `write_first` group)
+- `is_write`: Indicates whether the tool performs write operations (a write tool with no resolved scope is treated as occupying the synthetic `"global:write"` scope, so it still participates in — and can conflict within — the same resource-scope conflict graph as scoped writes; there is no separate `write_first` bucket)
 
 ### Key distinction
 
@@ -171,10 +171,12 @@ web_search）に一般化している。ディスパッチテーブルの実体�
 ① スキーマ定義        各サーバーの tools.py::TOOL_LIST — LLM に公開する名前・入力スキーマ
 ② 実行時ディスパッチ    server.py の _DISPATCH_TABLE、または service.get_dispatch_table()
 ③ レジストリ登録       shared/tool_constants.py の frozenset → shared/tool_registry.py（ドリフト検出用）; ルーティングは shared/runtime_tool_registry.py の RuntimeToolRegistry が唯一の権威
-④ 副作用検出          標準実行パス（`serial_tool_calls=True`）: agent/tool_runner.py::_execute_standard() が
-                      RuntimeToolRegistry 登録済みの is_write を参照してバッチの並列/直列を判定
-                      （未登録ツールは保守的に True 扱い）。shared/tool_executor_helpers.py::is_side_effect()
-                      は別用途（shared/tool_executor.py の TTL キャッシュのバイパス判定）で存続
+④ 副作用検出          唯一の実行パス agent/tool_runner.py::_execute_with_dag() が
+                      agent/tool_scheduler.py::build_execution_groups() に委譲し、RuntimeToolRegistry
+                      登録済みの is_write（PreparedToolCall.spec 経由、未登録ツールは準備フェーズで
+                      フェイルクローズドに却下されるためこの段には到達しない）を参照して並列/直列を判定。
+                      shared/tool_executor_helpers.py::is_side_effect() は別用途（shared/tool_executor.py の
+                      TTL キャッシュのバイパス判定）にのみ使われ、バッチの並列/直列判定にはもう関与しない
 ⑤ リスク分類・承認    agent/tool_policy.py::classify_operation_type() / classify_risk()
                       — 優先順位: approval_risk_rules → tool_safety_tiers → tool_constants.py 分類
 ⑥ 監査ログ           agent/tool_audit.py — classify_operation_type() の結果を operation_type として記録
@@ -191,19 +193,23 @@ web_search）に一般化している。ディスパッチテーブルの実体�
 （現在は修正済み）。`tests/test_tool_policy_comprehensive.py` と
 `tests/test_tool_approval_risk.py` がこの分類の回帰を検証する。
 
-### 直列化メカニズムは2つ存在する（未統合）
+### 直列化メカニズムは単一のスケジューラに統合された
 
-バッチ内のツール呼び出しを直列実行に倒す仕組みは、意図的に**2つの独立した
-メカニズム**として存在する。混同しないこと:
+以前は、標準実行パス（`agent/tool_runner.py::_execute_standard()`、`serial_tool_calls=True`時に有効）
+による「バッチ内に write ツールが1つでもあれば全体を直列化する」バッチ単位ダウングレードと、
+`ToolSpec.requires_serial`によるツール単位の強制シリアル化という、意図的に分離された2つのメカニズムが
+併存していた。`_execute_standard()`は削除され、`agent/tool_runner.py::_execute_with_dag()`が
+唯一の実行パスになったことで、直列化の判断はすべて`agent/tool_scheduler.py::build_execution_groups()`
+（フェーズ構築 + コンフリクトグラフ + `force_serial`入力）に一本化された:
 
-| メカニズム | 所在 | 粒度 |
-|---|---|---|
-| 標準実行パスのバッチ単位ダウングレード（`serial_tool_calls=True`時のみ経路が有効） | `agent/tool_runner.py::_execute_standard()`（RuntimeToolRegistry の `is_write` を参照。未登録ツールは保守的に True） | バッチ内に write ツールが1つでもあれば、バッチ全体を並列実行から直列実行にフォールバックする |
-| `ToolSpec.requires_serial` によるツール単位のフラグ | `agent/tool_scheduler.py::build_execution_groups()` | 個々のツール（現状は MDQ の `index_paths`/`refresh_index`、shell の `shell_run` など）を単独のシリアルバリアグループとして強制する |
+| ソース | 挙動 |
+|---|---|
+| `ToolSpec.requires_serial`（個々のツール。現状は MDQ の `index_paths`/`refresh_index`、shell の `shell_run` など） | インプレースのバリアとして単独のシリアルフェーズを形成する |
+| `resource_scopes`の重複（うち少なくとも1件は`is_write=True`。スコープなしwriteは合成スコープ`"global:write"`として扱われる） | コンフリクトグラフの連結成分としてグループ化され、そのグループ内はシリアル化される |
+| `ctx.cfg.tool.serial_tool_calls=True` → `force_serial=True`（バッチ単位の入力） | 上記すべてをバイパスし、呼び出し順に1件ずつの単独シリアルフェーズを強制する |
 
-この2つを1つのメカニズムに統合すべきかどうかは、本ドキュメント更新の時点では
-**未解決のオープンな設計課題**である。統合する/しないの判断は別タスクとして
-検討する対象であり、本ドキュメントは現状の2メカニズム併存を記述するに留める。
+`shared/tool_executor_helpers.py::is_side_effect()`はもはやこの判断に関与しない — 現在は
+`shared/tool_executor.py`のTTLキャッシュのバイパス判定にのみ使われる、無関係な別メカニズムである。
 
 ---
 

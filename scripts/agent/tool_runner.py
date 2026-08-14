@@ -33,7 +33,7 @@ from agent.tool_result_formatter import (
     mask_args,
     turn_limit_hint,
 )
-from agent.tool_scheduler import build_execution_groups
+from agent.tool_scheduler import ExecutionPlan, build_execution_groups
 
 _serialization_stats: dict[str, int] = {
     "total_events": 0,
@@ -221,36 +221,40 @@ async def _execute_with_dag(
     ctx: AgentContext,
     approved_calls: list[PreparedToolCall],
     turn: int,
+    force_serial: bool = False,
 ) -> list[Any]:
-    """Run approved calls using resource-scoped dependency groups.
+    """Run approved calls through the single DAG execution plan.
 
-    Delegates to build_execution_groups which handles write-first ordering
-    for tools without resource_scope metadata. Scheduling metadata comes
-    entirely from each PreparedToolCall.spec (already resolved via
+    Delegates to build_execution_groups(), the sole scheduling engine — passing
+    force_serial through as a planner input (rather than selecting between two
+    execution engines) is what lets ctx.cfg.tool.serial_tool_calls still force
+    fully serial execution without a second code path. Scheduling metadata
+    comes entirely from each PreparedToolCall.spec (already resolved via
     RuntimeToolRegistry.tool_spec_for_call() during the preparation phase) —
     this function performs no registry lookups of its own.
     """
-    tool_meta: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
+    call_specs: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
     pc_by_id: dict[str, PreparedToolCall] = {pc.call_id: pc for pc in approved_calls}
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
-    _groups, metadata = build_execution_groups(
-        [pc.original_call for pc in approved_calls], tool_meta
+    plan: ExecutionPlan = build_execution_groups(
+        [pc.original_call for pc in approved_calls],
+        call_specs,
+        force_serial=force_serial,
     )
     if logger.isEnabledFor(logging.DEBUG):
         for _pc in approved_calls:
             _m = _pc.spec
             if _m.requires_serial:
                 _bucket = "serial_barrier"
-            elif _m.is_write and _m.resource_scopes:
-                _bucket = f"resource_scope:{','.join(_m.resource_scopes)}"
-            elif _m.is_write:
-                _bucket = "write_first"
+            elif _m.resource_scopes or _m.is_write:
+                _scopes = _m.resource_scopes or ("global:write",)
+                _bucket = f"resource_scope:{','.join(_scopes)}"
             else:
                 _bucket = "parallel"
             logger.debug("DAG_BUCKET: %s → %s", _pc.name, _bucket)
-    serialization_events = metadata.serialization_events
+    serialization_events = plan.serialization_events
     if serialization_events:
         total_affected = sum(e.tools_count for e in serialization_events)
         _serialization_stats["total_events"] += len(serialization_events)
@@ -265,18 +269,20 @@ async def _execute_with_dag(
 
     call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
     results: list[Any] = []
-    for batch in metadata.concurrent_groups:
+    for batch in plan.batches:
         is_concurrent = len(batch.groups) > 1
         logger.debug(
             "ROUND_EXEC: running %d group(s) %s",
             len(batch.groups),
             "concurrently" if is_concurrent else "sequentially",
         )
-        pc_groups = [[pc_by_id[tc["id"]] for tc in group] for group in batch.groups]
+        pc_groups = [
+            [pc_by_id[spec.call_id] for spec in group.calls] for group in batch.groups
+        ]
         batch_results = await asyncio.gather(
             *(
-                _run_group_calls(group, serialize, ctx, turn)
-                for group, serialize in zip(pc_groups, batch.serialize_flags)
+                _run_group_calls(pcs, group.sequential, ctx, turn)
+                for pcs, group in zip(pc_groups, batch.groups)
             )
         )
         results.extend(r for group_res in batch_results for r in group_res)
@@ -309,9 +315,7 @@ async def _execute_with_dag(
                 elapsed_ms=elapsed_ms,
                 reason=se.reason,
             )
-    is_concurrent_round = any(
-        len(batch.groups) > 1 for batch in metadata.concurrent_groups
-    )
+    is_concurrent_round = any(len(batch.groups) > 1 for batch in plan.batches)
     scheduling_mode = "dag_concurrent" if is_concurrent_round else "dag_sequential"
     write_round_exec(
         ctx,
@@ -330,93 +334,6 @@ async def _execute_with_dag(
     return results
 
 
-async def _execute_standard(
-    ctx: AgentContext,
-    approved_calls: list[PreparedToolCall],
-    turn: int,
-) -> list[Any]:
-    """Run approved calls in parallel, or serially when side effects are detected.
-
-    is_write comes from each PreparedToolCall.spec (already resolved via
-    RuntimeToolRegistry during preparation) — no registry lookup here.
-    """
-    round_id = str(uuid4())
-    t0 = time.perf_counter()
-    has_side_effect = False
-    trigger_tool: str | None = None
-    for pc in approved_calls:
-        if pc.spec.is_write:
-            has_side_effect = True
-            trigger_tool = pc.name
-            break
-    use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
-    mode = "serial" if use_serial else "parallel"
-    tool_timings: dict[str, float] = {}
-    if use_serial:
-        if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
-            logger.info(
-                "Side-effect tool detected; downgrading to serial execution (%s)",
-                [pc.name for pc in approved_calls],
-            )
-        if use_serial and has_side_effect:
-            ctx.services_required.serialization_events += 1
-            ctx.services_required.serialization_tools_affected += len(approved_calls)
-        results: list[Any] = []
-        for pc in approved_calls:
-            t_tool = time.perf_counter()
-            results.append(await execute_one_tool_call(ctx, pc, turn))
-            tool_timings[pc.name] = (time.perf_counter() - t_tool) * 1000
-    else:
-        results = list(
-            await asyncio.gather(
-                *(execute_one_tool_call(ctx, pc, turn) for pc in approved_calls),
-            ),
-        )
-    elapsed_ms = (time.perf_counter() - t0) * 1000
-    estimated_parallel_ms: float | None = None
-    if use_serial and has_side_effect:
-        estimated_parallel_ms = _estimate_parallel_time(tool_timings)
-        serial_overhead = _compute_serial_overhead(elapsed_ms, estimated_parallel_ms)
-        round_event: dict[str, Any] = {
-            "trigger_tool": trigger_tool,
-            "affected_tools": [pc.name for pc in approved_calls],
-            "affected_count": len(approved_calls),
-            "mode": "serial",
-            "serial_reason": "side_effect",
-            "elapsed_ms": round(elapsed_ms, 1),
-            "estimated_parallel_ms": round(estimated_parallel_ms, 1),
-            "serial_overhead": serial_overhead,
-            "timestamp": now_iso_raw(),
-        }
-        ctx.stats.stat_serialization_events.append(round_event)
-        ctx.stats.stat_serialization_total_overhead_ms += (
-            elapsed_ms - estimated_parallel_ms
-        )
-        if ctx.diagnostics is not None and trigger_tool:
-            ctx.diagnostics.save_serialization_event(
-                session_id=ctx.session.session_id,
-                round_id=round_id,
-                trigger_tool=trigger_tool,
-                affected_count=len(approved_calls),
-                mode="serial",
-                elapsed_ms=elapsed_ms,
-                reason="side_effect",
-            )
-    write_round_exec(
-        ctx,
-        round_id=round_id,
-        tool_count=len(approved_calls),
-        mode=mode,
-        has_side_effect=has_side_effect,
-        trigger_tool=trigger_tool,
-        elapsed_ms=elapsed_ms,
-        affected_tools=[pc.name for pc in approved_calls],
-        serial_reason="side_effect" if has_side_effect else None,
-        estimated_parallel_ms=estimated_parallel_ms,
-    )
-    return results
-
-
 async def execute_all_tool_calls(
     ctx: AgentContext,
     tool_calls: list[dict],
@@ -425,9 +342,10 @@ async def execute_all_tool_calls(
 ) -> None:
     """Execute all tool calls then append results in original order.
 
-    DAG-scheduled (resource-scoped parallelism) by default; downgrades to
-    fully serial execution when ctx.cfg.tool.serial_tool_calls is set.
-    Every raw tool call is prepared (parsed, resolved against
+    Always DAG-scheduled via _execute_with_dag() — the single execution path.
+    ctx.cfg.tool.serial_tool_calls feeds force_serial into the planner (one
+    sequential phase per call) rather than selecting a separate execution
+    engine. Every raw tool call is prepared (parsed, resolved against
     RuntimeToolRegistry, and argument-validated) before approval — a call
     that fails preparation never reaches the approval gate, DAG planning, or
     execution. Approval checks are enforced before execution — denied tool
@@ -444,10 +362,9 @@ async def execute_all_tool_calls(
     approved_calls, denied_ids = await _run_approval_gate(ctx, prepared)
 
     if approved_calls:
-        if not ctx.cfg.tool.serial_tool_calls:
-            results = await _execute_with_dag(ctx, approved_calls, turn)
-        else:
-            results = await _execute_standard(ctx, approved_calls, turn)
+        results = await _execute_with_dag(
+            ctx, approved_calls, turn, force_serial=ctx.cfg.tool.serial_tool_calls
+        )
     else:
         results = []
 

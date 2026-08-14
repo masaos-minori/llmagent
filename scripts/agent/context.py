@@ -192,7 +192,7 @@ class RuntimeStats:
     # LLM token usage accumulated across turns; None = endpoint did not return usage
     stat_input_tokens: int | None = None
     stat_output_tokens: int | None = None
-    # Per-round serialization events captured from _execute_standard/_execute_with_dag
+    # Per-round serialization events captured from _execute_with_dag()
     stat_serialization_events: list[dict] = field(default_factory=list)
     stat_serialization_total_overhead_ms: float = 0.0
     stat_memory_consistency_failures: int = 0

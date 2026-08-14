@@ -1,5 +1,5 @@
 """tests/test_tool_scheduler_serialization.py
-Unit tests for ScheduledBatch.serialize_flags and _SerializationEvent new fields.
+Unit tests for ScheduledGroup.sequential and SerializationEvent fields/reason codes.
 """
 
 from __future__ import annotations
@@ -8,180 +8,246 @@ from agent.tool_scheduler import build_execution_groups
 from shared.tool_spec import ToolSpec
 
 
-def _tc(name: str) -> dict:
-    return {"function": {"name": name, "arguments": "{}"}, "id": f"call_{name}"}
+def _tc(name: str, call_id: str | None = None) -> dict:
+    return {
+        "function": {"name": name, "arguments": "{}"},
+        "id": call_id or f"call_{name}",
+    }
 
 
 def _spec(
-    name: str,
+    tc: dict,
     *,
     scopes: tuple[str, ...] = (),
     is_write: bool = False,
     requires_serial: bool = False,
 ) -> ToolSpec:
     return ToolSpec(
-        call_id="",
-        name=name,
+        call_id=tc["id"],
+        name=tc["function"]["name"],
         resource_scopes=scopes,
         is_write=is_write,
         requires_serial=requires_serial,
     )
 
 
-# ── serialize_flags ────────────────────────────────────────────────────────────
+# ── ScheduledGroup.sequential ─────────────────────────────────────────────────
 
 
-class TestSerializeFlags:
-    def test_same_scope_write_group_has_serialize_true(self) -> None:
-        tcs = [_tc("write_a"), _tc("write_b")]
-        meta = {
-            tcs[0]["id"]: _spec("write_a", scopes=("file:/foo",), is_write=True),
-            tcs[1]["id"]: _spec("write_b", scopes=("file:/foo",), is_write=True),
+class TestScheduledGroupSequential:
+    def test_same_scope_write_group_is_sequential(self) -> None:
+        tc_a, tc_b = _tc("write_a"), _tc("write_b")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("file:/foo",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("file:/foo",), is_write=True),
         }
-        _groups, md = build_execution_groups(tcs, meta)
-        # The last concurrent batch contains the scope group
-        scope_batch = md.concurrent_groups[-1]
-        # write_a and write_b share one group in the batch
-        assert len(scope_batch.groups) == 1
-        assert scope_batch.serialize_flags[0] is True
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
 
-    def test_read_only_group_has_serialize_false(self) -> None:
-        tcs = [_tc("read_a"), _tc("read_b")]
-        meta = {
-            tcs[0]["id"]: _spec("read_a"),
-            tcs[1]["id"]: _spec("read_b"),
+    def test_read_only_group_is_not_sequential(self) -> None:
+        tc_a, tc_b = _tc("read_a"), _tc("read_b")
+        specs = {tc_a["id"]: _spec(tc_a), tc_b["id"]: _spec(tc_b)}
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+
+    def test_scope_write_sequential_and_read_concurrent_in_same_batch(self) -> None:
+        tc_a = _tc("write_a")
+        tc_b = _tc("write_b")
+        tc_c = _tc("read_c")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("repo:X",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("repo:X",), is_write=True),
+            tc_c["id"]: _spec(tc_c),
         }
-        _groups, md = build_execution_groups(tcs, meta)
-        read_batch = md.concurrent_groups[-1]
-        assert all(flag is False for flag in read_batch.serialize_flags)
+        plan = build_execution_groups([tc_a, tc_b, tc_c], specs)
+        batch = plan.batches[0]
+        assert len(batch.groups) == 2
+        write_group = next(g for g in batch.groups if g.sequential)
+        assert {c.call_id for c in write_group.calls} == {tc_a["id"], tc_b["id"]}
+        read_group = next(g for g in batch.groups if not g.sequential)
+        assert {c.call_id for c in read_group.calls} == {tc_c["id"]}
 
-    def test_scope_write_serialize_true_read_serialize_false_in_same_batch(
-        self,
-    ) -> None:
-        tcs = [_tc("write_a"), _tc("write_b"), _tc("read_c")]
-        meta = {
-            tcs[0]["id"]: _spec("write_a", scopes=("repo:X",), is_write=True),
-            tcs[1]["id"]: _spec("write_b", scopes=("repo:X",), is_write=True),
-            tcs[2]["id"]: _spec("read_c"),
+    def test_different_scope_writes_each_form_their_own_sequential_group(self) -> None:
+        tc_a, tc_b = _tc("write_a"), _tc("write_b")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("repo:A",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("repo:B",), is_write=True),
         }
-        _groups, md = build_execution_groups(tcs, meta)
-        # One concurrent batch with scope group + parallel group
-        last_batch = md.concurrent_groups[-1]
-        assert len(last_batch.groups) == 2
-        # First group: scope writes — serialize=True
-        assert last_batch.serialize_flags[0] is True
-        # Second group: reads — serialize=False
-        assert last_batch.serialize_flags[1] is False
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        batch = plan.batches[0]
+        # Neither writer conflicts with the other (different scopes); each is
+        # a singleton, pooled together into one concurrent group.
+        assert len(batch.groups) == 1
+        assert batch.groups[0].sequential is False
 
-    def test_different_scope_writes_in_same_batch_each_serialized(self) -> None:
-        tcs = [_tc("write_a"), _tc("write_b")]
-        meta = {
-            tcs[0]["id"]: _spec("write_a", scopes=("repo:A",), is_write=True),
-            tcs[1]["id"]: _spec("write_b", scopes=("repo:B",), is_write=True),
+    def test_serial_barrier_batch_group_is_sequential(self) -> None:
+        tc = _tc("shell_run")
+        specs = {tc["id"]: _spec(tc, requires_serial=True)}
+        plan = build_execution_groups([tc], specs)
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+
+    def test_scopeless_writes_form_sequential_group_via_global_write(self) -> None:
+        tc_x, tc_y = _tc("write_x"), _tc("write_y")
+        specs = {
+            tc_x["id"]: _spec(tc_x, is_write=True),  # no scope
+            tc_y["id"]: _spec(tc_y, is_write=True),  # no scope
         }
-        _groups, md = build_execution_groups(tcs, meta)
-        last_batch = md.concurrent_groups[-1]
-        # Two separate scope groups; both serialize=True
-        assert len(last_batch.groups) == 2
-        assert last_batch.serialize_flags[0] is True
-        assert last_batch.serialize_flags[1] is True
+        plan = build_execution_groups([tc_x, tc_y], specs)
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
 
-    def test_serial_barrier_batch_has_serialize_false(self) -> None:
-        tcs = [_tc("shell_run")]
-        meta = {tcs[0]["id"]: _spec("shell_run", requires_serial=True)}
-        _groups, md = build_execution_groups(tcs, meta)
-        barrier_batch = md.concurrent_groups[0]
-        assert barrier_batch.groups == [[tcs[0]]]
-        assert barrier_batch.serialize_flags[0] is False
-
-    def test_write_first_batch_has_serialize_false(self) -> None:
-        tcs = [_tc("write_x"), _tc("write_y")]
-        meta = {
-            tcs[0]["id"]: _spec("write_x", is_write=True),  # no scope
-            tcs[1]["id"]: _spec("write_y", is_write=True),  # no scope
-        }
-        _groups, md = build_execution_groups(tcs, meta)
-        write_first_batch = md.concurrent_groups[0]
-        assert write_first_batch.serialize_flags[0] is False
-
-    def test_empty_input_has_empty_concurrent_groups(self) -> None:
-        _groups, md = build_execution_groups([], {})
-        assert md.concurrent_groups == []
+    def test_empty_input_has_empty_batches(self) -> None:
+        plan = build_execution_groups([], {})
+        assert plan.batches == ()
 
 
-# ── _SerializationEvent new fields ────────────────────────────────────────────
+# ── SerializationEvent fields and reason codes ────────────────────────────────
 
 
 class TestSerializationEventFields:
-    def test_serial_barrier_event_fields(self) -> None:
-        tcs = [_tc("shell_run")]
-        meta = {tcs[0]["id"]: _spec("shell_run", requires_serial=True)}
-        _groups, md = build_execution_groups(tcs, meta)
-        evt = next(e for e in md.serialization_events if e.reason == "requires_serial")
+    def test_requires_serial_event_tracks_real_is_write_true(self) -> None:
+        tc = _tc("shell_run")
+        specs = {tc["id"]: _spec(tc, requires_serial=True, is_write=True)}
+        plan = build_execution_groups([tc], specs)
+        evt = next(
+            e for e in plan.serialization_events if e.reason == "requires_serial"
+        )
         assert evt.requires_serial is True
         assert evt.is_write is True
         assert evt.resource_scopes == ()
         assert evt.scheduling_decision == "serial_barrier"
 
-    def test_resource_scope_event_fields(self) -> None:
-        tcs = [_tc("write_a"), _tc("write_b")]
-        meta = {
-            tcs[0]["id"]: _spec("write_a", scopes=("file:/foo",), is_write=True),
-            tcs[1]["id"]: _spec("write_b", scopes=("file:/foo",), is_write=True),
-        }
-        _groups, md = build_execution_groups(tcs, meta)
+    def test_requires_serial_event_tracks_real_is_write_false(self) -> None:
+        """Regression: is_write must reflect the triggering call's actual
+        metadata, not a hard-coded True regardless of the real spec."""
+        tc = _tc("shell_run")
+        specs = {tc["id"]: _spec(tc, requires_serial=True, is_write=False)}
+        plan = build_execution_groups([tc], specs)
         evt = next(
-            e for e in md.serialization_events if e.reason == "resource_scope_conflict"
+            e for e in plan.serialization_events if e.reason == "requires_serial"
+        )
+        assert evt.requires_serial is True
+        assert evt.is_write is False
+
+    def test_resource_write_write_conflict_event_fields(self) -> None:
+        tc_a, tc_b = _tc("write_a"), _tc("write_b")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("file:/foo",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("file:/foo",), is_write=True),
+        }
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        evt = next(
+            e
+            for e in plan.serialization_events
+            if e.reason == "resource_write_write_conflict"
         )
         assert evt.resource_scopes == ("file:/foo",)
         assert evt.is_write is True
         assert evt.requires_serial is False
         assert evt.scheduling_decision == "resource_scope"
 
-    def test_resource_scope_event_fields_union_multi_scope(self) -> None:
+    def test_resource_read_write_conflict_event_fields(self) -> None:
+        tc_write, tc_read = _tc("write_a"), _tc("read_b")
+        specs = {
+            tc_write["id"]: _spec(tc_write, scopes=("file:/foo",), is_write=True),
+            tc_read["id"]: _spec(tc_read, scopes=("file:/foo",)),
+        }
+        plan = build_execution_groups([tc_write, tc_read], specs)
+        evt = next(
+            e
+            for e in plan.serialization_events
+            if e.reason == "resource_read_write_conflict"
+        )
+        assert evt.resource_scopes == ("file:/foo",)
+        assert evt.is_write is True
+        assert evt.scheduling_decision == "resource_scope"
+
+    def test_global_write_scope_event_fields(self) -> None:
+        tc_x, tc_y = _tc("write_x"), _tc("write_y")
+        specs = {
+            tc_x["id"]: _spec(tc_x, is_write=True),
+            tc_y["id"]: _spec(tc_y, is_write=True),
+        }
+        plan = build_execution_groups([tc_x, tc_y], specs)
+        evt = next(
+            e for e in plan.serialization_events if e.reason == "global_write_scope"
+        )
+        assert evt.resource_scopes == ("global:write",)
+        assert evt.is_write is True
+        assert evt.scheduling_decision == "resource_scope"
+
+    def test_forced_serial_event_fields(self) -> None:
+        tc_write, tc_read = _tc("write_a"), _tc("read_b")
+        specs = {
+            tc_write["id"]: _spec(tc_write, is_write=True),
+            tc_read["id"]: _spec(tc_read),
+        }
+        plan = build_execution_groups([tc_write, tc_read], specs, force_serial=True)
+        evt = next(e for e in plan.serialization_events if e.reason == "forced_serial")
+        assert evt.is_write is True
+        assert evt.tools_count == 2
+        assert evt.scheduling_decision == "forced_serial"
+
+    def test_forced_serial_with_only_reads_emits_no_event(self) -> None:
+        """force_serial on a batch with no write call prevents no concurrency
+        a write could have raced against, so no event fires."""
+        tc = _tc("read_only")
+        specs = {tc["id"]: _spec(tc)}
+        plan = build_execution_groups([tc], specs, force_serial=True)
+        assert plan.serialization_events == ()
+
+    def test_resource_scope_event_union_multi_scope(self) -> None:
         """A move_file-style dual-scope call's event carries the union of all
         scopes observed across the connected component, not just one side."""
         tc_move = _tc("move_file")
         tc_other = _tc("write_other")
-        meta = {
+        specs = {
             tc_move["id"]: _spec(
-                "move_file", scopes=("filesystem:/a", "filesystem:/b"), is_write=True
+                tc_move, scopes=("filesystem:/a", "filesystem:/b"), is_write=True
             ),
-            tc_other["id"]: _spec(
-                "write_other", scopes=("filesystem:/a",), is_write=True
-            ),
+            tc_other["id"]: _spec(tc_other, scopes=("filesystem:/a",), is_write=True),
         }
-        _groups, md = build_execution_groups([tc_move, tc_other], meta)
+        plan = build_execution_groups([tc_move, tc_other], specs)
         evt = next(
-            e for e in md.serialization_events if e.reason == "resource_scope_conflict"
+            e
+            for e in plan.serialization_events
+            if e.reason == "resource_write_write_conflict"
         )
         assert set(evt.resource_scopes) == {"filesystem:/a", "filesystem:/b"}
 
-    def test_write_first_event_fields(self) -> None:
-        tcs = [_tc("write_x")]
-        meta = {tcs[0]["id"]: _spec("write_x", is_write=True)}
-        _groups, md = build_execution_groups(tcs, meta)
-        evt = next(e for e in md.serialization_events if e.reason == "is_write_overlap")
-        assert evt.is_write is True
-        assert evt.resource_scopes == ()
-        assert evt.requires_serial is False
-        assert evt.scheduling_decision == "write_first"
-
     def test_read_only_produces_no_serialization_events(self) -> None:
-        tcs = [_tc("read_a"), _tc("read_b")]
-        meta = {tcs[0]["id"]: _spec("read_a"), tcs[1]["id"]: _spec("read_b")}
-        _groups, md = build_execution_groups(tcs, meta)
-        assert md.serialization_events == []
+        tc_a, tc_b = _tc("read_a"), _tc("read_b")
+        specs = {tc_a["id"]: _spec(tc_a), tc_b["id"]: _spec(tc_b)}
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        assert plan.serialization_events == ()
+
+    def test_distinct_non_overlapping_scopes_produce_no_serialization_events(
+        self,
+    ) -> None:
+        """No global:write fallback triggered, no barrier, no scope overlap —
+        every call is an unconflicted singleton, so zero events fire."""
+        tc_a, tc_b = _tc("write_a"), _tc("write_b")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("repo:A",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("repo:B",), is_write=True),
+        }
+        plan = build_execution_groups([tc_a, tc_b], specs)
+        assert plan.serialization_events == ()
 
     def test_serialization_event_tools_count(self) -> None:
-        tcs = [_tc("write_a"), _tc("write_b"), _tc("write_c")]
-        meta = {
-            tcs[0]["id"]: _spec("write_a", scopes=("s",), is_write=True),
-            tcs[1]["id"]: _spec("write_b", scopes=("s",), is_write=True),
-            tcs[2]["id"]: _spec("write_c", scopes=("s",), is_write=True),
+        tc_a, tc_b, tc_c = _tc("write_a"), _tc("write_b"), _tc("write_c")
+        specs = {
+            tc_a["id"]: _spec(tc_a, scopes=("s",), is_write=True),
+            tc_b["id"]: _spec(tc_b, scopes=("s",), is_write=True),
+            tc_c["id"]: _spec(tc_c, scopes=("s",), is_write=True),
         }
-        _groups, md = build_execution_groups(tcs, meta)
+        plan = build_execution_groups([tc_a, tc_b, tc_c], specs)
         evt = next(
-            e for e in md.serialization_events if e.reason == "resource_scope_conflict"
+            e
+            for e in plan.serialization_events
+            if e.reason == "resource_write_write_conflict"
         )
         assert evt.tools_count == 3

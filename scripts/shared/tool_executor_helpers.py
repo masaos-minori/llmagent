@@ -18,20 +18,15 @@ from shared.tool_constants import (
 from shared.transport_dto import TransportErrorInfo
 
 # Tools with side effects: writes, deletes, shell, or git/GitHub mutations.
-# Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
-#
-# NOTE — two distinct, intentionally-separate serialization mechanisms exist in
-# this codebase:
-#   1. is_side_effect() (this module): a batch-level downgrade. When any tool
-#      call in a batch has a side effect, execute_all_tool_calls() falls back
-#      to serial execution for that whole batch instead of running calls
-#      concurrently.
-#   2. ToolSpec.requires_serial (agent/tool_scheduler.py): a per-tool flag
-#      consumed by build_execution_groups() to force a single tool into its
-#      own serial barrier group, independent of batch-wide side-effect state.
-# They are not unified today, and whether they should be is an open follow-up
-# design question — not resolved as part of this change. Do not conflate them
-# when reasoning about tool-call concurrency.
+# Used only as the TTL-cache-bypass check in shared/tool_executor.py — it no
+# longer drives any batch-level parallel/serial execution decision.
+# execute_all_tool_calls() (agent/tool_runner.py) always schedules through
+# agent/tool_scheduler.py::build_execution_groups() (requires_serial barriers,
+# resource-scope conflicts, and a force_serial input fed from
+# ctx.cfg.tool.serial_tool_calls); the separate is_side_effect()-driven batch
+# downgrade this module used to back was removed. Do not conflate
+# is_side_effect() with ToolSpec.requires_serial (agent/tool_scheduler.py) when
+# reasoning about tool-call concurrency.
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
     WRITE_TOOLS
     | DELETE_TOOLS

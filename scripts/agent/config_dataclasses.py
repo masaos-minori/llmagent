@@ -157,7 +157,11 @@ class ToolConfig:
     tool_cache_ttl: float = 300.0
     # LRU eviction when exceeded; 0 = unlimited
     tool_cache_max_size: int = 200
-    # When True, tool calls execute one by one instead of asyncio.gather()
+    # Forces build_execution_groups() to emit one sequential phase per call (in
+    # original order, reason "forced_serial") instead of its normal phase-building/
+    # conflict-graph logic. No longer selects between two execution engines — both
+    # force_serial=True and False now run through the single DAG path
+    # (agent/tool_runner.py::_execute_with_dag()).
     serial_tool_calls: bool = False
     # Compare tool_definitions against /v1/tools at startup
     tool_definitions_strict: bool = False

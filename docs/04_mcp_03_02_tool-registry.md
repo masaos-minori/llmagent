@@ -110,13 +110,15 @@ is_side_effect(tool_name: str) -> bool
 
 `is_side_effect()`/`_SIDE_EFFECT_TOOLS`（`shared/tool_executor_helpers.py`）は現在
 `shared/tool_executor.py` の TTL キャッシュのバイパス判定にのみ使われる。バッチ実行の
-並列/直列判定（標準実行パス、`serial_tool_calls=True`時）は `agent/tool_runner.py::_execute_standard()`
-が担い、`PreparedToolCall.spec.is_write`（`agent/tool_preparation.py::prepare_tool_calls()`が
+並列/直列判定は、唯一の実行パスである `agent/tool_runner.py::_execute_with_dag()` が
+`agent/tool_scheduler.py::build_execution_groups()` に委譲して行い、
+`PreparedToolCall.spec.is_write`（`agent/tool_preparation.py::prepare_tool_calls()`が
 承認フェーズより前に`RuntimeToolRegistry`経由で解決済み）を参照する。未登録ツールや
 `RuntimeToolRegistry`未接続の呼び出しは準備フェーズでフェイルクローズドに却下され、
-`_execute_standard()`に到達すること自体がない（「保守的に副作用ありとして扱う」フォールバックは
-廃止された）。`_execute_standard()` が副作用を持つツールを1つでも検出した場合、
-`serial_tool_calls`の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
+スケジューリング・実行のいずれにも到達しない（「保守的に副作用ありとして扱う」フォールバックは
+廃止された）。`serial_tool_calls`は別の実行エンジンへの分岐ではなく、`build_execution_groups()`への
+`force_serial`入力としてスケジューラに渡され、`True`の場合はフェーズ構築/コンフリクトグラフ構築を
+バイパスして呼び出し順に1件ずつの単独シリアルフェーズを強制する。
 
 ### 安全性ティア検証
 
@@ -127,7 +129,7 @@ is_side_effect(tool_name: str) -> bool
 ### 実装上の補足 (Current behavior): tool_cache.py と ToolSpec
 
 - `shared/tool_cache.py` の `ToolResultCache`（LRU + TTL）は現在 `ToolExecutor` からは使用されていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュ（本ドキュメント「キャッシュの挙動」節）を持ち、stampede protection（inflight future 共有）と密結合しているため、代わりに使われている。`ToolResultCache` は非推奨ではなく、stampede protection を必要としない将来の利用者向けのスタンドアロンユーティリティとして残されている。（Explicit in code: `shared/tool_cache.py` モジュール docstring）
-- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scopes`（kind接頭辞付きスコープ文字列のタプル）, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py::_execute_with_dag()` が呼び出しごとに `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)`（内部で `shared/resource_scope.py::resolve_resource_scopes()` を呼び出し `resource_scopes` を解決する）経由で構築し、call_id をキーとする `dict[str, ToolSpec]` として `agent/tool_scheduler.py::build_execution_groups()` に渡され、実行DAGで並列/直列判定に使われる。（Explicit in code）
+- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scopes`（kind接頭辞付きスコープ文字列のタプル）, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py::_execute_with_dag()` が呼び出しごとに `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)`（内部で `shared/resource_scope.py::resolve_resource_scopes()` を呼び出し `resource_scopes` を解決する）経由で構築し、call_id をキーとする `dict[str, ToolSpec]`（`call_specs`）として `agent/tool_scheduler.py::build_execution_groups()` に渡され、単一の `ExecutionPlan`（`batches`/`ScheduledGroup`/`SerializationEvent`）として並列/直列判定に使われる。（Explicit in code）
 
 ### `RuntimeToolRegistry` とライブ検出（実装済み）
 

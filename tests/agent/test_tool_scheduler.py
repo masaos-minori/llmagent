@@ -1,46 +1,60 @@
 """tests/test_tool_scheduler.py
-Unit tests for agent/tool_scheduler.py — build_execution_groups.
+Unit tests for agent/tool_scheduler.py — build_execution_groups() and its
+single ExecutionPlan/ScheduledBatch/ScheduledGroup return shape.
 """
 
 from __future__ import annotations
 
 import pytest
-from agent.tool_scheduler import MissingToolSpecError, build_execution_groups
+from agent.tool_scheduler import (
+    MissingToolSpecError,
+    ScheduledGroup,
+    build_execution_groups,
+)
 from shared.tool_spec import ToolSpec
 
 
-def _tc(name: str) -> dict:
-    return {"function": {"name": name}, "id": f"call_{name}"}
+def _tc(name: str, call_id: str | None = None) -> dict:
+    return {"function": {"name": name}, "id": call_id or f"call_{name}"}
 
 
-def _meta(
-    name: str = "",
+def _spec(
+    tc: dict,
     *,
     resource_scopes: tuple[str, ...] = (),
     requires_serial: bool = False,
     is_write: bool = False,
 ) -> ToolSpec:
     return ToolSpec(
-        call_id="",
-        name=name,
+        call_id=tc["id"],
+        name=tc["function"]["name"],
         resource_scopes=resource_scopes,
         requires_serial=requires_serial,
         is_write=is_write,
     )
 
 
+def _ids(group: ScheduledGroup) -> set[str]:
+    return {c.call_id for c in group.calls}
+
+
 # ── empty / trivial inputs ────────────────────────────────────────────────────
 
 
 class TestBuildExecutionGroupsEmpty:
-    def test_empty_tool_calls_returns_empty(self) -> None:
-        groups, _ = build_execution_groups([], {})
-        assert groups == []
+    def test_empty_tool_calls_returns_empty_plan(self) -> None:
+        plan = build_execution_groups([], {})
+        assert plan.batches == ()
+        assert plan.serialization_events == ()
 
-    def test_single_parallel_tool_returns_one_group(self) -> None:
+    def test_single_parallel_tool_returns_one_concurrent_group(self) -> None:
         tc = _tc("read_text_file")
-        groups, _ = build_execution_groups([tc], {tc["id"]: _meta()})
-        assert groups == [[tc]]
+        plan = build_execution_groups([tc], {tc["id"]: _spec(tc)})
+        assert len(plan.batches) == 1
+        assert len(plan.batches[0].groups) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc["id"]}
 
     def test_unknown_tool_raises_missing_tool_spec(self) -> None:
         tc = _tc("some_unknown_tool")
@@ -52,140 +66,174 @@ class TestBuildExecutionGroupsEmpty:
 
 
 class TestRequiresSerialBarrier:
-    def test_serial_tool_forms_single_element_group(self) -> None:
+    def test_serial_tool_forms_single_call_sequential_group(self) -> None:
         tc = _tc("shell_run")
-        groups, _ = build_execution_groups(
-            [tc], {tc["id"]: _meta(requires_serial=True)}
-        )
-        assert groups == [[tc]]
+        plan = build_execution_groups([tc], {tc["id"]: _spec(tc, requires_serial=True)})
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "requires_serial"
+        assert _ids(group) == {tc["id"]}
 
-    def test_serial_tool_precedes_parallel_tools(self) -> None:
+    def test_serial_precedes_parallel_when_serial_appears_first(self) -> None:
         serial = _tc("shell_run")
         parallel = _tc("read_text_file")
-        groups, _ = build_execution_groups(
+        plan = build_execution_groups(
             [serial, parallel],
             {
-                serial["id"]: _meta(requires_serial=True),
-                parallel["id"]: _meta(),
+                serial["id"]: _spec(serial, requires_serial=True),
+                parallel["id"]: _spec(parallel),
             },
         )
-        assert groups[0] == [serial]
-        assert parallel in groups[-1]
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {serial["id"]}
+        assert _ids(plan.batches[1].groups[0]) == {parallel["id"]}
 
-    def test_multiple_serial_tools_each_get_own_group(self) -> None:
-        tc1 = _tc("shell_run")
-        tc1["id"] = "call_shell_run_1"
-        tc2 = _tc("shell_run")
-        tc2["id"] = "call_shell_run_2"
-        groups, _ = build_execution_groups(
+    def test_parallel_precedes_serial_when_parallel_appears_first(self) -> None:
+        """Proves the barrier is applied in-place, not hoisted to the front of
+        the batch regardless of where it appears in the input — the inverse
+        of test_serial_precedes_parallel_when_serial_appears_first, which a
+        leading-bucket implementation would get wrong."""
+        parallel = _tc("read_text_file")
+        serial = _tc("shell_run")
+        plan = build_execution_groups(
+            [parallel, serial],
+            {
+                parallel["id"]: _spec(parallel),
+                serial["id"]: _spec(serial, requires_serial=True),
+            },
+        )
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {parallel["id"]}
+        assert plan.batches[0].groups[0].sequential is False
+        assert _ids(plan.batches[1].groups[0]) == {serial["id"]}
+        assert plan.batches[1].groups[0].sequential is True
+
+    def test_multiple_serial_tools_each_get_own_batch(self) -> None:
+        tc1 = _tc("shell_run", "call_shell_run_1")
+        tc2 = _tc("shell_run", "call_shell_run_2")
+        plan = build_execution_groups(
             [tc1, tc2],
             {
-                tc1["id"]: _meta(requires_serial=True),
-                tc2["id"]: _meta(requires_serial=True),
+                tc1["id"]: _spec(tc1, requires_serial=True),
+                tc2["id"]: _spec(tc2, requires_serial=True),
             },
         )
-        assert [tc1] in groups
-        assert [tc2] in groups
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {tc1["id"]}
+        assert _ids(plan.batches[1].groups[0]) == {tc2["id"]}
+
+    def test_multiple_barriers_split_batch_into_phases_in_order(self) -> None:
+        """[read_a, serial_1, read_b, serial_2, read_c] must produce five
+        batches in exactly that order — phases split around *every* barrier
+        encountered while walking in order, not just the first."""
+        read_a = _tc("read_a")
+        serial_1 = _tc("serial_1")
+        read_b = _tc("read_b")
+        serial_2 = _tc("serial_2")
+        read_c = _tc("read_c")
+        specs = {
+            read_a["id"]: _spec(read_a),
+            serial_1["id"]: _spec(serial_1, requires_serial=True),
+            read_b["id"]: _spec(read_b),
+            serial_2["id"]: _spec(serial_2, requires_serial=True),
+            read_c["id"]: _spec(read_c),
+        }
+        plan = build_execution_groups(
+            [read_a, serial_1, read_b, serial_2, read_c], specs
+        )
+        assert len(plan.batches) == 5
+        assert _ids(plan.batches[0].groups[0]) == {read_a["id"]}
+        assert _ids(plan.batches[1].groups[0]) == {serial_1["id"]}
+        assert _ids(plan.batches[2].groups[0]) == {read_b["id"]}
+        assert _ids(plan.batches[3].groups[0]) == {serial_2["id"]}
+        assert _ids(plan.batches[4].groups[0]) == {read_c["id"]}
 
 
 # ── resource_scopes grouping ──────────────────────────────────────────────────
 
 
 class TestResourceScopeGrouping:
-    def test_write_tools_with_same_scope_are_grouped_together(self) -> None:
-        tc1 = _tc("write_file")
-        tc1["id"] = "call_write_file_1"
-        tc2 = _tc("write_file")
-        tc2["id"] = "call_write_file_2"
-        meta = {
-            tc1["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
-            tc2["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
+    def test_write_tools_with_same_scope_are_grouped_and_sequential(self) -> None:
+        tc1 = _tc("write_file", "call_write_file_1")
+        tc2 = _tc("write_file", "call_write_file_2")
+        specs = {
+            tc1["id"]: _spec(tc1, resource_scopes=("filesystem:/file",), is_write=True),
+            tc2["id"]: _spec(tc2, resource_scopes=("filesystem:/file",), is_write=True),
         }
-        groups, _ = build_execution_groups([tc1, tc2], meta)
-        write_group = next(
-            g for g in groups if any(tc["function"]["name"] == "write_file" for tc in g)
-        )
-        assert len(write_group) == 2
+        plan = build_execution_groups([tc1, tc2], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_write_write_conflict"
+        assert _ids(group) == {tc1["id"], tc2["id"]}
 
-    def test_write_tools_with_different_scopes_form_separate_groups(self) -> None:
+    def test_write_tools_with_different_scopes_do_not_conflict(self) -> None:
         tc_file = _tc("write_file")
         tc_github = _tc("github_push_files")
-        groups, _ = build_execution_groups(
-            [tc_file, tc_github],
-            {
-                tc_file["id"]: _meta(
-                    resource_scopes=("filesystem:/file",), is_write=True
-                ),
-                tc_github["id"]: _meta(
-                    resource_scopes=("github_repo:github",), is_write=True
-                ),
-            },
-        )
-        assert len(groups) == 2
+        specs = {
+            tc_file["id"]: _spec(
+                tc_file, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_github["id"]: _spec(
+                tc_github, resource_scopes=("github_repo:github",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_file, tc_github], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc_file["id"], tc_github["id"]}
 
-    def test_read_tool_with_scope_goes_to_parallel(self) -> None:
+    def test_read_tool_with_scope_alone_is_concurrent(self) -> None:
         tc = _tc("read_text_file")
-        groups, _ = build_execution_groups(
-            [tc],
-            {tc["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=False)},
+        plan = build_execution_groups(
+            [tc], {tc["id"]: _spec(tc, resource_scopes=("filesystem:/file",))}
         )
-        assert groups == [[tc]]
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc["id"]}
 
-    def test_write_tool_without_scope_forms_write_first_group(self) -> None:
+    def test_solitary_scopeless_write_has_nothing_to_conflict_with(self) -> None:
+        """A lone scope-less write with nothing else in its phase is pooled
+        into the concurrent group like any other un-conflicted call — there
+        is no separate write-first bucket anymore."""
         tc = _tc("write_file")
-        groups, _ = build_execution_groups(
-            [tc],
-            {tc["id"]: _meta(resource_scopes=(), is_write=True)},
-        )
-        assert groups == [[tc]]
+        plan = build_execution_groups([tc], {tc["id"]: _spec(tc, is_write=True)})
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc["id"]}
 
-    def test_multiple_write_tools_without_scope_grouped_together(self) -> None:
+    def test_scopeless_writes_now_serialize_via_global_write_scope(self) -> None:
+        """Regression lock for this plan's fix: two scope-less writes used to
+        share one *concurrently-gathered* group (racing each other, per the
+        old write-first bucket); they now resolve to the same synthetic
+        global:write scope and serialize instead."""
         tc1 = _tc("write_file")
-        tc2 = _tc("edit_file")
-        groups, _ = build_execution_groups(
-            [tc1, tc2],
-            {
-                tc1["id"]: _meta(resource_scopes=(), is_write=True),
-                tc2["id"]: _meta(resource_scopes=(), is_write=True),
-            },
-        )
-        write_group = groups[0]
-        assert len(write_group) == 2
+        tc2 = _tc("delete_file")
+        specs = {
+            tc1["id"]: _spec(tc1, is_write=True),
+            tc2["id"]: _spec(tc2, is_write=True),
+        }
+        plan = build_execution_groups([tc1, tc2], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "global_write_scope"
+        assert _ids(group) == {tc1["id"], tc2["id"]}
 
-    def test_write_first_group_precedes_parallel_read_tools(self) -> None:
+    def test_scopeless_write_and_unrelated_read_do_not_conflict(self) -> None:
         tc_write = _tc("write_file")
         tc_read = _tc("read_text_file")
-        groups, _ = build_execution_groups(
-            [tc_read, tc_write],
-            {
-                tc_write["id"]: _meta(resource_scopes=(), is_write=True),
-                tc_read["id"]: _meta(),
-            },
-        )
-        assert len(groups) == 2
-        assert groups[0] == [tc_write]
-        assert groups[1] == [tc_read]
-
-    def test_write_first_group_after_resource_scope_and_serial(self) -> None:
-        tc_serial = _tc("shell_run")
-        tc_scope_write = _tc("write_file")
-        tc_noscope_write = _tc("edit_file")
-        tc_read = _tc("read_text_file")
-        meta = {
-            tc_serial["id"]: _meta(requires_serial=True),
-            tc_scope_write["id"]: _meta(
-                resource_scopes=("filesystem:/file",), is_write=True
-            ),
-            tc_noscope_write["id"]: _meta(resource_scopes=(), is_write=True),
-            tc_read["id"]: _meta(),
+        specs = {
+            tc_write["id"]: _spec(tc_write, is_write=True),
+            tc_read["id"]: _spec(tc_read),
         }
-        groups, _ = build_execution_groups(
-            [tc_serial, tc_scope_write, tc_read, tc_noscope_write], meta
-        )
-        assert groups[0] == [tc_serial]
-        assert tc_scope_write in groups[1]
-        assert tc_noscope_write in groups[2]
-        assert tc_read in groups[3]
+        plan = build_execution_groups([tc_read, tc_write], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc_write["id"], tc_read["id"]}
 
 
 # ── multi-scope conflict cases (ancestor/descendant, dual-scope) ─────────────
@@ -197,56 +245,69 @@ class TestMultiScopeConflicts:
         together despite their scope strings not being equal."""
         tc_dir = _tc("write_file")
         tc_file = _tc("edit_file")
-        meta = {
-            tc_dir["id"]: _meta(resource_scopes=("filesystem:/data",), is_write=True),
-            tc_file["id"]: _meta(
-                resource_scopes=("filesystem:/data/sub/file.txt",), is_write=True
+        specs = {
+            tc_dir["id"]: _spec(
+                tc_dir, resource_scopes=("filesystem:/data",), is_write=True
+            ),
+            tc_file["id"]: _spec(
+                tc_file,
+                resource_scopes=("filesystem:/data/sub/file.txt",),
+                is_write=True,
             ),
         }
-        groups, _ = build_execution_groups([tc_dir, tc_file], meta)
-        assert len(groups) == 1
-        assert set(id(tc) for tc in groups[0]) == {id(tc_dir), id(tc_file)}
+        plan = build_execution_groups([tc_dir, tc_file], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert _ids(group) == {tc_dir["id"], tc_file["id"]}
 
     def test_directory_read_conflicts_with_descendant_write(self) -> None:
         """A directory read must conflict with a descendant-path write despite
-        unequal scope strings, per the plan's stated acceptance scenario."""
+        unequal scope strings."""
         tc_read_dir = _tc("list_directory")
         tc_write_desc = _tc("write_file")
-        meta = {
-            tc_read_dir["id"]: _meta(
-                resource_scopes=("filesystem:/data",), is_write=False
+        specs = {
+            tc_read_dir["id"]: _spec(
+                tc_read_dir, resource_scopes=("filesystem:/data",)
             ),
-            tc_write_desc["id"]: _meta(
-                resource_scopes=("filesystem:/data/sub/file.txt",), is_write=True
+            tc_write_desc["id"]: _spec(
+                tc_write_desc,
+                resource_scopes=("filesystem:/data/sub/file.txt",),
+                is_write=True,
             ),
         }
-        groups, _ = build_execution_groups([tc_read_dir, tc_write_desc], meta)
-        assert len(groups) == 1
-        assert len(groups[0]) == 2
+        plan = build_execution_groups([tc_read_dir, tc_write_desc], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_read_write_conflict"
+        assert _ids(group) == {tc_read_dir["id"], tc_write_desc["id"]}
 
     def test_move_file_dual_scope_bridges_two_components(self) -> None:
-        """move_file has two independent resource_scopes; each conflicts with a
-        different unrelated call, bridging what would otherwise be two separate
-        connected components into one."""
+        """move_file has two independent resource_scopes; each conflicts with
+        a different unrelated call, bridging what would otherwise be two
+        separate connected components into one."""
         tc_move = _tc("move_file")
         tc_conflict_a = _tc("write_file")
         tc_conflict_b = _tc("edit_file")
-        meta = {
-            tc_move["id"]: _meta(
-                resource_scopes=("filesystem:/a", "filesystem:/b"), is_write=True
+        specs = {
+            tc_move["id"]: _spec(
+                tc_move,
+                resource_scopes=("filesystem:/a", "filesystem:/b"),
+                is_write=True,
             ),
-            tc_conflict_a["id"]: _meta(
-                resource_scopes=("filesystem:/a",), is_write=True
+            tc_conflict_a["id"]: _spec(
+                tc_conflict_a, resource_scopes=("filesystem:/a",), is_write=True
             ),
-            tc_conflict_b["id"]: _meta(
-                resource_scopes=("filesystem:/b",), is_write=True
+            tc_conflict_b["id"]: _spec(
+                tc_conflict_b, resource_scopes=("filesystem:/b",), is_write=True
             ),
         }
-        groups, _ = build_execution_groups(
-            [tc_move, tc_conflict_a, tc_conflict_b], meta
-        )
-        assert len(groups) == 1
-        assert len(groups[0]) == 3
+        plan = build_execution_groups([tc_move, tc_conflict_a, tc_conflict_b], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert _ids(group) == {tc_move["id"], tc_conflict_a["id"], tc_conflict_b["id"]}
 
 
 # ── missing ToolSpec ──────────────────────────────────────────────────────────
@@ -262,222 +323,172 @@ class TestMissingToolSpec:
         tc_known = _tc("read_text_file")
         tc_unknown = _tc("write_file")
         with pytest.raises(MissingToolSpecError):
-            build_execution_groups([tc_known, tc_unknown], {tc_known["id"]: _meta()})
+            build_execution_groups(
+                [tc_known, tc_unknown], {tc_known["id"]: _spec(tc_known)}
+            )
+
+    def test_missing_call_id_raises_even_with_force_serial(self) -> None:
+        tc = _tc("write_file")
+        with pytest.raises(MissingToolSpecError):
+            build_execution_groups([tc], {}, force_serial=True)
+
+
+# ── force_serial ──────────────────────────────────────────────────────────────
+
+
+class TestForceSerial:
+    def test_force_serial_overrides_scope_based_grouping(self) -> None:
+        """Two writes sharing an explicit scope would normally group into one
+        sequential ScheduledGroup together; force_serial=True instead gives
+        each its own single-call sequential phase, in original order —
+        proving the short-circuit actually overrides normal grouping rather
+        than coincidentally agreeing with it."""
+        tc1 = _tc("write_file", "call_1")
+        tc2 = _tc("write_file", "call_2")
+        specs = {
+            tc1["id"]: _spec(tc1, resource_scopes=("filesystem:/file",), is_write=True),
+            tc2["id"]: _spec(tc2, resource_scopes=("filesystem:/file",), is_write=True),
+        }
+        plan = build_execution_groups([tc1, tc2], specs, force_serial=True)
+        assert len(plan.batches) == 2
+        for batch, tc in zip(plan.batches, [tc1, tc2]):
+            assert len(batch.groups) == 1
+            group = batch.groups[0]
+            assert group.sequential is True
+            assert group.reason == "forced_serial"
+            assert _ids(group) == {tc["id"]}
+
+    def test_force_serial_ignores_requires_serial_metadata_too(self) -> None:
+        """force_serial bypasses phase-building entirely, so a requires_serial
+        call is treated the same as any other — one phase per call, in
+        original order."""
+        tc_serial = _tc("shell_run")
+        tc_read = _tc("read_text_file")
+        specs = {
+            tc_serial["id"]: _spec(tc_serial, requires_serial=True),
+            tc_read["id"]: _spec(tc_read),
+        }
+        plan = build_execution_groups([tc_read, tc_serial], specs, force_serial=True)
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {tc_read["id"]}
+        assert _ids(plan.batches[1].groups[0]) == {tc_serial["id"]}
+        assert plan.batches[0].groups[0].reason == "forced_serial"
+        assert plan.batches[1].groups[0].reason == "forced_serial"
+
+    def test_force_serial_empty_batch(self) -> None:
+        plan = build_execution_groups([], {}, force_serial=True)
+        assert plan.batches == ()
+        assert plan.serialization_events == ()
 
 
 # ── mixed scenarios ───────────────────────────────────────────────────────────
 
 
 class TestMixedScenarios:
-    def test_separates_by_resource_scope_from_validation_plan(self) -> None:
-        """Matches the validation plan test spec exactly."""
-        tc_write1 = _tc("write_file")
-        tc_write1["id"] = "call_write_file_1"
-        tc_read = _tc("read_text_file")
-        tc_write2 = _tc("write_file")
-        tc_write2["id"] = "call_write_file_2"
-        meta = {
-            tc_write1["id"]: _meta(
-                resource_scopes=("filesystem:/file",), is_write=True
-            ),
-            tc_read["id"]: _meta(),
-            tc_write2["id"]: _meta(
-                resource_scopes=("filesystem:/file",), is_write=True
-            ),
-        }
-        groups, _ = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
-        write_group = next(
-            g for g in groups if any(tc["function"]["name"] == "write_file" for tc in g)
-        )
-        assert len(write_group) == 2
-
-    def test_requires_serial_creates_barrier_from_validation_plan(self) -> None:
-        """Matches the validation plan test spec exactly."""
-        tc_shell = _tc("shell_run")
-        tc_read = _tc("read_text_file")
-        meta = {
-            tc_shell["id"]: _meta(requires_serial=True),
-            tc_read["id"]: _meta(),
-        }
-        groups, _ = build_execution_groups([tc_shell, tc_read], meta)
-        assert groups[0] == [tc_shell]
-
-    def test_all_parallel_returns_one_group(self) -> None:
-        tcs = [_tc("read_text_file"), _tc("list_directory"), _tc("search_files")]
-        meta = {tc["id"]: _meta() for tc in tcs}
-        groups, _ = build_execution_groups(tcs, meta)
-        assert len(groups) == 1
-        assert len(groups[0]) == 3
-
     def test_serial_resource_and_parallel_all_present(self) -> None:
         tc_serial = _tc("shell_run")
         tc_write = _tc("write_file")
         tc_read = _tc("read_text_file")
-        meta = {
-            tc_serial["id"]: _meta(requires_serial=True),
-            tc_write["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
-            tc_read["id"]: _meta(),
+        specs = {
+            tc_serial["id"]: _spec(tc_serial, requires_serial=True),
+            tc_write["id"]: _spec(
+                tc_write, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_read["id"]: _spec(tc_read),
         }
-        groups, _ = build_execution_groups([tc_serial, tc_write, tc_read], meta)
-        assert groups[0] == [tc_serial]
-        assert any(
-            any(tc["function"]["name"] == "write_file" for tc in g) for g in groups
-        )
-        assert any(
-            any(tc["function"]["name"] == "read_text_file" for tc in g) for g in groups
-        )
+        plan = build_execution_groups([tc_serial, tc_write, tc_read], specs)
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {tc_serial["id"]}
+        phase_batch = plan.batches[1]
+        assert len(phase_batch.groups) == 1
+        assert _ids(phase_batch.groups[0]) == {tc_write["id"], tc_read["id"]}
+        assert phase_batch.groups[0].sequential is False
 
+    def test_all_parallel_returns_one_concurrent_group(self) -> None:
+        tcs = [_tc("read_text_file"), _tc("list_directory"), _tc("search_files")]
+        specs = {tc["id"]: _spec(tc) for tc in tcs}
+        plan = build_execution_groups(tcs, specs)
+        assert len(plan.batches) == 1
+        assert len(plan.batches[0].groups) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert len(group.calls) == 3
 
-# ── concurrent_groups ────────────────────────────────────────────────────────
-
-
-class TestConcurrentGroups:
-    def test_scope_group_and_parallel_share_one_batch(self) -> None:
-        tc_write = _tc("write_file")
+    def test_conflicting_write_and_unrelated_reads_share_one_phase(self) -> None:
+        """A same-scope write pair and an unrelated read all appear in the
+        same non-barrier phase: the write pair serializes; the read is pooled
+        concurrently in the same batch, not a separate one."""
+        tc_write1 = _tc("write_file", "call_write_file_1")
         tc_read = _tc("read_text_file")
-        _groups, metadata = build_execution_groups(
-            [tc_write, tc_read],
-            {
-                tc_write["id"]: _meta(
-                    resource_scopes=("filesystem:/file",), is_write=True
-                ),
-                tc_read["id"]: _meta(),
-            },
-        )
-        # Both the scope group and parallel group should be in one concurrent batch
-        last_batch = metadata.concurrent_groups[-1]
-        assert len(last_batch.groups) == 2
+        tc_write2 = _tc("write_file", "call_write_file_2")
+        specs = {
+            tc_write1["id"]: _spec(
+                tc_write1, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_read["id"]: _spec(tc_read),
+            tc_write2["id"]: _spec(
+                tc_write2, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_write1, tc_read, tc_write2], specs)
+        assert len(plan.batches) == 1
+        batch = plan.batches[0]
+        assert len(batch.groups) == 2
+        write_group = next(g for g in batch.groups if g.sequential)
+        assert _ids(write_group) == {tc_write1["id"], tc_write2["id"]}
+        read_group = next(g for g in batch.groups if not g.sequential)
+        assert _ids(read_group) == {tc_read["id"]}
 
-    def test_two_scope_groups_share_one_concurrent_batch(self) -> None:
-        tc_file = _tc("write_file")
-        tc_github = _tc("github_push_files")
-        _groups, metadata = build_execution_groups(
-            [tc_file, tc_github],
-            {
-                tc_file["id"]: _meta(
-                    resource_scopes=("filesystem:/file",), is_write=True
-                ),
-                tc_github["id"]: _meta(
-                    resource_scopes=("github_repo:github",), is_write=True
-                ),
-            },
-        )
-        last_batch = metadata.concurrent_groups[-1]
-        assert len(last_batch.groups) == 2
+
+# ── batch shape ────────────────────────────────────────────────────────────────
+
+
+class TestConcurrentBatches:
+    def test_scope_group_and_parallel_share_one_batch(self) -> None:
+        tc_write1 = _tc("write_file", "call_write_file_1")
+        tc_write2 = _tc("write_file", "call_write_file_2")
+        tc_read = _tc("read_text_file")
+        specs = {
+            tc_write1["id"]: _spec(
+                tc_write1, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_write2["id"]: _spec(
+                tc_write2, resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_read["id"]: _spec(tc_read),
+        }
+        plan = build_execution_groups([tc_write1, tc_write2, tc_read], specs)
+        assert len(plan.batches) == 1
+        assert len(plan.batches[0].groups) == 2
 
     def test_serial_barrier_gets_own_batch(self) -> None:
         tc_serial = _tc("shell_run")
         tc_read = _tc("read_text_file")
-        _groups, metadata = build_execution_groups(
-            [tc_serial, tc_read],
-            {
-                tc_serial["id"]: _meta(requires_serial=True),
-                tc_read["id"]: _meta(),
-            },
-        )
-        # First batch must contain only the serial barrier
-        assert metadata.concurrent_groups[0].groups == [[tc_serial]]
-
-    def test_write_first_gets_own_sequential_batch(self) -> None:
-        tc_write = _tc("write_file")
-        tc_read = _tc("read_text_file")
-        _groups, metadata = build_execution_groups(
-            [tc_write, tc_read],
-            {
-                tc_write["id"]: _meta(resource_scopes=(), is_write=True),
-                tc_read["id"]: _meta(),
-            },
-        )
-        # write_first and parallel must be in separate batches
-        assert len(metadata.concurrent_groups) == 2
-        assert metadata.concurrent_groups[0].groups == [[tc_write]]
-        assert metadata.concurrent_groups[0].serialize_flags == [False]
-
-    def test_write_first_group_is_gathered_concurrently(self) -> None:
-        tc_write_a = _tc("write_file")
-        tc_write_b = _tc("delete_file")
-        _groups, metadata = build_execution_groups(
-            [tc_write_a, tc_write_b],
-            {
-                tc_write_a["id"]: _meta(resource_scopes=(), is_write=True),
-                tc_write_b["id"]: _meta(resource_scopes=(), is_write=True),
-            },
-        )
-        write_first_batch = metadata.concurrent_groups[0]
-        assert write_first_batch.groups == [[tc_write_a, tc_write_b]]
-        assert write_first_batch.serialize_flags == [False]
+        specs = {
+            tc_serial["id"]: _spec(tc_serial, requires_serial=True),
+            tc_read["id"]: _spec(tc_read),
+        }
+        plan = build_execution_groups([tc_serial, tc_read], specs)
+        assert len(plan.batches) == 2
+        assert len(plan.batches[0].groups) == 1
+        assert _ids(plan.batches[0].groups[0]) == {tc_serial["id"]}
 
     def test_fts_rebuild_does_not_serialize_unrelated_reads(self) -> None:
         tc_rebuild = _tc("fts_rebuild")
         tc_read_a = _tc("search_docs")
         tc_read_b = _tc("get_chunk")
-        _groups, metadata = build_execution_groups(
-            [tc_rebuild, tc_read_a, tc_read_b],
-            {
-                tc_rebuild["id"]: _meta(requires_serial=True, is_write=True),
-                tc_read_a["id"]: _meta(),
-                tc_read_b["id"]: _meta(),
-            },
-        )
-        barrier_batch = metadata.concurrent_groups[0]
-        assert barrier_batch.groups == [[tc_rebuild]]
-        read_batch = metadata.concurrent_groups[-1]
-        assert tc_read_a in read_batch.groups[-1]
-        assert tc_read_b in read_batch.groups[-1]
-        assert read_batch.serialize_flags[-1] is False
-
-    def test_empty_calls_empty_concurrent_groups(self) -> None:
-        _groups, metadata = build_execution_groups([], {})
-        assert metadata.concurrent_groups == []
-
-
-class TestToolRunnerDefaultSpec:
-    """Verify RuntimeToolRegistry-derived ToolSpec construction produces correct
-    scheduling buckets for representative tool names (a lightweight regression
-    lock for the call-id-keyed flow now built inline in
-    tool_runner.py::_execute_with_dag(), replacing the deleted
-    _build_tool_meta()).
-    """
-
-    def test_write_file_gets_resource_scope_from_registry(self) -> None:
-        spec = ToolSpec(
-            call_id="call_write_file",
-            name="write_file",
-            resource_scopes=("filesystem:write_file",),
-            requires_serial=False,
-            is_write=True,
-        )
-        assert spec.resource_scopes == ("filesystem:write_file",)
-        assert spec.is_write is True
-        assert spec.requires_serial is False
-
-    def test_shell_run_gets_requires_serial(self) -> None:
-        spec = ToolSpec(
-            call_id="call_shell_run",
-            name="shell_run",
-            resource_scopes=(),
-            requires_serial=True,
-            is_write=False,
-        )
-        assert spec.requires_serial is True
-        assert spec.is_write is False
-        assert spec.resource_scopes == ()
-
-    def test_write_and_read_in_same_concurrent_batch(self) -> None:
-        """With resource_scopes set, write_file and read_text_file share concurrent_batch."""
-        tc_write = _tc("write_file")
-        tc_read = _tc("read_text_file")
-        tool_meta = {
-            tc_write["id"]: _meta(
-                name="write_file",
-                resource_scopes=("filesystem:write_file",),
-                is_write=True,
-            ),
-            tc_read["id"]: _meta(name="read_text_file"),
+        specs = {
+            tc_rebuild["id"]: _spec(tc_rebuild, requires_serial=True, is_write=True),
+            tc_read_a["id"]: _spec(tc_read_a),
+            tc_read_b["id"]: _spec(tc_read_b),
         }
-        calls = [tc_write, tc_read]
-        _groups, metadata = build_execution_groups(calls, tool_meta)
-        # write_first must be empty: both groups end up in the same concurrent batch
-        assert len(metadata.concurrent_groups) == 1
-        # one group for write_file scope, one for the parallel read
-        assert len(metadata.concurrent_groups[0].groups) == 2
+        plan = build_execution_groups([tc_rebuild, tc_read_a, tc_read_b], specs)
+        assert len(plan.batches) == 2
+        assert _ids(plan.batches[0].groups[0]) == {tc_rebuild["id"]}
+        read_group = plan.batches[1].groups[0]
+        assert read_group.sequential is False
+        assert _ids(read_group) == {tc_read_a["id"], tc_read_b["id"]}
+
+    def test_empty_calls_empty_batches(self) -> None:
+        plan = build_execution_groups([], {})
+        assert plan.batches == ()

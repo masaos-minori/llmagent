@@ -142,12 +142,12 @@ def _pc(
     spec: ToolSpec | None = None,
     tc: dict | None = None,
 ) -> PreparedToolCall:
-    """Build a PreparedToolCall for tests that exercise execute_one_tool_call(),
+    """Build a PreparedToolCall for tests that exercise execute_one_tool_call()
 
-    _execute_with_dag(), or _execute_standard() directly, bypassing the real
-    prepare_tool_calls() pipeline. call_id defaults to f"call_{name}" to match
-    _tc()'s id convention, so existing assertions on specific call ids keep
-    working when a _tc(name) call site is swapped for _pc(name, args).
+    or _execute_with_dag() directly, bypassing the real prepare_tool_calls()
+    pipeline. call_id defaults to f"call_{name}" to match _tc()'s id
+    convention, so existing assertions on specific call ids keep working when
+    a _tc(name) call site is swapped for _pc(name, args).
     """
     resolved_call_id = call_id or f"call_{name}"
     return PreparedToolCall(
@@ -245,13 +245,36 @@ class TestExecuteWithDag:
         assert len(results) == 1
 
     @pytest.mark.asyncio
-    async def test_write_first_before_read_in_group_order(self) -> None:
+    async def test_conflicting_writes_execute_in_group_order(self) -> None:
+        """Two writes sharing a resource scope form one sequential
+        ScheduledGroup and must execute in that group's order; an unrelated
+        read has nothing to conflict with and is pooled into the concurrent
+        group instead (no ordering guarantee against it) — there is no more
+        separate "write-first" bucket that always precedes every read
+        regardless of conflicts."""
         cfg = _cfg()
         ctx = _make_ctx(cfg)
-        write_pc = _pc(
+        write_a_pc = _pc(
             "write_file",
             {},
-            spec=ToolSpec(call_id="call_write_file", name="write_file", is_write=True),
+            call_id="call_write_a",
+            spec=ToolSpec(
+                call_id="call_write_a",
+                name="write_file",
+                resource_scopes=("filesystem:/shared",),
+                is_write=True,
+            ),
+        )
+        write_b_pc = _pc(
+            "edit_file",
+            {},
+            call_id="call_write_b",
+            spec=ToolSpec(
+                call_id="call_write_b",
+                name="edit_file",
+                resource_scopes=("filesystem:/shared",),
+                is_write=True,
+            ),
         )
         read_pc = _pc(
             "read_text_file",
@@ -269,11 +292,11 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [read_pc, write_pc], 0)
-        # write_file should execute before read_text_file in the group order
-        write_idx = call_order.index("write_file")
-        read_idx = call_order.index("read_text_file")
-        assert write_idx < read_idx
+        await _execute_with_dag(ctx, [write_a_pc, write_b_pc, read_pc], 0)
+        # The conflicting write pair must execute in group order.
+        assert call_order.index("write_file") < call_order.index("edit_file")
+        # The unrelated read still executes (no ordering guarantee against it).
+        assert "read_text_file" in call_order
 
     @pytest.mark.asyncio
     async def test_serial_barrier_executes_solo(self) -> None:
@@ -815,7 +838,7 @@ def _write_registry(is_write_by_name: dict[str, bool]) -> MagicMock:
     Stubs both `.get(name)` (schema/extra-fields lookup, consulted during
     preparation's argument validation) and `.tool_spec_for_call(call_id, name,
     args)` (the actual source of `PreparedToolCall.spec.is_write`, resolved
-    once during preparation — `_execute_standard()` itself does no registry
+    once during preparation — `_execute_with_dag()` itself does no registry
     lookup). Both raise KeyError for any name absent from `is_write_by_name`,
     matching the real registry's unregistered-tool behavior.
     """
@@ -829,7 +852,7 @@ def _write_registry(is_write_by_name: dict[str, bool]) -> MagicMock:
         # Empty schema/no-extra-fields so validate_tool_arguments() (also
         # consulted via this same registry during preparation) treats every
         # call as passing validation — this helper exists to test
-        # _execute_standard()'s side-effect/serialization decision, not
+        # force_serial's side-effect/serialization decision, not
         # argument validation.
         tool.input_schema = {}
         tool.allow_extra_fields = True
@@ -848,12 +871,19 @@ def _write_registry(is_write_by_name: dict[str, bool]) -> MagicMock:
 
 
 class TestExecuteStandardSerialization:
-    # serial_tool_calls=True routes execute_all_tool_calls() to _execute_standard()
-    # directly; _execute_with_dag() records serialization events via its own
-    # resource-scope mechanism and is covered separately.
+    # serial_tool_calls=True now feeds force_serial=True into the single
+    # _execute_with_dag() path (build_execution_groups()'s force_serial
+    # short-circuit) instead of selecting a separate _execute_standard()
+    # function — that function no longer exists. The class name/tests are
+    # kept in place because the *observable* contract (still serializes, still
+    # records a serialization event with a specific reason, still calls
+    # diagnostics) is unchanged; only serial_reason and the round_event dict's
+    # populated fields change.
     @pytest.mark.asyncio
     async def test_side_effect_tool_records_serialization_event(self) -> None:
-        """When a registered write tool triggers serial execution, a serialization event is stored."""
+        """When a registered write tool triggers forced-serial execution, a
+        serialization event is stored (mirrors the old is_side_effect()-driven
+        downgrade's observable behavior, now via force_serial)."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
@@ -874,14 +904,19 @@ class TestExecuteStandardSerialization:
         event = ctx.stats.stat_serialization_events[0]
         assert event["trigger_tool"] == "write_file"
         assert event["mode"] == "serial"
-        assert event["serial_reason"] == "side_effect"
+        assert event["serial_reason"] == "forced_serial"
         assert "elapsed_ms" in event
-        assert "estimated_parallel_ms" in event
-        assert "serial_overhead" in event
+        # The DAG path's round_event dict does not populate these two fields —
+        # they were specific to the now-deleted _execute_standard()'s own bookkeeping.
+        assert "estimated_parallel_ms" not in event
+        assert "serial_overhead" not in event
 
     @pytest.mark.asyncio
     async def test_no_side_effect_no_serialization_event(self) -> None:
-        """When the sole registered tool is not a write tool, no serialization event is recorded."""
+        """A single read-only call under force_serial=True still produces
+        exactly one single-call phase, with nothing else to conflict with —
+        no event fires because no concurrency was actually prevented (and, per
+        the force_serial event rule, no write call triggered it either)."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
@@ -902,7 +937,7 @@ class TestExecuteStandardSerialization:
     async def test_unregistered_tool_rejected_during_preparation(self) -> None:
         """A tool absent from the registry is now rejected fail-closed during
         the preparation phase (prepare_tool_calls) — it never reaches
-        _execute_standard()'s side-effect/serialization logic at all, unlike
+        _execute_with_dag()'s scheduling/serialization logic at all, unlike
         the old lenient fallback this replaces."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
@@ -928,8 +963,8 @@ class TestExecuteStandardSerialization:
     async def test_no_registry_rejected_during_preparation(self) -> None:
         """When ctx.services_required.runtime_tools is None, prepare_tool_calls()
         rejects every call fail-closed (a "configuration" failure) before
-        approval or execution — it no longer falls through to
-        _execute_standard() treating the call as a side effect."""
+        approval or execution — it never reaches _execute_with_dag() at
+        all."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
@@ -973,4 +1008,96 @@ class TestExecuteStandardSerialization:
         call_kwargs = ctx.diagnostics.save_serialization_event.call_args[1]
         assert call_kwargs["trigger_tool"] == "write_file"
         assert call_kwargs["mode"] == "serial"
-        assert call_kwargs["reason"] == "side_effect"
+        assert call_kwargs["reason"] == "forced_serial"
+
+    @pytest.mark.asyncio
+    async def test_force_serial_overrides_scope_based_grouping_end_to_end(self) -> None:
+        """serial_tool_calls=True on a batch of same-scope writes that would
+        otherwise concurrently-group under force_serial=False still records a
+        single forced_serial event covering every call in the batch — proving
+        ctx.cfg.tool.serial_tool_calls actually reaches the planner as
+        force_serial, not just a scheduler-level unit-test concern."""
+        cfg = _cfg(serial_tool_calls=True)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _write_registry({"write_file": True})
+        ctx.stats.stat_serialization_events = []
+        ctx.stats.stat_serialization_total_overhead_ms = 0.0
+        ctx.diagnostics = None
+
+        write_call_1 = {
+            "id": "call_write_1",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+        write_call_2 = {
+            "id": "call_write_2",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            side_effect=lambda ctx, prepared: (prepared, []),
+        ):
+            await execute_all_tool_calls(ctx, [write_call_1, write_call_2], 0)
+
+        assert len(ctx.stats.stat_serialization_events) == 1
+        event = ctx.stats.stat_serialization_events[0]
+        assert event["serial_reason"] == "forced_serial"
+        assert event["affected_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_results_restored_to_original_order_despite_concurrent_grouping(
+        self,
+    ) -> None:
+        """A batch where an unrelated read and a conflicting same-scope write
+        pair land in different ScheduledGroups within the same batch (which
+        run concurrently via asyncio.gather, in no particular relative
+        order): execute_all_tool_calls() must still collect/save results in
+        the original tool_calls order, exercising
+        results.sort(key=lambda r: call_order.get(r[0], 0)) under the new
+        ExecutionPlan-based iteration."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+                "write_file": ToolSpec(
+                    call_id="",
+                    name="write_file",
+                    resource_scopes=("filesystem:/shared",),
+                    is_write=True,
+                ),
+            }
+        )
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
+        )
+
+        read_call = _tc("read_text_file")
+        write_call_1 = {
+            "id": "call_write_1",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+        write_call_2 = {
+            "id": "call_write_2",
+            "function": {"name": "write_file", "arguments": "{}"},
+        }
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            side_effect=lambda ctx, prepared: (prepared, []),
+        ):
+            await execute_all_tool_calls(
+                ctx, [read_call, write_call_1, write_call_2], 0
+            )
+
+        assert [entry["tool_call_id"] for entry in ctx.conv.history] == [
+            "call_read_text_file",
+            "call_write_1",
+            "call_write_2",
+        ]
