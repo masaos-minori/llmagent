@@ -111,8 +111,11 @@ is_side_effect(tool_name: str) -> bool
 `is_side_effect()`/`_SIDE_EFFECT_TOOLS`（`shared/tool_executor_helpers.py`）は現在
 `shared/tool_executor.py` の TTL キャッシュのバイパス判定にのみ使われる。バッチ実行の
 並列/直列判定（標準実行パス、`serial_tool_calls=True`時）は `agent/tool_runner.py::_execute_standard()`
-が担い、`RuntimeToolRegistry` に登録済みの `is_write` を参照する（未登録ツールは保守的に
-副作用ありとして扱う）。`_execute_standard()` が副作用を持つツールを1つでも検出した場合、
+が担い、`PreparedToolCall.spec.is_write`（`agent/tool_preparation.py::prepare_tool_calls()`が
+承認フェーズより前に`RuntimeToolRegistry`経由で解決済み）を参照する。未登録ツールや
+`RuntimeToolRegistry`未接続の呼び出しは準備フェーズでフェイルクローズドに却下され、
+`_execute_standard()`に到達すること自体がない（「保守的に副作用ありとして扱う」フォールバックは
+廃止された）。`_execute_standard()` が副作用を持つツールを1つでも検出した場合、
 `serial_tool_calls`の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
 
 ### 安全性ティア検証

@@ -63,7 +63,7 @@ Import: `from shared.tool_spec import ToolSpec`
 
 15フィールドの正規化されたツール実行メタデータ (ルーティング、LLMスキーマ、スケジューラメタデータ、副作用検出、安全性ティア、承認要否、引数バリデーションの緩和フラグ) を1つの型で表現。`AgentSafetyTier` の4値 (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) は `shared-is-leaf` インポート制約のため `agent.tool_enums` からインポートせず、本モジュール内でローカルな `Literal` 型として重複定義。(Explicit in code)
 
-`build_runtime_tool()` は未指定の注釈フィールドに安全側のデフォルトを適用する。`allow_extra_fields` はツール単位のフラグで、`agent/tool_runner.py::_validate_tool_args()` が読み取り、`agent/tool_arg_validator.py` の `validate_tool_arguments()` に渡す。(Explicit in code)
+`build_runtime_tool()` は未指定の注釈フィールドに安全側のデフォルトを適用する。`allow_extra_fields` はツール単位のフラグで、`agent/tool_preparation.py` の準備フェーズ（`prepare_tool_calls()`/`_prepare_one()`、承認より前に実行される）が読み取り、`agent/tool_arg_validator.py` の `validate_tool_arguments()` に渡す。(Explicit in code)
 
 **web_search-mcp の `browser_fetch` ツールが `config_dependent: True` を採用したことで、`RuntimeTool` / `build_runtime_tool()` が初めて実データで使用されている。**
 

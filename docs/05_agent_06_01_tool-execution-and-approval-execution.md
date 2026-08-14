@@ -61,10 +61,19 @@ source:
 
 ### 引数バリデーション
 
-`_validate_tool_args()`はJSON解析直後の1回だけ呼び出される:
-- `RuntimeToolRegistry`が未接続の場合: no-op
-- 未登録ツール: 寛容にフォールバック
-- 登録済みツール: スキーマバリデーション + カスタムフック
+引数の解析・解決・バリデーションは`agent/tool_preparation.py::prepare_tool_calls()`が承認フェーズより前の
+専用の準備フェーズとして一括で行う（`execute_all_tool_calls()`内で`_run_approval_gate()`より前に呼ばれる）。
+呼び出しごとに以下を順に行い、いずれかに失敗した場合はフェイルクローズド（`PreparedToolCall`を生成せず、
+承認・スケジューリング・実行のいずれにも到達させず、合成エラー結果として即座に却下する）:
+- `id`/`function.name`の存在確認
+- `arguments`のJSON解析（1回のみ）およびdict型チェック
+- `RuntimeToolRegistry`への解決 — 未接続の場合、または対象ツールが未登録の場合はいずれも却下（フォールバックなし）
+- 登録済みツール: `agent/tool_arg_validator.py::validate_tool_arguments()`によるスキーマバリデーション + カスタムフック
+- `RuntimeToolRegistry.tool_spec_for_call()`によるメタデータ構築
+
+準備フェーズを通過した呼び出しのみが`PreparedToolCall`（`call_id`/`name`/`args`/`spec`/`original_call`）として
+承認・実行に渡される。`execute_one_tool_call()`・`_execute_standard()`・`_execute_with_dag()`は
+`PreparedToolCall.spec`（準備フェーズで解決済み）を参照するのみで、独自の引数バリデーションやレジストリ照会は行わない。
 
 ### 履歴への結果反映
 
@@ -72,13 +81,14 @@ source:
 
 ## Responsibility Boundary
 
-- **正典**: `shared/tool_executor.py`, `agent/tool_scheduler.py`
+- **正典**: `shared/tool_executor.py`, `agent/tool_scheduler.py`, `agent/tool_preparation.py`（引数バリデーション/レジストリ解決を含む準備フェーズ）
 - **ルーティングの権威**: `ToolRouteResolver.resolve()` ([04_mcp_03 §Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md))
 
 ## Key Constraints
 
 - DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効（レガシー動作への切替不可）
 - `resource_scopes`が重複するwriteツールの複数呼び出しは同一グループ内で並行実行される
+- 準備フェーズはフェイルクローズド: id欠落・JSON不正・未登録ツール・レジストリ未接続・スキーマ違反・メタデータ構築失敗のいずれかがあれば、承認/実行/スケジューリングに到達する前に却下される
 
 ## Operational Notes
 
@@ -102,4 +112,7 @@ ToolExecutor
 parallel vs sequential execution
 DAG tool scheduler
 tool argument validation
+tool call preparation phase
+PreparedToolCall
+fail-closed
 validated history append/extend
