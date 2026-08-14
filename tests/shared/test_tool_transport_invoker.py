@@ -19,8 +19,12 @@ from shared.tool_transport_invoker import ToolTransportInvoker
 from shared.transport_dto import ToolCallResult
 
 
-def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport=TransportType.HTTP, url=url)
+def _http_cfg(
+    url: str = "http://127.0.0.1:8000", call_timeout_sec: float = 60.0
+) -> McpServerConfig:
+    return McpServerConfig(
+        transport=TransportType.HTTP, url=url, call_timeout_sec=call_timeout_sec
+    )
 
 
 def _make_invoker(
@@ -169,3 +173,15 @@ class TestToolTransportInvoker:
 
         assert result.output == "ok"
         assert call_count == 1
+
+    def test_call_timeout_sec_zero_means_no_timeout(self) -> None:
+        invoker = _make_invoker(configs={"srv": _http_cfg(call_timeout_sec=0)})
+        assert invoker._transports["srv"]._timeout == 0
+
+    def test_call_timeout_sec_positive_value_passed_through(self) -> None:
+        invoker = _make_invoker(configs={"srv": _http_cfg(call_timeout_sec=30.0)})
+        assert invoker._transports["srv"]._timeout == 30.0
+
+    def test_call_timeout_sec_default_unset_falls_back_to_60(self) -> None:
+        invoker = _make_invoker(configs={"srv": _http_cfg()})
+        assert invoker._transports["srv"]._timeout == 60.0

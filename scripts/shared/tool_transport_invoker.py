@@ -51,11 +51,7 @@ class ToolTransportInvoker:
 
         self._transports: dict[str, HttpTransport] = {}
         for key, cfg in server_configs.items():
-            timeout_sec = (
-                cfg.call_timeout_sec
-                if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec
-                else 60.0
-            )
+            timeout_sec = cfg.call_timeout_sec
             self._transports[key] = HttpTransport(
                 http, cfg.url, key, cfg, timeout_sec=timeout_sec
             )
