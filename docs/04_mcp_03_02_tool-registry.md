@@ -108,10 +108,12 @@ _SIDE_EFFECT_TOOLS = (
 is_side_effect(tool_name: str) -> bool
 ```
 
-`execute_all_tool_calls()` が副作用を持つツールを1つでも検出した場合、`serial_tool_calls`
-の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
-
-（注: `_SIDE_EFFECT_TOOLS` は `WRITE_TOOLS` / `DELETE_TOOLS` / `shell_run` に加え、Git 書き込み系（`GIT_WRITE_TOOLS`）、GitHub 書き込み・危険操作系（`GITHUB_WRITE_TOOLS`、`GITHUB_DANGEROUS_TOOLS`）、および CICD/RAG/MDQ 書き込み系（`CICD_WRITE_TOOLS`, `RAG_WRITE_TOOLS`, `MDQ_WRITE_TOOLS`）も含む。Explicit in code: `shared/tool_executor_helpers.py`。）
+`is_side_effect()`/`_SIDE_EFFECT_TOOLS`（`shared/tool_executor_helpers.py`）は現在
+`shared/tool_executor.py` の TTL キャッシュのバイパス判定にのみ使われる。バッチ実行の
+並列/直列判定（標準実行パス、`serial_tool_calls=True`時）は `agent/tool_runner.py::_execute_standard()`
+が担い、`RuntimeToolRegistry` に登録済みの `is_write` を参照する（未登録ツールは保守的に
+副作用ありとして扱う）。`_execute_standard()` が副作用を持つツールを1つでも検出した場合、
+`serial_tool_calls`の設定に関わらず、そのラウンドの全ての呼び出し（副作用のないツールを含む）を直列化する。
 
 ### 安全性ティア検証
 
@@ -122,11 +124,11 @@ is_side_effect(tool_name: str) -> bool
 ### 実装上の補足 (Current behavior): tool_cache.py と ToolSpec
 
 - `shared/tool_cache.py` の `ToolResultCache`（LRU + TTL）は現在 `ToolExecutor` からは使用されていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュ（本ドキュメント「キャッシュの挙動」節）を持ち、stampede protection（inflight future 共有）と密結合しているため、代わりに使われている。`ToolResultCache` は非推奨ではなく、stampede protection を必要としない将来の利用者向けのスタンドアロンユーティリティとして残されている。（Explicit in code: `shared/tool_cache.py` モジュール docstring）
-- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scope`, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py` で構築され、`agent/tool_scheduler.py` の実行DAGで並列/直列判定に使われる。（Explicit in code）
+- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scopes`（kind接頭辞付きスコープ文字列のタプル）, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py::_execute_with_dag()` が呼び出しごとに `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)`（内部で `shared/resource_scope.py::resolve_resource_scopes()` を呼び出し `resource_scopes` を解決する）経由で構築し、call_id をキーとする `dict[str, ToolSpec]` として `agent/tool_scheduler.py::build_execution_groups()` に渡され、実行DAGで並列/直列判定に使われる。（Explicit in code）
 
 ### `RuntimeToolRegistry` とライブ検出（実装済み）
 
-`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証し（`name`/`description`/`inputSchema` を必須、`status`/`is_write`/`requires_serial`/`resource_scope`/`enabled` は存在する場合のみ型検証）、`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で、`security_profile`（production/local）や `strict` 設定に関わらず常に `FATAL` の `StartupCheckOutcome` を返す（`_dedupe_and_build()` に明示的に実装された挙動。起動パイプラインは FATAL を `pipeline.add_fatal()` に渡すため起動が中断される）。
+`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証する。`name`/`description`/`inputSchema` に加え、`is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys` の4フィールドはスキーマ2.0契約として**必須**であり（`shared/resource_scope.py::validate_tool_schema_v2()` で型・既知kind・`resource_scope_keys`が`inputSchema.properties`に存在することまで検証）、欠落または検証失敗した個別ツールはレジストリから除外される（サイレントなデフォルト適用はしない）。`status`/`resource_scope`（レガシーの単数形）/`enabled`は存在する場合のみ型検証する。`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で、`security_profile`（production/local）や `strict` 設定に関わらず常に `FATAL` の `StartupCheckOutcome` を返す（`_dedupe_and_build()` に明示的に実装された挙動。起動パイプラインは FATAL を `pipeline.add_fatal()` に渡すため起動が中断される）。
 
 **[Explicit in code]** `McpToolDiscoveryService` は `startup.py` から呼び出される。`ToolExecutor.set_runtime_registry(runtime_reg)` により RuntimeToolRegistry が接続される。`ToolRouteResolver.resolve()` は RuntimeToolRegistry のみを参照して解決する。ToolRegistry はルーティング判断には一切使われない — `tool_constants.py` frozenset のドリフト検出用データとしてのみ機能する（本ドキュメント冒頭の説明を参照）。
 

@@ -35,7 +35,7 @@ Frozen dataclass CacheEntry with output (str), is_error (bool), cached_at (float
 
 ## 16. `ToolSpec` (`shared/tool_spec.py`)
 
-Frozen dataclass for DAG scheduling metadata. call_id (LLM-assigned tool call id from tool_calls[].id), name (tool function name), args (dict[str, object]), resource_scope (resource path/branch string for conflict detection), requires_serial (forces serialization regardless of parallel mode), is_write (used by is_side_effect() to classify write/delete tools). DAG execution layer builds ToolSpec for each approved tool call.
+Frozen dataclass for DAG scheduling metadata. call_id (LLM-assigned tool call id from tool_calls[].id), name (tool function name), args (dict[str, object]), resource_scopes (tuple[str, ...] of kind-prefixed resource-scope strings, e.g. "filesystem:/a/b.txt", for conflict detection — resolved per call by shared/resource_scope.py::resolve_resource_scopes()), requires_serial (forces serialization regardless of parallel mode), is_write (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed ToolSpec for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`.
 
 ---
 

@@ -51,13 +51,28 @@ source:
 
 - `tool_concurrency_limits`: サーバーキー → 最大並行呼び出し数
 
-#### resource_scope 規約（DAGモード、`serial_tool_calls=False`のとき常時有効）
+#### resource_scope_kind/resource_scope_keys 規約（DAGモード、`serial_tool_calls=False`のとき常時有効）
 
-| Tool type | `resource_scope` default | `requires_serial` default | Scheduling bucket |
+スコープは `config/agent.toml` のデフォルトではなく、各MCPサーバーが `/v1/tools` で宣言する
+`resource_scope_kind`/`resource_scope_keys`（スキーマ2.0契約、必須フィールド）と、実際の呼び出し
+引数から呼び出し単位で解決される（`shared/resource_scope.py::resolve_resource_scopes()`）。解決結果
+は `ToolSpec.resource_scopes`（kind接頭辞付き文字列のタプル、例: `"filesystem:/a/b.txt"`）として
+`agent/tool_scheduler.py::build_execution_groups()` に渡され、call_id 単位でコンフリクトグラフに
+よりグループ化される（ツール名単位ではない）。
+
+| Tool type | `resource_scope_kind`（宣言） | `requires_serial` | Scheduling bucket |
 |---|---|---|---|
-| WRITE_TOOLS / DELETE_TOOLS | `{tool_name}` | `False` | `resource_groups[tool_name]` → concurrent batch |
-| `shell_run` (SHELL_TOOLS) | `""` | `True` | serial_barrier |
-| Read / その他 | `""` | `False` | `parallel` → concurrent batch |
+| file WRITE_TOOLS / DELETE_TOOLS（`path`引数、`move_file`は`source`/`destination`） | `"filesystem"` | `False` | resource-scope conflict group（重複する呼び出し同士がコンフリクトグラフの連結成分としてまとめられる）→ concurrent batch |
+| git write tools（`git_add`/`git_commit`等、`repo_path`引数） | `"git_repo"` | `False` | resource-scope conflict group |
+| github write tools（`owner`/`repo`引数） | `"github_repo"` | `False` | resource-scope conflict group |
+| cicd `trigger_workflow`（`repo`/`workflow`/`ref`引数） | `"cicd_workflow"` | `False` | resource-scope conflict group |
+| mdq `index_paths`/`refresh_index`、rag `rag_delete_document` | `"mdq_store"` / `"rag_store"`（固定） | `True` | serial_barrier（`requires_serial`がスコープより優先） |
+| `shell_run` | `"process"`（スコープキーなし） | `True` | serial_barrier |
+| Read / その他 unscoped | `""` | `False` | `parallel` → concurrent batch |
+
+`resource_scope_kind`は宣言済みだが呼び出し引数から実際のスコープ値が解決できない write ツール
+は、フェイルクローズドなフォールバックとして `("global:write",)` を返す（ツール名フォールバックや
+空タプルにはならない）。
 
 #### その他のフィールド
 

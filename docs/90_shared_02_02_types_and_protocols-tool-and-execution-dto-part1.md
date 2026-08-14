@@ -47,7 +47,7 @@ Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
 ## 7a. `ToolSpec` (`shared/tool_spec.py`)
 
-実行メタデータ (call_id, name, args, resource_scope, requires_serial, is_write) — DAG スケジューリングで使用される。実際のスケジューリングロジックは `agent/tool_scheduler.py` にある。(Explicit in code: `scripts/agent/tool_scheduler.py`)
+実行メタデータ (call_id, name, args, resource_scopes（kind接頭辞付きスコープ文字列のタプル）, requires_serial, is_write) — DAG スケジューリングで使用される。`resource_scopes` は呼び出しごとに `shared/resource_scope.py::resolve_resource_scopes()` で解決される。実際のスケジューリングロジックは `agent/tool_scheduler.py` にある。(Explicit in code: `scripts/agent/tool_scheduler.py`)
 
 Import: `from shared.tool_spec import ToolSpec`
 

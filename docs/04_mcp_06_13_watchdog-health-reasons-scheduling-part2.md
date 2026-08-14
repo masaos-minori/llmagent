@@ -57,8 +57,8 @@ grep '"error_type":"tool"' agent.log
 | 条件 | トリガー | ログ上の理由 |
 |-----------|---------|------------|
 | ツールが`requires_serial=True`を持つ | このフラグを持つ任意のツール | `requires_serial` |
-| 複数のwriteツールが同じ`resource_scope`を共有 | 同じスコープを持つ2つ以上のwriteツール | `resource_scope_conflict` |
-| `resource_scope`を持たないwriteツール | スコープメタデータを持たない任意のwriteツール | `is_write_overlap` |
+| 複数のtool呼び出しの`resource_scopes`が重複する（うち少なくとも1件はwrite） | 完全一致、またはファイルシステムスコープの祖先/子孫関係で重複する2つ以上のツール呼び出し | `resource_scope_conflict` |
+| `resource_scopes`が空のwriteツール | スコープメタデータを持たない任意のwriteツール | `is_write_overlap` |
 | ラウンド内の副作用ツール(標準実行パス) | 任意の副作用ツール | "Side-effect tool detected"としてログ記録 |
 
 直列化は意図的な安全策である — 並行書き込みによる共有リソースの破損を防ぐ。
@@ -91,13 +91,13 @@ INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
 ```
 
 これらのカウンタはエージェント再起動時にリセットされる。ツール呼び出し総数に対して
-直列化回数が多い場合、`resource_scope`アノテーションの追加や
+直列化回数が多い場合、`resource_scope_kind`/`resource_scope_keys`アノテーションの追加や
 `requires_serial=False`への見直しの候補になり得る — ただし、どのツールがそれを
 引き起こしているかを分析した上で判断すること。
 
 #### 最適化を行う前に
 
-直列化ログのデータを確認せずに`requires_serial`や`resource_scope`の値を
+直列化ログのデータを確認せずに`requires_serial`や`resource_scope_kind`/`resource_scope_keys`の値を
 変更してはならない。観測可能性(observability)レイヤーは、安全な判断を下すために
 必要なデータを提供する。
 

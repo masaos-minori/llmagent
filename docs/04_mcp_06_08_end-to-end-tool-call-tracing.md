@@ -92,7 +92,7 @@ WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s windo
 | トリガー | 条件 | 効果 |
 |---|---|---|
 | `requires_serial` | toolのメタデータに `requires_serial=true` が設定されている | そのtoolは単独で1要素だけのグループとして実行される |
-| `resource_scope_conflict` | 同じリソーススコープへの複数の書き込み | そのスコープ内のすべてのtoolが直列実行される |
+| `resource_scope_conflict` | 複数のtool呼び出しの`resource_scopes`が重複する（完全一致、またはファイルシステムスコープの祖先/子孫関係）書き込み | 重複するスコープを持つすべてのtool呼び出しが直列実行される |
 | `is_write_overlap` | 特定のスコープを持たない複数の書き込み | 書き込み系toolがすべてまとめてグループ化される（write-first） |
 
 **ログ形式:**

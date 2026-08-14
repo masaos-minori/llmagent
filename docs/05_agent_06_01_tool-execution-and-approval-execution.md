@@ -44,9 +44,14 @@ source:
 #### ルール (優先順位順に適用)
 
 1. **`requires_serial=True`** — シリアルバリアを形成し、他のすべてのツールより前に単独で実行
-2. **同一の`resource_scope` + `is_write=True`** — 同じスコープのグループ内でシリアル化
-3. **`resource_scope`のない`is_write=True`** — `write_first`グループに入る (保守的に読み取りより前に実行)
+2. **`resource_scopes`が重複する呼び出し同士（うち少なくとも1件は`is_write=True`）** — コンフリクトグラフの連結成分としてグループ化され、そのグループ内はシリアル化される（完全一致に加え、ファイルシステムスコープは祖先/子孫関係でも重複と判定される。`shared/resource_scope.py::_scopes_conflict()`）
+3. **`resource_scopes`が空の`is_write=True`** — `write_first`グループに入る (保守的に読み取りより前に実行)
 4. **その他すべて** — 末尾の並列グループ
+
+グルーピングは`agent/tool_scheduler.py::build_execution_groups()`が`call_id`をキーとする
+`ToolSpec`（`agent/tool_runner.py::_execute_with_dag()`が`RuntimeToolRegistry.tool_spec_for_call()`
+経由で呼び出しごとに構築）を対象に行う — ツール名単位ではない。同じツール名への異なる呼び出しでも
+`resource_scopes`が重複しなければ同一バッチ内で並行実行され得る。
 
 #### concurrent_groups構造
 
@@ -73,7 +78,7 @@ source:
 ## Key Constraints
 
 - DAGスケジューリングは`serial_tool_calls=False`の場合に常時有効（レガシー動作への切替不可）
-- 同一`resource_scope`を持つwriteツールの複数呼び出しは同一グループ内で並行実行される
+- `resource_scopes`が重複するwriteツールの複数呼び出しは同一グループ内で並行実行される
 
 ## Operational Notes
 

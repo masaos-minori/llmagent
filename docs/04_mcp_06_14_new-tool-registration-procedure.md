@@ -24,13 +24,20 @@ Before registering a new tool, ensure your MCP server responds to `/v1/tools` re
 - `name`: Unique tool identifier
 - `description`: Human-readable description of the tool
 - `inputSchema`: JSON Schema defining the tool's input parameters
+- `is_write`: Whether the tool performs write operations (schema-2.0 contract)
+- `requires_serial`: Whether the tool requires serialized execution (schema-2.0 contract)
+- `resource_scope_kind`: Scope-kind prefix used for conflict detection, e.g. `"filesystem"`, `"git_repo"`, or `""` for unscoped (schema-2.0 contract)
+- `resource_scope_keys`: Argument-dict keys whose values are resolved into the call's actual scope strings (schema-2.0 contract; each key must exist in `inputSchema.properties`)
+
+These four schema-2.0 fields are validated by `shared/resource_scope.py::validate_tool_schema_v2()`
+and enforced by `agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`. A tool entry
+missing any of them, or failing validation, is rejected and excluded from the built
+`RuntimeToolRegistry` — it is never silently defaulted.
 
 #### Optional fields
 
 - `status`: Tool status (e.g., "available", "degraded")
-- `is_write`: Whether the tool performs write operations
-- `requires_serial`: Whether the tool requires serialized execution
-- `resource_scope`: List of resource scopes the tool can access
+- `resource_scope`: legacy singular scope field; type-checked only if present, not required
 - `enabled`: Whether the tool is enabled for LLM use
 - `capabilities`: Tool capabilities object
 - `server_key`: Identifier for the MCP server providing the tool
@@ -71,31 +78,22 @@ uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 
 ## Metadata update paths
 
-When updating tool metadata, you must understand that there are two independent update paths:
+`/v1/tools` is now the single source of tool metadata for both runtime availability and DAG
+scheduling:
 
-### Path 1: /v1/tools metadata (runtime availability)
+- **LLM visibility / routing**: `RuntimeToolRegistry` (built by `McpToolDiscoveryService` from
+  live `/v1/tools` discovery) is the sole routing authority.
+- **DAG scheduling**: `agent/tool_runner.py::_execute_with_dag()` builds a per-call `ToolSpec`
+  via `RuntimeToolRegistry.tool_spec_for_call()`, which reads the same tool's `is_write`,
+  `requires_serial`, `resource_scope_kind`, and `resource_scope_keys` declared in `/v1/tools`.
 
-Updating `/v1/tools` response affects:
-- What tools are visible to the LLM via `/v1/tools`
-- Runtime routing decisions made by `RuntimeToolRegistry`
-- LLM visibility (enabled/disabled state)
+Updating a tool's `/v1/tools` declaration (its `TOOL_LIST` entry in the owning MCP server)
+therefore changes both what the LLM sees/routes to and how the tool is scheduled in the DAG —
+there is no separate `config/agent.toml`-driven scheduling metadata path. `config/agent.toml`'s
+`[[tool_definitions]]` only supplies the LLM-facing function-calling schema (name, description,
+parameters) and carries no scheduling metadata.
 
-This path is controlled by the MCP server's `/v1/tools` endpoint implementation.
-
-### Path 2: config/agent.toml metadata (DAG scheduling)
-
-Updating `config/agent.toml` tool definitions affects:
-- DAG scheduling metadata (`requires_serial`, `resource_scope`, `is_write`, etc.)
-- How tools execute in the DAG context
-- Shell-specific serial behavior
-
-This path is controlled by the agent configuration file.
-
-### Important: Independent updates
-
-These two update paths are **independent**. Updating `/v1/tools` metadata alone does not change DAG scheduling behavior. If you need to change both runtime availability AND DAG scheduling metadata, you must update both `/v1/tools` and `config/agent.toml` separately.
-
-See [dispatch-and-routing.md](./04_mcp_03_01_dispatch-and-routing.md#data-source-for-dag-scheduling) for details on the data source distinction.
+See [dispatch-and-routing.md](./04_mcp_03_01_dispatch-and-routing.md#data-source-for-dag-scheduling) for details.
 
 ---
 

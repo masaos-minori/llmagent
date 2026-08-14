@@ -75,24 +75,32 @@ Tools go through two distinct resolution stages before being available for execu
 
 ## Data source for DAG scheduling
 
-The DAG scheduler does NOT read from `RuntimeToolRegistry`. Instead, it reads metadata from the configured LLM tool definitions in `config/agent.toml`.
+The DAG scheduler reads its metadata from `RuntimeToolRegistry`, the same registry that
+backs routing and LLM visibility. For each approved call, `agent/tool_runner.py::_execute_with_dag()`
+builds a call-id-keyed `ToolSpec` via `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)`
+(`shared/runtime_tool_registry.py`), which resolves per-call resource scopes from the tool's
+declared `resource_scope_kind`/`resource_scope_keys` and the call's actual arguments
+(`shared/resource_scope.py::resolve_resource_scopes()`). `agent/tool_scheduler.py::build_execution_groups()`
+consumes this `dict[str, ToolSpec]` keyed by `call_id` (not tool name) and raises
+`MissingToolSpecError` if a call's `call_id` has no entry, instead of silently defaulting.
 
 ### Fields used by the DAG scheduler
 
-The following metadata fields are read from `config/agent.toml` tool definitions:
+The following `ToolSpec` fields (resolved per call from the tool's `/v1/tools` schema-2.0
+declaration) drive scheduling:
 
-- `requires_serial`: Controls whether the tool requires serialized execution
-- `resource_scope`: Determines which resources the tool can access during DAG execution
-- `is_write`: Indicates whether the tool performs write operations
-- Side-effect status: Determines if the tool is considered a side effect
-- Shell-specific serial behavior: Controls how the tool behaves in shell contexts
+- `requires_serial`: Controls whether the tool requires serialized execution (forms a solo serial-barrier group)
+- `resource_scopes`: Tuple of kind-prefixed resource-scope strings (e.g. `"filesystem:/a/b.txt"`) the call occupies; conflicting scopes across calls form a serialized conflict-graph group (`shared/resource_scope.py::_scopes_conflict()` — exact match, or ancestor/descendant for `"filesystem:"` scopes)
+- `is_write`: Indicates whether the tool performs write operations (a write tool with no resolved scope falls into the conservative `write_first` group)
 
 ### Key distinction
 
-- **RuntimeToolRegistry**: Controls routing + LLM visibility (what tools appear in `/v1/tools`)
-- **config/agent.toml**: Controls DAG scheduling metadata (how tools execute in the DAG)
+- **RuntimeToolRegistry**: Sole authority for both routing/LLM visibility (`/v1/tools`) AND DAG scheduling metadata (`ToolSpec` via `tool_spec_for_call()`).
+- **config/agent.toml `[[tool_definitions]]`**: Only the LLM-facing function-calling schema (name/description/parameters) exposed to the model; carries no scheduling metadata of its own.
 
-These two data sources are independent. Updating `/v1/tools` metadata alone does not change DAG scheduling behavior. Both `/v1/tools` and `config/agent.toml` must be updated independently when changing tool metadata.
+There is a single data source for scheduling metadata today: a tool's `/v1/tools` schema-2.0
+declaration (`is_write`, `requires_serial`, `resource_scope_kind`, `resource_scope_keys`).
+Updating `config/agent.toml`'s tool definitions does not affect DAG scheduling.
 
 ---
 
@@ -163,7 +171,10 @@ web_search）に一般化している。ディスパッチテーブルの実体�
 ① スキーマ定義        各サーバーの tools.py::TOOL_LIST — LLM に公開する名前・入力スキーマ
 ② 実行時ディスパッチ    server.py の _DISPATCH_TABLE、または service.get_dispatch_table()
 ③ レジストリ登録       shared/tool_constants.py の frozenset → shared/tool_registry.py（ドリフト検出用）; ルーティングは shared/runtime_tool_registry.py の RuntimeToolRegistry が唯一の権威
-④ 副作用検出          shared/tool_executor_helpers.py::is_side_effect() — バッチ実行の並列/直列判定に使用
+④ 副作用検出          標準実行パス（`serial_tool_calls=True`）: agent/tool_runner.py::_execute_standard() が
+                      RuntimeToolRegistry 登録済みの is_write を参照してバッチの並列/直列を判定
+                      （未登録ツールは保守的に True 扱い）。shared/tool_executor_helpers.py::is_side_effect()
+                      は別用途（shared/tool_executor.py の TTL キャッシュのバイパス判定）で存続
 ⑤ リスク分類・承認    agent/tool_policy.py::classify_operation_type() / classify_risk()
                       — 優先順位: approval_risk_rules → tool_safety_tiers → tool_constants.py 分類
 ⑥ 監査ログ           agent/tool_audit.py — classify_operation_type() の結果を operation_type として記録
@@ -187,8 +198,8 @@ web_search）に一般化している。ディスパッチテーブルの実体�
 
 | メカニズム | 所在 | 粒度 |
 |---|---|---|
-| `is_side_effect()` によるバッチ単位のダウングレード | `shared/tool_executor_helpers.py` | バッチ内に副作用ツールが1つでもあれば、バッチ全体を並列実行から直列実行にフォールバックする |
-| `ToolSpec.requires_serial` によるツール単位のフラグ | `agent/tool_scheduler.py::build_execution_groups()` | 個々のツール（現状は MDQ の `index_paths`/`refresh_index` のみ）を単独のシリアルバリアグループとして強制する |
+| 標準実行パスのバッチ単位ダウングレード（`serial_tool_calls=True`時のみ経路が有効） | `agent/tool_runner.py::_execute_standard()`（RuntimeToolRegistry の `is_write` を参照。未登録ツールは保守的に True） | バッチ内に write ツールが1つでもあれば、バッチ全体を並列実行から直列実行にフォールバックする |
+| `ToolSpec.requires_serial` によるツール単位のフラグ | `agent/tool_scheduler.py::build_execution_groups()` | 個々のツール（現状は MDQ の `index_paths`/`refresh_index`、shell の `shell_run` など）を単独のシリアルバリアグループとして強制する |
 
 この2つを1つのメカニズムに統合すべきかどうかは、本ドキュメント更新の時点では
 **未解決のオープンな設計課題**である。統合する/しないの判断は別タスクとして
