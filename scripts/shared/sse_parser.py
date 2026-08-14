@@ -26,6 +26,10 @@ class RobustSSEParser:
 
     def __init__(self, malformed_retry: int, heartbeat_timeout: float) -> None:
         """Initialize with malformed retry budget and heartbeat timeout duration."""
+        if malformed_retry < 0:
+            raise ValueError(f"malformed_retry must be >= 0, got {malformed_retry}")
+        if heartbeat_timeout < 0:
+            raise ValueError(f"heartbeat_timeout must be >= 0, got {heartbeat_timeout}")
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self._buf = ""
         self._malformed_retry = malformed_retry
@@ -86,7 +90,7 @@ class RobustSSEParser:
         try:
             orjson.loads(payload)
             return True
-        except (orjson.JSONDecodeError, ValueError):
+        except ValueError:
             self._malformed_count += 1
             self.stat_parse_errors += 1
             if self._malformed_count > self._malformed_retry:

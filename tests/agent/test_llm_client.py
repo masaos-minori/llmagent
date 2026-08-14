@@ -161,6 +161,18 @@ class TestRobustSSEParserFeed:
         assert len(payloads2) == 1
         assert is_done2 is False
 
+    def test_negative_malformed_retry_raises(self) -> None:
+        with pytest.raises(ValueError, match="malformed_retry"):
+            RobustSSEParser(malformed_retry=-1, heartbeat_timeout=0.0)
+
+    def test_negative_heartbeat_timeout_raises(self) -> None:
+        with pytest.raises(ValueError, match="heartbeat_timeout"):
+            RobustSSEParser(malformed_retry=0, heartbeat_timeout=-1.0)
+
+    def test_zero_boundary_constructs_successfully(self) -> None:
+        parser = RobustSSEParser(malformed_retry=0, heartbeat_timeout=0.0)
+        assert parser is not None
+
 
 class TestRobustSSEParserHeartbeat:
     def test_no_timeout_when_disabled(self) -> None:
