@@ -187,10 +187,15 @@ class ToolConfig:
     tool_result_max_llm_chars: int = 8000
     # Max total chars of all tool results within one turn
     tool_results_turn_max_chars: int = 50000
-    # Fallback/test-fixture-only static tool schema list; not the runtime source once
-    # RuntimeToolRegistry (shared/runtime_tool_registry.py) is populated from live /v1/tools
-    # (requirement 05). Retained as: (a) a fallback if the registry construction is empty/unavailable
-    # and (b) the shape template for test fixtures.
+    # Compatibility-only static tool schema list; RuntimeToolRegistry
+    # (shared/runtime_tool_registry.py), populated from live /v1/tools, is the sole
+    # runtime authority for tool validation/scheduling/approval/execution (no fallback
+    # to this field remains in that path). Retained for: (a) startup drift validation
+    # against /v1/tools (agent/repl_health.py) and (b) the shape template for test
+    # fixtures. Still read at runtime by
+    # agent/llm_turn_runner.py::_filter_disabled_tool_definitions() to build the
+    # LLM-facing tool list (filtered by registry visibility) — a separate, narrower use
+    # not covered by this note.
     tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""
