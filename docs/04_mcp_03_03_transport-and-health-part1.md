@@ -32,7 +32,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - 全てのトランスポートレベルの障害（タイムアウト、HTTP 非 2xx、不正な形式のレスポンス、リトライ消尽）で `TransportError` を発生させる; `is_error=True` を直接返すことはない
 - トランスポートエラーハンドラーが `TransportError` を捕捉し、`ToolCallResult(error_type="transport")` に変換する
 - `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する（`ToolTransportInvoker` 経由）
-- **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。
+- **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。全リトライ消尽時の `TransportError` メッセージ(`"[Retry exhausted] ..."`)には、最後に捕捉した例外の内容（型・ステータスコード等）が末尾に付加される。
 - **リトライ不可のエラー:** HTTP タイムアウト（`httpx.TimeoutException`）と、429/502/503/504 以外のステータスコードによる HTTPStatusError は、リトライなしで即時に伝播する。
 - **ツールレベルエラー vs トランスポートレベルエラー:** ツールレベルのエラー（`error_type == "tool"`）はトランスポート呼び出しの成功として扱われ、`record_success()` と `stat_tool_errors` カウンターのインクリメントをトリガーする。トランスポートレベルのエラーは `record_failure()` と `stat_transport_errors` カウンターのインクリメントをトリガーする。両カウンターは独立して追跡される。
 - **レスポンスパース:** `_handle_call_tool_response()` メソッド内で `parse_http_json(resp)` を使用して httpx.Response から JSON データをデコードする。`parse_http_json` は `shared/json_utils.py` で定義され、`resp.json()` のラッパーとして機能する。旧版では `orjson.loads(resp.content)` を直接使用していた。

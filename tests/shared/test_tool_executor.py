@@ -332,6 +332,28 @@ class TestHttpTransportRetry:
         assert call_count == 1
 
     @pytest.mark.asyncio
+    async def test_non_retryable_400_status_not_retried(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    400, request=req, json={"result": "", "is_error": True}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8080",
+            server_key="test",
+        )
+        with pytest.raises(TransportError):
+            await transport.call("write_file", {"path": "a"})
+        assert call_count == 1
+
+    @pytest.mark.asyncio
     async def test_retry_delay_values_via_sleep_mock(self) -> None:
         sleep_calls: list[float] = []
 

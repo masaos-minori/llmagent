@@ -142,12 +142,16 @@ class HttpTransport:
                     name,
                     "[HTTPStatusError]",
                     f"status={e.response.status_code} response={e.response.text[:300]!r}",
+                    break_flag=e.response.status_code not in self._RETRYABLE_STATUS,
                     health_check=False,
                 )
             except (httpx.RequestError, ValueError) as e:
                 last_exc = self._transport_error(name, f"[{type(e).__name__}]", str(e))
         else:
-            msg = f"[Retry exhausted] tool={name} url={self._base_url} after {self._RETRY_MAX} attempts"
+            msg = (
+                f"[Retry exhausted] tool={name} url={self._base_url} "
+                f"after {self._RETRY_MAX} attempts: {last_exc}"
+            )
             logger.error(msg)
             raise TransportError(msg)
         raise last_exc or TransportError(f"call failed: {name}")
