@@ -18,7 +18,9 @@ class ToolSpec:
         call_id:        LLM-assigned tool call id (from tool_calls[].id)
         name:           Tool function name
         args:           Parsed argument dict
-        resource_scope: Resource path/branch string for conflict detection ("" if none)
+        resource_scopes: Tuple of kind-prefixed resource-scope strings for conflict
+                        detection (empty tuple if none; see shared.resource_scope for
+                        the string shape).
         requires_serial: True when the tool must not run concurrently with others
         is_write:       True when the tool has write/delete side effects
     """
@@ -26,6 +28,6 @@ class ToolSpec:
     call_id: str
     name: str
     args: dict[str, Any] = field(default_factory=dict)
-    resource_scope: str = ""
+    resource_scopes: tuple[str, ...] = ()
     requires_serial: bool = False
     is_write: bool = False

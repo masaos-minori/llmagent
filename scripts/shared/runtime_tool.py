@@ -41,7 +41,10 @@ class RuntimeTool:
         status:            Server-reported tool status (e.g. "active").
         is_write:          True when the tool has write/delete side effects.
         requires_serial:   True when the tool must not run concurrently with others.
-        resource_scope:    Resource path/branch string for conflict detection ("" if none).
+        resource_scope_kind: Scope-kind prefix used by resolve_resource_scopes() (e.g.
+                            "filesystem", "git_repo"; "" if unscoped).
+        resource_scope_keys: Argument-dict keys whose values feed the resolved scope
+                            string(s); empty tuple if none.
         agent_safety_tier: Safety tier used for approval-risk classification.
         requires_approval: True when the tool requires explicit user approval before execution.
         enabled_for_llm:   True when the tool is exposed to the LLM's tool-calling surface.
@@ -59,7 +62,8 @@ class RuntimeTool:
     status: str
     is_write: bool
     requires_serial: bool
-    resource_scope: str
+    resource_scope_kind: str
+    resource_scope_keys: tuple[str, ...]
     agent_safety_tier: AgentSafetyTier
     requires_approval: bool
     enabled_for_llm: bool
@@ -77,7 +81,8 @@ def build_runtime_tool(
     status: str = "active",
     is_write: bool | None = None,
     requires_serial: bool | None = None,
-    resource_scope: str = "",
+    resource_scope_kind: str = "",
+    resource_scope_keys: tuple[str, ...] | None = None,
     agent_safety_tier: AgentSafetyTier | None = None,
     requires_approval: bool | None = None,
     enabled_for_llm: bool | None = None,
@@ -95,6 +100,7 @@ def build_runtime_tool(
         - `requires_approval` defaults to `True`.
         - `enabled_for_llm` defaults to `False`.
         - `capabilities` defaults to an empty tuple when not explicitly supplied.
+        - `resource_scope_keys` defaults to an empty tuple when not explicitly supplied.
         - `allow_extra_fields` defaults to False — extra/unschemad fields are rejected
           unless a tool explicitly opts in.
     """
@@ -111,6 +117,7 @@ def build_runtime_tool(
     resolved_requires_approval = _or_default(requires_approval, True)
     resolved_enabled_for_llm = _or_default(enabled_for_llm, False)
     resolved_capabilities = _or_default(capabilities, ())
+    resolved_resource_scope_keys = _or_default(resource_scope_keys, ())
     resolved_allow_extra_fields = _or_default(allow_extra_fields, False)
 
     return RuntimeTool(
@@ -123,7 +130,8 @@ def build_runtime_tool(
         status=status,
         is_write=resolved_is_write,
         requires_serial=resolved_requires_serial,
-        resource_scope=resource_scope,
+        resource_scope_kind=resource_scope_kind,
+        resource_scope_keys=resolved_resource_scope_keys,
         agent_safety_tier=resolved_agent_safety_tier,
         requires_approval=resolved_requires_approval,
         enabled_for_llm=resolved_enabled_for_llm,

@@ -27,7 +27,8 @@ class TestRuntimeTool:
             status="active",
             is_write=True,
             requires_serial=True,
-            resource_scope="delete_file",
+            resource_scope_kind="filesystem",
+            resource_scope_keys=("path",),
             agent_safety_tier="WRITE_DANGEROUS",
             requires_approval=True,
             enabled_for_llm=True,
@@ -41,7 +42,8 @@ class TestRuntimeTool:
         assert tool.status == "active"
         assert tool.is_write is True
         assert tool.requires_serial is True
-        assert tool.resource_scope == "delete_file"
+        assert tool.resource_scope_kind == "filesystem"
+        assert tool.resource_scope_keys == ("path",)
         assert tool.agent_safety_tier == "WRITE_DANGEROUS"
         assert tool.requires_approval is True
         assert tool.enabled_for_llm is True
@@ -98,6 +100,20 @@ class TestRuntimeTool:
             name="t", server_key="s", capabilities=("read", "write")
         )
         assert tool.capabilities == ("read", "write")
+
+    def test_resource_scope_kind_defaults_to_empty_string(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s")
+        assert tool.resource_scope_kind == ""
+
+    def test_resource_scope_keys_defaults_to_empty_tuple(self) -> None:
+        tool = build_runtime_tool(name="t", server_key="s")
+        assert tool.resource_scope_keys == ()
+
+    def test_resource_scope_keys_stored_as_tuple_from_sequence(self) -> None:
+        tool = build_runtime_tool(
+            name="t", server_key="s", resource_scope_keys=("path", "destination")
+        )
+        assert tool.resource_scope_keys == ("path", "destination")
 
     def test_allow_extra_fields_defaults_to_false(self) -> None:
         tool = build_runtime_tool(name="t", server_key="s")
