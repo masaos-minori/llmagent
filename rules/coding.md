@@ -86,6 +86,17 @@ result = subprocess.run(cmd)  # nosec B603 — cmd is a validated static list, n
 - Use `orjson` (not stdlib `json`) for all JSON serialization — `orjson.dumps()` returns `bytes`; call `.decode()` when a `str` is required; use `option=orjson.OPT_SORT_KEYS` / `OPT_INDENT_2` instead of `sort_keys=True` / `indent=2`
 - Use `httpx` (not `requests`) for HTTP — `httpx.Client` for sync, `httpx.AsyncClient` for async
 
+## Logging convention
+
+- A module-level `logger = logging.getLogger(__name__)` may be declared ahead of the module
+  having any call site for it — this is accepted, intentional boilerplate anticipating
+  near-future use, not dead code.
+- Dead-code tooling (`vulture`, manual review, refactor passes) must not flag or remove an
+  unused module-level `logger` declaration on this basis alone.
+- The exemption is scoped narrowly to this exact `logger = logging.getLogger(__name__)`
+  pattern — it does not extend to other unused module-level names (imports, constants,
+  functions), which remain subject to normal dead-code review.
+
 ## mypy note
 
 `warn_unused_ignores = true` is set in `pyproject.toml` — any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run.
