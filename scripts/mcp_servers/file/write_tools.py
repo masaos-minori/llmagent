@@ -32,6 +32,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["path"],
     },
     {
         "name": "edit_file",
@@ -70,6 +74,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["path"],
     },
     {
         "name": "create_directory",
@@ -90,6 +98,10 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["path"],
     },
     {
         "name": "move_file",
@@ -114,5 +126,9 @@ TOOL_LIST: list[dict[str, Any]] = [
         },
         "status": "production",
         "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["source", "destination"],
     },
 ]

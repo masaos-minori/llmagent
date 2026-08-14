@@ -34,6 +34,10 @@ TOOL_LIST: list[dict] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "github_repo",
+        "resource_scope_keys": ["owner", "repo"],
     },
     {
         "name": "github_create_or_update_file",
@@ -67,6 +71,10 @@ TOOL_LIST: list[dict] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "github_repo",
+        "resource_scope_keys": ["owner", "repo"],
     },
     {
         "name": "github_push_files",
@@ -107,6 +115,10 @@ TOOL_LIST: list[dict] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "github_repo",
+        "resource_scope_keys": ["owner", "repo"],
     },
     {
         "name": "github_delete_file",
@@ -136,5 +148,9 @@ TOOL_LIST: list[dict] = [
         },
         "status": "production",
         "config_dependent": True,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "github_repo",
+        "resource_scope_keys": ["owner", "repo"],
     },
 ]

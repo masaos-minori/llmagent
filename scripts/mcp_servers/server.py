@@ -32,7 +32,18 @@ MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 
 # Schema version advertised in each server's /v1/tools response; bump when the
 # tool-schema shape changes in a way that matters to Agent-side discovery/validation.
+# See TOOL_SCHEMA_V2_FIELDS below for the separate per-tool schema-2.0 field set.
 MCP_TOOL_SCHEMA_VERSION: str = "1.0"
+
+# Per-tool schema-2.0 metadata field names (distinct from the envelope version
+# above): every TOOL_LIST entry across all 10 MCP servers must declare these 4
+# fields. See scripts/shared/resource_scope.py for the validator that enforces this.
+TOOL_SCHEMA_V2_FIELDS: tuple[str, ...] = (
+    "is_write",
+    "requires_serial",
+    "resource_scope_kind",
+    "resource_scope_keys",
+)
 
 
 class _FastAPIApp(Protocol):
@@ -196,6 +207,11 @@ def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any
 
     Callable directly from each server's module-level FastAPI route handler (no MCPServer
     instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
+
+    Note: the returned "schema_version" describes the envelope shape only (this dict's
+    own top-level keys). The per-tool is_write/requires_serial/resource_scope_kind/
+    resource_scope_keys fields (see TOOL_SCHEMA_V2_FIELDS) are a separate, per-entry
+    contract validated by each server's own TOOL_LIST, not by this function.
     """
     return {
         "schema_version": MCP_TOOL_SCHEMA_VERSION,
