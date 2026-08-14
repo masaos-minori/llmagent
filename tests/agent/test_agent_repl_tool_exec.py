@@ -325,9 +325,43 @@ def _make_tool_call(name: str, call_id: str = "id1") -> dict:
     return {"id": call_id, "function": {"name": name, "arguments": "{}"}}
 
 
+def _runtime_tools_for_dag(is_write_by_name: dict[str, bool]) -> MagicMock:
+    """Stub RuntimeToolRegistry for agent.tool_preparation.prepare_tool_calls(),
+
+    which now runs unconditionally inside execute_all_tool_calls() before
+    these tests' mocked run_approval_checks()/execute_one_tool_call() ever
+    see a call. Provides a permissive empty schema (so argument validation
+    passes) and the given is_write per tool name (so DAG scheduling orders
+    correctly).
+    """
+    from shared.tool_spec import ToolSpec
+
+    registry = MagicMock()
+
+    def _get(name: str) -> MagicMock:
+        tool = MagicMock()
+        tool.is_write = is_write_by_name.get(name, False)
+        tool.input_schema = {}
+        tool.allow_extra_fields = True
+        return tool
+
+    def _spec_for_call(call_id: str, name: str, args: dict) -> ToolSpec:
+        return ToolSpec(
+            call_id=call_id,
+            name=name,
+            args=args,
+            is_write=is_write_by_name.get(name, False),
+        )
+
+    registry.get = MagicMock(side_effect=_get)
+    registry.tool_spec_for_call = MagicMock(side_effect=_spec_for_call)
+    return registry
+
+
 def _make_ctx_for_dag(
     *,
     serial_tool_calls: bool = False,
+    is_write_by_name: dict[str, bool] | None = None,
 ) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg.tool.serial_tool_calls = serial_tool_calls
@@ -337,6 +371,7 @@ def _make_ctx_for_dag(
     ctx.conv.history = []
     ctx.services = MagicMock()
     ctx.services_required.gateway = None
+    ctx.services_required.runtime_tools = _runtime_tools_for_dag(is_write_by_name or {})
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()
     return ctx
@@ -354,17 +389,17 @@ async def test_dag_write_executed_before_read() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, tc, turn):
-        name = tc["function"]["name"]
+    async def fake_execute_one(ctx, pc, turn):
+        name = pc.name
         execution_order.append(name)
         return MagicMock(
-            tool_call_id=tc["id"],
+            tool_call_id=pc.call_id,
             content="ok",
             is_error=False,
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag()
+    ctx = _make_ctx_for_dag(is_write_by_name={"write_file": True, "read_file": False})
 
     with (
         patch(
@@ -375,7 +410,7 @@ async def test_dag_write_executed_before_read() -> None:
         patch(
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
-            return_value=([write_call, read_call], []),
+            side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
@@ -395,17 +430,20 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, tc, turn):
-        name = tc["function"]["name"]
+    async def fake_execute_one(ctx, pc, turn):
+        name = pc.name
         execution_order.append(name)
         return MagicMock(
-            tool_call_id=tc["id"],
+            tool_call_id=pc.call_id,
             content="ok",
             is_error=False,
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag(serial_tool_calls=True)
+    ctx = _make_ctx_for_dag(
+        serial_tool_calls=True,
+        is_write_by_name={"write_file": True, "read_file": False},
+    )
 
     with (
         patch(
@@ -416,7 +454,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
         patch(
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
-            return_value=([write_call, read_call], []),
+            side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
@@ -438,17 +476,17 @@ async def test_parallel_execution_without_side_effects() -> None:
     read_call1 = _make_tool_call("read_file", "r1")
     read_call2 = _make_tool_call("read_file", "r2")
 
-    async def fake_execute_one(ctx, tc, turn):
-        name = tc["function"]["name"]
-        execution_order.append(tc["id"])
+    async def fake_execute_one(ctx, pc, turn):
+        name = pc.name
+        execution_order.append(pc.call_id)
         return MagicMock(
-            tool_call_id=tc["id"],
+            tool_call_id=pc.call_id,
             content="ok",
             is_error=False,
             tool_name=name,
         )
 
-    ctx = _make_ctx_for_dag()
+    ctx = _make_ctx_for_dag(is_write_by_name={"read_file": False})
 
     with (
         patch(
@@ -459,7 +497,7 @@ async def test_parallel_execution_without_side_effects() -> None:
         patch(
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
-            return_value=([read_call1, read_call2], []),
+            side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
         await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)

@@ -15,7 +15,6 @@ import time
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import orjson
 from shared.json_utils import (
     dumps as _json_dumps,
 )
@@ -24,13 +23,12 @@ from shared.json_utils import (
 )
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
-from shared.transport_dto import ToolCallResult
 from shared.types import LLMMessage
 
-from agent.tool_arg_validator import validate_tool_arguments
 from agent.tool_audit import audit_tool_exec, write_round_exec
-from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
+from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
+from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from agent.tool_result_formatter import (
     mask_args,
     turn_limit_hint,
@@ -73,7 +71,7 @@ _TOOL_RESULT_MAX_CHARS = 500
 
 
 async def _run_group_calls(
-    group: list[dict],
+    group: list[PreparedToolCall],
     serialize: bool,
     ctx: AgentContext,
     turn: int,
@@ -81,104 +79,34 @@ async def _run_group_calls(
     """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise."""
     if serialize:
         results: list[Any] = []
-        for tc in group:
-            results.append(await execute_one_tool_call(ctx, tc, turn))
+        for pc in group:
+            results.append(await execute_one_tool_call(ctx, pc, turn))
         return results
     return list(
-        await asyncio.gather(*(execute_one_tool_call(ctx, tc, turn) for tc in group))
+        await asyncio.gather(*(execute_one_tool_call(ctx, pc, turn) for pc in group))
     )
-
-
-def _reject_validation(name: str, reason: str) -> ToolCallResult:
-    """Build the synthetic error ToolCallResult for a failed argument validation."""
-    logger.warning("tool_arg_validation_rejected tool=%r reason=%s", name, reason)
-    return ToolCallResult(
-        output=reason,
-        is_error=True,
-        request_id="",
-        server_key="",
-        source="validation",
-        error_type="validation",
-    )
-
-
-def _validate_tool_args(
-    ctx: AgentContext, name: str, args: dict
-) -> ToolCallResult | None:
-    """Validate tool call arguments against the registered RuntimeTool's input_schema.
-
-    Returns None for every lenient-fallback case (no registry, tool not
-    registered, schema absent/passes) and a synthetic error ToolCallResult
-    only on an actual validation failure.
-
-    If the RuntimeTool registry does not contain the tool, falls back to
-    validating against ctx.cfg.tool.tool_definitions so read operations
-    (which may not be in the registry) also get validated.
-    """
-    registry = ctx.services_required.runtime_tools
-    if registry is not None:
-        try:
-            runtime_tool = registry.get(name)
-            result = validate_tool_arguments(
-                tool_name=name,
-                args=args,
-                input_schema=runtime_tool.input_schema,
-                allow_extra_fields=runtime_tool.allow_extra_fields,
-            )
-            if result.success:
-                return None
-            return _reject_validation(name, result.reason)
-        except KeyError:
-            pass  # Fall through to gateway fallback
-
-    # Gateway fallback: check cfg.tool.tool_definitions
-    for td in ctx.cfg.tool.tool_definitions:
-        if td.get("name") == name:
-            input_schema = td.get("inputSchema") or {}
-            allow_extra = False
-            if isinstance(td.get("inputSchema"), dict):
-                allow_extra = bool(td["inputSchema"].get("allowExtraFields", False))
-            result = validate_tool_arguments(
-                tool_name=name,
-                args=args,
-                input_schema=input_schema,
-                allow_extra_fields=allow_extra,
-            )
-            if result.success:
-                return None
-            return _reject_validation(name, result.reason)
-    return None
 
 
 async def execute_one_tool_call(
     ctx: AgentContext,
-    tc: dict,
+    pc: PreparedToolCall,
     turn: int,
 ) -> tuple[str, str, dict, str, bool, str]:
-    """Parse, execute, and truncate one tool_call dict.
+    """Execute and truncate one already-prepared tool call.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
     Raises ToolExecutorUnavailableError when ctx.services_required.tools is None.
-    Raises ToolArgumentsDecodeError when arguments JSON is malformed.
+    Argument parsing and validation already happened in the preparation phase
+    (agent.tool_preparation.prepare_tool_calls) before this function is ever called.
     """
     if ctx.services_required.tools is None:
         raise ToolExecutorUnavailableError(
             "Tool executor is not available (ctx.services_required.tools is None)"
         )
-    func = tc["function"]
-    name = func["name"]
-    args_str = func.get("arguments", "{}")
-    try:
-        args = orjson.loads(args_str)
-    except orjson.JSONDecodeError as e:
-        raise ToolArgumentsDecodeError(
-            f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
-        ) from e
+    name = pc.name
+    args = pc.args
 
-    validation_error = _validate_tool_args(ctx, name, args)
-    if validation_error is not None:
-        result = validation_error
-    elif ctx.services_required.gateway is not None:
+    if ctx.services_required.gateway is not None:
         result = await ctx.services_required.gateway.execute(ctx, name, args)
     else:
         result = await ctx.services_required.tools.execute(name, args)
@@ -205,7 +133,7 @@ async def execute_one_tool_call(
         else text
     )
 
-    return tc["id"], name, args, text, is_error, llm_text
+    return pc.call_id, name, args, text, is_error, llm_text
 
 
 def _collect_tool_result_msgs(
@@ -291,49 +219,37 @@ def _apply_turn_char_limit(
 
 async def _execute_with_dag(
     ctx: AgentContext,
-    approved_calls: list[dict],
+    approved_calls: list[PreparedToolCall],
     turn: int,
 ) -> list[Any]:
     """Run approved calls using resource-scoped dependency groups.
 
     Delegates to build_execution_groups which handles write-first ordering
-    for tools without resource_scope metadata.
+    for tools without resource_scope metadata. Scheduling metadata comes
+    entirely from each PreparedToolCall.spec (already resolved via
+    RuntimeToolRegistry.tool_spec_for_call() during the preparation phase) —
+    this function performs no registry lookups of its own.
     """
-    runtime_tools = ctx.services_required.runtime_tools
-    if runtime_tools is None:
-        raise ToolExecutorUnavailableError(
-            "RuntimeToolRegistry is not available "
-            "(ctx.services_required.runtime_tools is None)"
-        )
-    tool_meta: dict[str, ToolSpec] = {}
-    for tc in approved_calls:
-        func = tc["function"]
-        name = func["name"]
-        args_str = func.get("arguments", "{}")
-        try:
-            args = orjson.loads(args_str)
-        except orjson.JSONDecodeError as e:
-            raise ToolArgumentsDecodeError(
-                f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
-            ) from e
-        tool_meta[tc["id"]] = runtime_tools.tool_spec_for_call(tc["id"], name, args)
+    tool_meta: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
+    pc_by_id: dict[str, PreparedToolCall] = {pc.call_id: pc for pc in approved_calls}
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
-    _groups, metadata = build_execution_groups(approved_calls, tool_meta)
+    _groups, metadata = build_execution_groups(
+        [pc.original_call for pc in approved_calls], tool_meta
+    )
     if logger.isEnabledFor(logging.DEBUG):
-        for _tc in approved_calls:
-            _n = _tc["function"]["name"]
-            _m = tool_meta.get(_tc["id"])
-            if _m is not None and _m.requires_serial:
+        for _pc in approved_calls:
+            _m = _pc.spec
+            if _m.requires_serial:
                 _bucket = "serial_barrier"
-            elif _m is not None and _m.is_write and _m.resource_scopes:
+            elif _m.is_write and _m.resource_scopes:
                 _bucket = f"resource_scope:{','.join(_m.resource_scopes)}"
-            elif _m is not None and _m.is_write:
+            elif _m.is_write:
                 _bucket = "write_first"
             else:
                 _bucket = "parallel"
-            logger.debug("DAG_BUCKET: %s → %s", _n, _bucket)
+            logger.debug("DAG_BUCKET: %s → %s", _pc.name, _bucket)
     serialization_events = metadata.serialization_events
     if serialization_events:
         total_affected = sum(e.tools_count for e in serialization_events)
@@ -347,7 +263,7 @@ async def _execute_with_dag(
     else:
         _serialization_stats["tools_affected_last_round"] = 0
 
-    call_order = {tc["id"]: i for i, tc in enumerate(approved_calls)}
+    call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
     results: list[Any] = []
     for batch in metadata.concurrent_groups:
         is_concurrent = len(batch.groups) > 1
@@ -356,10 +272,11 @@ async def _execute_with_dag(
             len(batch.groups),
             "concurrently" if is_concurrent else "sequentially",
         )
+        pc_groups = [[pc_by_id[tc["id"]] for tc in group] for group in batch.groups]
         batch_results = await asyncio.gather(
             *(
                 _run_group_calls(group, serialize, ctx, turn)
-                for group, serialize in zip(batch.groups, batch.serialize_flags)
+                for group, serialize in zip(pc_groups, batch.serialize_flags)
             )
         )
         results.extend(r for group_res in batch_results for r in group_res)
@@ -406,7 +323,7 @@ async def _execute_with_dag(
         if serialization_events
         else None,
         elapsed_ms=elapsed_ms,
-        affected_tools=[tc["function"]["name"] for tc in approved_calls],
+        affected_tools=[pc.name for pc in approved_calls],
         serial_reason=serialization_events[0].reason if serialization_events else None,
         scheduling_mode=scheduling_mode,
     )
@@ -415,27 +332,22 @@ async def _execute_with_dag(
 
 async def _execute_standard(
     ctx: AgentContext,
-    approved_calls: list[dict],
+    approved_calls: list[PreparedToolCall],
     turn: int,
 ) -> list[Any]:
-    """Run approved calls in parallel, or serially when side effects are detected."""
+    """Run approved calls in parallel, or serially when side effects are detected.
+
+    is_write comes from each PreparedToolCall.spec (already resolved via
+    RuntimeToolRegistry during preparation) — no registry lookup here.
+    """
     round_id = str(uuid4())
     t0 = time.perf_counter()
     has_side_effect = False
     trigger_tool: str | None = None
-    runtime_tools = ctx.services_required.runtime_tools
-    for tc in approved_calls:
-        name = tc["function"]["name"]
-        if runtime_tools is not None:
-            try:
-                is_write = runtime_tools.get(name).is_write
-            except KeyError:
-                is_write = True
-        else:
-            is_write = True
-        if is_write:
+    for pc in approved_calls:
+        if pc.spec.is_write:
             has_side_effect = True
-            trigger_tool = name
+            trigger_tool = pc.name
             break
     use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
     mode = "serial" if use_serial else "parallel"
@@ -444,20 +356,20 @@ async def _execute_standard(
         if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
             logger.info(
                 "Side-effect tool detected; downgrading to serial execution (%s)",
-                [tc["function"]["name"] for tc in approved_calls],
+                [pc.name for pc in approved_calls],
             )
         if use_serial and has_side_effect:
             ctx.services_required.serialization_events += 1
             ctx.services_required.serialization_tools_affected += len(approved_calls)
         results: list[Any] = []
-        for tc in approved_calls:
+        for pc in approved_calls:
             t_tool = time.perf_counter()
-            results.append(await execute_one_tool_call(ctx, tc, turn))
-            tool_timings[tc["function"]["name"]] = (time.perf_counter() - t_tool) * 1000
+            results.append(await execute_one_tool_call(ctx, pc, turn))
+            tool_timings[pc.name] = (time.perf_counter() - t_tool) * 1000
     else:
         results = list(
             await asyncio.gather(
-                *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
+                *(execute_one_tool_call(ctx, pc, turn) for pc in approved_calls),
             ),
         )
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -467,7 +379,7 @@ async def _execute_standard(
         serial_overhead = _compute_serial_overhead(elapsed_ms, estimated_parallel_ms)
         round_event: dict[str, Any] = {
             "trigger_tool": trigger_tool,
-            "affected_tools": [tc["function"]["name"] for tc in approved_calls],
+            "affected_tools": [pc.name for pc in approved_calls],
             "affected_count": len(approved_calls),
             "mode": "serial",
             "serial_reason": "side_effect",
@@ -498,7 +410,7 @@ async def _execute_standard(
         has_side_effect=has_side_effect,
         trigger_tool=trigger_tool,
         elapsed_ms=elapsed_ms,
-        affected_tools=[tc["function"]["name"] for tc in approved_calls],
+        affected_tools=[pc.name for pc in approved_calls],
         serial_reason="side_effect" if has_side_effect else None,
         estimated_parallel_ms=estimated_parallel_ms,
     )
@@ -515,15 +427,21 @@ async def execute_all_tool_calls(
 
     DAG-scheduled (resource-scoped parallelism) by default; downgrades to
     fully serial execution when ctx.cfg.tool.serial_tool_calls is set.
-    Approval checks are enforced before execution — denied tool calls are
-    returned as tool messages with a denial reason.
+    Every raw tool call is prepared (parsed, resolved against
+    RuntimeToolRegistry, and argument-validated) before approval — a call
+    that fails preparation never reaches the approval gate, DAG planning, or
+    execution. Approval checks are enforced before execution — denied tool
+    calls are returned as tool messages with a denial reason.
     """
     if not tool_calls:
         ctx.session.save_many([])
         return
 
+    # Fail-closed preparation phase: parse/resolve/validate before approval.
+    prepared, prep_failures = prepare_tool_calls(ctx, tool_calls)
+
     # Enforce approval checks before any execution
-    approved_calls, denied_ids = await _run_approval_gate(ctx, tool_calls)
+    approved_calls, denied_ids = await _run_approval_gate(ctx, prepared)
 
     if approved_calls:
         if not ctx.cfg.tool.serial_tool_calls:
@@ -532,6 +450,12 @@ async def execute_all_tool_calls(
             results = await _execute_standard(ctx, approved_calls, turn)
     else:
         results = []
+
+    # Merge preparation failures back into original batch order alongside
+    # successful execution results (denied calls are handled separately below).
+    call_order = {tc["id"]: i for i, tc in enumerate(tool_calls)}
+    results = list(results) + list(prep_failures)
+    results.sort(key=lambda r: call_order.get(r[0], 0))
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     denied_history, denied_msgs = _build_denied_messages(denied_ids)
@@ -542,12 +466,12 @@ async def execute_all_tool_calls(
 
 async def _run_approval_gate(
     ctx: AgentContext,
-    tool_calls: list[dict],
-) -> tuple[list[dict], list[str]]:
+    prepared: list[PreparedToolCall],
+) -> tuple[list[PreparedToolCall], list[str]]:
     """Run approval checks and return (approved_calls, denied_ids).
 
-    This is the sole per-tool-call approval gate for the batch: every tool
-    call in `tool_calls` is checked here, exactly once, before any of it
+    This is the sole per-tool-call approval gate for the batch: every prepared
+    tool call in `prepared` is checked here, exactly once, before any of it
     reaches execution. Calls that pass (`approved_calls`) proceed straight
     to execution — including through `RepositoryGateway` for write/delete/
     API-write tools — without any further approval check performed anywhere
@@ -555,7 +479,7 @@ async def _run_approval_gate(
     """
     from agent.tool_approval import run_approval_checks
 
-    return await run_approval_checks(ctx, tool_calls)
+    return await run_approval_checks(ctx, prepared)
 
 
 def _build_denied_messages(

@@ -651,12 +651,9 @@ class TestExecuteOneToolCall:
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
 
-        tc = {
-            "id": "call_1",
-            "function": {"name": "read_text_file", "arguments": '{"path": "/tmp/f"}'},
-        }
+        pc = _pc("read_text_file", {"path": "/tmp/f"}, call_id="call_1")
         tc_id, name, args, full_text, is_error, llm_text = await execute_one_tool_call(
-            ctx, tc, 0
+            ctx, pc, 0
         )
 
         assert tc_id == "call_1"
@@ -687,8 +684,8 @@ class TestExecuteOneToolCall:
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-x"
 
-        tc = {"id": "call_2", "function": {"name": "read_text_file", "arguments": "{}"}}
-        await execute_one_tool_call(ctx, tc, 0)
+        pc = _pc("read_text_file", {}, call_id="call_2")
+        await execute_one_tool_call(ctx, pc, 0)
 
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
