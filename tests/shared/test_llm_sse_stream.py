@@ -461,3 +461,123 @@ class TestStreamOnce:
                 on_usage=lambda pt, ct: usages.append((pt, ct)),
             )
         assert usages == [(10, 5)]
+
+    @pytest.mark.asyncio
+    async def test_exhausted_with_is_done_and_no_finish_reason_returns_normally(
+        self,
+    ) -> None:
+        """Stream ends with [DONE] but no finish_reason ever set — returns normally, no raise."""
+        sse_content = (
+            b'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":null}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        with respx.mock:
+            respx.post("http://llm/v1/chat").mock(
+                return_value=httpx.Response(200, content=sse_content)
+            )
+            result = await LlmSseStreamHandler.stream_once(
+                httpx.AsyncClient(),
+                "http://llm/v1/chat",
+                [{"role": "user", "content": "hi"}],
+                [],
+                0.5,
+                100,
+                malformed_retry=2,
+                heartbeat_timeout=0.0,
+                llm_stream_retry_on_heartbeat_timeout=True,
+            )
+        finish_reason, content_parts, _, _ = result
+        assert finish_reason is None
+        assert content_parts == ["hi"]
+
+    @pytest.mark.asyncio
+    async def test_finish_reason_and_done_in_same_chunk_breaks_immediately(
+        self,
+    ) -> None:
+        """A single fed chunk carrying both finish_reason and [DONE] breaks the loop right away."""
+        combined_chunk = (
+            b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        with respx.mock:
+            respx.post("http://llm/v1/chat").mock(
+                return_value=httpx.Response(200, content=combined_chunk)
+            )
+            result = await LlmSseStreamHandler.stream_once(
+                httpx.AsyncClient(),
+                "http://llm/v1/chat",
+                [{"role": "user", "content": "hi"}],
+                [],
+                0.5,
+                100,
+                malformed_retry=2,
+                heartbeat_timeout=0.0,
+                llm_stream_retry_on_heartbeat_timeout=True,
+            )
+        finish_reason, content_parts, _, _ = result
+        assert finish_reason == "stop"
+        assert content_parts == []
+
+    @pytest.mark.asyncio
+    async def test_multiple_chunks_before_exit_accumulate_in_order(self) -> None:
+        """At least three separate chunks are processed before [DONE]; content accumulates in order."""
+
+        async def _byte_gen() -> AsyncIterator[bytes]:
+            yield b'data: {"choices":[{"delta":{"content":"a"},"finish_reason":null}]}\n\n'
+            yield b'data: {"choices":[{"delta":{"content":"b"},"finish_reason":null}]}\n\n'
+            yield b'data: {"choices":[{"delta":{"content":"c"},"finish_reason":null}]}\n\n'
+            yield b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+            yield b"data: [DONE]\n\n"
+
+        with respx.mock:
+            respx.post("http://llm/v1/chat").mock(
+                return_value=httpx.Response(
+                    200, stream=_MockStream(_byte_gen().__aiter__())
+                )
+            )
+            result = await LlmSseStreamHandler.stream_once(
+                httpx.AsyncClient(),
+                "http://llm/v1/chat",
+                [{"role": "user", "content": "hi"}],
+                [],
+                0.5,
+                100,
+                malformed_retry=2,
+                heartbeat_timeout=0.0,
+                llm_stream_retry_on_heartbeat_timeout=True,
+            )
+        finish_reason, content_parts, _, _ = result
+        assert content_parts == ["a", "b", "c"]
+        assert finish_reason == "stop"
+
+    @pytest.mark.asyncio
+    async def test_parse_errors_accumulated_across_multiple_chunks(self) -> None:
+        """stat_parse_errors_ref sums malformed-frame counts across separate chunks, not just the last one."""
+
+        async def _byte_gen() -> AsyncIterator[bytes]:
+            yield b"data: {bad json 1}\n\n"
+            yield b'data: {"choices":[{"delta":{"content":"a"},"finish_reason":null}]}\n\n'
+            yield b"data: {bad json 2}\n\n"
+            yield b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+            yield b"data: [DONE]\n\n"
+
+        stat_errors = [0]
+        with respx.mock:
+            respx.post("http://llm/v1/chat").mock(
+                return_value=httpx.Response(
+                    200, stream=_MockStream(_byte_gen().__aiter__())
+                )
+            )
+            await LlmSseStreamHandler.stream_once(
+                httpx.AsyncClient(),
+                "http://llm/v1/chat",
+                [{"role": "user", "content": "hi"}],
+                [],
+                0.5,
+                100,
+                malformed_retry=5,
+                heartbeat_timeout=0.0,
+                llm_stream_retry_on_heartbeat_timeout=True,
+                stat_parse_errors_ref=stat_errors,
+            )
+        assert stat_errors[0] == 2

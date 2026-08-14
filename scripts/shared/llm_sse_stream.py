@@ -83,35 +83,25 @@ class LlmSseStreamHandler:
                 byte_iter = resp.aiter_bytes().__aiter__()
                 is_done = False
                 while True:
-                    raw_chunk, exhausted = await LlmSseStreamHandler.read_next_chunk(
+                    (
+                        finish_reason,
+                        is_done,
+                        should_break,
+                    ) = await LlmSseStreamHandler._process_next_chunk(
                         byte_iter,
-                        heartbeat_timeout,
                         url,
+                        heartbeat_timeout,
                         llm_stream_retry_on_heartbeat_timeout,
+                        parser,
+                        content_parts,
+                        tool_calls_map,
+                        stat_parse_errors_ref,
+                        on_token,
+                        on_usage,
+                        finish_reason,
+                        is_done,
                     )
-                    if exhausted:
-                        if not is_done and finish_reason is None:
-                            raise LLMTransportError(
-                                kind="PREMATURE_EOF",
-                                phase="in_stream",
-                                url=url,
-                                retryable=True,
-                                partial_text="".join(content_parts),
-                            )
-                        break
-
-                    payloads, is_done = parser.feed(raw_chunk)
-                    if stat_parse_errors_ref is not None and parser.stat_parse_errors:
-                        stat_parse_errors_ref[0] += parser.stat_parse_errors
-                        parser.stat_parse_errors = 0
-
-                    reason = LlmSseHelpers.process_sse_payloads(
-                        payloads, content_parts, tool_calls_map, on_token, on_usage
-                    )
-                    if reason:
-                        finish_reason = reason
-
-                    if is_done:
+                    if should_break:
                         break
 
         except LLMTransportError:
@@ -130,6 +120,70 @@ class LlmSseStreamHandler:
         parse_errors = parser.stat_parse_errors
         parser.stat_parse_errors = 0
         return finish_reason, content_parts, tool_calls_map, parse_errors
+
+    @staticmethod
+    async def _process_next_chunk(
+        byte_iter: AsyncIterator[bytes],
+        url: str,
+        heartbeat_timeout: float,
+        llm_stream_retry_on_heartbeat_timeout: bool,
+        parser: RobustSSEParser,
+        content_parts: list[str],
+        tool_calls_map: dict[int, AccumulatedToolCall],
+        stat_parse_errors_ref: list[int] | None,
+        on_token: Callable[[str], None] | None,
+        on_usage: Callable[[int, int], None] | None,
+        finish_reason: str | None,
+        is_done: bool,
+    ) -> tuple[str | None, bool, bool]:
+        """Read and process a single SSE chunk for one `stream_once` loop iteration.
+
+        Must only be called from inside `stream_once`'s `try` block, so any `httpx`
+        exception it does not itself catch is still translated by the enclosing
+        `except` clauses there.
+
+        Inputs: `byte_iter`, `url`, `heartbeat_timeout`,
+        `llm_stream_retry_on_heartbeat_timeout`, `parser`, `content_parts`,
+        `tool_calls_map`, `stat_parse_errors_ref`, `on_token`, `on_usage`, the current
+        `finish_reason`, and the previous iteration's `is_done`. `content_parts`,
+        `tool_calls_map`, and `stat_parse_errors_ref` are mutated in place.
+
+        Returns `(finish_reason, is_done, should_break)`: the (possibly updated)
+        `finish_reason`, the (possibly updated) `is_done`, and whether the caller's
+        `while True:` loop should break.
+
+        Raises LLMTransportError with kind="PREMATURE_EOF" if the stream is exhausted
+        without having seen `[DONE]` or a `finish_reason`.
+        """
+        raw_chunk, exhausted = await LlmSseStreamHandler.read_next_chunk(
+            byte_iter,
+            heartbeat_timeout,
+            url,
+            llm_stream_retry_on_heartbeat_timeout,
+        )
+        if exhausted:
+            if not is_done and finish_reason is None:
+                raise LLMTransportError(
+                    kind="PREMATURE_EOF",
+                    phase="in_stream",
+                    url=url,
+                    retryable=True,
+                    partial_text="".join(content_parts),
+                )
+            return finish_reason, is_done, True
+
+        payloads, is_done = parser.feed(raw_chunk)
+        if stat_parse_errors_ref is not None and parser.stat_parse_errors:
+            stat_parse_errors_ref[0] += parser.stat_parse_errors
+            parser.stat_parse_errors = 0
+
+        reason = LlmSseHelpers.process_sse_payloads(
+            payloads, content_parts, tool_calls_map, on_token, on_usage
+        )
+        if reason:
+            finish_reason = reason
+
+        return finish_reason, is_done, is_done
 
     @staticmethod
     async def _handle_status(resp: httpx.Response, url: str) -> None:
