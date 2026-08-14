@@ -59,20 +59,26 @@ class TestRuntimeToolRegistry:
         assert defs[0]["description"] == "d"
         assert defs[0]["parameters"] == {"type": "object"}
 
-    def test_tool_spec_map_copies_write_serial_scope_fields(self) -> None:
+    def test_tool_spec_map_copies_write_serial_scope_fields_and_falls_back_to_global_write_scope(
+        self,
+    ) -> None:
         tool = build_runtime_tool(
             name="delete_file",
             server_key="fs",
             is_write=True,
             requires_serial=True,
-            resource_scope="delete_file",
+            resource_scope_kind="filesystem",
+            resource_scope_keys=("path",),
         )
         reg = _registry_with(tool)
         spec = reg.tool_spec_map()["delete_file"]
         assert isinstance(spec, ToolSpec)
         assert spec.is_write is True
         assert spec.requires_serial is True
-        assert spec.resource_scope == "delete_file"
+        # tool_spec_map() calls _build_tool_spec() with no real args, so a write tool
+        # with unresolvable resource_scope_keys hits the fail-closed fallback rather
+        # than resolving a literal "filesystem:..." scope.
+        assert spec.resource_scopes == ("global:write",)
         assert spec.call_id == ""
 
     def test_tool_spec_for_call_fills_call_specific_fields(self) -> None:
@@ -84,6 +90,34 @@ class TestRuntimeToolRegistry:
         assert spec.call_id == "call-1"
         assert spec.args == {"path": "x"}
         assert spec.is_write is True
+
+    def test_tool_spec_for_call_resolves_scope_from_call_args(self) -> None:
+        tool = build_runtime_tool(
+            name="write_file",
+            server_key="fs",
+            is_write=True,
+            resource_scope_kind="filesystem",
+            resource_scope_keys=("path",),
+        )
+        reg = _registry_with(tool)
+        spec = reg.tool_spec_for_call(
+            call_id="call-1", name="write_file", args={"path": "/data/a.txt"}
+        )
+        assert spec.resource_scopes == ("filesystem:/data/a.txt",)
+
+    def test_tool_spec_for_call_falls_back_to_global_write_when_scope_key_missing(
+        self,
+    ) -> None:
+        tool = build_runtime_tool(
+            name="write_file",
+            server_key="fs",
+            is_write=True,
+            resource_scope_kind="filesystem",
+            resource_scope_keys=("path",),
+        )
+        reg = _registry_with(tool)
+        spec = reg.tool_spec_for_call(call_id="call-2", name="write_file", args={})
+        assert spec.resource_scopes == ("global:write",)
 
     def test_tool_spec_for_call_raises_for_unregistered_name(self) -> None:
         reg = _registry_with()

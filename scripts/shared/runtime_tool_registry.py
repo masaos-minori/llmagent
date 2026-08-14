@@ -36,6 +36,7 @@ import dataclasses
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
+from shared.resource_scope import resolve_resource_scopes
 from shared.runtime_tool import AgentSafetyTier, RuntimeTool
 from shared.tool_spec import ToolSpec
 
@@ -132,12 +133,13 @@ class RuntimeToolRegistry:
         tool: RuntimeTool,
         args: dict[str, Any] | None = None,
     ) -> ToolSpec:
-        """Build a ToolSpec from a RuntimeTool."""
+        """Build a ToolSpec from a RuntimeTool, resolving its resource scopes against
+        *args* via resolve_resource_scopes()."""
         return ToolSpec(
             call_id=call_id,
             name=name,
             args=args or {},
-            resource_scope=tool.resource_scope,
+            resource_scopes=resolve_resource_scopes(tool, args or {}),
             requires_serial=tool.requires_serial,
             is_write=tool.is_write,
         )
