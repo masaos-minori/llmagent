@@ -49,18 +49,20 @@ DELETE_TOOLS: frozenset[str] = frozenset(
     },
 )
 
-RAG_TOOLS: frozenset[str] = frozenset(
+RAG_READ_TOOLS: frozenset[str] = frozenset(
     {
         "rag_run_pipeline",
         "rag_debug_pipeline",
         "rag_list_documents",
-        "rag_delete_document",
     },
 )
 
-CICD_TOOLS: frozenset[str] = frozenset(
+RAG_WRITE_TOOLS: frozenset[str] = frozenset({"rag_delete_document"})
+
+RAG_TOOLS: frozenset[str] = RAG_READ_TOOLS | RAG_WRITE_TOOLS
+
+CICD_READ_TOOLS: frozenset[str] = frozenset(
     {
-        "trigger_workflow",
         "get_workflow_runs",
         "get_workflow_status",
         "get_workflow_logs",
@@ -68,12 +70,12 @@ CICD_TOOLS: frozenset[str] = frozenset(
 )
 
 CICD_WRITE_TOOLS: frozenset[str] = frozenset({"trigger_workflow"})
-CICD_READ_TOOLS: frozenset[str] = CICD_TOOLS - CICD_WRITE_TOOLS
 
-RAG_WRITE_TOOLS: frozenset[str] = frozenset({"rag_delete_document"})
-RAG_READ_TOOLS: frozenset[str] = RAG_TOOLS - RAG_WRITE_TOOLS
+CICD_TOOLS: frozenset[str] = CICD_READ_TOOLS | CICD_WRITE_TOOLS
 
 # Markdown Context Compression Engine tools
+# Reviewed for TOOLS/READ/WRITE unification (see plan 20260813-192143); intentionally left as a
+# two-set group — no MDQ_READ_TOOLS exists.
 MDQ_TOOLS: frozenset[str] = frozenset(
     {
         "search_docs",
