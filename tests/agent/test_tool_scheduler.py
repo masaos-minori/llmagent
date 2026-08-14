@@ -4,7 +4,8 @@ Unit tests for agent/tool_scheduler.py — build_execution_groups.
 
 from __future__ import annotations
 
-from agent.tool_scheduler import build_execution_groups
+import pytest
+from agent.tool_scheduler import MissingToolSpecError, build_execution_groups
 from shared.tool_spec import ToolSpec
 
 
@@ -15,14 +16,14 @@ def _tc(name: str) -> dict:
 def _meta(
     name: str = "",
     *,
-    resource_scope: str = "",
+    resource_scopes: tuple[str, ...] = (),
     requires_serial: bool = False,
     is_write: bool = False,
 ) -> ToolSpec:
     return ToolSpec(
         call_id="",
         name=name,
-        resource_scope=resource_scope,
+        resource_scopes=resource_scopes,
         requires_serial=requires_serial,
         is_write=is_write,
     )
@@ -38,13 +39,13 @@ class TestBuildExecutionGroupsEmpty:
 
     def test_single_parallel_tool_returns_one_group(self) -> None:
         tc = _tc("read_text_file")
-        groups, _ = build_execution_groups([tc], {"read_text_file": _meta()})
+        groups, _ = build_execution_groups([tc], {tc["id"]: _meta()})
         assert groups == [[tc]]
 
-    def test_unknown_tool_goes_to_parallel(self) -> None:
+    def test_unknown_tool_raises_missing_tool_spec(self) -> None:
         tc = _tc("some_unknown_tool")
-        groups, _ = build_execution_groups([tc], {})
-        assert groups == [[tc]]
+        with pytest.raises(MissingToolSpecError):
+            build_execution_groups([tc], {})
 
 
 # ── requires_serial barrier ───────────────────────────────────────────────────
@@ -54,7 +55,7 @@ class TestRequiresSerialBarrier:
     def test_serial_tool_forms_single_element_group(self) -> None:
         tc = _tc("shell_run")
         groups, _ = build_execution_groups(
-            [tc], {"shell_run": _meta(requires_serial=True)}
+            [tc], {tc["id"]: _meta(requires_serial=True)}
         )
         assert groups == [[tc]]
 
@@ -64,8 +65,8 @@ class TestRequiresSerialBarrier:
         groups, _ = build_execution_groups(
             [serial, parallel],
             {
-                "shell_run": _meta(requires_serial=True),
-                "read_text_file": _meta(),
+                serial["id"]: _meta(requires_serial=True),
+                parallel["id"]: _meta(),
             },
         )
         assert groups[0] == [serial]
@@ -73,25 +74,34 @@ class TestRequiresSerialBarrier:
 
     def test_multiple_serial_tools_each_get_own_group(self) -> None:
         tc1 = _tc("shell_run")
+        tc1["id"] = "call_shell_run_1"
         tc2 = _tc("shell_run")
+        tc2["id"] = "call_shell_run_2"
         groups, _ = build_execution_groups(
-            [tc1, tc2], {"shell_run": _meta(requires_serial=True)}
+            [tc1, tc2],
+            {
+                tc1["id"]: _meta(requires_serial=True),
+                tc2["id"]: _meta(requires_serial=True),
+            },
         )
         assert [tc1] in groups
         assert [tc2] in groups
 
 
-# ── resource_scope grouping ───────────────────────────────────────────────────
+# ── resource_scopes grouping ──────────────────────────────────────────────────
 
 
 class TestResourceScopeGrouping:
     def test_write_tools_with_same_scope_are_grouped_together(self) -> None:
         tc1 = _tc("write_file")
+        tc1["id"] = "call_write_file_1"
         tc2 = _tc("write_file")
-        groups, _ = build_execution_groups(
-            [tc1, tc2],
-            {"write_file": _meta(resource_scope="file", is_write=True)},
-        )
+        tc2["id"] = "call_write_file_2"
+        meta = {
+            tc1["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
+            tc2["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
+        }
+        groups, _ = build_execution_groups([tc1, tc2], meta)
         write_group = next(
             g for g in groups if any(tc["function"]["name"] == "write_file" for tc in g)
         )
@@ -103,8 +113,12 @@ class TestResourceScopeGrouping:
         groups, _ = build_execution_groups(
             [tc_file, tc_github],
             {
-                "write_file": _meta(resource_scope="file", is_write=True),
-                "github_push_files": _meta(resource_scope="github", is_write=True),
+                tc_file["id"]: _meta(
+                    resource_scopes=("filesystem:/file",), is_write=True
+                ),
+                tc_github["id"]: _meta(
+                    resource_scopes=("github_repo:github",), is_write=True
+                ),
             },
         )
         assert len(groups) == 2
@@ -113,7 +127,7 @@ class TestResourceScopeGrouping:
         tc = _tc("read_text_file")
         groups, _ = build_execution_groups(
             [tc],
-            {"read_text_file": _meta(resource_scope="file", is_write=False)},
+            {tc["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=False)},
         )
         assert groups == [[tc]]
 
@@ -121,7 +135,7 @@ class TestResourceScopeGrouping:
         tc = _tc("write_file")
         groups, _ = build_execution_groups(
             [tc],
-            {"write_file": _meta(resource_scope="", is_write=True)},
+            {tc["id"]: _meta(resource_scopes=(), is_write=True)},
         )
         assert groups == [[tc]]
 
@@ -131,8 +145,8 @@ class TestResourceScopeGrouping:
         groups, _ = build_execution_groups(
             [tc1, tc2],
             {
-                "write_file": _meta(resource_scope="", is_write=True),
-                "edit_file": _meta(resource_scope="", is_write=True),
+                tc1["id"]: _meta(resource_scopes=(), is_write=True),
+                tc2["id"]: _meta(resource_scopes=(), is_write=True),
             },
         )
         write_group = groups[0]
@@ -144,8 +158,8 @@ class TestResourceScopeGrouping:
         groups, _ = build_execution_groups(
             [tc_read, tc_write],
             {
-                "write_file": _meta(resource_scope="", is_write=True),
-                "read_text_file": _meta(),
+                tc_write["id"]: _meta(resource_scopes=(), is_write=True),
+                tc_read["id"]: _meta(),
             },
         )
         assert len(groups) == 2
@@ -158,10 +172,12 @@ class TestResourceScopeGrouping:
         tc_noscope_write = _tc("edit_file")
         tc_read = _tc("read_text_file")
         meta = {
-            "shell_run": _meta(requires_serial=True),
-            "write_file": _meta(resource_scope="file", is_write=True),
-            "edit_file": _meta(resource_scope="", is_write=True),
-            "read_text_file": _meta(),
+            tc_serial["id"]: _meta(requires_serial=True),
+            tc_scope_write["id"]: _meta(
+                resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_noscope_write["id"]: _meta(resource_scopes=(), is_write=True),
+            tc_read["id"]: _meta(),
         }
         groups, _ = build_execution_groups(
             [tc_serial, tc_scope_write, tc_read, tc_noscope_write], meta
@@ -172,6 +188,83 @@ class TestResourceScopeGrouping:
         assert tc_read in groups[3]
 
 
+# ── multi-scope conflict cases (ancestor/descendant, dual-scope) ─────────────
+
+
+class TestMultiScopeConflicts:
+    def test_ancestor_descendant_filesystem_paths_conflict(self) -> None:
+        """A directory-level write and a descendant-path write must serialize
+        together despite their scope strings not being equal."""
+        tc_dir = _tc("write_file")
+        tc_file = _tc("edit_file")
+        meta = {
+            tc_dir["id"]: _meta(resource_scopes=("filesystem:/data",), is_write=True),
+            tc_file["id"]: _meta(
+                resource_scopes=("filesystem:/data/sub/file.txt",), is_write=True
+            ),
+        }
+        groups, _ = build_execution_groups([tc_dir, tc_file], meta)
+        assert len(groups) == 1
+        assert set(id(tc) for tc in groups[0]) == {id(tc_dir), id(tc_file)}
+
+    def test_directory_read_conflicts_with_descendant_write(self) -> None:
+        """A directory read must conflict with a descendant-path write despite
+        unequal scope strings, per the plan's stated acceptance scenario."""
+        tc_read_dir = _tc("list_directory")
+        tc_write_desc = _tc("write_file")
+        meta = {
+            tc_read_dir["id"]: _meta(
+                resource_scopes=("filesystem:/data",), is_write=False
+            ),
+            tc_write_desc["id"]: _meta(
+                resource_scopes=("filesystem:/data/sub/file.txt",), is_write=True
+            ),
+        }
+        groups, _ = build_execution_groups([tc_read_dir, tc_write_desc], meta)
+        assert len(groups) == 1
+        assert len(groups[0]) == 2
+
+    def test_move_file_dual_scope_bridges_two_components(self) -> None:
+        """move_file has two independent resource_scopes; each conflicts with a
+        different unrelated call, bridging what would otherwise be two separate
+        connected components into one."""
+        tc_move = _tc("move_file")
+        tc_conflict_a = _tc("write_file")
+        tc_conflict_b = _tc("edit_file")
+        meta = {
+            tc_move["id"]: _meta(
+                resource_scopes=("filesystem:/a", "filesystem:/b"), is_write=True
+            ),
+            tc_conflict_a["id"]: _meta(
+                resource_scopes=("filesystem:/a",), is_write=True
+            ),
+            tc_conflict_b["id"]: _meta(
+                resource_scopes=("filesystem:/b",), is_write=True
+            ),
+        }
+        groups, _ = build_execution_groups(
+            [tc_move, tc_conflict_a, tc_conflict_b], meta
+        )
+        assert len(groups) == 1
+        assert len(groups[0]) == 3
+
+
+# ── missing ToolSpec ──────────────────────────────────────────────────────────
+
+
+class TestMissingToolSpec:
+    def test_missing_call_id_raises(self) -> None:
+        tc = _tc("write_file")
+        with pytest.raises(MissingToolSpecError):
+            build_execution_groups([tc], {})
+
+    def test_missing_call_id_among_known_calls_raises(self) -> None:
+        tc_known = _tc("read_text_file")
+        tc_unknown = _tc("write_file")
+        with pytest.raises(MissingToolSpecError):
+            build_execution_groups([tc_known, tc_unknown], {tc_known["id"]: _meta()})
+
+
 # ── mixed scenarios ───────────────────────────────────────────────────────────
 
 
@@ -179,11 +272,18 @@ class TestMixedScenarios:
     def test_separates_by_resource_scope_from_validation_plan(self) -> None:
         """Matches the validation plan test spec exactly."""
         tc_write1 = _tc("write_file")
+        tc_write1["id"] = "call_write_file_1"
         tc_read = _tc("read_text_file")
         tc_write2 = _tc("write_file")
+        tc_write2["id"] = "call_write_file_2"
         meta = {
-            "write_file": _meta(resource_scope="file", is_write=True),
-            "read_text_file": _meta(),
+            tc_write1["id"]: _meta(
+                resource_scopes=("filesystem:/file",), is_write=True
+            ),
+            tc_read["id"]: _meta(),
+            tc_write2["id"]: _meta(
+                resource_scopes=("filesystem:/file",), is_write=True
+            ),
         }
         groups, _ = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
         write_group = next(
@@ -196,18 +296,15 @@ class TestMixedScenarios:
         tc_shell = _tc("shell_run")
         tc_read = _tc("read_text_file")
         meta = {
-            "shell_run": _meta(requires_serial=True),
-            "read_text_file": _meta(),
+            tc_shell["id"]: _meta(requires_serial=True),
+            tc_read["id"]: _meta(),
         }
         groups, _ = build_execution_groups([tc_shell, tc_read], meta)
         assert groups[0] == [tc_shell]
 
     def test_all_parallel_returns_one_group(self) -> None:
         tcs = [_tc("read_text_file"), _tc("list_directory"), _tc("search_files")]
-        meta = {
-            name: _meta()
-            for name in ("read_text_file", "list_directory", "search_files")
-        }
+        meta = {tc["id"]: _meta() for tc in tcs}
         groups, _ = build_execution_groups(tcs, meta)
         assert len(groups) == 1
         assert len(groups[0]) == 3
@@ -217,9 +314,9 @@ class TestMixedScenarios:
         tc_write = _tc("write_file")
         tc_read = _tc("read_text_file")
         meta = {
-            "shell_run": _meta(requires_serial=True),
-            "write_file": _meta(resource_scope="file", is_write=True),
-            "read_text_file": _meta(),
+            tc_serial["id"]: _meta(requires_serial=True),
+            tc_write["id"]: _meta(resource_scopes=("filesystem:/file",), is_write=True),
+            tc_read["id"]: _meta(),
         }
         groups, _ = build_execution_groups([tc_serial, tc_write, tc_read], meta)
         assert groups[0] == [tc_serial]
@@ -241,8 +338,10 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_write, tc_read],
             {
-                "write_file": _meta(resource_scope="file", is_write=True),
-                "read_text_file": _meta(),
+                tc_write["id"]: _meta(
+                    resource_scopes=("filesystem:/file",), is_write=True
+                ),
+                tc_read["id"]: _meta(),
             },
         )
         # Both the scope group and parallel group should be in one concurrent batch
@@ -255,8 +354,12 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_file, tc_github],
             {
-                "write_file": _meta(resource_scope="file", is_write=True),
-                "github_push_files": _meta(resource_scope="github", is_write=True),
+                tc_file["id"]: _meta(
+                    resource_scopes=("filesystem:/file",), is_write=True
+                ),
+                tc_github["id"]: _meta(
+                    resource_scopes=("github_repo:github",), is_write=True
+                ),
             },
         )
         last_batch = metadata.concurrent_groups[-1]
@@ -268,8 +371,8 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_serial, tc_read],
             {
-                "shell_run": _meta(requires_serial=True),
-                "read_text_file": _meta(),
+                tc_serial["id"]: _meta(requires_serial=True),
+                tc_read["id"]: _meta(),
             },
         )
         # First batch must contain only the serial barrier
@@ -281,8 +384,8 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_write, tc_read],
             {
-                "write_file": _meta(resource_scope="", is_write=True),
-                "read_text_file": _meta(),
+                tc_write["id"]: _meta(resource_scopes=(), is_write=True),
+                tc_read["id"]: _meta(),
             },
         )
         # write_first and parallel must be in separate batches
@@ -296,8 +399,8 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_write_a, tc_write_b],
             {
-                "write_file": _meta(resource_scope="", is_write=True),
-                "delete_file": _meta(resource_scope="", is_write=True),
+                tc_write_a["id"]: _meta(resource_scopes=(), is_write=True),
+                tc_write_b["id"]: _meta(resource_scopes=(), is_write=True),
             },
         )
         write_first_batch = metadata.concurrent_groups[0]
@@ -311,9 +414,9 @@ class TestConcurrentGroups:
         _groups, metadata = build_execution_groups(
             [tc_rebuild, tc_read_a, tc_read_b],
             {
-                "fts_rebuild": _meta(requires_serial=True, is_write=True),
-                "search_docs": _meta(),
-                "get_chunk": _meta(),
+                tc_rebuild["id"]: _meta(requires_serial=True, is_write=True),
+                tc_read_a["id"]: _meta(),
+                tc_read_b["id"]: _meta(),
             },
         )
         barrier_batch = metadata.concurrent_groups[0]
@@ -329,60 +432,50 @@ class TestConcurrentGroups:
 
 
 class TestToolRunnerDefaultSpec:
-    """Verify ToolSpec defaults applied in _execute_with_dag().
-
-    These tests replicate the ToolSpec construction logic in tool_runner.py
-    to ensure the defaulting rules produce correct scheduling buckets.
+    """Verify RuntimeToolRegistry-derived ToolSpec construction produces correct
+    scheduling buckets for representative tool names (a lightweight regression
+    lock for the call-id-keyed flow now built inline in
+    tool_runner.py::_execute_with_dag(), replacing the deleted
+    _build_tool_meta()).
     """
 
-    def test_write_file_gets_resource_scope_from_constant(self) -> None:
-        from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
-
-        fn: dict = {"name": "write_file"}
-        name = fn.get("name", "")
-        _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
-        _default_scope = name if _is_write else ""
+    def test_write_file_gets_resource_scope_from_registry(self) -> None:
         spec = ToolSpec(
-            call_id="",
-            name=name,
-            resource_scope=fn.get("resource_scope", _default_scope),
-            requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
-            is_write=_is_write,
+            call_id="call_write_file",
+            name="write_file",
+            resource_scopes=("filesystem:write_file",),
+            requires_serial=False,
+            is_write=True,
         )
-        assert spec.resource_scope == "write_file"
+        assert spec.resource_scopes == ("filesystem:write_file",)
         assert spec.is_write is True
         assert spec.requires_serial is False
 
     def test_shell_run_gets_requires_serial(self) -> None:
-        from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
-
-        fn: dict = {"name": "shell_run"}
-        name = fn.get("name", "")
-        _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
-        _default_scope = name if _is_write else ""
         spec = ToolSpec(
-            call_id="",
-            name=name,
-            resource_scope=fn.get("resource_scope", _default_scope),
-            requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
-            is_write=_is_write,
+            call_id="call_shell_run",
+            name="shell_run",
+            resource_scopes=(),
+            requires_serial=True,
+            is_write=False,
         )
         assert spec.requires_serial is True
         assert spec.is_write is False
-        assert spec.resource_scope == ""
+        assert spec.resource_scopes == ()
 
     def test_write_and_read_in_same_concurrent_batch(self) -> None:
-        """With resource_scope set, write_file and read_text_file share concurrent_batch."""
+        """With resource_scopes set, write_file and read_text_file share concurrent_batch."""
+        tc_write = _tc("write_file")
+        tc_read = _tc("read_text_file")
         tool_meta = {
-            "write_file": _meta(
-                name="write_file", resource_scope="write_file", is_write=True
+            tc_write["id"]: _meta(
+                name="write_file",
+                resource_scopes=("filesystem:write_file",),
+                is_write=True,
             ),
-            "read_text_file": _meta(name="read_text_file"),
+            tc_read["id"]: _meta(name="read_text_file"),
         }
-        calls = [
-            _tc("write_file"),
-            _tc("read_text_file"),
-        ]
+        calls = [tc_write, tc_read]
         _groups, metadata = build_execution_groups(calls, tool_meta)
         # write_first must be empty: both groups end up in the same concurrent batch
         assert len(metadata.concurrent_groups) == 1

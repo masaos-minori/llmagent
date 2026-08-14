@@ -15,13 +15,13 @@ from agent.context import ConversationState
 from agent.repository_gateway import RepositoryGateway
 from agent.tool_runner import (
     _apply_turn_char_limit,
-    _build_tool_meta,
     _compute_serial_overhead,
     _estimate_parallel_time,
     _execute_with_dag,
     execute_all_tool_calls,
     execute_one_tool_call,
 )
+from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
 
@@ -70,13 +70,42 @@ def _cfg(**overrides: Any) -> AgentConfig:
     return build_agent_config(defaults)
 
 
+def _default_runtime_tools() -> MagicMock:
+    """Default stub for ctx.services_required.runtime_tools.
+
+    Production guarantees this registry is populated before any tool call
+    reaches execution (see agent/startup.py), and _execute_with_dag() now
+    calls tool_spec_for_call() per approved call unconditionally — so tests
+    unrelated to scheduling metadata need a registry that resolves any tool
+    name to a permissive default ToolSpec (unscoped, non-write) rather than
+    crashing. Tests that care about specific scheduling metadata override
+    this via ctx.services_required.runtime_tools = _runtime_tools({...}) (see
+    below) or a hand-built mock.
+    """
+    registry = MagicMock()
+
+    def _spec_for_call(call_id: str, name: str, args: dict) -> ToolSpec:
+        return ToolSpec(call_id=call_id, name=name, args=args, is_write=False)
+
+    def _get(name: str) -> MagicMock:
+        tool = MagicMock()
+        tool.is_write = False
+        tool.input_schema = {}
+        tool.allow_extra_fields = True
+        return tool
+
+    registry.tool_spec_for_call = MagicMock(side_effect=_spec_for_call)
+    registry.get = MagicMock(side_effect=_get)
+    return registry
+
+
 def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.services_required.audit_logger = None
     ctx.services_required.gateway = None
-    ctx.services_required.runtime_tools = None
+    ctx.services_required.runtime_tools = _default_runtime_tools()
     ctx.services_required.tools = MagicMock()
     ctx.services_required.tools.execute = AsyncMock(
         return_value=ToolCallResult(
@@ -104,117 +133,84 @@ def _tc(name: str, args: str = "{}") -> dict:
     return {"id": f"call_{name}", "function": {"name": name, "arguments": args}}
 
 
-class TestBuildToolMeta:
-    def test_trigger_workflow_generates_write_toolspec(self) -> None:
-        meta = _build_tool_meta([{"function": {"name": "trigger_workflow"}}])
-        spec = meta["trigger_workflow"]
-        assert spec.is_write is True
-        assert spec.resource_scope == "trigger_workflow"
+def _runtime_tools(specs_by_name: dict[str, ToolSpec]) -> MagicMock:
+    """Build a stub RuntimeToolRegistry-shaped mock.
 
-    def test_rag_delete_document_generates_write_toolspec(self) -> None:
-        meta = _build_tool_meta([{"function": {"name": "rag_delete_document"}}])
-        spec = meta["rag_delete_document"]
-        assert spec.is_write is True
-        assert spec.resource_scope == "rag_delete_document"
+    `tool_spec_for_call(call_id, name, args)` returns a per-call ToolSpec built
+    from `specs_by_name[name]`'s scheduling metadata (resource_scopes,
+    requires_serial, is_write), with `call_id`/`name`/`args` substituted from
+    the actual call — mirroring RuntimeToolRegistry.tool_spec_for_call()'s
+    real contract. `get(name)` raises KeyError for any name absent from
+    `specs_by_name`, matching the real registry.
+    """
+    registry = MagicMock()
 
-    def test_index_paths_and_refresh_index_generate_write_toolspec(self) -> None:
-        meta = _build_tool_meta(
-            [
-                {"function": {"name": "index_paths"}},
-                {"function": {"name": "refresh_index"}},
-            ]
+    def _spec_for_call(call_id: str, name: str, args: dict) -> ToolSpec:
+        base = specs_by_name[name]
+        return ToolSpec(
+            call_id=call_id,
+            name=name,
+            args=args,
+            resource_scopes=base.resource_scopes,
+            requires_serial=base.requires_serial,
+            is_write=base.is_write,
         )
-        assert meta["index_paths"].is_write is True
-        assert meta["index_paths"].requires_serial is False
-        assert meta["refresh_index"].is_write is True
-        assert meta["refresh_index"].requires_serial is False
 
-    def test_github_write_tools_do_not_enter_parallel_read_group(self) -> None:
-        meta = _build_tool_meta(
-            [
-                {"function": {"name": "github_create_pull_request"}},
-                {"function": {"name": "github_delete_file"}},
-            ]
-        )
-        assert meta["github_create_pull_request"].is_write is True
-        assert meta["github_delete_file"].is_write is True
+    def _get(name: str) -> MagicMock:
+        base = specs_by_name[name]
+        tool = MagicMock()
+        tool.is_write = base.is_write
+        # Empty schema so _validate_tool_args() (also consulting this
+        # registry inside execute_one_tool_call()) does not reject the call.
+        tool.input_schema = {}
+        tool.allow_extra_fields = True
+        return tool
 
-    def test_git_write_tools_do_not_enter_parallel_read_group(self) -> None:
-        meta = _build_tool_meta([{"function": {"name": "git_commit"}}])
-        assert meta["git_commit"].is_write is True
+    registry.tool_spec_for_call = MagicMock(side_effect=_spec_for_call)
+    registry.get = MagicMock(side_effect=_get)
+    return registry
 
-    def test_read_only_tools_remain_parallel(self) -> None:
-        meta = _build_tool_meta(
-            [
-                {"function": {"name": "search_docs"}},
-                {"function": {"name": "get_workflow_status"}},
-                {"function": {"name": "rag_run_pipeline"}},
-            ]
-        )
-        for name in ("search_docs", "get_workflow_status", "rag_run_pipeline"):
-            assert meta[name].is_write is False
-            assert meta[name].requires_serial is False
 
-    def test_explicit_tool_definition_metadata_is_respected(self) -> None:
-        meta = _build_tool_meta(
-            [
-                {
-                    "function": {
-                        "name": "trigger_workflow",
-                        "resource_scope": "custom_scope",
-                        "is_write": False,
-                    }
-                }
-            ]
-        )
-        spec = meta["trigger_workflow"]
-        assert spec.resource_scope == "custom_scope"
-        assert spec.is_write is False
+class TestRegressionNoLegacyMetadata:
+    def test_build_tool_meta_and_shell_tools_removed_from_source(self) -> None:
+        """Regression: the name-keyed, statically-derived scheduling metadata
+        path (_build_tool_meta() and its SHELL_TOOLS import) must not
+        reappear in tool_runner.py — scheduling metadata now flows entirely
+        through RuntimeToolRegistry.tool_spec_for_call().
+        """
+        from pathlib import Path
+
+        source = Path("scripts/agent/tool_runner.py").read_text()
+        assert "_build_tool_meta" not in source
+        assert "SHELL_TOOLS" not in source
 
 
 class TestExecuteWithDag:
     @pytest.mark.asyncio
     async def test_single_tool_returns_one_result(self) -> None:
-        cfg = _cfg(
-            tool_definitions=[
-                {
-                    "function": {
-                        "name": "read_text_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                }
-            ]
-        )
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+            }
+        )
         results = await _execute_with_dag(ctx, [_tc("read_text_file")], 0)
         assert len(results) == 1
 
     @pytest.mark.asyncio
     async def test_write_first_before_read_in_group_order(self) -> None:
-        cfg = _cfg(
-            tool_definitions=[
-                {
-                    "function": {
-                        "name": "write_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-                {
-                    "function": {
-                        "name": "read_text_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-            ]
-        )
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
-        ctx.services_required.tools.execute = AsyncMock(
-            return_value=ToolCallResult(
-                output="ok", is_error=False, request_id="req-1", server_key=""
-            )
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "write_file": ToolSpec(call_id="", name="write_file", is_write=True),
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+            }
         )
         call_order: list[str] = []
 
@@ -233,25 +229,18 @@ class TestExecuteWithDag:
 
     @pytest.mark.asyncio
     async def test_serial_barrier_executes_solo(self) -> None:
-        cfg = _cfg(
-            tool_definitions=[
-                {
-                    "function": {
-                        "name": "shell_run",
-                        "resource_scope": "",
-                        "requires_serial": True,
-                    }
-                },
-                {
-                    "function": {
-                        "name": "read_text_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-            ]
-        )
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "shell_run": ToolSpec(
+                    call_id="", name="shell_run", requires_serial=True, is_write=False
+                ),
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+            }
+        )
         call_order: list[str] = []
 
         async def _record_exec(name: str, _args: dict) -> ToolCallResult:
@@ -273,32 +262,27 @@ class TestExecuteWithDag:
     @pytest.mark.asyncio
     async def test_two_scope_groups_all_execute(self) -> None:
         """Two tools with different resource scopes both execute within the same round."""
-        cfg = _cfg(
-            tool_definitions=[
-                {
-                    "function": {
-                        "name": "write_file",
-                        "resource_scope": "file",
-                        "requires_serial": False,
-                    }
-                },
-                {
-                    "function": {
-                        "name": "github_push_files",
-                        "resource_scope": "github",
-                        "requires_serial": False,
-                    }
-                },
-                {
-                    "function": {
-                        "name": "read_text_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-            ]
-        )
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "write_file": ToolSpec(
+                    call_id="",
+                    name="write_file",
+                    resource_scopes=("filesystem:file",),
+                    is_write=True,
+                ),
+                "github_push_files": ToolSpec(
+                    call_id="",
+                    name="github_push_files",
+                    resource_scopes=("github_repo:github",),
+                    is_write=True,
+                ),
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+            }
+        )
         executed: list[str] = []
 
         async def _record(name: str, _args: dict) -> ToolCallResult:
@@ -319,25 +303,16 @@ class TestExecuteWithDag:
     @pytest.mark.asyncio
     async def test_results_sorted_to_original_call_order(self) -> None:
         """Results are returned in the original approved_calls order."""
-        cfg = _cfg(
-            tool_definitions=[
-                {
-                    "function": {
-                        "name": "read_text_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-                {
-                    "function": {
-                        "name": "write_file",
-                        "resource_scope": "",
-                        "requires_serial": False,
-                    }
-                },
-            ]
-        )
+        cfg = _cfg()
         ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "read_text_file": ToolSpec(
+                    call_id="", name="read_text_file", is_write=False
+                ),
+                "write_file": ToolSpec(call_id="", name="write_file", is_write=True),
+            }
+        )
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req", server_key=""
@@ -349,6 +324,34 @@ class TestExecuteWithDag:
         # tc_id at index 0 should be "call_read_text_file"
         assert results[0][0] == "call_read_text_file"
         assert results[1][0] == "call_write_file"
+
+    @pytest.mark.asyncio
+    async def test_tool_meta_is_keyed_by_call_id_not_tool_name(self) -> None:
+        """Regression: the dict passed to build_execution_groups() must be
+        keyed by each call's tc["id"], not its tool name — two approved calls
+        invoking the same tool name must be able to carry distinct per-call
+        ToolSpecs (e.g. distinct resource_scopes from distinct args)."""
+        cfg = _cfg()
+        ctx = _make_ctx(cfg)
+        ctx.services_required.runtime_tools = _runtime_tools(
+            {
+                "write_file": ToolSpec(call_id="", name="write_file", is_write=True),
+            }
+        )
+        tc1 = {"id": "call_1", "function": {"name": "write_file", "arguments": "{}"}}
+        tc2 = {"id": "call_2", "function": {"name": "write_file", "arguments": "{}"}}
+
+        with patch(
+            "agent.tool_runner.build_execution_groups",
+            wraps=__import__(
+                "agent.tool_scheduler", fromlist=["build_execution_groups"]
+            ).build_execution_groups,
+        ) as mock_build:
+            await _execute_with_dag(ctx, [tc1, tc2], 0)
+
+        passed_tool_meta = mock_build.call_args[0][1]
+        assert set(passed_tool_meta.keys()) == {"call_1", "call_2"}
+        assert "write_file" not in passed_tool_meta
 
     @pytest.mark.asyncio
     async def test_long_output_truncated_without_summarize(self) -> None:
@@ -733,22 +736,49 @@ class TestApplyTurnCharLimit:
         assert result == llm_text
 
 
+def _write_registry(is_write_by_name: dict[str, bool]) -> MagicMock:
+    """Build a stub RuntimeToolRegistry-shaped mock exposing only `.get(name)`,
+
+    for _execute_standard()'s registry-derived is_write lookup. Raises KeyError
+    for any name absent from `is_write_by_name`, matching the real registry's
+    unregistered-tool behavior.
+    """
+    registry = MagicMock()
+
+    def _get(name: str) -> MagicMock:
+        if name not in is_write_by_name:
+            raise KeyError(name)
+        tool = MagicMock()
+        tool.is_write = is_write_by_name[name]
+        # Empty schema/no-extra-fields so _validate_tool_args() (which also
+        # consults this same registry inside execute_one_tool_call()) treats
+        # every call as passing validation — this helper exists to test
+        # _execute_standard()'s side-effect/serialization decision, not
+        # argument validation.
+        tool.input_schema = {}
+        tool.allow_extra_fields = True
+        return tool
+
+    registry.get = MagicMock(side_effect=_get)
+    return registry
+
+
 class TestExecuteStandardSerialization:
     # serial_tool_calls=True routes execute_all_tool_calls() to _execute_standard()
     # directly; _execute_with_dag() records serialization events via its own
     # resource-scope mechanism and is covered separately.
     @pytest.mark.asyncio
     async def test_side_effect_tool_records_serialization_event(self) -> None:
-        """When a side-effect tool triggers serial execution, a serialization event is stored."""
+        """When a registered write tool triggers serial execution, a serialization event is stored."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _write_registry({"write_file": True})
         ctx.stats.stat_serialization_events = []
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = None
 
         write_call = _tc("write_file", '{"path": "/tmp/f"}')
-        # write_file is in WRITE_TOOLS and triggers is_side_effect=True
         with patch(
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
@@ -767,10 +797,11 @@ class TestExecuteStandardSerialization:
 
     @pytest.mark.asyncio
     async def test_no_side_effect_no_serialization_event(self) -> None:
-        """When no side-effect tool is present, no serialization event is recorded."""
+        """When the sole registered tool is not a write tool, no serialization event is recorded."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _write_registry({"read_text_file": False})
         ctx.stats.stat_serialization_events = []
 
         read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
@@ -784,11 +815,54 @@ class TestExecuteStandardSerialization:
         assert ctx.stats.stat_serialization_events == []
 
     @pytest.mark.asyncio
+    async def test_unregistered_tool_falls_back_to_side_effect_true(self) -> None:
+        """A tool absent from the registry (KeyError from .get()) is treated
+        conservatively as a side effect, per the fail-closed fallback."""
+        cfg = _cfg(serial_tool_calls=True)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _write_registry({})
+        ctx.stats.stat_serialization_events = []
+
+        unknown_call = _tc("unknown_tool", '{"path": "/tmp/f"}')
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([unknown_call], []),
+        ):
+            await execute_all_tool_calls(ctx, [unknown_call], 0)
+
+        assert len(ctx.stats.stat_serialization_events) == 1
+        assert ctx.stats.stat_serialization_events[0]["trigger_tool"] == "unknown_tool"
+
+    @pytest.mark.asyncio
+    async def test_no_registry_falls_back_to_side_effect_true(self) -> None:
+        """When ctx.services_required.runtime_tools is None, _execute_standard()
+        falls back to treating every call as a side effect (conservative,
+        matching the unregistered-tool fallback) rather than raising."""
+        cfg = _cfg(serial_tool_calls=True)
+        ctx = _make_ctx(cfg)
+        ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = None
+        ctx.stats.stat_serialization_events = []
+
+        read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([read_call], []),
+        ):
+            await execute_all_tool_calls(ctx, [read_call], 0)
+
+        assert len(ctx.stats.stat_serialization_events) == 1
+
+    @pytest.mark.asyncio
     async def test_side_effect_calls_diagnostic_save(self) -> None:
         """When diagnostics are wired, save_serialization_event is called."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None
+        ctx.services_required.runtime_tools = _write_registry({"write_file": True})
         ctx.stats.stat_serialization_events = []
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = MagicMock()

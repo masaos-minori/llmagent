@@ -22,8 +22,7 @@ from shared.json_utils import (
 from shared.json_utils import (
     now_iso_raw,
 )
-from shared.tool_constants import SHELL_TOOLS
-from shared.tool_executor_helpers import is_side_effect, tool_hash_key
+from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 from shared.types import LLMMessage
@@ -55,28 +54,6 @@ def _estimate_parallel_time(tool_timings: dict[str, float]) -> float:
     if not tool_timings:
         return 0.0
     return sum(tool_timings.values())
-
-
-def _build_tool_meta(
-    tool_definitions: list[dict],
-) -> dict[str, ToolSpec]:
-    """Build tool metadata map from tool_definitions for DAG execution."""
-    tool_meta: dict[str, ToolSpec] = {}
-    for td in tool_definitions:
-        fn = td.get("function", {})
-        name = fn.get("name", "")
-        if name:
-            _is_write = is_side_effect(name)
-            _requires_serial = fn.get("requires_serial", False) or name in SHELL_TOOLS
-            _default_scope = name if _is_write else ""
-            tool_meta[name] = ToolSpec(
-                call_id="",
-                name=name,
-                resource_scope=fn.get("resource_scope", _default_scope),
-                requires_serial=_requires_serial,
-                is_write=fn.get("is_write", _is_write),
-            )
-    return tool_meta
 
 
 def _compute_serial_overhead(actual_ms: float, estimated_parallel_ms: float) -> float:
@@ -322,8 +299,24 @@ async def _execute_with_dag(
     Delegates to build_execution_groups which handles write-first ordering
     for tools without resource_scope metadata.
     """
-    tool_definitions = ctx.cfg.tool.tool_definitions
-    tool_meta = _build_tool_meta(tool_definitions)
+    runtime_tools = ctx.services_required.runtime_tools
+    if runtime_tools is None:
+        raise ToolExecutorUnavailableError(
+            "RuntimeToolRegistry is not available "
+            "(ctx.services_required.runtime_tools is None)"
+        )
+    tool_meta: dict[str, ToolSpec] = {}
+    for tc in approved_calls:
+        func = tc["function"]
+        name = func["name"]
+        args_str = func.get("arguments", "{}")
+        try:
+            args = orjson.loads(args_str)
+        except orjson.JSONDecodeError as e:
+            raise ToolArgumentsDecodeError(
+                f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
+            ) from e
+        tool_meta[tc["id"]] = runtime_tools.tool_spec_for_call(tc["id"], name, args)
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
@@ -331,11 +324,11 @@ async def _execute_with_dag(
     if logger.isEnabledFor(logging.DEBUG):
         for _tc in approved_calls:
             _n = _tc["function"]["name"]
-            _m = tool_meta.get(_n)
+            _m = tool_meta.get(_tc["id"])
             if _m is not None and _m.requires_serial:
                 _bucket = "serial_barrier"
-            elif _m is not None and _m.is_write and _m.resource_scope:
-                _bucket = f"resource_scope:{_m.resource_scope}"
+            elif _m is not None and _m.is_write and _m.resource_scopes:
+                _bucket = f"resource_scope:{','.join(_m.resource_scopes)}"
             elif _m is not None and _m.is_write:
                 _bucket = "write_first"
             else:
@@ -380,7 +373,7 @@ async def _execute_with_dag(
             "affected_count": se.tools_count,
             "mode": "serial",
             "serial_reason": se.reason,
-            "resource_scope": se.resource_scope,
+            "resource_scopes": list(se.resource_scopes),
             "is_write": se.is_write,
             "requires_serial": se.requires_serial,
             "scheduling_decision": se.scheduling_decision,
@@ -430,10 +423,19 @@ async def _execute_standard(
     t0 = time.perf_counter()
     has_side_effect = False
     trigger_tool: str | None = None
+    runtime_tools = ctx.services_required.runtime_tools
     for tc in approved_calls:
-        if is_side_effect(tc["function"]["name"]):
+        name = tc["function"]["name"]
+        if runtime_tools is not None:
+            try:
+                is_write = runtime_tools.get(name).is_write
+            except KeyError:
+                is_write = True
+        else:
+            is_write = True
+        if is_write:
             has_side_effect = True
-            trigger_tool = tc["function"]["name"]
+            trigger_tool = name
             break
     use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
     mode = "serial" if use_serial else "parallel"

@@ -456,7 +456,6 @@ async def test_parallel_execution_without_side_effects() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
-        patch("agent.tool_runner.is_side_effect", return_value=False),
         patch(
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
