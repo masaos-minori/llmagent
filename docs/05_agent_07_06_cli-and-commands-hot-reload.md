@@ -56,7 +56,7 @@ source:
 
 ## Operational Notes
 
-- 各フィールドごとの完全な分類については[Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config-part1.md#config-file-ownership-and-hot-reload-eligibility)を参照。
+- 各フィールドごとの完全な分類については[Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)を参照。
 
 ## Known Limitations
 

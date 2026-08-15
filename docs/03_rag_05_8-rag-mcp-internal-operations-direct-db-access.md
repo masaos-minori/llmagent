@@ -39,7 +39,7 @@ See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py
 2. `documents`の行を削除する (`ON DELETE CASCADE`により`chunks`の行が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
 
 この順序が必要な理由は、`chunks_vec`が`chunks`を指す外部キー制約を持たないためである。
-`chunks`テーブルへの明示的なDELETE文はコード上存在しない(詳細は`docs/03_rag_91_design_notes-part1.md` DESIGN-3を参照)。
+`chunks`テーブルへの明示的なDELETE文はコード上存在しない(詳細は`docs/03_rag_91_design_notes.md` DESIGN-3を参照)。
 
 ```python
 # Order matters — chunks_vec before documents (CASCADE removes chunks)

@@ -11,11 +11,7 @@
 | ファイル | 対象ドメイン | 主なチェック内容 |
 |---|---|---|
 | `_docs_consistency_lib.py` | (共通基盤、単体実行不可) | DocFile/Issueデータ型、ファイル探索、壊れた内部リンク・削除済みファイル参照・スラッシュコマンドドリフト・ディレクトリ一覧の網羅性・`scripts/`パス参照/関数参照の実在性の汎用チェック |
-| `check_agent_docs_consistency.py` | `docs/05_agent_*.md` | DBスキーマ名ドリフト(`scripts/db/schema_sql.py`)、診断イベント名ドリフト(`scripts/agent/`) |
-| `check_mcp_docs_consistency.py` | `docs/04_mcp_*.md` | MCPサーバーのポート番号ドリフト、ツール名ドリフト、`scripts/`パス参照・関数参照の実在性 |
-| `check_rag_docs_consistency.py` | `docs/03_rag_*.md` | クローラーのmax_depth/max_pages主張と`config/crawler.toml`実値の一致、`[debug]`出力例の実在性、`scripts/`パス参照・関数参照の実在性 |
-| `check_deployment_docs_consistency.py` | `docs/02_deployment*.md` | 「NつのSQLiteデータベース」等の個数主張、DB一覧表の網羅性、`*_db_path`設定キーの`agent.toml`実在性、MCPポート範囲の表記(`deploy/*.sh`も対象) |
-| `check_overview_docs_consistency.py` | `docs/01_overview*.md` | `conf.d/`ディレクトリ一覧の網羅性(`check_directory_listing_completeness()`の実利用例) |
+| `check_docs_consistency.py` | `--domain agent\|mcp\|rag\|deployment\|overview` | 上記5ドメインのチェックを統合。`--skip <check>`で特定チェックをスキップ可能 |
 | `check_needs_confirmation_inventory.py` | `docs/*.md` 全体 | 「Needs confirmation」記載が`00_governance_07`の集中インベントリに登録されているか、resolved済みNC項目の該当箇所にマーカーが残っていないか、フィールド数宣言と実際のリスト項目数の一致 |
 | `check_no_compat.py` | `scripts/`, `docs/`, `tests/`, `tools/` | 後方互換スタブ・shimの残存検出 |
 | `check_suppression_justification.py` | `scripts/`, `tests/` | `# noqa`/`# type: ignore`/`# nosec` にルール/エラーコードとem-dash(` — `)区切りの正当化理由が伴っているかを検出。`DEFAULT_ALLOWLIST`で既存の非準拠行をベースライン許容 |
@@ -27,9 +23,7 @@
 
 | ファイル | 生成元 | 反映先 |
 |---|---|---|
-| `gen_rag_reference.py` | `config/*.toml` | RAGリファレンスセクション(CLI引数ヘルプ等) |
-| `gen_mcp_reference.py` | `config/agent.toml` + `scripts/mcp_servers/**/*.py`のTOOL_LIST | `docs/04_mcp_01_tool_ownership_matrix.md`のサーバーポート/ツール数/ツール名表 |
-| `gen_deployment_reference.py` | `scripts/db/config.py` + `config/agent.toml` | `docs/02_deployment-part2.md`のDBパス/設定キー表 |
+| `gen_reference_table.py` | `--type rag\|mcp\|deployment` で指定 | RAG/MCP/デプロイメントのリファレンスセクション |
 
 ## ドキュメント構造検証・整形補助スクリプト
 
@@ -37,10 +31,14 @@
 |---|---|
 | `validate_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/validate_docs_structure.py [glob ...]` |
 | `audit_docs.py` | ドキュメント構造検証・整形補助スクリプト: docs/*.md の構造規約を検証する。 |
-| `add_missing_frontmatter.py` | `docs/*.md` にYAML Front Matterが存在しないファイルを自動検出し、ファイル名からカテゴリとタイトルを推定してテンプレートを追加する。`--dry-run` で変更内容を表示、`--fix` で実際に適用。 |
-| `dedupe_front_matter_lists.py` | `docs/*.md` のYAML Front Matterにあるリストフィールド(`tags`/`related`/`source`)から重複エントリを除去する。初出順は維持し、本文には手を加えない。 |
+| `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去 |
 | `fix_d205.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
+| `fix_scripts_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |
 | `check_tool_descriptions_sync.py` | 本ファイル(`TOOL_DESCRIPTIONS.md`)に列挙されたファイル名と実際の`tools/*.py`を突合し、両方向のドリフト(未記載/削除済み参照)を検出する。 |
+| `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
+| `fix_broken_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
+| `apply_fixes.py` | テスト固有の修正スクリプト: `tests/rag/ingestion/test_rag_ingester.py` の行番号ベースの置換を適用。 |
+| `fix_mocks.py` | テスト固有の修正スクリプト: `tests/rag/ingestion/test_rag_ingester.py` のmock関連修正を正規表現で適用。 |
 
 ## モジュールドキュメント文字列チェックスクリプト
 

@@ -8,8 +8,8 @@ tags:
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_03_01_dispatch-and-routing.md
-  - 04_mcp_03_03_transport-and-health-part1.md
-  - 04_mcp_03_03_transport-and-health-part2.md
+  - 04_mcp_03_03_transport-and-health.md
+  - 04_mcp_03_03_transport-and-health.md
   - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
   - 04_mcp_07_tool_schema_export_policy.md
@@ -141,8 +141,8 @@ is_side_effect(tool_name: str) -> bool
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_03_transport-and-health-part1.md`
-- `04_mcp_03_03_transport-and-health-part2.md`
+- `04_mcp_03_03_transport-and-health.md`
+- `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 - `04_mcp_07_tool_schema_export_policy.md`

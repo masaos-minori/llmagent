@@ -125,7 +125,7 @@ def main():
     for py_file in sorted(base_dir.rglob("*.py")):
         try:
             content = py_file.read_text(encoding="utf-8")
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
 
         new_content, changed = fix_d205(content)

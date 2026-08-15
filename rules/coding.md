@@ -13,6 +13,23 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 | Module addition | update copy list in `deploy/deploy.sh` |
 | MCP server addition | create `config/<key>_mcp_server.toml` with app config and `[mcp_servers.<key>]` transport section |
 
+## Deprecation policy
+
+Deprecated symbols are removed the next time `plans/` touches the corresponding file for an
+unrelated reason, provided a zero-caller `rg` re-check still holds. This applies to all
+future deprecations unless a different interval is explicitly documented in the deprecation
+comment itself.
+
+## Explicit sign-off gates
+
+When a requirement splits work into independently schedulable sub-tasks and gates a later
+sub-task behind "explicit sign-off before implementation," document the required sign-off
+channel in the follow-up issue/plan entry. The preferred channel is a comment on the
+corresponding `plans/` entry (most discoverable for implementers). Alternative channels:
+comment on the original issue, or a short-lived approval note in `issues/` referencing both
+the issue and the plan. The record must be a maintainer statement that the risk assessment
+for the gated sub-task is acceptable.
+
 ## Tool configuration (pyproject.toml)
 
 **ruff:** `line-length = 120`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
@@ -59,6 +76,9 @@ ast-grep --pattern 'print($$$)' --lang python scripts/
 
 # no json.load() outside config_loader.py (see Key library choices — use orjson)
 ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v config_loader.py
+
+# git.exc import guard — requires explicit `import git.exc` alongside `import git`
+rg -l "git\.exc\." scripts/ | while read f; do ! grep -q "import git\.exc" "$f" && echo "$f"; done
 ```
 
 ## Bandit priority findings

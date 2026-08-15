@@ -10,8 +10,8 @@ tags:
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
-  - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
-  - 05_agent_04_01_state-and-persistence-state-model-part1.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+  - 05_agent_04_01_state-and-persistence-state-model.md
   - 05_agent_06_01_tool-execution-and-approval-execution.md
 source:
   - 05_agent_03_01_turn-processing-flow-overview.md
@@ -19,7 +19,7 @@ source:
 
 # エージェントターン処理フロー
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -98,7 +98,7 @@ User input (line)
 上記フロー図の①〜⑥はすべて`WorkflowEngine.run()`のplan/execute/verify各ステージのコールバックとして
 実行される。`plan_fn`自体は意図的に無処理(no-op)であり、①のターン開始処理が計画相当の作業として
 既に完了しているためである。ステージ構成の詳細は
-[05_agent_03_03_turn-processing-flow-workflow-engine-part1.md](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md)を参照。
+[05_agent_03_03_turn-processing-flow-workflow-engine.md](05_agent_03_03_turn-processing-flow-workflow-engine.md)を参照。
 
 ### バックグラウンドタスク失敗時の閾値通知と一時停止
 
@@ -161,8 +161,8 @@ User input (line)
 
 - `05_agent_00_document-guide.md`
 - `05_agent_03_02_turn-processing-flow-llm-tool-loop.md`
-- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
-- `05_agent_04_01_state-and-persistence-state-model-part1.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
+- `05_agent_04_01_state-and-persistence-state-model.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
 
 ## Keywords

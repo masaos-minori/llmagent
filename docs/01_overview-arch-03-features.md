@@ -16,7 +16,7 @@ related:
 
 # 概要・アーキテクチャ
 
-ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts-part1.md`](01_overview-files-03-scripts-part1.md), [`01_overview-files-04-shared-part1.md`](01_overview-files-04-shared-part1.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
 
 ## 2.4 エージェント機能・コマンド一覧
 
@@ -40,7 +40,7 @@ related:
 | 依存性注入ハブ (AgentContext) | `scripts/agent/` |
 | 診断ストア (ターン/セッション統計) | `scripts/agent/` |
 
-詳細なファイル構成については [`01_overview-files-03-scripts-part*.md`](01_overview-files-03-scripts-part1.md) シリーズを参照してください。
+詳細なファイル構成については [`01_overview-files-03-scripts-part*.md`](01_overview-files-03-scripts.md) シリーズを参照してください。
 
 ### 実装上の補足
 

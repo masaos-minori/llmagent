@@ -7,7 +7,7 @@ tags:
   - degradation
   - operational
 related:
-  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md
+  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
 source:
   - shared/mcp_health.py
@@ -161,7 +161,7 @@ WARNING Security posture summary — fail-closed (deny when empty): command_allo
 ## Related Documents
 
 - [Fail-Open/Fail-Closed and Risk Tiers](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
-- [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook)
+- [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook)
 - [RAG Consistency Check](03_rag_05_2-execution-guide.md#26-rag-integrity-check)
 
 ## Keywords

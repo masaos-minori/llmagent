@@ -12,7 +12,7 @@ related:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
   - 05_agent_10_03_operations-and-observability-workflow-observability.md
-  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md
+  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - 05_agent_10_05_operations-and-observability-monitoring.md
 source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
@@ -120,5 +120,5 @@ Embed skip count        8
 - [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
 - [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
 - [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md) — 追加検証とトラブルシューティング
+- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
 - [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング

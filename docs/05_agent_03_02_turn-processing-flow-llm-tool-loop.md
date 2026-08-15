@@ -10,15 +10,15 @@ tags:
 related:
   - 05_agent_00_document-guide.md
   - 05_agent_03_01_turn-processing-flow-overview.md
-  - 05_agent_03_03_turn-processing-flow-workflow-engine-part1.md
-  - 05_agent_04_01_state-and-persistence-state-model-part1.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+  - 05_agent_04_01_state-and-persistence-state-model.md
 source:
   - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
 ---
 
 # エージェントターン処理フロー
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -64,7 +64,7 @@ LLMストリーミング中にトランスポートエラーが発生し、部�
 
 `ctx.conv.append_message()`は検証付きのメソッドであり、生の`list.append()`ではなく
 これを介してのみ履歴を変更する（詳細は
-[05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+[05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 §検証付き履歴変更メソッド を参照）。
 
 ### ToolLoopGuard発動時の最終回答フォールバック
@@ -127,8 +127,8 @@ LLMクライアントのストリーミング集約ロジックが型付きデ�
 
 - `05_agent_00_document-guide.md`
 - `05_agent_03_01_turn-processing-flow-overview.md`
-- `05_agent_03_03_turn-processing-flow-workflow-engine-part1.md`
-- `05_agent_04_01_state-and-persistence-state-model-part1.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
+- `05_agent_04_01_state-and-persistence-state-model.md`
 
 ## Keywords
 

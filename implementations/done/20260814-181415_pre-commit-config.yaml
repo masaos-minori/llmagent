@@ -1,0 +1,124 @@
+# Implementation Procedure: Wire git.exc Import Guard into .pre-commit-config.yaml
+
+## Goal
+
+Wire the git.exc import guard constraint into `.pre-commit-config.yaml` as a low-cost hook, mirroring how `check-suppression-justification` is wired in. This ensures the constraint runs automatically on every commit without requiring manual invocation.
+
+## Scope
+
+### In-Scope
+- Add a new local pre-commit hook entry to `.pre-commit-config.yaml` that executes the git.exc import guard constraint.
+
+### Out-of-Scope
+- Adding a `types-GitPython`-style stub package to `pyproject.toml`/`uv.lock`.
+- Any change to which exception types are caught, their order, or control flow.
+- Any change to runtime behavior, log messages, or the `RepoInfoResult`/`GitServiceError` contracts.
+- `# type: ignore` suppression — only a fallback if the import-based fix is proven not to resolve the error at a given site.
+- Any file outside the constraint-check mechanism itself (the constraint applies to all future files, not just the 2 current ones).
+- Documentation update in `rules/coding.md` — handled in Phase 2.
+
+## Assumptions
+
+- Phase 1 (sibling fix) has been implemented: both `scripts/shared/git_helper.py` and `scripts/mcp_servers/git/git_service.py` currently include `import git.exc`.
+- Phase 2 (documentation in `rules/coding.md`) has been completed.
+- `rg` (ripgrep) is available in the dev environment.
+- The constraint check is low-cost enough to run on every commit without noticeable CI latency — a single `rg` + `grep` pipeline over `scripts/` takes <1 second.
+- No database schema change and no new MCP server are involved; this is a pure tooling/process addition.
+
+## Design decisions
+
+- Use a local hook with `language: system` (same pattern as `check-suppression-justification`), rather than creating a separate Python module in `tools/`.
+- Set `pass_filenames: false` because the constraint operates on all files in `scripts/` regardless of which files were staged.
+- Set `always_run: true` because the constraint needs to run even when no Python files are staged (e.g., when only non-Python files are committed).
+- The hook entry uses `bash -c` to execute the shell pipeline, consistent with the existing `no-datetime-utc` hook pattern.
+
+## Alternatives considered
+
+- **Python module in `tools/`**: Could extract the constraint into a standalone script in `tools/` directory, but the plan explicitly states this is a low-cost one-liner suitable for inline pre-commit execution.
+- **ast-grep-based hook**: Could use `ast-grep --pattern 'import git' --lang python scripts/ | while read f; do grep -qv "import git\.exc" "$f" && echo "$f"; done` but this would require ast-grep to be installed and adds complexity for a simple two-condition check.
+- **Separate repo hook**: Could add a separate external repo hook, but a local hook is simpler and doesn't require network access during pre-commit execution.
+
+## Implementation
+
+### Target file
+
+`.pre-commit-config.yaml`
+
+### Procedure
+
+1. Open `.pre-commit-config.yaml` and locate the last existing local hook entry (after line 47, after `check-suppression-justification`).
+2. After the last hook entry, add a new local hook following the same structure as existing local hooks.
+3. The new hook should appear as:
+
+```yaml
+  - repo: local
+    hooks:
+      - id: git-exc-import-guard
+        name: git.exc import guard
+        entry: bash -c 'rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done'
+        language: system
+        pass_filenames: false
+        always_run: true
+```
+
+4. Verify the full pre-commit gate passes: `uv run pre-commit run --all-files`.
+
+### Method
+
+The pre-commit hook works by:
+1. When triggered, executing the bash command that finds all files in `scripts/` containing `git.exc.` usage.
+2. For each such file, checking whether `import git.exc` appears anywhere in the file.
+3. If `import git.exc` is absent, echoing the filename to stdout, causing the pre-commit hook to fail with a non-zero exit code.
+4. The hook fails the commit, preventing the contributor from silently reintroducing the pyright false positive.
+
+### Details
+
+- The hook ID `git-exc-import-guard` follows the project convention of using hyphenated lowercase identifiers (consistent with `check-suppression-justification`, `no-compat-stubs`, etc.).
+- The hook name `git.exc import guard` is descriptive and concise, explaining what the hook does.
+- The `entry` field uses escaped backslashes (`\\\\`) because YAML interprets `\` as an escape character, and we need literal `\` in the regex patterns passed to `rg` and `grep`.
+- The hook is placed under the same `repo: local` block as other local hooks, maintaining consistency with the existing structure.
+- The hook will only flag violations going forward; it does not retroactively affect any existing commits.
+
+## Compatibility considerations
+
+- The hook uses standard Unix tools (`rg`, `grep`) that are already present in the dev environment.
+- The hook is scoped to `scripts/` only, consistent with the existing constraint checks in `rules/coding.md`.
+- The hook will only flag violations going forward; it does not retroactively affect any existing files.
+- Phase 1 prerequisite must be satisfied first: both `scripts/shared/git_helper.py` and `scripts/mcp_servers/git/git_service.py` must already include `import git.exc` for the constraint to pass on the current codebase.
+- Phase 2 prerequisite must also be satisfied: the documentation in `rules/coding.md` must be updated before wiring into pre-commit, so developers have visibility into the constraint.
+
+## Security considerations
+
+- N/A — this is a pre-commit configuration change that adds a constraint check. No security-sensitive operations are introduced.
+
+## Rollback considerations
+
+- To rollback: remove the added hook entry from `.pre-commit-config.yaml`.
+- No data loss risk — the change is purely a pre-commit configuration addition.
+- If the sibling fix (Phase 1) has not been implemented, rolling back the hook is necessary to avoid breaking the pre-commit gate.
+
+## Validation plan
+
+| Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
+|---|---|---|---|
+| `.pre-commit-config.yaml` | Manual — verify hook passes on current codebase | `uv run pre-commit run --all-files` | Passes, including `git-exc-import-guard` |
+| `.pre-commit-config.yaml` | Negative test — verify hook catches violations | Create temp file with `import git` + `git.exc.Something` but no `import git.exc`; stage and commit | Hook fails, commit rejected |
+| Architecture boundary | Static — import-layer contract | `PYTHONPATH=scripts uv run lint-imports` | No new violations |
+| Style/typing | Static | `uv run ruff format .pre-commit-config.yaml && uv run ruff check .pre-commit-config.yaml` | Clean |
+
+## Out of scope
+
+- Documentation update in `rules/coding.md` — handled in Phase 2.
+- Adding `types-GitPython` stub package.
+- Changing exception handling logic in any source file.
+- Any change to runtime behavior, log messages, or the `RepoInfoResult`/`GitServiceError` contracts.
+
+## Traceability
+
+- Workflow phase: plan-to-implementation-procedure
+- Source issue: issues/20260813-185547_risks.md
+- Source requirement: requires/20260814-133419_require.md
+- Source plan: plans/20260814-153545_plan.md
+- Source implementation procedure: N/A
+- Generated at: 20260814-181415
+- Related target files: .pre-commit-config.yaml

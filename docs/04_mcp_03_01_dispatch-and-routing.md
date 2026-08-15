@@ -8,8 +8,8 @@ tags:
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_03_03_transport-and-health-part1.md
-  - 04_mcp_03_03_transport-and-health-part2.md
+  - 04_mcp_03_03_transport-and-health.md
+  - 04_mcp_03_03_transport-and-health.md
   - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
 ---
@@ -255,8 +255,8 @@ MCP ツール定義と所有権に関するドリフト検出用データ。ル�
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health-part1.md`
-- `04_mcp_03_03_transport-and-health-part2.md`
+- `04_mcp_03_03_transport-and-health.md`
+- `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 

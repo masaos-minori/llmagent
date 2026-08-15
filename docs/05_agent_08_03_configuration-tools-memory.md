@@ -7,7 +7,7 @@ tags:
 related:
   - 05_agent_00_document-guide.md
 source:
-  - 05_agent_08_01_configuration-loading-agent-config-part1.md
+  - 05_agent_08_01_configuration-loading-agent-config.md
 ---
 
 # エージェント設定
@@ -145,7 +145,7 @@ source:
 ## Related Docs
 
 - `05_agent_00_document-guide.md`
-- `05_agent_08_01_configuration-loading-agent-config-part1.md`
+- `05_agent_08_01_configuration-loading-agent-config.md`
 - `05_agent_08_02_configuration-llm-rag.md`
 - `05_agent_08_04_configuration-mcp-approval-obs.md`
 

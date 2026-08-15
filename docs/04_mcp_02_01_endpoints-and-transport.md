@@ -60,7 +60,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 | `tool_name` | Log field | Agent router | Agent logs, server audit log |
 
 > エージェントのディスパッチ、トランスポート、MCP サーバーログをまたいで1つのツール呼び出しを追跡する方法については、
-> [04_mcp_03 §End-to-End Tool Call Tracing](04_mcp_03_03_transport-and-health-part2.md#end-to-end-tool-call-tracing) を参照。
+> [04_mcp_03 §End-to-End Tool Call Tracing](04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing) を参照。
 
 ### レスポンス
 

@@ -123,7 +123,7 @@ source:
 - `05_agent_06_02_tool-execution-and-approval-approval.md`
 - `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `05_agent_06_04_tool-execution-and-approval-canonical.md`
-- `05_agent_04_01_state-and-persistence-state-model-part1.md`
+- `05_agent_04_01_state-and-persistence-state-model.md`
 
 ## Keywords
 

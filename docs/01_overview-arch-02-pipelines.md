@@ -16,7 +16,7 @@ related:
 
 # 概要・アーキテクチャ
 
-ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts-part1.md`](01_overview-files-03-scripts-part1.md), [`01_overview-files-04-shared-part1.md`](01_overview-files-04-shared-part1.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
 
 ## 2. アーキテクチャ
 
@@ -64,7 +64,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 `workflow_mode` は有効な設定キーではない。`build_agent_config()` はこのキーを消費せず、設定ファイルに存在しても無視される（エラー・警告なし）。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
 
-詳細: [02_deployment-part1.md §Workflow deployment checklist](02_deployment-part1.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting-part1.md#workflow-deployment-runbook) / [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine-part1.md#ワークフロー実行必須化-adr-workflow-mandatory)
+詳細: [02_deployment.md§Workflow deployment checklist](02_deployment.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) / [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine.md#ワークフロー実行必須化-adr-workflow-mandatory)
 
     ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に人間承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 

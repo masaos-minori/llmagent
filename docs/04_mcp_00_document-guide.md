@@ -89,7 +89,7 @@ MCPドキュメント群のエントリポイントとして、どの章を開�
 | [04_mcp_01_tool_ownership_matrix.md](04_mcp_01_tool_ownership_matrix.md) | ツール所有行列 |
 | [04_mcp_02_service_boundaries.md](04_mcp_02_service_boundaries.md) | サービス境界定義 |
 | [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | プロトコルとトランスポート(3分割) |
-| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health-part1.md)/[_03b](04_mcp_03_03_transport-and-health-part2.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md)/[_06](04_mcp_03_06_tool-runtime-availability-metadata.md) | ルーティングとライフサイクル(7分割) |
+| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health.md)/[_03b](04_mcp_03_03_transport-and-health.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md)/[_06](04_mcp_03_06_tool-runtime-availability-metadata.md) | ルーティングとライフサイクル(7分割) |
 | [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md) 〜 [_02](04_mcp_04_02_file-write-file-delete-shell.md)/[_03](04_mcp_04_03_rag-pipeline-and-cicd.md)/[_04](04_mcp_04_04_mdq.md)/[_05](04_mcp_04_05_git.md) | サーバカタログ(5分割、_04=mdq。browser-mcpは2026-07-20にweb-search-mcpへ統合され_01に記載、旧_06は削除) |
 | [04_mcp_05_01](04_mcp_05_01_access-control-and-allowlists.md) 〜 [_02](04_mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](04_mcp_05_04_mdq-rag-boundary.md)/[_05](04_mcp_05_05_mdq-enforcement-and-lockdown.md) | セキュリティモデル(5分割) |
 | [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | config目的 |
@@ -104,7 +104,7 @@ MCPドキュメント群のエントリポイントとして、どの章を開�
 | [04_mcp_06_10_settings-with-high-operational-impact.md](04_mcp_06_10_settings-with-high-operational-impact.md) | 運用上重要な設定 |
 | [04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | 起動時検証 |
 | [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | watchdog削除note(2026-07-16) |
-| [04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md](04_mcp_06_13_watchdog-health-reasons-scheduling-part1.md) | health_reason / HealthRegistry |
+| [04_mcp_06_13_watchdog-health-reasons-scheduling.md](04_mcp_06_13_watchdog-health-reasons-scheduling.md) | health_reason / HealthRegistry |
 | [04_mcp_06_14_new-tool-registration-procedure.md](04_mcp_06_14_new-tool-registration-procedure.md) | 新規tool登録 |
 | [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | 新規サーバ追加チェックリスト |
 | [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | 本番投入前チェックリスト |

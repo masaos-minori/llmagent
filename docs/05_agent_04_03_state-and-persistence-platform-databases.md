@@ -9,15 +9,15 @@ tags:
   - workflow-sqlite
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_04_01_state-and-persistence-state-model-part1.md
+  - 05_agent_04_01_state-and-persistence-state-model.md
   - 05_agent_04_02_state-and-persistence-history-compression.md
 source:
-  - 05_agent_04_01_state-and-persistence-state-model-part1.md
+  - 05_agent_04_01_state-and-persistence-state-model.md
 ---
 
 # エージェントの状態と永続化
 
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 - ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
 - データレイヤー (スキーマ) → [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
@@ -124,7 +124,7 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 ## Related Docs
 
 - `05_agent_00_document-guide.md`
-- `05_agent_04_01_state-and-persistence-state-model-part1.md`
+- `05_agent_04_01_state-and-persistence-state-model.md`
 - `05_agent_04_02_state-and-persistence-history-compression.md`
 
 ## Keywords

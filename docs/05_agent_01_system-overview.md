@@ -7,7 +7,7 @@ tags:
   - overview
 related:
   - 05_agent_00_document-guide.md
-  - 05_agent_02_runtime-architecture-part1.md
+  - 05_agent_02_runtime-architecture.md
   - 05_agent_03_01_turn-processing-flow-overview.md
   - 05_agent_07_01_cli-and-commands-cli-reference.md
 ---
@@ -100,13 +100,13 @@ N/A — no known limitations documented beyond those tracked in `05_agent_90_inc
 ## Related Docs
 
 - [05_agent_00_document-guide.md](05_agent_00_document-guide.md)
-- [05_agent_02_runtime-architecture-part1.md](05_agent_02_runtime-architecture-part1.md)
+- [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 - [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
-- [05_agent_05_llm-and-streaming-part1.md](05_agent_05_llm-and-streaming-part1.md)
+- [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+- [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
 - [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md)
 - [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_cli-and-commands-cli-reference.md)
-- [05_agent_08_01_configuration-loading-agent-config-part1.md](05_agent_08_01_configuration-loading-agent-config-part1.md)
+- [05_agent_08_01_configuration-loading-agent-config.md](05_agent_08_01_configuration-loading-agent-config.md)
 - [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 - [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
-- [05_agent_13_reference-api-part1.md](05_agent_13_reference-api-part1.md)
+- [05_agent_13_reference-api.md](05_agent_13_reference-api.md)

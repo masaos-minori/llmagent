@@ -1,0 +1,100 @@
+## Goal
+Fix the `git-exc-import-guard` pre-commit hook's intermittent failure caused by a bash exit code logic bug where the while loop always returns exit code 1 regardless of whether `import git.exc` statements exist.
+
+## Scope
+**In-Scope**:
+- Modify `.pre-commit-config.yaml`: fix the `git-exc-import-guard` hook entry's bash command
+- Change from: `bash -c 'rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done'`
+- Change to: `bash -c 'missing=$(rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done); [ -z "$missing" ] && exit 0 || echo "$missing" && exit 1'`
+- Verify `uv run pre-commit run git-exc-import-guard --all-files` passes
+- Verify hook still detects missing imports when present
+
+**Out-of-Scope**:
+- Modifying `scripts/shared/git_helper.py` or `scripts/mcp_servers/git/git_service.py`
+- Any other pre-commit hooks
+- New test coverage
+
+## Assumptions
+- Both target files (`scripts/shared/git_helper.py:40`, `scripts/mcp_servers/git/git_service.py:20`) contain `import git.exc` — confirmed via manual verification
+- The fix preserves the original intent: flag files with `git.exc.` usage that lack `import git.exc`
+- No other files under `scripts/` reference `git.exc.*` without proper import
+
+## Design decisions
+- Capture the while loop output into a `$missing` variable instead of relying on the while loop's exit code: this ensures the hook correctly reports exit code 0 when all files have the import, and exit code 1 only when some files are missing it
+- Use `[ -z "$missing" ]` to check for empty string rather than relying on the while loop's exit code semantics
+
+## Alternatives considered
+- Using `set -o pipefail` with the original pipeline: would make the pipeline return the last non-zero exit code, but does not solve the fundamental issue that the while loop's exit code depends on the last iteration's condition
+- Rewriting the hook entirely in Python: more robust but out of scope for this minimal fix
+- Adding `|| true` after the while loop: suppresses the error but loses the ability to report which files are missing the import
+
+## Implementation
+
+### Target file
+`.pre-commit-config.yaml`
+
+### Procedure
+1. Open `.pre-commit-config.yaml`
+2. Locate the `git-exc-import-guard` local hook entry (around line 50)
+3. Find the current `entry:` value containing the buggy bash command
+4. Replace the entire `entry:` line with the fixed version:
+   ```yaml
+   entry: bash -c 'missing=$(rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done); [ -z "$missing" ] && exit 0 || echo "$missing" && exit 1'
+   ```
+5. Save the file
+
+### Method
+Configuration update — single-line replacement of the hook's `entry` field.
+
+### Details
+```yaml
+# Before (hook entry):
+- id: git-exc-import-guard
+  name: git.exc import guard
+  entry: bash -c 'rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done'
+  language: system
+  pass_filenames: false
+  always_run: true
+
+# After (hook entry):
+- id: git-exc-import-guard
+  name: git.exc import guard
+  entry: bash -c 'missing=$(rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done); [ -z "$missing" ] && exit 0 || echo "$missing" && exit 1'
+  language: system
+  pass_filenames: false
+  always_run: true
+```
+
+Root cause: When iterating over files that ALL have `import git.exc`, each iteration's `! grep -q` returns exit code 1 (because negation of success = failure). Since `&& echo` doesn't execute on failure, the exit code of that line becomes 1. The while loop ends with exit code 1 because the LAST iteration had a failed condition.
+
+## Compatibility considerations
+- No compatibility concern — this is a pre-commit configuration change
+- The `$missing` variable syntax works in bash 3.2+ (macOS default) and bash 4+ (Linux)
+
+## Security considerations
+- N/A — configuration-only change, no code execution impact
+
+## Rollback considerations
+- Revert to the original `entry:` value if the new command causes unexpected behavior in any environment
+
+## Validation plan
+
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| .pre-commit-config.yaml | Hook execution check | `uv run pre-commit run git-exc-import-guard --all-files` | Clean (no errors, exit 0) |
+| .pre-commit-config.yaml | Negative test (missing import detection) | Create temp file with `git.exc.` + no import, run hook | Exit 1 with filename printed |
+
+## Out of scope
+- Fixing missing `import git.exc` in source files (separate plan items)
+- Modifying other pre-commit hooks
+- Adding new pre-commit hooks
+
+## Traceability
+
+- Workflow phase: plan-to-implementation-procedure
+- Source issue: issues/20260815-011928_git_exc_import_guard_intermittent.md
+- Source requirement: requires/20260815-065358_require.md
+- Source plan: plans/20260815-074033_plan.md
+- Source implementation procedure: N/A
+- Generated at: 20260815-075615
+- Related target files: .pre-commit-config.yaml, scripts/shared/git_helper.py, scripts/mcp_servers/git/git_service.py

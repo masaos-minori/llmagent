@@ -228,6 +228,76 @@ class TestFinalizeAnswer:
         assert result == ""
 
 
+class TestFilterDisabledToolDefinitions:
+    def test_registry_not_none_returns_from_registry(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """When registry exists, _filter_disabled_tool_definitions uses registry.llm_tool_definitions()."""
+        mock_registry = MagicMock()
+        mock_registry.llm_tool_definitions.return_value = [
+            {"name": "tool_a", "description": "desc_a", "parameters": {}},
+            {"name": "tool_b", "description": "desc_b", "parameters": {}},
+        ]
+        runner._ctx.services_required.runtime_tools = mock_registry
+
+        result = runner._filter_disabled_tool_definitions()
+
+        assert len(result) == 2
+        assert result[0]["name"] == "tool_a"
+        assert result[1]["name"] == "tool_b"
+        mock_registry.llm_tool_definitions.assert_called_once()
+
+    def test_registry_not_none_includes_live_registered_tool_absent_from_static_config(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """Regression: tool present in RuntimeToolRegistry but absent from ctx.cfg.tool.tool_definitions
+        is still offered to the LLM once this fix is applied."""
+        mock_registry = MagicMock()
+        live_tool_def = {
+            "name": "live_tool",
+            "description": "discovered at runtime",
+            "parameters": {},
+        }
+        mock_registry.llm_tool_definitions.return_value = [live_tool_def]
+        runner._ctx.services_required.runtime_tools = mock_registry
+        # Explicitly ensure the static config does NOT contain the live tool
+        runner._ctx.cfg.tool.tool_definitions = []
+
+        result = runner._filter_disabled_tool_definitions()
+
+        assert len(result) == 1
+        assert result[0]["name"] == "live_tool"
+
+    def test_registry_is_none_falls_back_to_static_config(
+        self, runner: LLMTurnRunner
+    ) -> None:
+        """When registry is None, _filter_disabled_tool_definitions falls back to ctx.cfg.tool.tool_definitions."""
+        runner._ctx.services_required.runtime_tools = None
+        static_tools = [{"name": "static_tool", "function": {"name": "static_tool"}}]
+        runner._ctx.cfg.tool.tool_definitions = static_tools
+
+        result = runner._filter_disabled_tool_definitions()
+
+        assert len(result) == 1
+        assert result[0]["name"] == "static_tool"
+
+    def test_registry_not_none_correct_shape(self, runner: LLMTurnRunner) -> None:
+        """_filter_disabled_tool_definitions returns dicts with name/description/parameters keys."""
+        mock_registry = MagicMock()
+        mock_registry.llm_tool_definitions.return_value = [
+            {"name": "t1", "description": "d1", "parameters": {"type": "object"}},
+        ]
+        runner._ctx.services_required.runtime_tools = mock_registry
+
+        result = runner._filter_disabled_tool_definitions()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert "name" in result[0]
+        assert "description" in result[0]
+        assert "parameters" in result[0]
+
+
 class TestHandleLlmError:
     @pytest.mark.asyncio
     async def test_stores_in_diagnostic_and_returns_fail(

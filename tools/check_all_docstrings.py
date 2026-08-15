@@ -59,7 +59,7 @@ def check_docstring(filepath: Path, relpath: str) -> list[str]:
 
     try:
         content = filepath.read_text(encoding="utf-8")
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         issues.append(f"read error: {e}")
         return issues
 

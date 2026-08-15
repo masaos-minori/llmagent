@@ -51,14 +51,23 @@ def get_module_docstring_span(tree: ast.Module) -> tuple[int, int, int, int] | N
     if not tree.body:
         return None
     first = tree.body[0]
-    if not (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
-            and isinstance(first.value.value, str)):
+    if not (
+        isinstance(first, ast.Expr)
+        and isinstance(first.value, ast.Constant)
+        and isinstance(first.value.value, str)
+    ):
         return None
     node = first.value
     return node.lineno, node.col_offset, node.end_lineno, node.end_col_offset
 
 
-def span_to_byte_offsets(lines_bytes: list[bytes], start_line: int, start_col: int, end_line: int, end_col: int) -> tuple[int, int]:
+def span_to_byte_offsets(
+    lines_bytes: list[bytes],
+    start_line: int,
+    start_col: int,
+    end_line: int,
+    end_col: int,
+) -> tuple[int, int]:
     # ast column offsets are UTF-8 byte offsets, not character offsets, so any
     # line containing non-ASCII text (e.g. the em-dash separator) must be
     # resolved against the byte-encoded source, not the decoded str.
@@ -78,7 +87,9 @@ def build_init_candidates(parent_rel_posix: str, correct: str) -> list[str]:
     ]
 
 
-def compute_new_header(header: str, correct: str, is_init: bool, parent_rel_posix: str) -> tuple[str, str] | None:
+def compute_new_header(
+    header: str, correct: str, is_init: bool, parent_rel_posix: str
+) -> tuple[str, str] | None:
     """Returns (new_header_first_line, mode) or None if no self-reference found.
 
     mode is "inline" (simple substitution within the first line) or
@@ -87,14 +98,16 @@ def compute_new_header(header: str, correct: str, is_init: bool, parent_rel_posi
     """
     m = PY_PATH_RE.match(header)
     if m:
-        return header[: m.start()] + correct + header[m.end():], "inline"
+        return header[: m.start()] + correct + header[m.end() :], "inline"
 
     m2 = MULTI_SEGMENT_NO_EXT_RE.match(header)
     if m2 and not is_init:
-        return header[: m2.start()] + correct + header[m2.end():], "inline"
+        return header[: m2.start()] + correct + header[m2.end() :], "inline"
 
     if is_init:
-        candidates = sorted(build_init_candidates(parent_rel_posix, correct), key=len, reverse=True)
+        candidates = sorted(
+            build_init_candidates(parent_rel_posix, correct), key=len, reverse=True
+        )
         prefix_m = re.match(r"^(Package:\s*)", header)
         search_from = prefix_m.end() if prefix_m else 0
         for cand in candidates:
@@ -107,10 +120,10 @@ def compute_new_header(header: str, correct: str, is_init: bool, parent_rel_posi
 
     dm = DOTTED_HEADER_RE.match(header)
     if dm and not is_init:
-        return correct + header[dm.end():], "inline"
+        return correct + header[dm.end() :], "inline"
 
     if header.startswith("scripts/"):
-        remainder = header[len("scripts/"):]
+        remainder = header[len("scripts/") :]
         return remainder, "repair"
 
     # Pure prose with no self-reference at all (e.g. "AgentREPL"): treat the
@@ -160,7 +173,9 @@ def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
 
     source_bytes = source.encode("utf-8")
     lines_bytes = [line.encode("utf-8") for line in source.splitlines(keepends=True)]
-    abs_start, abs_end = span_to_byte_offsets(lines_bytes, start_line, start_col, end_line, end_col)
+    abs_start, abs_end = span_to_byte_offsets(
+        lines_bytes, start_line, start_col, end_line, end_col
+    )
     raw = source_bytes[abs_start:abs_end].decode("utf-8")
 
     if raw.startswith('"""') and raw.endswith('"""') and len(raw) >= 6:
@@ -194,7 +209,9 @@ def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
         new_body = new_header + (sep + rest if sep else "")
 
     new_raw = quote + new_body + quote
-    new_source = (source_bytes[:abs_start] + new_raw.encode("utf-8") + source_bytes[abs_end:]).decode("utf-8")
+    new_source = (
+        source_bytes[:abs_start] + new_raw.encode("utf-8") + source_bytes[abs_end:]
+    ).decode("utf-8")
 
     try:
         ast.parse(new_source)
@@ -217,7 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     scripts_dir = (
-        Path(args.scripts_dir) if args.scripts_dir
+        Path(args.scripts_dir)
+        if args.scripts_dir
         else Path(__file__).resolve().parent.parent / "scripts"
     )
     if not scripts_dir.is_dir():

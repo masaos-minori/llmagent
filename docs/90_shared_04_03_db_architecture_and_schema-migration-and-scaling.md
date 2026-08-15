@@ -11,7 +11,7 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
-  - 90_shared_04_02_db_architecture_and_schema-schema-reference-part1.md
+  - 90_shared_04_02_db_architecture_and_schema-schema-reference.md
 source:
   - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
 ---

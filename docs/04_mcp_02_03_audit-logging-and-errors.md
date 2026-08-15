@@ -55,7 +55,7 @@ HTTP トランスポートエラー（4xx/5xx）は `HttpTransport.call()` に�
 
 > **注記:** `HttpTransport.call()` はトランスポート障害に対して `is_error=True` を直接返すことはない。
 > 代わりに `TransportError` を発生させる。トランスポートエラーハンドラーがこれを捕捉し、
-> `ToolCallResult(error_type="transport")` を返す。[04_mcp_03 §HttpTransport](04_mcp_03_03_transport-and-health-part1.md#httptransport) を参照。
+> `ToolCallResult(error_type="transport")` を返す。[04_mcp_03 §HttpTransport](04_mcp_03_03_transport-and-health.md#httptransport) を参照。
 
 ### HealthRegistry の更新
 

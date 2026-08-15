@@ -46,4 +46,4 @@ class TestToolSpec:
     def test_is_frozen(self) -> None:
         spec = ToolSpec(call_id="c1", name="read_file")
         with pytest.raises(dataclasses.FrozenInstanceError):
-            spec.name = "changed"  # type: ignore[misc]
+            spec.name = "changed"  # type: ignore[misc]  # frozen instance — deliberate mutation attempt

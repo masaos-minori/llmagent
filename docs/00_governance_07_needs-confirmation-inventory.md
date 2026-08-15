@@ -59,7 +59,7 @@ To extract "Needs confirmation" items from source documents:
 
 ### NC-001
 
-- **Source File**: `05_agent_05_llm-and-streaming-part1.md`
+- **Source File**: `05_agent_05_llm-and-streaming.md`
 - **Section**: §Error Classification
 - **Line Number**: ~176
 - **Question**: Are `UTF8_PARTIAL_DECODE_ERROR` and `PREMATURE_EOF` distinct error types?
@@ -132,7 +132,7 @@ To extract "Needs confirmation" items from source documents:
 
 ### NC-006
 
-- **Source File**: `03_rag_03_06_query_pipeline-helpers-and-cache-part2.md`
+- **Source File**: `03_rag_03_06_query_pipeline-helpers-and-cache.md`
 - **Section**: §result_source field analysis
 - **Line Number**: ~120
 - **Question**: Is result_source field intended for future use or should it be removed?
@@ -208,13 +208,13 @@ To extract "Needs confirmation" items from source documents:
 
 ### NC-011
 
-- **Source File**: `03_rag_02_04_ingestion_pipeline-ingester-part2.md`
+- **Source File**: `03_rag_02_04_ingestion_pipeline-ingester.md`
 - **Section**: §docstring accuracy
 - **Line Number**: ~49
 - **Question**: Is the docstring reference to common.toml::embedding_dims intentional legacy text?
 - **Evidence**: Docstring references non-existent common.toml; actual config comes from ingester.toml
 - **Impact**: Misleading documentation may cause incorrect assumptions
-- **Required Action**: Resolved — confirmed outdated; see docs/03_rag_02_04_ingestion_pipeline-ingester-part2.md §4.4 (~line 51): common.toml does not exist, actual config source is config/ingester.toml.
+- **Required Action**: Resolved — confirmed outdated; see docs/03_rag_02_04_ingestion_pipeline-ingester.md §4.4 (~line 51): common.toml does not exist, actual config source is config/ingester.toml.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-29
@@ -264,26 +264,26 @@ To extract "Needs confirmation" items from source documents:
 
 ### NC-015
 
-- **Source File**: `05_agent_12_02_memory-gate-data-model-search-part1.md`
+- **Source File**: `05_agent_12_02_memory-gate-data-model-search.md`
 - **Section**: §Threshold/retention functions
 - **Line Number**: ~98
 - **Question**: Where are RETENTION_DAYS and duplicate threshold functions used?
 - **Evidence**: Functions referenced but usages unclear
 - **Impact**: Unused functions add complexity; missing usage breaks deduplication
-- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search-part1.md §実装上の補足.
+- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search.md §実装上の補足.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
 
 ### NC-016
 
-- **Source File**: `90_shared_03_04_runtime_and_execution-caching-and-reference-part2.md`
+- **Source File**: `90_shared_03_04_runtime_and_execution-caching-and-reference.md`
 - **Section**: §on_usage callback type
 - **Line Number**: ~82
 - **Question**: What is the actual shape of the on_usage callback?
 - **Evidence**: Type declared as object | None; usage context unclear from this module alone
 - **Impact**: Callback signature mismatch could cause runtime errors
-- **Required Action**: Resolved — confirmed `Callable[[int, int], None] | None`, invoked as `on_usage(prompt_tokens, completion_tokens)` from `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()`. See docs/90_shared_03_04_runtime_and_execution-caching-and-reference-part2.md §18.
+- **Required Action**: Resolved — confirmed `Callable[[int, int], None] | None`, invoked as `on_usage(prompt_tokens, completion_tokens)` from `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()`. See docs/90_shared_03_04_runtime_and_execution-caching-and-reference.md §18.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22

@@ -43,8 +43,8 @@ class TestInvokeAndRecordMerge:
         )
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(return_value=expected)
-        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
-        invoker._record_success = MagicMock()  # type: ignore[method-assign]
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]  # AsyncMock duck-types HttpTransport — AsyncMock
+        invoker._record_success = MagicMock()  # type: ignore[method-assign]  # spy mock for _record_success — test helper
 
         result = await invoker.invoke("srv", "some_tool", {})
 
@@ -60,7 +60,7 @@ class TestInvokeAndRecordMerge:
         exc = TransportError("boom")
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(side_effect=exc)
-        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]  # AsyncMock duck-types HttpTransport — AsyncMock
         sentinel = ToolCallResult(
             output="boom",
             is_error=True,
@@ -69,7 +69,7 @@ class TestInvokeAndRecordMerge:
             source="mcp",
             error_type="transport",
         )
-        invoker._record_transport_error = MagicMock(return_value=sentinel)  # type: ignore[method-assign]
+        invoker._record_transport_error = MagicMock(return_value=sentinel)  # type: ignore[method-assign]  # spy mock for _record_transport_error — test helper
 
         result = await invoker.invoke("srv", "some_tool", {})
 

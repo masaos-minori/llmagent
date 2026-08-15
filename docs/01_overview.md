@@ -12,11 +12,11 @@ related:
   - 01_overview-arch-03-features.md
   - 01_overview-files-01-build.md
   - 01_overview-files-02-rag.md
-  - 01_overview-files-03-scripts-part1.md
-  - 01_overview-files-04-shared-part1.md
+  - 01_overview-files-03-scripts.md
+  - 01_overview-files-04-shared.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
-  - 02_deployment-part1.md
+  - 02_deployment.md
 source:
   - 01_overview.md
 ---
@@ -30,11 +30,11 @@ source:
 | [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | 機能アーキテクチャ(実装済み機能、実装上の補足) |
 | [01_overview-files-01-build.md](01_overview-files-01-build.md) | ビルド・モデル関連のファイル構成 |
 | [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG関連のファイル構成 |
-| [01_overview-files-03-scripts-part1.md](01_overview-files-03-scripts-part1.md) 〜 part5 | scripts配下のファイル構成(5分割) |
-| [01_overview-files-04-shared-part1.md](01_overview-files-04-shared-part1.md) 〜 part2 | 共有インフラのファイル構成(2分割) |
+| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) 〜 part5 | scripts配下のファイル構成(5分割) |
+| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) 〜 part2 | 共有インフラのファイル構成(2分割) |
 | [01_overview-files-05-config.md](01_overview-files-05-config.md) | 設定ファイル構成 |
 | [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | その他のファイル構成 |
-| [02_deployment-part1.md](02_deployment-part1.md) | デプロイトポロジー(単一ホスト/複数ホスト前提)、環境構築・サービス起動 |
+| [02_deployment.md](02_deployment.md) | デプロイトポロジー(単一ホスト/複数ホスト前提)、環境構築・サービス起動 |
 
 ## 実装意図
 
@@ -50,8 +50,8 @@ source:
 - `01_overview-arch-03-features.md`
 - `01_overview-files-01-build.md`
 - `01_overview-files-02-rag.md`
-- `01_overview-files-03-scripts-part1.md`
-- `01_overview-files-04-shared-part1.md`
+- `01_overview-files-03-scripts.md`
+- `01_overview-files-04-shared.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
-- `02_deployment-part1.md`
+- `02_deployment.md`

@@ -11,8 +11,8 @@ tags:
 related:
   - 90_shared_00_document-guide.md
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md
-  - 90_shared_03_04_runtime_and_execution-caching-and-reference-part1.md
+  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
+  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
 source:
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
 ---
@@ -25,7 +25,7 @@ source:
 
 ToolExecutor は ToolTransportInvoker を継承し、http client/cache_ttl/server_configs/オプションパラメータを受け取るコンストラクタを持つ。apply_config() はホットリロード可能。execute() はキャッシュ参照→同時実行保護→ヘルスチェックゲート→transport解決→per-server semaphore実行→成功結果のみキャッシュの順序で実行。clear_cache()/get_error_counters() は状態管理。キャッシュは失敗結果を保存しない。
 
-補助関数: `is_side_effect()` は WRITE_TOOLS/DELETE_TOOLS/shell_run/GIT_WRITE_TOOLS/GITHUB_WRITE_TOOLS/GITHUB_DANGEROUS_TOOLS に属するツールを判定する（本モジュール内では TTL キャッシュのバイパス判定にのみ用いる）。ツール呼び出しバッチの並列/直列判定は唯一の実行パスである `agent/tool_runner.py::_execute_with_dag()` が `agent/tool_scheduler.py::build_execution_groups()` に委譲して行い、こちらは `RuntimeToolRegistry` 登録済みの `is_write`（`PreparedToolCall.spec`経由）を参照する（`is_side_effect()`とは無関係な別経路 — [90_shared_03_03](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients-part1.md)参照）。`format_transport_error()` は TransportErrorInfo を生成。`tool_hash_key()` は MD5 ハッシュを返すがキャッシュキーには使われず失敗追跡用途専用。
+補助関数: `is_side_effect()` は WRITE_TOOLS/DELETE_TOOLS/shell_run/GIT_WRITE_TOOLS/GITHUB_WRITE_TOOLS/GITHUB_DANGEROUS_TOOLS に属するツールを判定する（本モジュール内では TTL キャッシュのバイパス判定にのみ用いる）。ツール呼び出しバッチの並列/直列判定は唯一の実行パスである `agent/tool_runner.py::_execute_with_dag()` が `agent/tool_scheduler.py::build_execution_groups()` に委譲して行い、こちらは `RuntimeToolRegistry` 登録済みの `is_write`（`PreparedToolCall.spec`経由）を参照する（`is_side_effect()`とは無関係な別経路 — [90_shared_03_03](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)参照）。`format_transport_error()` は TransportErrorInfo を生成。`tool_hash_key()` は MD5 ハッシュを返すがキャッシュキーには使われず失敗追跡用途専用。
 
 ---
 

@@ -88,6 +88,6 @@ Cross-cutting documentation rules and policies:
 4. `LLMMessage` は7フィールド(`importance`/`pinned`含む。旧`90_shared.md`の5ではない)。
 5. DBトリガーが `chunks_fts` を自動同期するため手動INSERT禁止。
 6. `SQLiteHelper("workflow")`は有効(`90_shared_04_01`参照)。
-7. `LLMClient`詳細は`05_agent_05_llm-and-streaming-part1.md`参照(本書対象外)。
+7. `LLMClient`詳細は`05_agent_05_llm-and-streaming.md`参照(本書対象外)。
 
 

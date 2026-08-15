@@ -302,7 +302,13 @@ class TestBuildApprovalConfig:
             "grep",
         ]
         assert cfg.approval_resource_keys == {
-            "path_keys": ["path", "file_path", "directory_path", "source", "destination"],
+            "path_keys": [
+                "path",
+                "file_path",
+                "directory_path",
+                "source",
+                "destination",
+            ],
             "branch_keys": ["branch", "base", "head"],
         }
         assert cfg.approval_dry_run_tools == [
@@ -467,8 +473,7 @@ class TestBuildAgentConfig:
             build_agent_config(cfg)
         mock_exit.assert_called_once_with(1)
         assert any(
-            "Production config validation failed" in r.message
-            for r in caplog.records
+            "Production config validation failed" in r.message for r in caplog.records
         )
 
 

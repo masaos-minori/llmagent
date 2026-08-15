@@ -45,3 +45,9 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: git-exc-import-guard
+        name: git.exc import guard
+        entry: bash -c 'missing=$(rg -l "git\\.exc\\." scripts/ | while read f; do ! grep -q "import git\\.exc" "$f" && echo "$f"; done); [ -z "$missing" ] && exit 0 || echo "$missing" && exit 1'
+        language: system
+        pass_filenames: false
+        always_run: true

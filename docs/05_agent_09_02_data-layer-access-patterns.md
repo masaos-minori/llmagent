@@ -13,7 +13,7 @@ source:
 
 # エージェントデータ層
 
-- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model-part1.md](05_agent_04_01_state-and-persistence-state-model-part1.md)
+- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
 ## Purpose
 

@@ -1,0 +1,338 @@
+
+title: "RAG Query Pipeline - RagPipeline Class Detail (Part 1)"
+category: rag
+tags:
+  - rag-pipeline-class
+  - http-mode
+related:
+  - 03_rag_00_document-guide.md
+  - 03_rag_01_system_overview.md
+  - 03_rag_03_01_query_pipeline-overview.md
+  - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
+  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
+  - 03_rag_04_05_dto-types.md
+  - 03_rag_05_1-configuration-reference.md
+source:
+  - 03_rag_03_02_query_pipeline-rag-pipeline-class.md
+
+
+# RAG クエリパイプライン
+
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+
+---
+
+## 2. RagPipeline クラス (`scripts/rag/pipeline.py`)
+
+```python
+from rag.pipeline import RagPipeline, RagPipelineError
+```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document` は `rag/pipeline.py` からは提供されない。実体は
+> `rag/repository.py` で定義されている（`from rag.repository import fetch_full_document`）。
+> `sanitize_document` も同様に `rag/utils.py` の関数であり `rag.pipeline` には存在しない。
+> テスト・実装コードでの実際のインポートは `from rag.pipeline import RagPipeline, RagPipelineError` のみ。
+> (根拠分類: Explicit in code — `scripts/rag/pipeline.py` のimport文、`scripts/rag/repository.py`の`fetch_full_document()`関数)
+
+このクラスのコンストラクタは `module_cfg` をバイパスして設定します。詳細はソースコードを参照してください。
+
+公開属性および公開メソッドの一覧はソースコードを参照してください。
+
+### 実装意図 (Implementation note)
+
+- `invalidate_cache()` はこのパイプラインインスタンスが認識しているコーパス変更後にのみ呼び出される想定であり、
+  呼び出し側（MCPサービス層など）がコーパス変更操作を検知して明示的に呼び出す設計になっている。パイプライン自身が
+  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない (根拠分類: Strongly implied by code — docstringの
+  "Call after any corpus-changing operation this pipeline instance is aware of" という記述)。
+
+## Related Documents
+
+- `03_rag_00_document-guide.md`
+- `03_rag_01_system_overview.md`
+- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
+- `03_rag_04_05_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+
+## Keywords
+
+rag-pipeline-class
+http-mode
+rag
+
+# RAG クエリパイプライン
+
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+
+---
+
+## 2a. RagPipeline クラス (`scripts/rag/pipeline.py`)
+
+```python
+from rag.pipeline import RagPipeline, RagPipelineError
+```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document` は `rag/pipeline.py` からは提供されない。実体は
+> `rag/repository.py` で定義されている（`from rag.repository import fetch_full_document`）。
+> `sanitize_document` も同様に `rag/utils.py` の関数であり `rag.pipeline` には存在しない。
+> テスト・実装コードでの実際のインポートは `from rag.pipeline import RagPipeline, RagPipelineError` のみ。
+> (根拠分類: Explicit in code — `scripts/rag/pipeline.py` のimport文、`scripts/rag/repository.py`の`fetch_full_document()`関数)
+
+このクラスのコンストラクタは `module_cfg` をバイパスして設定します。詳細はソースコードを参照してください。
+
+公開属性および公開メソッドの一覧はソースコードを参照してください。
+
+### 実装意図 (Implementation note)
+
+- `invalidate_cache()` はこのパイプラインインスタンスが認識しているコーパス変更後にのみ呼び出される想定であり、
+  呼び出し側（MCPサービス層など）がコーパス変更操作を検知して明示的に呼び出す設計になっている。パイプライン自身が
+  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない (根拠分類: Strongly implied by code — docstringの
+  "Call after any corpus-changing operation this pipeline instance is aware of" という記述)。
+
+## Related Documents
+
+- `03_rag_00_document-guide.md`
+- `03_rag_01_system_overview.md`
+- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
+- `03_rag_04_05_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+
+## Keywords
+
+rag-pipeline-class
+http-mode
+rag
+
+
+
+# RAG クエリパイプライン
+
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+
+---
+
+## 2b. RagPipeline クラス (`scripts/rag/pipeline.py`)
+
+```python
+from rag.pipeline import RagPipeline, RagPipelineError
+```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document`（`rag/repository.py`）と `sanitize_document`
+> （`rag/utils.py`）は `rag.pipeline` からは提供されない。詳細は
+> [Part 1](03_rag_03_02_query_pipeline-rag-pipeline-class.md) 参照。
+> (根拠分類: Explicit in code)
+
+### HTTPモード（`rag_service_url`）
+
+`rag_service_url` が空でない場合、`augment()` はインプロセスパイプラインを実行する代わりに、
+`scripts/rag/pipeline_service.py` の `call_rag_service()` を介して外部RAGサービスに委譲する。
+
+| 動作 | 詳細 |
+|---|---|
+| 認証 | `rag_auth_token != ""` の場合、`X-RAG-Token: {rag_auth_token}` ヘッダが付加される（デフォルト: ヘッダなし） |
+| タイムアウト | HTTP試行1回あたり10.0秒（接続+読み取り） |
+| リトライ | 5xxまたはトランスポートエラーの場合は最大2回リトライ；指数バックオフ（1秒、2秒）；4xxまたはJSONパースエラーではリトライしない |
+| フォールバック | `None` が返された場合 → インプロセスパイプライン；`""`（空のコンテキスト）→ 有効な結果として受理される |
+| 無限委譲の防止 | MCPアダプタは `rag_service_url=""` をハードコードしているため、インプロセスの `augment()` が再度委譲することはない |
+| 戻り値 | `call_rag_service()` は `(context: str \| None, status_code: int \| None, elapsed_ms: float)` を返す — `status_code` と `elapsed_ms` は診断情報として利用可能 |
+
+`RagConfig` Protocol（`shared/types.py`）の設定フィールド:
+- `rag_service_url: str` — リモートエンドポイントのURL；空文字列の場合HTTPモードは無効
+- `rag_auth_token: str` — `X-RAG-Token` ヘッダ用の任意のベアラートークン；`""` = 認証なし（デフォルト）
+
+#### call_rag_service() 関数 (`scripts/rag/pipeline_service.py`)
+
+```python
+call_rag_service(
+    http: httpx.AsyncClient,
+    rag_url: str,
+    query: str,
+    history_context: str,
+    *,
+    auth_token: str = "",
+    set_fetch_result: Callable[[TwoStageFetchResult], None],
+    set_fallback_reason: Callable[[str], None] | None = None,
+) -> tuple[str | None, int | None, float]
+```
+
+戻り値の契約:
+
+| 戻り値 | 条件 |
+|---|---|
+| `str`（非空） | HTTP 200 かつレスポンスボディに空でない文字列値を持つ `"result"` キーがある |
+| `""`（空文字列） | HTTP 200だが `"result"` キーが存在しない、None、または空 — 有効な空の結果 |
+| `None` | HTTP 4xx（リトライなし）、リトライを使い切った5xx、トランスポートエラー、またはJSONパースエラー — インプロセスへのフォールバックを発生させる |
+
+副作用:
+- `set_fetch_result` は、レスポンスボディから取得したフェッチステージのステータスとヒットを保持する `TwoStageFetchResult` と共に呼び出される
+- `set_fallback_reason` は、成功以外の経路（4xx、トランスポートエラーなど）で理由文字列と共に呼び出される
+
+`rag_service_url` が設定されている場合、`augment()` はHTTP結果を分類し、
+`get_diagnostics()["http_result_kind"]` と `StageResult.fallback_reason` に記録する。
+
+| `http_result_kind` | `StageResult` のstatus | `fallback_reason` | 条件 |
+|---|---|---|---|
+| `"remote_nonempty"` | `"success"` | `None` | HTTP呼び出しが成功；非空のコンテキストが返された |
+| `"remote_empty"` | `"success"` | `None` | HTTP 200だがcontextフィールドが `""` — 有効な空の結果であり、フォールバックではない |
+| `"in_process_fallback"` | `"fallback"` | エラー文字列 | HTTPエラー；代わりにインプロセスのRAGパイプラインが実行された |
+| `None` | — | — | `rag_service_url` が未設定；HTTPモードは使用されていない |
+
+`"remote_empty"` のケースはフォールバックではなく**成功**である。リモートサービスは
+HTTP 200で応答したが、関連コンテキストが見つからなかった。この場合、インプロセスパイプラインは
+実行されない。実際のフォールバック事象と混同しないよう、`remote_nonempty` と `remote_empty` の両方で
+`fallback_reason` は `None` になる。
+
+この分類結果は以下で確認できる。
+- `get_diagnostics()["http_result_kind"]`
+
+> **注意**: `get_diagnostics()["http_result_kind"]`（値: `remote_nonempty`/`remote_empty`/`in_process_fallback`）と
+> `SearchDiagnostics.http_result_kind`（`rag.models_result.HttpResultKind` enum、値:
+> `success`/`empty`/`error`/`not_used`）は名前は似ているが異なる語彙を持つ別々のフィールドである。
+> 詳細は [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 参照。
+> (根拠分類: Explicit in code — `HttpAugmentResult.__init__` および `RagPipeline._run_http_augment`)
+
+---
+
+### Related Documents
+
+- `03_rag_00_document-guide.md`
+- `03_rag_01_system_overview.md`
+- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
+- `03_rag_04_05_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+
+### Keywords
+
+rag-pipeline-class
+http-mode
+rag
+
+# RAG クエリパイプライン
+
+- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+
+---
+
+## 2c. RagPipeline クラス (`scripts/rag/pipeline.py`)
+
+```python
+from rag.pipeline import RagPipeline, RagPipelineError
+```
+
+> **ドキュメントと実装の矛盾**: `fetch_full_document`（`rag/repository.py`）と `sanitize_document`
+> （`rag/utils.py`）は `rag.pipeline` からは提供されない。詳細は
+> [Part 1](03_rag_03_02_query_pipeline-rag-pipeline-class.md) 参照。
+> (根拠分類: Explicit in code)
+
+### HTTPモード（`rag_service_url`）
+
+`rag_service_url` が空でない場合、`augment()` はインプロセスパイプラインを実行する代わりに、
+`scripts/rag/pipeline_service.py` の `call_rag_service()` を介して外部RAGサービスに委譲する。
+
+| 動作 | 詳細 |
+|---|---|
+| 認証 | `rag_auth_token != ""` の場合、`X-RAG-Token: {rag_auth_token}` ヘッダが付加される（デフォルト: ヘッダなし） |
+| タイムアウト | HTTP試行1回あたり10.0秒（接続+読み取り） |
+| リトライ | 5xxまたはトランスポートエラーの場合は最大2回リトライ；指数バックオフ（1秒、2秒）；4xxまたはJSONパースエラーではリトライしない |
+| フォールバック | `None` が返された場合 → インプロセスパイプライン；`""`（空のコンテキスト）→ 有効な結果として受理される |
+| 無限委譲の防止 | MCPアダプタは `rag_service_url=""` をハードコードしているため、インプロセスの `augment()` が再度委譲することはない |
+| 戻り値 | `call_rag_service()` は `(context: str \| None, status_code: int \| None, elapsed_ms: float)` を返す — `status_code` と `elapsed_ms` は診断情報として利用可能 |
+
+`RagConfig` Protocol（`shared/types.py`）の設定フィールド:
+- `rag_service_url: str` — リモートエンドポイントのURL；空文字列の場合HTTPモードは無効
+- `rag_auth_token: str` — `X-RAG-Token` ヘッダ用の任意のベアラートークン；`""` = 認証なし（デフォルト）
+
+#### call_rag_service() 関数 (`scripts/rag/pipeline_service.py`)
+
+```python
+call_rag_service(
+    http: httpx.AsyncClient,
+    rag_url: str,
+    query: str,
+    history_context: str,
+    *,
+    auth_token: str = "",
+    set_fetch_result: Callable[[TwoStageFetchResult], None],
+    set_fallback_reason: Callable[[str], None] | None = None,
+) -> tuple[str | None, int | None, float]
+```
+
+戻り値の契約:
+
+| 戻り値 | 条件 |
+|---|---|
+| `str`（非空） | HTTP 200 かつレスポンスボディに空でない文字列値を持つ `"result"` キーがある |
+| `""`（空文字列） | HTTP 200だが `"result"` キーが存在しない、None、または空 — 有効な空の結果 |
+| `None` | HTTP 4xx（リトライなし）、リトライを使い切った5xx、トランスポートエラー、またはJSONパースエラー — インプロセスへのフォールバックを発生させる |
+
+副作用:
+- `set_fetch_result` は、レスポンスボディから取得したフェッチステージのステータスとヒットを保持する `TwoStageFetchResult` と共に呼び出される
+- `set_fallback_reason` は、成功以外の経路（4xx、トランスポートエラーなど）で理由文字列と共に呼び出される
+
+`rag_service_url` が設定されている場合、`augment()` はHTTP結果を分類し、
+`get_diagnostics()["http_result_kind"]` と `StageResult.fallback_reason` に記録する。
+
+| `http_result_kind` | `StageResult` のstatus | `fallback_reason` | 条件 |
+|---|---|---|---|
+| `"remote_nonempty"` | `"success"` | `None` | HTTP呼び出しが成功；非空のコンテキストが返された |
+| `"remote_empty"` | `"success"` | `None` | HTTP 200だがcontextフィールドが `""` — 有効な空の結果であり、フォールバックではない |
+| `"in_process_fallback"` | `"fallback"` | エラー文字列 | HTTPエラー；代わりにインプロセスのRAGパイプラインが実行された |
+| `None` | — | — | `rag_service_url` が未設定；HTTPモードは使用されていない |
+
+`"remote_empty"` のケースはフォールバックではなく**成功**である。リモートサービスは
+HTTP 200で応答したが、関連コンテキストが見つからなかった。この場合、インプロセスパイプラインは
+実行されない。実際のフォールバック事象と混同しないよう、`remote_nonempty` と `remote_empty` の両方で
+`fallback_reason` は `None` になる。
+
+この分類結果は以下で確認できる。
+- `get_diagnostics()["http_result_kind"]`
+
+> **注意**: `get_diagnostics()["http_result_kind"]`（値: `remote_nonempty`/`remote_empty`/`in_process_fallback`）と
+> `SearchDiagnostics.http_result_kind`（`rag.models_result.HttpResultKind` enum、値:
+> `success`/`empty`/`error`/`not_used`）は名前は似ているが異なる語彙を持つ別々のフィールドである。
+> 詳細は [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 参照。
+> (根拠分類: Explicit in code — `HttpAugmentResult.__init__` および `RagPipeline._run_http_augment`)
+
+---
+
+### Related Documents
+
+- `03_rag_00_document-guide.md`
+- `03_rag_01_system_overview.md`
+- `03_rag_03_01_query_pipeline-overview.md`
+- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
+- `03_rag_03_04_query_pipeline-search-stages.md`
+- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
+- `03_rag_04_05_dto-types.md`
+- `03_rag_05_1-configuration-reference.md`
+- `03_rag_03_02_query_pipeline-rag-pipeline-class.md`
+
+### Keywords
+
+rag-pipeline-class
+http-mode
+rag
+

@@ -264,7 +264,7 @@ class TestBuildDiscoveryMap:
             {
                 "file_read": [
                     {"name": "", "server_key": "file_read"},
-                    {"name": None, "server_key": "file_read"},  # type: ignore[typeddict-item]  # deliberately malformed: exercises the defensive skip path
+                    {"name": None, "server_key": "file_read"},  # type: ignore[typeddict-item]  # deliberately malformed input — exercises the defensive skip path
                 ],
             }
         )

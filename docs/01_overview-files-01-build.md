@@ -10,8 +10,8 @@ tags:
   - file-structure
 related:
   - 01_overview-files-02-rag.md
-  - 01_overview-files-03-scripts-part1.md
-  - 01_overview-files-04-shared-part1.md
+  - 01_overview-files-03-scripts.md
+  - 01_overview-files-04-shared.md
   - 01_overview-files-05-config.md
   - 01_overview-files-06-misc.md
 ---
@@ -57,8 +57,8 @@ deploy/
 ## Related Documents
 
 - `01_overview-files-02-rag.md`
-- `01_overview-files-03-scripts-part1.md`
-- `01_overview-files-04-shared-part1.md`
+- `01_overview-files-03-scripts.md`
+- `01_overview-files-04-shared.md`
 - `01_overview-files-05-config.md`
 - [01_overview.md](01_overview.md)
 

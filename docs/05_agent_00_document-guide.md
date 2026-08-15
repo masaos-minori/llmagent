@@ -8,9 +8,9 @@ tags:
   - routing
 related:
   - 05_agent_01_system-overview.md
-  - 05_agent_02_runtime-architecture-part1.md
-  - 05_agent_05_llm-and-streaming-part1.md
-  - 05_agent_13_reference-api-part1.md
+  - 05_agent_02_runtime-architecture.md
+  - 05_agent_05_llm-and-streaming.md
+  - 05_agent_13_reference-api.md
   - 05_agent_90_inconsistencies_and_known_issues.md
 ---
 
@@ -102,7 +102,7 @@ Deleted `05_ref-*` / `05_agent-impl-flow.md` / `05_agent-ops.md` files are integ
 ### Additional References
 
 - `05_agent_01_system-overview.md`
-- `05_agent_02_runtime-architecture-part1.md`
-- `05_agent_05_llm-and-streaming-part1.md`
-- `05_agent_13_reference-api-part1.md`
+- `05_agent_02_runtime-architecture.md`
+- `05_agent_05_llm-and-streaming.md`
+- `05_agent_13_reference-api.md`
 - `05_agent_90_inconsistencies_and_known_issues.md`

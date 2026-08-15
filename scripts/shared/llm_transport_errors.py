@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """scripts/shared/llm_transport_errors.py — LLM transport error handling helpers."""
 
-import warnings
-
 import httpx
 
 from shared.llm_exceptions import LLMTransportError
@@ -57,26 +55,3 @@ class LlmTransportErrorHandler:
             retryable=False,
             detail=str(e),
         )
-
-    @staticmethod
-    def resolve_retryable(
-        e: LLMTransportError,
-        heartbeat_timeout_retry: bool,
-        malformed_chunk_retry: bool,
-        heartbeat_timeout_counter: int,
-    ) -> tuple[bool, int]:
-        """Return (effective_retryable, updated_heartbeat_timeout_counter).
-
-        Increments heartbeat timeout counter when e.kind == 'HEARTBEAT_TIMEOUT'.
-        """
-        warnings.warn(
-            "LlmTransportErrorHandler.resolve_retryable is deprecated and unused in "
-            "production; use LlmReconnectHandler.resolve_retryable instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if e.kind == "HEARTBEAT_TIMEOUT":
-            return heartbeat_timeout_retry, heartbeat_timeout_counter + 1
-        if e.kind == "MALFORMED_SSE_FRAME":
-            return malformed_chunk_retry, heartbeat_timeout_counter
-        return e.retryable, heartbeat_timeout_counter
