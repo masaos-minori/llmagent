@@ -23,14 +23,11 @@ class WriteFileFormatter:
     @staticmethod
     def format_write_result(result: WriteFileResponse) -> str:
         """Format write_file result with optional dry-run diff."""
-        if not result.applied:
-            info = f"Dry-run: {result.path} ({result.size} bytes)"
-            if result.diff:
-                info += f"\n{result.diff}"
-            else:
-                info += " [new file]"
-            return info
-        return f"Written: {result.path} ({result.size} bytes)"
+        if result.applied:
+            return f"Written: {result.path} ({result.size} bytes)"
+        if result.diff:
+            return f"Dry-run: {result.path} ({result.size} bytes)\n{result.diff}"
+        return f"Dry-run: {result.path} ({result.size} bytes) [new file]"
 
     @staticmethod
     def format_edit_result(result: EditFileResponse) -> str:

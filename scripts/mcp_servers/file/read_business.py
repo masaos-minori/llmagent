@@ -75,6 +75,21 @@ class ReadFileService(ReadSecurityGuards):
 
     # ── Business operation methods ──
 
+    @staticmethod
+    def _entry_size_or_skip(child: Path, include_dir_sizes: bool) -> int | None:
+        """Compute a directory entry's size, or None if the entry should be skipped.
+
+        Returns 0 without stat-ing when the entry is a directory and
+        include_dir_sizes is False. Returns None (skip signal) if stat() fails.
+        """
+        if not (child.is_file() or include_dir_sizes):
+            return 0
+        try:
+            return child.stat().st_size
+        except OSError as e:
+            logger.warning("list_dir_entries: stat error for '%s': %s", child, e)
+            return None
+
     def list_dir_entries(
         self,
         req: ListDirectoryRequest,
@@ -87,16 +102,9 @@ class ReadFileService(ReadSecurityGuards):
         entries: list[FileEntry] = []
         try:
             for child in sorted(target.iterdir()):
-                if not (child.is_file() or include_dir_sizes):
-                    size = 0
-                else:
-                    try:
-                        size = child.stat().st_size
-                    except OSError as e:
-                        logger.warning(
-                            "list_dir_entries: stat error for '%s': %s", child, e
-                        )
-                        continue
+                size = self._entry_size_or_skip(child, include_dir_sizes)
+                if size is None:
+                    continue
                 entries.append(
                     FileEntry(
                         name=child.name,

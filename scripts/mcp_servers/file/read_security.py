@@ -12,6 +12,7 @@ Import from here:  from mcp_servers.file.read_security import ReadSecurityGuards
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from mcp_servers.file.common import (
     FileSecurityMixin,
@@ -54,7 +55,7 @@ class ReadSecurityGuards(FileSecurityMixin):
         self,
         raw_path: str,
         *,
-        expected_type: str = "file",
+        expected_type: Literal["file", "dir"] = "file",
     ) -> tuple[Path, int]:
         """Resolve path, require it's a file/directory, check size limit. Return (target, size)."""
         target = self._resolve_safe(raw_path)

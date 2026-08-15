@@ -8,6 +8,21 @@ from __future__ import annotations
 
 from typing import Any
 
+# Shared metadata block: every tool in this module is a filesystem write, so these
+# fields are byte-for-byte identical across all TOOL_LIST entries except
+# resource_scope_keys (move_file scopes on "source"/"destination", not "path").
+# Extracted so they stay in sync (mirrors the analogous _REPO_PATH_PROPERTY extraction
+# in scripts/mcp_servers/git/git_tools.py, _FILESYSTEM_DELETE_METADATA in
+# scripts/mcp_servers/file/delete_tools.py, and _FILESYSTEM_READ_METADATA in
+# scripts/mcp_servers/file/read_tools.py).
+_FILESYSTEM_WRITE_METADATA: dict[str, Any] = {
+    "status": "production",
+    "config_dependent": False,
+    "is_write": True,
+    "requires_serial": False,
+    "resource_scope_kind": "filesystem",
+}
+
 TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "write_file",
@@ -30,11 +45,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path", "content"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
+        **_FILESYSTEM_WRITE_METADATA,
         "resource_scope_keys": ["path"],
     },
     {
@@ -72,11 +83,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path", "edits"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
+        **_FILESYSTEM_WRITE_METADATA,
         "resource_scope_keys": ["path"],
     },
     {
@@ -96,11 +103,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
+        **_FILESYSTEM_WRITE_METADATA,
         "resource_scope_keys": ["path"],
     },
     {
@@ -124,11 +127,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["source", "destination"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
+        **_FILESYSTEM_WRITE_METADATA,
         "resource_scope_keys": ["source", "destination"],
     },
 ]

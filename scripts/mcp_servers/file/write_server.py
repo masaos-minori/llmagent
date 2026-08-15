@@ -152,22 +152,25 @@ async def _dispatch_write_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
+def _annotate_tool(
+    tool: dict[str, Any], enabled: bool, disabled_reason: str
+) -> dict[str, Any]:
+    """Return a copy of tool with server_key and availability fields attached."""
+    return {
+        **tool,
+        "server_key": "file_write",
+        "enabled": enabled,
+        "disabled_reason": disabled_reason,
+    }
+
+
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """List available MCP tools with schema_version and server key annotation."""
     enabled, disabled_reason = availability_flags(_cfg.allowed_dirs)
-    tools_with_availability = []
-    for t in TOOL_LIST:
-        tool_dict = {
-            **t,
-            "server_key": "file_write",
-            "enabled": enabled,
-            "disabled_reason": disabled_reason,
-        }
-        tools_with_availability.append(tool_dict)
     return {
         "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": tools_with_availability,
+        "tools": [_annotate_tool(t, enabled, disabled_reason) for t in TOOL_LIST],
     }
 
 

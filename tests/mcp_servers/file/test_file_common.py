@@ -7,16 +7,24 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fastapi import Request
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
     _build_health_deps,
+    _health,
+    _on_auth_error,
+    _on_not_found,
+    _on_validation_error,
+    availability_flags,
     check_size_limit,
     format_permissions,
     require_dir,
     require_file,
     resolve_safe,
 )
+
+_DUMMY_REQUEST = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
 
 
 class TestResolveSafe:
@@ -82,6 +90,16 @@ class TestResolveSafe:
         with pytest.raises(FileAuthorizationError):
             resolve_safe(str(tmp_path / "x"), [])
 
+    def test_resolve_oserror_raises_validation_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def raise_oserror(self: Path) -> Path:
+            raise OSError("simulated resolve failure")
+
+        monkeypatch.setattr(Path, "resolve", raise_oserror)
+        with pytest.raises(FileValidationError):
+            resolve_safe(str(tmp_path / "x"), [tmp_path])
+
 
 class TestRequireFile:
     def test_existing_file_passes(self, tmp_path: Path) -> None:
@@ -145,6 +163,16 @@ class TestCheckSizeLimit:
             check_size_limit(target, 5)
         assert "11" in str(exc_info.value)
 
+    def test_stat_oserror_raises_validation_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def raise_oserror(self: Path) -> object:
+            raise OSError("simulated stat failure")
+
+        monkeypatch.setattr(Path, "stat", raise_oserror)
+        with pytest.raises(FileValidationError):
+            check_size_limit(tmp_path / "missing.txt", 1024)
+
 
 class TestBuildHealthDeps:
     def test_configured_dir_exists_returns_empty(self, tmp_path: Path) -> None:
@@ -196,3 +224,57 @@ class TestFormatPermissions:
     def test_no_permissions(self) -> None:
         result = format_permissions(0o100000)
         assert result == "---------"
+
+
+class TestAvailabilityFlags:
+    def test_nonempty_allowed_dirs_returns_enabled(self) -> None:
+        enabled, reason = availability_flags(["/some/dir"])
+        assert enabled is True
+        assert reason == ""
+
+    def test_empty_allowed_dirs_returns_disabled(self) -> None:
+        enabled, reason = availability_flags([])
+        assert enabled is False
+        assert reason == "allowed_dirs is empty"
+
+
+class TestExceptionHandlers:
+    @pytest.mark.asyncio
+    async def test_on_auth_error_returns_403(self) -> None:
+        response = await _on_auth_error(
+            _DUMMY_REQUEST, FileAuthorizationError("denied")
+        )
+        assert response.status_code == 403
+        assert b"denied" in response.body
+
+    @pytest.mark.asyncio
+    async def test_on_not_found_returns_404(self) -> None:
+        response = await _on_not_found(_DUMMY_REQUEST, FileNotFoundError("missing"))
+        assert response.status_code == 404
+        assert b"missing" in response.body
+
+    @pytest.mark.asyncio
+    async def test_on_validation_error_returns_422(self) -> None:
+        response = await _on_validation_error(
+            _DUMMY_REQUEST, FileValidationError("bad input")
+        )
+        assert response.status_code == 422
+        assert b"bad input" in response.body
+
+
+class TestHealth:
+    @pytest.mark.asyncio
+    async def test_all_dirs_present_returns_200(self, tmp_path: Path) -> None:
+        response = await _health([str(tmp_path)])
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_missing_dir_returns_503(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does_not_exist"
+        response = await _health([str(missing)])
+        assert response.status_code == 503
+
+    @pytest.mark.asyncio
+    async def test_empty_allowed_dirs_returns_200(self) -> None:
+        response = await _health([])
+        assert response.status_code == 200

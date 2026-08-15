@@ -72,22 +72,25 @@ class DeleteFileService(FileSecurityMixin):
 
     # ── Business operation methods ──
 
+    def _stat_info_for_dry_run(self, target: Path) -> str:
+        """Return a human-readable size/mode/mtime string, or a "stat error: ..." string."""
+        try:
+            st = target.stat()
+            mode = oct(stat_module.S_IMODE(st.st_mode))
+            mtime = datetime.fromtimestamp(st.st_mtime, tz=UTC).isoformat()
+            return f"size={st.st_size}, mode={mode}, mtime={mtime}"
+        except OSError as e:
+            return f"stat error: {e}"
+
     def delete_file(self, req: DeleteFileRequest) -> DeleteFileResponse:
         """Delete the specified file and record the operation in the audit log."""
         target = self._resolve_safe(req.path)
         self._require_file(target, req.path)
         if req.dry_run:
-            try:
-                st = target.stat()
-                mode = oct(stat_module.S_IMODE(st.st_mode))
-                mtime = datetime.fromtimestamp(st.st_mtime, tz=UTC).isoformat()
-                file_info = f"size={st.st_size}, mode={mode}, mtime={mtime}"
-            except OSError as e:
-                file_info = f"stat error: {e}"
             return DeleteFileResponse(
                 path=str(target),
                 deleted=False,
-                file_info=file_info,
+                file_info=self._stat_info_for_dry_run(target),
             )
         try:
             target.unlink()
@@ -121,6 +124,33 @@ class DeleteFileService(FileSecurityMixin):
                     continue
         return file_count, total_size, False
 
+    def _dry_run_directory_response(self, target: Path) -> DeleteDirectoryResponse:
+        """Build the dry-run response describing directory contents, without deleting."""
+        try:
+            file_count, total_size, truncated = self._scan_directory_for_dry_run(
+                target,
+            )
+        except OSError as e:
+            return DeleteDirectoryResponse(
+                path=str(target),
+                deleted=False,
+                dir_info=f"scan error: {e}",
+            )
+        count_str = f"{file_count}+" if truncated else str(file_count)
+        return DeleteDirectoryResponse(
+            path=str(target),
+            deleted=False,
+            dir_info=f"{count_str} files, {total_size} bytes",
+        )
+
+    def _check_not_deleting_allowed_root(self, target: Path) -> None:
+        """Raise FileAuthorizationError if target is itself one of the allowed root dirs."""
+        for allowed in self._allowed_dirs:
+            if target == allowed.resolve():
+                raise FileAuthorizationError(
+                    f"Deleting an allowed root directory is not permitted: {target}",
+                )
+
     def delete_directory(self, req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
         """Delete a directory and record the operation in the audit log.
 
@@ -130,29 +160,10 @@ class DeleteFileService(FileSecurityMixin):
         self._require_dir(target, req.path)
 
         if req.dry_run:
-            try:
-                file_count, total_size, truncated = self._scan_directory_for_dry_run(
-                    target,
-                )
-            except OSError as e:
-                return DeleteDirectoryResponse(
-                    path=str(target),
-                    deleted=False,
-                    dir_info=f"scan error: {e}",
-                )
-            count_str = f"{file_count}+" if truncated else str(file_count)
-            return DeleteDirectoryResponse(
-                path=str(target),
-                deleted=False,
-                dir_info=f"{count_str} files, {total_size} bytes",
-            )
+            return self._dry_run_directory_response(target)
 
         if req.recursive:
-            for allowed in self._allowed_dirs:
-                if target == allowed.resolve():
-                    raise FileAuthorizationError(
-                        f"Deleting an allowed root directory is not permitted: {target}",
-                    )
+            self._check_not_deleting_allowed_root(target)
 
         try:
             if req.recursive:

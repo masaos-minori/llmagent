@@ -47,25 +47,25 @@ class ReadFileService(_ReadFileServiceCore):
 
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
-    async def fmt_list_directory(self, args: ToolArgs) -> str:
-        """List directory entries without sizes."""
+    async def _fmt_list_directory(
+        self, args: ToolArgs, *, include_dir_sizes: bool
+    ) -> str:
+        """Fetch directory entries and format them as plain text for the LLM."""
         result = await asyncio.to_thread(
             self.list_dir_entries,
             ListDirectoryRequest(**args),
-            include_dir_sizes=False,
+            include_dir_sizes=include_dir_sizes,
         )
         formatted: str = fmt_dir_entries(result.entries)
         return formatted
 
+    async def fmt_list_directory(self, args: ToolArgs) -> str:
+        """List directory entries without sizes."""
+        return await self._fmt_list_directory(args, include_dir_sizes=False)
+
     async def fmt_list_directory_with_sizes(self, args: ToolArgs) -> str:
         """List directory entries with file sizes included."""
-        result = await asyncio.to_thread(
-            self.list_dir_entries,
-            ListDirectoryRequest(**args),
-            include_dir_sizes=True,
-        )
-        formatted: str = fmt_dir_entries(result.entries)
-        return formatted
+        return await self._fmt_list_directory(args, include_dir_sizes=True)
 
     async def fmt_directory_tree(self, args: ToolArgs) -> str:
         """Display a directory tree structure up to the specified depth."""

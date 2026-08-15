@@ -130,10 +130,21 @@ class WriteFileService(FileSecurityMixin):
             )
         if req.dry_run:
             return self._write_file_dry_run(target, req.content, size)
+        size = self._atomic_write(target, req.content)
+        return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
+
+    @staticmethod
+    def _atomic_write(target: Path, content: str) -> int:
+        """Write content to target atomically via a tmp file + os.replace.
+
+        Returns the final file size. Raises FileAuthorizationError on permission
+        error, FileValidationError on other OS errors. Cleans up the tmp file on
+        failure either way.
+        """
         tmp = target.parent / f".tmp_{target.name}"
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
-            tmp.write_text(req.content, encoding="utf-8")
+            tmp.write_text(content, encoding="utf-8")
             os.replace(str(tmp), str(target))
         except PermissionError as e:
             WriteFileService._cleanup_tmp(tmp)
@@ -143,8 +154,7 @@ class WriteFileService(FileSecurityMixin):
             logger.error("write_file: OS error writing '%s': %s", target, e)
             raise FileValidationError(str(e))
 
-        size = target.stat().st_size
-        return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
+        return target.stat().st_size
 
     def _write_file_dry_run(
         self,

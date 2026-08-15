@@ -290,6 +290,47 @@ class TestStaticHelpers:
         count = count_tree_nodes(node)
         assert count >= 4
 
+    def test_build_tree_permission_error_while_expanding_leaves_no_children(
+        self, service
+    ):
+        import os
+
+        svc, tmp_workspace = service
+        if os.getuid() == 0:
+            pytest.skip("root can list directories regardless of permissions")
+
+        blocked = tmp_workspace / "blocked"
+        blocked.mkdir()
+        (blocked / "hidden.txt").write_text("secret", encoding="utf-8")
+        blocked.chmod(0o000)
+        try:
+            node = build_tree(blocked, 0, 3)
+        finally:
+            blocked.chmod(0o755)
+
+        assert node.type == "dir"
+        assert node.children == []
+        assert node.depth_limited is False
+
+    def test_build_tree_permission_error_at_depth_limit_defaults_false(self, service):
+        import os
+
+        svc, tmp_workspace = service
+        if os.getuid() == 0:
+            pytest.skip("root can list directories regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_at_limit"
+        blocked.mkdir()
+        (blocked / "hidden.txt").write_text("secret", encoding="utf-8")
+        blocked.chmod(0o000)
+        try:
+            node = build_tree(blocked, 3, 3)
+        finally:
+            blocked.chmod(0o755)
+
+        assert node.type == "dir"
+        assert node.depth_limited is False
+
 
 # -- list_dir_entries tests --------------------------------------------------
 
@@ -348,6 +389,44 @@ class TestListDirEntries:
                 ListDirectoryRequest(path=str(tmp_workspace / "file_a.py")),
                 include_dir_sizes=False,
             )
+
+    def test_list_dir_stat_error_skips_entry(self, service):
+        """A child whose stat() raises OSError (e.g. a broken symlink) is
+        skipped with a warning log rather than aborting the listing."""
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import ListDirectoryRequest
+
+        broken = tmp_workspace / "broken_link"
+        broken.symlink_to(tmp_workspace / "does_not_exist")
+
+        result = svc.list_dir_entries(
+            ListDirectoryRequest(path=str(tmp_workspace)),
+            include_dir_sizes=True,
+        )
+        names = {e.name for e in result.entries}
+        assert "broken_link" not in names
+        assert "file_a.py" in names
+
+    def test_list_dir_permission_error_raises_file_authorization_error(self, service):
+        import os
+
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import ListDirectoryRequest
+
+        if os.getuid() == 0:
+            pytest.skip("root can list directories regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_list"
+        blocked.mkdir()
+        blocked.chmod(0o000)
+        try:
+            with pytest.raises(FileAuthorizationError):
+                svc.list_dir_entries(
+                    ListDirectoryRequest(path=str(blocked)),
+                    include_dir_sizes=False,
+                )
+        finally:
+            blocked.chmod(0o755)
 
 
 # -- build_directory_tree tests ----------------------------------------------
@@ -530,6 +609,41 @@ class TestReadMediaFile:
                 ReadMediaFileRequest(path=str(tmp_workspace / "large.txt"))
             )
 
+    def test_read_media_file_permission_error_raises_file_authorization_error(
+        self, service
+    ):
+        import os
+
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import ReadMediaFileRequest
+
+        if os.getuid() == 0:
+            pytest.skip("root can read files regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_media.bin"
+        blocked.write_bytes(b"\x00\x01\x02")
+        blocked.chmod(0o000)
+        try:
+            with pytest.raises(FileAuthorizationError):
+                svc.read_media_file(ReadMediaFileRequest(path=str(blocked)))
+        finally:
+            blocked.chmod(0o644)
+
+    def test_read_media_file_os_error_raises_file_validation_error(
+        self, service, monkeypatch
+    ):
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import ReadMediaFileRequest
+
+        def boom(self: Path) -> bytes:
+            raise OSError("simulated device error")
+
+        monkeypatch.setattr(Path, "read_bytes", boom)
+        with pytest.raises(FileValidationError):
+            svc.read_media_file(
+                ReadMediaFileRequest(path=str(tmp_workspace / "binary.bin"))
+            )
+
 
 # -- read_multiple_files tests ------------------------------------------------
 
@@ -585,6 +699,55 @@ class TestReadMultipleFiles:
         assert result.results[0].error is not None
 
 
+# -- read_single_file tests (direct, error-path characterization) -----------
+
+
+class TestReadSingleFile:
+    def test_read_single_file_size_limit_exceeded(self, service):
+        svc, tmp_workspace = service
+
+        result = svc.read_single_file(str(tmp_workspace / "large.txt"))
+        assert result.content is None
+        assert result.error is not None
+        assert "Size limit exceeded" in result.error
+
+    def test_read_single_file_unicode_decode_error(self, service):
+        svc, tmp_workspace = service
+
+        result = svc.read_single_file(str(tmp_workspace / "binary.bin"))
+        assert result.content is None
+        assert result.error == "File cannot be decoded as UTF-8"
+
+    def test_read_single_file_permission_error(self, service):
+        import os
+
+        svc, tmp_workspace = service
+
+        if os.getuid() == 0:
+            pytest.skip("root can read files regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_single.txt"
+        blocked.write_text("secret", encoding="utf-8")
+        blocked.chmod(0o000)
+        try:
+            result = svc.read_single_file(str(blocked))
+        finally:
+            blocked.chmod(0o644)
+        assert result.content is None
+        assert result.error is not None
+
+    def test_read_single_file_os_error(self, service, monkeypatch):
+        svc, tmp_workspace = service
+
+        def boom(self: Path, encoding: str | None = None) -> str:
+            raise OSError("simulated device error")
+
+        monkeypatch.setattr(Path, "read_text", boom)
+        result = svc.read_single_file(str(tmp_workspace / "file_a.py"))
+        assert result.content is None
+        assert result.error == "simulated device error"
+
+
 # -- search_files tests ------------------------------------------------------
 
 
@@ -630,6 +793,32 @@ class TestSearchFiles:
 
         with pytest.raises(FileAuthorizationError):
             svc.search_files(SearchFilesRequest(path="/etc", pattern="*"))
+
+    def test_search_files_permission_error_during_traversal_is_swallowed(self, service):
+        """A PermissionError raised while rglob-ing a subdirectory is logged
+        and swallowed; search continues rather than raising."""
+        import os
+
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        if os.getuid() == 0:
+            pytest.skip("root can traverse directories regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_search"
+        blocked.mkdir()
+        (blocked / "inner.py").write_text("x", encoding="utf-8")
+        blocked.chmod(0o000)
+        try:
+            result = svc.search_files(
+                SearchFilesRequest(path=str(tmp_workspace), pattern="*.py")
+            )
+        finally:
+            blocked.chmod(0o755)
+        # The permission error is caught and logged rather than propagated;
+        # the (unordered) traversal must not raise and must never surface
+        # the blocked subdirectory's contents.
+        assert not any("inner.py" in m for m in result.matches)
 
 
 # -- grep_files tests --------------------------------------------------------
@@ -694,6 +883,65 @@ class TestGrepFiles:
         )
         assert result.truncated is True
 
+    def test_grep_files_skips_undecodable_file(self, service):
+        """A matched file that cannot be decoded as UTF-8 is silently skipped
+        (via _read_grep_text returning None) rather than raising."""
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        result = svc.grep_files(
+            GrepFilesRequest(
+                path=str(tmp_workspace),
+                pattern=".*",
+                file_pattern="binary.bin",
+                max_matches=50,
+            )
+        )
+        assert result.matches == []
+        assert result.truncated is False
+
+    def test_grep_files_permission_error_during_traversal_is_swallowed(self, service):
+        import os
+
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        if os.getuid() == 0:
+            pytest.skip("root can traverse directories regardless of permissions")
+
+        blocked = tmp_workspace / "blocked_grep"
+        blocked.mkdir()
+        (blocked / "inner.log").write_text("ERROR secret\n", encoding="utf-8")
+        blocked.chmod(0o000)
+        try:
+            result = svc.grep_files(
+                GrepFilesRequest(
+                    path=str(tmp_workspace),
+                    pattern="ERROR",
+                    file_pattern="*.log",
+                    max_matches=50,
+                )
+            )
+        finally:
+            blocked.chmod(0o755)
+        assert not any("inner.log" in m.file for m in result.matches)
+
+    def test_collect_grep_matches_returns_truncated_immediately_at_zero_limit(
+        self, service
+    ):
+        """Direct characterization of the defensive top-of-loop truncation
+        check in _collect_grep_matches. Unreachable via the public grep_files
+        entry point because GrepFilesRequest.max_matches enforces ge=1."""
+        import re
+
+        svc, tmp_workspace = service
+
+        matches, truncated = svc._collect_grep_matches(
+            tmp_workspace, re.compile(".*"), "*.log", 0
+        )
+        assert matches == []
+        assert truncated is True
+
 
 # -- get_file_info tests -----------------------------------------------------
 
@@ -735,6 +983,28 @@ class TestGetFileInfo:
 
         with pytest.raises(FileAuthorizationError):
             svc.get_file_info(GetFileInfoRequest(path="/etc/passwd"))
+
+    def test_get_file_info_os_error_raises_file_validation_error(
+        self, service, monkeypatch
+    ):
+        svc, tmp_workspace = service
+        from mcp_servers.file.read_models import GetFileInfoRequest
+
+        real_stat = Path.stat
+        target_path = tmp_workspace / "file_a.py"
+
+        # Path.exists() (CPython 3.14) uses os.path.exists() rather than
+        # self.stat(), so patching Path.stat only affects get_file_info's
+        # explicit `target.stat()` call inside the try/except being
+        # characterized, not the preceding existence check.
+        def boom(self: Path, *, follow_symlinks: bool = True):
+            if self == target_path:
+                raise OSError("simulated stat failure")
+            return real_stat(self, follow_symlinks=follow_symlinks)
+
+        monkeypatch.setattr(Path, "stat", boom)
+        with pytest.raises(FileValidationError):
+            svc.get_file_info(GetFileInfoRequest(path=str(tmp_workspace / "file_a.py")))
 
 
 # -- Async formatter tests ---------------------------------------------------
@@ -792,6 +1062,30 @@ class TestAsyncFormatters:
         }
         result = await svc.fmt_grep_files(args)
         assert "hello" in result
+
+    @pytest.mark.asyncio
+    async def test_fmt_grep_files_no_matches(self, svc_with_tmp):
+        svc, root = svc_with_tmp
+        args = {
+            "path": str(root),
+            "pattern": "ZZZNOTFOUND",
+            "file_pattern": "*.txt",
+            "max_matches": 50,
+        }
+        result = await svc.fmt_grep_files(args)
+        assert result == "No matches found."
+
+    @pytest.mark.asyncio
+    async def test_fmt_grep_files_truncated(self, svc_with_tmp):
+        svc, root = svc_with_tmp
+        args = {
+            "path": str(root),
+            "pattern": ".*",
+            "file_pattern": "*.txt",
+            "max_matches": 1,
+        }
+        result = await svc.fmt_grep_files(args)
+        assert result.endswith("\n... (truncated)")
 
     @pytest.mark.asyncio
     async def test_fmt_get_file_info(self, svc_with_tmp):
@@ -879,3 +1173,38 @@ class TestErrorPaths:
     def test_read_service_max_tree_depth_property(self, service) -> None:
         svc, _ = service
         assert svc.max_tree_depth == 3
+
+
+# -- build_service factory ---------------------------------------------------
+
+
+class TestBuildService:
+    def test_build_service_empty_allowed_dirs_warns(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        import logging
+
+        from mcp_servers.file.read_models import FileReadConfig
+        from mcp_servers.file.read_service import build_service
+
+        cfg = FileReadConfig(allowed_dirs=[])
+        with caplog.at_level(logging.WARNING):
+            svc = build_service(cfg)
+        assert "ALLOWED_DIRS is empty" in caplog.text
+        assert svc._allowed_dirs == []
+
+    def test_build_service_with_allowed_dirs(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import FileReadConfig
+        from mcp_servers.file.read_service import build_service
+
+        cfg = FileReadConfig(
+            allowed_dirs=[str(tmp_path)],
+            max_file_size_kb=500,
+            max_depth=4,
+            max_files_per_batch=25,
+        )
+        svc = build_service(cfg)
+        assert svc._allowed_dirs == [Path(str(tmp_path))]
+        assert svc.max_read_bytes == 500 * 1024
+        assert svc.max_tree_depth == 4
+        assert svc._max_search_results == 25

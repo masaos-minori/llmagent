@@ -8,6 +8,19 @@ from __future__ import annotations
 
 from typing import Any
 
+# Shared metadata block: every tool in this module is a filesystem write keyed on a
+# single "path" argument, so these fields are byte-for-byte identical across all
+# TOOL_LIST entries. Extracted so they stay in sync (mirrors the analogous
+# _REPO_PATH_PROPERTY extraction in scripts/mcp_servers/git/git_tools.py).
+_FILESYSTEM_DELETE_METADATA: dict[str, Any] = {
+    "status": "production",
+    "config_dependent": False,
+    "is_write": True,
+    "requires_serial": False,
+    "resource_scope_kind": "filesystem",
+    "resource_scope_keys": ["path"],
+}
+
 TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "delete_file",
@@ -26,12 +39,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
-        "resource_scope_keys": ["path"],
+        **_FILESYSTEM_DELETE_METADATA,
     },
     {
         "name": "delete_directory",
@@ -54,11 +62,6 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
-        "status": "production",
-        "config_dependent": False,
-        "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "filesystem",
-        "resource_scope_keys": ["path"],
+        **_FILESYSTEM_DELETE_METADATA,
     },
 ]

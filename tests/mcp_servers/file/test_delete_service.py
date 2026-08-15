@@ -5,6 +5,7 @@ Unit tests for DeleteFileService business logic, audit logging, and dispatch tab
 
 from __future__ import annotations
 
+import logging
 import stat as stat_module
 import time
 from pathlib import Path
@@ -88,6 +89,16 @@ class TestAuditLog:
                 with open(svc._audit_log_path, "a", encoding="utf-8") as fh:
                     fh.write(record)
 
+    def test_write_audit_log_os_error_is_logged_not_raised(
+        self, service: tuple, caplog: pytest.LogCaptureFixture
+    ):
+        """Real _write_audit_log call: OSError must be caught and logged, never propagated."""
+        svc, _ = service
+        svc._audit_log_path = "/nonexistent_dir_for_delete_audit/audit.log"
+        with caplog.at_level(logging.ERROR):
+            svc._write_audit_log("delete_file", "/some/path")
+        assert "_write_audit_log: failed to write audit log" in caplog.text
+
 
 # ── delete_file ──
 
@@ -132,6 +143,19 @@ class TestDeleteFile:
                 svc.delete_file(
                     type("Request", (), {"path": str(fpath), "dry_run": False})()
                 )
+
+    def test_delete_file_dry_run_stat_error(self, service: tuple):
+        svc, tmp_path = service
+        fpath = tmp_path / "test.txt"
+        fpath.write_text("hello")
+
+        with patch("pathlib.Path.stat") as mock_stat:
+            mock_stat.side_effect = OSError("stat failed")
+            result = svc.delete_file(
+                type("Request", (), {"path": str(fpath), "dry_run": True})()
+            )
+        assert result.deleted is False
+        assert result.file_info == "stat error: stat failed"
 
     def test_delete_file_os_error_raises_400(self, service: tuple):
         svc, _ = service
@@ -214,6 +238,36 @@ class TestDeleteDirectory:
         assert dpath.exists()
         assert "2 files" in result.dir_info
 
+    def test_delete_directory_recursive_on_allowed_root_raises(self, service: tuple):
+        """Security guard: recursive delete of an allowed root dir itself is forbidden."""
+        svc, tmp_path = service
+        with pytest.raises(FileAuthorizationError):
+            svc.delete_directory(
+                type(
+                    "Request",
+                    (),
+                    {"path": str(tmp_path), "recursive": True, "dry_run": False},
+                )()
+            )
+        assert tmp_path.exists()
+
+    def test_delete_directory_dry_run_scan_error(self, service: tuple):
+        svc, tmp_path = service
+        dpath = tmp_path / "dry_scan_error_dir"
+        dpath.mkdir()
+
+        with patch.object(svc, "_scan_directory_for_dry_run") as mock_scan:
+            mock_scan.side_effect = OSError("scan failed")
+            result = svc.delete_directory(
+                type(
+                    "Request",
+                    (),
+                    {"path": str(dpath), "recursive": False, "dry_run": True},
+                )()
+            )
+        assert result.deleted is False
+        assert result.dir_info == "scan error: scan failed"
+
     def test_delete_directory_permission_error_raises_403(self, service: tuple):
         svc, tmp_path = service
         dpath = tmp_path / "readonly_dir"
@@ -274,6 +328,28 @@ class TestScanDirectoryDryRun:
         assert file_count >= 1000
         assert truncated is True
 
+    def test_scan_skips_files_with_os_error(self, service: tuple):
+        svc, tmp_path = service
+        dpath = tmp_path / "flaky_scan_dir"
+        dpath.mkdir()
+        good = dpath / "good.txt"
+        good.write_text("hello")
+        bad = dpath / "bad.txt"
+        bad.write_text("world!")
+
+        real_stat = Path.stat
+
+        def flaky_stat(self: Path, *args: object, **kwargs: object) -> object:
+            if self.name == "bad.txt":
+                raise OSError("stat failed for bad.txt")
+            return real_stat(self, *args, **kwargs)
+
+        with patch("pathlib.Path.stat", flaky_stat):
+            file_count, total_size, truncated = svc._scan_directory_for_dry_run(dpath)
+        assert file_count == 1
+        assert total_size == len("hello")
+        assert truncated is False
+
 
 # ── Dispatch table ──
 
@@ -286,3 +362,74 @@ class TestDispatchTable:
         assert "delete_directory" in table
         assert callable(table["delete_file"])
         assert callable(table["delete_directory"])
+
+
+# ── Dispatch handlers ──
+
+
+class TestDispatchHandlers:
+    async def test_fmt_delete_file_formats_success(self, service: tuple):
+        svc, tmp_path = service
+        fpath = tmp_path / "afile.txt"
+        fpath.write_text("data")
+
+        result = await svc.fmt_delete_file({"path": str(fpath), "dry_run": False})
+        assert result == f"Deleted: {fpath.resolve()}"
+        assert not fpath.exists()
+
+    async def test_fmt_delete_file_formats_dry_run(self, service: tuple):
+        svc, tmp_path = service
+        fpath = tmp_path / "afile.txt"
+        fpath.write_text("data")
+
+        result = await svc.fmt_delete_file({"path": str(fpath), "dry_run": True})
+        assert result.startswith(f"Dry-run: {fpath.resolve()}")
+        assert fpath.exists()
+
+    async def test_fmt_delete_directory_formats_success(self, service: tuple):
+        svc, tmp_path = service
+        dpath = tmp_path / "adir"
+        dpath.mkdir()
+
+        result = await svc.fmt_delete_directory(
+            {"path": str(dpath), "recursive": False, "dry_run": False}
+        )
+        assert result == f"Directory deleted: {dpath.resolve()}"
+        assert not dpath.exists()
+
+    async def test_fmt_delete_directory_formats_dry_run(self, service: tuple):
+        svc, tmp_path = service
+        dpath = tmp_path / "adir"
+        dpath.mkdir()
+
+        result = await svc.fmt_delete_directory(
+            {"path": str(dpath), "recursive": False, "dry_run": True}
+        )
+        assert result.startswith(f"Dry-run: {dpath.resolve()}")
+        assert dpath.exists()
+
+
+# ── build_service factory ──
+
+
+class TestBuildService:
+    def test_build_service_empty_allowed_dirs_warns(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        from mcp_servers.file.delete_models import FileDeleteConfig
+        from mcp_servers.file.delete_service import build_service
+
+        cfg = FileDeleteConfig(allowed_dirs=[])
+        with caplog.at_level(logging.WARNING):
+            svc = build_service(cfg)
+        assert "ALLOWED_DIRS is empty" in caplog.text
+        assert svc._allowed_dirs == []
+
+    def test_build_service_with_allowed_dirs(self, tmp_path: Path):
+        from mcp_servers.file.delete_models import FileDeleteConfig
+        from mcp_servers.file.delete_service import build_service
+
+        cfg = FileDeleteConfig(allowed_dirs=[str(tmp_path)])
+        svc = build_service(cfg)
+        assert svc._allowed_dirs == [Path(str(tmp_path))]
+        assert svc._audit_log_path == "/opt/llm/logs/delete_audit.log"

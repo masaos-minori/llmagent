@@ -348,3 +348,253 @@ class TestWriteServiceErrorPaths:
         assert target.read_text(encoding="utf-8") == "atomic content"
         tmp = target.parent / f".tmp_{target.name}"
         assert not tmp.exists()
+
+    def test_write_file_permission_error_raises_auth_error_and_cleans_tmp(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """PermissionError during os.replace must raise FileAuthorizationError and remove the tmp file."""
+        import os as _os
+
+        target = tmp_path / "perm.txt"
+        req = WriteFileRequest(path=str(target), content="x")
+
+        def _fail_replace(_src: str, _dst: str) -> None:
+            raise PermissionError("no access")
+
+        monkeypatch.setattr(_os, "replace", _fail_replace)
+        with pytest.raises(FileAuthorizationError):
+            service.write_file(req)
+        tmp = target.parent / f".tmp_{target.name}"
+        assert not tmp.exists()
+        assert not target.exists()
+
+    def test_write_file_os_error_raises_validation_error_and_cleans_tmp(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A generic OSError during os.replace must raise FileValidationError and remove the tmp file."""
+        import os as _os
+
+        from mcp_servers.file.common import FileValidationError
+
+        target = tmp_path / "oserr.txt"
+        req = WriteFileRequest(path=str(target), content="x")
+
+        def _fail_replace(_src: str, _dst: str) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(_os, "replace", _fail_replace)
+        with pytest.raises(FileValidationError, match="disk full"):
+            service.write_file(req)
+        tmp = target.parent / f".tmp_{target.name}"
+        assert not tmp.exists()
+
+
+class TestEditFileErrorPaths:
+    def test_edit_replacement_not_found_raises_validation_error(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        target = tmp_path / "f.txt"
+        target.write_text("foo bar", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="missing", new_text="x")],
+        )
+        with pytest.raises(FileValidationError, match="replacement target not found"):
+            service.edit_file(req)
+
+    def test_edit_non_utf8_file_raises_validation_error(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        target = tmp_path / "binary.bin"
+        target.write_bytes(b"\xff\xfe bad bytes")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="a", new_text="b")],
+        )
+        with pytest.raises(FileValidationError, match="cannot be decoded as UTF-8"):
+            service.edit_file(req)
+
+    def test_edit_permission_error_on_read_raises_auth_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pathlib import Path as _Path
+
+        target = tmp_path / "locked.txt"
+        target.write_text("old", encoding="utf-8")
+        original_read = _Path.read_text
+
+        def _fail_read(self: _Path, **kwargs: object) -> str:
+            if self.name == "locked.txt":
+                raise PermissionError("no access")
+            return original_read(self, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(_Path, "read_text", _fail_read)
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="old", new_text="new")],
+        )
+        with pytest.raises(FileAuthorizationError):
+            service.edit_file(req)
+
+    def test_edit_dry_run_false_writes_file_to_disk(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        """Non-dry-run edit_file must apply the change and report applied=True."""
+        target = tmp_path / "apply.txt"
+        target.write_text("foo bar", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="foo", new_text="baz")],
+            dry_run=False,
+        )
+        result = service.edit_file(req)
+        assert result.applied is True
+        assert target.read_text(encoding="utf-8") == "baz bar"
+
+    def test_edit_write_permission_error_raises_auth_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pathlib import Path as _Path
+
+        target = tmp_path / "readonly.txt"
+        target.write_text("foo", encoding="utf-8")
+        original_write = _Path.write_text
+
+        def _fail_write(self: _Path, *args: object, **kwargs: object) -> int:
+            if self.name == "readonly.txt":
+                raise PermissionError("read-only filesystem")
+            return original_write(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(_Path, "write_text", _fail_write)
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="foo", new_text="bar")],
+            dry_run=False,
+        )
+        with pytest.raises(FileAuthorizationError):
+            service.edit_file(req)
+
+
+class TestCreateDirectoryErrorPaths:
+    def test_permission_error_raises_auth_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pathlib import Path as _Path
+
+        from mcp_servers.file.write_models import CreateDirectoryRequest
+
+        target = tmp_path / "new_dir"
+
+        def _fail_mkdir(self: _Path, **_kwargs: object) -> None:
+            raise PermissionError("no access")
+
+        monkeypatch.setattr(_Path, "mkdir", _fail_mkdir)
+        req = CreateDirectoryRequest(path=str(target), dry_run=False)
+        with pytest.raises(FileAuthorizationError):
+            service.create_directory(req)
+
+    def test_os_error_raises_validation_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pathlib import Path as _Path
+
+        from mcp_servers.file.common import FileValidationError
+        from mcp_servers.file.write_models import CreateDirectoryRequest
+
+        target = tmp_path / "new_dir"
+
+        def _fail_mkdir(self: _Path, **_kwargs: object) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(_Path, "mkdir", _fail_mkdir)
+        req = CreateDirectoryRequest(path=str(target), dry_run=False)
+        with pytest.raises(FileValidationError, match="disk full"):
+            service.create_directory(req)
+
+
+class TestMoveFileErrorPaths:
+    def test_permission_error_raises_auth_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import shutil as _shutil
+
+        src = tmp_path / "src.txt"
+        src.write_text("x", encoding="utf-8")
+        dest = tmp_path / "dest.txt"
+
+        def _fail_move(_src: str, _dst: str) -> None:
+            raise PermissionError("no access")
+
+        monkeypatch.setattr(_shutil, "move", _fail_move)
+        req = MoveFileRequest(source=str(src), destination=str(dest), dry_run=False)
+        with pytest.raises(FileAuthorizationError):
+            service.move_file(req)
+
+    def test_os_error_raises_validation_error(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import shutil as _shutil
+
+        from mcp_servers.file.common import FileValidationError
+
+        src = tmp_path / "src.txt"
+        src.write_text("x", encoding="utf-8")
+        dest = tmp_path / "dest.txt"
+
+        def _fail_move(_src: str, _dst: str) -> None:
+            raise OSError("cross-device link")
+
+        monkeypatch.setattr(_shutil, "move", _fail_move)
+        req = MoveFileRequest(source=str(src), destination=str(dest), dry_run=False)
+        with pytest.raises(FileValidationError, match="cross-device link"):
+            service.move_file(req)
+
+
+class TestCleanupTmp:
+    def test_cleanup_tmp_swallows_oserror(self, tmp_path: Path) -> None:
+        """_cleanup_tmp must not propagate OSError raised by unlink (e.g. tmp is a directory)."""
+        tmp_dir = tmp_path / "tmp_as_dir"
+        tmp_dir.mkdir()
+        WriteFileService._cleanup_tmp(tmp_dir)  # IsADirectoryError is swallowed
+        assert tmp_dir.exists()
+
+    def test_cleanup_tmp_missing_file_is_noop(self, tmp_path: Path) -> None:
+        WriteFileService._cleanup_tmp(tmp_path / "does_not_exist.tmp")
+
+
+class TestFmtEditFileHandler:
+    @pytest.mark.asyncio
+    async def test_fmt_edit_file_applies_and_formats(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "f.txt"
+        target.write_text("foo bar", encoding="utf-8")
+        result = await service.fmt_edit_file(
+            {
+                "path": str(target),
+                "edits": [{"old_text": "foo", "new_text": "baz"}],
+                "dry_run": False,
+            }
+        )
+        assert target.read_text(encoding="utf-8") == "baz bar"
+        assert isinstance(result, str)
+
+
+class TestBuildService:
+    def test_build_service_warns_when_allowed_dirs_empty(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from mcp_servers.file.write_models import FileWriteConfig
+        from mcp_servers.file.write_service import build_service
+
+        cfg = FileWriteConfig(
+            max_write_bytes=1024, allowed_dirs=[], supported_extensions=[]
+        )
+        with caplog.at_level("WARNING"):
+            svc = build_service(cfg)
+        assert svc._allowed_dirs == []
+        assert any("ALLOWED_DIRS is empty" in r.message for r in caplog.records)
