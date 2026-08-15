@@ -19,6 +19,7 @@ from mcp_servers.git.git_models import (
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
+    GitServiceError,
     GitShowRequest,
 )
 
@@ -42,6 +43,13 @@ def format_status(repo: git.Repo) -> str:
     return "\n".join(lines)
 
 
+def _decode_commit_message(message: str | bytes) -> str:
+    """Decode a commit message to str, tolerating non-UTF-8 byte sequences."""
+    if isinstance(message, bytes):
+        return message.decode("utf-8", errors="replace")
+    return message
+
+
 def format_log(repo: git.Repo, req: GitLogRequest, max_log_entries: int) -> str:
     """Format recent commit log entries."""
     limit = min(req.max_entries, max_log_entries)
@@ -49,11 +57,7 @@ def format_log(repo: git.Repo, req: GitLogRequest, max_log_entries: int) -> str:
     commits = list(repo.iter_commits(rev=rev, max_count=limit))
     lines: list[str] = []
     for c in commits:
-        raw_msg: str = (
-            c.message.decode("utf-8", errors="replace")
-            if isinstance(c.message, bytes)
-            else c.message
-        )
+        raw_msg = _decode_commit_message(c.message)
         short_msg = raw_msg.split("\n")[0][:80]
         lines.append(
             f"{c.hexsha[:8]} {c.author.name} {c.committed_datetime.strftime('%Y-%m-%d')} {short_msg}",
@@ -106,8 +110,6 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
     if req.dry_run:
         return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
     if not staged:
-        from mcp_servers.git.git_models import GitServiceError
-
         raise GitServiceError("nothing staged to commit")
     commit = repo.index.commit(req.message)
     return f"Committed: {commit.hexsha[:8]} {req.message!r}"

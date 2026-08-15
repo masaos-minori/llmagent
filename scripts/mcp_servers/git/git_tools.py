@@ -12,6 +12,13 @@ McpToolProperty = dict[str, Any]  # noqa: ANN401 - MCP schema property with opti
 McpInputSchema = dict[str, Any]  # noqa: ANN401 - MCP inputSchema with nested optional fields
 McpTool = dict[str, Any]  # noqa: ANN401 - MCP tool definition with optional fields
 
+# Shared property definition: every git_* tool takes the same repo_path field.
+# Extracted so the description/type stays in sync across all TOOL_LIST entries.
+_REPO_PATH_PROPERTY: McpToolProperty = {
+    "type": "string",
+    "description": "Absolute path to the git repository",
+}
+
 TOOL_LIST: list[McpTool] = [
     {
         "name": "git_status",
@@ -19,10 +26,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
             },
             "required": ["repo_path"],
         },
@@ -39,10 +43,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "max_entries": {
                     "type": "integer",
                     "description": "Max commits to return (1-200)",
@@ -69,10 +70,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "staged": {
                     "type": "boolean",
                     "description": "When true, show staged diff (--cached)",
@@ -99,10 +97,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
             },
             "required": ["repo_path"],
         },
@@ -119,10 +114,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "ref": {
                     "type": "string",
                     "description": "Commit ref or tag",
@@ -144,10 +136,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "paths": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -174,10 +163,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "message": {"type": "string", "description": "Commit message"},
                 "dry_run": {
                     "type": "boolean",
@@ -200,10 +186,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "branch": {
                     "type": "string",
                     "description": "Branch name to checkout or create",
@@ -234,10 +217,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "remote": {
                     "type": "string",
                     "description": "Remote name",
@@ -269,10 +249,7 @@ TOOL_LIST: list[McpTool] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
+                "repo_path": _REPO_PATH_PROPERTY,
                 "remote": {
                     "type": "string",
                     "description": "Remote name",

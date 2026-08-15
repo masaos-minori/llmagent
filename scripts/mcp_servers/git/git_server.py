@@ -83,6 +83,17 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
+def _annotate_tool(tool: dict[str, Any], cfg: GitConfig) -> dict[str, Any]:
+    """Return a copy of tool with server_key and availability fields attached."""
+    enabled, reason = _git_tool_availability(cfg, tool["name"])
+    return {
+        **tool,
+        "server_key": "git",
+        "enabled": enabled,
+        "disabled_reason": reason,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
@@ -91,19 +102,9 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """List available MCP tools with schema_version and server key annotation."""
-    tools_with_availability = []
-    for t in TOOL_LIST:
-        enabled, reason = _git_tool_availability(_cfg, t["name"])
-        tool_dict = {
-            **t,
-            "server_key": "git",
-            "enabled": enabled,
-            "disabled_reason": reason,
-        }
-        tools_with_availability.append(tool_dict)
     return {
         "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": tools_with_availability,
+        "tools": [_annotate_tool(t, _cfg) for t in TOOL_LIST],
     }
 
 

@@ -104,22 +104,6 @@ class GitService(GitSecurityGuards):
                 return RepoValidationResult(error_message=err)
         return RepoValidationResult(error_message="")
 
-    async def _handle_git_error(
-        self, e: BaseException, tool_name: str
-    ) -> GitServiceError:
-        """Log and wrap a git error in GitServiceError."""
-        logger.error("%s error: %s", tool_name, e)
-        raise GitServiceError(f"{tool_name} failed: {e}") from e
-
-    async def _validate_and_open(
-        self, req_repo_path: str, tool_name: str
-    ) -> RepoValidationResult:
-        """Validate repo and write guard; return early error or empty result."""
-        result = await self._validate_repo(req_repo_path, tool_name)
-        if result.error_message:
-            return result
-        return RepoValidationResult(error_message="")
-
     def _wrap_git_op(self, tool_name: str, func: Callable[[], str]) -> str:
         """Execute a git operation with error wrapping."""
         try:
@@ -128,101 +112,95 @@ class GitService(GitSecurityGuards):
             logger.error("%s error: %s", tool_name, e)
             raise GitServiceError(f"{tool_name} failed: {e}") from e
 
+    async def _run_tool(
+        self, tool_name: str, repo_path: str, op: Callable[[git.Repo], str]
+    ) -> str:
+        """Validate repo/write guards, open the repo, and run op with error wrapping.
+
+        Shared by every git_* handler below: build the request model, then
+        delegate validation + repo opening + error wrapping to this helper.
+        """
+        result = await self._validate_repo(repo_path, tool_name)
+        if result.error_message:
+            return result.error_message
+        repo = self._open_repo(repo_path)
+        return self._wrap_git_op(tool_name, lambda: op(repo))
+
     # ── Read-only tools ───────────────────────────────────────────────────────
 
     async def git_status(self, args: ToolArgs) -> str:
         """Return the current status of files in the repository."""
         req = GitStatusRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_status")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_status", lambda: format_status(repo))
+        return await self._run_tool(
+            "git_status", req.repo_path, lambda repo: format_status(repo)
+        )
 
     async def git_log(self, args: ToolArgs) -> str:
         """Return recent commit log entries for the repository."""
         req = GitLogRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_log")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op(
-            "git_log", lambda: format_log(repo, req, self._max_log_entries)
+        return await self._run_tool(
+            "git_log",
+            req.repo_path,
+            lambda repo: format_log(repo, req, self._max_log_entries),
         )
 
     async def git_diff(self, args: ToolArgs) -> str:
         """Return the diff between working tree and index or two commits."""
         req = GitDiffRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_diff")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_diff", lambda: format_diff(repo, req))
+        return await self._run_tool(
+            "git_diff", req.repo_path, lambda repo: format_diff(repo, req)
+        )
 
     async def git_branch(self, args: ToolArgs) -> str:
         """List branches in the repository."""
         req = GitBranchRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_branch")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_branch", lambda: format_branch(repo))
+        return await self._run_tool(
+            "git_branch", req.repo_path, lambda repo: format_branch(repo)
+        )
 
     async def git_show(self, args: ToolArgs) -> str:
         """Show details of a commit, blob, or tree object."""
         req = GitShowRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_show")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_show", lambda: format_show(repo, req))
+        return await self._run_tool(
+            "git_show", req.repo_path, lambda repo: format_show(repo, req)
+        )
 
     # ── Write tools ───────────────────────────────────────────────────────────
 
     async def git_add(self, args: ToolArgs) -> str:
         """Stage files for commit."""
         req = GitAddRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_add")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_add", lambda: format_add(repo, req))
+        return await self._run_tool(
+            "git_add", req.repo_path, lambda repo: format_add(repo, req)
+        )
 
     async def git_commit(self, args: ToolArgs) -> str:
         """Create a new commit from staged changes."""
         req = GitCommitRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_commit")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_commit", lambda: format_commit(repo, req))
+        return await self._run_tool(
+            "git_commit", req.repo_path, lambda repo: format_commit(repo, req)
+        )
 
     async def git_checkout(self, args: ToolArgs) -> str:
         """Switch branches or restore working tree files."""
         req = GitCheckoutRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_checkout")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_checkout", lambda: format_checkout(repo, req))
+        return await self._run_tool(
+            "git_checkout", req.repo_path, lambda repo: format_checkout(repo, req)
+        )
 
     async def git_pull(self, args: ToolArgs) -> str:
         """Fetch and merge changes from a remote repository."""
         req = GitPullRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_pull")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_pull", lambda: format_pull(repo, req))
+        return await self._run_tool(
+            "git_pull", req.repo_path, lambda repo: format_pull(repo, req)
+        )
 
     async def git_push(self, args: ToolArgs) -> str:
         """Push local commits to a remote repository."""
         req = GitPushRequest(**args)
-        result = await self._validate_repo(req.repo_path, "git_push")
-        if result.error_message:
-            return result.error_message
-        repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_push", lambda: format_push(repo, req))
+        return await self._run_tool(
+            "git_push", req.repo_path, lambda repo: format_push(repo, req)
+        )
 
     # ── Dispatch table ────────────────────────────────────────────────────────
 

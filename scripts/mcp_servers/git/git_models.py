@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _get_typed(
+    d: dict[str, Any], key: str, expected_type: type, type_label: str
+) -> Any:
+    """Return ``d[key]``, raising ``ValueError`` if it is not an instance of ``expected_type``.
+
+    ``type_label`` must already include its article, e.g. ``"a list"`` or ``"an integer"``.
+    """
+    value = d.get(key)
+    if not isinstance(value, expected_type):
+        raise ValueError(f"'{key}' must be {type_label}")
+    return value
+
+
 @dataclasses.dataclass
 class GitConfig:
     """Typed configuration for the Git MCP server."""
@@ -34,15 +47,9 @@ class GitConfig:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
-        allowed = d.get("allowed_repo_paths")
-        if not isinstance(allowed, list):
-            raise ValueError("'allowed_repo_paths' must be a list")
-        read_only = d.get("read_only")
-        if not isinstance(read_only, bool):
-            raise ValueError("'read_only' must be a boolean")
-        max_log = d.get("max_log_entries")
-        if not isinstance(max_log, int):
-            raise ValueError("'max_log_entries' must be an integer")
+        allowed = _get_typed(d, "allowed_repo_paths", list, "a list")
+        read_only = _get_typed(d, "read_only", bool, "a boolean")
+        max_log = _get_typed(d, "max_log_entries", int, "an integer")
         return cls(
             allowed_repo_paths=list(allowed),
             read_only=read_only,
@@ -70,19 +77,21 @@ class GitServiceError(RuntimeError):
 # Pydantic schema definitions
 # ──────────────────────────────────────────────────────────────────────────────
 
+_REPO_PATH_DESC = "Absolute path to the git repository"
+
 # ── Read-only tool request models ────────────────────────────────────────────
 
 
 class GitStatusRequest(BaseModel):
     """Request model for git_status — read-only status of a repository."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
 
 
 class GitLogRequest(BaseModel):
     """Request model for git_log — recent commit log entries."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     max_entries: int = Field(
         default=20,
         ge=1,
@@ -95,7 +104,7 @@ class GitLogRequest(BaseModel):
 class GitDiffRequest(BaseModel):
     """Request model for git_diff — diff between working tree and index or two commits."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     staged: bool = Field(
         default=False,
         description="When True, show staged diff (git diff --cached)",
@@ -109,13 +118,13 @@ class GitDiffRequest(BaseModel):
 class GitBranchRequest(BaseModel):
     """Request model for git_branch — list branches in a repository."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
 
 
 class GitShowRequest(BaseModel):
     """Request model for git_show — show details of a commit, blob, or tree object."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     ref: str = Field(default="HEAD", description="Commit ref or tag to show")
 
 
@@ -125,7 +134,7 @@ class GitShowRequest(BaseModel):
 class GitAddRequest(BaseModel):
     """Request model for git_add — stage files for commit."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     paths: list[str] = Field(
         ...,
         min_length=1,
@@ -140,7 +149,7 @@ class GitAddRequest(BaseModel):
 class GitCommitRequest(BaseModel):
     """Request model for git_commit — create a new commit from staged changes."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     message: str = Field(..., min_length=1, description="Commit message")
     dry_run: bool = Field(
         default=False,
@@ -151,7 +160,7 @@ class GitCommitRequest(BaseModel):
 class GitCheckoutRequest(BaseModel):
     """Request model for git_checkout — switch branches or restore working tree files."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     branch: str = Field(..., description="Branch name to checkout or create")
     create: bool = Field(default=False, description="When True, create new branch (-b)")
     dry_run: bool = Field(
@@ -163,7 +172,7 @@ class GitCheckoutRequest(BaseModel):
 class GitPullRequest(BaseModel):
     """Request model for git_pull — fetch and merge changes from a remote repository."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(
         default="",
@@ -178,7 +187,7 @@ class GitPullRequest(BaseModel):
 class GitPushRequest(BaseModel):
     """Request model for git_push — push local commits to a remote repository."""
 
-    repo_path: str = Field(..., description="Absolute path to the git repository")
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(default="", description="Branch name; empty = current branch")
     dry_run: bool = Field(
