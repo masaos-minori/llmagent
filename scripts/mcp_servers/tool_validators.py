@@ -55,15 +55,23 @@ def _assert_absolute_path(value: object, tool_name: str) -> None:
         raise ValueError(f"{tool_name}: repo_path must be absolute, got {value!r}")
 
 
+def _assert_non_blank_str(value: object, tool_name: str, field_name: str) -> None:
+    """Validate that *value* is a non-blank string.
+
+    Shared by validators that reject a missing/whitespace-only string field.
+    Raises ValueError(f"{tool_name}: {field_name} must not be blank") otherwise.
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{tool_name}: {field_name} must not be blank")
+
+
 # ── High-risk tool validators ─────────────────────────────────────────────────
 
 
 @register_validator("git_commit")
 def _validate_git_commit(args: dict[str, Any]) -> None:
     """Validate git_commit arguments: message must be non-blank, repo_path must be absolute."""
-    message = args.get("message", "")
-    if not isinstance(message, str) or not message.strip():
-        raise ValueError("git_commit: message must not be blank")
+    _assert_non_blank_str(args.get("message", ""), "git_commit", "message")
     repo_path = args.get("repo_path", "")
     _assert_absolute_path(repo_path, "git_commit")
 
@@ -73,20 +81,16 @@ def _validate_git_push(args: dict[str, Any]) -> None:
     """Validate git_push arguments: repo_path must be absolute, remote must be non-blank."""
     repo_path = args.get("repo_path", "")
     _assert_absolute_path(repo_path, "git_push")
-    remote = args.get("remote", "origin")
-    if not isinstance(remote, str) or not remote.strip():
-        raise ValueError("git_push: remote must not be blank")
+    _assert_non_blank_str(args.get("remote", "origin"), "git_push", "remote")
 
 
 @register_validator("trigger_workflow")
 def _validate_trigger_workflow(args: dict[str, Any]) -> None:
     """Validate trigger_workflow arguments: repo and workflow_id must be non-blank."""
-    repo = args.get("repo", "")
-    if not isinstance(repo, str) or not repo.strip():
-        raise ValueError("trigger_workflow: repo must not be blank")
-    workflow_id = args.get("workflow_id", "")
-    if not isinstance(workflow_id, str) or not workflow_id.strip():
-        raise ValueError("trigger_workflow: workflow_id must not be blank")
+    _assert_non_blank_str(args.get("repo", ""), "trigger_workflow", "repo")
+    _assert_non_blank_str(
+        args.get("workflow_id", ""), "trigger_workflow", "workflow_id"
+    )
 
 
 @register_validator("shell_run")
@@ -96,5 +100,5 @@ def _validate_shell_run(args: dict[str, Any]) -> None:
     if isinstance(cmd, list):
         if not cmd:
             raise ValueError("shell_run: command list must not be empty")
-    elif not isinstance(cmd, str) or not cmd.strip():
-        raise ValueError("shell_run: command must not be blank")
+        return
+    _assert_non_blank_str(cmd, "shell_run", "command")

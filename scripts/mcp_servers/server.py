@@ -98,15 +98,19 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
+    def _is_authorized(request: Request, token: str) -> bool:
+        """Return True when no token is required or the Bearer header matches."""
+        if not token:
+            return True
+        return request.headers.get("Authorization", "") == f"Bearer {token}"
+
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
         """Authenticate requests by validating Bearer token header."""
         req_id = str(uuid.uuid4())
         request.state.request_id = req_id
-        if token:
-            auth = request.headers.get("Authorization", "")
-            if auth != f"Bearer {token}":
-                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        if not _is_authorized(request, token):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
         return response

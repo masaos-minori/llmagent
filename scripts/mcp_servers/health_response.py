@@ -36,9 +36,11 @@ def make_health_response(
         A JSONResponse with status 200 (healthy) or 503 (degraded).
     """
     ready = len(deps) == 0
+    status = HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED
+    status_code = 200 if ready else 503
     return JSONResponse(
         {
-            "status": HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED,
+            "status": status,
             "ready": ready,
             "liveness": True,
             "restart_recommended": False,
@@ -46,5 +48,5 @@ def make_health_response(
             "dependencies": deps,
             "details": details or {},
         },
-        status_code=200 if ready else 503,
+        status_code=status_code,
     )
