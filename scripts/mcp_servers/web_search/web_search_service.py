@@ -19,7 +19,7 @@ Import from here: from mcp_servers.web_search.web_search_service import search_w
 from __future__ import annotations
 
 import time
-from typing import Any, cast
+from typing import Any
 
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
@@ -37,7 +37,6 @@ from mcp_servers.web_search.web_search_models import (
     BrowserValidationError,
     SearchRequest,
     SearchResponse,
-    SearchResult,
     WebSearchNetworkError,
     WebSearchParseError,
     WebSearchTimeoutError,
@@ -65,6 +64,11 @@ def _classify_upstream_error(exc: WebSearchUpstreamError) -> str:
     return "provider_error"
 
 
+def _elapsed_ms(t0: float) -> float:
+    """Return the elapsed time in milliseconds since `t0` (a `time.perf_counter()` reading)."""
+    return (time.perf_counter() - t0) * 1000
+
+
 async def search_web(args: dict[str, Any]) -> SearchResponse:
     """Execute a web search using DuckDuckGo, recording health/metrics.
 
@@ -82,26 +86,23 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
     t0 = time.perf_counter()
     try:
         req = SearchRequest(**args)
-        results = cast(
-            list[SearchResult],
-            await search_duckduckgo(
-                req.query, req.max_results, _cfg.search_timeout_sec
-            ),
+        results = await search_duckduckgo(
+            req.query, req.max_results, _cfg.search_timeout_sec
         )
     except ValueError:
-        ms = (time.perf_counter() - t0) * 1000
+        ms = _elapsed_ms(t0)
         metrics.record_query(
             success=False, latency_ms=ms, error_type="validation_error"
         )
         raise
     except WebSearchUpstreamError as e:
-        ms = (time.perf_counter() - t0) * 1000
+        ms = _elapsed_ms(t0)
         error_type = _classify_upstream_error(e)
         metrics.record_query(success=False, latency_ms=ms, error_type=error_type)
         health.record_failure(error_type)
         raise
 
-    ms = (time.perf_counter() - t0) * 1000
+    ms = _elapsed_ms(t0)
     logger.info(
         fmt_kvlog(
             "search",
@@ -162,7 +163,7 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
         # input / disallowed target), so — mirroring search_web's ValueError
         # handling — they are recorded as metrics failures only, never a
         # provider-health failure.
-        ms = (time.perf_counter() - t0) * 1000
+        ms = _elapsed_ms(t0)
         error_type = _classify_browser_error(e)
         metrics.record_browser_query(
             success=False, latency_ms=ms, error_type=error_type
@@ -171,7 +172,7 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
     except Exception as e:  # noqa: BLE001 — unclassified fetch failure, see UNK-01
         # A genuine fetch failure (e.g. an httpx network/timeout error from
         # search_provider.fetch_browser) is a provider-health signal.
-        ms = (time.perf_counter() - t0) * 1000
+        ms = _elapsed_ms(t0)
         error_type = _classify_browser_error(e)
         metrics.record_browser_query(
             success=False, latency_ms=ms, error_type=error_type
@@ -179,7 +180,7 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
         health.record_browser_failure(error_type)
         raise
 
-    ms = (time.perf_counter() - t0) * 1000
+    ms = _elapsed_ms(t0)
     logger.info(fmt_kvlog("browser_fetch", url=req.url[:80], ms=f"{ms:.0f}"))
     metrics.record_browser_query(success=True, latency_ms=ms)
     health.record_browser_success()

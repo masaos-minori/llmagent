@@ -41,6 +41,37 @@ class ProviderHealth:
     last_error_type: str = ""
     consecutive_failures: int = 0
 
+    def record_success(self) -> None:
+        """Record a successful provider call: reset the failure streak.
+
+        last_error_type is intentionally left unchanged — it is informational
+        (what the most recent error was), only the consecutive-failure counter
+        resets on success.
+        """
+        self.last_success_at = time.time()
+        self.consecutive_failures = 0
+
+    def record_failure(self, error_type: str) -> None:
+        """Record a failed provider call and increment the failure streak."""
+        self.last_failure_at = time.time()
+        self.last_error_type = error_type
+        self.consecutive_failures += 1
+
+    def is_degraded(self) -> bool:
+        """Return True if consecutive failures reached DEGRADED_THRESHOLD."""
+        return self.consecutive_failures >= DEGRADED_THRESHOLD
+
+    def as_dict(self) -> dict[str, object]:
+        """Return a plain dict of current health state for /health reporting."""
+        return {
+            "provider": self.provider,
+            "last_success_at": self.last_success_at,
+            "last_failure_at": self.last_failure_at,
+            "last_error_type": self.last_error_type,
+            "consecutive_failures": self.consecutive_failures,
+            "degraded": self.is_degraded(),
+        }
+
 
 _health = ProviderHealth()
 
@@ -52,32 +83,22 @@ def record_success() -> None:
     (what the most recent error was), only the consecutive-failure counter
     resets on success.
     """
-    _health.last_success_at = time.time()
-    _health.consecutive_failures = 0
+    _health.record_success()
 
 
 def record_failure(error_type: str) -> None:
     """Record a failed provider call and increment the failure streak."""
-    _health.last_failure_at = time.time()
-    _health.last_error_type = error_type
-    _health.consecutive_failures += 1
+    _health.record_failure(error_type)
 
 
 def is_degraded() -> bool:
     """Return True if consecutive failures reached DEGRADED_THRESHOLD."""
-    return _health.consecutive_failures >= DEGRADED_THRESHOLD
+    return _health.is_degraded()
 
 
 def health_details() -> dict[str, object]:
     """Return a plain dict of current health state for /health reporting."""
-    return {
-        "provider": _health.provider,
-        "last_success_at": _health.last_success_at,
-        "last_failure_at": _health.last_failure_at,
-        "last_error_type": _health.last_error_type,
-        "consecutive_failures": _health.consecutive_failures,
-        "degraded": is_degraded(),
-    }
+    return _health.as_dict()
 
 
 def reset() -> None:
@@ -95,32 +116,22 @@ _browser_health = ProviderHealth(provider="browser_fetch")
 
 def record_browser_success() -> None:
     """Record a successful browser_fetch call: reset the failure streak."""
-    _browser_health.last_success_at = time.time()
-    _browser_health.consecutive_failures = 0
+    _browser_health.record_success()
 
 
 def record_browser_failure(error_type: str) -> None:
     """Record a failed browser_fetch call and increment the failure streak."""
-    _browser_health.last_failure_at = time.time()
-    _browser_health.last_error_type = error_type
-    _browser_health.consecutive_failures += 1
+    _browser_health.record_failure(error_type)
 
 
 def is_browser_degraded() -> bool:
     """Return True if browser_fetch's consecutive failures reached DEGRADED_THRESHOLD."""
-    return _browser_health.consecutive_failures >= DEGRADED_THRESHOLD
+    return _browser_health.is_degraded()
 
 
 def browser_health_details() -> dict[str, object]:
     """Return a plain dict of browser_fetch's current health state for /health reporting."""
-    return {
-        "provider": _browser_health.provider,
-        "last_success_at": _browser_health.last_success_at,
-        "last_failure_at": _browser_health.last_failure_at,
-        "last_error_type": _browser_health.last_error_type,
-        "consecutive_failures": _browser_health.consecutive_failures,
-        "degraded": is_browser_degraded(),
-    }
+    return _browser_health.as_dict()
 
 
 def reset_browser() -> None:

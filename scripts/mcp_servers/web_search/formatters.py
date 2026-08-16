@@ -9,11 +9,11 @@ Import from here:  from mcp_servers.web_search.formatters import fmt_search_resu
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Awaitable, Callable
 
 from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import DispatchResult, ToolArgs, dispatch_tool
 from mcp_servers.web_search import web_search_service as service
 from mcp_servers.web_search.web_search_models import BrowserFetchResponse, SearchResult
 
@@ -25,7 +25,7 @@ def fmt_search_result(i: int, r: SearchResult) -> str:
     return f"[{i}] {title}\nURL: {r.url}\nProvider: {r.provider}\n{snippet}"
 
 
-async def fdisp_search_web(args: dict[str, Any]) -> str:
+async def fdisp_search_web(args: ToolArgs) -> str:
     """Format search_web MCP tool result as plain text for LLM."""
     result = await service.search_web(args)
     if not result.results:
@@ -46,18 +46,18 @@ def _format_fetch_result(result: BrowserFetchResponse) -> str:
     return "\n".join(parts)
 
 
-async def fdisp_browser_fetch(args: dict[str, Any]) -> str:
+async def fdisp_browser_fetch(args: ToolArgs) -> str:
     """Format browser_fetch MCP tool result as plain text for LLM."""
     result = await service.fetch_browser(args)
     return _format_fetch_result(result)
 
 
-_WEB_DISPATCH: dict[str, Any] = {
+_WEB_DISPATCH: dict[str, Callable[[ToolArgs], Awaitable[str]]] = {
     "search_web": fdisp_search_web,
     "browser_fetch": fdisp_browser_fetch,
 }
 
 
-async def dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
+async def dispatch_web_tool(name: str, args: ToolArgs) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
     return await dispatch_tool(_WEB_DISPATCH, name, args)

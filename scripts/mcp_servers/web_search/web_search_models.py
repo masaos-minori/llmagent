@@ -62,6 +62,35 @@ HARD_MAX_RESULTS_LIMIT: int = 100
 HARD_SEARCH_TIMEOUT_SEC_LIMIT: float = 60.0
 
 
+def _validate_config_bounds(
+    default_max_results: int, max_results_limit: int, search_timeout_sec: float
+) -> None:
+    """Enforce WebSearchConfig's numeric invariants.
+
+    Raises:
+        ValueError: if any value violates its invariant. Message text and
+            check order match the pre-extraction inline checks exactly.
+    """
+    if default_max_results < 1:
+        raise ValueError(f"default_max_results ({default_max_results}) must be >= 1")
+    if max_results_limit < 1:
+        raise ValueError(f"max_results_limit ({max_results_limit}) must be >= 1")
+    if default_max_results > max_results_limit:
+        raise ValueError(
+            f"default_max_results ({default_max_results}) must not exceed "
+            f"max_results_limit ({max_results_limit})"
+        )
+    if max_results_limit > HARD_MAX_RESULTS_LIMIT:
+        raise ValueError(
+            f"max_results_limit ({max_results_limit}) must not exceed "
+            f"HARD_MAX_RESULTS_LIMIT ({HARD_MAX_RESULTS_LIMIT})"
+        )
+    if not (0 < search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT):
+        raise ValueError(
+            f"search_timeout_sec ({search_timeout_sec}) must be in (0, {HARD_SEARCH_TIMEOUT_SEC_LIMIT}]"
+        )
+
+
 @dataclasses.dataclass
 class WebSearchConfig:
     """Typed configuration for the Web Search MCP server."""
@@ -89,26 +118,9 @@ class WebSearchConfig:
         browser_timeout_sec = int(d.get("browser_timeout_sec") or 15)
         browser_auth_token = d.get("browser_auth_token") or ""
 
-        if default_max_results < 1:
-            raise ValueError(
-                f"default_max_results ({default_max_results}) must be >= 1"
-            )
-        if max_results_limit < 1:
-            raise ValueError(f"max_results_limit ({max_results_limit}) must be >= 1")
-        if default_max_results > max_results_limit:
-            raise ValueError(
-                f"default_max_results ({default_max_results}) must not exceed "
-                f"max_results_limit ({max_results_limit})"
-            )
-        if max_results_limit > HARD_MAX_RESULTS_LIMIT:
-            raise ValueError(
-                f"max_results_limit ({max_results_limit}) must not exceed "
-                f"HARD_MAX_RESULTS_LIMIT ({HARD_MAX_RESULTS_LIMIT})"
-            )
-        if not (0 < search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT):
-            raise ValueError(
-                f"search_timeout_sec ({search_timeout_sec}) must be in (0, {HARD_SEARCH_TIMEOUT_SEC_LIMIT}]"
-            )
+        _validate_config_bounds(
+            default_max_results, max_results_limit, search_timeout_sec
+        )
 
         return cls(
             default_max_results=default_max_results,

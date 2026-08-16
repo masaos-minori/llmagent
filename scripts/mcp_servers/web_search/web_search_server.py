@@ -141,6 +141,30 @@ def _classify_upstream_error(exc: WebSearchUpstreamError) -> str:
     return "provider_error"
 
 
+def _build_audit_target_and_detail(
+    name: str, args: dict[str, Any], latency_ms: float
+) -> tuple[str, str]:
+    """Build the audit-log `target` and `detail` string for one tool call.
+
+    `search_web` reports the query text as the target, plus a preview and a
+    hash (for low-cardinality grepping without leaking the full query) in
+    the detail string. `browser_fetch` reports the URL as the target with a
+    matching preview in the detail string.
+    """
+    if name == "search_web":
+        query = str(args.get("query", ""))
+        detail = (
+            f"max_results={args.get('max_results', '')} "
+            f"latency_ms={latency_ms:.0f} "
+            f"query_preview={query[:80]!r} "
+            f"query_hash={hashlib.sha256(query.strip().lower().encode()).hexdigest()[:16]}"
+        )
+        return query, detail
+    url = str(args.get("url", ""))
+    detail = f"latency_ms={latency_ms:.0f} url_preview={url[:80]!r}"
+    return url, detail
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool listing endpoint (for client-side definition validation)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -203,19 +227,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         latency_ms = (time.perf_counter() - t0) * 1000
         raise
     finally:
-        if req.name == "search_web":
-            query = str(req.args.get("query", ""))
-            target = query
-            detail = (
-                f"max_results={req.args.get('max_results', '')} "
-                f"latency_ms={latency_ms:.0f} "
-                f"query_preview={query[:80]!r} "
-                f"query_hash={hashlib.sha256(query.strip().lower().encode()).hexdigest()[:16]}"
-            )
-        else:
-            url = str(req.args.get("url", ""))
-            target = url
-            detail = f"latency_ms={latency_ms:.0f} url_preview={url[:80]!r}"
+        target, detail = _build_audit_target_and_detail(req.name, req.args, latency_ms)
         _audit_log(
             logger,
             session_id=session_id,

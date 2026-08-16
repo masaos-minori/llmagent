@@ -61,12 +61,21 @@ async def search_duckduckgo(
     except Exception as e:  # noqa: BLE001 — classification fallback, see UNK-01
         raise WebSearchProviderError(f"DuckDuckGo search failed: {e}") from e
 
+    _validate_raw_items(raw)
+    return _build_search_results(raw)
+
+
+def _validate_raw_items(raw: list[dict]) -> None:
+    """Raise WebSearchParseError if any raw result item is not a dict."""
     for item in raw:
         if not isinstance(item, dict):
             raise WebSearchParseError(
                 f"unexpected result item type: {type(item).__name__}"
             )
 
+
+def _build_search_results(raw: list[dict]) -> list[SearchResult]:
+    """Convert validated raw DuckDuckGo result dicts into SearchResult objects."""
     return [
         SearchResult(
             title=r.get("title", ""),

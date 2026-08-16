@@ -10,6 +10,7 @@ looks it up (no real network I/O).
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterator
 from typing import Any
 
@@ -85,6 +86,39 @@ class TestAuditAlwaysFires:
         assert len(audit_stub.calls) == 1
         assert audit_stub.calls[0]["outcome"] == "ok"
         assert audit_stub.calls[0]["error_type"] == ""
+
+    def test_audit_success_detail_includes_query_preview_and_hash(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        audit_stub: _RecordingAudit,
+        client: TestClient,
+    ) -> None:
+        """Locks the exact search_web detail-string format built by
+        `web_search_server._build_audit_target_and_detail` — target is the
+        raw query, detail carries max_results/latency/query_preview/
+        query_hash (previously only exercised, never asserted, by
+        test_audit_emitted_on_success above)."""
+
+        async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
+            return [SearchResult(title="t", url="u", body="b", provider="duckduckgo")]
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
+
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "search_web", "args": {"query": "Python ", "max_results": 3}},
+        )
+
+        assert resp.status_code == 200
+        call = audit_stub.calls[0]
+        assert call["target"] == "Python "
+        assert "max_results=3" in call["detail"]
+        assert "query_preview='Python '" in call["detail"]
+        # query_hash is sha256(query.strip().lower()) truncated to 16 hex chars.
+        expected_hash = hashlib.sha256(b"python").hexdigest()[:16]
+        assert f"query_hash={expected_hash}" in call["detail"]
 
     def test_audit_emitted_on_zero_result(
         self,
@@ -302,3 +336,48 @@ class TestClassifyUpstreamError:
     def test_generic_upstream_error_falls_back_to_provider_error(self) -> None:
         exc = WebSearchUpstreamError("some other provider failure")
         assert web_search_server._classify_upstream_error(exc) == "provider_error"
+
+
+class TestBuildAuditTargetAndDetail:
+    """Direct unit tests for `_build_audit_target_and_detail`, extracted from
+    `call_tool()`'s `finally` block during the web_search_server.py
+    structural refactor — pins the pre-extraction behavior exactly."""
+
+    def test_search_web_target_is_raw_query(self) -> None:
+        target, _detail = web_search_server._build_audit_target_and_detail(
+            "search_web", {"query": "python asyncio"}, 12.5
+        )
+        assert target == "python asyncio"
+
+    def test_search_web_detail_contains_max_results_latency_preview_hash(
+        self,
+    ) -> None:
+        _target, detail = web_search_server._build_audit_target_and_detail(
+            "search_web", {"query": "Python ", "max_results": 3}, 12.5
+        )
+        expected_hash = hashlib.sha256(b"python").hexdigest()[:16]
+        assert "max_results=3" in detail
+        assert "latency_ms=12" in detail
+        assert "query_preview='Python '" in detail
+        assert f"query_hash={expected_hash}" in detail
+
+    def test_search_web_missing_max_results_defaults_to_empty_string(self) -> None:
+        _target, detail = web_search_server._build_audit_target_and_detail(
+            "search_web", {"query": "q"}, 0.0
+        )
+        assert "max_results= " in detail
+
+    def test_browser_fetch_target_is_raw_url(self) -> None:
+        target, _detail = web_search_server._build_audit_target_and_detail(
+            "browser_fetch", {"url": "https://example.com/page"}, 5.0
+        )
+        assert target == "https://example.com/page"
+
+    def test_browser_fetch_detail_contains_latency_and_url_preview_only(self) -> None:
+        _target, detail = web_search_server._build_audit_target_and_detail(
+            "browser_fetch", {"url": "https://example.com/page"}, 5.0
+        )
+        assert "latency_ms=5" in detail
+        assert "url_preview='https://example.com/page'" in detail
+        assert "query_hash=" not in detail
+        assert "query_preview=" not in detail

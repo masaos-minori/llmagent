@@ -48,30 +48,42 @@ class WebSearchMetrics:
 _metrics = WebSearchMetrics()
 
 
+def _record(
+    target: WebSearchMetrics, success: bool, latency_ms: float, error_type: str
+) -> None:
+    """Apply one query outcome to `target`'s counters and latency accumulator."""
+    target.queries_total += 1
+    target._latency_sum_ms += latency_ms
+    if success:
+        target.queries_succeeded += 1
+        target.last_success_at = time.time()
+    else:
+        target.queries_failed += 1
+        target.last_failure_at = time.time()
+        target.last_error_type = error_type
+
+
+def _snapshot(target: WebSearchMetrics) -> dict[str, object]:
+    """Return a plain dict snapshot of `target`'s current metrics."""
+    return {
+        "queries_total": target.queries_total,
+        "queries_succeeded": target.queries_succeeded,
+        "queries_failed": target.queries_failed,
+        "average_latency_ms": target.average_latency_ms,
+        "last_success_at": target.last_success_at,
+        "last_failure_at": target.last_failure_at,
+        "last_error_type": target.last_error_type,
+    }
+
+
 def record_query(success: bool, latency_ms: float, error_type: str = "") -> None:
     """Record the outcome and latency of one query. Never accepts query text."""
-    _metrics.queries_total += 1
-    _metrics._latency_sum_ms += latency_ms
-    if success:
-        _metrics.queries_succeeded += 1
-        _metrics.last_success_at = time.time()
-    else:
-        _metrics.queries_failed += 1
-        _metrics.last_failure_at = time.time()
-        _metrics.last_error_type = error_type
+    _record(_metrics, success, latency_ms, error_type)
 
 
 def snapshot() -> dict[str, object]:
     """Return a plain dict snapshot of all current metrics."""
-    return {
-        "queries_total": _metrics.queries_total,
-        "queries_succeeded": _metrics.queries_succeeded,
-        "queries_failed": _metrics.queries_failed,
-        "average_latency_ms": _metrics.average_latency_ms,
-        "last_success_at": _metrics.last_success_at,
-        "last_failure_at": _metrics.last_failure_at,
-        "last_error_type": _metrics.last_error_type,
-    }
+    return _snapshot(_metrics)
 
 
 def reset() -> None:
@@ -91,28 +103,12 @@ def record_browser_query(
     success: bool, latency_ms: float, error_type: str = ""
 ) -> None:
     """Record the outcome and latency of one browser_fetch call. Never accepts a URL."""
-    _browser_metrics.queries_total += 1
-    _browser_metrics._latency_sum_ms += latency_ms
-    if success:
-        _browser_metrics.queries_succeeded += 1
-        _browser_metrics.last_success_at = time.time()
-    else:
-        _browser_metrics.queries_failed += 1
-        _browser_metrics.last_failure_at = time.time()
-        _browser_metrics.last_error_type = error_type
+    _record(_browser_metrics, success, latency_ms, error_type)
 
 
 def browser_snapshot() -> dict[str, object]:
     """Return a plain dict snapshot of all current browser_fetch metrics."""
-    return {
-        "queries_total": _browser_metrics.queries_total,
-        "queries_succeeded": _browser_metrics.queries_succeeded,
-        "queries_failed": _browser_metrics.queries_failed,
-        "average_latency_ms": _browser_metrics.average_latency_ms,
-        "last_success_at": _browser_metrics.last_success_at,
-        "last_failure_at": _browser_metrics.last_failure_at,
-        "last_error_type": _browser_metrics.last_error_type,
-    }
+    return _snapshot(_browser_metrics)
 
 
 def reset_browser() -> None:
