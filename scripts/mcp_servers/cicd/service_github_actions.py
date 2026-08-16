@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from http import HTTPStatus
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -149,7 +149,7 @@ class GitHubActionsBackend:
         )
         self._check_response(resp, f"get_workflow_runs {owner}/{repo}/{workflow}")
         data = parse_http_json(resp)
-        runs = cast(list[dict], data.get("workflow_runs", []))[:limit]
+        runs = cast(list[dict[str, Any]], data.get("workflow_runs", []))[:limit]
         formatted = [
             {
                 "id": r.get("id"),

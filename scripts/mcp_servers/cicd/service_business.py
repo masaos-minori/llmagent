@@ -65,17 +65,17 @@ class CiCdService(CiCdGuards):
             preview = f"Would trigger workflow '{req.workflow}' on ref '{req.ref}' in repo '{req.repo}'"
             if req.inputs:
                 preview += f" with inputs={req.inputs}"
-            result: str = _json_dumps({"preview": preview, "dry_run": True})
-            return result
+            dry_run_result: str = _json_dumps({"preview": preview, "dry_run": True})
+            return dry_run_result
         owner, repo = self._parse_repo(req.repo)
-        result2: str = await self._backend.trigger_workflow(
+        trigger_result: str = await self._backend.trigger_workflow(
             owner,
             repo,
             req.workflow,
             req.ref,
             req.inputs,
         )
-        return result2
+        return trigger_result
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
         """Retrieve the list of workflow runs for a given workflow."""
@@ -83,13 +83,13 @@ class CiCdService(CiCdGuards):
 
         req = GetWorkflowRunsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        result3: str = await self._backend.get_workflow_runs(
+        runs_result: str = await self._backend.get_workflow_runs(
             owner,
             repo,
             req.workflow,
             req.limit,
         )
-        return result3
+        return runs_result
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
         """Get the status of a specific workflow run."""
@@ -99,8 +99,10 @@ class CiCdService(CiCdGuards):
 
         req = GetWorkflowStatusRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        result4: str = await self._backend.get_workflow_status(owner, repo, req.run_id)
-        return result4
+        status_result: str = await self._backend.get_workflow_status(
+            owner, repo, req.run_id
+        )
+        return status_result
 
     async def handle_get_workflow_logs(self, args: ToolArgs) -> str:
         """Retrieve the logs for a specific workflow run."""
@@ -108,8 +110,10 @@ class CiCdService(CiCdGuards):
 
         req = GetWorkflowLogsRequest(**args)
         owner, repo = self._validate_and_parse_repo(req.repo)
-        result5: str = await self._backend.get_workflow_logs(owner, repo, req.run_id)
-        return result5
+        logs_result: str = await self._backend.get_workflow_logs(
+            owner, repo, req.run_id
+        )
+        return logs_result
 
     def get_dispatch_table(
         self,

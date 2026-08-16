@@ -74,14 +74,18 @@ class CicdUpstreamError(RuntimeError):
 # Pydantic schema definitions
 # ──────────────────────────────────────────────────────────────────────────────
 
+_REPO_DESC = "Repository slug (owner/repo)"
+_WORKFLOW_DESC = "Workflow file name (e.g. ci.yml) or workflow ID"
+_RUN_ID_DESC = "Workflow run ID"
+
 
 class TriggerWorkflowRequest(BaseModel):
     """Request body for the trigger_workflow tool."""
 
-    repo: str = Field(..., description="Repository slug (owner/repo)")
+    repo: str = Field(..., description=_REPO_DESC)
     workflow: str = Field(
         ...,
-        description="Workflow file name (e.g. ci.yml) or workflow ID",
+        description=_WORKFLOW_DESC,
     )
     ref: str = Field(
         default="main",
@@ -100,10 +104,10 @@ class TriggerWorkflowRequest(BaseModel):
 class GetWorkflowRunsRequest(BaseModel):
     """Request body for the get_workflow_runs tool."""
 
-    repo: str = Field(..., description="Repository slug (owner/repo)")
+    repo: str = Field(..., description=_REPO_DESC)
     workflow: str = Field(
         ...,
-        description="Workflow file name (e.g. ci.yml) or workflow ID",
+        description=_WORKFLOW_DESC,
     )
     limit: int = Field(
         default=10,
@@ -116,12 +120,12 @@ class GetWorkflowRunsRequest(BaseModel):
 class GetWorkflowStatusRequest(BaseModel):
     """Request body for the get_workflow_status tool."""
 
-    repo: str = Field(..., description="Repository slug (owner/repo)")
-    run_id: int = Field(..., gt=0, description="Workflow run ID")
+    repo: str = Field(..., description=_REPO_DESC)
+    run_id: int = Field(..., gt=0, description=_RUN_ID_DESC)
 
 
 class GetWorkflowLogsRequest(BaseModel):
     """Request body for the get_workflow_logs tool."""
 
-    repo: str = Field(..., description="Repository slug (owner/repo)")
-    run_id: int = Field(..., gt=0, description="Workflow run ID")
+    repo: str = Field(..., description=_REPO_DESC)
+    run_id: int = Field(..., gt=0, description=_RUN_ID_DESC)

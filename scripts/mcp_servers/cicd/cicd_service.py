@@ -4,8 +4,10 @@
 Re-export stub for mcp/cicd/service modules.
 
 Split layout:
-  service_init.py        — Constants, CiBackend protocol, build_service factory
-  service_business.py    — GitHubActionsBackend, CiCdService classes
+  service_defs.py           — Constants, CiBackend protocol
+  service_init.py           — build_service factory
+  service_business.py       — CiCdService class
+  service_github_actions.py — GitHubActionsBackend class
 """
 
 from .service_business import CiCdService

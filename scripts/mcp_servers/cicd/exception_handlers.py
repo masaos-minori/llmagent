@@ -9,8 +9,9 @@ Import from here:  from mcp_servers.cicd.exception_handlers import setup_excepti
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Awaitable, Callable
 
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from mcp_servers.cicd.cicd_models import (
@@ -21,31 +22,20 @@ from mcp_servers.cicd.cicd_models import (
 )
 
 
-def setup_exception_handlers(app: object) -> None:
+def _make_json_error_handler(
+    status_code: int,
+) -> Callable[[Request, Exception], Awaitable[JSONResponse]]:
+    """Build a handler returning `{"detail": str(exc)}` with the given status code."""
+
+    async def _handler(_request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=status_code)
+
+    return _handler
+
+
+def setup_exception_handlers(app: FastAPI) -> None:
     """Register domain exception handlers on the FastAPI app."""
-
-    @app.exception_handler(CicdAuthorizationError)  # type: ignore[attr-defined]
-    async def _on_cicd_auth_error(
-        _req: Any, exc: CicdAuthorizationError
-    ) -> JSONResponse:
-        """Return 403 JSON response for CICD authorization errors."""
-        return JSONResponse({"detail": str(exc)}, status_code=403)
-
-    @app.exception_handler(CicdNotFoundError)  # type: ignore[attr-defined]
-    async def _on_cicd_not_found(_req: Any, exc: CicdNotFoundError) -> JSONResponse:
-        """Return 404 JSON response for CICD not found errors."""
-        return JSONResponse({"detail": str(exc)}, status_code=404)
-
-    @app.exception_handler(CicdValidationError)  # type: ignore[attr-defined]
-    async def _on_cicd_validation_error(
-        _req: Any, exc: CicdValidationError
-    ) -> JSONResponse:
-        """Return 422 JSON response for CICD validation errors."""
-        return JSONResponse({"detail": str(exc)}, status_code=422)
-
-    @app.exception_handler(CicdUpstreamError)  # type: ignore[attr-defined]
-    async def _on_cicd_upstream_error(
-        _req: Any, exc: CicdUpstreamError
-    ) -> JSONResponse:
-        """Return 502 JSON response for CICD upstream errors."""
-        return JSONResponse({"detail": str(exc)}, status_code=502)
+    app.exception_handler(CicdAuthorizationError)(_make_json_error_handler(403))
+    app.exception_handler(CicdNotFoundError)(_make_json_error_handler(404))
+    app.exception_handler(CicdValidationError)(_make_json_error_handler(422))
+    app.exception_handler(CicdUpstreamError)(_make_json_error_handler(502))

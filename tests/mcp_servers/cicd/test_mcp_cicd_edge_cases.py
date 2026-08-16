@@ -192,3 +192,28 @@ class TestMaxBytesTruncation:
 
         # At least one truncation should have occurred
         assert any("[TRUNCATED:" in part for part in output_parts)
+
+
+class TestReprMasksToken:
+    """Characterization tests locking __repr__'s token-masking behavior (R-4)."""
+
+    def test_repr_with_token_set_shows_set_not_value(self) -> None:
+        """When a token is configured, __repr__ must report 'set' without leaking it."""
+        http_client = MagicMock()
+        backend = GitHubActionsJobBackend(
+            github_token="super-secret-token", http=http_client
+        )
+
+        result = repr(backend)
+
+        assert result == "GitHubActionsJobBackend(token='set')"
+        assert "super-secret-token" not in result
+
+    def test_repr_with_empty_token_shows_not_set(self) -> None:
+        """When no token is configured, __repr__ must report 'not set'."""
+        http_client = MagicMock()
+        backend = GitHubActionsJobBackend(github_token="", http=http_client)
+
+        result = repr(backend)
+
+        assert result == "GitHubActionsJobBackend(token='not set')"

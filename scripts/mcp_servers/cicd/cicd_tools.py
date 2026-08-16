@@ -8,6 +8,37 @@ from __future__ import annotations
 
 from typing import Any
 
+# Shared inputSchema properties: "repo" is identical across all 4 TOOL_LIST
+# entries; "workflow" is identical across trigger_workflow/get_workflow_runs;
+# "run_id" is identical across get_workflow_status/get_workflow_logs.
+# Extracted so type/description stay in sync (mirrors the analogous
+# _REPO_PATH_PROPERTY extraction in scripts/mcp_servers/git/git_tools.py).
+_REPO_PROPERTY: dict[str, Any] = {
+    "type": "string",
+    "description": "Repository slug in 'owner/repo' format",
+}
+_WORKFLOW_PROPERTY: dict[str, Any] = {
+    "type": "string",
+    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
+}
+_RUN_ID_PROPERTY: dict[str, Any] = {
+    "type": "integer",
+    "description": "Workflow run ID (from get_workflow_runs output)",
+}
+
+# Shared metadata fields: "requires_serial" and "resource_scope_kind" are
+# byte-for-byte identical across all 4 TOOL_LIST entries. "is_write" and
+# "resource_scope_keys" are kept per-entry because they vary (is_write is
+# True only for trigger_workflow; resource_scope_keys differs per tool), so
+# unlike the read_tools.py/write_tools.py/delete_tools.py/web_search_tools.py
+# metadata-tail precedent (where the whole tail is uniform), only this
+# 2-field sub-block is extracted here, positioned between the per-entry
+# "is_write" and "resource_scope_keys" to preserve original key order.
+_CICD_TOOL_METADATA_TAIL: dict[str, Any] = {
+    "requires_serial": False,
+    "resource_scope_kind": "cicd_workflow",
+}
+
 TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "trigger_workflow",
@@ -19,14 +50,8 @@ TOOL_LIST: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "workflow": {
-                    "type": "string",
-                    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
-                },
+                "repo": _REPO_PROPERTY,
+                "workflow": _WORKFLOW_PROPERTY,
                 "ref": {
                     "type": "string",
                     "description": "Branch, tag, or SHA to run the workflow on (default: main)",
@@ -45,8 +70,7 @@ TOOL_LIST: list[dict[str, Any]] = [
         "status": "production",
         "config_dependent": True,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "cicd_workflow",
+        **_CICD_TOOL_METADATA_TAIL,
         "resource_scope_keys": ["repo", "workflow", "ref"],
     },
     {
@@ -57,14 +81,8 @@ TOOL_LIST: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "workflow": {
-                    "type": "string",
-                    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
-                },
+                "repo": _REPO_PROPERTY,
+                "workflow": _WORKFLOW_PROPERTY,
                 "limit": {
                     "type": "integer",
                     "description": "Maximum number of runs to return (default: 10, max: 50)",
@@ -75,8 +93,7 @@ TOOL_LIST: list[dict[str, Any]] = [
         "status": "production",
         "config_dependent": True,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "cicd_workflow",
+        **_CICD_TOOL_METADATA_TAIL,
         "resource_scope_keys": ["repo", "workflow"],
     },
     {
@@ -87,22 +104,15 @@ TOOL_LIST: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "run_id": {
-                    "type": "integer",
-                    "description": "Workflow run ID (from get_workflow_runs output)",
-                },
+                "repo": _REPO_PROPERTY,
+                "run_id": _RUN_ID_PROPERTY,
             },
             "required": ["repo", "run_id"],
         },
         "status": "production",
         "config_dependent": True,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "cicd_workflow",
+        **_CICD_TOOL_METADATA_TAIL,
         "resource_scope_keys": ["repo", "run_id"],
     },
     {
@@ -114,22 +124,15 @@ TOOL_LIST: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "run_id": {
-                    "type": "integer",
-                    "description": "Workflow run ID (from get_workflow_runs output)",
-                },
+                "repo": _REPO_PROPERTY,
+                "run_id": _RUN_ID_PROPERTY,
             },
             "required": ["repo", "run_id"],
         },
         "status": "production",
         "config_dependent": True,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "cicd_workflow",
+        **_CICD_TOOL_METADATA_TAIL,
         "resource_scope_keys": ["repo", "run_id"],
     },
 ]
