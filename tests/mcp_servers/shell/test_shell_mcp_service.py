@@ -7,6 +7,7 @@ Unit tests for ShellService guard methods:
 
 from __future__ import annotations
 
+import resource
 import signal
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -14,6 +15,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
 from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
+from mcp_servers.shell.service_static_helpers import (
+    set_resource_limits as _set_resource_limits,
+)
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
     ShellRunRequest,
@@ -307,6 +311,45 @@ class TestOutputTruncation:
         assert len(result.stdout.encode()) <= 512  # half of 1 KB limit
 
 
+# ── exit code resolution (_build_run_response / _resolve_exit_code) ───────────
+
+
+class TestExitCodeResolution:
+    @pytest.mark.asyncio
+    async def test_run_command_returns_process_exit_code(self, tmp_path: Path) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        svc = _make_service(tmp_path)
+        mock_proc = MagicMock()
+        mock_proc.returncode = 7
+        mock_proc.pid = 12345
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+
+        req = ShellRunRequest(command="echo x")
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await svc.run_command(req)
+
+        assert result.exit_code == 7
+
+    @pytest.mark.asyncio
+    async def test_run_command_exit_code_defaults_to_negative_one_when_none(
+        self, tmp_path: Path
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        svc = _make_service(tmp_path)
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.pid = 12345
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+
+        req = ShellRunRequest(command="echo x")
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await svc.run_command(req)
+
+        assert result.exit_code == -1
+
+
 # ── load_shell_policy ─────────────────────────────────────────────────────────
 
 
@@ -376,6 +419,32 @@ class TestExecutionUser:
         )
 
 
+# ── set_resource_limits ───────────────────────────────────────────────────────
+
+
+class TestSetResourceLimits:
+    def test_cpu_limit_floors_at_60_seconds(self) -> None:
+        with patch(
+            "mcp_servers.shell.service_static_helpers.resource.setrlimit"
+        ) as mock_setrlimit:
+            _set_resource_limits(max_memory_mb=128, timeout_sec=10)
+        calls = {call.args[0]: call.args[1] for call in mock_setrlimit.call_args_list}
+        assert calls[resource.RLIMIT_CPU] == (60, 60)
+        assert calls[resource.RLIMIT_AS] == (128 * 1024 * 1024, 128 * 1024 * 1024)
+        assert calls[resource.RLIMIT_NOFILE] == (256, 256)
+        assert calls[resource.RLIMIT_NPROC] == (64, 64)
+        assert calls[resource.RLIMIT_FSIZE] == (256 * 1024 * 1024, 256 * 1024 * 1024)
+
+    def test_cpu_limit_scales_with_timeout_above_floor(self) -> None:
+        with patch(
+            "mcp_servers.shell.service_static_helpers.resource.setrlimit"
+        ) as mock_setrlimit:
+            _set_resource_limits(max_memory_mb=64, timeout_sec=100)
+        calls = {call.args[0]: call.args[1] for call in mock_setrlimit.call_args_list}
+        assert calls[resource.RLIMIT_CPU] == (200, 200)
+        assert calls[resource.RLIMIT_AS] == (64 * 1024 * 1024, 64 * 1024 * 1024)
+
+
 # ── _make_preexec ─────────────────────────────────────────────────────────────
 
 
@@ -387,6 +456,50 @@ class TestMakePreexec:
         ) as mock_limits:
             preexec()
         mock_limits.assert_called_once_with(128, 10)
+
+    def test_preexec_sets_gid_before_uid_when_both_provided(self) -> None:
+        order: list[str] = []
+        with (
+            patch(
+                "mcp_servers.shell.service_static_helpers.os.setgid",
+                side_effect=lambda g: order.append(f"setgid:{g}"),
+            ) as mock_setgid,
+            patch(
+                "mcp_servers.shell.service_static_helpers.os.setuid",
+                side_effect=lambda u: order.append(f"setuid:{u}"),
+            ) as mock_setuid,
+            patch(
+                "mcp_servers.shell.service_static_helpers.set_resource_limits"
+            ) as mock_limits,
+        ):
+            preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=1000, gid=1000)
+            preexec()
+        mock_setgid.assert_called_once_with(1000)
+        mock_setuid.assert_called_once_with(1000)
+        mock_limits.assert_called_once_with(64, 5)
+        assert order == ["setgid:1000", "setuid:1000"]
+
+    def test_preexec_uid_only_skips_setgid(self) -> None:
+        with (
+            patch("mcp_servers.shell.service_static_helpers.os.setgid") as mock_setgid,
+            patch("mcp_servers.shell.service_static_helpers.os.setuid") as mock_setuid,
+            patch("mcp_servers.shell.service_static_helpers.set_resource_limits"),
+        ):
+            preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=2000, gid=None)
+            preexec()
+        mock_setgid.assert_not_called()
+        mock_setuid.assert_called_once_with(2000)
+
+    def test_preexec_gid_only_skips_setuid(self) -> None:
+        with (
+            patch("mcp_servers.shell.service_static_helpers.os.setgid") as mock_setgid,
+            patch("mcp_servers.shell.service_static_helpers.os.setuid") as mock_setuid,
+            patch("mcp_servers.shell.service_static_helpers.set_resource_limits"),
+        ):
+            preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=None, gid=3000)
+            preexec()
+        mock_setgid.assert_called_once_with(3000)
+        mock_setuid.assert_not_called()
 
 
 # ── kill policy ───────────────────────────────────────────────────────────────

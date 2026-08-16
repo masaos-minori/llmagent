@@ -41,9 +41,12 @@ class SubprocessRunner:
         return ["firejail", "--private", "--net=none", "--noroot", "--"] + argv
 
     async def kill_timed_out_process(self, proc: asyncio.subprocess.Process) -> None:
-        """Send SIGTERM/SIGKILL to the process group after a timeout."""
-        # NOTE: kill_policy and kill_grace_sec must be passed at call site
-        # This is intentionally kept minimal; caller handles policy dispatch
+        """Send SIGKILL to the process group unconditionally (no kill_policy dispatch).
+
+        NOTE: kill_policy and kill_grace_sec must be passed at call site to use the
+        policy-aware path; this method is intentionally kept minimal — see
+        _kill_timed_out_process for the SIGTERM-then-SIGKILL / sigkill_only dispatch.
+        """
         try:
             os.killpg(proc.pid, signal.SIGKILL)
         except OSError:

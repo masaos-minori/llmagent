@@ -121,8 +121,7 @@ class ShellService:
             raise ShellAuthorizationError(
                 f"Command not in allowlist: {base!r}",
             )
-        result: list[str] = argv
-        return result
+        return argv
 
     def _filter_env(self, req_env: dict[str, str]) -> dict[str, str]:
         """Filter caller-supplied environment variables.
@@ -215,6 +214,11 @@ class ShellService:
         )
 
     @staticmethod
+    def _resolve_exit_code(proc: asyncio.subprocess.Process) -> int:
+        """Return proc.returncode, or -1 if the process has no exit code yet."""
+        return proc.returncode if proc.returncode is not None else -1
+
+    @staticmethod
     def _build_run_response(
         req: ShellRunRequest,
         proc: asyncio.subprocess.Process,
@@ -225,7 +229,7 @@ class ShellService:
         elapsed: float,
     ) -> ShellRunResponse:
         """Build a ShellRunResponse from execution results."""
-        exit_code = proc.returncode if proc.returncode is not None else -1
+        exit_code = ShellService._resolve_exit_code(proc)
         return ShellRunResponse(
             stdout=stdout,
             stderr=stderr,
@@ -280,7 +284,7 @@ class ShellService:
             req.command,
             user_argv,
             cwd,
-            proc.returncode if proc.returncode is not None else -1,
+            self._resolve_exit_code(proc),
             elapsed,
             truncated,
         )

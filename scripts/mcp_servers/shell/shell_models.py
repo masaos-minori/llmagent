@@ -30,6 +30,17 @@ class ShellValidationError(ValueError):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _or_default[T](value: Any, default: T) -> T:
+    """Return ``value`` if truthy, else ``default``.
+
+    Equivalent to the ``value or default`` expression this factors out of
+    ``ShellConfig.from_dict``: avoids str(None) producing "None" and
+    int(None) raising TypeError when a config key is present with a null
+    (or otherwise falsy) value.
+    """
+    return value if value else default
+
+
 @dataclasses.dataclass
 class ShellConfig:
     """Typed configuration for the Shell MCP server."""
@@ -53,24 +64,26 @@ class ShellConfig:
     def from_dict(cls, d: dict[str, Any]) -> ShellConfig:
         """Construct from a raw config dict (e.g. loaded from TOML).
 
-        Uses ``or`` for defaults to avoid str(None) producing "None" and
-        int(None) raising TypeError when a key is present with a null value.
+        See ``_or_default`` for the null/falsy-value fallback semantics
+        applied to every field below.
         """
         return cls(
-            command_allowlist=list(d.get("command_allowlist") or []),
-            shell_cwd_allowed_dirs=list(d.get("shell_cwd_allowed_dirs") or []),
-            default_cwd=d.get("default_cwd") or "",
-            max_timeout_sec=int(d.get("max_timeout_sec") or 300),
-            max_output_kb=int(d.get("max_output_kb") or 4096),
-            max_memory_mb=int(d.get("max_memory_mb") or 512),
-            kill_policy=d.get("kill_policy") or "sigterm_then_sigkill",
-            kill_grace_sec=float(d.get("kill_grace_sec") or 2.0),
-            execution_user=d.get("execution_user") or "",
-            shell_path=d.get("shell_path") or "/usr/bin:/bin",
-            audit_log_path=d.get("audit_log_path") or "",
-            shell_sandbox_backend=d.get("shell_sandbox_backend") or "none",
-            env_allowlist=list(d.get("env_allowlist") or []),
-            env_denylist=list(d.get("env_denylist") or []),
+            command_allowlist=list(_or_default(d.get("command_allowlist"), [])),
+            shell_cwd_allowed_dirs=list(
+                _or_default(d.get("shell_cwd_allowed_dirs"), [])
+            ),
+            default_cwd=_or_default(d.get("default_cwd"), ""),
+            max_timeout_sec=int(_or_default(d.get("max_timeout_sec"), 300)),
+            max_output_kb=int(_or_default(d.get("max_output_kb"), 4096)),
+            max_memory_mb=int(_or_default(d.get("max_memory_mb"), 512)),
+            kill_policy=_or_default(d.get("kill_policy"), "sigterm_then_sigkill"),
+            kill_grace_sec=float(_or_default(d.get("kill_grace_sec"), 2.0)),
+            execution_user=_or_default(d.get("execution_user"), ""),
+            shell_path=_or_default(d.get("shell_path"), "/usr/bin:/bin"),
+            audit_log_path=_or_default(d.get("audit_log_path"), ""),
+            shell_sandbox_backend=_or_default(d.get("shell_sandbox_backend"), "none"),
+            env_allowlist=list(_or_default(d.get("env_allowlist"), [])),
+            env_denylist=list(_or_default(d.get("env_denylist"), [])),
         )
 
     @classmethod
