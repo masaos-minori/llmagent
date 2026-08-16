@@ -100,33 +100,9 @@ async def parse_markdown(
 
         # Check for frontmatter delimiter (only at start of file)
         if i == 0 and stripped == "---":
-            # Look for closing ---
-            j = i + 1
-            while j < len(lines) and lines[j].rstrip() != "---":
-                j += 1
-            if j < len(lines) and lines[j].rstrip() == "---":
-                # Capture and parse frontmatter (lines i to j inclusive) for tags
-                frontmatter_text = "\n".join(lines[i + 1 : j])
-                try:
-                    fm_data = yaml.safe_load(frontmatter_text)
-                except yaml.YAMLError:
-                    fm_data = None
-
-                raw_tags = fm_data.get("tags") if isinstance(fm_data, dict) else None
-
-                if isinstance(raw_tags, list):
-                    frontmatter_tags = [
-                        str(t).strip() for t in raw_tags if str(t).strip()
-                    ]
-                elif isinstance(raw_tags, str):
-                    frontmatter_tags = [
-                        t.strip() for t in raw_tags.split(",") if t.strip()
-                    ]
-                else:
-                    frontmatter_tags = []
-
-                # Skip frontmatter (lines i to j inclusive)
-                i = j + 1
+            frontmatter_result = _try_parse_frontmatter(lines, i)
+            if frontmatter_result is not None:
+                frontmatter_tags, i = frontmatter_result
                 continue
 
         # Check for ATX heading inside fenced code blocks are already skipped above
@@ -151,8 +127,7 @@ async def parse_markdown(
                     "start_line": i + 1,
                     "parent_heading": None,
                 }
-            if current_section is not None:
-                current_section["content_lines"].append(line)
+            current_section["content_lines"].append(line)
             i += 1
             continue
 
@@ -193,6 +168,48 @@ async def parse_markdown(
         _save_section_if_has_content(current_section, sections)
 
     return sections, frontmatter_tags
+
+
+def _try_parse_frontmatter(
+    lines: list[str], index: int
+) -> tuple[list[str], int] | None:
+    """Parse a YAML frontmatter block starting at `lines[index]` (a "---" line).
+
+    Returns `(tags, next_index)` when a closing "---" delimiter is found: `tags`
+    is the normalized `list[str]` extracted from the frontmatter's `tags` field
+    (accepting either a YAML list or a comma-separated string; empty when the
+    field is absent, malformed, or the frontmatter YAML itself fails to parse),
+    and `next_index` is the line index just past the closing delimiter, for the
+    caller to resume scanning from.
+
+    Returns `None` when no closing "---" delimiter exists in the remainder of
+    the file — the line at `index` is then not frontmatter and must be treated
+    as ordinary content by the caller.
+    """
+    j = index + 1
+    while j < len(lines) and lines[j].rstrip() != "---":
+        j += 1
+    if j >= len(lines) or lines[j].rstrip() != "---":
+        return None
+
+    # Capture and parse frontmatter (lines index+1 to j-1) for tags
+    frontmatter_text = "\n".join(lines[index + 1 : j])
+    try:
+        fm_data = yaml.safe_load(frontmatter_text)
+    except yaml.YAMLError:
+        fm_data = None
+
+    raw_tags = fm_data.get("tags") if isinstance(fm_data, dict) else None
+
+    if isinstance(raw_tags, list):
+        tags = [str(t).strip() for t in raw_tags if str(t).strip()]
+    elif isinstance(raw_tags, str):
+        tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+    else:
+        tags = []
+
+    # Skip frontmatter (lines index to j inclusive)
+    return tags, j + 1
 
 
 def _finalize_section(section: dict) -> ParsedSection:

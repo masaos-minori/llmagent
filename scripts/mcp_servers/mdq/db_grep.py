@@ -48,16 +48,8 @@ def find_grep_match(
     return None
 
 
-def grep_docs(
-    conn: sqlite3.Connection,
-    compiled: re.Pattern[str],
-    req_paths: list[str],
-    max_matches: int,
-    max_chars: int,
-    ctx_before: int,
-    ctx_after: int,
-) -> tuple[str, GrepDocsMetadata]:
-    """Execute a grep search across chunks."""
+def _build_path_where_clause(req_paths: list[str]) -> tuple[str, list]:
+    """Build the optional `WHERE source_path IN (...)` clause and its bound params."""
     where_clauses = []
     params: list = []
 
@@ -67,12 +59,28 @@ def grep_docs(
         params.extend(req_paths)
 
     where_clause = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    return where_clause, params
 
-    rows = conn.execute(
+
+def _fetch_chunk_rows(
+    conn: sqlite3.Connection, where_clause: str, params: list
+) -> list[sqlite3.Row]:
+    """Fetch chunk rows eligible for grep matching, filtered by `where_clause`."""
+    return conn.execute(
         f"SELECT chunk_id, source_path, heading_path, heading, content, start_line FROM chunks {where_clause}",
         params,
     ).fetchall()
 
+
+def _collect_grep_matches(
+    rows: list[sqlite3.Row],
+    compiled: re.Pattern[str],
+    max_chars: int,
+    ctx_before: int,
+    ctx_after: int,
+    max_matches: int,
+) -> tuple[list[GrepDocMatch], bool]:
+    """Scan `rows` for matches, stopping once `max_matches` is reached."""
     matches: list[GrepDocMatch] = []
     for row in rows:
         match = find_grep_match(row, compiled, max_chars, ctx_before, ctx_after)
@@ -83,16 +91,13 @@ def grep_docs(
             break
 
     truncated = len(matches) >= max_matches
+    return matches, truncated
 
-    if not matches:
-        return "No matches found.", GrepDocsMetadata(
-            pattern_preview=compiled.pattern[:80],
-            path_filter_count=len(req_paths),
-            match_count=0,
-            truncated=False,
-            grep_enabled=True,
-        )
 
+def _format_grep_matches(
+    matches: list[GrepDocMatch], truncated: bool, max_matches: int
+) -> str:
+    """Render collected matches into the tool's visible text output."""
     parts = []
     for m in matches:
         parts.append(f"File: {m.source_path}")
@@ -109,10 +114,47 @@ def grep_docs(
             f"\n\n[Truncated — cap of {max_matches} matches reached. "
             f"Use a more specific pattern or path filter to narrow results.]"
         )
-    return result, GrepDocsMetadata(
+    return result
+
+
+def _build_grep_metadata(
+    compiled: re.Pattern[str],
+    req_paths: list[str],
+    match_count: int,
+    truncated: bool,
+) -> GrepDocsMetadata:
+    """Build the structured audit metadata accompanying a grep result."""
+    return GrepDocsMetadata(
         pattern_preview=compiled.pattern[:80],
         path_filter_count=len(req_paths),
-        match_count=len(matches),
+        match_count=match_count,
         truncated=truncated,
         grep_enabled=True,
+    )
+
+
+def grep_docs(
+    conn: sqlite3.Connection,
+    compiled: re.Pattern[str],
+    req_paths: list[str],
+    max_matches: int,
+    max_chars: int,
+    ctx_before: int,
+    ctx_after: int,
+) -> tuple[str, GrepDocsMetadata]:
+    """Execute a grep search across chunks."""
+    where_clause, params = _build_path_where_clause(req_paths)
+    rows = _fetch_chunk_rows(conn, where_clause, params)
+    matches, truncated = _collect_grep_matches(
+        rows, compiled, max_chars, ctx_before, ctx_after, max_matches
+    )
+
+    if not matches:
+        return "No matches found.", _build_grep_metadata(
+            compiled, req_paths, match_count=0, truncated=False
+        )
+
+    result = _format_grep_matches(matches, truncated, max_matches)
+    return result, _build_grep_metadata(
+        compiled, req_paths, match_count=len(matches), truncated=truncated
     )

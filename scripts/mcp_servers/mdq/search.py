@@ -28,6 +28,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _clamp_to_config_cap(request_value: int | None, config_cap: int) -> int:
+    """Resolve a request-supplied override bounded by the server's config cap.
+
+    Mirrors the "request overrides bounded by config cap" rule applied to
+    both `max_results_limit` and `max_total_result_chars`: an absent request
+    value (`None`) falls back to the config cap outright; a present value is
+    clamped so a request can only narrow, never widen, the cap.
+    """
+    if request_value is None:
+        return config_cap
+    return min(request_value, config_cap)
+
+
 async def search_docs(
     service: MdqService, req: SearchDocsRequest
 ) -> tuple[str, SearchDocsMetadata]:
@@ -61,17 +74,9 @@ async def search_docs(
     matched_count = result["matched_count"]
 
     # Apply result size limits (request overrides bounded by config cap)
-    request_results = getattr(req, "max_results_limit", None)
-    max_results = (
-        service.max_results_limit
-        if request_results is None
-        else min(request_results, service.max_results_limit)
-    )
-
-    request_chars = getattr(req, "max_total_result_chars", None)
-    config_chars = service.max_total_result_chars
-    max_chars = (
-        config_chars if request_chars is None else min(request_chars, config_chars)
+    max_results = _clamp_to_config_cap(req.max_results_limit, service.max_results_limit)
+    max_chars = _clamp_to_config_cap(
+        req.max_total_result_chars, service.max_total_result_chars
     )
 
     results = result["results"]
@@ -130,7 +135,7 @@ def _search_docs_structured(
     # Cap the SQL-layer fetch itself at the server's configured limit so a
     # large request `limit` cannot bypass the config cap by having the
     # database return an unbounded row set before Python-side truncation.
-    effective_limit = min(getattr(req, "limit", 10) or 10, service.max_results_limit)
+    effective_limit = min(req.limit or 10, service.max_results_limit)
 
     matched_count = 0
     conn = service._get_db_connection()
@@ -144,7 +149,7 @@ def _search_docs_structured(
             f"""SELECT COUNT(*) as cnt
                 FROM chunks_fts f
                 JOIN chunks c ON f.rowid = c.rowid
-                WHERE {where_clause}""",
+                WHERE {where_clause}""",  # nosec B608 — where_clause built only from static predicate fragments in _build_search_where(); all values bound via params
             params,
         ).fetchone()
         matched_count = matched_count_row["cnt"] if matched_count_row is not None else 0
@@ -159,7 +164,7 @@ def _search_docs_structured(
                 JOIN chunks c ON f.rowid = c.rowid
                 WHERE {where_clause}
                 ORDER BY rank
-                LIMIT ?""",
+                LIMIT ?""",  # nosec B608 — where_clause built only from static predicate fragments in _build_search_where(); all values bound via params
             params + [effective_limit],
         ).fetchall()
 

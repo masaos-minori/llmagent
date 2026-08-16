@@ -104,6 +104,44 @@ def _create_test_db(tmp_path: Path) -> str:
     return path
 
 
+def _create_test_db_no_documents(tmp_path: Path) -> str:
+    """Create a test database with chunks/chunks_fts tables but missing documents table."""
+    path = str(tmp_path / "mdq_no_documents.sqlite")
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chunk_id TEXT UNIQUE NOT NULL,
+                doc_id TEXT NOT NULL,
+                source_path TEXT NOT NULL,
+                heading TEXT NOT NULL,
+                content TEXT NOT NULL,
+                indexed_at REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE chunks_fts (
+                rowid INTEGER PRIMARY KEY,
+                normalized_content TEXT,
+                source_path TEXT,
+                heading TEXT,
+                heading_path TEXT,
+                content_hash TEXT,
+                content TEXT,
+                chunks_fts TEXT
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
 def _create_test_db_no_chunks(tmp_path: Path) -> str:
     """Create a test database with documents table but missing chunks table."""
     path = str(tmp_path / "mdq_no_chunks.sqlite")
@@ -299,6 +337,24 @@ class TestHealthEndpointReady:
 
 class TestHealthEndpointMissingSchema:
     """Verify /health returns ready=false when required schema elements are missing."""
+
+    async def test_missing_documents_table_returns_ready_false(
+        self, tmp_path: Path
+    ) -> None:
+        """Missing documents table → ready:false."""
+        db_path = _create_test_db_no_documents(tmp_path)
+        with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
+            MockConfig.return_value.load.return_value = _mock_config(db_path)
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                resp = await client.get("/health")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["ready"] is False
+        assert body["status"] == "degraded"
+        assert "db_schema" in body["dependencies"]
+        assert "documents" in body["dependencies"]["db_schema"]
 
     async def test_missing_chunks_table_returns_ready_false(
         self, tmp_path: Path

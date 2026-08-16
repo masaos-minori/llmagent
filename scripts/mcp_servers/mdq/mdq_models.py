@@ -10,6 +10,10 @@ from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Parsing TypedDicts
+# ──────────────────────────────────────────────────────────────────────────────
+
 
 class ParsedSection(TypedDict):
     """Parsed markdown section with heading hierarchy and content."""
@@ -84,6 +88,11 @@ class MdqConsistencyError(MdqServiceError):
     """Consistency errors: FTS mismatch, data corruption."""
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 class MdqConfig(BaseModel):
     """Validated mdq-mcp configuration loaded from `mdq_mcp_server.toml`.
 
@@ -109,6 +118,11 @@ class MdqConfig(BaseModel):
     enable_grep: bool = True
     max_outline_depth: int = Field(default=6, gt=0)
     sqlite_busy_timeout: int = Field(default=5000, gt=0)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Request models
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 class ParseMarkdownRequest(BaseModel):
@@ -174,6 +188,11 @@ class GrepDocsRequest(BaseModel):
     max_chars_per_match: int | None = 500
     context_before: int | None = 2
     context_after: int | None = 2
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Response models
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 class SearchResultItem(BaseModel):
@@ -267,6 +286,11 @@ class GrepDocsResponse(BaseModel):
     results: list[GrepDocMatch]
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Internal result wrapper
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 class SearchResultResult(TypedDict):
     """Search result wrapper containing query and result items."""
 
@@ -276,12 +300,22 @@ class SearchResultResult(TypedDict):
     shown_count: int  # len(results) — rows actually returned after effective_limit
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Staleness helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 def is_stale(mtime_ns: int, indexed_at: float) -> bool:
     """True if the file's on-disk mtime (ns) is newer than the last indexed_at (s, time.time())."""
     return mtime_ns > int(indexed_at * 1e9)
 
 
 STALE_SQL_CONDITION: str = "mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Audit metadata TypedDicts (consumed by mdq_server.py)
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 class SearchDocsMetadata(TypedDict):

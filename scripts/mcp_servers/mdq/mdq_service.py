@@ -35,6 +35,7 @@ from mcp_servers.mdq.mdq_models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     MdqConfig,
+    MdqDatabaseError,
     MdqNotFoundError,
     MdqValidationError,
     OutlineHeading,
@@ -126,8 +127,6 @@ class MdqService:
         try:
             conn = sqlite3.connect(self.db_path)
         except sqlite3.OperationalError as e:
-            from mcp_servers.mdq.mdq_models import MdqDatabaseError
-
             raise MdqDatabaseError(f"Failed to open database: {e}") from e
         conn.row_factory = sqlite3.Row
         apply_connection_pragmas(
@@ -198,7 +197,7 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             where_clauses = ["c.source_path = ?"]
-            params: list = [str(p)]
+            params: list[str | int] = [str(p)]
 
             if max_depth is not None:
                 where_clauses.append("c.heading_level <= ?")
@@ -211,22 +210,7 @@ class MdqService:
                 params,
             ).fetchall()
 
-            # Check for stale index
-            stale_warning = None
-            doc_row = conn.execute(
-                "SELECT mtime_ns, indexed_at FROM documents WHERE source_path = ?",
-                (str(p),),
-            ).fetchone()
-            if (
-                doc_row is not None
-                and doc_row["mtime_ns"] is not None
-                and doc_row["indexed_at"] is not None
-            ):
-                if is_stale(doc_row["mtime_ns"], doc_row["indexed_at"]):
-                    stale_warning = (
-                        f"Warning: file has been modified since last indexing "
-                        f"(mtime={doc_row['mtime_ns']}, indexed_at={doc_row['indexed_at']})"
-                    )
+            stale_warning = self._check_stale_document(conn, p)
 
             headings = [
                 OutlineHeading(
@@ -240,28 +224,54 @@ class MdqService:
                 for row in rows
             ]
 
-            total_headings = len(headings)
-            truncated = total_headings > max_items if max_items else False
-            if truncated and max_items:
-                headings = headings[:max_items]
-
-            parts = []
-            for h in headings:
-                indent = "  " * (h.level - 1)
-                parts.append(f"{indent}{h.heading}")
-
-            result = "\n".join(parts) if headings else "(no headings)"
-            if truncated:
-                result += (
-                    f"\n\n[Truncated — {total_headings} headings found, "
-                    f"{max_items} shown. "
-                    f"Use a deeper path_prefix filter or reduce max_outline_items.]"
-                )
+            result = self._render_outline(headings, max_items)
             if stale_warning:
                 result += f"\n\n{stale_warning}"
             return result
         finally:
             conn.close()
+
+    def _check_stale_document(self, conn: sqlite3.Connection, path: Path) -> str | None:
+        """Return a stale-index warning message for path, or None if not stale/unknown."""
+        doc_row = conn.execute(
+            "SELECT mtime_ns, indexed_at FROM documents WHERE source_path = ?",
+            (str(path),),
+        ).fetchone()
+        if (
+            doc_row is None
+            or doc_row["mtime_ns"] is None
+            or doc_row["indexed_at"] is None
+        ):
+            return None
+        if not is_stale(doc_row["mtime_ns"], doc_row["indexed_at"]):
+            return None
+        return (
+            f"Warning: file has been modified since last indexing "
+            f"(mtime={doc_row['mtime_ns']}, indexed_at={doc_row['indexed_at']})"
+        )
+
+    def _render_outline(
+        self, headings: list[OutlineHeading], max_items: int | None
+    ) -> str:
+        """Render headings as indented text, truncating to max_items if set."""
+        total_headings = len(headings)
+        truncated = total_headings > max_items if max_items else False
+        if truncated and max_items:
+            headings = headings[:max_items]
+
+        parts = []
+        for h in headings:
+            indent = "  " * (h.level - 1)
+            parts.append(f"{indent}{h.heading}")
+
+        result = "\n".join(parts) if headings else "(no headings)"
+        if truncated:
+            result += (
+                f"\n\n[Truncated — {total_headings} headings found, "
+                f"{max_items} shown. "
+                f"Use a deeper path_prefix filter or reduce max_outline_items.]"
+            )
+        return result
 
     async def index_paths(
         self, req: IndexPathsRequest
@@ -339,6 +349,28 @@ class MdqService:
         finally:
             conn.close()
 
+    def _resolve_grep_paths(self, req: GrepDocsRequest) -> list[str]:
+        """Resolve and authorize grep_docs target paths: explicit paths, or all indexed paths."""
+        if req.paths:
+            for p in req.paths:
+                if not authorize_path(Path(p), self.allowed_dirs):
+                    raise MdqAuthorizationError(
+                        f"Access denied: {p} is outside allowed directories"
+                    )
+            return req.paths
+
+        conn_check = self._get_db_connection()
+        try:
+            all_paths = [
+                row["source_path"]
+                for row in conn_check.execute(
+                    "SELECT DISTINCT source_path FROM chunks"
+                ).fetchall()
+            ]
+        finally:
+            conn_check.close()
+        return [p for p in all_paths if authorize_path(Path(p), self.allowed_dirs)]
+
     async def grep_docs(self, req: GrepDocsRequest) -> tuple[str, GrepDocsMetadata]:
         """Search Markdown chunks with a regex pattern."""
         if not self.enable_grep:
@@ -348,35 +380,15 @@ class MdqService:
         except re.error as e:
             raise MdqValidationError(f"Invalid regex pattern: {e}")
 
-        if req.paths:
-            for p in req.paths:
-                if not authorize_path(Path(p), self.allowed_dirs):
-                    raise MdqAuthorizationError(
-                        f"Access denied: {p} is outside allowed directories"
-                    )
-            authorized_paths = req.paths
-        else:
-            conn_check = self._get_db_connection()
-            try:
-                all_paths = [
-                    row["source_path"]
-                    for row in conn_check.execute(
-                        "SELECT DISTINCT source_path FROM chunks"
-                    ).fetchall()
-                ]
-            finally:
-                conn_check.close()
-            authorized_paths = [
-                p for p in all_paths if authorize_path(Path(p), self.allowed_dirs)
-            ]
-            if not authorized_paths:
-                return "No matches found.", GrepDocsMetadata(
-                    pattern_preview=req.pattern[:80],
-                    path_filter_count=0,
-                    match_count=0,
-                    truncated=False,
-                    grep_enabled=True,
-                )
+        authorized_paths = self._resolve_grep_paths(req)
+        if not authorized_paths:
+            return "No matches found.", GrepDocsMetadata(
+                pattern_preview=req.pattern[:80],
+                path_filter_count=0,
+                match_count=0,
+                truncated=False,
+                grep_enabled=True,
+            )
 
         request_matches = req.max_grep_matches
         config_cap_matches = self.max_grep_matches
@@ -385,11 +397,9 @@ class MdqService:
             if request_matches is not None
             else config_cap_matches
         )
-        max_chars = (
-            getattr(req, "max_chars_per_match", None) or self.max_chars_per_match
-        )
-        ctx_before = getattr(req, "context_before", None) or self.context_before
-        ctx_after = getattr(req, "context_after", None) or self.context_after
+        max_chars = req.max_chars_per_match or self.max_chars_per_match
+        ctx_before = req.context_before or self.context_before
+        ctx_after = req.context_after or self.context_after
 
         conn = self._get_db_connection()
         try:

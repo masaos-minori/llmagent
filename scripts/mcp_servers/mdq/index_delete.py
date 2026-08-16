@@ -22,12 +22,13 @@ def delete_file_from_index(
     service: MdqService, conn: sqlite3.Connection, path: Path
 ) -> None:
     """Remove a file's chunks and index_state records from the database."""
-    doc_id = hashlib.sha256(str(path).encode()).hexdigest()
+    path_str = str(path)
+    doc_id = hashlib.sha256(path_str.encode()).hexdigest()
     # chunks_ad trigger fires automatically on DELETE — no manual FTS cleanup needed
     conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
     conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
     conn.execute(
         "DELETE FROM index_state WHERE key LIKE ?",
-        (f"mtime:{str(path)}%",),
+        (f"mtime:{path_str}%",),
     )
     conn.commit()

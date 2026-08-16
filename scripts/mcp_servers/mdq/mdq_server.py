@@ -65,15 +65,21 @@ app = FastAPI(
 _service: MdqService = MdqService()
 
 
+def _extract_request_context(request: Request) -> tuple[str, str]:
+    """Return (session_id, request_id) for audit logging from request headers/state."""
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
+    return session_id, request_id
+
+
 def _mdq_error_handler(
     request: Request, exc: Exception, status_code: int, error_kind: str
 ) -> JSONResponse:
     """Format an MDQ error into a JSONResponse with consistent structure."""
     logger.info("MDQ %s error: %s", error_kind, exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = _extract_request_context(request)
     _audit_log(
         logger,
         session_id=session_id,
@@ -236,6 +242,46 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> MdqDispatchResult:
     )
 
 
+def _build_call_tool_audit_detail(
+    name: str, r: MdqDispatchResult, ms: float
+) -> list[str]:
+    """Build the per-tool audit detail parts for a completed (non-raising) dispatch result.
+
+    Sourced from structured metadata returned by MdqService's methods (or,
+    for get_chunk, from its own output text), never inferred from other
+    tools' output text.
+    """
+    detail_parts: list[str] = [f"duration_ms={ms:.0f}"]
+    if r.is_error:
+        detail_parts.append("error_kind=tool_error")
+    elif name == "search_docs":
+        md = r.metadata
+        detail_parts.append(f"result_count={md.get('result_count', 0)}")
+        detail_parts.append(f"shown_count={md.get('shown_count', 0)}")
+        if md.get("truncated"):
+            detail_parts.append("truncated=true")
+    elif name == "get_chunk":
+        if r.output and "[Truncated" in r.output:
+            detail_parts.append("truncated=true")
+    elif name == "grep_docs":
+        md = r.metadata
+        detail_parts.append(f"match_count={md.get('match_count', 0)}")
+        if md.get("truncated"):
+            detail_parts.append("truncated=true")
+    elif name == "index_paths":
+        md = r.metadata
+        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
+        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
+        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
+    elif name == "refresh_index":
+        md = r.metadata
+        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
+        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
+        detail_parts.append(f"deleted_count={md.get('deleted_count', 0)}")
+        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
+    return detail_parts
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
@@ -251,10 +297,7 @@ async def list_tools() -> dict[str, Any]:
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     t0 = time.perf_counter()
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = _extract_request_context(request)
     target = extract_audit_target(req.name, req.args)
 
     try:
@@ -284,36 +327,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
 
-    # Per-tool audit detail enrichment — sourced from structured metadata
-    # returned by MdqService's methods, never inferred from output text.
-    detail_parts: list[str] = [f"duration_ms={ms:.0f}"]
-    if r.is_error:
-        detail_parts.append("error_kind=tool_error")
-    elif req.name == "search_docs":
-        md = r.metadata
-        detail_parts.append(f"result_count={md.get('result_count', 0)}")
-        detail_parts.append(f"shown_count={md.get('shown_count', 0)}")
-        if md.get("truncated"):
-            detail_parts.append("truncated=true")
-    elif req.name == "get_chunk":
-        if r.output and "[Truncated" in r.output:
-            detail_parts.append("truncated=true")
-    elif req.name == "grep_docs":
-        md = r.metadata
-        detail_parts.append(f"match_count={md.get('match_count', 0)}")
-        if md.get("truncated"):
-            detail_parts.append("truncated=true")
-    elif req.name == "index_paths":
-        md = r.metadata
-        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
-        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
-        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
-    elif req.name == "refresh_index":
-        md = r.metadata
-        detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
-        detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
-        detail_parts.append(f"deleted_count={md.get('deleted_count', 0)}")
-        detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
+    detail_parts = _build_call_tool_audit_detail(req.name, r, ms)
 
     _audit_log(
         logger,

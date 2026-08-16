@@ -264,6 +264,59 @@ async def index_paths(
     )
 
 
+def _load_index_state(conn: sqlite3.Connection) -> dict[str, str]:
+    """Load current index_state key/value records for staleness comparison."""
+    state_rows = conn.execute("SELECT key, value FROM index_state").fetchall()
+    current_state: dict[str, str] = {}
+    for row in state_rows:
+        current_state[row["key"]] = row["value"]
+    return current_state
+
+
+def _compute_dirs_to_scan(paths: list[str]) -> set[Path]:
+    """Determine which directories to scan for deletion detection."""
+    dirs_to_scan: set[Path] = set()
+    for path_str in paths:
+        p = Path(path_str)
+        if p.is_dir():
+            dirs_to_scan.add(p)
+        elif p.is_file():
+            dirs_to_scan.add(p.parent)
+    return dirs_to_scan
+
+
+def _detect_deleted_files(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    dirs_to_scan: set[Path],
+) -> int:
+    """Detect files removed from the filesystem and delete their index entries.
+
+    Returns the number of files removed from the index.
+    """
+    deleted_count = 0
+    for dir_path in dirs_to_scan:
+        try:
+            current_md_files = {
+                str(f) for f in _iter_indexable_files(service, dir_path)
+            }
+            for path_str_key, mtime_val in list(current_state.items()):
+                if not path_str_key.startswith("mtime:"):
+                    continue
+                file_path = path_str_key[6:]
+                if (
+                    file_path not in current_md_files
+                    and dir_path in Path(file_path).parents
+                ):
+                    # File was deleted — remove from index
+                    delete_file_from_index(service, conn, Path(file_path))
+                    deleted_count += 1
+        except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
+            logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
+    return deleted_count
+
+
 async def refresh_paths(
     service: MdqService, req: RefreshIndexRequest
 ) -> RefreshSummary:
@@ -272,8 +325,6 @@ async def refresh_paths(
     Returns structured summary with indexed_count, skipped_count, deleted_count,
     failed_count, and elapsed_seconds.
     """
-    import time
-
     start = time.time()
     indexed_count = 0
     skipped_count = 0
@@ -283,22 +334,13 @@ async def refresh_paths(
     conn = service._get_db_connection()
     try:
         # Load current index_state records for tracking
-        state_rows = conn.execute("SELECT key, value FROM index_state").fetchall()
-        current_state: dict[str, str] = {}
-        for row in state_rows:
-            current_state[row["key"]] = row["value"]
+        current_state = _load_index_state(conn)
 
         # Track paths that exist on filesystem to detect deletions
         tracked_paths: set[str] = set()
 
         # Determine which directories to scan for deletion detection
-        dirs_to_scan: set[Path] = set()
-        for path_str in req.paths:
-            p = Path(path_str)
-            if p.is_dir():
-                dirs_to_scan.add(p)
-            elif p.is_file():
-                dirs_to_scan.add(p.parent)
+        dirs_to_scan = _compute_dirs_to_scan(req.paths)
 
         # Index or skip each requested path
         for path_str in req.paths:
@@ -381,24 +423,9 @@ async def refresh_paths(
             tracked_paths.add(str(p))
 
         # Detect deleted files within scanned directories
-        for dir_path in dirs_to_scan:
-            try:
-                current_md_files = {
-                    str(f) for f in _iter_indexable_files(service, dir_path)
-                }
-                for path_str_key, mtime_val in list(current_state.items()):
-                    if not path_str_key.startswith("mtime:"):
-                        continue
-                    file_path = path_str_key[6:]
-                    if (
-                        file_path not in current_md_files
-                        and dir_path in Path(file_path).parents
-                    ):
-                        # File was deleted — remove from index
-                        delete_file_from_index(service, conn, Path(file_path))
-                        deleted_count += 1
-            except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
-                logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
+        deleted_count = _detect_deleted_files(
+            service, conn, current_state, dirs_to_scan
+        )
 
         elapsed = time.time() - start
         return {

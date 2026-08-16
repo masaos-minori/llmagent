@@ -9,6 +9,13 @@ import os
 from pathlib import Path
 
 
+def _is_within_root(resolved: Path, resolved_root: Path) -> bool:
+    """Return True if `resolved` is `resolved_root` itself or a descendant of it."""
+    return str(resolved).startswith(str(resolved_root) + os.sep) or str(
+        resolved
+    ) == str(resolved_root)
+
+
 def authorize_path(path: Path, allowed_dirs: list[str]) -> bool:
     """Authorize access to a file path based on the allowlist.
 
@@ -28,9 +35,7 @@ def authorize_path(path: Path, allowed_dirs: list[str]) -> bool:
     for root in allowed_dirs:
         try:
             resolved_root = Path(root).resolve()
-            if str(resolved).startswith(str(resolved_root) + os.sep) or str(
-                resolved
-            ) == str(resolved_root):
+            if _is_within_root(resolved, resolved_root):
                 return True
         except (OSError, ValueError):
             continue

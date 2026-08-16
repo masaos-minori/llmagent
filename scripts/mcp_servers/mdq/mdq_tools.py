@@ -22,6 +22,37 @@ class MCPToolSchema(TypedDict):
     resource_scope_keys: NotRequired[list[str]]
 
 
+class _MdqToolMetadataTail(TypedDict):
+    """Shared trailing metadata fields common to a group of TOOL_LIST entries."""
+
+    is_write: bool
+    requires_serial: bool
+    resource_scope_kind: str
+
+
+# Shared metadata: "is_write"/"requires_serial"/"resource_scope_kind" are
+# byte-for-byte identical across the 5 read-only TOOL_LIST entries
+# (search_docs, get_chunk, outline, stats, grep_docs). "resource_scope_keys"
+# is kept per-entry (mirrors the analogous precedent in read_tools.py /
+# cicd_tools.py) since, although also identical among these entries (always
+# []), it is a mutable list value and per-entry literals avoid any risk of
+# TOOL_LIST entries unintentionally sharing one list object.
+_MDQ_READONLY_METADATA: _MdqToolMetadataTail = {
+    "is_write": False,
+    "requires_serial": False,
+    "resource_scope_kind": "",
+}
+
+# Shared metadata for the 2 write/serialized TOOL_LIST entries (index_paths,
+# refresh_index). See _MDQ_READONLY_METADATA above for why
+# "resource_scope_keys" stays per-entry.
+_MDQ_WRITE_METADATA: _MdqToolMetadataTail = {
+    "is_write": True,
+    "requires_serial": True,
+    "resource_scope_kind": "mdq_store",
+}
+
+
 TOOL_LIST: list[MCPToolSchema] = [
     {
         "name": "search_docs",
@@ -78,9 +109,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["query"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_MDQ_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -104,9 +133,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["chunk_id"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_MDQ_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -132,9 +159,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["path"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_MDQ_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -153,9 +178,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
-        "is_write": True,
-        "requires_serial": True,
-        "resource_scope_kind": "mdq_store",
+        **_MDQ_WRITE_METADATA,
         "resource_scope_keys": ["paths"],
     },
     {
@@ -178,9 +201,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
-        "is_write": True,
-        "requires_serial": True,
-        "resource_scope_kind": "mdq_store",
+        **_MDQ_WRITE_METADATA,
         "resource_scope_keys": ["paths"],
     },
     {
@@ -188,9 +209,7 @@ TOOL_LIST: list[MCPToolSchema] = [
         "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_MDQ_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -231,9 +250,7 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["pattern"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_MDQ_READONLY_METADATA,
         "resource_scope_keys": [],
     },
 ]
