@@ -11,6 +11,7 @@ to replace the default terminal implementation without touching callers.
 import asyncio
 import logging
 import readline
+from abc import ABC
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -19,6 +20,51 @@ from agent.output_tags import OutputTag
 logger = logging.getLogger(__name__)
 
 _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+
+class WriterBase(ABC):
+    """Base class providing default implementations for Writer Protocol methods.
+
+    Allows partial test doubles to satisfy the Writer Protocol without
+    implementing all methods. Calling an unimplemented method raises
+    NotImplementedError with a clear message.
+    """
+
+    def write_token(self, token: str) -> None:
+        raise NotImplementedError("write_token must be implemented")
+
+    def write_compress_notice(self, n: int) -> None:
+        raise NotImplementedError("write_compress_notice must be implemented")
+
+    def write_turn_start(self) -> None:
+        raise NotImplementedError("write_turn_start must be implemented")
+
+    def write_turn_end(self) -> None:
+        raise NotImplementedError("write_turn_end must be implemented")
+
+    def write_llm_error(self, e: Exception) -> None:
+        raise NotImplementedError("write_llm_error must be implemented")
+
+    def write_progress(self, msg: str) -> None:
+        raise NotImplementedError("write_progress must be implemented")
+
+    def clear_progress(self) -> None:
+        raise NotImplementedError("clear_progress must be implemented")
+
+    def write_warning(self, msg: str) -> None:
+        raise NotImplementedError("write_warning must be implemented")
+
+    def write_fatal(self, msg: str) -> None:
+        raise NotImplementedError("write_fatal must be implemented")
+
+    def write_startup_banner(
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_mode: str | None = None,
+    ) -> None:
+        raise NotImplementedError("write_startup_banner must be implemented")
 
 
 @runtime_checkable
@@ -85,7 +131,7 @@ class Reader(Protocol):
         ...
 
 
-class CLIView:
+class CLIView(WriterBase):
     """Manages terminal I/O: readline history, tab completion, multiline
     continuation input, and progress status line.
     """

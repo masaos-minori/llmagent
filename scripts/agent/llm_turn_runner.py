@@ -91,7 +91,7 @@ class LLMTurnRunner:
 
             has_tool_calls = bool(message.get("tool_calls"))
             if (finish_reason != "tool_calls") or not has_tool_calls:
-                answer = self._finalize_answer_text(message)
+                answer = await self._finalize_answer_text(message)
                 return TurnResult(action="continue", answer=answer)
 
             if msg := self._guard.check_all(
@@ -102,7 +102,7 @@ class LLMTurnRunner:
             ):
                 return await self._finalize_after_guard()
 
-            ctx.conv.append_message(message)
+            await ctx.conv.append_message(message)
             ctx.session.save(
                 "assistant",
                 message.get("content") or "",
@@ -198,10 +198,10 @@ class LLMTurnRunner:
             return self._tracer.start_as_current_span(name, attributes=attrs or None)
         return nullcontext(_NoOpSpan())
 
-    def _finalize_answer_text(self, message: LLMMessage) -> str:
+    async def _finalize_answer_text(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
-        ctx.conv.append_message(message)
+        await ctx.conv.append_message(message)
         return message.get("content") or ""
 
     def _filter_disabled_tool_definitions(self) -> list[dict[str, Any]]:
@@ -260,12 +260,12 @@ class LLMTurnRunner:
                 type(e).__name__,
             )
             return TurnResult(action="fail", answer="", reason="tool_loop_guard")
-        ctx.conv.append_message(cast(LLMMessage, ephemeral_msg))
+        await ctx.conv.append_message(cast(LLMMessage, ephemeral_msg))
         response = await self._stream_llm_final_answer()
         message, finish_reason = response.message, response.finish_reason
         if finish_reason == "tool_calls" and message.get("tool_calls"):
             return TurnResult(action="fail", answer="", reason="tool_loop_guard")
-        answer = self._finalize_answer_text(message)
+        answer = await self._finalize_answer_text(message)
         return TurnResult(action="continue", answer=answer)
 
     async def _stream_llm(

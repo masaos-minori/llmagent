@@ -13,7 +13,9 @@ from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 
-_VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
+_DEFAULT_VALID_ROLES: frozenset[str] = frozenset(
+    {"user", "assistant", "tool", "system"}
+)
 
 _INSERT_MESSAGE_SQL = (
     "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id)"
@@ -30,11 +32,24 @@ class SessionMessageRepository:
     """Repository for session message operations."""
 
     def __init__(
-        self, session_id: int | None = None, *, strict_mode: bool = False
+        self,
+        session_id: int | None = None,
+        *,
+        strict_mode: bool = False,
+        roles_source: frozenset[str] | None = None,
     ) -> None:
-        """Initialize the session message repository with session ID and strict mode flag."""
+        """Initialize the session message repository with session ID and strict mode flag.
+
+        Args:
+            session_id: The session identifier for message persistence.
+            strict_mode: When True, raises RuntimeError on invalid operations instead of skipping.
+            roles_source: Optional custom set of valid roles; falls back to default if None.
+        """
         self.session_id = session_id
         self.strict_mode = strict_mode
+        self._valid_roles = (
+            roles_source if roles_source is not None else _DEFAULT_VALID_ROLES
+        )
         self.stat_skipped_no_session: int = 0
         self.stat_skipped_invalid_role: int = 0
 
@@ -55,7 +70,7 @@ class SessionMessageRepository:
             if self.strict_mode:
                 raise RuntimeError("Cannot save message: no session_id (strict mode)")
             return
-        if role not in _VALID_ROLES:
+        if role not in self._valid_roles:
             self.stat_skipped_invalid_role += 1
             logger.warning("Invalid role %r; message not saved", role)
             if self.strict_mode:
@@ -96,7 +111,9 @@ class SessionMessageRepository:
                         "Cannot save messages: no session_id (strict mode)"
                     )
             return
-        invalid_count = sum(1 for role, _, _, _ in messages if role not in _VALID_ROLES)
+        invalid_count = sum(
+            1 for role, _, _, _ in messages if role not in self._valid_roles
+        )
         rows = [
             (
                 self.session_id,
@@ -106,7 +123,7 @@ class SessionMessageRepository:
                 tc_id,
             )
             for role, content, tc, tc_id in messages
-            if role in _VALID_ROLES
+            if role in self._valid_roles
         ]
         if invalid_count:
             self.stat_skipped_invalid_role += invalid_count
@@ -131,7 +148,7 @@ class SessionMessageRepository:
         rows = []
         for msg in messages:
             role = msg.get("role", "user")
-            if role not in _VALID_ROLES:
+            if role not in self._valid_roles:
                 logger.warning("replace_messages: skipping invalid role %r", role)
                 continue
             content = msg.get("content") or ""
@@ -144,20 +161,36 @@ class SessionMessageRepository:
                 db.executemany(_INSERT_MESSAGE_SQL, rows)
             db.commit()
 
-    def fetch_messages(self, session_id: int) -> list[LLMMessage]:
+    def get_valid_roles(self) -> frozenset[str]:
+        """Return the currently active valid roles set."""
+        return self._valid_roles
+
+    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool]:
         """Fetch and parse messages for a session from DB.
 
-        Returns a list of message dicts (role/content/tool_calls) in insertion order.
-        Returns [] if no messages exist. Raises sqlite3.Error on DB failure.
+        Returns a tuple of (messages, session_found).
+        - messages: list of message dicts (role/content/tool_calls) in insertion order.
+          Empty list if no messages exist for this session.
+        - session_found: True if session exists in the sessions table, False otherwise.
+        Returns ([], False) when session does not exist.
+        Returns ([], True) when session exists but has no messages.
+        Raises sqlite3.Error on DB failure.
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
-            rows = db.fetchall(
-                "SELECT message_id, role, content, tool_calls, tool_call_id"
-                " FROM messages WHERE session_id = ? ORDER BY message_id",
+            session_rows = db.fetchall(
+                "SELECT 1 FROM sessions WHERE session_id = ?",
                 (session_id,),
             )
+            session_found = len(session_rows) > 0
+        if not session_found:
+            return ([], False)
+        rows = db.fetchall(
+            "SELECT message_id, role, content, tool_calls, tool_call_id"
+            " FROM messages WHERE session_id = ? ORDER BY message_id",
+            (session_id,),
+        )
         if not rows:
-            return []
+            return ([], True)
         messages: list[LLMMessage] = []
         for r in rows:
             msg: LLMMessage = {"role": r["role"], "content": r["content"]}
@@ -182,4 +215,4 @@ class SessionMessageRepository:
             if r["tool_call_id"]:
                 msg["tool_call_id"] = r["tool_call_id"]
             messages.append(msg)
-        return messages
+        return (messages, True)

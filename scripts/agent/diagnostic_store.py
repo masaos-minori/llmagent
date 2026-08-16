@@ -61,11 +61,14 @@ class DiagnosticStore:
     def _filter_sensitive_fields(self, content: str) -> str:
         """Redact sensitive fields from a JSON diagnostic payload.
 
-        Replaces `artifacts` and `rag_stage_outcomes` list values with
-        `{"_redacted": True, "count": <len>}` so downstream readers can tell
+        Replaces sensitive field list values with
+        {"_redacted": True, "count": <len>} so downstream readers can tell
         "filtered" apart from "field never populated", without leaking the
         raw artifact URIs or RAG stage outcome contents. Content that is not
         valid JSON, or not a JSON object, is returned unchanged.
+
+        The set of sensitive fields is loaded from DiagnosticsConfig and merged
+        with the hardcoded defaults (_SENSITIVE_FIELDS).
         """
         try:
             payload = orjson.loads(content)
@@ -74,7 +77,11 @@ class DiagnosticStore:
         if not isinstance(payload, dict):
             return content
         redacted = False
-        for field_name in _SENSITIVE_FIELDS:
+        # Merge configured fields with hardcoded defaults
+        effective_fields = frozenset(_SENSITIVE_FIELDS) | frozenset(
+            self._load_diagnostics_config().sensitive_fields
+        )
+        for field_name in effective_fields:
             value = payload.get(field_name)
             if isinstance(value, list):
                 payload[field_name] = {"_redacted": True, "count": len(value)}

@@ -52,7 +52,9 @@ class SessionTitleService:
             data = parse_http_json(resp)
             title = extract_llm_content(data)
             if not title:
-                raise SessionTitleGenerationError("LLM returned empty title")
+                raise SessionTitleGenerationError(
+                    "LLM returned empty content — try adjusting your prompt"
+                )
             ctx.session.set_title(title)
             logger.info("Session title generated: %r", title)
             return SessionTitleResult(title=title)

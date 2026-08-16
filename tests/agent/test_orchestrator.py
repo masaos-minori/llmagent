@@ -43,14 +43,9 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_error_retry_max = 0
     ctx.cfg.tool.tool_cycle_detect_window = 0
     ctx.cfg.tool.tool_error_max_consecutive = 3
+    ctx.cfg.tool.progress_stagnation_window = 3
     # session / turn state
-    ctx.conv.llm_url = "http://llm-test"
-    ctx.conv.history = []
-    # Bind the real ConversationState.append_message so calls made through
-    # ctx.conv.append_message(...) actually mutate ctx.conv.history (with the
-    # same validation/sanitization behavior as production), instead of being
-    # swallowed as a no-op MagicMock call.
-    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.conv = ConversationState(llm_url="http://llm-test")
     ctx.stats.stat_turns = (
         1  # keep > 0 so create_task is not called in first handle_turn
     )
@@ -1528,7 +1523,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         ctx.conv.system_prompt_content = ""  # skip system-prompt sync noise
         orch = _make_orchestrator(ctx)
 
-        orch._append_user_message("hello there")
+        await orch._append_user_message("hello there")
 
         assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
 

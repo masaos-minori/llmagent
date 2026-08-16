@@ -12,7 +12,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 from agent.commands.mixin_base import reset_session_stats
-from agent.services.exceptions import SessionNotFoundError
+from agent.services.exceptions import SessionNoMessagesError, SessionNotFoundError
 from agent.services.models import SessionRestoreResult
 
 if TYPE_CHECKING:
@@ -23,25 +23,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
+async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
     """Restore session: rebuild history, switch session ID, reset stats.
 
-    Raises SessionNotFoundError when the session does not exist or has no messages.
+    Raises SessionNotFoundError when the session does not exist.
+    Raises SessionNoMessagesError when the session exists but has no messages.
     """
-    messages = ctx.session.fetch_messages(session_id)
+    messages, session_found = ctx.session.fetch_messages(session_id)
+    if not session_found:
+        raise SessionNotFoundError(f"Session {session_id} not found.")
     if not messages:
-        raise SessionNotFoundError(
-            f"Session {session_id} not found or has no messages."
-        )
+        raise SessionNoMessagesError(f"Session {session_id} has no messages.")
     if ctx.conv.system_prompt_content:
         system_msgs: list[LLMMessage] = cast(
             "list[LLMMessage]",
             [{"role": "system", "content": ctx.conv.system_prompt_content}],
         )
         non_system = [m for m in messages if m["role"] != "system"]
-        ctx.conv.replace_history(system_msgs + non_system)
+        await ctx.conv.replace_history(system_msgs + non_system)
     else:
-        ctx.conv.replace_history(messages)
+        await ctx.conv.replace_history(messages)
     ctx.session.session_id = session_id
     reset_session_stats(ctx)
     logger.info("Session %s loaded: %s messages", session_id, len(messages))

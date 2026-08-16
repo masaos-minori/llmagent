@@ -452,7 +452,7 @@ class Orchestrator:
                 memory_block = "--- USER MEMORY ---\n" + "\n".join(
                     f"- {snippet.text}" for snippet in memory_snippets
                 )
-                ctx.conv.append_message(
+                await ctx.conv.append_message(
                     {
                         "role": "system",
                         "content": memory_block,
@@ -557,8 +557,8 @@ class Orchestrator:
         with self._tool_override(self._allowed_tools):
             self._clear_previous_turn_ephemeral_messages()
             await self._handle_memory_injection(line)
-            classify_and_inject_mode(line, ctx)
-            self._append_user_message(line)
+            await classify_and_inject_mode(line, ctx)
+            await self._append_user_message(line)
             await self._handle_history_compression()
 
             result = await self._handle_llm_turn(ctx.conv.llm_url)
@@ -658,11 +658,11 @@ class Orchestrator:
                 return
             ctx.conv.history.insert(0, msg)
 
-    def _append_user_message(self, line: str) -> None:
+    async def _append_user_message(self, line: str) -> None:
         """Append user message to history, sync system prompt, and increment turn counter."""
         ctx = self._ctx
         self._sync_system_prompt()
-        ctx.conv.append_message({"role": "user", "content": line})
+        await ctx.conv.append_message({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
             _task = asyncio.create_task(

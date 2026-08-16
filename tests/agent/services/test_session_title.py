@@ -74,7 +74,7 @@ async def test_generate_empty_title_raises() -> None:
     mock_resp.raise_for_status = MagicMock()
     mock_resp.content = orjson.dumps({"choices": [{"message": {"content": "  "}}]})
     ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
-    with pytest.raises(SessionTitleGenerationError, match="empty title"):
+    with pytest.raises(SessionTitleGenerationError, match="empty content"):
         await SessionTitleService().generate(ctx, "hello")
 
 

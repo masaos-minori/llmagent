@@ -53,6 +53,7 @@ class McpServerConfig:
     url: str  # base URL (transport=HTTP)
     startup_mode: StartupMode = StartupMode.NONE
     call_timeout_sec: float = 60.0  # per-call timeout for HttpTransport; 0 = no timeout
+    health_timeout: float | None = None  # per-server health-check timeout; None → 5.0
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     tool_names: list[str] = field(default_factory=list)
     auth_token: str = ""  # Bearer token sent by ToolExecutor
@@ -113,6 +114,10 @@ class McpServerConfig:
         if self.call_timeout_sec < 0:
             raise ValueError(
                 f"{key_prefix}: call_timeout_sec must be >= 0, got {self.call_timeout_sec}"
+            )
+        if self.health_timeout is not None and self.health_timeout < 0:
+            raise ValueError(
+                f"{key_prefix}: health_timeout must be >= 0, got {self.health_timeout}"
             )
         if self.startup_timeout_sec < 0:
             raise ValueError(
@@ -179,6 +184,22 @@ class McpServerConfig:
             )
 
 
+def get_effective_health_timeout(cfg: McpServerConfig) -> float:
+    """Return the effective health timeout for a given server config.
+
+    Returns the configured ``health_timeout`` if set, otherwise falls back
+    to the global default of 5.0 seconds.
+
+    Raises:
+        ValueError: If ``health_timeout`` is set to a negative value.
+    """
+    if cfg.health_timeout is None:
+        return 5.0
+    if cfg.health_timeout < 0:
+        raise ValueError(f"health_timeout must be >= 0, got {cfg.health_timeout}")
+    return cfg.health_timeout
+
+
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     """Build per-server transport config from [mcp_servers.<key>] sections in *_mcp_server.toml files."""
     raw = cfg.get("mcp_servers")
@@ -205,6 +226,17 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         )
     cmd = list(v.get("cmd", []))
     env = dict(v.get("env", {}))
+    health_timeout_raw = v.get("health_timeout")
+    if health_timeout_raw is not None:
+        try:
+            health_timeout = float(health_timeout_raw)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"mcp_servers[{key!r}].health_timeout must be a positive number or null, "
+                f"got {type(health_timeout_raw).__name__}"
+            )
+    else:
+        health_timeout = None
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
@@ -216,6 +248,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         tool_names=list(v.get("tool_names", [])),
         auth_token=v.get("auth_token", ""),
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
+        health_timeout=health_timeout,
         role=v.get("role", ""),
         cmd=cmd,
         env=env,

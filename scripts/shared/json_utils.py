@@ -108,14 +108,19 @@ def extract_llm_content(data: dict[str, Any]) -> str:
 
     Validates the nested structure: choices → choices[0] → message → content.
 
+    Empty string content is valid input — the function returns ``""`` (stripped empty
+    string), not ``None``. Callers should check for empty content if they consider it
+    an error condition.
+
     Args:
         data: Raw LLM response dict.
 
     Returns:
-        Stripped content string.
+        Stripped content string. May be empty if the API returned empty content.
 
     Raises:
-        ValueError: If the response is malformed or missing expected fields.
+        ValueError: If the response is malformed, missing expected fields, or
+            ``content`` is not a string type (e.g., null).
     """
     choices = data.get("choices")
     if not isinstance(choices, list) or not choices:

@@ -112,14 +112,7 @@ def _make_turn_ctx(
     ctx.cfg.tool.serial_tool_calls = True
     for name in risk_none_for:
         ctx.cfg.approval.approval_risk_rules[name] = "none"
-    ctx.conv.history = []
-    # Bind the real ConversationState.append_message/extend_messages so calls
-    # made through ctx.conv.append_message(...)/extend_messages(...) inside
-    # agent/tool_runner.py actually mutate ctx.conv.history, instead of being
-    # swallowed as a no-op MagicMock call.
-    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
-    ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
-    ctx.conv.plan_mode = False
+    ctx.conv = ConversationState(plan_mode=False)
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
     ctx.services_required.llm = AsyncMock()

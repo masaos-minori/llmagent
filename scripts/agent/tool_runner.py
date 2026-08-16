@@ -136,7 +136,7 @@ async def execute_one_tool_call(
     return pc.call_id, name, args, text, is_error, llm_text
 
 
-def _collect_tool_result_msgs(
+async def _collect_tool_result_msgs(
     ctx: AgentContext,
     results: list[tuple[str, str, dict, str, bool, str]],
     turn: int,
@@ -161,7 +161,7 @@ def _collect_tool_result_msgs(
             limit=ctx.cfg.tool.tool_results_turn_max_chars,
         )
         turn_chars += len(llm_text)
-        ctx.conv.append_message(
+        await ctx.conv.append_message(
             {"role": "tool", "tool_call_id": tc_id, "content": llm_text}
         )
         tool_msgs.append(("tool", llm_text, None, tc_id))
@@ -374,9 +374,9 @@ async def execute_all_tool_calls(
     results = list(results) + list(prep_failures)
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
-    tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
+    tool_msgs = await _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     denied_history, denied_msgs = _build_denied_messages(denied_ids)
-    ctx.conv.extend_messages(denied_history)
+    await ctx.conv.extend_messages(denied_history)
     tool_msgs.extend(denied_msgs)
     ctx.session.save_many(tool_msgs)
 

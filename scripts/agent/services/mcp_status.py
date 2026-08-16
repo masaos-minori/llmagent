@@ -13,9 +13,12 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from shared.mcp_config import McpServerHealthState, TransportType
+from shared.mcp_config import (
+    McpServerHealthState,
+    TransportType,
+    get_effective_health_timeout,
+)
 
-from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
 from agent.lifecycle import LifecycleState
 from agent.repl_health import _probe_mcp_health_detail
 from agent.services.enums import McpAvailability, McpTier
@@ -46,10 +49,10 @@ TIER_LABELS: dict[McpTier, str] = {
 
 
 def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
-    """Get the health state for a server, falling back to UNKNOWN."""
+    """Get the health state for a server, falling back to UNAVAILABLE."""
     registry = ctx.services_required.health_registry
     if registry is None:
-        return McpServerHealthState.UNKNOWN
+        return McpServerHealthState.UNAVAILABLE
     return cast(McpServerHealthState, registry.get_state(key))
 
 
@@ -65,10 +68,11 @@ class McpStatusService:
         ctx = self._ctx
         tiers: dict[str, str] = ctx.cfg.approval.tool_safety_tiers
         results: list[McpProbeResult] = []
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT)
-        ) as probe:
-            for key, cfg in ctx.cfg.mcp.mcp_servers.items():
+        for key, cfg in ctx.cfg.mcp.mcp_servers.items():
+            effective_timeout = get_effective_health_timeout(cfg)
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=effective_timeout)
+            ) as probe:
                 result = await self._probe_single_server_with_interpretation(
                     probe, ctx, key, cfg, tiers
                 )

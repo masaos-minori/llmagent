@@ -26,12 +26,7 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_cycle_detect_window = 0
     ctx.cfg.tool.tool_error_max_consecutive = 3
     ctx.cfg.tool.tool_definitions = []
-    ctx.conv.history = []
-    # Bind the real ConversationState.append_message so calls made through
-    # ctx.conv.append_message(...) actually mutate ctx.conv.history (with the
-    # same validation/sanitization behavior as production), instead of being
-    # swallowed as a no-op MagicMock call.
-    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.conv = ConversationState()
     ctx.stats.stat_tool_errors = 0
     ctx.services_required.llm = AsyncMock()
     ctx.services_required.llm.stream = AsyncMock()
@@ -212,18 +207,22 @@ class TestFinalizeAfterGuard:
 
 
 class TestFinalizeAnswer:
-    def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
+    @pytest.mark.asyncio
+    async def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant", "content": "Hello"}
 
-        result = runner._finalize_answer_text(message)
+        result = await runner._finalize_answer_text(message)
 
         assert result == "Hello"
         assert runner._ctx.conv.history == [message]
 
-    def test_returns_empty_string_for_no_content(self, runner: LLMTurnRunner) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_empty_string_for_no_content(
+        self, runner: LLMTurnRunner
+    ) -> None:
         message: dict[str, Any] = {"role": "assistant"}
 
-        result = runner._finalize_answer_text(message)
+        result = await runner._finalize_answer_text(message)
 
         assert result == ""
 
@@ -503,12 +502,13 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
     before for well-formed input.
     """
 
-    def test_finalize_answer_text_appends_unchanged_via_append_message(
+    @pytest.mark.asyncio
+    async def test_finalize_answer_text_appends_unchanged_via_append_message(
         self, runner: LLMTurnRunner
     ) -> None:
         message: LLMMessage = {"role": "assistant", "content": "Done"}
 
-        result = runner._finalize_answer_text(message)
+        result = await runner._finalize_answer_text(message)
 
         assert result == "Done"
         assert runner._ctx.conv.history == [message]

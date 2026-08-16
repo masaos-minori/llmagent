@@ -193,7 +193,11 @@ class TestEncryptionStatus:
             with patch.object(
                 DiagnosticStore, "_load_diagnostics_config"
             ) as mock_load_cfg:
-                mock_cfg = type("MockConfig", (), {"encryption_key": fernet_key})()
+                mock_cfg = type(
+                    "MockConfig",
+                    (),
+                    {"encryption_key": fernet_key, "sensitive_fields": frozenset()},
+                )()
                 mock_load_cfg.return_value = mock_cfg
                 with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
                     mock_conn = MockConnection()
@@ -212,8 +216,10 @@ class TestEncryptionStatus:
             '{"api_key": "abcdefghijklmnop"}' not in mock_conn.executed_calls[0][1][2]
         )
 
-    def test_save_with_encrypt_but_no_key_is_plaintext(self, tmp_path: Any) -> None:
-        """save() with encrypt=True but no key should store plaintext."""
+    def test_save_with_encrypt_but_no_key_raises_on_sensitive_data(
+        self, tmp_path: Any
+    ) -> None:
+        """save() with encrypt=True but no key should raise on sensitive data."""
         store = DiagnosticStore()
         store.session_id = 1
 
@@ -223,21 +229,27 @@ class TestEncryptionStatus:
             with patch.object(
                 DiagnosticStore, "_load_diagnostics_config"
             ) as mock_load_cfg:
-                mock_cfg = type("MockConfig", (), {"encryption_key": ""})()
+                mock_cfg = type(
+                    "MockConfig",
+                    (),
+                    {"encryption_key": "", "sensitive_fields": frozenset()},
+                )()
                 mock_load_cfg.return_value = mock_cfg
                 with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
                     mock_conn = MockConnection()
                     mock_ctx = MockContext(mock_conn)
                     mock_helper.return_value.open.return_value = mock_ctx
-                    store.save(
-                        session_id=1,
-                        kind="test",
-                        content="sensitive_content=secret_value",
-                        encrypt=True,
-                    )
+                    with pytest.raises(
+                        RuntimeError, match="Sensitive information detected"
+                    ):
+                        store.save(
+                            session_id=1,
+                            kind="test",
+                            content='{"api_key": "abcdefghijklmnop"}',
+                            encrypt=True,
+                        )
 
-        assert len(mock_conn.executed_calls) == 1
-        assert "sensitive_content=secret_value" in mock_conn.executed_calls[0][1][2]
+        assert len(mock_conn.executed_calls) == 0
 
 
 class TestSensitiveDataRefusal:
@@ -293,7 +305,11 @@ class TestSensitiveDataRefusal:
             with patch.object(
                 DiagnosticStore, "_load_diagnostics_config"
             ) as mock_load_cfg:
-                mock_cfg = type("MockConfig", (), {"encryption_key": fernet_key})()
+                mock_cfg = type(
+                    "MockConfig",
+                    (),
+                    {"encryption_key": fernet_key, "sensitive_fields": frozenset()},
+                )()
                 mock_load_cfg.return_value = mock_cfg
                 with patch("agent.diagnostic_store.SQLiteHelper") as mock_helper:
                     mock_conn = MockConnection()

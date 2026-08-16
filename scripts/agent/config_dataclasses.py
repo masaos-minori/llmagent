@@ -12,7 +12,8 @@ Defines:
   ApprovalConfig  - Risk-based tool approval policy settings
   ObservabilityConfig - OpenTelemetry tracing, audit logging, and structured log settings
   DiagnosticsConfig - Diagnostic storage encryption and retention settings
-  AgentConfig     - Composite: composes 8 domain-specific sub-configs
+  MessageRoleConfig - Valid message roles for SessionMessageRepository
+  AgentConfig     - Composite: composes 9 domain-specific sub-configs
 
 Import from here:  from agent.config_dataclasses import AgentConfig, LLMConfig, ...
 """
@@ -173,6 +174,8 @@ class ToolConfig:
     tool_error_max_consecutive: int = 3
     # Max retries for an (name, args) combo that returned an error; 0 = disabled
     tool_error_retry_max: int = 1
+    # Window size for progress stagnation detection; 0 disables
+    progress_stagnation_window: int = 3
     # Per-server concurrent call limit; empty = unlimited
     tool_concurrency_limits: dict[str, int] = field(default_factory=dict)
     # Argument fields to redact in console output
@@ -386,6 +389,20 @@ class DiagnosticsConfig:
     # session_diagnostics rows older than this are purged lazily on each save();
     # <= 0 disables purge.
     retention_days: int = 30
+    # Fields whose list values are redacted by _filter_sensitive_fields().
+    # Merged with hardcoded defaults (_SENSITIVE_FIELDS); union semantics.
+    sensitive_fields: frozenset[str] = field(
+        default_factory=lambda: frozenset(("artifacts", "rag_stage_outcomes"))
+    )
+
+
+@dataclass
+class MessageRoleConfig:
+    """Valid message roles for SessionMessageRepository."""
+
+    allowed_roles: frozenset[str] = field(
+        default_factory=lambda: frozenset({"user", "assistant", "tool", "system"})
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +427,7 @@ class AgentConfig:
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
+    messages: MessageRoleConfig = field(default_factory=MessageRoleConfig)
     security_lockdown_enabled: bool = False
     agent_memory_max_startup_snippets: int = 10
 

@@ -22,7 +22,7 @@ class _SkillMixin(MixinBase):
         """repo_root/skills — repo_root is 4 levels above this file."""
         return Path(__file__).resolve().parent.parent.parent.parent / "skills"
 
-    def _cmd_skill(self, args: str = "") -> None:
+    async def _cmd_skill(self, args: str = "") -> None:
         """Handle /skill [name] [args]."""
         args = args.strip()
         if not args:
@@ -57,7 +57,7 @@ class _SkillMixin(MixinBase):
         # cleared by this file's own "_skill_ephemeral" filter above on the
         # next /skill invocation. Do not "fix" this by adding "_ephemeral" to
         # TRUSTED_SOURCES["skill_mixin"] without review.
-        ctx.conv.append_message(
+        await ctx.conv.append_message(
             {
                 "role": "system",
                 "content": content,

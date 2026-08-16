@@ -117,14 +117,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.stats = MagicMock()
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
-    ctx.conv = MagicMock()
-    ctx.conv.history = []
-    # Bind the real ConversationState.append_message/extend_messages so calls
-    # made through ctx.conv.append_message(...)/extend_messages(...) actually
-    # mutate ctx.conv.history (with the same validation/sanitization behavior
-    # as production), instead of being swallowed as a no-op MagicMock call.
-    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
-    ctx.conv.extend_messages = ConversationState.extend_messages.__get__(ctx.conv)
+    ctx.conv = ConversationState()
     ctx.session = MagicMock()
     ctx.session.session_id = None
     ctx.workflow.workflow_id = "wf-test-id"

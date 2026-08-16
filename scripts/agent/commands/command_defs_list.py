@@ -100,7 +100,7 @@ _COMMANDS: list[CommandDef] = [
     CommandDef(
         name="/session",
         prefix=True,
-        is_async=False,
+        is_async=True,
         handler="_cmd_session",
         help="list [n] | load <id> | rename <title> | delete <id>"
         " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts",
@@ -164,7 +164,7 @@ _COMMANDS: list[CommandDef] = [
     CommandDef(
         name="/skill",
         prefix=True,
-        is_async=False,
+        is_async=True,
         handler="_cmd_skill",
         help="[name] [args]  List skills, or load skills/<name>/SKILL.md as ephemeral system context",
     ),

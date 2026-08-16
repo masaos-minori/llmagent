@@ -81,8 +81,14 @@ def _sanitize_message(msg: LLMMessage, *, source: str = "") -> LLMMessage | None
 
 @dataclass
 class ConversationState:
-    """Per-session conversation fields."""
+    """Per-session conversation fields.
 
+    History access is synchronized via asyncio.Lock. The asyncio single-threaded
+    model means coroutines do not interleave except at await points. If concurrent
+    access ever becomes possible (e.g., multi-loop), locking must be added here.
+    """
+
+    _history_lock: asyncio.Lock | None = None
     history: list[LLMMessage] = field(default_factory=list)
     llm_url: str = ""
     debug_mode: bool = False
@@ -98,7 +104,13 @@ class ConversationState:
         False  # Whether the "memory disabled" warning was displayed
     )
 
-    def append_message(self, msg: LLMMessage, *, source: str = "") -> None:
+    @property
+    def _ensure_lock(self) -> asyncio.Lock:
+        if self._history_lock is None:
+            self._history_lock = asyncio.Lock()
+        return self._history_lock
+
+    async def append_message(self, msg: LLMMessage, *, source: str = "") -> None:
         """Validate *msg* and append it to history, sanitizing or dropping on failure.
 
         *source* is validation-only metadata: it authorizes trusted ephemeral
@@ -110,6 +122,13 @@ class ConversationState:
         message without ``role`` or ``content``, it is dropped entirely and an
         error is logged instead of appending a partially-valid message.
         """
+        async with self._ensure_lock:
+            await self._append_message_locked(msg, source=source)
+
+    async def _append_message_locked(
+        self, msg: LLMMessage, *, source: str = ""
+    ) -> None:
+        """Append a validated message. Caller MUST hold the lock."""
         check_view: dict[str, Any] = dict(msg, source=source) if source else dict(msg)
         result = validate_message(check_view)
         if result.success:
@@ -132,19 +151,26 @@ class ConversationState:
             return
         self.history.append(sanitized)
 
-    def extend_messages(self, msgs: list[LLMMessage], *, source: str = "") -> None:
+    async def extend_messages(
+        self, msgs: list[LLMMessage], *, source: str = ""
+    ) -> None:
         """Validate and append each message in *msgs* independently.
 
         A single invalid message among several valid ones only affects that
         message (sanitized or dropped); it does not block the others.
         """
-        for msg in msgs:
-            self.append_message(msg, source=source)
+        async with self._ensure_lock:
+            for msg in msgs:
+                await self._append_message_locked(msg, source=source)
 
-    def replace_history(self, msgs: list[LLMMessage], *, source: str = "") -> None:
+    async def replace_history(
+        self, msgs: list[LLMMessage], *, source: str = ""
+    ) -> None:
         """Clear history, then validate and append each message in *msgs*."""
-        self.history = []
-        self.extend_messages(msgs, source=source)
+        async with self._ensure_lock:
+            self.history = []
+            for msg in msgs:
+                await self._append_message_locked(msg, source=source)
 
 
 @dataclass

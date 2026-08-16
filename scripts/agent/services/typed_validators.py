@@ -16,10 +16,21 @@ from typing import Any
 from agent.services.exceptions import ConfigReloadValidationError
 
 
-def _get_int(d: dict[str, object], key: str) -> int | None:
-    """Validate and extract an integer value from a config dict."""
+def _get_int(d: dict[str, object], key: str, *, required: bool = False) -> int | None:
+    """Validate and extract an integer value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, int) or isinstance(v, bool):
         raise ConfigReloadValidationError(
@@ -28,10 +39,23 @@ def _get_int(d: dict[str, object], key: str) -> int | None:
     return v
 
 
-def _get_float(d: dict[str, object], key: str) -> float | None:
-    """Validate and extract a float value from a config dict."""
+def _get_float(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> float | None:
+    """Validate and extract a float value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, (int, float)) or isinstance(v, bool):
         raise ConfigReloadValidationError(
@@ -40,10 +64,21 @@ def _get_float(d: dict[str, object], key: str) -> float | None:
     return float(v)
 
 
-def _get_bool(d: dict[str, object], key: str) -> bool | None:
-    """Validate and extract a boolean value from a config dict."""
+def _get_bool(d: dict[str, object], key: str, *, required: bool = False) -> bool | None:
+    """Validate and extract a boolean value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, bool):
         raise ConfigReloadValidationError(
@@ -52,10 +87,21 @@ def _get_bool(d: dict[str, object], key: str) -> bool | None:
     return v
 
 
-def _get_str(d: dict[str, object], key: str) -> str | None:
-    """Validate and extract a string value from a config dict."""
+def _get_str(d: dict[str, object], key: str, *, required: bool = False) -> str | None:
+    """Validate and extract a string value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, str):
         raise ConfigReloadValidationError(
@@ -64,10 +110,23 @@ def _get_str(d: dict[str, object], key: str) -> str | None:
     return v
 
 
-def _get_list(d: dict[str, object], key: str) -> list[Any] | None:
-    """Validate and extract a list value from a config dict."""
+def _get_list(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> list[Any] | None:
+    """Validate and extract a list value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, list):
         raise ConfigReloadValidationError(
@@ -76,10 +135,23 @@ def _get_list(d: dict[str, object], key: str) -> list[Any] | None:
     return v
 
 
-def _get_dict(d: dict[str, object], key: str) -> dict[str, Any] | None:
-    """Validate and extract a dict value from a config dict."""
+def _get_dict(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> dict[str, Any] | None:
+    """Validate and extract a dict value from a config dict.
+
+    Args:
+        d: Config dictionary to extract from.
+        key: Key to look up in the dictionary.
+        required: If True and the key is missing or None, raise
+            ConfigReloadValidationError instead of returning None.
+    """
     v = d.get(key)
     if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
         return None
     if not isinstance(v, dict):
         raise ConfigReloadValidationError(

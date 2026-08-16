@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.cli_view import CLIView
+from agent.cli_view import CLIView, Writer, WriterBase
 
 if TYPE_CHECKING:
     from pytest import CaptureFixture
@@ -292,3 +292,75 @@ class TestSpinner:
         view.stop_spinner()
         captured = capsys.readouterr()
         assert "Second" in captured.out
+
+
+# ── WriterBase / partial test double ──────────────────────────────────────────
+
+
+class PartialWriter(WriterBase):
+    """Partial test double: only implements write_token."""
+
+    def write_token(self, token: str) -> None:
+        print(f"[partial] {token}")
+
+
+class FullWriter(WriterBase):
+    """Full implementation satisfying all Writer methods."""
+
+    def write_token(self, token: str) -> None:
+        print(token)
+
+    def write_compress_notice(self, n: int) -> None:
+        print(n)
+
+    def write_turn_start(self) -> None:
+        pass
+
+    def write_turn_end(self) -> None:
+        pass
+
+    def write_llm_error(self, e: Exception) -> None:
+        print(e)
+
+    def write_progress(self, msg: str) -> None:
+        print(msg)
+
+    def clear_progress(self) -> None:
+        pass
+
+    def write_warning(self, msg: str) -> None:
+        print(msg)
+
+    def write_fatal(self, msg: str) -> None:
+        print(msg)
+
+    def write_startup_banner(
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_mode: str | None = None,
+    ) -> None:
+        print(chunk_count)
+
+
+def test_partial_writer_satisfies_writer_protocol() -> None:
+    pw = PartialWriter()
+    assert isinstance(pw, Writer)
+
+
+def test_full_writer_satisfies_writer_protocol() -> None:
+    fw = FullWriter()
+    assert isinstance(fw, Writer)
+
+
+def test_partial_writer_raises_on_unimplemented_method() -> None:
+    pw = PartialWriter()
+    with pytest.raises(NotImplementedError, match="write_compress_notice"):
+        pw.write_compress_notice(10)
+
+
+def test_cliview_inherits_writerbase() -> None:
+    view = CLIView([])
+    assert isinstance(view, Writer)
+    assert isinstance(view, WriterBase)

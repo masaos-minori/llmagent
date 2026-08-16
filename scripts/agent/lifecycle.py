@@ -47,7 +47,12 @@ def assert_valid_transition(
     from_state: LifecycleState, to_state: LifecycleState
 ) -> None:
     """Raise ValueError when the transition from_state -> to_state is not legal."""
-    if to_state not in _VALID_TRANSITIONS.get(from_state, frozenset()):
+    valid_targets = _VALID_TRANSITIONS.get(from_state, frozenset())
+    if to_state not in valid_targets:
+        targets_str = (
+            ", ".join(t.name for t in valid_targets) if valid_targets else "(none)"
+        )
         raise ValueError(
-            f"Invalid lifecycle transition: {from_state!r} -> {to_state!r}"
+            f"Invalid lifecycle transition: {from_state!r} -> {to_state!r}. "
+            f"Valid targets from {from_state!r}: {targets_str}"
         )

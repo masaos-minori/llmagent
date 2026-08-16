@@ -33,9 +33,8 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_error_retry_max = 0
     ctx.cfg.tool.tool_cycle_detect_window = 0
     ctx.cfg.tool.tool_error_max_consecutive = 3
-    ctx.conv.llm_url = "http://llm-test"
-    ctx.conv.history = []
-    ctx.conv.append_message = ConversationState.append_message.__get__(ctx.conv)
+    ctx.cfg.tool.progress_stagnation_window = 3
+    ctx.conv = ConversationState(llm_url="http://llm-test")
     ctx.stats.stat_turns = 1
     ctx.stats.stat_latency = {}
     ctx.stats.stat_input_tokens = None
@@ -908,7 +907,7 @@ class TestApprovalWorkflowWithRealDB:
         ctx.conv.system_prompt_content = ""
         orch = _make_orchestrator(ctx)
 
-        orch._append_user_message("hello there")
+        await orch._append_user_message("hello there")
 
         assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
 

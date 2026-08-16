@@ -49,6 +49,15 @@ class HttpStartupError(RuntimeError):
         self.failure = failure
         super().__init__(failure.reason)
 
+    def __str__(self) -> str:
+        """Return a human-readable representation including all failure details."""
+        parts = [f"{self.failure.server_key}: {self.failure.reason}"]
+        if self.failure.stderr_full:
+            tail = self.failure.stderr_full[-512:]
+            masked = _mask_secrets(tail)
+            parts.append(f"(stderr_tail: {masked})")
+        return " ".join(parts)
+
 
 class HttpServerLifecycleManager:
     """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown.

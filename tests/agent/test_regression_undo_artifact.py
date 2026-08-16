@@ -19,6 +19,14 @@ from unittest.mock import patch
 import pytest
 from agent.session import AgentSession
 
+
+def _msgs(result):
+    """Unwrap (messages, session_found) tuple returned by fetch_messages."""
+    if isinstance(result, tuple):
+        return result[0]
+    return result
+
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,6 +125,7 @@ def session() -> Generator[AgentSession]:
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
     def _make(target: str = "session") -> _FakeSQLiteHelper:
@@ -142,12 +151,12 @@ class TestUndoLastTurnDeletesFromDb:
                 ("assistant", "Hi there", None, None),
             ]
         )
-        assert len(session.fetch_messages(sid)) == 2
+        assert len(_msgs(session.fetch_messages(sid))) == 2
 
         deleted = session.undo_last_turn()
 
         assert deleted == 2
-        assert session.fetch_messages(sid) == []
+        assert _msgs(session.fetch_messages(sid)) == []
 
     def test_undo_preserves_earlier_turns(self, session: AgentSession) -> None:
         """undo_last_turn() only removes the last turn, not earlier ones."""
@@ -163,7 +172,7 @@ class TestUndoLastTurnDeletesFromDb:
 
         session.undo_last_turn()
 
-        msgs = session.fetch_messages(sid)
+        msgs = _msgs(session.fetch_messages(sid))
         assert len(msgs) == 2
         assert msgs[0]["content"] == "First question"
         assert msgs[1]["content"] == "First answer"
@@ -183,7 +192,7 @@ class TestUndoHistoryDbParity:
 
         session.undo_last_turn()
 
-        msgs = session.fetch_messages(sid)
+        msgs = _msgs(session.fetch_messages(sid))
         assert len(msgs) == 1
         assert msgs[0]["role"] == "system"
 
@@ -192,7 +201,7 @@ class TestUndoHistoryDbParity:
         deleted = session.undo_last_turn()
 
         assert deleted == 0
-        assert session.fetch_messages(session.session_id) == []
+        assert _msgs(session.fetch_messages(session.session_id)) == []
 
 
 class TestUndoReturnValue:

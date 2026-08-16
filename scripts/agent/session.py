@@ -100,8 +100,13 @@ class AgentSession:
         """Number of save calls skipped due to invalid role."""
         return self._message_repo.stat_skipped_invalid_role
 
-    def fetch_messages(self, session_id: int) -> list[LLMMessage]:
-        """Fetch messages for a session from DB. Returns [] when session has no messages."""
+    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool]:
+        """Fetch messages for a session from DB.
+
+        Returns a tuple of (messages, session_found).
+        - messages: list of message dicts in insertion order. Empty list if none.
+        - session_found: True if session exists in the sessions table, False otherwise.
+        """
         return self._message_repo.fetch_messages(session_id)
 
     # ── Session lifecycle ────────────────────────────────────────────────────

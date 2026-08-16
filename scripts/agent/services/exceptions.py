@@ -38,5 +38,9 @@ class SessionNotFoundError(RuntimeError):
     """Raised when a requested session does not exist or has no messages."""
 
 
+class SessionNoMessagesError(RuntimeError):
+    """Raised when a requested session exists but has no messages."""
+
+
 class NothingToUndoError(RuntimeError):
     """Raised when undo is requested but no user message is in history."""

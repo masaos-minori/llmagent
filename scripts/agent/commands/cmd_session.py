@@ -53,12 +53,12 @@ class _SessionMixin(MixinBase):
             return None
         return sid
 
-    def _session_load_safe(self, arg: str) -> None:
+    async def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
         sid = self._parse_positive_session_id(arg)
         if sid is None:
             return
-        self._load_session(sid)
+        await self._load_session(sid)
 
     def _session_delete(self, arg: str) -> None:
         """Parse arg as an integer session ID and delete it; guard current session."""
@@ -169,7 +169,7 @@ class _SessionMixin(MixinBase):
         content = render_export(ctx.conv.history, fmt)
         write_export(content, outfile, len(ctx.conv.history))
 
-    def _cmd_session(self, args: str) -> None:
+    async def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
         | export markdown|json [file]
         | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts.
@@ -183,7 +183,7 @@ class _SessionMixin(MixinBase):
 
         if sub == "load":
             arg = parsed.positional[0] if parsed.positional else ""
-            self._session_load_safe(arg)
+            await self._session_load_safe(arg)
             return
 
         if sub == "rename":
@@ -226,7 +226,7 @@ class _SessionMixin(MixinBase):
             " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts"
         )
 
-    def _load_session(self, session_id: int) -> None:
+    async def _load_session(self, session_id: int) -> None:
         """Restore a previous session via session_restore service."""
         from agent.services.exceptions import (  # lazy import
             SessionNotFoundError,
@@ -236,7 +236,7 @@ class _SessionMixin(MixinBase):
         )
 
         try:
-            result = restore_session(self._ctx, session_id)
+            result = await restore_session(self._ctx, session_id)
             self._out.write_success(
                 f"Session {result.session_id} loaded: {result.n_messages} messages restored."
             )

@@ -22,7 +22,7 @@ from agent.http_lifecycle import (
     HttpStartupError,
     StartupFailure,
 )
-from agent.lifecycle import LifecycleState
+from agent.lifecycle import LifecycleState, assert_valid_transition
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 _TEST_HTTP_URL = "http://127.0.0.1:9999"
@@ -638,6 +638,43 @@ class TestLifecycleState:
         assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
 
 
+class TestAssertValidTransition:
+    def test_invalid_transition_from_failed_shows_targets(self) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            assert_valid_transition(LifecycleState.FAILED, LifecycleState.RUNNING)
+        msg = str(exc_info.value)
+        assert "Invalid lifecycle transition" in msg
+        assert "Valid targets from" in msg
+        assert "STARTING" in msg
+        assert "STOPPED" in msg
+
+    def test_invalid_transition_from_stopped_shows_targets(self) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            assert_valid_transition(LifecycleState.STOPPED, LifecycleState.RUNNING)
+        msg = str(exc_info.value)
+        assert "Invalid lifecycle transition" in msg
+        assert "Valid targets from" in msg
+        assert "STARTING" in msg
+        assert "FAILED" in msg
+
+    def test_valid_transition_does_not_raise(self) -> None:
+        assert_valid_transition(LifecycleState.FAILED, LifecycleState.STARTING)
+        assert_valid_transition(LifecycleState.STOPPED, LifecycleState.FAILED)
+        assert_valid_transition(LifecycleState.RUNNING, LifecycleState.STOPPED)
+
+    def test_transition_from_unknown_never_raises(self) -> None:
+        for target in LifecycleState:
+            if target != LifecycleState.UNKNOWN:
+                assert_valid_transition(LifecycleState.UNKNOWN, target)
+
+    def test_transition_from_unregistered_state_shows_none(self) -> None:
+        mock_state = object()
+        with pytest.raises(ValueError) as exc_info:
+            assert_valid_transition(mock_state, LifecycleState.RUNNING)  # type: ignore[arg-type] — mock_state intentionally invalid to exercise error path
+        msg = str(exc_info.value)
+        assert "(none)" in msg
+
+
 class TestHttpStartupError:
     def test_is_runtime_error_subclass(self) -> None:
         failure = StartupFailure(server_key="svc", reason="timeout", stderr_full="")
@@ -645,12 +682,34 @@ class TestHttpStartupError:
         assert isinstance(err, RuntimeError)
         assert err.failure is failure
 
-    def test_message_is_failure_reason(self) -> None:
+    def test_str_includes_server_key_and_reason(self) -> None:
         failure = StartupFailure(
             server_key="svc", reason="exited early", stderr_full=""
         )
         err = HttpStartupError(failure)
-        assert str(err) == "exited early"
+        assert str(err) == "svc: exited early"
+
+    def test_str_includes_truncated_stderr_tail(self) -> None:
+        failure = StartupFailure(
+            server_key="svc",
+            reason="crashed",
+            stderr_full="a" * 1000,
+        )
+        err = HttpStartupError(failure)
+        s = str(err)
+        assert "svc: crashed" in s
+        assert "(stderr_tail:" in s
+        # Extract the part inside (stderr_tail: ...)
+        tail_part = s.split("(stderr_tail:")[1].rstrip(")")
+        # The masked content should be at most 512 chars (the original truncation limit)
+        masked_content = tail_part.replace(" ", "", 1)  # remove leading space
+        assert len(masked_content) <= 512
+
+    def test_str_no_stderr_tail_when_empty(self) -> None:
+        failure = StartupFailure(server_key="svc", reason="ok", stderr_full="")
+        err = HttpStartupError(failure)
+        assert str(err) == "svc: ok"
+        assert "stderr_tail" not in str(err)
 
     def test_caught_by_runtime_error(self) -> None:
         failure = StartupFailure(server_key="svc", reason="x", stderr_full="")

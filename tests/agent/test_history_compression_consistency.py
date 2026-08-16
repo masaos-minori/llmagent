@@ -18,6 +18,14 @@ from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
 from shared.types import LLMMessage
 
+
+def _msgs(result):
+    """Unwrap (messages, session_found) tuple returned by fetch_messages."""
+    if isinstance(result, tuple):
+        return result[0]
+    return result
+
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,6 +80,7 @@ class _FakeSQLiteHelper:
 def repo() -> Generator[SessionMessageRepository]:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
     fake = _FakeSQLiteHelper(conn)
 
@@ -83,6 +92,7 @@ def repo() -> Generator[SessionMessageRepository]:
 def session_and_conn() -> Generator[tuple[AgentSession, sqlite3.Connection]]:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
     fake = _FakeSQLiteHelper(conn)
 
@@ -129,7 +139,7 @@ def test_reload_after_compression_restores_compressed_history(
     summary_msg: LLMMessage = {"role": "assistant", "content": "[SUMMARY] compressed"}
     repo.replace_messages(1, [summary_msg])
 
-    loaded = repo.fetch_messages(1)
+    loaded = _msgs(repo.fetch_messages(1))
     assert len(loaded) == 1
     assert loaded[0]["content"] == "[SUMMARY] compressed"
 
@@ -143,7 +153,7 @@ def test_reload_after_compression_no_original_rows_remain(
 
     repo.replace_messages(1, [{"role": "assistant", "content": "[SUMMARY]"}])
 
-    loaded = repo.fetch_messages(1)
+    loaded = _msgs(repo.fetch_messages(1))
     assert all("[SUMMARY]" in m["content"] for m in loaded)
 
 
@@ -157,7 +167,7 @@ def test_replace_messages_preserves_role_sequence(
         {"role": "assistant", "content": "[SUMMARY]"},
     ]
     repo.replace_messages(1, compressed)
-    loaded = repo.fetch_messages(1)
+    loaded = _msgs(repo.fetch_messages(1))
     assert [m["role"] for m in loaded] == ["user", "assistant"]
 
 
@@ -179,7 +189,7 @@ def test_undo_after_compression_removes_summary_message(
 
     session.undo_last_turn()
 
-    loaded = session.fetch_messages(1)
+    loaded = _msgs(session.fetch_messages(1))
     assert not any("[SUMMARY]" in m.get("content", "") for m in loaded)
 
 
@@ -196,7 +206,7 @@ def test_undo_on_single_compressed_message_is_safe(
     deleted = session.undo_last_turn()
 
     assert deleted == 0
-    loaded = session.fetch_messages(1)
+    loaded = _msgs(session.fetch_messages(1))
     assert len(loaded) == 1
 
 
@@ -262,5 +272,5 @@ def test_compress_result_count_matches_replace(repo: SessionMessageRepository) -
         {"role": "assistant", "content": "[SUMMARY of 8 messages]"}
     ]
     repo.replace_messages(1, compressed_messages)
-    loaded = repo.fetch_messages(1)
+    loaded = _msgs(repo.fetch_messages(1))
     assert len(loaded) == len(compressed_messages)

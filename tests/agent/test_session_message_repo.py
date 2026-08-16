@@ -12,9 +12,20 @@ from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
-from agent.session_message_repo import SessionMessageRepository
+from agent.session_message_repo import _DEFAULT_VALID_ROLES, SessionMessageRepository
+
+
+def _msgs(result):
+    """Unwrap (messages, session_found) tuple returned by fetch_messages."""
+    if isinstance(result, tuple):
+        return result[0]
+    return result
+
 
 _SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT
+);
 CREATE TABLE IF NOT EXISTS messages (
     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id INTEGER NOT NULL,
@@ -65,6 +76,7 @@ class _FakeSQLiteHelper:
 def repo() -> Generator[SessionMessageRepository]:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
     def _make(target: str = "rag") -> _FakeSQLiteHelper:
@@ -77,7 +89,7 @@ def repo() -> Generator[SessionMessageRepository]:
 class TestSave:
     def test_saves_user_message(self, repo: SessionMessageRepository) -> None:
         repo.save("user", "Hello")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["role"] == "user"
@@ -87,14 +99,14 @@ class TestSave:
         self, repo: SessionMessageRepository
     ) -> None:
         repo.save("assistant", "", tool_calls=[{"id": "call_1", "type": "function"}])
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
 
     def test_saves_tool_with_tool_call_id(self, repo: SessionMessageRepository) -> None:
         repo.save("tool", "result", tool_call_id="call_1")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert msgs[0]["role"] == "tool"
         assert msgs[0]["tool_call_id"] == "call_1"
@@ -107,7 +119,7 @@ class TestSave:
 
     def test_skips_invalid_role(self, repo: SessionMessageRepository) -> None:
         repo.save("invalid_role", "data")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs == []
 
     def test_handles_db_exception_gracefully(
@@ -129,7 +141,7 @@ class TestSaveMany:
             ("tool", "data", None, "call_1"),
         ]
         repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert len(msgs) == 3
 
@@ -139,7 +151,7 @@ class TestSaveMany:
             ("bad_role", "invalid", None, None),
         ]
         repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["content"] == "valid"
@@ -152,7 +164,7 @@ class TestSaveMany:
 
     def test_noop_when_empty_list(self, repo: SessionMessageRepository) -> None:
         repo.save_many([])
-        assert repo.fetch_messages(1) == []
+        assert _msgs(repo.fetch_messages(1)) == []
 
     def test_serializes_tool_calls(self, repo: SessionMessageRepository) -> None:
         repo.save_many(
@@ -160,7 +172,7 @@ class TestSaveMany:
                 ("assistant", "", [{"id": "c1"}], None),
             ]
         )
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert msgs[0]["tool_calls"] == [{"id": "c1"}]
 
@@ -179,13 +191,14 @@ class TestSaveMany:
         self, repo: SessionMessageRepository
     ) -> None:
         repo.save_many([("bad", "x", None, None)])
-        assert repo.fetch_messages(1) == []
+        assert _msgs(repo.fetch_messages(1)) == []
 
 
 @pytest.fixture
 def strict_repo() -> Generator[SessionMessageRepository]:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
     def _make(target: str = "rag") -> _FakeSQLiteHelper:
@@ -245,12 +258,12 @@ class TestFetchMessages:
     def test_returns_empty_when_session_not_found(
         self, repo: SessionMessageRepository
     ) -> None:
-        assert repo.fetch_messages(999) == []
+        assert _msgs(repo.fetch_messages(999)) == []
 
     def test_returns_messages_in_order(self, repo: SessionMessageRepository) -> None:
         repo.save("user", "first")
         repo.save("assistant", "second")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None  # non-empty list
         assert msgs[0]["content"] == "first"
         assert msgs[1]["content"] == "second"
@@ -263,6 +276,7 @@ class TestFetchMessages:
         logging.disable(logging.WARNING)
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
         conn.execute(
             "INSERT INTO messages (session_id, role, content, tool_calls) VALUES (?, ?, ?, ?)",
             (1, "assistant", "", "not valid json"),
@@ -274,7 +288,7 @@ class TestFetchMessages:
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
             r = SessionMessageRepository(session_id=1)
-            msgs = r.fetch_messages(1)
+            msgs = _msgs(r.fetch_messages(1))
         logging.disable(logging.NOTSET)
         assert msgs is not None  # non-empty list
         assert "tool_calls" not in msgs[0]
@@ -284,7 +298,7 @@ class TestFetchMessages:
     ) -> None:
         repo.save("user", "hello")
         repo.save("assistant", "world")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert len(msgs) == 2
         assert msgs[0]["role"] == "user"
         assert msgs[1]["role"] == "assistant"
@@ -304,7 +318,7 @@ class TestNoneContentNormalization:
     ) -> None:
         """assistant message with content=None is saved and restored as empty string."""
         repo.save("assistant", None, tool_calls=[{"id": "call_1", "type": "function"}])
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
@@ -315,7 +329,7 @@ class TestNoneContentNormalization:
     ) -> None:
         """assistant message with content=None and no tool_calls is saved as empty string."""
         repo.save("assistant", None)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
@@ -330,7 +344,7 @@ class TestNoneContentNormalization:
             ("tool", "result", None, "call_1"),
         ]
         repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 3
         assert msgs[0]["content"] == "Hello"
@@ -344,7 +358,7 @@ class TestNoneContentNormalization:
             ("assistant", None, [{"id": "call_2"}], None),
         ]
         repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 2
         assert msgs[0]["content"] == ""
@@ -355,7 +369,7 @@ class TestNoneContentNormalization:
     ) -> None:
         """Empty string content is preserved as-is (not changed to None)."""
         repo.save("assistant", "")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
@@ -365,7 +379,7 @@ class TestNoneContentNormalization:
     ) -> None:
         """Normal string content is preserved unchanged."""
         repo.save("assistant", "Hello world")
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["content"] == "Hello world"
@@ -380,7 +394,7 @@ class TestNoneContentNormalization:
             ("user", "Follow-up", None, None),
         ]
         repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 3
         assert msgs[0]["content"] == ""
@@ -392,7 +406,7 @@ class TestNoneContentNormalization:
     ) -> None:
         """None content does not raise in strict mode; it is normalized to empty string."""
         strict_repo.save("assistant", None, tool_calls=[{"id": "call_1"}])
-        msgs = strict_repo.fetch_messages(1)
+        msgs = _msgs(strict_repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
@@ -406,7 +420,7 @@ class TestNoneContentNormalization:
             ("user", "Hello", None, None),
         ]
         strict_repo.save_many(messages)
-        msgs = strict_repo.fetch_messages(1)
+        msgs = _msgs(strict_repo.fetch_messages(1))
         assert msgs is not None
         assert len(msgs) == 2
         assert msgs[0]["content"] == ""
@@ -420,9 +434,9 @@ class TestReplaceMessages:
         self, repo: SessionMessageRepository
     ) -> None:
         repo.save("user", "old")
-        assert len(repo.fetch_messages(1)) == 1
+        assert len(_msgs(repo.fetch_messages(1))) == 1
         repo.replace_messages(1, [{"role": "assistant", "content": "new"}])
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert len(msgs) == 1
         assert msgs[0]["content"] == "new"
 
@@ -435,7 +449,7 @@ class TestReplaceMessages:
             {"role": "assistant", "content": "assistant msg"},
         ]
         repo.replace_messages(1, msgs_in)
-        assert len(repo.fetch_messages(1)) == 3
+        assert len(_msgs(repo.fetch_messages(1))) == 3
 
     def test_replace_messages_with_summary_message(
         self, repo: SessionMessageRepository
@@ -443,7 +457,7 @@ class TestReplaceMessages:
         repo.replace_messages(
             1, [{"role": "system", "content": "[Conversation summary]"}]
         )
-        msgs = repo.fetch_messages(1)
+        msgs = _msgs(repo.fetch_messages(1))
         assert len(msgs) == 1
         assert msgs[0]["role"] == "system"
         assert "[Conversation summary]" in msgs[0]["content"]
@@ -478,7 +492,7 @@ class TestReplaceMessages:
             }
         ]
         repo.replace_messages(1, msgs)
-        rows = repo.fetch_messages(1)
+        rows = _msgs(repo.fetch_messages(1))
         assert len(rows) == 1
         assert rows[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
 
@@ -487,9 +501,9 @@ class TestReplaceMessages:
     ) -> None:
         """replace_messages() with empty list does nothing."""
         repo.save("user", "existing")
-        assert len(repo.fetch_messages(1)) == 1
+        assert len(_msgs(repo.fetch_messages(1))) == 1
         repo.replace_messages(1, [])
-        assert len(repo.fetch_messages(1)) == 1
+        assert len(_msgs(repo.fetch_messages(1))) == 1
 
     def test_replace_messages_deletes_all_then_inserts(
         self, repo: SessionMessageRepository
@@ -498,13 +512,39 @@ class TestReplaceMessages:
         repo.save("user", "old1")
         repo.save("assistant", "old2")
         repo.save("tool", "old3", tool_call_id="call_1")
-        assert len(repo.fetch_messages(1)) == 3
+        assert len(_msgs(repo.fetch_messages(1))) == 3
         new_msgs = [
             {"role": "system", "content": "[Conversation summary]"},
             {"role": "user", "content": "new user"},
         ]
         repo.replace_messages(1, new_msgs)
-        rows = repo.fetch_messages(1)
+        rows = _msgs(repo.fetch_messages(1))
         assert len(rows) == 2
         assert rows[0]["content"] == "[Conversation summary]"
         assert rows[1]["content"] == "new user"
+
+
+class TestCustomRoles:
+    def test_custom_roles_injection(self) -> None:
+        custom = frozenset({"custom_role"})
+        repo = SessionMessageRepository(
+            session_id=1, strict_mode=True, roles_source=custom
+        )
+        assert repo.get_valid_roles() == custom
+        with pytest.raises(RuntimeError):
+            repo.save("invalid_role", "content")
+
+    def test_default_roles_fallback(self) -> None:
+        repo = SessionMessageRepository(session_id=1)
+        assert repo.get_valid_roles() == _DEFAULT_VALID_ROLES
+        repo.save("user", "content")
+
+    def test_strict_mode_with_custom_roles(self) -> None:
+        custom = frozenset({"custom_role"})
+        repo = SessionMessageRepository(
+            session_id=1,
+            strict_mode=True,
+            roles_source=custom,
+        )
+        with pytest.raises(RuntimeError, match="Cannot save message"):
+            repo.save("invalid_role", "content")

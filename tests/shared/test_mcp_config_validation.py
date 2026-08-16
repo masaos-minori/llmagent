@@ -10,6 +10,7 @@ def _http_cfg(**kwargs):
         url="http://localhost:8080",
         tool_names=["tool_a"],
         call_timeout_sec=60.0,
+        health_timeout=None,
         startup_timeout_sec=30,
         auth_token="",
         env={},
@@ -27,6 +28,7 @@ def _subprocess_cfg(**kwargs):
         cmd=["./run.sh"],
         tool_names=["tool_b"],
         call_timeout_sec=60.0,
+        health_timeout=None,
         startup_timeout_sec=30,
         auth_token="",
         env={},
@@ -225,3 +227,40 @@ def test_max_stderr_log_files_zero_raises():
 def test_max_stderr_log_files_one_is_valid():
     cfg = _http_cfg(max_stderr_log_files=1)
     assert cfg.max_stderr_log_files == 1
+
+
+# --- health_timeout checks ---
+
+
+def test_health_timeout_default_none():
+    cfg = _http_cfg()
+    assert cfg.health_timeout is None
+
+
+def test_health_timeout_zero_is_valid():
+    cfg = _http_cfg(health_timeout=0.0)
+    assert cfg.health_timeout == 0.0
+
+
+def test_health_timeout_positive_is_valid():
+    cfg = _http_cfg(health_timeout=10.0)
+    assert cfg.health_timeout == 10.0
+
+
+def test_health_timeout_negative_raises():
+    with pytest.raises(ValueError, match="health_timeout"):
+        _http_cfg(health_timeout=-1.0)
+
+
+def test_health_timeout_none_returns_default():
+    from shared.mcp_config import get_effective_health_timeout
+
+    cfg = _http_cfg(health_timeout=None)
+    assert get_effective_health_timeout(cfg) == 5.0
+
+
+def test_health_timeout_positive_returns_value():
+    from shared.mcp_config import get_effective_health_timeout
+
+    cfg = _http_cfg(health_timeout=15.0)
+    assert get_effective_health_timeout(cfg) == 15.0

@@ -669,4 +669,4 @@ class StartupOrchestrator:
                     f"{OutputTag.NON_FATAL} Memory injection failed: {exc}"
                 )
         ctx.conv.system_prompt_content = initial_prompt
-        ctx.conv.replace_history([{"role": "system", "content": initial_prompt}])
+        await ctx.conv.replace_history([{"role": "system", "content": initial_prompt}])

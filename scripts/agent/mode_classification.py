@@ -44,7 +44,7 @@ def _mode_hint(mode: MdqRagMode) -> str:
     return ""
 
 
-def classify_and_inject_mode(query: str, ctx: AgentContext) -> None:
+async def classify_and_inject_mode(query: str, ctx: AgentContext) -> None:
     """Inject MDQ/RAG routing hint into system prompt based on query classification."""
     config_mode = getattr(ctx.cfg, "mdq_rag_mode", None)
     mode = resolve_mode(query, config_mode)
@@ -64,7 +64,7 @@ def classify_and_inject_mode(query: str, ctx: AgentContext) -> None:
             logger.info("Classification validation failed; using fallback mode")
             mode = MdqRagMode.RAG
             hint = _mode_hint(mode)
-        ctx.conv.append_message(
+        await ctx.conv.append_message(
             {"role": "system", "content": hint, "_ephemeral": True},
             source="cmd_handler",
         )

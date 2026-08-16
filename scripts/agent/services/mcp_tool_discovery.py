@@ -43,13 +43,17 @@ from logging import getLogger
 from typing import TYPE_CHECKING
 
 import httpx
-from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
+from shared.mcp_config import (
+    McpServerConfig,
+    SecurityProfile,
+    TransportType,
+    get_effective_health_timeout,
+)
 from shared.resource_scope import validate_tool_schema_v2
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
 
-from agent.http_lifecycle import MCPSERVER_HEALTH_TIMEOUT
 from agent.repl_health import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 
@@ -160,7 +164,7 @@ class McpToolDiscoveryService:
         try:
             resp = await self._ctx.services_required.http.get(
                 f"{cfg.url}/v1/tools",
-                timeout=httpx.Timeout(timeout=MCPSERVER_HEALTH_TIMEOUT),
+                timeout=httpx.Timeout(timeout=get_effective_health_timeout(cfg)),
             )
         except (httpx.HTTPError, OSError) as e:
             return _warning_fetch_result(

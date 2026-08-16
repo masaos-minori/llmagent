@@ -20,6 +20,14 @@ from unittest.mock import patch
 import pytest
 from agent.session import AgentSession
 
+
+def _msgs(result):
+    """Unwrap (messages, session_found) tuple returned by fetch_messages."""
+    if isinstance(result, tuple):
+        return result[0]
+    return result
+
+
 # ── In-memory SQLiteHelper replacement ───────────────────────────────────────
 
 _SCHEMA_SQL = """
@@ -124,6 +132,7 @@ def session() -> Generator[AgentSession]:
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA foreign_keys=ON")  # enable cascade deletes
     conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
     def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
@@ -165,7 +174,7 @@ class TestSave:
     def test_saves_user_message(self, session: AgentSession) -> None:
         session.start()
         session.save("user", "hello")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["role"] == "user"
@@ -174,7 +183,7 @@ class TestSave:
     def test_saves_assistant_message(self, session: AgentSession) -> None:
         session.start()
         session.save("assistant", "world")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0]["role"] == "assistant"
 
@@ -188,14 +197,14 @@ class TestSave:
             }
         ]
         session.save("assistant", "", tool_calls=tcs)
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0].get("tool_calls") == tcs
 
     def test_saves_tool_call_id(self, session: AgentSession) -> None:
         session.start()
         session.save("tool", "result text", tool_call_id="tc1")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0]["role"] == "tool"
         assert msgs[0].get("tool_call_id") == "tc1"
@@ -209,7 +218,7 @@ class TestSave:
     def test_invalid_role_is_skipped(self, session: AgentSession) -> None:
         session.start()
         session.save("invalid_role", "content")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is None or len(msgs) == 0
         assert session.skipped_invalid_role_count == 1
 
@@ -225,7 +234,7 @@ class TestSaveMany:
             ("tool", "result B", None, "tc2"),
         ]
         session.save_many(rows)
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 2
         assert msgs[0]["content"] == "result A"
@@ -246,7 +255,7 @@ class TestSaveMany:
             ("bad_role", "invalid", None, None),
         ]
         session.save_many(rows)
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 1
         assert msgs[0]["role"] == "user"
@@ -260,26 +269,26 @@ class TestFetchMessages:
         session.start()
         session.save("user", "first")
         session.save("assistant", "second")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0]["role"] == "user"
         assert msgs[1]["role"] == "assistant"
 
     def test_returns_empty_for_unknown_session(self, session: AgentSession) -> None:
-        result = session.fetch_messages(99999)
+        result = _msgs(session.fetch_messages(99999))
         assert result == []
 
     def test_tool_call_id_restored(self, session: AgentSession) -> None:
         session.start()
         session.save("tool", "content", tool_call_id="abc-123")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0].get("tool_call_id") == "abc-123"
 
     def test_tool_call_id_absent_when_null(self, session: AgentSession) -> None:
         session.start()
         session.save("user", "no tool_call_id")
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert "tool_call_id" not in msgs[0]
 
@@ -293,7 +302,7 @@ class TestFetchMessages:
             }
         ]
         session.save("assistant", "ok", tool_calls=tcs)
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert msgs[0]["tool_calls"] == tcs
 
@@ -318,7 +327,7 @@ class TestFetchMessages:
             mock_cls.side_effect = lambda target="rag": _FakeSQLiteHelper(conn)  # noqa: ARG005
             s2 = AgentSession()
             s2.session_id = sid
-            msgs = s2.fetch_messages(sid)
+            msgs = _msgs(s2.fetch_messages(sid))
         # Corrupted row should still return without KeyError; tool_calls absent
         assert msgs is not None
         assert "tool_calls" not in (msgs[0] if msgs else {})
@@ -355,9 +364,22 @@ class TestListSessions:
         assert len(rows) > 0
         assert "session_id" in rows[0]
 
-    def test_returns_empty_list_when_no_sessions(self, session: AgentSession) -> None:
-        rows = session.list_sessions()
-        assert rows == []
+    def test_returns_empty_list_when_no_sessions(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
+            return _FakeSQLiteHelper(conn)
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+        ):
+            s = AgentSession()
+            rows = s.list_sessions()
+            assert rows == []
 
     def test_marks_current_session(self, session: AgentSession) -> None:
         session.start()
@@ -385,7 +407,7 @@ class TestDeleteSession:
         session.save("user", "to be deleted")
         session.delete_session(sid)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         # After deletion, fetch_messages returns [] (no messages in DB)
-        msgs = session.fetch_messages(sid)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(sid))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs == []
 
 
@@ -400,7 +422,7 @@ class TestDeleteLastTurn:
         session.save("user", "q2")
         session.save("assistant", "a2")
         session.delete_last_turn()
-        msgs = session.fetch_messages(session.session_id)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 2
 
@@ -489,7 +511,7 @@ class TestUndoLastTurn:
         session.save("assistant", "a2")
         deleted = session.undo_last_turn()
         assert deleted == 2
-        msgs = session.fetch_messages(session.session_id)
+        msgs = _msgs(session.fetch_messages(session.session_id))
         assert msgs is not None
         assert len(msgs) == 2
         assert msgs[0]["content"] == "q1"
@@ -503,7 +525,7 @@ class TestUndoLastTurn:
         session.save("user", "q2")
         deleted = session.undo_last_turn()
         assert deleted == 1
-        msgs = session.fetch_messages(session.session_id)
+        msgs = _msgs(session.fetch_messages(session.session_id))
         assert msgs is not None
         assert len(msgs) == 3
 
@@ -564,7 +586,7 @@ class TestSaveDiagnosticIsolation:
         session.save_diagnostic("test diagnostic content")
         diag_mock.save.assert_called_once()
         # Verify messages table is not touched
-        msgs = session.fetch_messages(session.session_id)
+        msgs = _msgs(session.fetch_messages(session.session_id))
         assert msgs == []
 
     def test_save_diagnostic_calls_diagnostic_store_with_kind(
