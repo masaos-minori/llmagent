@@ -104,9 +104,9 @@ class RagPipelineConfig:
 def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
     """Build a SimpleNamespace that satisfies the RagConfig Protocol.
 
-       RagPipeline consumes config via cfg.* attribute access (RagConfig Protocol).
-       This adapter populates all fields required by the Protocol, sourced from
-       RagPipelineConfig (the MCP TOML DTO).  The adapter is the only bridge
+    RagPipeline consumes config via cfg.* attribute access (RagConfig Protocol).
+    This adapter populates all fields required by the Protocol, sourced from
+    RagPipelineConfig (the MCP TOML DTO). The adapter is the only bridge
     between the MCP config file format and the RAG runtime contract.
     """
     return SimpleNamespace(

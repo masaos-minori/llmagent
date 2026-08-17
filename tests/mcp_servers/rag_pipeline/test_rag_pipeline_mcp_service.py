@@ -429,6 +429,22 @@ class TestPipelineOrRaise:
             await svc.run_pipeline(req)
 
 
+# ── invalidate_cache ──────────────────────────────────────────────────────────
+
+
+class TestInvalidateCache:
+    def test_delegates_to_pipeline(self) -> None:
+        pipeline = MagicMock()
+        svc = _make_service_with_pipeline(pipeline)
+        svc.invalidate_cache()
+        pipeline.invalidate_cache.assert_called_once_with()
+
+    def test_raises_when_not_started(self) -> None:
+        svc = RagPipelineMCPService()
+        with pytest.raises(RuntimeError, match="not started"):
+            svc.invalidate_cache()
+
+
 # ── MCP tool formatters ───────────────────────────────────────────────────────
 
 
@@ -484,6 +500,37 @@ class TestFmtDebugPipeline:
 
 
 # ── start() lifecycle ─────────────────────────────────────────────────────────
+
+
+class TestBuildModuleCfg:
+    def test_translates_config_fields(self) -> None:
+        cfg = RagPipelineConfig(
+            llm_url="http://llm",
+            embed_url="http://embed",
+            rag_db_path="/tmp/rag.db",
+            sqlite_vec_so="/tmp/vec0.so",
+            sqlite_timeout=5,
+            sqlite_busy_timeout_ms=1000,
+            mqe_n_queries=3,
+            mqe_prompt_template="mqe {query}",
+            rerank_prompt_template="rerank {query}",
+            use_rrf=False,
+            semantic_cache_max_size=64,
+            semantic_cache_threshold=0.5,
+        )
+        module_cfg = RagPipelineMCPService._build_module_cfg(cfg)
+        assert module_cfg["rag_db_path"] == "/tmp/rag.db"
+        assert module_cfg["sqlite_vec_so"] == "/tmp/vec0.so"
+        assert module_cfg["sqlite_timeout"] == 5
+        assert module_cfg["sqlite_busy_timeout_ms"] == 1000
+        assert module_cfg["mqe_n_queries"] == 3
+        assert module_cfg["mqe_prompt_template"] == "mqe {query}"
+        assert module_cfg["rerank_prompt_template"] == "rerank {query}"
+        assert module_cfg["use_rrf"] is False
+        assert module_cfg["semantic_cache_max_size"] == 64
+        assert module_cfg["semantic_cache_threshold"] == 0.5
+        assert "http://llm" in module_cfg["llm_url"]
+        assert "http://embed" in module_cfg["embed_url"]
 
 
 class TestServiceStart:
@@ -618,3 +665,10 @@ class TestFmtDeleteDocument:
         service = RagPipelineMCPService()
         result = await service.fmt_delete_document({})
         assert "Error" in result or "required" in result.lower()
+
+    async def test_whitespace_only_url_returns_required_error(self) -> None:
+        """A url that is a string but blank after stripping must still error,
+        without ever reaching DocumentManager.delete_document()."""
+        service = RagPipelineMCPService()
+        result = await service.fmt_delete_document({"url": "   "})
+        assert result == "Error: url is required."

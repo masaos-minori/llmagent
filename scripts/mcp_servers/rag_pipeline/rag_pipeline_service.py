@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Protocol, cast
 
 import httpx
@@ -61,6 +61,13 @@ def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
     raise TypeError(f"Unsupported hit type: {type(hit)}")
 
 
+def _hits_to_dicts(
+    hits: Sequence[RagHit | dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert a list of hits (dataclass or dict) to a list of dicts."""
+    return [_hit_to_dict(h) for h in hits]
+
+
 class RagPipelineMCPService:
     """HTTP-accessible wrapper around RagPipeline.
 
@@ -73,16 +80,10 @@ class RagPipelineMCPService:
         self._pipeline: RagPipelineLike | None = None
         self._doc_mgr: DocumentManager = DocumentManager()
 
-    async def start(self) -> None:
-        """Initialize shared resources; must be called once before first request."""
-        from rag.pipeline import (
-            RagPipeline,  # lazy: avoids circular import (_pipeline typed as Any)
-        )
-
-        cfg = RagPipelineConfig.load()
-
-        rag_cfg = build_rag_cfg_adapter(cfg)
-        module_cfg: dict[str, Any] = {
+    @staticmethod
+    def _build_module_cfg(cfg: RagPipelineConfig) -> dict[str, Any]:
+        """Translate RagPipelineConfig into the plain dict RagPipeline expects."""
+        return {
             "llm_url": build_llm_url(cfg.llm_url),
             "embed_url": build_embed_url(cfg.embed_url),
             "rag_db_path": cfg.rag_db_path,
@@ -96,6 +97,17 @@ class RagPipelineMCPService:
             "semantic_cache_max_size": cfg.semantic_cache_max_size,
             "semantic_cache_threshold": cfg.semantic_cache_threshold,
         }
+
+    async def start(self) -> None:
+        """Initialize shared resources; must be called once before first request."""
+        from rag.pipeline import (
+            RagPipeline,  # lazy: avoids circular import (_pipeline typed as Any)
+        )
+
+        cfg = RagPipelineConfig.load()
+
+        rag_cfg = build_rag_cfg_adapter(cfg)
+        module_cfg = self._build_module_cfg(cfg)
         http_timeout = 120.0  # process-level HTTP client timeout
         self._http = httpx.AsyncClient(timeout=http_timeout)
         # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
@@ -150,8 +162,9 @@ class RagPipelineMCPService:
         self, last_fetch_result: Any | None
     ) -> list[dict[str, Any]]:
         """Build selected_hits list from pipeline fetch result."""
-        _fetch = last_fetch_result
-        return [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
+        if last_fetch_result is None:
+            return []
+        return _hits_to_dicts(last_fetch_result.hits)
 
     async def run_pipeline(self, req: RagRunRequest) -> RagRunResponse:
         """Execute MQE→Search→RRF→Rerank→Dedup→Augment and return formatted result."""
@@ -187,8 +200,8 @@ class RagPipelineMCPService:
             augmented_text=augmented_text,
             selected_hits=selected_hits,
             queries=captured.get("queries", []),
-            merged_hits=[_hit_to_dict(h) for h in captured.get("merged", [])],
-            reranked_hits=[_hit_to_dict(h) for h in captured.get("reranked", [])],
+            merged_hits=_hits_to_dicts(captured.get("merged", [])),
+            reranked_hits=_hits_to_dicts(captured.get("reranked", [])),
             elapsed=dict(pipeline.last_timings),
         )
 

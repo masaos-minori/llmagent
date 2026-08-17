@@ -9,6 +9,8 @@ Import from here:  from mcp_servers.rag_pipeline.document_manager import Documen
 
 from __future__ import annotations
 
+import sqlite3
+
 from db.helper import SQLiteHelper
 
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
@@ -47,17 +49,19 @@ class DocumentManager:
         params.append(limit)
         with self._make_helper().open(row_factory=True) as db:
             rows = db.fetchall(sql, tuple(params))
-        return [
-            {
-                "url": r["url"],
-                "title": r["title"],
-                "lang": r["lang"],
-                "fetched_at": r["fetched_at"],
-                "chunking_strategy": r["chunking_strategy"],
-                "chunk_count": r["n"],
-            }
-            for r in rows
-        ]
+        return [self._to_document_item(row) for row in rows]
+
+    @staticmethod
+    def _to_document_item(row: sqlite3.Row) -> DocumentItem:
+        """Convert one documents+chunks aggregate row into a DocumentItem."""
+        return {
+            "url": row["url"],
+            "title": row["title"],
+            "lang": row["lang"],
+            "fetched_at": row["fetched_at"],
+            "chunking_strategy": row["chunking_strategy"],
+            "chunk_count": row["n"],
+        }
 
     def delete_document(self, url: str) -> bool:
         """Delete a document and its associated chunks by URL; returns True if deleted, False if not found."""

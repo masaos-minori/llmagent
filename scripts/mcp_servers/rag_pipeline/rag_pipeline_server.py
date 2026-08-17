@@ -120,9 +120,8 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
     return result
 
 
-@app.get("/health")
-async def health() -> JSONResponse:
-    """Health check endpoint. Returns degraded when embed_url is not configured."""
+def _check_health_deps() -> dict[str, str]:
+    """Return dependency problems, if any, for the health check."""
     deps: dict[str, str] = {}
     try:
         from shared.config_loader import ConfigLoader
@@ -133,6 +132,13 @@ async def health() -> JSONResponse:
             deps["embed_url"] = "not configured"
     except Exception:  # noqa: BLE001 — health check must not fail on config errors
         deps["config"] = "check failed"
+    return deps
+
+
+@app.get("/health")
+async def health() -> JSONResponse:
+    """Health check endpoint. Returns degraded when embed_url is not configured."""
+    deps = _check_health_deps()
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
     result: JSONResponse = make_health_response(deps, details)
     return result

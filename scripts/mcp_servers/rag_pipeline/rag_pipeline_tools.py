@@ -8,6 +8,30 @@ from __future__ import annotations
 
 from typing import Any
 
+# Shared metadata: "is_write"/"requires_serial"/"resource_scope_kind" are
+# byte-for-byte identical across the 3 read-only TOOL_LIST entries
+# (rag_run_pipeline, rag_debug_pipeline, rag_list_documents). "status" stays
+# per-entry (before this block) and "resource_scope_keys" stays per-entry
+# (after this block) even though also identical among these entries (always
+# []), since it is a mutable list value and per-entry literals avoid any risk
+# of TOOL_LIST entries unintentionally sharing one list object (mirrors the
+# analogous _MDQ_READONLY_METADATA/_MDQ_WRITE_METADATA split in
+# scripts/mcp_servers/mdq/mdq_tools.py).
+_RAG_PIPELINE_READONLY_METADATA: dict[str, Any] = {
+    "is_write": False,
+    "requires_serial": False,
+    "resource_scope_kind": "",
+}
+
+# Shared metadata for the 1 write/serialized TOOL_LIST entry
+# (rag_delete_document). See _RAG_PIPELINE_READONLY_METADATA above for why
+# "resource_scope_keys" stays per-entry.
+_RAG_PIPELINE_WRITE_METADATA: dict[str, Any] = {
+    "is_write": True,
+    "requires_serial": True,
+    "resource_scope_kind": "rag_store",
+}
+
 TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "rag_run_pipeline",
@@ -29,9 +53,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["query"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_RAG_PIPELINE_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -49,9 +71,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["query"],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_RAG_PIPELINE_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -72,9 +92,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": [],
         },
         "status": "production",
-        "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
+        **_RAG_PIPELINE_READONLY_METADATA,
         "resource_scope_keys": [],
     },
     {
@@ -91,9 +109,7 @@ TOOL_LIST: list[dict[str, Any]] = [
             "required": ["url"],
         },
         "status": "production",
-        "is_write": True,
-        "requires_serial": True,
-        "resource_scope_kind": "rag_store",
+        **_RAG_PIPELINE_WRITE_METADATA,
         "resource_scope_keys": [],
     },
 ]
