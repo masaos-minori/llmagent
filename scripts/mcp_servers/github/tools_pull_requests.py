@@ -6,6 +6,34 @@ MCP tool schema definitions for GitHub pull request operations.
 
 from __future__ import annotations
 
+from typing import Any
+
+# Shared metadata fields: "status" and "config_dependent" are byte-for-byte
+# identical across all 6 TOOL_LIST entries, so they are split into a head
+# (before "is_write"). "is_write" varies per entry and stays inline. After
+# "is_write", 5 of the 6 entries also share an identical "requires_serial" +
+# "resource_scope_kind" + "resource_scope_keys" tail (github_repo scope);
+# github_search_pull_requests is unscoped, so it gets its own tail with the
+# same "requires_serial" value but an empty scope. Extracted so the shared
+# parts stay in sync (mirrors the analogous
+# _GITHUB_ISSUE_TOOL_METADATA_HEAD/_GITHUB_ISSUE_REPO_SCOPE_TAIL/
+# _GITHUB_ISSUE_NO_SCOPE_TAIL split in
+# scripts/mcp_servers/github/tools_issues.py).
+_GITHUB_PR_TOOL_METADATA_HEAD: dict[str, Any] = {
+    "status": "production",
+    "config_dependent": True,
+}
+_GITHUB_PR_REPO_SCOPE_TAIL: dict[str, Any] = {
+    "requires_serial": False,
+    "resource_scope_kind": "github_repo",
+    "resource_scope_keys": ["owner", "repo"],
+}
+_GITHUB_PR_NO_SCOPE_TAIL: dict[str, Any] = {
+    "requires_serial": False,
+    "resource_scope_kind": "",
+    "resource_scope_keys": [],
+}
+
 TOOL_LIST: list[dict] = [
     {
         "name": "github_list_pull_requests",
@@ -24,12 +52,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_PR_REPO_SCOPE_TAIL,
     },
     {
         "name": "github_get_pull_request",
@@ -48,12 +73,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "pr_number"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_PR_REPO_SCOPE_TAIL,
     },
     {
         "name": "github_create_pull_request",
@@ -81,12 +103,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "title", "head", "base"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_PR_REPO_SCOPE_TAIL,
     },
     {
         "name": "github_search_pull_requests",
@@ -108,12 +127,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["query"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "",
-        "resource_scope_keys": [],
+        **_GITHUB_PR_NO_SCOPE_TAIL,
     },
     {
         "name": "github_update_pull_request",
@@ -144,12 +160,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "pr_number"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_PR_REPO_SCOPE_TAIL,
     },
     {
         "name": "github_merge_pull_request",
@@ -180,11 +193,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "pr_number"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_PR_REPO_SCOPE_TAIL,
     },
 ]

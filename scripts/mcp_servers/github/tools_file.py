@@ -6,6 +6,29 @@ MCP tool schema definitions for GitHub file operations.
 
 from __future__ import annotations
 
+from typing import Any
+
+# Shared metadata fields: "status", "config_dependent", "requires_serial",
+# "resource_scope_kind", and "resource_scope_keys" are byte-for-byte identical
+# across all 4 TOOL_LIST entries. Only "is_write" varies (False for
+# github_get_file_contents; True for the other 3), so it stays per-entry and
+# the shared fields are split into a head (before "is_write") and tail (after
+# "is_write") to preserve original key order. Extracted so they stay in sync
+# (mirrors the analogous _CICD_TOOL_METADATA_TAIL split in
+# scripts/mcp_servers/cicd/cicd_tools.py and the _FILESYSTEM_*_METADATA
+# precedents in scripts/mcp_servers/file/read_tools.py,
+# scripts/mcp_servers/file/write_tools.py, and
+# scripts/mcp_servers/file/delete_tools.py).
+_GITHUB_FILE_TOOL_METADATA_HEAD: dict[str, Any] = {
+    "status": "production",
+    "config_dependent": True,
+}
+_GITHUB_FILE_TOOL_METADATA_TAIL: dict[str, Any] = {
+    "requires_serial": False,
+    "resource_scope_kind": "github_repo",
+    "resource_scope_keys": ["owner", "repo"],
+}
+
 TOOL_LIST: list[dict] = [
     {
         "name": "github_get_file_contents",
@@ -32,12 +55,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "path"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_FILE_TOOL_METADATA_HEAD,
         "is_write": False,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_FILE_TOOL_METADATA_TAIL,
     },
     {
         "name": "github_create_or_update_file",
@@ -69,12 +89,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "path", "content", "message"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_FILE_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_FILE_TOOL_METADATA_TAIL,
     },
     {
         "name": "github_push_files",
@@ -113,12 +130,9 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "branch", "files", "message"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_FILE_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_FILE_TOOL_METADATA_TAIL,
     },
     {
         "name": "github_delete_file",
@@ -146,11 +160,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "path", "message", "sha"],
         },
-        "status": "production",
-        "config_dependent": True,
+        **_GITHUB_FILE_TOOL_METADATA_HEAD,
         "is_write": True,
-        "requires_serial": False,
-        "resource_scope_kind": "github_repo",
-        "resource_scope_keys": ["owner", "repo"],
+        **_GITHUB_FILE_TOOL_METADATA_TAIL,
     },
 ]

@@ -86,19 +86,6 @@ class GitHubService(_GitHubServiceCore):
             return self._dry_run_preview(preview_callback())
         return await execute_callback()
 
-    async def _execute_with_dry_run_preview(
-        self,
-        owner: str,
-        repo: str,
-        dry_run: bool,
-        preview_str: str,
-        execute_callback: Callable[[], Awaitable[str]],
-    ) -> str:
-        """Execute a GitHub operation with optional dry-run mode (string preview)."""
-        return await self._execute_with_dry_run(
-            owner, repo, dry_run, lambda: preview_str, execute_callback
-        )
-
     async def fmt_create_branch(self, args: dict) -> str:
         """Format create branch operation result with optional dry-run support."""
         req = CreateBranchRequest(**args)
