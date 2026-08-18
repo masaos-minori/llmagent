@@ -11,10 +11,11 @@ from __future__ import annotations
 import dataclasses
 import logging
 from types import SimpleNamespace
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.types import RagConfig
 
 logger = logging.getLogger(__name__)
 
@@ -101,34 +102,37 @@ class RagPipelineConfig:
         return cls.from_dict(ConfigLoader().load("rag_pipeline_mcp_server.toml"))
 
 
-def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
-    """Build a SimpleNamespace that satisfies the RagConfig Protocol.
+def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
+    """Build a RagConfig-conformant adapter backed by a SimpleNamespace.
 
     RagPipeline consumes config via cfg.* attribute access (RagConfig Protocol).
     This adapter populates all fields required by the Protocol, sourced from
     RagPipelineConfig (the MCP TOML DTO). The adapter is the only bridge
     between the MCP config file format and the RAG runtime contract.
     """
-    return SimpleNamespace(
-        use_mqe=bool(cfg.use_mqe),
-        use_rrf=bool(cfg.use_rrf),
-        rrf_k=int(cfg.rrf_k),
-        use_rerank=bool(cfg.use_rerank),
-        use_refiner=bool(cfg.use_refiner),
-        use_search=True,  # always True in MCP mode; checked in augment()
-        rag_service_url="",  # prevent HTTP loop when augment() is called in-process
-        rag_auth_token=cfg.rag_auth_token if cfg.rag_auth_token else "",
-        top_k_search=int(cfg.top_k_search),
-        top_k_rerank=int(cfg.top_k_rerank),
-        rag_top_k=int(cfg.rag_top_k),
-        rag_min_score=float(cfg.rag_min_score),
-        max_chunks_per_doc=int(cfg.max_chunks_per_doc),
-        semantic_cache_max_size=int(cfg.semantic_cache_max_size),
-        semantic_cache_threshold=float(cfg.semantic_cache_threshold),
-        use_semantic_cache=bool(cfg.use_semantic_cache),
-        refiner_max_tokens=int(cfg.refiner_max_tokens),
-        refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
-        refiner_timeout=float(cfg.refiner_timeout),
+    return cast(
+        RagConfig,
+        SimpleNamespace(
+            use_mqe=bool(cfg.use_mqe),
+            use_rrf=bool(cfg.use_rrf),
+            rrf_k=int(cfg.rrf_k),
+            use_rerank=bool(cfg.use_rerank),
+            use_refiner=bool(cfg.use_refiner),
+            use_search=True,  # always True in MCP mode; checked in augment()
+            rag_service_url="",  # prevent HTTP loop when augment() is called in-process
+            rag_auth_token=cfg.rag_auth_token if cfg.rag_auth_token else "",
+            top_k_search=int(cfg.top_k_search),
+            top_k_rerank=int(cfg.top_k_rerank),
+            rag_top_k=int(cfg.rag_top_k),
+            rag_min_score=float(cfg.rag_min_score),
+            max_chunks_per_doc=int(cfg.max_chunks_per_doc),
+            semantic_cache_max_size=int(cfg.semantic_cache_max_size),
+            semantic_cache_threshold=float(cfg.semantic_cache_threshold),
+            use_semantic_cache=bool(cfg.use_semantic_cache),
+            refiner_max_tokens=int(cfg.refiner_max_tokens),
+            refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
+            refiner_timeout=float(cfg.refiner_timeout),
+        ),
     )
 
 
