@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +111,25 @@ class WebSearchConfig:
         Raises:
             ValueError: if any configured value violates its invariant.
         """
-        default_max_results = int(d.get("default_max_results", DEFAULT_MAX_RESULTS))
-        max_results_limit = int(d.get("max_results_limit", MAX_RESULTS_LIMIT))
-        search_timeout_sec = float(d.get("search_timeout_sec", 10.0))
-        browser_allowed_domains = list(d.get("browser_allowed_domains") or [])
-        browser_max_response_kb = int(d.get("browser_max_response_kb") or 256)
-        browser_timeout_sec = int(d.get("browser_timeout_sec") or 15)
-        browser_auth_token = d.get("browser_auth_token") or ""
+        default_max_results = get_typed(
+            d, "default_max_results", int, "an integer", default=DEFAULT_MAX_RESULTS
+        )
+        max_results_limit = get_typed(
+            d, "max_results_limit", int, "an integer", default=MAX_RESULTS_LIMIT
+        )
+        search_timeout_sec = get_typed(
+            d, "search_timeout_sec", float, "a float", default=10.0
+        )
+        browser_allowed_domains = list(
+            get_typed(d, "browser_allowed_domains", list, "a list", default=[])
+        )
+        browser_max_response_kb = get_typed(
+            d, "browser_max_response_kb", int, "an integer", default=256
+        )  # noqa: PLR2004 — 256 KB default
+        browser_timeout_sec = get_typed(
+            d, "browser_timeout_sec", int, "an integer", default=15
+        )  # noqa: PLR2004 — 15s default; 0 would cause instant timeout
+        browser_auth_token = get_str(d, "browser_auth_token", "")
 
         _validate_config_bounds(
             default_max_results, max_results_limit, search_timeout_sec

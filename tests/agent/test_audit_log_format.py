@@ -14,6 +14,7 @@ import json
 from unittest.mock import MagicMock
 
 from mcp_servers.audit import _audit_log as _mcp_audit_log
+from mcp_servers.audit import _build_audit_record
 
 # ---------------------------------------------------------------------------
 # MCP server audit log — JSON-lines format
@@ -202,10 +203,45 @@ class TestMcpAuditLogFormat:
         )
         assert parsed.get("error_type") == ""
 
+    def test_orjson_byte_comparison(self) -> None:
+        """orjson.dumps(OPT_SORT_KEYS) produces equivalent output to json.dumps(ensure_ascii=False)."""
+        import orjson
 
-# ---------------------------------------------------------------------------
-# Agent-side audit log — JSON-lines format
-# ---------------------------------------------------------------------------
+        logger = MagicMock()
+        logger.info.return_value = None
+        _mcp_audit_log(
+            logger,
+            **{
+                "session_id": "sess-orjson",
+                "request_id": "req-orjson",
+                "action": "read_text_file",
+                "target": "/tmp/orjson.txt",
+                "outcome": "ok",
+            },
+        )
+        call_args = logger.info.call_args[0][0]
+        # Must be valid JSON
+        parsed = json.loads(call_args)
+        assert isinstance(parsed, dict)
+        assert "event" in parsed
+        # Keys must be sorted (deterministic ordering from OPT_SORT_KEYS)
+        keys = list(parsed.keys())
+        assert keys == sorted(keys), f"Keys not sorted: {keys}"
+        # Verify orjson can serialize the same record
+        record = _build_audit_record(
+            session_id="sess-orjson",
+            request_id="req-orjson",
+            action="read_text_file",
+            target="/tmp/orjson.txt",
+            outcome="ok",
+        )
+        orjson_bytes = orjson.dumps(record, option=orjson.OPT_SORT_KEYS)
+        assert isinstance(orjson_bytes, bytes)
+        orjson_parsed = json.loads(orjson_bytes.decode())
+        # Compare all fields except 'ts' which changes per-call
+        orjson_parsed.pop("ts", None)
+        parsed.pop("ts", None)
+        assert orjson_parsed == parsed
 
 
 class TestAgentAuditLogFormat:

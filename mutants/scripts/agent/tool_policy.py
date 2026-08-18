@@ -1,0 +1,235 @@
+"""scripts/agent/tool_policy.py
+
+Tool risk classification and pre-flight access checks.
+
+Policy rules are isolated here so they can be tested independently
+of the approval/execution stack.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from shared.tool_constants import (
+    CICD_WRITE_TOOLS,
+    DELETE_TOOLS,
+    GIT_WRITE_TOOLS,
+    GITHUB_DANGEROUS_TOOLS,
+    GITHUB_WRITE_TOOLS,
+    MDQ_WRITE_TOOLS,
+    RAG_WRITE_TOOLS,
+    SHELL_TOOLS,
+    WRITE_TOOLS,
+)
+from shared.tool_registry import get_registry
+
+from agent.tool_enums import OperationType, RiskLevel
+from agent.tool_exceptions import PolicyViolationError
+
+if TYPE_CHECKING:
+    from agent.config_dataclasses import AgentConfig
+
+
+_EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
+_GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
+
+# Per-server write-tool sets not covered by the generic WRITE_TOOLS frozenset
+# (which only lists the file[read/write/delete] server's write tools).
+# See shared/tool_constants.py for the source of each set.
+_ALL_WRITE_TOOLS: frozenset[str] = (
+    WRITE_TOOLS | MDQ_WRITE_TOOLS | RAG_WRITE_TOOLS | CICD_WRITE_TOOLS | GIT_WRITE_TOOLS
+)
+
+# Maps tool_safety_tiers tier → default approval risk level
+_TIER_TO_RISK: dict[str, RiskLevel] = {
+    "READ_ONLY": RiskLevel.NONE,
+    "WRITE_SAFE": RiskLevel.NONE,
+    "WRITE_DANGEROUS": RiskLevel.MEDIUM,
+    "ADMIN": RiskLevel.HIGH,
+}
+
+
+def classify_operation_type(tool_name: str) -> OperationType:
+    """Return the operation type for a tool.
+
+    A tool name absent from the tool registry entirely (not just untiered) is
+    genuinely unregistered — fail-safe classifies it UNKNOWN rather than READ,
+    since a made-up or typo'd tool name should not be treated as harmless.
+    """
+    if tool_name in _ALL_WRITE_TOOLS:
+        return OperationType.WRITE
+    if tool_name in DELETE_TOOLS:
+        return OperationType.DELETE
+    if tool_name in _EXEC_TOOLS:
+        return OperationType.EXECUTE
+    if tool_name in _GITHUB_MUTATION_TOOLS:
+        return OperationType.API_WRITE
+    if tool_name not in get_registry().get_all_tool_names():
+        return OperationType.UNKNOWN
+    return OperationType.READ
+
+
+def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
+    """Yield each non-empty string value present in args for the given keys."""
+    for key in keys:
+        val = args.get(key)
+        if isinstance(val, str) and val:
+            yield val
+
+
+def _escalate_for_path(
+    cfg: AgentConfig,
+    base: RiskLevel,
+    args: dict[str, Any],
+) -> RiskLevel | None:
+    """Return HIGH when any path arg is under a protected directory, else None."""
+    if base == RiskLevel.HIGH:
+        return None
+    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
+    for val in _iter_string_arg_values(args, path_keys):
+        if any(val.startswith(p) for p in cfg.approval.approval_protected_paths):
+            return RiskLevel.HIGH
+    return None
+
+
+def _escalate_for_github_branch(
+    cfg: AgentConfig,
+    tool_name: str,
+    base: RiskLevel,
+    args: dict[str, Any],
+) -> RiskLevel | None:
+    """Return HIGH when the target GitHub branch is in high_risk_branches, else None."""
+    if not tool_name.startswith("github_") or base == RiskLevel.HIGH:
+        return None
+    branch_keys = cfg.approval.approval_resource_keys.get("branch_keys", [])
+    for val in _iter_string_arg_values(args, branch_keys):
+        if val in cfg.approval.approval_high_risk_branches:
+            return RiskLevel.HIGH
+    return None
+
+
+def _special_case_risk(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+) -> RiskLevel | None:
+    """Return a fixed risk level for tools with argument-dependent rules, else None.
+
+    Covers delete_directory (recursive escalation) and shell_run (safe-prefix bypass).
+    """
+    if tool_name == "delete_directory" and args.get("recursive"):
+        return RiskLevel.HIGH
+    for flag in ("force", "overwrite", "clobber"):
+        if args.get(flag) is True:
+            return RiskLevel.HIGH
+    if tool_name == "shell_run":
+        cmd = args.get("command")
+        if not isinstance(cmd, str):
+            return RiskLevel.HIGH
+        if any(cmd.startswith(p) for p in cfg.approval.approval_shell_safe_prefixes):
+            return RiskLevel.NONE
+        return RiskLevel.HIGH
+    return None
+
+
+def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> RiskLevel:
+    """Return the risk level for a tool call.
+
+    Order: explicit rule → tier fallback → special-case → escalation overrides.
+    """
+    base: RiskLevel | None = None
+    raw_rule = cfg.approval.approval_risk_rules.get(tool_name)
+    if raw_rule is not None:
+        base = RiskLevel(raw_rule)
+    # Priority 2: tool_safety_tiers
+    if base is None and tool_name in cfg.approval.tool_safety_tiers:
+        tier = cfg.approval.tool_safety_tiers[tool_name]
+        base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
+    # Priority 3: tool_constants.py classification
+    if base is None:
+        if classify_operation_type(tool_name) == OperationType.UNKNOWN:
+            # Fail-safe: a tool name absent from the registry entirely (not just
+            # untiered) is treated as maximally risky rather than defaulting to
+            # MEDIUM like a real-but-untiered tool would.
+            base = RiskLevel.HIGH
+        elif tool_name in DELETE_TOOLS or tool_name in SHELL_TOOLS:
+            base = RiskLevel.HIGH
+        elif tool_name in WRITE_TOOLS:
+            base = RiskLevel.MEDIUM
+        else:
+            base = RiskLevel.MEDIUM  # Priority 4: unchanged default
+    if base == RiskLevel.NONE:
+        return RiskLevel.NONE
+    if override := _special_case_risk(cfg, tool_name, args):
+        return override
+    if escalated := _escalate_for_path(cfg, base, args):
+        return escalated
+    if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):
+        return escalated
+    return base
+
+
+def check_allowed_root(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+) -> bool:
+    """Return False when any path argument is outside cfg.approval.allowed_root."""
+    if not cfg.approval.allowed_root:
+        return True
+    root = Path(cfg.approval.allowed_root).resolve()
+    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
+    for val in _iter_string_arg_values(args, path_keys):
+        try:
+            resolved = Path(val).resolve()
+        except (ValueError, OSError):
+            return False
+        if not resolved.is_relative_to(root):
+            return False
+    return True
+
+
+def check_allowed_repo(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+) -> bool:
+    """Return False when a GitHub write tool targets a repo not in the allowlist."""
+    if tool_name not in _GITHUB_MUTATION_TOOLS:
+        return True
+    allowed = cfg.approval.approval_github_allowed_repos
+    if not allowed:
+        return False
+    owner = args.get("owner")
+    repo = args.get("repo")
+    if not isinstance(owner, str) or not isinstance(repo, str):
+        return False
+    return f"{owner}/{repo}" in allowed
+
+
+def check_preflight(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+) -> None:
+    """Raise PolicyViolationError when a pre-flight check denies the tool call.
+
+    Does nothing when all checks pass.
+    """
+    if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
+        raise PolicyViolationError(
+            "denied_allowed_tools",
+            f"{tool_name}: not in allowed_tools for this session",
+        )
+    if not check_allowed_root(cfg, tool_name, args):
+        raise PolicyViolationError(
+            "denied_root_jail",
+            f"{tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",
+        )
+    if not check_allowed_repo(cfg, tool_name, args):
+        raise PolicyViolationError(
+            "denied_repo_allowlist",
+            f"{tool_name}: repo not in approval_github_allowed_repos",
+        )

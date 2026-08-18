@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,15 @@ class FileReadConfig:
     def from_dict(cls, d: dict[str, Any]) -> FileReadConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
-            max_file_size_kb=int(d.get("max_read_bytes", 1024000)) // 1024,
-            allowed_dirs=list(d.get("allowed_dirs", [])),
-            max_depth=int(d.get("max_tree_depth", 5)),
-            max_files_per_batch=int(d.get("max_search_results", 100)),
+            max_file_size_kb=(
+                get_typed(d, "max_read_bytes", int, "an integer", default=1024000)
+            )
+            // 1024,
+            allowed_dirs=list(get_typed(d, "allowed_dirs", list, "a list", default=[])),
+            max_depth=get_typed(d, "max_tree_depth", int, "an integer", default=5),
+            max_files_per_batch=get_typed(
+                d, "max_search_results", int, "an integer", default=100
+            ),
         )
 
     @classmethod

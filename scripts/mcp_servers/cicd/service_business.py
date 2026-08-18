@@ -58,7 +58,13 @@ class CiCdService(CiCdGuards):
         """Trigger a CI/CD workflow run with optional dry-run support."""
         from mcp_servers.cicd.cicd_models import TriggerWorkflowRequest
 
-        req = TriggerWorkflowRequest(**args)
+        req = TriggerWorkflowRequest(
+            repo=args["repo"],
+            workflow=args["workflow"],
+            ref=args.get("ref", "main"),
+            inputs=args.get("inputs", {}),
+            dry_run=args.get("dry_run", False),
+        )
         self._assert_allowed_repo(req.repo)
         self._assert_allowed_workflow(req.workflow)
         if req.dry_run:
@@ -81,7 +87,11 @@ class CiCdService(CiCdGuards):
         """Retrieve the list of workflow runs for a given workflow."""
         from mcp_servers.cicd.cicd_models import GetWorkflowRunsRequest
 
-        req = GetWorkflowRunsRequest(**args)
+        req = GetWorkflowRunsRequest(
+            repo=args["repo"],
+            workflow=args["workflow"],
+            limit=args.get("limit", 10),
+        )
         owner, repo = self._validate_and_parse_repo(req.repo)
         runs_result: str = await self._backend.get_workflow_runs(
             owner,
@@ -97,7 +107,10 @@ class CiCdService(CiCdGuards):
             GetWorkflowStatusRequest,
         )
 
-        req = GetWorkflowStatusRequest(**args)
+        req = GetWorkflowStatusRequest(
+            repo=args["repo"],
+            run_id=args["run_id"],
+        )
         owner, repo = self._validate_and_parse_repo(req.repo)
         status_result: str = await self._backend.get_workflow_status(
             owner, repo, req.run_id
@@ -108,7 +121,10 @@ class CiCdService(CiCdGuards):
         """Retrieve the logs for a specific workflow run."""
         from mcp_servers.cicd.cicd_models import GetWorkflowLogsRequest
 
-        req = GetWorkflowLogsRequest(**args)
+        req = GetWorkflowLogsRequest(
+            repo=args["repo"],
+            run_id=args["run_id"],
+        )
         owner, repo = self._validate_and_parse_repo(req.repo)
         logs_result: str = await self._backend.get_workflow_logs(
             owner, repo, req.run_id

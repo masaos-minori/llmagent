@@ -6,22 +6,12 @@ MCP tool schema definitions for file-delete-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any
+from mcp_servers.models import McpTool
 
 # Shared metadata block: every tool in this module is a filesystem write keyed on a
 # single "path" argument, so these fields are byte-for-byte identical across all
-# TOOL_LIST entries. Extracted so they stay in sync (mirrors the analogous
-# _REPO_PATH_PROPERTY extraction in scripts/mcp_servers/git/git_tools.py).
-_FILESYSTEM_DELETE_METADATA: dict[str, Any] = {
-    "status": "production",
-    "config_dependent": False,
-    "is_write": True,
-    "requires_serial": False,
-    "resource_scope_kind": "filesystem",
-    "resource_scope_keys": ["path"],
-}
-
-TOOL_LIST: list[dict[str, Any]] = [
+# TOOL_LIST entries. Kept inline for clarity.
+TOOL_LIST: list[McpTool] = [
     {
         "name": "delete_file",
         "description": "Delete the specified file. When dry_run=true, return file info without deleting",
@@ -39,7 +29,12 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
-        **_FILESYSTEM_DELETE_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["path"],
     },
     {
         "name": "delete_directory",
@@ -62,6 +57,11 @@ TOOL_LIST: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
-        **_FILESYSTEM_DELETE_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": True,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
+        "resource_scope_keys": ["path"],
     },
 ]

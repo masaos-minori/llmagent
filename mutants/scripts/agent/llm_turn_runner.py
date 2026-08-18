@@ -1,0 +1,283 @@
+"""scripts/agent/llm_turn_runner.py
+
+LLM streaming and inner tool-call loop for one agent turn.
+
+Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
+"""
+
+from __future__ import annotations
+
+import logging
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, Any, cast
+
+from shared.json_utils import dumps, now_iso_raw
+from shared.llm_exceptions import LLMTransportError
+from shared.types import LLMMessage
+
+from agent.message_schema import TRUSTED_SOURCES
+from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
+from agent.tool_runner import execute_all_tool_calls
+from agent.turn_result import TurnResult
+
+if TYPE_CHECKING:
+    from agent.context import AgentContext
+
+logger = logging.getLogger(__name__)
+
+
+class _NoOpSpan:
+    """No-op OTel span returned by _span_ctx when no tracer is configured."""
+
+    def set_attribute(self, key: str, value: object) -> None:
+        """No-op: set an attribute on the span."""
+        pass
+
+    def record_exception(self, exc: BaseException) -> None:
+        """No-op: record an exception on the span."""
+        pass
+
+
+class LLMTurnRunner:
+    """Manages the inner LLM streaming + tool-call loop for one agent turn.
+
+    Accepts the same ctx/callbacks used by Orchestrator so it can be wired in
+    without changing the call-site interface.
+    """
+
+    def __init__(
+        self,
+        ctx: AgentContext,
+        guard: ToolLoopGuard,
+        *,
+        tracer: Any = None,
+    ) -> None:
+        """Initialize the LLM turn runner with context and loop guard."""
+        self._ctx = ctx
+        self._guard = guard
+        self._tracer = tracer
+        self.llm_url: str = ""
+
+    # ── Public entry point ────────────────────────────────────────────────────
+
+    async def run(
+        self,
+        llm_url: str,
+        *,
+        workflow_id: str,
+        task_id: str,
+        stage_id: str,
+        attempt_id: str,
+    ) -> TurnResult:
+        """Send ctx.conv.history to LLM, execute tool calls, return TurnResult."""
+        if not (workflow_id and task_id and stage_id and attempt_id):
+            raise RuntimeError(
+                "LLMTurnRunner.run() requires non-empty workflow context: "
+                f"workflow_id={workflow_id!r}, task_id={task_id!r}, "
+                f"stage_id={stage_id!r}, attempt_id={attempt_id!r}"
+            )
+        ctx = self._ctx
+        state = TurnLoopState()
+
+        for turn in range(ctx.cfg.tool.max_tool_turns):
+            try:
+                response = await self._stream_llm(llm_url, turn)
+            except LLMTransportError as e:
+                return await self._handle_llm_error(
+                    e, turn, workflow_id=workflow_id, task_id=task_id
+                )
+
+            message, finish_reason = response.message, response.finish_reason
+
+            has_tool_calls = bool(message.get("tool_calls"))
+            if (finish_reason != "tool_calls") or not has_tool_calls:
+                answer = await self._finalize_answer_text(message)
+                return TurnResult(action="continue", answer=answer)
+
+            if msg := self._guard.check_all(
+                state.seen_calls,
+                state.round_fingerprints,
+                state.failed_calls,
+                message,
+            ):
+                return await self._finalize_after_guard()
+
+            await ctx.conv.append_message(message)
+            ctx.session.save(
+                "assistant",
+                message.get("content") or "",
+                tool_calls=message.get("tool_calls"),
+            )
+
+            errors_before = ctx.stats.stat_tool_errors
+            await execute_all_tool_calls(
+                ctx,
+                message["tool_calls"],
+                turn,
+                out_failed_keys=state.failed_calls,
+            )
+            n_errors = ctx.stats.stat_tool_errors - errors_before
+            state.consecutive_errors = ToolLoopGuard.update_errors(
+                state.consecutive_errors, n_errors, len(message["tool_calls"])
+            )
+            if msg := self._guard.check_error_limit(state.consecutive_errors):
+                return TurnResult(action="fail", answer=msg, reason="error_limit")
+
+        logger.warning("Reached max_tool_turns=%s", ctx.cfg.tool.max_tool_turns)
+        return TurnResult(
+            action="fail",
+            answer="Maximum tool turns reached.",
+            reason="max_tool_turns",
+        )
+
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
+    async def _handle_llm_error(
+        self,
+        e: LLMTransportError,
+        turn: int,
+        workflow_id: str = "",
+        task_id: str = "",
+    ) -> TurnResult:
+        """Store mid-turn LLM error in diagnostic channel and return a fail TurnResult."""
+        ctx = self._ctx
+        summary = e.detail or str(e)
+        if ctx.diagnostics is not None:
+            ctx.diagnostics.save(
+                ctx.session.session_id,
+                "mid_turn_error",
+                dumps(
+                    {
+                        "error_type": type(e).__name__,
+                        "detail": summary,
+                        "turn": turn,
+                        "timestamp": now_iso_raw(),
+                    }
+                ),
+                workflow_id=workflow_id,
+                task_id=task_id,
+            )
+        logger.warning(
+            "LLM transport error during tool continuation (turn=%s): %s",
+            turn,
+            e.kind,
+        )
+        return TurnResult(
+            action="fail",
+            answer=summary,
+            reason="llm_transport_error",
+            exception=e,
+            persist_as_assistant=False,
+        )
+
+    def _span_ctx(
+        self,
+        name: str,
+        task_id: str = "",
+        session_id: str = "",
+        model_url: str = "",
+        workflow_id: str = "",
+        stage_id: str = "",
+        attempt_id: str = "",
+    ) -> Any:
+        """Return a real OTel span or a no-op context manager when no tracer."""
+        if self._tracer is not None:
+            attrs: dict[str, object] = {}  # noqa: S603 — OTel span attribute keys vary by context
+            if task_id:
+                attrs["workflow.task_id"] = task_id
+            if session_id:
+                attrs["workflow.session_id"] = session_id
+            if model_url:
+                attrs["llm.model_url"] = model_url
+            if workflow_id:
+                attrs["workflow.workflow_id"] = workflow_id
+            if stage_id:
+                attrs["workflow.stage_id"] = stage_id
+            if attempt_id:
+                attrs["workflow.attempt_id"] = attempt_id
+            return self._tracer.start_as_current_span(name, attributes=attrs or None)
+        return nullcontext(_NoOpSpan())
+
+    async def _finalize_answer_text(self, message: LLMMessage) -> str:
+        """Append the done-turn message to history and return the answer text."""
+        ctx = self._ctx
+        await ctx.conv.append_message(message)
+        return message.get("content") or ""
+
+    def _filter_disabled_tool_definitions(self) -> list[dict[str, Any]]:
+        """Return LLM-facing tool definitions from the registry, excluding disabled tools."""
+        ctx = self._ctx
+        registry = ctx.services_required.runtime_tools
+        if registry is None:
+            return ctx.cfg.tool.tool_definitions
+        all_defs = registry.llm_tool_definitions()
+        visible_names = {td["name"] for td in all_defs}
+        # NOTE: visible_names is redundant here — every entry from
+        # llm_tool_definitions() already has its name in visible_names.
+        # Kept for explicitness and future extensibility if a custom base
+        # list is ever accepted.
+        result: list[dict[str, Any]] = []
+        for td in all_defs:
+            if td["name"] in visible_names:
+                result.append(td)
+        return result
+
+    async def _stream_llm_final_answer(self) -> Any:
+        """Call LLM with empty tool_defs to get a final answer."""
+        ctx = self._ctx
+        with self._span_ctx("final_answer"):
+            return await ctx.services_required.llm.stream(
+                self.llm_url,
+                ctx.conv.history,
+                [],  # tool_defs=[]
+            )
+
+    async def _finalize_after_guard(self) -> TurnResult:
+        """Handle final-answer fallback after ToolLoopGuard triggers."""
+        ctx = self._ctx
+        loop_guard_source = "loop_guard"
+        if loop_guard_source not in TRUSTED_SOURCES:
+            TRUSTED_SOURCES[loop_guard_source] = {"_ephemeral"}
+        ephemeral_msg: dict = {
+            "role": "system",
+            "content": "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history.",
+            "source": loop_guard_source,
+            "_ephemeral": True,
+        }
+        try:
+            from agent.message_schema import validate_message
+
+            result = validate_message(ephemeral_msg)
+            if not result.success:
+                logger.warning(
+                    "Ephemeral message injection failed validation: %s — falling back to hard stop",
+                    result.reason,
+                )
+                return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        except Exception as e:  # noqa: BLE001 — ephemeral message validation failure must fall back to a hard stop rather than crash the turn
+            logger.warning(
+                "Ephemeral message injection raised %s — falling back to hard stop",
+                type(e).__name__,
+            )
+            return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        await ctx.conv.append_message(cast(LLMMessage, ephemeral_msg))
+        response = await self._stream_llm_final_answer()
+        message, finish_reason = response.message, response.finish_reason
+        if finish_reason == "tool_calls" and message.get("tool_calls"):
+            return TurnResult(action="fail", answer="", reason="tool_loop_guard")
+        answer = await self._finalize_answer_text(message)
+        return TurnResult(action="continue", answer=answer)
+
+    async def _stream_llm(
+        self,
+        llm_url: str,
+        turn: int,
+    ) -> Any:
+        """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
+        ctx = self._ctx
+        logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
+        return await ctx.services_required.llm.stream(
+            llm_url,
+            ctx.conv.history,
+            self._filter_disabled_tool_definitions(),
+        )

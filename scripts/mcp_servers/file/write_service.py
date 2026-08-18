@@ -268,7 +268,13 @@ class WriteFileService(FileSecurityMixin):
     async def fmt_write_file(self, args: ToolArgs) -> str:
         """Format write_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
-            lambda: self.write_file(WriteFileRequest(**args)),
+            lambda: self.write_file(
+                WriteFileRequest(
+                    path=args["path"],
+                    content=args["content"],
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = WriteFileFormatter.format_write_result(result)
         return formatted
@@ -276,7 +282,13 @@ class WriteFileService(FileSecurityMixin):
     async def fmt_edit_file(self, args: ToolArgs) -> str:
         """Format edit_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
-            lambda: self.edit_file(EditFileRequest(**args)),
+            lambda: self.edit_file(
+                EditFileRequest(
+                    path=args["path"],
+                    edits=args["edits"],
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = WriteFileFormatter.format_edit_result(result)
         return formatted
@@ -284,7 +296,12 @@ class WriteFileService(FileSecurityMixin):
     async def fmt_create_directory(self, args: ToolArgs) -> str:
         """Format create_directory result as plain text via thread executor."""
         result = await asyncio.to_thread(
-            lambda: self.create_directory(CreateDirectoryRequest(**args)),
+            lambda: self.create_directory(
+                CreateDirectoryRequest(
+                    path=args["path"],
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = WriteFileFormatter.format_directory_result(result)
         return formatted
@@ -292,7 +309,13 @@ class WriteFileService(FileSecurityMixin):
     async def fmt_move_file(self, args: ToolArgs) -> str:
         """Format move_file result as plain text via thread executor."""
         result = await asyncio.to_thread(
-            lambda: self.move_file(MoveFileRequest(**args)),
+            lambda: self.move_file(
+                MoveFileRequest(
+                    source=args["source"],
+                    destination=args["destination"],
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = WriteFileFormatter.format_move_result(result)
         return formatted

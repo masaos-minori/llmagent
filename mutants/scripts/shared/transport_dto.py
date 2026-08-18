@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""scripts/shared/transport_dto.py — Transport-level data classes for MCP tool execution."""
+
+from dataclasses import dataclass
+
+
+from mutmut.mutation.trampoline import wrap_in_trampoline as _mutmut_mutated, MutantDict
+
+
+@dataclass(frozen=True)
+class ToolCallResult:
+    """Typed result from a single tool call execution."""
+
+    output: str  # tool result text, or error message when is_error=True
+    is_error: bool  # True if the call failed (transport or tool error)
+    request_id: str  # x-request-id from HTTP transport; "" for cache hits
+    server_key: str  # server key that handled the call
+    source: str = ""  # "mcp" for MCP tools, "cache" for cache hits, "" for error paths
+    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
+
+    @classmethod
+    def from_transport(
+        cls, output: str, is_error: bool, request_id: str = ""
+    ) -> "ToolCallResult":
+        """Construct a ToolCallResult with default server_key and error_type."""
+        return cls(
+            output=output,
+            is_error=is_error,
+            request_id=request_id,
+            server_key="",
+            source="mcp",
+            error_type="tool" if is_error else "",
+        )
+
+
+@dataclass(frozen=True)
+class TransportErrorInfo:
+    """Structured error info for LLM/tool transport failures (audit logs)."""
+
+    summary: str
+    detail: str  # JSON-encoded dict for audit log

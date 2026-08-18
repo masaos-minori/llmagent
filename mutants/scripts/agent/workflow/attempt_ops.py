@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""scripts/agent/workflow/attempt_ops.py — Attempt operations for workflow.sqlite."""
+
+import uuid
+
+from db.helper import SQLiteHelper
+from shared.json_utils import now_iso as _now
+
+from agent.workflow.models import AttemptRecord
+
+
+def start_attempt(db: SQLiteHelper, task_id: str, stage_id: str) -> AttemptRecord:
+    """Create a new running attempt record for the given task and stage."""
+    attempt_id = str(uuid.uuid4())
+    now = _now()
+    db.execute(
+        """
+
+        INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at)
+        VALUES (?, ?, ?, 'running', ?)
+        """,
+        (attempt_id, task_id, stage_id, now),
+    )
+    db.commit()
+    return AttemptRecord(
+        attempt_id=attempt_id,
+        task_id=task_id,
+        stage_id=stage_id,
+        status="running",
+        started_at=now,
+    )
+
+
+def finish_attempt(
+    db: SQLiteHelper,
+    attempt_id: str,
+    status: str,
+    error_msg: str | None = None,
+    error_kind: str | None = None,
+    error_detail: str | None = None,
+) -> None:
+    """Mark an attempt as completed with the given status and optional error details."""
+    db.execute(
+        "UPDATE attempts SET status=?, ended_at=?, error_msg=?, error_kind=?, error_detail=? WHERE attempt_id=?",
+        (status, _now(), error_msg, error_kind, error_detail, attempt_id),
+    )
+    db.commit()
+
+
+def count_attempts(db: SQLiteHelper, task_id: str, stage_id: str) -> int:
+    """Count the number of attempts for a specific task and stage combination."""
+    rows = db.fetchall(
+        "SELECT COUNT(*) FROM attempts WHERE task_id=? AND stage_id=?",
+        (task_id, stage_id),
+    )
+    return int(rows[0][0])

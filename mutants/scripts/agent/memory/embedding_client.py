@@ -1,0 +1,214 @@
+"""scripts/agent/memory/embedding_client.py
+
+EmbeddingClient — HTTP embedding service with retry and circuit breaker.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from dataclasses import dataclass
+
+import httpx
+from shared.json_utils import parse_http_json
+
+from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
+
+logger = logging.getLogger(__name__)
+
+
+_LOCAL_PREFIXES = (
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://[::1]",
+    "https://localhost",
+    "https://127.0.0.1",
+)
+
+
+@dataclass
+class EmbeddingClientConfig:
+    """Configuration for the embedding client connection."""
+
+    embed_url: str = ""
+    timeout: float = 5.0
+    max_retries: int = 2
+    circuit_open_after: int = 3
+    circuit_reset_sec: float = 60.0
+    local_only: bool = False
+
+
+@dataclass(frozen=True)
+class EmbeddingClientStatus:
+    """Runtime health status of the embedding client."""
+
+    enabled: bool
+    circuit_open: bool
+    fail_count: int
+    resets_in_sec: float | None
+    local_only: bool = False
+
+
+async def _fetch_embedding(
+    text: str,
+    http: httpx.AsyncClient,
+    embed_url: str,
+) -> EmbeddingResult:
+    """Call the embedding endpoint once; return EmbeddingResult with success/error."""
+    try:
+        resp = await http.post(embed_url, json={"content": text})
+        resp.raise_for_status()
+        data = parse_http_json(resp)
+        embedding = data.get("embedding")
+        if isinstance(embedding, list) and embedding:
+            return EmbeddingResult(
+                success=True, embedding=[float(v) for v in embedding]
+            )
+        logger.warning("embed response missing 'embedding' field")
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.INVALID_RESPONSE
+        )
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "EmbeddingClient._fetch_embedding HTTP error: status=%d body=%.200s",
+            e.response.status_code,
+            e.response.text,
+        )
+        return EmbeddingResult(success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR)
+    except httpx.RequestError as e:
+        logger.warning("EmbeddingClient._fetch_embedding request error: %s", e)
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.UNKNOWN_ERROR
+        )
+    except ValueError as e:
+        logger.warning("EmbeddingClient._fetch_embedding invalid JSON response: %s", e)
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.INVALID_RESPONSE
+        )
+    except httpx.HTTPError as e:
+        logger.warning("EmbeddingClient._fetch_embedding HTTP error: %s", e)
+        return EmbeddingResult(success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR)
+    except Exception as e:  # noqa: BLE001 — classification fallback for any error not covered by the specific httpx/ValueError branches above
+        logger.warning("EmbeddingClient._fetch_embedding unexpected error: %s", e)
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.UNKNOWN_ERROR
+        )
+
+
+class EmbeddingClient:
+    """Async HTTP client for embedding generation.
+
+    Wraps _fetch_embedding with:
+    - asyncio.wait_for timeout per attempt
+    - configurable retry count on failure or TimeoutError
+    - simple circuit breaker (open after N consecutive failures)
+    """
+
+    def __init__(
+        self,
+        config: EmbeddingClientConfig,
+        http: httpx.AsyncClient | None = None,
+        *,
+        enabled: bool = False,
+    ) -> None:
+        """Validate config and initialize the embedding HTTP client."""
+        if config.local_only and config.embed_url:
+            if not any(config.embed_url.startswith(p) for p in _LOCAL_PREFIXES):
+                raise ValueError(
+                    f"memory_local_only=True but embed_url is not a local address: "
+                    f"{config.embed_url!r}. Use http://localhost:PORT."
+                )
+        self._config = config
+        self._http = http
+        self._enabled = enabled
+        self._fail_count: int = 0
+        self._circuit_opened_at: float | None = None
+
+    def _is_circuit_open(self) -> bool:
+        """Return True when the circuit breaker is currently open.
+
+        If the circuit was never opened, returns False immediately.
+        When the configured reset interval has elapsed, the circuit auto-resets
+        by clearing ``_fail_count`` and ``_circuit_opened_at`` before returning False.
+        """
+        if self._circuit_opened_at is None:
+            return False
+        elapsed = time.monotonic() - self._circuit_opened_at
+        if elapsed >= self._config.circuit_reset_sec:
+            # Auto-reset
+            self._fail_count = 0
+            self._circuit_opened_at = None
+            return False
+        return True
+
+    def _record_failure(self) -> None:
+        """Increment the failure counter and open the circuit breaker if threshold reached."""
+        self._fail_count += 1
+        if self._fail_count >= self._config.circuit_open_after:
+            self._circuit_opened_at = time.monotonic()
+            logger.warning(
+                "EmbeddingClient circuit opened after %d consecutive failures",
+                self._fail_count,
+            )
+
+    def get_status(self) -> EmbeddingClientStatus:
+        """Return a snapshot of current circuit-breaker and enabled state."""
+        circuit_open = self._is_circuit_open()
+        resets_in: float | None = None
+        if circuit_open and self._circuit_opened_at is not None:
+            elapsed = time.monotonic() - self._circuit_opened_at
+            resets_in = max(0.0, self._config.circuit_reset_sec - elapsed)
+        return EmbeddingClientStatus(
+            enabled=self._enabled,
+            circuit_open=circuit_open,
+            fail_count=self._fail_count,
+            resets_in_sec=resets_in,
+            local_only=self._config.local_only,
+        )
+
+    async def fetch(self, text: str) -> EmbeddingResult:
+        """Generate embedding; return EmbeddingResult indicating success or failure reason."""
+        if not self._enabled or self._http is None or not self._config.embed_url:
+            return EmbeddingResult(
+                success=False, error_kind=EmbeddingErrorKind.DISABLED
+            )
+        if self._is_circuit_open():
+            logger.debug("EmbeddingClient circuit open — skipping embed")
+            return EmbeddingResult(
+                success=False, error_kind=EmbeddingErrorKind.CIRCUIT_OPEN
+            )
+
+        last_result: EmbeddingResult = EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR
+        )
+        for attempt in range(self._config.max_retries + 1):
+            try:
+                result = await asyncio.wait_for(
+                    _fetch_embedding(
+                        text,
+                        self._http,
+                        self._config.embed_url,
+                    ),
+                    timeout=self._config.timeout,
+                )
+                if result.success:
+                    self._fail_count = 0
+                    return result
+                last_result = result
+            except TimeoutError:
+                logger.warning(
+                    "EmbeddingClient timeout (attempt %d/%d)",
+                    attempt + 1,
+                    self._config.max_retries + 1,
+                )
+                last_result = EmbeddingResult(
+                    success=False, error_kind=EmbeddingErrorKind.TIMEOUT
+                )
+            self._record_failure()
+            if self._is_circuit_open():
+                return EmbeddingResult(
+                    success=False, error_kind=EmbeddingErrorKind.CIRCUIT_OPEN
+                )
+
+        return last_result

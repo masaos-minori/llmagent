@@ -186,7 +186,12 @@ class DeleteFileService(FileSecurityMixin):
     async def fmt_delete_file(self, args: ToolArgs) -> str:
         """Delete a single file and format the result as plain text."""
         result = await asyncio.to_thread(
-            lambda: self.delete_file(DeleteFileRequest(**args)),
+            lambda: self.delete_file(
+                DeleteFileRequest(
+                    path=args["path"],
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = DeleteFileFormatter.format_file_result(result)
         return formatted
@@ -194,7 +199,13 @@ class DeleteFileService(FileSecurityMixin):
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
         """Delete a directory recursively and format the result as plain text."""
         result = await asyncio.to_thread(
-            lambda: self.delete_directory(DeleteDirectoryRequest(**args)),
+            lambda: self.delete_directory(
+                DeleteDirectoryRequest(
+                    path=args["path"],
+                    recursive=args.get("recursive", False),
+                    dry_run=args.get("dry_run", False),
+                )
+            ),
         )
         formatted: str = DeleteFileFormatter.format_directory_result(result)
         return formatted

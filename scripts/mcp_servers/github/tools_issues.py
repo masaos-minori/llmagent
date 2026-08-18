@@ -6,7 +6,10 @@ MCP tool schema definitions for GitHub issues operations.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
+
+from mcp_servers.models import McpTool
+
 
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
 # identical across all 5 TOOL_LIST entries, so they are split into a head
@@ -17,22 +20,45 @@ from typing import Any
 # "requires_serial" value but an empty scope. Extracted so the shared parts
 # stay in sync (mirrors the analogous _GITHUB_FILE_TOOL_METADATA_HEAD/_TAIL
 # split in scripts/mcp_servers/github/tools_file.py).
-_GITHUB_ISSUE_TOOL_METADATA_HEAD: dict[str, Any] = {
+class _GithubIssueMetadataHead(TypedDict):
+    """Shared metadata fields common to github_issue TOOL_LIST entries."""
+
+    status: str
+    config_dependent: bool
+
+
+class _GithubIssueRepoScopeTail(TypedDict):
+    """Shared metadata tail for github_repo-scoped TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: list[str]
+
+
+class _GithubIssueNoScopeTail(TypedDict):
+    """Shared metadata tail for unscoped TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: list[str]
+
+
+_GITHUB_ISSUE_TOOL_METADATA_HEAD: _GithubIssueMetadataHead = {
     "status": "production",
     "config_dependent": True,
 }
-_GITHUB_ISSUE_REPO_SCOPE_TAIL: dict[str, Any] = {
+_GITHUB_ISSUE_REPO_SCOPE_TAIL: _GithubIssueRepoScopeTail = {
     "requires_serial": False,
     "resource_scope_kind": "github_repo",
     "resource_scope_keys": ["owner", "repo"],
 }
-_GITHUB_ISSUE_NO_SCOPE_TAIL: dict[str, Any] = {
+_GITHUB_ISSUE_NO_SCOPE_TAIL: _GithubIssueNoScopeTail = {
     "requires_serial": False,
     "resource_scope_kind": "",
     "resource_scope_keys": [],
 }
 
-TOOL_LIST: list[dict] = [
+TOOL_LIST: list[McpTool] = [
     {
         "name": "github_list_issues",
         "description": (

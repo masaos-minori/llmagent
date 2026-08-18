@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""scripts/agent/cli_view.py
+
+CLI presentation layer: readline setup, multiline continuation input,
+and progress display.
+
+Writer and Reader Protocols allow test doubles and alternative I/O backends
+to replace the default terminal implementation without touching callers.
+"""
+
+import asyncio
+import logging
+import readline
+from abc import ABC
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from agent.output_tags import OutputTag
+
+logger = logging.getLogger(__name__)
+
+_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+
+class WriterBase(ABC):
+    """Base class providing default implementations for Writer Protocol methods.
+
+    Allows partial test doubles to satisfy the Writer Protocol without
+    implementing all methods. Calling an unimplemented method raises
+    NotImplementedError with a clear message.
+    """
+
+    def write_token(self, token: str) -> None:
+        raise NotImplementedError("write_token must be implemented")
+
+    def write_compress_notice(self, n: int) -> None:
+        raise NotImplementedError("write_compress_notice must be implemented")
+
+    def write_turn_start(self) -> None:
+        raise NotImplementedError("write_turn_start must be implemented")
+
+    def write_turn_end(self) -> None:
+        raise NotImplementedError("write_turn_end must be implemented")
+
+    def write_llm_error(self, e: Exception) -> None:
+        raise NotImplementedError("write_llm_error must be implemented")
+
+    def write_progress(self, msg: str) -> None:
+        raise NotImplementedError("write_progress must be implemented")
+
+    def clear_progress(self) -> None:
+        raise NotImplementedError("clear_progress must be implemented")
+
+    def write_warning(self, msg: str) -> None:
+        raise NotImplementedError("write_warning must be implemented")
+
+    def write_fatal(self, msg: str) -> None:
+        raise NotImplementedError("write_fatal must be implemented")
+
+    def write_startup_banner(
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_mode: str | None = None,
+    ) -> None:
+        raise NotImplementedError("write_startup_banner must be implemented")
+
+
+@runtime_checkable
+class Writer(Protocol):
+    """Output-side interface for LLM streaming and status messages."""
+
+    def write_token(self, token: str) -> None:
+        """Write one streaming token to stdout without a trailing newline."""
+        ...
+
+    def write_compress_notice(self, n: int) -> None:
+        """Notify the user that history was compressed."""
+        ...
+
+    def write_turn_start(self) -> None:
+        """Print a blank line before each LLM streaming turn."""
+        ...
+
+    def write_turn_end(self) -> None:
+        """Print a blank line after the final LLM answer."""
+        ...
+
+    def write_llm_error(self, e: Exception) -> None:
+        """Notify the user of an LLM request failure."""
+        ...
+
+    def write_progress(self, msg: str) -> None:
+        """Overwrite the current line with a progress indicator."""
+        ...
+
+    def clear_progress(self) -> None:
+        """Erase the progress line."""
+        ...
+
+    def write_warning(self, msg: str) -> None:
+        """Print a startup or runtime warning prefixed with [warn]."""
+        ...
+
+    def write_fatal(self, msg: str) -> None:
+        """Print a fatal error prefixed with [fatal]."""
+        ...
+
+    def write_startup_banner(
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_mode: str | None = None,
+    ) -> None:
+        """Print the agent startup line for display purposes."""
+        ...
+
+
+@runtime_checkable
+class Reader(Protocol):
+    """Input-side interface for multiline continuation prompts."""
+
+    async def read_multiline(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        first_line: str,
+    ) -> str:
+        """Collect continuation lines when first_line ends with backslash."""
+        ...
+
+
+class CLIView(WriterBase):
+    """Manages terminal I/O: readline history, tab completion, multiline
+    continuation input, and progress status line.
+    """
+
+    HISTORY_FILE = Path.home() / ".agent_history"
+
+    def __init__(self, slash_commands: list[str]) -> None:
+        """Initialize with available slash commands for tab completion."""
+        self._slash_commands = slash_commands
+        self._spinner_task: asyncio.Task[None] | None = None
+        self._stop_spinner_event: asyncio.Event | None = None
+
+    def setup_readline(self) -> None:
+        """Configure readline for bash-equivalent editing and tab completion."""
+        readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set editing-mode emacs")
+        readline.set_history_length(1000)
+
+        if self.HISTORY_FILE.exists():
+            try:
+                readline.read_history_file(str(self.HISTORY_FILE))
+            except OSError as e:
+                logger.debug("Could not read history file: %s", e)
+
+        cmds = self._slash_commands
+
+        def _completer(text: str, state: int) -> str | None:
+            """Readline completer callback for slash commands."""
+            options = [c for c in cmds if c.startswith(text)]
+            return options[state] if state < len(options) else None
+
+        readline.set_completer(_completer)
+        # Delimit only on whitespace so slash commands complete correctly
+        readline.set_completer_delims(" \t\n")
+
+    def write_history(self) -> None:
+        """Persist readline history to disk."""
+        try:
+            readline.write_history_file(str(self.HISTORY_FILE))
+        except OSError as e:
+            logger.debug("Could not write history file: %s", e)
+
+    def write_token(self, token: str) -> None:
+        """Write one streaming token to stdout without a trailing newline."""
+        self.stop_spinner()
+        print(token, end="", flush=True)
+
+    def write_compress_notice(self, n: int) -> None:
+        """Notify the user that history was compressed."""
+        print(f"  {OutputTag.CONTEXT} history compressed ({n} messages summarized)")
+
+    def write_turn_start(self) -> None:
+        """Print a blank line before each LLM streaming turn."""
+        print()
+
+    def write_turn_end(self) -> None:
+        """Print a blank line after the final LLM answer."""
+        print()
+
+    def write_llm_error(self, e: Exception) -> None:
+        """Notify the user of an LLM request failure."""
+        print(f"\n{OutputTag.ERROR} {e}\n")
+
+    def write_progress(self, msg: str) -> None:
+        """Overwrite the current line with a progress indicator."""
+        print(f"  {OutputTag.RAG} {msg:<24}", end="\r", flush=True)
+
+    def clear_progress(self) -> None:
+        """Erase the progress line."""
+        print(" " * 32, end="\r", flush=True)
+
+    async def start_spinner(self, msg: str = "Thinking") -> None:
+        """Start an async spinner animation on the current line."""
+        self.stop_spinner()
+        self._stop_spinner_event = asyncio.Event()
+
+        async def _spin() -> None:
+            """Async spinner animation loop running on the current line."""
+            assert self._stop_spinner_event is not None
+            i = 0
+            while not self._stop_spinner_event.is_set():
+                frame = _SPINNER_FRAMES[i % len(_SPINNER_FRAMES)]
+                print(f"\r  {frame} {msg}...", end="", flush=True)
+                await asyncio.sleep(0.1)
+                i += 1
+
+        self._spinner_task = asyncio.create_task(_spin())
+
+    def stop_spinner(self) -> None:
+        """Stop the spinner and clear the line."""
+        if self._spinner_task is not None and not self._spinner_task.done():
+            assert self._stop_spinner_event is not None
+            self._stop_spinner_event.set()
+        print("\r" + " " * 40 + "\r", end="", flush=True)
+
+    def write_warning(self, msg: str) -> None:
+        """Print a startup or runtime warning prefixed with [warn]."""
+        print(f"{OutputTag.WARN} {msg}")
+
+    def write_fatal(self, msg: str) -> None:
+        """Print a fatal error prefixed with [fatal]."""
+        print(f"{OutputTag.FATAL} {msg}")
+
+    def write_startup_banner(
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_mode: str | None = None,
+    ) -> None:
+        """Print the agent startup line for display purposes."""
+        print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
+        if memory_mode is not None:
+            print(f"Memory: {memory_mode}")
+        if workflow_status:
+            print(f"Workflow: {workflow_status}")
+        print("Type /help for commands, /exit to quit.")
+
+    async def read_multiline(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        first_line: str,
+    ) -> str:
+        """Collect continuation lines when first_line ends with backslash.
+
+        Strips the trailing backslash and joins all parts with newlines.
+        Stops on a line without trailing backslash, an empty line, or EOF.
+        """
+        parts = [first_line[:-1]]
+        while True:
+            try:
+                cont = await loop.run_in_executor(None, lambda: input("... "))
+            except (EOFError, KeyboardInterrupt):
+                break
+            if not cont:
+                break
+            if cont.endswith("\\"):
+                parts.append(cont[:-1])
+            else:
+                parts.append(cont)
+                break
+        return "\n".join(parts)

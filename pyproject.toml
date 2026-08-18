@@ -109,6 +109,10 @@ ignore_missing_imports = true
 warn_return_any = true
 warn_unused_ignores = true
 
+[[tool.mypy.overrides]]
+module = ["scripts.mcp_servers.*"]
+disable_error_code = ["attr-defined", "call-arg"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
@@ -124,10 +128,10 @@ omit = [
     "scripts/db/create_schema.py",
     # FastAPI server entry points — start HTTP servers; not unit-testable
     "scripts/mcp_servers/file/*_server.py",
-    "scripts/mcp_servers/github/server.py",
-    "scripts/mcp_servers/shell/server.py",
-    "scripts/mcp_servers/web_search/server.py",
-    "scripts/mcp_servers/rag_pipeline/server.py",
+    "scripts/mcp_servers/github/github_server.py",
+    "scripts/mcp_servers/shell/shell_server.py",
+    "scripts/mcp_servers/web_search/web_search_server.py",
+    "scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py",
     # MCP installer — scaffolding tool, not production logic
     "scripts/mcp_servers/installer.py",
     # REPL entry points — interactive CLI; no unit tests by design (documented in CLAUDE.md)
@@ -163,3 +167,6 @@ check-rag-docs = "tools.check_rag_docs_consistency:main"
 pythonVersion = "3.13"
 include = ["scripts/"]
 reportMissingImports = false
+
+[tool.mutmut]
+source_paths = ["scripts"]

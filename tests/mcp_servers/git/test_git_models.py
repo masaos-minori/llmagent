@@ -47,9 +47,9 @@ class TestGitConfigFromDict:
                 }
             )
 
-    def test_allowed_repo_paths_missing_raises(self) -> None:
-        with pytest.raises(ValueError, match="'allowed_repo_paths' must be a list"):
-            GitConfig.from_dict({"read_only": True, "max_log_entries": 50})
+    def test_allowed_repo_paths_missing_uses_default(self) -> None:
+        cfg = GitConfig.from_dict({"read_only": True, "max_log_entries": 50})
+        assert cfg.allowed_repo_paths == []
 
     def test_read_only_not_a_bool_raises(self) -> None:
         with pytest.raises(ValueError, match="'read_only' must be a boolean"):

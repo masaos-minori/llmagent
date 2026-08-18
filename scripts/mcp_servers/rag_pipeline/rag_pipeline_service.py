@@ -209,7 +209,11 @@ class RagPipelineMCPService:
 
     async def fmt_run_pipeline(self, args: ToolArgs) -> str:
         """Format rag_run_pipeline result as plain text for LLM tool result."""
-        req = RagRunRequest(**args)
+        req = RagRunRequest(
+            query=args["query"],
+            history_context=args.get("history_context", []),
+            debug=args.get("debug", False),
+        )
         result = await self.run_pipeline(req)
         if not result.augmented_text:
             return "(No relevant documents found in the knowledge base.)"
@@ -245,7 +249,11 @@ class RagPipelineMCPService:
 
     async def fmt_debug_pipeline(self, args: ToolArgs) -> str:
         """Format rag_debug_pipeline result as JSON summary for LLM tool result."""
-        req = RagRunRequest(**args)
+        req = RagRunRequest(
+            query=args["query"],
+            history_context=args.get("history_context", []),
+            debug=args.get("debug", False),
+        )
         result = await self.run_debug_pipeline(req)
         raw: bytes = orjson.dumps(
             {

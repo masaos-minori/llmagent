@@ -3,7 +3,7 @@
 
 Search provider implementations for web-search-mcp.
 
-Dependency direction: mcp_servers.web_search.search_provider → duckduckgo_search, mcp_servers.web_search.models
+Dependency direction: mcp_servers.web_search.search_provider → duckduckgo_search, mcp_servers.web_search.web_search_models
 Import from here:  from mcp_servers.web_search.search_provider import search_duckduckgo
 """
 
@@ -65,7 +65,7 @@ async def search_duckduckgo(
     return _build_search_results(raw)
 
 
-def _validate_raw_items(raw: list[dict]) -> None:
+def _validate_raw_items(raw: list[dict[str, str]]) -> None:
     """Raise WebSearchParseError if any raw result item is not a dict."""
     for item in raw:
         if not isinstance(item, dict):
@@ -74,7 +74,7 @@ def _validate_raw_items(raw: list[dict]) -> None:
             )
 
 
-def _build_search_results(raw: list[dict]) -> list[SearchResult]:
+def _build_search_results(raw: list[dict[str, str]]) -> list[SearchResult]:
     """Convert validated raw DuckDuckGo result dicts into SearchResult objects."""
     return [
         SearchResult(

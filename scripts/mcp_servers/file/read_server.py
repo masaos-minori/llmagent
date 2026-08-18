@@ -59,7 +59,7 @@ from mcp_servers.file.read_models import (
 )
 from mcp_servers.file.read_service import ReadFileService, build_service
 from mcp_servers.file.read_tools import TOOL_LIST
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCP_TOOL_SCHEMA_VERSION,
     MCPServer,
@@ -249,7 +249,7 @@ async def _dispatch_read_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 def _annotate_tool(
-    tool: dict[str, Any], enabled: bool, disabled_reason: str
+    tool: McpTool, enabled: bool, disabled_reason: str
 ) -> dict[str, Any]:
     """Return a copy of tool with server_key and availability fields attached."""
     return {

@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import Any
+import os
+from typing import Any, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class FileDeleteConfig:
     """Typed configuration for the File Delete MCP server."""
 
@@ -30,7 +32,7 @@ class FileDeleteConfig:
     def from_dict(cls, d: dict[str, Any]) -> FileDeleteConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
-            allowed_dirs=list(d.get("allowed_dirs", [])),
+            allowed_dirs=list(get_typed(d, "allowed_dirs", list, "a list", default=[])),
         )
 
     @classmethod
@@ -40,14 +42,34 @@ class FileDeleteConfig:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Shared mixins
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class PathMixin:
+    """Mixin providing shared path field with unified description."""
+
+    path: str = Field(description="Absolute path of the target to delete")
+
+    @model_validator(mode="after")
+    def validate_path(self) -> Self:
+        if not self.path:
+            raise ValueError("path must not be empty")
+        if not os.path.isabs(self.path):
+            raise ValueError(f"path must be an absolute path, got: {self.path}")
+        return self
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Pydantic schema definitions
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class DeleteFileRequest(BaseModel):
+class DeleteFileRequest(PathMixin, BaseModel):
     """Request model for deleting a single file."""
 
-    path: str = Field(..., description="Absolute path of the file to delete")
+    model_config = ConfigDict(extra="forbid")
+
     dry_run: bool = Field(
         default=False,
         description="When true, return file info without deleting",
@@ -62,10 +84,11 @@ class DeleteFileResponse(BaseModel):
     file_info: str = ""
 
 
-class DeleteDirectoryRequest(BaseModel):
+class DeleteDirectoryRequest(PathMixin, BaseModel):
     """Request model for deleting a directory."""
 
-    path: str = Field(..., description="Absolute path of the directory to delete")
+    model_config = ConfigDict(extra="forbid")
+
     # recursive=True: remove contents recursively
     # False (default): only empty directories can be deleted
     recursive: bool = Field(

@@ -85,7 +85,10 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
     """
     t0 = time.perf_counter()
     try:
-        req = SearchRequest(**args)
+        req = SearchRequest(
+            query=args["query"],
+            max_results=args.get("max_results", _cfg.default_max_results),
+        )
         results = await search_duckduckgo(
             req.query, req.max_results, _cfg.search_timeout_sec
         )
@@ -112,6 +115,9 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
             ms=f"{ms:.0f}",
         ),
     )
+    # Note: search_web and fetch_browser maintain separate metrics/health singletons.
+    # This separation was established per UNK-03 design rationale and preserved here.
+    # Consolidation would require coupling these concerns, which is not warranted.
     metrics.record_query(success=True, latency_ms=ms)
     health.record_success()
     return SearchResponse(
@@ -156,7 +162,10 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
     t0 = time.perf_counter()
     browser_cfg = BrowserConfig.from_web_search_config(_cfg)
     try:
-        req = BrowserFetchRequest(**args)
+        req = BrowserFetchRequest(
+            url=args["url"],
+            max_response_kb=args.get("max_response_kb"),
+        )
         result = await _provider_fetch_browser(req, browser_cfg)
     except (BrowserValidationError, BrowserAuthorizationError) as e:
         # Both are rejected before the outbound fetch is ever attempted (bad
@@ -182,6 +191,9 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
 
     ms = _elapsed_ms(t0)
     logger.info(fmt_kvlog("browser_fetch", url=req.url[:80], ms=f"{ms:.0f}"))
+    # Note: search_web and fetch_browser maintain separate metrics/health singletons.
+    # This separation was established per UNK-03 design rationale and preserved here.
+    # Consolidation would require coupling these concerns, which is not warranted.
     metrics.record_browser_query(success=True, latency_ms=ms)
     health.record_browser_success()
     return result

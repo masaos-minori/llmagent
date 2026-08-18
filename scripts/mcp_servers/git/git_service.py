@@ -67,8 +67,6 @@ _GIT_ERRORS = (git.exc.GitError, OSError, ValueError)
 
 logger = logging.getLogger(__name__)
 
-GIT_SHOW_OUTPUT_MAX_CHARS = 8000
-
 _WRITE_TOOLS: frozenset[str] = frozenset(
     {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"},
 )
@@ -130,14 +128,18 @@ class GitService(GitSecurityGuards):
 
     async def git_status(self, args: ToolArgs) -> str:
         """Return the current status of files in the repository."""
-        req = GitStatusRequest(**args)
+        req = GitStatusRequest(repo_path=args["repo_path"])
         return await self._run_tool(
             "git_status", req.repo_path, lambda repo: format_status(repo)
         )
 
     async def git_log(self, args: ToolArgs) -> str:
         """Return recent commit log entries for the repository."""
-        req = GitLogRequest(**args)
+        req = GitLogRequest(
+            repo_path=args["repo_path"],
+            max_entries=args.get("max_entries", 20),
+            branch=args.get("branch", ""),
+        )
         return await self._run_tool(
             "git_log",
             req.repo_path,
@@ -146,21 +148,28 @@ class GitService(GitSecurityGuards):
 
     async def git_diff(self, args: ToolArgs) -> str:
         """Return the diff between working tree and index or two commits."""
-        req = GitDiffRequest(**args)
+        req = GitDiffRequest(
+            repo_path=args["repo_path"],
+            staged=args.get("staged", False),
+            commit=args.get("commit", ""),
+        )
         return await self._run_tool(
             "git_diff", req.repo_path, lambda repo: format_diff(repo, req)
         )
 
     async def git_branch(self, args: ToolArgs) -> str:
         """List branches in the repository."""
-        req = GitBranchRequest(**args)
+        req = GitBranchRequest(repo_path=args["repo_path"])
         return await self._run_tool(
             "git_branch", req.repo_path, lambda repo: format_branch(repo)
         )
 
     async def git_show(self, args: ToolArgs) -> str:
         """Show details of a commit, blob, or tree object."""
-        req = GitShowRequest(**args)
+        req = GitShowRequest(
+            repo_path=args["repo_path"],
+            ref=args.get("ref", "HEAD"),
+        )
         return await self._run_tool(
             "git_show", req.repo_path, lambda repo: format_show(repo, req)
         )
@@ -169,35 +178,58 @@ class GitService(GitSecurityGuards):
 
     async def git_add(self, args: ToolArgs) -> str:
         """Stage files for commit."""
-        req = GitAddRequest(**args)
+        req = GitAddRequest(
+            repo_path=args["repo_path"],
+            paths=args["paths"],
+            dry_run=args.get("dry_run", False),
+        )
         return await self._run_tool(
             "git_add", req.repo_path, lambda repo: format_add(repo, req)
         )
 
     async def git_commit(self, args: ToolArgs) -> str:
         """Create a new commit from staged changes."""
-        req = GitCommitRequest(**args)
+        req = GitCommitRequest(
+            repo_path=args["repo_path"],
+            message=args["message"],
+            dry_run=args.get("dry_run", False),
+        )
         return await self._run_tool(
             "git_commit", req.repo_path, lambda repo: format_commit(repo, req)
         )
 
     async def git_checkout(self, args: ToolArgs) -> str:
         """Switch branches or restore working tree files."""
-        req = GitCheckoutRequest(**args)
+        req = GitCheckoutRequest(
+            repo_path=args["repo_path"],
+            branch=args["branch"],
+            create=args.get("create", False),
+            dry_run=args.get("dry_run", False),
+        )
         return await self._run_tool(
             "git_checkout", req.repo_path, lambda repo: format_checkout(repo, req)
         )
 
     async def git_pull(self, args: ToolArgs) -> str:
         """Fetch and merge changes from a remote repository."""
-        req = GitPullRequest(**args)
+        req = GitPullRequest(
+            repo_path=args["repo_path"],
+            remote=args.get("remote", "origin"),
+            branch=args.get("branch", ""),
+            dry_run=args.get("dry_run", False),
+        )
         return await self._run_tool(
             "git_pull", req.repo_path, lambda repo: format_pull(repo, req)
         )
 
     async def git_push(self, args: ToolArgs) -> str:
         """Push local commits to a remote repository."""
-        req = GitPushRequest(**args)
+        req = GitPushRequest(
+            repo_path=args["repo_path"],
+            remote=args.get("remote", "origin"),
+            branch=args.get("branch", ""),
+            dry_run=args.get("dry_run", False),
+        )
         return await self._run_tool(
             "git_push", req.repo_path, lambda repo: format_push(repo, req)
         )

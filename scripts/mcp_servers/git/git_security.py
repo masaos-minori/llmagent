@@ -34,11 +34,8 @@ class GitSecurityGuards:
             return False, _repo_denied_msg(repo_path)
         target = Path(repo_path).resolve()
         for allowed in self._allowed:
-            try:
-                target.relative_to(allowed)
+            if target.is_relative_to(allowed):
                 return True, ""
-            except ValueError:
-                continue
         return False, _repo_denied_msg(repo_path)
 
     def _check_write(self) -> tuple[bool, str]:

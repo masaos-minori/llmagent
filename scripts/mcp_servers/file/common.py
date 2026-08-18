@@ -29,8 +29,8 @@ def resolve_safe(raw_path: str, allowed_dirs: list[Path]) -> Path:
     """Resolve symlinks; verify path is under one of allowed_dirs. Raises 403/400."""
     try:
         resolved = Path(raw_path).resolve()
-    except OSError:
-        raise FileValidationError("Invalid path")
+    except OSError as e:
+        raise FileValidationError("Invalid path") from e
     for allowed in allowed_dirs:
         try:
             resolved.relative_to(allowed.resolve())
@@ -85,7 +85,7 @@ def check_size_limit(target: Path, max_bytes: int) -> int:
     try:
         size = target.stat().st_size
     except OSError as e:
-        raise FileValidationError(str(e))
+        raise FileValidationError(str(e)) from e
     if size > max_bytes:
         raise FileValidationError(
             f"File size exceeds the limit ({max_bytes} bytes): {size} bytes",
@@ -128,19 +128,16 @@ def _build_health_deps(allowed_dirs: list[str]) -> dict[str, str]:
 # ── Common exception handlers and health endpoint ─────────────────────────────
 
 
-async def _on_auth_error(_req: Request, exc: Exception) -> JSONResponse:
-    """Handle authorization errors by returning a 403 response."""
-    return JSONResponse({"detail": str(exc)}, status_code=403)
+def _make_error_handler(status_code: int):
+    async def handler(_req: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=status_code)
+
+    return handler
 
 
-async def _on_not_found(_req: Request, exc: Exception) -> JSONResponse:
-    """Handle not found errors by returning a 404 response."""
-    return JSONResponse({"detail": str(exc)}, status_code=404)
-
-
-async def _on_validation_error(_req: Request, exc: Exception) -> JSONResponse:
-    """Handle validation errors by returning a 422 response."""
-    return JSONResponse({"detail": str(exc)}, status_code=422)
+_on_auth_error = _make_error_handler(403)
+_on_not_found = _make_error_handler(404)
+_on_validation_error = _make_error_handler(422)
 
 
 async def _health(allowed_dirs: list[str]) -> JSONResponse:

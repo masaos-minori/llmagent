@@ -47,9 +47,9 @@ class TestWebSearchConfig:
         assert cfg.default_max_results == 10
         assert cfg.max_results_limit == 15
 
-    def test_from_dict_type_coercion(self) -> None:
-        cfg = WebSearchConfig.from_dict({"default_max_results": "7"})
-        assert cfg.default_max_results == 7
+    def test_from_dict_string_value_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be an integer"):
+            WebSearchConfig.from_dict({"default_max_results": "7"})
 
     def test_from_dict_default_max_results_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="default_max_results"):

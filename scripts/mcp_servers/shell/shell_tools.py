@@ -6,9 +6,9 @@ MCP tool schema definitions for shell-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any
+from mcp_servers.models import McpTool
 
-TOOL_LIST: list[dict[str, Any]] = [
+TOOL_LIST: list[McpTool] = [
     {
         "name": "shell_run",
         "description": (

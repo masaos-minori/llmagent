@@ -58,6 +58,7 @@ from mcp_servers.server import (
     MCPServer,
     ToolArgs,
     build_tools_response,
+    extract_request_context,
 )
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
@@ -141,10 +142,7 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: "Request") -> CallToolResponse:
     """Execute a GitHub tool by name and return the formatted text result."""
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = extract_request_context(request)
     r = await _dispatch_github_tool(req.name, req.args)
     _audit_log(
         logger,

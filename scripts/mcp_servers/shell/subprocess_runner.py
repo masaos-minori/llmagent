@@ -30,7 +30,6 @@ class SubprocessRunner:
         """Initialize the subprocess runner with sandbox configuration and resource limits."""
         self._sandbox_backend = sandbox_backend
         self._max_memory_mb = max_memory_mb
-        self._timeout_sec = timeout_sec
         self._exec_uid = exec_uid
         self._exec_gid = exec_gid
 

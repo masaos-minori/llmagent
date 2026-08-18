@@ -1,0 +1,959 @@
+"""
+tests/test_history_manager.py
+Behavior-lock tests for HistoryManager.
+
+httpx.AsyncClient is mocked so no real HTTP calls are made.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import orjson
+import pytest
+from agent.history import HistoryManager
+from agent.history_selection_policy import _POLICY_KEYWORDS, HistorySelectionPolicy
+from shared.types import LLMMessage
+
+_classify_importance = HistorySelectionPolicy.classify_importance
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+
+def _make_manager(
+    *,
+    char_limit: int = 1000,
+    compress_turns: int = 2,
+    on_compress: Callable[[int], None] | None = None,
+    http: httpx.AsyncClient | None = None,
+    protect_turns: int = 0,
+    token_limit: int = 0,
+) -> HistoryManager:
+    return HistoryManager(
+        http=http or AsyncMock(spec=httpx.AsyncClient),
+        llm_url="http://localhost:8002/v1/chat/completions",
+        char_limit=char_limit,
+        compress_turns=compress_turns,
+        compress_temperature=0.1,
+        compress_max_tokens=200,
+        on_compress=on_compress,
+        protect_turns=protect_turns,
+        token_limit=token_limit,
+    )
+
+
+def _history(*pairs: tuple[str, str]) -> list[LLMMessage]:
+    """Build a message list from (role, content) pairs."""
+    return [{"role": r, "content": c} for r, c in pairs]
+
+
+# ── count_chars() ─────────────────────────────────────────────────────────────
+
+
+class TestCountChars:
+    def test_counts_content_length(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "hello"), ("assistant", "world"))
+        assert mgr.count_chars(h) == len("hello") + len("world")
+
+    def test_includes_tool_calls_length(self) -> None:
+        mgr = _make_manager()
+        tc = {
+            "id": "x",
+            "type": "function",
+            "function": {"name": "f", "arguments": "{}"},
+        }
+        h: list[LLMMessage] = [
+            {"role": "assistant", "content": None, "tool_calls": [tc]}
+        ]
+        chars = mgr.count_chars(h)
+        assert chars == len(orjson.dumps(tc))
+
+    def test_empty_history_returns_zero(self) -> None:
+        mgr = _make_manager()
+        assert mgr.count_chars([]) == 0
+
+    def test_none_content_counts_as_zero(self) -> None:
+        mgr = _make_manager()
+        h: list[LLMMessage] = [{"role": "assistant", "content": None}]
+        assert mgr.count_chars(h) == 0
+
+
+# ── compress() — no-op paths ─────────────────────────────────────────────────
+
+
+class TestCompressNoOp:
+    @pytest.mark.asyncio
+    async def test_returns_history_unchanged_under_limit(self) -> None:
+        mgr = _make_manager(char_limit=10000)
+        h = _history(("user", "hi"), ("assistant", "hello"))
+        result, _ = await mgr.compress(h)
+        assert result == h
+
+    @pytest.mark.asyncio
+    async def test_returns_history_unchanged_when_too_few_turns(self) -> None:
+        # char_limit=1 forces compression attempt, but only 1 turn (2 msgs)
+        # compress_turns=2 → needs 4 turn messages to compress
+        mgr = _make_manager(char_limit=1, compress_turns=2)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, _ = await mgr.compress(h)
+        assert result == h
+
+
+# ── compress() — LLM call paths ──────────────────────────────────────────────
+
+
+class TestCompressWithLLM:
+    def _over_limit_history(self, limit: int = 10) -> list[LLMMessage]:
+        # 5 turn pairs (10 messages), all well above any small char_limit
+        pairs = [(r, "x" * 20) for r, _ in [("user", ""), ("assistant", "")] * 5]
+        return _history(*pairs)
+
+    @pytest.mark.asyncio
+    async def test_calls_compress_llm_when_over_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        h = self._over_limit_history()
+        result, _ = await mgr.compress(h)
+
+        mock_http.post.assert_called_once()
+        # Result should contain a summary message
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+
+    @pytest.mark.asyncio
+    async def test_increments_stat_compress_count(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        h = self._over_limit_history()
+        await mgr.compress(h)
+        assert mgr.stat_compress_count == 1
+
+    @pytest.mark.asyncio
+    async def test_calls_on_compress_callback(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        callback = MagicMock()
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=mock_http, on_compress=callback
+        )
+        h = self._over_limit_history()
+        await mgr.compress(h)
+        callback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_fallback_truncated_history_on_llm_failure(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        h = self._over_limit_history()
+        result, cr = await mgr.compress(h)
+        # LLM fails -> fallback truncation applied (still over limit since char_limit=1)
+        assert cr.is_fallback is True
+        assert mgr.stat_fallback_truncate_count == 1
+        assert len(result) <= len(h)
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_fails_under_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # char_limit=1000 ensures we are under the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1000, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_fallback_when_llm_fails_over_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # char_limit=1 ensures we are over the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, cr = await mgr.compress(h)
+        # Since it's over limit and LLM failed, it should fall back to truncation
+        assert cr.is_fallback is True
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_returns_none_under_limit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate an empty response that triggers HistoryCompressionError
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": []})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+        # char_limit=1000 ensures we are under the limit. compress_turns=1 needs 2 msgs.
+        mgr = _make_manager(char_limit=1000, compress_turns=1, http=mock_http)
+        h = _history(("user", "q"), ("assistant", "a"))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_preserves_system_messages(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        system_msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        h = [system_msg] + self._over_limit_history()
+        result, _ = await mgr.compress(h)
+        assert result[0] == system_msg
+
+
+# ── compress_turns public property ────────────────────────────────────────────
+
+
+class TestCompressTurnsProperty:
+    def test_compress_turns_property_matches_init(self) -> None:
+        mgr = _make_manager(compress_turns=3)
+        assert mgr.compress_turns == 3
+
+    def test_compress_turns_property_is_readable(self) -> None:
+        mgr = _make_manager(compress_turns=2)
+        # Ensure the property is accessible (not AttributeError)
+        val = mgr.compress_turns
+        assert isinstance(val, int)
+
+
+# ── compress_turns/char_limit boundary conditions ──────────────────────────────
+
+
+class TestCompressBoundary:
+    @pytest.mark.asyncio
+    async def test_char_limit_zero_never_compresses(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mgr = _make_manager(char_limit=0, compress_turns=2, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+            ("user", "q4"),
+            ("assistant", "a4"),
+            ("user", "q5"),
+            ("assistant", "a5"),
+        )
+        result, info = await mgr.compress(h)
+        assert result == h
+        mock_http.post.assert_not_called()
+        assert mgr.stat_compress_count == 0
+
+    @pytest.mark.asyncio
+    async def test_compress_turns_one_compresses_single_pair(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        _, info = await mgr.compress(h)
+        mock_http.post.assert_called_once()
+        assert mgr.stat_compress_count == 1
+
+    @pytest.mark.asyncio
+    async def test_compress_turns_one_with_single_turn_skips(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mgr = _make_manager(
+            char_limit=1, compress_turns=1, protect_turns=1, http=mock_http
+        )
+        h = _history(("user", "only question"), ("assistant", "only answer"))
+        result, info = await mgr.compress(h)
+        assert result == h
+        assert mgr.stat_compress_count == 0
+
+
+# ── protect_turns — recent turns are excluded from compression ────────────────
+
+
+class TestProtectTurns:
+    @pytest.mark.asyncio
+    async def test_protected_turns_not_compressed(self) -> None:
+        """With protect_turns=2, the most-recent 2 turn pairs must survive compression."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # 6 turn messages total; compress_turns=2 wants to compress 4 messages,
+        # but protect_turns=2 protects the last 4 messages.
+        # Result: not enough messages to compress → original history returned.
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=mock_http, protect_turns=2
+        )
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result, _ = await mgr.compress(h)
+        # When protect_turns=2 and compress_turns=2, need at least 8 turn messages;
+        # with only 6, _select_turns_to_compress returns None → original returned
+        assert result == h
+
+    @pytest.mark.asyncio
+    async def test_enough_turns_allows_compression_with_protection(self) -> None:
+        """With protect_turns=1 and compress_turns=2, and 7 turn pairs, compression proceeds."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # 10 turn messages; compress_turns=2 (4 msgs); protect_turns=1 (2 msgs)
+        # Needs at least 6 turn messages → 10 >= 6 → compression proceeds
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=mock_http, protect_turns=1
+        )
+        pairs = [("user", "x" * 20), ("assistant", "x" * 20)] * 5
+        h = _history(*pairs)
+        result, _ = await mgr.compress(h)
+        # Summary message should appear; history should be shorter
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+        assert len(result) < len(h)
+
+
+# ── _classify() ───────────────────────────────────────────────────────────────
+
+
+class TestClassify:
+    def test_tool_role_is_temporary(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "result"}
+        assert HistorySelectionPolicy.classify(msg) == "temporary"
+
+    def test_system_role_is_factual(self) -> None:
+        msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        assert HistorySelectionPolicy.classify(msg) == "factual"
+
+    def test_assistant_with_tool_calls_is_temporary_reasoning(self) -> None:
+        msg: LLMMessage = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "x",
+                    "type": "function",
+                    "function": {"name": "f", "arguments": "{}"},
+                }
+            ],
+        }
+        assert HistorySelectionPolicy.classify(msg) == "temporary_reasoning"
+
+    def test_assistant_without_tool_calls_is_history(self) -> None:
+        msg: LLMMessage = {"role": "assistant", "content": "I can help with that."}
+        assert HistorySelectionPolicy.classify(msg) == "history"
+
+    def test_user_role_is_history(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "What is Python?"}
+        assert HistorySelectionPolicy.classify(msg) == "history"
+
+
+# ── count_tokens() ────────────────────────────────────────────────────────────
+
+
+class TestCountTokens:
+    def test_uses_last_input_tokens_when_provided(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 100))
+        # last_input_tokens takes priority over chars // 4
+        assert mgr.count_tokens(h, last_input_tokens=42) == 42
+
+    def test_falls_back_to_chars_div_4(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 400))
+        # chars = 400, estimate = 400 // 4 = 100
+        assert mgr.count_tokens(h, last_input_tokens=None) == 100
+
+    def test_empty_history_returns_zero(self) -> None:
+        mgr = _make_manager()
+        assert mgr.count_tokens([], last_input_tokens=None) == 0
+
+
+# ── compress() — token_limit trigger ─────────────────────────────────────────
+
+
+class TestCompressTokenLimit:
+    def _over_token_history(self) -> list[LLMMessage]:
+        # Each message: 400 chars → ~100 tokens. 5 pairs = 10 msgs × 100 = ~1000 tokens.
+        pairs = [(r, "x" * 400) for r, _ in [("user", ""), ("assistant", "")] * 5]
+        return _history(*pairs)
+
+    def _mock_http(self) -> AsyncMock:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+        return mock_http
+
+    @pytest.mark.asyncio
+    async def test_token_limit_triggers_compression(self) -> None:
+        # token_limit=10; 10 msgs × 100 tokens each >> 10 → should compress
+        mgr = _make_manager(
+            char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
+        )
+        h = self._over_token_history()
+        result, _ = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_token_limit_zero_does_not_trigger(self) -> None:
+        # token_limit=0 (disabled); char_limit large → no compression
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=2, http=self._mock_http(), token_limit=0
+        )
+        h = self._over_token_history()
+        result, _ = await mgr.compress(h)
+        assert result == h
+
+    @pytest.mark.asyncio
+    async def test_char_only_over_limit_triggers_compression(self) -> None:
+        # char_limit=1 (over), token_limit=0 (disabled) → char trigger fires
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=self._mock_http(), token_limit=0
+        )
+        h = self._over_token_history()
+        result, _ = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+
+    @pytest.mark.asyncio
+    async def test_token_only_over_limit_triggers_compression(self) -> None:
+        # char_limit=0 (disabled), token_limit=10 → token trigger fires
+        mgr = _make_manager(
+            char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
+        )
+        h = self._over_token_history()
+        result, _ = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+
+
+# ── split is None warning log ─────────────────────────────────────────────────
+
+
+class TestCompressSkippedWarning:
+    @pytest.mark.asyncio
+    async def test_warns_when_not_enough_turns_but_over_limit(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When _select_turns_to_compress returns None and chars > limit, a warning is logged."""
+        import logging
+
+        # char_limit=1 ensures we're over the limit
+        # compress_turns=2, protect_turns=3 → needs (2+3)*2=10 turn msgs; only 4 available
+        mgr = _make_manager(char_limit=1, compress_turns=2, protect_turns=3)
+        h = _history(
+            ("user", "question 1"),
+            ("assistant", "answer 1"),
+            ("user", "question 2"),
+            ("assistant", "answer 2"),
+        )
+        with caplog.at_level(logging.WARNING, logger="history_manager"):
+            result, _ = await mgr.compress(h)
+        # History returned unchanged
+        assert result == h
+        # Warning logged
+        assert any("compression skipped" in r.message.lower() for r in caplog.records)
+
+
+# ── apply_config / force_compress ────────────────────────────────────────────
+
+
+class TestApplyConfig:
+    def test_apply_config_updates_char_limit(self) -> None:
+        mgr = _make_manager(char_limit=1000)
+        mgr.apply_config(char_limit=500)
+        assert mgr._char_limit == 500
+
+    def test_apply_config_updates_compress_turns(self) -> None:
+        mgr = _make_manager(compress_turns=2)
+        mgr.apply_config(compress_turns=4)
+        assert mgr._compress_turns == 4
+
+    def test_apply_config_updates_token_limit(self) -> None:
+        mgr = _make_manager(token_limit=0)
+        mgr.apply_config(token_limit=8000)
+        assert mgr._token_limit == 8000
+
+    def test_apply_config_updates_tokenize_url(self) -> None:
+        mgr = _make_manager()
+        mgr.apply_config(tokenize_url="http://localhost/tokenize")
+        assert mgr._tokenize_url == "http://localhost/tokenize"
+
+    def test_apply_config_none_args_are_no_op(self) -> None:
+        mgr = _make_manager(char_limit=1000, compress_turns=2)
+        mgr.apply_config()
+        assert mgr._char_limit == 1000
+        assert mgr._compress_turns == 2
+
+
+class TestForceCompress:
+    def _mock_http(self) -> httpx.AsyncClient:
+        mock = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "compressed summary"}}]}
+        )
+        mock.post = AsyncMock(return_value=resp)
+        return mock
+
+    @pytest.mark.asyncio
+    async def test_force_compress_proceeds_regardless_of_limit(self) -> None:
+        # char_limit=99999 normally never triggers compression
+        mgr = _make_manager(char_limit=99999, compress_turns=2, http=self._mock_http())
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result, _ = await mgr.force_compress(h)
+        # Should have compressed (fewer messages)
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_force_compress_restores_original_limits(self) -> None:
+        mgr = _make_manager(char_limit=5000, token_limit=1000, http=self._mock_http())
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        await mgr.force_compress(h)
+        # Limits must be restored after force_compress
+        assert mgr._char_limit == 5000
+        assert mgr._token_limit == 1000
+
+
+# ── _classify_importance / importance-based protection ──────────────────────
+
+
+class TestClassifyImportance:
+    def test_system_message_returns_1(self) -> None:
+        msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        assert _classify_importance(msg) == 1.0
+
+    def test_pinned_message_returns_inf(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "remember this", "pinned": True}
+        assert _classify_importance(msg) == float("inf")
+
+    def test_explicit_importance_overrides_rule(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "hi", "importance": 0.42}
+        assert _classify_importance(msg) == 0.42
+
+    def test_user_with_policy_keyword_returns_09(self) -> None:
+        msg: LLMMessage = {
+            "role": "user",
+            "content": "You must always use type annotations.",
+        }
+        assert _classify_importance(msg) >= 0.9
+
+    def test_assistant_with_policy_keyword_returns_08(self) -> None:
+        msg: LLMMessage = {
+            "role": "assistant",
+            "content": "Always prefer explicit typing.",
+        }
+        assert _classify_importance(msg) >= 0.8
+
+    def test_tool_error_returns_08(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "Error: file not found"}
+        assert _classify_importance(msg) >= 0.8
+
+    def test_tool_success_returns_low(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "OK: done"}
+        assert _classify_importance(msg) < 0.5
+
+    def test_neutral_user_message_returns_05(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "What is the weather today?"}
+        assert _classify_importance(msg) == 0.5
+
+    def test_policy_keywords_regex_matches(self) -> None:
+        for kw in ("always", "never", "must", "rule", "policy", "constraint"):
+            assert _POLICY_KEYWORDS.search(kw), f"keyword not matched: {kw}"
+
+
+class TestCompressResult:
+    @pytest.mark.asyncio
+    async def test_no_op_returns_zero_counts(self) -> None:
+        mgr = _make_manager(char_limit=99999)
+        h = _history(("user", "hi"), ("assistant", "hello"))
+        _, result = await mgr.compress(h)
+        assert result.compressed_count == 0
+        assert result.protected_count == 0
+        assert result.summary_added is False
+
+    @pytest.mark.asyncio
+    async def test_successful_compress_sets_summary_added(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        _, result = await mgr.compress(h)
+        assert result.summary_added is True
+        assert result.compressed_count > 0
+
+    @pytest.mark.asyncio
+    async def test_system_message_not_compressed(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps(
+            {"choices": [{"message": {"content": "Summary."}}]}
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        system_msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        h = [system_msg] + list(
+            _history(
+                ("user", "q1"),
+                ("assistant", "a1"),
+                ("user", "q2"),
+                ("assistant", "a2"),
+                ("user", "q3"),
+                ("assistant", "a3"),
+            )
+        )
+        new_history, result = await mgr.compress(h)
+        assert any(m["role"] == "system" for m in new_history)
+        assert result.compressed_count > 0
+
+
+# ── compress() — LLM returns None / raises HistoryCompressionError ─────────────
+
+
+class TestCompressLLMFailurePaths:
+    """Regression tests for compress() failure paths per implementations/20260731-201219_test_history_manager.py.md."""
+
+    @pytest.mark.asyncio
+    async def test_compress_returns_none_from_llm_under_limit_sets_error(self) -> None:
+        """compress() returns None from LLM call -> verify original messages are returned and CompressResult.error is set."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate empty response that triggers HistoryCompressionError in _call_compress_llm
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": []})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # char_limit large (under limit), but token_limit small to trigger compression via token path
+        # Each message 400 chars → ~100 tokens → 2 msgs × 100 = 200 tokens >> 10 token_limit
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=1, http=mock_http, token_limit=10
+        )
+        h = _history(("user", "x" * 400), ("assistant", "y" * 400))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_compress_raises_history_compression_error_sets_error(self) -> None:
+        """compress() raises HistoryCompressionError -> verify original messages are returned and CompressResult.error is set."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate a request error that raises HistoryCompressionError
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+
+        # char_limit large (under limit), but token_limit small to trigger compression via token path
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=1, http=mock_http, token_limit=10
+        )
+        h = _history(("user", "x" * 400), ("assistant", "y" * 400))
+        result, cr = await mgr.compress(h)
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_compress_returns_none_with_over_char_triggers_fallback(self) -> None:
+        """compress() returns None but over_char is True -> verify fallback truncation is triggered."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        # Simulate empty response that triggers HistoryCompressionError in _call_compress_llm
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": []})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Over char_limit triggers fallback truncation instead of returning original
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+        )
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert len(result) < len(h)
+        assert cr.compressed_count > 0
+
+
+# ── count_tokens_async() ───────────────────────────────────────────────────────
+
+
+class TestCountTokensAsync:
+    @pytest.mark.asyncio
+    async def test_uses_last_input_tokens_when_provided(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "hello"))
+        count, exact = await mgr.count_tokens_async(h, last_input_tokens=42)
+        assert count == 42
+        assert exact is True
+
+    @pytest.mark.asyncio
+    async def test_delegates_to_get_token_count_when_no_last_input(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 100))
+        with patch("agent.history.get_token_count", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = (50, False)
+            count, exact = await mgr.count_tokens_async(h)
+        assert count == 50
+        assert exact is False
+        mock_get.assert_awaited_once_with(h, "", mgr._http, warn_once=mgr._warn_once)
+
+    @pytest.mark.asyncio
+    async def test_exact_from_tokenize(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "hello"))
+        with patch("agent.history.get_token_count", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = (10, True)
+            count, exact = await mgr.count_tokens_async(h)
+        assert count == 10
+        assert exact is True
+
+
+# ── _fallback_truncate() ──────────────────────────────────────────────────────
+
+
+class TestFallbackTruncate:
+    def _mgr(self, *, char_limit: int = 200, protect_turns: int = 1) -> HistoryManager:
+        return _make_manager(char_limit=char_limit, protect_turns=protect_turns)
+
+    def _msg(self, role: str, content: str = "") -> LLMMessage:
+        return {"role": role, "content": content}
+
+    def test_drops_tool_messages_first(self) -> None:
+        mgr = self._mgr(char_limit=40, protect_turns=0)
+        tool_msg = self._msg("tool", "x" * 20)
+        user_msg = self._msg("user", "x" * 20)
+        assistant_msg = self._msg("assistant", "x" * 20)
+        h = [user_msg, tool_msg, assistant_msg]
+        result, cr = mgr._fallback_truncate(h)
+        assert cr.is_fallback is True
+        assert tool_msg not in result
+
+    def test_preserves_system_messages(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        sys_msg = self._msg("system", "sys")
+        user_msg = self._msg("user", "x" * 10)
+        h = [sys_msg, user_msg]
+        result, _ = mgr._fallback_truncate(h)
+        assert sys_msg in result
+
+    def test_preserves_protected_tail(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=1)
+        old_user = self._msg("user", "x" * 20)
+        old_asst = self._msg("assistant", "x" * 20)
+        new_user = self._msg("user", "recent")
+        new_asst = self._msg("assistant", "recent2")
+        h = [old_user, old_asst, new_user, new_asst]
+        result, _ = mgr._fallback_truncate(h)
+        assert new_user in result
+        assert new_asst in result
+
+    def test_increments_stat_fallback_truncate_count(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        h = [self._msg("user", "x" * 10)]
+        mgr._fallback_truncate(h)
+        mgr._fallback_truncate(h)
+        assert mgr.stat_fallback_truncate_count == 2
+
+    def test_compress_result_is_fallback_true(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        h = [self._msg("user", "x" * 5)]
+        _, cr = mgr._fallback_truncate(h)
+        assert cr.is_fallback is True
+
+    def test_reset_for_testing_clears_counters(self) -> None:
+        mgr = self._mgr(char_limit=1)
+        mgr.stat_compress_count = 3
+        mgr.stat_fallback_truncate_count = 5
+        mgr._reset_for_testing()
+        assert mgr.stat_compress_count == 0
+        assert mgr.stat_fallback_truncate_count == 0
+
+    @pytest.mark.asyncio
+    async def test_compress_calls_fallback_when_llm_fails_and_over_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("fail")
+        mgr = _make_manager(char_limit=50, compress_turns=2, http=mock_http)
+        h = [
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+        ]
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert mgr.stat_fallback_truncate_count == 1
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_fails_under_limit_explicit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("connection refused")
+        # Under char_limit, but over token_limit to trigger compression attempt
+        # Each message 400 chars → ~100 tokens; 6 msgs × 100 = 600 >> 5 token_limit
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_original_and_error_when_llm_returns_empty_summary_under_limit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": [{"message": {"content": ""}}]})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Under char_limit, but over token_limit to trigger compression attempt
+        # Each message 400 chars → ~100 tokens; 6 msgs × 100 = 600 >> 5 token_limit
+        mgr = _make_manager(
+            char_limit=999999, token_limit=5, compress_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "x" * 400),
+            ("assistant", "y" * 400),
+            ("user", "z" * 400),
+            ("assistant", "w" * 400),
+            ("user", "a" * 400),
+            ("assistant", "b" * 400),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert result == h
+        assert cr.error is not None
+        assert cr.is_fallback is False
+
+    @pytest.mark.asyncio
+    async def test_returns_fallback_when_llm_returns_empty_summary_over_limit(
+        self,
+    ) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"choices": [{"message": {"content": ""}}]})
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # Over char_limit triggers fallback on LLM failure
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result, cr = await mgr.compress(h)
+
+        assert cr.is_fallback is True
+        assert len(result) < len(h)

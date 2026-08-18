@@ -4,9 +4,12 @@ Unit tests for mcp/git/service.py: GitService guards and dry_run.
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from unittest.mock import MagicMock, patch
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from mcp_servers.git.git_service import GitService
 
 
@@ -23,6 +26,30 @@ def _svc(
 
 
 # ── _check_repo_path ──────────────────────────────────────────────────────────
+
+
+@given(st.text(), st.lists(st.text(), min_size=1))
+def test_check_repo_path_equivalence(target: str, allowed_repos: list[str]) -> None:
+    """Property test: old and new implementations produce identical results."""
+
+    def old_impl(t: str, allowed: list[str]) -> bool:
+        p = PurePosixPath(t)
+        for a in allowed:
+            try:
+                p.relative_to(a)
+                return True
+            except ValueError:
+                continue
+        return False
+
+    def new_impl(t: str, allowed: list[str]) -> bool:
+        p = PurePosixPath(t)
+        for a in allowed:
+            if p.is_relative_to(a):
+                return True
+        return False
+
+    assert old_impl(target, allowed_repos) == new_impl(target, allowed_repos)
 
 
 class TestCheckRepoPath:

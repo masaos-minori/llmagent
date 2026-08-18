@@ -12,26 +12,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-def _get_typed(
-    d: dict[str, Any], key: str, expected_type: type, type_label: str
-) -> Any:
-    """Return ``d[key]``, raising ``ValueError`` if it is not an instance of ``expected_type``.
-
-    ``type_label`` must already include its article, e.g. ``"a list"`` or ``"an integer"``.
-    """
-    value = d.get(key)
-    if not isinstance(value, expected_type):
-        raise ValueError(f"'{key}' must be {type_label}")
-    return value
 
 
 @dataclasses.dataclass
@@ -47,9 +34,9 @@ class GitConfig:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
-        allowed = _get_typed(d, "allowed_repo_paths", list, "a list")
-        read_only = _get_typed(d, "read_only", bool, "a boolean")
-        max_log = _get_typed(d, "max_log_entries", int, "an integer")
+        allowed = get_typed(d, "allowed_repo_paths", list, "a list", default=[])
+        read_only = get_typed(d, "read_only", bool, "a boolean", default=True)
+        max_log = get_typed(d, "max_log_entries", int, "an integer", default=50)
         return cls(
             allowed_repo_paths=list(allowed),
             read_only=read_only,
@@ -79,19 +66,23 @@ class GitServiceError(RuntimeError):
 
 _REPO_PATH_DESC = "Absolute path to the git repository"
 
+
+class RepoPathMixin:
+    """Mixin providing the common repo_path field."""
+
+    repo_path: str = Field(..., description=_REPO_PATH_DESC)
+
+
 # ── Read-only tool request models ────────────────────────────────────────────
 
 
-class GitStatusRequest(BaseModel):
+class GitStatusRequest(RepoPathMixin, BaseModel):
     """Request model for git_status — read-only status of a repository."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
 
-
-class GitLogRequest(BaseModel):
+class GitLogRequest(RepoPathMixin, BaseModel):
     """Request model for git_log — recent commit log entries."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     max_entries: int = Field(
         default=20,
         ge=1,
@@ -101,10 +92,9 @@ class GitLogRequest(BaseModel):
     branch: str = Field(default="", description="Branch name; empty = current HEAD")
 
 
-class GitDiffRequest(BaseModel):
+class GitDiffRequest(RepoPathMixin, BaseModel):
     """Request model for git_diff — diff between working tree and index or two commits."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     staged: bool = Field(
         default=False,
         description="When True, show staged diff (git diff --cached)",
@@ -115,26 +105,22 @@ class GitDiffRequest(BaseModel):
     )
 
 
-class GitBranchRequest(BaseModel):
+class GitBranchRequest(RepoPathMixin, BaseModel):
     """Request model for git_branch — list branches in a repository."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
 
-
-class GitShowRequest(BaseModel):
+class GitShowRequest(RepoPathMixin, BaseModel):
     """Request model for git_show — show details of a commit, blob, or tree object."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     ref: str = Field(default="HEAD", description="Commit ref or tag to show")
 
 
 # ── Write tool request models ─────────────────────────────────────────────────
 
 
-class GitAddRequest(BaseModel):
+class GitAddRequest(RepoPathMixin, BaseModel):
     """Request model for git_add — stage files for commit."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     paths: list[str] = Field(
         ...,
         min_length=1,
@@ -146,10 +132,9 @@ class GitAddRequest(BaseModel):
     )
 
 
-class GitCommitRequest(BaseModel):
+class GitCommitRequest(RepoPathMixin, BaseModel):
     """Request model for git_commit — create a new commit from staged changes."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     message: str = Field(..., min_length=1, description="Commit message")
     dry_run: bool = Field(
         default=False,
@@ -157,10 +142,9 @@ class GitCommitRequest(BaseModel):
     )
 
 
-class GitCheckoutRequest(BaseModel):
+class GitCheckoutRequest(RepoPathMixin, BaseModel):
     """Request model for git_checkout — switch branches or restore working tree files."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     branch: str = Field(..., description="Branch name to checkout or create")
     create: bool = Field(default=False, description="When True, create new branch (-b)")
     dry_run: bool = Field(
@@ -169,10 +153,9 @@ class GitCheckoutRequest(BaseModel):
     )
 
 
-class GitPullRequest(BaseModel):
+class GitPullRequest(RepoPathMixin, BaseModel):
     """Request model for git_pull — fetch and merge changes from a remote repository."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(
         default="",
@@ -184,10 +167,9 @@ class GitPullRequest(BaseModel):
     )
 
 
-class GitPushRequest(BaseModel):
+class GitPushRequest(RepoPathMixin, BaseModel):
     """Request model for git_push — push local commits to a remote repository."""
 
-    repo_path: str = Field(..., description=_REPO_PATH_DESC)
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(default="", description="Branch name; empty = current branch")
     dry_run: bool = Field(

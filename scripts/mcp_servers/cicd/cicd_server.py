@@ -48,6 +48,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_request_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,10 +91,7 @@ async def list_tools() -> dict[str, Any]:
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Dispatch an MCP tool call through the CI/CD service with audit logging."""
     t0 = time.perf_counter()
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = extract_request_context(request)
     r = await _dispatch_cicd_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
@@ -102,7 +100,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=req.args.get("repo", ""),
+        target=cast(str, req.args.get("repo", "")),
         outcome=r.outcome,
         server_key="cicd",
     )

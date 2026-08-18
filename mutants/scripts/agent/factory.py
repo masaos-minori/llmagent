@@ -1,0 +1,528 @@
+"""scripts/agent/factory.py
+
+AgentContext assembly factory.
+Service injection into ctx.services is separated from AgentREPL to enable testing.
+CommandRegistry and Orchestrator remain on AgentREPL because they reference
+REPL instance state directly.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import subprocess
+import time
+from collections.abc import Awaitable, Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+import httpx
+from db.store_protocols import get_embedding_dims
+from shared.git_helper import get_repo_info
+from shared.llm_client import LLMClient, build_embed_url, build_llm_url
+from shared.logger import Logger
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health import McpServerHealthRegistry
+from shared.otel_tracer import build_tracer
+from shared.tool_executor import ToolExecutor
+from shared.tool_lifecycle import ServerCooldownError
+
+from agent.cli_view import CLIView
+from agent.context import AgentContext, AppServices
+from agent.history import HistoryManager
+from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.lifecycle import LifecycleState, assert_valid_transition
+from agent.lifecycle_protocol import LifecycleManagerProtocol
+from agent.repository_gateway import RepositoryGateway
+from agent.services.models import ProcessInfoSnapshot
+
+if TYPE_CHECKING:
+    from agent.memory.services import MemoryServices
+
+# LLM parameters used by HistoryManager for conversation compression
+_COMPRESS_TEMPERATURE: float = 0.3
+_COMPRESS_MAX_TOKENS: int = 300
+
+_logger = logging.getLogger(__name__)
+
+# Cooldown duration for failed MCP subprocess starts (seconds)
+_COOLDOWN_SECONDS: float = 30.0
+_COOLDOWN_TIMEOUT_SEC: int = 30
+
+
+class _ServerLifecycleRouter:
+    """Production implementation of LifecycleManagerProtocol for HTTP MCP servers.
+
+    Delegates subprocess management to HttpServerLifecycleManager (_http_mgr) while
+    adding:
+    - Shutdown guard (_shutting_down): prevents start/restart after shutdown begins.
+    - LifecycleState tracking (_states): provides get_transport_state() with real values.
+    - Process snapshot API: get_process_info() and list_processes() for observability.
+    """
+
+    def __init__(
+        self,
+        server_configs: dict[str, McpServerConfig],
+        tool_executor: ToolExecutor,
+    ) -> None:
+        """Initialize the lifecycle router with MCP server configurations."""
+        self._server_configs = server_configs
+        self._http_mgr = HttpServerLifecycleManager()
+        self._shutting_down: bool = False
+        self._states: dict[str, LifecycleState] = {}
+        self._failed_starts: dict[str, float] = {}
+
+    def _set_state(self, server_key: str, new_state: LifecycleState) -> None:
+        """Transition the server state with validation."""
+        # First-time server: no prior state to validate against.
+        if server_key not in self._states:
+            _logger.info(
+                "Lifecycle: initializing state for %r -> %r",
+                server_key,
+                new_state,
+            )
+            self._states[server_key] = new_state
+            return
+
+        current = self._states[server_key]
+        try:
+            assert_valid_transition(current, new_state)
+        except ValueError:
+            _logger.warning(
+                "Lifecycle: invalid state transition %r -> %r for %r",
+                current,
+                new_state,
+                server_key,
+            )
+        self._states[server_key] = new_state
+
+    async def _run_lifecycle_transition(
+        self,
+        server_key: str,
+        op: Callable[[], Awaitable[None]],
+    ) -> None:
+        """Run *op* as a STARTING transition, marking RUNNING on success or FAILED on error."""
+        self._set_state(server_key, LifecycleState.STARTING)
+        try:
+            await op()
+            self._failed_starts.pop(server_key, None)
+            self._set_state(server_key, LifecycleState.RUNNING)
+        except Exception:
+            self._failed_starts[server_key] = time.monotonic()
+            self._set_state(server_key, LifecycleState.FAILED)
+            raise
+
+    def _in_cooldown(self, server_key: str) -> bool:
+        """Return True if the server is within its cooldown window."""
+        last_failure = self._failed_starts.get(server_key, 0)
+        if last_failure == 0:
+            return False
+        elapsed = time.monotonic() - last_failure
+        if elapsed < _COOLDOWN_SECONDS:
+            _logger.info(
+                "Lifecycle: %r still in cooldown (%.1fs remaining)",
+                server_key,
+                _COOLDOWN_SECONDS - elapsed,
+            )
+            return True
+        # Cooldown expired — remove stale entry
+        del self._failed_starts[server_key]
+        return False
+
+    async def ensure_ready(self, server_key: str) -> None:
+        """Ensure the HTTP subprocess server is running; start it if needed."""
+        if self._shutting_down:
+            _logger.debug(
+                "Lifecycle: ensure_ready(%r) ignored — shutting down", server_key
+            )
+            return
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            return
+        if (
+            cfg.transport != TransportType.HTTP
+            or cfg.startup_mode != StartupMode.SUBPROCESS
+        ):
+            return
+        if self._in_cooldown(server_key):
+            remaining = _COOLDOWN_SECONDS - (
+                time.monotonic() - self._failed_starts[server_key]
+            )
+            raise ServerCooldownError(
+                f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
+            )
+        os_alive = self._http_mgr.verify_running(server_key)
+        if not os_alive:
+            _logger.info(
+                "Lifecycle: %r not running; starting via ensure_ready", server_key
+            )
+            await self._run_lifecycle_transition(
+                server_key, lambda: self._http_mgr.start(server_key, cfg)
+            )
+        else:
+            app_healthy = await self._http_mgr.verify_running_async(server_key, cfg)
+            if not app_healthy:
+                _logger.warning(
+                    "Lifecycle: %r OS-alive but app-unhealthy; restarting", server_key
+                )
+                await self._run_lifecycle_transition(
+                    server_key, lambda: self._http_mgr.restart(server_key, cfg)
+                )
+
+    async def shutdown_all(self) -> None:
+        """Shut down all managed HTTP subprocess servers."""
+        self._shutting_down = True
+        await self._http_mgr.shutdown_all()
+        for key in self._server_configs:
+            self._set_state(key, LifecycleState.STOPPED)
+
+    async def start_http_subprocess(
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+        shutdown_event: asyncio.Event | None = None,
+    ) -> subprocess.Popen[bytes] | None:
+        """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
+        if self._shutting_down:
+            _logger.debug(
+                "Lifecycle: start_http_subprocess(%r) ignored — shutting down",
+                server_key,
+            )
+            return None
+        if self._in_cooldown(server_key):
+            return None
+        await self._run_lifecycle_transition(
+            server_key,
+            lambda: self._http_mgr.start(
+                server_key, cfg, shutdown_event=shutdown_event
+            ),
+        )
+        return self._http_mgr._http_procs.get(server_key)
+
+    async def restart(self, server_key: str) -> None:
+        """Restart a single HTTP subprocess MCP server."""
+        if self._shutting_down:
+            _logger.warning(
+                "Lifecycle: restart(%r) ignored — shutting down", server_key
+            )
+            return
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.startup_mode != StartupMode.SUBPROCESS:
+            _logger.warning(
+                "Lifecycle: restart %r: not a subprocess-mode server; manual restart required",
+                server_key,
+            )
+            return
+        if self._in_cooldown(server_key):
+            return
+        await self._run_lifecycle_transition(
+            server_key, lambda: self._http_mgr.restart(server_key, cfg)
+        )
+
+    async def shutdown_idle(self) -> None:
+        """No-op for idle shutdown — only applies to stdio servers."""
+        if self._shutting_down:
+            _logger.debug("Lifecycle: shutdown_idle ignored — shutting down")
+            return
+
+    def get_transport_state(self, server_key: str) -> LifecycleState:
+        """Return the current lifecycle state for a server."""
+        return self._states.get(server_key, LifecycleState.UNKNOWN)
+
+    def get_process_snapshot(self, server_key: str) -> dict | None:
+        """Return process snapshot dict for a managed subprocess server, or None."""
+        snapshot: dict | None = self._http_mgr.get_process_snapshot(server_key)
+        return snapshot
+
+    def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
+        """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
+        info: ProcessInfoSnapshot | None = self._http_mgr.get_process_info(server_key)
+        return info
+
+    def list_processes(self) -> list[ProcessInfoSnapshot]:
+        """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
+        processes: list[ProcessInfoSnapshot] = self._http_mgr.list_processes()
+        return processes
+
+    def get_subprocess_server_configs(self) -> list[tuple[str, McpServerConfig]]:
+        """Return (key, config) pairs for all HTTP subprocess-mode servers."""
+        return [
+            (key, cfg)
+            for key, cfg in self._server_configs.items()
+            if cfg.transport == TransportType.HTTP
+            and cfg.startup_mode == StartupMode.SUBPROCESS
+        ]
+
+
+def _build_audit_logger(ctx: AgentContext) -> Logger:
+    """Build and return the audit logger."""
+    return Logger(
+        "audit",
+        ctx.cfg.obs.audit_log_file,
+        structured_log=True,
+    )
+
+
+def _build_llm_client(
+    ctx: AgentContext,
+    view: CLIView,
+) -> tuple[httpx.AsyncClient, LLMClient]:
+    """Build httpx.AsyncClient and LLMClient; return both."""
+
+    def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
+        """Callback to accumulate token usage statistics."""
+        ctx.stats.stat_input_tokens = (ctx.stats.stat_input_tokens or 0) + prompt_tokens
+        ctx.stats.stat_output_tokens = (
+            ctx.stats.stat_output_tokens or 0
+        ) + completion_tokens
+
+    http = httpx.AsyncClient(timeout=ctx.cfg.llm.http_timeout)
+    llm = LLMClient(
+        http,
+        max_retries=ctx.cfg.llm.llm_max_retries,
+        retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
+        temperature=ctx.cfg.llm.llm_temperature,
+        max_tokens=ctx.cfg.llm.llm_max_tokens,
+        on_token=view.write_token,
+        on_usage=_on_llm_usage,
+        sse_heartbeat_timeout=ctx.cfg.llm.sse_heartbeat_timeout,
+        sse_malformed_retry=ctx.cfg.llm.sse_malformed_retry,
+        sse_reconnect_max=ctx.cfg.llm.sse_reconnect_max,
+        llm_stream_retry_on_heartbeat_timeout=ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
+        llm_stream_retry_on_malformed_chunk=ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
+    )
+    return http, llm
+
+
+def _build_tool_executor(
+    ctx: AgentContext,
+    http: httpx.AsyncClient,
+) -> tuple[ToolExecutor, LifecycleManagerProtocol, McpServerHealthRegistry]:
+    """Build ToolExecutor, lifecycle manager, and health registry; return all three."""
+    tools = ToolExecutor(
+        http,
+        cache_ttl=ctx.cfg.tool.tool_cache_ttl,
+        server_configs=ctx.cfg.mcp.mcp_servers,
+        cache_max_size=ctx.cfg.tool.tool_cache_max_size,
+        concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
+    )
+    registry = McpServerHealthRegistry()
+    tools.set_health_registry(registry)
+    lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
+        ctx.cfg.mcp.mcp_servers,
+        tools,
+    )
+    tools.set_lifecycle(lifecycle)
+    return tools, lifecycle, registry
+
+
+def _build_history_manager(
+    ctx: AgentContext,
+    view: CLIView,
+    http: httpx.AsyncClient,
+) -> HistoryManager:
+    """Build and return HistoryManager."""
+    return HistoryManager(
+        http,
+        llm_url=build_llm_url(ctx.cfg.llm.llm_url),
+        char_limit=ctx.cfg.llm.context_char_limit,
+        compress_turns=ctx.cfg.llm.context_compress_turns,
+        compress_temperature=_COMPRESS_TEMPERATURE,
+        compress_max_tokens=_COMPRESS_MAX_TOKENS,
+        on_compress=view.write_compress_notice,
+        protect_turns=ctx.cfg.llm.history_protect_turns,
+        token_limit=ctx.cfg.llm.context_token_limit,
+        tokenize_url=ctx.cfg.llm.tokenize_url,
+    )
+
+
+def _resolve_branch_for_memory() -> str:
+    """Resolve git branch for memory layer; returns "" (global) on any failure."""
+    _git = get_repo_info()
+    if _git.success and _git.data:
+        _raw = _git.data.get("branch", "")
+        return "" if _raw == "HEAD (detached)" else _raw
+    _logger.warning(
+        "Memory branch resolution failed: %s; falling back to global scope",
+        _git.failure_reason if _git.failure_reason else "unknown",
+    )
+    return ""
+
+
+def _build_memory_services(
+    ctx: AgentContext,
+    http: httpx.AsyncClient,
+) -> MemoryServices | None:
+    """Build and return MemoryServices when use_memory_layer=True, else None."""
+    if not ctx.cfg.memory.use_memory_layer:
+        return None
+
+    # Deferred imports to reduce startup cost when memory is disabled
+    from agent.memory.embedding_client import (  # lazy
+        EmbeddingClient,
+        EmbeddingClientConfig,
+    )
+    from agent.memory.enums import DedupPolicy  # lazy
+    from agent.memory.ingestion import (  # lazy
+        MemoryIngestionService,
+    )
+    from agent.memory.injection import (  # lazy
+        InjectionPolicy,
+        MemoryInjectionService,
+    )
+    from agent.memory.jsonl_store import JsonlMemoryStore  # lazy
+    from agent.memory.retriever import HybridRetriever  # lazy
+    from agent.memory.services import MemoryServices  # lazy
+    from agent.memory.store import MemoryStore  # lazy
+
+    embed_client = _build_embedding_client(
+        ctx, http, EmbeddingClient, EmbeddingClientConfig
+    )
+    retriever = _build_retriever(ctx, HybridRetriever, embed_client=embed_client)
+    store = MemoryStore(embed_dim=get_embedding_dims())
+    jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
+
+    _branch = _resolve_branch_for_memory()
+
+    injection = _build_injection_service(
+        embed_client,
+        retriever,
+        ctx,
+        InjectionPolicy,
+        MemoryInjectionService,
+        branch=_branch,
+    )
+    ingestion = _build_ingestion_service(
+        store,
+        jsonl,
+        retriever,
+        embed_client,
+        ctx,
+        DedupPolicy,
+        MemoryIngestionService,
+        branch=_branch,
+    )
+
+    _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
+    return MemoryServices(
+        injection=injection,
+        ingestion=ingestion,
+        store=store,
+        retriever=retriever,
+    )
+
+
+def _build_embedding_client(
+    ctx: AgentContext,
+    http: httpx.AsyncClient,
+    client_cls: type,
+    config_cls: type,
+) -> object:
+    """Build and return the embedding client instance."""
+    cfg = config_cls(
+        embed_url=build_embed_url(ctx.cfg.rag.embed_url),
+        timeout=ctx.cfg.memory.memory_embed_timeout_sec,
+        local_only=ctx.cfg.memory.memory_local_only,
+    )
+    return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
+
+
+def _build_retriever[T](
+    ctx: AgentContext, retriever_cls: type[T], *, embed_client: object = None
+) -> T:
+    """Build and return the hybrid retriever instance."""
+    ctor = cast("Callable[..., T]", retriever_cls)
+    return ctor(
+        fts_limit=ctx.cfg.memory.memory_fts_limit,
+        rrf_k=ctx.cfg.memory.memory_rrf_k,
+        recency_days=ctx.cfg.memory.memory_recency_days,
+        embed_client=embed_client,
+    )
+
+
+def _build_jsonl_store(ctx: AgentContext, jsonl_cls: type) -> object:
+    """Build and return the JSONL memory store instance."""
+    return jsonl_cls(Path(ctx.cfg.memory.memory_jsonl_dir) / "memories.jsonl")
+
+
+def _build_injection_service[T](
+    embed_client: object,
+    retriever: object,
+    ctx: AgentContext,
+    policy_cls: type,
+    service_cls: type[T],
+    branch: str = "",
+) -> T:
+    """Build and return the memory injection service."""
+    policy = policy_cls(
+        max_semantic=ctx.cfg.memory.memory_max_inject_semantic,
+        max_episodic=ctx.cfg.memory.memory_max_inject_episodic,
+        min_importance=ctx.cfg.memory.memory_min_importance,
+    )
+    ctor = cast("Callable[..., T]", service_cls)
+    return ctor(
+        policy=policy,
+        retriever=retriever,
+        embed_client=embed_client,
+        branch=branch,
+    )
+
+
+def _build_ingestion_service[T](
+    store: object,
+    jsonl: object,
+    retriever: object,
+    embed_client: object,
+    ctx: AgentContext,
+    dedup_cls: type,
+    service_cls: type[T],
+    branch: str = "",
+) -> T:
+    """Build and return the memory ingestion service."""
+    dedup_policy = dedup_cls(threshold=ctx.cfg.memory.memory_dedup_threshold)
+    ctor = cast("Callable[..., T]", service_cls)
+    return ctor(
+        store=store,
+        jsonl=jsonl,
+        retriever=retriever,
+        embed_client=embed_client,
+        dedup_policy=dedup_policy,
+        max_content_chars=ctx.cfg.memory.memory_max_content_chars,
+        branch=branch,
+    )
+
+
+def init_tracer(ctx: AgentContext) -> object:
+    """Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False."""
+    return build_tracer(
+        enabled=ctx.cfg.obs.otel_enabled,
+        service_name=ctx.cfg.obs.otel_service_name,
+        otlp_endpoint=ctx.cfg.obs.otel_endpoint,
+    )
+
+
+def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
+    """Inject all services into ctx.services.
+
+    Builds services sequentially, then creates a fully-initialized AppServices
+    and assigns it to ctx.services.  CommandRegistry and Orchestrator are wired
+    by AgentREPL._init_components() after this returns.
+    """
+    audit_logger = _build_audit_logger(ctx)
+    http, llm = _build_llm_client(ctx, view)
+    tools, lifecycle, health_registry = _build_tool_executor(ctx, http)
+    hist_mgr = _build_history_manager(ctx, view, http)
+    memory = _build_memory_services(ctx, http)
+    gateway = RepositoryGateway(executor=tools, cfg=ctx.cfg, audit_logger=audit_logger)
+
+    ctx.services = AppServices(
+        http=http,
+        llm=llm,
+        tools=tools,
+        lifecycle=lifecycle,
+        hist_mgr=hist_mgr,
+        audit_logger=audit_logger,
+        memory=memory,
+        gateway=gateway,
+        health_registry=health_registry,
+    )

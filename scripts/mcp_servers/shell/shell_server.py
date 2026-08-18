@@ -17,8 +17,9 @@ Provided endpoints:
 """
 
 import logging
+import shutil
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -32,6 +33,7 @@ from mcp_servers.server import (
     MCPServer,
     ToolArgs,
     build_tools_response,
+    extract_request_context,
 )
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
@@ -96,13 +98,8 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
 async def health() -> JSONResponse:
     """Health check endpoint. Returns degraded when 'sh' is not found in PATH."""
     deps: dict[str, str] = {}
-    try:
-        import shutil as _shutil
-
-        if _shutil.which("sh") is None:
-            deps["shell"] = "sh not found in PATH"
-    except (ImportError, OSError):
-        deps["shell"] = "check failed"
+    if shutil.which("sh") is None:
+        deps["shell"] = "sh not found in PATH"
     details: dict[str, object] = {
         "service": "shell-mcp",
         "sandbox_backend": _service.sandbox_backend,
@@ -130,17 +127,14 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Dispatch an MCP tool call through the shell service with audit logging."""
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = extract_request_context(request)
     r = await _dispatch_shell_tool(req.name, req.args)
     _audit_log(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=req.args.get("command", "")[:80],
+        target=cast(str, req.args.get("command", ""))[:80],
         outcome=r.outcome,
         server_key="shell",
     )

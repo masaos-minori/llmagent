@@ -1,0 +1,271 @@
+"""
+tests/test_file_delete_mcp_service.py
+Unit tests for DeleteFileService dry_run paths (delete_file, delete_directory).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from mcp_servers.file.delete_models import (
+    DeleteDirectoryRequest,
+    DeleteFileRequest,
+)
+from mcp_servers.file.delete_service import DeleteFileService
+
+
+@pytest.fixture()
+def service(tmp_path: Path) -> DeleteFileService:
+    return DeleteFileService(
+        allowed_dirs=[tmp_path],
+        audit_log_path=str(tmp_path / "audit.log"),
+    )
+
+
+# ── delete_file dry_run ───────────────────────────────────────────────────────
+
+
+class TestDeleteFileDryRun:
+    def test_dry_run_does_not_delete_file(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "keep.txt"
+        target.write_text("keep", encoding="utf-8")
+        req = DeleteFileRequest(path=str(target), dry_run=True)
+        result = service.delete_file(req)
+        assert target.exists()
+        assert result.deleted is False
+
+    def test_dry_run_returns_file_info(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "info.txt"
+        target.write_text("data", encoding="utf-8")
+        req = DeleteFileRequest(path=str(target), dry_run=True)
+        result = service.delete_file(req)
+        assert "size=" in result.file_info
+        assert "mtime=" in result.file_info
+
+    def test_dry_run_false_deletes_file(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "delete_me.txt"
+        target.write_text("bye", encoding="utf-8")
+        req = DeleteFileRequest(path=str(target), dry_run=False)
+        result = service.delete_file(req)
+        assert result.deleted is True
+        assert not target.exists()
+
+    def test_dry_run_stat_error_returns_error_info(
+        self,
+        service: DeleteFileService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """OSError from stat() inside the dry_run block must return descriptive info."""
+        import pathlib
+
+        target = tmp_path / "statfail.txt"
+        target.write_text("x", encoding="utf-8")
+
+        # Patch Path.stat to fail for this specific file during dry_run.
+        # Also bypass _require_file because exists() calls stat() internally,
+        # which would make the file appear non-existent before the dry_run block.
+        original_stat = pathlib.Path.stat
+
+        def _bad_stat(self: pathlib.Path, **kwargs: object) -> object:
+            if str(self) == str(target):
+                raise OSError("no stat")
+            return original_stat(self)
+
+        monkeypatch.setattr(pathlib.Path, "stat", _bad_stat)
+        monkeypatch.setattr(service, "_require_file", lambda *_: None)
+        req = DeleteFileRequest(path=str(target), dry_run=True)
+        result = service.delete_file(req)
+        assert result.deleted is False
+        assert "stat error" in result.file_info
+
+
+# ── delete_directory dry_run ──────────────────────────────────────────────────
+
+
+class TestDeleteDirectoryDryRun:
+    def test_dry_run_does_not_delete_directory(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        d = tmp_path / "mydir"
+        d.mkdir()
+        (d / "a.txt").write_text("a", encoding="utf-8")
+        req = DeleteDirectoryRequest(path=str(d), dry_run=True)
+        result = service.delete_directory(req)
+        assert d.exists()
+        assert result.deleted is False
+
+    def test_dry_run_counts_files_and_sizes(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        d = tmp_path / "counted"
+        d.mkdir()
+        (d / "a.txt").write_text("aaa", encoding="utf-8")
+        (d / "b.txt").write_text("bb", encoding="utf-8")
+        req = DeleteDirectoryRequest(path=str(d), dry_run=True)
+        result = service.delete_directory(req)
+        assert "2 files" in result.dir_info
+        assert "5 bytes" in result.dir_info
+
+    def test_dry_run_empty_directory(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        d = tmp_path / "empty"
+        d.mkdir()
+        req = DeleteDirectoryRequest(path=str(d), dry_run=True)
+        result = service.delete_directory(req)
+        assert "0 files" in result.dir_info
+
+    def test_dry_run_false_deletes_directory(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        d = tmp_path / "gone"
+        d.mkdir()
+        req = DeleteDirectoryRequest(path=str(d), recursive=False, dry_run=False)
+        result = service.delete_directory(req)
+        assert result.deleted is True
+        assert not d.exists()
+
+    def test_dry_run_truncation_at_max_files(
+        self,
+        service: DeleteFileService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import mcp_servers.file.delete_service as svc_module
+
+        monkeypatch.setattr(svc_module, "_DRY_RUN_MAX_FILES", 2)
+        d = tmp_path / "many"
+        d.mkdir()
+        for i in range(5):
+            (d / f"{i}.txt").write_text("x", encoding="utf-8")
+        req = DeleteDirectoryRequest(path=str(d), dry_run=True)
+        result = service.delete_directory(req)
+        # Should show "2+" to indicate truncation
+        assert "+" in result.dir_info
+
+    def test_dry_run_file_stat_error_skipped(
+        self,
+        service: DeleteFileService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """OSError from individual file stat() in walk must be skipped gracefully."""
+        from pathlib import Path as _Path
+
+        import mcp_servers.file.delete_service as svc_module
+
+        d = tmp_path / "walkdir"
+        d.mkdir()
+        (d / "ok.txt").write_text("ok", encoding="utf-8")
+
+        original_stat = _Path.stat
+
+        def _bad_stat(self: _Path, **kwargs: object) -> object:
+            if self.name == "ok.txt":
+                raise OSError("simulated stat error")
+            return original_stat(self)
+
+        monkeypatch.setattr(svc_module.Path, "stat", _bad_stat)
+        req = DeleteDirectoryRequest(path=str(d), dry_run=True)
+        result = service.delete_directory(req)
+        # File with stat error should be skipped; no crash
+        assert "files" in result.dir_info
+
+
+# ── async fmt_* handlers ──────────────────────────────────────────────────────
+
+
+class TestFmtHandlersDryRun:
+    @pytest.mark.asyncio
+    async def test_fmt_delete_file_dry_run(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "f.txt"
+        target.write_text("data", encoding="utf-8")
+        result = await service.fmt_delete_file({"path": str(target), "dry_run": True})
+        assert "Dry-run" in result
+        assert str(target) in result
+
+    @pytest.mark.asyncio
+    async def test_fmt_delete_directory_dry_run(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        d = tmp_path / "dir"
+        d.mkdir()
+        result = await service.fmt_delete_directory({"path": str(d), "dry_run": True})
+        assert "Dry-run" in result
+        assert str(d) in result
+
+
+# ── path allowlist security ───────────────────────────────────────────────────
+
+
+class TestPathAllowlist:
+    def test_delete_outside_allowed_dir_raises_403(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileAuthorizationError
+
+        target = tmp_path / "f.txt"
+        target.write_text("x")
+        req = DeleteFileRequest(path="/etc/shadow", dry_run=True)
+        with pytest.raises(FileAuthorizationError):
+            service.delete_file(req)
+
+    def test_delete_inside_allowed_dir_succeeds(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "f.txt"
+        target.write_text("x")
+        req = DeleteFileRequest(path=str(target), dry_run=True)
+        result = service.delete_file(req)
+        assert result is not None
+
+
+class TestDeleteDirectoryRecursiveSafety:
+    def test_recursive_delete_of_allowed_root_raises_auth_error(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileAuthorizationError
+
+        svc = DeleteFileService(
+            allowed_dirs=[tmp_path],
+            audit_log_path=str(tmp_path / "audit.log"),
+        )
+        (tmp_path / "subdir").mkdir()
+        req = DeleteDirectoryRequest(path=str(tmp_path), recursive=True)
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
+            svc.delete_directory(req)
+
+    def test_recursive_delete_of_subdir_succeeds(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        subdir = tmp_path / "toremove"
+        subdir.mkdir()
+        (subdir / "file.txt").write_text("data", encoding="utf-8")
+        req = DeleteDirectoryRequest(path=str(subdir), recursive=True)
+        result = service.delete_directory(req)
+        assert result.deleted is True
+        assert not subdir.exists()
+
+    def test_non_recursive_root_directory_not_blocked_by_guard(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        svc = DeleteFileService(
+            allowed_dirs=[tmp_path],
+            audit_log_path=str(tmp_path / "audit.log"),
+        )
+        (tmp_path / "subdir").mkdir()
+        req = DeleteDirectoryRequest(path=str(tmp_path), recursive=False)
+        with pytest.raises(FileValidationError):
+            svc.delete_directory(req)

@@ -26,6 +26,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_request_context,
 )
 from mcp_servers.web_search import health, metrics
 from mcp_servers.web_search.formatters import dispatch_web_tool
@@ -189,10 +190,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     function must not call `health.record_*`/`metrics.record_*` itself (that
     would double-count every query).
     """
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = extract_request_context(request)
     t0 = time.perf_counter()
     outcome = "ok"
     error_type = ""

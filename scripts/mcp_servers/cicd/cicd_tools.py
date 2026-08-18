@@ -6,25 +6,28 @@ MCP tool schema definitions for cicd-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
+
+from mcp_servers.models import McpTool, McpToolProperty
 
 # Shared inputSchema properties: "repo" is identical across all 4 TOOL_LIST
 # entries; "workflow" is identical across trigger_workflow/get_workflow_runs;
 # "run_id" is identical across get_workflow_status/get_workflow_logs.
 # Extracted so type/description stay in sync (mirrors the analogous
 # _REPO_PATH_PROPERTY extraction in scripts/mcp_servers/git/git_tools.py).
-_REPO_PROPERTY: dict[str, Any] = {
+_REPO_PROPERTY: McpToolProperty = {
     "type": "string",
     "description": "Repository slug in 'owner/repo' format",
 }
-_WORKFLOW_PROPERTY: dict[str, Any] = {
+_WORKFLOW_PROPERTY: McpToolProperty = {
     "type": "string",
     "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
 }
-_RUN_ID_PROPERTY: dict[str, Any] = {
+_RUN_ID_PROPERTY: McpToolProperty = {
     "type": "integer",
     "description": "Workflow run ID (from get_workflow_runs output)",
 }
+
 
 # Shared metadata fields: "requires_serial" and "resource_scope_kind" are
 # byte-for-byte identical across all 4 TOOL_LIST entries. "is_write" and
@@ -34,12 +37,19 @@ _RUN_ID_PROPERTY: dict[str, Any] = {
 # metadata-tail precedent (where the whole tail is uniform), only this
 # 2-field sub-block is extracted here, positioned between the per-entry
 # "is_write" and "resource_scope_keys" to preserve original key order.
-_CICD_TOOL_METADATA_TAIL: dict[str, Any] = {
+class _CicdToolMetadataTail(TypedDict):
+    """Shared trailing metadata fields common to cicd TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+
+
+_CICD_TOOL_METADATA_TAIL: _CicdToolMetadataTail = {
     "requires_serial": False,
     "resource_scope_kind": "cicd_workflow",
 }
 
-TOOL_LIST: list[dict[str, Any]] = [
+TOOL_LIST: list[McpTool] = [
     {
         "name": "trigger_workflow",
         "description": (

@@ -6,11 +6,7 @@ MCP tool schema definitions for git-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any
-
-McpToolProperty = dict[str, Any]  # noqa: ANN401 - MCP schema property with optional fields
-McpInputSchema = dict[str, Any]  # noqa: ANN401 - MCP inputSchema with nested optional fields
-McpTool = dict[str, Any]  # noqa: ANN401 - MCP tool definition with optional fields
+from mcp_servers.models import McpTool, McpToolProperty
 
 # Shared property definition: every git_* tool takes the same repo_path field.
 # Extracted so the description/type stays in sync across all TOOL_LIST entries.

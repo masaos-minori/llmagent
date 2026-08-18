@@ -23,3 +23,26 @@ def get_str(d: dict[str, Any], key: str, default: str = "") -> str:
     if not isinstance(v, str):
         raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
     return v
+
+
+def get_typed(
+    d: dict[str, Any],
+    key: str,
+    expected_type: type,
+    type_label: str,
+    default: Any | None = None,
+) -> Any:
+    """Return ``d[key]``, raising ``ValueError`` if it is not an instance of ``expected_type``.
+
+    ``type_label`` must already include its article, e.g. ``"a list"`` or ``"an integer"``.
+
+    Returns ``default`` when the key is absent or its value is ``None``.
+    """
+    value = d.get(key)
+    if value is None:
+        return default
+    if not isinstance(value, expected_type):
+        raise ValueError(
+            f"'{key}' must be {type_label}, got {type(value).__name__}: {value!r}"
+        )
+    return value

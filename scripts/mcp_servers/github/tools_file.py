@@ -6,7 +6,10 @@ MCP tool schema definitions for GitHub file operations.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
+
+from mcp_servers.models import McpTool
+
 
 # Shared metadata fields: "status", "config_dependent", "requires_serial",
 # "resource_scope_kind", and "resource_scope_keys" are byte-for-byte identical
@@ -19,17 +22,32 @@ from typing import Any
 # precedents in scripts/mcp_servers/file/read_tools.py,
 # scripts/mcp_servers/file/write_tools.py, and
 # scripts/mcp_servers/file/delete_tools.py).
-_GITHUB_FILE_TOOL_METADATA_HEAD: dict[str, Any] = {
+class _GithubFileMetadataHead(TypedDict):
+    """Shared metadata fields common to github_file TOOL_LIST entries."""
+
+    status: str
+    config_dependent: bool
+
+
+class _GithubFileMetadataTail(TypedDict):
+    """Shared metadata tail for github_repo-scoped TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: list[str]
+
+
+_GITHUB_FILE_TOOL_METADATA_HEAD: _GithubFileMetadataHead = {
     "status": "production",
     "config_dependent": True,
 }
-_GITHUB_FILE_TOOL_METADATA_TAIL: dict[str, Any] = {
+_GITHUB_FILE_TOOL_METADATA_TAIL: _GithubFileMetadataTail = {
     "requires_serial": False,
     "resource_scope_kind": "github_repo",
     "resource_scope_keys": ["owner", "repo"],
 }
 
-TOOL_LIST: list[dict] = [
+TOOL_LIST: list[McpTool] = [
     {
         "name": "github_get_file_contents",
         "description": (

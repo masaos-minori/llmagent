@@ -25,6 +25,7 @@ from mcp_servers.file.read_models import (
     ReadTextFileRequest,
     SearchFilesRequest,
 )
+from mcp_servers.models import McpTool
 
 
 def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
@@ -34,7 +35,7 @@ def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
     adds but MCP inputSchema does not require.
     """
     raw = model.model_json_schema()
-    schema: dict[str, Any] = {"type": "object"}
+    schema: dict[str, object] = {"type": "object"}
     if "properties" in raw:
         schema["properties"] = {
             k: {ik: iv for ik, iv in v.items() if ik != "title"}
@@ -48,79 +49,105 @@ def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
 # Shared metadata block: every tool in this module is a filesystem read, so these
 # fields are byte-for-byte identical across all TOOL_LIST entries except
 # resource_scope_keys (read_multiple_files scopes on "paths", not "path").
-# Extracted so they stay in sync (mirrors the analogous _REPO_PATH_PROPERTY
-# extraction in scripts/mcp_servers/git/git_tools.py and _FILESYSTEM_DELETE_METADATA
-# in scripts/mcp_servers/file/delete_tools.py).
-_FILESYSTEM_READ_METADATA: dict[str, Any] = {
-    "status": "production",
-    "config_dependent": False,
-    "is_write": False,
-    "requires_serial": False,
-    "resource_scope_kind": "filesystem",
-}
-
-TOOL_LIST: list[dict[str, Any]] = [
+# Kept inline for clarity.
+TOOL_LIST: list[McpTool] = [
     {
         "name": "list_directory",
         "description": "Return immediate entries of the specified directory",
         "inputSchema": _input_schema(ListDirectoryRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "list_directory_with_sizes",
         "description": "Return directory entries with sizes including stat size for directories",
         "inputSchema": _input_schema(ListDirectoryRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "directory_tree",
         "description": "Recursively return the tree structure of a directory",
         "inputSchema": _input_schema(DirectoryTreeRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "read_text_file",
         "description": "Read file contents as UTF-8 text. head/tail options limit the number of lines returned",
         "inputSchema": _input_schema(ReadTextFileRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "read_media_file",
         "description": "Return a media file (image/audio etc.) base64-encoded with its MIME type",
         "inputSchema": _input_schema(ReadMediaFileRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "read_multiple_files",
         "description": "Retrieve multiple files in a single request. Continues even if individual errors occur",
         "inputSchema": _input_schema(ReadMultipleFilesRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["paths"],
     },
     {
         "name": "search_files",
         "description": "Recursively search for files matching a glob pattern within a directory",
         "inputSchema": _input_schema(SearchFilesRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "grep_files",
         "description": "Search file contents under a directory using a regex pattern",
         "inputSchema": _input_schema(GrepFilesRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
     {
         "name": "get_file_info",
         "description": "Return metadata (size, timestamps, permissions) for a file or directory",
         "inputSchema": _input_schema(GetFileInfoRequest),
-        **_FILESYSTEM_READ_METADATA,
+        "status": "production",
+        "config_dependent": False,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "filesystem",
         "resource_scope_keys": ["path"],
     },
 ]

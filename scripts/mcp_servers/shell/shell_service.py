@@ -7,7 +7,7 @@ Dependency direction: shell_mcp_models -> shell_mcp_service -> shell_mcp_server
 
 Split layout:
   service_static_helpers.py — Pure static helpers (sandbox, resource limits, preexec)
-  service.py                — ShellService class + dispatch table factory + build_service
+  shell_service.py          — ShellService class + dispatch table factory + build_service
 """
 
 from __future__ import annotations
@@ -263,7 +263,7 @@ class ShellService:
 
         # Filter caller env vars, then merge: inherit current env, override PATH
         filtered_env = self._filter_env(req.env)
-        env = {**os.environ, "PATH": self._path, **filtered_env}
+        env = os.environ.copy() | {"PATH": self._path} | filtered_env
 
         start = time.monotonic()
         proc, stdout_b, stderr_b, timed_out = await self._run_subprocess(
@@ -297,7 +297,15 @@ class ShellService:
 
     async def fmt_run_command(self, args: ToolArgs) -> str:
         """Execute a shell command via the service and format the result as plain text."""
-        req = ShellRunRequest(**args)
+        req = ShellRunRequest(
+            command=args["command"],
+            argv=args.get("argv"),
+            timeout_sec=args.get("timeout_sec", 30),
+            cwd=args.get("cwd"),
+            env=args.get("env", {}),
+            max_output_kb=args.get("max_output_kb", 512),
+            dry_run=args.get("dry_run", False),
+        )
         if req.dry_run:
             cwd = req.cwd or "(default)"
             cmd_display = req.command

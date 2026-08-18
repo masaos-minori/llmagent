@@ -16,8 +16,11 @@ import uuid
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
+from starlette.requests import Request
+
 from mcp_servers.dispatch import DispatchResult
 from mcp_servers.health_response import HEALTH_STATUS_DEGRADED, HEALTH_STATUS_OK
+from mcp_servers.models import McpTool
 
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
@@ -95,7 +98,7 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     receive a 401 response.  When token is empty, auth is skipped and the
     middleware only injects the X-Request-Id response header.
     """
-    from fastapi import Request
+    from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
 
     def _is_authorized(request: Request, token: str) -> bool:
@@ -116,6 +119,20 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
         return response
 
 
+def extract_request_context(request: Request) -> tuple[str, str]:
+    """Extract session_id and request_id from request headers/state.
+
+    Returns:
+        Tuple of (session_id, request_id), defaulting to empty string if not present.
+    """
+    session_id = request.headers.get("x-session-id", "")
+    # request_id may be in state (set by middleware) or fall back to header
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
+    return session_id, request_id
+
+
 class MCPServer:
     """Base class for MCP servers.
 
@@ -131,9 +148,7 @@ class MCPServer:
     http_port: int  # e.g. 8004
     app_module: str  # uvicorn target, e.g. "WebSearchMCPServer:app"
     own_config_file: str = ""  # e.g. "web_search_mcp_server.toml"; set by subclasses
-    mcp_tools: list[
-        dict[str, Any]
-    ]  # tool definitions (retained for subclass reference)
+    mcp_tools: list[McpTool]  # tool definitions (retained for subclass reference)
 
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
@@ -154,7 +169,7 @@ class MCPServer:
         """
         server_key = getattr(self, "server_key", type(self).__name__)
         tools = getattr(self, "mcp_tools", [])
-        return [{**t, "server_key": server_key} for t in tools]
+        return [t | {"server_key": server_key} for t in tools]
 
     def health(self) -> tuple[dict[str, object], int]:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
@@ -219,5 +234,5 @@ def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any
     """
     return {
         "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [{**t, "server_key": server_key} for t in tools],
+        "tools": [t | {"server_key": server_key} for t in tools],
     }

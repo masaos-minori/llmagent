@@ -6,7 +6,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 
 | Rule | Detail |
 |---|---|
-| Line length | max 120 chars — enforced by `ruff format` |
+| Line length | max 88 chars — enforced by `ruff format` |
 | Comments and log output | English only |
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |
@@ -32,7 +32,7 @@ for the gated sub-task is acceptable.
 
 ## Tool configuration (pyproject.toml)
 
-**ruff:** `line-length = 120`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
+**ruff:** `line-length = 88`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
 - `ignore = ["E501"]` — E501 not auto-fixable in string literals; `ruff format` enforces length in code
 - `RUF100` (unused-noqa) intentionally deferred — 224 findings measured (see
   `plans/done/20260806-134805_plan.md`); spans rule codes beyond `BLE001`/`PLC0415`,
@@ -100,6 +100,20 @@ governance above):
 ```python
 result = subprocess.run(cmd)  # nosec B603 — cmd is a validated static list, no user input
 ```
+
+## Type-coercion policy
+
+All `*_models.py` config loaders MUST use `get_typed`-style validation for typed fields.
+Bare `int()`, `float()`, `list()` coercions are prohibited because they silently accept
+wrong types (e.g., `1048576.0` → `1048576`). The `get_typed` helper raises ValueError
+with a clear message when the value doesn't match the expected type.
+
+Pattern:
+    get_typed(d, "field_name", int, "an integer", default=DEFAULT_VALUE)
+
+When the key is absent or its value is None, `get_typed` returns the provided default.
+When the key is present but the value has the wrong type, ValueError is raised.
+The default parameter is mandatory — omitting it means "reject missing keys".
 
 ## Key library choices
 

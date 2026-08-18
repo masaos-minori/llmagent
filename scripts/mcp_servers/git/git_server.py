@@ -35,13 +35,14 @@ from mcp_servers.git.git_models import GitConfig, GitServiceError
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCP_TOOL_SCHEMA_VERSION,
     MCPServer,
     ToolArgs,
     _FastAPIApp,
     attach_auth_middleware,
+    extract_request_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
-def _annotate_tool(tool: dict[str, Any], cfg: GitConfig) -> dict[str, Any]:
+def _annotate_tool(tool: McpTool, cfg: GitConfig) -> dict[str, Any]:
     """Return a copy of tool with server_key and availability fields attached."""
     enabled, reason = _git_tool_availability(cfg, tool["name"])
     return {
@@ -119,10 +120,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     t0 = time.perf_counter()
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
+    session_id, request_id = extract_request_context(request)
     r = await _dispatch_git_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
@@ -131,7 +129,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=req.args.get("repo", ""),
+        target=cast(str, req.args.get("repo", "")),
         outcome=r.outcome,
         server_key="git",
     )

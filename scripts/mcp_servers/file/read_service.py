@@ -53,7 +53,7 @@ class ReadFileService(_ReadFileServiceCore):
         """Fetch directory entries and format them as plain text for the LLM."""
         result = await asyncio.to_thread(
             self.list_dir_entries,
-            ListDirectoryRequest(**args),
+            ListDirectoryRequest(path=args["path"]),
             include_dir_sizes=include_dir_sizes,
         )
         formatted: str = fmt_dir_entries(result.entries)
@@ -70,7 +70,12 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_directory_tree(self, args: ToolArgs) -> str:
         """Display a directory tree structure up to the specified depth."""
         result = await asyncio.to_thread(
-            lambda: self.build_directory_tree(DirectoryTreeRequest(**args)),
+            lambda: self.build_directory_tree(
+                DirectoryTreeRequest(
+                    path=args["path"],
+                    depth=args.get("depth", 3),
+                )
+            ),
         )
         effective_depth = min(args.get("depth", 3), self._max_tree_depth)
         total_nodes = count_tree_nodes(result.root)
@@ -82,7 +87,13 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_read_text_file(self, args: ToolArgs) -> str:
         """Read and return the contents of a text file."""
         result = await asyncio.to_thread(
-            lambda: self.read_text_file(ReadTextFileRequest(**args)),
+            lambda: self.read_text_file(
+                ReadTextFileRequest(
+                    path=args["path"],
+                    head=args.get("head"),
+                    tail=args.get("tail"),
+                )
+            ),
         )
         content: str = result.content
         return content
@@ -90,14 +101,16 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_read_media_file(self, args: ToolArgs) -> str:
         """Read a media file and return it as base64-encoded data with MIME type."""
         result = await asyncio.to_thread(
-            lambda: self.read_media_file(ReadMediaFileRequest(**args)),
+            lambda: self.read_media_file(ReadMediaFileRequest(path=args["path"])),
         )
         return f"base64:{result.mime_type};{result.content_base64}"
 
     async def fmt_read_multiple_files(self, args: ToolArgs) -> str:
         """Read multiple files concurrently and format results with headers."""
         result = await asyncio.to_thread(
-            lambda: self.read_multiple_files(ReadMultipleFilesRequest(**args)),
+            lambda: self.read_multiple_files(
+                ReadMultipleFilesRequest(paths=args["paths"])
+            ),
         )
         parts = [
             f"=== {r.path} [ERROR: {r.error}] ==="
@@ -110,7 +123,12 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_search_files(self, args: ToolArgs) -> str:
         """Search for files matching a pattern and return matched file paths."""
         result = await asyncio.to_thread(
-            lambda: self.search_files(SearchFilesRequest(**args)),
+            lambda: self.search_files(
+                SearchFilesRequest(
+                    path=args["path"],
+                    pattern=args["pattern"],
+                )
+            ),
         )
         return (
             "\n".join(result.matches) if result.matches else "No matching files found."
@@ -119,7 +137,14 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_grep_files(self, args: ToolArgs) -> str:
         """Grep for a pattern across files and return matching lines with context."""
         result = await asyncio.to_thread(
-            lambda: self.grep_files(GrepFilesRequest(**args)),
+            lambda: self.grep_files(
+                GrepFilesRequest(
+                    path=args["path"],
+                    pattern=args["pattern"],
+                    file_pattern=args.get("file_pattern", "*"),
+                    max_matches=args.get("max_matches", 100),
+                )
+            ),
         )
         if not result.matches:
             return "No matches found."
@@ -132,7 +157,7 @@ class ReadFileService(_ReadFileServiceCore):
     async def fmt_get_file_info(self, args: ToolArgs) -> str:
         """Return detailed metadata about a single file or directory."""
         result = await asyncio.to_thread(
-            lambda: self.get_file_info(GetFileInfoRequest(**args)),
+            lambda: self.get_file_info(GetFileInfoRequest(path=args["path"])),
         )
         info = result.info
         return "\n".join(

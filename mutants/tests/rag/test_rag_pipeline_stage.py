@@ -1,0 +1,745 @@
+"""tests/test_rag_pipeline_stage.py
+Unit tests for RAG pipeline stages and observer functionality.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
+from rag.models_config import RagConfigImpl
+from rag.stage import PipelineContext
+from rag.stages.augment import AugmentStage
+from rag.stages.fusion import FusionStage
+from rag.stages.mqe import MqeStage
+from rag.stages.rerank import RerankStage
+from rag.stages.search import SearchStage
+
+
+@dataclasses.dataclass
+class _RagCfg:
+    semantic_cache_max_size: int = 0
+    semantic_cache_threshold: float = 0.0
+    use_semantic_cache: bool = False
+    use_mqe: bool = False
+    top_k_search: int = 5
+    use_rerank: bool = False
+    rag_top_k: int = 3
+    max_chunks_per_doc: int = 5
+    top_k_rerank: int = 10
+    rag_min_score: float = 0.0
+    use_rrf: bool = True
+    rrf_k: int = 60
+    use_search: bool = True
+    rag_service_url: str = ""
+    rag_auth_token: str = ""
+    use_refiner: bool = False
+    refiner_max_tokens: int = 512
+    refiner_max_chars_per_chunk: int = 800
+    refiner_timeout: float = 30.0
+    rag_db_path: str = ":memory:"
+    sqlite_vec_so: str = "/opt/llm/sqlite-vec/vec0.so"
+    sqlite_timeout: int = 5
+    sqlite_busy_timeout_ms: int = 5000
+    embed_retry: int = 3
+    embed_workers: int = 4
+    rag_pipeline_service_url: str | None = None
+    mqe_prompt_template: str = "Expand query: {query}"
+    mqe_n_queries: int = 3
+    rerank_prompt_template: str = "Rerank results for: {query}"
+    llm_url: str = "http://localhost:8000/v1/chat/completions"
+    embed_url: str = "http://localhost:8000/v1/embeddings"
+
+
+def _make_rag_cfg(**overrides) -> RagConfigImpl:
+    base = RagConfigImpl(
+        semantic_cache_max_size=0,
+        semantic_cache_threshold=0.0,
+        use_semantic_cache=False,
+        use_mqe=False,
+        top_k_search=5,
+        use_rerank=False,
+        rag_top_k=3,
+        max_chunks_per_doc=5,
+        top_k_rerank=10,
+        rag_min_score=0.0,
+        use_rrf=True,
+        rrf_k=60,
+        use_search=True,
+        rag_service_url="",
+        rag_auth_token="",
+        use_refiner=False,
+        refiner_max_tokens=512,
+        refiner_max_chars_per_chunk=800,
+        refiner_timeout=30.0,
+        rag_db_path=":memory:",
+        sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+        sqlite_timeout=5,
+        sqlite_busy_timeout_ms=5000,
+        embed_retry=3,
+        embed_workers=4,
+        rag_pipeline_service_url=None,
+        mqe_prompt_template="Expand query: {query}",
+        mqe_n_queries=3,
+        rerank_prompt_template="Rerank results for: {query}",
+        llm_url="http://localhost:8000/v1/chat/completions",
+        embed_url="http://localhost:8000/v1/embeddings",
+    )
+    if overrides:
+        return dataclasses.replace(base, **overrides)
+    return base
+
+
+class TestPipelineContextFields:
+    """Test PipelineContext field defaults."""
+
+    def test_context_initializes_with_empty_lists(self) -> None:
+        ctx = PipelineContext(query="test query")
+        assert ctx.queries == []
+        assert ctx.search_results == []
+        assert ctx.merged == []
+        assert ctx.reranked == []
+
+
+# ---------------------------------------------------------------------------
+# MqeStage
+# ---------------------------------------------------------------------------
+
+
+class TestMqeStage:
+    @pytest.mark.asyncio
+    async def test_mqe_disabled_returns_original_query(self) -> None:
+        llm = MagicMock()
+        stage = MqeStage(_make_rag_cfg(use_mqe=False), llm)
+        ctx = PipelineContext(query="hello")
+        await stage.run(ctx)
+        assert ctx.queries == ["hello"]
+
+    @pytest.mark.asyncio
+    async def test_mqe_enabled_calls_llm_expand(self) -> None:
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(return_value=["hello", "hi there"])
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+        ctx = PipelineContext(query="hello")
+        await stage.run(ctx)
+        assert ctx.queries == ["hello", "hi there"]
+        llm.expand_queries.assert_called_once_with("hello")
+
+    @pytest.mark.asyncio
+    async def test_mqe_raises_on_llm_error(self) -> None:
+        """Non-RagExpansionError exceptions still propagate through MQE stage."""
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+        ctx = PipelineContext(query="hello")
+        with pytest.raises(RuntimeError, match="LLM unavailable"):
+            await stage.run(ctx)
+
+
+# ---------------------------------------------------------------------------
+# SearchStage
+# ---------------------------------------------------------------------------
+
+
+class TestSearchStage:
+    @pytest.mark.asyncio
+    async def test_search_none_db_returns_empty(self) -> None:
+        stage = SearchStage(_make_rag_cfg(top_k_search=5))
+        ctx = PipelineContext(query="q")
+        ctx.queries = ["q"]
+        await stage.run(ctx, db=None)
+        assert ctx.search_results == []
+
+    @pytest.mark.asyncio
+    async def test_search_calls_repository(self) -> None:
+        stage = SearchStage(_make_rag_cfg(top_k_search=5))
+        ctx = PipelineContext(query="q")
+        ctx.queries = ["q"]
+        mock_db = MagicMock()
+
+        from shared.types import RawHit
+
+        with patch(
+            "rag.stages.search._search_all_queries", new_callable=AsyncMock
+        ) as mock_search:
+            from rag.models_result import SearchDiagnostics
+
+            mock_search.return_value = (
+                [[RawHit(chunk_id=1, content="a", url="u")]],
+                SearchDiagnostics(embed_ok=1, embed_failed=0, fts_errors=0),
+            )
+            await stage.run(ctx, db=mock_db)
+
+        assert len(ctx.search_results) == 1
+        mock_search.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# FusionStage
+# ---------------------------------------------------------------------------
+
+
+class TestFusionStage:
+    @pytest.mark.asyncio
+    async def test_fusion_empty_results_yields_empty_merged(self) -> None:
+        stage = FusionStage(rrf_k=60)
+        ctx = PipelineContext(query="q")
+        ctx.search_results = []
+        await stage.run(ctx)
+        assert ctx.merged == []
+
+    @pytest.mark.asyncio
+    async def test_fusion_combines_multiple_result_lists(self) -> None:
+        from shared.types import RawHit
+
+        stage = FusionStage(rrf_k=60)
+        ctx = PipelineContext(query="q")
+        hit1 = RawHit(chunk_id=1, content="a", url="u1")
+        hit2 = RawHit(chunk_id=2, content="b", url="u2")
+        ctx.search_results = [[hit1], [hit2]]  # type: ignore[assignment]
+        await stage.run(ctx)
+        chunk_ids = {h.chunk_id for h in ctx.merged}
+        assert {1, 2}.issubset(chunk_ids)
+
+
+# ---------------------------------------------------------------------------
+# RerankStage
+# ---------------------------------------------------------------------------
+
+
+class TestRerankStage:
+    @pytest.mark.asyncio
+    async def test_rerank_disabled_returns_top_k(self) -> None:
+        llm = MagicMock()
+        cfg = _make_rag_cfg(
+            use_rerank=False,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        stage = RerankStage(cfg, llm)
+        from shared.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(5)]
+        ctx = PipelineContext(query="q")
+        ctx.merged = hits  # type: ignore[assignment]
+        await stage.run(ctx)
+        assert len(ctx.reranked) <= 2
+
+    @pytest.mark.asyncio
+    async def test_rerank_enabled_calls_cross_encoder(self) -> None:
+        llm = MagicMock()
+        from shared.types import MergedHit, RankedHit
+
+        expected_merged = [MergedHit(chunk_id=1, content="a", url="u")]
+        expected_ranked = [
+            RankedHit(chunk_id=1, content="a", url="u", rerank_score=0.95)
+        ]
+        llm.cross_encoder_rerank = AsyncMock(return_value=expected_ranked)
+        cfg = _make_rag_cfg(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        stage = RerankStage(cfg, llm)
+        ctx = PipelineContext(query="q")
+        ctx.merged = expected_merged  # type: ignore[assignment]
+        await stage.run(ctx)
+        llm.cross_encoder_rerank.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_rerank_raises_on_error(self) -> None:
+        """RerankStage propagates RagRerankError instead of falling back to RRF order."""
+        from rag.llm_prompts import RagRerankError
+
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
+        cfg = _make_rag_cfg(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        stage = RerankStage(cfg, llm)
+        from shared.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(3)]
+        ctx = PipelineContext(query="q")
+        ctx.merged = hits  # type: ignore[assignment]
+        await stage.run(ctx)
+        assert ctx._fallback_reason == "rerank_exception"
+        assert len(ctx.reranked) <= len(hits)
+        chunk_ids = {r.chunk_id for r in ctx.reranked}
+        assert chunk_ids.issubset({i for i in range(3)})
+
+
+# ---------------------------------------------------------------------------
+# AugmentStage
+# ---------------------------------------------------------------------------
+
+
+class TestAugmentStage:
+    @pytest.mark.asyncio
+    async def test_augment_empty_reranked_sets_result(self) -> None:
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        ctx.reranked = []
+        await stage.run(ctx)
+        # _format_chunks always wraps with block markers; empty hits → empty content
+        assert isinstance(ctx.augment_result, str)
+
+    @pytest.mark.asyncio
+    async def test_augment_formats_hits_into_block(self) -> None:
+        from shared.types import RankedHit
+
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        ctx.reranked = [
+            RankedHit(chunk_id=1, content="text body", url="http://x.com", title="T")
+        ]  # type: ignore[assignment]
+        await stage.run(ctx)
+        assert "text body" in ctx.augment_result
+        assert "http://x.com" in ctx.augment_result
+
+    @pytest.mark.asyncio
+    async def test_augment_stage_content_only_invariant(self) -> None:
+        """TEST-DESIGN2-01: AugmentStage must output content only, not
+        normalized_content.
+
+        Simulates a Japanese chunk where content='日本語テキスト' and
+        normalized_content would be 'にほんご テキスト'. Because RagHit carries
+        only content, the forbidden string must never appear in augment_result.
+        """
+        from shared.types import RankedHit
+
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        ctx.reranked = [  # type: ignore[assignment]
+            RankedHit(
+                chunk_id=1,
+                content="日本語テキスト",
+                url="http://example.com",
+                title="",
+            )
+        ]
+        await stage.run(ctx)
+        assert "日本語テキスト" in ctx.augment_result
+        assert "にほんご テキスト" not in ctx.augment_result
+
+    @pytest.mark.asyncio
+    async def test_augment_stage_normalized_does_not_leak(self) -> None:
+        """TEST-DESIGN2-03: LLM context must not contain normalized_content
+        when it differs from content.
+
+        content='検索結果', simulated normalized_content='けんさく けっか'.
+        """
+        from shared.types import RankedHit
+
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        forbidden = "けんさく けっか"
+        ctx.reranked = [  # type: ignore[assignment]
+            RankedHit(
+                chunk_id=2,
+                content="検索結果",
+                url="http://example.com",
+                title="",
+            )
+        ]
+        await stage.run(ctx)
+        assert "検索結果" in ctx.augment_result
+        assert forbidden not in ctx.augment_result
+
+
+# ---------------------------------------------------------------------------
+# RagPipeline.last_timings
+# ---------------------------------------------------------------------------
+
+
+class TestRagPipelineLastTimings:
+    @pytest.mark.asyncio
+    async def test_last_timings_populated_after_run(self) -> None:
+        """run() must populate last_timings with one float entry per stage."""
+        import httpx
+        from rag.pipeline import RagPipeline
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg())
+        mock_db = MagicMock()
+
+        noop = AsyncMock()
+        with (
+            patch("rag.pipeline.MqeStage") as MockMqe,
+            patch("rag.pipeline.SearchStage") as MockSearch,
+            patch("rag.pipeline.FusionStage") as MockFusion,
+            patch("rag.pipeline.RerankStage") as MockRerank,
+            patch("rag.pipeline.AugmentStage") as MockAugment,
+        ):
+            for M in (MockMqe, MockSearch, MockFusion, MockRerank, MockAugment):
+                inst = MagicMock()
+                inst.__class__.__name__ = M._mock_name or "Stage"
+                inst.run = noop
+                M.return_value = inst
+
+            await pipeline.run("test query", mock_db)
+
+        assert len(pipeline.last_timings) == 5
+        for elapsed in pipeline.last_timings.values():
+            assert isinstance(elapsed, float)
+            assert elapsed >= 0.0
+
+    @pytest.mark.asyncio
+    async def test_last_timings_reset_on_each_run(self) -> None:
+        """last_timings from a previous run must not leak into the next run."""
+        import httpx
+        from rag.pipeline import RagPipeline
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg())
+        pipeline.last_timings = {"stale_stage": 99.9}
+        mock_db = MagicMock()
+
+        noop = AsyncMock()
+        with (
+            patch("rag.pipeline.MqeStage") as MockMqe,
+            patch("rag.pipeline.SearchStage") as MockSearch,
+            patch("rag.pipeline.FusionStage") as MockFusion,
+            patch("rag.pipeline.RerankStage") as MockRerank,
+            patch("rag.pipeline.AugmentStage") as MockAugment,
+        ):
+            for M in (MockMqe, MockSearch, MockFusion, MockRerank, MockAugment):
+                inst = MagicMock()
+                inst.run = noop
+                M.return_value = inst
+
+            await pipeline.run("second query", mock_db)
+
+        assert "stale_stage" not in pipeline.last_timings
+
+
+class TestSemanticCacheDimensionGuard:
+    """Test SemanticCache dimension validation added in fail-fast refactor."""
+
+    def test_put_sets_dimension_on_first_entry(self) -> None:
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
+        assert cache._dim == 3
+
+    def test_put_returns_false_on_dimension_mismatch(self) -> None:
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
+        assert cache.put([1.0, 2.0], "", "other") is False
+
+    def test_lookup_returns_none_on_dimension_mismatch(self) -> None:
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
+        assert cache.lookup([1.0, 2.0]) is None
+
+    def test_lookup_empty_cache_returns_none(self) -> None:
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache()
+        assert cache.lookup([1.0, 2.0, 3.0]) is None
+
+
+# ---------------------------------------------------------------------------
+# RagPipeline._run_stage — pipeline-level failure absorption
+# ---------------------------------------------------------------------------
+
+
+class TestRagPipelineRunStage:
+    @pytest.mark.asyncio
+    async def test_run_stage_records_failure_on_rerank_error(self) -> None:
+        """_run_stage() must absorb RagRerankError, record status='failure', not re-raise."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        import httpx
+        from rag.llm_prompts import RagRerankError
+        from rag.pipeline import RagPipeline
+        from rag.stage import PipelineContext
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_rerank=True))
+
+        # Construct a RerankStage whose run() raises RagRerankError
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
+        stage = RerankStage(_make_rag_cfg(use_rerank=True), llm)
+
+        ctx = PipelineContext(query="q")
+
+        # Must not raise; _run_stage() absorbs the error
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert len(ctx.stage_results) == 1
+        assert ctx.stage_results[0]["status"] == "fallback"
+        assert "rerank_exception" in (ctx.stage_results[0].get("fallback_reason") or "")
+
+
+# ---------------------------------------------------------------------------
+# Pipeline-level fallback integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestMqeFallbackIntegration:
+    """Tests for MQE exception handling at pipeline level."""
+
+    @pytest.mark.asyncio
+    async def test_mqe_exception_uses_original_query(self) -> None:
+        """When MQE raises an exception, ctx.queries should contain the original query."""
+        from rag.llm_prompts import RagExpansionError
+        from rag.pipeline import RagPipeline
+        from rag.stages.mqe import MqeStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+
+        ctx = PipelineContext(query="original query")
+
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert ctx.queries == ["original query"]
+        assert ctx._fallback_reason == "mqe_exception"
+
+    @pytest.mark.asyncio
+    async def test_mqe_exception_fallback_status_recorded(self) -> None:
+        """When MQE raises an exception, StageResult should indicate fallback."""
+        from rag.llm_prompts import RagExpansionError
+        from rag.pipeline import RagPipeline
+        from rag.stages.mqe import MqeStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+
+        ctx = PipelineContext(query="original query")
+
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert len(ctx.stage_results) == 1
+        assert ctx.stage_results[0]["status"] == "fallback"
+        assert "mqe_exception" in (ctx.stage_results[0].get("fallback_reason") or "")
+
+    @pytest.mark.asyncio
+    async def test_mqe_exception_search_still_runs(self) -> None:
+        """When MQE raises an exception, SearchStage should still execute with the original query."""
+        from rag.llm_prompts import RagExpansionError
+        from rag.pipeline import RagPipeline
+        from rag.stages.mqe import MqeStage
+        from rag.stages.search import SearchStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True, top_k_search=5))
+
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(side_effect=RagExpansionError("MQE failed"))
+        mqe_stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+
+        ctx = PipelineContext(query="original query")
+
+        await pipeline._run_stage(mqe_stage, ctx, db=MagicMock())
+
+        search_stage = SearchStage(_make_rag_cfg(top_k_search=5))
+        await search_stage.run(ctx, db=MagicMock())
+
+        assert ctx.search_results is not None
+
+
+class TestRerankFallbackIntegration:
+    """Tests for rerank exception handling at pipeline level."""
+
+    @pytest.mark.asyncio
+    async def test_rerank_exception_uses_rrf_fallback(self) -> None:
+        """When rerank raises an exception, ctx.reranked should contain deduplicated merged results."""
+        from rag.llm_prompts import RagRerankError
+        from rag.pipeline import RagPipeline
+        from rag.repository import deduplicate_chunks
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        cfg = _make_rag_cfg(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        pipeline = RagPipeline(http, cfg)
+
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
+        stage = RerankStage(cfg, llm)
+
+        from shared.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(5)]
+        ctx = PipelineContext(query="q")
+        ctx.merged = hits  # type: ignore[assignment]
+
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        expected = deduplicate_chunks(hits[: cfg.rag_top_k], cfg.max_chunks_per_doc)  # type: ignore[arg-type]
+        assert len(ctx.reranked) == len(expected)
+        chunk_ids = {r.chunk_id for r in ctx.reranked}
+        assert chunk_ids.issubset({i for i in range(5)})
+
+    @pytest.mark.asyncio
+    async def test_rerank_exception_augment_produces_output(self) -> None:
+        """When rerank raises an exception, AugmentStage should produce valid output from fallback hits."""
+        from rag.llm_prompts import RagRerankError
+        from rag.pipeline import RagPipeline
+        from rag.stages.augment import AugmentStage
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        cfg = _make_rag_cfg(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        pipeline = RagPipeline(http, cfg)
+
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
+        rerank_stage = RerankStage(cfg, llm)
+
+        from shared.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(3)]
+        ctx = PipelineContext(query="q")
+        ctx.merged = hits  # type: ignore[assignment]
+
+        await pipeline._run_stage(rerank_stage, ctx, db=MagicMock())
+
+        augment_stage = AugmentStage()
+        await augment_stage.run(ctx)
+
+        assert isinstance(ctx.augment_result, str)
+        assert len(ctx.augment_result) > 0
+
+
+class TestNormalPathUnaffected:
+    """Tests verifying normal path is unaffected by fallback code."""
+
+    @pytest.mark.asyncio
+    async def test_normal_path_mqe_success(self) -> None:
+        """The normal path without MQE exceptions should behave identically to before."""
+        from rag.pipeline import RagPipeline
+        from rag.stages.mqe import MqeStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_mqe=True))
+
+        llm = MagicMock()
+        llm.expand_queries = AsyncMock(return_value=["expanded1", "expanded2"])
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
+
+        ctx = PipelineContext(query="original query")
+
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert ctx.queries == ["expanded1", "expanded2"]
+        assert ctx._fallback_reason is None
+
+    @pytest.mark.asyncio
+    async def test_normal_path_rerank_success(self) -> None:
+        """The normal path without rerank exceptions should behave identically to before."""
+        from rag.pipeline import RagPipeline
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        cfg = _make_rag_cfg(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        pipeline = RagPipeline(http, cfg)
+
+        llm = MagicMock()
+        from shared.types import MergedHit
+
+        reranked_hits = [MergedHit(chunk_id=1, content="c1", url="u")]
+        llm.cross_encoder_rerank = AsyncMock(return_value=reranked_hits)
+        stage = RerankStage(cfg, llm)
+
+        ctx = PipelineContext(query="q")
+        ctx.merged = [MergedHit(chunk_id=1, content="c1", url="u")]
+
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert len(ctx.reranked) == 1
+        assert ctx._fallback_reason is None
+
+
+class TestDiagnosticsFallbackVsDisabled:
+    """Tests verifying diagnostics distinguish disabled features from failed fallback features."""
+
+    @pytest.mark.asyncio
+    async def test_diagnostics_distinguishes_disabled_from_fallback(self) -> None:
+        """Diagnostics should distinguish between disabled features and failed fallback features."""
+        from rag.llm_prompts import RagRerankError
+        from rag.pipeline import RagPipeline
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        cfg = _make_rag_cfg(
+            use_mqe=False,
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
+        pipeline = RagPipeline(http, cfg)
+
+        # MQE disabled → should show as disabled, not fallback
+        mqe_stage = MqeStage(_make_rag_cfg(use_mqe=False), MagicMock())
+        ctx = PipelineContext(query="q")
+        await pipeline._run_stage(mqe_stage, ctx, db=MagicMock())
+        assert ctx.stage_results[-1]["status"] == "fallback"
+        assert "use_mqe=False" in (ctx.stage_results[-1].get("fallback_reason") or "")
+
+        # Rerank enabled but failing → should show as fallback due to exception
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
+        rerank_stage = RerankStage(cfg, llm)
+        ctx.merged = []
+        await pipeline._run_stage(rerank_stage, ctx, db=MagicMock())
+        assert ctx.stage_results[-1]["status"] == "fallback"
+        assert "rerank_exception" in (
+            ctx.stage_results[-1].get("fallback_reason") or ""
+        )

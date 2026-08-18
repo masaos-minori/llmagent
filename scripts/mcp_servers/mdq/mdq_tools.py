@@ -6,54 +6,9 @@ MCP tool schema definitions for mdq-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from mcp_servers.models import McpTool
 
-
-class MCPToolSchema(TypedDict):
-    """MCP tool definition following the MCP JSON-RPC schema format."""
-
-    name: str
-    description: str
-    inputSchema: dict[str, Any]
-    status: str
-    is_write: NotRequired[bool]
-    requires_serial: NotRequired[bool]
-    resource_scope_kind: NotRequired[str]
-    resource_scope_keys: NotRequired[list[str]]
-
-
-class _MdqToolMetadataTail(TypedDict):
-    """Shared trailing metadata fields common to a group of TOOL_LIST entries."""
-
-    is_write: bool
-    requires_serial: bool
-    resource_scope_kind: str
-
-
-# Shared metadata: "is_write"/"requires_serial"/"resource_scope_kind" are
-# byte-for-byte identical across the 5 read-only TOOL_LIST entries
-# (search_docs, get_chunk, outline, stats, grep_docs). "resource_scope_keys"
-# is kept per-entry (mirrors the analogous precedent in read_tools.py /
-# cicd_tools.py) since, although also identical among these entries (always
-# []), it is a mutable list value and per-entry literals avoid any risk of
-# TOOL_LIST entries unintentionally sharing one list object.
-_MDQ_READONLY_METADATA: _MdqToolMetadataTail = {
-    "is_write": False,
-    "requires_serial": False,
-    "resource_scope_kind": "",
-}
-
-# Shared metadata for the 2 write/serialized TOOL_LIST entries (index_paths,
-# refresh_index). See _MDQ_READONLY_METADATA above for why
-# "resource_scope_keys" stays per-entry.
-_MDQ_WRITE_METADATA: _MdqToolMetadataTail = {
-    "is_write": True,
-    "requires_serial": True,
-    "resource_scope_kind": "mdq_store",
-}
-
-
-TOOL_LIST: list[MCPToolSchema] = [
+TOOL_LIST: list[McpTool] = [
     {
         "name": "search_docs",
         "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval.",
@@ -109,7 +64,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["query"],
         },
         "status": "production",
-        **_MDQ_READONLY_METADATA,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
         "resource_scope_keys": [],
     },
     {
@@ -133,7 +90,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["chunk_id"],
         },
         "status": "production",
-        **_MDQ_READONLY_METADATA,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
         "resource_scope_keys": [],
     },
     {
@@ -159,7 +118,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["path"],
         },
         "status": "production",
-        **_MDQ_READONLY_METADATA,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
         "resource_scope_keys": [],
     },
     {
@@ -178,7 +139,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
-        **_MDQ_WRITE_METADATA,
+        "is_write": True,
+        "requires_serial": True,
+        "resource_scope_kind": "mdq_store",
         "resource_scope_keys": ["paths"],
     },
     {
@@ -201,7 +164,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
-        **_MDQ_WRITE_METADATA,
+        "is_write": True,
+        "requires_serial": True,
+        "resource_scope_kind": "mdq_store",
         "resource_scope_keys": ["paths"],
     },
     {
@@ -209,7 +174,9 @@ TOOL_LIST: list[MCPToolSchema] = [
         "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
         "status": "production",
-        **_MDQ_READONLY_METADATA,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
         "resource_scope_keys": [],
     },
     {
@@ -250,7 +217,9 @@ TOOL_LIST: list[MCPToolSchema] = [
             "required": ["pattern"],
         },
         "status": "production",
-        **_MDQ_READONLY_METADATA,
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
         "resource_scope_keys": [],
     },
 ]

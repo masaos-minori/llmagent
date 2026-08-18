@@ -52,6 +52,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_request_context,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
@@ -65,21 +66,12 @@ app = FastAPI(
 _service: MdqService = MdqService()
 
 
-def _extract_request_context(request: Request) -> tuple[str, str]:
-    """Return (session_id, request_id) for audit logging from request headers/state."""
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    return session_id, request_id
-
-
 def _mdq_error_handler(
     request: Request, exc: Exception, status_code: int, error_kind: str
 ) -> JSONResponse:
     """Format an MDQ error into a JSONResponse with consistent structure."""
     logger.info("MDQ %s error: %s", error_kind, exc)
-    session_id, request_id = _extract_request_context(request)
+    session_id, request_id = extract_request_context(request)
     _audit_log(
         logger,
         session_id=session_id,
@@ -174,46 +166,79 @@ class MdqDispatchResult:
 
 async def _handle_search_docs(args: ToolArgs) -> str:
     """Dispatch search_docs tool call to the mdq service."""
-    text, metadata = await _service.search_docs(SearchDocsRequest(**args))
+    req = SearchDocsRequest(
+        query=args["query"],
+        limit=args.get("limit", 10),
+        mode=args.get("mode", "bm25"),
+        path_prefix=args.get("path_prefix"),
+        tag_filter=args.get("tag_filter"),
+        heading_prefix=args.get("heading_prefix"),
+        max_results_limit=args.get("max_results_limit"),
+        max_total_result_chars=args.get("max_total_result_chars"),
+    )
+    text, metadata = await _service.search_docs(req)
     _mdq_metadata_var.set(dict(metadata))
     return text
 
 
 async def _handle_get_chunk(args: ToolArgs) -> str:
     """Dispatch get_chunk tool call to the mdq service."""
-    result: str = await _service.get_chunk(GetChunkRequest(**args))
+    req = GetChunkRequest(
+        chunk_id=args["chunk_id"],
+        with_neighbors=args.get("with_neighbors", False),
+        max_chars_per_chunk=args.get("max_chars_per_chunk"),
+    )
+    result: str = await _service.get_chunk(req)
     return result
 
 
 async def _handle_outline(args: ToolArgs) -> str:
     """Dispatch outline tool call to the mdq service."""
-    result: str = await _service.outline(OutlineRequest(**args))
+    req = OutlineRequest(
+        path=args["path"],
+        max_depth=args.get("max_depth", 6),
+        max_outline_items=args.get("max_outline_items", 500),
+    )
+    result: str = await _service.outline(req)
     return result
 
 
 async def _handle_index_paths(args: ToolArgs) -> str:
     """Dispatch index_paths tool call to the mdq service."""
-    text, metadata = await _service.index_paths(IndexPathsRequest(**args))
+    req = IndexPathsRequest(paths=args["paths"])
+    text, metadata = await _service.index_paths(req)
     _mdq_metadata_var.set(dict(metadata))
     return text
 
 
 async def _handle_refresh_index(args: ToolArgs) -> str:
     """Dispatch refresh_index tool call to the mdq service."""
-    text, metadata = await _service.refresh_index(RefreshIndexRequest(**args))
+    req = RefreshIndexRequest(
+        paths=args["paths"],
+        force=args.get("force", False),
+    )
+    text, metadata = await _service.refresh_index(req)
     _mdq_metadata_var.set(dict(metadata))
     return text
 
 
 async def _handle_stats(args: ToolArgs) -> str:
     """Dispatch stats tool call to the mdq service."""
-    result: str = await _service.stats(StatsRequest(**args))
+    result: str = await _service.stats(StatsRequest())
     return result
 
 
 async def _handle_grep_docs(args: ToolArgs) -> str:
     """Dispatch grep_docs tool call to the mdq service."""
-    text, metadata = await _service.grep_docs(GrepDocsRequest(**args))
+    req = GrepDocsRequest(
+        pattern=args["pattern"],
+        paths=args.get("paths"),
+        max_grep_matches=args.get("max_grep_matches", 200),
+        max_chars_per_match=args.get("max_chars_per_match", 500),
+        context_before=args.get("context_before", 2),
+        context_after=args.get("context_after", 2),
+    )
+    text, metadata = await _service.grep_docs(req)
     _mdq_metadata_var.set(dict(metadata))
     return text
 
@@ -297,7 +322,7 @@ async def list_tools() -> dict[str, Any]:
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     t0 = time.perf_counter()
-    session_id, request_id = _extract_request_context(request)
+    session_id, request_id = extract_request_context(request)
     target = extract_audit_target(req.name, req.args)
 
     try:
@@ -369,7 +394,7 @@ class MdqMCPServer(MCPServer):
     http_port = 8013
     own_config_file = "mdq_mcp_server.toml"
     app_module = "mcp_servers.mdq.mdq_server:app"
-    mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)
+    mcp_tools = TOOL_LIST
     server_key = "mdq"
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:

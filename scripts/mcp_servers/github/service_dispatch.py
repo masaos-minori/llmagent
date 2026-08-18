@@ -50,7 +50,12 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_search_repositories(self, args: dict) -> str:
         """Format search repositories results as markdown links with star counts."""
-        result = await self.search_repositories(SearchRepositoriesRequest(**args))
+        result = await self.search_repositories(
+            SearchRepositoriesRequest(
+                query=args["query"],
+                per_page=args.get("per_page", 30),
+            )
+        )
         lines = [
             f"{fmt_md_link(r.full_name, r.url)} ★{r.stars}\n{r.description or ''}"
             for r in result.results
@@ -59,7 +64,13 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_list_branches(self, args: dict) -> str:
         """Format list branches results showing branch names and SHAs."""
-        result = await self.list_branches(ListBranchesRequest(**args))
+        result = await self.list_branches(
+            ListBranchesRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                per_page=args.get("per_page", 30),
+            )
+        )
         lines = [
             f"{b.name} ({b.sha[:8]}){' [protected]' if b.protected else ''}"
             for b in result.branches
@@ -88,7 +99,13 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_create_branch(self, args: dict) -> str:
         """Format create branch operation result with optional dry-run support."""
-        req = CreateBranchRequest(**args)
+        req = CreateBranchRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            branch_name=args["branch_name"],
+            from_branch=args.get("from_branch", ""),
+            dry_run=args.get("dry_run", False),
+        )
         from_b = req.from_branch or "(default branch)"
 
         async def _execute() -> str:
@@ -108,13 +125,26 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_list_commits(self, args: dict) -> str:
         """Format list commits results showing SHA, message, and author."""
-        result = await self.list_commits(ListCommitsRequest(**args))
+        result = await self.list_commits(
+            ListCommitsRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                branch=args.get("branch", ""),
+                per_page=args.get("per_page", 30),
+            )
+        )
         lines = [f"{c.sha[:8]} {c.message} ({c.author})" for c in result.commits]
         return "\n".join(lines) if lines else "No commits found."
 
     async def fmt_get_commit(self, args: dict) -> str:
         """Format get commit details including SHA, message, author, and files changed."""
-        result = await self.get_commit(GetCommitRequest(**args))
+        result = await self.get_commit(
+            GetCommitRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                sha=args["sha"],
+            )
+        )
         c = result.commit
         return (
             f"{c.sha[:8]} {c.message}\n"
@@ -124,19 +154,40 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_search_code(self, args: dict) -> str:
         """Format search code results as repository/path links."""
-        result = await self.search_code(SearchCodeRequest(**args))
+        result = await self.search_code(
+            SearchCodeRequest(
+                query=args["query"],
+                per_page=args.get("per_page", 30),
+            )
+        )
         lines = [f"[{r.repository}/{r.path}]({r.url})" for r in result.results]
         return "\n".join(lines) if lines else "No results found."
 
     async def fmt_get_file_contents(self, args: dict) -> str:
         """Get raw file contents from GitHub."""
-        result = await self.get_file_contents(GetFileContentsRequest(**args))
+        result = await self.get_file_contents(
+            GetFileContentsRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                path=args["path"],
+                ref=args.get("ref", ""),
+            )
+        )
         content: str = result.content
         return content
 
     async def fmt_create_or_update_file(self, args: dict) -> str:
         """Format create or update file operation result with optional dry-run support."""
-        req = CreateOrUpdateFileRequest(**args)
+        req = CreateOrUpdateFileRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            path=args["path"],
+            content=args["content"],
+            message=args["message"],
+            branch=args.get("branch", ""),
+            sha=args.get("sha", ""),
+            dry_run=args.get("dry_run", False),
+        )
         op = "update" if req.sha else "create"
         branch = req.branch or "(default branch)"
 
@@ -159,7 +210,14 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_push_files(self, args: dict) -> str:
         """Format push files operation result with optional dry-run support."""
-        req = PushFilesRequest(**args)
+        req = PushFilesRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            branch=args["branch"],
+            files=args["files"],
+            message=args["message"],
+            dry_run=args.get("dry_run", False),
+        )
         paths = [f.path for f in req.files]
 
         async def _execute() -> str:
@@ -180,7 +238,15 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_delete_file(self, args: dict) -> str:
         """Format delete file operation result with optional dry-run support."""
-        req = DeleteRepoFileRequest(**args)
+        req = DeleteRepoFileRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            path=args["path"],
+            message=args["message"],
+            sha=args["sha"],
+            branch=args.get("branch", ""),
+            dry_run=args.get("dry_run", False),
+        )
         branch = req.branch or "(default branch)"
 
         async def _execute() -> str:
@@ -200,19 +266,40 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_list_issues(self, args: dict) -> str:
         """Format list issues results showing issue numbers, states, and titles."""
-        result = await self.list_issues(ListIssuesRequest(**args))
+        result = await self.list_issues(
+            ListIssuesRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                state=args.get("state", "open"),
+                per_page=args.get("per_page", 10),
+            )
+        )
         lines = [GitHubService._fmt_issue_line(i) for i in result.issues]
         return "\n\n".join(lines) if lines else "No issues found."
 
     async def fmt_get_issue(self, args: dict) -> str:
         """Format get issue details including number, state, title, body, and URL."""
-        result = await self.get_issue(GetIssueRequest(**args))
+        result = await self.get_issue(
+            GetIssueRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                issue_number=args["issue_number"],
+            )
+        )
         i = result.issue
         return f"#{i.number} [{i.state}] {i.title}\n{i.body or ''}\nURL: {i.url}"
 
     async def fmt_create_issue(self, args: dict) -> str:
         """Format create issue operation result with optional dry-run support."""
-        req = CreateIssueRequest(**args)
+        req = CreateIssueRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            title=args["title"],
+            body=args.get("body", ""),
+            labels=args.get("labels", []),
+            assignees=args.get("assignees", []),
+            dry_run=args.get("dry_run", False),
+        )
         labels = f" labels={req.labels}" if req.labels else ""
 
         async def _execute() -> str:
@@ -233,13 +320,24 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_search_issues(self, args: dict) -> str:
         """Format search issues results showing issue numbers, states, and titles."""
-        result = await self.search_issues(SearchIssuesRequest(**args))
+        result = await self.search_issues(
+            SearchIssuesRequest(
+                query=args["query"],
+                per_page=args.get("per_page", 10),
+            )
+        )
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_add_issue_comment(self, args: dict) -> str:
         """Format add issue comment operation result with optional dry-run support."""
-        req = AddIssueCommentRequest(**args)
+        req = AddIssueCommentRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            issue_number=args["issue_number"],
+            body=args["body"],
+            dry_run=args.get("dry_run", False),
+        )
 
         async def _execute() -> str:
             """Post a comment on an existing GitHub issue."""
@@ -258,13 +356,26 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_list_pull_requests(self, args: dict) -> str:
         """Format list pull requests results showing PR numbers, states, and titles."""
-        result = await self.list_pull_requests(ListPullRequestsRequest(**args))
+        result = await self.list_pull_requests(
+            ListPullRequestsRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                state=args.get("state", "open"),
+                per_page=args.get("per_page", 10),
+            )
+        )
         lines = [GitHubService._fmt_pr_line(pr) for pr in result.pull_requests]
         return "\n\n".join(lines) if lines else "No pull requests found."
 
     async def fmt_get_pull_request(self, args: dict) -> str:
         """Format get pull request details including number, state, title, refs, body, and URL."""
-        result = await self.get_pull_request(GetPullRequestRequest(**args))
+        result = await self.get_pull_request(
+            GetPullRequestRequest(
+                owner=args["owner"],
+                repo=args["repo"],
+                pr_number=args["pr_number"],
+            )
+        )
         pr = result.pull_request
         return (
             f"#{pr.number} [{pr.state}] {pr.title}\n"
@@ -274,7 +385,15 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_create_pull_request(self, args: dict) -> str:
         """Format create pull request operation result with optional dry-run support."""
-        req = CreatePullRequestRequest(**args)
+        req = CreatePullRequestRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            title=args["title"],
+            body=args.get("body", ""),
+            head=args["head"],
+            base=args["base"],
+            dry_run=args.get("dry_run", False),
+        )
 
         async def _execute() -> str:
             """Create a new pull request on GitHub."""
@@ -294,13 +413,26 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_search_pull_requests(self, args: dict) -> str:
         """Format search pull requests results showing PR numbers, states, and titles."""
-        result = await self.search_pull_requests(SearchPullRequestsRequest(**args))
+        result = await self.search_pull_requests(
+            SearchPullRequestsRequest(
+                query=args["query"],
+                per_page=args.get("per_page", 10),
+            )
+        )
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_update_pull_request(self, args: dict) -> str:
         """Format update pull request operation result with optional dry-run support."""
-        req = UpdatePullRequestRequest(**args)
+        req = UpdatePullRequestRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            pr_number=args["pr_number"],
+            title=args.get("title"),
+            body=args.get("body"),
+            state=args.get("state"),
+            dry_run=args.get("dry_run", False),
+        )
         fields: list[str] = []
         if req.title is not None:
             fields.append(f"title='{req.title}'")
@@ -326,7 +458,15 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_merge_pull_request(self, args: dict) -> str:
         """Format merge pull request operation result with optional dry-run support."""
-        req = MergePullRequestRequest(**args)
+        req = MergePullRequestRequest(
+            owner=args["owner"],
+            repo=args["repo"],
+            pr_number=args["pr_number"],
+            commit_title=args.get("commit_title", ""),
+            commit_message=args.get("commit_message", ""),
+            merge_method=args.get("merge_method", "merge"),
+            dry_run=args.get("dry_run", False),
+        )
 
         async def _execute() -> str:
             """Merge a pull request on GitHub."""

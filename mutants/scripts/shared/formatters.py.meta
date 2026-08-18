@@ -1,0 +1,21 @@
+{
+    "exit_code_by_key": {
+        "scripts.shared.formatters.x_truncate__mutmut_1": null,
+        "scripts.shared.formatters.x_truncate__mutmut_2": null,
+        "scripts.shared.formatters.x_truncate__mutmut_3": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_1": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_2": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_3": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_4": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_5": null,
+        "scripts.shared.formatters.x_fmt_size__mutmut_6": null,
+        "scripts.shared.formatters.x_fmt_kvlog__mutmut_1": null,
+        "scripts.shared.formatters.x_fmt_kvlog__mutmut_2": null,
+        "scripts.shared.formatters.x_fmt_kvlog__mutmut_3": null,
+        "scripts.shared.formatters.x_fmt_kvlog__mutmut_4": null,
+        "scripts.shared.formatters.x_fmt_kvlog__mutmut_5": null
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}
