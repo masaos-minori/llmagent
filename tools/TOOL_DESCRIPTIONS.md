@@ -24,6 +24,7 @@
 | ファイル | 生成元 | 反映先 |
 |---|---|---|
 | `gen_reference_table.py` | `--type rag\|mcp\|deployment` で指定 | RAG/MCP/デプロイメントのリファレンスセクション |
+| `generate_mcp_inventory.py` | `--format json\|csv` で指定 | エージェント設定からMCPサーバー一覧をJSON/CSVで出力 |
 
 ## ドキュメント構造検証・整形補助スクリプト
 

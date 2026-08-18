@@ -37,6 +37,21 @@ class StartupMode(StrEnum):
     PERSISTENT = "persistent"
     SUBPROCESS = "subprocess"
 
+    @property
+    def is_persistent(self) -> bool:
+        """Whether this mode represents a persistent server."""
+        return self == StartupMode.PERSISTENT
+
+    @property
+    def has_health_check(self) -> bool:
+        """Whether this mode requires health checks."""
+        return self != StartupMode.NONE
+
+    @property
+    def requires_subprocess(self) -> bool:
+        """Whether this mode requires subprocess management."""
+        return self == StartupMode.SUBPROCESS
+
 
 class SecurityProfile(StrEnum):
     """Deployment security profile for MCP auth enforcement."""
@@ -70,6 +85,21 @@ class McpServerConfig:
     )
     max_stderr_log_size_mb: float = 100.0  # max size in MB before rotation
     max_stderr_log_files: int = 3  # number of rotated files to keep
+
+    @property
+    def is_disabled(self) -> bool:
+        """Whether this server is currently disabled (startup_mode=NONE)."""
+        return self.startup_mode == StartupMode.NONE
+
+    @property
+    def needs_health_check(self) -> bool:
+        """Whether this server requires health checks."""
+        return self.startup_mode.has_health_check
+
+    @property
+    def requires_cmd(self) -> bool:
+        """Whether this server has a launch command configured."""
+        return len(self.cmd) > 0
 
     def __post_init__(self) -> None:
         """Validate enum types and cross-field constraints after initialization."""
