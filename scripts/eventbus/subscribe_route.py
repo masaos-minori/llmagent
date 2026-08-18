@@ -37,6 +37,9 @@ async def subscribe(
         """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
         # Step 1: register with broker BEFORE replay to capture events published during replay
         sub = broker.subscribe(list(topic))
+        # must be set before any await below, so the except CancelledError handler
+        # below always has a value, even if cancelled during the replay fetch
+        replay_ceil = start_seq
         try:
             # Step 2: replay from SQLite
             def _fetch_replay() -> list[Any]:
@@ -59,7 +62,6 @@ async def subscribe(
                 )
 
             rows = await run_with_db_lock(_fetch_replay)
-            replay_ceil = start_seq
             for row in rows:
                 data = json_dumps(_row_to_dict(row))
                 yield f"data: {data}\n\n"
@@ -79,7 +81,7 @@ async def subscribe(
             logger.info(
                 "subscribe disconnected consumer=%s seq=%d",
                 consumer_id,
-                replay_ceil if locals().get("replay_ceil") is not None else start_seq,
+                replay_ceil,
             )
         finally:
             broker.unsubscribe(sub)

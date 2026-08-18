@@ -7,12 +7,15 @@ Tests that events published during the replay phase are delivered via live push
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from pathlib import Path
 from typing import Any
 
 import pytest
 from eventbus_helpers import make_eventbus_client
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 
@@ -97,3 +100,53 @@ class TestReplayToLiveTransition:
         # The event should appear exactly once in the result
         event_ids = [item["event_id"] for item in items]
         assert event_ids.count(body["event_id"]) == 1, "Event must not be duplicated"
+
+
+class TestSubscribeCancelledBeforeReplay:
+    """Verify replay_ceil is always bound when cancelled during the replay fetch."""
+
+    async def test_cancelled_before_replay_logs_start_seq(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Cancelling during the replay DB fetch must log seq=start_seq, not crash.
+
+        Locks in the invariant that `replay_ceil` is unconditionally bound before
+        `run_with_db_lock` is awaited: a future change that reintroduces a
+        conditional initialization (e.g. moving it back inside the replay `for`
+        loop) without an equivalent fallback would raise `UnboundLocalError` here
+        instead of a clean `StopAsyncIteration`. Note: this does not reproduce the
+        historical pyright `reportPossiblyUnboundVariable` finding itself — that
+        was a static-analysis-only false positive (the previous
+        `locals().get("replay_ceil")` guard already made this scenario safe at
+        runtime); `uv run pyright` is what verifies that finding is resolved.
+        """
+        from eventbus import app as eb_app
+        from eventbus import subscribe_route
+
+        async def _raise_cancelled(_func: Any) -> Any:
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(subscribe_route, "run_with_db_lock", _raise_cancelled)
+
+        scope = {
+            "type": "http",
+            "app": eb_app.app,
+            "method": "GET",
+            "path": "/subscribe",
+            "query_string": b"",
+            "headers": [],
+        }
+        request = Request(scope)
+
+        with caplog.at_level(logging.INFO, logger="eventbus.subscribe_route"):
+            response = await subscribe_route.subscribe(
+                request, topic=[], since_seq=0, consumer_id=""
+            )
+            gen = response.body_iterator
+            with pytest.raises(StopAsyncIteration):
+                await gen.__anext__()
+
+        assert "seq=0" in caplog.text
