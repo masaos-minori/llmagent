@@ -113,8 +113,9 @@ class AgentREPL:
 
     @property
     def _n_tools(self) -> int:
-        """Number of tools available (from config/tools_definitions.toml)."""
-        return len(self._ctx.cfg.tool.tool_definitions)
+        """Number of tools available at runtime (excludes unavailable/degraded servers)."""
+        rt = self._ctx.services_required.runtime_tools
+        return len(rt.all_tools()) if rt else 0
 
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""

@@ -63,9 +63,9 @@ SIGTERM/SIGINT は起動シーケンス中にも有効に発火する。`asyncio
 - `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
 - `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
 
-### 保留中の承認状態の復元
+### 保留中の事後実行承認状態の復元
 
-エージェント起動時に前回のセッションで解決されなかった承認ゲートが存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
+エージェント起動時に前回のセッションで解決されなかった事後実行承認が存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
 
 既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
 

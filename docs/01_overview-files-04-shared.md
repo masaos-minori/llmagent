@@ -23,7 +23,7 @@ related:
 ``` text
 /opt/llm/
 ├─ venv/                              # Python 仮想環境
-│   └─ requirements.txt              # Python 依存パッケージ一覧
+│   └─ uv.lock                        # Python 依存パッケージ一覧 (uv managed)
 ├─ db/
 │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
 │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 90_shared_04 §2
@@ -70,7 +70,7 @@ file-structure
 ``` text
 /opt/llm/
 ├─ venv/                              # Python 仮想環境
-│   └─ requirements.txt              # Python 依存パッケージ一覧
+│   └─ uv.lock                        # Python 依存パッケージ一覧 (uv managed)
 ├─ db/
 │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
 │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 90_shared_04 §2

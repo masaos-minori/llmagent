@@ -87,9 +87,14 @@ source:
 
 ### 承認ゲート
 
+**用語の明確化:**
+- **事前実行承認**: ツール実行前に発動するツールレベルの承認ゲート（リアルタイムなリスク評価）
+- **事後実行承認**: executeステージ完了後に発動するワークフローレベルの承認ゲート（バッチ的な結果確認）
+- **自動実行**: 人間の承認を必要としない操作（計画フェーズ、検証フェーズ、低リスクツール呼び出し）
+
 `WorkflowEngine(require_approval=True)`の場合、エンジンはexecuteステージ完了後、verifyステージ実行前に一時停止する：
 
-**現在の実装挙動:** `WorkflowDef.require_approval`のデフォルトは`False`であり、本番デプロイのデフォルト設定では承認ゲートは発火しない。承認ゲートを有効化するには`config/workflows/default.json`に`"require_approval": true`を明示的に追加する必要がある。(Needs Confirmation / 未決事項)
+**現在の実装挙動:** `WorkflowDef.require_approval`のデフォルトは`False`であり、本番デプロイのデフォルト設定では事後実行承認ゲートは発火しない。承認ゲートを有効化するには`config/workflows/default.json`に`"require_approval": true`を明示的に追加する必要がある。(Needs Confirmation / 未決事項)
 
 1. エンジンが`store.request_approval(task_id)`を呼び出す → `status=pending`の`ApprovalRecord`
 2. タスクステータス → `pending_approval`
@@ -102,6 +107,8 @@ source:
 - `status=pending` → `WorkflowPendingApprovalError`が再度発生
 
 既存の承認レコードが見つからない場合、新規レコードが作成されワークフローは一時停止する。
+
+**注意**: 事前実行承認（ツールレベル）と事後実行承認（ワークフローレベル）は独立して発動する。両者は異なる粒度で動作し、競合せず共存する。
 
 ## Responsibility Boundary
 
@@ -267,9 +274,14 @@ workflow execution mandatory
 
 ### 承認ゲート
 
+**用語の明確化:**
+- **事前実行承認**: ツール実行前に発動するツールレベルの承認ゲート（リアルタイムなリスク評価）
+- **事後実行承認**: executeステージ完了後に発動するワークフローレベルの承認ゲート（バッチ的な結果確認）
+- **自動実行**: 人間の承認を必要としない操作（計画フェーズ、検証フェーズ、低リスクツール呼び出し）
+
 `WorkflowEngine(require_approval=True)`の場合、エンジンはexecuteステージ完了後、verifyステージ実行前に一時停止する：
 
-**現在の実装挙動:** `WorkflowDef.require_approval`のデフォルトは`False`であり、本番デプロイのデフォルト設定では承認ゲートは発火しない。承認ゲートを有効化するには`config/workflows/default.json`に`"require_approval": true`を明示的に追加する必要がある。(Needs Confirmation / 未決事項)
+**現在の実装挙動:** `WorkflowDef.require_approval`のデフォルトは`False`であり、本番デプロイのデフォルト設定では事後実行承認ゲートは発火しない。承認ゲートを有効化するには`config/workflows/default.json`に`"require_approval": true`を明示的に追加する必要がある。(Needs Confirmation / 未決事項)
 
 1. エンジンが`store.request_approval(task_id)`を呼び出す → `status=pending`の`ApprovalRecord`
 2. タスクステータス → `pending_approval`
@@ -282,6 +294,8 @@ workflow execution mandatory
 - `status=pending` → `WorkflowPendingApprovalError`が再度発生
 
 既存の承認レコードが見つからない場合、新規レコードが作成されワークフローは一時停止する。
+
+**注意**: 事前実行承認（ツールレベル）と事後実行承認（ワークフローレベル）は独立して発動する。両者は異なる粒度で動作し、競合せず共存する。
 
 ## Responsibility Boundary
 

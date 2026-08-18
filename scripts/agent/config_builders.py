@@ -433,9 +433,15 @@ def _build_diagnostics_config(cfg: dict[str, Any]) -> DiagnosticsConfig:
     diagnostics_raw = _get_dict(cfg, "diagnostics") or {}
     encryption_key = _get_str_or_default(diagnostics_raw, "encryption_key", "")
     retention_days = _get_int_or_default(diagnostics_raw, "retention_days", 30)
+    raw_sf = diagnostics_raw.get("sensitive_fields", [])
+    if isinstance(raw_sf, list):
+        sf = frozenset(raw_sf)
+    else:
+        sf = frozenset()
     return DiagnosticsConfig(
         encryption_key=encryption_key,
         retention_days=retention_days,
+        sensitive_fields=sf,
     )
 
 

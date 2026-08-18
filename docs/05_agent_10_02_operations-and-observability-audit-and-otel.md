@@ -67,7 +67,7 @@ OTel SDKは任意依存として扱われ、未インストール環境でもエ
 - `compress` — 履歴圧縮
 - `workflow.run` — ワークフロー実行
 - `workflow.stage` — ステージ実行
-- `workflow.approval` — 承認ゲート通過
+- `workflow.approval` — 事後実行承認通過
 - `workflow.retry` — リトライ待機
 
 ### 障害時の確認箇所

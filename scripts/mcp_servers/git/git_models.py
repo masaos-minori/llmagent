@@ -67,7 +67,7 @@ class GitServiceError(RuntimeError):
 _REPO_PATH_DESC = "Absolute path to the git repository"
 
 
-class RepoPathMixin:
+class RepoPathMixin(BaseModel):
     """Mixin providing the common repo_path field."""
 
     repo_path: str = Field(..., description=_REPO_PATH_DESC)
@@ -76,11 +76,11 @@ class RepoPathMixin:
 # ── Read-only tool request models ────────────────────────────────────────────
 
 
-class GitStatusRequest(RepoPathMixin, BaseModel):
+class GitStatusRequest(RepoPathMixin):
     """Request model for git_status — read-only status of a repository."""
 
 
-class GitLogRequest(RepoPathMixin, BaseModel):
+class GitLogRequest(RepoPathMixin):
     """Request model for git_log — recent commit log entries."""
 
     max_entries: int = Field(
@@ -92,7 +92,7 @@ class GitLogRequest(RepoPathMixin, BaseModel):
     branch: str = Field(default="", description="Branch name; empty = current HEAD")
 
 
-class GitDiffRequest(RepoPathMixin, BaseModel):
+class GitDiffRequest(RepoPathMixin):
     """Request model for git_diff — diff between working tree and index or two commits."""
 
     staged: bool = Field(
@@ -105,11 +105,11 @@ class GitDiffRequest(RepoPathMixin, BaseModel):
     )
 
 
-class GitBranchRequest(RepoPathMixin, BaseModel):
+class GitBranchRequest(RepoPathMixin):
     """Request model for git_branch — list branches in a repository."""
 
 
-class GitShowRequest(RepoPathMixin, BaseModel):
+class GitShowRequest(RepoPathMixin):
     """Request model for git_show — show details of a commit, blob, or tree object."""
 
     ref: str = Field(default="HEAD", description="Commit ref or tag to show")
@@ -118,7 +118,7 @@ class GitShowRequest(RepoPathMixin, BaseModel):
 # ── Write tool request models ─────────────────────────────────────────────────
 
 
-class GitAddRequest(RepoPathMixin, BaseModel):
+class GitAddRequest(RepoPathMixin):
     """Request model for git_add — stage files for commit."""
 
     paths: list[str] = Field(
@@ -132,7 +132,7 @@ class GitAddRequest(RepoPathMixin, BaseModel):
     )
 
 
-class GitCommitRequest(RepoPathMixin, BaseModel):
+class GitCommitRequest(RepoPathMixin):
     """Request model for git_commit — create a new commit from staged changes."""
 
     message: str = Field(..., min_length=1, description="Commit message")
@@ -142,7 +142,7 @@ class GitCommitRequest(RepoPathMixin, BaseModel):
     )
 
 
-class GitCheckoutRequest(RepoPathMixin, BaseModel):
+class GitCheckoutRequest(RepoPathMixin):
     """Request model for git_checkout — switch branches or restore working tree files."""
 
     branch: str = Field(..., description="Branch name to checkout or create")
@@ -153,7 +153,7 @@ class GitCheckoutRequest(RepoPathMixin, BaseModel):
     )
 
 
-class GitPullRequest(RepoPathMixin, BaseModel):
+class GitPullRequest(RepoPathMixin):
     """Request model for git_pull — fetch and merge changes from a remote repository."""
 
     remote: str = Field(default="origin", description="Remote name")
@@ -167,7 +167,7 @@ class GitPullRequest(RepoPathMixin, BaseModel):
     )
 
 
-class GitPushRequest(RepoPathMixin, BaseModel):
+class GitPushRequest(RepoPathMixin):
     """Request model for git_push — push local commits to a remote repository."""
 
     remote: str = Field(default="origin", description="Remote name")

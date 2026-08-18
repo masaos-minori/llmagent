@@ -20,6 +20,8 @@ source:
 
 承認フローの設計判断、リスク分類、計画モードについて文書化する。
 
+**注意**: このドキュメントは**事前実行承認**（ツールレベル）のみを対象とする。**事後実行承認**（ワークフローレベル）については[05_agent_06_04_tool-execution-and-approval-canonical.md](05_agent_06_04_tool-execution-and-approval-canonical.md)を参照。
+
 ## Design Intent
 
 ### 事前チェック（即時拒否）

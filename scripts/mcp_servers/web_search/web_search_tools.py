@@ -34,6 +34,7 @@ TOOL_LIST: list[McpTool] = [
             "required": ["query"],
         },
         "status": "production",
+        "config_dependent": False,
         "is_write": False,
         "requires_serial": False,
         "resource_scope_kind": "",

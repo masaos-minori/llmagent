@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import orjson
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps
@@ -53,9 +53,17 @@ class DiagnosticStore:
         diagnostics_raw = raw_cfg.get("diagnostics", {})
         if not isinstance(diagnostics_raw, dict):
             diagnostics_raw = {}
+        encryption_key = str(diagnostics_raw.get("encryption_key", ""))
+        retention_days = int(diagnostics_raw.get("retention_days", 30))
+        raw_sf = diagnostics_raw.get("sensitive_fields", [])
+        if isinstance(raw_sf, list):
+            sf = frozenset(raw_sf)
+        else:
+            sf = frozenset()
         return DiagnosticsConfig(
-            encryption_key=str(diagnostics_raw.get("encryption_key", "")),
-            retention_days=int(diagnostics_raw.get("retention_days", 30)),
+            encryption_key=encryption_key,
+            retention_days=retention_days,
+            sensitive_fields=sf,
         )
 
     def _filter_sensitive_fields(self, content: str) -> str:
@@ -165,6 +173,7 @@ class DiagnosticStore:
 
     def fetch(self, session_id: int) -> list[dict[str, Any]]:
         """Return all diagnostics for a session, newest first."""
+        cfg = self._load_diagnostics_config()
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT id, session_id, kind, content, created_at"
@@ -172,7 +181,28 @@ class DiagnosticStore:
                 " ORDER BY created_at DESC",
                 (session_id,),
             )
-        return [dict(r) for r in rows]
+        result = []
+        for row in rows:
+            entry = dict(row)
+            content = entry["content"]
+            # Decrypt if content appears to be a Fernet token
+            if cfg.encryption_key and content.startswith("gAAAAA"):
+                try:
+                    decrypted = (
+                        Fernet(cfg.encryption_key.encode("utf-8"))
+                        .decrypt(content.encode("utf-8"))
+                        .decode("utf-8")
+                    )
+                    entry["content"] = decrypted
+                except (ValueError, TypeError, InvalidToken):
+                    logger.warning(
+                        "Failed to decrypt diagnostic row %s for session %s",
+                        entry.get("id"),
+                        session_id,
+                    )
+                    # Leave ciphertext as-is if decryption fails
+            result.append(entry)
+        return result
 
     def save_serialization_event(
         self,

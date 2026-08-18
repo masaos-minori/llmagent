@@ -5,7 +5,7 @@ Shared Pydantic models for the /v1/call_tool unified endpoint.
 Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 """
 
-from typing import Any
+from typing import Any, NotRequired, Required, TypedDict
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,3 +42,25 @@ class CallToolResponse(BaseModel):
 
     result: str = Field(..., description="Formatted result text")
     is_error: bool = Field(..., description="True when the tool call failed")
+
+
+class McpTool(TypedDict):
+    """TypedDict for a single MCP tool definition in TOOL_LIST."""
+
+    name: Required[str]
+    description: Required[str]
+    inputSchema: Required[dict[str, Any]]
+    status: Required[str]
+    config_dependent: Required[bool]
+    is_write: Required[bool]
+    requires_serial: Required[bool]
+    resource_scope_kind: Required[str]
+    resource_scope_keys: Required[list[str]]
+
+
+class McpToolProperty(TypedDict):
+    """TypedDict for a single MCP tool property definition."""
+
+    type: Required[str]
+    description: Required[str]
+    minItems: NotRequired[int]

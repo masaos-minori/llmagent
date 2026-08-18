@@ -64,6 +64,9 @@ from agent.services.config_validators import (
     validate_memory_rrf_k as _v_mem_rrf,
 )
 from agent.services.config_validators import (
+    validate_progress_stagnation_window as _v_tool_psw,
+)
+from agent.services.config_validators import (
     validate_rag_refiner_max_chars_per_chunk as _v_rag_rmcc,
 )
 from agent.services.config_validators import (
@@ -216,6 +219,7 @@ class ToolConfig:
         _v_tool_emc(self)
         _v_tool_cms(self)
         _v_tool_erm(self)
+        _v_tool_psw(self)
 
 
 @dataclass
@@ -416,7 +420,6 @@ class AgentConfig:
 
     Composes 8 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.use_semantic_cache, etc.
-    security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
 
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -428,7 +431,6 @@ class AgentConfig:
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     messages: MessageRoleConfig = field(default_factory=MessageRoleConfig)
-    security_lockdown_enabled: bool = False
     agent_memory_max_startup_snippets: int = 10
 
     def __post_init__(self) -> None:

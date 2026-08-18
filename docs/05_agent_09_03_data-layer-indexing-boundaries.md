@@ -53,7 +53,7 @@ with SQLiteHelper().open(write_mode=True, row_factory=True) as db:
 | `tasks` | 1ターン試行ごとに1行 |
 | `attempts` | タスク内のリトライ試行 |
 | `processed_events` | 冪等性の強制 |
-| `approvals` | 承認ゲート |
+| `approvals` | 事後実行承認レコード |
 | `artifacts` | ステージコールバックが生成するURI |
 
 **Design judgment**: `config/workflows/default.json` が存在する場合に使用される。存在しない場合は起動に失敗する（ワークフロー必須）。

@@ -23,18 +23,18 @@ Workflow、Debug/Audit、Git/Diff、Compact/Exportカテゴリのスラッシュ
 
 ### Workflowカテゴリ
 
-ワークフローレベルの承認ゲートに関するコマンド群。
+**事後実行承認ゲート**に関するコマンド群。
 
 | コマンド | 副作用 | 関連する状態 |
 |---|---|---|
-| `/approve <approval_id> [reason]` | 保留中のワークフロー承認を「承認済み」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
-| `/reject <approval_id> [reason]` | 保留中のワークフロー承認を「却下」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
+| `/approve <approval_id> [reason]` | 保留中の事後実行承認を「承認済み」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
+| `/reject <approval_id> [reason]` | 保留中の事後実行承認を「却下」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
 
-> **適用範囲:** `/approve`と`/reject`は**ワークフローレベルの承認ゲートのみ**(`approvals`DBレコード)を解決する。ツールごとのインタラクティブな承認プロンプトには影響しない。正式な承認モデルについては[Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md)を参照。
+> **適用範囲:** `/approve`と`/reject`は**事後実行承認ゲートのみ**(`approvals`DBレコード)を解決する。**事前実行承認**（ツールレベルのリアルタイム承認プロンプト）には影響しない。正式な承認モデルについては[Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md)を参照。
 
 #### 起動時のリカバリ
 
-ワークフローレベルの承認が保留中の状態でエージェントが再起動した場合、その保留状態は`StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから起動時に自動検出される。
+事後実行承認が保留中の状態でエージェントが再起動した場合、その保留状態は`StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから起動時に自動検出される。
 
 **セッションをまたぐ保証:** `/approve`と`/reject`は、メモリ上の`ctx.turn.pending_approval_id`がNone（クラッシュ後など）であっても、`approvals`DBテーブルから最新の保留中承認を解決する。
 
@@ -54,7 +54,7 @@ RAG検索はスラッシュコマンドとしては提供されていない — 
 
 ## Responsibility Boundary
 
-- **Workflow**: ワークフローレベルの承認ゲート管理
+- **Workflow**: 事後実行承認ゲート管理
 - **Debug/Audit**: デバッグモードと監査ログ
 - **Git/Diff**: セッション内のファイル変更表示
 - **Compact/Export**: 履歴圧縮とエクスポート

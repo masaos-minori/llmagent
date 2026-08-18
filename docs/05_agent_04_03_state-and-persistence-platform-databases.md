@@ -90,7 +90,7 @@ DBパスは`agent.toml`内の`rag_db_path`, `session_db_path`, `workflow_db_path
 
 ### 承認操作
 
-`approval_ops.py`は承認ゲートの管理を提供する。詳細は[05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)を参照。
+`approval_ops.py`は事後実行承認の管理を提供する。詳細は[05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)を参照。
 
 ### 成果物操作
 

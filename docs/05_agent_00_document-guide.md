@@ -57,6 +57,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 - [Deprecated Items](00_governance_05_deprecated-items.md)
 - [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
+- [Terminology Glossary](00_governance_09_terminology-glossary.md)
 
 ### Query Routing Table
 

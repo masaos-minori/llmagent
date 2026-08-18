@@ -221,18 +221,41 @@ class MCPServer:
         )
 
 
-def build_tools_response(tools: Sequence[Any], server_key: str) -> dict[str, Any]:
+def build_tools_response(
+    tools: Sequence[McpTool],
+    server_key: str,
+    *,
+    include_disabled: bool = False,
+    disabled_code: str | None = None,
+) -> dict[str, Any]:
     """Build the /v1/tools response dict: schema_version + per-tool server_key tagging.
 
     Callable directly from each server's module-level FastAPI route handler (no MCPServer
     instance required) — see docstring on MCP_TOOL_SCHEMA_VERSION for the versioning contract.
 
-    Note: the returned "schema_version" describes the envelope shape only (this dict's
-    own top-level keys). The per-tool is_write/requires_serial/resource_scope_kind/
-    resource_scope_keys fields (see TOOL_SCHEMA_V2_FIELDS) are a separate, per-entry
-    contract validated by each server's own TOOL_LIST, not by this function.
+    Args:
+        tools: Tool definitions from the server's TOOL_LIST.
+        server_key: Server identifier to tag each tool with.
+        include_disabled: When True, include tools even if they are disabled.
+        disabled_code: When provided, further filter to only tools matching that code.
+
+    Returns:
+        Response dict with schema_version and tools list.
     """
+    result: list[dict[str, Any]] = []
+    for t in tools:
+        tool_dict: dict[str, Any] = {**t, "server_key": server_key}
+        # Apply visibility filtering based on annotation fields
+        if not include_disabled:
+            if tool_dict.get("enabled", True) is False:
+                continue
+        if disabled_code is not None:
+            if tool_dict.get("disabled_reason") != disabled_code and tool_dict.get(
+                "enabled", True
+            ):
+                continue
+        result.append(tool_dict)
     return {
         "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [t | {"server_key": server_key} for t in tools],
+        "tools": result,
     }

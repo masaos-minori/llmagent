@@ -152,6 +152,14 @@ def validate_tool_error_retry_max(cfg: ToolConfig) -> None:
         )
 
 
+def validate_progress_stagnation_window(cfg: ToolConfig) -> None:
+    """Validate that progress_stagnation_window is non-negative."""
+    if cfg.progress_stagnation_window < 0:
+        raise ValueError(
+            f"progress_stagnation_window must be >= 0, got {cfg.progress_stagnation_window}"
+        )
+
+
 def validate_memory_fts_limit(cfg: MemoryConfig) -> None:
     """Validate that memory_fts_limit is at least 1."""
     if cfg.memory_fts_limit < 1:

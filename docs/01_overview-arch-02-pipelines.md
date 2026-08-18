@@ -46,7 +46,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 - ターン処理は 4 層に分離されている: `AgentREPL`(REPL ループ) → `Orchestrator`(ターン制御・ワークフロー管理) → `LLMTurnRunner`(LLM ストリーミング + 内部ツールループ) → `agent/tool_runner.py`(ツール実行)。各層の責務は `agent/repl.py` の docstring で宣言されている。
 - MDQ/RAG ツール選択: `agent/mdq_rag_classifier.py` がクエリ文字列を解析し、Markdown 構造系キーワードを含む場合は MDQ ツール、それ以外は RAG ツールを優先するよう `system` ロールのエフェメラルメッセージとして hint をhistory に注入する。設定で固定も可能。(根拠: `agent/orchestrator.py`)
 - ツールループガード: ターン内での異常な繰り返しツール呼び出しパターンを検出し、LLM に停止ヒントを返して強制終了させる。詳細 → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (根拠: `agent/tool_loop_guard.py`)
-- ワークフローエンジン: `agent/workflow/workflow_engine.py` が plan → execute → [approval gate] → verify のステージ遷移を管理する。`/approve` / `/reject` スラッシュコマンドで人間承認ゲートを通過させる。ターン開始時に承認待ち状態であれば LLM 処理はブロックされる。(根拠: `agent/orchestrator.py`)
+- ワークフローエンジン: `agent/workflow/workflow_engine.py` が plan → execute → [事後実行承認ゲート] → verify のステージ遷移を管理する。`/approve` / `/reject` スラッシュコマンドで事後実行承認ゲートを通過させる。ターン開始時に承認待ち状態であれば LLM 処理はブロックされる。(根拠: `agent/orchestrator.py`)
 
 **ターン内の処理順序**
 
@@ -64,9 +64,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.json
 
 `workflow_mode` は有効な設定キーではない。`build_agent_config()` はこのキーを消費せず、設定ファイルに存在しても無視される（エラー・警告なし）。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
 
-詳細: [02_deployment.md§Workflow deployment checklist](02_deployment.md) / [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) / [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine.md#ワークフロー実行必須化-adr-workflow-mandatory)
-
-    ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に人間承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
+**事後実行承認ゲートの有効化:** ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に事後実行承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
 **MCP サーバの startup_mode**
 

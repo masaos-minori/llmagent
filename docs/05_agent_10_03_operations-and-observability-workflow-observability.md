@@ -38,7 +38,7 @@ source:
 ## 責務境界
 
 - **対象**: ワークフロー実行中の観測データ生成と出力
-- **対象外**: ワークフローエンジン自体の実行ロジック、承認ゲートの決定ロジック
+- **対象外**: ワークフローエンジン自体の実行ロジック、事後実行承認の決定ロジック
 - **所有者**: `agent/workflow.py` (`WorkflowEngine`)、`agent/tool_audit.py`（監査ライター）
 
 ## 主要な制約
@@ -54,7 +54,7 @@ source:
 期待されるスパン名:
 - `workflow.run` — ワークフロー全体の実行
 - `workflow.stage` — 個別ステージの実行
-- `workflow.approval` — 承認ゲート通過
+- `workflow.approval` — 事後実行承認通過
 - `workflow.retry` — リトライ待機
 
 ### 障害時の確認手順

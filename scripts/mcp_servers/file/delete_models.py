@@ -46,7 +46,7 @@ class FileDeleteConfig:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class PathMixin:
+class PathMixin(BaseModel):
     """Mixin providing shared path field with unified description."""
 
     path: str = Field(description="Absolute path of the target to delete")
@@ -65,7 +65,7 @@ class PathMixin:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class DeleteFileRequest(PathMixin, BaseModel):
+class DeleteFileRequest(PathMixin):
     """Request model for deleting a single file."""
 
     model_config = ConfigDict(extra="forbid")
@@ -84,7 +84,7 @@ class DeleteFileResponse(BaseModel):
     file_info: str = ""
 
 
-class DeleteDirectoryRequest(PathMixin, BaseModel):
+class DeleteDirectoryRequest(PathMixin):
     """Request model for deleting a directory."""
 
     model_config = ConfigDict(extra="forbid")

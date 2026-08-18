@@ -130,6 +130,7 @@ Cross-cutting documentation rules and policies:
 - [Known Issues Template](00_governance_04_known-issues-template.md)
 - [Deprecated Items](00_governance_05_deprecated-items.md)
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
+- [Terminology Glossary](00_governance_09_terminology-glossary.md)
 
 ## Markdown記法ルール
 
