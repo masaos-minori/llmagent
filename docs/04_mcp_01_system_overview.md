@@ -68,16 +68,16 @@ MCPサーバーの設定は2つのレイヤーに分離されている。
 
 | サーバ | ポート | トランスポート | 起動モード | tool数 | 役割 |
 |---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | persistent | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web検索（DuckDuckGo） |
-| file-read-mcp | 8005 | HTTP | persistent | 9 | ローカルファイル読み取り |
-| github-mcp | 8006 | HTTP | persistent | 21 | GitHub API |
-| file-write-mcp | 8007 | HTTP | persistent | 4 | ローカルファイル書き込み |
-| file-delete-mcp | 8008 | HTTP | persistent | 2 | ローカルファイル削除 |
-| shell-mcp | 8009 | HTTP | persistent | 1 | サンドボックス化されたshell実行 |
-| rag-pipeline-mcp | 8010 | HTTP | persistent | 4 | RAG検索パイプライン |
-| cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
-| mdq-mcp | 8013 | HTTP | persistent | 7 | Markdownコンテキスト圧縮 |
-| git-mcp | 8014 | HTTP | persistent | 10 | ローカルgit操作 |
+| web-search-mcp | 8004 | HTTP | subprocess | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web検索（DuckDuckGo） |
+| file-read-mcp | 8005 | HTTP | subprocess | 9 | ローカルファイル読み取り |
+| github-mcp | 8006 | HTTP | subprocess | 21 | GitHub API |
+| file-write-mcp | 8007 | HTTP | subprocess | 4 | ローカルファイル書き込み |
+| file-delete-mcp | 8008 | HTTP | subprocess | 2 | ローカルファイル削除 |
+| shell-mcp | 8009 | HTTP | subprocess | 1 | サンドボックス化されたshell実行 |
+| rag-pipeline-mcp | 8010 | HTTP | subprocess | 4 | RAG検索パイプライン |
+| cicd-mcp | 8012 | HTTP | subprocess | 4 | GitHub Actions CI/CD |
+| mdq-mcp | 8013 | HTTP | subprocess | 7 | Markdownコンテキスト圧縮 |
+| git-mcp | 8014 | HTTP | subprocess | 10 | ローカルgit操作 |
 
 ---
 
@@ -92,7 +92,7 @@ Agent ToolExecutor
   ← {"result": "...", "is_error": false}
 ```
 
-サーバはloopback上でpersistentなHTTPプロセスとして動作する。
+サーバはloopback上でsubprocessとして動作する。
 
 ### Transport Selection Guide
 

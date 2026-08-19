@@ -19,7 +19,17 @@ def read_offset(offsets_dir: str, consumer_id: str) -> int:
 
 
 def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
-    """Write the current sequence offset for a consumer to disk."""
+    """Write the current sequence offset for a consumer to disk.
+
+    Enforces non-decreasing offset semantics: if seq is less than or equal
+    to the currently committed offset, the write is silently skipped and a
+    warning is logged. This prevents duplicate message delivery caused by
+    out-of-order acknowledgments.
+    """
+    current = read_offset(offsets_dir, consumer_id)
+    if seq <= current:
+        logger.warning("offset not advanced: seq=%d <= current=%d", seq, current)
+        return
     safe_id = _sanitize_consumer_id(consumer_id)
     dir_path = Path(offsets_dir)
     dir_path.mkdir(parents=True, exist_ok=True)

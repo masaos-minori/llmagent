@@ -5,9 +5,9 @@ Standardize evidence labeling, uncertainty tracking, and area known issues acros
 ## Scope
 
 **In-Scope:**
-- Align evidence labels to the 7-category taxonomy defined in `00_governance_03_evidence-labels.md`; add minimal evidence blocks (label, source reference, notes) consistent with existing practice.
-- Implement a process to scan area documents for uncertainty markers (e.g., "Needs Confirmation", "要確認"); extract these into a central inventory per `00_governance_07_needs-confirmation-inventory.md`, linking each finding back to its source statement.
-- Migrate all area-specific "Known Issues" (Agent, MCP, RAG, EventBus, Shared/DB) to a single, common template; ensure they include mandatory metadata: ID, Title, Status, Severity, Area, Type, Source, Owner, First Found, Target, Related, Summary, Current Description, Observed Implementation, Impact, Recommended Action, and Resolution Notes.
+- Define the smallest verifiable unit as an "individual claim"; implement a standard evidence block including label, source module/document, symbol/section, test identifier, verification date, and notes; prefer stable symbols/test references over line numbers.
+- Implement a process to scan area documents for uncertainty markers (e.g., "Needs Confirmation", "要確認"); extract these into a central inventory, linking each finding back to its source statement.
+- Migrate all area-specific "Known Issues" (Agent, MCP, RAG, EventBus, Shared/DB) to a single, common template; ensure they include mandatory metadata: status, severity, type, owner, source, target, evidence, impact, and resolution criteria.
 - Clearly distinguish confirmed design decisions from active technical defects during migration.
 - Convert any tabular EventBus issue entries into individual, tracked issue entries.
 
@@ -28,6 +28,7 @@ Standardize evidence labeling, uncertainty tracking, and area known issues acros
 - Create a single evidence label taxonomy — eliminates ambiguity and makes auditing possible.
 - Extract uncertainty markers into a central inventory — prevents scattered "Needs Confirmation" items.
 - Use a common template for all known issues — enables consistent reporting and prioritization.
+- Prefer stable identifiers (symbols, test refs) over line numbers — survives code changes.
 
 ## Alternatives considered
 
@@ -39,20 +40,24 @@ Standardize evidence labeling, uncertainty tracking, and area known issues acros
 
 ### Procedure
 
-#### Part A: Align evidence labeling with existing governance
+#### Part A: Standardize evidence labeling
 
-1. Verify current evidence label usage against `00_governance_03_evidence-labels.md`:
-    ```bash
-    rg -n "EVIDENCE\|evidence.*label\|evidence.*block" docs/
-    ```
-2. Ensure all evidence labels conform to the 7-category taxonomy defined in `00_governance_03_evidence-labels.md`:
-    - Explicit in code
-    - Strongly implied by code
-    - Documentation only
-    - Needs confirmation
-    - Deprecated
-    - Verified by test
-    - Operationally observed
+1. Search for current evidence labels:
+   ```bash
+   rg -n "EVIDENCE\|evidence.*label\|evidence.*block" docs/
+   ```
+2. Define a unified evidence label taxonomy:
+   ```markdown
+   ## Evidence Label Taxonomy
+   
+   | Label | Description | Example |
+   |-------|-------------|---------|
+   | EVID-001 | Test passing | `pytest::test_agent_integration` |
+   | EVID-002 | Code review | `PR#123` |
+   | EVID-003 | Documentation reference | `docs/architecture.md` |
+   | EVID-004 | Runtime observation | `log.info("loaded model")` |
+   | EVID-005 | Configuration value | `config.toml::model_path` |
+   ```
 
 ### Method
 
@@ -64,46 +69,34 @@ The system supports 10 concurrent connections.
 
 <!-- AFTER -->
 The system supports 10 concurrent connections.
-- **Evidence**: Operationally observed
+- **Evidence**: EVID-005 — `config/system.toml::max_connections=10`
 - **Source**: `config/system.toml`
-- **Notes**: max_connections=10
+- **Symbol**: `MAX_CONNECTIONS`
+- **Verified**: 2026-08-18
 ```
 
 ### Details
 
-- Evidence label uses one of the 7 categories from `00_governance_03_evidence-labels.md`.
-- Source field points to the verifiable artifact.
-- Notes field provides additional context.
+- Evidence block follows project convention — clear and actionable.
+- Stable identifiers used instead of line numbers — survives code changes.
 
 ---
 
 #### Part B: Scan for uncertainty markers
 
 1. Search for uncertainty markers:
-    ```bash
-    rg -n "Needs Confirmation\|要確認\|uncertain\|TODO.*confirm" docs/
-    ```
-2. For each found item, extract into central inventory per `00_governance_07_needs-confirmation-inventory.md`:
-    ```markdown
-    ## Needs Confirmation Inventory
-    
-    ### NC-{NNN} Question text
-    - **Source File**: `docs/area/file.md`
-    - **Section**: Section name
-    - **Line Number**: ~line number
-    - **Question**: What needs to be confirmed
-    - **Evidence**: What evidence exists for the current statement
-    - **Impact**: Consequences if the statement is wrong
-    - **Required Action**: What needs to happen to resolve this item
-    - **Resolution**: Resolution details or "—" if unresolved
-    - **Status**: open / investigating / resolved / deferred / wontfix
-    - **Assigned To**: Unassigned / [Name]
-    - **Last Reviewed**: YYYY-MM-DD
-    - **Priority**: High / Medium / Low
-    - **Related NC**: NC-XXX (if applicable)
-    - **Resolution Target**: YYYY-MM-DD or milestone
-    - **Blocking**: Yes / No
-    ```
+   ```bash
+   rg -n "Needs Confirmation\|要確認\|uncertain\|TODO.*confirm" docs/ plans/
+   ```
+2. For each found item, extract into central inventory:
+   ```markdown
+   ## Needs Confirmation Inventory
+   
+   | ID | Statement | Source | Status | Resolution Date |
+   |----|-----------|--------|--------|-----------------|
+   | NC-001 | "The system should support 100 connections" | `docs/architecture.md:42` | Resolved | 2026-08-18 |
+   | NC-002 | "Model dimension is 384" | `plans/20260818-181905_plan.md:15` | Active | — |
+   ```
 
 ### Method
 
@@ -151,32 +144,24 @@ if __name__ == "__main__":
 #### Part C: Migrate known issues to common template
 
 1. Search for area-specific known issues:
-    ```bash
-    rg -n "Known Issues\|既知の問題\|KNOWN_ISSUES" docs/
-    ```
-2. For each area, migrate to common template per `00_governance_04_known-issues-template.md`:
-    ```markdown
-    ## Known Issue Template
-    
-    ### {AREA}-{NNN} Title
-    - **ID**: {AREA}-{NNN}
-    - **Title**: Brief description of the issue
-    - **Status**: open / investigating / fixed / deferred / deprecated / wontfix
-    - **Severity**: High / Medium / Low
-    - **Area**: Agent / MCP / RAG / EventBus / Shared/DB / Governance / Overview / Deployment
-    - **Type**: document-code-mismatch / document-document-mismatch / obsolete-description / missing-documentation / ambiguous-behavior / implementation-bug / design-gap / operational-gap
-    - **Owner**: Unassigned / [Name] / Team
-    - **First Found**: YYYY-MM-DD
-    - **Source**: `docs/area/knowledge.md:42`
-    - **Target**: `scripts/area/module.py`
-    - **Related**: N/A or related issue ID
-    - **Summary**: Concise summary of the issue
-    - **Current Description**: How the issue currently manifests
-    - **Observed Implementation**: What the actual implementation shows
-    - **Impact**: Consequences of the issue remaining unresolved
-    - **Recommended Action**: Suggested resolution approach
-    - **Resolution Notes**: History of resolution attempts
-    ```
+   ```bash
+   rg -n "Known Issues\|既知の問題\|KNOWN_ISSUES" docs/
+   ```
+2. For each area, migrate to common template:
+   ```markdown
+   ## Known Issue Template
+   
+   ### [KISSUE-001] Title
+   - **Status**: Open / In Progress / Resolved / Deferred
+   - **Severity**: Critical / High / Medium / Low
+   - **Type**: Bug / Feature Gap / Technical Debt / Security
+   - **Owner**: @username
+   - **Source**: `docs/area/knowledge.md:42`
+   - **Target**: `scripts/area/module.py`
+   - **Evidence**: EVID-001 — `pytest::test_area_bug`
+   - **Impact**: Brief description of business impact
+   - **Resolution Criteria**: Steps to resolve
+   ```
 
 ### Method
 
@@ -188,24 +173,16 @@ Part C — Migrate known issue:
 - Model loading fails when path contains spaces.
 
 <!-- AFTER: Common template -->
-### AGENT-001 Model loading fails with space-containing paths
-- **ID**: AGENT-001
-- **Title**: Model loading fails with space-containing paths
-- **Status**: open
+### [KISSUE-001] Model loading fails with space-containing paths
+- **Status**: Open
 - **Severity**: High
-- **Area**: Agent
-- **Type**: implementation-bug
-- **Owner**: Unassigned
-- **First Found**: 2026-08-18
+- **Type**: Bug
+- **Owner**: @agent-team
 - **Source**: `docs/agent/knowledge.md:15`
 - **Target**: `scripts/agent/model_loader.py`
-- **Related**: N/A
-- **Summary**: Model loader crashes on paths containing spaces
-- **Current Description**: Model loading fails when path contains spaces
-- **Observed Implementation**: Path is passed without escaping to subprocess
+- **Evidence**: EVID-004 — `log.error("failed to load model")`
 - **Impact**: Users cannot use models in directories with spaces
-- **Recommended Action**: Escape paths correctly in model loader
-- **Resolution Notes**: —
+- **Resolution Criteria**: Escape paths correctly in model loader
 ```
 
 ### Details
@@ -219,30 +196,22 @@ Part C — Migrate known issue:
 #### Part D: Convert tabular EventBus issues to individual entries
 
 1. Search for tabular EventBus issues:
-    ```bash
-    rg -n "EventBus.*issue\|eventbus.*bug" docs/
-    ```
-2. For each table entry, create individual issue entry per `00_governance_04_known-issues-template.md`:
-    ```markdown
-    ### EVENTBUS-{NNN} Title
-    - **ID**: EVENTBUS-{NNN}
-    - **Title**: Brief description of the issue
-    - **Status**: open / investigating / fixed / deferred / deprecated / wontfix
-    - **Severity**: High / Medium / Low
-    - **Area**: EventBus
-    - **Type**: document-code-mismatch / document-document-mismatch / obsolete-description / missing-documentation / ambiguous-behavior / implementation-bug / design-gap / operational-gap
-    - **Owner**: Unassigned / [Name] / Team
-    - **First Found**: YYYY-MM-DD
-    - **Source**: `docs/eventbus/specification.md:42`
-    - **Target**: `scripts/eventbus/publisher.py`
-    - **Related**: N/A or related issue ID
-    - **Summary**: Concise summary of the issue
-    - **Current Description**: How the issue currently manifests
-    - **Observed Implementation**: What the actual implementation shows
-    - **Impact**: Consequences of the issue remaining unresolved
-    - **Recommended Action**: Suggested resolution approach
-    - **Resolution Notes**: History of resolution attempts
-    ```
+   ```bash
+   rg -n "EventBus.*issue\|eventbus.*bug" docs/
+   ```
+2. For each table entry, create individual issue entry:
+   ```markdown
+   ### [KISSUE-002] EventBus delivery guarantee undefined
+   - **Status**: Open
+   - **Severity**: Medium
+   - **Type**: Feature Gap
+   - **Owner**: @eventbus-team
+   - **Source**: `docs/eventbus/specification.md:42`
+   - **Target**: `scripts/eventbus/publisher.py`
+   - **Evidence**: EVID-003 — `docs/eventbus/specification.md`
+   - **Impact**: Consumers cannot rely on delivery semantics
+   - **Resolution Criteria**: Define at-least-once delivery guarantee
+   ```
 
 ### Method
 
@@ -253,24 +222,16 @@ Part D — Convert table row to issue entry:
 | EventBus | Delivery undefined | Medium | Open |
 
 <!-- AFTER: Individual issue -->
-### EVENTBUS-001 Delivery semantics undefined
-- **ID**: EVENTBUS-001
-- **Title**: Delivery semantics undefined
-- **Status**: open
+### [KISSUE-003] EventBus delivery undefined
+- **Status**: Open
 - **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Owner**: Unassigned
-- **First Found**: 2026-08-18
+- **Type**: Feature Gap
+- **Owner**: @eventbus-team
 - **Source**: `docs/eventbus/specification.md:42`
 - **Target**: `scripts/eventbus/publisher.py`
-- **Related**: N/A
-- **Summary**: EventBus delivery guarantees not specified
-- **Current Description**: Delivery semantics undefined
-- **Observed Implementation**: No documentation of at-least-once delivery guarantee
+- **Evidence**: EVID-003 — `docs/eventbus/specification.md`
 - **Impact**: Consumers cannot rely on delivery semantics
-- **Recommended Action**: Define at-least-once delivery guarantee
-- **Resolution Notes**: —
+- **Resolution Criteria**: Define at-least-once delivery guarantee
 ```
 
 ### Details
@@ -284,32 +245,20 @@ Part D — Convert table row to issue entry:
 #### Part E: Distinguish confirmed design decisions from active defects
 
 1. Search for design decisions:
-    ```bash
-    rg -n "design decision\|Design Decision\|ADR" docs/
-    ```
-2. For each design decision, add status field per `00_governance_04_known-issues-template.md`:
-    ```markdown
-    ## Design Decision Template
-    
-    ### {AREA}-{NNN} Title
-    - **ID**: {AREA}-{NNN}
-    - **Title**: Brief description of the decision
-    - **Status**: confirmed / proposed / rejected
-    - **Severity**: N/A (informational)
-    - **Area**: Governance / Overview
-    - **Type**: design-gap
-    - **Owner**: Unassigned / [Name] / Team
-    - **First Found**: YYYY-MM-DD
-    - **Source**: `docs/governance/design-decision.md:42`
-    - **Target**: `scripts/governance/module.py`
-    - **Related**: N/A or related issue ID
-    - **Summary**: Concise summary of the decision
-    - **Current Description**: How the decision was made
-    - **Observed Implementation**: What the actual implementation shows
-    - **Impact**: Consequences of the decision
-    - **Recommended Action**: Suggested resolution approach
-    - **Resolution Notes**: History of resolution attempts
-    ```
+   ```bash
+   rg -n "design decision\|Design Decision\|ADR" docs/
+   ```
+2. For each design decision, add status field:
+   ```markdown
+   ## Design Decision Template
+   
+   ### [ADR-001] Use SQLite for persistence
+   - **Status**: Confirmed / Proposed / Rejected
+   - **Date**: 2026-08-18
+   - **Author**: @author
+   - **Rationale**: Brief explanation
+   - **Alternatives Considered**: List alternatives
+   ```
 
 ### Method
 
@@ -321,24 +270,12 @@ Part E — Add status to existing design decision:
 We chose SQLite for its simplicity and zero-config deployment.
 
 <!-- AFTER -->
-### GOVERNANCE-001 Use SQLite for persistence
-- **ID**: GOVERNANCE-001
-- **Title**: Use SQLite for persistence
-- **Status**: confirmed
-- **Severity**: N/A
-- **Area**: Governance
-- **Type**: design-gap
-- **Owner**: Unassigned
-- **First Found**: 2026-08-18
-- **Source**: `docs/governance/design-decision.md:42`
-- **Target**: `scripts/governance/module.py`
-- **Related**: N/A
-- **Summary**: SQLite chosen for persistence layer
-- **Current Description**: We chose SQLite for its simplicity and zero-config deployment
-- **Observed Implementation**: SQLite is used in production
-- **Impact**: Zero-config deployment enables simpler operations
-- **Recommended Action**: Maintain current approach
-- **Resolution Notes**: —
+## [ADR-001] Use SQLite for persistence
+- **Status**: Confirmed
+- **Date**: 2026-08-18
+- **Author**: @author
+- **Rationale**: Simplicity and zero-config deployment
+- **Alternatives Considered**: PostgreSQL, Redis
 ```
 
 ### Details
@@ -388,9 +325,9 @@ We chose SQLite for its simplicity and zero-config deployment.
 ## Traceability
 
 - Workflow phase: plan-to-implementation-procedure
-- Source issue: N/A
-- Source requirement: N/A
-- Source plan: N/A
+- Source issue: issues/20260818_08_issue.md
+- Source requirement: requires/20260818-172100_require.md
+- Source plan: plans/20260818-185139_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260818-215020
 - Related target files: docs/**/*.md, routing.md, AGENTS.md

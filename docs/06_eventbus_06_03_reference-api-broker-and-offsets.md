@@ -27,7 +27,7 @@ source:
 
 ## scripts/eventbus/offsets.py
 
-`read_offset(offsets_dir, consumer_id)→int`: 保存オフセット読み込み（未発見時は0）。`write_offset(offsets_dir, consumer_id, seq)→None`: ファイル書き込み。
+`read_offset(offsets_dir, consumer_id)→int`: 保存オフセット読み込み（未発見時は0）。`write_offset(offsets_dir, consumer_id, seq)→None`: seq が現在のコミット済みオフセットより大きい場合のみファイル書き込み。seq <= current の場合は警告ログを出力してスキップ（単調性保証）。
 
 ## Related Documents
 

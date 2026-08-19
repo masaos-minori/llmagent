@@ -20,10 +20,10 @@ Establish a unified system security architecture and high-risk tool control mode
 
 ## Assumptions
 
-- The project already has some security controls (e.g., `SecurityProfile`, `security_lockdown_enabled`, allowlists in various MCP servers) but they're fragmented — **CORRECTION**: `SecurityProfile` (LOCAL/PRODUCTION) and `security_lockdown_enabled` exist; the unified module must extend, not replace, these.
-- Fail-closed/fail-open behavior varies by context (e.g., CICD uses fail-closed for empty allowlists) — **CORRECTION**: verified in each MCP server's implementation.
-- Secret management needs standardization — **CORRECTION**: secrets are currently stored in TOML config files (`config/*_mcp_server.toml`); the unified module must work within this constraint.
-- Audit logging exists but may not capture all security events — **CORRECTION**: audit logs go to `/opt/llm/logs/`; the unified module must write to the same location.
+- The project already has some security controls (e.g., `SecurityProfile`, `security_lockdown_enabled`, allowlists in various MCP servers) but they're fragmented (verify current implementation against each claim).
+- Fail-closed/fail-open behavior varies by context (e.g., CICD uses fail-closed for empty allowlists) (check current behavior in each MCP server).
+- Secret management needs standardization (check how secrets are currently handled).
+- Audit logging exists but may not capture all security events (review current audit log coverage).
 
 ## Design decisions
 
@@ -31,9 +31,6 @@ Establish a unified system security architecture and high-risk tool control mode
 - Use fail-closed as default — prevents unauthorized access in production environments.
 - Separate secret management from security enforcement — keeps concerns isolated and allows independent evolution.
 - Require explicit audit logging for all security events — ensures traceability and compliance.
-- **CORRECTION**: The unified module extends `SecurityProfile` (LOCAL/PRODUCTION) and respects `security_lockdown_enabled` — it does not replace them.
-- **CORRECTION**: Secrets remain in TOML config files; the unified module reads them via existing config loaders.
-- **CORRECTION**: Audit logs written to `/opt/llm/logs/` consistent with existing audit logging.
 
 ## Alternatives considered
 
@@ -41,7 +38,6 @@ Establish a unified system security architecture and high-risk tool control mode
 - Use fail-open as default — rejected because it would allow unauthorized access in production.
 - Merge secret management into the security module — rejected because secret lifecycle is orthogonal to access control.
 - Leave audit logging as-is — rejected because current coverage is incomplete.
-- Replace `SecurityProfile` entirely — rejected because existing code depends on it; the unified module must coexist with it.
 
 ## Implementation
 
@@ -50,13 +46,12 @@ Establish a unified system security architecture and high-risk tool control mode
 #### Part A: Review current security controls
 
 1. Search for all security profiles used today:
-    ```bash
-    rg -n "SecurityProfile\|security_lockdown\|allowlist\|denylist" scripts/
-    ```
-2. Determine current fail-closed/fail-open behavior in each MCP server — verify against actual code, not assumptions.
-3. Review current secret management mechanism — secrets are in TOML configs (`config/*_mcp_server.toml`).
-4. Check current audit log coverage — audit logs go to `/opt/llm/logs/`.
-5. **CORRECTION**: Identify which MCP servers have high-risk tools that need updating: file-write, delete, shell, git, github, cicd, db.
+   ```bash
+   rg -n "SecurityProfile\|security_lockdown\|allowlist\|denylist" scripts/
+   ```
+2. Determine current fail-closed/fail-open behavior in each MCP server.
+3. Review current secret management mechanism.
+4. Check current audit log coverage.
 
 #### Part B: Create unified security module
 

@@ -20,7 +20,6 @@ Standardize document templates, define minimal behavioral contracts, and moderni
 - Evidence blocks need to be standardized across all documentation (check current evidence block usage).
 - Uncertainty markers need to be extracted into a central inventory (check current uncertainty marker usage).
 - Known issues need to follow a common template (check current known issues format).
-- Tracer source files (issues/, requires/, plans/) do not exist in this repository; validation relies on existing governance documents only.
 
 ## Design decisions
 
@@ -80,12 +79,16 @@ Standardize document templates, define minimal behavioral contracts, and moderni
    - [ ] Glossary
    - [ ] Appendix
    
-    ## Evidence
-    
-    | Label | Source | Notes |
-    |-------|--------|-------|
-    | Explicit in code | src/handler.py:42 | CLI command `/reload` reads config/agent.toml |
-    ```
+   ## Evidence
+   
+   | ID | Description | Source | Verified |
+   |----|-------------|--------|----------|
+   | EVID-001 | ... | ... | YYYY-MM-DD |
+   
+   ## Related Documents
+   
+   - [Document Name](./document.md)
+   ```
 
 ### Method
 
@@ -390,9 +393,9 @@ graph LR
 ## Traceability
 
 - Workflow phase: plan-to-implementation-procedure
-- Source issue: N/A
-- Source requirement: N/A
-- Source plan: N/A
+- Source issue: issues/20260818_13_issue.md
+- Source requirement: requires/20260818-172500_require.md
+- Source plan: plans/20260818-190351_plan.md
 - Source implementation procedure: N/A
 - Generated at: 20260818-215845
 - Related target files: docs/**/*.md, routing.md, AGENTS.md

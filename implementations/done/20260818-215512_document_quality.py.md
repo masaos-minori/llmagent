@@ -48,17 +48,17 @@ Standardize terminology and repair documentation quality defects by establishing
    ```
 2. Define a unified terminology glossary:
    ```markdown
-    ## Terminology Glossary
-    
-    | Term | Preferred Form | Alternative Forms | Notes |
-    |------|---------------|-------------------|-------|
-    | Event Bus | EventBus | event bus, event-bus | CamelCase as proper noun; use "Event Bus" (with space) in Japanese text |
-    | Message Queue | MQ | message queue, msg-queue | Abbreviation: MQ; not currently used in this project |
-    | Schema Registry | Schema Registry | schema registry | Proper noun; used sparingly in this project |
-    | Needs Confirmation | Needs Confirmation | Needs confirmation, 要確認, Need Confirmation, 未決事項 | Abbreviation: NC; always capitalize both words in English |
-    | Known Issue | Known Issue | Known Issues, 既知の問題, 既知の不整合, 既知の不具合と不整合 | Plural form is acceptable when referring to multiple items |
-    | At-Least-Once Delivery | At-Least-Once Delivery | at-least-once delivery, at least once delivery | Abbreviation: ALOD; hyphenate when used as adjective |
-    ```
+   ## Terminology Glossary
+   
+   | Term | Preferred Form | Alternative Forms | Notes |
+   |------|---------------|-------------------|-------|
+   | Event Bus | EventBus | event bus, event-bus | CamelCase as proper noun |
+   | Message Queue | MQ | message queue, msg-queue | Abbreviation: MQ |
+   | Schema Registry | SR | schema registry | Proper noun |
+   | Needs Confirmation | NC | 要確認 | Abbreviation: NC |
+   | Known Issue | KISSUE | 既知の問題 | Abbreviation: KISSUE |
+   | At-Least-Once Delivery | ALOD | at-least-once delivery | Abbreviation: ALOD |
+   ```
 
 ### Method
 

@@ -258,3 +258,50 @@ class TestConsumerIdSanitization:
         write_offset(str(tmp_path), "foo/bar", 42)
         offset = read_offset(str(tmp_path), "foo/bar")
         assert offset == 42
+
+
+class TestOffsetMonotonicity:
+    """Verify write_offset() does not lower a consumer's committed offset."""
+
+    def test_write_offset_prevents_backward_jump(self, tmp_path: Path) -> None:
+        """Verify write_offset() does not lower a consumer's committed offset."""
+        from eventbus.offsets import read_offset, write_offset
+
+        # Write a higher offset first
+        write_offset(str(tmp_path), "consumer_1", 100)
+        assert read_offset(str(tmp_path), "consumer_1") == 100
+
+        # Attempt to write a lower offset -- should be ignored
+        write_offset(str(tmp_path), "consumer_1", 50)
+        assert read_offset(str(tmp_path), "consumer_1") == 100
+
+    def test_write_offset_allows_forward_progress(self, tmp_path: Path) -> None:
+        """Verify write_offset() still advances when seq > current."""
+        from eventbus.offsets import read_offset, write_offset
+
+        write_offset(str(tmp_path), "consumer_2", 50)
+        assert read_offset(str(tmp_path), "consumer_2") == 50
+
+        write_offset(str(tmp_path), "consumer_2", 100)
+        assert read_offset(str(tmp_path), "consumer_2") == 100
+
+    def test_write_offset_skips_equal_seq(self, tmp_path: Path) -> None:
+        """Verify write_offset() skips writes where seq equals current offset."""
+        from eventbus.offsets import read_offset, write_offset
+
+        write_offset(str(tmp_path), "consumer_3", 42)
+        assert read_offset(str(tmp_path), "consumer_3") == 42
+
+        # Same seq should be skipped
+        write_offset(str(tmp_path), "consumer_3", 42)
+        assert read_offset(str(tmp_path), "consumer_3") == 42
+
+    def test_first_write_always_succeeds(self, tmp_path: Path) -> None:
+        """First write always succeeds since read_offset returns 0 for missing files."""
+        from eventbus.offsets import read_offset, write_offset
+
+        write_offset(str(tmp_path), "consumer_4", 0)
+        assert read_offset(str(tmp_path), "consumer_4") == 0
+
+        write_offset(str(tmp_path), "consumer_4", 1)
+        assert read_offset(str(tmp_path), "consumer_4") == 1
