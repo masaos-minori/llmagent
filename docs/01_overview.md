@@ -21,27 +21,27 @@ source:
   - 01_overview.md
 ---
 
-# 概要・アーキテクチャ・ファイル構成(索引)
+# Overview, Architecture, and File Structure (Index)
 
-| ファイル | 内容 |
+| File | Content |
 |---|---|
-| [01_overview-arch-01-process.md](01_overview-arch-01-process.md) | プロセスアーキテクチャ(LLMサービス、MCPサーバ、設定分離) |
-| [01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md) | パイプラインアーキテクチャ(取込/検索パイプライン、ターン処理順序、ワークフローモード) |
-| [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | 機能アーキテクチャ(実装済み機能、実装上の補足) |
-| [01_overview-files-01-build.md](01_overview-files-01-build.md) | ビルド・モデル関連のファイル構成 |
-| [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG関連のファイル構成 |
-| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) 〜 part5 | scripts配下のファイル構成(5分割) |
-| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) 〜 part2 | 共有インフラのファイル構成(2分割) |
-| [01_overview-files-05-config.md](01_overview-files-05-config.md) | 設定ファイル構成 |
-| [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | その他のファイル構成 |
-| [02_deployment.md](02_deployment.md) | デプロイトポロジー(単一ホスト/複数ホスト前提)、環境構築・サービス起動 |
+| [01_overview-arch-01-process.md](01_overview-arch-01-process.md) | Process Architecture (LLM service, MCP server, separation of configuration) |
+| [01_overview-arch-02-pipelines.md](01_overview-arch-02-pipelines.md) | Pipeline Architecture (Ingestion/Search pipeline, turn processing order, workflow mode) |
+| [01_overview-arch-03-features.md](01_overview-arch-03-features.md) | Feature Architecture (Implemented features, implementation notes) |
+| [01_overview-files-01-build.md](01_overview-files-01-build.md) | Build and Model related file structure |
+| [01_overview-files-02-rag.md](01_overview-files-02-rag.md) | RAG related file structure |
+| [01_overview-files-03-scripts.md](01_overview-files-03-scripts.md) 〜 part5 | File structure under scripts directory (split into 5 parts) |
+| [01_overview-files-04-shared.md](01_overview-files-04-shared.md) 〜 part2 | Shared infrastructure file structure (split into 2 parts) |
+| [01_overview-files-05-config.md](01_overview-files-05-config.md) | Configuration file structure |
+| [01_overview-files-06-misc.md](01_overview-files-06-misc.md) | Other file structures |
+| [02_deployment.md](02_deployment.md) | Deployment Topology (assumes single host/multiple hosts), environment setup, and service startup |
 
-## 実装意図
+## Implementation Intent
 
-- `01_overview-arch.md` をH2境界で3ファイルに分割: process, pipelines, features
-- `01_overview-files.md` をディレクトリ単位の論理境界で6ファイルに分割: build, rag, scripts, shared, config, misc
-- 各ファイルにtitle/category/tags/related documents/keywordsを含むYAML Front Matterを付与
-- 本ファイルはシステム全体の概要索引。各詳細ドキュメントセットは以下のカタログを参照
+- Split `01_overview-arch.md` into 3 files by H2 boundaries: process, pipelines, features
+- Split `01_overview-files.md` into 6 files by logical directory boundaries: build, rag, scripts, shared, config, misc
+- Added YAML Front Matter including title/category/tags/related documents/keywords to each file
+- This file is the system-wide overview index. Refer to the following catalogs for each detailed document set
 
 ## Related Documents
 
@@ -54,4 +54,4 @@ source:
 - `01_overview-files-04-shared.md`
 - `01_overview-files-05-config.md`
 - `01_overview-files-06-misc.md`
-- `02_deployment.md`
+- `02_deployment.md`,`

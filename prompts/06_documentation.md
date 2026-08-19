@@ -17,7 +17,7 @@ Read the source code and the existing design documents, then restructure and upd
   - Keep permanent core principles in `AGENTS.md`.
   - Move specific procedures into dedicated skills or individual rule files.
 - Context Optimization: Load only task-specific information to prevent context bloat.
-- Write all documentation files (`docs/*.md`) in Japanese.
+- Write all documentation files (`docs/*.md`) in English.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
 
 ### Token efficiency

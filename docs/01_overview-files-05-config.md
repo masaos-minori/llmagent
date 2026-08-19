@@ -11,37 +11,39 @@ tags:
 related:
   - 01_overview-files-01-build.md
   - 01_overview-files-02-rag.md
+  - 01_overview-files-03-scripts.md
+  - 01_overview-files-04-shared.md
   - 01_overview-files-06-misc.md
 ---
 
-# ファイル構成
+# File Structure
 
-アーキテクチャ概要 → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
 
-## 3. ファイル構成
+## 3. File Structure
 
-デプロイ先のディレクトリ構成:
+Directory structure at deployment target:
 
 ``` text
 /opt/llm/
 ├─ config/
-│   ├─ workflows/                           # ワークフロー定義ファイル群
-│   │   └─ default.json                     # デフォルトワークフロー定義
-│   ├─ agent.toml                           # エージェント全体設定 (DB パス・埋込 URL 含む)
-│   ├─ crawler.toml                         # クローラ設定
-│   ├─ chunk_splitter.toml                  # チャンク分割設定
-│   ├─ ingester.toml                        # インジェスター設定
-│   ├─ web_search_mcp_server.toml           # Web 検索 MCP サーバ設定 (:8004)
-│   ├─ file_read_mcp_server.toml            # ファイル読込 MCP サーバ設定 (:8005, 許可ディレクトリ)
-│   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (:8006)
-│   ├─ file_write_mcp_server.toml           # ファイル書込 MCP サーバ設定 (:8007)
-│   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (:8008)
-│   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (:8009, 許可コマンド)
-│   ├─ rag_pipeline_mcp_server.toml         # RAG パイプライン MCP サーバ設定 (:8010)
-│   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (:8012)
-│   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
-│   ├─ git_mcp_server.toml                  # Git MCP サーバ設定 (:8014)
-│   └─ eventbus.toml                        # Event Bus サーバ設定 (:8015)
+│   ├─ workflows/                           # Workflow definition files
+│   │   └─ default.json                     # Default workflow definition
+│   ├─ agent.toml                           # Global agent settings (includes DB paths, embedding URLs, etc.)
+│   ├─ crawler.toml                         # Crawler settings
+│   ├─ chunk_splitter.toml                  # Chunk splitter settings
+│   ├─ ingester.toml                        # Ingester settings
+│   ├─ web_search_mcp_server.toml           # Web Search MCP server settings (:8004)
+│   ├─ file_read_mcp_server.toml            # File Read MCP server settings (:8005, allowed directories)
+│   ├─ github_mcp_server.toml               # GitHub MCP server settings (:8006)
+│   ├─ file_write_mcp_server.toml           # File Write MCP server settings (:8007)
+│   ├─ file_delete_mcp_server.toml          # File Delete MCP server settings (:8008)
+│   ├─ shell_mcp_server.toml                # Shell MCP server settings (:8009, allowed commands)
+│   ├─ rag_pipeline_mcp_server.toml         # RAG Pipeline MCP server settings (:8010)
+│   ├─ cicd_mcp_server.toml                 # CI/CD MCP server settings (:8012)
+│   ├─ mdq_mcp_server.toml                  # MDQ MCP server settings (:8013)
+│   ├─ git_mcp_server.toml                  # Git MCP server settings (:8014)
+│   └─ eventbus.toml                        # Event Bus server settings (:8015)
 ```
 
 ## Related Documents

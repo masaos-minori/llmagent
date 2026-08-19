@@ -199,7 +199,7 @@ Convert analysis into maintainable documentation.
 - avoid duplication
 - do not hide uncertainty
 - keep changes minimal if docs already exist
-- preserve useful existing context; prefer Japanese prose for design text
+- preserve useful existing context; prefer English prose for design text
 - avoid full implementation reference tables
 - keep important invariants explicit
 - separate current behavior from design intent where useful

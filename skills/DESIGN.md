@@ -115,7 +115,7 @@ import a lower layer from a higher one.
 
 ### Output language
 
-Write generated documents (review reports, design docs, documentation) in Japanese unless the
+Write generated documents (review reports, design docs, documentation) in English unless the
 target repository or user explicitly requires another language. Always preserve file names,
 module/symbol names, commands, configuration keys, type names, and evidence labels in their
 original form — do not translate identifiers.

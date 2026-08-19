@@ -14,78 +14,79 @@ related:
   - 01_overview-arch-03-features.md
 ---
 
-# 概要・アーキテクチャ
+# Overview & Architecture
 
-ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
 
-## 2. アーキテクチャ
+## 2. Architecture
 
-### 2.2 取込パイプライン
+### 2.2 Ingestion Pipeline
 
-詳細 → [`03_rag_02_01_ingestion_pipeline-overview.md`](03_rag_02_01_ingestion_pipeline-overview.md)
+Details → [`03_rag_02_01_ingestion_pipeline-overview.md`](03_rag_02_01_ingestion_pipeline-overview.md)
 
 ``` text
-target_urls → crawler.py (BFS クロール) → rag-src/*.json
-           → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.json
+target_urls → crawler.py (BFS crawling) → rag-src/*.json
+           → chunk_splitter.py (JA/EN/code splitting) → rag-src/chunk/*.json
            → ingester.py (embed → SQLite INSERT) → rag-src/registered/
 ```
 
-### 2.3 クエリパイプライン
+### 2.3 Query Pipeline
 
-詳細 → [`03_rag_03_01_query_pipeline-overview.md`](03_rag_03_01_query_pipeline-overview.md)
+Details → [`03_rag_03_01_query_pipeline-overview.md`](03_rag_03_01_query_pipeline-overview.md)
 
 ``` text
-ユーザー入力
-  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
-  → LLM (:8080) → tool_calls → MCP サーバ群 (:8004〜:8014)
-  → 最終回答 (SSE ストリーミング)
+User Input
+  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → Context Augmentation
+  → LLM (:8080) → tool_calls → MCP Servers (:8004〜:8014)
+  → Final Answer (SSE streaming)
 ```
 
-#### クエリパイプラインの実装補足
+#### Implementation Notes for Query Pipeline
 
-- ターン処理は 4 層に分離されている: `AgentREPL`(REPL ループ) → `Orchestrator`(ターン制御・ワークフロー管理) → `LLMTurnRunner`(LLM ストリーミング + 内部ツールループ) → `agent/tool_runner.py`(ツール実行)。各層の責務は `agent/repl.py` の docstring で宣言されている。
-- MDQ/RAG ツール選択: `agent/mdq_rag_classifier.py` がクエリ文字列を解析し、Markdown 構造系キーワードを含む場合は MDQ ツール、それ以外は RAG ツールを優先するよう `system` ロールのエフェメラルメッセージとして hint をhistory に注入する。設定で固定も可能。(根拠: `agent/orchestrator.py`)
-- ツールループガード: ターン内での異常な繰り返しツール呼び出しパターンを検出し、LLM に停止ヒントを返して強制終了させる。詳細 → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (根拠: `agent/tool_loop_guard.py`)
-- ワークフローエンジン: `agent/workflow/workflow_engine.py` が plan → execute → [事後実行承認ゲート] → verify のステージ遷移を管理する。`/approve` / `/reject` スラッシュコマンドで事後実行承認ゲートを通過させる。ターン開始時に承認待ち状態であれば LLM 処理はブロックされる。(根拠: `agent/orchestrator.py`)
+- **Turn processing is separated into 4 layers**: `AgentREPL` (REPL loop) → `Orchestrator` (Turn control / Workflow management) → `LLMTurnRunner` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (Tool execution). The responsibilities of each layer are declared in the docstrings of `agent/repl.py`.
+- **MDQ/RAG Tool Selection**: `agent/mdq_rag_classifier.py` analyzes the query string; if it contains keywords related to Markdown structure, it injects a hint into the history as an ephemeral message with the `system` role to prioritize MDQ tools, otherwise prioritizing RAG tools. This can also be fixed via configuration. (Source: `agent/orchestrator.py`)
+- **Tool Loop Guard**: Detects abnormal repetitive tool calling patterns within a turn and returns a stop hint to the LLM to force termination. Details → [`05_agent_03_02_turn-processing-flow-llm-tool-loop.md`](05_agent_03_02_turn-processing-flow-llm-tool-loop.md) (Source: `agent/tool_loop_guard.py`)
+- **Workflow Engine**: `agent/workflow/workflow_engine.py` manages stage transitions: plan → execute → [Post-execution approval gate] → verify. The post-execution approval gate is passed using `/approve` / `/reject` slash commands. If waiting for approval at the start of a turn, LLM processing is blocked. (Source: `agent/orchestrator.py`)
 
-**ターン内の処理順序**
+**Processing Order within a Turn**
 
-ターン内の実行順序はコードで確定している (`orchestrator.py`):
+The execution order within a turn is hardcoded (`orchestrator.py`):
 
-1. メモリ注入 — セマンティックメモリをフラグ付きのシステムメッセージとして追加
-2. MDQ/RAG ヒント注入 — フラグ付きシステムメッセージとして追加
-3. ユーザメッセージ追加 — システムプロンプト同期後に `history` へ追加し `session.sqlite` へ保存
-4. 履歴圧縮 — 文字数/トークン超過時のみ LLM 要約を実行
-5. LLM 呼び出し — LLMTurnRunner によるストリーミング + ツールループ
+1. **Memory Injection** — Adds semantic memory as a system message with flags.
+2. **MDQ/RAG Hint Injection** — Adds hints as a system message with flags.
+3. **User Message Addition** — Added to `history` after synchronizing the system prompt, then saved to `session.sqlite`.
+4. **History Compression** — LLM summarization is performed only when character/token limits are exceeded.
+5. **LLM Call** — Streaming + tool loop via `LLMTurnRunner`.
 
-フラグを持つメッセージは、各ターン開始時のシステムプロンプト同期処理で除去される。永続セッション履歴には保存されない。
+Messages with flags are removed during the system prompt synchronization process at the start of each turn. They are not saved to persistent session history.
 
-**ワークフローは常時必須(モード設定なし)**
+**Workflows are Always Required (No Mode Setting)**
 
-`workflow_mode` は有効な設定キーではない。`build_agent_config()` はこのキーを消費せず、設定ファイルに存在しても無視される（エラー・警告なし）。ワークフロー定義 (`config/workflows/default.json` としてデプロイされる **required workflow deployment artifact**) は常に必須であり、存在しない・不正な場合は起動前に `RuntimeError` で中断する。ダイレクト実行へのフォールバックや、ワークフローを無効化する経路は一切存在しない。
+`workflow_mode` is not a valid configuration key. `build_agent_config()` does not consume this key, so even if it exists in the configuration file, it is ignored without error or warning. Workflow definitions (deployed as `config/workflows/default.json`, which is a **required workflow deployment artifact**) are always mandatory; if they are missing or invalid, startup is interrupted with a `RuntimeError` before proceeding. There is no fallback to direct execution or any way to disable workflows.
 
-**事後実行承認ゲートの有効化:** ワークフロー定義ファイル（`config/workflows/*.json`）の `require_approval` フィールド（デフォルト `false`）で execute → verify 間に事後実行承認ゲートを有効化できる。承認待ち状態は `workflow.sqlite` に永続化されるため、再起動後も pending approvals が復元される。(根拠: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
+**Enabling Post-Execution Approval Gates:**
+In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
-**MCP サーバの startup_mode**
+**MCP Server `startup_mode`**
 
-`McpServerConfig.startup_mode` で2種類:
+There are two types in `McpServerConfig.startup_mode`:
 
-- `none` (スキーマ上のデフォルト、TOMLにキー未指定時): サブプロセス起動もヘルスチェックも行わない。サーバは利用不可のまま扱われる。
-- `persistent`: 外部で常時起動済みのサーバに接続する
-- `subprocess`: エージェント起動時にサブプロセスとして起動し、`/health` ポーリングで準備完了を確認する。
+- `none` (Default schema value, used when the key is unspecified in TOML): Does not start a subprocess or perform health checks. The server is treated as unavailable.
+- `persistent`: Connects to a server that is already running externally.
+- `subprocess`: Starts the server as a subprocess upon agent startup and waits for readiness via `/health` polling.
 
-(根拠: `shared/mcp_config.py` の `StartupMode` enum)
+(Source: `StartupMode` enum in `shared/mcp_config.py`)
 
-現行の `config/agent.toml` は全 MCP サーバに `startup_mode = "subprocess"` を明示指定している(persistent はスキーマ上存在するが未使用)。(根拠: Explicit in code, `config/agent.toml`)
+Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"` for all MCP servers. (Note: While `persistent` exists in the schema, it is unused. Source: Explicit in code, `config/agent.toml`)
 
-### 実装上の補足: サーバ起動失敗時の挙動
+### Implementation Note: Behavior on Server Startup Failure
 
-`startup_mode="subprocess"` のサーバ起動に失敗した場合の挙動は `security_profile` に依存する分岐になっている(根拠: `agent/startup.py` の `_start_servers()`):
+The behavior when an MCP server fails to start with `startup_mode="subprocess"` depends on the `security_profile` (Source: `_start_servers()` in `agent/startup.py`):
 
-- `security_profile = "production"`: `RuntimeError` を送出し、起動を中断する (fail-fast)
-- `security_profile = "local"` (現行 `config/agent.toml` の設定値): 警告ログと画面表示のみに留め、REPL 起動を継続する (fail-open)
+- `security_profile = "production"`: Raises a `RuntimeError` and aborts startup (fail-fast).
+- `security_profile = "local"` (Current setting in `config/agent.toml`): Only logs a warning and displays it on screen, continuing REPL startup (fail-open).
 
-一律の fail-open ではない点に注意。(根拠: Explicit in code)
+Note that this is not a uniform fail-open policy. (Source: Explicit in code)
 
 ## Related Documents
 

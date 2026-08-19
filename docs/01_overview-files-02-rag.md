@@ -15,22 +15,22 @@ related:
   - 01_overview-files-06-misc.md
 ---
 
-# ファイル構成
+# File Structure
 
-アーキテクチャ概要 → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
 
-## 3. ファイル構成
+## 3. File Structure
 
-デプロイ先のディレクトリ構成:
+Directory structure at deployment target:
 
 ``` text
 /opt/llm/
-├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.json)
-│   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.json)
-│   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
-│       ※ `registered/` 配下のファイル保持期間・クリーンアップ方針は本ドキュメント範囲では未確認(要確認)。
+├─ rag-src/                           # Crawled text (yyyymmddhhmmss-{slug}.json)
+│   ├─ chunk/                         # Chunked files ({stem}-{idx:04d}.json)
+│   └─ registered/                    # Files ingested into DB (moved by ingester.py)
+│       * Retention period and cleanup policy for files under `registered/` is not confirmed within this document (needs verification).
 ├─ sqlite-vec/
-│   └─ vec0.so                        # SQLite ベクトル検索拡張 (ロード可能拡張モジュール)
+│   └─ vec0.so                        # SQLite vector search extension (loadable extension module)
 ```
 
 ## Related Documents

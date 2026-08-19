@@ -111,7 +111,7 @@ Format:
 - Document file size must stay at or under 8KB. If an update would exceed this, split the content into multiple linked documents instead of exceeding the limit.
 
 Style:
-- Write in Japanese.
+- Write in English.
 - Use concise, professional Markdown. Do not bloat the documents.
 
 #### Step 5: Classify evidence
