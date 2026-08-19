@@ -16,7 +16,7 @@ from mcp_servers.cicd.cicd_models import (
     CicdValidationError,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, GitHubActionsBackend
-from mcp_servers.cicd.service_github_actions_job import GitHubActionsJobBackend
+from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers

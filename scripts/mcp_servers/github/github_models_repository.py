@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/models_repository.py
+"""scripts/mcp_servers/github/github_models_repository.py
 
 Pydantic request/response models for repository/branch/commit operations.
 
-Dependency direction: mcp_servers.github.models_repository → mcp_servers.github.models_config
+Dependency direction: mcp_servers.github.github_models_repository → mcp_servers.github.github_models_config
 """
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from .models_config import DEFAULT_PER_PAGE
+from .github_models_config import DEFAULT_PER_PAGE
 
 
 class SearchRepositoriesRequest(BaseModel):

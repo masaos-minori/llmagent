@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_server_file.py
 
-Characterization tests for scripts/mcp_servers/github/server_file.py's FastAPI route
+Characterization tests for scripts/mcp_servers/github/github_server_file.py's FastAPI route
 wiring:
   - POST /get_file_contents
   - POST /create_or_update_file

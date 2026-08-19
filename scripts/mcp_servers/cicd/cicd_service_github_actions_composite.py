@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_github_actions_composite.py
+"""scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py
 
 GitHubActionsCompositeBackend: composite of workflow and job backends.
 
 Dependency direction: service_github_actions_composite → service_github_actions, service_github_actions_job, service_defs
-Import from here:  from mcp_servers.cicd.service_github_actions_composite import GitHubActionsCompositeBackend
+Import from here:  from mcp_servers.cicd.cicd_service_github_actions_composite import GitHubActionsCompositeBackend
 """
 
 from __future__ import annotations
 
 import httpx
 
-from .service_defs import CiBackend
+from .cicd_service_defs import CiBackend
 
 
 class GitHubActionsCompositeBackend(CiBackend):
@@ -24,8 +24,8 @@ class GitHubActionsCompositeBackend(CiBackend):
         max_log_size_kb: int = 256,
     ) -> None:
         """Initialize with GitHub token, HTTP client, and optional log size limit."""
-        from .service_github_actions import GitHubActionsBackend
-        from .service_github_actions_job import (
+        from .cicd_service_github_actions import GitHubActionsBackend
+        from .cicd_service_github_actions_job import (
             GitHubActionsJobBackend,
         )
 
@@ -42,7 +42,7 @@ class GitHubActionsCompositeBackend(CiBackend):
     @staticmethod
     def _split_repo(repo: str) -> tuple[str, str]:
         """Split 'owner/repo' slug into (owner, repo)."""
-        from .service_github_actions import GitHubActionsBackend
+        from .cicd_service_github_actions import GitHubActionsBackend
 
         return GitHubActionsBackend._split_repo(repo)
 

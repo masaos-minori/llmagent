@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_service_dispatch.py
 
-Characterization tests for scripts/mcp_servers/github/service_dispatch.py.
+Characterization tests for scripts/mcp_servers/github/github_service_dispatch.py.
 
 Baseline coverage for this file was 67% (verified during the 04_refactor.md
 sweep of this subsystem): the `fmt_*` wrapper methods that only format an
@@ -30,24 +30,24 @@ import types
 from unittest.mock import AsyncMock, MagicMock
 
 from mcp_servers.github.github_models import GitHubConfig
-from mcp_servers.github.models_base import IssueInfo, PullRequestInfo
-from mcp_servers.github.models_file import (
+from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_models_file import (
     CreateOrUpdateFileResponse,
     DeleteRepoFileResponse,
     PushFilesResponse,
 )
-from mcp_servers.github.models_issues import (
+from mcp_servers.github.github_models_issues import (
     GetIssueResponse,
     ListIssuesResponse,
     SearchIssuesResponse,
 )
-from mcp_servers.github.models_pull_requests import (
+from mcp_servers.github.github_models_pull_requests import (
     GetPullRequestResponse,
     ListPullRequestsResponse,
     SearchPullRequestsResponse,
     UpdatePullRequestResponse,
 )
-from mcp_servers.github.models_repository import (
+from mcp_servers.github.github_models_repository import (
     BranchInfo,
     CodeSearchResult,
     CommitDetail,
@@ -59,7 +59,7 @@ from mcp_servers.github.models_repository import (
     SearchCodeResponse,
     SearchRepositoriesResponse,
 )
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 def _make_service() -> GitHubService:
@@ -251,7 +251,7 @@ class TestFmtSearchCode:
 
 class TestFmtGetFileContents:
     async def test_returns_raw_content_unmodified(self) -> None:
-        from mcp_servers.github.models_file import GetFileContentsResponse
+        from mcp_servers.github.github_models_file import GetFileContentsResponse
 
         svc = _make_service()
         svc.get_file_contents = AsyncMock(  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here

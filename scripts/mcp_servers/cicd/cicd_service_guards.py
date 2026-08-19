@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_guards.py
+"""scripts/mcp_servers/cicd/cicd_service_guards.py
 
 CiCdService security guard mixin: repo_allowlist + workflow_allowlist enforcement.
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 
 from mcp_servers.cicd.cicd_models import CicdAuthorizationError
-from mcp_servers.cicd.service_defs import CiBackend
+from mcp_servers.cicd.cicd_service_defs import CiBackend
 
 logger = logging.getLogger(__name__)
 

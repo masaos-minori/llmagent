@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/server_issues.py
+"""scripts/mcp_servers/github/github_server_issues.py
 
 FastAPI routes for GitHub issues operations.
 
@@ -22,8 +22,8 @@ from mcp_servers.github.github_models import (
     SearchIssuesRequest,
     SearchIssuesResponse,
 )
-from mcp_servers.github.server_common import _get_service, _info
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_server_common import _get_service, _info
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 router = APIRouter()
 

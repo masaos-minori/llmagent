@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_github_actions_job.py
+"""scripts/mcp_servers/cicd/cicd_service_github_actions_job.py
 
 GitHubActionsJobBackend: GitHub Actions job log operations.
 
 Dependency direction: service_github_actions_job → service_defs, models
-Import from here:  from mcp_servers.cicd.service_github_actions_job import GitHubActionsJobBackend
+Import from here:  from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from shared.json_utils import parse_http_json
 
 from mcp_servers.cicd.cicd_models import CicdUpstreamError
 
-from .service_defs import _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS, build_auth_headers
+from .cicd_service_defs import _GITHUB_API_BASE, _MAX_JOBS_FOR_LOGS, build_auth_headers
 
 logger = logging.getLogger(__name__)
 

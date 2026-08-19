@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_server_issues.py
 
-Characterization tests for scripts/mcp_servers/github/server_issues.py's FastAPI route
+Characterization tests for scripts/mcp_servers/github/github_server_issues.py's FastAPI route
 wiring:
   - POST /list_issues
   - POST /get_issue

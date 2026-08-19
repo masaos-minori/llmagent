@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/models_base.py
+"""scripts/mcp_servers/github/github_models_base.py
 
 Shared Pydantic models used across multiple domain modules.
 
-Dependency direction: mcp_servers.github.models_base → (no local deps)
+Dependency direction: mcp_servers.github.github_models_base → (no local deps)
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_server_pull_requests.py
 
-Characterization tests for scripts/mcp_servers/github/server_pull_requests.py's FastAPI
+Characterization tests for scripts/mcp_servers/github/github_server_pull_requests.py's FastAPI
 route wiring:
   - POST /list_pull_requests
   - POST /get_pull_request

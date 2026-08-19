@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/server_common.py
+"""scripts/mcp_servers/github/github_server_common.py
 
 Shared FastAPI route helpers for github-mcp server endpoints.
 
@@ -10,7 +10,7 @@ This module provides:
 
 from typing import Any
 
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 def _get_service() -> GitHubService:

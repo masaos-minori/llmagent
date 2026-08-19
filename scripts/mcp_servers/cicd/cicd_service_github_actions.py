@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_github_actions.py
+"""scripts/mcp_servers/cicd/cicd_service_github_actions.py
 
 GitHubActionsBackend: GitHub Actions REST API client (HTTP).
 
 Dependency direction: service_github_actions → service_defs, models
-Import from here:  from mcp_servers.cicd.service_github_actions import GitHubActionsBackend
+Import from here:  from mcp_servers.cicd.cicd_service_github_actions import GitHubActionsBackend
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from mcp_servers.cicd.cicd_models import (
     CicdValidationError,
 )
 
-from .service_defs import (
+from .cicd_service_defs import (
     _GITHUB_API_BASE,
     GITHUB_REPO_PARTS_COUNT,
     build_auth_headers,

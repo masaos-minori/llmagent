@@ -14,11 +14,11 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
-from mcp_servers.cicd.service_github_actions import GitHubActionsBackend
-from mcp_servers.cicd.service_github_actions_composite import (
+from mcp_servers.cicd.cicd_service_github_actions import GitHubActionsBackend
+from mcp_servers.cicd.cicd_service_github_actions_composite import (
     GitHubActionsCompositeBackend,
 )
-from mcp_servers.cicd.service_github_actions_job import GitHubActionsJobBackend
+from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers

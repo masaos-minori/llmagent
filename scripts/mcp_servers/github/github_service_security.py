@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_security.py
+"""scripts/mcp_servers/github/github_service_security.py
 
 GitHubSecurityGuards: security policy enforcement mixin for GitHubService.
 
@@ -21,7 +21,7 @@ from typing import Any, NoReturn, TypeVar
 from github import GithubException
 from shared.json_utils import now_iso_raw
 
-from mcp_servers.github.models_config import GitHubConfig
+from mcp_servers.github.github_models_config import GitHubConfig
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ T = TypeVar("T")
 class GitHubSecurityGuards:
     """Mixin providing security policy enforcement for GitHubService."""
 
-    def __init__(self, gh: Any, cfg: GitHubConfig) -> None:  # noqa: ANN401
+    def __init__(self, gh: Any, cfg: GitHubConfig) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config for security guard operations."""
         self._gh = gh
         self._cfg = cfg
@@ -48,7 +48,7 @@ class GitHubSecurityGuards:
 
         Empty allowed_repos denies all repositories (fail-closed).
         """
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
         )
 
@@ -63,7 +63,7 @@ class GitHubSecurityGuards:
 
     def _assert_allowed_path(self, path: str) -> None:
         """Raise GitHubAuthorizationError if path matches a denied glob pattern."""
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
         )
 
@@ -75,7 +75,7 @@ class GitHubSecurityGuards:
 
     def _assert_max_file_size(self, content: str, path: str) -> None:
         """Raise GitHubValidationError if file content exceeds max_file_size_kb."""
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubValidationError,
         )
 
@@ -94,7 +94,7 @@ class GitHubSecurityGuards:
         Raises GitHubAuditError when audit_log_path is configured and write fails.
         Skips silently when audit_log_path is empty.
         """
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubAuditError,
         )
 
@@ -117,7 +117,7 @@ class GitHubSecurityGuards:
         Patterns follow fnmatch glob syntax: 'main' matches exactly, 'release/*'
         matches any release branch. An empty list means no branch restrictions.
         """
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
         )
 
@@ -127,7 +127,7 @@ class GitHubSecurityGuards:
                     f"Branch '{branch}' is protected in {owner}/{repo} (matches pattern '{pattern}')"
                 )
 
-    def _get_repo(self, owner: str, repo: str) -> Any:  # noqa: ANN401
+    def _get_repo(self, owner: str, repo: str) -> Any:  # noqa: ANN401 — config type varies by server
         """Return a PyGithub Repository object for the given owner/repo slug."""
         return self._gh.get_repo(f"{owner}/{repo}")
 
@@ -156,7 +156,7 @@ class GitHubSecurityGuards:
 
         Declared as NoReturn so callers do not need to write their own raise.
         """
-        from mcp_servers.github.models_config import (
+        from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
             GitHubConflictError,
             GitHubNotFoundError,

@@ -46,8 +46,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from mcp_servers.github.models_config import GitHubAuthorizationError, GitHubConfig
-from mcp_servers.github.models_pull_requests import (
+from mcp_servers.github.github_models_config import (
+    GitHubAuthorizationError,
+    GitHubConfig,
+)
+from mcp_servers.github.github_models_pull_requests import (
     CreatePullRequestRequest,
     GetPullRequestRequest,
     ListPullRequestsRequest,
@@ -55,7 +58,7 @@ from mcp_servers.github.models_pull_requests import (
     SearchPullRequestsRequest,
     UpdatePullRequestRequest,
 )
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 def _make_service(cfg: dict | None = None) -> GitHubService:

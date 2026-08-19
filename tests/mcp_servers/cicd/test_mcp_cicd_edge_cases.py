@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from mcp_servers.cicd.cicd_models import CicdUpstreamError
-from mcp_servers.cicd.service_github_actions_job import GitHubActionsJobBackend
+from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
 
 
 class TestNon2xxFailFast:

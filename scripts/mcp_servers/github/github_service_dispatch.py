@@ -1,4 +1,4 @@
-"""scripts/mcp_servers/github/service_dispatch.py
+"""scripts/mcp_servers/github/github_service_dispatch.py
 
 GitHubService dispatch formatters and dispatch table builder.
 
@@ -6,7 +6,7 @@ Extends the business-class GitHubService from service_business with
 fmt_* display methods and get_dispatch_table().
 
 Dependency direction: service_dispatch -> service_business, models, mapper
-Import from here:  from mcp_servers.github.service_dispatch import GitHubService
+Import from here:  from mcp_servers.github.github_service_dispatch import GitHubService
 """
 
 from __future__ import annotations
@@ -40,7 +40,9 @@ from mcp_servers.github.github_models import (
     SearchRepositoriesRequest,
     UpdatePullRequestRequest,
 )
-from mcp_servers.github.service_business import GitHubService as _GitHubServiceCore
+from mcp_servers.github.github_service_business import (
+    GitHubService as _GitHubServiceCore,
+)
 
 logger = logging.getLogger(__name__)
 

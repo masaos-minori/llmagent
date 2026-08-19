@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_business.py
+"""scripts/mcp_servers/github/github_service_business.py
 
 GitHubService: core business operations assembled from domain modules.
 
@@ -8,7 +8,7 @@ classes via multiple inheritance. Static formatters (_fmt_issue_line,
 _fmt_pr_line) stay here for access by service_dispatch.fmt_* methods.
 
 Dependency direction: service_business → all domain modules
-Import from here:  from mcp_servers.github.service_business import GitHubService
+Import from here:  from mcp_servers.github.github_service_business import GitHubService
 """
 
 from __future__ import annotations
@@ -17,11 +17,11 @@ from typing import Any
 
 from github import Github
 
-from mcp_servers.github.models_base import IssueInfo, PullRequestInfo
-from mcp_servers.github.service_file import FileOps
-from mcp_servers.github.service_issues import IssuesOps
-from mcp_servers.github.service_pull_requests import PullRequestOps
-from mcp_servers.github.service_repository import RepositoryOps
+from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_service_file import FileOps
+from mcp_servers.github.github_service_issues import IssuesOps
+from mcp_servers.github.github_service_pull_requests import PullRequestOps
+from mcp_servers.github.github_service_repository import RepositoryOps
 
 
 class GitHubService(
@@ -32,7 +32,7 @@ class GitHubService(
 ):
     """GitHubService: security + all domain operations."""
 
-    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config, inheriting security guards and domain ops."""
         super().__init__(gh, cfg)
 

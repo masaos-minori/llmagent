@@ -13,11 +13,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp_servers.shell.service_static_helpers import init_sandbox as _init_sandbox
-from mcp_servers.shell.service_static_helpers import make_preexec as _make_preexec
-from mcp_servers.shell.service_static_helpers import (
-    set_resource_limits as _set_resource_limits,
-)
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
     ShellRunRequest,
@@ -25,6 +20,11 @@ from mcp_servers.shell.shell_models import (
     load_shell_policy,
 )
 from mcp_servers.shell.shell_service import ShellService
+from mcp_servers.shell.shell_service_static_helpers import init_sandbox as _init_sandbox
+from mcp_servers.shell.shell_service_static_helpers import make_preexec as _make_preexec
+from mcp_servers.shell.shell_service_static_helpers import (
+    set_resource_limits as _set_resource_limits,
+)
 from shared.protocols.shell import ShellPolicy
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -199,14 +199,15 @@ class TestInitSandbox:
 
     def test_firejail_found_returns_firejail(self) -> None:
         with patch(
-            "mcp_servers.shell.service_static_helpers.shutil.which",
+            "mcp_servers.shell.shell_service_static_helpers.shutil.which",
             return_value="/usr/bin/firejail",
         ):
             assert _init_sandbox("firejail") == "firejail"
 
     def test_firejail_not_found_raises_runtime_error(self) -> None:
         with patch(
-            "mcp_servers.shell.service_static_helpers.shutil.which", return_value=None
+            "mcp_servers.shell.shell_service_static_helpers.shutil.which",
+            return_value=None,
         ):
             with pytest.raises(RuntimeError, match="firejail is not found in PATH"):
                 _init_sandbox("firejail")
@@ -425,7 +426,7 @@ class TestExecutionUser:
 class TestSetResourceLimits:
     def test_cpu_limit_floors_at_60_seconds(self) -> None:
         with patch(
-            "mcp_servers.shell.service_static_helpers.resource.setrlimit"
+            "mcp_servers.shell.shell_service_static_helpers.resource.setrlimit"
         ) as mock_setrlimit:
             _set_resource_limits(max_memory_mb=128, timeout_sec=10)
         calls = {call.args[0]: call.args[1] for call in mock_setrlimit.call_args_list}
@@ -437,7 +438,7 @@ class TestSetResourceLimits:
 
     def test_cpu_limit_scales_with_timeout_above_floor(self) -> None:
         with patch(
-            "mcp_servers.shell.service_static_helpers.resource.setrlimit"
+            "mcp_servers.shell.shell_service_static_helpers.resource.setrlimit"
         ) as mock_setrlimit:
             _set_resource_limits(max_memory_mb=64, timeout_sec=100)
         calls = {call.args[0]: call.args[1] for call in mock_setrlimit.call_args_list}
@@ -452,7 +453,7 @@ class TestMakePreexec:
     def test_preexec_calls_resource_limits_when_no_uid_gid(self) -> None:
         preexec = _make_preexec(max_memory_mb=128, timeout_sec=10, uid=None, gid=None)
         with patch(
-            "mcp_servers.shell.service_static_helpers.set_resource_limits"
+            "mcp_servers.shell.shell_service_static_helpers.set_resource_limits"
         ) as mock_limits:
             preexec()
         mock_limits.assert_called_once_with(128, 10)
@@ -461,15 +462,15 @@ class TestMakePreexec:
         order: list[str] = []
         with (
             patch(
-                "mcp_servers.shell.service_static_helpers.os.setgid",
+                "mcp_servers.shell.shell_service_static_helpers.os.setgid",
                 side_effect=lambda g: order.append(f"setgid:{g}"),
             ) as mock_setgid,
             patch(
-                "mcp_servers.shell.service_static_helpers.os.setuid",
+                "mcp_servers.shell.shell_service_static_helpers.os.setuid",
                 side_effect=lambda u: order.append(f"setuid:{u}"),
             ) as mock_setuid,
             patch(
-                "mcp_servers.shell.service_static_helpers.set_resource_limits"
+                "mcp_servers.shell.shell_service_static_helpers.set_resource_limits"
             ) as mock_limits,
         ):
             preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=1000, gid=1000)
@@ -481,9 +482,13 @@ class TestMakePreexec:
 
     def test_preexec_uid_only_skips_setgid(self) -> None:
         with (
-            patch("mcp_servers.shell.service_static_helpers.os.setgid") as mock_setgid,
-            patch("mcp_servers.shell.service_static_helpers.os.setuid") as mock_setuid,
-            patch("mcp_servers.shell.service_static_helpers.set_resource_limits"),
+            patch(
+                "mcp_servers.shell.shell_service_static_helpers.os.setgid"
+            ) as mock_setgid,
+            patch(
+                "mcp_servers.shell.shell_service_static_helpers.os.setuid"
+            ) as mock_setuid,
+            patch("mcp_servers.shell.shell_service_static_helpers.set_resource_limits"),
         ):
             preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=2000, gid=None)
             preexec()
@@ -492,9 +497,13 @@ class TestMakePreexec:
 
     def test_preexec_gid_only_skips_setuid(self) -> None:
         with (
-            patch("mcp_servers.shell.service_static_helpers.os.setgid") as mock_setgid,
-            patch("mcp_servers.shell.service_static_helpers.os.setuid") as mock_setuid,
-            patch("mcp_servers.shell.service_static_helpers.set_resource_limits"),
+            patch(
+                "mcp_servers.shell.shell_service_static_helpers.os.setgid"
+            ) as mock_setgid,
+            patch(
+                "mcp_servers.shell.shell_service_static_helpers.os.setuid"
+            ) as mock_setuid,
+            patch("mcp_servers.shell.shell_service_static_helpers.set_resource_limits"),
         ):
             preexec = _make_preexec(max_memory_mb=64, timeout_sec=5, uid=None, gid=3000)
             preexec()

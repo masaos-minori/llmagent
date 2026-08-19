@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_init.py
+"""scripts/mcp_servers/cicd/cicd_service_init.py
 
 build_service factory for cicd-mcp.
 
@@ -15,8 +15,8 @@ import httpx
 
 from mcp_servers.cicd.cicd_models import CicdConfig
 
-from .service_business import CiCdService
-from .service_defs import CiBackend
+from .cicd_service_business import CiCdService
+from .cicd_service_defs import CiBackend
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def build_service(cfg: CicdConfig) -> CiCdService:
             "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
         )
     http = httpx.AsyncClient(timeout=30.0)
-    from .service_github_actions_composite import (
+    from .cicd_service_github_actions_composite import (
         GitHubActionsCompositeBackend,
     )
 

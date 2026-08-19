@@ -39,6 +39,7 @@
 | `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
 | `fix_broken_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
 | `apply_fixes.py` | テスト固有の修正スクリプト: `tests/rag/ingestion/test_rag_ingester.py` の行番号ベースの置換を適用。 |
+| `rename_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
 | `fix_mocks.py` | テスト固有の修正スクリプト: `tests/rag/ingestion/test_rag_ingester.py` のmock関連修正を正規表現で適用。 |
 
 ## モジュールドキュメント文字列チェックスクリプト

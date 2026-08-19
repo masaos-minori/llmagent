@@ -16,8 +16,8 @@ Dependency direction: models_config → (none) · models_base → (none)
   models.py → all submodules (re-export only, no business logic)
 """
 
-from .models_base import IssueInfo
-from .models_config import (
+from .github_models_base import IssueInfo
+from .github_models_config import (
     DEFAULT_PER_PAGE,
     GitHubAuditError,
     GitHubAuthorizationError,
@@ -27,7 +27,7 @@ from .models_config import (
     GitHubUpstreamError,
     GitHubValidationError,
 )
-from .models_file import (
+from .github_models_file import (
     CreateOrUpdateFileRequest,
     CreateOrUpdateFileResponse,
     DeleteRepoFileRequest,
@@ -38,7 +38,7 @@ from .models_file import (
     PushFilesRequest,
     PushFilesResponse,
 )
-from .models_issues import (
+from .github_models_issues import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
     CreateIssueRequest,
@@ -50,7 +50,7 @@ from .models_issues import (
     SearchIssuesRequest,
     SearchIssuesResponse,
 )
-from .models_pull_requests import (
+from .github_models_pull_requests import (
     CreatePullRequestRequest,
     CreatePullRequestResponse,
     GetPullRequestRequest,
@@ -65,7 +65,7 @@ from .models_pull_requests import (
     UpdatePullRequestRequest,
     UpdatePullRequestResponse,
 )
-from .models_repository import (
+from .github_models_repository import (
     BranchInfo,
     CodeSearchResult,
     CommitDetail,

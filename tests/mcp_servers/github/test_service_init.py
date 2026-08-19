@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_service_init.py
 
-Characterization tests for scripts/mcp_servers/github/service_init.py.
+Characterization tests for scripts/mcp_servers/github/github_service_init.py.
 
 The module builds its `_gh` / `_GITHUB_TOKEN` singletons at import time from the
 `GITHUB_TOKEN` environment variable, so the "token is set" branch (line 24: an
@@ -18,7 +18,7 @@ from __future__ import annotations
 import importlib
 import logging
 
-import mcp_servers.github.service_init as service_init
+import mcp_servers.github.github_service_init as service_init
 from github import Auth, Github
 
 
@@ -31,7 +31,9 @@ class TestModuleLevelClientInitialization:
         """With GITHUB_TOKEN unset, _gh is an unauthenticated Github() and a warning is logged."""
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
-        with caplog.at_level(logging.WARNING, logger="mcp_servers.github.service_init"):
+        with caplog.at_level(
+            logging.WARNING, logger="mcp_servers.github.github_service_init"
+        ):
             reloaded = importlib.reload(service_init)
 
         try:
@@ -51,7 +53,9 @@ class TestModuleLevelClientInitialization:
         """With GITHUB_TOKEN set, _gh is authenticated via Auth.Token and no warning is logged."""
         monkeypatch.setenv("GITHUB_TOKEN", "test-token-value")
 
-        with caplog.at_level(logging.WARNING, logger="mcp_servers.github.service_init"):
+        with caplog.at_level(
+            logging.WARNING, logger="mcp_servers.github.github_service_init"
+        ):
             reloaded = importlib.reload(service_init)
 
         try:
@@ -71,8 +75,8 @@ class TestBuildService:
 
     def test_returns_github_service_wired_to_module_client_and_cfg(self) -> None:
         """build_service passes the module-level _gh singleton and cfg through verbatim."""
-        from mcp_servers.github.models_config import GitHubConfig
-        from mcp_servers.github.service_dispatch import GitHubService
+        from mcp_servers.github.github_models_config import GitHubConfig
+        from mcp_servers.github.github_service_dispatch import GitHubService
 
         cfg = GitHubConfig()
         result = service_init.build_service(cfg)

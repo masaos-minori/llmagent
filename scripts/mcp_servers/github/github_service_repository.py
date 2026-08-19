@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_repository.py
+"""scripts/mcp_servers/github/github_service_repository.py
 
 Repository/branch/commit/code search operations for GitHubService.
 
@@ -13,7 +13,7 @@ from typing import Any
 
 from github import Github
 
-from mcp_servers.github.models_repository import (
+from mcp_servers.github.github_models_repository import (
     BranchInfo,
     CodeSearchResult,
     CommitDetail,
@@ -32,13 +32,13 @@ from mcp_servers.github.models_repository import (
     SearchRepositoriesRequest,
     SearchRepositoriesResponse,
 )
-from mcp_servers.github.service_security import GitHubSecurityGuards
+from mcp_servers.github.github_service_security import GitHubSecurityGuards
 
 
 class RepositoryOps(GitHubSecurityGuards):
     """Repository search, branch, commit, and code search operations."""
 
-    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 

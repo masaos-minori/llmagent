@@ -1,7 +1,7 @@
 """tests/mcp_servers/cicd/test_service_github_actions_error_edges.py
 
 Characterization tests locking two branches of
-scripts/mcp_servers/cicd/service_github_actions.py that are not exercised by
+scripts/mcp_servers/cicd/cicd_service_github_actions.py that are not exercised by
 tests/mcp_servers/cicd/test_cicd_mcp_service.py:
 
 - GitHubActionsBackend._parse_error_message: the `except (ValueError,
@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from mcp_servers.cicd.cicd_models import CicdAuthorizationError, CicdValidationError
-from mcp_servers.cicd.service_github_actions import GitHubActionsBackend
+from mcp_servers.cicd.cicd_service_github_actions import GitHubActionsBackend
 
 
 def _make_malformed_body_response(status_code: int) -> MagicMock:

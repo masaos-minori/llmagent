@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_file.py
+"""scripts/mcp_servers/github/github_service_file.py
 
 File operations (get/create/update/push/delete) for GitHubService.
 
@@ -12,8 +12,8 @@ from typing import Any
 
 from github import Github
 
-from mcp_servers.github.models_config import GitHubValidationError
-from mcp_servers.github.models_file import (
+from mcp_servers.github.github_models_config import GitHubValidationError
+from mcp_servers.github.github_models_file import (
     CreateOrUpdateFileRequest,
     CreateOrUpdateFileResponse,
     DeleteRepoFileRequest,
@@ -23,13 +23,13 @@ from mcp_servers.github.models_file import (
     PushFilesRequest,
     PushFilesResponse,
 )
-from mcp_servers.github.service_security import GitHubSecurityGuards
+from mcp_servers.github.github_service_security import GitHubSecurityGuards
 
 
 class FileOps(GitHubSecurityGuards):
     """File read/write/delete operations."""
 
-    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 

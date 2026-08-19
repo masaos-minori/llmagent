@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_server_repository.py
 
-Characterization tests for scripts/mcp_servers/github/server_repository.py's FastAPI route
+Characterization tests for scripts/mcp_servers/github/github_server_repository.py's FastAPI route
 wiring:
   - POST /search_repositories
   - POST /list_branches

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/models_pull_requests.py
+"""scripts/mcp_servers/github/github_models_pull_requests.py
 
 Pydantic request/response models for pull request operations.
 
-Dependency direction: mcp_servers.github.models_pull_requests → (no local deps)
+Dependency direction: mcp_servers.github.github_models_pull_requests → (no local deps)
 """
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from .models_base import IssueInfo, PullRequestInfo
+from .github_models_base import IssueInfo, PullRequestInfo
 
 
 class ListPullRequestsRequest(BaseModel):

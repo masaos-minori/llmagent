@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_issues.py
+"""scripts/mcp_servers/github/github_service_issues.py
 
 Issues, comments, and search issues operations for GitHubService.
 
@@ -13,8 +13,7 @@ from typing import Any
 
 from github import Github
 
-from mcp_servers.github.mapper import issue_to_info
-from mcp_servers.github.models_issues import (
+from mcp_servers.github.github_models_issues import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
     CreateIssueRequest,
@@ -27,13 +26,14 @@ from mcp_servers.github.models_issues import (
     SearchIssuesRequest,
     SearchIssuesResponse,
 )
-from mcp_servers.github.service_security import GitHubSecurityGuards
+from mcp_servers.github.github_service_security import GitHubSecurityGuards
+from mcp_servers.github.mapper import issue_to_info
 
 
 class IssuesOps(GitHubSecurityGuards):
     """Issues, comments, and search operations."""
 
-    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 

@@ -34,7 +34,7 @@ from mcp_servers.shell.shell_models import (
     ShellValidationError,
 )
 
-from .service_static_helpers import (
+from .shell_service_static_helpers import (
     init_sandbox,
 )
 from .subprocess_runner import SubprocessRunner

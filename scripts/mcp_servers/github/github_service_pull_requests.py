@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/service_pull_requests.py
+"""scripts/mcp_servers/github/github_service_pull_requests.py
 
 Pull request, update, merge, and search PR operations for GitHubService.
 
@@ -13,9 +13,8 @@ from typing import Any
 
 from github import Github
 
-from mcp_servers.github.mapper import issue_to_info, pr_to_info
-from mcp_servers.github.models_config import GitHubAuthorizationError
-from mcp_servers.github.models_pull_requests import (
+from mcp_servers.github.github_models_config import GitHubAuthorizationError
+from mcp_servers.github.github_models_pull_requests import (
     CreatePullRequestRequest,
     CreatePullRequestResponse,
     GetPullRequestRequest,
@@ -31,13 +30,14 @@ from mcp_servers.github.models_pull_requests import (
     UpdatePullRequestRequest,
     UpdatePullRequestResponse,
 )
-from mcp_servers.github.service_security import GitHubSecurityGuards
+from mcp_servers.github.github_service_security import GitHubSecurityGuards
+from mcp_servers.github.mapper import issue_to_info, pr_to_info
 
 
 class PullRequestOps(GitHubSecurityGuards):
     """Pull request management operations."""
 
-    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401
+    def __init__(self, gh: Github, cfg: Any) -> None:  # noqa: ANN401 — config type varies by server
         """Initialize with GitHub client and config, inheriting security guards."""
         super().__init__(gh, cfg)
 

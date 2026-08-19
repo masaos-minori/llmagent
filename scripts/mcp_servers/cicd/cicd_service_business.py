@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/cicd/service_business.py
+"""scripts/mcp_servers/cicd/cicd_service_business.py
 
 CiCdService: dispatch handlers with allowlist guards, assembled from domain modules.
 
 Dependency direction: service_business → service_guards, service_github_actions
-Import from here:  from mcp_servers.cicd.service_business import CiCdService, GitHubActionsBackend
+Import from here:  from mcp_servers.cicd.cicd_service_business import CiCdService, GitHubActionsBackend
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from collections.abc import Awaitable, Callable
 from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.cicd.cicd_models import CicdConfig
-from mcp_servers.cicd.service_defs import CiBackend
+from mcp_servers.cicd.cicd_service_defs import CiBackend
 from mcp_servers.server import ToolArgs
 
-from .service_guards import CiCdGuards
+from .cicd_service_guards import CiCdGuards
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class CiCdService(CiCdGuards):
         """Split 'owner/repo' slug; raise CicdValidationError on bad format."""
         try:
             # Import here to avoid circular dependency
-            from .service_github_actions_composite import (
+            from .cicd_service_github_actions_composite import (
                 GitHubActionsCompositeBackend,
             )
 

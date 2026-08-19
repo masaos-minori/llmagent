@@ -122,7 +122,7 @@ def _cicd_dispatch() -> set[str]:
 
 def _github_dispatch() -> set[str]:
     from mcp_servers.github.github_models import GitHubConfig
-    from mcp_servers.github.service_dispatch import GitHubService
+    from mcp_servers.github.github_service_dispatch import GitHubService
 
     svc = GitHubService(
         gh=MagicMock(), cfg=GitHubConfig.from_dict({"allowed_repos": ["org/repo"]})

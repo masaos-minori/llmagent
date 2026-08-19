@@ -1,10 +1,10 @@
 """tests/mcp_servers/github/test_server_common.py
 
-Characterization tests for scripts/mcp_servers/github/server_common.py.
+Characterization tests for scripts/mcp_servers/github/github_server_common.py.
 
 _get_service and _info are consumed by all four domain server modules
 (server_file.py, server_issues.py, server_pull_requests.py, server_repository.py)
-via `from mcp_servers.github.server_common import _get_service, _info`, but were
+via `from mcp_servers.github.github_server_common import _get_service, _info`, but were
 not exercised by any existing test (verified via `rg _get_service|_info tests/`
 during the 04_refactor.md sweep of this subsystem) because those tests either
 call `GitHubService` directly or override the FastAPI dependency. These tests
@@ -16,8 +16,8 @@ from __future__ import annotations
 import logging
 
 import mcp_servers.github.github_server as github_server
-from mcp_servers.github.server_common import _get_service, _info
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_server_common import _get_service, _info
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 class TestGetService:

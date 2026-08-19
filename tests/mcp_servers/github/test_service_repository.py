@@ -49,8 +49,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from mcp_servers.github.models_config import GitHubAuthorizationError, GitHubConfig
-from mcp_servers.github.models_repository import (
+from mcp_servers.github.github_models_config import (
+    GitHubAuthorizationError,
+    GitHubConfig,
+)
+from mcp_servers.github.github_models_repository import (
     CreateBranchRequest,
     GetCommitRequest,
     ListBranchesRequest,
@@ -58,7 +61,7 @@ from mcp_servers.github.models_repository import (
     SearchCodeRequest,
     SearchRepositoriesRequest,
 )
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 def _make_service(cfg: dict | None = None) -> GitHubService:

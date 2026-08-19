@@ -76,7 +76,7 @@ def load_git_audit_config() -> GitAuditConfig | None:
 def load_github_audit_config() -> GitHubAuditConfig | None:
     """Load GitHub config for audit. Returns None if not installed."""
     try:
-        from mcp_servers.github.models_config import GitHubConfig
+        from mcp_servers.github.github_models_config import GitHubConfig
     except ImportError:
         return None
     try:

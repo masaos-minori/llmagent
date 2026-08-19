@@ -1,6 +1,6 @@
 """tests/mcp_servers/github/test_service_business.py
 
-Characterization tests for scripts/mcp_servers/github/service_business.py.
+Characterization tests for scripts/mcp_servers/github/github_service_business.py.
 
 `GitHubService._fmt_issue_line` and `_fmt_pr_line` are used by
 service_dispatch.py's list/search formatting methods but are never exercised
@@ -14,8 +14,8 @@ output of both formatters, including both branches of each conditional
 
 from __future__ import annotations
 
-from mcp_servers.github.models_base import IssueInfo, PullRequestInfo
-from mcp_servers.github.service_dispatch import GitHubService
+from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_service_dispatch import GitHubService
 
 
 def _make_issue(**overrides: object) -> IssueInfo:
