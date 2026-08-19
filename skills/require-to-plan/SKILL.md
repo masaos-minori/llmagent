@@ -114,7 +114,7 @@ Generate your final response using the exact Markdown structure below. Do not om
 Notes on filling section 5: populate Churn/Bus Factor from Step 4 (Historical Analysis) and
 Blast Radius from Step 3 (Dependency Graphing) — mark `N/A` if that step was skipped (Path A).
 Always state the `deploy.sh` impact explicitly. If documentation must be updated, name the
-target doc via `docs/00_index.md` §タスク別ドキュメント参照 (or `routing.md` §Docs → task
+target doc via `docs/00_index.md` §Task-specific document reference (or `routing.md` §Docs → task
 mapping for new modules) — do not hardcode doc filenames here, they change as docs are split.
 
 ## See Also

@@ -227,8 +227,8 @@ to migration/compatibility, behavior verified by tests, operationally observed b
 When removing implementation-derived content, replace it with a concise source reference.
 Example:
 
-- 完全な設定キーとデフォルト値は、実装上の設定定義および実際の設定ファイルを参照する。
-- この設計書では、設定の所有者、変更時の影響、再起動要否、失敗時の挙動、運用上の注意のみを扱う。
+- Full configuration keys and default values are documented in the implementation's config definitions and actual config files.
+- This design document covers only config ownership, change impact, restart requirements, failure behavior, and operational notes.
 
 ### Gate
 - [ ] required docs are covered
