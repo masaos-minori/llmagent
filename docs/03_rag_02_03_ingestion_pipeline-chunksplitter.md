@@ -46,7 +46,7 @@ source:
 | `ChunkOutputPayload` | チャンク出力JSONファイル用の型付きdict（schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, contentは必須；normalized_contentはNotRequiredで任意） |
 | `ChunkMetadata` | 出力ペイロードに ** で展開するための任意メタデータdict（total=False）。url、title、lang、etag、last_modified、source_file、chunking_strategyを含む全フィールドが任意 |
 
-> 根拠: Explicit in code — `CrawlFilePayload` と `ChunkOutputPayload` は `chunk_splitter.py` 内で型として宣言されているが、同ファイル内の実処理では型注釈として参照されていない（実際の入出力は `ChunkJsonRaw`（`pipeline_utils.py`）や `dict[str, object]` 経由で扱われる）。ドキュメント目的の宣言と考えられる。
+> 根拠: Explicit in code — `CrawlFilePayload` と `ChunkOutputPayload` は `chunk_splitter.py` 内で型として宣言されているが、同ファイル内の実処理では型注釈として参照されていない（実際の入出力は `ChunkJsonRaw`（`pipeline_utils.py`）や `dict[str, object]` 経由で扱われる）。
 
 **継承**
 
@@ -122,7 +122,7 @@ rag
 | `ChunkOutputPayload` | チャンク出力JSONファイル用の型付きdict（schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, contentは必須；normalized_contentはNotRequiredで任意） |
 | `ChunkMetadata` | 出力ペイロードに ** で展開するための任意メタデータdict（total=False）。url、title、lang、etag、last_modified、source_file、chunking_strategyを含む全フィールドが任意 |
 
-> 根拠: Explicit in code — `CrawlFilePayload` と `ChunkOutputPayload` は `chunk_splitter.py` 内で型として宣言されているが、同ファイル内の実処理では型注釈として参照されていない（実際の入出力は `ChunkJsonRaw`（`pipeline_utils.py`）や `dict[str, object]` 経由で扱われる）。ドキュメント目的の宣言と考えられる。
+> 根拠: Explicit in code — `CrawlFilePayload` と `ChunkOutputPayload` は `chunk_splitter.py` 内で型として宣言されているが、同ファイル内の実処理では型注釈として参照されていない（実際の入出力は `ChunkJsonRaw`（`pipeline_utils.py`）や `dict[str, object]` 経由で扱われる）。
 
 **継承**
 

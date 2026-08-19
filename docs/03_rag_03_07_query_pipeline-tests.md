@@ -56,7 +56,7 @@ source:
 - `test_rag_pipeline_mcp_service.py`
 - `test_mcp_rag_pipeline.py`
 
-**参考（Strongly implied by code、本ドキュメントのスコープ外）:** `tests/` 配下にはこのほか `test_rag_pipeline.py`、`test_rag_pipeline_stage.py`、`test_rag_pipeline_service.py`、`test_rag_pipeline_mcp_service.py`、`test_mcp_rag_pipeline.py` が存在し、ステージ単体（`MqeStage`/`SearchStage`/`FusionStage`/`RerankStage`/`AugmentStage`）や `pipeline_service`/MCPサービス層をそれぞれ個別にカバーしている。本節は決定論的な品質リグレッション（`test_rag_quality_regression.py`）に限定して記載する。
+**参考:** `tests/` 配下にはこのほか `test_rag_pipeline.py`、`test_rag_pipeline_stage.py`、`test_rag_pipeline_service.py`、`test_rag_pipeline_mcp_service.py`、`test_mcp_rag_pipeline.py` が存在し、ステージ単体（`MqeStage`/`SearchStage`/`FusionStage`/`RerankStage`/`AugmentStage`）や `pipeline_service`/MCPサービス層をそれぞれ個別にカバーしている。本節は決定論的な品質リグレッション（`test_rag_quality_regression.py`）に限定して記載する。
 
 ---
 

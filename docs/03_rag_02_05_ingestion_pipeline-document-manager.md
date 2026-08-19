@@ -43,8 +43,6 @@ source:
 | `delete_existing_document` | `(doc_id: int) -> None` | ドキュメントとそのチャンクを削除する；chunks_vecはchunksへのFK制約がないため最初に削除される |
 | `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | インジェクション後の整合性チェックとコールバックを実行する；レポートを返すか、チェックが失敗した場合（チェック中のDBエラー）はNoneを返す。整合性チェックが正常終了した場合（レポートに問題が含まれていても）、`on_ingest_complete` コールバックが呼び出される。整合性チェック自体が例外を投げた場合は、コールバックは呼び出されない |
 
-**コードから推測される意図:**
-- `handle_existing_document` は `url.startswith("file://")` を直接チェックするのではなく `is_file_url` をcallableとして受け取る。これによりモック実装でのテスト容易性を確保している
 
 **CLIエントリポイント:**
 

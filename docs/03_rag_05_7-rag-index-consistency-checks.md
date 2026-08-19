@@ -86,7 +86,7 @@ Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Af
 | `fts_gap > 0` | `/session rag-rebuild-fts`を実行 — FTSエントリが欠落しているため、`chunks`から再構築 |
 | `fts_orphan_count > 0` | `/session rag-rebuild-fts`を実行 — FTSに余分なエントリがある (データ損失のリスクあり、緊急対応) |
 | `orphan_vec_count > 0` | 該当URLに対して`ingester.py --force`を実行 — `chunks`に対応する行がない`chunks_vec`の行 |
-| `vec != chunks` | 該当URLに対して`ingester.py --force`を実行 — 埋め込みステップが失敗した可能性が高い |
+| `vec != chunks` | 該当URLに対して`ingester.py --force`を実行 |
 
 `/session rag-rebuild-fts`を実行して、`chunks`テーブルから`chunks_fts`を再同期する。
 

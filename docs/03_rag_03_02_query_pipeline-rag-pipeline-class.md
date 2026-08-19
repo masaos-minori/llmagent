@@ -44,7 +44,7 @@ from rag.pipeline import RagPipeline, RagPipelineError
 
 - `invalidate_cache()` はこのパイプラインインスタンスが認識しているコーパス変更後にのみ呼び出される想定であり、
   呼び出し側（MCPサービス層など）がコーパス変更操作を検知して明示的に呼び出す設計になっている。パイプライン自身が
-  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない (根拠分類: Strongly implied by code — docstringの
+  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない 
   "Call after any corpus-changing operation this pipeline instance is aware of" という記述)。
 
 ## Related Documents
@@ -94,7 +94,7 @@ from rag.pipeline import RagPipeline, RagPipelineError
 
 - `invalidate_cache()` はこのパイプラインインスタンスが認識しているコーパス変更後にのみ呼び出される想定であり、
   呼び出し側（MCPサービス層など）がコーパス変更操作を検知して明示的に呼び出す設計になっている。パイプライン自身が
-  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない (根拠分類: Strongly implied by code — docstringの
+  DB変更を検知して自動的にキャッシュを無効化する仕組みは持たない 
   "Call after any corpus-changing operation this pipeline instance is aware of" という記述)。
 
 ## Related Documents

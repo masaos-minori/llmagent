@@ -67,10 +67,7 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 
 `SearchStage` は埋め込み取得（`asyncio.gather(..., return_exceptions=True)`）とDB検索
 （`try/except`）の両方で例外を個別に握りつぶし、`SearchDiagnostics` のカウンタに反映するのみで
-処理を継続する。これは、MQEで複数バリアントに展開したクエリのうち一部が失敗しても、
-残りのクエリの検索結果でパイプライン全体を継続させるための設計と考えられる
-(根拠分類: Strongly implied by code — 各クエリのループ内で個別に例外処理し、失敗時も
-`continue`/ループ継続する構造)。
+処理を継続する。
 
 ### 5.3 FusionStage
 

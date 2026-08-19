@@ -41,7 +41,7 @@ source:
 - `extra={...}`で付与される`turn_id` / `session_id` / `rag_query_id` / `workflow_id` / `task_id`
   等のコンテキストフィールドは、テキストフォーマット (`_FORMAT`) には出力されない。
   これらは構造化ログ (`structured_log=True`) 使用時のみJSON出力に反映される。
-  [Strongly implied by code] — `_FORMAT`文字列がこれらのフィールドを参照していないため。
+  — `_FORMAT`文字列がこれらのフィールドを参照していないため。
 
 ---
 

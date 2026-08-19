@@ -48,7 +48,7 @@ RagPipeline.invalidate_cache(self) -> None
 
 `self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
 
-**Why this exists（Strongly implied by code）:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
+**実装意図:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
 
 ### CLI インジェスト後のキャッシュ鮮度
 
@@ -106,7 +106,7 @@ RagPipeline.invalidate_cache(self) -> None
 
 `self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
 
-**Why this exists（Strongly implied by code）:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
+**実装意図:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
 
 ### CLI インジェスト後のキャッシュ鮮度
 

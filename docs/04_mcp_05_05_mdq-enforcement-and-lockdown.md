@@ -170,8 +170,7 @@ Fail-open/fail-closed基本方針は `docs/04_mcp_05_03_fail-open-fail-closed-an
 DENY-ALL 警告ロジックに含まれていない(Explicit in code)。したがって
 `mdq_mcp_server.toml` の `allowed_dirs = []`（deny-all 状態）は、他の fail-closed 設定と異なり
 起動ログに警告として出力されない。運用上は `04_mcp_05_01_access-control-and-allowlists.md`
-の「サーバー別アクセス制御」表と本ドキュメントの記載を頼りに手動で確認する必要がある
-(Strongly implied by code)。
+の「サーバー別アクセス制御」表と本ドキュメントの記載を頼りに手動で確認する必要がある。
 
 ---
 
