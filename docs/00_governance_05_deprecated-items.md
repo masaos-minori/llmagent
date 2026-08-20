@@ -32,10 +32,10 @@ Old configuration file names and their replacements:
 Obsolete architectural concepts:
 
 - **workflow optional mode**
-  - Current Replacement: none (replacement unknown)
-  - Status: Confirmed
-  - Notes: WorkflowEngine is now required, not optional
-  - Evidence: Confirmed by current implementation
+  - Current Replacement: ADR-001 (docs/adr/ADR-001-workflow-engine-mandatory.md)
+  - Status: Superseded
+  - Notes: WorkflowEngine is now required, not optional; documented in ADR-001
+  - Evidence: ADR-001 §Decision
 
 - **shared common config**
   - Current Replacement: config/agent.toml "Infrastructure (common)" section (lines 5-18)
@@ -57,7 +57,7 @@ Removed slash commands:
 Links to removed or superseded documents:
 
 - **diagnostics.jsonl** — No longer written; session diagnostics stored in memory only
-- **Old direct execution fallback explanations** — Removed; WorkflowEngine is now required
+- **Old direct execution fallback explanations** — Removed; WorkflowEngine is now required (see ADR-001)
 
 ## How to Refer to Deprecated Items
 

@@ -11,6 +11,7 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Agent](05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](06_eventbus_00_document-guide.md) — Event Bus infrastructure
 - [Shared/DB](90_shared_00_document-guide.md) — Shared infrastructure and database layer
+- [ADR Index](00_governance_11_adr-index.md) — Architecture Decision Record index
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order

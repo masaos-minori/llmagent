@@ -58,6 +58,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 - [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
 - [Terminology Glossary](00_governance_09_terminology-glossary.md)
+- [ADR Index](00_governance_11_adr-index.md)
 
 ### Query Routing Table
 

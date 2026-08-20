@@ -8,7 +8,7 @@ To document the partial completion model, workflow engine integration, and state
 
 ## Design Intent
 
-### Mandatory Workflow Execution (ADR-Workflow-Mandatory)
+### Mandatory Workflow Execution (ADR-001)
 
 **Date:** 2026-07-23  
 **Status:** Accepted
@@ -221,5 +221,5 @@ partial-completion model
 workflowengine integration
 state changes per turn
 turn-state mutation reference
-ADR-Workflow-Mandatory
+ADR-001
 workflow execution mandatory
