@@ -160,9 +160,7 @@ class _McpMixin(MixinBase):
         self._out.write("")
         self._out.write(f"  {label} servers:")
         for key in keys:
-            reason = registry.get_degraded_reason(key) if registry else None
-            reason_str = f": {reason}" if reason else ""
-            self._out.write(f"    [{label.upper()}] {key}{reason_str}")
+            self._out.write(f"    [{label.upper()}] {key}")
 
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table."""

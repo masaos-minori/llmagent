@@ -32,7 +32,6 @@ class McpServerHealthRegistry:
         self._failure_threshold = failure_threshold
         self._half_open_cooldown_sec = half_open_cooldown_sec
         self._unavailable_since: dict[str, float] = {}
-        self._degraded_reasons: dict[str, str] = {}
 
     def record_failure(self, server_key: str) -> McpServerHealthState:
         """Record a failure for the given server and update its health state."""
@@ -51,46 +50,12 @@ class McpServerHealthRegistry:
         self._states[server_key] = McpServerHealthState.DEGRADED
         return McpServerHealthState.DEGRADED
 
-    def record_degraded(self, server_key: str, reason: str | None = None) -> None:
-        """Record a reachable-but-degraded server without triggering UNAVAILABLE.
-
-        Does not downgrade a server currently in `UNAVAILABLE` or `HALF_OPEN`
-        state: those states gate dispatch via `is_unavailable()`, and `HALF_OPEN`
-        additionally represents a single-trial probe window. Allowing a
-        reachable-but-degraded watchdog probe to overwrite either state with
-        `DEGRADED` would silently defeat the circuit breaker (`is_unavailable()`
-        would start returning `False` again) or consume the trial window without
-        an actual trial outcome. When guarded, this method logs at `debug` level
-        and returns without mutating `_states` or `_degraded_reasons`.
-        """
-        current = self.get_state(server_key)
-        if current in (
-            McpServerHealthState.UNAVAILABLE,
-            McpServerHealthState.HALF_OPEN,
-        ):
-            logger.debug(
-                "Health: ignored degraded probe for %r, current state=%s",
-                server_key,
-                current.value,
-            )
-            return
-        self._states[server_key] = McpServerHealthState.DEGRADED
-        if reason is not None:
-            self._degraded_reasons[server_key] = reason
-        logger.warning(
-            "Health: %r is DEGRADED (reason=%s)", server_key, reason or "unknown"
-        )
-
-    def get_degraded_reason(self, server_key: str) -> str | None:
-        """Return the last recorded degraded reason for a server, or None."""
-        return self._degraded_reasons.get(server_key)
-
     def record_success(self, server_key: str) -> None:
         """Record a successful call and reset the server to HEALTHY.
 
         In addition to setting the state to `HEALTHY`, this clears
-        `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` for
-        `server_key`. Clearing `_failure_counts` matters because
+        `_failure_counts` and `_unavailable_since` for `server_key`.
+        Clearing `_failure_counts` matters because
         `record_failure()` compares the running count against
         `_failure_threshold`; without this reset, a later `record_failure()`
         call could jump straight back to `UNAVAILABLE` using a stale count
@@ -100,7 +65,6 @@ class McpServerHealthRegistry:
         self._states[server_key] = McpServerHealthState.HEALTHY
         self._failure_counts[server_key] = 0
         self._unavailable_since.pop(server_key, None)
-        self._degraded_reasons.pop(server_key, None)
         if prev == McpServerHealthState.HALF_OPEN:
             logger.info("Health: %r trial probe succeeded → HEALTHY", server_key)
 

@@ -244,13 +244,12 @@ class TestCmdMcpStatus:
     async def test_unavailable_server_shown_with_reason(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        """UNAVAILABLE servers get their own block with the recorded reason."""
+        """UNAVAILABLE servers get their own block without reason suffix."""
         ctx = _Ctx({"svc": _http()})
         mcp = _Mcp(ctx)
 
         registry = MagicMock()
         registry.get_state.return_value = McpServerHealthState.UNAVAILABLE
-        registry.get_degraded_reason.return_value = "restart_limit_reached"
         ctx.services_required.health_registry = registry
 
         with patch(
@@ -260,19 +259,19 @@ class TestCmdMcpStatus:
 
         out = capsys.readouterr().out
         assert "  Unavailable servers:" in out
-        assert "    [UNAVAILABLE] svc: restart_limit_reached" in out
+        assert "    [UNAVAILABLE] svc" in out
+        assert "[UNAVAILABLE] svc:" not in out
 
     @pytest.mark.asyncio
     async def test_unavailable_server_without_reason(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        """UNAVAILABLE servers with no recorded reason omit the trailing colon text."""
+        """UNAVAILABLE servers omit the trailing colon text."""
         ctx = _Ctx({"svc": _http()})
         mcp = _Mcp(ctx)
 
         registry = MagicMock()
         registry.get_state.return_value = McpServerHealthState.UNAVAILABLE
-        registry.get_degraded_reason.return_value = None
         ctx.services_required.health_registry = registry
 
         with patch(
@@ -289,13 +288,12 @@ class TestCmdMcpStatus:
     async def test_degraded_server_shown_with_reason(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        """Characterization test: DEGRADED servers get their own block with the recorded reason."""
+        """DEGRADED servers get their own block without reason suffix."""
         ctx = _Ctx({"svc": _http()})
         mcp = _Mcp(ctx)
 
         registry = MagicMock()
         registry.get_state.return_value = McpServerHealthState.DEGRADED
-        registry.get_degraded_reason.return_value = "circuit_open"
         ctx.services_required.health_registry = registry
 
         with patch(
@@ -305,7 +303,8 @@ class TestCmdMcpStatus:
 
         out = capsys.readouterr().out
         assert "  Degraded servers:" in out
-        assert "    [DEGRADED] svc: circuit_open" in out
+        assert "    [DEGRADED] svc" in out
+        assert "[DEGRADED] svc:" not in out
 
     @pytest.mark.asyncio
     async def test_no_unavailable_block_when_all_healthy(
@@ -317,7 +316,6 @@ class TestCmdMcpStatus:
 
         registry = MagicMock()
         registry.get_state.return_value = McpServerHealthState.HEALTHY
-        registry.get_degraded_reason.return_value = None
         ctx.services_required.health_registry = registry
 
         with patch(
