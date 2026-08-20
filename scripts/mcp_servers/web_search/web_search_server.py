@@ -23,6 +23,7 @@ from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
     MCPServer,
+    MCP_TOOL_SCHEMA_VERSION,
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
@@ -47,6 +48,14 @@ logger = logging.getLogger(__name__)
 # Typed config object (module-level singleton)
 # ──────────────────────────────────────────────────────────────────────────────
 _cfg: WebSearchConfig = WebSearchConfig.load()
+
+
+def _web_search_tool_availability(cfg: WebSearchConfig, tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single web-search tool by name."""
+    if tool_name == "browser_fetch" and not cfg.browser_allowed_domains:
+        return False, "browser_allowed_domains is empty"
+    return True, ""
+
 
 app = FastAPI(
     title="web-search-mcp",
@@ -172,7 +181,14 @@ def _build_audit_target_and_detail(
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
-    return build_tools_response(TOOL_LIST, "web_search")
+    return {
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": [
+            {**t, "server_key": "web_search", "enabled": enabled, "disabled_reason": reason}
+            for t in TOOL_LIST
+            for enabled, reason in [_web_search_tool_availability(_cfg, t["name"])]
+        ],
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -190,6 +206,12 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     function must not call `health.record_*`/`metrics.record_*` itself (that
     would double-count every query).
     """
+    # Disabled-tool gate — must come BEFORE the try block so a disabled-tool
+    # rejection is not misclassified into the audit log's error-type taxonomy
+    enabled, reason = _web_search_tool_availability(_cfg, req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
+
     session_id, request_id = extract_request_context(request)
     t0 = time.perf_counter()
     outcome = "ok"

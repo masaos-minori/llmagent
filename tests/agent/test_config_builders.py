@@ -384,6 +384,14 @@ class TestBuildDiagnosticsConfig:
         assert cfg.encryption_key == ""
         assert cfg.retention_days == 30
 
+    def test_sensitive_fields_override_is_reflected(self) -> None:
+        cfg = _build_diagnostics_config(
+            {"diagnostics": {"sensitive_fields": ["custom_field", "another_field"]}}
+        )
+        # Union with defaults happens in _filter_sensitive_fields() at use time,
+        # not in _build_diagnostics_config(). Assert raw configured value.
+        assert cfg.sensitive_fields == frozenset(["custom_field", "another_field"])
+
 
 # ── build_agent_config ────────────────────────────────────────────────────────
 

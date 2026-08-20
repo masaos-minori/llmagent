@@ -56,6 +56,7 @@ from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse
 from mcp_servers.server import (
     MCPServer,
+    MCP_TOOL_SCHEMA_VERSION,
     ToolArgs,
     build_tools_response,
     extract_request_context,
@@ -66,6 +67,18 @@ logger = logging.getLogger(__name__)
 
 _cfg = GitHubConfig.load()  # noqa: F821
 _service: GitHubService = build_service(_cfg)
+
+
+def _github_tool_availability(tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a github tool by name.
+
+    All github-mcp tools are config_dependent: True and gated on _GITHUB_TOKEN.
+    Reuses the exact signal the /health endpoint uses.
+    """
+    if not _GITHUB_TOKEN:
+        return False, "GITHUB_TOKEN is not set"
+    return True, ""
+
 
 app = FastAPI(
     title="github-mcp",
@@ -131,7 +144,14 @@ async def _dispatch_github_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
-    return build_tools_response(TOOL_LIST, "github")
+    enabled, reason = _github_tool_availability("")
+    return {
+        "schema_version": MCP_TOOL_SCHEMA_VERSION,
+        "tools": [
+            {**t, "server_key": "github", "enabled": enabled, "disabled_reason": reason}
+            for t in TOOL_LIST
+        ],
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -142,6 +162,12 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: "Request") -> CallToolResponse:
     """Execute a GitHub tool by name and return the formatted text result."""
+    # Disabled-tool gate — must come BEFORE dispatch so a disabled-tool
+    # rejection is not misclassified into the audit log's error-type taxonomy
+    enabled, reason = _github_tool_availability(req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
+
     session_id, request_id = extract_request_context(request)
     r = await _dispatch_github_tool(req.name, req.args)
     _audit_log(

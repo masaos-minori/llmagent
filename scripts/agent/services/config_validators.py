@@ -180,6 +180,38 @@ def validate_memory_recency_days(cfg: MemoryConfig) -> None:
         )
 
 
+def validate_memory_max_inject_semantic(cfg: MemoryConfig) -> None:
+    """Validate that memory_max_inject_semantic is non-negative."""
+    if cfg.memory_max_inject_semantic < 0:
+        raise ValueError(
+            f"memory_max_inject_semantic must be >= 0, got {cfg.memory_max_inject_semantic}"
+        )
+
+
+def validate_memory_max_inject_episodic(cfg: MemoryConfig) -> None:
+    """Validate that memory_max_inject_episodic is non-negative."""
+    if cfg.memory_max_inject_episodic < 0:
+        raise ValueError(
+            f"memory_max_inject_episodic must be >= 0, got {cfg.memory_max_inject_episodic}"
+        )
+
+
+def validate_memory_embed_timeout_sec(cfg: MemoryConfig) -> None:
+    """Validate that memory_embed_timeout_sec is positive."""
+    if cfg.memory_embed_timeout_sec <= 0:
+        raise ValueError(
+            f"memory_embed_timeout_sec must be > 0, got {cfg.memory_embed_timeout_sec}"
+        )
+
+
+def validate_memory_retention_days(cfg: MemoryConfig) -> None:
+    """Validate that memory_retention_days is at least 1."""
+    if cfg.memory_retention_days < 1:
+        raise ValueError(
+            f"memory_retention_days must be >= 1, got {cfg.memory_retention_days}"
+        )
+
+
 def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:
     """Validate that all approval_risk_rules values are valid."""
     _valid_risk = {"none", "medium", "high"}

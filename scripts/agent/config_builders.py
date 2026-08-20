@@ -204,6 +204,8 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     llm_max_tokens = _get_int_or_default(cfg, "llm_max_tokens", 1024)
     title_llm_temperature = _get_float_or_default(cfg, "title_llm_temperature", 0.1)
     title_llm_max_tokens = _get_int_or_default(cfg, "title_llm_max_tokens", 20)
+    llm_compress_temperature = _get_float_or_default(cfg, "llm_compress_temperature", 0.3)
+    llm_compress_max_tokens = _get_int_or_default(cfg, "llm_compress_max_tokens", 300)
     sse_heartbeat_timeout = _get_float_or_default(cfg, "sse_heartbeat_timeout", 30.0)
     sse_malformed_retry = _get_int_or_default(cfg, "sse_malformed_retry", 2)
     sse_reconnect_max = _get_int_or_default(cfg, "sse_reconnect_max", 1)
@@ -228,6 +230,8 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
         llm_max_tokens=llm_max_tokens,
         title_llm_temperature=title_llm_temperature,
         title_llm_max_tokens=title_llm_max_tokens,
+        llm_compress_temperature=llm_compress_temperature,
+        llm_compress_max_tokens=llm_compress_max_tokens,
         sse_heartbeat_timeout=sse_heartbeat_timeout,
         sse_malformed_retry=sse_malformed_retry,
         sse_reconnect_max=sse_reconnect_max,
@@ -332,17 +336,9 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
     memory_max_inject_semantic = _get_int_or_default(
         cfg, "memory_max_inject_semantic", 5
     )
-    if memory_max_inject_semantic < 0:
-        raise ConfigReloadValidationError(
-            f"memory_max_inject_semantic must be >= 0, got {memory_max_inject_semantic}"
-        )
     memory_max_inject_episodic = _get_int_or_default(
         cfg, "memory_max_inject_episodic", 3
     )
-    if memory_max_inject_episodic < 0:
-        raise ConfigReloadValidationError(
-            f"memory_max_inject_episodic must be >= 0, got {memory_max_inject_episodic}"
-        )
     memory_min_importance = _get_float_or_default(cfg, "memory_min_importance", 0.3)
     memory_embed_enabled = _get_bool_or_default(cfg, "memory_embed_enabled", True)
     memory_dedup_threshold = _get_float_or_default(cfg, "memory_dedup_threshold", 0.3)
@@ -350,35 +346,32 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
     memory_embed_timeout_sec = _get_float_or_default(
         cfg, "memory_embed_timeout_sec", 5.0
     )
-    if memory_embed_timeout_sec <= 0:
-        raise ConfigReloadValidationError(
-            f"memory_embed_timeout_sec must be > 0, got {memory_embed_timeout_sec}"
-        )
     memory_retention_days = _get_int_or_default(cfg, "memory_retention_days", 90)
-    if memory_retention_days < 1:
-        raise ConfigReloadValidationError(
-            f"memory_retention_days must be >= 1, got {memory_retention_days}"
-        )
     memory_fts_limit = _get_int_or_default(cfg, "memory_fts_limit", 50)
     memory_rrf_k = _get_int_or_default(cfg, "memory_rrf_k", 60)
     memory_recency_days = _get_float_or_default(cfg, "memory_recency_days", 7.0)
     memory_local_only = _get_bool_or_default(cfg, "memory_local_only", False)
-    return MemoryConfig(
-        use_memory_layer=use_memory_layer,
-        memory_jsonl_dir=memory_jsonl_dir,
-        memory_max_inject_semantic=memory_max_inject_semantic,
-        memory_max_inject_episodic=memory_max_inject_episodic,
-        memory_min_importance=memory_min_importance,
-        memory_embed_enabled=memory_embed_enabled,
-        memory_dedup_threshold=memory_dedup_threshold,
-        memory_max_content_chars=memory_max_content_chars,
-        memory_embed_timeout_sec=memory_embed_timeout_sec,
-        memory_retention_days=memory_retention_days,
-        memory_fts_limit=memory_fts_limit,
-        memory_rrf_k=memory_rrf_k,
-        memory_recency_days=memory_recency_days,
-        memory_local_only=memory_local_only,
-    )
+    try:
+        return MemoryConfig(
+            use_memory_layer=use_memory_layer,
+            memory_jsonl_dir=memory_jsonl_dir,
+            memory_max_inject_semantic=memory_max_inject_semantic,
+            memory_max_inject_episodic=memory_max_inject_episodic,
+            memory_min_importance=memory_min_importance,
+            memory_embed_enabled=memory_embed_enabled,
+            memory_dedup_threshold=memory_dedup_threshold,
+            memory_max_content_chars=memory_max_content_chars,
+            memory_embed_timeout_sec=memory_embed_timeout_sec,
+            memory_retention_days=memory_retention_days,
+            memory_fts_limit=memory_fts_limit,
+            memory_rrf_k=memory_rrf_k,
+            memory_recency_days=memory_recency_days,
+            memory_local_only=memory_local_only,
+        )
+    except ValueError as e:
+        # Convert ValueError from MemoryConfig.__post_init__ validators
+        # to ConfigReloadValidationError for reload path error handling
+        raise ConfigReloadValidationError(str(e)) from e
 
 
 def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
@@ -494,4 +487,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             structured_log=structured_log,
         ),
         diagnostics=_build_diagnostics_config(cfg),
+        agent_memory_max_startup_snippets=_get_int_or_default(
+            cfg, "agent_memory_max_startup_snippets", 10
+        ),
     )

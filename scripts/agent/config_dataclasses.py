@@ -58,7 +58,19 @@ from agent.services.config_validators import (
     validate_memory_fts_limit as _v_mem_fts,
 )
 from agent.services.config_validators import (
+    validate_memory_max_inject_episodic as _v_mem_mie,
+)
+from agent.services.config_validators import (
+    validate_memory_max_inject_semantic as _v_mem_mis,
+)
+from agent.services.config_validators import (
+    validate_memory_embed_timeout_sec as _v_mem_met,
+)
+from agent.services.config_validators import (
     validate_memory_recency_days as _v_mem_rec,
+)
+from agent.services.config_validators import (
+    validate_memory_retention_days as _v_mem_rtd,
 )
 from agent.services.config_validators import (
     validate_memory_rrf_k as _v_mem_rrf,
@@ -120,6 +132,9 @@ class LLMConfig:
     context_compress_turns: int = 4
     history_protect_turns: int = 2
     budget_warn_ratio: float = 0.8
+    # Compression LLM parameters (mirrors title_llm_* pattern, no validators per repo convention)
+    llm_compress_temperature: float = 0.3
+    llm_compress_max_tokens: int = 300
 
     def __post_init__(self) -> None:
         """Validate LLM configuration fields after initialization."""
@@ -255,6 +270,10 @@ class MemoryConfig:
         _v_mem_fts(self)
         _v_mem_rrf(self)
         _v_mem_rec(self)
+        _v_mem_mis(self)
+        _v_mem_mie(self)
+        _v_mem_met(self)
+        _v_mem_rtd(self)
 
 
 @dataclass

@@ -28,7 +28,7 @@ class InjectionPolicy:
 
     max_semantic: int = 5
     max_episodic: int = 3
-    min_importance: float = 0.5
+    min_importance: float = 0.3
     format_prefix_semantic: str = "[Semantic memory]"
     format_prefix_episodic: str = "[Episodic memory]"
     max_snippet_length: int = 500

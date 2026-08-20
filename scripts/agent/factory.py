@@ -39,10 +39,6 @@ from agent.services.models import ProcessInfoSnapshot
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
 
-# LLM parameters used by HistoryManager for conversation compression
-_COMPRESS_TEMPERATURE: float = 0.3
-_COMPRESS_MAX_TOKENS: int = 300
-
 _logger = logging.getLogger(__name__)
 
 # Cooldown duration for failed MCP subprocess starts (seconds)
@@ -327,8 +323,8 @@ def _build_history_manager(
         llm_url=build_llm_url(ctx.cfg.llm.llm_url),
         char_limit=ctx.cfg.llm.context_char_limit,
         compress_turns=ctx.cfg.llm.context_compress_turns,
-        compress_temperature=_COMPRESS_TEMPERATURE,
-        compress_max_tokens=_COMPRESS_MAX_TOKENS,
+        compress_temperature=ctx.cfg.llm.llm_compress_temperature,
+        compress_max_tokens=ctx.cfg.llm.llm_compress_max_tokens,
         on_compress=view.write_compress_notice,
         protect_turns=ctx.cfg.llm.history_protect_turns,
         token_limit=ctx.cfg.llm.context_token_limit,

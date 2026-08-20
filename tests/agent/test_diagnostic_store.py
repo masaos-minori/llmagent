@@ -331,6 +331,27 @@ class TestEncryption:
         decrypted = Fernet(key.encode("utf-8")).decrypt(stored_content.encode("utf-8"))
         assert json.loads(decrypted) == {"turn": 1}
 
+    def test_fetch_decrypts_content_saved_with_encrypt_true(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        """fetch() should decrypt ciphertext saved via save(encrypt=True)."""
+        key = Fernet.generate_key().decode("utf-8")
+        plaintext = '{"turn": 1}'
+        fake_cfg_loader = _FakeConfigLoader(
+            {"diagnostics": {"encryption_key": key, "retention_days": 30}}
+        )
+        store = DiagnosticStore()
+        with (
+            patch("db.helper.SQLiteHelper", side_effect=lambda _: fake_db),
+            patch("shared.config_loader.ConfigLoader", return_value=fake_cfg_loader),
+        ):
+            store.save(1, kind="k", content=plaintext, encrypt=True)
+            entries = store.fetch(1)
+        assert len(entries) == 1
+        assert entries[0]["kind"] == "k"
+        # This assertion exercises the decrypt branch inside fetch() itself
+        assert entries[0]["content"] == plaintext
+
     def test_save_encrypt_true_without_configured_key_is_noop(
         self, fake_db: _FakeSQLiteHelper
     ) -> None:

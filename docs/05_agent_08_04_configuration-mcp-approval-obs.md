@@ -86,6 +86,7 @@ MCP設定、承認設定、観測設定の構造と制約について文書化�
 
 - `encryption_key`: DiagnosticStore.save(encrypt=True)用のFernet対称鍵（空文字列 = 暗号化無効）
 - `retention_days`: session_diagnosticsの行保持日数（0以下 = パージ無効）
+- `sensitive_fields`: `_filter_sensitive_fields()` が追加でリダクションするフィールド名の集合（ハードコードされたデフォルトとの union）
 
 ## Responsibility Boundary
 
