@@ -1,5 +1,4 @@
-
-title: "HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1)"
+title: "HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1 & 2)"
 category: mcp
 tags:
   - mcp
@@ -14,41 +13,37 @@ related:
 source:
   - 04_mcp_03_03_transport-and-health.md
 
-
-# HttpTransport、McpServerHealthRegistry、追跡の相関キー(Part 1)
+# HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1)
 
 ## HttpTransport (`shared/http_transport.py`)
 
 ### HttpTransport
 
-**矛盾点（要修正の記録）:** 本節の見出しは従来 `shared/tool_executor.py` としていたが、`HttpTransport` クラスの実体は `shared/http_transport.py` に定義されている（Explicit in code）。インスタンス化と保持は `shared/tool_transport_invoker.py` が行い、`shared/tool_executor.py` は `TransportError` 例外型のみを同モジュールからインポートしている。`shared/tool_executor.py` のモジュール docstring には "Provides HttpTransport implementation for POST /v1/call_tool over httpx." とあるが、実装本体は同ファイルには存在しない（Explicit in code）。
+**Inconsistency (Record of required fix):** This section header was previously `shared/tool_executor.py`, but the actual implementation of the `HttpTransport` class is defined in `shared/http_transport.py` (Explicit in code). Instantiation and retention are handled by `shared/tool_transport_invoker.py`, while `shared/tool_executor.py` only imports the `TransportError` exception type from the same module. Although the module docstring of `shared/tool_executor.py` states "Provides HttpTransport implementation for POST /v1/call_tool over httpx.", the actual implementation does not exist in that file (Explicit in code).
 
 ```python
 HttpTransport(http, base_url, server_key, cfg=McpServerConfig)
 result = await transport.call("tool_name", {"arg": "val"})
 ```
 
-- `cfg.auth_token` が空でない場合、`Authorization: Bearer <token>` を追加する
-- 全てのトランスポートレベルの障害（タイムアウト、HTTP 非 2xx、不正な形式のレスポンス、リトライ消尽）で `TransportError` を発生させる; `is_error=True` を直接返すことはない
-- トランスポートエラーハンドラーが `TransportError` を捕捉し、`ToolCallResult(error_type="transport")` に変換する
-- `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する（`ToolTransportInvoker` 経由）
-- **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。全リトライ消尽時の `TransportError` メッセージ(`"[Retry exhausted] ..."`)には、最後に捕捉した例外の内容（型・ステータスコード等）が末尾に付加される。
-- **リトライ不可のエラー:** HTTP タイムアウト（`httpx.TimeoutException`）と、429/502/503/504 以外のステータスコードによる HTTPStatusError は、リトライなしで即時に伝播する。
-- **ツールレベルエラー vs トランスポートレベルエラー:** ツールレベルのエラー（`error_type == "tool"`）はトランスポート呼び出しの成功として扱われ、`record_success()` と `stat_tool_errors` カウンターのインクリメントをトリガーする。トランスポートレベルのエラーは `record_failure()` と `stat_transport_errors` カウンターのインクリメントをトリガーする。両カウンターは独立して追跡される。
-- **レスポンスパース:** `_handle_call_tool_response()` メソッド内で `parse_http_json(resp)` を使用して httpx.Response から JSON データをデコードする。`parse_http_json` は `shared/json_utils.py` で定義され、`resp.json()` のラッパーとして機能する。旧版では `orjson.loads(resp.content)` を直接使用していた。
+- If `cfg.auth_token` is not empty, `Authorization: Bearer <token>` is added.
+- All transport-level failures (timeouts, non-2xx HTTP, malformed responses, exhaustion of retries) raise a `TransportError`; it never directly returns `is_error=True`.
+- Transport error handlers catch `TransportError` and convert it to `ToolCallResult(error_type="transport")`.
+- `set_session_id(session_id)` injects an `X-Session-Id` header into every request (via `ToolTransportInvoker`).
+- **Retries:** Retries are performed on HTTP 429/502/503/504. A maximum of 3 attempts are made, with decreasing delays: 4 seconds for attempt 0, 2 seconds for attempt 1, and 1 second for attempt 2 before a final exhaustion error occurs. Formula: $2^{(RETRY\_MAX - attempt - 1)}$. This is not exponential backoff (delays decrease per attempt). Only the final result (success or `TransportError` after all retries exhausted) is recorded in the HealthRegistry. The `TransportError` message (`"[Retry exhausted] ..."`) includes the last caught exception details (type, status code, etc.) at the end.
+- **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 are propagated immediately without retries.
+- **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
+- **Response Parsing:** The `_handle_call_tool_response()` method uses `parse_http_json(resp)` within `parse_http_json` (defined in `shared/json_utils.py`) to decode JSON data from an `httpx.Response`. Previously, `orjson.loads(resp.content)` was used directly.
 
 ---
 
-## McpServerHealthRegistry (`shared/mcp_health.py`)
+42. ## McpServerHealthRegistry (`shared/mcp_health.py`)
 
-**注記:** クラス実体は `shared/mcp_health.py` に定義されている。`shared/mcp_config.py` はこれを `# noqa: F401` 付きで re-export しているのみである（Explicit in code）。両モジュールから同名でインポート可能なため実害はないが、正典モジュールは `shared/mcp_health.py` である。
+**Note:** The class implementation is defined in `shared/mcp_health.py`. `shared/mcp_config.py` only re-exports it using `# noqa: F401` (Explicit in code). Since they can both be imported with the same name, there is no practical issue, but the canonical module is `shared/mcp_health.py`.
 
-`_build_tool_executor()`（factory.py）内で作成され、`ToolTransportInvoker`（`set_health_registry()` 経由）と
-`AppServices.health_registry` の間で共有される、サーバーごとの失敗トラッカー。
-両者は同一のオブジェクトを保持するため、`ToolExecutor` によって記録されたヘルス状態は
-`AppServices.health_registry` を通じて即座に可視化される。
+Created within `_build_tool_executor()` (factory.py), this is a per-server failure tracker shared between `ToolTransportInvoker` (via `set_health_registry()`) and `AppServices.health_registry`. Because they hold the same object, health status recorded by `ToolExecutor` is immediately visible via `AppServices.health_registry`.
 
-**状態遷移:**
+**State Transitions:**
 
 ``` text
 HEALTHY ──(failure × threshold)──→ UNAVAILABLE
@@ -56,258 +51,108 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
    │                            (cooldown 30s elapsed)
    │                                    ↓
    └──(record_success)────────── HALF_OPEN (trial probe)
-                                        │
-                              (failure)─┘ → UNAVAILABLE (cooldown reset)
+                                         │
+                               (failure)─┘ → UNAVAILABLE (cooldown reset)
 ```
 
-| 状態 | 条件 |
+| State | Condition |
 |---|---|
-| `HEALTHY` | 失敗なし、または呼び出し成功後 |
-| `DEGRADED` | 失敗回数 < しきい値（デフォルト3） |
-| `UNAVAILABLE` | 失敗回数 ≥ しきい値; ディスパッチはブロックされる |
-| `HALF_OPEN` | 30秒のクールダウン経過後; 1回の試行ディスパッチが許可される |
+| `HEALTHY` | No failures, or after a successful call |
+| `DEGRADED` | number of failures < threshold (default 3) |
+| `UNAVAILABLE` | number of failures ≥ threshold; dispatch is blocked |
+| `HALF_OPEN` | After 30s cooldown; allows one trial dispatch |
 
-| メソッド | 説明 |
+| Method | Description |
 |---|---|
-| `record_failure(server_key)` | 失敗回数をインクリメント; `HALF_OPEN → UNAVAILABLE`（クールダウンリセット); しきい値到達時 → `UNAVAILABLE` |
-| `record_success(server_key)` | 失敗回数、unavailable タイムスタンプをリセット; `HALF_OPEN → HEALTHY` |
-| `get_state(server_key)` | 現在の状態; 未知のキーの場合は `HEALTHY` を返す |
-| `is_unavailable(server_key)` | `UNAVAILABLE` であり、かつクールダウンがまだ経過していない場合 `True`; 副作用として、クールダウン経過時に `HALF_OPEN` へ遷移する |
+| `record_failure(server_key)` | Increments failure count; `HALF_OPEN → UNAVAILABLE` (cooldown reset); if threshold reached → `UNAVAILABLE` |
+| `record_success(server_key)` | Resets failure count and unavailable timestamp; `HALF_OPEN → HEALTHY` |
+| `get_state(server_key)` | Current state; returns `HEALTHY` for unknown keys |
+| `is_unavailable(server_key)` | Returns `True` if `UNAVAILABLE` and cooldown has not yet elapsed; side effect: transitions to `HALF_OPEN` when cooldown expires |
 
-**コンストラクタ:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
-- `half_open_cooldown_sec`: `UNAVAILABLE` に入ってから試行ディスパッチが許可されるまでの秒数（デフォルト30秒、固定値 — 指数バックオフではない）
+**Constructor:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
+- `half_open_cooldown_sec`: Seconds until trial dispatch is allowed after entering `UNAVAILABLE` (default 30s, fixed value — not exponential backoff).
 
-**共有配線:** このレジストリは一度だけ作成され、複数の場所で消費される — 書き込み側は `ToolTransportInvoker`（`record_failure`/`record_success`）、読み取り側は `/mcp status`（`McpStatusService.probe_all()`、`get_state`）。`factory.py` のツールエクゼキュータビルド処理で `McpServerHealthRegistry()` が1つ生成され、`ToolTransportInvoker.set_health_registry()` 経由で `ToolTransportInvoker` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。結果として、ディスパッチゲーティング（`is_unavailable()`）はトランスポート層の失敗記録を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、書き込み側と読み取り側の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す — 将来の変更ではこれを制約として考慮すること。
-
----
-
-## Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
-
-## Keywords
-
-mcp
-HttpTransport
-McpServerHealthRegistry
-health state
-retry
-correlation keys
-
-# HttpTransport、McpServerHealthRegistry、追跡の相関キー(Part 1)
-
-## HttpTransport (`shared/http_transport.py`)
-
-### HttpTransport
-
-**矛盾点（要修正の記録）:** 本節の見出しは従来 `shared/tool_executor.py` としていたが、`HttpTransport` クラスの実体は `shared/http_transport.py` に定義されている（Explicit in code）。インスタンス化と保持は `shared/tool_transport_invoker.py` が行い、`shared/tool_executor.py` は `TransportError` 例外型のみを同モジュールからインポートしている。`shared/tool_executor.py` のモジュール docstring には "Provides HttpTransport implementation for POST /v1/call_tool over httpx." とあるが、実装本体は同ファイルには存在しない（Explicit in code）。
-
-```python
-HttpTransport(http, base_url, server_key, cfg=McpServerConfig)
-result = await transport.call("tool_name", {"arg": "val"})
-```
-
-- `cfg.auth_token` が空でない場合、`Authorization: Bearer <token>` を追加する
-- 全てのトランスポートレベルの障害（タイムアウト、HTTP 非 2xx、不正な形式のレスポンス、リトライ消尽）で `TransportError` を発生させる; `is_error=True` を直接返すことはない
-- トランスポートエラーハンドラーが `TransportError` を捕捉し、`ToolCallResult(error_type="transport")` に変換する
-- `set_session_id(session_id)` はリクエストごとに `X-Session-Id` ヘッダーを注入する（`ToolTransportInvoker` 経由）
-- **リトライ:** HTTP 429/502/503/504 でリトライを行う。最大3回の試行で、遅延時間は減少していく: 試行0回目は4秒待機、試行1回目は2秒待機、試行2回目は1秒待機した後、最終的な消尽エラーとなる。計算式: 2^(RETRY_MAX - attempt - 1)。これは指数バックオフではない（試行ごとに遅延が減少する）。HealthRegistry に記録されるのは最終結果のみ（成功、または全リトライ消尽後の TransportError）。全リトライ消尽時の `TransportError` メッセージ(`"[Retry exhausted] ..."`)には、最後に捕捉した例外の内容（型・ステータスコード等）が末尾に付加される。
-- **リトライ不可のエラー:** HTTP タイムアウト（`httpx.TimeoutException`）と、429/502/503/504 以外のステータスコードによる HTTPStatusError は、リトライなしで即時に伝播する。
-- **ツールレベルエラー vs トランスポートレベルエラー:** ツールレベルのエラー（`error_type == "tool"`）はトランスポート呼び出しの成功として扱われ、`record_success()` と `stat_tool_errors` カウンターのインクリメントをトリガーする。トランスポートレベルのエラーは `record_failure()` と `stat_transport_errors` カウンターのインクリメントをトリガーする。両カウンターは独立して追跡される。
-- **レスポンスパース:** `_handle_call_tool_response()` メソッド内で `parse_http_json(resp)` を使用して httpx.Response から JSON データをデコードする。`parse_http_json` は `shared/json_utils.py` で定義され、`resp.json()` のラッパーとして機能する。旧版では `orjson.loads(resp.content)` を直接使用していた。
+**Shared Wiring:** This registry is created once and consumed in multiple places — writing side is `ToolTransportInvoker` (`record_failure`/`record_success`), reading side is `/mcp status` (`McpStatusService.probe_all()`, `get_state`). Created during the tool executor build process in `factory.py`, an instance of `McpServerHealthRegistry()` is generated and injected into `ToolTransportInvoker` via `set_health_registry()`, and the same object is also stored in `AppServices.health_registry`. As a result, dispatch gating (`is_unavailable()`) recognizes transport layer failure records without synchronization lag. Note: Replacing or rebuilding the registry object (e.g., if a future refactor creates a second `McpServerHealthRegistry()`) would cause asynchrony between writers and readers, breaking dispatch gating consistency — consider this constraint in future changes.
 
 ---
 
-## McpServerHealthRegistry (`shared/mcp_health.py`)
+84. ## Related Documents
 
-**注記:** クラス実体は `shared/mcp_health.py` に定義されている。`shared/mcp_config.py` はこれを `# noqa: F401` 付きで re-export しているのみである（Explicit in code）。両モジュールから同名でインポート可能なため実害はないが、正典モジュールは `shared/mcp_health.py` である。
+86. - `04_mcp_00_document-guide.md`
+87. - `04_mcp_03_01_dispatch-and-routing.md`
+88. - `04_mcp_03_02_tool-registry.md`
+89. - `04_mcp_03_03_transport-and-health.md`
+90. - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
+91. - `04_mcp_03_05_lifecycle-and-new-server.md`
 
-`_build_tool_executor()`（factory.py）内で作成され、`ToolTransportInvoker`（`set_health_registry()` 経由）と
-`AppServices.health_registry` の間で共有される、サーバーごとの失敗トラッカー。
-両者は同一のオブジェクトを保持するため、`ToolExecutor` によって記録されたヘルス状態は
-`AppServices.health_registry` を通じて即座に可視化される。
+93. ## Keywords
 
-**状態遷移:**
+95. mcp
+96. HttpTransport
+97. McpServerHealthRegistry
+98. health state
+99. retry
+100. correlation keys
 
-``` text
-HEALTHY ──(failure × threshold)──→ UNAVAILABLE
-   ↑                                    │
-   │                            (cooldown 30s elapsed)
-   │                                    ↓
-   └──(record_success)────────── HALF_OPEN (trial probe)
-                                        │
-                              (failure)─┘ → UNAVAILABLE (cooldown reset)
-```
+102. # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 2)
 
-| 状態 | 条件 |
-|---|---|
-| `HEALTHY` | 失敗なし、または呼び出し成功後 |
-| `DEGRADED` | 失敗回数 < しきい値（デフォルト3） |
-| `UNAVAILABLE` | 失敗回数 ≥ しきい値; ディスパッチはブロックされる |
-| `HALF_OPEN` | 30秒のクールダウン経過後; 1回の試行ディスパッチが許可される |
+190. ## End-to-End Tool Call Tracing
 
-| メソッド | 説明 |
-|---|---|
-| `record_failure(server_key)` | 失敗回数をインクリメント; `HALF_OPEN u2192 UNAVAILABLE`（クールダウンリセット); しきい値到達時 u2192 `UNAVAILABLE` |
-| `record_success(server_key)` | 失敗回数、unavailable タイムスタンプをリセット; `HALF_OPEN u2192 HEALTHY` |
-| `get_state(server_key)` | 現在の状態; 未知のキーの場合は `HEALTHY` を返す |
-| `is_unavailable(server_key)` | `UNAVAILABLE` であり、かつクールダウンがまだ経過していない場合 `True`; 副作用として、クールダウン経過時に `HALF_OPEN` へ遷移する |
+192. ### End-to-end tool call tracing
 
-**コンストラクタ:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
-- `half_open_cooldown_sec`: `UNAVAILABLE` に入ってから試行ディスパッチが許可されるまでの秒数（デフォルト30秒、固定値 u2014 指数バックオフではない）
+194. ### Correlation Keys
 
-**共有配線:** このレジストリは一度だけ作成され、複数の場所で消費される u2014 書き込み側は `ToolTransportInvoker`（`record_failure`/`record_success`）、読み取り側は `/mcp status`（`McpStatusService.probe_all()`、`get_state`）。`factory.py` のツールエクゼキュータビルド処理で `McpServerHealthRegistry()` が1つ生成され、`ToolTransportInvoker.set_health_registry()` 経由で `ToolTransportInvoker` に注入され、同じオブジェクトが `AppServices.health_registry` にも格納される。結果として、ディスパッチゲーティング（`is_unavailable()`）はトランスポート層の失敗記録を同期ラグなしで即座に認識する。注意: レジストリオブジェクトの置き換えや再構築（例: 将来のリファクタリングで2番目の `McpServerHealthRegistry()` を構築）は、書き込み側と読み取り側の非同期を引き起こし、ディスパッチゲーティングの一貫性を壊す u2014 将来の変更ではこれを制約として考慮すること。
+196. | Key | Source | Occurrence |
+197. |---|---|---|
+198. | `X-Session-Id` | Agent (`ctx.session.session_id`) | HTTP Request Header; MCP Server access logs; Agent audit logs |
+199. | `X-Request-Id` | MCP Server (UUID per request) | HTTP Response Header; MCP Server access logs; Agent audit logs (`x_request_id`) |
+200. | `server_key` | `McpServerConfig.key` | Agent routing logs; `ToolCallResult.server_key`; health registry; transport error counters |
+201. | `tool_name` | LLM tool call | Agent audit logs; MCP server request logs; tool error counters |
 
----
+203. To trace a single tool call, combine `X-Request-Id` (unique per call) and `X-Session-Id` (spans entire session).
 
-## Related Documents
+205. ---
 
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
+207. ### Example Success Path
 
-## Keywords
+209. ``` text
+210. 1. Agent: LLM emits tool_use for "read_text_file"
+211.    → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
+212.    → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
+213. 
+214. 2. Agent → Server (HTTP):
+215.    POST /v1/call_tool
+216.    X-Session-Id: 42
+217.    body: {"name": "read_text_file", "args": {...}}
+218. 
+219. 3. MCP server (file-read-mcp):
+220.    Server log: INFO [42] read_text_file args=... → OK
+221.    Response: X-Request-Id: abc-123, is_error=false, result="..."
+222. 
+223. 4. Agent receives:
+224.    ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
+225. 
+226. 5. Agent audit_tool_exec():
+227.     audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
+228. 
+229. 6. Health registry:
+230.    HealthRegistry.record_success("file_read") → state remains HEALTHY
+231. ```
 
-mcp
-HttpTransport
-McpServerHealthRegistry
-health state
-retry
-correlation keys
+233. ---
 
+235. ## Related Documents
 
+237. - `04_mcp_00_document-guide.md`
+238. - `04_mcp_03_01_dispatch-and-routing.md`
+239. - `04_mcp_03_02_tool-registry.md`
+240. - `04_mcp_03_03_transport-and-health.md`
+241. - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
+242. - `04_mcp_03_05_lifecycle-and-new-server.md`
 
-# HttpTransport、McpServerHealthRegistry、追跡の相関キー(Part 2)
+244. ## Keywords
 
-## エンドツーエンドのツール呼び出し追跡
-
-### End-to-end tool call tracing
-
-### 相関キー
-
-| キー | 生成元 | 出現箇所 |
-|---|---|---|
-| `X-Session-Id` | エージェント（`ctx.session.session_id`） | HTTP リクエストヘッダー; MCP サーバーアクセスログ; エージェント audit ログ |
-| `X-Request-Id` | MCP サーバー（リクエストごとの UUID） | HTTP レスポンスヘッダー; MCP サーバーアクセスログ; エージェント audit ログ（`x_request_id`） |
-| `server_key` | `McpServerConfig.key` | エージェントルーティングログ; `ToolCallResult.server_key`; health registry; トランスポートエラーカウンター |
-| `tool_name` | LLM のツール呼び出し | エージェント audit ログ; MCP サーバーリクエストログ; ツールエラーカウンター |
-
-1つのツール呼び出しを追跡するには、`X-Request-Id`（呼び出しごとに一意）と `X-Session-Id`（セッション全体に及ぶ）を結合する。
-
----
-
-### 成功パスの例
-
-``` text
-1. Agent: LLM emits tool_use for "read_text_file"
-   → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
-   → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
-
-2. Agent → Server (HTTP):
-   POST /v1/call_tool
-   X-Session-Id: 42
-   body: {"name": "read_text_file", "args": {...}}
-
-3. MCP server (file-read-mcp):
-   Server log: INFO [42] read_text_file args=... → OK
-   Response: X-Request-Id: abc-123, is_error=false, result="..."
-
-4. Agent receives:
-   ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
-
-5. Agent audit_tool_exec():
-    audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
-
-6. Health registry:
-   HealthRegistry.record_success("file_read") → state remains HEALTHY
-```
-
----
-
-## Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
-
-## Keywords
-
-mcp
-correlation keys
-tool call tracing
-end-to-end tracing
-
-# HttpTransport、McpServerHealthRegistry、追跡の相関キー(Part 2)
-
-## エンドツーエンドのツール呼び出し追跡
-
-### End-to-end tool call tracing
-
-### 相関キー
-
-| キー | 生成元 | 出現箇所 |
-|---|---|---|
-| `X-Session-Id` | エージェント（`ctx.session.session_id`） | HTTP リクエストヘッダー; MCP サーバーアクセスログ; エージェント audit ログ |
-| `X-Request-Id` | MCP サーバー（リクエストごとの UUID） | HTTP レスポンスヘッダー; MCP サーバーアクセスログ; エージェント audit ログ（`x_request_id`） |
-| `server_key` | `McpServerConfig.key` | エージェントルーティングログ; `ToolCallResult.server_key`; health registry; トランスポートエラーカウンター |
-| `tool_name` | LLM のツール呼び出し | エージェント audit ログ; MCP サーバーリクエストログ; ツールエラーカウンター |
-
-1つのツール呼び出しを追跡するには、`X-Request-Id`（呼び出しごとに一意）と `X-Session-Id`（セッション全体に及ぶ）を結合する。
-
----
-
-### 成功パスの例
-
-``` text
-1. Agent: LLM emits tool_use for "read_text_file"
-   → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
-   → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
-
-2. Agent → Server (HTTP):
-   POST /v1/call_tool
-   X-Session-Id: 42
-   body: {"name": "read_text_file", "args": {...}}
-
-3. MCP server (file-read-mcp):
-   Server log: INFO [42] read_text_file args=... → OK
-   Response: X-Request-Id: abc-123, is_error=false, result="..."
-
-4. Agent receives:
-   ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
-
-5. Agent audit_tool_exec():
-    audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
-
-6. Health registry:
-   HealthRegistry.record_success("file_read") → state remains HEALTHY
-```
-
----
-
-## Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
-- `04_mcp_03_05_lifecycle-and-new-server.md`
-
-## Keywords
-
-mcp
-correlation keys
-tool call tracing
-end-to-end tracing
-
+246. mcp
+247. correlation keys
+248. tool call tracing
+249. end-to-end tracing

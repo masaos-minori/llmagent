@@ -99,8 +99,8 @@ Verify: `firejail --version`
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `04_mcp_05_04_mdq-rag-boundary.md`
 - `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
-- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
+- `00_security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
+- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

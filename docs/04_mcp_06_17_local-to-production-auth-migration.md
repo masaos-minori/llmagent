@@ -77,7 +77,7 @@ When migrating from a local development environment to a production environment,
 ### Related Documents
 
 - [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md)
-- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
+- `00_security_01_architecture-and-trust-boundaries.md` — System security architecture / Trust boundaries / Threat modeling / AuthN/AuthZ / Auditing / Local vs Production / Fail-open/Fail-closed / Prompt injection responsibility boundaries
 
 ### Keywords
 

@@ -133,7 +133,7 @@ Behavior differences between local development and production:
 | Audit log redaction | Enabled | Enforced |
 | Approval dry-run | Enabled for configured tools | Enforced per `approval_dry_run_tools` |
 
-*Source: `04_mcp_06_16_pre-production-fail-open-checklist.md`, `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §起動時のAudit*
+*Source: `04_mcp_06_16_pre-production-fail-open-checklist.md`, `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Audit during startup*
 
 ## Fail-open-vs-fail-closed behavior
 
@@ -149,7 +149,7 @@ Fail-open vs fail-closed behavior by component:
 | MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
 | Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Fail-Open 対 Fail-Closed の要約, cross-referenced with `05_failure_modes_and_operational_readiness.md`*
+*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Summary of Fail-Open vs Fail-Closed, cross-referenced with `05_failure_modes_and_operational_readiness.md`*
 
 ## Prompt-injection responsibility boundaries
 

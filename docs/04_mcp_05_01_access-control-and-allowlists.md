@@ -12,75 +12,73 @@ related:
   - 04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - 04_mcp_05_04_mdq-rag-boundary.md
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
+  - 00_security_02_high-risk-tool-common-policy.md — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 ---
 
 ## config/github_mcp_server.toml
 
-- サーバーカタログ → [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md)
+- Server Catalog → [docs/04_mcp_04_01_web-search-file-read-github.md](docs/04_mcp_04_01_web-search-file-read-github.md)
 
-## 目的
+## Purpose
 
-サーバー間共通のセキュリティモデルを文書化する。対象はアクセス制御、allowlist、denylist パターン、
-fail-open 対 fail-closed の方針、サンドボックス、出力制限、リスクティア、AI 安全性に関する注記。
+To document a common security model across servers. It covers access control, allowlist/denylist patterns, fail-open vs fail-closed policies, sandboxing, output restrictions, risk tiers, and notes on AI safety.
 
 ---
 
-## サーバー別アクセス制御
+## Per-Server Access Control
 
-| サーバー | 制御機構 | デフォルトポリシー |
+| Server | Control Mechanism | Default Policy |
 |---|---|---|
-| file-read-mcp | `allowed_dirs` | `["/opt/llm", "/opt/llm/storage"]` — パスジェイル |
-| file-write-mcp | `allowed_dirs`（書き込み） | `["/opt/llm/storage"]` — パスジェイル |
-| file-delete-mcp | `allowed_dirs` | `["/opt/llm/storage"]` — パスジェイル |
-| github-mcp | `allowed_repos` | fail-closed（空 = 全書き込みを拒否） |
-| shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | 全拒否（デフォルトでは両方とも空） |
-| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | 両方とも: fail-closed |
-| git-mcp | `allowed_repo_paths` + `read_only` | fail-closed（空パス = 全て拒否); read_only=true |
-| mdq-mcp | `allowed_dirs` | fail-closed（デフォルト `[]` = 全て拒否); `MdqAuthorizationError` を発生させる |
+| file-read-mcp | `allowed_dirs` | `["/opt/llm", "/opt/llm/storage"]` — Path jail |
+| file-write-mcp | `allowed_dirs` (write) | `["/opt/llm/storage"]` — Path jail |
+| file-delete-mcp | `allowed_dirs` | `["/opt/llm/storage"]` — Path jail |
+| github-mcp | `allowed_repos` | Fail-closed (empty = all writes denied) |
+| shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | Deny-all (both are empty by default) |
+| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | Both: fail-closed |
+| git-mcp | `allowed_repo_paths` + `read_only` | Fail-closed (empty paths = all denied); `read_only=true` |
+| mdq-mcp | `allowed_dirs` | Fail-closed (default `[]` = all denied); raises `MdqAuthorizationError` |
 
 ---
 
-## パス制御
+## Path Control
 
-### `allowed_dirs`（ファイルサーバー）
+### `allowed_dirs` (File Servers)
 
 ```toml
 # config/file_read_mcp_server.toml
 allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 ```
 
-- 全パスは比較前に `Path.resolve()` で解決される（`../` やシンボリックリンクを排除）
-- `allowed_dirs` 外へのアクセス → HTTP 403
-- 空リストの挙動: 全アクセスを拒否（fail-closed）
+- All paths are resolved via `Path.resolve()` before comparison (eliminating `../` and symbolic links).
+- Access outside `allowed_dirs` → HTTP 403.
+- Behavior for empty list: Denies all access (fail-closed).
 
-### `allowed_repo_paths`（git-mcp）
+### `allowed_repo_paths` (git-mcp)
 
 ```toml
 # config/git_mcp_server.toml
 allowed_repo_paths = ["/opt/llm/myrepo"]
 ```
 
-- パスはサーバー起動時に `Path.resolve()` で正規化される
-- 空 → 全リポジトリアクセスを拒否（fail-closed）
+- Paths are normalized with `Path.resolve()` at server startup.
+- Empty → Denies all repository access (fail-closed).
 
 ---
 
-## リポジトリ制御
+## Repository Control
 
-### `allowed_repos`（github-mcp）
+### `allowed_repos` (github-mcp)
 
 ```toml
 allowed_repos = ["org/myrepo", "org/otherrepo"]
 ```
 
-- 空 → 全リポジトリアクセスを拒否（fail-closed）
-- 空でない → リストされたリポジトリのみ許可
+- Empty → Denies all repository access (fail-closed).
+- Not empty → Only allows repositories in the list.
 
-以下の9個の書き込み操作に適用される: `github_create_branch`, `github_create_or_update_file`, `github_push_files`,
-`github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`,
-`github_update_pull_request`, `github_merge_pull_request`。
+Applies to the following 9 write operations: `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`.
 
-### `repo_allowlist`（cicd-mcp）
+### `repo_allowlist` (cicd-mcp)
 
 ```toml
 repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
@@ -88,7 +86,7 @@ repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
 
 ---
 
-## ブランチとパスの Denylist（github-mcp）
+## Branch and Path Denylists (github-mcp)
 
 ### `protected_branches`
 
@@ -97,11 +95,11 @@ repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
 protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
 ```
 
-- 対象ブランチを指定する書き込み操作に適用される
-- 空リスト（デフォルト）: 全ブランチを許可
-- `branch=""`（省略時）: チェック前に API 経由でデフォルトブランチを解決する
+- Applies to write operations targeting specified branches.
+- Empty list (default): Allows all branches.
+- `branch=""` (if omitted): Resolves default branch via API before checking.
 
-**本番環境の例:**
+**Production Example:**
 
 ```toml
 # Protect mainline branches and release branches
@@ -113,7 +111,7 @@ protected_branches = [
 ]
 ```
 
-この設定では、`main`, `master`, `release/v1.0`, `develop` を対象とする書き込み操作は無条件にブロックされる。`protected_branches` のチェック（`_assert_allowed_branch`）は常に `GitHubAuthorizationError` を送出し、これを上書きする承認フローは実装されていない（agent 層の承認と github-mcp 側の `protected_branches` は独立した別レイヤーである）。
+In this configuration, write operations targeting `main`, `master`, `release/v1.0`, or `develop` are unconditionally blocked. The `protected_branches` check (`_assert_allowed_branch`) always issues a `GitHubAuthorizationError`, and there is no implementation to override this via an approval flow (the agent-layer approval and github-mcp's `protected_branches` are independent layers).
 
 ### `path_denylist`
 
@@ -122,10 +120,10 @@ protected_branches = [
 path_denylist = [".github/**", "Dockerfile*"]   # fnmatch glob patterns
 ```
 
-- `create_or_update_file`, `push_files`, `github_delete_file` に適用される
-- 空リスト（デフォルト）: 全パスを許可
+- Applies to `create_or_update_file`, `push_files`, and `github_delete_file`.
+- Empty list (default): Allows all paths.
 
-**本番環境の例:**
+**Production Example:**
 
 ```toml
 # Prevent modifications to CI/CD configs and container definitions
@@ -136,7 +134,7 @@ path_denylist = [
 ]
 ```
 
-この設定では、GitHub Actions のワークフローファイルや Docker 関連ファイルへの変更は、承認状態に関わらずブロックされる。
+With this setting, changes to GitHub Actions workflows or Docker-related files are blocked regardless of approval status.
 
 ### `allow_force_push`
 
@@ -145,18 +143,18 @@ path_denylist = [
 allow_force_push = false   # default: force push disabled
 ```
 
-- `merge_pull_request` ツールで `merge_method="rebase"` を使用できるかどうかのみを制御する（`scripts/mcp_servers/github/service_pull_requests.py`）。`false` の場合、rebase マージは `GitHubAuthorizationError` で拒否される。
-- **推奨: 本番環境では `false` を維持する。** Rebase マージは履歴を書き換え、チームの共同作業を破壊する可能性がある。
-- github-mcp には ref を強制更新する force-push 操作自体を実行するツールは存在せず、`protected_branches` の保護と相互作用することもない。
+- Only controls whether `merge_method="rebase"` can be used with the `merge_pull_request` tool (`scripts/mcp_servers/github/service_pull_requests.py`). If `false`, rebase merges are rejected with a `GitHubAuthorizationError`.
+- **Recommended: Keep as `false` in production.** Rebase merging rewrites history and can disrupt team collaboration.
+- github-mcp does not have a tool to execute a force-push itself; it only interacts with the `protected_branches` protection.
 
-**本番環境の例:**
+**Production Example:**
 
 ```toml
 # NEVER enable force push in production
 allow_force_push = false
 ```
 
-正当な force push（ref の強制更新）が必要な場合、github-mcp にはそれを実行するツール自体が存在しないため、この設定を有効化するのではなく、適切な権限を持つ GitHub の UI を直接使用すること。
+If a legitimate force-push (ref update) is required, do not enable this setting; instead, use the GitHub UI directly with appropriate permissions.
 
 ### `require_pr_review`
 
@@ -165,31 +163,31 @@ allow_force_push = false
 require_pr_review = true   # default: PR review required
 ```
 
-- `true` の場合、保護対象ブランチへの書き込み操作にはプルリクエストが必要（直接コミット不可）
-- `false` の場合、保護対象ブランチへの直接コミットが許可される（他の保護の対象となる）
+- If `true`, write operations to protected branches require a pull request (direct commits disallowed).
+- If `false`, direct commits to protected branches are allowed (subject to other protections).
 
-**本番環境の例:**
+**Production Example:**
 
 ```toml
 # Require PR review for all protected branch writes
 require_pr_review = true
 ```
 
-これにより、`main`, `master`, `release/*` ブランチへの変更は、プルリクエストを介した標準的なコードレビュープロセスを経ることが保証される。
+This ensures that changes to `main`, `master`, `release/*` branches must go through the standard code review process via pull requests.
 
 ---
 
-## コマンド Allowlist（shell-mcp）
+## Command Allowlist (shell-mcp)
 
 ```toml
 command_allowlist = ["ls", "cat", "grep", "git", "python3"]
 ```
 
-- `argv[0]` のベース名にマッチする
-- 空 → 全コマンドを拒否（fail-closed の挙動）
-- `shell_cwd_allowed_dirs` が空 → 全ての `cwd` 値を拒否
+- Matches against the base name of `argv[0]`.
+- Empty → Denies all commands (fail-closed behavior).
+- If `shell_cwd_allowed_dirs` is empty → Denies all `cwd` values.
 
-### 環境変数のフィルタリング
+### Environment Variable Filtering
 
 ``` text
 env_allowlist non-empty  → keep only listed keys (denylist ignored)
@@ -199,17 +197,16 @@ both empty               → use req.env as is
 
 ---
 
-## ワークフロー Allowlist（cicd-mcp）
+## Workflow Allowlist (cicd-mcp)
 
 ```toml
 # config/cicd_mcp_server.toml
 workflow_allowlist = []   # empty = deny all (fail-closed)
 ```
 
-**方針: fail-closed。** `workflow_allowlist` が空の場合、全てのワークフロートリガーリクエストは
-`CicdAuthorizationError` で拒否される。これは `repo_allowlist` の挙動と一致する。
+**Policy: fail-closed.** If `workflow_allowlist` is empty, all workflow trigger requests are rejected with a `CicdAuthorizationError`. This behavior is consistent with `repo_allowlist`.
 
-特定のワークフローを許可するには:
+To allow specific workflows:
 
 ```toml
 workflow_allowlist = [
@@ -218,12 +215,12 @@ workflow_allowlist = [
 ]
 ```
 
-これらの警告は、エージェント層と cicd-mcp サーバ層における独立した別レイヤーの仕組みによって発生します。
+These warnings occur in two independent layers: the Agent layer and the cicd-mcp server layer.
 
-- **エージェント層 (Agent REPL process)**: `scripts/agent/repl_health.py` の `audit_security_defaults()` において、`cicd_cfg` が存在し `workflow_allowlist` が空かつロックダウンされていない場合に、REPL 起動時の警告リスト (`warnings: list[str]`) に出力されます。
-  メッセージ: `DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
-- **cicd-mcp サーバ層 (cicd-mcp server process)**: `scripts/mcp_servers/cicd/cicd_service_guards.py` の `CiCdGuards.__init__` において、`workflow_allowlist` が空の場合、`mcp_servers.cicd.cicd_service_guards` ロガーを通じてサーバのログストリームに警告が記録されます。
-  メッセージ: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
+- **Agent Layer (Agent REPL process)**: In `scripts/agent/repl_health.py::audit_security_defaults()`, if `cicd_cfg` exists and `workflow_allowlist` is empty and not locked down, a warning is issued to the REPL startup warning list (`warnings: list[str]`).
+  Message: `DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
+- **cicd-mcp Server Layer (cicd-mcp server process)**: In `scripts/mcp_servers/cicd/cicd_service_guards.py::CiCdGuards.__init__`, if `workflow_allowlist` is empty, a warning is recorded to the server log stream via the `mcp_servers.cicd.cicd_service_guards` logger.
+  Message: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
 
 ## Related Documents
 
@@ -232,7 +229,7 @@ workflow_allowlist = [
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `04_mcp_05_04_mdq-rag-boundary.md`
 - `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
-- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
+- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

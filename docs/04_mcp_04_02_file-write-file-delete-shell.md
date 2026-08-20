@@ -116,7 +116,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 - `04_mcp_04_03_rag-pipeline-and-cicd.md`
 - `04_mcp_04_04_mdq.md`
 - `04_mcp_04_05_git.md`
-- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
+- `00_security_02_high-risk-tool-common-policy.md` — High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping)
 
 ## Keywords
 

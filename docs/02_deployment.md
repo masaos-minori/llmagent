@@ -10,49 +10,49 @@ source:
   - 02_deployment.md
 
 
-# 環境構築・サービス起動
+# Environment Setup & Service Startup
 
 ## Embedding: multilingual-E5-small (384 dim)
 
-### 1.1 Gentoo Linux パッケージ導入
+### 1.1 Gentoo Linux Package Installation
 
-OSのパッケージ導入手順については、[docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md) を参照してください。
+For OS package installation procedures, please refer to [docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md).
 
-> Python の `sqlite3` モジュールがロード拡張に対応していない場合:
+> If the Python `sqlite3` module does not support loadable extensions:
 > ```bash
 > echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python
 > emerge --ask dev-lang/python
 > ```
 
-### 1.2 Python 環境構築 (uv を使用)
+### 1.2 Python Environment Setup (using uv)
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --dev --system-certs
 ```
 
-依存関係の管理は `pyproject.toml`/`uv.lock` に一本化されている(`requirements.txt`は存在しない)。
-`uv sync`が実行時・開発時の全依存パッケージを導入する。
+Dependency management is centralized in `pyproject.toml`/`uv.lock` (`requirements.txt` does not exist).
+Running `uv sync` installs all dependency packages for both runtime and development.
 
-### 1.3 llama.cpp のビルド
+### 1.3 Building llama.cpp
 
-ビルド手順については、[docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md) を参照してください。
+For build instructions, please refer to [docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md).
 
-### 1.4 LLM モデルの取得
+### 1.4 Obtaining LLM Models
 
-モデルファイルは `/opt/llm/models/` に配置します。ファイル名は、各サービスの構成（`model-path` 等）で使用される名称と一致させる必要があります。
+Place model files in `/opt/llm/models/`. File names must match the names used in each service configuration (e.g., `model-path`).
 
-> **Canonical source** — このテーブルがモデルファイル名の正典です。`docs/01_overview-files-01-build.md` と `docs/03_rag_05_1-configuration-reference.md` はここを参照します。
+> **Canonical source** — This table is the canonical source for model filenames. `docs/01_overview-files-01-build.md` and `docs/03_rag_05_1-configuration-reference.md` refer to this.
 
-| モデル | ファイル名 |
+| Model | Filename |
 |---|---|
-| multilingual-e5-small (埋め込み) | multilingual-e5-small-Q8_0.gguf |
+| multilingual-e5-small (Embedding) | multilingual-e5-small-Q8_0.gguf |
 | gemma-4-e4b-it (LLM) | gemma-4-e4b-it-Q4_K_M.gguf |
 | Qwopus3.6-35B-A3B-v1 (LLM) | Qwopus3.6-35B-A3B-v1-MTP-Q4_K_M.gguf |
 
 ---
 
-## 2. サービス設定
+## 2. Service Configuration
 
 ### 2.1 Building sqlite-vec (first time only)
 
@@ -63,7 +63,7 @@ bash deploy/build_sqlite_vec.sh
 ```
 
 Install path: `/opt/llm/sqlite-vec/vec0.so` (must match `sqlite_vec_so` in `agent.toml`)
-> ※以前のドキュメントおよびスクリプトでは config/common.toml と記載されていましたが、現在は config/agent.toml に修正されています。
+*Note: Previous documentation and scripts referred to `config/common.toml`, but this has been corrected to `config/agent.toml`.*
 
 ### 2.2 Deploying scripts
 
@@ -100,19 +100,19 @@ MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent 
 bash deploy/setup_services.sh
 ```
 
-サービス起動後、embed-llm/agent-llmそれぞれについてヘルスチェックエンドポイントへの疎通を確認する。具体的なコマンド例は [docs/02_deployment-operations.md](docs/02_deployment-operations.md) を参照。
+After starting services, verify connectivity to health check endpoints for both embed-llm and agent-llm. See [docs/02_deployment-operations.md](docs/02_deployment-operations.md) for specific command examples.
 
-### 実装上の補足(起動方法)
+### Implementation Supplement (Startup Method)
 
-`deploy/start_agent.sh` は `/opt/llm/pyproject.toml` の有無で本番(`/opt/llm`)/開発(リポジトリルート)を自動判別し、当該ルートで `python -m agent` (`scripts/agent/__main__.py`)を実行する。(Explicit in code)
+`deploy/start_agent.sh` automatically detects whether to use production (`/opt/llm`) or development (repository root) based on the presence of `/opt/llm/pyproject.toml`, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
 
-> API キーの設定:
-> - Web 検索: DuckDuckGo — API キー不要
-> - GitHub 操作: GITHUB_TOKEN をシェルで export するか、起動前に conf.d/github-mcp を source する
+> API Key Configuration:
+> - Web Search: DuckDuckGo — No API key required
+> - GitHub Operations: Export `GITHUB_TOKEN` in shell or source `conf.d/github-mcp` before startup
 
-### 2.4 MCP サーバの確認
+### 2.4 Verifying MCP Servers
 
-MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設定に従い uvicorn サブプロセスとして自動起動する。エージェント起動後に `/mcp status` で各サーバの起動状態を確認できる。
+MCP servers automatically start as uvicorn subprocesses according to the `startup_mode = "subprocess"` setting when the agent starts. You can check the status of each server after agent startup using `/mcp status`.
 
 ---
 
@@ -131,9 +131,9 @@ llama-cpp
 sqlite-vec
 db-initialization
 
-# DB初期化・失敗モード
+# DB Initialization & Failure Modes
 
-## 3. DB 初期化
+## 3. DB Initialization
 
 ### 3.0 Platform DB overview
 
@@ -150,41 +150,40 @@ The agent uses four SQLite databases. Three have explicit path keys in
 
 Schema details: `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`
 
-### 3.1 スキーマ適用
+### 3.1 Applying Schema
 
 ```bash
 bash deploy/init_db.sh
 ```
 
-**init_db.sh の責務:**
-- `workflow.sqlite` と 5つの必須テーブル（tasks, attempts, processed_events, artifacts, approvals）を作成
-- インクリメンタルスキーママイグレーションを適用（冪等性あり）
-- 全5テーブルが存在することを確認、いずれか欠如時は中止
-- スキーマバージョンを記録
+**Responsibilities of init_db.sh:**
+- Creates `workflow.sqlite` and 5 mandatory tables (tasks, attempts, processed_events, artifacts, approvals)
+- Applies incremental schema migrations (idempotent)
+- Verifies all 5 tables exist; aborts if any are missing
+- Records the schema version
 
-### 3.2 デプロイメントチェックリスト
+### 3.2 Deployment Checklist
 
-- [ ] `config/workflows/default.json` が存在する
-- [ ] `deploy.sh` が正常終了（[FATAL]なし）
-- [ ] `init_db.sh` が全5テーブルと正しいスキーマバージョンを報告
-- [ ] `setup_services.sh` がプリフライトチェックに合格
+- [ ] `config/workflows/default.json` exists
+- [ ] `deploy.sh` finished successfully (no [FATAL] errors)
+- [ ] `init_db.sh` reported all 5 tables and correct schema version
+- [ ] `setup_services.sh` passed pre-flight checks
 
-### 3.3 失敗モード
+### 3.3 Failure Modes
 
-| 症状 | 失敗スクリプト | 対処法 |
+| Symptom | Failing Script | Remediation |
 |---|---|---|
-| `[FATAL] Missing required workflow definition` | deploy.sh | config/workflows/default.json を追加 |
-| `[FATAL] Workflow definition failed validation; aborting deployment.` | deploy.sh | JSONバリデーションエラーを修正 |
-| `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | deploy.sh を再実行、ディスク異常を確認 |
-| `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | init_db.sh を再実行 |
-| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | init_db.sh でマイグレーション適用 |
+| `[FATAL] Missing required workflow definition` | deploy.sh | Add `config/workflows/default.json` |
+| `[FATAL] Workflow definition failed validation; aborting deployment.` | deploy.sh | Fix JSON validation error |
+| `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | Re-run `deploy.sh`, check filesystem integrity |
+| `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | Re-run `init_db.sh` |
+| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Apply migrations via `init_db.sh` |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [承認ゲート](05_agent_03_03_turn-processing-flow-workflow-engine.md#承認ゲート).
+For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gate](05_agent_03_03_turn-processing-flow-workflow-engine.md#approval-gate).
 
-このデプロイメント要件がなぜ必須なのか(監査・回復・承認状態の永続化という設計判断)については
-[ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine.md#ワークフロー実行必須化-adr-workflow-mandatory)を参照。
+Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine.md#workflow-execution-mandatory-adr-workflow-mandatory).
 
 ## Related Documents
 

@@ -51,25 +51,25 @@ Acknowledges an event. When a `consumer_id` is specified, the consumer offset is
 
 ---
 
-## ACK/NACK 状態遷移表
+## ACK/NACK State Transition Table
 
-以下の表は、ACK と NACK の各操作に対する現在のコード挙動をまとめたものです。NACK 側の詳細（重複 NACK、NACK 後 ACK 等）は `docs/06_eventbus_02_03_nack-health-dlq.md` も参照してください。
+The following table summarizes the current code behavior for ACK and NACK operations. For details on the NACK side (duplicate NACK, NACK followed by ACK, etc.), please refer to [docs/06_eventbus_02_03_nack-health-dlq.md](docs/06_eventbus_02_03_nack-health-dlq.md).
 
-| シナリオ | 現在のコード挙動 | HTTP ステータス | レスポンスボディ | 永続化への副作用 |
+| Scenario | Current Code Behavior | HTTP Status | Response Body | Side Effects on Persistence |
 |---|---|---|---|---|
-| 初回 ACK | `ack_event` が `(True, True)` を返す | 200 | `{event_id, acked: true, seq: <int>}` | `acked_at` を設定、`consumer_id` 指定時はオフセット書き込み |
-| 重複 ACK | `ack_event` が `(True, False)` を返す | 200 | `{event_id, acked: true, already_acked: true}` | 追加書き込みなし、オフセット再書き込みなし |
-| 初回 NACK | `nack_event` が `delivery_failure_count` を 0→1 に増加 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` 増加；`>= max_retry` で DLQ 昇格 |
-| 重複 NACK | `nack_event` に冪等性ガードなし；呼び出し毎に `delivery_failure_count` 再増加 | 200 | `{event_id, delivery_failure_count}` | カウンタが増加し続け、後続の重複呼び出しで DLQ 昇格を誘発する可能性 — **実装修正必要** |
-| NACK 後 ACK | `ack_event` の `WHERE acked_at IS NULL` は一致し続ける（NACK は `acked_at` を設定しない） | 200 | `{event_id, acked: true, seq: <int>}` | ACK 成功、`delivery_failure_count` は NACK 時の値のまま — 再調整なし |
-| ACK 後 NACK | `nack_event` に `acked_at` チェックなし | 200 | `{event_id, delivery_failure_count}` | 既に ACK 済みでも NACK が「成功」し `delivery_failure_count` 増加 — **実装修正必要** |
-| 不明なイベント ID (ACK) | `ack_event` が `(False, False)` を返す | 404 | `ERR_EVENT_NOT_FOUND` | なし |
-| 不明なイベント ID (NACK) | `nack_event` が `-1` を返す | 404 | `ERR_EVENT_NOT_FOUND` | なし |
-| 同時 ACK/NACK | 双方が `run_with_db_lock` を経由し DB 層で直列化 | 200/200 | ロック順序に依存 | 真の競合なし — ロックが全順序を強制し、2 番目の呼び出しは 1 番目のコミット済み状態を観測 |
+| Initial ACK | `ack_event` returns `(True, True)` | 200 | `{event_id, acked: true, seq: <int>}` | Sets `acked_at`; writes offset if `consumer_id` is provided |
+| Duplicate ACK | `ack_event` returns `(True, False)` | 200 | `{event_id, acked: true, already_acked: true}` | No additional write; no offset rewrite |
+| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 $\to$ 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` |
+| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls — **Implementation fix required** |
+| NACK followed by ACK | `ack_event`'s `WHERE acked_at IS NULL` check remains true (NACK does not set `acked_at`) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK — No readjustment |
+| ACK followed by NACK | No `acked_at` check in `nack_event` | 200 | `{event_id, delivery_failure_count}` | Even if already ACKed, NACK succeeds and `delivery_failure_count` increases — **Implementation fix required** |
+| Unknown Event ID (ACK) | `ack_event` returns `(False, False)` | 404 | `ERR_EVENT_NOT_FOUND` | None |
+| Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None |
+| Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state |
 
-### `since_seq`/オフセット優先順位ルール
+### `since_seq`/Offset Precedence Rules
 
-`subscribe_route.py` の L32-34 における正確なロジックは以下の通りです：
+The exact logic in `subscribe_route.py` at L32-34 is as follows:
 
 ```
 start_seq = since_seq
@@ -77,11 +77,11 @@ if consumer_id and start_seq == 0:
     start_seq = read_offset(cfg.offsets_dir, consumer_id)
 ```
 
-ルール: 明示的な `since_seq=0` と、省略された `since_seq`（`Query(default=0)` 宣言によりデフォルト 0）は、`consumer_id` 指定時には区別不能です。両者とも「保存済みオフセットから読み出す」に解決されます。`consumer_id` を渡しつつ完全なフルリプレイを行いたいクライアントは、現状その意図を表現できません。
+Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Query(default=0)` declaration) are indistinguishable when a `consumer_id` is provided. Both resolve to "read from the saved offset". Clients wanting to perform a full replay while providing a `consumer_id` cannot currently express this intent.
 
-### 不明/ミスマッチしたコンシューマの扱い
+### Handling Unknown/Mismatched Consumers
 
-`schema.sql` にコンシューマ/イベント所有権カラムは存在しません。`consumer_id` は任意の文字列として受け入れられ、`write_offset`/`read_offset` のみに使用されます。`/subscribe` と `/events/{event_id}/ack` の両方が、イベント所有権レジストリとの検証なしに任意の文字列を受け入れます。実装指示 #1/#3 に従い、明示的に「未検知・未実施（設計上）」と文書化し、黙って省略しないこととします。
+There is no consumer/event ownership column in `schema.sql`. `consumer_id` is accepted as any string and only used for `write_offset`/`read_offset`. Both `/subscribe` and `/events/{event_id}/ack` accept arbitrary strings without validation against an event ownership registry. Following implementation instructions #1/#3, this is documented as "untracked/unimplemented (by design)" rather than being silently omitted.
 
 ---
 

@@ -29,18 +29,18 @@ Sends a NACK (Negative Acknowledgement) for an event. Increases `delivery_failur
 **Query Parameters:** `event_id` (required)
 **Response:** On success, returns `{event_id, delivery_failure_count}`. A 404 error indicates the event was not found.
 
-### NACK 側状態遷移行
+### NACK State Transitions
 
-以下は NACK 操作に対する現在のコード挙動です。ACK 側の行（初回 ACK、重複 ACK、NACK 後 ACK 等）は `docs/06_eventbus_02_02_subscribe-ack.md` を参照してください。
+The following describes the current code behavior for NACK operations. For transition details on the ACK side (initial ACK, duplicate ACK, NACK followed by ACK, etc.), please refer to [docs/06_eventbus_02_02_subscribe-ack.md](docs/06_eventbus_02_02_subscribe-ack.md).
 
-| シナリオ | 現在のコード挙動 | HTTP ステータス | レスポンスボディ | 永続化への副作用 |
+| Scenario | Current Code Behavior | HTTP Status | Response Body | Side Effects on Persistence |
 |---|---|---|---|---|
-| 初回 NACK | `nack_event` が `delivery_failure_count` を 0→1 に増加（以上） | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` 増加；`>= max_retry` で DLQ 昇格 |
-| 重複 NACK | `nack_event` に冪等性ガードなし；呼び出し毎に `delivery_failure_count` 再増加 | 200 | `{event_id, delivery_failure_count}` | カウンタが増加し続け、後続の重複呼び出しで DLQ 昇格を誘発する可能性 — **実装修正必要** |
-| ACK 後 NACK | `nack_event` に `acked_at` チェックなし | 200 | `{event_id, delivery_failure_count}` | 既に ACK 済みでも NACK が「成功」し `delivery_failure_count` 増加 — **実装修正必要** |
-| 不明なイベント ID (NACK) | `nack_event` が `-1` を返す | 404 | `ERR_EVENT_NOT_FOUND` | なし |
+| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 $\to$ 1 (or more) | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` |
+| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls — **Implementation fix required** |
+| NACK after ACK | No `acked_at` check in `nack_event` | 200 | `{event_id, delivery_failure_count}` | Even if already ACKed, NACK succeeds and `delivery_failure_count` increases — **Implementation fix required** |
+| Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None |
 
-> ACK 側の遷移行（初回 ACK、重複 ACK、NACK 後 ACK、不明なイベント ID ACK、同時 ACK/NACK、コンシューマミスマッチ）については `docs/06_eventbus_02_02_subscribe-ack.md` を参照してください。
+> For ACK-side transitions (Initial ACK, Duplicate ACK, NACK followed by ACK, Unknown Event ID ACK, Simultaneous ACK/NACK, Consumer Mismatch), see [docs/06_eventbus_02_02_subscribe-ack.md](docs/06_eventbus_02_02_subscribe-ack.md).
 
 ---
 

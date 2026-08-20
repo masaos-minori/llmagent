@@ -163,7 +163,7 @@ WARNING Security posture summary — fail-closed (deny when empty): command_allo
 - [Fail-Open/Fail-Closed and Risk Tiers](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
 - [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook)
 - [RAG Consistency Check](03_rag_05_2-execution-guide.md#26-rag-integrity-check)
-- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
+- `00_security_01_architecture-and-trust-boundaries.md` — System architecture / trust boundaries / threat modeling / authentication & authorization / auditing / local vs production / Fail-open/Fail-closed / prompt injection responsibility boundaries
 
 ## Keywords
 
@@ -171,4 +171,3 @@ failure-modes
 readiness
 degradation
 operational
-health

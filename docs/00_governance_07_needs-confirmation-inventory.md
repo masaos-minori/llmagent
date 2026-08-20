@@ -265,7 +265,7 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 - **Question**: Where are RETENTION_DAYS and duplicate threshold functions used?
 - **Evidence**: Functions referenced but usages unclear
 - **Impact**: Unused functions add complexity; missing usage breaks deduplication
-- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search.md §実装上の補足.
+- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search.md §Implementation Notes.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
@@ -299,12 +299,12 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 ### NC-018
 
 - **Source File**: `05_agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Section**: §承認ゲート
+- **Section**: §Approval Gate
 - **Line Number**: ~97
 - **Question**: What is the production default policy for `WorkflowDef.require_approval`, and does the documented "expire" lifecycle state actually work?
 - **Evidence**: `config/workflows/default.json` ships `require_approval: false` with no per-environment override mechanism; `WorkflowEngine._gate_approval()` did not check `expires_at` prior to this resolution
 - **Impact**: Ambiguous production guidance could leave post-execution approval gates disabled in environments that need them; an approval record could remain "pending" forever past its TTL
-- **Required Action**: Resolved — a per-operation-category approval-requirement table and local-dev exception policy are now documented in `05_agent_03_03_turn-processing-flow-workflow-engine.md` §承認ゲート; `is_expired()` was added to `agent/workflow/approval_ops.py` and `WorkflowEngine._gate_approval()` now re-requests approval when a pending record has expired, tested by `test_expired_pending_approval_is_re_requested`.
+- **Required Action**: Resolved — a per-operation-category approval-requirement table and local-dev exception policy are now documented in `05_agent_03_03_turn-processing-flow-workflow-engine.md` §Approval Gate; `is_expired()` was added to `agent/workflow/approval_ops.py` and `WorkflowEngine._gate_approval()` now re-requests approval when a pending record has expired, tested by `test_expired_pending_approval_is_re_requested`.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-08-20

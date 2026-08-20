@@ -21,22 +21,21 @@ related:
 
 # MCP Documentation Guide
 
-再構成されたMCPドキュメント群のエントリポイント。
-どの章を開くべきかを判断するために、まず本ファイルを読むこと。
+Entry point for the restructured MCP documentation set. Read this file first to determine which chapter you should open.
 
 ---
 
-## 設計意図
+## Design Intent
 
-### ドキュメントセットの目的
+### Purpose of the Documentation Set
 
-MCPドキュメント群のエントリポイントとして、どの章を開くべきかを判断するためのガイダンスを提供する。
+Provides guidance on determining which chapters to open as the entry point for the MCP documentation set.
 
 ---
 
-## 現在の実装挙動
+## Current Implementation Behavior
 
-### 推奨読書順序
+### Recommended Reading Order
 
 ``` text
 01 → 02 → 03 → 04 → 05 → 06 → 90
@@ -44,77 +43,77 @@ MCPドキュメント群のエントリポイントとして、どの章を開�
 
 ---
 
-## 責務境界
+## Responsibility Boundaries
 
-### エージェントクエリルーティングテーブル
+### Agent Query Routing Table
 
-| 質問 | ファイル |
+| Question | File |
 |---|---|
-| どのMCPサーバが存在し、何をするのか。ポート・起動モードは | `04_mcp_01` |
-| `/v1/call_tool`・Bearer認証・audit logフォーマットは | `04_mcp_02` |
-| toolのルーティング、ToolExecutor、新規サーバ追加は | `04_mcp_03`(config defaultsは`04_mcp_06`§Major Default Values) |
-| ツールのenabled/disabled_reason、config_dependent、RuntimeToolRegistryの扱いは | `04_mcp_03_06` |
-| web-search/github/shell/mdq各mcpが提供するtoolは。mdq-mcpのFTS5検索は本番稼働可能、ハイブリッド検索は未実装 | `04_mcp_04`(mdq-mcpはFTS5検索のみ実装済み) |
-| allowed_dirs/allowed_repos、fail-closed/fail-open、dry_run、リスクティア、MDQ/RAG境界は | `04_mcp_05` |
-| configファイル一覧、健全性検証、デフォルト値、起動時警告、障害診断は | `04_mcp_06` |
-| tool schemaモジュールの命名、TOOL_LISTエクスポート、_MCP_TOOLS参照のクリーンアップは | `04_mcp_07` |
-| toolのcapability命名規則(domain.action形式)は | `04_mcp_08` |
-| 何が壊れているか、または未実装なのか | `04_mcp_90` |
+| Which MCP servers exist and what do they do? What are their ports and startup modes? | `04_mcp_01` |
+| `/v1/call_tool`, Bearer authentication, and audit log formats | `04_mcp_02` |
+| Tool routing, ToolExecutor, and adding new servers | `04_mcp_03` (config defaults are in `04_mcp_06` §Major Default Values) |
+| Handling of tool enabled/disabled_reason, config_dependent, and RuntimeToolRegistry | `04_mcp_03_06` |
+| Tools provided by web-search/github/shell/mdq MCPs. MDQ-mcp FTS5 search is production-ready; hybrid search is unimplemented | `04_mcp_04` (mdq-mcp only has FTS5 search implemented) |
+| allowed_dirs/allowed_repos, fail-closed/fail-open, dry_run, risk tiers, MDQ/RAG boundary | `04_mcp_05` |
+| Config file list, health verification, default values, startup warnings, failure diagnosis | `04_mcp_06` |
+| Naming convention for tool schema modules, TOOL_LIST exports, and cleanup of _MCP_TOOLS references | `04_mcp_07` |
+| Tool capability naming convention (domain.action format) | `04_mcp_08` |
+| What is broken or unimplemented | `04_mcp_90` |
 ---
 
 ## Navigation to Major Known Issues
 
-| 課題 | 場所 |
+| Issue | Location |
 |---|---|
-| mdq-mcpは本番稼働可能（FTS5検索とインデックスが実装済み） | [04_mcp_04_04_mdq.md](04_mcp_04_04_mdq.md) |
+| mdq-mcp is production-ready (FTS5 search and indexing are implemented) | [04_mcp_04_04_mdq.md](04_mcp_04_04_mdq.md) |
 
 ---
 
 ## Canonical Source Rules
 
-- `06_ref-mcp.md` は `ToolExecutor`、`HttpTransport`、routingについての正典であった。内容は現在 `04_mcp_03` にある。
-- `04_spec_mcp.md` はシステム概要、サーバ一覧、McpServerConfigについての正典であった。内容は現在 `04_mcp_01`、`04_mcp_03`、`04_mcp_06` にある。
-- `04_mcp-protocol.md` はwatchdog、起動モード、新規サーバ追加手順についての正典であった。内容は現在 `04_mcp_03` にある。
-- サーバ別の `04_mcp-*.md` ファイルはサーバ固有仕様についての正典である。内容は現在 `04_mcp_04` にある。
-- 旧ファイルと新ファイルの内容が食い違う場合は、新しく再構成されたファイルを信頼すること。
+- `06_ref-mcp.md` was the canonical source for `ToolExecutor`, `HttpTransport`, and routing. Its content is now in `04_mcp_03`.
+- `04_spec_mcp.md` was the canonical source for system overview, server list, and McpServerConfig. Its content is now in `04_mcp_01`, `04_mcp_03`, and `04_mcp_06`.
+- `04_mcp-protocol.md` was the canonical source for watchdog, startup modes, and new server addition procedures. Its content is now in `04_mcp_03`.
+- The per-server `04_mcp-*.md` files are the canonical sources for server-specific specifications. Their content is now in `04_mcp_04`.
+- If there is a discrepancy between old and new files, trust the newly restructured files.
 
 ---
 
 ## File Index
 
-| ファイル | 説明 |
+| File | Description |
 |---|---|
-| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | エントリポイント |
-| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | システム概要 |
-| [04_mcp_01_tool_ownership_matrix.md](04_mcp_01_tool_ownership_matrix.md) | ツール所有行列 |
-| [04_mcp_02_service_boundaries.md](04_mcp_02_service_boundaries.md) | サービス境界定義 |
-| [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | プロトコルとトランスポート(3分割) |
-| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health.md)/[_03b](04_mcp_03_03_transport-and-health.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md)/[_06](04_mcp_03_06_tool-runtime-availability-metadata.md) | ルーティングとライフサイクル(7分割) |
-| [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md) 〜 [_02](04_mcp_04_02_file-write-file-delete-shell.md)/[_03](04_mcp_04_03_rag-pipeline-and-cicd.md)/[_04](04_mcp_04_04_mdq.md)/[_05](04_mcp_04_05_git.md) | サーバカタログ(5分割、_04=mdq。browser-mcpは2026-07-20にweb-search-mcpへ統合され_01に記載、旧_06は削除) |
-| [04_mcp_05_01](04_mcp_05_01_access-control-and-allowlists.md) 〜 [_02](04_mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](04_mcp_05_04_mdq-rag-boundary.md)/[_05](04_mcp_05_05_mdq-enforcement-and-lockdown.md) | セキュリティモデル(5分割) |
-| [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | config目的 |
-| [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) | config一覧 |
-| [04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfigフィールド |
-| [04_mcp_06_04_major-default-values.md](04_mcp_06_04_major-default-values.md) | デフォルト値 |
-| [04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md](04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md) | 長時間実行される操作 |
-| [04_mcp_06_06_verification-methods.md](04_mcp_06_06_verification-methods.md) | 検証方法 |
-| [04_mcp_06_07_reading-audit-logs.md](04_mcp_06_07_reading-audit-logs.md) | audit log |
-| [04_mcp_06_08_end-to-end-tool-call-tracing.md](04_mcp_06_08_end-to-end-tool-call-tracing.md) | トレーシング |
-| [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md) | 障害診断 |
-| [04_mcp_06_10_settings-with-high-operational-impact.md](04_mcp_06_10_settings-with-high-operational-impact.md) | 運用上重要な設定 |
-| [04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | 起動時検証 |
-| [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | watchdog削除note(2026-07-16) |
+| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | Entry Point |
+| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | System Overview |
+| [04_mcp_01_tool_ownership_matrix.md](04_mcp_01_tool_ownership_matrix.md) | Tool Ownership Matrix |
+| [04_mcp_02_service_boundaries.md](04_mcp_02_service_boundaries.md) | Service Boundary Definitions |
+| [04_mcp_02_01](04_mcp_02_01_endpoints-and-transport.md) 〜 [_02](04_mcp_02_02_startup-modes-and-health.md)/[_03](04_mcp_02_03_audit-logging-and-errors.md) | Protocol and Transport (3 parts) |
+| [04_mcp_03_01](04_mcp_03_01_dispatch-and-routing.md) 〜 [_02](04_mcp_03_02_tool-registry.md)/[_03a](04_mcp_03_03_transport-and-health.md)/[_03b](04_mcp_03_03_transport-and-health.md)/[_04](04_mcp_03_04_tool-call-tracing-and-watchdog.md)/[_05](04_mcp_03_05_lifecycle-and-new-server.md)/[_06](04_mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
+| [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md) 〜 [_02](04_mcp_04_02_file-write-file-delete-shell.md)/[_03](04_mcp_04_03_rag-pipeline-and-cicd.md)/[_04](04_mcp_04_04_mdq.md)/[_05](04_mcp_04_05_git.md) | Server Catalog (5 parts, _04=mdq. browser-mcp was merged into web-search-mcp under _01 on 2026-07-20; old _06 was deleted) |
+| [04_mcp_05_01](04_mcp_05_01_access-control-and-allowlists.md) 〜 [_02](04_mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](04_mcp_05_04_mdq-rag-boundary.md)/[_05](04_mcp_05_05_mdq-enforcement-and-lockdown.md) | Security Model (5 parts) |
+| [04_mcp_06_01_purpose.md](04_mcp_06_01_purpose.md) | Config Purpose |
+| [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) | Config Inventory |
+| [04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig Fields |
+| [04_mcp_06_04_major-default-values.md](04_mcp_06_04_major-default-values.md) | Default Values |
+| [04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md](04_mcp_06_05_long-running-http-operation-startup_modesubprocess.md) | Long-running Operations |
+| [04_mcp_06_06_verification-methods.md](04_mcp_06_06_verification-methods.md) | Verification Methods |
+| [04_mcp_06_07_reading-audit-logs.md](04_mcp_06_07_reading-audit-logs.md) | Audit Log |
+| [04_mcp_06_08_end-to-end-tool-call-tracing.md](04_mcp_06_08_end-to-end-tool-call-tracing.md) | Tracing |
+| [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md) | Failure Diagnosis |
+| [04_mcp_06_10_settings-with-high-operational-impact.md](04_mcp_06_10_settings-with-high-operational-impact.md) | Settings with High Operational Impact |
+| [04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | Startup Validation |
+| [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) | watchdog deletion note (2026-07-16) |
 | [04_mcp_06_13_watchdog-health-reasons-scheduling.md](04_mcp_06_13_watchdog-health-reasons-scheduling.md) | health_reason / HealthRegistry |
-| [04_mcp_06_14_new-tool-registration-procedure.md](04_mcp_06_14_new-tool-registration-procedure.md) | 新規tool登録 |
-| [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | 新規サーバ追加チェックリスト |
-| [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | 本番投入前チェックリスト |
-| [04_mcp_06_17_local-to-production-auth-migration.md](04_mcp_06_17_local-to-production-auth-migration.md) | 認証移行 |
-| [00_security_01_architecture-and-trust-boundaries.md](00_security_01_architecture-and-trust-boundaries.md) | システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル (canonical cross-cutting source) |
-| [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) | 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング) |
-| [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | スキーマエクスポート |
-| [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | capability命名規則 |
-| ~~04_mcp_07_mdq_rag_boundary.md~~ | 削除済み |
-| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | 既知の問題 |
+| [04_mcp_06_14_new-tool-registration-procedure.md](04_mcp_06_14_new-tool-registration-procedure.md) | New Tool Registration |
+| [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
+| [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
+| [04_mcp_06_17_local-to-production-auth-migration.md](04_mcp_06_17_local-to-production-auth-migration.md) | Auth Migration |
+| [00_security_01_architecture-and-trust-boundaries.md](00_security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
+| [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
+| [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Schema Export |
+| [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |
+| ~~[04_mcp_07_mdq_rag_boundary.md]~~ | Deleted |
+| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | Known Issues |
 
 ---
 
@@ -132,40 +131,36 @@ Cross-cutting documentation rules and policies:
 
 ## Migration Notes
 
-### POST /v1/search（削除済み — 2026-06-26）
+### POST /v1/search (Deleted — 2026-06-26)
 
-`rag-pipeline-mcp` の `POST /v1/search` エンドポイントは削除された。`rag_service_url` を呼び出している箇所は、正典であるMCP tool call `POST /v1/call_tool {"name": "rag_run_pipeline", "args": {"query": "...", "history_context": []}}` の形式に更新すること。この変更は後方互換ではない — 互換シムは提供されない。
+The `POST /v1/search` endpoint in `rag-pipeline-mcp` has been removed. Any code calling `rag_service_url` must be updated to the canonical MCP tool call format: `POST /v1/call_tool {"name": "rag_run_pipeline", "args": {"query": "...", "history_context": []}}`. This change is not backward compatible — no compatibility shim will be provided.
 
-### Gateway形式ツール名と実際のツール名の対応（命名明確化）
+### Gateway-style Tool Names vs. Actual Tool Names (Clarifying Naming)
 
-初期の「MCP統合プラグインシステム」提案（Gateway形式の関数名）と現在の実際のツール名の対応:
-`list_files` → `list_directory`、`read_file` → `read_text_file`、`search_file` →
-`search_files`、`invoke_script` → `shell_run`。今後の提案でツール名を参照する際は、Gateway形式
-ではなく実際のツール名を使用すること。
+Mapping of initial "MCP Integrated Plugin System" proposals (Gateway-style function names) to current actual tool names:
+`list_files` $\to$ `list_directory`, `read_file` $\to$ `read_text_file`, `search_file` $\to$ `search_files`, `invoke_script` $\to$ `shell_run`. When referring to tools in future proposals, use actual tool names instead of Gateway-style.
 
 ---
 
 ## Legacy Source Document Policy
 
-**方針: 削除。** Git履歴に全内容が保存されているため、アーカイブは不要。
+**Policy: Deletion.** Since full content is preserved in Git history, archiving is unnecessary.
 
-旧MCPソースファイル（`04_spec_mcp.md`、`04_mcp-*.md`、`06_ref-mcp.md`）は
-ドキュメント再構成フェーズ（plan 71-76）の間は保持されていたが、2026-06-26付で削除された。
-復元が必要な場合は `git log --all -- docs/<filename>` を使用すること。
+Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kept during the documentation restructuring phase (plan 71-76), but were deleted as of 2026-06-26. If restoration is needed, use `git log --all -- docs/<filename>`.
 
 ---
 
 ## Known Limitations
 
-- `04_spec_mcp.md` §13の既知の問題はすべて `04_mcp_90` に転記済み。
+- The known issues from `04_spec_mcp.md` §13 have all been transferred to `04_mcp_90`.
 
-## 未確認事項
+## Unconfirmed Items
 
-- [NC-002](00_governance_07_needs-confirmation-inventory.md#nc-002): ResultSourceフィールドの未使用理由
-- [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): AuditLogRecord/ApprovalDecisionのデッドコード判定（resolved）
-- [NC-006](00_governance_07_needs-confirmation-inventory.md#nc-006): result_sourceフィールドの将来利用可否
+- [NC-002](00_governance_07_needs-confirmation-inventory.md#nc-002): Reason for unused ResultSource field
+- [NC-005](00_governance_07_needs-confirmation-inventory.md#nc-005): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
+- [NC-006](00_governance_07_needs-confirmation-inventory.md#nc-006): Future usability of result_source field
 
-※ 本セクションには、ルーティングテーブルで定義された各セクションの主要ファイル、および本文中で明示的に参照されているファイルのみを記載しています。
+*Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
 ## Related Documents
 

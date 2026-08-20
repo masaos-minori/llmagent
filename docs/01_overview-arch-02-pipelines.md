@@ -67,7 +67,7 @@ Messages with flags are removed during the system prompt synchronization process
 **Enabling Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
-For the per-category production policy on when `require_approval: true` is required, see [承認ゲート](05_agent_03_03_turn-processing-flow-workflow-engine.md#承認ゲート).
+For the per-category production policy on when `require_approval: true` is required, see [Approval Gate](05_agent_03_03_turn-processing-flow-workflow-engine.md#Approval Gate).
 
 **MCP Server `startup_mode`**
 

@@ -19,5 +19,5 @@
 3. **Bilingual text**: Use English preferred form with Japanese alternative in parentheses on first occurrence.
 4. **Hyphenation**: Use hyphens for compound adjectives (at-least-once delivery, fail-closed mode).
 5. **Plurals**: Plural forms are acceptable when referring to multiple items (Known Issues, Needs Confirmations).
-6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (要確認)".
+6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (Requires Confirmation)".
 7. **Subsequent occurrences**: Use only the preferred form after first definition.

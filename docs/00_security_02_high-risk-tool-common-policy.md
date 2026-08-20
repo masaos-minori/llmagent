@@ -65,7 +65,7 @@ Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 - **Git MCP**: Built-in command allowlist — only safe git subcommands allowed by default; write operations require approval
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
-*Source: `04_mcp_05_01_access-control-and-allowlists.md` §コマンドAllowlist*
+*Source: `04_mcp_05_01_access-control-and-allowlists.md` §Command Allowlist*
 
 ## Argument validation
 
@@ -103,7 +103,7 @@ This generalizes the symlink-traversal prevention language from the mdq docs to 
 
 ## Approval requirements mapped explicitly to risk tiers
 
-The following table reproduces the authoritative approval-to-risk-tier mapping from `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §リスクティア分類:
+The following table reproduces the authoritative approval-to-risk-tier mapping from `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Risk Tier Classification:
 
 | Risk Tier | Description | Approval Required | Example Tools |
 |---|---|---|---|
@@ -114,7 +114,7 @@ The following table reproduces the authoritative approval-to-risk-tier mapping f
 
 **Cross-linked with approval-execution flow**: `05_agent_06_01_tool-execution-and-approval-execution.md` and `05_agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §リスクティア分類*
+*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Risk Tier Classification*
 
 ## Audit fields
 
