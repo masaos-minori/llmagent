@@ -71,7 +71,6 @@ Returns structured diagnostic information with the following keys:
 | `stage_results` | `list[dict]` | Results per stage (same as `last_stage_results`) |
 | `timings` | `dict[str, float]` | Actual duration in seconds for each stage (same as `last_timings`) |
 | `fetch_result` | `dict \| None` | Fetch result: `{hits: int, min_score_applied: float}` or `None` |
-| > **Note:** In HTTP mode, `fetch_result` might contain stale values from the previous in-process execution rather than the current call's result. This is because `RagPipeline._run_http_augment()` does not call `self.run()` upon an HTTP success (see `self.last_fetch_result` updates in `RagPipeline.run()`, `RagPipeline._run_http_augment()`, and the `call_rag_service` function for details). |
 | `fusion_mode` | `str` | `"rrf"` or `"dedup_only"` |
 | `http_result_kind` | `str \| None` | Classification for HTTP mode (same as `_http_result_kind`) |
 | `fallback_count` | `int` | Number of stages where fallback occurred |
@@ -82,6 +81,8 @@ Returns structured diagnostic information with the following keys:
 | `refiner_exception` | `bool` | `True` if any exception occurred in the refiner |
 | `hit_counts` | `dict[str, int]` | `{merged: int}` — Hits after merging |
 | `search_diagnostics` | `dict` | `{embed_ok, embed_failed, fts_errors, degraded}` |
+
+> **Note:** In HTTP mode, `fetch_result` might contain stale values from the previous in-process execution rather than the current call's result. This is because `RagPipeline._run_http_augment()` does not call `self.run()` upon an HTTP success (see `self.last_fetch_result` updates in `RagPipeline.run()`, `RagPipeline._run_http_augment()`, and the `call_rag_service` function for details).
 
 **Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 
