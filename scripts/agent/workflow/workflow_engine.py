@@ -16,7 +16,11 @@ from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from typing import Protocol
 
-from agent.workflow.approval_ops import get_latest_approval, request_approval
+from agent.workflow.approval_ops import (
+    get_latest_approval,
+    is_expired,
+    request_approval,
+)
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import TaskRecord, WorkflowDef
@@ -177,6 +181,31 @@ class WorkflowEngine:
                 )
                 return  # pass through to next stage
             if existing.status == "pending":
+                if is_expired(existing):
+                    logger.info(
+                        "Approval expired, re-requesting: task %s, approval %s",
+                        task.task_id,
+                        existing.approval_id,
+                    )
+                    # Mark the expired approval as expired and re-request
+                    # Note: we update the status to expired so it doesn't block future requests
+                    self._store._db.execute(
+                        "UPDATE approvals SET status='expired' WHERE approval_id=?",
+                        (existing.approval_id,),
+                    )
+                    self._store._db.commit()
+                    # Re-request approval
+                    approval = request_approval(
+                        self._store._db, task.task_id, task.workflow_id
+                    )
+                    self._store.update_task_status(task.task_id, "pending_approval")
+                    approval_span.set_attribute(
+                        "workflow.approval_id", approval.approval_id
+                    )
+                    approval_span.set_attribute("workflow.approval_status", "pending")
+                    raise WorkflowPendingApprovalError(
+                        approval.approval_id, task.task_id
+                    )
                 raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
             if existing.status == "rejected":
                 # Defensive fallback: /reject (cmd_workflow.py) already halts the task
@@ -185,6 +214,19 @@ class WorkflowEngine:
                 # through some other path before the halt was applied.
                 self._store.update_task_status(task.task_id, "halted")
                 raise WorkflowHaltError(f"approval rejected: {existing.reason}")
+            if existing.status == "expired":
+                # Should not reach here as we handle expired above, but defensive
+                logger.info(
+                    "Found expired approval, re-requesting: task %s, approval %s",
+                    task.task_id,
+                    existing.approval_id,
+                )
+                # Re-request approval
+                approval = request_approval(
+                    self._store._db, task.task_id, task.workflow_id
+                )
+                self._store.update_task_status(task.task_id, "pending_approval")
+                raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
 
     async def _run_stage_with_retry(
         self, task: TaskRecord, stage_id: str, fn: StageCallback

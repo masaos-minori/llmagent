@@ -112,65 +112,53 @@ class TestRuntimeRegistryPriorityInResolve:
     def test_runtime_registry_wins_when_both_available(self) -> None:
         """RuntimeToolRegistry resolves tools it registers."""
         runtime_reg = _make_runtime_registry()
-        configs = {"web_search": _http("http://127.0.0.1:8001")}
-        resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
+        resolver = ToolRouteResolver(runtime_registry=runtime_reg)
         assert resolver.resolve("browser_fetch") == "web_search"
 
     def test_runtime_only_resolve(self) -> None:
         """RuntimeToolRegistry alone can resolve its own tools."""
         runtime_reg = _make_runtime_registry()
-        configs: dict[str, McpServerConfig] = {}
-        resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
+        resolver = ToolRouteResolver(runtime_registry=runtime_reg)
         assert resolver.resolve("browser_fetch") == "web_search"
 
     def test_unknown_tool_raises_with_runtime_only(self) -> None:
         """Unknown tool raises ValueError when only RuntimeToolRegistry is present."""
         runtime_reg = _make_runtime_registry()
-        configs: dict[str, McpServerConfig] = {}
-        resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
+        resolver = ToolRouteResolver(runtime_registry=runtime_reg)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("no_such_browser_tool")
 
     def test_mixed_tools_resolve_correctly(self) -> None:
         """Tools registered in RuntimeToolRegistry resolve to their correct owners."""
         runtime_reg = _make_runtime_registry(extra={"read_text_file": "file_read"})
-        configs = {"file_read": _http("http://127.0.0.1:8003")}
-        resolver = ToolRouteResolver(configs, runtime_registry=runtime_reg)
+        resolver = ToolRouteResolver(runtime_registry=runtime_reg)
         assert resolver.resolve("browser_fetch") == "web_search"
         assert resolver.resolve("read_text_file") == "file_read"
 
     def test_runtime_none_raises_for_all_tools(self) -> None:
         """Passing runtime_registry=None means no tool can resolve."""
-        configs = {"file_read": _http("http://127.0.0.1:8004")}
-        resolver = ToolRouteResolver(configs, runtime_registry=None)
+        resolver = ToolRouteResolver(runtime_registry=None)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("read_text_file")
 
     def test_strict_mode_error_message_mentions_runtime_registry(self) -> None:
         """strict_mode error message mentions RuntimeToolRegistry explicitly."""
         runtime_reg = _make_runtime_registry()
-        configs: dict[str, McpServerConfig] = {}
-        resolver = ToolRouteResolver(
-            configs, strict_mode=True, runtime_registry=runtime_reg
-        )
+        resolver = ToolRouteResolver(strict_mode=True, runtime_registry=runtime_reg)
         with pytest.raises(ValueError, match="RuntimeToolRegistry"):
             resolver.resolve("nonexistent_tool")
 
     def test_warn_on_missing_logs_warning_for_unknown_tool(self) -> None:
         """warn_on_missing=True logs warning for unknown tool."""
         runtime_reg = _make_runtime_registry()
-        configs: dict[str, McpServerConfig] = {}
-        resolver = ToolRouteResolver(
-            configs, warn_on_missing=True, runtime_registry=runtime_reg
-        )
+        resolver = ToolRouteResolver(warn_on_missing=True, runtime_registry=runtime_reg)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("unknown_tool_xyz")
 
     def test_empty_runtime_registry_raises_for_all_tools(self) -> None:
         """Empty RuntimeToolRegistry means no tool can resolve."""
         empty_reg = RuntimeToolRegistry()
-        configs = {"file_read": _http("http://127.0.0.1:8005")}
-        resolver = ToolRouteResolver(configs, runtime_registry=empty_reg)
+        resolver = ToolRouteResolver(runtime_registry=empty_reg)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("read_text_file")
 
@@ -203,8 +191,7 @@ class TestRuntimeRegistryPriorityInResolve:
             capabilities=(),
         )
         reg = RuntimeToolRegistry(tools={"tool_a": tool_a, "tool_b": tool_b})
-        configs: dict[str, McpServerConfig] = {}
-        resolver = ToolRouteResolver(configs, runtime_registry=reg)
+        resolver = ToolRouteResolver(runtime_registry=reg)
         assert resolver.resolve("tool_a") == "srv_a"
         assert resolver.resolve("tool_b") == "srv_b"
 
@@ -221,60 +208,6 @@ class TestRuntimeRegistryPriorityInResolve:
         # No fallback: a tool not registered in the new RuntimeToolRegistry no longer resolves.
         with pytest.raises(ValueError, match="Unknown tool"):
             ex._resolver.resolve("read_text_file")
-
-
-class TestLogRoutingCoverageWithRuntime:
-    """Tests for _log_routing_coverage with RuntimeToolRegistry awareness."""
-
-    def _make_configs(self) -> dict[str, McpServerConfig]:
-        return {
-            "file_read": _http("http://127.0.0.1:8007"),
-        }
-
-    def test_runtime_mapped_tool_is_mapped(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """A tool resolvable via RuntimeToolRegistry is MAPPED."""
-        runtime_reg = _make_runtime_registry()
-        known_tools = frozenset({"browser_fetch"})
-        with caplog.at_level(logging.INFO):
-            ToolRouteResolver({}, known_tools=known_tools, runtime_registry=runtime_reg)
-
-    def test_all_unmapped_when_both_registries_miss(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Tool absent from RuntimeToolRegistry is UNMAPPED."""
-        configs = self._make_configs()
-        known_tools = frozenset({"totally_unknown_tool"})
-        with caplog.at_level(logging.WARNING):
-            ToolRouteResolver(configs, known_tools=known_tools)
-        warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
-        assert any(
-            "0/1 tools mapped" in msg and "totally_unknown_tool" in msg
-            for msg in warnings
-        )
-
-    def test_runtime_only_tool_is_mapped(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """A tool present only in RuntimeToolRegistry is MAPPED."""
-        runtime_reg = _make_runtime_registry()
-        known_tools = frozenset({"browser_fetch"})
-        with caplog.at_level(logging.INFO):
-            ToolRouteResolver({}, known_tools=known_tools, runtime_registry=runtime_reg)
-        infos = [r.message for r in caplog.records if r.levelno == logging.INFO]
-        assert any("1/1 tools mapped" in msg for msg in infos)
-
-    def test_runtime_registry_mapped_tools_count_correctly(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Multiple tools registered in RuntimeToolRegistry all count as mapped."""
-        runtime_reg = _make_runtime_registry(extra={"read_text_file": "file_read"})
-        known_tools = frozenset({"browser_fetch", "read_text_file"})
-        with caplog.at_level(logging.INFO):
-            ToolRouteResolver({}, known_tools=known_tools, runtime_registry=runtime_reg)
-        infos = [r.message for r in caplog.records if r.levelno == logging.INFO]
-        assert any("2/2 tools mapped" in msg for msg in infos)
 
 
 # ── 2. /mcp tools Subcommand ─────────────────────────────────────────────────
@@ -406,7 +339,7 @@ class TestDiscoveryToLlmVisibilityEndToEnd:
         ctx.services_required.http = http
 
         result = await McpToolDiscoveryService(ctx).discover_all()
-        resolver = ToolRouteResolver({}, runtime_registry=result.registry)
+        resolver = ToolRouteResolver(runtime_registry=result.registry)
 
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("incomplete_tool")

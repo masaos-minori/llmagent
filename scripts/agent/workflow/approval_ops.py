@@ -3,7 +3,7 @@
 
 import sqlite3
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
@@ -11,6 +11,17 @@ from shared.json_utils import now_iso as _now
 from agent.workflow.models import ApprovalRecord
 
 _APPROVAL_TTL_HOURS: int = 24
+
+
+def is_expired(approval: ApprovalRecord) -> bool:
+    """Return True if the approval has expired (expires_at is set and in the past)."""
+    if approval.expires_at is None:
+        return False
+    try:
+        expires_dt = datetime.fromisoformat(approval.expires_at.replace("Z", "+00:00"))
+        return datetime.now(UTC) > expires_dt
+    except ValueError:
+        return False
 
 
 def _approval_from_row(
@@ -36,7 +47,7 @@ def request_approval(
     """Insert a pending approval gate for a task (or specific stage)."""
     approval_id = str(uuid.uuid4())
     now = _now()
-    expires_dt = datetime.utcnow() + timedelta(hours=_APPROVAL_TTL_HOURS)
+    expires_dt = datetime.now(UTC) + timedelta(hours=_APPROVAL_TTL_HOURS)
     expires_at = expires_dt.isoformat()
     db.execute(
         """
@@ -98,13 +109,17 @@ def get_latest_approval(db: SQLiteHelper, task_id: str) -> ApprovalRecord | None
     find_approval_by_id() for status-scoped lookups.
     """
     rows = db.fetchall(
-        "SELECT * FROM approvals WHERE task_id=? ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM approvals WHERE task_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1",
         (task_id,),
     )
     if not rows:
         return None
     r = rows[0]
-    return _approval_from_row(r, status=r["status"])
+    return _approval_from_row(
+        r,
+        status=r["status"],
+        expires_at=r["expires_at"] if "expires_at" in r.keys() else None,
+    )
 
 
 def find_pending_approval_by_session(
@@ -198,7 +213,11 @@ def find_all_pending_approvals(db: SQLiteHelper) -> list[tuple[str, ApprovalReco
     return [
         (
             r["task_id"],
-            _approval_from_row(r, status="pending", expires_at=r.get("expires_at")),
+            _approval_from_row(
+                r,
+                status="pending",
+                expires_at=r["expires_at"] if "expires_at" in r.keys() else None,
+            ),
         )
         for r in rows
     ]

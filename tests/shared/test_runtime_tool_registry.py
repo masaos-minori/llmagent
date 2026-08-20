@@ -1,7 +1,6 @@
 """tests/shared/test_runtime_tool_registry.py
 Unit tests for RuntimeToolRegistry: resolve/get, all_tools, llm_tool_definitions,
-tool_spec_map/tool_spec_for_call, is_side_effect, classify_operation_type, apply_policy,
-diagnostics.
+tool_spec_map/tool_spec_for_call, apply_policy, diagnostics.
 """
 
 from __future__ import annotations
@@ -123,22 +122,6 @@ class TestRuntimeToolRegistry:
         reg = _registry_with()
         with pytest.raises(KeyError):
             reg.tool_spec_for_call(call_id="call-1", name="nope", args={})
-
-    def test_is_side_effect_reflects_is_write(self) -> None:
-        reg = _registry_with(
-            build_runtime_tool(name="w", server_key="s", is_write=True),
-            build_runtime_tool(name="r", server_key="s", is_write=False),
-        )
-        assert reg.is_side_effect("w") is True
-        assert reg.is_side_effect("r") is False
-
-    def test_classify_operation_type_read_vs_write(self) -> None:
-        reg = _registry_with(
-            build_runtime_tool(name="w", server_key="s", is_write=True),
-            build_runtime_tool(name="r", server_key="s", is_write=False),
-        )
-        assert reg.classify_operation_type("w") == "write"
-        assert reg.classify_operation_type("r") == "read"
 
     def test_apply_policy_updates_tier_and_approval_and_llm_visibility(self) -> None:
         tool = build_runtime_tool(

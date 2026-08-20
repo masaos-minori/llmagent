@@ -132,7 +132,6 @@ Cross-cutting documentation rules and policies:
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_90_inconsistencies_and_known_issues.md`
 - `03_rag_91_design_notes.md`
-- `03_rag_91_design_notes.md`
 
 ## Keywords
 

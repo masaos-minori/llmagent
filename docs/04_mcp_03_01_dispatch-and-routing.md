@@ -210,8 +210,8 @@ Data for drift detection regarding MCP tool definitions and ownership. Not used 
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md
-- `04_mcp_03_04_tool-call-tracing-and-watchdog.md
+- `04_mcp_03_03_transport-and-health.md`
+- `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 
 ## Keywords

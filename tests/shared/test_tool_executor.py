@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from shared.http_transport import HttpTransport
+from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -24,10 +24,7 @@ from shared.mcp_config import (
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_cache import CacheEntry
-from shared.tool_executor import (
-    ToolExecutor,
-    TransportError,
-)
+from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
 
@@ -753,6 +750,33 @@ class TestUnknownToolError:
         ex = _make_executor()
         with pytest.raises(ValueError, match=r"Unknown tool"):
             await ex._raw_execute("totally_unknown_tool", {})
+
+
+class TestCheckStartupMode:
+    """Regression: _check_startup_mode() still returns a disabled-server error for
+    startup_mode == StartupMode.NONE after ToolRouteResolver's discovery_map/known_tools
+    parameters were removed (server_configs is unaffected by that change)."""
+
+    def test_returns_error_result_for_disabled_server(self) -> None:
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9",
+            startup_mode=StartupMode.NONE,
+        )
+        ex = _make_executor(configs={"disabled_server": cfg})
+        result = ex._check_startup_mode("disabled_server")
+        assert result is not None
+        assert result.is_error is True
+        assert "disabled_server" in result.output
+        assert "startup_mode=none" in result.output
+
+    def test_returns_none_for_enabled_server(self) -> None:
+        ex = _make_executor()
+        assert ex._check_startup_mode("file_read") is None
+
+    def test_returns_none_for_unknown_server_key(self) -> None:
+        ex = _make_executor()
+        assert ex._check_startup_mode("no_such_server") is None
 
 
 class TestEnsureReadyFailureHandling:

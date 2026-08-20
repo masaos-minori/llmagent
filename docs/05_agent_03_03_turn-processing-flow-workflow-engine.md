@@ -74,7 +74,27 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Current Implementation Behavior:** The default value of `WorkflowDef.require_approval` is `False`, so post-execution approval gates are not triggered in default production deployments. To enable approval gates, `"require_approval": true` must be explicitly added to `config/workflows/default.json`. (Needs Confirmation / Pending)
+**Production Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any production deployment whose default workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in the deployment's `config/workflows/*.json`. The bundled `config/workflows/default.json` ships with `require_approval: false` for local development; enabling it for production is done via an environment-specific override file (e.g. `config/workflows/production.json`).
+
+| Operation Category | Approval Required in Production |
+|---|---|
+| File write | Conditional (only if the same task also executes another "Required" category) |
+| File deletion | Required |
+| Shell execution | Required |
+| Git commit/push | Required (push only; commit alone may be left to the tool-level gate) |
+| GitHub changes | Required (merge/push only; issue/PR creation is conditional) |
+| CI/CD execution | Required |
+| Database maintenance | Gap — the corresponding tool is not yet implemented |
+
+**Local Development Exception:** Local/dev deployments may leave `require_approval: false` for all categories, since the tool-level pre-execution approval gate remains active.
+
+**Approval Lifecycle (all paths):**
+- **approve**: `/approve <approval_id> [reason]` $\rightarrow$ `status=approved`, passes to the `verify` stage on the next run
+- **reject**: `/reject <approval_id> [reason]` $\rightarrow$ `status=rejected`, `WorkflowHaltError` is raised and the task halts
+- **missing**: If no existing approval record is found, a new record is created and the workflow pauses
+- **expire**: When `_gate_approval()` finds a `pending` record whose `expires_at` has passed, it marks that record `status=expired` and calls `request_approval()` again to re-request approval
+- **cancel**: Not supported. By design, `/reject` is the only terminal path
+- **resume**: On the next workflow run after approve/reject, the existing approval record is checked and follows the branches above
 
 1. The engine calls `store.request_approval(task_id)` $\rightarrow$ creates an `ApprovalRecord` with `status=pending`.
 2. Task status $\rightarrow$ `pending_approval`.

@@ -296,6 +296,19 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-29
 
+### NC-018
+
+- **Source File**: `05_agent_03_03_turn-processing-flow-workflow-engine.md`
+- **Section**: §承認ゲート
+- **Line Number**: ~97
+- **Question**: What is the production default policy for `WorkflowDef.require_approval`, and does the documented "expire" lifecycle state actually work?
+- **Evidence**: `config/workflows/default.json` ships `require_approval: false` with no per-environment override mechanism; `WorkflowEngine._gate_approval()` did not check `expires_at` prior to this resolution
+- **Impact**: Ambiguous production guidance could leave post-execution approval gates disabled in environments that need them; an approval record could remain "pending" forever past its TTL
+- **Required Action**: Resolved — a per-operation-category approval-requirement table and local-dev exception policy are now documented in `05_agent_03_03_turn-processing-flow-workflow-engine.md` §承認ゲート; `is_expired()` was added to `agent/workflow/approval_ops.py` and `WorkflowEngine._gate_approval()` now re-requests approval when a pending record has expired, tested by `test_expired_pending_approval_is_re_requested`.
+- **Status**: resolved
+- **Assigned To**: N/A — resolved
+- **Last Reviewed**: 2026-08-20
+
 ## Non-Goals
 
 Topics explicitly excluded from this document:

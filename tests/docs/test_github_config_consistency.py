@@ -122,6 +122,5 @@ class TestGitHubConfigConsistency:
         """Config tool_names is not used as a routing input — only validation metadata."""
         from shared.route_resolver import ToolRouteResolver
 
-        # ToolRouteResolver requires server_configs argument
-        resolver = ToolRouteResolver(server_configs={})
+        resolver = ToolRouteResolver()
         assert hasattr(resolver, "resolve")

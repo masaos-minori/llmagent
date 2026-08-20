@@ -19,7 +19,7 @@ Old configuration file names and their replacements:
   - Current Replacement: config/rag_pipeline_mcp_server.toml
   - Status: Confirmed
   - Notes: Each MCP server now loads its own `<key>_mcp_server.toml` per rules/coding.md MCP server addition convention
-  - Evidence: scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py:99-101, scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py:130,193, implementations/done/20260722-181341_03_rag_stale_config_references.md
+  - Evidence: `RagPipelineConfig.from_dict()`/`RagPipelineConfig.load()` in scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py, scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py:130,193, implementations/done/20260722-181341_03_rag_stale_config_references.md
 
 - **common.toml**
   - Current Replacement: config/agent.toml "Infrastructure (common)" section (lines 5-18)

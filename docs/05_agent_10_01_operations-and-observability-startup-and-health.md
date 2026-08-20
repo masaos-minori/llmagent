@@ -60,7 +60,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
-- `tool_definitions` do not cause FATAL errors even in strict mode — they are always downgraded to WARNING.
+- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode or `security_profile=PRODUCTION`, WARNING otherwise.
 - Failure in `mcp_tool_discovery` is treated as FATAL regardless of whether it is production or local mode. Since tool discovery failure makes all session tool calls impossible, it is critical.
 
 ### Restoration of Pending Post-Execution Approvals

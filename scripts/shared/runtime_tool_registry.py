@@ -9,32 +9,18 @@ the sole routing authority — no fallback to `shared.tool_registry.ToolRegistry
 exists.
 
 Import-layer design decisions (do not "fix" these by adding the imports back):
-  - `classify_operation_type()` returns a plain `Literal["read", "write"]`
-    string, not `agent.tool_enums.OperationType`. `OperationType` lives in the
-    agent layer, and per `.importlinter`'s `shared-is-leaf` contract this
-    module must not import from `agent`. A `RuntimeTool` only carries a single
-    `is_write: bool` field today, so `DELETE`/`API_WRITE`/`EXECUTE` granularity
-    cannot be derived here — that is a documented gap, not silently collapsed.
-    Any agent-layer caller wanting a real `OperationType` member wraps the
-    returned string itself (`OperationType(result)`).
   - `apply_policy()` takes plain, duck-typed primitives (`tier_map`,
     `allowed_tools`) instead of `agent.config_dataclasses.ToolConfig` /
     `ApprovalConfig`, for the same `shared-is-leaf` reason. Whichever later
     requirement wires this to real config is responsible for extracting these
     primitives from `ToolConfig`/`agent.toml` and passing them in.
-
-`is_side_effect()` intentionally duplicates (does not replace)
-`shared.tool_executor_helpers.is_side_effect()`'s frozenset-based contract,
-sourcing its answer from the registered `RuntimeTool.is_write` field instead.
-Both live in `shared/`, so there is no layer-contract concern; this is
-temporary, parallel duplication pending a future unification decision.
 """
 
 from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal
+from typing import Any
 
 from shared.resource_scope import resolve_resource_scopes
 from shared.runtime_tool import AgentSafetyTier, RuntimeTool
@@ -164,21 +150,6 @@ class RuntimeToolRegistry:
         """
         tool = self.get(name)
         return RuntimeToolRegistry._build_tool_spec(call_id, name, tool, args)
-
-    def is_side_effect(self, tool_name: str) -> bool:
-        """Return whether `tool_name` has write/delete side effects.
-
-        Raises `KeyError` (via `get()`) if `tool_name` has no registry entry.
-        """
-        return self.get(tool_name).is_write
-
-    def classify_operation_type(self, tool_name: str) -> Literal["read", "write"]:
-        """Return a coarse read/write classification for `tool_name`.
-
-        NOTE: cannot distinguish DELETE/EXECUTE/API_WRITE from `RuntimeTool`'s
-        fields alone — see module docstring.
-        """
-        return "write" if self.get(tool_name).is_write else "read"
 
     def apply_policy(
         self,

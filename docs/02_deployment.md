@@ -181,6 +181,8 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
+For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [承認ゲート](05_agent_03_03_turn-processing-flow-workflow-engine.md#承認ゲート).
+
 このデプロイメント要件がなぜ必須なのか(監査・回復・承認状態の永続化という設計判断)については
 [ADR-Workflow-Mandatory](05_agent_03_03_turn-processing-flow-workflow-engine.md#ワークフロー実行必須化-adr-workflow-mandatory)を参照。
 

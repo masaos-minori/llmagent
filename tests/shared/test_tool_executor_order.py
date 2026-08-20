@@ -7,9 +7,10 @@ from collections import OrderedDict
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from shared.http_transport import TransportError
 from shared.mcp_health import McpServerHealthState
 from shared.tool_cache import CacheEntry
-from shared.tool_executor import ToolExecutor, TransportError
+from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
 

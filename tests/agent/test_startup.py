@@ -28,6 +28,11 @@ from agent.startup import (
     StartupInterrupted,
     StartupOrchestrator,
 )
+from agent.workflow.approval_ops import request_approval
+from agent.workflow.state_store import StateStore
+from agent.workflow.task_ops import create_task, update_task_status
+from db.config import DbConfig
+from db.create_schema import create_workflow_schema
 from shared.mcp_config import (
     McpServerConfig,
     SecurityProfile,
@@ -455,6 +460,43 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert ctx.workflow.approval_pending is False
         assert ctx.turn.pending_approval_id is None
         view.write_warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_recover_pending_approvals_against_real_db_no_attribute_error(
+        self, tmp_path
+    ) -> None:
+        """Regression: find_all_pending_approvals() must not raise AttributeError
+        on sqlite3.Row.get() when a real pending approval exists in workflow.sqlite."""
+        db_path = tmp_path / "workflow.sqlite"
+        rag_path = tmp_path / "rag.sqlite"
+        session_path = tmp_path / "session.sqlite"
+        cfg = DbConfig(
+            rag_db_path=str(rag_path),
+            session_db_path=str(session_path),
+            workflow_db_path=str(db_path),
+        )
+        with patch("db.helper.build_db_config", return_value=cfg):
+            create_workflow_schema()
+            store = StateStore()
+            task = create_task(store._db, "sess-1", 1, "1.0.0", "wf-test-1")
+            update_task_status(store._db, task.task_id, "pending_approval")
+            request_approval(store._db, task_id=task.task_id, workflow_id="wf-test-1")
+            store.close()
+
+            ctx = MagicMock()
+            ctx.workflow = MagicMock()
+            ctx.workflow.approval_pending = False
+            ctx.turn = MagicMock()
+            ctx.turn.pending_approval_id = None
+            ctx.turn.pending_approval_task_id = None
+            view = MagicMock()
+
+            startup = StartupOrchestrator(ctx, view)
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id is not None
+        assert ctx.turn.pending_approval_task_id == task.task_id
 
     @pytest.mark.asyncio
     async def test_recover_pending_approvals_store_closed_on_exception(self) -> None:

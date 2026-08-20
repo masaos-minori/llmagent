@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from agent.workflow.approval_ops import (
+    find_all_pending_approvals,
     find_approval_by_id,
     find_latest_pending_approval,
     find_pending_approval_by_session,
@@ -189,3 +190,28 @@ class TestFindPendingApprovalBySession:
         update_task_status(store._db, task.task_id, "pending_approval")
         request_approval(store._db, task_id=task.task_id, workflow_id="wf-test-1")
         assert find_pending_approval_by_session(store._db, "session-other") is None
+
+
+class TestFindAllPendingApprovals:
+    def test_returns_single_pending_approval_without_attribute_error(
+        self, store
+    ) -> None:
+        task = _make_task(store._db)
+        request_approval(store._db, task_id=task.task_id, workflow_id="wf-test-1")
+        results = find_all_pending_approvals(store._db)
+        assert len(results) == 1
+        task_id, approval = results[0]
+        assert task_id == task.task_id
+        assert approval.status == "pending"
+
+    def test_returns_multiple_pending_approvals_ordered_by_created_at_desc(
+        self, store
+    ) -> None:
+        task1 = _make_task(store._db, session_id="sess-1", workflow_id="wf-test-1")
+        request_approval(store._db, task_id=task1.task_id, workflow_id="wf-test-1")
+        task2 = _make_task(store._db, session_id="sess-2", workflow_id="wf-test-2")
+        request_approval(store._db, task_id=task2.task_id, workflow_id="wf-test-2")
+        results = find_all_pending_approvals(store._db)
+        assert len(results) == 2
+        assert results[0][0] == task2.task_id
+        assert results[1][0] == task1.task_id

@@ -31,7 +31,7 @@ class ApprovalRecord:
     approval_id: str
     task_id: str
     stage_id: str | None  # None = task-level gate
-    status: str  # pending | approved | rejected
+    status: str  # pending | approved | rejected | expired
     reason: str | None
     created_at: str  # ISO-8601
     resolved_at: str | None

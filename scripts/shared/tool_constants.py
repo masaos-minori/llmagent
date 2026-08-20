@@ -12,9 +12,14 @@ Not a routing fallback source. Routing is driven by live `/v1/tools` discovery a
 Centralised here to avoid silent drift when tool lists change.
 All sets are frozensets; treat them as read-only.
 
-Once RuntimeToolRegistry (shared/runtime_tool_registry.py) supplies LLM-visible tool schemas via
-live /v1/tools discovery, these frozensets become fallback/compatibility data for registry seed,
-side-effect detection, and risk classification — never the first-checked source.
+Per-consumer status:
+  - registry seed: a one-time import-time seed for ToolRegistry, not a fallback.
+  - side-effect detection: shared.tool_executor_helpers.is_side_effect() is the sole
+    first-checked classifier used by ToolExecutor.execute() (the only other candidate
+    classifier, RuntimeToolRegistry.is_side_effect(), had zero production callers and
+    was removed as dead code).
+  - risk classification: agent.tool_policy.classify_operation_type() checks these
+    frozensets directly and first, for the WRITE/DELETE/EXECUTE/API_WRITE tiers.
 """
 
 from __future__ import annotations

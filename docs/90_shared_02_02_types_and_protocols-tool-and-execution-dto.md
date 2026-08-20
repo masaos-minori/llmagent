@@ -56,11 +56,7 @@ Import: `from shared.runtime_tool import RuntimeTool, build_runtime_tool, AgentS
 
 An in-memory registry holding `{name: RuntimeTool}`. `resolve()` returns `None` for unregistered names, while `get()` raises `KeyError` — designed to distinguish between "registered but missing annotations" and "non-existent in registry". (Explicit in code)
 
-`classify_operation_type()` returns `Literal["read", "write"]` — avoids importing `agent.tool_enums` due to `shared-is-leaf` constraints. (Explicit in code)
-
 `apply_policy()` accepts a plain `tier_map: Mapping[str, AgentSafetyTier]` and `allowed_tools: Sequence[str] = ()` (also due to `shared-is-leaf` constraints). (Explicit in code)
-
-`is_side_effect()` is not a replacement for `shared.tool_executor_helpers.is_side_effect()` (which is based on the `_SIDE_EFFECT_TOOLS` frozenset); instead, it is intentionally implemented in parallel, referencing the registered `RuntimeTool.is_write`. (Explicit in code)
 
 **MCP Discovery (`McpToolDiscoveryService`) populates the registry with real data, which is then connected via `ToolExecutor.set_runtime_registry()`.**
 

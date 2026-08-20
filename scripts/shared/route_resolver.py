@@ -18,7 +18,6 @@ import logging
 from typing import TYPE_CHECKING, NoReturn, TypedDict
 
 if TYPE_CHECKING:
-    from shared.mcp_config import McpServerConfig
     from shared.runtime_tool_registry import RuntimeToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -72,39 +71,24 @@ class ToolRouteResolver:
 
     def __init__(
         self,
-        server_configs: dict[str, McpServerConfig],
         *,
-        discovery_map: dict[str, str] | None = None,
         warn_on_missing: bool = False,
         strict_mode: bool = False,
-        known_tools: frozenset[str] | None = None,
         runtime_registry: RuntimeToolRegistry | None = None,
     ) -> None:
         """Initialize the resolver.
 
         Args:
-            server_configs: Accepted for backward compatibility with existing callers;
-                not read or stored — routing never consults per-server config.
-            discovery_map: Live /v1/tools validation data; used only by the
-                currently-unreachable `_log_routing_coverage()` diagnostic, never by
-                `resolve()`.
             warn_on_missing: When True, log a warning on unresolved tools in `resolve()`.
             strict_mode: When True, raise on unresolved tools in `resolve()` with a
                 stricter error message.
-            known_tools: When provided, triggers a startup coverage log via
-                `_log_routing_coverage()`. No production caller passes this today.
             runtime_registry: Optional RuntimeToolRegistry from live /v1/tools discovery;
                 the sole routing source consulted by resolve().
         """
-        # Validation data from live /v1/tools (not used for routing).
-        self._discovery_map: dict[str, str] = discovery_map or {}
         # RuntimeToolRegistry (sole routing authority).
         self._runtime_registry: RuntimeToolRegistry | None = runtime_registry
-        # Config tool_names is NOT used for routing — only for drift validation.
         self._warn_on_missing = warn_on_missing
         self._strict_mode = strict_mode
-        if known_tools:
-            self._log_routing_coverage(known_tools)
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
@@ -137,37 +121,3 @@ class ToolRouteResolver:
             f"ToolRouteResolver: tool {tool_name!r} not found in RuntimeToolRegistry "
             f"and strict_mode=True; ensure MCP servers are healthy and discovery completed"
         )
-
-    def _log_routing_coverage(self, known_tools: frozenset[str]) -> None:
-        """Log routing coverage for all known tools at startup.
-
-        "Mapped" means resolvable via RuntimeToolRegistry — the same authority
-        `resolve()` uses — not merely present in `discovery_map`. `discovery_map` is
-        validation-only metadata from live /v1/tools responses and carries no routing
-        authority: a tool present only in `discovery_map` but absent from
-        RuntimeToolRegistry is UNMAPPED for this purpose, since `resolve()` would raise
-        `ValueError` for it.
-
-        Note: as of this writing, no production caller passes `known_tools` to
-        `ToolRouteResolver.__init__()` (see `shared/tool_executor.py`'s construction
-        call), so this method does not currently execute in production. It remains
-        available for a future caller wanting startup coverage visibility.
-        """
-        mapped: list[str] = []
-        unmapped: list[str] = []
-        for tool_name in sorted(known_tools):
-            if self._lookup_runtime_registry(tool_name) is not None:
-                mapped.append(tool_name)
-            else:
-                unmapped.append(tool_name)
-        total = len(known_tools)
-        if unmapped:
-            logger.warning(
-                "Routing: %d/%d tools mapped; %d unmapped: %s",
-                len(mapped),
-                total,
-                len(unmapped),
-                unmapped,
-            )
-        else:
-            logger.info("Routing: %d/%d tools mapped", total, total)

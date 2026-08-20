@@ -62,7 +62,6 @@ def _make_http_executor(http: httpx.AsyncClient, tool_names: list[str]) -> ToolE
         http=http,
         cache_ttl=0,
         server_configs={_HTTP_KEY: cfg},
-        discovery_map={name: _HTTP_KEY for name in tool_names},
     )
     executor._resolver.resolve = lambda _: _HTTP_KEY
     return executor

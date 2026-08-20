@@ -6,6 +6,7 @@ Uses a temp workflow.sqlite and mocks stage callbacks.
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch
 
@@ -345,7 +346,53 @@ class TestWorkflowEngineApprovalGate:
         )
 
 
-class TestWorkflowEngineRetryStageRegression:
+class TestWorkflowEngineApprovalExpiry:
+    """Tests for approval expiry and re-request behavior."""
+
+    @pytest.mark.asyncio
+    async def test_expired_pending_approval_is_re_requested(self, store) -> None:
+        """Expired pending approval should be re-requested on next gate check."""
+        from datetime import datetime, timedelta
+
+        from agent.workflow.approval_ops import request_approval
+
+        wdef = _make_wdef(require_approval=True)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        # Create a pending approval with an expired expires_at
+        approval = request_approval(store._db, task.task_id)
+        # Manually set expires_at to the past
+        past = (
+            (datetime.now(UTC) - timedelta(hours=25)).isoformat().replace("+00:00", "Z")
+        )
+        store._db.execute(
+            "UPDATE approvals SET expires_at=? WHERE approval_id=?",
+            (past, approval.approval_id),
+        )
+        store._db.commit()
+
+        engine = WorkflowEngine(wdef, store)
+
+        # The gate should detect the expired approval, mark it expired,
+        # and re-request a new approval
+        with pytest.raises(WorkflowPendingApprovalError) as exc_info:
+            await engine._gate_approval(task)
+
+        # Should have re-requested and raised a new WorkflowPendingApprovalError
+        assert exc_info.value.task_id == task.task_id
+        # The old approval should be marked as expired
+        from agent.workflow.approval_ops import find_approval_by_id, get_latest_approval
+
+        updated = find_approval_by_id(store._db, approval.approval_id)
+        assert updated is not None
+        assert updated.status == "expired"
+        # A new pending approval should have been created
+        new_approval = get_latest_approval(store._db, task.task_id)
+        assert new_approval is not None
+        assert new_approval.approval_id != approval.approval_id
+        assert new_approval.status == "pending"
+
     @pytest.mark.asyncio
     async def test_run_never_invokes_retry_stage(self, store) -> None:
         """Regression guard: WorkflowEngine.run() must never invoke a retry-labeled stage."""

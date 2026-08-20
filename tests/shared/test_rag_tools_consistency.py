@@ -74,8 +74,6 @@ class TestRagToolsInRegistry:
             }
         )
         resolver = ToolRouteResolver(
-            server_configs={},
-            discovery_map=None,
             strict_mode=False,
             runtime_registry=runtime_registry,
         )

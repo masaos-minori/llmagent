@@ -23,10 +23,7 @@ if TYPE_CHECKING:
 
 import httpx
 
-from shared.http_transport import (  # noqa: F401 -- re-exported: tests/shared/test_tool_executor.py imports TransportError from this module
-    HttpTransport,
-    TransportError,
-)
+from shared.http_transport import HttpTransport
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
@@ -58,7 +55,6 @@ class ToolExecutor(ToolTransportInvoker):
         cache_max_size: int = 0,
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
-        discovery_map: dict[str, str] | None = None,
     ) -> None:
         """Initialize with HTTP client, cache settings, and server configurations."""
         super().__init__(http, server_configs, concurrency_limits, lifecycle)
@@ -69,9 +65,7 @@ class ToolExecutor(ToolTransportInvoker):
         self.stat_cache_hits: int = 0
         self._inflight: dict[str, asyncio.Future[ToolCallResult]] = {}
 
-        self._resolver = ToolRouteResolver(
-            server_configs, discovery_map=discovery_map or {}
-        )
+        self._resolver = ToolRouteResolver()
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""

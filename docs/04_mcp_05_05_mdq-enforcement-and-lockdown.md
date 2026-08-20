@@ -42,7 +42,7 @@ Separately from the DB boundaries with other servers, mdq-mcp has a fail-closed 
 
 mdq-mcp starts with an empty Bearer token via `attach_auth_middleware(app, "")`, so authentication is not performed at the HTTP layer (per `scripts/mcp_servers/server.py` `attach_auth_middleware()` docstring: "When token is empty, auth is skipped..." (Explicit in code)).
 
-This is not an oversight. The `MdqMCPServer` class docstring in `scripts/mcp_servers/mdq/mdq_server.py` explicitly states: `"auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)"` (Explicit in code). The actual call is `attach_auth_middleware(cast(_FastAPIApp, app), "")` at `scripts/mcp_servers/mdq/mdq_server.md:368`.
+This is not an oversight. The `MdqMCPServer` class docstring in `scripts/mcp_servers/mdq/mdq_server.py` explicitly states: `"auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)"` (Explicit in code). The actual call is a module-level call in `scripts/mcp_servers/mdq/mdq_server.py`: `attach_auth_middleware(cast(_FastAPIApp, app), "")` (immediately after the `# Attach auth middleware` comment).
 
 Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as the actual security boundary. Setting `allowed_dirs = []` is fail-closed (denies all path access) (Explicit in code, see section above).
 

@@ -76,9 +76,6 @@ Refer to the repository implementation tree for the full list of files.
 ## Related Documents
 
 - `01_overview-files-03-scripts.md`
-- `01_overview-files-03-scripts.md`
-- `01_overview-files-03-scripts.md`
-- `01_overview-files-03-scripts.md`
 - [01_overview.md](01_overview.md)
 
 ## Keywords

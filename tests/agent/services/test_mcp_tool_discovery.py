@@ -16,7 +16,11 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 from agent.services.mcp_tool_discovery import DiscoveryResult, McpToolDiscoveryService
-from agent.shared.health_models import HealthCheckResult, StartupCheckStatus
+from agent.shared.health_models import (
+    HealthCheckResult,
+    ServiceWarning,
+    StartupCheckStatus,
+)
 from fastapi.testclient import TestClient
 from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
 from shared.tool_registry import (
@@ -1420,13 +1424,76 @@ class TestUnifiedSeverity:
         assert len(dup_findings) == 1
         assert dup_findings[0].status == expected_status
 
+    @pytest.mark.parametrize(
+        "strict, profile, expected_status",
+        [
+            (False, SecurityProfile.LOCAL, StartupCheckStatus.WARNING),
+            (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+            (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
+            (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_severity_unified_for_tool_definitions_has_issues(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        strict: bool,
+        profile: SecurityProfile,
+        expected_status: StartupCheckStatus,
+    ) -> None:
+        """tool_definitions findings follow the unified severity scheme:
+        FATAL iff strict or security_profile==PRODUCTION, else WARNING."""
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(
+                return_value=HealthCheckResult(
+                    warnings=[
+                        ServiceWarning(
+                            label="srv", url="http://srv:9000", message="mismatch"
+                        )
+                    ]
+                )
+            ),
+        )
+
+        http = AsyncMock(spec=httpx.AsyncClient)
+
+        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+            return _resp(
+                200,
+                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+            )
+
+        http.get = AsyncMock(side_effect=_get)
+        ctx = _make_ctx({"srv": _server()}, http, security_profile=profile)
+        ctx.cfg.tool.tool_definitions_strict = strict
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        tool_defs_findings = [f for f in mcp_findings if "mismatch" in f.message]
+        assert len(tool_defs_findings) == 1
+        assert tool_defs_findings[0].status == expected_status
+
 
 # ── tool definitions check surfaces as outcome, not exception ──────────────────
 
 
+@pytest.mark.parametrize(
+    "strict, profile, expected_status",
+    [
+        (False, SecurityProfile.LOCAL, StartupCheckStatus.WARNING),
+        (False, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+        (True, SecurityProfile.LOCAL, StartupCheckStatus.FATAL),
+        (True, SecurityProfile.PRODUCTION, StartupCheckStatus.FATAL),
+    ],
+)
 @pytest.mark.asyncio
 async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     monkeypatch: pytest.MonkeyPatch,
+    strict: bool,
+    profile: SecurityProfile,
+    expected_status: StartupCheckStatus,
 ) -> None:
     monkeypatch.setattr(
         "agent.services.mcp_tool_discovery._check_tool_definitions",
@@ -1442,12 +1509,12 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
         )
 
     http.get = AsyncMock(side_effect=_get)
-    ctx = _make_ctx({"srv": _server()}, http)
-    ctx.cfg.tool.tool_definitions_strict = False
+    ctx = _make_ctx({"srv": _server()}, http, security_profile=profile)
+    ctx.cfg.tool.tool_definitions_strict = strict
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 
     mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
     tool_defs_findings = [f for f in mcp_findings if "boom" in f.message]
     assert len(tool_defs_findings) == 1
-    assert tool_defs_findings[0].status == StartupCheckStatus.WARNING
+    assert tool_defs_findings[0].status == expected_status
