@@ -16,43 +16,40 @@ related:
   - 01_overview-files-06-misc.md
 ---
 
-# ファイル構成
+# File Structure
 
-アーキテクチャ概要 → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
+Architecture Overview → [`01_overview-arch-01-process.md`](01_overview-arch-01-process.md), [`01_overview-arch-02-pipelines.md`](01_overview-arch-02-pipelines.md), [`01_overview-arch-03-features.md`](01_overview-arch-03-features.md)
 
-## 3. ファイル構成
+## 3. File Structure
 
-デプロイ先のディレクトリ構成:
+Directory structure for deployment:
 
 ``` text
 /opt/llm/
-├─ llama.cpp/                                 # llama.cpp ソース・ビルド成果物
+├─ llama.cpp/                                 # llama.cpp source and build artifacts
 ├─ models/
-│   ├─ (chat LLM)  # 正典ファイル名は [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得) 参照
-│   └─ (embedding LLM)  # 正典ファイル名は [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得) 参照
+│   ├─ (chat LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得)
+│   └─ (embedding LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得)
 ```
 
-デプロイスクリプト (リポジトリ `deploy/` 配下、`bash deploy/xxx.sh` で実行):
+Deployment scripts (located under the `deploy/` repository, executed with `bash deploy/xxx.sh`):
 
 ``` text
 deploy/
-├─ deploy.sh                                  # Python スクリプト・設定・SQL を /opt/llm/ へコピー
-├─ build_sqlite_vec.sh                        # sqlite-vec (vec0.so) を取得・ビルド。初回デプロイ時に一度実行
-├─ init_db.sh                                 # SQLite スキーマ初期化。deploy.sh 実行後に一度だけ実行
-├─ setup_services.sh                          # MCP サーバ (:8004-:8014) と LLM サーバ (:8080-:8081) を
-│                                              # エージェント管理 subprocess として起動
-└─ start_agent.sh                             # AgentREPL を起動 (production では /opt/llm/pyproject.toml を優先)
+├─ deploy.sh                                  # Copies Python scripts, configurations, and SQL to /opt/llm/
+├─ build_sqlite_vec.sh                        # Downloads and builds sqlite-vec (vec0.so). Run once during initial deployment.
+├─ init_db.sh                                 # Initializes SQLite schema. Run once after executing deploy.sh.
+├─ setup_services.sh                          # Starts MCP servers (:8004-:8014) and LLM servers (:8080-:8081)
+│                                              # as agent management subprocesses
+└─ start_agent.sh                             # Starts AgentREPL (prefers /opt/llm/pyproject.toml in production)
 ```
 
-### 実装上の補足 (Current behavior)
+### Implementation Notes (Current behavior)
 
-- `deploy.sh` と `setup_services.sh` はいずれも `config/workflows/default.json` の存在チェックと
-  `python -m agent.workflow.validate` によるスキーマ検証を必須の前提条件としており、検証に失敗すると
-  `[FATAL]` を出力してデプロイ/起動を中断する (exit 1)。ワークフロー定義なしでの運用は想定されていない。
-  (根拠分類: Explicit in code — `deploy/deploy.sh`, `deploy/setup_services.sh`)
-- `setup_services.sh` はさらに `/opt/llm/db/workflow.sqlite` の存在と `tasks/attempts/processed_events/artifacts/approvals`
-  テーブルの有無を確認する。欠落時も `[FATAL]` で中断する。
-  (根拠分類: Explicit in code — `deploy/setup_services.sh`)
+- Both `deploy.sh` and `setup_services.sh` require the existence of `config/workflows/default.json` and validation via `python -m agent.workflow.validate`; failure results in a `[FATAL]` error and aborts deployment/startup (exit 1). Operation without workflow definitions is not supported.
+  (Evidence classification: Explicit in code — `deploy/deploy.sh`, `deploy/setup_services.sh`)
+- `setup_services.sh` further checks for the existence of `/opt/llm/db/workflow.sqlite` and the `tasks/attempts/processed_events/artifacts/approvals` table. It also aborts with `[FATAL]` if they are missing.
+  (Evidence classification: Explicit in code — `deploy/setup_services.sh`)
 
 ## Related Documents
 

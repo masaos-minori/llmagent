@@ -130,7 +130,7 @@ When documenting implementation evidence, use the following standardized block f
 **Example:**
 - **Evidence label**: Documentation only
 - **Source module or document**: `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
-- **Symbol or section**: §診断設定, `retention_days` parameter
+- **Symbol or section**: §diagnostics configuration, `retention_days` parameter
 - **Test identifier**: N/A
 - **Verification date**: 2026-08-19
 - **Notes**: Stated in docs but not verified against current code; treat as lower confidence
