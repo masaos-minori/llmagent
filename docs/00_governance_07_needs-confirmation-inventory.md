@@ -1,13 +1,4 @@
----
-title: "Needs Confirmation Inventory"
-category: governance
-tags:
-  - governance
-related:
-  - 00_index.md
-  - 01_overview.md
----
-## Purpose
+# Needs Confirmation Inventory
 
 This document provides a centralized inventory of all "Needs confirmation" items found across the design documentation set. It makes unconfirmed statements trackable and actionable, preventing them from being silently accepted as facts.
 
@@ -39,11 +30,11 @@ Each entry must contain the following fifteen fields:
 - **deferred** — Resolution postponed to future work
 - **wontfix** — Item will not be addressed
 
-### プライオリティ値（日本語）
+### Priority values
 
-- **高** (High) — 次のリリース前に解決必須
-- **中** (Medium) — スプリント内で解決すべき
-- **低** (Low) — やりたいが必須ではない
+- **High** — Must resolve before next release
+- **Medium** — Should resolve within a sprint
+- **Low** — Desired but not mandatory
 
 ## Extraction Process
 
@@ -132,7 +123,6 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-29
-- **Last Reviewed**: 2026-07-22
 
 ### NC-006
 
@@ -195,11 +185,11 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 
 ### NC-010
 
-- **Source File**: `03_rag_05_8-rag-mcp-internal-operations-direct-db-access.md`
-- **Section**: §gen_rag_reference.py output target
-- **Line Number**: ~86
-- **Question**: Should gen_rag_reference.py OPS_DOC constant be updated to point to split files?
-- **Evidence**: Tool outputs to non-existent docs/03_rag_05_configuration_and_operations.md
+- **Source File**: `03_rag_05_7-rag-index-consistency-checks.md`
+- **Section**: §gen_rag_reference.py auto-update target
+- **Line Number**: ~98
+- **Question**: Should gen_rag_reference.py OPS_DOC constant be updated to split files?
+- **Evidence**: Same issue as NC-010; tool outputs to non-existent file
 - **Impact**: Auto-generated content becomes stale; manual tracking required
 - **Required Action**: Determine if tool should be updated or if manual process is acceptable
 - **Resolution**: Resolved — OPS_DOC removed from `tools/gen_rag_reference.py`; CLI-help-only write path established via `CLI_HELP_DOC`. Config-table generation kept only under `--dry-run`. See implementation `implementations/20260728-175500_gen_rag_reference.py.md`.
@@ -207,8 +197,9 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-29
 - **Priority**: Medium
-- **Resolution Target**: N/A (resolved)
+- **Resolution Target**: Current sprint
 - **Blocking**: No
+- **Related NC**: NC-010
 
 ### NC-011
 
@@ -234,7 +225,7 @@ No active (open/investigating/deferred) items as of 2026-08-20 — all 17 origin
 - **Required Action**: Resolved — `save_loop_guard_hint` method removed (confirmed zero production callers). `guard_hint` confirmed as the sole loop-guard kind. See implementations/done/20260728-175009_diagnostic_store.py.md.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
-- **Last Reviewed**: 2026-07-29
+- **Last Reviewed**: 2026-07-22
 
 ### NC-013
 

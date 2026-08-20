@@ -1,157 +1,61 @@
+# Shared Runtime and Execution Infrastructure
 
-title: "Shared Runtime and Execution - Caching and Reference (Part 1)"
-category: shared
-tags:
-  - shared
-  - runtime
-  - retry-handler
-  - tool-cache
-  - tool-spec
-  - ai-reference
-related:
-  - 90_shared_00_document-guide.md
-  - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
-  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
-source:
-  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
-
-
-# 共有ランタイムおよび実行インフラストラクチャ
-
-- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 14. `LlmRetryHandler` (`shared/llm_retry.py`)
 
-Exponential backoff retry for HTTP POST requests to LLM endpoints. Retries on 429 (rate limit), 503 (service unavailable), and httpx.RequestError (connection error). Non-transient HTTP errors (4xx/5xx other than 429/503) raised immediately. Delay formula: retry_base_delay * (2**attempt) where attempt starts at 0. Last exception raised when all retries exhausted.
+Exponential backoff retry for HTTP POST requests to LLM endpoints. Retries on 429 (rate limit), 503 (service unavailable), and `httpx.RequestError` (connection error). Non-transient HTTP errors (4xx/5xx other than 429/503) are raised immediately. Delay formula: `retry_base_delay * (2**attempt)` where `attempt` starts at 0. The last exception is raised when all retries are exhausted.
 
 ---
 
 ## 15. `ToolResultCache` / `CacheEntry` (`shared/tool_cache.py`)
 
-Frozen dataclass CacheEntry with output (str), is_error (bool), cached_at (float). Standalone LRU+TTL cache utility for tool results. Not currently used by ToolExecutor; kept for potential future use without stampede protection. Key = {tool_name}:{json_dumps(args)} using shared.json_utils.dumps. store_if_success() stores only is_error=False results.
+A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cached_at` (float). A standalone LRU+TTL cache utility for tool results. Not currently used by `ToolExecutor`; kept for potential future use without stampede protection. Key format: `{tool_name}:{json_dumps(args)}` using `shared.json_utils.dumps`. `store_if_success()` stores only results where `is_error=False`.
 
 ---
 
 ## 16. `ToolSpec` (`shared/tool_spec.py`)
 
-Frozen dataclass for DAG scheduling metadata. call_id (LLM-assigned tool call id from tool_calls[].id), name (tool function name), args (dict[str, object]), resource_scopes (tuple[str, ...] of kind-prefixed resource-scope strings, e.g. "filesystem:/a/b.txt", for conflict detection — resolved per call by shared/resource_scope.py::resolve_resource_scopes()), requires_serial (forces serialization regardless of parallel mode), is_write (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed ToolSpec for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`.
+A frozen dataclass for DAG scheduling metadata. Fields include: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`.
 
 ---
-
-# 共有ランタイムおよび実行インフラストラクチャ
-
-- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
-
-## 14a. `LlmRetryHandler` (`shared/llm_retry.py`)
-
-Exponential backoff retry for HTTP POST requests to LLM endpoints. Retries on 429 (rate limit), 503 (service unavailable), and httpx.RequestError (connection error). Non-transient HTTP errors (4xx/5xx other than 429/503) raised immediately. Delay formula: retry_base_delay * (2**attempt) where attempt starts at 0. Last exception raised when all retries exhausted.
-
----
-
-## 15a. `ToolResultCache` / `CacheEntry` (`shared/tool_cache.py`)
-
-Frozen dataclass CacheEntry with output (str), is_error (bool), cached_at (float). Standalone LRU+TTL cache utility for tool results. Not currently used by ToolExecutor; kept for potential future use without stampede protection. Key = {tool_name}:{json_dumps(args)} using shared.json_utils.dumps. store_if_success() stores only is_error=False results.
-
----
-
-## 16a. `ToolSpec` (`shared/tool_spec.py`)
-
-Frozen dataclass for DAG scheduling metadata. call_id (LLM-assigned tool call id from tool_calls[].id), name (tool function name), args (dict[str, object]), resource_scopes (tuple[str, ...] of kind-prefixed resource-scope strings, e.g. "filesystem:/a/b.txt", for conflict detection — resolved per call by shared/resource_scope.py::resolve_resource_scopes()), requires_serial (forces serialization regardless of parallel mode), is_write (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed ToolSpec for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`.
-
----
-
-
-
-
-
-# 共有ランタイムおよび実行インフラストラクチャ
-
-- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 17. `McpServerHealthState` / `McpServerHealthRegistry` (`shared/mcp_health.py`)
 
-Enum for MCP server health states: HEALTHY (normal operation), DEGRADED (failing but not yet unavailable), UNAVAILABLE (circuit breaker open), HALF_OPEN (experimental probe after cooldown), UNKNOWN (unregistered key returns HEALTHY default, UNKNOWN never observed in practice).
+An enum for MCP server health states: `HEALTHY` (normal operation), `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE` (circuit breaker open), `HALF_OPEN` (experimental probe after cooldown), and `UNKNOWN` (unregistered keys return `HEALTHY` default; `UNKNOWN` is never observed in practice).
 
-Per-server health tracking for ToolExecutor dispatch gating. Constructor accepts failure_threshold (default 3 consecutive failures → UNAVAILABLE) and half_open_cooldown_sec (default 30s). Methods: record_failure() transitions HEALTHY→DEGRADED→UNAVAILABLE; record_degraded() records watchdog reachability probes (does not override UNAVAILABLE/HALF_OPEN); record_restart_exhausted() tags degraded reason as 'restart_limit_reached'; record_success() resets to HEALTHY plus clears failure counts/degraded reasons; get_state() returns current state; is_unavailable() handles UNAVAILABLE→HALF_OPEN transition on cooldown expiry.
+Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (default 3 consecutive failures $\rightarrow$ `UNAVAILABLE`) and `half_open_cooldown_sec` (default 30s). Methods: `record_failure()` transitions `HEALTHY` $\rightarrow$ `DEGRADED` $\rightarrow$ `UNAVAILABLE`; `record_degraded()` records watchdog reachability probes (does not override `UNAVAILABLE`/`HALF_OPEN`); `record_restart_exhausted()` tags degraded reason as `'restart_limit_reached'`; `record_success()` resets state to `HEALTHY` and clears failure counts/degraded reasons; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` $\rightarrow$ `HALF_OPEN` transition upon cooldown expiry.
 
-State transitions: HEALTHY→DEGRADED on first failure; DEGRADED→UNAVAILABLE on failure_threshold consecutive failures (default 3); UNAVAILABLE→HALF_OPEN after half_open_cooldown_sec (default 30s, experimental probe); HALF_OPEN→UNAVAILABLE on probe failure (cooldown resets); HALF_OPEN→HEALTHY on probe success; any state→HEALTHY on successful response.
+**State Transitions:** `HEALTHY` $\rightarrow$ `DEGRADED` on first failure; `DEGRADED` $\rightarrow$ `UNAVAILABLE` on `failure_threshold` consecutive failures (default 3); `UNAVAILABLE` $\rightarrow$ `HALF_OPEN` after `half_open_cooldown_sec` (default 30s, experimental probe); `HALF_OPEN` $\rightarrow$ `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` $\rightarrow$ `HEALTHY` on probe success; any state $\rightarrow$ `HEALTHY` on successful response.
 
-**[Explicit in code — 追加]** get_state() returns HEALTHY default for unregistered keys (UNKNOWN never observed). record_degraded() does not override UNAVAILABLE/HALF_OPEN states (intentional guard against breaking circuit breaker/trial window). record_restart_exhausted() does not change state (assumes record_failure() already set UNAVAILABLE), only tags degraded reason. record_success() resets _failure_counts/_unavailable_since/_degraded_reasons (prevents immediate re-UNAVAILABLE on next failure due to stale counts).
+**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). `record_degraded()` does not override `UNVAILABLE`/`HALF_OPEN` states (intentional guard against breaking circuit breaker/trial windows). `record_restart_exhausted()` does not change state (assumes `record_failure()` already set `UNAVAILABLE`) but tags the degraded reason. `record_success()` resets `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` (prevents immediate re-`UNAVAILABLE` due to stale counts).
 
 ---
 
 ## 18. `LlmPayloadHandler` (`shared/llm_payload.py`)
 
-All methods are `@staticmethod`. build_payload() takes history (list[LLMMessage]), tool_defs (list[dict]), temperature (float, required), max_tokens (int, required), stream (bool, default False) — returns payload with messages/tools/tool_choice="auto"/temperature/max_tokens, adds "stream": True when stream=True. parse_response() accepts raw parsed JSON dict (not httpx.Response), validates choices/message structure, raises ValueError on invalid input, delegates usage parsing to LlmSseHelpers.parse_usage(). parse_non_stream_response() is a third method (not in old docs): decodes bytes via orjson.loads(), raises ValueError if not dict, then delegates to parse_response().
+All methods are `@staticmethod`. `build_payload()` takes `history` (list[LLMMessage]), `tool_defs` (list[dict]), `temperature` (float, required), `max_tokens` (int, required), and `stream` (bool, default False) — it returns a payload with `messages`/`tools`/`tool_choice="auto"`/`temperature`/`max_tokens`, and adds `"stream": True` when `stream=True`. `parse_response()` accepts raw parsed JSON dict (not `httpx.Response`), validates `choices`/`message` structure, raises `ValueError` on invalid input, and delegates usage parsing to `LlmSseHelpers.parse_usage()`. `parse_non_stream_response()` is a third method (not in old docs): it decodes bytes via `orjson.loads()`, raises `ValueError` if not a dict, then delegates to `parse_response()`.
 
-on_usage parameter is Callable[[int, int], None] | None, called from LlmSseHelpers.parse_usage() as on_usage(prompt_tokens, completion_tokens). Only production caller is scripts/agent/factory.py's _on_llm_usage.
+The `on_usage` parameter is a `Callable[[int, int], None] | None`, called from `LlmSseHelpers.parse_usage()` as `on_usage(prompt_tokens, completion_tokens)`. The only production caller is `scripts/agent/factory.py`'s `_on_llm_usage`.
 
 ---
 
 ## 19. `LlmHotConfigHandler` (`shared/llm_hot_config.py`)
 
-Manages hot-reloadable config fields for LLMClient. HOT_CONFIG_FIELDS is a tuple of (instance_attr_name, kwarg_name) pairs covering 9 fields: temperature, max_tokens, max_retries, retry_base_delay, sse_heartbeat_timeout, sse_malformed_retry, sse_reconnect_max, stream_retry_on_heartbeat_timeout, stream_retry_on_malformed_chunk. apply_one() sets a single field via setattr. apply_config() accepts keyword-only args, applies only non-None values (partial update, unspecified items unchanged).
+Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a tuple of `(instance_attr_name, kwarg_name)` pairs covering 9 fields: `temperature`, `max_tokens`, `max_retries`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. `apply_one()` sets a single field via `setattr`. `apply_config()` accepts keyword-only arguments and applies only non-`None` values (partial update; unspecified items remain unchanged).
 
 ---
 
-## 20. AI リファレンスガイド
+## 20. AI Reference Guide
 
-| 質問 | 回答 |
+| Question | Answer |
 |---|---|
-| 設定ファイルの読み込み方法 | `ConfigLoader().load("filename.toml")` または `load_all()` |
-| 設定オーナーシップ表 | **§2a 設定オーナーシップを参照** — プロセス分離方針とプロセスごとの設定ファイル一覧の正式なリファレンス |
-| `load_all()` は `agent.toml` を含むか? | **含む(それのみ)** — `_BASE_CONFIG_FILES = ("agent.toml",)` の1件のみで、他の設定ファイル(crawler.toml等)は各プロセスが個別にロードする (§2a 設定オーナーシップを参照) |
-| ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU。ただし `ToolExecutor` は `shared/tool_cache.py` の `ToolResultCache`（standalone utility, not used by ToolExecutor）ではなく、`shared/tool_executor.py` 内の自前の `OrderedDict` ベースキャッシュ (`_execute_with_cache()`) を使う (§15 を参照) |
-| `git_helper.get_repo_info()` は信頼できるか? | `RepoInfoResult` を返す; `.success` と `.failure_reason` (FailureReason enum) を確認すること |
-| 正確なトークン数を取得する方法 | `await get_token_count(history, tokenize_url, http)` |
-| LLM の再試行はどう動くか? | 指数バックオフ: 429/503 および接続エラー時に `retry_base_delay * (2**attempt)` |
-| ToolExecutor のキャッシュキー形式は? | `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用) |
-| ヘルスゲートの状態遷移は? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (§17 を参照)。`UNKNOWN` 状態も定義されているが `get_state()` の既定値は `HEALTHY` |
-
-# 共有ランタイムおよび実行インフラストラクチャ
-
-- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
-
-## 17a. `McpServerHealthState` / `McpServerHealthRegistry` (`shared/mcp_health.py`)
-
-Enum for MCP server health states: HEALTHY (normal operation), DEGRADED (failing but not yet unavailable), UNAVAILABLE (circuit breaker open), HALF_OPEN (experimental probe after cooldown), UNKNOWN (unregistered key returns HEALTHY default, UNKNOWN never observed in practice).
-
-Per-server health tracking for ToolExecutor dispatch gating. Constructor accepts failure_threshold (default 3 consecutive failures → UNAVAILABLE) and half_open_cooldown_sec (default 30s). Methods: record_failure() transitions HEALTHY→DEGRADED→UNAVAILABLE; record_degraded() records watchdog reachability probes (does not override UNAVAILABLE/HALF_OPEN); record_restart_exhausted() tags degraded reason as 'restart_limit_reached'; record_success() resets to HEALTHY plus clears failure counts/degraded reasons; get_state() returns current state; is_unavailable() handles UNAVAILABLE→HALF_OPEN transition on cooldown expiry.
-
-State transitions: HEALTHY→DEGRADED on first failure; DEGRADED→UNAVAILABLE on failure_threshold consecutive failures (default 3); UNAVAILABLE→HALF_OPEN after half_open_cooldown_sec (default 30s, experimental probe); HALF_OPEN→UNAVAILABLE on probe failure (cooldown resets); HALF_OPEN→HEALTHY on probe success; any state→HEALTHY on successful response.
-
-**[Explicit in code — 追加]** get_state() returns HEALTHY default for unregistered keys (UNKNOWN never observed). record_degraded() does not override UNAVAILABLE/HALF_OPEN states (intentional guard against breaking circuit breaker/trial window). record_restart_exhausted() does not change state (assumes record_failure() already set UNAVAILABLE), only tags degraded reason. record_success() resets _failure_counts/_unavailable_since/_degraded_reasons (prevents immediate re-UNAVAILABLE on next failure due to stale counts).
-
----
-
-## 18a. `LlmPayloadHandler` (`shared/llm_payload.py`)
-
-All methods are `@staticmethod`. build_payload() takes history (list[LLMMessage]), tool_defs (list[dict]), temperature (float, required), max_tokens (int, required), stream (bool, default False) — returns payload with messages/tools/tool_choice="auto"/temperature/max_tokens, adds "stream": True when stream=True. parse_response() accepts raw parsed JSON dict (not httpx.Response), validates choices/message structure, raises ValueError on invalid input, delegates usage parsing to LlmSseHelpers.parse_usage(). parse_non_stream_response() is a third method (not in old docs): decodes bytes via orjson.loads(), raises ValueError if not dict, then delegates to parse_response().
-
-on_usage parameter is Callable[[int, int], None] | None, called from LlmSseHelpers.parse_usage() as on_usage(prompt_tokens, completion_tokens). Only production caller is scripts/agent/factory.py's _on_llm_usage.
-
----
-
-## 19a. `LlmHotConfigHandler` (`shared/llm_hot_config.py`)
-
-Manages hot-reloadable config fields for LLMClient. HOT_CONFIG_FIELDS is a tuple of (instance_attr_name, kwarg_name) pairs covering 9 fields: temperature, max_tokens, max_retries, retry_base_delay, sse_heartbeat_timeout, sse_malformed_retry, sse_reconnect_max, stream_retry_on_heartbeat_timeout, stream_retry_on_malformed_chunk. apply_one() sets a single field via setattr. apply_config() accepts keyword-only args, applies only non-None values (partial update, unspecified items unchanged).
-
----
-
-## 20a. AI リファレンスガイド
-
-| 質問 | 回答 |
-|---|---|
-| 設定ファイルの読み込み方法 | `ConfigLoader().load("filename.toml")` または `load_all()` |
-| 設定オーナーシップ表 | **§2a 設定オーナーシップを参照** — プロセス分離方針とプロセスごとの設定ファイル一覧の正式なリファレンス |
-| `load_all()` は `agent.toml` を含むか? | **含む(それのみ)** — `_BASE_CONFIG_FILES = ("agent.toml",)` の1件のみで、他の設定ファイル(crawler.toml等)は各プロセスが個別にロードする (§2a 設定オーナーシップを参照) |
-| ToolExecutor がキャッシュを使うのはいつか? | `is_error=False` の結果のみ; TTL + LRU。ただし `ToolExecutor` は `shared/tool_cache.py` の `ToolResultCache`（standalone utility, not used by ToolExecutor）ではなく、`shared/tool_executor.py` 内の自前の `OrderedDict` ベースキャッシュ (`_execute_with_cache()`) を使う (§15 を参照) |
-| `git_helper.get_repo_info()` は信頼できるか? | `RepoInfoResult` を返す; `.success` と `.failure_reason` (FailureReason enum) を確認すること |
-| 正確なトークン数を取得する方法 | `await get_token_count(history, tokenize_url, http)` |
-| LLM の再試行はどう動くか? | 指数バックオフ: 429/503 および接続エラー時に `retry_base_delay * (2**attempt)` |
-| ToolExecutor のキャッシュキー形式は? | `{tool_name}:{json_dumps(args)}` (`shared.json_utils.dumps` を使用) |
-| ヘルスゲートの状態遷移は? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (§17 を参照)。`UNKNOWN` 状態も定義されているが `get_state()` の既定値は `HEALTHY` |
-
-
-
+| How to load configuration files? | `ConfigLoader().load("filename.toml")` or `load_all()` |
+| Where is the configuration ownership table? | **See [§2a Configuration Ownership]** — Official reference for process isolation policies and per-process config files |
+| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [§2a Configuration Ownership]) |
+| When does `ToolExecutor` use its cache? | Only for `is_error=False` results; uses TTL + LRU. Note: `ToolExecutor` uses its own internal `OrderedDict`-based cache (`_execute_with_cache()`) rather than `shared/tool_cache.py`'s `ToolResultCache` (§15) |
+| Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; verify `.success` and `.failure_reason` (FailureReason enum) |
+| How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
+| How do LLM retries work? | Exponential backoff: `retry_base_delay * (2**attempt)` for 429/503 and connection errors |
+| What is the `ToolExecutor` cache key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
+| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (§17) |

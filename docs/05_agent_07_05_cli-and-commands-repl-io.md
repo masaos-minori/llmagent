@@ -13,48 +13,48 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-REPL入出力モデルの設計意図と運用判断を文書化する。
+Documents the design intent and operational decisions for the REPL input/output model.
 
 ## Design Intent
 
-### REPL入出力モデル
+### REPL Input/Output Model
 
-- **プロンプト:** `> `(固定文字列)
-- **通常の入力:** 任意のテキスト → `Orchestrator.handle_turn()`に転送される
-- **スラッシュコマンド:** `/`で始まる行 → `CommandRegistry.dispatch(line)`
-- **複数行入力:** `\`で終わる行 → `... `プロンプトで継続
-- **EOF / Ctrl-D:** 正常なシャットダウン(REPL入力がNoneを返しループを抜ける)
-- **Ctrl-C:** 入力内で捕捉され、入力待ち中はEOFと同じくREPL終了に至る(現在の実装ではツールループ実行中の中断とは別扱い)
+- **Prompt:** `> ` (fixed string)
+- **Normal Input:** Any text → forwarded to `Orchestrator.handle_turn()`
+- **Slash Commands:** Lines starting with `/` → `CommandRegistry.dispatch(line)`
+- **Multi-line Input:** Lines ending with `\` → continued with `... ` prompt
+- **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
+- **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (handled differently from interruption during tool loop execution in current implementation)
 
-### 実装上の補足
+### Implementation Details
 
-- プロンプトはセッションIDを含まない固定値`"> "`を返すプロパティであり、動的な文字列生成は行わない。session_idを埋め込む`agent[:#N]>`形式の表記は現行コードに存在しない。
-- `CLIView.read_multiline()`の複数行継続入力は`... `プロンプトを表示するが、これはread_multiline内部の継続専用プロンプト文字列であり、REPLプロンプト自体を書き換えるものではない。通常入力に戻れば再び固定値`"> "`が使われる。
-- 入力待ち中のKeyboardInterruptは入力内で捕捉され、write_turn_end()を出力した上でNoneを返す。呼び出し元ループはNoneを受けてループをbreakするため、**入力待ち中のCtrl-CはEOFと同様にREPLを終了させる**(現在行のみを中断してプロンプトに戻る挙動ではない)。
-- SIGTERM受信時はshutdown_requestedと_shutdown_eventをセットし、実行中のターンを最大10秒(_GRACEFUL_TIMEOUT)待ってから強制終了する(グレースフルシャットダウン)。
-- `/exit`は_should_exit()で判定され、shutdown_requestedが立っている場合も同メソッドでループ終了と判定される。
+- The prompt is a property that returns a fixed value `"> "` without session ID; no dynamic string generation is performed. The notation `agent[:#N]>` which embeds the session_id does not exist in the current code.
+- `CLIView.read_multiline()`'s multi-line continuation displays a `... ` prompt, but this is a continuation-specific prompt string inside `read_multiline` and does not change the REPL prompt itself. Once back to normal input, the fixed value `"> "` is used again.
+- A `KeyboardInterrupt` while waiting for input is caught within the input process, outputs `write_turn_end()`, and returns `None`. Since the calling loop breaks upon receiving `None`, **Ctrl-C while waiting for input terminates the REPL similarly to EOF** (it does not just interrupt the current line and return to the prompt).
+- Upon receiving SIGTERM, `shutdown_requested` and `_shutdown_event` are set, and the running turn is waited for up to 10 seconds (`_GRACEFUL_TIMEOUT`) before forced termination (graceful shutdown).
+- `/exit` is determined by `_should_exit()`, which also determines loop termination if `shutdown_requested` is set.
 
 ## Responsibility Boundary
 
-- `AgentREPL`は薄いコーディネータであり、ターン処理はorchestratorに、スラッシュコマンドのディスパッチはCommandRegistryに、端末I/OはCLIViewに委譲される。
+- `AgentREPL` is a thin coordinator; turn processing is delegated to the orchestrator, slash command dispatching to `CommandRegistry`, and terminal I/O to `CLIView`.
 
 ## Key Constraints
 
-- プロンプトは固定文字列`"> "`であり、セッションIDやステータスを動的に表示しない。
-- 入力待ち中のCtrl-Cは現在行を中断するのではなくREPL全体を終了させる。
+- The prompt is a fixed string `"> "` and does not dynamically display session ID or status.
+- Ctrl-C while waiting for input terminates the entire REPL rather than interrupting the current line.
 
 ## Operational Notes
 
-- 複数行入力の継続プロンプトは`... `であり、REPLプロンプトとは異なる。
-- グレースフルシャットダウンのタイムアウトは10秒。
+- The continuation prompt for multi-line input is `... `, which is different from the REPL prompt.
+- Graceful shutdown timeout is 10 seconds.
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

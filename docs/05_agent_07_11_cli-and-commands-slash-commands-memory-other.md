@@ -13,52 +13,52 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-Memory、MDQ、Skillカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+Documents the purpose and side effects of slash commands in the Memory, MDQ, and Skill categories.
 
 ## Design Intent
 
-### Memoryカテゴリ
+### Memory Category
 
-長期記憶に関するコマンド群。`/memory rebuild`はJSONLから全メモリをDELETE + INSERTする（JSONLが正典のソース）。
+A group of commands for long-term memory. `/memory rebuild` performs DELETE + INSERT for all memories from JSONL (JSONL is the source of truth).
 
-### MDQカテゴリ
+### MDQ Category
 
-すべての/mdqコマンドは、エージェントのツールエグゼキュータ経由でmdq-mcpのMCPツール（ポート8013）を呼び出す。MDQは`mdq.sqlite`（`rag.sqlite`とは別）を使用する。MDQとRAGの使い分けについては[MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
+All `/mdq` commands call MCP tools of `mdq-mcp` (port 8013) via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). For the distinction between MDQ and RAG, see [MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary).
 
-### Skillカテゴリ
+### Skill Category
 
-`/skill`は`skills/`配下のディレクトリ名一覧を表示する（LLM呼び出しは発生しない）。
+`/skill` displays a list of directory names under `skills/` (no LLM call occurs).
 
-`/skill <name> [args]`は`skills/<name>/SKILL.md`の内容が次のLLMターンに渡される。同一セッション内で再実行すると前回分は置き換わる。
+`/skill <name> [args]` passes the content of `skills/<name>/SKILL.md` to the next LLM turn. Re-running within the same session replaces the previous one.
 
-**既知の制限:** `_cmd_skill()`が構築するメッセージは`_ephemeral: True`と`_skill_ephemeral: True`を同時に持つが、`TRUSTED_SOURCES["skill_mixin"]`は`_skill_ephemeral`のみを認可するため、`append_message()`の検証に失敗し`_ephemeral`キーはサニタイズ（除去、`warning`ログ）されてから保存される。結果として`_skill_ephemeral: True`のみがhistoryに残る。これは既知かつ許容された挙動変更であり、影響はorchestratorの汎用的な`_ephemeral`ベースの前ターンクリアがスキル注入メッセージを次ターン開始時に自動除去しなくなる点にある。
+**Known Limitation:** The message constructed by `_cmd_skill()` has both `_ephemeral: True` and `_skill_ephemeral: True`, but since `TRUSTED_SOURCES["skill_mixin"]` only authorizes `_skill_ephemeral`, the `append_message()` validation fails, causing the `_ephemeral` key to be sanitized (removed, with a `warning` log) before saving. As a result, only `_skill_ephemeral: True` remains in history. This is a known and accepted behavior change; the impact is that the orchestrator's generic `_ephemeral`-based pre-turn clearing no longer automatically removes injected skill messages at the start of the next turn.
 
-### Otherカテゴリ
+### Other Category
 
-`/help`はこのヘルプ出力を表示する。
+`/help` displays this help output.
 
 ## Responsibility Boundary
 
-- **Memory**: 長期記憶のエントリ管理
-- **MDQ**: ドキュメントインデックスと検索
-- **Skill**: スキル注入
-- **Other**: ヘルプ表示
+- **Memory**: Management of long-term memory entries
+- **MDQ**: Document indexing and search
+- **Skill**: Skill injection
+- **Other**: Help display
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- `/skill`のephemeralメッセージは`_skill_ephemeral: True`のみがhistoryに残る
+- `/skill` ephemeral messages leave only `_skill_ephemeral: True` in history
 
 ## Related Docs
 
@@ -73,6 +73,7 @@ Memory、MDQ、Skillカテゴリのスラッシュコマンドの目的と副作
 - `05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md`
 - `05_agent_07_09_cli-and-commands-slash-commands-context-db.md`
 - `05_agent_07_10_cli-and-commands-slash-commands-workflow-debug.md`
+- `05_agent_07_11_cli-and-commands-slash-commands-memory-other.md`
 
 ## Keywords
 

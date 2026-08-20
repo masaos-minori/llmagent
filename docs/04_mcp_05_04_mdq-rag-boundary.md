@@ -15,131 +15,124 @@ related:
   - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 
-# MCP セキュリティと安全性モデル: MDQ 対 RAG の境界
+# MCP Security and Safety Model: MDQ vs RAG Boundary
 
-## MDQ 対 RAG の境界
+## MDQ vs RAG boundary
 
-### MDQ vs RAG boundary
-
-> **正典の場所。** 本セクションは、以前 `04_mcp_07_mdq_rag_boundary.md`（コミット f24efc1 で削除）にあった内容を統合したものである。
+> **Source of Truth.** This section consolidates content previously located in `04_mcp_07_mdq_rag_boundary.md` (removed in commit f24efc1).
 
 ### Purpose
 
-### 目的
-
-MDQ（Markdown Context Compression Engine）と RAG（Retrieval Augmented Generation）の間の所有権の境界を明確に定義し、エンジニアが特定のタスクにどちらのシステムを使用すべきか判断できるようにする。
+Clearly defines the ownership boundaries between MDQ (Markdown Context Compression Engine) and RAG (Retrieval Augmented Generation), enabling engineers to decide which system to use for a specific task.
 
 ---
 
-### MDQ を使用する場面
+### When to use MDQ
 
-以下の場合に MDQ を使用する。
+Use MDQ when:
 
-- コンテンツが **Markdown のみ**（`.md`, `.markdown` ファイル）である。
-- クエリが **構造を意識した検索**に関するもの: outline、見出し、階層的コンテキスト。
-- **Markdown 特有の解析**が必要（セクション抽出、見出しに沿ったチャンク境界）。
-- ワークロードが**低〜中程度の量**（数千〜数万件のドキュメント）である。
+- Content is **Markdown only** (`.md`, `.markdown` files).
+- Queries are related to **structure-aware search**: outlines, headings, hierarchical context.
+- **Markdown-specific parsing** is required (section extraction, heading-based chunk boundaries).
+- Workload is **low to medium volume** (thousands to tens of thousands of documents).
 
-MDQ は、セマンティック埋め込みの品質よりも構造理解が重要となる Markdown ドキュメントに最適化されている。
+MDQ is optimized for Markdown documents where structural understanding is more critical than semantic embedding quality.
 
-**ツール:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
-**データベース:** `mdq.sqlite`（`rag.sqlite` とは別）
-**状態:** 本番運用可能
-
----
-
-### RAG を使用する場面
-
-以下の場合に RAG を使用する。
-
-- コンテンツが **マルチフォーマット**: PDF、HTML、テキスト、コード、Markdown など。
-- 埋め込みによる**セマンティック検索**（類似度ベースの検索）が必要。
-- 見出しに沿った分割を超える**チャンク化戦略**（再帰的、トークンベースなど）が必要。
-- ワークロードが**大量**である、または**精緻化**（リランク、RRF によるハイブリッド検索）が必要。
-- メタデータ抽出とバリデーションを伴う**ドキュメント取り込みパイプライン**が必要。
-
-RAG はエージェント層の主要なドキュメント検索システムである。全コンテンツタイプに対する汎用的な検索をサポートする。
-
-**ツール:** `rag_run_pipeline` (パイプライン実行), `rag_debug_pipeline` (デバッグ実行・中間出力取得), `rag_list_documents` (ドキュメント一覧表示), `rag_delete_document` (ドキュメント削除)（rag-pipeline-mcp 経由）
-※ 単独の検索専用ツールは存在しません。検索は `rag_run_pipeline` または `rag_debug_pipeline` 内の不可分なステージとして実行されます。
-**データベース:** `rag.sqlite`
-**状態:** 本番運用可能
+**Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
+**Database:** `mdq.sqlite` (separate from `rag.sqlite`)
+**Status:** Production ready
 
 ---
 
-### データ所有権
+### When to use RAG
 
-| システム | データベース | 所有者 | 管理者 |
+Use RAG when:
+
+- Content is **multi-format**: PDF, HTML, text, code, Markdown, etc.
+- **Semantic search** via embeddings (similarity-based search) is required.
+- **Chunking strategies** beyond heading-based splitting are needed (recursive, token-based, etc.).
+- Workloads are **large scale**, or require **refinement** (reranking, hybrid search with RRF).
+- A **document ingestion pipeline** with metadata extraction and validation is required.
+
+RAG is the primary document retrieval system for the agent layer. It supports generic search across all content types.
+
+**Tools:** `rag_run_pipeline` (execute pipeline), `rag_debug_pipeline` (debug execution/intermediate output), `rag_list_documents` (list documents), `rag_delete_document` (delete document) (via `rag-pipeline-mcp`).
+*Note: There is no standalone search-only tool. Search is an inseparable stage within `rag_run_pipeline` or `rag_debug_pipeline`.*
+**Database:** `rag.sqlite`
+**Status:** Production ready
+
+---
+
+### Data Ownership
+
+| System | Database | Owner | Administrator |
 |---|---|---|---|
-| MDQ | `mdq.sqlite` | MCP 層（`scripts/mcp_servers/mdq/`） | mdq-mcp サーバー（ポート 8013） |
-| RAG | `rag.sqlite` | MCP 層（`scripts/mcp_servers/rag_pipeline/`） | rag-pipeline-mcp サーバー |
+| MDQ | `mdq.sqlite` | MCP Layer (`scripts/mcp_servers/mdq/`) | mdq-mcp server (port 8013) |
+| RAG | `rag.sqlite` | MCP Layer (`scripts/mcp_servers/rag_pipeline/`) | rag-pipeline-mcp server |
 
-いずれのシステムも他方のデータベースに直接アクセスすることはない。それぞれが独自のスキーマ、インデックス、検索ロジックを保持する。
+Neither system has direct access to the other's database. Each maintains its own schema, indexes, and search logic.
 
 ---
 
-### Agent access patterns
+### Agent Access Patterns
 
-エージェント層は、両システムに **MCP ツール呼び出し**のみを通じてアクセスする。
+The agent layer accesses both systems exclusively through **MCP tool calls**.
 
-1. **主経路（推奨）:** エージェントは MCP ルーティング（`ToolRouteResolver`）経由でツールを呼び出す。全てのツール呼び出しは MCP サーバーの抽象化層を通過する。
-2. **管理者バイパス:** エージェント REPL の `/db` コマンドは、保守作業のために `rag.sqlite` に直接アクセスできる。これは管理者専用であり、通常の運用には含まれない。
-3. **直接 DB アクセス（非推奨）:** アプリケーションコードは `mdq.sqlite` や `rag.sqlite` に対して `sqlite3` を直接 import してはならない。常に MCP ツールを使用すること。
+1. **Primary Path (Recommended):** The agent calls tools via MCP routing (`ToolRouteResolver`). All tool calls pass through the MCP server abstraction layer.
+2. **Admin Bypass:** The `/db` command in the Agent REPL allows direct access to `rag.sqlite` for maintenance tasks. This is for administrators only and is not part of normal operation.
+3. **Direct DB Access (Not Recommended):** Application code must NOT directly import `sqlite3` for `mdq.sqlite` or `rag.sqlite`. Always use MCP tools.
 
 ### RAG and Agent Responsibility Boundary
 
-RagPipeline (`scripts/rag/pipeline.py`) はコアなRAGロジックを担います。
-rag-pipeline-mcp (`scripts/mcp_servers/rag_pipeline/`) は、RagPipelineMCPService / RagPipelineMCPServer を通じて生産環境の境界を提供します。
-直接インポートはテストや開発用途のみです。
-なお、これは現在 **慣習** であり、`.importlinter` で強制されているわけではありません（`agent -> rag` の方向は現在許可されています）。
+`RagPipeline` (`scripts/rag/pipeline.py`) handles the core RAG logic.
+`rag-pipeline-mcp` (`scripts/mcp_servers/rag_pipeline/`) provides the production boundary via `RagPipelineMCPService` / `RagPipelineMCPServer`.
+Direct imports are for testing and development purposes only.
+*Note: This is currently a convention rather than enforced by `.importlinter` (the `agent -> rag` direction is currently permitted).*
 
 ---
 
-### ルーティング方針
+### Routing Policy
 
-#### 1. ルーティングのヒューリスティック（分類器）
+#### 1. Routing Heuristics (Classifier)
 
-エージェントは軽量な分類器（`agent/mdq_rag_classifier.py`）を使用して、
-ユーザーのクエリに基づき MDQ と RAG のどちらのツールを選ぶかを誘導する。
+The agent uses a lightweight classifier (`agent/mdq_rag_classifier.py`) to guide whether to choose MDQ or RAG based on the user query.
 
-Markdown の構造に関する用語（例: "heading", "outline", "hierarchy",
-"section", ".md", "table of contents"）を含むクエリは MDQ として分類され、それ以外はデフォルトで RAG となる。
+Queries containing Markdown structural terms (e.g., "heading", "outline", "hierarchy", "section", ".md", "table of contents") are classified as MDQ; otherwise, they default to RAG.
 
-分類器は各 LLM ターンの前に、1行のシステムプロンプトヒント（約20〜40トークン）を注入する。
-LLM がそれに従わない場合もあり得るため、決定的なルーティングが必要な場合はオーバーライドモードを使用すること。
+The classifier injects a single-line system prompt hint (~20-40 tokens) before each LLM turn. Since LLMs may not always follow this, use override mode if deterministic routing is required.
 
-#### 2. 可用性フォールバック
+#### 2. Availability Fallback
 
-| 条件 | 挙動 |
+| Condition | Behavior |
 |---|---|
-| MDQ が選択され、mdq-mcp が利用不可 | WARNING をログ出力; RAG ヒントにフォールバック |
-| RAG が選択され、rag-pipeline-mcp が利用不可 | エラーを返す; フォールバックなし |
+| MDQ selected, but `mdq-mcp` unavailable | Log WARNING; fallback to RAG hint |
+| RAG selected, but `rag-pipeline-mcp` unavailable | Return error; no fallback |
 | Override mode (`config_mode` = `mdq` or `rag`) | System prompt routing hint (`mdq_rag_classifier.py::resolve_mode()`, `mode_classification.py::classify_and_inject_mode()`); tool call failure returns error via `tool_transport_invoker.py` |
 
-RAG は常に本番環境で優先されるフォールバックである。
+RAG is always the preferred fallback in production environments.
 
 ---
 
-### 移行基準: MDQ から RAG へ
+### Migration Criteria: MDQ to RAG
 
-以下の場合に MDQ から RAG への移行を検討する。
+Consider migrating from MDQ to RAG when:
 
-- コンテンツ量が約10万ドキュメントを超える。
-- Markdown 以外のコンテンツタイプを Markdown と併せて取り込む必要がある。
-- セマンティック類似度検索の品質がボトルネックになる。
-- ドキュメント間の重複排除、または重複排除を考慮した検索が必要になる。
+- Content volume exceeds approximately 100,000 documents.
+- Non-Markdown content types need to be ingested alongside Markdown.
+- Semantic similarity search quality becomes a bottleneck.
+- Document deduplication or deduplication-aware search is required.
 
-自動的な移行パスは存在しない。移行には RAG パイプラインを介した再取り込みが必要である。
+There is no automatic migration path. Migration requires re-ingestion via the RAG pipeline.
 
 ---
 
-### 現在の状態
+### Current State
 
-- **MDQ:** 本番運用可能。FTS5 検索とインデックス化を実装済み。
-- **RAG:** 本番運用可能。完全な取り込みパイプライン、埋め込みサポート、ハイブリッド検索（RRF）が利用可能。
+- **MDQ:** Production ready. FTS5 search and indexing implemented.
+- **RAG:** Production ready. Full ingestion pipeline, embedding support, and hybrid search (RRF) available.
 
-汎用的なドキュメント検索を伴う本番ワークロードには `rag-pipeline-mcp` を優先すること。
-`mdq-mcp` は、埋め込み品質が重要でない Markdown 特有の構造的クエリにのみ使用すること。
+For production workloads requiring general document search, prioritize `rag-pipeline-mcp`.
+Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical.
 
 ## Related Documents
 

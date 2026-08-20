@@ -24,10 +24,10 @@ source:
 
 ## POST /nack
 
-イベントを nack（否定応答）する。`delivery_failure_count` を増加させ、`>= max_retry` で DLQ に移行する。
+Sends a NACK (Negative Acknowledgement) for an event. Increases `delivery_failure_count`, and moves the event to the DLQ once `delivery_failure_count >= max_retry`.
 
-**クエリパラメータ**: `event_id`(必須)
-**レスポンス**: 成功時は `{event_id, delivery_failure_count}`。404 はイベント未発見。
+**Query Parameters:** `event_id` (required)
+**Response:** On success, returns `{event_id, delivery_failure_count}`. A 404 error indicates the event was not found.
 
 ### NACK 側状態遷移行
 
@@ -46,29 +46,29 @@ source:
 
 ## GET /health
 
-各コンポーネントのヘルス状態を返す。`ok` は HTTP 200、`degraded`/`unhealthy` は HTTP 503。
+Returns the health status of each component. `ok` corresponds to HTTP 200, while `degraded`/`unhealthy` corresponds to HTTP 503.
 
-**レスポンスフィールド**: `status`、`db`、`dlq_task`、`active_subscribers`、`max_queue_depth`、`slow_consumers`、`degraded_reasons`。
+**Response Fields:** `status`, `db`, `dlq_task`, `active_subscribers`, `max_queue_depth`, `slow_consumers`, `degraded_reasons`.
 
-`status` は全コンポーネントが健全な場合にのみ `"ok"`。`degraded_reasons` には障害要因（`db_unavailable`、`dlq_task_stopped`、`broker_queue_backlog_high`、`slow_consumers_detected`）が列挙される。
+The `status` is `"ok"` only when all components are healthy. `degraded_reasons` lists failure causes (`db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`).
 
 ---
 
 ## GET /dlq
 
-DLQ イベント一覧を取得する（`dlq_at IS NOT NULL` のイベント）。
+Retrieves a list of DLQ events (events where `dlq_at IS NOT NULL`).
 
-**クエリパラメータ**: `limit`(1-1000, デフォルト100), `offset`(>=0, デフォルト0)
-**レスポンス**: `{total, limit, offset, items}` のページネーションオブジェクト。`items` は `{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}` を含む。
+**Query Parameters:** `limit` (1-1000, default 100), `offset` (>=0, default 0)
+**Response:** A pagination object containing `{total, limit, offset, items}`. `items` includes `{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}`.
 
 ---
 
 ## POST /dlq/{event_id}/requeue
 
-DLQ イベントを通常の配信に戻す。`dlq_requeue_count` を増加させる（`delivery_failure_count` はリセットされない）。`delivery_failure_count >= max_retry` の場合、次回の DLQ ループで再び DLQ に移行する。
+Moves a DLQ event back to normal delivery. Increases `dlq_requeue_count` (`delivery_failure_count` is not reset). If `delivery_failure_count >= max_retry`, the event will be moved to the DLQ again during the next DLQ loop.
 
-**パスパラメータ**: `event_id`(必須)
-**レスポンス**: 成功時は `{event_id, requeued: true}`。409 は DLQ 未移行、404 は未発見。
+**Path Parameters:** `event_id` (required)
+**Response:** On success, returns `{event_id, requeued: true}`. A 409 error indicates the event has not been moved to the DLQ, and a 404 error indicates it was not found.
 
 ## Related Documents
 

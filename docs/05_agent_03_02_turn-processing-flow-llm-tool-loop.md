@@ -1,127 +1,94 @@
----
-title: "Agent Turn Processing Flow - LLM and Tool Loop"
-category: agent
-tags:
-  - agent
-  - turn
-  - llm-invocation
-  - tool-loop
-  - error-handling
-related:
-  - 05_agent_00_document-guide.md
-  - 05_agent_03_01_turn-processing-flow-overview.md
-  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
-  - 05_agent_04_01_state-and-persistence-state-model.md
-source:
-  - 05_agent_03_02_turn-processing-flow-llm-tool-loop.md
----
+# Agent Turn Processing Flow - LLM and Tool Loop
 
-# エージェントターン処理フロー
-
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+- Runtime Architecture $\rightarrow$ [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
 
 ## Purpose
 
-LLM呼び出しとツールループの処理フローを文書化する。ストリーミング応答の収集、
-複数回のツール呼び出し、およびそのガード機構について記述する。
+To document the processing flow for LLM invocation and the tool loop. This includes collecting streaming responses, handling multiple tool calls, and describing the guard mechanisms.
 
 ## Design Intent
 
-### ToolLoopGuard の役割と設計意図
+### Role and Design of ToolLoopGuard
 
-ツールループ内では、LLMが同一ツールを無限に呼び出す可能性がある。これを防ぐため、
-ToolLoopGuard が以下の4つのガードを順次実行する：
+Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes four guards:
 
-1. **循環検出** — 直近Nラウンド内で同一のツール呼び出しセットが繰り返された場合
-2. **重複排除** — 同一の`(name, args)`が一定回数以上検出された場合
-3. **リトライ抑制** — 失敗したツール呼び出しが再度同じ引数で呼ばれた場合
-4. **連続エラー** — あるラウンドの全ツールが一定回数連続でエラーとなった場合
+1. **Cycle Detection** — If the same set of tool calls is repeated within the last $N$ rounds.
+2. **Deduplication** — If the same `(name, args)` is detected more than a certain number of times.
+3. **Retry Suppression** — If a failed tool call is invoked again with the same arguments.
+4. **Consecutive Errors** — If all tools in a round fail consecutively for a certain number of rounds.
 
-いずれかが発動すると、それ以降のチェックは行われずループを終了する。
-ガード発動後は、ツールを一切呼び出さずに最終回答を生成するフォールバックを試みる。
+If any guard is triggered, subsequent checks are skipped and the loop terminates. After a guard is triggered, a fallback attempt is made to generate a final answer without calling any further tools.
 
-### 不完全な出力の分離
+### Isolation of Incomplete Outputs
 
-LLMストリーミング中にトランスポートエラーが発生し、部分完了が生じた場合、
-その出力は通常の会話履歴から分離される。これにより、以降のLLMコンテキストが
-汚染されない。部分的なコンテンツは `session_diagnostics` テーブルに格納され、
-`/stats` コマンドで確認できる。
+If a transport error occurs during LLM streaming resulting in a partial completion, that output is isolated from the regular conversation history. This prevents polluting subsequent LLM context. Partial content is stored in the `session_diagnostics` table and can be inspected via the `/stats` command.
 
 ## Responsibility Boundary
 
-### LLM呼び出しとツールループ
+### LLM Invocation and Tool Loop
 
-`LLMTurnRunner.run(llm_url)`が内部ループを管理する：
+`LLMTurnRunner.run(llm_url)` manages the internal loop:
 
-- ペイロードを構築: `history + tool_definitions + temperature + max_tokens + stream=True`
-- SSEストリーミングでLLMに送信
-- `content_parts`（テキスト）と `tool_calls_map`（関数呼び出し）を収集
-- `finish_reason == "tool_calls"`の場合：ツールを実行 → 結果を追加 → LLMに再送信
-  - `max_tool_turns`回まで繰り返す
-- `finish_reason == "stop"`または`max_tool_turns`超過の場合：最終回答を返す
+- Constructs payload: `history + tool_definitions + temperature + max_tokens + stream=True`
+- Sends to LLM via SSE streaming.
+- Collects `content_parts` (text) and `tool_calls_map` (function calls).
+- If `finish_reason == "tool_calls"`: Execute tools $\rightarrow$ Add results $\rightarrow$ Re-send to LLM.
+  - Repeats up to `max_tool_turns` times.
+- If `finish_reason == "stop"` or `max_tool_turns` exceeded: Return final answer.
 
-### 履歴への追加
+### Adding to History
 
-`ctx.conv.append_message()`は検証付きのメソッドであり、生の`list.append()`ではなく
-これを介してのみ履歴を変更する（詳細は
-[05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
-§検証付き履歴変更メソッド を参照）。
+`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (See [05_agent_04_01_state-and-persistence-state-model.md] §Validated History Modification Methods).
 
-### ToolLoopGuard発動時の最終回答フォールバック
+### Final Answer Fallback on Guard Trigger
 
-ガードが発動した場合、一時的なシステムメッセージを注入してLLMに再呼び出しする：
+When a guard is triggered, the system attempts to re-invoke the LLM by injecting a temporary system message:
 
-- システムメッセージ: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
-- `tool_defs=[]`でLLM呼び出しを実行
-- `finish_reason != "tool_calls"`の場合：回答テキストを返す
-- `finish_reason == "tool_calls"`の場合：失敗を返す
+- System Message: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
+- Executes LLM call with `tool_defs=[]`.
+- If `finish_reason != "tool_calls"`: Returns the answer text.
+- If `finish_reason == "tool_calls"`: Returns failure.
 
-元の未実行アシスタントメッセージは永続化しない。
+The original unexecuted assistant message is not persisted.
 
-### ガード発動時のヒント
+### Hints on Guard Triggering
 
-各ガード発動時に `session_diagnostics` に `kind='guard_hint'` でヒントが保存される：
+Upon each guard trigger, a hint is saved to `session_diagnostics` with `kind='guard_hint'`:
 
-| ガード種別 | ヒント内容 |
+| Guard Type | Hint Content |
 |---|---|
 | cycle | "A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds." |
 | dedup | "The same tool was called with identical arguments multiple times." |
 | retry | "A tool call that previously failed is being retried with the same arguments." |
 
-これらのヒントはオフライン診断専用として保存され、`ctx.conv.history`には注入されない。
-ループ終了時にユーザーに表示される短い文言とは別の情報である。
+These hints are stored exclusively for offline diagnostics and are NOT injected into `ctx.conv.history`. They are distinct from the short messages displayed to the user at the end of the loop.
 
 ## Key Constraints
 
-### メッセージ型ホワイトリスト
+### Message Type Whitelist
 
-LLMクライアントのストリーミング集約ロジックが型付きデルタから構築するメッセージは、
-`role`/`content`/`tool_calls`のみで構成されるため、検証は常に成功する。
-保存内容は以前の生の`.append()`呼び出しと比較して変化しない。
+Messages constructed by the LLM client's streaming aggregation logic consist only of `role`/`content`/`tool_calls`, ensuring validation always succeeds. The saved content remains consistent with previous raw `.append()` calls.
 
-### 不完全な出力の扱い
+### Handling Incomplete Outputs
 
-- トランスポートエラー発生時、`partial_text`が空でない場合は`session_diagnostics`に
-  `[INCOMPLETE: {kind}]`プレフィックス付きで永続化する
-- `ctx.conv.history`には追加しない
-- 各ターン後にREPLが`stat_partial_completions`を比較し、増加していれば警告を出力する
+- When a transport error occurs, if `partial_text` is not empty, it is persisted to `session_diagnostics` with an `[INCOMPLETE: {kind}]` prefix.
+- It is NOT added to `ctx.conv.history`.
+- After each turn, the REPL compares `stat_partial_completions`; if it has increased, a warning is issued.
 
-### 連続ツールエラー
+### Consecutive Tool Errors
 
-- あるラウンドの全ツールが`tool_error_max_consecutive`回連続で失敗した場合、ツールループを抜ける
-- 部分的な失敗（一部のみエラー）の場合はカウンタを維持し、全成功ラウンドでリセットされる
+- If all tools in a round fail `tool_error_max_consecutive` times consecutively, the tool loop exits.
+- For partial failures (only some tools fail), the counter is maintained and reset upon a fully successful round.
 
 ## Operational Notes
 
-- ガード発動後の最終回答フォールバックは、一時的なシステムメッセージを注入して
-  ツールなしで回答を生成させるアプローチを取る
-- 不完全な出力は`/stats`コマンドで確認可能だが、通常の会話履歴からはアクセスできない
+- The final answer fallback after a guard trigger uses a temporary system message to prompt the LLM to respond without tools.
+- Incomplete outputs can be checked via the `/stats` command but cannot be accessed via normal conversation history.
 
 ## Known Limitations
 
-- 循環検出はフィンガープリントベースのため、順序は異なるが機能的に等価なツール呼び出しは
-  別パターンとして検知されない
-- リトライ抑制は`tool_error_retry_max > 0`の場合のみ有効
+- Cycle detection is fingerprint-based, so tool calls that are functionally equivalent but have different orderings might not be detected as the same pattern.
+- Retry suppression is only effective if `tool_error_retry_max > 0`.
 
 ## Related Docs
 

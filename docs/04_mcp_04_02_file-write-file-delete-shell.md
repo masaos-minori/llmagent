@@ -1,134 +1,111 @@
----
-title: "MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp"
-category: mcp
-tags:
-  - mcp
-  - server-catalog
-  - file-write
-  - file-delete
-  - shell
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_04_01_web-search-file-read-github.md
-  - 04_mcp_04_03_rag-pipeline-and-cicd.md
-  - 04_mcp_04_04_mdq.md
-  - 04_mcp_04_05_git.md
----
-
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 
-## file-write-mcp（ポート 8007）
+## file-write-mcp (Port 8007)
 
-**目的:** ローカルファイルシステムへの書き込み操作。全ツールが `dry_run=True` をサポート。
-**起動モード:** persistent（HTTP）
-**設定:** `config/file_write_mcp_server.toml`
+**Purpose:** Write operations to the local filesystem. All tools support `dry_run=True`.
+**Startup Mode:** persistent (HTTP)
+**Configuration:** `config/file_write_mcp_server.toml`
 
-**ツール:** `write_file`, `edit_file`, `create_directory`, `move_file`
+**Tools:** `write_file`, `edit_file`, `create_directory`, `move_file`
 
-全ツールとも config を必要としない（`config_dependent: false`）。
+All tools do not require configuration (`config_dependent: false`).
 
-これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
-**設定フィールド:** `allowed_dirs`, `max_write_bytes`（デフォルト: 1,000,000）
+**Configuration Fields:** `allowed_dirs`, `max_write_bytes` (default: 1,000,000)
 
-| ツール | 入力 | dry_run の挙動 |
+| Tool | Input | `dry_run` Behavior |
 |---|---|---|
-| `write_file` | `{path, content, dry_run?}` | diff のみ返す; 書き込みなし |
-| `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | diff を返す; 書き込みなし |
-| `create_directory` | `{path, dry_run?}` | ディレクトリ情報を返す（存在するか/作成予定か）; 作成なし |
-| `move_file` | `{source, destination, dry_run?}` | 移動可能かどうかを返す |
+| `write_file` | `{path, content, dry_run?}` | Returns only diff; no writing |
+| `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | Returns diff; no writing |
+| `create_directory` | `{path, dry_run?}` | Returns directory info (exists/to be created); no creation |
+| `move_file` | `{source, destination, dry_run?}` | Returns whether movement is possible |
 
-**ヘルス:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
-**設定:** `max_write_bytes`（デフォルト 1 MB; UTF-8 バイト数として強制）
-**エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**ログ:** `/opt/llm/logs/file-write-mcp.log`
-**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): なし — audit ログを書かない
+**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
+**Configuration:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count)
+**Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
+**Logs:** `/opt/llm/logs/file-write-mcp.log`
+**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): None — does not write audit logs
 
-### 実装上の補足（file-write-mcp）
+### Implementation Notes (file-write-mcp)
 
-- `max_write_bytes` の強制は Pydantic のフィールド制約ではなく、`write_service.py::WriteFileService.write_file` 内で `len(content.encode("utf-8")) > max_write_bytes` を手動チェックする実装である（超過時は `FileValidationError`）。[Explicit in code]
-- `write_file` は一時ファイル（`.tmp_<name>`）に書き込んでから `os.replace` で置換するアトミック書き込みを行う。書き込み失敗時は一時ファイルを削除してからエラーを送出する。[Explicit in code]
+- Enforcement of `max_write_bytes` is implemented via manual check in `write_service.py::WriteFileService.write_file` (`len(content.encode("utf-8")) > max_write_bytes`) rather than Pydantic field constraints (raises `FileValidationError` if exceeded). [Explicit in code]
+- `write_file` performs atomic writes by writing to a temporary file (`.tmp_<name>`) first and then replacing it using `os.replace`. If the write fails, the temporary file is deleted before returning an error. [Explicit in code]
 
 ---
 
-## file-delete-mcp（ポート 8008）
+## file-delete-mcp (Port 8008)
 
-**目的:** ローカルファイルシステムの削除。全ツールが `dry_run=True` をサポート。
-**起動モード:** persistent（HTTP）
-**設定:** `config/file_delete_mcp_server.toml`
+**Purpose:** Deletion from the local filesystem. All tools support `dry_run=True`.
+**Startup Mode:** persistent (HTTP)
+**Configuration:** `config/file_delete_mcp_server.toml`
 
-**ツール:** `delete_file`, `delete_directory`
+**Tools:** `delete_file`, `delete_directory`
 
-全ツールとも config を必要としない（`config_dependent: false`）。
+All tools do not require configuration (`config_dependent: false`).
 
-これらのツールの実行時可用性（`enabled`/`disabled_reason`）は `allowed_dirs` に依存する（空 → 無効、理由 `"allowed_dirs is empty"`）。詳細は[04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md)。
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
-**設定フィールド:** `allowed_dirs`, `audit_log_path`
+**Configuration Fields:** `allowed_dirs`, `audit_log_path`
 
-| ツール | 入力 | dry_run の挙動 |
+| Tool | Input | `dry_run` Behavior |
 |---|---|---|
-| `delete_file` | `{path, dry_run?}` | ファイル情報を返す; 削除なし |
-| `delete_directory` | `{path, recursive?, dry_run?}` | 内容をスキャン（最大1000ファイル）; 削除なし |
+| `delete_file` | `{path, dry_run?}` | Returns file information; no deletion |
+| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no deletion |
 
-**ヘルス:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — ready 時は HTTP 200、degraded 時は 503。
-**削除 audit ログ:** `/opt/llm/logs/delete_audit.log`（ISO8601 UTC + op + path + user）
-**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): なし / Layer3 (専用): delete_audit.log
-**エラーコード:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**ログ:** `/opt/llm/logs/file-delete-mcp.log`
+**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
+**Deletion Audit Log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
+**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): `delete_audit.log`
+**Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
+**Logs:** `/opt/llm/logs/file-delete-mcp.log`
 
-### 実装上の補足
+### Implementation Notes
 
-- `config/file_delete_mcp_server.toml`の`audit_log_path`キーは2026-07-13に削除済み(`FileDeleteConfig`は元々このキーを読み込んでおらず、`delete_service.py::build_service`が常に`"/opt/llm/logs/delete_audit.log"`をハードコードしていたため — git-mcpの`audit_log_path`削除と同じ理由による対応。設定ファイル側の`# NOTE:`コメント参照)。[Explicit in code]
-- audit ログ書き込みが失敗しても例外は送出されず、エラーログのみ記録して削除処理自体は成功として返る(github-mcp の `GitHubAuditError` とは異なり、file-delete-mcp では audit 失敗は削除操作をブロックしない)。[Explicit in code]
-- `delete_directory(recursive=true)` は、削除対象が `allowed_dirs` のいずれかのルートディレクトリそのものと一致する場合、`FileAuthorizationError` を送出して削除を拒否する（許可ディレクトリ配下の個々のファイル/サブディレクトリの削除は妨げない）。[Explicit in code]
-- dry_run 時のディレクトリスキャンは `_DRY_RUN_MAX_FILES = 1000` 件で打ち切られ、`dir_info` に `"<count>+ files"` として反映される。[Explicit in code]
+- The `audit_log_path` key in `config/file_delete_mcp_server.toml` was removed on 2026-07-13 (as `FileDeleteConfig` did not originally load this key, and `delete_service.py::build_service` always hardcoded `"/opt/llm/logs/delete_audit.log"` — same reason as the removal of `audit_log_path` for git-mcp. See `# NOTE:` comments in the config file). [Explicit in code]
+- Even if writing to the audit log fails, no exception is raised; instead, an error is logged and the deletion process itself returns as successful (unlike github-mcp's `GitHubAuditError`, failure to write the audit log does not block the deletion operation in file-delete-mcp). [Explicit in code]
+- `delete_directory(recursive=true)` rejects deletion with a `FileAuthorizationError` if the target matches any root directory defined in `allowed_dirs` (it does not prevent deleting individual files/subdirectories within allowed directories). [Explicit in code]
+- Directory scanning during `dry_run` is capped at `_DRY_RUN_MAX_FILES = 1000` and reflected in `dir_info` as `"<count>+ files"`. [Explicit in code]
 
 ---
 
-## shell-mcp（ポート 8009）
+## shell-mcp (Port 8009)
 
-**目的:** `command_allowlist` 内でのサンドボックス化されたシェルコマンド実行。
-**起動モード:** persistent（HTTP）
-**設定:** `config/shell_mcp_server.toml`
+**Purpose:** Execution of sandboxed shell commands within the `command_allowlist`.
+**Startup Mode:** persistent (HTTP)
+**Configuration:** `config/shell_mcp_server.toml`
 
-**ツール:** `shell_run`
+**Tools:** `shell_run`
 
-| キー | デフォルト | 説明 |
+| Key | Default | Description |
 |---|---|---|
-| `command_allowlist` | `[]` | 許可されるコマンド名（`argv[0]` のベース名） |
-| `shell_cwd_allowed_dirs` | `[]` | 許可される CWD パス（空 = 全て拒否） |
-| `max_timeout_sec` | `300` | タイムアウトの上限 |
-| `max_output_kb` | `4096` | 出力の上限 |
-| `max_memory_mb` | `512` | メモリ制限（`RLIMIT_AS`） |
-| `shell_sandbox_backend` | `"none"` | `"firejail"` または `"none"`（下記サンドボックス表を参照） |
-| `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit ログ |
-| `default_cwd` | `"/opt/llm/storage"` | リクエストで cwd が指定されない場合の作業ディレクトリ |
-| `shell_path` | `"/opt/llm/venv/bin:/usr/bin:/bin"` | 子プロセスの PATH 環境変数 |
-| `env_allowlist` | `[]` | req.env で許可される環境変数キー（空の場合は env_denylist を使用） |
-| `env_denylist` | `["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]` | req.env から除去される環境変数キーの glob パターン |
-| `execution_user` | `""` | setuid でコマンドを実行する OS ユーザー（CAP_SETUID が必要） |
-| `kill_policy` | `"sigterm_then_sigkill"` | タイムアウトしたプロセスに対する SIGTERM+SIGKILL、または `"sigkill_only"` |
-| `kill_grace_sec` | `2.0` | SIGTERM 後、SIGKILL に切り替えるまでの待機秒数 |
+| `command_allowlist` | `[]` | Allowed command names (base name of `argv[0]`) |
+| `shell_cwd_allowed_dirs` | `[]` | Allowed CWD paths (empty = all denied) |
+| `max_timeout_sec` | `300` | Timeout limit |
+| `max_output_kb` | `4096` | Output limit |
+| `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
+| `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
+| `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
+| `default_cwd` | `"/opt/llm/storage"` | Working directory if no cwd is specified in request |
+| `shell_path` | `"/opt/llm/venv/bin:/usr/bin:/bin"` | PATH environment variable for child processes |
+| `env_allowlist` | `[]` | Allowed environment variable keys in `req.env` (if empty, uses `env_denylist`) |
+| `env_denylist` | `["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]` | Glob patterns for environment variable keys to remove from `req.env` |
+| `execution_user` | `""` | OS user to run commands as via setuid (requires `CAP_SETUID`) |
+| `kill_policy` | `"sigterm_then_sigkill"` | SIGTERM+SIGKILL for timed-out processes, or `"sigkill_only"` |
+| `kill_grace_sec` | `2.0` | Seconds to wait after SIGTERM before switching to SIGKILL |
 
-**ヘルス:** sh が見つかる場合は `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"sandbox_backend":"firejail"/"none"}}`; 見つからない場合は `"status":"degraded","ready":false,"dependencies":{"shell":"sh not found in PATH"/"check failed"}}` — ready 時は HTTP 200、degraded 時は 503。
-**ログ:** `/opt/llm/logs/shell-mcp.log`
-**Audit:** Layer1 (Agent/MCP共有): tool_exec / Layer2 (共有MCP): mcp_tool_exec / Layer3 (専用): shell_audit.log
+**Health:** If `sh` is found: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"sandbox_backend":"firejail"/"none"}}`; if not found: `"status":"degraded","ready":false,"dependencies":{"shell":"sh not found in PATH"/"check failed"}}` — HTTP 200 when ready, 503 when degraded.
+**Logs:** `/opt/llm/logs/shell-mcp.log`
+**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `shell_audit.log`
 
-| sandbox_backend | 意味 | 使用場面 |
+| sandbox_backend | Meaning | Use Case |
 |---|---|---|
-| `"none"` | プロセス分離なし; `RLIMIT_*` の制限のみ適用 | ローカル開発専用 |
-| `"firejail"` | firejail によるプロセス分離（`--private --net=none --noroot`） | 本番環境推奨 |
+| `"none"` | No process isolation; only `RLIMIT_*` limits apply | Local development only |
+| `"firejail"` | Process isolation via firejail (`--private --net=none --noroot`) | Recommended for production |
 
-> **セキュリティ注記 — サンドボックスはデフォルトで無効:** `sandbox_backend` のデフォルトは `"none"` である。
-> シェルコマンドはエージェントプロセスの OS ユーザーと権限で実行される — コンテナや namespace 分離はない。
-> サンドボックスを有効化するには、firejail をインストールし、
-> `config/shell_mcp_server.toml` で `sandbox_backend = "firejail"` を設定する。有効なバックエンドは `/health` レスポンスの
-> `details.sandbox_backend`（`"none"` または `"firejail"`）で確認できる。
-> **本番環境での強制:** 本番モード（`agent.toml` の `security_profile = "production"`）では、
-> `sandbox_backend = "none"` は許可されない。この組み合わせが検出された場合、エージェントは起動時に `RuntimeError` を発生させる。
-> 本番環境では `sandbox_backend = "firejail"` を設定するか、shell-mcp を無効化すること。
-> 
-> > **注意**: shell-mcp 自体は本番モードのチェックや強制を行いません。本番環境での強制は、Agent の起動シーケンス（`scripts/agent/startup.py` から呼び出される `scripts/agent/repl_health.py::audit_security_defaults()`）によって行われます。shell-mcp が Agent の起動パスとは独立して実行された場合、この強制はバイパスされます。
+> **Security Note — Sandboxing is disabled by default:** The default value for `sandbox_backend` is `"none"`. Shell commands are executed with the OS user and privileges of the agent process — there is no container or namespace isolation. To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in `config/shell_mcp_server.toml`. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response.
+> **Enforcement in Production:** In production mode (`security_profile = "production"` in `agent.toml`), `sandbox_backend = "none"` is not allowed. If this combination is detected, the agent will raise a `RuntimeError` at startup. In production environments, either set `sandbox_backend = "firejail"` or disable `shell-mcp`.
+>
+> > **Note**: `shell-mcp` itself does not perform production checks or enforcement. Enforcement in production is handled by the Agent's startup sequence (via `scripts/agent/repl_health.py::audit_security_defaults()` called from `scripts/agent/startup.py`). If `shell-mcp` is started independently of the Agent startup path, this enforcement may be bypassed.
 
 ---
 

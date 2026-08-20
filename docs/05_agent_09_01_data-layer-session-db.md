@@ -11,90 +11,90 @@ source:
   - 05_agent_09_01_data-layer-session-db.md
 ---
 
-# エージェントデータ層
+# Agent Data Layer
 
-- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+- State and Persistence → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
 ## Purpose
 
-セッションDBの責任範囲、データ所有権の境界、およびRAG層との責任境界について文書化する。
+Documents the responsibility scope of the Session DB, data ownership boundaries, and responsibility boundaries with the RAG layer.
 
 ## Design Intent
 
-### データベースの責任分割
+### Database Responsibility Separation
 
 | Database | Owner | Responsibility |
 |---|---|---|
-| `session.sqlite` | Agent layer | セッション、メッセージ、メモリ、診断 |
-| `rag.sqlite` | RAG layer | ドキュメント、チャンク、ベクトル |
-| `mdq.sqlite` | MCP (mdq-mcp) | Markdownドキュメントのインデックス化とコンテキスト圧縮 |
-| `workflow.sqlite` | Workflow engine | タスク、試行、処理済みイベント、承認、アーティファクト |
+| `session.sqlite` | Agent layer | Sessions, messages, memory, diagnostics |
+| `rag.sqlite` | RAG layer | Documents, chunks, vectors |
+| `mdq.sqlite` | MCP (mdq-mcp) | Indexing Markdown documents and context compression |
+| `workflow.sqlite` | Workflow engine | Tasks, attempts, processed events, approvals, artifacts |
 
-**Design judgment**: `session_diagnostics` は `messages` と分離されている — 診断イベントはLLMに可視ではないため、会話履歴とは別管理とする。
+**Design judgment:** `session_diagnostics` is separated from `messages` — since diagnostic events are not visible to the LLM, they are managed separately from conversation history.
 
-### SessionMessageRepository vs SQLiteSessionStore の責任分割
+### SessionMessageRepository vs SQLiteSessionStore Responsibility Separation
 
-`SessionMessageRepository` が担うもの:
-- ロール検証 (`user` / `assistant` / `tool` / `system`)
-- strict_modeの動作 (スキップ時に `RuntimeError` を発生)
-- セッション不在時の保存回避
-- `content=None` の正規化
-- tool_callsのJSONエンコード/デコード
+What `SessionMessageRepository` handles:
+- Role validation (`user` / `assistant` / `tool` / `system`)
+- `strict_mode` behavior (raises `RuntimeError` on skip)
+- Avoiding saving when a session does not exist
+- Normalization of `content=None`
+- JSON encoding/decoding of `tool_calls`
 
-`SQLiteSessionStore` が担うもの:
-- 単純なDBのINSERT/LIST操作
-- スキーマに準拠した永続化
-- 最小限の検証のみ
+What `SQLiteSessionStore` handles:
+- Simple DB INSERT/LIST operations
+- Persistence compliant with schema
+- Minimal validation only
 
-**Design judgment**: 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない。これは薄いDBアダプタであり、ロール検証もcontentの正規化もJSONエンコードも行わない。これらの関心事はすべて `SessionMessageRepository` に属する。
+**Design judgment:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter and performs no role validation, content normalization, or JSON encoding; these concerns belong entirely to `SessionMessageRepository`.
 
-### セッション保持ポリシー
+### Session Retention Policy
 
-`db/maintenance.py` の `purge_old_sessions()` が、`RetentionConfig`に基づき古いセッションを年齢基準→件数基準の順で削除する。`sessions` 削除は `ON DELETE CASCADE` により `messages` にも伝播する。
+`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`.
 
-### メモリテーブルの所有権
+### Memory Table Ownership
 
-`use_memory_layer=True` の場合、メモリサブシステムはJSONLとSQLiteの両方を使用する:
+When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 | Storage | Path | Contents |
 |---|---|---|
-| JSONL | `{memory_jsonl_dir}/memories.jsonl` | インポート/エクスポートおよび災害復旧用の追記専用アーカイブ |
-| SQLite: `memories` | `session.sqlite` | 現在のメモリ状態の正本 |
-| SQLite: `memories_fts` | 同じDB | メモリ内容に対するFTS5インデックス |
-| SQLite: `memory_links` | 同じDB | メモリ間の多対多リンク |
-| SQLite: `memories_vec` | 同じDB | 任意のKNN埋め込み |
+| JSONL | `{memory_jsonl_dir}/memories.jsonl` | Append-only archive for import/export and disaster recovery |
+| SQLite: `memories` | `session.sqlite` | The source of truth for current memory state |
+| SQLite: `memories_fts` | Same DB | FTS5 index for memory content |
+| SQLite: `memory_links` | Same DB | Many-to-many links between memories |
+| SQLite: `memories_vec` | Same DB | KNN embeddings for any vector search |
 
-**Design judgment**: SQLiteのメモリテーブルが現在のメモリ状態の正本である。JSONLはインポート/エクスポートおよび災害復旧用の追記専用アーカイブとして保持される。削除およびpin/unpin状態の変更はJSONLから再生されない。
+**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletions and changes to pin/unpin status are NOT replayed from JSONL.
 
-### session_diagnostics の役割
+### Role of `session_diagnostics`
 
-- 診断イベント(LLM転送エラー、ガードヒント、部分完了)を保存
-- `messages` テーブルとは分離されており、`fetch_messages()` から参照されることはない
-- `save()` は挿入前に `_filter_sensitive_fields()` を無条件に適用し、機微フィールドをフィルタリング
-- `encrypt=True` で暗号化可能だが、`fetch()` に復号処理は実装されていない
-- `_purge_old_diagnostics()` で保持ポリシー (既定30日) を適用
+- Stores diagnostic events (LLM transfer errors, guard hints, partial completions).
+- Separated from the `messages` table and is NOT referenced by `fetch_messages()`.
+- `save()` unconditionally applies `_filter_sensitive_fields()` before insertion to filter sensitive fields.
+- Can be encrypted with `encrypt=True`, but `fetch()` does not implement decryption.
+- `_purge_old_diagnostics()` applies the retention policy (default 30 days).
 
-**Design judgment**: 機微フィールドのフィルタリングは暗号化とは独立して適用される。暗号化キーが未設定の場合でもフィルタリングは有効。
+**Design judgment:** Sensitive field filtering is applied independently of encryption. Filtering remains active even if no encryption key is set.
 
 ## Responsibility Boundary
 
-- **正典**: `shared/tool_executor.py`, `agent/diagnostic_store.py`, `db/maintenance.py`
-- **Schema**: `schema_sql.py` (詳細なスキーマ定義の権威)
+- **Canonical Source**: `shared/tool_executor.py`, `agent/diagnostic_store.py`, `db/maintenance.py`
+- **Schema**: `schema_sql.py` (authority for detailed schema definitions)
 
 ## Key Constraints
 
-- `messages` テーブルの有効なロール: `user` / `assistant` / `tool` / `system` — `diagnostic` **ではない**
-- 診断イベントは `session_diagnostics` テーブルにのみ永続化される
-- 検証・エンコードロジックを `SQLiteSessionStore` に重複させてはならない
-- JSONLは追記専用アーカイブ — 削除や状態変更は再生されない
+- Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system` — `diagnostic` is **NOT** a valid role.
+- Diagnostic events are persisted ONLY in the `session_diagnostics` table.
+- Do NOT duplicate validation and encoding logic in `SQLiteSessionStore`.
+- JSONL is an append-only archive — deletions and state changes are NOT replayed.
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 暗号化された `session_diagnostics` の行は `fetch()` で復号されない
+- Encrypted rows in `session_diagnostics` are not decrypted during `fetch()`.
 
 ## Related Docs
 

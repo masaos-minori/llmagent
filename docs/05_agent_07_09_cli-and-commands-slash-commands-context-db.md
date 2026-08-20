@@ -13,46 +13,46 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-ContextとPlanカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+Documents the purpose and side effects of slash commands in the Context and Plan categories.
 
 ## Design Intent
 
-### Contextカテゴリ
+### Context Category
 
-コンテキスト情報と履歴管理に関するコマンド群。
+A group of commands for managing context information and history.
 
-| コマンド | 副作用 | 関連する状態 |
+| Command | Side Effect | Related State |
 |---|---|---|
-| `/context` | なし | 履歴サイズ、バジェット、システムプロンプト、ワークフローモード、承認待ち状態を表示 |
-| `/compact` | LLM呼び出し（圧縮） | 履歴を即座に圧縮 |
-| `/system [name]` | `history[0]`を更新 | `ctx.conv.system_prompt_name` |
+| `/context` | None | Displays history size, budget, system prompt, workflow mode, and pending approval status |
+| `/compact` | LLM call (compression) | Immediately compresses history |
+| `/system [name]` | Updates `history[0]` | `ctx.conv.system_prompt_name` |
 
-### Planカテゴリ
+### Plan Category
 
-| コマンド | 副作用 | 関連する状態 |
+| Command | Side Effect | Related State |
 |---|---|---|
-| `/plan` | なし | `ctx.conv.plan_mode`をトグル |
+| `/plan` | None | Toggles `ctx.conv.plan_mode` |
 
 ## Responsibility Boundary
 
-- **Context**: コンテキスト情報の表示と履歴管理
-- **Plan**: プランモードの切り替え
+- **Context**: Displaying context information and managing history
+- **Plan**: Toggling plan mode
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

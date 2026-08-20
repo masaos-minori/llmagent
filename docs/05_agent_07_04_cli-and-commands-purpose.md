@@ -13,15 +13,15 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-REPLの入出力モデル、CLIViewの責務、複数行入力、および全スラッシュコマンドカテゴリについて、その目的と副作用を文書化する。
+Documents the purpose and side effects of the REPL I/O model, CLIView responsibilities, multi-line input, and all slash command categories.
 
 ### Why this exists
 
-`agent/repl.py`のdocstringが明示する通り、`AgentREPL`は薄いコーディネータであり、ターン処理(LLMループ・ツール呼び出し)は`agent/orchestrator.py`に、スラッシュコマンドのディスパッチは`agent/commands/registry.py`に、端末I/Oは`agent/cli_view.py`に委譲される。本章の各ファイルはこの責務分割を反映している。
+As specified in the docstrings of `agent/repl.py`, `AgentREPL` is a thin coordinator; turn processing (LLM loop, tool calls) is delegated to `agent/orchestrator.py`, slash command dispatching to `agent/commands/registry.py`, and terminal I/O to `agent/cli_view.py`. Each file in this chapter reflects this separation of responsibilities.
 
 ## Related Docs
 

@@ -12,84 +12,84 @@ tags:
 related:
   - 01_overview-arch-02-pipelines.md
   - 01_overview-arch-03-features.md
+  - 01_overview.md
 ---
 
-# 概要・アーキテクチャ
+# Overview & Architecture
 
-ファイル構成 → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
+File Structure → [`01_overview-files-01-build.md`](01_overview-files-01-build.md), [`01_overview-files-02-rag.md`](01_overview-files-02-rag.md), [`01_overview-files-03-scripts.md`](01_overview-files-03-scripts.md), [`01_overview-files-04-shared.md`](01_overview-files-04-shared.md), [`01_overview-files-05-config.md`](01_overview-files-05-config.md), [`01_overview-files-06-misc.md`](01_overview-files-06-misc.md)
 
-## 1. 概要・目的
+## 1. Overview & Purpose
 
-エージェント + MCP サーバによるマルチエージェントオーケストレーションシステムの構築
-- llama.cpp を用いた LLM サーバ群
-- 単一責務ツール実行 MCP サーバ群
-- 日本語・英語双方に対応した LLM エージェント
-- SQLite ベースのベクトル DB による RAG 環境
-- 対象 OS は Gentoo Linux or Ubuntu Linux
-- 用途はプログラム開発
+Building a multi-agent orchestration system with Agent + MCP servers
+- LLM server group using llama.cpp
+- Single-responsibility tool execution MCP server group
+- LLM agents supporting both Japanese and English
+- RAG environment with SQLite-based vector DB
+- Target OS: Gentoo Linux or Ubuntu Linux
+- Use case: Program development
 
-## 2. アーキテクチャ
+## 2. Architecture
 
-### 2.1 プロセス構成
+### 2.1 Process Configuration
 
 ``` text
-ユーザー
-    │ 対話入力 (agent[chat]> / agent[code]> プロンプト)
+User
+    │ Interaction input (agent[chat]> / agent[code]> Prompt)
     ▼
 ┌──────────────────────────────────────────────────────┐
-│  agent.py (CLI REPL ツール)                           │
-│  入力 → RAG 検索 → LLM 呼出 → MCP ツール実行 → 回答  │
+│  agent.py (CLI REPL Tool)                           │
+│  Input → RAG Search → LLM Call → MCP Tool Exec → Response  │
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8081 embed-LLM  :8080 agent-LLM   MCP サーバ群 (http)
-(RAG 検索時)                       (件数・ポートは `config/agent.toml` の
-                                   `[mcp_servers.*]` を参照)
+:8081 embed-LLM  :8080 agent-LLM   MCP Server Group (http)
+(During RAG search)                 (Count/Ports refer to `[mcp_servers.*]` in `config/agent.toml`)
 ```
 
-#### 実装上の補足
+#### Implementation Notes
 
-- エントリポイントは `scripts/agent/__main__.py` であり、`python -m agent` で起動する。図中の `agent.py` はこのモジュールエントリを指す。(根拠: `__main__.py` の docstring)
-- MCP サーバのトランスポートは設定上 `http` / `stdio` の両方が定義可能だが、現在の実装では `ToolExecutor` が HTTP POST `/v1/call_tool` を使用する。(根拠: `shared/http_transport.py` の `HttpTransport`, stdio トランスポートは削除済み)
-- 起動シーケンス (MCP サーバ起動・ヘルスチェック・セキュリティ監査・プロンプトセットアップ) は `agent/startup.py` の `StartupOrchestrator` に分離されており、`AgentREPL.run()` から委譲される。(根拠: `agent/startup.py`)
+- The entry point is `scripts/agent/__main__.py`, started with `python -m agent`. The `agent.py` in the diagram refers to this module entry. (Source: `__main__.py` docstring)
+- MCP server transport can be configured as both `http` and `stdio`, but currently `ToolExecutor` uses HTTP POST `/v1/call_tool`. (Source: `HttpTransport` in `shared/http_transport.py`; `stdio` transport has been removed)
+- The startup sequence (MCP server startup, health checks, security audit, prompt setup) is separated into `StartupOrchestrator` in `agent/startup.py` and delegated from `AgentREPL.run()`. (Source: `agent/startup.py`)
 
-#### 設定ファイル分離方針
+#### Configuration File Isolation Policy
 
-各プロセス (エージェント・各 MCP サーバー・crawler・ingester・chunk_splitter) は独立して動作し、**自身に対応する設定ファイル 1 つのみを読み込む**。他プロセスの設定ファイル (`agent.toml` を含む) は読み込まない。DB パス・外部サービス URL などが複数プロセスで必要な場合は共通ファイルを作らず、各プロセスの設定ファイルに個別に記述する。
+Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operates independently and **only reads its own corresponding configuration file**. It does not read configuration files of other processes (including `agent.toml`). If multiple processes require common parameters like DB paths or external service URLs, do not create a shared file; instead, describe them individually in each process's configuration file.
 
-| プロセス | 設定ファイル |
+| Process | Configuration File |
 |---|---|
 | agent | `config/agent.toml` |
-| 各 MCP サーバー | `config/<key>_mcp_server.toml` |
+| Each MCP server | `config/<key>_mcp_server.toml` |
 | crawler | `config/crawler.toml` |
 | ingester | `config/ingester.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-詳細 → [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
+Details → [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#process-isolation-policy-config-isolation)
 
-以下の表は代表例であり、MCP サーバの件数・ポートの正は `config/agent.toml` の `[mcp_servers.*]` である。
+The following table contains representative examples; the exact number and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 
-| サービス | ポート | モデル | 役割 |
+| Service | Port | Model | Role |
 |---|---|---|---|
-| `agent-llm` | 8080 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
-| `embed-llm` | 8081 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
-| `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (DuckDuckGo) |
-| `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
-| `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
-| `file-write-mcp` | 8007 | — | ファイル書き込み MCP サーバ |
-| `file-delete-mcp` | 8008 | — | ファイル削除 MCP サーバ |
-| `shell-mcp` | 8009 | — | シェルコマンド実行 MCP サーバ |
-| `rag-pipeline-mcp` | 8010 | — | RAG パイプライン MCP サーバ |
-| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP サーバ |
-| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP サーバ |
-| `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |
-| `eventbus` | 8015 | — | イベント配信サーバ (MCP サーバ群とは別プロセス。詳細: `06_eventbus_01_system-overview.md`) |
+| `agent-llm` | 8080 | Qwen3.6-Instruct-Q4_K_M | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
+| `embed-llm` | 8081 | multilingual-E5-small | Text → 384D Vector conversion |
+| `web-search-mcp` | 8004 | — | Web Search MCP Server (DuckDuckGo) |
+| `file-read-mcp` | 8005 | — | File Read MCP Server |
+| `github-mcp` | 8006 | — | GitHub Operation MCP Server |
+| `file-write-mcp` | 8007 | — | File Write MCP Server |
+| `file-delete-mcp` | 8008 | — | File Delete MCP Server |
+| `shell-mcp` | 8009 | — | Shell Command Execution MCP Server |
+| `rag-pipeline-mcp` | 8010 | — | RAG Pipeline MCP Server |
+| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP Server |
+| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP Server |
+| `git-mcp` | 8014 | — | Local Git Operation MCP Server |
+| `eventbus` | 8015 | — | Event Delivery Server (Separate process from MCP servers. Details: `06_eventbus_01_system-overview.md`) |
 
-### 実装上の補足(LLMサービスのURL/ポート)
+#### Implementation Notes (LLM Service URL/Port)
 
-`agent-llm`/`embed-llm` の実際の接続先は `config/agent.toml` の `llm.llm_url` / `rag.embed_url` で個別ホスト・ポートとして設定するものであり、本表の `8080`/`8081` は代表値。稼働環境によっては別ホスト・別ポート(llama.cppのデフォルト`8080`系等)を指す場合がある。MCPサーバ群(`8004`〜`8015`)は `agent.toml` の `[mcp_servers.*].url` と一致する。(Explicit in code)
+The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values in this table (e.g., `8080`/`8081`) are representative. Depending on the runtime environment, they may point to different hosts/ports (such as the default `8080` series for llama.cpp). The MCP server group (`8004`–`8015`) matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
 
-ポート `8011` は廃止済み(旧 `sqlite-mcp`)であり、現在の表・`config/agent.toml` に意図的に存在しない。
+Port `8011` was deprecated (formerly `sqlite-mcp`) and is intentionally absent from the current table and `config/agent.toml`.
 
 ## Related Documents
 

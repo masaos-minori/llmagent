@@ -120,69 +120,55 @@ Topics explicitly excluded from this document:
 - Specifying enforcement mechanisms for metadata compliance
 - Defining metadata for non-document assets (code, configuration files)
 
-## Related Governance Documents
+## Markdown Syntax Rules
 
-Cross-cutting documentation rules and policies:
+### Code Blocks
+- Wrap Python code with ```python
+- Wrap shell commands with ```bash
+- Wrap JSON with ```json
 
-- [Documentation Governance](00_governance_01_documentation-governance.md)
-- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
-- [Evidence Labels](00_governance_03_evidence-labels.md)
-- [Known Issues Template](00_governance_04_known-issues-template.md)
-- [Deprecated Items](00_governance_05_deprecated-items.md)
-- [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
-- [Terminology Glossary](00_governance_09_terminology-glossary.md)
+### Tables
+- Use English headings for tables
+- Include original (English) terminology alongside technical terms where necessary
 
-## Markdown記法ルール
+### Keywords
+- Mandatory: Must, Prohibited, Always
+- Recommended: Recommended, Should, Avoid
+- Optional: Optional, As needed
 
-### コードブロック
-- Pythonコードは ```python で囲む
-- Shellコマンドは ```bash で囲む
-- JSONは ```json で囲む
+### Document Boundaries
+- Separate sections using `##`
+- Do not nest sections within sections
+- Clearly separate sections with blank lines
 
-### テーブル
-- 日本語見出しは日本語で記載
-- 技術用語は原文（英語）を併記
+## Guidelines for Recording Information Verifiable via Implementation Reference
 
-### キーワード
-- 必須事項: 必須、禁止、必ず
-- 推奨事項: 推奨、すべき、避けるべき
-- 任意事項: 任意、必要に応じて
+Criteria for deciding whether to include implementation details in design documents.
 
-### ドキュメントの境界
-- 各セクションは `##` で区切る
-- セクション内にセクションは入れない
-- 空行でセクションを明確に分離
+### Information to be Deleted or Compressed Normally
+- Implementation details at the file path or line number level
+- Detailed module dependency structures or import hierarchies
+- Default values of configuration settings (if verifiable in code)
+- Enumeration of existing file structures
+- Complete references to CLI arguments
+- Redundant descriptions of JSON examples
+- Full definitions of API schemas
 
-## 実装参照で確認できる情報の記載方針
+### Information to be Retained
+- Design intent and reasons for architectural decisions
+- Boundaries and responsibilities between components
+- Design decisions regarding error handling
+- Design decisions regarding performance
+- Design decisions regarding security
+- Decisions regarding future extensibility
 
-設計文書に実装詳細を記載するかどうかの判断基準。
+### Decision Categories
 
-### 通常削除または圧縮される情報
-
-- ファイルパスや行番号レベルの実装詳細
-- コードのインポート構造やモジュール依存関係の詳細
-- 設定値のデフォルト値（コードで確認可能）
-- 既存のファイル構造の列挙
-- CLI引数の完全なリファレンス
-- JSON例の冗長な記述
-- APIスキーマの完全な定義
-
-### 保持すべき情報
-
-- 設計意図とアーキテクチャ判断の理由
-- コンポーネント間の境界と責任分担
-- エラー処理の設計判断
-- パフォーマンスに関する設計判断
-- セキュリティに関する設計判断
-- 将来の拡張性に関する判断
-
-### 判断カテゴリ
-
-| カテゴリ | 適用条件 | 例 |
+| Category | Condition | Example |
 |---|---|---|
-| 削除 | 実装だけで確認可能な詳細 | ファイルパス、行番号、インポート構造 |
-| 圧縮 | 文脈は必要だが詳細は不要 | CLI引数 → 主要オプションのみ |
-| ソース参照への置換 | 実装が唯一の正典 | スキーマ定義 → 「実装参照」 |
-| 保持 | 設計判断や意図 | エラーハンドリングの設計判断 |
-| 既知の問題へ移動 | 実装と文書の矛盾 | ドキュメントとコードの不一致 |
-| Needs Confirmationへ移動 | 不明な事項 | 実装の意図が不明 |
+| Delete | Details verifiable through implementation alone | File paths, line numbers, import structures |
+| Compress | Context is needed but details are not | CLI arguments $\rightarrow$ main options only |
+| Replace with Source Reference | Implementation is the sole authority | Schema definition $\rightarrow$ "Refer to implementation" |
+| Retain | Design decisions and intent | Error handling design decisions |
+| Move to Known Issues | Discrepancy between implementation and documentation | Inconsistency between docs and code |
+| Move to Needs Confirmation | Unknown matters | Unclear implementation intent |

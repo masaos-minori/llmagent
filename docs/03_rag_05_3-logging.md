@@ -11,37 +11,29 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 3. ロギング
+
+# 3. Logging
 
 | Script | Log file | Log levels |
 |---|---|---|
-| `crawler.py` | `/opt/llm/logs/crawl.log` + stderr | INFO: 開始/保存/スキップ; WARNING: HTTPエラー/リトライ |
-| `chunk_splitter.py` | `/opt/llm/logs/chunk.log` + stderr | INFO: ファイル数/チャンク数; WARNING: Sudachiエラー; ERROR: ファイル失敗 (トレースバック付き) |
-| `ingester.py` | `/opt/llm/logs/ingest.log` + stderr | INFO: チャンク数/挿入数/移動数; WARNING: 埋め込みエラー/リトライ/スキップ; ERROR: 読み取り/移動/グループ化の失敗 (トレースバック付き) |
+| `crawler.py` | `/opt/llm/logs/crawl.log` + stderr | INFO: Start/Save/Skip; WARNING: HTTP Error/Retry |
+| `chunk_splitter.py` | `/opt/llm/logs/chunk.log` + stderr | INFO: File Count/Chunk Count; WARNING: Sudachi Error; ERROR: File Failure (with traceback) |
+| `ingester.py` | `/opt/llm/logs/ingest.log` + stderr | INFO: Chunk Count/Insert Count/Move Count; WARNING: Embedding Error/Retry/Skip; ERROR: Read/Move/Grouping Failure (with traceback) |
 
-**共通フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+**Common Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-## 実装上の補足
+## Implementation Notes
 
-- 上記3スクリプトはいずれも `shared/logger.py` の `Logger` クラスを
-  `Logger(__name__, "<path>.log")` の形で使用する。ログレベルはコンストラクタでは
-  変更不可であり、常に `logging.INFO` に固定される（ロガー初期化処理内で
-   `setLevel(logging.INFO)` が実行される）。
+- All three scripts above use the `Logger` class from `shared/logger.py` as `Logger(__name__, "<path>.log")`. The log level cannot be changed in the constructor and is always fixed to `logging.INFO` (as `setLevel(logging.INFO)` is executed during logger initialization).
   [Explicit in code]
-- 出力先はファイルハンドラ (`FileHandler`) と `stderr` への `StreamHandler` の両方。
-  ログファイルのオープンに失敗した場合 (`OSError`) は、フォールバックの
-  `shared.logger.fallback` ロガーへ警告を出し、`stderr`ハンドラのみで継続する。
+- Output destinations include both a `FileHandler` and a `StreamHandler` to `stderr`. If opening the log file fails (`OSError`), a warning is issued to the fallback `shared.logger.fallback` logger, and execution continues using only the `stderr` handler.
   [Explicit in code]
-- `propagate=False`が設定されており、ルートロガーへの二重出力は発生しない。
+- `propagate=False` is configured, so duplicate output to the root logger does not occur.
   [Explicit in code]
-- `Logger`は`structured_log=True`指定でJSON-lines形式 (`_JsonFormatter`) に切り替え可能だが、
-  crawler.py / chunk_splitter.py / ingester.pyはいずれも`structured_log`を指定していないため、
-  本ドキュメント記載の共通フォーマットのままとなる。
+- The `Logger` can switch to JSON-lines format (`_JsonFormatter`) when `structured_log=True` is specified. However, since `crawler.py`, `chunk_splitter.py`, and `ingester.py` do not specify `structured_log`, they continue using the common text format described in this document.
   [Explicit in code]
-- `extra={...}`で付与される`turn_id` / `session_id` / `rag_query_id` / `workflow_id` / `task_id`
-  等のコンテキストフィールドは、テキストフォーマット (`_FORMAT`) には出力されない。
-  これらは構造化ログ (`structured_log=True`) 使用時のみJSON出力に反映される。
-  — `_FORMAT`文字列がこれらのフィールドを参照していないため。
+- Context fields such as `turn_id`, `session_id`, `rag_query_id`, `workflow_id`, and `task_id` provided via `extra={...}` are not output in the text format (`_FORMAT`). These are reflected in the JSON output only when using structured logging (`structured_log=True`), because the `_FORMAT` string does not reference these fields.
+  [Explicit in code]
 
 ---
 

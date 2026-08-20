@@ -11,69 +11,69 @@ source:
   - 05_agent_09_02_data-layer-access-patterns.md
 ---
 
-# エージェントデータ層
+# Agent Data Layer
 
-- 状態と永続化 → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
+- State and Persistence → [05_agent_04_01_state-and-persistence-state-model.md](05_agent_04_01_state-and-persistence-state-model.md)
 
 ## Purpose
 
-RAG層との責任境界、エージェントからのドキュメントアクセスパターンについて文書化する。
+Documents the responsibility boundaries with the RAG layer and document access patterns from the agent.
 
 ## Design Intent
 
-### RAG層との責任境界
+### Responsibility Boundaries with the RAG Layer
 
-エージェント層は `rag.sqlite` を所有していない。これらのテーブルはRAG層が所有する。
+The Agent layer does not own `rag.sqlite`. These tables are owned by the RAG layer.
 
-- エージェントはドキュメントレベルのデータには `rag-pipeline-mcp` を通じてアクセスする
-- 件数取得には `DbMaintenanceService.stats()` または `RagMaintenanceService.stats_rag()` を使用する
+- The agent accesses document-level data through `rag-pipeline-mcp`.
+- For statistics, use `DbMaintenanceService.stats()` or `RagMaintenanceService.stats_rag()`.
 
-**Design judgment**: `/db rag urls` と `/db rag clean` は rag-pipeline-mcp 経由で `rag_list_documents` と `rag_delete_document` を呼び出す。`DbMaintenanceService` は一覧取得や削除に関するRAGドキュメントアクセスをもはや所有していない。
+**Design judgment:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and `rag_delete_document` via `rag-pipeline-mcp`. `DbMaintenanceService` no longer owns RAG document access for listing or deletion.
 
-### RAG MCP内部パス
+### Internal RAG MCP Paths
 
-`RagPipelineMCPService` は `list_documents()` と `delete_document()` を、内部で保持する `DocumentManager` に委譲する。`DocumentManager` が `SQLiteHelper("rag")` を通じて `rag.sqlite` に直接アクセスする。
+`RagPipelineMCPService` delegates `list_documents()` and `delete_document()` to its internal `DocumentManager`. `DocumentManager` directly accesses `rag.sqlite` through `SQLiteHelper("rag")`.
 
-**許可されるもの**: `RagPipelineMCPService` / `DocumentManager` — RAG MCPサービスはこれらの操作をその責任境界の一部として所有する。
+**Allowed:** `RagPipelineMCPService` / `DocumentManager` — the RAG MCP service owns these operations as part of its responsibility boundary.
 
-**許可されないもの**: エージェントのアプリケーションコード、他のMCPサービス、共有層コードが `rag.sqlite` に直接アクセスすること。これらはMCPツール呼び出しまたは承認済みのメンテナンスサービスを使用しなければならない。
+**Not Allowed:** Application code in the agent, other MCP services, or shared layer code accessing `rag.sqlite` directly. They must use MCP tool calls or approved maintenance services.
 
-#### 削除順序の安全性
+#### Deletion Order Safety
 
-`delete_document()` は孤立レコードを防ぐため、厳格な削除順序を強制する:
+To prevent orphaned records, `delete_document()` enforces a strict deletion order:
 
-1. まず `chunks_vec` の行(埋め込みベクトル)を削除する
-2. `documents` の行(親ドキュメント)を削除する
+1. First, delete rows in `chunks_vec` (embedding vectors).
+2. Then, delete rows in `documents` (parent documents).
 
-**Design judgment**: この順序が必要なのは、`chunks_vec` が `documents` を指す外部キー制約を持たないためである。ドキュメントを先に削除すると、埋め込みベクトルの行が孤立して残ってしまう。
+**Design judgment:** This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `documents`. Deleting the document first would leave the embedding vector rows orphaned.
 
-### エージェント側のドキュメントアクセスパターン
+### Document Access Patterns on the Agent Side
 
-| Path | Mechanism | Use case |
+| Path | Mechanism | Use Case |
 |---|---|---|
-| MCPツール(基本) | `ToolRouteResolver` → MCPサーバ(rag-pipeline-mcp または mdq-mcp) | 通常運用 |
-| `/db` コマンド(管理用) | `/db rag urls`+`/db rag clean` → rag-pipeline-mcp; `/db rag stats`+メンテナンス → `DbMaintenanceService`/`RagMaintenanceService` | 管理タスクのみ |
-| DB直接アクセス | 推奨されない | アプリケーションコードでは使用しない |
+| MCP Tools (Primary) | `ToolRouteResolver` → MCP server (`rag-pipeline-mcp` or `mdq-mcp`) | Standard operation |
+| `/db` Command (Admin) | `/db rag urls` + `/db rag clean` → `rag-pipeline-mcp`; `/db rag stats` + maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Administrative tasks only |
+| Direct DB Access | Not recommended | Do NOT use in application code |
 
-**Design judgment**: MCPツールが推奨かつサポートされる経路である。`rag.sqlite` や `mdq.sqlite` に対する `sqlite3` の直接インポートは、通常のアプリケーションコードでは許可されない。
+**Design judgment:** MCP tools are the recommended and supported route. Direct imports of `sqlite3` for `rag.sqlite` or `mdq.sqlite` are prohibited in standard application code.
 
 ## Responsibility Boundary
 
-- **正典**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_document_manager.py`
-- **Schema**: `schema_sql.py` (権威)
+- **Canonical Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_document_manager.py`
+- **Schema**: `schema_sql.py` (authority)
 
 ## Key Constraints
 
-- エージェントのアプリケーションコード、他のMCPサービス、共有層コードが `rag.sqlite` に直接アクセスすることは禁止
-- `chunks_vec` は `documents` を指す外部キー制約を持たないため、削除順序は重要
+- Application code in the agent, other MCP services, or shared layer code is prohibited from accessing `rag.sqlite` directly.
+- Since `chunks_vec` does not have a foreign key constraint to `documents`, deletion order is critical.
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

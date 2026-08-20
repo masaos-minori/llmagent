@@ -13,34 +13,34 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-廃止されたスラッシュコマンドと、現在の後継コマンドのマッピングについて文書化する。
+Documents the mapping between deprecated slash commands and their current successors.
 
 ## Known Limitations
 
-### `/note`コマンド群（削除）
+### `/note` Command Group (Removed)
 
-`/note add <text>` / `/note list` / `/note delete <id>`は削除された。`cmd_notes.py`・`NoteRepository`・`auto_inject_notes`・`notes`テーブルが除去されている。長期記憶の代替は`/memory`コマンド群を参照。
+`/note add <text>` / `/note list` / `/note delete <id>` have been removed. `cmd_notes.py`, `NoteRepository`, `auto_inject_notes`, and the `notes` table have been removed. Refer to the `/memory` command group as an alternative for long-term memory.
 
-### `/ingest`コマンド（削除）
+### `/ingest` Command (Removed)
 
-`/ingest <url|path> [lang] [--snippets-only]`は削除された。`IngestWorkflowService`および関連DTO/例外が除去されている。ドキュメント投入はRAGパイプライン側(`rag/`配下)の仕組みを参照。
+`/ingest <url|path> [lang] [--snippets-only]` has been removed. `IngestWorkflowService` and associated DTOs/exceptions have been removed. For document ingestion, refer to the RAG pipeline mechanisms (`rag/`).
 
-### `/debug audit`サブコマンド（削除）
+### `/debug audit` Subcommand (Removed)
 
-`/debug audit`（audit.logの末尾表示）は削除された。監査ログの参照は`/audit`コマンドを使う。`/debug`は未知のサブコマンドを明示的に拒否する。
+`/debug audit` (displays end of audit.log) has been removed. Use the `/audit` command to reference audit logs. `/debug` explicitly rejects unknown subcommands.
 
-### `/db`コマンド（完全削除）
+### `/db` Command (Completely Removed)
 
-`/db`はいかなる形式でももはや認識されるコマンドではなく、未知のスラッシュコマンドとして扱われる。後方互換は提供されていない。
+`/db` is no longer recognized in any form and is treated as an unknown slash command. No backward compatibility is provided.
 
-| 廃止された形式 | 現在の状態 |
+| Deprecated Format | Current State |
 |---|---|
-| `/db urls [--lang] [--limit]` | 後継コマンドなし（RAGパイプライン側のMCPツールを直接利用） |
-| `/db clean <url>` | 後継コマンドなし |
+| `/db urls [--lang] [--limit]` | No successor (use MCP tools on the RAG pipeline side directly) |
+| `/db clean <url>` | No successor |
 | `/db rebuild-fts` | `/session rag-rebuild-fts` |
 | `/db recover [backup-path]` | `/session recover [backup-path]` |
 | `/db stats` | `/session stats` |

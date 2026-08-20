@@ -19,57 +19,58 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG インジェクションパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+# RAG Ingestion Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 8. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
 
-### 8.1 モジュール概要
+### 8.1 Module Overview
 
-`chunk_japanese.py` — `ChunkJapaneseMixin`: Sudachi SplitMode.Cを用いた、日本語テキストのための形態素解析ベースのチャンク化。NFKC正規化、句境界分割、重複を伴うバッファベースの蓄積を含む。多重継承により `ChunkSplitter` にミックスインされる。
+`chunk_japanese.py` — `ChunkJapaneseMixin`: Morphological analysis-based chunking for Japanese text using Sudachi SplitMode.C. Includes NFKC normalization, sentence boundary splitting, and buffer-based accumulation with overlap. Mixed into `ChunkSplitter` via multiple inheritance.
 
-**クラス: `ChunkJapaneseMixin`**
+**Class: `ChunkJapaneseMixin`**
 
 ---
 
 ## 9. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
 
-### 9.1 モジュール概要
+### 9.1 Module Overview
 
-`pipeline_utils.py` — RAGインジェクションパイプライン用の共有I/Oユーティリティ: 検証付きのチャンクJSON読み込み、ソースファイル収集、処理済みセンチネルのチェック。生のチャンク/クロールJSONペイロードフィールド用の `ChunkJsonRaw` dataclassを提供する。
+`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: reading chunk JSONs with validation, collecting source files, and checking processed sentinels. Provides the `ChunkJsonRaw` dataclass for raw chunk/crawl JSON payload fields.
 
-**モジュールレベルの定数**
+**Module-level Constants**
 
-| 定数 | 値 | 説明 |
+| Constant | Value | Description |
 |---|---|---|
-| `logger` | `Logger(__name__, "/opt/llm/logs/pipeline.log")` | パイプラインのロギングインスタンス |
+| `logger` | `Logger(__name__, "/opt/llm/logs/pipeline.log")` | Pipeline logging instance |
 
 **TypedDict**
 
-| TypedDict | 用途 |
+| TypedDict | Purpose |
 |---|---|
-| `ChunkJsonRaw` | 生のチャンクJSONペイロードフィールド；必須: `url`、`content`；任意: `title`、`lang`、`code_blocks`、`etag`、`last_modified`、`fetched_at`、`chunking_strategy`、`normalized_content`、`chunk_index`、`source_file`、`chunk_type`、`artifact_type`、`schema_version`、`created_by` |
+| `ChunkJsonRaw` | Raw chunk JSON payload fields; Required: `url`, `content`; Optional: `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`, `chunking_strategy`, `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `artifact_type`, `schema_version`, `created_by` |
 
-**公開関数**
+**Public Functions**
 
-| 関数 | シグネチャ | 説明 |
+| Function | Signature | Description |
 |---|---|---|
-| `read_json_file` | `(path: Path) -> ChunkDocument` | JSONファイルを読み込んでパースし、ChunkDocumentに変換する；失敗時はChunkFormatErrorを発生させる |
-| `collect_source_files` | `(rag_src_dir: Path, target: Path \| None = None) -> tuple[list[Path], list[SkipInfo]]` | (処理対象ファイル, スキップ情報) を返す；targetが指定され存在する場合は[target]を返す；targetが存在しない場合はSkipInfo付きの空リストを返す；それ以外の場合はrag_src_dirから*.jsonをglobする |
-| `is_already_processed` | `(sentinel_path: Path, force: bool) -> bool` | センチネルファイルが存在しforce=Falseの場合にTrueを返す（chunk_splitterに対するスキップ信号） |
+| `read_json_file` | `(path: Path) -> ChunkDocument` | Reads and parses a JSON file, converting it to a `ChunkDocument`; raises `ChunkFormatError` on failure |
+| `collect_source_files` | `(rag_src_dir: Path, target: Path \| None = None) $\rightarrow$ tuple[list[Path], list[SkipInfo]]` | Returns (target files, skip information); if `target` is specified and exists, returns `[target]`; if `target` does not exist, returns an empty list with `SkipInfo`; otherwise, globs `*.json` from `rag_src_dir` |
+| `is_already_processed` | `(sentinel_path: Path, force: bool) $\rightarrow$ bool` | Returns `True` if the sentinel file exists and `force=False` (skip signal for `chunk_splitter`) |
 
-**read_json_fileのフィールド対応**
+**Field Mapping for `read_json_file`**
 
-| JSONフィールド | ChunkDocumentフィールド | フォールバック |
+| JSON Field | ChunkDocument Field | Fallback |
 |---|---|---|
-| `url` | `url` | （必須、フォールバックなし） |
+| `url` | `url` | (Required, no fallback) |
 | `title` | `title` | `""` |
 | `lang` | `lang` | `"en"` |
-| `content` | `content` | （必須、フォールバックなし） |
+| `content` | `content` | (Required, no fallback) |
 | `code_blocks` | `code_blocks` | `[]` |
 | `etag` | `etag` | `None` |
 | `last_modified` | `last_modified` | `None` |
@@ -83,7 +84,7 @@ source:
 
 ## 10. Shared Utilities (`scripts/rag/utils.py`)
 
-詳細は → [03_rag_02_09_ingestion_pipeline-shared-utilities.md](03_rag_02_09_ingestion_pipeline-shared-utilities.md)
+Details $\rightarrow$ [03_rag_02_09_ingestion_pipeline-shared-utilities.md](03_rag_02_09_ingestion_pipeline-shared-utilities.md)
 
 ```python
 from rag.utils import (
@@ -96,9 +97,9 @@ from rag.utils import (
 )
 ```
 
-**利用元:**
+**Used by:**
 
-| スクリプト | 使用される関数 |
+| Script | Functions Used |
 |---|---|
 | `scripts/rag/ingestion/chunk_japanese.py` | `normalize_unicode` |
 | `scripts/rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
@@ -109,30 +110,27 @@ from rag.utils import (
 
 ---
 
-## 11. FTS5実装に関する注記
+## 11. Note on FTS5 Implementation
 
-### FTS5 / LLMコンテンツの分離
+### FTS5 / LLM Content Separation
 
-日本語チャンクは2つのバージョンを格納する。
-- `chunks.content` — 元のテキスト（LLMへコンテキストとして渡される）
-- `chunks.normalized_content` — Sudachiの `normalized_form()` をスペース結合したもの（FTS5インデックス用）
+Japanese chunks store two versions:
+- `chunks.content` — Original text (passed as context to the LLM)
+- `chunks.normalized_content` — Space-joined result of Sudachi's `normalized_form()` (for FTS5 indexing)
 
-`chunks_ai` / `chunks_au` / `chunks_ad` トリガーは `COALESCE(normalized_content, content)` を
-`chunks_fts` に書き込む。英語とコードのチャンクは `normalized_content = NULL` であるため、FTS5は `content` を直接使用する。
+`chunks_ai` / `chunks_au` / `chunks_ad` triggers write `COALESCE(normalized_content, content)` to `chunks_fts`. Since English and code chunks have `normalized_content = NULL`, FTS5 uses `content` directly.
 
-### FTS5クエリのトークン化
+### Tokenization of FTS5 Queries
 
-日本語クエリはSudachiトークナイザを使い、名詞・動詞・形容詞のみ（助詞・助動詞は除外）の `normalized_form()` を抽出する。
-英語クエリは正規表現 `[a-zA-Z0-9]+` によるトークン化を使用する。Sudachiトークナイザは遅延初期化され、importの時点では副作用がない。
+Japanese queries use the Sudachi tokenizer to extract only nouns, verbs, and adjectives (excluding particles and auxiliary verbs) using `normalized_form()`.
+English queries use regex tokenization `[a-zA-Z0-9]+`. The Sudachi tokenizer is lazily initialized and has no side effects at import time.
 
-### FTS5クエリのトークン数上限
+### FTS5 Query Token Limit
 
-FTS5クエリ内のトークン数の上限: 20（`repository.py`の`_MAX_FTS_TOKENS`定数）。
-上限を超えるトークンはクエリの爆発を防ぐため黙って切り捨てられる。各トークンからは二重引用符（FTS5のメタ文字）
-と空白が除去され、空になったトークンは破棄される。有効なトークンが1つも残らない場合は
-`'""'`（空のFTS5クエリ）を返す。
+Token limit for FTS5 queries: 20 (defined by `_MAX_FTS_TOKENS` in `repository.py`).
+Tokens exceeding this limit are silently truncated to prevent query explosion. Double quotes (FTS5 metacharacters) and whitespace are removed from each token, and empty tokens are discarded. If no valid tokens remain, `'""'` (an empty FTS5 query) is returned.
 
-**【要確認 / Needs Confirmation】**: この値（`20`）には、現時点で測定や負荷テストに基づく具体的な根拠がプロジェクト内に記録されていません。暫定的な経験則としての設定であるため、パフォーマンスチューニングの際には再検証が必要です。
+**[Needs Confirmation]:** There is currently no documented rationale within the project for this specific value (20) based on measurement or load testing. As it appears to be a heuristic setting, it should be re-validated during performance tuning.
 
 ---
 

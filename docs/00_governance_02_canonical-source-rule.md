@@ -72,19 +72,19 @@ Cross-cutting documentation rules and policies:
 - [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
 - [Terminology Glossary](00_governance_09_terminology-glossary.md)
 
-## 領域別の正典入口
+## Canonical Entry Points by Area
 
-| 領域 | 正典 |
+| Area | Canonical Source |
 |---|---|
-| エージェント | `scripts/agent/` |
-| MCP サーバー | `mcp_servers/` |
+| Agent | `scripts/agent/` |
+| MCP Server | `mcp_servers/` |
 | DB | `db/` |
 | RAG | `rag/` |
-| シェアード | `scripts/shared/` |
-| テスト | `tests/` |
-| ルール | `rules/` |
-| ドキュメント | `docs/` |
+| Shared | `scripts/shared/` |
+| Tests | `tests/` |
+| Rules | `rules/` |
+| Documentation | `docs/` |
 | ADR | `adr/` |
-| 設定 | `config/` |
-| スクリプト | `scripts/` |
-| デプロイ | `deploy/` |
+| Config | `config/` |
+| Scripts | `scripts/` |
+| Deploy | `deploy/` |

@@ -21,37 +21,34 @@ source:
 
 ## 1. Purpose
 
-本ドキュメントは、`shared/` および `db/` レイヤーの全体像を提供する。
-目的、スコープ、依存関係、インポート制約、および永続データの全体像を扱う。
+This document provides an overview of the `shared/` and `db/` layers. It covers purpose, scope, dependencies, import constraints, and the overall architecture of persistent data.
 
-**要点:**
-- `shared/` は横断的なインフラを提供する：設定ロード、ロギング、型、ツールルーティング、OTel、DTO
-- `db/` は永続ストレージを提供する：SQLite接続管理、スキーマ作成、ストアプロトコル、メンテナンス
-- 両者はいずれも最下層の依存関係であり、他のすべてのレイヤー（`agent/`、`mcp_servers/`、`rag/`）から利用される
+**Key Points:**
+- `shared/` provides cross-cutting infrastructure: configuration loading, logging, types, tool routing, OTel, and DTOs.
+- `db/` provides persistent storage: SQLite connection management, schema creation, store protocols, and maintenance.
+- Both are low-level dependencies used by all other layers (`agent/`, `mcp_servers/`, `rag/`).
 
 ---
 
 ## 2. Scope
 
-**対象範囲:**
-- shared provides configuration types, DTOs, logging infrastructure, caching, client abstractions
-- db provides schema management, migration, store protocols, backend implementations, recovery
-- DB files: rag.sqlite, session.sqlite, workflow.sqlite
+**In Scope:**
+- `shared` provides configuration types, DTOs, logging infrastructure, caching, and client abstractions.
+- `db` provides schema management, migration, store protocols, backend implementations, and recovery.
+- DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`
 
-**対象外:**
-- MCPサーバー実装（`mcp_servers/`）
-- RAGパイプラインのロジック（`rag/`）
-- エージェントREPL（`agent/`）
-- LLMおよび埋め込みサーバー（外部プロセス）
+**Out of Scope:**
+- MCP server implementations (`mcp_servers/`)
+- RAG pipeline logic (`rag/`)
+- Agent REPL (`agent/`)
+- LLM and embedding servers (external processes)
 
 ---
 
 ## 3. Out of Scope
 
-- 分散または複製SQLite構成
-- 外部ベクトルデータベース（プロセス内のsqlite-vecのみ対応）
-- LLM通信プロトコルの詳細（`05_agent_05_llm-and-streaming.md` で扱う）
+- Distributed or replicated SQLite configurations
+- External vector databases (only in-process `sqlite-vec` is supported)
+- Detailed LLM communication protocols (handled in [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md))
 
 ---
-
-

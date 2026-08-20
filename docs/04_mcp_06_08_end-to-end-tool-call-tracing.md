@@ -1,55 +1,42 @@
----
-title: "End-to-End Tool Call Tracing"
-category: mcp
-tags:
-  - mcp
-  - configuration
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
-source:
-  - 04_mcp_06_02_configuration-file-inventory.md
----
-
 # End-to-End Tool Call Tracing
 
-失敗したtool callをagent、transport、サーバのログを通じて追跡する手順:
+To trace a failed tool call through agent, transport, and server logs, follow these steps:
 
-1. agent側のaudit logで `mcp_request_id` を見つける:
+1. Find the `mcp_request_id` in the agent-side audit log:
     ```bash
     jq 'select(.mcp_request_id == "<id>")' /opt/llm/logs/audit.log
     ```
-2. MCPサーバのaudit logで同じ `request_id` フィールドを検索する（JSON-lines形式）:
+2. Search for the same `request_id` field in the MCP server's audit log (JSON-lines format):
     ```bash
     jq 'select(.request_id == "<id>")' /opt/llm/logs/audit.log
     ```
-3. サーバ別ログで `X-Request-Id` レスポンスヘッダを検索する:
+3. Search for the `X-Request-Id` response header in the specific server logs:
     ```bash
     grep "<id>" /opt/llm/logs/github-mcp.log  # or relevant server log
     ```
-4. `/opt/llm/logs/agent.log` で、その時刻の `server_key` のヘルス状態を確認する。
-5. ヘルス状態が変化していた場合: `/mcp status` で現在の DEGRADED/UNAVAILABLE 状態と `health_reason` を確認する。自動的な再起動は行われない(subprocessモードのサーバーは次回のtool dispatch時に`ensure_ready()`が再起動を試みるのみ)。
+4. Check the health status of the `server_key` at that time in `/opt/llm/logs/agent.log`.
+5. If the health status has changed: check the current DEGRADED/UNAVAILABLE state and `health_reason` via `/mcp status`. Note that automatic restarts are not performed (for subprocess-mode servers, `ensure_ready()` will only attempt a restart during the next tool dispatch).
 
 ---
 
-## Audit Log内のエラー種別の区別（Agent側）
+## Error Type Distinction in Audit Logs (Agent Side)
 
-**クロスレイヤー相関について:** per-server audit logs（github_audit.log, shell_audit.log, delete_audit.log）は X-Session-Id や X-Request-Id のような相関フィールドを持たない。これらのログ間の相関はエージェント側の audit ログを基準として使用する必要がある。
+**Regarding cross-layer correlation:** Per-server audit logs (`github_audit.log`, `shell_audit.log`, `delete_audit.log`) do not contain correlation fields like `X-Session-Id` or `X-Request-Id`. Correlation between these logs must be established using the agent-side audit log as the reference.
 
-agent側のaudit eventには `error_type` フィールドが含まれる:
+The agent-side audit event includes an `error_type` field:
 
-| error_type | 意味 | 発生原因の例 |
+| error_type | Meaning | Example Cause |
 |---|---|---|
-| `transport` | MCPサーバに到達不能（ネットワーク障害、タイムアウト、クラッシュ） | サーバプロセスの停止、ポートがリスニングしていない、HTTP 5xx |
-| `tool` | MCPサーバには到達可能だがtoolがis_error=trueを返した | tool検証失敗、database制約違反 |
-| _(空)_ | 実行成功 | — |
+| `transport` | Unable to reach MCP server (network failure, timeout, crash) | Server process stopped, port not listening, HTTP 5xx |
+| `tool` | Reachable, but tool returned `is_error=true` | Tool validation failed, database constraint violation |
+| _(empty)_ | Execution successful | — |
 
-audit logの行の例:
+Example audit log line:
 ```json
 {"event":"tool_exec","tool":"shell_run","is_error":true,"error_type":"transport",...}
 ```
 
-エラー種別でフィルタする:
+Filter by error type:
 ```bash
 # Transport failures (server issues)
 grep '"error_type":"transport"' /opt/llm/logs/audit.log
@@ -58,9 +45,9 @@ grep '"error_type":"transport"' /opt/llm/logs/audit.log
 grep '"error_type":"tool"' /opt/llm/logs/audit.log
 ```
 
-## サーバごとのエラーカウンタ
+## Per-Server Error Counters
 
-`ToolExecutor` はサーバごとのエラーカウンタを保持し、`ToolExecutor.get_error_counters()` から参照できる:
+`ToolExecutor` maintains per-server error counters, which can be inspected via `ToolExecutor.get_error_counters()`:
 
 ```python
 {
@@ -69,45 +56,46 @@ grep '"error_type":"tool"' /opt/llm/logs/audit.log
 }
 ```
 
-これらのカウンタはメモリ上のみに保持され（永続化されない）、agent再起動時にリセットされる。
+These counters are kept in memory only (not persisted) and are reset upon agent restart.
 
-## 繰り返し失敗の検出
+## Detecting Repeated Failures
 
-toolが5分間のスライディングウィンドウ内で3回以上失敗すると、警告がログに出力される:
+If a tool fails 3 or more times within a 5-minute sliding window, a warning is logged:
 
 ``` text
 WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s window
 ```
 
-> **注記:** `McpServerHealthRegistry`（`shared/mcp_health.py`）はtransportの可用性のみを追跡する。tool層のエラー（`error_type=tool`）はHealthRegistryの状態に影響しない — サーバのヘルス状態に影響するのはtransport障害（`error_type=transport`）のみである。
+> **Note:** `McpServerHealthRegistry` (`shared/mcp_health.py`) only tracks transport availability. Tool-layer errors (`error_type=tool`) do not affect the HealthRegistry state — only transport failures (`error_type=transport`) affect the server's health state.
 
 ---
 
-## 副作用の直列化
+## Serialization of Side Effects
 
-ラウンドに副作用を持つtool（書き込み操作）が含まれる場合、スケジューラはそれらをグループ化して並行的な変更を防ぐ。これは安全性のために意図された挙動であるが、並列度は低下する。
+When a round contains tools with side effects (write operations), the scheduler groups them together to prevent concurrent modifications. This is intentional behavior for safety, though it reduces concurrency.
 
-**直列化のトリガー:**
+**Serialization Triggers:**
 
-| トリガー | 条件 | 効果 |
+| Trigger | Condition | Effect |
 |---|---|---|
-| `requires_serial` | toolのメタデータに `requires_serial=true` が設定されている | そのtoolは単独で1要素だけのグループとして実行される |
-| `resource_scope_conflict` | 複数のtool呼び出しの`resource_scopes`が重複する（完全一致、またはファイルシステムスコープの祖先/子孫関係）書き込み | 重複するスコープを持つすべてのtool呼び出しが直列実行される |
-| `is_write_overlap` | 特定のスコープを持たない複数の書き込み | 書き込み系toolがすべてまとめてグループ化される（write-first） |
+| `requires_serial` | `requires_serial=true` is set in tool metadata | The tool is executed alone as a single-element group |
+| `resource_scope_conflict` | Multiple tool calls have overlapping `resource_scopes` (exact match, or filesystem scope ancestor/descendant relationship) | All tool calls with overlapping scopes are executed serially |
+| `is_write_overlap` | Multiple writes without a specific scope | All write-type tools are grouped together (write-first) |
 
-**ログ形式:**
+**Log Format:**
 ``` yaml
 ROUND_SERIALIZATION: triggered by shell_run (requires_serial) — 1 tools serialized in this round
 Serialization impact: 3 tools grouped serially (normally would run in parallel)
 ```
 
-**統計の確認方法:**
-`/mcp` を実行すると、MCPステータス出力の末尾に直列化に関する統計が表示される。
+**How to check statistics:**
+Running `/mcp` displays serialization statistics at the end of the MCP status output.
 
-**この情報が重要な理由:**
-直列化は並列度を下げるが、共有リソース上での競合状態を防ぐ。並列度の最適化を試みる前に、直列化ログを確認し、どのtoolとスコープが最も頻繁にグループ化を引き起こしているかを把握すること。
+**Why this information is important:**
+While serialization reduces concurrency, it prevents race conditions on shared resources. Before attempting to optimize concurrency, check the serialization logs to identify which tools and scopes are most frequently causing grouping.
 
 ---
+
 
 
 ## Related Documents

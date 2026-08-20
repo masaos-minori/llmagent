@@ -17,65 +17,65 @@ source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
-# エージェントの運用と可観測性
+# Agent Operations and Observability
 
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## 目的
+## Purpose
 
-ワークフロー実行中の可観測性（スパン、ステータス、状態遷移）を文書化する。
+Documents observability (spans, status, state transitions) during workflow execution.
 
-## 設計意図
+## Design Intent
 
-ワークフローの可観測性は3層に分かれる:
+Workflow observability is divided into three layers:
 
-1. **OTelスパン** — 各ワークフローステージの実行時間、エラー、メタデータを記録する。スパン名は `workflow.{stage}` パターンに従う。
-2. **監査ログ** — `turn_start`/`turn_end` とワークフロー固有イベント（`workflow_start`, `stage_completed`, `approval_requested`）を JSON-lines で出力する。
-3. **セッション診断情報** — `session_diagnostics` テーブルにワークフローの完了ステータス、リトライ回数、最終エラーを記録する。
+1. **OTel Spans** — Records execution time, errors, and metadata for each workflow stage. Span names follow the `workflow.{stage}` pattern.
+2. **Audit Logs** — Outputs `turn_start`/`turn_end` and workflow-specific events (`workflow_start`, `stage_completed`, `approval_requested`) in JSON-lines format.
+3. **Session Diagnostics** — Records workflow completion status, retry counts, and final errors in the `session_diagnostics` table.
 
-この3層により、リアルタイムな実行監視、事後の障害調査、長期の運用指標の3つのユースケースに対応する。
+These three layers support three use cases: real-time execution monitoring, post-mortem failure investigation, and long-term operational metrics.
 
-## 責務境界
+## Responsibility Boundary
 
-- **対象**: ワークフロー実行中の観測データ生成と出力
-- **対象外**: ワークフローエンジン自体の実行ロジック、事後実行承認の決定ロジック
-- **所有者**: `agent/workflow.py` (`WorkflowEngine`)、`agent/tool_audit.py`（監査ライター）
+- **Scope**: Generation and output of observational data during workflow execution.
+- **Out of Scope**: Execution logic of the workflow engine itself, decision logic for post-execution approvals.
+- **Owners**: `agent/workflow.py` (`WorkflowEngine`), `agent/tool_audit.py` (Audit Writer).
 
-## 主要な制約
+## Key Constraints
 
-- ワークフローモード時のみ追加の可観測性イベントが発生する。通常モードでは `turn_start`/`turn_end` のみ。
-- ワークフローコンテキスト外で `tool_approval` / `tool_exec` の書き込み関数を呼び出すと assertion error になる。
-- セッション診断情報は `session_diagnostics` テーブルに保存され、メッセージテーブルとは分離されている。
+- Additional observability events occur only when in workflow mode. In normal mode, only `turn_start`/`turn_end` are generated.
+- Calling writing functions for `tool_approval` / `tool_exec` outside of a workflow context results in an assertion error.
+- Session diagnostics are stored in the `session_diagnostics` table and are separate from the messages table.
 
-## 運用上の注意
+## Operational Notes
 
-### ワークフロースパンの読み方
+### Reading Workflow Spans
 
-期待されるスパン名:
-- `workflow.run` — ワークフロー全体の実行
-- `workflow.stage` — 個別ステージの実行
-- `workflow.approval` — 事後実行承認通過
-- `workflow.retry` — リトライ待機
+Expected span names:
+- `workflow.run` — Entire workflow execution
+- `workflow.stage` — Individual stage execution
+- `workflow.approval` — Post-execution approval passed
+- `workflow.retry` — Waiting for retry
 
-### 障害時の確認手順
+### Troubleshooting Failure
 
-1. `audit.log` で `workflow_start`/`stage_completed` イベントを確認し、どのステージで失敗したか特定する。
-2. `session_diagnostics` でワークフローの完了ステータスと最終エラーを確認する。
-3. OTelスパンで詳細な実行時間とメタデータを参照する。
+1. Check `audit.log` for `workflow_start`/`stage_completed` events to identify which stage failed.
+2. Check `session_diagnostics` for the workflow completion status and final error.
+3. Refer to OTel spans for detailed execution time and metadata.
 
-### 正常時の確認
+### Verifying Normal Operation
 
-- `workflow_start` が `turn_start` の後に発生していることを確認する。
-- `stage_completed` が各ステージ終了時に発生していることを確認する。
-- `approval_requested` が承認が必要なステップで発生していることを確認する。
+- Verify that `workflow_start` occurs after `turn_start`.
+- Verify that `stage_completed` occurs at the end of each stage.
+- Verify that `approval_requested` occurs at steps requiring approval.
 
-## 既知の制限 / 未解決事項
+## Known Limitations / Unresolved Issues
 
-- ワークフローモード時のみ追加の可観測性イベントが発生するため、通常モードとの区別が必要。
-- 監査ログとセッション診断情報の両方にワークフロー情報が重複して記録される可能性がある。
+- Since additional observability events occur only in workflow mode, differentiation from normal mode is required.
+- Workflow information might be redundantly recorded in both audit logs and session diagnostics.
 
-## 関連資料
+## Related Docs
 
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) — session_diagnostics の役割
+- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
+- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
+- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`

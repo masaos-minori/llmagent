@@ -33,9 +33,9 @@ Five areas' Known Issues documents to investigate:
 
 - Entry count: 2 entries (both DESIGN-2 and DESIGN-3 are confirmed design decisions)
 - Severity classification: None
-- Type classification: Uses "確定済みの設計判断" (confirmed design decision) type
+- Type classification: Uses "Confirmed Design Decision" type
 - Status classification: None
-- Unique conventions: Japanese section headers; uses "Invariants (non-negotiable)" sub-section; includes "2026-07-12実装確認" verification notes
+- Unique conventions: Japanese section headers; uses "Invariants (non-negotiable)" sub-section; includes "2026-07-12 Implementation Verification" notes
 
 ### MCP (`04_mcp_90`)
 
@@ -59,15 +59,15 @@ Five areas' Known Issues documents to investigate:
 - Severity classification: None
 - Type classification: None — uses section-based grouping instead
 - Status classification: None
-- Unique conventions: Table-based format with "項目/安全な解釈/推奨される対応" columns; sectioned by "対応が必要な項目", "ドキュメントのみで対応する項目", "保留中の項目", "スキーマと実装の差異"
+- Unique conventions: Table-based format with "Item / Safe Interpretation / Recommended Action" columns; sectioned by "Items requiring action", "Documents only", "Pending items", "Schema/implementation diffs"
 
 ### Shared/DB (`90_shared_90`)
 
 - Entry count: 1 entry
 - Severity classification: None
-- Type classification: Uses Japanese types ("ドキュメント不整合", "実装上の不具合", "未文書化", "未実装", "未定義", "確認が必要")
+- Type classification: Uses Japanese types ("Document Inconsistency", "Implementation Bug", "Undocumented", "Unimplemented", "Undefined", "Needs Confirmation")
 - Status classification: None
-- Unique conventions: Includes "裏付け" (evidence) field referencing specific test files; detailed technical descriptions
+- Unique conventions: Includes "Evidence" field referencing specific test files; detailed technical descriptions
 
 ## Migration Policy
 

@@ -1,61 +1,42 @@
----
-title: "Shared Runtime and Execution - Tool Runtime"
-category: shared
-tags:
-  - shared
-  - runtime
-  - token-counter
-  - otel-tracer
-  - git-helper
-  - tool-executor
-related:
-  - 90_shared_00_document-guide.md
-  - 90_shared_03_01_runtime_and_execution-config-and-logging.md
-  - 90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
-  - 90_shared_03_04_runtime_and_execution-caching-and-reference.md
-source:
-  - 90_shared_03_01_runtime_and_execution-config-and-logging.md
----
-
 # Shared Runtime and Execution Infrastructure
 
 - Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 
 ## 4. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
 
-ToolExecutor は ToolTransportInvoker を継承し、http client/cache_ttl/server_configs/オプションパラメータを受け取るコンストラクタを持つ。apply_config() はホットリロード可能。execute() はキャッシュ参照→同時実行保護→ヘルスチェックゲート→transport解決→per-server semaphore実行→成功結果のみキャッシュの順序で実行。clear_cache()/get_error_counters() は状態管理。キャッシュは失敗結果を保存しない。
+`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `cache_ttl`, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: cache lookup $\rightarrow$ concurrency protection $\rightarrow$ health check gate $\rightarrow$ transport resolution $\rightarrow$ per-server semaphore execution $\rightarrow$ caching successful results. `clear_cache()` and `get_error_counters()` manage state. Failures are not cached.
 
-補助関数: `is_side_effect()` は WRITE_TOOLS/DELETE_TOOLS/shell_run/GIT_WRITE_TOOLS/GITHUB_WRITE_TOOLS/GITHUB_DANGEROUS_TOOLS に属するツールを判定する（本モジュール内では TTL キャッシュのバイパス判定にのみ用いる）。ツール呼び出しバッチの並列/直列判定は唯一の実行パスである `agent/tool_runner.py::_execute_with_dag()` が `agent/tool_scheduler.py::build_execution_groups()` に委譲して行い、こちらは `RuntimeToolRegistry` 登録済みの `is_write`（`PreparedToolCall.spec`経由）を参照する（`is_side_effect()`とは無関係な別経路 — [90_shared_03_03](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)参照）。`format_transport_error()` は TransportErrorInfo を生成。`tool_hash_key()` は MD5 ハッシュを返すがキャッシュキーには使われず失敗追跡用途専用。
+Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`/`DELETE_TOOLS`/`shell_run`/`GIT_WRITE_TOOLS`/`GITHUB_WRITE_TOOLS`/`GITHUB_DANGEROUS_TOOLS` (used solely within this module for determining TTL cache bypass). Parallel/serial determination for tool call batches is delegated by `agent/tool_runner.py::_execute_with_dag()` to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (via `PreparedToolCall.spec`) — this is a separate path from `is_side_effect()` (see [90_shared_03_03](90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `format_transport_error()` generates `TransportErrorInfo`. `tool_hash_key()` returns an MD5 hash used for failure tracking rather than as a cache key.
 
 ---
 
-## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (ツール所有権とルーティング)
+## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (Tool Ownership and Routing)
 
-**責務分離 (Explicit in code — module docstring):**
-- `shared/runtime_tool_registry.py`: **ルーティング権威**（唯一の解決元）。McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築され、`ToolExecutor.set_runtime_registry()` で接続される
-- `shared/tool_registry.py`: **ドリフト検出用の入力**（ルーティングには使われない）。`tool_constants.py` の frozenset群がインポート時にこのレジストリへ登録される
-- `shared/route_resolver.py`: `ToolRouteResolver` — ツール名→server_key解決。**RuntimeToolRegistry のみを参照して解決する。未解決のツール名は即座に `ValueError`**
-- `shared/tool_routing_validation.py`: config / live `/v1/tools` 応答とレジストリの整合性検証 (ドリフト検出専用。ルーティングには使わない)
+**Separation of Concerns (Explicit in code — module docstring):**
+- `shared/runtime_tool_registry.py`: **Routing Authority** (the sole source of truth). Constructed via `McpToolDiscoveryService` through live `/v1/tools` discovery and connected via `ToolExecutor.set_runtime_registry()`.
+- `shared/tool_registry.py`: **Input for Drift Detection** (not used for routing). Populated at import time by `frozenset` groups from `tool_constants.py`.
+- `shared/route_resolver.py`: `ToolRouteResolver` — resolves `tool_name` $\rightarrow$ `server_key`. **Refers exclusively to `RuntimeToolRegistry` for resolution; unknown tool names result in an immediate `ValueError`.**
+- `shared/tool_routing_validation.py`: Validates consistency between configuration, live `/v1/tools` responses, and the registry (dedicated to drift detection; not used for runtime routing).
 
 ### `ToolRegistry` (`shared/tool_registry.py`)
 
-ToolRegistry は ToolDefinition オブジェクトを登録し、ツール名の所有サーバー解決、サーバー別/全ツール名の取得、config/live ツール名の整合性検証を行う。get_registry() はグローバルシングルトンを返し、初回呼び出し時に tool_constants から自動登録される。
+`ToolRegistry` registers `ToolDefinition` objects and handles server resolution for tool names, retrieving all tools by server, and validating consistency between config and live tool lists. `get_registry()` returns a global singleton that auto-registers tools from `tool_constants` upon first call.
 
-ToolDefinition.description / input_schema は**予約フィールドで現状未使用**。LLM向けツールスキーマは各サーバーの `tools.py` の TOOL_LIST が正本。デフォルト登録は tool_constants.py の READ_TOOLS/WRITE_TOOLS/DELETE_TOOLS/RAG_TOOLS/CICD_TOOLS/MDQ_TOOLS/GIT_TOOLS/SHELL_TOOLS/GITHUB_TOOLS/WEB_SEARCH_TOOLS を対応するserver_keyに登録する。
+`ToolDefinition.description` and `input_schema` are currently reserved fields and are unused. The authoritative tool schema for LLMs is the `TOOL_LIST` defined in each server's `tools.py`. Default registration maps `READ_TOOLS`/`WRITE_TOOLS`/`DELETE_TOOLS`/`RAG_TOOLS`/`CICD_TOOLS`/`MDQ_TOOLS`/`GIT_TOOLS`/`SHELL_TOOLS`/`GITHUB_TOOLS`/`WEB_SEARCH_TOOLS` from `tool_constants.py` to their corresponding `server_key`.
 
 ### `ToolRouteResolver` (`shared/route_resolver.py`)
 
-Resolves tool_name → server_key using RuntimeToolRegistry as sole authority; raises ValueError for unresolved names. server_configs accepted for backward compatibility but unused; discovery_map diagnostic-only; known_tools not passed in production.
+Resolves `tool_name` $\rightarrow$ `server_key` using `RuntimeToolRegistry` as sole authority; raises `ValueError` for unresolved names. `server_configs` is accepted for backward compatibility but remains unused; `discovery_map` is diagnostic-only; `known_tools` is not passed in production.
 
 **Current behavior:**
-- `server_configs` is constructor parameter only for backward compatibility — never read or stored
-- `runtime_registry` takes priority in resolve() when set
-- `discovery_map` is a diagnostic-only feature not called from anywhere in production
-- No production calls pass `known_tools`; startup coverage logging is effectively dead code
+- `server_configs` is a constructor parameter only for backward compatibility — it is never read or stored.
+- `runtime_registry` takes priority in `resolve()` when set.
+- `discovery_map` is a diagnostic-only feature not called from anywhere in production.
+- No production calls pass `known_tools`; startup coverage logging is effectively dead code.
 
 ### Validation functions (`shared/tool_routing_validation.py`)
 
-validate_routing_against_config/live/all return empty dict meaning no drift. check_tool_safety_tiers/check_unknown_tool_safety_tiers short-circuit when tool_safety_tiers is empty/unset (opt-in feature).
+`validate_routing_against_config`/`live`/`all` return an empty dictionary if no drift is detected. `check_tool_safety_tiers`/`check_unknown_tool_safety_tiers` short-circuit when `tool_safety_tiers` is empty or unset (an opt-in feature).
 
 ## 4b. `LifecycleProtocol` (`shared/tool_lifecycle.py`)
 
@@ -64,32 +45,30 @@ validate_routing_against_config/live/all return empty dict meaning no drift. che
 class LifecycleProtocol(Protocol):
     async def ensure_ready(self, server_key: str) -> None
 ```
-- `ToolExecutor` に注入されるライフサイクル管理者の最小プロトコル。実装は `MCPServer` 側のライフサイクルマネージャ (詳細は MCP系ドキュメント参照)
+- The minimum protocol for lifecycle managers injected into `ToolExecutor`. Implementations reside in the MCP side (see MCP documentation for details).
 
 ---
 
 ## 5. `token_counter` (`shared/token_counter.py`)
 
-POST {tokenize_url}/tokenize for exact count (is_exact=True); falls back to category-based character-to-token estimation (text: 4.0, tool_calls: 2.5, system: 3.5) returning estimated count (is_exact=False). Connection errors silently fall back.
+Calls `POST {tokenize_url}/tokenize` for exact counts (`is_exact=True`); otherwise, it falls back to category-based character-to-token estimation (text: 4.0, tool_calls: 2.5, system: 3.5), returning an estimated count (`is_exact=False`). Connection errors fail silently to the fallback.
 
-カテゴリ別推定は旧来の chars // 4 ヒューリスティックを置き換え、多言語テキストと構造化ツールペイロードでの精度を高めたもの。トークン推定は (total_tokens, breakdown: dict[str, int]) をカテゴリ別カウント付きで返す。
+Category-based estimation replaces the legacy `chars // 4` heuristic, improving accuracy for multilingual text and structured tool payloads. Token estimation returns `(total_tokens, breakdown: dict[str, int])` including category-specific counts.
 
 ---
 
 ## 6. `otel_tracer` (`shared/otel_tracer.py`)
 
-build_tracer returns NoOp stub when enabled=False; ConsoleSpanExporter when otlp_endpoint empty; OTLP HTTP exporter when endpoint set. Uses private TracerProvider — does not touch global OTel provider.
+`build_tracer` returns a `NoOp` stub when `enabled=False`; a `ConsoleSpanExporter` when `otlp_endpoint` is empty; or an `OTLP HTTP` exporter when an endpoint is set. It uses a private `TracerProvider` and does not affect the global OTel provider.
 
 ---
 
 ## 7. `git_helper` (`shared/git_helper.py`)
 
-get_repo_info returns RepoInfoResult(success, data dict with branch/commit(8-char)/message/author, failure_reason). Returns None on any error. ImportError caught separately; GitPython/GitError/OSError/AttributeError=ValueError individually caught.
+`get_repo_info` returns `RepoInfoResult(success, data dict with branch/commit(8-char)/message/author, failure_reason)`. Returns `None` on any error. `ImportError` is caught separately; `GitPython`/`GitError`/`OSError`/`AttributeError` are caught individually and raised as `ValueError`.
 
 ---
 
 ## 8. `formatters` (`shared/formatters.py`)
 
-truncate(text, max_chars) truncates text; fmt_kvlog(op, **kwargs) formats key=value log string; fmt_size(size) formats human-readable size; fmt_md_link(text, url) formats markdown link; MAX_SNIPPET_CHARS constant for snippet display limit.
-
----
+`truncate(text, max_chars)` truncates text; `fmt_kvlog(op, **kwargs)` formats key=value log strings; `fmt_size(size)` formats human-readable sizes; `fmt_md_link(text, url)` formats Markdown links; `MAX_SNIPPET_CHARS` is a constant for snippet display limits.

@@ -21,13 +21,13 @@ source:
 
 ## scripts/eventbus/broker.py
 
-`_Subscriber`: キューとトピックリストを保持する内部データ構造。`EventBroker`: トピック対応ファンアウトインメモリpub/subブローカー。
+`_Subscriber`: Internal data structure holding the queue and topic list. `EventBroker`: In-memory pub/sub broker with topic-based fanout.
 
-メソッド: `subscribe(topics→_Subscriber)`, `unsubscribe(sub→None)`, `publish(event→int)`, `shutdown()`, `subscriber_count()→int`, `max_queue_depth()→int`, `slow_consumer_count()→int`。
+Methods: `subscribe(topics→_Subscriber)`, `unsubscribe(sub→None)`, `publish(event→int)`, `shutdown()`, `subscriber_count()→int`, `max_queue_depth()→int`, `slow_consumer_count()→int`.
 
 ## scripts/eventbus/offsets.py
 
-`read_offset(offsets_dir, consumer_id)→int`: 保存オフセット読み込み（未発見時は0）。`write_offset(offsets_dir, consumer_id, seq)→None`: seq が現在のコミット済みオフセットより大きい場合のみファイル書き込み。seq <= current の場合は警告ログを出力してスキップ（単調性保証）。
+`read_offset(offsets_dir, consumer_id)→int`: Reads saved offset (returns 0 if not found). `write_offset(offsets_dir, consumer_id, seq)→None`: Only writes to file if `seq` is greater than the current committed offset. Skips and logs a warning if `seq <= current` (ensures monotonicity).
 
 ## Related Documents
 

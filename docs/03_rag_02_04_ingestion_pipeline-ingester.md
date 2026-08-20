@@ -1,4 +1,4 @@
-
+---
 title: "RagIngester Detail (Part 1)"
 category: rag
 tags:
@@ -17,58 +17,56 @@ related:
   - 03_rag_02_05_ingestion_pipeline-document-manager.md
   - 03_rag_02_06_ingestion_pipeline-supporting-components.md
   - 03_rag_05_1-configuration-reference.md
+  - 03_rag_02_04_ingestion_pipeline-ingester.md
 source:
   - 03_rag_02_04_ingestion_pipeline-ingester.md
+---
 
 
-# RAG インジェクションパイプライン
+# RAG Ingestion Pipeline
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-### 4.1 クラス概要
+### 4.1 Class Overview
 
-`RagIngester` — チャンクファイルを読み込み、`embed-llm`（ポート8081）経由で埋め込みを生成し、
-SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済みチャンクは
-`rag-src/registered/` へ移動する。
+`RagIngester` reads chunk files, generates embeddings via `embed-llm` (port 8081), and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
 
-データクラスと公開メソッドの完全な一覧は `scripts/rag/ingestion/ingester.py` を参照。
+For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
-### 4.2 動作の詳細
+### 4.2 Detailed Behavior
 
-- **E5プレフィックス:** 埋め込み前に `passage: {text}` を先頭に付加する（クエリ時は `query: `） 
-- **ベクトルエンコーディング:** `struct.pack(f"<{N}f", *values)` → リトルエンディアンのfloat32 BLOB
-- **並列埋め込み:** URLグループごとに `ThreadPoolExecutor(embed_workers)` を使用する。
-  各スレッドは独立した `SQLiteHelper().open()` を使用する
-- **WALモード:** 並行読み書きの安全性のため `PRAGMA journal_mode=WAL` を使用する
-- **Upsert（`--force`）:** `chunks_vec` → `chunks` → `documents` の順で削除し、再INSERTする。`chunking_strategy` は元ファイルの値が保持される
+- **E5 Prefix:** Prepends `passage: {text}` before embedding (uses `query: ` for queries).
+- **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` $\rightarrow$ Little-endian float32 BLOB.
+- **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group. Each thread uses an independent `SQLiteHelper().open()`.
+- **WAL Mode:** Uses `PRAGMA journal_mode=WAL` for concurrent read/write safety.
+- **Upsert (`--force`):** Deletes in order: `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents`, then re-inserts. The original `chunking_strategy` value from the source file is preserved.
 
-### 4.2.1 削除順序の不変条件
+### 4.2.1 Immutable Deletion Order
 
-以下の削除順序は設計上の不変条件であり、ドキュメントレコードを削除するすべてのコードパスで維持されなければならない。
+The following deletion order is a design invariant and must be maintained in all code paths that delete document records.
 
 ``` text
-chunks_vec（明示的に削除）→ documents（削除するとON DELETE CASCADEでchunksが連鎖削除される）
+chunks_vec (explicitly deleted) → documents (deleting documents triggers cascading deletion of chunks via ON DELETE CASCADE)
 ```
 
-**理由:** `chunks_vec` はsqlite-vecの仮想テーブルであり、`chunks` を指す外部キー制約を持たない。そのため`chunks_vec`のみ明示的な削除が必要であり、`chunks`自体への明示DELETE文はコード上存在しない(`documents`削除のCASCADEに委ねられる)。
+**Reason:** `chunks_vec` is a `sqlite-vec` virtual table and does not have a foreign key constraint pointing to `chunks`. Therefore, only `chunks_vec` requires explicit deletion; no explicit `DELETE` statement exists for `chunks` itself (it relies on the `CASCADE` from deleting `documents`).
 
-1. その文書のchunk_idsに対応する `chunks_vec` の行を明示的に削除する
-2. `documents` の行を削除する(`ON DELETE CASCADE`により`chunks`が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
+1. Explicitly delete rows in `chunks_vec` corresponding to the document's `chunk_ids`.
+2. Delete the row in `documents` (`ON DELETE CASCADE` cascades the deletion to `chunks`, which also triggers synchronization triggers for `chunks_fts`).
 
-**影響を受けるコードパス:**
-- `DocumentManager.delete_existing_document()`(`scripts/rag/ingestion/document_manager.py`) — 取り込みパイプライン経路。内部的に共有ヘルパー`delete_document_chain()`を呼び出す
-- `DocumentManager.delete_document(url)`(`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCPツール(`rag_delete_document`)経路
-- 孤立したベクトルレコードを防ぐため、両経路とも同じ順序に従う(詳細は`docs/03_rag_91_design_notes.md` DESIGN-3を参照)
-- **冪等性:** URLが既に `documents` に存在する場合はスキップする。ただし後述のスキップ経路のガードにより `etag`/`last_modified` はUPDATEされる。スキップ時は `chunking_strategy` は更新されない
-- **スキップ経路の古さガード:** 入力された `fetched_at`（チャンクペイロード）を、格納済みの `documents.fetched_at` と比較する。入力側が古い場合は更新をスキップする（より新しいクロールが優先される — 古いチャンクファイルがより新しいメタデータを上書きすることを防ぐ）。`fetched_at` が欠落している場合（鮮度情報を持たない旧形式のチャンク）は、埋め込みのみのセマンティクスを使用する: `COALESCE(etag, ?)` — 現在NULLの場合にのみ値を設定し、NULL以外の値を上書きすることはない。これにより、古いチャンクファイルのメタデータが、より新しいクロールで格納された値を置き換えてしまうことを防ぐ。
-- **埋め込み失敗の追跡:** チャンクと埋め込みの結果はタプルとして返される。
-  `n_embed_failed` は、パース/DBエラーとは別に埋め込み固有の失敗をカウントする
-- **ローカルファイルの未変更判定:** `file://` URLについてはSHA-256のetagを比較する
+**Affected Code Paths:**
+- `DocumentManager.delete_existing_document()` (`scripts/rag/ingestion/document_manager.py`) — ingestion pipeline path. Internally calls shared helper `delete_document_chain()`.
+- `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
+- Both paths follow the same order to prevent orphaned vector records (see DESIGN-3 in `docs/03_rag_91_design_notes.md` for details).
+- **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). If `fetched_at` is missing (old format without freshness info), semantic "embedding only" is used: `COALESCE(etag, ?)`. This sets the value only if currently NULL and never overwrites non-NULL values, preventing old chunk files from overwriting more recent data.
+- **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
+- **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 
 ## Related Documents
 
@@ -90,93 +88,58 @@ embedding
 sqlite
 rag
 
-# RAG インジェクションパイプライン
+# RAG Ingestion Pipeline
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4a. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-### 4.1 クラス概要
+### 4.1 Class Overview
 
-`RagIngester` — チャンクファイルを読み込み、`embed-llm`（ポート8081）経由で埋め込みを生成し、
-SQLite（`documents` / `chunks` / `chunks_vec`）へupsertする。処理済みチャンクは
-`rag-src/registered/` へ移動する。
+`RagIngester` reads chunk files, generates embeddings via `embed-llm` (port 8081), and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
 
-データクラスと公開メソッドの完全な一覧は `scripts/rag/ingestion/ingester.py` を参照。
+For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
-### 4.2 動作の詳細
+### 4.2 Detailed Behavior
 
-- **E5プレフィックス:** 埋め込み前に `passage: {text}` を先頭に付加する（クエリ時は `query: `） 
-- **ベクトルエンコーディング:** `struct.pack(f"<{N}f", *values)` → リトルエンディアンのfloat32 BLOB
-- **並列埋め込み:** URLグループごとに `ThreadPoolExecutor(embed_workers)` を使用する。
-  各スレッドは独立した `SQLiteHelper().open()` を使用する
-- **WALモード:** 並行読み書きの安全性のため `PRAGMA journal_mode=WAL` を使用する
-- **Upsert（`--force`）:** `chunks_vec` → `chunks` → `documents` の順で削除し、再INSERTする。`chunking_strategy` は元ファイルの値が保持される
+- **E5 Prefix:** Prepends `passage: {text}` before embedding (uses `query: ` for queries).
+- **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` $\rightarrow$ Little-endian float32 BLOB.
+- **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group. Each thread uses an independent `SQLiteHelper().open()`.
+- **WAL Mode:** Uses `PRAGMA journal_mode=WAL` for concurrent read/write safety.
+- **Upsert (`--force`):** Deletes in order: `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents`, then re-inserts. The original `chunking_strategy` value from the source file is preserved.
 
-### 4.2.1 削除順序の不変条件
+### 4.2.1 Immutable Deletion Order
 
-以下の削除順序は設計上の不変条件であり、ドキュメントレコードを削除するすべてのコードパスで維持されなければならない。
+The following deletion order is a design invariant and must be maintained in all code paths that delete document records.
 
 ``` text
-chunks_vec（明示的に削除）→ documents（削除するとON DELETE CASCADEでchunksが連鎖削除される）
+chunks_vec (explicitly deleted) → documents (deleting documents triggers cascading deletion of chunks via ON DELETE CASCADE)
 ```
 
-**理由:** `chunks_vec` はsqlite-vecの仮想テーブルであり、`chunks` を指す外部キー制約を持たない。そのため`chunks_vec`のみ明示的な削除が必要であり、`chunks`自体への明示DELETE文はコード上存在しない(`documents`削除のCASCADEに委ねられる)。
+**Reason:** `chunks_vec` is a `sqlite-vec` virtual table and does not have a foreign key constraint pointing to `chunks`. Therefore, only `chunks_vec` requires explicit deletion; no explicit `DELETE` statement exists for `chunks` itself (it relies on the `CASCADE` from deleting `documents`).
 
-1. その文書のchunk_idsに対応する `chunks_vec` の行を明示的に削除する
-2. `documents` の行を削除する(`ON DELETE CASCADE`により`chunks`が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
+1. Explicitly delete rows in `chunks_vec` corresponding to the document's `chunk_ids`.
+2. Delete the row in `documents` (`ON DELETE CASCADE` cascades the deletion to `chunks`, which also triggers synchronization triggers for `chunks_fts`).
 
-**影響を受けるコードパス:**
-- `DocumentManager.delete_existing_document()`(`scripts/rag/ingestion/document_manager.py`) — 取り込みパイプライン経路。内部的に共有ヘルパー`delete_document_chain()`を呼び出す
-- `DocumentManager.delete_document(url)`(`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCPツール(`rag_delete_document`)経路
-- 孤立したベクトルレコードを防ぐため、両経路とも同じ順序に従う(詳細は`docs/03_rag_91_design_notes.md` DESIGN-3を参照)
-- **冪等性:** URLが既に `documents` に存在する場合はスキップする。ただし後述のスキップ経路のガードにより `etag`/`last_modified` はUPDATEされる。スキップ時は `chunking_strategy` は更新されない
-- **スキップ経路の古さガード:** 入力された `fetched_at`（チャンクペイロード）を、格納済みの `documents.fetched_at` と比較する。入力側が古い場合は更新をスキップする（より新しいクロールが優先される — 古いチャンクファイルがより新しいメタデータを上書きすることを防ぐ）。`fetched_at` が欠落している場合（鮮度情報を持たない旧形式のチャンク）は、埋め込みのみのセマンティクスを使用する: `COALESCE(etag, ?)` — 現在NULLの場合にのみ値を設定し、NULL以外の値を上書きすることはない。これにより、古いチャンクファイルのメタデータが、より新しいクロールで格納された値を置き換えてしまうことを防ぐ。
-- **埋め込み失敗の追跡:** チャンクと埋め込みの結果はタプルとして返される。
-  `n_embed_failed` は、パース/DBエラーとは別に埋め込み固有の失敗をカウントする
-- **ローカルファイルの未変更判定:** `file://` URLについてはSHA-256のetagを比較する
+**Affected Code Paths:**
+- `DocumentManager.delete_existing_document()` (`scripts/rag/ingestion/document_manager.py`) — ingestion pipeline path. Internally calls shared helper `delete_document_chain()`.
+- `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
+- Both paths follow the same order to prevent orphaned vector records (see DESIGN-3 in `docs/03_rag_91_design_notes.md` for details).
+- **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). If `fetched_at` is missing (old format without freshness info), semantic "embedding only" is used: `COALESCE(etag, ?)`. This sets the value only if currently NULL and never overwrites non-NULL values. This prevents old chunk files from overwriting more recent data.
+- **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
+- **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 
-## Related Documents
+### 4.3 CLI Arguments
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_02_05_ingestion_pipeline-document-manager.md`
-- `03_rag_02_06_ingestion_pipeline-supporting-components.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-
-## Keywords
-
-ingester
-embedding
-sqlite
-rag
-
-
-
-# RAG インジェクションパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-
----
-
-## 4b. RagIngester (`scripts/rag/ingestion/ingester.py`)
-
-### 4.3 CLI引数
-
-| 引数 | 説明 | デフォルト |
+| Argument | Description | Default |
 |---|---|---|
-| `--force` | 既存のdocument/chunks/chunks_vecレコードを削除し再埋め込みする。（`file://` URLの場合）etagに関わらず常に再インジェクションする | false |
+| `--force` | Deletes existing `document`/`chunks`/`chunks_vec` records and re-embeds. For `file://` URLs, it always re-ingests regardless of ETag. | false |
 
-### 4.4 埋め込みAPI
+### 4.4 Embedding API
 
 ``` http
 POST http://127.0.0.1:8081/embedding
@@ -185,35 +148,35 @@ Content-Type: application/json
 {"content": "passage: {text}"}
 ```
 
-応答: `{"embedding": [float, ...]}` — 384次元（multilingual-E5-small）
+Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-small)
 
-- `embedding_dims`: `config/ingester.toml` で指定（デフォルト384）
-- docstringの `common.toml::embedding_dims` は古い記述（`common.toml` は存在しない）
+- `embedding_dims`: Specified in `config/ingester.toml` (default 384).
+- docstring reference to `common.toml::embedding_dims` is outdated (`common.toml` does not exist).
 
-### 4.5 データベース更新
+### 4.5 Database Updates
 
-現在のDBスキーマ定義 → [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Current DB schema definition $\rightarrow$ [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
-### 4.6 エラーハンドリング
+### 4.6 Error Handling
 
-| ケース | 対応 |
+| Case | Action |
 |---|---|
-| 埋め込みAPI失敗 | `embed_retry` 回まで指数バックオフでリトライ（上限10秒） |
-| リトライ上限到達（単一チャンク） | `WARNING` ログ；そのチャンクをスキップし継続 |
-| `lang` 値が不正 | `ValueError`；そのURLグループをスキップ；トレースバック付き `ERROR` ログ |
-| `chunks_vec` の削除順序 | `chunks_vec` を最初に削除しなければならない（sqlite-vec仮想テーブルにはFK制約がないため） |
-| 埋め込み次元の不一致 | `ValueError`；そのチャンクをスキップ；`WARNING` ログ |
-| アーティファクト検証失敗 | `WARNING` ログ；そのチャンクを埋め込み失敗としてスキップ |
-| ファイル移動失敗 | url、source_type、stage_nameの構造化フィールドを含む `ERROR` ログ |
+| Embedding API failure | Retries with exponential backoff up to `embed_retry` times (max 10s) |
+| Retry limit reached (single chunk) | Logs a `WARNING`; skips the chunk and continues |
+| Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
+| Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
+| Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
+| Artifact validation failure | Logs a `WARNING`; skips the chunk as an embedding failure |
+| File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
 
-### 4.7 ロギング
+### 4.7 Logging
 
-- **ファイル:** `/opt/llm/logs/ingest.log` + stderr
-- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-- 詳細なログメッセージ形式 → `scripts/rag/ingestion/ingester.py`
+- **File:** `/opt/llm/logs/ingest.log` + stderr
+- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-ETagManagerの詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-設定の詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Detailed ETagManager info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration details $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
 
@@ -237,22 +200,22 @@ embedding
 sqlite
 rag
 
-# RAG インジェクションパイプライン
+# RAG Ingestion Pipeline
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4c. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-### 4.3 CLI引数
+### 4.3 CLI Arguments
 
-| 引数 | 説明 | デフォルト |
+| Argument | Description | Default |
 |---|---|---|
-| `--force` | 既存のdocument/chunks/chunks_vecレコードを削除し再埋め込みする。（`file://` URLの場合）etagに関わらず常に再インジェクションする | false |
+| `--force` | Deletes existing `document`/`chunks`/`chunks_vec` records and re-embeds. For `file://` URLs, it always re-ingests regardless of ETag. | false |
 
-### 4.4 埋め込みAPI
+### 4.4 Embedding API
 
 ``` http
 POST http://127.0.0.1:8081/embedding
@@ -261,55 +224,34 @@ Content-Type: application/json
 {"content": "passage: {text}"}
 ```
 
-応答: `{"embedding": [float, ...]}` — 384次元（multilingual-E5-small）
+Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-small)
 
-- `embedding_dims`: `config/ingester.toml` で指定（デフォルト384）
-- docstringの `common.toml::embedding_dims` は古い記述（`common.toml` は存在しない）
+- `embedding_dims`: Specified in `config/ingester.toml` (default 384).
+- docstring reference to `common.toml::embedding_dims` is outdated (`common.toml` does not exist).
 
-### 4.5 データベース更新
+### 4.5 Database Updates
 
-現在のDBスキーマ定義 → [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Current DB schema definition $\rightarrow$ [RAG schema reference document](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
-### 4.6 エラーハンドリング
+### 4.6 Error Handling
 
-| ケース | 対応 |
+| Case | Action |
 |---|---|
-| 埋め込みAPI失敗 | `embed_retry` 回まで指数バックオフでリトライ（上限10秒） |
-| リトライ上限到達（単一チャンク） | `WARNING` ログ；そのチャンクをスキップし継続 |
-| `lang` 値が不正 | `ValueError`；そのURLグループをスキップ；トレースバック付き `ERROR` ログ |
-| `chunks_vec` の削除順序 | `chunks_vec` を最初に削除しなければならない（sqlite-vec仮想テーブルにはFK制約がないため） |
-| 埋め込み次元の不一致 | `ValueError`；そのチャンクをスキップ；`WARNING` ログ |
-| アーティファクト検証失敗 | `WARNING` ログ；そのチャンクを埋め込み失敗としてスキップ |
-| ファイル移動失敗 | url、source_type、stage_nameの構造化フィールドを含む `ERROR` ログ |
+| Embedding API failure | Retries with exponential backoff up to `embed_retry` times (max 10s) |
+| Retry limit reached (single chunk) | Logs a `WARNING`; skips the chunk and continues |
+| Invalid `lang` value | Raises `ValueError`; skips the URL group; logs an `ERROR` with traceback |
+| Improper `chunks_vec` deletion order | Raises `ValueError`; skips the chunk; logs a `WARNING` |
+| Embedding dimension mismatch | Raises `ValueError`; skips the chunk; logs a `WARNING` |
+| Artifact validation failure | Logs a `WARNING`; skips the chunk as an embedding failure |
+| File move failure | Logs an `ERROR` containing structured fields: `url`, `source_type`, and `stage_name` |
 
-### 4.7 ロギング
+### 4.7 Logging
 
-- **ファイル:** `/opt/llm/logs/ingest.log` + stderr
-- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-- 詳細なログメッセージ形式 → `scripts/rag/ingestion/ingester.py`
+- **File:** `/opt/llm/logs/ingest.log` + stderr
+- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-ETagManagerの詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-設定の詳細 → [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+ETagManager detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_02_05_ingestion_pipeline-document-manager.md`
-- `03_rag_02_06_ingestion_pipeline-supporting-components.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-
-## Keywords
-
-ingester
-embedding
-sqlite
-rag
-

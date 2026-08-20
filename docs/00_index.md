@@ -1,52 +1,33 @@
----
-title: "Documentation Overview"
-category: overview
-tags:
-  - documentation
-  - navigation
-  - overview
-  - index
-  - knowledge-base
-related:
-  - 01_overview.md
-  - 02_deployment.md
-  - 03_rag_00_document-guide.md
-  - 04_mcp_00_document-guide.md
-  - 05_agent_00_document-guide.md
-  - 06_eventbus_00_document-guide.md
-  - 90_shared_00_document-guide.md
----
+# Documentation Overview
 
-# ドキュメント概要
+Project documentation top-level navigation hub. It lists all top-level categories and links to their entry files. `01_overview.md` continues to exist as the system-wide architecture overview and is not replaced by this file.
 
-プロジェクトドキュメント全体のトップレベルナビゲーションハブ。各トップレベルカテゴリとその入口ファイルへのリンクを一覧化する。`01_overview.md` は引き続きシステム全体のアーキテクチャ概要として存在し、本ファイルに置き換わるものではない。
+## Categories
 
-## カテゴリ
+- [Overview](01_overview.md) — System-wide architecture and file structure
+- [Deployment](02_deployment.md) — Environment setup and deployment procedures
+- [RAG](03_rag_00_document-guide.md) — Retrieval-Augmented Generation pipeline
+- [MCP](04_mcp_00_document-guide.md) — Model Context Protocol servers
+- [Agent](05_agent_00_document-guide.md) — Agent REPL system and operation
+- [Event Bus](06_eventbus_00_document-guide.md) — Event Bus infrastructure
+- [Shared/DB](90_shared_00_document-guide.md) — Shared infrastructure and database layer
+- [Known Issues](#known-issues) — Known inconsistencies per category
 
-- [概要](01_overview.md) — システム全体のアーキテクチャとファイル構成
-- [デプロイ](02_deployment.md) — 環境構築とデプロイ手順
-- [RAG](03_rag_00_document-guide.md) — Retrieval-Augmented Generation パイプライン
-- [MCP](04_mcp_00_document-guide.md) — Model Context Protocol サーバ群
-- [Agent](05_agent_00_document-guide.md) — Agent REPL システムと動作
-- [Event Bus](06_eventbus_00_document-guide.md) — Event Bus インフラ
-- [Shared/DB](90_shared_00_document-guide.md) — 共有インフラとデータベース層
-- [既知の問題](#既知の問題) — カテゴリごとの既知の不整合
+## Recommended Reading Order
 
-## 推奨読書順序
-
-1. [システム概要](01_overview.md) — まずここからシステム全体像を把握する
-2. [デプロイガイド](02_deployment.md) — 環境をセットアップする
-3. 関心領域を選択する:
-   - [RAGパイプライン](03_rag_00_document-guide.md)
-   - [MCPサーバ](04_mcp_00_document-guide.md)
-   - [Agentシステム](05_agent_00_document-guide.md)
+1. [System Overview](01_overview.md) — Start here to understand the overall system picture
+2. [Deployment Guide](02_deployment.md) — Set up your environment
+3. Select an area of interest:
+   - [RAG Pipeline](03_rag_00_document-guide.md)
+   - [MCP Servers](04_mcp_00_document-guide.md)
+   - [Agent System](05_agent_00_document-guide.md)
    - [Event Bus](06_eventbus_00_document-guide.md)
-   - [共有インフラ](90_shared_00_document-guide.md)
-4. 関心領域の既知の問題を確認する
+   - [Shared Infrastructure](90_shared_00_document-guide.md)
+4. Check for known issues in your area of interest
 
-## 既知の問題
+## Known Issues
 
-各カテゴリはそれぞれ既知の不整合・未解決事項を管理している:
+Each category manages its own known inconsistencies and unresolved items:
 
 - [RAG](03_rag_90_inconsistencies_and_known_issues.md)
 - [MCP](04_mcp_90_inconsistencies_and_known_issues.md)
@@ -54,9 +35,9 @@ related:
 - [Event Bus](06_eventbus_90_inconsistencies_and_known_issues.md)
 - [Shared/DB](90_shared_90_inconsistencies_and_known_issues.md)
 
-## タスク別ドキュメント参照
+## Document References by Task
 
-`routing.md` から移管。タスクの種類に応じて必要なドキュメントのみを読み込む。`docs/*.md` を全件読み込まないこと。
+Migrated from `routing.md`. Load only the necessary documents according to the task type. DO NOT load all `docs/*.md`.
 
 ### Domain specs
 
@@ -91,7 +72,7 @@ related:
 | Agent REPL slash commands (`CommandRegistry`) | `05_agent_07_01_cli-and-commands-cli-reference.md` |
 | Agent startup / verification / troubleshooting | `05_agent_10_01_operations-and-observability-startup-and-health.md` |
 | Agent features / slash commands / tool calling | `05_agent_01_system-overview.md` + `05_agent_07_01_cli-and-commands-cli-reference.md` |
-| Agent REPL class structure | `05_agent_02_runtime-architecture.md` + `05_agent_13_reference-api.md` |
+| AgentREPL class structure | `05_agent_02_runtime-architecture.md` + `05_agent_13_reference-api.md` |
 | Agent REPL flow / tool execution | `05_agent_03_01_turn-processing-flow-overview.md` + `05_agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `05_agent_02_runtime-architecture.md` + `05_agent_04_01_state-and-persistence-state-model.md` |
 | AgentConfig / config constants | `05_agent_08_01_configuration-loading-agent-config.md` |

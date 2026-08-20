@@ -19,16 +19,16 @@ source:
 
 # Event Bus: Failure Behavior Summary
 
-| 失敗要因 | 動作 |
+| Failure Cause | Action |
 |---|---|
-| publish時のJSON Schema検証失敗 | 422、イベントは保存されない |
-| SQLiteコミット後のJSONL追記失敗 | 200を返す、WARNINGログ出力、イベントはSQLiteに存在 |
-| `/health` でDBが利用不可 | `status: degraded`, `db: unavailable` |
-| `/health` でDLQタスクが停止中 | `status: degraded`, `dlq_task: stopped` |
-| requeue時に未知の `event_id` | 404 |
-| requeue時にイベントは存在するがDLQに無い | 409 Conflict |
-| publish時に`event_id`が重複（冪等スキップ） | 200を返す（既存の`seq`）、broker通知もスキップ |
-| subscribeコンシューマのキューが満杯 | イベントは黙って破棄、WARNINGログ出力 |
+| JSON Schema validation failure during `publish` | 422, event is not saved |
+| JSONL append failure after SQLite commit | 200 returned, WARNING log output, event remains in SQLite |
+| DB unavailable in `/health` | `status: degraded`, `db: unavailable` |
+| DLQ task stopped in `/health` | `status: degraded`, `dlq_task: stopped` |
+| Unknown `event_id` during requeue | 404 |
+| Event exists but is not in DLQ during requeue | 409 Conflict |
+| Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
+| Subscriber queue full | Event is silently discarded, WARNING log output |
 
 ## Related Documents
 

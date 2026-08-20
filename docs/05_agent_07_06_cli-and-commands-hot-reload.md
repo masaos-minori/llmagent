@@ -13,54 +13,54 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-`/reload`コマンドの適用範囲と、設定変更の分類について文書化する。
+Documents the scope of the `/reload` command and the classification of configuration changes.
 
 ## Design Intent
 
-### `/reload`の役割
+### Role of `/reload`
 
-`/reload`はベース設定ファイルを読み込み、可能な限り変更を適用する。起動時のみの設定は検出されるが適用はされない。
+`/reload` reads the base configuration files and applies changes as much as possible. Settings that are only loaded at startup are detected but not applied.
 
-### 設定ファイル
+### Configuration Files
 
-`config_loader.py`の`_BASE_CONFIG_FILES`は`("agent.toml",)`の1件のみ。エージェントプロセスの設定は`config/agent.toml`に集約されている。旧来の複数ファイル構成を前提にした記述は削除済み。
+`_BASE_CONFIG_FILES` in `config_loader.py` contains only one item: `("agent.toml",)`. Agent process settings are centralized in `config/agent.toml`. Descriptions assuming the legacy multi-file structure have been removed.
 
-### 変更分類
+### Change Classification
 
-| カテゴリ | 出力タグ | 説明 |
+| Category | Output Tag | Description |
 |---|---|---|
-| ホットリロード可能 | `[OK]` | 実行中のプロセスに即座に適用される |
-| 再起動必要 | `[RESTART]` | エージェントの完全な再起動が必要 |
-| 起動時のみ | `[STARTUP-ONLY]` | 起動時に一度だけ読み込まれる。変更されても`/reload`では無視される |
-| スキップ | `[SKIP]` | 意図的に無視される変更 |
+| Hot-reloadable | `[OK]` | Applied immediately to the running process |
+| Requires restart | `[RESTART]` | A full restart of the agent is required |
+| Startup-only | `[STARTUP-ONLY]` | Loaded only once at startup. Ignored by `/reload` even if changed |
+| Skipped | `[SKIP]` | Changes intentionally ignored |
 
-### 出力メッセージ
+### Output Messages
 
-- 何も変更なし: `No changes detected.`
-- 全て適用済み: `Config reloaded — all changes applied`
-- I/Oエラー: `Reload failed (I/O error): <message>`
+- No changes: `No changes detected.`
+- All applied: `Config reloaded — all changes applied`
+- I/O error: `Reload failed (I/O error): <message>`
 
 ## Responsibility Boundary
 
-- **ホットリロード可能**: LLM設定、履歴管理、ツール設定など
-- **再起動必要**: MCPサーバー設定など
-- **起動時のみ**: プロセス起動時のみ読み込まれる設定
+- **Hot-reloadable**: LLM settings, history management, tool settings, etc.
+- **Requires restart**: MCP server settings, etc.
+- **Startup-only**: Settings loaded only during process startup.
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 各フィールドごとの完全な分類については[Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility)を参照。
+- For full classification of each field, see [Configuration: Config file reload eligibility](05_agent_08_01_configuration-loading-agent-config.md#config-file-ownership-and-hot-reload-eligibility).
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

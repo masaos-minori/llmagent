@@ -13,49 +13,49 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-Session、MCP、Config/Statsカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+Documents the purpose and side effects of slash commands in the Session, MCP, and Config/Stats categories.
 
 ## Design Intent
 
-### Sessionカテゴリ
+### Session Category
 
-セッション管理と履歴操作に関するコマンド群。`/clear new`は新しいDBセッションを開始する。`/undo`は履歴+DBから直近のuser+assistantターンをpopする。
+A group of commands for session management and history operations. `/clear new` starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB.
 
-#### Session DB操作サブコマンド
+#### Session DB operation subcommands
 
-旧`/db session <subcmd>`サブコマンドはすべて`/session <subcmd>`へ移管された。詳細は[Context/DBカテゴリ](05_agent_07_09_cli-and-commands-slash-commands-context-db.md)を参照。
+All legacy `/db session <subcmd>` subcommands have been migrated to `/session <subcmd>`. For details, see [Context/DB Category](05_agent_07_09_cli-and-commands-slash-commands-context-db.md).
 
-### MCPカテゴリ
+### MCP Category
 
-`/mcp` / `/mcp status`は**現在実行中の**MCPサーバー設定のヘルスビューであり、保留中の`/reload`変更のプレビューではない。
+`/mcp` / `/mcp status` provides a health view of the **currently running** MCP server settings; it is not a preview of pending `/reload` changes.
 
-`/mcp status`の出力にはサーバー一覧テーブル、DEGRADED/UNAVAILABLE状態のサーバー一覧、直列化イベント統計が含まれる。
+The output of `/mcp status` includes a list of servers, a list of servers in DEGRADED/UNAVAILABLE states, and serialization event statistics.
 
-### Config / statsカテゴリ
+### Config / Stats Category
 
-設定ファイルの表示と監視に関するコマンド群。`/reload`はすべての設定ファイルをリロードし、`ctx.cfg`を更新してサービスに同期する。
+A group of commands for displaying and monitoring configuration files. `/reload` reloads all configuration files and updates `ctx.cfg` to synchronize with services.
 
 ## Responsibility Boundary
 
-- **Session**: セッションと履歴のライフサイクル管理
-- **MCP**: MCPサーバーのヘルスとツール一覧
-- **Config/Stats**: 設定とメトリクスの表示
+- **Session**: Lifecycle management of sessions and history
+- **MCP**: Health and tool list of MCP servers
+- **Config/Stats**: Displaying configuration and metrics
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

@@ -13,63 +13,63 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-Workflow、Debug/Audit、Git/Diff、Compact/Exportカテゴリのスラッシュコマンドの目的と副作用について文書化する。
+Documents the purpose and side effects of slash commands in the Workflow, Debug/Audit, Git/Diff, and Compact/Export categories.
 
 ## Design Intent
 
-### Workflowカテゴリ
+### Workflow Category
 
-**事後実行承認ゲート**に関するコマンド群。
+A group of commands regarding **post-execution approval gates**.
 
-| コマンド | 副作用 | 関連する状態 |
+| Command | Side Effect | Related State |
 |---|---|---|
-| `/approve <approval_id> [reason]` | 保留中の事後実行承認を「承認済み」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
-| `/reject <approval_id> [reason]` | 保留中の事後実行承認を「却下」として解決 | `approval_id` は必須引数 — 省略時は検証エラー（DB検索フォールバックは存在しない） |
+| `/approve <approval_id> [reason]` | Resolves a pending post-execution approval as "approved" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
+| `/reject <approval_id> [reason]` | Resolves a pending post-execution approval as "rejected" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
 
-> **適用範囲:** `/approve`と`/reject`は**事後実行承認ゲートのみ**(`approvals`DBレコード)を解決する。**事前実行承認**（ツールレベルのリアルタイム承認プロンプト）には影響しない。正式な承認モデルについては[Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md)を参照。
+> **Scope:** `/approve` and `/reject` resolve **only post-execution approval gates** (`approvals` DB records). They do not affect **pre-execution approvals** (real-time tool-level approval prompts). For the formal approval model, see [Tool Execution and Approval](05_agent_06_01_tool-execution-and-approval-execution.md).
 
-#### 起動時のリカバリ
+#### Recovery on Startup
 
-事後実行承認が保留中の状態でエージェントが再起動した場合、その保留状態は`StateStore.find_latest_pending_approval()`によって`approvals`データベーステーブルから起動時に自動検出される。
+If the agent restarts with post-execution approvals pending, those pending states are automatically detected from the `approvals` database table at startup by `StateStore.find_latest_pending_approval()`.
 
-**セッションをまたぐ保証:** `/approve`と`/reject`は、メモリ上の`ctx.turn.pending_approval_id`がNone（クラッシュ後など）であっても、`approvals`DBテーブルから最新の保留中承認を解決する。
+**Cross-session guarantee:** Even if `ctx.turn.pending_approval_id` in memory is `None` (e.g., after a crash), `/approve` and `/reject` will resolve the latest pending approval from the `approvals` DB table.
 
-**上書き警告:** `/approve`は`ctx.turn.pending_approval_task_id`に既存の値がある状態で新しい値を設定する場合、`cmd_workflow.py`のロガーへ`WARNING`レベルでログを出力する。これは単一フィールドのみをハンドオフに使うキュー未実装の現状の設計上の既知の制約であり、操作者が取りこぼしを追跡できるようにするための可観測性目的の警告である。
+**Overwrite Warning:** If `/approve` sets a new value while `ctx.turn.pending_approval_task_id` already contains a value, a `WARNING` level log is emitted to the `cmd_workflow.py` logger. This is a known design constraint due to the current lack of a queue that uses only a single field for handoff; the warning is for observability so operators can track missed approvals.
 
-### Debug / Auditカテゴリ
+### Debug / Audit Category
 
-デバッグと監査ログに関するコマンド群。
+A group of commands related to debugging and audit logs.
 
-### Git/Diffカテゴリ
+### Git/Diff Category
 
-`/diff`は現在のセッションの`ctx.conv.history`に残っているツール呼び出ししか見えない。セッション中に`/compact`または`/clear`を実行すると、それ以前に書き込み/編集されたファイルは`/diff`の対象から外れる（設計上の割り切り。DBベースの変更追跡は行わない）。
+`/diff` only sees tool calls remaining in the current session's `ctx.conv.history`. If `/compact` or `/clear` is executed during a session, files written/edited prior to those operations fall outside the scope of `/diff` (a design trade-off; no DB-based change tracking is performed).
 
-### Compact / Exportカテゴリ
+### Compact / Export Category
 
-RAG検索はスラッシュコマンドとしては提供されていない — 通常の会話中にLLMが`rag_run_pipeline`ツールとして自動的に呼び出す（MCP経由）。ユーザーが直接呼び出す専用スラッシュコマンドは存在しない。
+RAG search is not provided as a slash command — it is automatically called by the LLM as the `rag_run_pipeline` tool during normal conversation (via MCP). There is no dedicated slash command for direct user invocation.
 
 ## Responsibility Boundary
 
-- **Workflow**: 事後実行承認ゲート管理
-- **Debug/Audit**: デバッグモードと監査ログ
-- **Git/Diff**: セッション内のファイル変更表示
-- **Compact/Export**: 履歴圧縮とエクスポート
+- **Workflow**: Post-execution approval gate management
+- **Debug/Audit**: Debug mode and audit logs
+- **Git/Diff**: Displaying file changes within a session
+- **Compact/Export**: History compression and export
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- `/diff`は現在のセッションの`ctx.conv.history`に残っているツール呼び出ししか見えない
+- `/diff` only sees tool calls remaining in the current session's `ctx.conv.history`
 
 ## Related Docs
 

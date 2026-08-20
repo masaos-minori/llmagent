@@ -9,56 +9,50 @@ related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_03_01_dispatch-and-routing.md
   - 04_mcp_03_03_transport-and-health.md
-  - 04_mcp_03_03_transport-and-health.md
   - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
   - 04_mcp_07_tool_schema_export_policy.md
 ---
 
-# Tool Registry: ドリフト検証、ツール追加、キャッシュと並行数制御
+# Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency
 
-ToolRegistry の責任はツールからサーバーへの所有関係の管理（ドリフト検出用のシードデータ）のみであり、スキーマレジストリではない。実行時のルーティングは `RuntimeToolRegistry` が唯一の権威であり、ToolRegistry はルーティング判断には使われない（詳細は本ドキュメント末尾「`RuntimeToolRegistry` とライブ検出」節を参照）。`ToolDefinition.description` / `input_schema` は予約済みで未使用である。LLM に見えるツールのスキーマの正規ソースは各サーバーの `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)) である。
+The responsibility of `ToolRegistry` is solely to manage the ownership relationship from tools to servers (as seed data for drift detection), not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)).
 
-## ドリフト検証
+## Drift Verification
 
 ### Drift validation
 
-3つの比較関数が設定のドリフトを検出する。
+Three comparison functions detect configuration drift.
 
-| 関数 | 比較対象 | 呼び出しタイミング |
+| Function | Comparison Target | When Called |
 |---|---|---|
-| `validate_routing_against_config()` | config の `tool_names` 対 レジストリ | 起動時（`McpToolDiscoveryService` のドリフト検証） |
-| `validate_routing_against_live()` | ライブの `/v1/tools` 対 レジストリ | 起動時（`McpToolDiscoveryService` のドリフト検証） |
-| `validate_all_routing()` | 上記両方の組み合わせ | まだ組み込まれていない（将来対応） |
+| `validate_routing_against_config()` | config's `tool_names` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
+| `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
+| `validate_all_routing()` | Combination of both above | Not yet implemented (future support) |
 
-> **起動時検証のセマンティクス** — 上記の `validate_routing_against_live()` および
-> `validate_all_routing()` 関数は、ライブの `/v1/tools` を内部ルーティングレジストリと比較する。
-> これらは `McpToolDiscoveryService` のツール定義チェックとは異なる。ツール定義チェックは、
-> （`agent.toml` からの）設定済み `tool_definitions` をライブの `/v1/tools` と比較するものである。
-> `tool_definitions_strict` の起動失敗時の挙動については、
-> [04_mcp_06 §Startup Validation Behavior](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict) を参照。
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
-ドリフト警告はエージェント起動時に表示される。
+Drift warnings are displayed during agent startup.
 
 ``` text
 WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in registry but not in config. Update file_read_mcp_server.toml [mcp_servers.file_read] tool_names or the registry to resolve.
 ```
 
-### 新しいツールの追加
-詳細な手順は [Adding a new tool](docs/04_mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool) を参照してください。なお、 の  はルーティングの入力ではなく、あくまでドリフト検証用のメタデータです.
+### Adding a New Tool
 
+For detailed procedures, refer to [Adding a new tool](docs/04_mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool). Note that `tool_names` is not an input for routing, but metadata for drift verification.
 
-### 検証
+### Verification
 
-登録完了後:
+After registration is complete:
 
 ```bash
 uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 ```
 
-期待結果: 全てのルーティングテストがパスすること。`tool_definitions_strict = true` の場合、エージェントを再起動し、起動ログに `"Routing: N/N tools mapped"` が表示され、未マッピングの警告がないことを確認する。
+Expected result: All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that `"Routing: N/N tools mapped"` appears in the startup logs with no unmapped warnings.
 
-### 主要 API
+### Main APIs
 
 ```python
 from shared.tool_registry import get_registry, validate_all_routing
@@ -83,21 +77,20 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 # result: ToolCallResult(output, is_error, request_id, server_key)
 ```
 
-### キャッシュの挙動
+### Cache Behavior
 
-- `is_error=False` の結果のみキャッシュする
-- キャッシュキー: `"tool_name:args_json"`（プレーンな文字列; MD5 ではない）
-- エントリは `cache_ttl` 秒後に失効する
-- `cache_max_size > 0` の場合は LRU により削除される（`0` = 無制限）
-- キャッシュヒット時: `request_id=""`（ライブリクエストは行われない）
-- 統計: `stat_cache_hits: int`
+- Only results with `is_error=False` are cached.
+- Cache key: `"tool_name:args_json"` (plain string; not MD5).
+- Entries expire after `cache_ttl` seconds.
+- If `cache_max_size > 0`, entries are removed via LRU (0 = unlimited).
+- On cache hit: `request_id=""` (no live request is made).
+- Statistics: `stat_cache_hits: int`
 
-### 並行数制限
+### Concurrency Limits
 
-`concurrency_limits={"server_key": N}` は、サーバーごとの同時呼び出しを N 件に制限する。
-遅延生成される `asyncio.Semaphore` として実装されている。未知のキーの場合 → warning ログのみ出力。
+`concurrency_limits={"server_key": N}` limits concurrent calls per server to `N`. Implemented as lazily generated `asyncio.Semaphore`. If an unknown key is provided, only a warning log is output.
 
-### 副作用検出
+### Side-effect Detection
 
 ```python
 _SIDE_EFFECT_TOOLS = (
@@ -108,40 +101,29 @@ _SIDE_EFFECT_TOOLS = (
 is_side_effect(tool_name: str) -> bool
 ```
 
-`is_side_effect()`/`_SIDE_EFFECT_TOOLS`（`shared/tool_executor_helpers.py`）は現在
-`shared/tool_executor.py` の TTL キャッシュのバイパス判定にのみ使われる。バッチ実行の
-並列/直列判定は、唯一の実行パスである `agent/tool_runner.py::_execute_with_dag()` が
-`agent/tool_scheduler.py::build_execution_groups()` に委譲して行い、
-`PreparedToolCall.spec.is_write`（`agent/tool_preparation.py::prepare_tool_calls()`が
-承認フェーズより前に`RuntimeToolRegistry`経由で解決済み）を参照する。未登録ツールや
-`RuntimeToolRegistry`未接続の呼び出しは準備フェーズでフェイルクローズドに却下され、
-スケジューリング・実行のいずれにも到達しない（「保守的に副作用ありとして扱う」フォールバックは
-廃止された）。`serial_tool_calls`は別の実行エンジンへの分岐ではなく、`build_execution_groups()`への
-`force_serial`入力としてスケジューラに渡され、`True`の場合はフェーズ構築/コンフリクトグラフ構築を
-バイパスして呼び出し順に1件ずつの単独シリアルフェーズを強制する。
+`is_side_effect()`/`_SIDE_EFFECT_TOOLS` (`shared/tool_executor_helpers.py`) is currently used only for bypassing the TTL cache in `shared/tool_executor.py`. Batch execution parallel/serial determination is delegated to `agent/tool_runner.py::_execute_with_dag()` via `agent/tool_scheduler.py::build_execution_groups()`, which references `PreparedToolCall.spec.is_write` (resolved via `RuntimeToolRegistry` in `agent/tool_preparation.py::prepare_tool_calls()` before the approval phase) to determine parallel/serial execution (unregistered tools or calls without a connection to `RuntimeToolRegistry` are rejected in the preparation phase via fail-closed, so they never reach scheduling or execution ("fallback to treating everything as having side effects" has been deprecated). `serial_tool_calls` is not a branch to another execution engine, but is passed to the scheduler as `force_serial` input to `build_execution_groups()`; if `True`, it bypasses phase construction/conflict graph construction and forces individual serial phases for each call in order.
 
-### 安全性ティア検証
+### Safety Tier Verification
 
-- `check_tool_safety_tiers()`: `tool_safety_tiers` に未宣言のレジストリ登録済みツールを警告する。`agent/repl_health.py` の起動時チェックから呼び出される（Explicit in code）。
-- `check_unknown_tool_safety_tiers()`: `tool_safety_tiers` のキーがレジストリ未登録（例: 個別ツール名ではなくサーバーキーを誤って指定）の場合に検出する。`shared/production_config_validator.py` から呼び出される（Explicit in code）。
-- 両関数とも `tool_safety_tiers` が空/未設定の場合は空リストを返す（チェックをスキップする）。
+- `check_tool_safety_tiers()`: Warns about registered tools not declared in `tool_safety_tiers`. Called from `agent/repl_health.py` during startup (Explicit in code).
+- `check_unknown_tool_safety_tiers()`: Detects when a key in `tool_safety_tiers` is unregistered (e.g., specifying a server key instead of an individual tool name). Called from `shared/production_config_validator.py` (Explicit in code).
+- Both functions return an empty list if `tool_safety_tiers` is empty/unset (skipping checks).
 
-### 実装上の補足 (Current behavior): tool_cache.py と ToolSpec
+### Implementation Notes (Current behavior): tool_cache.py and ToolSpec
 
-- `shared/tool_cache.py` の `ToolResultCache`（LRU + TTL）は現在 `ToolExecutor` からは使用されていない。`ToolExecutor` は独自の `OrderedDict` ベースのキャッシュ（本ドキュメント「キャッシュの挙動」節）を持ち、stampede protection（inflight future 共有）と密結合しているため、代わりに使われている。`ToolResultCache` は非推奨ではなく、stampede protection を必要としない将来の利用者向けのスタンドアロンユーティリティとして残されている。（Explicit in code: `shared/tool_cache.py` モジュール docstring）
-- `shared/tool_spec.py` の `ToolSpec`（frozen dataclass）は、承認済みツール呼び出し1件分の実行メタデータ（`call_id`, `name`, `args`, `resource_scopes`（kind接頭辞付きスコープ文字列のタプル）, `requires_serial`, `is_write`）を保持する。`agent/tool_runner.py::_execute_with_dag()` が呼び出しごとに `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)`（内部で `shared/resource_scope.py::resolve_resource_scopes()` を呼び出し `resource_scopes` を解決する）経由で構築し、call_id をキーとする `dict[str, ToolSpec]`（`call_specs`）として `agent/tool_scheduler.py::build_execution_groups()` に渡され、単一の `ExecutionPlan`（`batches`/`ScheduledGroup`/`SerializationEvent`）として並列/直列判定に使われる。（Explicit in code）
+- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is currently not used by `ToolExecutor`. `ToolExecutor` uses its own `OrderedDict`-based cache (see "Cache Behavior" section above), which is tightly coupled with stampede protection (inflight future sharing); it is used instead. `ToolResultCache` is not deprecated, but remains a standalone utility for future users who do not require stampede protection. (Explicit in code: `shared/tool_cache.py` module docstring)
+- `shared/tool_spec.py`'s `ToolSpec` (frozen dataclass) holds execution metadata for a single approved tool call (`call_id`, `name`, `args`, `resource_scopes` (tuple of strings with kind prefixes), `requires_serial`, `is_write`). `agent/tool_runner.py::_execute_with_dag()` constructs it for every call via `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)` (which internally calls `shared/resource_scope.py::resolve_resource_scopes()` to resolve `resource_scopes`) and passes it to `agent/tool_scheduler.py::build_execution_groups()` as a `dict[str, ToolSpec]` keyed by `call_id`, which is then used for parallel/serial determination as a single `ExecutionPlan` (`batches`/`ScheduledGroup`/`SerializationEvent`). (Explicit in code)
 
-### `RuntimeToolRegistry` とライブ検出（実装済み）
+### `RuntimeToolRegistry` and Live Discovery (Implemented)
 
-`shared/runtime_tool.py`（`RuntimeTool`, `build_runtime_tool()`）と `shared/runtime_tool_registry.py`（`RuntimeToolRegistry`）は、本ドキュメントが説明する既存の `shared.tool_registry.ToolRegistry` とは別の、追加的なモジュールである。`agent/services/mcp_tool_discovery.py` の `McpToolDiscoveryService`（`async def discover_all() -> DiscoveryResult`）は、各 HTTP トランスポート MCP サーバーの `/v1/tools` をライブに取得し、レスポンス形状を検証する。`name`/`description`/`inputSchema` に加え、`is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys` の4フィールドはスキーマ2.0契約として**必須**であり（`shared/resource_scope.py::validate_tool_schema_v2()` で型・既知kind・`resource_scope_keys`が`inputSchema.properties`に存在することまで検証）、欠落または検証失敗した個別ツールはレジストリから除外される（サイレントなデフォルト適用はしない）。`status`/`resource_scope`（レガシーの単数形）/`enabled`は存在する場合のみ型検証する。`build_runtime_tool()` 経由で `RuntimeTool` に正規化し、サーバー間でツール名が重複した場合は当該ツールをレジストリから除外した上で、`security_profile`（production/local）や `strict` 設定に関わらず常に `FATAL` の `StartupCheckOutcome` を返す（`_dedupe_and_build()` に明示的に実装された挙動。起動パイプラインは FATAL を `pipeline.add_fatal()` に渡すため起動が中断される）。
+`shared/runtime_tool.py` (`RuntimeTool`, `build_runtime_tool()`) and `shared/runtime_tool_registry.py` (`RuntimeToolRegistry`) are additional modules separate from the existing `shared.tool_registry.ToolRegistry` described in this document. `agent/services/mcp_tool_discovery.py`'s `McpToolDiscoveryService` (`async def discover_all() -> DiscoveryResult`) fetches `/v1/tools` live from each HTTP transport MCP server and validates the response shape. In addition to `name`/`description`/`inputSchema`, four fields—`is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`—are **mandatory** under the schema-2.0 contract (with `shared/resource_scope.py::validate_tool_schema_v2()` verifying type, known kinds, and presence of `resource_scope_keys` within `inputSchema.properties`); any individual tool with missing or invalid fields is excluded from the registry (silent default application is not allowed). `status`/`resource_scope` (legacy singular form)/`enabled` are validated only if present. Tools with duplicate names across servers are excluded from the registry and a `FATAL` `StartupCheckOutcome` is returned regardless of `security_profile` (production/local) or `strict` settings (explicitly implemented in `_dedupe_and_build()`). Startup pipelines propagate `FATAL` via `pipeline.add_fatal()`, causing startup to abort.
 
-**[Explicit in code]** `McpToolDiscoveryService` は `startup.py` から呼び出される。`ToolExecutor.set_runtime_registry(runtime_reg)` により RuntimeToolRegistry が接続される。`ToolRouteResolver.resolve()` は RuntimeToolRegistry のみを参照して解決する。ToolRegistry はルーティング判断には一切使われない — `tool_constants.py` frozenset のドリフト検出用データとしてのみ機能する（本ドキュメント冒頭の説明を参照）。
+**[Explicit in code]** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset (see the explanation at the beginning of this document).
 
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_03_01_dispatch-and-routing.md`
-- `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`

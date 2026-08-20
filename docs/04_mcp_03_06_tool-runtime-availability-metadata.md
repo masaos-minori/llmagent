@@ -17,7 +17,7 @@ related:
   - 04_mcp_90_inconsistencies_and_known_issues.md
 ---
 
-# ツール実行時可用性メタデータ: `config_dependent`, `enabled`, `disabled_reason`
+# Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
 > **Implementation status:** As of 2026-07-21 `config_dependent` is adopted for `web_search-mcp`'s `browser_fetch` tool (merged from the former standalone browser-mcp server). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `04_mcp_03_01_dispatch-and-routing.md` for details.
 
@@ -84,7 +84,7 @@ When a client calls `/v1/tools`, the MCP server returns the current state of all
 - A full agent process restart is required for the registry's discovery-derived state (including `/mcp status`'s `DISABLED_REASON` column) to reflect config changes.
 - Per-server config files (e.g. `allowed_dirs` in `file_read_mcp_server.toml`) require restarting that MCP server process itself, separate from the agent restart above.
 
-`docs/04_mcp_06_17_local-to-production-auth-migration.md`の[`/reload`とフル再起動の違い](04_mcp_06_17_local-to-production-auth-migration.md#reloadとフル再起動の違い)は`[mcp_servers.*]`接続定義の再起動要件を扱っており、本節が扱うより広範な`RuntimeToolRegistry`可用性スナップショット要件とは範囲が異なる。
+`docs/04_mcp_06_17_local-to-production-auth-migration.md`'s [`Difference between /reload and full restart`](04_mcp_06_17_local-to-production-auth-migration.md#difference-between-reload-and-full-restart) deals with restart requirements for `[mcp_servers.*]` connection definitions, which is outside the scope of the broader `RuntimeToolRegistry` availability snapshot requirements discussed in this section.
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
@@ -127,6 +127,7 @@ Evaluated per requirement 20 (`requires/done/20260717_20_require.md` once filed)
 decisions with no dependency from the initial RuntimeToolRegistry migration (requirements 14-19).
 
 - [ ] First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above
+- [ ] `include_disabled` query parameter
 
 ### 1. `include_disabled` query parameter
 
@@ -134,8 +135,8 @@ Proposed: `GET /v1/tools?include_disabled=false` as an opt-in filter on tool dis
 
 - Default (no query param, or `include_disabled=true`) preserves today's behavior: every tool is
   returned, including disabled ones, each carrying `enabled=false` / `disabled_reason` set.
-- Only when a caller explicitly passes `include_disabled=false` are disabled tools omitted from
-  the `tools` array in the response.
+- Only when a caller explicitly passes `include_disabled=false` are disabled tools omitted from the
+  `tools` array in the response.
 - Status: unimplemented, no immediate action required.
 
 ### 2. `disabled_code` structured field

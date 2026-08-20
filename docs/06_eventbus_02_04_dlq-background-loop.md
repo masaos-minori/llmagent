@@ -9,7 +9,8 @@ tags:
   - safety-sweep
   - optimistic-lock
   - orphan-promotion
-related:
+  - requeue
+12: related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
   - 06_eventbus_02_03_nack-health-dlq.md
@@ -20,11 +21,11 @@ source:
 
 # Event Bus: DLQ Background Loop
 
-起動時、DLQスイープのバックグラウンドループはasyncioタスクとして動作し、60秒ごとにポーリングする。`delivery_failure_count >= max_retry AND dlq_at IS NULL` のイベントを検索し、インライン処理で見逃したイベントを捕捉する安全網として機能する。
+At startup, the DLQ sweep background loop runs as an `asyncio` task, polling every 60 seconds. It searches for events where `delivery_failure_count >= max_retry AND dlq_at IS NULL`, acting as a safety net to catch any events missed by inline processing.
 
-楽観的ロックにより `dlq_at IS NULL` のみを対象とし、二重昇格を防ぐ。孤立イベントが見つかった場合はログに記録される。0件でない場合はインライン昇格処理に問題がある可能性がある。
+Using optimistic locking, it only targets events where `dlq_at IS NULL` to prevent duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process.
 
-昇格処理はインライン処理と同じ（JSONファイルの原子書き込み + SQLite の `dlq_at` 設定）。
+Promotion follows the same procedure as inline processing (atomic write to JSON file + setting `dlq_at` in SQLite).
 
 ## Related Documents
 

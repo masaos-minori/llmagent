@@ -14,7 +14,7 @@ source:
 
 # Verification Methods
 
-## ヘルスプローブ
+## Health Probes
 
 ### Health probes
 
@@ -34,21 +34,21 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
 
-## HTTPステータスコードの挙動
+### HTTP Status Code Behavior
 
-- **HTTP 200**: サーバは完全に健全（`status="ok"`、`ready=true`）
-- **HTTP 503**: サーバに依存関係の失敗がある（`status="degraded"`、`ready=false`）
+- **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
+- **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
 
-`/mcp status`（`McpStatusService.probe_all()`）はHTTPステータスコードと、レスポンスbody内の `restart_recommended`/`operator_action_required` フィールドの両方を読み取り、`health_reason` 列に反映する。これは表示のみであり、自動的な再起動は行わない（MCP watchdogは2026-07-16に削除された。[04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照）。
+`/mcp status` (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md), as the MCP watchdog was removed on 2026-07-16).
 
 ```bash
 # Check HTTP status code (not just body)
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if healthy, 503 if degraded
 ```
 
-## ヘルスプローブレスポンスの例
+### Example Health Probe Responses
 
-**ベースレスポンス（healthy、全サーバ共通）:**
+**Base Response (healthy, common to all servers):**
 ```json
 {
   "status": "ok",
@@ -60,9 +60,9 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if h
   "details": {}
 }
 ```
-HTTP 200 — 完全に健全。
+HTTP 200 — Fully healthy.
 
-**shell-mcp（port 8009）— degraded:**
+**shell-mcp (port 8009) — degraded:**
 ```json
 {
   "status": "degraded",
@@ -74,40 +74,40 @@ HTTP 200 — 完全に健全。
   "details": {"sandbox_backend": "firejail"}
 }
 ```
-HTTP 503 — PATH内に `sh` が見つからない。`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
+HTTP 503 — `sh` not found in PATH. Reflected in `/mcp status`'s `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
 
-他のサーバーも同じ `degraded` レスポンス形状（`status`/`ready`/`liveness`/`restart_recommended`/`operator_action_required`/`dependencies`/`details`）を共有し、`dependencies` の内容だけがサーバー固有の未充足条件を表す。いずれもHTTP 503を返し、`/mcp status` の `health_reason` に `operator_action_required` として反映される（表示のみ；自動的な再起動は行われない）。
+Other servers share the same `degraded` response shape (`status`/`ready`/`liveness`/`restart_recommended`/`operator_action_required`/`dependencies`/`details`), with only the content of `dependencies` representing server-specific unmet conditions. All return HTTP 503 and are reflected in `/mcp status`'s `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
 
-| サーバー（port） | `dependencies` の例 | 意味 |
+| Server (Port) | `dependencies` Example | Meaning |
 |---|---|---|
-| rag-pipeline-mcp（8010） | `{"embed_url": "not configured"}` | embedding URLが設定されていない |
-| github-mcp（8006） | `{"github_token": "not_set"}` | GitHubトークンが設定されていない |
-| mdq-mcp（8013） | `{"db_file": "not found: /opt/llm/db/mdq.sqlite"}` | databaseファイルが見つからない |
-| git-mcp（8014） | `{"git": "git not found in PATH"}` | PATH内にgitが見つからない |
+| rag-pipeline-mcp (8010) | `{"embed_url": "not configured"}` | Embedding URL not configured |
+| github-mcp (8006) | `{"github_token": "not_set"}` | GitHub token not set |
+| mdq-mcp (8013) | `{"db_file": "not found: /opt/llm/db/mdq.sqlite"}` | Database file not found |
+| git-mcp (8014) | `{"git": "git not found in PATH"}` | Git not found in PATH |
 
-## /v1/tools による検証
+## Verification via /v1/tools
 
 ```bash
 curl -s http://127.0.0.1:8005/v1/tools | jq '.tools[].name'
 ```
 
-## Agent REPLでの確認
+## Checking in Agent REPL
 
-``` text
+```text
 agent[:#N]> /mcp
 ```
 
-全HTTPサーバをプローブする。期待される結果: すべてがtool一覧とともに `OK` を表示する。
+Probes all HTTP servers. Expected result: All show `OK` along with their tool lists.
 
-### 起動失敗時のチェックポイント
+### Troubleshooting Startup Failures
 
-| 失敗 | 原因 | 確認方法 |
+| Failure | Cause | How to Verify |
 |---|---|---|
-| サーバが起動しない | subprocessの起動失敗 | stderrを確認；ポートが使用中でないか確認 |
-| subprocessタイムアウト | uvicornの起動失敗 | stderrを確認；ポートが使用中でないか確認 |
-| Tool定義の不一致 | configの同期漏れ | `/mcp` → tool数を確認し、configと比較 |
+| Server fails to start | Subprocess startup failure | Check stderr; check if port is in use |
+| Subprocess timeout | uvicorn startup failure | Check stderr; check if port is in use |
+| Tool definition mismatch | Config sync missing | Run `/mcp` → check tool count vs config |
 
-## Standalone launch (dev/debug)
+## Standalone Launch (dev/debug)
 
 Each MCP server can be launched individually for local debugging via the unified launcher:
 
@@ -117,15 +117,9 @@ uv run python scripts/mcp_launcher.py --list             # list all discoverable
 uv run python scripts/mcp_launcher.py <server_key> --force # bypass the port-collision guard
 ```
 
-**Why `mcp_servers`, not `mcp`**: the package was renamed from `scripts/mcp` to
-`scripts/mcp_servers` because the original name collided with the PyPI Model Context
-Protocol SDK (`mcp`), which is transitively installed via the `semgrep` dev dependency —
-this caused `ModuleNotFoundError: No module named 'mcp.audit'` when launching a server
-standalone in the dev venv.
+**Why `mcp_servers`, not `mcp`**: the package was renamed from `scripts/mcp` to `scripts/mcp_servers` because the original name collided with the PyPI Model Context Protocol SDK (`mcp`), which is transitively installed via the `semgrep` dev dependency — this caused `ModuleNotFoundError: No module named 'mcp.audit'` when launching a server standalone in the dev venv.
 
-The launcher guards against accidentally starting a server whose port is already bound
-(e.g., by the running agent) — use `--force` only when intentionally starting a
-duplicate instance.
+The launcher guards against accidentally starting a server whose port is already bound (e.g., by the running agent) — use `--force` only when intentionally starting a duplicate instance.
 
 ---
 

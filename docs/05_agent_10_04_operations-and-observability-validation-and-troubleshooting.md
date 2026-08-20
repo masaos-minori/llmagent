@@ -1,5 +1,5 @@
-
-title: "Agent Operations and Observability - Validation and Troubleshooting (Part 1)"
+---
+title: "Agent Operations and Observability - Validation and Troubleshooting"
 category: agent
 tags:
   - agent
@@ -15,251 +15,123 @@ related:
   - 05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
 source:
   - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+---
 
+# Agent Operations and Observability
 
-# エージェントの運用と可観測性
+- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+## Workflow Startup Verification
 
-## ワークフロー起動時検証
+The agent unconditionally verifies the existence of workflow definition files before initializing the orchestrator. There are no settings to disable or degrade this check.
 
-エージェントはオーケストレータを初期化する前に、ワークフロー定義ファイルが存在することを無条件に検証する。このチェックを無効化・縮退させる設定は存在しない。
+**Expected Path:** `config/workflows/default.json`
 
-**期待されるパス:** `config/workflows/default.json`
+### Severity Mapping
 
-### 重大度マッピング
-
-| 重大度 | 意味 | 挙動 |
+| Severity | Meaning | Behavior |
 |---|---|---|
-| FATAL | 起動できない条件 | 全チェック完了後に `RuntimeError` を送出し、起動を中断する |
-| WARNING | チェックを実行したが問題を検出した | 起動を継続するが、オペレーターが確認すべき状態 |
-| SKIPPED | チェック自体を実行できなかった | 起動を継続する。環境依存のチェックが利用不可の場合に発生する |
-| OK | チェックを正常に実行した | 正常状態を示す（ただし security_audit の OK は「問題なし」ではなく「チェック完了」を意味する） |
+| FATAL | Condition preventing startup | Throws `RuntimeError` after all checks complete, aborting startup |
+| WARNING | Check performed but problem detected | Continues startup, but requires operator attention |
+| SKIPPED | Check could not be performed | Continues startup. Occurs when environment-dependent checks are unavailable |
+| OK | Check performed successfully | Indicates normal state (Note: `security_audit` OK means "check completed", not necessarily "no problems found") |
 
-**重要な注意点:**
-- `routing_drift_live` と `routing_safety_tiers` は正常時に何のoutcomeも記録されない（silence means healthy）。
-- `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
-- `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
+**Important Notes:**
+- `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
+- `tool_definitions` do not cause FATAL errors even in strict mode — they are always downgraded to WARNING.
+- Failure in `mcp_tool_discovery` is treated as FATAL regardless of whether it is production or local mode. Since tool discovery failure makes all session tool calls impossible, it is critical.
 
-### 起動シーケンス中のSIGINT/SIGTERM中断
+### SIGINT/SIGTERM Interruption During Startup Sequence
 
-起動シーケンス中にSIGINT/SIGTERMを受信した場合、`ShutdownInterrupted` が送出され、ロールバックが発火する。HTTPサブプロセスのヘルスポーリングループもシャットダウンイベントで即時中断する。
+If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
 
-### 保留中の事後実行承認状態の復元
+### Restoration of Pending Post-Execution Approval States
 
-エージェント起動時に前回のセッションで解決されなかった事後実行承認が存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
+If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
 
-既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
+If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted, but the value is overwritten (the process does not abort).
 
-### シャットダウン時のリソースクリーンアップ
+### Resource Cleanup on Shutdown
 
-`finally` ブロックで以下の順序でリソースをクローズする:
+Resources are closed in the following order within a `finally` block:
 
-1. WALチェックポイント（PASSIVE→TRUNCATEフォールバック）
-2. WALバックアップ（パス検証付き）
+1. WAL checkpoint (with PASSIVE $\rightarrow$ TRUNCATE fallback)
+2. WAL backup (with path validation)
 3. `lifecycle.shutdown_all()`
 4. `http.aclose()`
 
-各ステップは独立してガードされており、一方が失敗しても他のステップは実行される。WALバックアップは `allowed_root` 範囲内のパスのみ許可し、シンボリックリンクを解決してから検証する。
+Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
 
-## ワークフローデプロイメントランブック
+## Workflow Deployment Runbook
 
-ワークフローは **必須** のデプロイメントアーティファクトであり、これを無効またはバイパスするための設定項目、環境変数、デプロイフラグは存在しない。
+Workflows are **mandatory** deployment artifacts; there are no settings, environment variables, or deployment flags to disable or bypass them.
 
-### クイック検証コマンド
+### Quick Verification Commands
 
 ```bash
-# ワークフロー定義ファイルを直接検証（サービスを開始しない）
+# Directly validate workflow definition files (without starting services)
 PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
 
-# ワークフローDBスキーマのテーブルとバージョンを確認
+# Check workflow DB schema tables and versions
 sqlite3 /opt/llm/db/workflow.sqlite ".tables"
 sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
 ```
 
-### よくある障害と対応
+### Common Failures and Responses
 
-#### `config/workflows/default.json` の欠落
+#### Missing `config/workflows/default.json`
 
-**症状:** `deploy.sh` が `[FATAL] Missing required workflow definition: config/workflows/default.json` を出力して終了する。
+**Symptom:** `deploy.sh` exits with `[FATAL] Missing required workflow definition: config/workflows/default.json`.
 
-**対応:** バージョン管理から復元して再デプロイする。
+**Response:** Restore from version control and redeploy.
 
-#### ワークフローJSONのパースエラー
+#### Workflow JSON Parsing Error
 
-**症状:** `deploy.sh` またはバリデータCLIが `[FATAL] Invalid workflow definition ...: <JSON parse error>` を出力する。
+**Symptom:** `deploy.sh` or the validator CLI outputs `[FATAL] Invalid workflow definition ...: <JSON parse error>`.
 
-**対応:** 報告されたJSON構文エラーを修正し、再デプロイ前に再検証する。
+**Response:** Fix the reported JSON syntax error and re-validate before redeploying.
 
-#### 必須ステージの欠落
+#### Missing Required Stages
 
-**症状:** バリデータが `required stages missing: <names>` を報告する。
+**Symptom:** The validator reports `required stages missing: <names>`.
 
-**対応:** ワークフロー定義の `stages` 配列に `plan`, `execute`, `verify` の `id` を持つオブジェクトを含める。
+**Response:** Include objects with `id` values for `plan`, `execute`, and `verify` in the workflow definition's `stages` array.
 
-#### 不正なリトライポリシー
+#### Invalid Retry Policy
 
-**症状:** バリデータが `retry_policy.max_attempts must be >= 1` または `retry_policy.backoff_sec must be >= 0` を報告する。
+**Symptom:** The validator reports `retry_policy.max_attempts must be >= 1` or `retry_policy.backoff_sec must be >= 0`.
 
-**対応:** 報告されたフィールドを修正し、再検証する。
+**Response:** Fix the reported fields and re-validate.
 
-#### `workflow.sqlite` の欠落または不完全
+#### Missing or Incomplete `workflow.sqlite`
 
-**症状:** `init_db.sh` または `setup_services.sh` が `[FATAL] Workflow database schema is missing or incomplete.` を出力する。
+**Symptom:** `init_db.sh` or `setup_services.sh` outputs `[FATAL] Workflow database schema is missing or incomplete.`
 
-**対応:** デプロイスクリプトを再実行する。
+**Response:** Re-run the deployment scripts.
 
-#### スキーマバージョンの不整合
+#### Schema Version Mismatch
 
-**症状:** エージェント起動またはデプロイスクリプトが `Workflow schema version mismatch: expected <X>, found <Y>` を報告する。
+**Symptom:** Agent startup or deployment scripts report `Workflow schema version mismatch: expected <X>, found <Y>`.
 
-**対応:** デプロイスクリプトを再実行してマイグレーションを適用する。
+**Response:** Re-run the deployment scripts to apply migrations.
 
-#### ワークフロー定義の更新には再起動が必要
+#### Workflow Definition Updates Require Restart
 
-**説明:** ワークフロー定義はエージェント起動時に一度だけ検証・読み込みされる。ホットリロード可能な設定ではない — `/reload` では適用されない。
+**Description:** Workflow definitions are validated and loaded only once during agent startup. They are NOT hot-reloadable — changes are not applied via `/reload`.
 
-**対応:** 新しい定義をデプロイ後、エージェントプロセスを完全に再起動する。
+**Response:** After deploying a new definition, fully restart the agent process.
 
-## 関連資料
+## MCP Server Reloading Semantics
 
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
-- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG診断とメモリ
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
+MCP server definitions (transport, url, startup_mode, call_timeout_sec, startup_timeout_sec, tool_names, auth_token, role, cmd, env) are snapshots at the time of restart. `/reload` detects changes in `[mcp_servers.*]` and reports them as requiring a restart, but never applies them to running processes.
 
-# エージェントの運用と可観測性
+`/mcp` / `/mcp status` always reflects the currently running (pre-restart) server settings and does not reflect pending `/reload` changes.
 
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+The MCP watchdog (background automatic health polling and auto-restart loop) has been removed. If a server fails in subprocess mode, `ensure_ready()` will only attempt a restart with the *current* startup configuration during the next tool dispatch — because this is a health-driven recovery and not a configuration reload, pending changes to MCP server definitions are not applied.
 
-## ワークフロー起動時検証
+Changed MCP server definitions are only applied during a full agent restart.
 
-エージェントはオーケストレータを初期化する前に、ワークフロー定義ファイルが存在することを無条件に検証する。このチェックを無効化・縮退させる設定は存在しない。
-
-**期待されるパス:** `config/workflows/default.json`
-
-### 重大度マッピング
-
-| 重大度 | 意味 | 挙動 |
-|---|---|---|
-| FATAL | 起動できない条件 | 全チェック完了後に `RuntimeError` を送出し、起動を中断する |
-| WARNING | チェックを実行したが問題を検出した | 起動を継続するが、オペレーターが確認すべき状態 |
-| SKIPPED | チェック自体を実行できなかった | 起動を継続する。環境依存のチェックが利用不可の場合に発生する |
-| OK | チェックを正常に実行した | 正常状態を示す（ただし security_audit の OK は「問題なし」ではなく「チェック完了」を意味する） |
-
-**重要な注意点:**
-- `routing_drift_live` と `routing_safety_tiers` は正常時に何のoutcomeも記録されない（silence means healthy）。
-- `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
-- `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
-
-### 起動シーケンス中のSIGINT/SIGTERM中断
-
-起動シーケンス中にSIGINT/SIGTERMを受信した場合、`ShutdownInterrupted` が送出され、ロールバックが発火する。HTTPサブプロセスのヘルスポーリングループもシャットダウンイベントで即時中断する。
-
-### 保留中の事後実行承認状態の復元
-
-エージェント起動時に前回のセッションで解決されなかった事後実行承認が存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
-
-既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
-
-### シャットダウン時のリソースクリーンアップ
-
-`finally` ブロックで以下の順序でリソースをクローズする:
-
-1. WALチェックポイント（PASSIVE→TRUNCATEフォールバック）
-2. WALバックアップ（パス検証付き）
-3. `lifecycle.shutdown_all()`
-4. `http.aclose()`
-
-各ステップは独立してガードされており、一方が失敗しても他のステップは実行される。WALバックアップは `allowed_root` 範囲内のパスのみ許可し、シンボリックリンクを解決してから検証する。
-
-## ワークフローデプロイメントランブック
-
-ワークフローは **必須** のデプロイメントアーティファクトであり、これを無効またはバイパスするための設定項目、環境変数、デプロイフラグは存在しない。
-
-### クイック検証コマンド
-
-```bash
-# ワークフロー定義ファイルを直接検証（サービスを開始しない）
-PYTHONPATH=scripts uv run python -m agent.workflow.validate config/workflows/default.json
-
-# ワークフローDBスキーマのテーブルとバージョンを確認
-sqlite3 /opt/llm/db/workflow.sqlite ".tables"
-sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM workflow_schema_version ORDER BY applied_at DESC;"
-```
-
-### よくある障害と対応
-
-#### `config/workflows/default.json` の欠落
-
-**症状:** `deploy.sh` が `[FATAL] Missing required workflow definition: config/workflows/default.json` を出力して終了する。
-
-**対応:** バージョン管理から復元して再デプロイする。
-
-#### ワークフローJSONのパースエラー
-
-**症状:** `deploy.sh` またはバリデータCLIが `[FATAL] Invalid workflow definition ...: <JSON parse error>` を出力する。
-
-**対応:** 報告されたJSON構文エラーを修正し、再デプロイ前に再検証する。
-
-#### 必須ステージの欠落
-
-**症状:** バリデータが `required stages missing: <names>` を報告する。
-
-**対応:** ワークフロー定義の `stages` 配列に `plan`, `execute`, `verify` の `id` を持つオブジェクトを含める。
-
-#### 不正なリトライポリシー
-
-**症状:** バリデータが `retry_policy.max_attempts must be >= 1` または `retry_policy.backoff_sec must be >= 0` を報告する。
-
-**対応:** 報告されたフィールドを修正し、再検証する。
-
-#### `workflow.sqlite` の欠落または不完全
-
-**症状:** `init_db.sh` または `setup_services.sh` が `[FATAL] Workflow database schema is missing or incomplete.` を出力する。
-
-**対応:** デプロイスクリプトを再実行する。
-
-#### スキーマバージョンの不整合
-
-**症状:** エージェント起動またはデプロイスクリプトが `Workflow schema version mismatch: expected <X>, found <Y>` を報告する。
-
-**対応:** デプロイスクリプトを再実行してマイグレーションを適用する。
-
-#### ワークフロー定義の更新には再起動が必要
-
-**説明:** ワークフロー定義はエージェント起動時に一度だけ検証・読み込みされる。ホットリロード可能な設定ではない — `/reload` では適用されない。
-
-**対応:** 新しい定義をデプロイ後、エージェントプロセスを完全に再起動する。
-
-## 関連資料
-
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
-- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG診断とメモリ
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
-
-
-
-# エージェントの運用と可観測性
-
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
-
-## MCPサーバのリロードと再起動のセマンティクス
-
-MCPサーバ定義（transport、url、startup_mode、call_timeout_sec、startup_timeout_sec、tool_names、auth_token、role、cmd、env）は再起動時点のスナップショットである。`/reload` は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告するが、稼働中のプロセスには一切適用しない。
-
-`/mcp` / `/mcp status` は常に稼働中（再起動前）のサーバ設定を反映し、保留中の `/reload` の変更は反映しない。
-
-MCP watchdog（バックグラウンドの自動ヘルスポーリング・自動再起動ループ）は削除済み。サブプロセスモードで失敗したサーバーは、次回の tool dispatch 時に `ensure_ready()` が *現在* の起動設定で再起動を試みるのみであり — これはヘルス駆動の復旧であって設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
-
-変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
-
-## `/context` の解釈
+## `/context` Interpretation
 
 ``` text
 Context state:
@@ -277,88 +149,17 @@ Budget breakdown:
    history       :    1,987 chars ( 62%)
 ```
 
-- **Remaining:** `context_char_limit` までの残り距離 → 圧縮のトリガー
-- **Token estimate:** カテゴリ別推定（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5 の比率）を使用
-- **Token limit:** `context_token_limit` が未設定の場合は `disabled`
-- **Memory layer:** `use_memory_layer=True` の場合は `enabled (entries=N)`
+- **Remaining:** Distance to `context_char_limit` $\rightarrow$ trigger for compression.
+- **Token estimate:** Uses category-aware estimation (ratios: Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5).
+- **Token limit:** Set to `disabled` if `context_token_limit` is not configured.
+- **Memory layer:** Set to `enabled (entries=N)` if `use_memory_layer=True`.
 
-**実装上の注意点:**
-- `/context` の Token estimate値はカテゴリ別推定のまま変わらず、`/tokenize` の値が実際に使われるのは次ターンの履歴圧縮判定であり、`/context` の表示値ではない。
-- カテゴリ別推定の比率定数（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5）は `shared/token_estimation.py` の `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` を単一の正とする。`agent/services/context_view.py::_token_breakdown` はこれらをインポートして使用し、以前ローカルに重複定義していた同名の比率定数は廃止済み。
-- `/context` の `Approval pending` はターン状態から算出される。一方、`/stats` の `Approval pending` はワークフロー状態を参照する。両フィールドは orchestrator と startup コマンドで常にペアでセット/クリアされているため実運用上の値は一致するが、参照しているフィールドはコマンドごとに異なる実装になっている。
+**Implementation Notes:**
+- The Token estimate in `/context` remains constant based on category-aware estimation; the actual value used by `/tokenize` is only used for history compression decisions in the next turn, not for display in `/context`.
+- Category-aware estimation ratio constants (Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5) use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as single positives. `agent/services/context_view.py::_token_breakdown` imports and uses these; previously duplicated local ratio constants have been deprecated.
+- `/context`'s `Approval pending` is derived from turn state. Meanwhile, `/stats`'s `Approval pending` refers to workflow state. While both fields are always set/cleared in pairs by the orchestrator and startup commands, resulting in consistent operational values, they refer to different implementation fields.
 
-## `/stats` の解釈
-
-``` text
-Turns: 5 | Tool calls: 12 | Errors: 1
-LLM: retries=0, reconnects=0, HB timeouts=0, partials=0, parse_errors=0
-Cache hits: 3 | Compress: 1 | Semantic cache hits: 0
-Input tokens: 2,048 | Output tokens: 512
-Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
-```
-
-- **Partial completions:** ストリーミング途中で中断されたLLM応答が記録される。詳細は `session_diagnostics`(`kind=partial_completion`)を確認すること。正式な部分完了モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)
-- **HB timeouts:** SSEハートビートタイムアウト(LLMの過負荷の可能性)
-- **Cache hits:** ツール結果キャッシュのヒット数
-- **Approval pending:** `ctx.workflow.approval_pending=True` の場合のみ表示される
-
-**実装上の注意点:**
-- 実際の `/stats` はキーバリュー形式で1項目1行、かつドキュメント記載より多くの項目を出力する。
-- 条件付き行として、`stat_memory_consistency_failures` が真の場合のみ `Memory inconsist.`、メモリ埋め込みのサーキットブレーカーが開いている場合は `Memory embed: CIRCUIT OPEN [DEGRADED]`、rag_db_configured が真の場合は `Hint: Run /session rag-consistency for index integrity status` が追加表示される。
-- `Latency (mean/max)` は `ctx.stats.stat_latency` の `"llm"` キーのサンプル配列のみを集計対象としており、ツール呼び出しの遅延行は出力されない。
-
-## 関連資料
-
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
-- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG診断とメモリ
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
-
-# エージェントの運用と可観測性
-
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
-
-## MCPサーバのリロードと再起動のセマンティクス
-
-MCPサーバ定義（transport、url、startup_mode、call_timeout_sec、startup_timeout_sec、tool_names、auth_token、role、cmd、env）は再起動時点のスナップショットである。`/reload` は `[mcp_servers.*]` の変更を検出し、再起動が必要な変更として報告するが、稼働中のプロセスには一切適用しない。
-
-`/mcp` / `/mcp status` は常に稼働中（再起動前）のサーバ設定を反映し、保留中の `/reload` の変更は反映しない。
-
-MCP watchdog（バックグラウンドの自動ヘルスポーリング・自動再起動ループ）は削除済み。サブプロセスモードで失敗したサーバーは、次回の tool dispatch 時に `ensure_ready()` が *現在* の起動設定で再起動を試みるのみであり — これはヘルス駆動の復旧であって設定リロードではないため、保留中のMCPサーバ定義の変更も適用されない。
-
-変更されたMCPサーバ定義が適用されるのは、エージェントの完全な再起動時のみである。
-
-## `/context` の解釈
-
-``` text
-Context state:
-  Messages        : 12
-  Total chars     : 4,321
-  Compress limit  : 8,000
-  Remaining       : 3,679 chars until compression
-  Compress count  : 1
-  System prompt   : default
-  Token estimate  : 1,080 (category-aware estimate)
-  Token limit     : disabled
-  Memory layer    : disabled
-Budget breakdown:
-  system        :    1,234 chars ( 38%)
-   history       :    1,987 chars ( 62%)
-```
-
-- **Remaining:** `context_char_limit` までの残り距離 → 圧縮のトリガー
-- **Token estimate:** カテゴリ別推定（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5 の比率）を使用
-- **Token limit:** `context_token_limit` が未設定の場合は `disabled`
-- **Memory layer:** `use_memory_layer=True` の場合は `enabled (entries=N)`
-
-**実装上の注意点:**
-- `/context` の Token estimate値はカテゴリ別推定のまま変わらず、`/tokenize` の値が実際に使われるのは次ターンの履歴圧縮判定であり、`/context` の表示値ではない。
-- カテゴリ別推定の比率定数（テキスト: 4.0、ツール呼び出しJSON: 2.5、システムメッセージ: 3.5）は `shared/token_estimation.py` の `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` を単一の正とする。`agent/services/context_view.py::_token_breakdown` はこれらをインポートして使用し、以前ローカルに重複定義していた同名の比率定数は廃止済み。
-- `/context` の `Approval pending` はターン状態から算出される。一方、`/stats` の `Approval pending` はワークフロー状態を参照する。両フィールドは orchestrator と startup コマンドで常にペアでセット/クリアされているため実運用上の値は一致するが、参照しているフィールドはコマンドごとに異なる実装になっている。
-
-## `/stats` の解釈
+## `/stats` Interpretation
 
 ``` text
 Turns: 5 | Tool calls: 12 | Errors: 1
@@ -368,22 +169,21 @@ Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
-- **Partial completions:** ストリーミング途中で中断されたLLM応答が記録される。詳細は `session_diagnostics`(`kind=partial_completion`)を確認すること。正式な部分完了モデルについては → [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md)
-- **HB timeouts:** SSEハートビートタイムアウト(LLMの過負荷の可能性)
-- **Cache hits:** ツール結果キャッシュのヒット数
-- **Approval pending:** `ctx.workflow.approval_pending=True` の場合のみ表示される
+- **Partial completions:** LLM responses interrupted during streaming are recorded. See [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md) for details.
+- **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
+- **Cache hits:** Number of tool result cache hits.
+- **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.
 
-**実装上の注意点:**
-- 実際の `/stats` はキーバリュー形式で1項目1行、かつドキュメント記載より多くの項目を出力する。
-- 条件付き行として、`stat_memory_consistency_failures` が真の場合のみ `Memory inconsist.`、メモリ埋め込みのサーキットブレーカーが開いている場合は `Memory embed: CIRCUIT OPEN [DEGRADED]`、rag_db_configured が真の場合は `Hint: Run /session rag-consistency for index integrity status` が追加表示される。
-- `Latency (mean/max)` は `ctx.stats.stat_latency` の `"llm"` キーのサンプル配列のみを集計対象としており、ツール呼び出しの遅延行は出力されない。
+**Implementation Notes:**
+- Actual `/stats` output is key-value format with one item per line, and contains more items than documented here.
+- Conditional lines are added: `Memory inconsist.` if `stat_memory_consistency_failures` is true; `Memory embed: CIRCUIT OPEN [DEGRADED]` if the memory embedding circuit breaker is open; and `Hint: Run /session rag-consistency for index integrity status` if `rag_db_configured` is true.
+- `Latency (mean/max)` aggregates only the sample array of the `"llm"` key from `ctx.stats.stat_latency`; delay rows for tool calls are not included in this aggregation.
 
-## 関連資料
+## Related Docs
 
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
-- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG診断とメモリ
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
-
+- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
+- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
+- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
+- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — Monitoring
+- [05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md](05_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md) — RAG Diagnostics and Memory
+- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting

@@ -1,67 +1,48 @@
----
-title: "MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes"
-category: mcp
-tags:
-  - mcp
-  - security
-  - safety-model
-  - fail-open-fail-closed
-  - risk-tiers
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_05_01_access-control-and-allowlists.md
-  - 04_mcp_05_02_auth-profiles-and-sandboxing.md
-  - 04_mcp_05_04_mdq-rag-boundary.md
-  - 04_mcp_05_05_mdq-enforcement-and-lockdown.md
----
+# MCP Security and Safety Model: Fail-Open vs Fail-Closed Summary, Dry-Run, Risk Tiers and AI Notes
 
-# MCP セキュリティと安全性モデル: Fail-Open/Fail-Closed 要約・Dry-Run・リスクティア・AI 注記
+## Fail-Open vs Fail-Closed Summary
 
-## Fail-Open 対 Fail-Closed の要約
-
-| 制御 | ポリシー | 空/未設定時の挙動 |
+| Control | Policy | Behavior if Empty/Not Set |
 |---|---|---|
-| `allowed_dirs`（file-read/write/delete-mcp） | Fail-closed | 全アクセスを拒否 |
-| `allowed_dirs`（mdq-mcp） | Fail-closed | パスを受け取る全ツールを拒否（`MdqAuthorizationError`） |
-| `allowed_repos`（github-mcp, fail_closed モード） | Fail-closed | 全書き込みを拒否 |
-| `allowed_repos`（github-mcp, fail_open モード） | Fail-open | 全リポジトリを許可 |
-| `allowed_repo_paths`（git-mcp） | Fail-closed | 全アクセスを拒否 |
-| `repo_allowlist`（cicd-mcp） | Fail-closed | 全リポジトリを拒否 |
-| `workflow_allowlist`（cicd-mcp） | **Fail-closed** | 全ワークフローを拒否 |
-| `command_allowlist`（shell-mcp） | Fail-closed | 全コマンドを拒否 |
-| `path_denylist`（github-mcp） | Fail-open（デフォルトでブロックなし） | 全パスを許可 |
-| `protected_branches`（github-mcp） | Fail-open（デフォルトでブロックなし） | 全ブランチを許可 |
+| `allowed_dirs` (file-read/write/delete-mcp) | Fail-closed | All access denied |
+| `allowed_dirs` (mdq-mcp) | Fail-closed | Denies all tools that accept paths (`MdqAuthorizationError`) |
+| `allowed_repos` (github-mcp, fail_closed mode) | Fail-closed | All writes denied |
+| `allowed_repos` (github-mcp, fail_open mode) | Fail-open | All repositories allowed |
+| `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
+| `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
+| `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
+| `command_allowlist` (shell-mcp) | Fail-closed | All commands denied |
+| `path_denylist` (github-mcp) | Fail-open (no blocking by default) | All paths allowed |
+| `protected_branches` (github-mcp) | Fail-open (no blocking by default) | All branches allowed |
 
-### 起動時の Audit
+### Startup Audit
 
-`agent/repl_health.py` の `audit_security_defaults()` はエージェント起動時に実行され、
-セキュリティ姿勢の要約をログに出力する。各サーバーの config ファイルを読み込み、以下の設定をチェックする。
+`agent/repl_health.py::audit_security_defaults()` runs at agent startup and logs a summary of the security posture. It reads each server's config file and checks the following:
 
-| 設定 | サーバー config ファイル | チェック内容 |
+| Setting | Server Config File | Check Details |
 |---|---|---|
-| `shell_sandbox_backend` | `shell_mcp_server.toml` | `"firejail"` + バイナリ欠落時は RuntimeError; `"firejail"` または `"none"` 以外の場合は WARNING; 本番環境で `"none"` の場合は RuntimeError |
-| `command_allowlist` | `shell_mcp_server.toml` | 空の場合（fail-closed）DENY-ALL 警告 |
-| `allowed_repo_paths` | `git_mcp_server.toml` | 空の場合（fail-closed）DENY-ALL 警告 |
-| `workflow_allowlist` | `cicd_mcp_server.toml` | 空の場合、エージェント層およびサーバ層の両方で DENY-ALL 警告が発生 (詳細は docs/04_mcp_05_01_access-control-and-allowlists.md を参照) |
+| `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError if `"firejail"` + binary missing; WARNING if not `"firejail"` or `"none"`; RuntimeError in production if `"none"` |
+| `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
+| `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
+| `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning at both agent and server layers if empty (see [04_mcp_05_01_access-control-and-allowlists.md](./04_mcp_05_01_access-control-and-allowlists.md)) |
 
-空の allowlist に対する警告は以下の形式を使用する: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
+Warnings for empty allowlists use the following format: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
 
-チェックの最後に、以下の要約行がログに出力される。
+At the end of the checks, the following summary line is logged:
 
 ``` text
 Security posture summary — fail-closed (deny when empty): <list>; fail-open (allow when empty): <list>
 ```
 
-Fail-closed 設定が空であることは意図された安全なデフォルトである（アクセスが拒否される）。Fail-open
-設定が空であることは、無制限のアクセスを許可してしまうため警告として強調される。
+An empty fail-closed setting is an intended safe default (access is denied). An empty fail-open setting is highlighted as a warning because it allows unrestricted access.
 
 ---
 
-## Dry-Run のサポート
+## Dry-Run Support
 
-`dry_run=True`（副作用のない実行前プレビュー）をサポートするツール:
+Tools supporting `dry_run=True` (previewing side-effect-free execution):
 
-| サーバー | dry_run をサポートするツール |
+| Server | Tools Supporting `dry_run` |
 |---|---|
 | file-write-mcp | `write_file`, `edit_file`, `create_directory`, `move_file` |
 | file-delete-mcp | `delete_file`, `delete_directory` |
@@ -69,52 +50,47 @@ Fail-closed 設定が空であることは意図された安全なデフォル�
 | git-mcp | `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
 | cicd-mcp | `trigger_workflow` |
 
-**cicd-mcp の注記:** リポジトリとワークフローの allowlist チェックは、`handle_trigger_workflow` 内の `dry_run` バイパスよりも先に実行される。拒否対象のリクエストは `dry_run=True` であっても常に拒否される。
+**Note on cicd-mcp:** Repository and workflow allowlist checks are executed before the `dry_run` bypass inside `handle_trigger_workflow`. Requests subject to denial are always rejected even with `dry_run=True`.
 
-エージェントレベル: `config/agent.toml` の `approval_dry_run_tools` は、確認プロンプトを表示する前に
-承認フローが自動で `dry_run=True` を実行するツールを列挙する。
+At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools where the approval flow automatically executes them with `dry_run=True` before showing a confirmation prompt to the user.
 
 ---
 
-## リスクティア分類
+## Risk Tier Classification
 
-ツールのリスクティア（`config/agent.toml::tool_safety_tiers` から）:
+Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
 
-| ティア | 例 | 承認方式 |
+| Tier | Example | Approval Method |
 |---|---|---|
-| `READ_ONLY` | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` | 自動承認 |
-| `WRITE_SAFE` | `write_file`, `edit_file`, `git_add`, `git_commit` | `y/N` プロンプト |
-| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | `yes`（フルワード）の入力が必要 |
-| `ADMIN` | （カスタム; デフォルトでは未設定） | `yes` の入力が必要 |
+| `READ_ONLY` | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` | Automatic approval |
+| `WRITE_SAFE` | `write_file`, `edit_file`, `git_add`, `git_commit` | `y/N` prompt |
+| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | Requires `yes` (full word) input |
+| `ADMIN` | (Custom; unconfigured by default) | Requires `yes` input |
 
-`tool_safety_tiers` に記載のないツールは、デフォルトで `WRITE_DANGEROUS` として扱われる（フェイルセーフ）。
+Tools not listed in `tool_safety_tiers` are treated as `WRITE_DANGEROUS` by default (fail-safe).
 
-`tool_safety_tiers` のエントリは、実際に登録されたツール名でなければならない（サーバーキーではない）。起動時に双方向の検証が実行される。
+Entries in `tool_safety_tiers` must match registered tool names exactly (not server keys). Bidirectional validation is performed at startup.
 
-- **ティアの欠落:** `tool_safety_tiers` に記載されていない登録済みツールがある場合、本番環境ではエラー（致命的な `RuntimeError`）、local/development では warning となる。
-- **未知のキー:** `tool_safety_tiers` 内のキーが登録済みツール名でない場合、本番環境ではエラー（致命的な `RuntimeError`）、local/development では warning となる。
+- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it causes an error (fatal `RuntimeError`) in production, and a warning in local/development.
+- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it causes an error (fatal `RuntimeError`) in production, and a warning in local/development.
 
-両方のチェックは、strict-key、safety-tier、allowed-tools の全ての検証を1回のパスに統合する `ProductionConfigValidator.validate()` を介して実行される。
+Both checks are performed via `ProductionConfigValidator.validate()`, which integrates all validations for strict-key, safety-tier, and allowed-tools in a single pass.
 
 ---
 
-## AI システムのための注記
+## Notes for AI Systems
 
-1. **GitHub への書き込みアクセスを前提としないこと。** `allowed_repos` はデフォルトで空である（fail-closed）。
-    GitHub への書き込みを試みる前に `allowed_repos` が設定されているか確認すること。
+1. **Do not assume write access to GitHub.** `allowed_repos` is empty by default (fail-closed). Verify `allowed_repos` is configured before attempting GitHub writes.
 
-2. **シェルコマンドが実行されることを前提としないこと。** `command_allowlist` はデフォルトで空である。
-    `shell_run` を試みる前に allowlist を確認すること。
+2. **Do not assume shell commands can be executed.** `command_allowlist` is empty by default. Verify the allowlist before calling `shell_run`.
 
-3. **`allowed_repo_paths` が空 = git アクセス拒否。** git-mcp のツールを使用する前に設定すること。
+3. **Empty `allowed_repo_paths` = Git access denied.** Configure this before using git-mcp tools.
 
-4. **`workflow_allowlist` は fail-closed である**（`repo_allowlist` と同様）。空リストは全ての
-    ワークフロートリガーを拒否する。`cicd_mcp_server.toml` で許可するワークフローを明示的に列挙すること。
+4. **`workflow_allowlist` is fail-closed** (similar to `repo_allowlist`). An empty list denies all workflow triggers. Explicitly enumerate allowed workflows in `cicd_mcp_server.toml`.
 
-5. **mdq-mcp は本番運用可能である。** FTS5 のインデックス化と検索は機能として実装済み。本番の RAG ワークロードには `rag-pipeline-mcp` を使用すること。指針については[04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)を参照。
+5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [04_mcp_05 §MDQ vs RAG Boundary](./04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
-6. **破壊的操作の前に `dry_run=True` でプレビューすること。** エージェント内の承認フローは、
-    ユーザープロンプトを表示する前に、登録済みツールに対して `dry_run=True` を自動的に注入する。
+6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
 
 ## Related Documents
 

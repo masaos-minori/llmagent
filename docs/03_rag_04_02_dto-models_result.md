@@ -12,106 +12,107 @@ source:
   - 03_rag_04_05_dto-types.md
 ---
 
+
 # 6.2 models_result.py (`scripts/rag/models_result.py`)
 
-**ResultSource** — RAG結果の取得元。
+**ResultSource** — Origin of the RAG result.
 
 | Value | Description |
 |---|---|
-| `"remote"` | HTTP RAGサービス |
-| `"local"` | インプロセスパイプライン |
-| `"fallback"` | HTTP失敗時のインプロセスフォールバック |
+| `"remote"` | HTTP RAG service |
+| `"local"` | In-process pipeline |
+| `"fallback"` | In-process fallback on HTTP failure |
 
-**HttpResultKind** — HTTP RAG結果の分類。
+**HttpResultKind** — Classification of HTTP RAG results.
 
 | Value | Description |
 |---|---|
-| `"success"` | 空でないコンテキストが返された |
-| `"empty"` | 空のコンテキスト (正当な空結果) |
-| `"error"` | HTTPエラー経路 |
-| `"not_used"` | HTTPモードが非アクティブ |
+| `"success"` | Non-empty context returned |
+| `"empty"` | Empty context (valid empty result) |
+| `"error"` | HTTP error path |
+| `"not_used"` | HTTP mode is inactive |
 
-**ExpandedQuerySet** — MQE展開結果。
-
-| Field | Type | Description |
-|---|---|---|
-| `status` | `MqeStatus` | 展開のステータス |
-| `queries` | `list[str]` | 展開後のクエリ群 |
-
-**SkipInfo** — チャンク処理のスキップ記録。
+**ExpandedQuerySet** — MQE expansion results.
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | `str` | スキップされたファイルパス |
-| `reason` | `str` | スキップの理由 |
+| `status` | `MqeStatus` | Expansion status |
+| `queries` | `list[str]` | Set of queries after expansion |
 
-**RagSearchRequest** — 検索リクエストDTO。
+**SkipInfo** — Record of skipped chunk processing.
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `str` | Path of the skipped file |
+| `reason` | `str` | Reason for skipping |
+
+**RagSearchRequest** — Search request DTO.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `query` | `str` | (required) | 検索クエリ |
-| `top_k` | `int` | `5` | 返却する結果数 |
+| `query` | `str` | (required) | Search query |
+| `top_k` | `int` | `5` | Number of results to return |
 
-**RagSearchResult** — 検索結果DTO。
-
-| Field | Type | Description |
-|---|---|---|
-| `query` | `str` | 元のクエリ |
-| `hits` | `list[Any]` | ランク付けされたヒット結果 (Phase 3-1以降は`list[RankedHit]`型) |
-| `context_str` | `str` | コンテキスト文字列 |
-
-**PipelineExecutionResult** — パイプライン実行結果。
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `success` | `bool` | (required) | 実行が成功したか |
-| `processed` | `int` | (required) | 処理されたチャンク数 |
-| `failed` | `int` | (required) | 失敗数 |
-| `errors` | `list[str]` | `[]` | エラーメッセージ |
-
-**SearchDocsResult** — ドキュメント検索結果。
+**RagSearchResult** — Search result DTO.
 
 | Field | Type | Description |
 |---|---|---|
-| `query` | `str` | 元のクエリ |
-| `results` | `list[str]` | 結果文字列 |
-| `total` | `int` | 結果の総数 |
+| `query` | `str` | Original query |
+| `hits` | `list[Any]` | Ranked hit results (becomes `list[RankedHit]` from Phase 3-1 onwards) |
+| `context_str` | `str` | Context string |
 
-**SanitizeResult** — プロンプトインジェクションのサニタイズ結果。
+**PipelineExecutionResult** — Pipeline execution result.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `success` | `bool` | (required) | Whether execution succeeded |
+| `processed` | `int` | (required) | Number of processed chunks |
+| `failed` | `int` | (required) | Number of failures |
+| `errors` | `list[str]` | `[]` | Error messages |
+
+**SearchDocsResult** — Document search result.
 
 | Field | Type | Description |
 |---|---|---|
-| `text` | `str` | サニタイズ後のテキスト |
-| `was_sanitized` | `bool` | テキストが変更されたか |
-| `patterns_detected` | `list[str]` | 検出されたインジェクションパターン |
+| `query` | `str` | Original query |
+| `results` | `list[str]` | Result strings |
+| `total` | `int` | Total number of results |
 
-**SearchDiagnostics** — 単一の検索呼び出しに対する診断カウンタ。
+**SanitizeResult** — Sanitization result for prompt injection.
 
-以下の表は、実行モード（ローカルまたはリモート）に応じて有効なフィールドをグループ化している。
+| Field | Type | Description |
+|---|---|---|
+| `text` | `str` | Text after sanitization |
+| `was_sanitized` | `bool` | Whether the text was modified |
+| `patterns_detected` | `list[str]` | Detected injection patterns |
 
-#### ローカル実行系カウンタ (常に集計)
+**SearchDiagnostics** — Diagnostic counters for a single search call.
+
+The following table groups fields that are active depending on the execution mode (Local or Remote).
+
+#### Local Execution Counters (Always aggregated)
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `embed_ok` | `int` | `0` | 成功した埋め込み呼び出し数 |
-| `embed_failed` | `int` | `0` | 失敗した埋め込み呼び出し数 |
-| `fts_errors` | `int` | `0` | FTS5クエリエラー数 |
+| `embed_ok` | `int` | `0` | Count of successful embedding calls |
+| `embed_failed` | `int` | `0` | Count of failed embedding calls |
+| `fts_errors` | `int` | `0` | Count of FTS5 query errors |
 
-#### HTTP導入後追加フィールド (リモートモードでのみ意味を持つ)
-これらのフィールドは、検索がリモートHTTP RAGサービスに委ねられた場合にのみ意味を持ち、純粋なローカル実行時にはデフォルト値のままとなる。
+#### Fields Added After HTTP Introduction (Meaningful only in Remote mode)
+These fields are only meaningful when the search is delegated to a remote HTTP RAG service; they remain at their default values during pure local execution.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `result_source` | `ResultSource` | `LOCAL` | 結果の取得元 (remoteモード) |
-| `http_result_kind` | `HttpResultKind` | `NOT_USED` | HTTP結果の分類 (remoteモード) |
-| `remote_status_code` | `int \| None` | `None` | リモートRAGサービスからのHTTPステータスコード |
-| `remote_latency_ms` | `float \| None` | `None` | リモート呼び出しのレイテンシ (ミリ秒) |
-| `fallback_reason` | `str \| None` | `None` | インプロセスフォールバックが発生した理由 (該当する場合) |
+| `result_source` | `ResultSource` | `LOCAL` | Source of result (in `remote` mode) |
+| `http_result_kind` | `HttpResultKind` | `NOT_USED` | Classification of HTTP result (in `remote` mode) |
+| `remote_status_code` | `int \| None` | `None` | HTTP status code from the remote RAG service |
+| `remote_latency_ms` | `float \| None` | `None` | Latency of remote call (ms) |
+| `fallback_reason` | `str \| None` | `None` | Reason for in-process fallback (if applicable) |
 
-## 実装意図 (Implementation note)
+## Implementation Notes
 
-- `ResultSource`・`HttpResultKind` は `StrEnum` として定義され、他のDTO(`ExpandedQuerySet` 以下)は全て `@dataclass(frozen=True)`。`03_rag_04_01_dto-models_data.md` と同様、DTO層全体で不変性を統一する設計方針が読み取れる(Explicit in code)。
-- `SearchDiagnostics` の `result_source` / `http_result_kind` / `remote_status_code` / `remote_latency_ms` / `fallback_reason` は、コード内コメントで "Remote mode fields (new)" と区分されている(Explicit in code、`scripts/rag/models_result.py`)。`embed_ok` / `embed_failed` / `fts_errors` がローカル実行時からの既存カウンタで、remote系フィールドはHTTP RAGサービス導入後に追加されたものである。
-- `fallback_reason` は `scripts/rag/pipeline.py` と `scripts/rag/http_augment.py` でHTTP呼び出し失敗時のインプロセスフォールバック理由を記録するために設定される(Explicit in code)。
+- `ResultSource` and `HttpResultKind` are defined as `StrEnum`. All other DTOs (`ExpandedQuerySet` and below) are defined as `@dataclass(frozen=True)`. This follows the design policy of ensuring immutability across the entire DTO layer, similar to `03_rag_04_01_dto-models_data.md` (Explicit in code).
+- The fields `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, and `fallback_reason` in `SearchDiagnostics` are categorized as "Remote mode fields (new)" in the code comments (Explicit in code, `scripts/rag/models_result.py`). While `embed_ok`, `embed_failed`, and `fts_errors` are existing counters from local execution, the remote fields were added after the introduction of the HTTP RAG service.
+- `fallback_reason` is set in `scripts/rag/pipeline.py` and `scripts/rag/http_augment.py` to record the reason for in-process fallback when an HTTP call fails (Explicit in code).
 
 ## Related Documents
 

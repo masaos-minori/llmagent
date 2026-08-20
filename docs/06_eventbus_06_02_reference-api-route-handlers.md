@@ -24,43 +24,43 @@ source:
 
 ## scripts/eventbus/publish_route.py
 
-`publish(request)`: POST /publish。JSON Schema 検証 → DB 挿入 → JSONL 追記 → Broker 通知。JSONL 追記失敗は HTTP エラーとして表面化しない（警告ログ + 200）。
+`publish(request)`: `POST /publish`. JSON Schema validation → DB insertion → JSONL append → Broker notification. JSONL append failure does not surface as an HTTP error (Warning log + 200).
 
 ## scripts/eventbus/ack_route.py
 
-`ack_event(request, event_id, consumer_id)`: POST /events/{event_id}/ack。`nack(request, event_id)`: POST /nack。失敗回数増加、`>= max_retry` で DLQ 昇格。
+`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id)`: `POST /nack`. Increments failure count; promotes to DLQ if `>= max_retry`.
 
 ## scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: GET /dlq。`dlq_requeue(request, event_id)`: POST /dlq/{event_id}/requeue。failure_count >= max_retry の場合、再DLQ化の可能性あり。
+`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. If `failure_count >= max_retry`, it may be re-moved to the DLQ.
 
 ## scripts/eventbus/replay_route.py
 
-`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: GET /replay。SSEストリームまたはページネーションJSON。
+`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON.
 
 ## scripts/eventbus/subscribe_route.py
 
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: GET /subscribe。SSEストリーミング + replay+push。
+`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push.
 
 ## scripts/eventbus/health_route.py
 
-`health_check(request)`: GET /health。
+`health_check(request)`: `GET /health`.
 
-## EventBroker クラス
+## EventBroker Class
 
-`scripts/eventbus/broker.py` に存在。メソッド: subscribe, unsubscribe, publish, shutdown, subscriber_count, max_queue_depth, slow_consumer_count。
+Located in `scripts/eventbus/broker.py`. Methods: `subscribe`, `unsubscribe`, `publish`, `shutdown`, `subscriber_count`, `max_queue_depth`, `slow_consumer_count`.
 
-## _Subscriber データクラス
+## _Subscriber Data Class
 
-`scripts/eventbus/broker.py` に存在。サブスクライバー情報を保持する内部データ構造。
+Located in `scripts/eventbus/broker.py`. Internal data structure holding subscriber information.
 
-## offsets.py 関数
+## offsets.py Functions
 
-`scripts/eventbus/offsets.py` に存在。関数: read_offset, write_offset。
+Located in `scripts/eventbus/offsets.py`. Functions: `read_offset`, `write_offset`.
 
-## HTTP エンドポイント
+## HTTP Endpoints
 
-`/publish`(POST), `/replay`(GET), `/subscribe`(GET), `/health`(GET), `/dlq`(GET), `/dlq/{id}/requeue`(POST), `/events/{id}/ack`(POST), `/nack`(POST)。
+`/publish`(POST), `/replay`(GET), `/subscribe`(GET), `/health`(GET), `/dlq`(GET), `/dlq/{id}/requeue`(POST), `/events/{id}/ack`(POST), `/nack`(POST).
 
 ## Related Documents
 

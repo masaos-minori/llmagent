@@ -16,14 +16,13 @@ source:
 
 # Shared/DB Documentation Guide
 
-再構成された `shared/` および `db/` レイヤードキュメントのエントリポイント。
-どの章を開くべきか判断するため、まずこのファイルを読むこと。
+The entry point for the restructured `shared/` and `db/` layered documentation. Read this first to determine which chapter to open.
 
 ---
 
 ## Purpose of This Document Set
 
-`shared/`レイヤー(共通型、設定、ロギング、OTel、ツールルーティング)と`db/`レイヤー(SQLite接続管理、スキーマ、ストアプロトコル、メンテナンス)をドキュメント化。
+Documents the `shared/` layer (common types, configuration, logging, OTel, tool routing) and the `db/` layer (SQLite connection management, schema, store protocols, maintenance).
 
 ---
 
@@ -38,34 +37,35 @@ source:
 
 ## AI Query Routing
 
-| 質問 | 参照先 |
+| Question | Reference Target |
 |---|---|
-| `shared/`の用途・インポートルール | `01_overview` / `01_constraints` |
-| 型定義、ツール定数 | `02_core-types` / `02_reference` |
-| ConfigLoader, ロギング | `03_config-and-logging` |
+| Usage/import rules for `shared/` | `01_overview` / `01_constraints` |
+| Type definitions, tool constants | `02_core-types` / `02_reference` |
+| ConfigLoader, Logging | `03_config-and-logging` |
 | ToolExecutor, LLMClient | `03_tool-executor` / `03_llm-and-mcp-clients` |
-| スキーマ、マイグレーション | `04_overview` / `04_schema` / `04_migration` |
-| モジュール境界、プロトコル | `05_module-boundaries` / `05_protocol` |
-| メンテナンス、復旧 | `05_maintenance` / `05_recovery` |
-| 既知の問題 | `90_inconsistencies` |
+| Schema, Migrations | `04_overview` / `04_schema` / `04_migration` |
+| Module boundaries, Protocols | `05_module-boundaries` / `05_protocol` |
+| Maintenance, Recovery | `05_maintenance` / `05_recovery` |
+| Known issues | `90_inconsistencies` |
+
 ---
 
 ## Navigation to Major Known Issues
 
-既知の不整合の全カタログは [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) を参照(現時点でオープンな項目はない)。`ArtifactEvent`にイベントバスがない点は対象外(データ定義のみ)。
+Refer to [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) for a full catalog of known inconsistencies (currently no open items). Note that `ArtifactEvent` does not involve an event bus (it is data definition only).
 
 ---
 
 ## Canonical Source Rules
 
-- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` は削除済みのレガシーソースであり、その内容は上記の `90_shared_02_*` から `90_shared_05_*` の各ファイルに存在する
-- ソースファイル間で内容が矛盾する場合は、新しい再構成後のファイルを信頼すること（すべての不一致については `90_shared_90` を参照）
+- `06_spec_shared.md` / `07_ref-sqlite.md` / `07_spec_db.md` / `90_shared.md` are legacy source files that have been deleted; their content now resides within the restructured `90_shared_02_*` through `90_shared_05_*` files.
+- If contents conflict between source files, trust the new restructured files (see `90_shared_90` for all discrepancies).
 
 ---
 
 ## File Index
 
-shared/ ドキュメント群は `01_overview` → `02_types` → `03_runtime` の順に読み進める。db/ ドキュメント群は `04_schema` → `05_operations` の順に読む。(Explicit in code)
+Read the `shared/` documentation group in order: `01_overview` → `02_types` → `03_runtime`. Read the `db/` documentation group in order: `04_schema` → `05_operations`. (Explicit in code)
 
 ---
 
@@ -83,12 +83,10 @@ Cross-cutting documentation rules and policies:
 
 ## Guidance for Safe AI Use
 
-1. `load_all()`は`agent.toml`のみを含む(`_BASE_CONFIG_FILES = ("agent.toml",)`、詳細`90_shared_03_01`§2a)。`rag_pipeline.toml`という設定ファイルは存在しない — 各MCPサーバー(rag-pipeline-mcp含む)はプロセス分離方針により自身の`config/<key>_mcp_server.toml`のみを個別にロードし、エージェント側で明示ロードする必要はない(Explicit in code)。
-2. `orjson.dumps()`は`bytes`を返す(要`.decode()`)。
-3. `ArtifactEvent` はデータのみでイベントバスは存在しない。
-4. `LLMMessage` は7フィールド(`importance`/`pinned`含む。旧`90_shared.md`の5ではない)。
-5. DBトリガーが `chunks_fts` を自動同期するため手動INSERT禁止。
-6. `SQLiteHelper("workflow")`は有効(`90_shared_04_01`参照)。
-7. `LLMClient`詳細は`05_agent_05_llm-and-streaming.md`参照(本書対象外)。
-
-
+1. `load_all()` only includes `agent.toml` (`_BASE_CONFIG_FILES = ("agent.toml",)`, see `90_shared_03_01` §2a). A `rag_pipeline.toml` configuration file does not exist — each MCP server (including rag-pipeline-mcp) loads its own `config/<key>_mcp_server.toml` due to process isolation policy, so there is no need for explicit loading on the agent side.
+2. `orjson.dumps()` returns `bytes` (requires `.decode()`).
+3. `ArtifactEvent` is data-only and has no event bus.
+4. `LLMMessage` has 7 fields (including `importance`/`pinned`; not 5 as in old `90_shared.md`).
+5. Do NOT perform manual INSERTs because DB triggers automatically synchronize `chunks_fts`.
+6. `SQLiteHelper("workflow")` is enabled (see `90_shared_04_01`).
+7. For details on `LLMClient`, see `05_agent_05_llm-and-streaming.md` (not covered by this document set).

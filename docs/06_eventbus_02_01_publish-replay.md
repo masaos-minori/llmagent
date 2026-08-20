@@ -23,29 +23,29 @@ source:
 
 ## POST /publish
 
-イベントを publish する。冪等性あり: 重複する `event_id` は黙って無視される。
+Publishes an event. Idempotent: duplicate `event_id`s are silently ignored.
 
-**冪等性の理由**: 同じ `event_id` で再 publish しても、SQLite の UNIQUE 制約により既存行が更新されないため、コンシューマは同じイベントを二度受信しない。これは設計上の意図でありバグではない。
+**Reason for idempotency**: Even if re-published with the same `event_id`, existing rows are not updated due to the SQLite UNIQUE constraint, ensuring consumers do not receive the same event twice. This is an intentional design, not a bug.
 
-**リクエストボディ**: `event_envelope.json` JSON Schema に対して検証される。必須フィールドは `event_id`(UUID v4)、`topic`(1〜255文字)、`payload`(オブジェクト)、`producer`(1〜255文字)、`published_at`(ISO-8601)。`schema_version` は省略可能でデフォルト "1.0"。追加プロパティは許可されない。
+**Request Body**: Validated against the `event_envelope.json` JSON Schema. Required fields are `event_id` (UUID v4), `topic` (1–255 characters), `payload` (object), `producer` (1–255 characters), and `published_at` (ISO-8601). `schema_version` is optional and defaults to `"1.0"`. Additional properties are not allowed.
 
-**レスポンス**: 成功時は `{event_id, seq}`。422 は JSON Schema 検証エラー。
+**Response**: On success, returns `{event_id, seq}`. A 422 error indicates a JSON Schema validation error.
 
-**JSONL 追記の失敗**: JSONL アーカイブへの書き込みが失敗しても、イベントは SQLite にコミットされ 200 が返される。WARNING がログに記録される。
+**JSONL Append Failure**: If writing to the JSONL archive fails, the event is still committed to SQLite and a 200 status is returned. A WARNING will be recorded in the logs.
 
 ---
 
 ## GET /replay
 
-過去のイベントを replay する。`seq > since_seq` を満たすイベントを返す。`format=json` の場合はページネーションに対応する。
+Replays past events. Returns events where `seq > since_seq`. Supports pagination when `format=json`.
 
-**クエリパラメータ:** `since_seq`(>=0)、`limit`(1-1000, デフォルト100)、`offset`(>=0)、`format`(sse/json, デフォルト sse)。
+**Query Parameters:** `since_seq` (>=0), `limit` (1-1000, default 100), `offset` (>=0), `format` (sse/json, default sse).
 
-**レスポンス（`format=json`）:** `{total, limit, offset, items}` のページネーションオブジェクト。`total` は limit/offset を無視した総数。
+**Response (`format=json`):** A pagination object containing `{total, limit, offset, items}`. `total` is the total count regardless of `limit`/`offset`.
 
-**レスポンス（`format=sse`）:** 各イベントは `data: {...}` 行として出力される。SSE 形式はページネーション可能な増分消費には対応していない。ストリームは `limit` 件出力後に終了する。
+**Response (`format=sse`):** Each event is output as a `data: {...}` line. The SSE format does not support paginated incremental consumption. The stream terminates after `limit` items are output.
 
-**エラーレスポンス:** 422 — パラメータ値が不正な場合。
+**Error Response:** 422 — if parameter values are invalid.
 
 ## Related Documents
 

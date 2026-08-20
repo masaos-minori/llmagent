@@ -13,46 +13,46 @@ source:
 
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-すべてのスラッシュコマンドのディスパッチを担うCommandRegistryの責務と、モジュール間の責任分割について文書化する。
+Documents the responsibilities of `CommandRegistry`, which handles dispatching all slash commands, and the separation of responsibilities between modules.
 
 ## Design Intent
 
-### CommandRegistryの役割
+### Role of CommandRegistry
 
-`CommandRegistry`は`agent/commands/registry.py`にあり、すべてのスラッシュコマンドを`dispatch(line)`によってディスパッチする。
+`CommandRegistry` is located in `agent/commands/registry.py` and dispatches all slash commands via `dispatch(line)`.
 
-### 責任分割
+### Separation of Responsibilities
 
-| コンポーネント | 担当 | 担当しない |
+| Component | Responsible for | Not responsible for |
 |---|---|---|
-| `command_defs.py` | `CommandDef`、`SubcommandSpec`データクラス | コマンドリスト |
-| `command_defs_list.py` | 組み込みコマンド定義 | ディスパッチロジック |
-| `registry.py` | ディスパッチの挙動、`command_defs_list`からコマンドリストをインポート | コマンドリストの定義 |
+| `command_defs.py` | `CommandDef`, `SubcommandSpec` dataclasses | Command list |
+| `command_defs_list.py` | Built-in command definitions | Dispatch logic |
+| `registry.py` | Dispatch behavior, imports command list from `command_defs_list` | Definition of command list |
 
-### 新規コマンド追加
+### Adding New Commands
 
-`command_defs_list.py`に`CommandDef(...)`エントリを追加し、対応するハンドラを適切なmixinファイルに実装する。
+Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corresponding handler in the appropriate mixin file.
 
 ## Responsibility Boundary
 
-- `CommandRegistry`は**ディスパッチのみ**を担当する。コマンドの実装は個別のmixinクラスに分散される。
-- `CommandRegistry.__init__`はfail-fastでhandler文字列の存在を検証する。
+- `CommandRegistry` is responsible **only for dispatching**. Command implementations are distributed among individual mixin classes.
+- `CommandRegistry.__init__` performs fail-fast validation of handler strings.
 
 ## Key Constraints
 
-- 不明
+- Unknown
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- `AgentREPL.SLASH_COMMANDS`（タブ補完用）と`command_defs_list._COMMANDS`（ディスパッチ用）は別々に保守されており、現在不一致がある。`SLASH_COMMANDS`には`/memory`, `/audit`, `/plan`, `/skill`, `/mdq`が含まれていないため、これらのコマンドはディスパッチは可能だがタブ補完の対象外になる。
+- `AgentREPL.SLASH_COMMANDS` (for tab completion) and `command_defs_list._COMMANDS` (for dispatching) are maintained separately and currently have discrepancies. Since `SLASH_COMMANDS` does not include `/memory`, `/audit`, `/plan`, `/skill`, or `/mdq`, these commands can be dispatched but are not available for tab completion.
 
 ## Related Docs
 

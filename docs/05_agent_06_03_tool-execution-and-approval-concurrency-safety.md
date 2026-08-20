@@ -8,86 +8,89 @@ tags:
   - fail-closed
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - 05_agent_06_04_tool-execution-and-approval-canonical.md
 source:
   - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
 ---
 
-# エージェントのツール実行と承認
+# Agent Tool Execution and Approval
 
-- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCPルーティング → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCP Routing → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
 
-安全制御の責任分割、ToolLoopGuardの設計判断、フェイルクローズポリシーについて文書化する。
+Documents responsibility separation for safety controls, design decisions for `ToolLoopGuard`, and the fail-closed policy.
 
 ## Design Intent
 
-### 安全制御のまとめ
+### Summary of Safety Controls
 
 | Control | Config field | Behavior |
 |---|---|---|
-| `allowed_tools` | `cfg.tool.allowed_tools` | ホワイトリスト; 空の場合はすべて許可。本番環境では`allowed_tools=[]`は設定エラーとして扱われる |
-| `allowed_root` | `cfg.approval.allowed_root` | パスジェイル; 空の場合は無効 |
-| `approval_github_allowed_repos` | `cfg.approval.*` | GitHub書き込み許可リスト; 空の場合はすべて拒否 (**フェイルクローズ**) |
-| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | プランモードでの自動拒否 |
-| `approval_protected_paths` | `cfg.approval.*` | パスプレフィックスによる`high`へのエスカレーション |
-| `approval_high_risk_branches` | `cfg.approval.*` | ブランチ名による`high`へのエスカレーション |
-| `gitops_push_blocked` | `cfg.approval.*` | GitHubへの書き込みをグローバルにすべてブロック |
+| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; if empty, all are allowed. In production, `allowed_tools=[]` is treated as a configuration error |
+| `allowed_root` | `cfg.approval.allowed_root` | Path jail; if empty, disabled |
+| `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
+| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Automatic rejection in plan mode |
+| `approval_protected_paths` | `cfg.approval.*` | Escalation to `high` via path prefixes |
+| `approval_high_risk_branches` | `cfg.approval.*` | Escalation to `high` via branch names |
+| `gitops_push_blocked` | `cfg.approval.*` | Globally block all writes to GitHub |
 
-### ToolLoopGuard の設計判断
+### ToolLoopGuard Design Decisions
 
-`LLMTurnRunner`内の内部ツールループを制御する:
+Controls the internal tool loop within `LLMTurnRunner`:
 
 | Guard | Config field | Behavior |
 |---|---|---|
-| 重複排除 | `tool_dedup_max_repeats` (デフォルト3) | 同一の(name, args)がN回以上繰り返された場合 → ループを終了 |
-| 循環検出 | `tool_cycle_detect_window` (デフォルト2) | 直近Nラウンド内で同一のツール呼び出しフィンガープリントが繰り返された場合 → ループを終了 |
-| リトライ上限 | `tool_error_retry_max` (デフォルト1) | エラーとなった(name, args)が再度呼び出された場合 → ループを終了 |
-| 連続エラー | `tool_error_max_consecutive` (デフォルト3) | ラウンド内の全ツールがN回エラーとなった場合 → ループを終了 |
+| Deduplication | `tool_dedup_max_repeats` (default 3) | If the same (name, args) is repeated N or more times → terminate loop |
+| Cycle Detection | `tool_cycle_detect_window` (default 2) | If the same tool call fingerprint is repeated within the last N rounds → terminate loop |
+| Retry Limit | `tool_error_retry_max` (default 1) | If an erroring (name, args) is called again → terminate loop |
+| Consecutive Errors | `tool_error_max_consecutive` (default 3) | If all tools in a round error N times → terminate loop |
 
-**Design judgment**: ガードヒントはオフライン診断専用として格納される。`ctx.conv.history`には**注入されない**。
+**Design judgment**: Guard hints are stored for offline diagnostics only. They are **not injected** into `ctx.conv.history`.
 
-### 並行実行数の制限
+### Concurrency Limits
 
-`ToolConfig`内の`tool_concurrency_limits: dict[str, int]`は、サーバーキーを最大並行呼び出し数にマッピングする。ツール実行中に遅延生成される`asyncio.Semaphore`として実装される。
+`tool_concurrency_limits: dict[str, int]` in `ToolConfig` maps server keys to maximum concurrent calls. It is implemented as an `asyncio.Semaphore` created on-demand during tool execution.
 
-- サーバーキーが制限dictに存在する場合、呼び出しは制限される
-- キーが存在しない場合: 制限なし
-- 未知のサーバーキーは警告がログに記録されるがエラーにはならない
+- If the server key exists in the limit dictionary, calls are limited
+- If the key does not exist: No limit
+- Unknown server keys log a warning but do not cause errors
 
-### フェイルクローズ実行ポリシー
+### Fail-Closed Execution Policy
 
-Orchestratorは、ワークフローを作成できない場合に直接 (未承認の) 実行に切り替えることはない。ワークフロー作成が失敗すると`WorkflowCreationError`が発生し、タスクは明確なエラーメッセージと共に拒否される。
+The Orchestrator never falls back directly to unapproved execution if it cannot create a workflow. If workflow creation fails, a `WorkflowCreationError` is raised, and the task is rejected with a clear error message.
 
-**Design judgment**: これはフェイルクローズなポリシーである — 可用性よりも安全性が優先される。
+**Design judgment**: This is a fail-closed policy — safety is prioritized over availability.
 
-### ワークフロー承認のリカバリ
+### Workflow Approval Recovery
 
-ワークフローレベルの承認状態は`workflow.sqlite`の`approvals`テーブルに永続化される:
+Workflow-level approval states are persisted in the `approvals` table of `workflow.sqlite`:
 
-- **起動時のリカバリ**: 起動時、`approvals`テーブルを検索し、承認待ちのものがあるかを確認
-- **再起動後の解決**: `/approve`と`/reject`は、ワークフローデータベースから最新の承認待ちを解決
-- **警告メッセージにIDを含む**: 運用者はログと照合し、どのタスクに対応すべきかを把握できる
+- **Startup Recovery**: At startup, searches the `approvals` table to check for pending approvals
+- **Post-restart Resolution**: `/approve` and `/reject` resolve the latest pending approvals from the workflow database
+- **IDs in Warning Messages**: Operators can match logs to identify which tasks need attention
 
 ## Responsibility Boundary
 
-- **正典**: `shared/tool_executor.py` (ToolExecutor), `agent/tool_loop_guard.py` (ToolLoopGuard)
-- **ワークフロー承認DB**: `workflow.sqlite`
+- **Canonical Source**: `shared/tool_executor.py` (ToolExecutor), `agent/tool_loop_guard.py` (ToolLoopGuard)
+- **Workflow Approval DB**: `workflow.sqlite`
 
 ## Key Constraints
 
-- フェイルクローズ: `allowed_tools=[]`（本番環境）、`approval_github_allowed_repos=[]`、ワークフロー作成失敗
-- フェイルセーフ: `tool_safety_tiers`未定義ツールは`WRITE_DANGEROUS`
-- ToolLoopGuardのガードヒントはhistoryに注入されない
+- Fail-closed: `allowed_tools=[]` (production), `approval_github_allowed_repos=[]`, workflow creation failure
+- Fail-safe: Undefined tools in `tool_safety_tiers` default to `WRITE_DANGEROUS`
+- ToolLoopGuard guard hints are not injected into history
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Since GitHub tools are not included in `approval_dry_run_tools` by default, this path is currently dormant.
 
 ## Related Docs
 

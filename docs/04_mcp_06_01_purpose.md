@@ -1,22 +1,9 @@
----
-title: "Purpose"
-category: mcp
-tags:
-  - mcp
-  - configuration
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_06_02_configuration-file-inventory.md
-source:
-  - 04_mcp_06_02_configuration-file-inventory.md
----
-
 # Purpose
 
-すべての設定ファイル、サーバごとのconfigキー、起動時検証、
-ヘルスプローブ、audit logの読み方、および新規サーバ追加チェックリストを文書化する。
+Document all configuration files, per-server config keys, startup validation, health probes, how to read audit logs, and new server addition checklists.
 
 ---
+
 
 
 ## Related Documents

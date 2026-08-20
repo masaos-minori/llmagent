@@ -1,64 +1,51 @@
----
-title: "Agent CLI and Commands - CLIView"
-category: agent
-tags:
-  - agent
-  - cli
-  - cliview
-related:
-  - 05_agent_00_document-guide.md
-source:
-  - 05_agent_07_02_cli-and-commands-cliview.md
----
-
 # Agent CLI and Commands
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-プレゼンテーション層のみを担当するCLIViewの責務と、各コンポーネントへのコールバック注入について文書化する。
+To document the responsibilities of `CLIView`, which handles only the presentation layer, and the injection of callbacks into various components.
 
 ## Design Intent
 
-### CLIViewの責任分割
+### CLIView Responsibility Separation
 
-CLIViewは`agent/cli_view.py`にあり、**プレゼンテーション層のみ**を担当する。ステート管理やビジネスロジックを持たず、各コンポーネントにコールバックとして注入される。
+`CLIView` resides in `agent/cli_view.py` and is responsible **only for the presentation layer**. It does not manage state or business logic; instead, it is injected into each component as a set of callbacks.
 
-### コールバック注入
+### Callback Injection
 
-| Callback | 注入先 | 呼び出しタイミング |
+| Callback | Injected Into | Trigger Timing |
 |---|---|---|
-| `write_token(token)` | `LLMClient(on_token=...)` | SSEトークンが届くたびに |
-| `write_compress_notice(n)` | `HistoryManager(on_compress=...)` | 履歴が圧縮されたとき |
-| `write_turn_start()` | `Orchestrator(on_turn_start=...)` | 各ツールループのターン開始前 |
-| `write_turn_end()` | `Orchestrator(on_turn_end=...)` | 最終的なLLM回答の後 |
-| `write_llm_error(e)` | `Orchestrator(on_error=...)` | LLMリクエストが失敗したとき |
+| `write_token(token)` | `LLMClient(on_token=...)` | Whenever an SSE token arrives |
+| `write_compress_notice(n)` | `HistoryManager(on_compress=...)` | When history is compressed |
+| `write_turn_start()` | `Orchestrator(on_turn_start=...)` | Before each tool loop turn starts |
+| `write_turn_end()` | `Orchestrator(on_turn_end=...)` | After the final LLM response |
+| `write_llm_error(e)` | `Orchestrator(on_error=...)` | When an LLM request fails |
 
-### スピナーとトークンの関係
+### Relationship between Spinner and Tokens
 
-`write_token()`はトークン出力の直前に`stop_spinner()`を呼び、スピナー表示中でもストリーミングトークンが割り込めるようにしている。
+`write_token()` calls `stop_spinner()` immediately before outputting a token, allowing streaming tokens to interrupt the spinner display.
 
-### 起動バナー
+### Startup Banner
 
-`write_startup_banner()`はセッションID、chunkカウント、ツール数、メモリモード、ワークフロー状態を表示する。
+`write_startup_banner()` displays the session ID, chunk count, number of tools, memory mode, and workflow state.
 
 ## Responsibility Boundary
 
-- **プレゼンテーション層のみ**: ステート管理やビジネスロジックを持たない
-- **テスト用プロトコル**: `Writer`(出力操作)と`Reader`(複数行入力)のプロトコル定義により、テスト時に別実装を注入可能
+- **Presentation Layer Only**: Does not hold state management or business logic.
+- **Test Protocols**: By defining `Writer` (output operations) and `Reader` (multi-line input) protocols, different implementations can be injected during testing.
 
 ## Key Constraints
 
-- `CLIView.__init__(slash_commands)`はスラッシュコマンド一覧を必須引数として受け取り、タブ補完候補として使用する。
+- `CLIView.__init__(slash_commands)` takes a list of slash commands as a required argument and uses them for tab completion suggestions.
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

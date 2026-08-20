@@ -18,9 +18,9 @@ This glossary defines preferred terms, alternative forms, and abbreviations used
 | Term | Preferred Form | Alternative Forms | Notes |
 |------|---------------|-------------------|-------|
 | EventBus | EventBus | event bus, event-bus | CamelCase as proper noun; use "Event Bus" (with space) in Japanese text |
-| Needs Confirmation | Needs Confirmation | Needs confirmation, 要確認, Need Confirmation, 未決事項 | Abbreviation: NC; always capitalize both words in English |
-| Known Issue | Known Issue | Known Issues, 既知の問題, 既知の不整合, 既知の不具合と不整合 | Plural form is acceptable when referring to multiple items |
-| Deprecated Item | Deprecated Item | deprecated item, 非推奨項目 | Capitalize when referring to the governance document title |
+| Needs Confirmation | Needs Confirmation | Needs confirmation, Needs confirmation (要確認), Need Confirmation, Unresolved matter (未決事項) | Abbreviation: NC; always capitalize both words in English |
+| Known Issue | Known Issue | Known Issues, Known problem (既知の問題), Known inconsistency (既知の不整合), Known bug/inconsistency (既知の不具合と不整合) | Plural form is acceptable when referring to multiple items |
+| Deprecated Item | Deprecated Item | deprecated item, Deprecated item (非推奨項目) | Capitalize when referring to the governance document title |
 | Canonical Source Rule | Canonical Source Rule | canonical source rule | Always capitalize as proper noun |
 | Evidence Label | Evidence Label | evidence label | Capitalize when referring to the governance document title |
 | Schema Registry | Schema Registry | schema registry | Proper noun; used sparingly in this project |

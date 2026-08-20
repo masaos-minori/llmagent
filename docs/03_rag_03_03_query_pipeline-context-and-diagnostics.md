@@ -14,11 +14,12 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG クエリパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+# RAG Query Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
@@ -28,9 +29,9 @@ source:
 ctx = PipelineContext(query="search query", history_context="conversation history")
 ```
 
-| フィールド | 型 | 初期値 | 変更元 |
+| Field | Type | Default | Modified By |
 |---|---|---|---|
-| `query` | `str` | （必須） | — |
+| `query` | `str` | (Required) | — |
 | `history_context` | `str` | `""` | — |
 | `queries` | `list[str]` | `[]` | `MqeStage` |
 | `search_results` | `list[list[RawHit]]` | `[]` | `SearchStage` |
@@ -38,7 +39,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()`（default_factory） | `SearchStage` — 検索中にembed_ok/embed_failed/fts_errorsを埋めた新しい `SearchDiagnostics` オブジェクトで完全に置き換えられる；HTTPモードでは、HTTPのaugmentハンドラが `dataclasses.replace()` により `result_source`、`http_result_kind`、`remote_status_code`、`remote_latency_ms` で置き換える |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — Replaced by a new `SearchDiagnostics` object containing populated `embed_ok`/`embed_failed`/`fts_errors` during search; In HTTP mode, the HTTP augment handler replaces it using `dataclasses.replace()` with `result_source`, `http_result_kind`, `remote_status_code`, and `remote_latency_ms`. |
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
@@ -46,50 +47,43 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
 ```
 
-詳細なフィールド一覧、型、およびデフォルト値については <a href="../03_rag_04_02_dto-models_result.md">docs/03_rag_04_02_dto-models_result.md</a> を参照してください。本節では、HTTPモードにおける各フィールドの境界条件と所有権について記述します。
+For detailed field lists, types, and default values, see <a href="../03_rag_04_02_dto-models_result.md">docs/03_rag_04_02_dto-models_result.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
 
-#### 境界条件 (Boundary and ownership)
+#### Boundary Conditions (Boundary and ownership)
 
-`http_result_kind` という名前は2つの異なる値体系で使われており、混同しないよう注意が必要（根拠分類: Explicit in code）。
+Note that the name `http_result_kind` is used in two different value systems; do not confuse them (Explicit in code).
 
-- `SearchDiagnostics.http_result_kind`（本節、`rag/models_result.py` の `HttpResultKind` enum）は
-  `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` の4値。`pipeline.py` の HTTP augment実行内で
-  `HttpResultKind.SUCCESS`（非空）・`HttpResultKind.EMPTY`（`""`）・`HttpResultKind.ERROR`（`None`）の
-  いずれかに設定される (`RagPipeline._run_http_augment()` メソッド)。
-- `get_diagnostics()["http_result_kind"]`（`RagPipeline._http_result_kind` 属性経由、
-  `HttpAugment.run()`）は `"remote_nonempty"` / `"remote_empty"` /
-  `"in_process_fallback"` の文字列リテラル3値。`HttpAugment.run()` 内で計算され、
-  `RagPipeline._run_http_augment()` でコピーされる。
+- `SearchDiagnostics.http_result_kind` (this section, `HttpResultKind` enum in `rag/models_result.py`) has 4 values: `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED`. It is set within the HTTP augment execution in `pipeline.py` as either `HttpResultKind.SUCCESS` (non-empty), `HttpResultKind.EMPTY` (`""`), or `HttpResultKind.ERROR` (`None`) via the `RagPipeline._run_http_augment()` method.
+- `get_diagnostics()["http_result_kind"]` (via `RagPipeline._http_result_kind` attribute, `HttpAugment.run()`) uses 3 string literals: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"`. These are calculated in `HttpAugment.run()` and copied in `RagPipeline._run_http_augment()`.
 
-両者は同じHTTP呼び出し結果を別の粒度・別の語彙で表現した独立のフィールドであり、
-片方から他方を直接導出することはできない。
+Both represent the same HTTP call results but use different vocabularies and granularities; one cannot be directly derived from the other.
 
-### 4.3 get_diagnostics() の戻り値 (`RagPipeline.get_diagnostics()`)
+### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 
 ```python
 pipeline.get_diagnostics() -> dict
 ```
 
-以下のキーを持つ構造化された診断情報を返す。
+Returns structured diagnostic information with the following keys:
 
-| キー | 型 | 説明 |
+| Key | Type | Description |
 |---|---|---|
-| `stage_results` | `list[dict]` | ステージごとの結果（`last_stage_results` と同じ） |
-| `timings` | `dict[str, float]` | 各ステージの実測秒数（`last_timings` と同じ） |
-| `fetch_result` | `dict \| None` | フェッチ結果: `{hits: int, min_score_applied: float}` または `None` |
-> **注意:** HTTPモードにおいて、`fetch_result` は、現在の呼び出しの結果ではなく、前回のインプロセス実行時の値が残っている（staleになる）可能性があります。これは `RagPipeline._run_http_augment()` が HTTP 成功時に `self.run()` を呼び出さないためです（詳細は RagPipeline.run() 内での self.last_fetch_result の更新、RagPipeline._run_http_augment() メソッド、および call_rag_service 関数を参照）。
-| `fusion_mode` | `str` | `"rrf"` または `"dedup_only"` |
-| `http_result_kind` | `str \| None` | HTTPモードの分類（`_http_result_kind` と同じ） |
-| `fallback_count` | `int` | フォールバックが発生したステージ数 |
-| `fallback_reasons` | `list[str]` | すべてのステージのフォールバック理由文字列 |
-| `refiner_fallback_count` | `int` | リファイナーのフォールバック回数 |
-| `refiner_returned_empty` | `int` | リファイナーが空の内容を返した回数 |
-| `refiner_exception_count` | `int` | リファイナーの例外発生回数 |
-| `refiner_exception` | `bool` | リファイナーの例外が1件でも発生した場合はTrue |
-| `hit_counts` | `dict[str, int]` | `{merged: int}` — マージ後のヒット数 |
+| `stage_results` | `list[dict]` | Results per stage (same as `last_stage_results`) |
+| `timings` | `dict[str, float]` | Actual duration in seconds for each stage (same as `last_timings`) |
+| `fetch_result` | `dict \| None` | Fetch result: `{hits: int, min_score_applied: float}` or `None` |
+| > **Note:** In HTTP mode, `fetch_result` might contain stale values from the previous in-process execution rather than the current call's result. This is because `RagPipeline._run_http_augment()` does not call `self.run()` upon an HTTP success (see `self.last_fetch_result` updates in `RagPipeline.run()`, `RagPipeline._run_http_augment()`, and the `call_rag_service` function for details). |
+| `fusion_mode` | `str` | `"rrf"` or `"dedup_only"` |
+| `http_result_kind` | `str \| None` | Classification for HTTP mode (same as `_http_result_kind`) |
+| `fallback_count` | `int` | Number of stages where fallback occurred |
+| `fallback_reasons` | `list[str]` | List of fallback reasons for all stages |
+| `refiner_fallback_count` | `int` | Number of times the refiner fell back |
+| `refiner_returned_empty` | `int` | Number of times the refiner returned empty content |
+| `refiner_exception_count` | `int` | Number of exceptions caught in the refiner |
+| `refiner_exception` | `bool` | `True` if any exception occurred in the refiner |
+| `hit_counts` | `dict[str, int]` | `{merged: int}` — Hits after merging |
 | `search_diagnostics` | `dict` | `{embed_ok, embed_failed, fts_errors, degraded}` |
 
-**`run()` / `augment()` の前に呼び出しても安全** — 空/ゼロ値を返す。呼び出し元は `orjson.dumps(pipeline.get_diagnostics())` でシリアライズすること。
+**Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 
 ``` text
 StageResult = TypedDict with keys:
@@ -99,9 +93,7 @@ StageResult = TypedDict with keys:
   fallback_reason: str | None — reason when status is "failure" or "fallback"; None on success
 ```
 
-`RagPipeline.run()` はステージごとに `StageResult` を記録し、その全体を
-`pipeline.last_stage_results: list[StageResult]` として公開する。同じリストが
-デバッグと検査のために `PipelineContext.stage_results` にも保存される。
+`RagPipeline.run()` records a `StageResult` for each stage and makes the full list available via `pipeline.last_stage_results: list[StageResult]`. The same list is also stored in `PipelineContext.stage_results` for debugging and inspection.
 
 ---
 

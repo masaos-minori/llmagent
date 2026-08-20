@@ -21,52 +21,52 @@ source:
 
 # Event Bus: DLQ, Offsets, and Delivery Semantics
 
-## デッドレターキュー（DLQ）
+## Dead Letter Queue (DLQ)
 
-### 昇格経路
+### Promotion Path
 
-nack時に `delivery_failure_count` が `>= max_retry` になると即座にDLQへ昇格する。バックグラウンドDLQループ（60秒ごと）はインラインで見逃したイベントを安全網として捕捉する。
+When a NACK occurs and `delivery_failure_count` reaches `>= max_retry`, the event is immediately promoted to the DLQ. The background DLQ loop (every 60 seconds) serves as a safety net to catch any events missed during inline processing.
 
-### 昇格処理
+### Promotion Process
 
-1. `{deadletter_dir}/{event_id}.json` にJSONファイルを原子書き込み
-2. SQLite の `dlq_at` を設定
+1. Atomic write of a JSON file to `{deadletter_dir}/{event_id}.json`.
+2. Setting the `dlq_at` timestamp in SQLite.
 
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` は `dlq_at` をクリアし `dlq_requeue_count` を増加させる（`delivery_failure_count` はリセットしない）。`delivery_failure_count >= max_retry` の場合、次回のDLQループで再昇格する。
+`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` (`delivery_failure_count` is not reset). If `delivery_failure_count >= max_retry`, it will be re-promoted during the next DLQ loop.
 
-## コンシューマーオフセット
+## Consumer Offset
 
-オフセットファイルは `{offsets_dir}/{sanitized_consumer_id}` に保存される。`consumer_id` はサニタイズ済み。
+Offset files are stored in `{offsets_dir}/{sanitized_consumer_id}`. The `consumer_id` is sanitized.
 
-### Ack専用オフセット
+### Explicit Ack-only Offset
 
-コンシューマーが `POST /events/{event_id}/ack?consumer_id={consumer_id}` で明示的にackした場合のみ進む。ストリーミング中は自動進行しない。冪等な二重ackではオフセット更新は行わない。
+Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**注記**: オフセットはack時の `seq` 値のみを進める。ack順序が `seq` 順でない場合、オフセットは非単調になる可能性がある（スキップされた `seq` は後で再取得されない）。
+**Note:** Offsets only advance based on the `seq` value provided during ACK. If ACKs are not received in `seq` order, the offset may become non-monotonic (skipped `seq` values will not be re-acquired later).
 
-### 再接続時の再開
+### Resuming on Reconnection
 
-`consumer_id` を指定することで最後にackされたオフセットから再開できる。コンシューマーIDは再起動をまたいで安定している必要がある。
+By specifying a `consumer_id`, consumers can resume from their last acknowledged offset. The Consumer ID must remain stable across restarts.
 
-**注記**: `offset_checkpoint_interval` は削除済み。設定すると起動に失敗する。
+**Note:** `offset_checkpoint_interval` has been removed. Setting it will cause startup to fail.
 
-## 配送保証
+## Delivery Guarantees
 
-At-least-once。重複publishは `event_id` UNIQUE制約により抑制される。クラッシュ後の再配送は発生し得る。トピック単位で順序保持。
+At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE constraint. Redelivery after crashes may occur. Ordering is guaranteed per topic.
 
-**重要**: コンシューマーはidempotentな処理を実装しなければならない。同一イベントの複数回配信が発生し得るため、同じ `event_id` に対する重複ackや重複処理は安全でなければならない。
+**IMPORTANT:** Consumers MUST implement idempotent processing. Since multiple deliveries of the same event can occur, duplicate ACKs or duplicate processing for the same `event_id` must be safe.
 
-## consumer_id衝突リスク
+## Consumer ID Collision Risk
 
-異なるクライアントが同じ `consumer_id` を使用する場合、最後の書き込みが優先され、オフセットが上書きされる。これは設計上の意図だが、衝突によるオフセット不整合を引き起こす可能性がある。
+If different clients use the same `consumer_id`, the last write wins and the offset is overwritten. This is an intentional design choice but can lead to offset inconsistencies due to collisions.
 
-## 信頼性の限界
+## Reliability Limits
 
-- DBファイル喪失で全イベント喪失
-- JSONL追記失敗でSQLiteと乖離
-- DLQループ間隔（60秒）内にDLQ昇格イベントが見え続ける
+- Total loss of all events if the DB file is lost.
+- Divergence between SQLite and JSONL if appending to JSONL fails.
+- Events destined for DLQ may remain visible until the next DLQ loop interval (60 seconds).
 
 ## Related Documents
 

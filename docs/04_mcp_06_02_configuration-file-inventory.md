@@ -13,24 +13,24 @@ source:
 
 # Configuration File Inventory
 
-## プロセス分離方針
+## Process Isolation Policy
 
-各 MCP サーバーは独立したプロセスであり、**自身の設定ファイル (`*_mcp_server.toml`) のみを読み込む**。`agent.toml` は読み込まない。DB パスや外部サービス URL など他プロセスと同じ値が必要な場合でも、共通ファイルを作らず各設定ファイルに個別に記述する。
+Each MCP server is an independent process and **only reads its own configuration file (`*_mcp_server.toml`)**. It does not read `agent.toml`. Even when values such as DB paths or external service URLs need to be shared with other processes, they must be described individually in each configuration file rather than using a common file.
 
-`MCPServer.run_http()` は uvicorn 起動前に `ConfigLoader.restrict_to(own_config_file)` を呼び出してこのルールをランタイムで強制する。違反時は `ConfigPermissionError` が発生する。
+`MCPServer.run_http()` calls `ConfigLoader.restrict_to(own_config_file)` before starting uvicorn to enforce this rule at runtime. A `ConfigPermissionError` is raised upon violation.
 
-→ 詳細: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-プロセス分離方針-config-isolation-policy)
+→ Details: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-isolation-policy-config-isolation-policy)
 
-## レイヤー1 — エージェントプロセス設定 (`config/agent.toml`)
+## Layer 1 — Agent Process Configuration (`config/agent.toml`)
 
-`config/agent.toml` はエージェントプロセスのみが `ConfigLoader().load_all()` で読み込む。
+Only the agent process reads `config/agent.toml` via `ConfigLoader().load_all()`.
 
-| キー | 影響範囲 |
+| Key | Scope |
 |---|---|
-| `config/agent.toml` → `[mcp_servers.*]` | 全サーバーのトランスポート設定（`McpServerConfig`）— エージェントが MCP サーバーへの接続を管理するために使用 |
-| `config/agent.toml` → `tool_definitions` | LLM に公開されるツール名 |
-| `config/agent.toml` → `tool_safety_tiers` | ツールごとのリスクティア（READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN） |
-| `config/agent.toml` → `security_profile` | エージェント全体のセキュリティプロファイル（`local` / `production`） |
+| `config/agent.toml` → `[mcp_servers.*]` | Transport settings for all servers (McpServerConfig) — used by the agent to manage connections to MCP servers |
+| `config/agent.toml` → `tool_definitions` | Tool names exposed to the LLM |
+| `config/agent.toml` → `tool_safety_tiers` | Risk tier per tool (READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN) |
+| `config/agent.toml` → `security_profile` | Global agent security profile (local / production) |
 
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
 runtime — MCP server definition changes (URL, startup mode,
@@ -55,7 +55,7 @@ without error until the subprocess is spawned.
 real `config/agent.toml` via `build_agent_config()` and asserting every
 subprocess-mode server's `cmd` script path resolves to an existing file.
 
-## レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)
+## Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)
 
 | Server | Config file |
 |---|---|

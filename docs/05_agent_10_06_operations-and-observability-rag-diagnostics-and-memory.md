@@ -18,13 +18,13 @@ source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
-# エージェントの運用と可観測性
+# Agent Operations and Observability
 
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## RAG パイプライン診断
+## RAG Pipeline Diagnostics
 
-### ステージ結果の解釈
+### Interpreting Stage Results
 
 | Stage | `"success"` | `"fallback"` | `"failure"` |
 |---|---|---|---|
@@ -35,26 +35,26 @@ source:
 | `HttpAugment` | Remote RAG service returned result | `http_result_kind`: `"remote_nonempty"` (success) / `"remote_empty"` (valid empty) / `"in_process_fallback"` (failure) | HTTP error / no context |
 | `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | LLM call failed |
 
-### ステータス値
+### Status Values
 
 | Status | Meaning |
 |---|---|
-| `success` | ステージが正常に完了した |
-| `fallback` | 設定フラグ（例: `use_rrf=False`）によりステージがバイパスされた |
-| `failure` | ステージが例外を発生させ、パイプラインは低下した出力のまま継続した |
+| `success` | Stage completed successfully |
+| `fallback` | Stage bypassed due to configuration flag (e.g., `use_rrf=False`) |
+| `failure` | Stage raised an exception; pipeline continues with degraded output |
 
-### Refiner と HTTP フォールバックのステージ
+### Refiner and HTTP Fallback Stages
 
-該当する場合、`last_stage_results` にさらに2つのエントリが現れる。
+When applicable, two additional entries appear in `last_stage_results`.
 
 | stage_name | Appears when | fallback_reason on fallback |
 |---|---|---|
-| `HttpAugment` | `rag_service_url` が設定されている場合 | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
-| `Refiner` | `use_refiner=True` の場合 | `"refiner_returned_empty"`（空の出力）または `"refiner_exception: {e}"`（LLM エラー） |
+| `HttpAugment` | `rag_service_url` is configured | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
+| `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
 
-### RAG 取り込み診断
+## RAG Ingestion Diagnostics
 
-スタンドアロンの RAG 取り込みパイプラインは、URL ごとの進捗とサマリー行を出力する。
+The standalone RAG ingestion pipeline outputs progress and a summary line per URL.
 
 ``` text
 [ingest] crawling https://example.com/docs (lang=en)...
@@ -69,15 +69,15 @@ inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registe
 
 | Field | Description |
 |---|---|
-| `inserted N/M chunks: <url>` | N 個のチャンクが埋め込まれた、M はクロール JSON 内の総数。0/M は URL がスキップされたことを意味する（`--force` なしで既に DB に存在） |
-| `done: X URLs processed` | この実行における全 URL グループの集計 |
-| `success` | 埋め込みと保存に成功したチャンク |
-| `failed` | 埋め込みまたは DB 書き込みに失敗したチャンク |
-| `skipped` | URL が既に `documents` に存在するためスキップされた URL グループ（再埋め込みするには `--force` を使用） |
+| `inserted N/M chunks: <url>` | N chunks were embedded; M is the total number in the crawl JSON. 0/M means the URL was skipped (already exists in DB without `--force`). |
+| `done: X URLs processed` | Aggregation of all URL groups in this execution |
+| `success` | Chunks successfully embedded and saved |
+| `failed` | Chunks that failed embedding or DB write |
+| `skipped` | URL groups skipped because they already exist in `documents` (use `--force` to re-embed) |
 
-## メモリステータス（`/memory status`）
+## Memory Status (`/memory status`)
 
-出力例。
+Example output:
 
 ``` text
 Field                   Value
@@ -100,25 +100,25 @@ Embed skip count        8
   source:CONVERSATION   71
 ```
 
-- **Mode** ラベル: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
-- **Local-only**: `config/agent.toml` で `memory_local_only = true` の場合に `enabled`
-- **FTS fallback count**: 埋め込みが利用不可で FTS のみが使用されたセッション数
-- **Embed skip count**: 埋め込みなしで保存されたエントリ数（circuit open または embed disabled による）
+- **Mode** label: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
+- **Local-only**: `enabled` if `memory_local_only = true` in `config/agent.toml`
+- **FTS fallback count**: Number of sessions where embedding was unavailable and only FTS was used
+- **Embed skip count**: Number of entries saved without embedding (due to circuit open or embedding disabled)
 
-## グレースフルシャットダウン
+## Graceful Shutdown
 
-- `SIGTERM` → `agent.py` によって `SystemExit(0)` に変換される
-- シャットダウンフラグが立つ → REPL入力は、ブロッキングする `input()` 呼び出しと `_shutdown_event.wait()`（`asyncio.wait(FIRST_COMPLETED)`）を競合させる。シャットダウンイベントが先に完了した場合、入力は次のキー入力を待たずに即座に `None` を返す。取り残された `input()` の executor スレッドは中断されず、プロセス終了時に終了する。
-- `finally` ブロック:
-  - セッション診断の永続化 → `DiagnosticStore.save(kind="session_summary")` 経由で `session_diagnostics` テーブルにランタイムサマリーを書き込む
-  - `memory.on_session_stop()` → メモリの抽出と永続化
-  - リソースのクリーンアップ → readline history の保存、`lifecycle.shutdown_all()`、HTTP クライアントのクローズ
-- `shutdown_all()` は実行中、追加の `SIGINT`(2回目のCtrl-C等)を一時的に吸収し、全MCPサブプロセスの終了処理が中断されずに完了することを保証する(完了後は通常の割り込み処理に戻る)
+- `SIGTERM` $\rightarrow$ converted to `SystemExit(0)` by `agent.py`
+- Shutdown flag set $\rightarrow$ REPL input competes between blocking `input()` calls and `_shutdown_event.wait()` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, `input()` returns `None` immediately without waiting for next keypress. The executor thread for the remaining `input()` is not interrupted and terminates upon process exit.
+- `finally` block:
+  - Session diagnostics persistence $\rightarrow$ writes runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
+  - `memory.on_session_stop()` $\rightarrow$ extraction and persistence of memory
+  - Resource cleanup $\rightarrow$ saving readline history, `lifecycle.shutdown_all()`, closing HTTP clients
+- `shutdown_all()` temporarily absorbs additional `SIGINT` (e.g., second Ctrl-C) during execution to ensure all MCP subprocesses complete their shutdown processing without interruption (returns to normal interrupt handling after completion).
 
-## 関連資料
+## Related Docs
 
-- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — 起動とヘルスチェック
-- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — 監査ログとOTel
-- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — ワークフローの可観測性
-- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — 追加検証とトラブルシューティング
-- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — モニタリング
+- [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md) — Startup and Health Checks
+- [05_agent_10_02_operations-and-observability-audit-and-otel.md](05_agent_10_02_operations-and-observability-audit-and-otel.md) — Audit Logs and OTel
+- [05_agent_10_03_operations-and-observability-workflow-observability.md](05_agent_10_03_operations-and-observability-workflow-observability.md) — Workflow Observability
+- [05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md) — Validation and Troubleshooting
+- [05_agent_10_05_operations-and-observability-monitoring.md](05_agent_10_05_operations-and-observability-monitoring.md) — Monitoring

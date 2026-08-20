@@ -1,77 +1,63 @@
----
-title: "MCP Tool Capability Naming Convention"
-category: mcp
-tags:
-  - mcp
-  - tool-schema
-  - capabilities
-  - policy
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_07_tool_schema_export_policy.md
----
+# MCP Tool Capability Naming Convention
 
-# MCPツールケイパビリティ命名規則
+## Overview
 
-## 概要
+MCP tools can declare arbitrary capability metadata. A capability is a string in the format `{domain}.{action}` or `{domain}.{subdomain}.{action}`, indicating which domain and what action a tool can perform.
 
-MCPツールは任意のケイパビリティメタデータを宣言できる。ケイパビリティは `{domain}.{action}` または `{domain}.{subdomain}.{action}` 形式の文字列で、ツールがどのドメインに対してどのようなアクションを実行できるかを示す。
+This naming convention is **optional**; existing tools are not required to adopt it. Discovery services allow the absence of this field ([see mcp_tool_discovery.py](04_mcp_03_06_tool-runtime-availability-metadata.md)).
 
-この命名規則は**オプティブ**であり、既存のツールは採用する必要がない。発見サービスはこのフィールドの欠如を許容する（[mcp_tool_discovery.py](04_mcp_03_06_tool-runtime-availability-metadata.md)参照）。
+Related: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — Describes ownership and routing roles for `ToolRegistry` (distinct from the capability naming convention in this document).
 
-関連: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry の所有権・ルーティングの役割について説明している（本ドキュメントのケイパビリティ命名規則とは異なる）。
+Related: [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — Describes the canonical name for `TOOL_LIST` exports (distinct from the capability naming convention in this document).
 
-関連: [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — TOOL_LISTエクスポートの正規名について説明している（本ドキュメントのケイパビリティ命名規則とは異なる）。
+## Naming Convention
 
-## 命名規則
+Capability strings must follow this format:
 
-ケイパビリティ文字列は以下の形式に従う:
-
-``` json
+```json
 {domain}.{action}
-または
+or
 {domain}.{subdomain}.{action}
 ```
 
-- すべてのセグメントは小文字のみ
-- セグメント内にはスペースやアンダースコアを含めない
-- ドットで区切る
-- 正規表現で表すと: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`
+- All segments must be lowercase.
+- Segments must not contain spaces or underscores.
+- Segments must be separated by dots.
+- Regex equivalent: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`
 
-**注意**: この正規表現は文書化目的のみであり、**ランタイムでの正規表現バリデーションは追加されない**。本ドキュメントは形状の慣例を定義するだけで、バリデータの実装を義務付けるものではない。
+**Note**: This regex is for documentation purposes only; **no runtime regex validation will be added**. This document defines a shape convention and does not mandate validator implementation.
 
-## ドメイン
+## Domains
 
-ドメインは論理的なリソース領域であり、必ずしもMCPサーバーの名前と1:1に対応するわけではない:
+A domain is a logical resource area and does not necessarily map 1:1 to an MCP server name:
 
-- `filesystem` — ファイルシステム操作
-- `git` — Gitリポジトリ操作
-- `github` — GitHub API操作
-- `process` — プロセス/シェル操作
-- `search` — 検索操作
-- その他将来のドメイン
+- `filesystem` — Filesystem operations
+- `git` — Git repository operations
+- `github` — GitHub API operations
+- `process` — Process/shell operations
+- `search` — Search operations
+- Other future domains
 
-このリストは**オープンかつ拡張可能**であり、閉じた列挙型ではない。
+This list is **open and extensible**, not a closed enumeration.
 
-## アクションと read/write/delete/admin の区別
+## Actions and distinction between read/write/delete/admin
 
-アクションは小さな拡張可能な語彙セットで、主に以下の基本アクションに anchored されている:
+Actions are a small, extensible vocabulary, primarily anchored to the following basic actions:
 
-- `read` — リーダー操作
-- `write` — ライター操作
-- `delete` — デリーター操作
-- `execute` — プロセス/シェルのようなアクション
+- `read` — Reader operation
+- `write` — Writer operation
+- `delete` — Deleter operation
+- `execute` — Process/shell-like action
 
-ドメイン固有の動詞も存在する。例えば `github.issue.write` は単なる `github.write` よりも正確である。
+Domain-specific verbs also exist. For example, `github.issue.write` is more precise than just `github.write`.
 
-## 複数キャパビリティ
+## Multiple Capabilities
 
-ツールは複数のケイパビリティを宣言できる（例: リードと副作用の両方をトリガーするツール）。そのため、対応する `RuntimeTool` フィールドは単一の文字列ではなく `tuple[str, ...]` である（[runtime_tool.py](04_mcp_03_06_tool-runtime-availability-metadata.md)参照）。
+Tools can declare multiple capabilities (e.g., a tool that triggers both a read and a side effect). Therefore, the corresponding `RuntimeTool` field is a `tuple[str, ...]` rather than a single string ([see runtime_tool.py](04_mcp_03_06_tool-runtime-availability-metadata.md)).
 
-## 具体例
+## Examples
 
-要件の例をそのまま記載する:
+Requirement examples:
 
 - `filesystem.read`
 - `filesystem.write`
@@ -82,18 +68,18 @@ MCPツールは任意のケイパビリティメタデータを宣言できる�
 - `process.execute`
 - `search.web`
 
-**注記:** `("web_fetch",)` という値はテスト用フィクスチャ（`tests/test_runtime_tool_routing_integration.py`）でのみ確認されており、プロダクション環境の MCP サーバーにおいてこの命名規則に基づいた `capabilities` を宣言しているものは現在存在しません。
+**Note:** The value `("web_fetch",)` has only been observed in test fixtures (`tests/test_runtime_tool_routing_integration.py`); currently, no MCP servers in production environments declare `capabilities` based on this naming convention.
 
-## ステータス
+## Status
 
-これは提案中の標準慣習です。現時点では、プロダクション環境においてこの命名規則を正式に採用している MCP サーバーはありません。
+This is a proposed standard convention. Currently, no MCP servers in production environments have formally adopted this naming convention.
 
 ## Related Documents
 
-- [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) — MCPドキュメントガイド
-- [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistryの所有権・ルーティング
-- [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — TOOL_LISTエクスポートの正規名
-- [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) — RuntimeToolのケイパビリティフィールド
+- [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) — MCP Documentation Guide
+- [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry Ownership & Routing
+- [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) — Canonical Name for TOOL_LIST Exports
+- [04_mcp_03_06_tool-runtime-availability-metadata.md](04_mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Capability Field
 
 ## Keywords
 

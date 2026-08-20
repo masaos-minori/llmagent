@@ -1,61 +1,44 @@
----
-title: "Event Bus: Document Guide"
-category: eventbus
-tags:
-  - event-bus
-  - documentation
-  - guide
-related:
-  - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_01_publish-replay.md
-  - 06_eventbus_02_02_subscribe-ack.md
-  - 06_eventbus_02_03_nack-health-dlq.md
-  - 06_eventbus_06_01_reference-api-core-modules.md
-source:
-  - index.md
----
-
 # Event Bus: Document Guide
 
-## 目的
+## Purpose
 
-これらのドキュメントは `scripts/eventbus/` の実装について説明する。Event Bus 機能の実装、デバッグ、拡張を行う際に使用すること。
+These documents describe the implementation of `scripts/eventbus/`. Use them when implementing, debugging, or extending the Event Bus functionality.
 
-## 読む順序
+## Reading Order
 
-| カテゴリ | ファイル |
+| Category | File |
 |---|---|
-| 全体像・アーキテクチャ | `06_eventbus_01_system-overview.md` |
-| 主要操作（publish/replay/subscribe/ack/nack/DLQ） | `06_eventbus_02_*` |
-| 永続化・スキーマ | `06_eventbus_03_persistence_schema_and_replay.md` |
-| delivery semantics・consumer 責務 | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
-| 設定・セキュリティ制約・運用 | `06_eventbus_05_*` |
-| Reference API（詳細確認用） | `06_eventbus_06_*` |
-| 既知問題・保留事項 | `06_eventbus_90_inconsistencies_and_known_issues.md` |
+| Overview & Architecture | `06_eventbus_01_system-overview.md` |
+| Primary Operations (publish/replay/subscribe/ack/nack/DLQ) | `06_eventbus_02_*` |
+| Persistence & Schema | `06_eventbus_03_persistence_schema_and_replay.md` |
+| Delivery Semantics & Consumer Responsibilities | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
+| Configuration, Security Constraints & Operations | `06_eventbus_05_*` |
+| Reference API (for detailed verification) | `06_eventbus_06_*` |
+| Known Issues & Pending Items | `06_eventbus_90_inconsistencies_and_known_issues.md` |
 
-## AI クエリルーティング
+## AI Query Routing
 
-| 質問 | ルール |
+| Question | Rule |
 |---|---|
-| Event Bus の設計意図・アーキテクチャ | `06_eventbus_01` |
-| イベントの publish / replay / subscribe / ack / nack / DLQ | `06_eventbus_02` |
-| 永続化レイヤー・正本データ | `06_eventbus_03` |
-| delivery semantics・consumer 責務 | `06_eventbus_04` |
-| 設定・bind address・ヘルスチェック・運用 | `06_eventbus_05` |
-| API詳細・型・スキーマ | `06_eventbus_06` |
-| 既知の問題・仕様の矛盾 | `06_eventbus_90` |
+| Event Bus design intent & architecture | `06_eventbus_01` |
+| Publishing / replaying / subscribing / acking / nacking / DLQ events | `06_eventbus_02` |
+| Persistence layer & canonical data | `06_eventbus_03` |
+| Delivery semantics & consumer responsibilities | `06_eventbus_04` |
+| Configuration, bind address, health checks & operations | `06_eventbus_05` |
+| API details, types & schemas | `06_eventbus_06` |
+| Known issues & specification inconsistencies | `06_eventbus_90` |
 
-## 正典ソースのルール
+## Canonical Source Rule
 
-動作に関する正典（canonical）のソースは **ソースコード**（`scripts/eventbus/`）であり、これらのドキュメントではない。ドキュメントとコードが矛盾する場合はコードを信頼し、ドキュメントを更新すること。
+The canonical source for behavior is the **source code** (`scripts/eventbus/`), not these documents. If there is a conflict between the documentation and the code, trust the code and update the documentation.
 
 ## Known Issues / Deferred Items
 
-既知の制限・仕様ギャップ・保留事項は `06_eventbus_90_inconsistencies_and_known_issues.md` に一元管理している。個別の章に重複して記載しない。
+Known limitations, specification gaps, and pending items are centrally managed in `06_eventbus_90_inconsistencies_and_known_issues.md`. Do not duplicate them in individual chapters.
 
 ## Reference API
 
-`06_eventbus_06_*` は詳細なAPI仕様（型定義、スキーマ、エンドポイント仕様）をまとめたReference APIである。設計判断を確認した後は必要に応じて参照するが、設計本文とは分離されている。
+`06_eventbus_06_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
 
 ## Governance
 

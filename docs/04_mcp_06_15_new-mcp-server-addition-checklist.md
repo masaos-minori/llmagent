@@ -13,22 +13,19 @@ source:
 
 # New MCP Server Addition Checklist
 
-## 新規MCPサーバー追加チェックリスト
+When adding a new server:
 
-サーバーを追加する際:
-
-- [ ] `scripts/mcp_servers/<name>/<name>_server.py`を作成する(`MCPServer`を継承し、`dispatch()`をオーバーライドする)
-- [ ] `MCPServer`サブクラス内で`own_config_file = "<key>_mcp_server.toml"`を宣言する — `run_http()`が自動的に`ConfigLoader.restrict_to(own_config_file)`を呼び出す
-- [ ] `config/<key>_mcp_server.toml`を作成し、**サーバーが必要とするすべての設定**を含める(DBパス・外部URL等を含む;`agent.toml`は参照しない)
-- [ ] `config/agent.toml`の`[[tool_definitions]]`にツール定義を追加する
-- [ ] ツールは`shared/tool_constants.py`のfrozensetに登録する(起動時に自動ルーティングされる);設定側の`tool_names`は任意のドリフト検証にのみ使われる
-- [ ] `deploy/deploy.sh`のコピー対象リストに新規ファイルを追加する
-- [ ] `deploy/setup_services.sh`に起動手順を追加する
-- [ ] 新規ツールすべてについて`config/agent.toml`に`tool_safety_tiers`のエントリを追加する
-- [ ] 新しいドキュメントが必要な場合は`routing.md`を更新する
+- [ ] Create `scripts/mcp_servers/<name>/<name>_server.py` (inherit from `MCPServer` and override `dispatch()`)
+- [ ] Declare `own_config_file = "<key>_mcp_server.toml"` within the `MCPServer` subclass — `run_http()` will automatically call `ConfigLoader.restrict_to(own_config_file)`
+- [ ] Create `config/<key>_mcp_server.toml` and include **all settings required by the server** (including DB paths, external URLs, etc.; do not refer to `agent.toml`)
+- [ ] Add the tool definition to `[[tool_definitions]]` in `config/agent.toml`
+- [ ] Register the tool in the frozenset of `shared/tool_constants.py` (automatic routing on startup); the `tool_names` in the config side is only used for arbitrary drift validation
+- [ ] Add the new file to the copy list in `deploy/deploy.sh`
+- [ ] Add startup procedures to `deploy/setup_services.sh`
+- [ ] For every new tool, add an entry for `tool_safety_tiers` in `config/agent.toml`
+- [ ] Update `routing.md` if new documentation is required
 
 ---
-
 
 ## Related Documents
 

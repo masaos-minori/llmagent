@@ -20,19 +20,19 @@ source:
 
 # Event Bus: DLQ Operations
 
-## DLQ オペレーション
+## DLQ Operations
 
-### DLQ ファイル作成
+### DLQ File Creation
 
-インライン（`/nack` 時）またはバックグラウンドループ（60秒ごと）で `{deadletter_dir}/{event_id}.json` を作成。バックグラウンドは安全網。
+Files are created at `{deadletter_dir}/{event_id}.json` during inline processing (on `/nack`) or by the background loop (every 60 seconds). The background loop serves as a safety net.
 
-### requeue
+### Requeue
 
-`POST /dlq/{event_id}/requeue` は `dlq_at` をクリアし `dlq_requeue_count` を増加。`delivery_failure_count` はリセットしない。`>= max_retry` の場合、次回のループで再昇格。
+`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count`. It does not reset `delivery_failure_count`. If `delivery_failure_count >= max_retry`, the event will be re-promoted during the next loop.
 
-### 監視
+### Monitoring
 
-スイープ結果はログに記録されるが、ヘルスエンドポイントでは公開されていない。
+Sweep results are recorded in the logs but are not exposed via the health endpoint.
 
 ## Related Documents
 

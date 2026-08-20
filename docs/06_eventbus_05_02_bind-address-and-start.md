@@ -20,25 +20,25 @@ source:
 
 # Event Bus: Bind Address and Start Command
 
-## バインドアドレス
+## Bind Address
 
-本番では `127.0.0.1` にバインドすべき。`0.0.0.0` は認証なしでAPIが公開されるためセキュリティリスク。
+In production, you should bind to `127.0.0.1`. Binding to `0.0.0.0` poses a security risk as the API becomes publicly accessible without authentication.
 
-### アドレス分類
+### Address Classification
 
-- ループバック (`127.0.0.1`, `::1`) / プライベートIP — 許可
-- ワイルドカード (`0.0.0.0`, `::`) — `ValueError`
-- ホスト名 — public扱い
+- Loopback (`127.0.0.1`, `::1`) / Private IP — Allowed
+- Wildcard (`0.0.0.0`, `::`) — Raises `ValueError`
+- Hostname — Treated as public
 
-`allow_public_bind: true` で検証を回避可能だが推奨されない。
+You can bypass validation using `allow_public_bind: true`, but this is not recommended.
 
-### 起動コマンド
+## Start Command
 
 ```bash
 EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 ```
 
-または `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010`。
+Or `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010`.
 
 ## Related Documents
 

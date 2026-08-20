@@ -20,28 +20,28 @@ source:
 
 # Event Bus: Delivery Operations
 
-## 配信オペレーション
+## Delivery Operations
 
-### 配信の確認
+### Verifying Delivery
 
-`GET /subscribe?consumer_id=test` でライブプッシュを確認。publish後に1ループティック以内に受信される。
+Verify live push using `GET /subscribe?consumer_id=test`. Events should be received within one loop tick after publishing.
 
-### 低速な consumer の監視
+### Monitoring Slow Consumers
 
-プロセス内キューが100イベント以上を低速と判定。ヘルスエンドポイントで確認。
+A process queue exceeding 100 events is considered slow. This can be verified via the health endpoint:
 
-- `slow_consumers > 0` → degraded
-- `max_queue_depth >= 500` → broker_queue_backlog_high
+- `slow_consumers > 0` → `degraded`
+- `max_queue_depth >= 500` → `broker_queue_backlog_high`
 
-低速の場合、キューからイベントが破棄される。consumerは再接続してSQLiteからリプレイが必要。
+If a consumer is slow, events are discarded from the queue. The consumer must reconnect and replay from SQLite.
 
-### 再接続時の復旧
+### Recovery on Reconnection
 
-consumer_id を指定して再接続すると最後にackされたオフセットから再開。一度もackしていない場合はseq=0から開始。`since_seq=N` で特定位置から開始可能。
+Reconnecting with a `consumer_id` resumes from the last acknowledged offset. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
 
-### サブスクライバ数
+### Subscriber Count
 
-0の場合、ブローカーはアイドル。イベントはSQLiteに残り、次回接続時にリプレイ可能。
+When the count is 0, the broker is idle. Events remain in SQLite and are available for replay upon the next connection.
 
 ## Related Documents
 

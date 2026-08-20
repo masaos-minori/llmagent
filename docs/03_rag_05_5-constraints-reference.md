@@ -11,21 +11,22 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# 5. 制約リファレンス
+
+# 5. Constraints Reference
 
 | Constraint | Value |
 |---|---|
-| 言語判定の閾値 | CJK比率 ≥ 0.10 → `ja`; ページが100文字未満 → ヒント言語を使用 |
-| チャンクサイズの範囲 | 40〜500文字 (`config/chunk_splitter.toml`の`min_chunk`/`max_chunk`で設定可能) |
-| チャンクの重複 | 50文字のスライディングウィンドウ (`config/chunk_splitter.toml:chunk_overlap`) |
-| 埋め込みの次元数 | 384 (`config/agent.toml:embedding_dims`、および`config/ingester.toml:embedding_dims`)。float32リトルエンディアンBLOB |
-| クロール深度 | コードのデフォルトは`max_depth`未指定不可 (`config/crawler.toml`必須キー)。運用中の`config/crawler.toml`では`max_depth = 3` |
-| クロールページ数の上限 | コードのデフォルトはサイトごと500ページ (`crawler.py`の`cfg.get("max_pages", 500)`)。運用中の`config/crawler.toml`では`max_pages = 200` |
-| レプリカ | 単一ノードのSQLiteのみ |
+| Language detection threshold | CJK ratio $\ge$ 0.10 $\rightarrow$ `ja`; If page < 100 chars $\rightarrow$ use hint language |
+| Chunk size range | 40–500 characters (Configurable via `min_chunk`/`max_chunk` in `config/chunk_splitter.toml`) |
+| Chunk overlap | 50 character sliding window (`config/chunk_splitter.toml:chunk_overlap`) |
+| Embedding dimensions | 384 (`config/agent.toml:embedding_dims`, and `config/ingester.toml:embedding_dims`). float32 little-endian BLOB |
+| Crawl depth | Code default requires `max_depth` to be specified (`config/crawler.toml` is mandatory). Operational `config/crawler.toml` uses `max_depth = 3` |
+| Max crawl pages | Code default is 500 pages per site (`crawler.py` uses `cfg.get("max_pages", 500)`). Operational `config/crawler.toml` uses `max_pages = 200` |
+| Replication | Single-node SQLite only |
 
-**根拠:**
-- CJK閾値・文字数閾値・チャンクサイズ/重複・埋め込み次元/エンディアンは Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`)。
-- クロール深度・ページ数上限は Explicit in code だが、コードの既定値と実際に運用されている`config/crawler.toml`の値が異なる。旧版では「`config/agent.toml:43`」「最大6ホップ」「最大500ページ」と記載されていたが、現行の`config/agent.toml`では`embedding_dims`は17行目であり、`config/crawler.toml`実値は`max_depth=3`, `max_pages=200`である。行番号・値は設定変更で容易にずれるため、参照は「セクション名」ベースに修正した。
+**Evidence:**
+- CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
+- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Previous versions stated "`config/agent.toml:43`", "max 6 hops", and "max 500 pages", but in the current `config/agent.toml`, `embedding_dims` is on line 17, and actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`. Since line numbers and values change easily with config updates, references have been updated to be section-based.
 
 ---
 

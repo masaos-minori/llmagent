@@ -11,35 +11,31 @@ source:
   - 03_rag_05_1-configuration-reference.md
 ---
 
-# RAG MCP内部操作 (DB直接アクセス)
 
-以下の操作はRAG MCPサービスの内部処理であり、`SQLiteHelper("rag")`を通じて`rag.sqlite`に
-直接アクセスする。これらはエージェント層によるDB直接アクセス**ではなく**、
-RAG MCPサービスの責務範囲内の処理である。
+# RAG MCP Internal Operations (Direct DB Access)
+
+The following operations are internal processes of the RAG MCP service and access `rag.sqlite` directly via `SQLiteHelper("rag")`. These are **not** direct database accesses by the agent layer, but rather processing within the responsibility scope of the RAG MCP service.
 
 ## `list_documents()`
 
-`/db rag urls`コマンド (`rag_list_documents` MCPツール経由) で使用される、チャンク数付きの
-ドキュメント一覧を返す。
+Used by the `/db rag urls` command (via the `rag_list_documents` MCP tool) to return a list of documents with their respective chunk counts.
 
 See `list_documents()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` (or the equivalent in `scripts/rag/ingestion/document_manager.py`) for the current signature.
 
-**アクセスパターン:** `documents`テーブルと`chunks`テーブルに対する読み取り専用クエリ。
+**Access Pattern:** Read-only queries against the `documents` and `chunks` tables.
 
 ## `delete_document()`
 
-`/db rag clean`コマンド (`rag_delete_document` MCPツール経由) で使用される、ドキュメントと
-関連するチャンク/埋め込みの削除処理。
+Used by the `/db rag clean` command (via the `rag_delete_document` MCP tool) to perform deletion of a document and its associated chunks/embeddings.
 
 See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py` for the current signature.
 
-**削除順序 (重要):** このメソッドは孤立レコードを防ぐため、厳格な削除順序を強制する。
+**Deletion Order (Important):** This method enforces a strict deletion order to prevent orphaned records.
 
-1. まず`chunks_vec`の行を明示的に削除する (このドキュメントのチャンクに対応する埋め込みベクトル)
-2. `documents`の行を削除する (`ON DELETE CASCADE`により`chunks`の行が連鎖削除され、`chunks_fts`の同期トリガーも発火する)
+1. First, explicitly delete rows from `chunks_vec` (the embedding vectors corresponding to the document's chunks).
+2. Delete the row from `documents` (`ON DELETE CASCADE` handles the cascading deletion of `chunks` rows, which in turn triggers synchronization of `chunks_fts`).
 
-この順序が必要な理由は、`chunks_vec`が`chunks`を指す外部キー制約を持たないためである。
-`chunks`テーブルへの明示的なDELETE文はコード上存在しない(詳細は`docs/03_rag_91_design_notes.md` DESIGN-3を参照)。
+This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see `docs/03_rag_91_design_notes.md` DESIGN-3 for details).
 
 ```python
 # Order matters — chunks_vec before documents (CASCADE removes chunks)
@@ -52,10 +48,10 @@ db.execute(
 db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 ```
 
-その他の派生レコード (例: `chunks`テーブルの行) は、該当する場合はカスケード削除または
-トリガーに依存する。
+Other derivative records (e.g., rows in the `chunks` table) depend on cascading deletes or triggers where applicable.
 
 ---
+
 
 ## CLI Tools
 For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `ingester.py --help` in `scripts/rag/ingestion/`.

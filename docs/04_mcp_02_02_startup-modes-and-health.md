@@ -1,69 +1,54 @@
----
-title: "MCP Startup Modes, Bearer Auth, Truncation, and Health Responses"
-category: mcp
-tags:
-  - mcp
-  - auth
-  - health
-  - startup
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_02_01_endpoints-and-transport.md
-  - 04_mcp_02_03_audit-logging-and-errors.md
-  - 04_mcp_06_12_watchdog-configuration-monitoring.md
----
+# MCP Protocol and Transport: Startup Modes, Authentication, and Health Checks
 
-# MCP プロトコルとトランスポート: 起動モード・認証・ヘルスチェック
+## HTTP Startup Modes
 
-## HTTP 起動モード
-
-| 観点 | `persistent` モード | `subprocess` モード |
+| Aspect | `persistent` Mode | `subprocess` Mode |
 |---|---|---|
-| プロセス管理 | 外部で管理（既存プロセス） | エージェント起動時に uvicorn を起動 |
-| リクエスト形式 | `/v1/call_tool` への POST | `/v1/call_tool` への POST |
-| 並行性 | uvicorn async | uvicorn async |
-| セッション ID ヘッダー | `X-Session-Id` | `X-Session-Id` |
-| ツール一覧チェック | `GET /v1/tools` | `GET /v1/tools` |
-| ヘルスチェック | `GET /health` | 起動時に `/health` をポーリング |
+| Process Management | Managed externally (existing process) | Starts uvicorn when the agent starts |
+| Request Format | POST to `/v1/call_tool` | POST to `/v1/call_tool` |
+| Concurrency | uvicorn async | uvicorn async |
+| Session ID Header | `X-Session-Id` | `X-Session-Id` |
+| Tool List Check | `GET /v1/tools` | `GET /v1/tools` |
+| Health Check | `GET /health` | Polls `/health` at startup |
 
 ---
 
-### 標準的な `/health` レスポンスのセマンティクス
+### Standard `/health` Response Semantics
 
-全 MCP サーバーの `/health` エンドポイントは、レスポンスフィールドについて一貫したセマンティクスに従う。
+All MCP server `/health` endpoints follow consistent semantics for response fields.
 
-**`status`**: 完全に健全な場合は `"ok"`、依存関係の失敗が検出された場合は `"degraded"`。
+**`status`**: `"ok"` if fully healthy, `"degraded"` if dependency failures are detected.
 
-**`ready`**: 依存関係の失敗がない場合は `true`、いずれかの依存関係が失敗している場合は `false`。
+**`ready`**: `true` if there are no dependency failures, `false` otherwise.
 
-**`liveness`**: デフォルトでは `true`（基底クラス）; サブクラスはプロセスがリクエストを受け付けられない致命的な内部状態を示すためにオーバーライドできる。
+**`liveness`**: Defaults to `true` (base class); subclasses can override it to indicate critical internal states where the process cannot accept requests.
 
-**`restart_recommended`**: `true` は、プロセスを再起動することで障害が解決する可能性があることをウォッチドッグに伝える。`false` は再起動しても効果がないことを意味する（例: 認証情報の欠落はオペレーターの対応が必要）。
+**`restart_recommended`**: Setting this to `true` informs the Watchdog that restarting the process may resolve the issue. `false` means a restart will not help (e.g., missing credentials require operator intervention).
 
-**注記（実装の現状）:** 現行コードでは、全10 MCPサーバーの `/health` 実装（`scripts/mcp_servers/health_response.py::make_health_response()` を使うサーバー、および mdq/file-read/write-delete の独自実装）はいずれも `restart_recommended` を常に `False` で返す。`MCPServer.health()` 基底実装も同様に固定 `False` である。`restart_recommended=True` を返す経路はコードベース上に存在しない（Explicit in code）。したがって、現状ウォッチドッグの自動再起動がトリガーされるのは「到達不可（`reachable=False`）」のケースのみであり、「到達可能だが `restart_recommended=true`」のケースは仕様上サポートされているが実装済みサーバーでは発生しない（Explicit in code）。
+**Note (Current Implementation):** In the current codebase, all 10 MCP server `/health` implementations (those using `scripts/mcp_servers/health_response.py::make_health_response()` and custom implementations for `mdq`/`file-read`/`write-delete`) always return `False` for `restart_recommended`. The base implementation of `MCPServer.health()` also has a fixed `False`. There is no code path that returns `restart_recommended=True` (Explicit in code). Therefore, currently, automatic restarts by the Watchdog are only triggered in "unreachable" cases (`reachable=False`), while "reachable but `restart_recommended=true`" is supported by design but does not occur in implemented servers (Explicit in code).
 
-**`operator_action_required`**: 人間による対応が必要な場合（認証情報の欠落、バイナリの欠落など）に `true`。ウォッチドッグは WARNING をログに記録するが、これが `true` かつ `restart_recommended=false` の場合は再起動を行わない。
+**`operator_action_required`**: `true` if human intervention is required (e.g., missing credentials, missing binaries). The Watchdog logs a WARNING, but if both `operator_action_required` is `true` and `restart_recommended` is `false`, it will not perform a restart.
 
-**注記:** `make_health_response()` ヘルパーは `operator_action_required = not ready` を機械的に設定する（`deps` が空でなければ常に `True`）。したがって同ヘルパーを使うサーバーでは、`ready=False` になった依存関係障害はすべて `operator_action_required=True` として扱われ、両者は事実上連動する（Explicit in code）。`MCPServer.health()` 基底実装は逆に `operator_action_required=False` 固定である。
+**Note:** The `make_health_response()` helper mechanically sets `operator_action_required = not ready` (it is always `True` if `deps` is non-empty). Thus, for servers using this helper, any dependency failure resulting in `ready=False` is treated as `operator_action_required=True`, making them effectively linked (Explicit in code). Conversely, the base implementation of `MCPServer.health()` has `operator_action_required` fixed at `False`.
 
-**`dependencies`**: 依存関係名 → エラーメッセージの Dict。健全な場合は空。
+**`dependencies`**: A dictionary mapping dependency names to error messages. Empty if healthy.
 
-**`details`**: サーバー固有の補足情報（例: `sandbox_backend`, `service`）。該当しない場合は空の dict。
+**`details`**: Server-specific supplementary information (e.g., `sandbox_backend`, `service`). Empty dict if not applicable.
 
-**HTTP ステータスコード**:
-- `status="ok"` かつ `ready=true`（完全に健全）の場合は `200`
-- `status="degraded"` または `ready=false`（依存関係の失敗）の場合は `503`
+**HTTP Status Codes**:
+- `200` if `status="ok"` and `ready=true` (fully healthy)
+- `503` if `status="degraded"` or `ready=false` (dependency failure)
 
-**依存関係の値**: 空でない依存関係の値（`"not configured"`, `"not_set"`, `"check failed"` など）はいずれも degraded 状態を構成する — 全ての依存関係が満たされるまでサーバーは健全ではない。これらの値は単なる情報提供ではなく、常に実際の欠落または失敗した依存関係を示す。
+**Dependency Values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency.
 
-**`/mcp status` での解釈**: `McpStatusService.probe_all()`（`agent/services/mcp_status.py`）は HTTP ステータスコードと本文の `restart_recommended`/`operator_action_required` フィールドを読み取り、`/mcp status` の `health_reason` 列に反映する。これは表示のみの処理であり、自動的な再起動やサーバー状態の変更は行わない（Explicit in code）。
-- `reachable=False`（HTTP レスポンスなし）または `restart_recommended=true`: `health_reason` に反映される
-- `operator_action_required=true`: `health_reason` に `operator_action_required` として反映される
-- ツール実行層の `HealthRegistry.record_degraded(server_key, reason=...)` はこれとは別経路（`shared/tool_executor.py` のディスパッチ結果）から呼び出される（現在 `UNAVAILABLE`/`HALF_OPEN` の場合は no-op）
+**Interpretation in `/mcp status`**: `McpStatusService.probe_all()` (`agent/services/mcp_status.py`) reads the HTTP status code and the `restart_recommended`/`operator_action_required` fields from the body and reflects them in the `health_reason` column of `/mcp status`. This is a display-only operation and does not trigger automatic restarts or change server states (Explicit in code).
+- Reflected in `health_reason` if `reachable=False` (no HTTP response) or `restart_recommended=true`.
+- Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true`.
+- `HealthRegistry.record_degraded(server_key, reason=...)` in the tool execution layer is called via a different path (`dispatch` result in `shared/tool_executor.py`) (currently a no-op for `UNAVAILABLE`/`HALF_OPEN` cases)
 
-自動再起動(旧MCP watchdog)は2026-07-16に削除された。詳細と手動リカバリの手順は [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照。
+Automatic restarts (formerly MCP watchdog) were removed on 2026-07-16. For details and manual recovery procedures, see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md).
 
-**健全なレスポンスの例**:
+**Healthy Response Example**:
 ```json
 {
   "status": "ok",
@@ -76,7 +61,7 @@ related:
 }
 ```
 
-**degraded なレスポンスの例**（`operator_action_required=true` — 認証情報の欠落、再起動なし）:
+**Degraded Response Example** (`operator_action_required=true` — missing credentials, no restart):
 ```json
 {
   "status": "degraded",
@@ -93,38 +78,35 @@ related:
 
 ---
 
----
+## Bearer Authentication
 
-## Bearer 認証
-
-`McpServerConfig.auth_token` が空でない場合:
-- サーバー側: `attach_auth_middleware(app, token)` がミドルウェアを登録し、
-  `Authorization: Bearer <token>` を検証する。不一致のリクエストは HTTP 401 を受け取る。
-- クライアント側: `HttpTransport` が全ての POST に `Authorization: Bearer <token>` を注入する。
-- `auth_token` が空の場合: 認証チェックはスキップされる; `X-Request-Id` の注入のみが有効。
+If `McpServerConfig.auth_token` is not empty:
+- **Server-side**: `attach_auth_middleware(app, token)` registers middleware and validates `Authorization: Bearer <token>`. Mismatched requests receive an HTTP 401.
+- **Client-side**: `HttpTransport` injects `Authorization: Bearer <token>` into all POST requests.
+- If `auth_token` is empty: Authentication checks are skipped; only `X-Request-Id` injection is active.
 
 ---
 
-## レスポンスの切り詰め
+## Response Truncation
 
-結果が 512 KB を超える場合:
+If the result exceeds 512 KB:
 ``` text
 [TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]
 ```
 
-- `total_bytes` = 元のバイト数（切り詰め前）
-- `actual_visible_bytes` = 実際に表示されるバイト数（切り詰め境界にマルチバイト UTF-8 文字がある場合、512 KB より少なくなることがある）
-- `mcp_servers/server.py` のメタデータ付き切り詰めメソッドにより実装
+- `total_bytes` = original byte count (before truncation)
+- `actual_visible_bytes` = bytes actually displayed (may be less than 512 KB if a multi-byte UTF-8 character falls on the truncation boundary)
+- Implemented via the metadata-aware truncation method in `mcp_servers/server.py`
 
-**注記:** サフィックスは設定された上限ではなく、実際に表示されるバイト数（`actual_visible_bytes`）を示す。ASCII テキストの場合、これは 512 KB（524,288 バイト）と等しくなる。境界にマルチバイト文字を含む UTF-8 テキストの場合、わずかに少なくなることがある。
+**Note:** The suffix shows the `actual_visible_bytes`, not the set limit. For ASCII text, this is exactly 512 KB (524,288 bytes). For UTF-8 text containing multi-byte characters at the boundary, it may be slightly less.
 
-**重要:** HTTP レスポンスメタデータ内の `total_bytes` と `actual_visible_bytes` フィールドは、切り詰め後のテキストサイズではなく、元のディスパッチ出力サイズを表す。これにより、クライアントは切り詰め不要な短いレスポンスと、切り詰められた長いレスポンスを区別できる。
+**Important:** The `total_bytes` and `actual_visible_bytes` fields in the HTTP response metadata represent the size of the *original* dispatch output, not the truncated text itself. This allows clients to distinguish between short responses that do not require truncation and long responses that have been truncated.
 
 ---
 
-## サーバー固有のヘルスレスポンスフィールド
+## Server-Specific Health Response Fields
 
-| サーバー | `/health` のオーバーライド |
+| Server | `/health` Override |
 |---|---|
 | web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
 | github-mcp | `dependencies.github_token` (`"not_set"`) |

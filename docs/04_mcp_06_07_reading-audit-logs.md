@@ -13,16 +13,16 @@ source:
 
 # Reading Audit Logs
 
-`/opt/llm/logs/audit.log` にある共有audit logには、MCPサーバとagent側の両方のaudit eventがJSON-lines形式で記録される。各行はパース可能なJSONオブジェクトである。
+The shared audit log at `/opt/llm/logs/audit.log` records both MCP server and agent-side audit events in JSON-lines format. Each line is a parsable JSON object.
 
-## MCPサーバのaudit log（呼び出しごと）
+## MCP Server Audit Logs (Per Call)
 
-形式: JSON-lines、1行に1個のJSONオブジェクト。例:
+Format: JSON-lines, one JSON object per line. Example:
 ```json
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"read_text_file","target":"/tmp/f.txt","outcome":"ok","server_key":"file_read","error_type":""}
 ```
 
-**共有audit log** (`/opt/llm/logs/audit.log`): web-search-mcp、github-mcp、shell-mcp、git-mcp、cicd-mcp、mdq-mcpで使用される。
+**Shared Audit Log** (`/opt/llm/logs/audit.log`): Used by `web-search-mcp`, `github-mcp`, `shell-mcp`, `git-mcp`, `cicd-mcp`, and `mdq-mcp`.
 
 ```bash
 # View MCP server audit events (JSON-lines format)
@@ -31,7 +31,7 @@ tail -f /opt/llm/logs/audit.log | jq 'select(.source == "mcp_server")'
 tail -f /opt/llm/logs/audit.log | jq .
 ```
 
-**サーバ別audit log:**
+**Server-specific Audit Logs:**
 
 ```bash
 # GitHub operations (ISO8601 + op + repo + user)
@@ -43,73 +43,72 @@ grep "exit=1" /opt/llm/logs/shell_audit.log
 # File deletions (ISO8601 + op + path + user)
 grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 
-# MDQ operations (JSON-lines形式、共有audit logのみ。専用ファイルなし)
+# MDQ operations (JSON-lines format, shared audit log only; no dedicated file)
 grep '"event":"mcp_tool_exec"' /opt/llm/logs/audit.log
 ```
 
-> **注記:** cicd-mcp、git-mcp、mdq-mcp は共有audit logのみを使用する（専用audit logファイルなし）。
-> いずれも `_audit_log()` 経由で共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録する。
+> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format.
 
-## サーバ別ログファイル
+## Server-specific Log Files
 
-| サーバ | ログパス | 補足 |
+| Server | Log Path | Notes |
 |---|---|---|
-| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` | 専用アプリログ |
-| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` | 専用アプリログ |
-| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` | 専用アプリログ |
-| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` | 専用アプリログ |
-| github-mcp | `/opt/llm/logs/github-mcp.log` | 専用アプリログ |
-| shell-mcp | `/opt/llm/logs/shell-mcp.log` | 専用アプリログ |
-| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` | 専用アプリログ |
-| rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | 専用アプリログ |
-| cicd-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用 |
-| git-mcp | 専用ログファイルなし | `logging.getLogger(__name__)` を使用。audit_log_pathは予約済みだが未実装 |
+| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` | Dedicated application log |
+| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` | Dedicated application log |
+| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` | Dedicated application log |
+| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` | Dedicated application log |
+| github-mcp | `/opt/llm/logs/github-mcp.log` | Dedicated application log |
+| shell-mcp | `/opt/llm/logs/shell-mcp.log` | Dedicated application log |
+| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` | Dedicated application log |
+| rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated application log |
+| cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
+| git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)`. `audit_log_path` is reserved but unimplemented |
 
-## サーバ別Auditログレイヤー
+## Server-specific Audit Log Layers
 
-| サーバー | Layer1: Agent/MCP共有 | Layer2: 共有MCP | Layer3: 専用 |
+| Server | Layer1: Agent/MCP Shared | Layer2: Shared MCP | Layer3: Dedicated |
 |---|---|---|---|
-| web-search-mcp | tool_exec | mcp_tool_exec | なし |
-| file-read-mcp | tool_exec | なし | なし |
-| file-write-mcp | tool_exec | なし | なし |
-| file-delete-mcp | tool_exec | なし | delete_audit.log |
+| web-search-mcp | tool_exec | mcp_tool_exec | None |
+| file-read-mcp | tool_exec | None | None |
+| file-write-mcp | tool_exec | None | None |
+| file-delete-mcp | tool_exec | None | delete_audit.log |
 | github-mcp | tool_exec | mcp_tool_exec | github_audit.log |
 | shell-mcp | tool_exec | mcp_tool_exec | shell_audit.log |
-| mdq-mcp | tool_exec | mcp_tool_exec | なし |
-| rag-pipeline-mcp | tool_exec | なし | なし |
-| cicd-mcp | tool_exec | mcp_tool_exec | なし |
-| git-mcp | tool_exec | mcp_tool_exec | なし |
+| mdq-mcp | tool_exec | mcp_tool_exec | None |
+| rag-pipeline-mcp | tool_exec | None | None |
+| cicd-mcp | tool_exec | mcp_tool_exec | None |
+| git-mcp | tool_exec | mcp_tool_exec | None |
 
-### サーバ別audit logファイル
+### Server-specific Audit Log Files
 
-| サーバ | Audit logパス | 形式 |
+| Server | Audit Log Path | Format |
 |---|---|---|
-| web-search-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（MCPサーバaudit） |
-| file-read-mcp | なし | audit機能を実装していない |
-| file-write-mcp | なし | audit機能を実装していない |
-| file-delete-mcp | `/opt/llm/logs/delete_audit.log` | 構造化（ISO8601 + op + path + user） |
-| github-mcp | `/opt/llm/logs/github_audit.log` | 構造化（ISO8601 + op + repo + user）。共有audit logとも併用 |
-| shell-mcp | `/opt/llm/logs/shell_audit.log` | 構造化（ISO8601 + op + command + user）。共有audit logとも併用 |
-| mdq-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（`_audit_log()` 経由） |
-| rag-pipeline-mcp | なし | audit機能を実装していない |
-| cicd-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（`_audit_log()` 経由） |
-| git-mcp | `/opt/llm/logs/audit.log`（共有） | JSON-lines（`_audit_log()` 経由）。`audit_log_path`設定は予約済みだが未実装 |
+| web-search-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
+| file-read-mcp | None | No audit functionality implemented |
+| file-write-mcp | None | No audit functionality implemented |
+| file-delete-mcp | `/opt/llm/logs/delete_audit.log` | Structured (ISO8601 + op + path + user) |
+| github-mcp | `/opt/llm/logs/github_audit.log` | Structured (ISO8601 + op + repo + user). Also used with shared audit log |
+| shell-mcp | `/opt/llm/logs/shell_audit.log` | Structured (ISO8601 + op + command + user). Also used with shared audit log |
+| mdq-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (`_audit_log()`) |
+| rag-pipeline-mcp | None | No audit functionality implemented |
+| cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (`_audit_log()`) |
+| git-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (`_audit_log()`). `audit_log_path` setting is reserved but unimplemented |
 
-**注記（2026-07-13）:** mdq-mcp の `audit_log_path`、git-mcp の `audit_log_path` はいずれも実装で一切参照されないデッド設定であることを確認し、両サーバーの設定ファイル（`config/mdq_mcp_server.toml`、`config/git_mcp_server.toml`）から削除した。mdq-mcp の監査イベントは実際には `MdqService`/`server.py` の `_audit_log()` が共有audit log(`/opt/llm/logs/audit.log`)にJSON-linesで記録する。(Explicit in code)
+**Note (2026-07-13):** It was confirmed that `audit_log_path` for `mdq-mcp` and `git-mcp` are dead settings that are never referenced in implementation; they were removed from both servers' configuration files (`config/mdq_mcp_server.toml`, `config/git_mcp_server.toml`). MDQ audit events are actually recorded via `MdqService`/`server.py`'s `_audit_log()` to the shared audit log (`/opt/llm/logs/audit.log`) in JSON-lines format. (Explicit in code)
 
-### Audit ログを書かないMCPサーバー
+### MCP Servers without Audit Logging
 
-以下のMCPサーバーはauditログを一切書きません:
+The following MCP servers do not write any audit logs:
 
-| サーバ | 理由 |
+| Server | Reason |
 |---|---|
-| file-read-mcp | audit機能を実装していない |
-| file-write-mcp | audit機能を実装していない |
-| rag-pipeline-mcp | audit機能を実装していない |
+| file-read-mcp | No audit functionality implemented |
+| file-write-mcp | No audit functionality implemented |
+| rag-pipeline-mcp | No audit functionality implemented |
 
-### Agent側のaudit log（構造化イベント）
+### Agent-side Audit Logs (Structured Events)
 
-形式: JSON-lines、例:
+Format: JSON-lines, Example:
 ```json
 {"event":"tool_exec","task_id":"turn-123","tool":"shell_run","operation_type":"MCP","mcp_request_id":"abc-456","is_error":true,"error_type":"transport","ts":1719500000.0,"workflow_id":"","session_id":""}
 ```

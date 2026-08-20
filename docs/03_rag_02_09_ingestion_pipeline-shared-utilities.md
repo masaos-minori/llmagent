@@ -20,10 +20,10 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG インジェクションパイプライン
+# RAG Ingestion Pipeline
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
@@ -40,23 +40,23 @@ from rag.utils import (
 )
 ```
 
-このモジュールは以下の関数を公開しています。詳細はソースコードを参照してください。
+This module exposes the following functions. Please refer to the source code for details.
 
-**定数:**
+**Constants:**
 
-このモジュールは以下の定数を定義しています。詳細はソースコードを参照してください。特に、`MIN_TEXT_LENGTH_FOR_DETECTION = 100` の根拠は未確認です（Needs Confirmation）。
+This module defines the following constants. Please refer to the source code for details. Specifically, the rationale for `MIN_TEXT_LENGTH_FOR_DETECTION = 100` is unconfirmed (Needs Confirmation).
 
-**プロンプトインジェクションパターン:**
+**Prompt Injection Patterns:**
 
-詳細はソースコードを参照してください。
+Please refer to the source code for details.
 
-**構造化ログキー（RAGライフサイクルのトレース）:**
+**Structured Log Keys (Tracing the RAG Lifecycle):**
 
-詳細はソースコードを参照してください。
+Please refer to the source code for details.
 
-**利用元:**
+**Usage:**
 
-詳細はソースコードを参照してください。
+Please refer to the source code for details.
 
 ---
 

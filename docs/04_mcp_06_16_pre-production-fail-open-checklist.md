@@ -13,30 +13,29 @@ source:
 
 # Pre-Production Fail-Open Checklist
 
-## 本番投入前フェイルオープン確認チェックリスト
+Before deploying to production, verify the following:
 
-本番環境へのデプロイ前に、以下を確認する。
+- [ ] `tool_definitions_strict = true` (Default is `false`; explicitly enable in production to treat schema mismatches as fatal errors)
+- [ ] `routing_drift_strict = true` (Treat routing drift as a fatal error)
+- [ ] `serial_tool_calls = false` (Default; DAG scheduling is always enabled. Setting to `true` switches to legacy sequential/parallel determination mode. Note: The setting field `use_tool_dag` does not exist — see [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool))
+- [ ] `allowed_tools` is explicitly configured (Empty = allow all tools; should be whitelisted)
+- [ ] All registered tools have an entry in `tool_safety_tiers` (Missing tier → Fatal error in production)
+- [ ] No unknown keys in `tool_safety_tiers` (Unknown key → Fatal error in production)
+- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (`"none"` is NOT allowed) and the `firejail` binary is installed
+- [ ] cicd-mcp: `workflow_allowlist` is explicitly configured (Empty = fails to start with `RuntimeError`/`CicdAuthorizationError` due to fail-closed behavior)
+- [ ] `config/agent.toml` has `security_profile = "production"` (Enables strict checks during startup)
+- [ ] Health check thresholds (`startup_timeout_sec`, `McpServerHealthRegistry.failure_threshold`) have been reviewed
+- [ ] Note: The MCP watchdog (automatic health polling + automatic restart loop) was removed on 2026-07-16. Recovery for crashed subprocess-mode MCP servers is limited to retry attempts via `ensure_ready()` during the next tool dispatch or manual restart of the agent process itself. Ensure external process monitoring (e.g., systemd) is set up for liveness monitoring and restarts.
+- [ ] Audit log path is configured and writable
+- [ ] API keys (`github_token`, `auth_token`) are set via environment variables and not hardcoded in configuration files
+- [ ] `repo_allowlist` in `cicd_mcp_server.toml` is not empty (Empty = reject all repositories)
+- [ ] `allowed_repos` in `github_mcp_server.toml` is not empty (Empty = reject all GitHub write operations)
 
-- [ ] `tool_definitions_strict = true` (デフォルトは `false`; スキーマ不整合時に致命的エラーとするには本番で明示的に有効化)
-- [ ] `routing_drift_strict = true`(ルーティングのドリフト発生時に致命的エラーとする)
-- [ ] `serial_tool_calls = false`(デフォルト; DAGスケジューリングが常時有効になる。`true`はレガシーな逐次/並列判定モードに切り替える。`use_tool_dag`という設定フィールドは存在しない — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)
-- [ ] `allowed_tools`が明示的に設定されている(空 = すべてのツールを許可;ホワイトリストにすべき)
-- [ ] 登録済みのすべてのツールが`tool_safety_tiers`にエントリを持つ(ティア欠落 → 本番では致命的エラー)
-- [ ] `tool_safety_tiers`に未知のキーがない(未知のキー → 本番では致命的エラー)
-- [ ] shell-mcp: `shell_sandbox_backend = "firejail"`(`"none"`ではない)であり、firejailバイナリがインストールされている
-- [ ] `cicd-mcp`: `workflow_allowlist`が明示的に設定されている(空 = startup時に RuntimeError/CicdAuthorizationError で起動失敗する。fail-closed動作)
-- [ ] `config/agent.toml`で`security_profile = "production"`(起動時の強制チェックを有効化する)
-- [ ] ヘルスチェックのしきい値(`startup_timeout_sec`、`McpServerHealthRegistry.failure_threshold`)を見直し済み
-- [ ] MCP watchdog(自動ヘルスポーリング＋自動再起動ループ)は2026-07-16に削除された。subprocessモードのMCPサーバーがクラッシュした場合の復旧は、次回のtool dispatch時の`ensure_ready()`による再起動試行、またはエージェントプロセス自体の手動再起動に限られる — 外部のプロセス監視(systemd等)による死活監視・再起動運用を用意しておくこと
-- [ ] 監査ログのパスが設定され、書き込み可能である
-- [ ] APIキー(`github_token`、`auth_token`)が環境変数経由で設定されており、設定ファイルにハードコードされていない
-- [ ] `cicd_mcp_server.toml`の`repo_allowlist`が空でない(空 = すべてのリポジトリを拒否)
-- [ ] `github_mcp_server.toml`の`allowed_repos`が空でない(空 = すべてのGitHub書き込み操作を拒否)
+### Firejail Installation and Configuration
 
-### firejailのインストールと設定
-firejailのインストールおよびサンドボックスバックエンドの設定手順については、[docs/04_mcp_05_02_auth-profiles-and-sandboxing.md](docs/04_mcp_05_02_auth-profiles-and-sandboxing.md) の「サンドボックスバックエンド (shell-mcp)」セクションを参照してください。
+For instructions on installing `firejail` and configuring the sandbox backend, please refer to the "Sandbox Backend (shell-mcp)" section in [docs/04_mcp_05_02_auth-profiles-and-sandboxing.md](docs/04_mcp_05_02_auth-profiles-and-sandboxing.md).
 
-fail-open/closedポリシーの全体表については`04_mcp_05_01_access-control-and-allowlists.md`を参照。
+Refer to `04_mcp_05_01_access-control-and-allowlists.md` for the complete table of fail-open/fail-closed policies.
 
 ---
 

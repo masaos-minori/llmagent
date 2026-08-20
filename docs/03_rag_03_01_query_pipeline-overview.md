@@ -19,60 +19,59 @@ source:
   - 03_rag_03_01_query_pipeline-overview.md
 ---
 
-# RAG クエリパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+# RAG Query Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 1. パイプライン概要
+## 1. Pipeline Overview
 
-`RagPipeline` は5つのステージを順に実行する。各ステージは
-`PipelineStage` Protocolを実装し、共有される `PipelineContext` dataclassをインプレースで変更する。
+`RagPipeline` executes five stages in order. Each stage implements the `PipelineStage` Protocol and modifies a shared `PipelineContext` dataclass in-place.
 
 ``` text
 RagPipeline.augment(query)
-  → use_search=False? → ""を返す
-  → rag_service_urlが設定されている? → call_rag_service() → 失敗時はインプロセス実行にフォールバック
+  → use_search=False? → returns ""
+  → rag_service_url is configured? → call_rag_service() → fallback to in-process execution on failure
   → run(query, db, history_context)
-      [1] MqeStage         — クエリをN個のバリアントに展開する
-      [2] SearchStage      — バリアントごとにKNN + BM25を実行する
-      [3] FusionStage      — RRFによるマージ（Σ 1/(rrf_k+rank)；rrf_kは設定で変更可能、デフォルト: 60）
-      [4] RerankStage      — クロスエンコーダによるスコアリング；rag_min_scoreでフィルタ；リランク後にchunk_id単位で重複排除
-      [5] AugmentStage     — [RAG_CONTEXT_START]...[RAG_CONTEXT_END] 形式に整形する
-  → use_refiner=True? → refine_context()（チャンクを圧縮；エラー時は生のチャンクにフォールバック）
-  → コンテキストブロック文字列を返す
+      [1] MqeStage         — Expands query into N variants
+      [2] SearchStage      — Executes KNN + BM25 per variant
+      [3] FusionStage      — Merges via RRF (Σ 1/(rrf_k+rank); rrf_k is configurable, default: 60)
+      [4] RerankStage      — Scoring via Cross-Encoder; filtered by rag_min_score; de-duplicates by chunk_id after reranking
+      [5] AugmentStage     — Formats as [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
+  → use_refiner=True? → refine_context() (compresses chunks; falls back to raw chunks on error)
+  → Returns context block string
 ```
 
-**呼び出し元:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`（`RagPipelineMCPService`）。エージェントREPLは
-`RagPipeline` を直接呼び出さない。
+**Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (`RagPipelineMCPService`). The Agent REPL does not call `RagPipeline` directly.
 
-### augment() のフォールバックチェーン（`scripts/rag/pipeline.py`）
+### augment() Fallback Chain (`scripts/rag/pipeline.py`)
 
-`augment()` は以下の順で結果を確定させる。各ステップは `None` を返した場合のみ次のステップにフォールバックする（Explicit in code）。
+`augment()` determines the final result through the following sequence. Each step only falls back to the next if it returns `None` (Explicit in code).
 
-1. HTTPモード: HTTP augment → `str`（空文字含む）または `None`（フォールバック）
-2. セマンティックキャッシュ: `semantic_cache.lookup()` がヒットすれば文字列を返す。ミス時は `None`
-3. 検索パイプライン: MQE + KNN/BM25 + RRFマージ + リランク → `ctx.reranked`
-4. リファイナー: `refine_context()` → 圧縮テキスト（確定）または `None`（フォールバック）
-5. 生チャンク: チャンク整形関数で整形（最終）
+1. HTTP Mode: HTTP augment $\rightarrow$ `str` (including empty string) or `None` (fallback)
+2. Semantic Cache: If `semantic_cache.lookup()` hits, returns string. Otherwise `None`.
+3. Search Pipeline: MQE + KNN/BM25 + RRF merge + Rerank $\rightarrow$ `ctx.reranked`
+4. Refiner: `refine_context()` $\rightarrow$ compressed text (final) or `None` (fallback)
+5. Raw Chunks: Formatted by chunk formatting function (final)
 
-**identity vs truthiness（Explicit in code）:** HTTPおよびリファイナーの結果判定は `is not None` によるidentityチェックであり、truthinessチェックではない。そのためHTTPモードが返す `""`（空文字）は有効な結果として扱われ、明示的な `None` のときのみフォールバックする。「」は有効な(空の)結果として扱われ、Noneは未実行を表す。これにより「検索したが0件だった」と「まだ検索していない」を区別できる。
+**Identity vs Truthiness (Explicit in code):** Results for HTTP mode and the refiner are determined using identity checks (`is not None`), not truthiness checks. Therefore, an empty string `""` returned by HTTP mode is treated as a valid result, and fallback only occurs when `None` is explicitly returned. This allows distinguishing between "searched but found 0 results" and "not yet searched."
 
-**DB接続失敗時（Explicit in code）:** `self._rag_db_path` からのDBオープンが `sqlite3.OperationalError` / `sqlite3.DatabaseError` を送出した場合、`augment()` は `RagPipelineError` を再送出する（キャッチしてフォールバックしない）。
+**On DB Connection Failure (Explicit in code):** If opening the DB from `self._rag_db_path` raises `sqlite3.OperationalError` or `sqlite3.DatabaseError`, `augment()` re-raises a `RagPipelineError` (it catches and falls back, it doesn't just swallow the error).
 
-### MCP サーバー呼び出しパス
+### MCP Server Call Path
 
 ``` text
-MCP クライアント
-  → scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py (HTTP ルート)
+MCP Client
+  → scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py (HTTP route)
     → RagPipelineMCPService.run_pipeline() (service.py)
       → RagPipeline.run() (scripts/rag/pipeline.py)
 ```
 
-RagPipelineクラスの詳細 → [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md)
+Detailed `RagPipeline` class info $\rightarrow$ [03_rag_03_02_query_pipeline-rag-pipeline-class.md](03_rag_03_02_query_pipeline-rag-pipeline-class.md)
 
 ---
 
@@ -86,8 +85,8 @@ class MyStage(PipelineStage):
         ...
 ```
 
-`kwargs` には `db: SQLiteHelper` などステージ固有の引数が渡される。
-ステージは `ctx` をインプレースで変更し、値を返さない。
+`kwargs` can include stage-specific arguments such as `db: SQLiteHelper`.
+Stages modify `ctx` in-place and do not return values.
 
 ---
 

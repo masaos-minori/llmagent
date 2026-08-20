@@ -12,91 +12,82 @@ source:
   - 03_rag_04_05_dto-types.md
 ---
 
+
 # 6.5 models_config.py (`scripts/rag/models_config.py`)
 
-**MqeConfig** — MQEクエリ展開の設定。
+**MqeConfig** — MQE query expansion settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `use_mqe` | `bool` | `True` | MQEクエリ展開を有効化 |
-| `mqe_url` | `str` | `""` | MQEサービスのURL |
-| `mqe_timeout` | `float` | `5.0` | MQEリクエストのタイムアウト (秒) |
+| `use_mqe` | `bool` | `True` | Enable MQE query expansion |
+| `mqe_url` | `str` | `""` | URL for the MQE service |
+| `mqe_timeout` | `float` | `5.0` | Timeout for MQE requests (seconds) |
 
-**FusionConfig** — RRF融合の設定。
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `rrf_k` | `int` | `60` | ランク集約用のRRF定数 |
-
-**RerankConfig** — クロスエンコーダーリランクの設定。
+**FusionConfig** — RRF fusion settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `use_rerank` | `bool` | `True` | クロスエンコーダーによるリランクを有効化 |
-| `rerank_url` | `str` | `""` | リランクサービスのURL |
-| `rerank_timeout` | `float` | `10.0` | リランクリクエストのタイムアウト (秒) |
-| `rerank_max_tokens` | `int` | `512` | リランクLLM呼び出しの最大トークン数 |
+| `rrf_k` | `int` | `60` | RRF constant for rank aggregation |
 
-**SearchConfig** — 検索の設定。
+**RerankConfig** — Cross-encoder reranking settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `use_search` | `bool` | `True` | ベクトル/FTS検索を有効化 |
-| `embed_url` | `str` | `""` | 埋め込みサービスのURL |
-| `embed_timeout` | `float` | `5.0` | 埋め込みリクエストのタイムアウト (秒) |
-| `top_k_search` | `int` | `10` | クエリごとの結果数 |
-| `rag_min_score` | `float` | `0.0` | フィルタリング用の最小スコア閾値 |
-| `use_rrf` | `bool` | `True` | RRFランク融合を有効化 |
+| `use_rerank` | `bool` | `True` | Enable cross-encoder reranking |
+| `rerank_url` | `str` | `""` | URL for the reranking service |
+| `rerank_timeout` | `float` | `10.0` | Timeout for reranking requests (seconds) |
+| `rerank_max_tokens` | `int` | `512` | Maximum tokens for reranking LLM calls |
 
-**ChunkSplitterConfig** — チャンク分割の設定。
+**SearchConfig** — Search settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `chunk_size` | `int` | `500` | チャンクサイズの目標値 (文字数) |
-| `chunk_overlap` | `int` | `50` | チャンク間の重複 (文字数) |
-| `lang` | `str` | `"en"` | テキスト分割対象の言語 |
-| `md_index_enable` | `bool` | `False` | Markdown見出しベースのチャンク分割を有効化 |
+| `use_search` | `bool` | `True` | Enable vector/FTS search |
+| `embed_url` | `str` | `""` | URL for the embedding service |
+| `embed_timeout` | `float` | `5.0` | Timeout for embedding requests (seconds) |
+| `top_k_search` | `int` | `10` | Number of results per query |
+| `rag_min_score` | `float` | `0.0` | Minimum score threshold for filtering |
+| `use_rrf` | `bool` | `True` | Enable RRF rank fusion |
 
-**IngesterConfig** — 取り込みの設定。
+**ChunkSplitterConfig** — Chunk splitting settings.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `embed_url` | `str` | `""` | 埋め込みサービスのURL |
-| `embed_timeout` | `float` | `5.0` | 埋め込みリクエストのタイムアウト (秒) |
-| `batch_size` | `int` | `32` | 埋め込みリクエストのバッチサイズ |
+| `chunk_size` | `int` | `500` | Target chunk size (character count) |
+| `chunk_overlap` | `int` | `50` | Overlap between chunks (character count) |
+| `lang` | `str` | `"en"` | Language targeted for text splitting |
+| `md_index_enable` | `bool` | `False` | Enable chunk splitting based on Markdown headers |
 
-**PipelineConfig** — トップレベルのパイプライン設定。各ステージのネストされた設定を含む。
+**IngesterConfig** — Ingestion settings.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `embed_url` | `str` | `""` | URL for the embedding service |
+| `embed_timeout` | `float` | `5.0` | Timeout for embedding requests (seconds) |
+| `batch_size` | `int` | `32` | Batch size for embedding requests |
+
+**PipelineConfig** — Top-level pipeline configuration. Includes nested configurations for each stage.
 
 | Field | Type | Description |
 |---|---|---|
-| `mqe` | `MqeConfig` | MQEクエリ展開の設定 |
-| `fusion` | `FusionConfig` | RRF融合の設定 |
-| `rerank` | `RerankConfig` | クロスエンコーダーリランクの設定 |
-| `search` | `SearchConfig` | 検索の設定 |
+| `mqe` | `MqeConfig` | MQE query expansion settings |
+| `fusion` | `FusionConfig` | RRF fusion settings |
+| `rerank` | `RerankConfig` | Cross-encoder reranking settings |
+| `search` | `SearchConfig` | Search settings |
 
-## 実装上の補足
+## Implementation Notes
 
-- 本ファイルの全dataclass (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`,
-  `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) は `scripts/rag/` 配下の
-  どのモジュールからも import・インスタンス化されていない。
-  実行時の設定読み込みは `ConfigLoader().load("xxx.toml")` が返す生の `dict` を
-  `cfg.get("key", default)` の形で直接参照する方式であり (例:
-  `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`)、
-  本ファイルのdataclassは経由しない。
-  [Explicit in code] — importのグレップ結果より、本ファイルへの参照は自己定義のみ。
-- `RagPipeline` が実際に使用する実行時設定コントラクトは
-  `shared/types.py` の `RagConfig` (Protocol) であり、そのdocstringには
-  「`rag.models_config.*` はingestion TOML向けのファイル形式DTO」と明記されている。
-  ただし前述の通り、ingestion側スクリプトも現状はdict直接参照であり、
-  本ファイルのdataclassとの接続は確認できない。
-  [Resolved: NC-002] — 本ファイル記載の`ResultSource`は既に廃止されており、
-  現行の`ResultSource`は`scripts/rag/models_result.pyのSearchDiagnostics.result_source`の
-  `SearchDiagnostics.result_source`として実際に使用されている(削除漏れではない)。
+- All dataclasses in this file (`MqeConfig`, `FusionConfig`, `RerankConfig`, `SearchConfig`, `ChunkSplitterConfig`, `IngesterConfig`, `PipelineConfig`) are not imported or instantiated by any module under `scripts/rag/`. 
+  Runtime configuration loading uses the raw `dict` returned by `ConfigLoader().load("xxx.toml")` accessed directly via `cfg.get("key", default)` (e.g., in `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`), bypassing these dataclasses.
+  [Explicit in code] — Based on grep results, there are no references to this file except for its own definition.
+- The actual runtime configuration contract used by `RagPipeline` is the `RagConfig` (Protocol) in `shared/types.py`, whose docstring states: "The `rag.models_config.*` files are DTOs for the ingestion TOML format."
+  However, as mentioned above, ingestion scripts currently use direct dictionary access and there is no confirmed connection with the dataclasses in this file.
+- [Resolved: NC-002] — The `ResultSource` mentioned in this file has already been deprecated; the current `ResultSource` is actually used as `SearchDiagnostics.result_source` in `scripts/rag/models_result.py`.
 
 ## Related Documents
 
-- [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
-- `shared/types.py` の `RagConfig` Protocol — 実行時に実際に使われる設定コントラクト
+- [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md)
+- `shared/types.py`'s `RagConfig` Protocol — The configuration contract actually used at runtime.
 
 ## Keywords
 

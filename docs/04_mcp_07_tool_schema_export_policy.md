@@ -1,32 +1,19 @@
----
-title: "MCP Tool Schema Export Policy"
-category: mcp
-tags:
-  - mcp
-  - tool-schema
-  - export
-  - policy
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_02_tool-registry.md
----
+# MCP Tool Schema Export Policy
 
-# MCPツールスキーマ エクスポート命名ポリシー
+## Standard Export Name: `TOOL_LIST`
 
-## 正規のエクスポート名: `TOOL_LIST`
+All MCP server tool schema modules (`scripts/mcp_servers/<server_name>/<server_name>_tools.py`) must export the standard tool list as `TOOL_LIST`.
 
-すべてのMCPサーバーのツールスキーマモジュール(`scripts/mcp_servers/<server_name>/<server_name>_tools.py`)は、正規のツールリストを`TOOL_LIST`としてエクスポートしなければならない。
+Related: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — describes the ownership and routing roles of `ToolRegistry` (different from the schema export role described in this document).
 
-関連: [04_mcp_03_02_tool-registry.md](04_mcp_03_02_tool-registry.md) — ToolRegistry の所有権・ルーティングの役割について説明している（本ドキュメントのスキーマエクスポートの役割とは異なる）。
+### Rationale
 
-### 根拠
+- `TOOL_LIST` is a prefix-less public name, clearly indicating it is the primary export.
+- GitHub MCP already uses `TOOL_LIST` as its standard name (see `scripts/mcp_servers/github/github_tools.py`).
 
-- `TOOL_LIST`はプレフィックスのないパブリックな名前であり、これがメインのエクスポートであることを明確に示す。
-- GitHub MCPは既に`TOOL_LIST`を正規名として使用している(`scripts/mcp_servers/github/github_tools.py`を参照)。
+### Migration History
 
-### 移行履歴
-
-すべてのMCPサーバーは`TOOL_LIST`への移行が完了している。移行は以下の順序で実施された。
+All MCP servers have completed migration to `TOOL_LIST`. The migration was performed in the following order:
 
 1. **git** — `scripts/mcp_servers/git/git_tools.py`, `scripts/mcp_servers/git/git_server.py`
 2. **mdq** — `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/mdq/mdq_server.py`
@@ -38,22 +25,20 @@ related:
 8. **file_write** — `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/write_server.py`
 9. **file_delete** — `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/file/delete_server.py`
 
-注: 一部のサーバーではベア名 (tools.py/server.py) のファイルと、後の命名変更による
-<server>_tools.py/<server>_server.py が併存していた期間があった。現状と対応は
-issues/20260719-193357_risks.md で追跡している。
+Note: In some servers, there was a period where both bare names (`tools.py`/`server.py`) and renamed files (`<server>_tools.py`/`<server>_server.py`) coexisted. This is being tracked in issues/20260719-193357_risks.md.
 
-### 検証
+### Verification
 
-すべての移行完了後:
-- 実行: `pytest tests/test_<name>_mcp_service.py -v`
-- 実行: `pytest tests/test_mcp_tool_schema_exports.py -v` — アクティブなすべてのMCPツールスキーマモジュールが、"name"キーを持つ辞書の空でないリストとしてTOOL_LISTをエクスポートしていること、およびレガシー名の_MCP_TOOLSを使用しているモジュールが存在しないことを検証する。
+After all migrations are complete:
+- Run: `pytest tests/test_<name>_mcp_service.py -v`
+- Run: `pytest tests/test_mcp_tool_schema_exports.py -v` — verifies that all active MCP tool schema modules export `TOOL_LIST` as a non-empty list of dictionaries containing a `"name"` key, and ensures no modules are still using the legacy `_MCP_TOOLS`.
 
-### 実装上の補足 (Current behavior)
+### Implementation Notes (Current behavior)
 
-- `tests/test_mcp_tool_schema_exports.py` の `_TOOL_MODULES` に、全9モジュール(`shell`, `cicd`, `git`, `rag_pipeline`, `web_search`, `mdq`, `github`, `file.read_tools`, `file.write_tools`, `file.delete_tools`)が列挙されており、各モジュールが `TOOL_LIST` を空でないリストとしてエクスポートし、`_MCP_TOOLS` を持たないことを機械的に検証している。実装を確認した限り、`file.delete_tools` を含む全モジュールで `TOOL_LIST` への移行が完了している。(根拠: Explicit in code)
-- `mdq/mdq_tools.py` のみ `TOOL_LIST` の要素型を `MCPToolSchema`(`TypedDict`、`status` および任意項目(`NotRequired`) `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys` を含む)として明示しており、`mdq/mdq_server.py` では `mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)` として `MCPServer.mcp_tools`(`list[dict[str, Any]]`)に代入している。`TypedDict` 上は `NotRequired` だが、実際の `TOOL_LIST` エントリは全ツールがこの4フィールドを明示的に宣言しており、`agent/services/mcp_tool_discovery.py` の discovery 時点ではスキーマ2.0契約として必須（欠落は個別ツールをレジストリから除外する）。他サーバーは `TOOL_LIST` の宣言時点で `list[dict[str, Any]]` または `list[dict]` 型であり、`cast` を要しない。(根拠: Explicit in code)
-- 各サーバーの `server.py` は `tools.py` から `TOOL_LIST` をインポートし、`MCPServer` サブクラスの `mcp_tools` クラス属性に代入する。`MCPServer.list_tools()` はエージェント向けのツール名一覧を、`list_tools_with_server_key()` は `server_key` を付与したツール定義一覧を返し、後者は `/v1/tools` エンドポイントおよび起動時のツール検出で使用される(`scripts/mcp_servers/server.py`)。`file.read_tools` / `file.write_tools` / `file.delete_tools` の各 `server.py` は `list_tools_with_server_key()` を使わず、`/v1/tools` ハンドラ内で `TOOL_LIST` を直接 `server_key` 付きに変換している箇所がある(例: `scripts/mcp_servers/file/read_server.py`)。(根拠: Explicit in code)
-- `shared/tool_registry.py` の `ToolDefinition.description` / `input_schema` フィールドは「将来利用のため予約」であり `_populate_default_registry()` では未設定と明記されている。LLM向けのツールスキーマ(description・inputSchema)はこのレジストリではなく各サーバーの `tools.py` の `TOOL_LIST` に由来する、という役割分担がコード内コメントで明示されている。本ドキュメントの記述と整合している。(根拠: Explicit in code)
+- `tests/test_mcp_tool_schema_exports.py` lists all 9 modules (`shell`, `cicd`, `git`, `rag_pipeline`, `web_search`, `mdq`, `github`, `file.read_tools`, `file.write_tools`, `file.delete_tools`) in `_TOOL_MODULES`, mechanically verifying that each module exports `TOOL_LIST` as a non-empty list and does not contain `_MCP_TOOLS`. As far as implementation can be confirmed, migration to `TOOL_LIST` has been completed for all modules including `file.delete_tools`. (Basis: Explicit in code)
+- Only `mdq/mdq_tools.py` explicitly defines the element type of `TOOL_LIST` as `MCPToolSchema` (`TypedDict` with `status` and optional fields like `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`). In `mdq/mdq_server.py`, it is assigned to `MCPServer.mcp_tools` (`list[dict[str, Any]]`) via `mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)`. Although `TypedDict` allows `NotRequired`, actual `TOOL_LIST` entries for all tools explicitly declare these 4 fields, making them mandatory under the Schema 2.0 contract at the point of discovery by `agent/services/mcp_tool_discovery.py` (missing fields cause individual tools to be excluded from the registry). Other servers use `list[dict[str, Any]]` or `list[dict]` at the time of `TOOL_LIST` declaration and do not require casting. (Basis: Explicit in code)
+- Each server's `server.py` imports `TOOL_LIST` from `tools.py` and assigns it to the `mcp_tools` class attribute of the `MCPServer` subclass. `MCPServer.list_tools()` returns a list of tool names for the agent, while `list_tools_with_server_key()` returns tool definitions with an added `server_key`; the latter is used for the `/v1/tools` endpoint and tool discovery during startup (`scripts/mcp_servers/server.py`). Some `server.py` files for `file.read_tools`, `file.write_tools`, and `file.delete_tools` convert `TOOL_LIST` directly to include the `server_key` within the `/v1/tools` handler instead of using `list_tools_with_server_key()` (e.g., `scripts/mcp_servers/file/read_server.py`). (Basis: Explicit in code)
+- The `description` and `input_schema` fields of `ToolDefinition` in `shared/tool_registry.py` are reserved for future use and are explicitly not set in `_populate_default_registry()`. It is explicitly stated in code comments that LLM tool schemas (description, inputSchema) originate from the `TOOL_LIST` in each server's `tools.py`, not from this registry. This is consistent with this document. (Basis: Explicit in code)
 
 ## Related Documents
 

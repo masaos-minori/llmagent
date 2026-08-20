@@ -18,13 +18,13 @@ source:
 
 # Event Bus: Health Endpoint Semantics
 
-## ヘルスエンドポイント
+## Health Endpoint
 
-HTTP 200 = `ok`、それ以外 = HTTP 503 + `status: "degraded"` + コンポーネント詳細。`unhealthy` は存在しない。
+HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details. An `unhealthy` state does not exist.
 
-**503 はプロセスダウンではなくデグレード状態を示す。**
+**A 503 status indicates a degraded state, not a process shutdown.**
 
-**監視は HTTP ステータスコードで判定すること。** デグレード時は `reasons` を確認（DB接続不可、DLQタスク停止、キューバックログ、遅延コンシューマーなど）。
+**Monitoring should be based on HTTP status codes.** When degraded, check the `reasons` field (e.g., DB connection failure, DLQ task stopped, queue backlog, slow consumers, etc.).
 
 ## Related Documents
 

@@ -5,7 +5,7 @@ This document contains the mechanical steps for setting up the operating system 
 ## 1. Package Installation (Gentoo Linux)
 
 ```bash
-# 必須パッケージ
+# Required Packages
 emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/sqlite dev-lang/python:3.13 dev-libs/libxml2 dev-libs/libxslt dev-vcs/git
 ```
 

@@ -17,34 +17,36 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG インジェクションパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+# RAG Ingestion Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4.10 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
 
-`DocumentManager` — RagIngesterのためにドキュメントのライフサイクルを管理する。既存ドキュメントの検出、ETagの更新、インジェクション後の整合性レポートを扱う。クラスサイズを抑え関心を分離するため `RagIngester` から抽出された。
+`DocumentManager` manages the lifecycle of documents for `RagIngester`. It handles detection of existing documents, updating ETags, and post-ingestion consistency reporting. It was extracted from `RagIngester` to reduce class size and separate concerns.
 
-**モジュールレベルの関数**
+**Module-level Functions**
 
-| 関数 | シグネチャ | 説明 |
+| Function | Signature | Description |
 |---|---|---|
-| `delete_document_chain` | `(db: SQLiteHelper, doc_id: int) -> None` | `chunks_vec` → `chunks` → `documents` の順で削除する；chunks_vecはchunksへのFK制約がないため最初に削除する必要がある |
+| `delete_document_chain` | `(db: SQLiteHelper, doc_id: int) -> None` | Deletes in order: `chunks_vec` $\rightarrow$ `chunks` $\rightarrow$ `documents`. `chunks_vec` must be deleted first as it lacks an FK constraint to `chunks`. |
 
-**クラス: `DocumentManager`**
+**Class: `DocumentManager`**
 
-| メソッド | シグネチャ | 説明 |
+| Method | Signature | Description |
 |---|---|---|
-| `__init__` | `(db: SQLiteHelper) -> None` | DB接続の参照を保持する |
-| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | 既存ドキュメントを処理する；呼び出し元が挿入をスキップすべき場合にTrueを返す。force=False → ETagManagerでetagを更新；SHA-256が変化していないfile:// URL → スキップ；force=True → ドキュメントチェーンを削除しFalseを返して再挿入を許可 |
-| `delete_existing_document` | `(doc_id: int) -> None` | ドキュメントとそのチャンクを削除する；chunks_vecはchunksへのFK制約がないため最初に削除される |
-| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | インジェクション後の整合性チェックとコールバックを実行する；レポートを返すか、チェックが失敗した場合（チェック中のDBエラー）はNoneを返す。整合性チェックが正常終了した場合（レポートに問題が含まれていても）、`on_ingest_complete` コールバックが呼び出される。整合性チェック自体が例外を投げた場合は、コールバックは呼び出されない |
+| `__init__` | `(db: SQLiteHelper) -> None` | Holds a reference to the DB connection |
+| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | Processes an existing document; returns `True` if the caller should skip insertion. If `force=False` $\rightarrow$ updates ETag via ETagManager; if `file://` URL and SHA-256 hasn't changed $\rightarrow$ skips; if `force=True` $\rightarrow$ deletes the document chain and returns `False` to allow re-insertion. |
+| `delete_existing_document` | `(doc_id: int) -> None` | Deletes the document and its chunks; `chunks_vec` is deleted first because it lacks an FK constraint to `chunks`. |
+| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | Executes post-ingestion consistency checks and callbacks; returns a report or `None` if the check fails (e.g., DB error during checking). If the consistency check completes successfully (even if the report contains issues), the `on_ingest_complete` callback is called. If the consistency check itself raises an exception, the callback is not called. |
 
 
-**CLIエントリポイント:**
+
+**CLI Entrypoint:**
 
 ```bash
 uv run python scripts/rag/ingestion/ingester.py --force

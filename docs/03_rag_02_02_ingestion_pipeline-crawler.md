@@ -1,4 +1,4 @@
-
+---
 title: "WebCrawler Detail (Part 1)"
 category: rag
 tags:
@@ -18,230 +18,112 @@ related:
   - 03_rag_05_1-configuration-reference.md
 source:
   - 03_rag_02_02_ingestion_pipeline-crawler.md
+---
 
 
-# RAG インジェクションパイプライン
+# RAG Ingestion Pipeline
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 2. WebCrawler (`scripts/rag/ingestion/crawler.py`)
 
-### 2.1 クラス概要
+### 2.1 Class Overview
 
-`WebCrawler` — 開始URLから同一オリジン内を `max_depth` の階層までBFSでクロールし、各ページを
-`rag-src/` 内のJSONファイルとして保存する。条件付きGET（ETag/Last-Modified）、ローカルファイル、
-ページごとのCJK比率による言語自動判定（`--lang auto`）に対応する。並行数制御には asyncio.Semaphore を使用する。
+`WebCrawler` performs a BFS crawl from a starting URL within the same origin up to `max_depth` levels and saves each page as a JSON file in `rag-src/`. It supports Conditional GET (ETag/Last-Modified), local files, and automatic language detection by CJK ratio per page (`--lang auto`). Concurrency is controlled using `asyncio.Semaphore`.
 
 **Typed dict**
 
-| TypedDict | 用途 |
+| TypedDict | Purpose |
 |---|---|
-| `CrawlPayload` | クロール出力JSONファイル用の型付きdict（url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by） |
+| `CrawlPayload` | Typed dictionary for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
 
-**公開メソッド** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
+**Public Methods** — See `scripts/rag/ingestion/crawler.py` for details.
 
-**モジュールレベルのユーティリティ** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
+**Module-level Utilities** — See `scripts/rag/ingestion/crawler.py` for details.
 
-### 2.1.1 設定パラメータ
+### 2.1.1 Configuration Parameters
 
-| パラメータ | コードフォールバック値 | 本番環境値 (config/crawler.toml) |
+| Parameter | Code Fallback Value | Production Value (config/crawler.toml) |
 |---|---|---|
-| max_depth | なし | 3 |
+| max_depth | None | 3 |
 | max_pages | 500 | 200 |
 | skip_nofollow | False | true |
 
-> 全パラメータ一覧は [§1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md) を参照してください。
+> For a full list of parameters, see [§1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md).
 
-### 2.1.2 crawl_fileの動作
+### 2.1.2 `crawl_file` Behavior
 
-`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
-WebのURLと異なり、HTTPの往復は発生しない。Pythonファイル（.py）はコードブロックとして格納され、
-コード用のチャンカーが適用される。Python以外のファイルは内容を `content` フィールドに直接格納する。
-ローカルファイルのペイロードには `schema_version`、`artifact_type`（ingestion-onlyの値）、`created_by` のメタデータフィールドが含まれる。
+`crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field. Local file payloads include metadata fields: `schema_version`, `artifact_type` (value for `ingestion-only`), and `created_by`.
 
-`lang == "auto"` の場合、このメソッドはファイル内容に対するCJK比率判定によって「auto」を解決する。
+If `lang == "auto"`, this method resolves the language based on the CJK ratio of the file content.
 
-### 2.2 動作の詳細
+### 2.2 Detailed Behavior
 
-- **テキスト抽出:** 本文テキストには `crawler_utils.extract_text()`、コードブロックにはBeautifulSoup4の `<pre>` を使用
-- **言語判定:** CJK比率（ひらがな + カタカナ + CJK統合漢字が10%以上）→ `ja`；それ以外は `en`。
-  100文字未満のページはヒント言語を使用する。`--lang auto` は常に自動判定を行い、フォールバックは `en`。
-- **冪等性:** `visited` セットにより、同一実行内で同じURLを二重に取得することを防ぐ
-- **条件付きGET:** SQLiteから `documents.etag` / `documents.last_modified` を読み込み、
-  `If-None-Match` / `If-Modified-Since` を送信する。304の場合はファイル保存をスキップする
+- **Text Extraction:** Uses `crawler_utils.extract_text()` for body text and BeautifulSoup4's `<pre>` for code blocks.
+- **Language Detection:** If CJK ratio (Hiragana + Katakana + CJK Unified Ideographs ≥ 10%) is detected → `ja`; otherwise `en`. Pages with fewer than 100 characters use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
+- **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
+- **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. If a 304 response is received, saving the file is skipped.
 
-## Related Documents
+#### Local File Injection
 
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
+`crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur.
 
-## Keywords
+##### Generating Freshness Data (Note on Responsibility Boundaries)
 
-web-crawler
-bfs-crawl
-conditional-get
-local-file-ingestion
-crawler
-rag
+`crawl_file()` only calculates the mtime (ISO string) and SHA-256 hash of the file content and stores them in the `last_modified` and `etag` fields of the crawl payload; it does not perform any skip/decision logic. The JSON payload is always output unconditionally. The URL is stored as `file://{absolute_path}`.
 
-# RAG インジェクションパイプライン
+Decisions on whether to skip or re-ingest are made by `DocumentManager._is_file_unchanged()`/`_handle_existing_file()` in `scripts/rag/ingestion/document_manager.py`, NOT by `WebCrawler`.
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-
----
-
-## 2a. WebCrawler (`scripts/rag/ingestion/crawler.py`)
-
-### 2.1 クラス概要
-
-`WebCrawler` — 開始URLから同一オリジン内を `max_depth` の階層までBFSでクロールし、各ページを
-`rag-src/` 内のJSONファイルとして保存する。条件付きGET（ETag/Last-Modified）、ローカルファイル、
-ページごとのCJK比率による言語自動判定（`--lang auto`）に対応する。並行数制御には asyncio.Semaphore を使用する。
-
-**Typed dict**
-
-| TypedDict | 用途 |
+| Condition | Decision (`DocumentManager` performs) |
 |---|---|
-| `CrawlPayload` | クロール出力JSONファイル用の型付きdict（url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by） |
+| `etag` (SHA-256) is identical | Skip — Content has not changed |
+| `etag` is different | Automatic re-ingestion (deletes old record and re-embeds) |
+| No `etag` in DB | Re-ingestion (conservative decision) |
 
-**公開メソッド** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
+For local files, the `etag` column contains the hex digest of the SHA-256. Since `file://` URLs do not have HTTP ETags, collisions do not occur. Using `--force` bypasses the hash check and always triggers re-ingestion.
 
-**モジュールレベルのユーティリティ** — 詳細は `scripts/rag/ingestion/crawler.py` を参照してください。
+Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto re-ingesting"`.
 
-### 2.1.1 設定パラメータ
+#### Comparison: Web vs. Local Injection
 
-| パラメータ | コードフォールバック値 | 本番環境値 (config/crawler.toml) |
+| Aspect | Web (HTTP) | Local Files (`file://`) |
 |---|---|---|
-| max_depth | なし | 3 |
-| max_pages | 500 | 200 |
-| skip_nofollow | False | true |
+| Freshness Basis | ETag / Last-Modified Header | File mtime / SHA-256 |
+| Skipping Mechanism | 304 Not Modified | Comparison of saved mtime or hash |
+| Forced Re-indexing | `--force` flag | `--force` flag |
+| Current Status | Implemented | Implemented (SHA-256 hash comparison) |
 
-> 全パラメータ一覧は [§1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md) を参照してください。
+### 2.3 CLI Arguments
 
-### 2.1.2 crawl_fileの動作
+| Argument | Description | Default |
+|---|---|---|
+| `--url URL [URL ...]` | Target URL(s) (multiple allowed. If omitted, uses `target_urls` from config) | — |
+| `--lang {en,ja,auto}` | Hint language for per-page CJK ratio detection | `en` |
+| `--targets-file PATH` | Path to a TOML file containing `target_urls = [[url, lang], ...]`. Supports `http://`, `https://`, and `file://`. Cannot be used with `--url`. | — |
 
-`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
-WebのURLと異なり、HTTPの往復は発生しない。Pythonファイル（.py）はコードブロックとして格納され、
-コード用のチャンカーが適用される。Python以外のファイルは内容を `content` フィールドに直接格納する。
-ローカルファイルのペイロードには `schema_version`、`artifact_type`（ingestion-onlyの値）、`created_by` のメタデータフィールドが含まれる。
+### 2.4 Output JSON Format
 
-`lang == "auto"` の場合、このメソッドはファイル内容に対するCJK比率判定によって「auto」を解決する。
+See [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) for details.
 
-### 2.2 動作の詳細
+### 2.5 Error Handling
 
-- **テキスト抽出:** 本文テキストには `crawler_utils.extract_text()`、コードブロックにはBeautifulSoup4の `<pre>` を使用
-- **言語判定:** CJK比率（ひらがな + カタカナ + CJK統合漢字が10%以上）→ `ja`；それ以外は `en`。
-  100文字未満のページはヒント言語を使用する。`--lang auto` は常に自動判定を行い、フォールバックは `en`。
-- **冪等性:** `visited` セットにより、同一実行内で同じURLを二重に取得することを防ぐ
-- **条件付きGET:** SQLiteから `documents.etag` / `documents.last_modified` を読み込み、
-  `If-None-Match` / `If-Modified-Since` を送信する。304の場合はファイル保存をスキップする
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-
-## Keywords
-
-web-crawler
-bfs-crawl
-conditional-get
-local-file-ingestion
-crawler
-rag
-
-
-
-# RAG インジェクションパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-
----
-
-## 2b. WebCrawler (`scripts/rag/ingestion/crawler.py`)
-
-### ローカルファイルのインジェクション
-
-`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
-WebのURLと異なり、HTTPの往復は発生しない。
-
-#### 鮮度判定用データの生成(責務境界に注意)
-
-`crawl_file()` はmtime（ISO文字列）とファイル内容のSHA-256を計算し、
-それぞれクロールペイロードの `last_modified` と `etag` として格納するのみで、
-スキップ判定は一切行わない。常に無条件でJSONペイロードを出力する。
-URLは `file://{absolute_path}` として格納される。
-
-スキップするか再インジェクションするかを実際に判断するのは`WebCrawler`ではなく、
-ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
-`DocumentManager._is_file_unchanged()`/`_handle_existing_file()`である。
-
-| 条件 | 判定(`DocumentManager`が実施) |
+| Case | Action |
 |---|---|
-| `etag`（SHA-256）が同一 | スキップ — 内容は変化していない |
-| `etag` が異なる | 自動で再インジェクション（旧レコードを削除し再埋め込み） |
-| DBに `etag` がない | 再インジェクション（保守的な判断） |
+| HTTP request failure | Retries with exponential backoff up to `fetch_retry` times (e.g., `min(2**i, 10)` seconds) |
+| Exception per URL | Logs a `WARNING` and continues to the next URL |
+| Text < 100 characters | Uses hint language (falls back to `en` if `--lang auto`) |
+| Language is not `ja`/`en` | Silently skips the URL without logging |
 
-`etag` カラムには、ローカルファイルの場合、SHA-256の16進ダイジェストがそのまま格納される。
-`file://` URLに対してHTTPのETagが設定されることはないため、衝突は発生しない。
-`force=True` の場合は、格納されているハッシュに関わらず常に再インジェクションする。
+### 2.6 Logging
 
-ログメッセージ: `"file:// unchanged (sha256 match)"` または `"file:// changed — auto re-ingesting"`。
+See [docs/03_rag_05_3-logging.md](docs/03_rag_05_3-logging.md) for details.
 
-#### Webインジェクションとの対比
+### 2.7 Configuration (`config/crawler.toml`)
 
-| 観点 | Web（HTTP） | ローカルファイル（file://） |
-|---|---|---|
-| 鮮度の判定材料 | ETag / Last-Modifiedヘッダ | ファイルmtime / SHA-256 |
-| スキップの仕組み | 304 Not Modified | 保存済みmtimeまたはハッシュの比較 |
-| 強制再インデックス | `--force` フラグ | `--force` フラグ |
-| 現在の状態 | 実装済み | 実装済み（SHA-256ハッシュ比較） |
-
-### 2.3 CLI引数
-
-| 引数 | 説明 | デフォルト |
-|---|---|---|
-| `--url URL [URL ...]` | 対象URL（複数指定可。省略時は設定の `target_urls` を使用） | — |
-| `--lang {en,ja,auto}` | ページごとのCJK比率判定に使うヒント言語 | `en` |
-| `--targets-file PATH` | `target_urls = [[url, lang], ...]` を記述したTOMLファイルのパス。`http://`、`https://`、`file://` に対応。`--url` とは併用不可 | — |
-
-### 2.4 出力JSON形式
-
-詳細は [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) を参照。
-
-### 2.5 エラーハンドリング
-
-| ケース | 対応 |
-|---|---|
-| HTTPリクエスト失敗 | `fetch_retry` 回まで指数バックオフでリトライ（`min(2**i, 10)` 秒） |
-| URL単位の例外 | `WARNING` ログを出力し、次のURLへ継続 |
-| テキストが100文字未満 | ヒント言語を使用（`--lang auto` の場合は `en` にフォールバック） |
-| 言語が `ja`/`en` でない | ログを出さずに黙ってURLをスキップ |
-
-### 2.6 ロギング
-
-詳細は [docs/03_rag_05_3-logging.md](03_rag_05_3-logging.md) を参照。
-
-### 2.7 設定（`config/crawler.toml`）
-
-[03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md) を参照。
+See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
 
 ---
 
@@ -266,103 +148,3 @@ conditional-get
 local-file-ingestion
 crawler
 rag
-
-# RAG インジェクションパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-
----
-
-## 2c. WebCrawler (`scripts/rag/ingestion/crawler.py`)
-
-### ローカルファイルのインジェクション
-
-`crawl_file(path, lang)` はローカルファイルを読み込み、クロールJSONを `rag-src/` に書き込む。
-WebのURLと異なり、HTTPの往復は発生しない。
-
-#### 鮮度判定用データの生成(責務境界に注意)
-
-`crawl_file()` はmtime（ISO文字列）とファイル内容のSHA-256を計算し、
-それぞれクロールペイロードの `last_modified` と `etag` として格納するのみで、
-スキップ判定は一切行わない。常に無条件でJSONペイロードを出力する。
-URLは `file://{absolute_path}` として格納される。
-
-スキップするか再インジェクションするかを実際に判断するのは`WebCrawler`ではなく、
-ingesterステージの`scripts/rag/ingestion/document_manager.py`にある
-`DocumentManager._is_file_unchanged()`/`_handle_existing_file()`である。
-
-| 条件 | 判定(`DocumentManager`が実施) |
-|---|---|
-| `etag`（SHA-256）が同一 | スキップ — 内容は変化していない |
-| `etag` が異なる | 自動で再インジェクション（旧レコードを削除し再埋め込み） |
-| DBに `etag` がない | 再インジェクション（保守的な判断） |
-
-`etag` カラムには、ローカルファイルの場合、SHA-256の16進ダイジェストがそのまま格納される。
-`file://` URLに対してHTTPのETagが設定されることはないため、衝突は発生しない。
-`force=True` の場合は、格納されているハッシュに関わらず常に再インジェクションする。
-
-ログメッセージ: `"file:// unchanged (sha256 match)"` または `"file:// changed — auto re-ingesting"`。
-
-#### Webインジェクションとの対比
-
-| 観点 | Web（HTTP） | ローカルファイル（file://） |
-|---|---|---|
-| 鮮度の判定材料 | ETag / Last-Modifiedヘッダ | ファイルmtime / SHA-256 |
-| スキップの仕組み | 304 Not Modified | 保存済みmtimeまたはハッシュの比較 |
-| 強制再インデックス | `--force` フラグ | `--force` フラグ |
-| 現在の状態 | 実装済み | 実装済み（SHA-256ハッシュ比較） |
-
-### 2.3 CLI引数
-
-| 引数 | 説明 | デフォルト |
-|---|---|---|
-| `--url URL [URL ...]` | 対象URL（複数指定可。省略時は設定の `target_urls` を使用） | — |
-| `--lang {en,ja,auto}` | ページごとのCJK比率判定に使うヒント言語 | `en` |
-| `--targets-file PATH` | `target_urls = [[url, lang], ...]` を記述したTOMLファイルのパス。`http://`、`https://`、`file://` に対応。`--url` とは併用不可 | — |
-
-### 2.4 出力JSON形式
-
-詳細は [docs/03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md) を参照。
-
-### 2.5 エラーハンドリング
-
-| ケース | 対応 |
-|---|---|
-| HTTPリクエスト失敗 | `fetch_retry` 回まで指数バックオフでリトライ（`min(2**i, 10)` 秒） |
-| URL単位の例外 | `WARNING` ログを出力し、次のURLへ継続 |
-| テキストが100文字未満 | ヒント言語を使用（`--lang auto` の場合は `en` にフォールバック） |
-| 言語が `ja`/`en` でない | ログを出さずに黙ってURLをスキップ |
-
-### 2.6 ロギング
-
-詳細は [docs/03_rag_05_3-logging.md](03_rag_05_3-logging.md) を参照。
-
-### 2.7 設定（`config/crawler.toml`）
-
-[03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md) を参照。
-
----
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_02_01_ingestion_pipeline-overview.md`
-- `03_rag_02_03_ingestion_pipeline-chunksplitter.md`
-- `03_rag_02_04_ingestion_pipeline-ingester.md`
-- `03_rag_02_07_ingestion_pipeline-utils.md`
-- `03_rag_04_01_dto-models_data.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_05_3-logging.md`
-- `03_rag_02_02_ingestion_pipeline-crawler.md`
-
-## Keywords
-
-web-crawler
-bfs-crawl
-conditional-get
-local-file-ingestion
-crawler
-rag
-

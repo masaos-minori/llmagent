@@ -12,178 +12,170 @@ related:
 
 # MCP System Overview
 
-- ドキュメントガイド → [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
+- Document Guide $\rightarrow$ [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md)
 
 ## Purpose
 
-MCP（Model Context Protocol）レイヤーは、独立したサーバプロセス群を通じて、
-エージェントに対して外部リソース（ファイルシステム、GitHub、Web検索、SQLite、shell、RAG、CI/CD、Git）への
-安全かつ制御されたアクセスを提供する。
+The MCP (Model Context Protocol) layer provides the agent with safe and controlled access to external resources (File System, GitHub, Web Search, SQLite, Shell, RAG, CI/CD, Git) through a set of independent server processes.
 
 ---
 
 ## Scope
 
-**対象範囲:**
-- `mcp_servers/` のサーバ実装
-- `shared/tool_executor.py`、`shared/route_resolver.py`、`shared/mcp_config.py`
-- MCPサーバは `config/agent.toml` の `[mcp_servers.*]` に定義され、各サーバが提供するtoolは `tool_constants.py` のfrozensetで管理され、`ToolRegistry` 経由で登録される（ドリフト検出用）。実行時のルーティングは `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`）が唯一の権威であり、起動時のライブ `/v1/tools` discoveryから構築される
+**In scope:**
+- Server implementations in `mcp_servers/`
+- `shared/tool_executor.py`, `shared/route_resolver.py`, `shared/mcp_config.py`
+- MCP servers are defined in `config/agent.toml` under `[mcp_servers.*]`. The tools provided by each server are managed via a frozenset in `tool_constants.py` and registered through `ToolRegistry` (for drift detection). At runtime, `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) is the sole authority for routing, constructed from live `/v1/tools` discovery upon startup.
 
-**対象外:**
-- Agent REPLの内部実装
-- RAGパイプラインの検索ロジック
+**Out of scope:**
+- Internal implementation of the Agent REPL
+- Search logic of the RAG pipeline
 
 ---
 
-## 構成モデル（2層）
+## Configuration Model (2 Layers)
 
-MCPサーバーの設定は2つのレイヤーに分離されている。
+MCP server configuration is split into two layers.
 
-**レイヤー1 — エージェントプロセス設定 (`config/agent.toml`)**
+**Layer 1 — Agent Process Configuration (`config/agent.toml`)**
 
-エージェント側でMCPサーバーのライフサイクルとトランスポートを管理するための設定:
+Configuration for managing the lifecycle and transport of MCP servers on the agent side:
 - `mcp_servers.<key>.startup_mode` — subprocess / persistent / none
 - `mcp_servers.<key>.transport` — http
-- `mcp_servers.<key>.url` — HTTPエンドポイント
-- `mcp_servers.<key>.cmd` — サブプロセス起動コマンド
+- `mcp_servers.<key>.url` — HTTP endpoint
+- `mcp_servers.<key>.cmd` — Subprocess startup command
 
-（`healthcheck_mode`は2026-07-17に削除 — HTTPが唯一のtransportであり、常に`"http"`に自動導出される不要な配線だった）
+(`healthcheck_mode` was removed on 2026-07-17 — it was redundant wiring as HTTP is the only transport and always automatically derived as `"http"`)
 
-**レイヤー2 — MCPサーバーローカルアプリケーション設定 (`config/*_mcp_server.toml`)**
+**Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)**
 
-各MCPサーバー固有のアプリケーション設定:
+Application settings specific to each MCP server:
 - allowlists / denylists
-- リソース制限
-- 監査パス
-- allowed_repos / allowed_repos_mode（GitHub固有）
-- command_allowlist（shell固有）
-- allowed_dirs（fileサーバー固有）
-- auth_token_env / auth_token_file（シークレット参照）
+- Resource limits
+- Audit paths
+- allowed_repos / allowed_repos_mode (GitHub specific)
+- command_allowlist (Shell specific)
+- allowed_dirs (File server specific)
+- auth_token_env / auth_token_file (Secret references)
 
 ---
 
 ## Server Catalog
 
-サーバごとのconfiguration、tool、セキュリティ設定、運用上の注意事項 → [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md)（正典となるカタログ）。
+Configuration, tools, security settings, and operational notes per server $\rightarrow$ [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
-| サーバ | ポート | トランスポート | 起動モード | tool数 | 役割 |
+| Server | Port | Transport | Startup Mode | Tool Count | Role |
 |---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | subprocess | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web検索（DuckDuckGo） |
-| file-read-mcp | 8005 | HTTP | subprocess | 9 | ローカルファイル読み取り |
+| web-search-mcp | 8004 | HTTP | subprocess | 2 (Updated: 1 -> 2 due to browser_fetch integration) | Web Search (DuckDuckGo) |
+| file-read-mcp | 8005 | HTTP | subprocess | 9 | Local File Reading |
 | github-mcp | 8006 | HTTP | subprocess | 21 | GitHub API |
-| file-write-mcp | 8007 | HTTP | subprocess | 4 | ローカルファイル書き込み |
-| file-delete-mcp | 8008 | HTTP | subprocess | 2 | ローカルファイル削除 |
-| shell-mcp | 8009 | HTTP | subprocess | 1 | サンドボックス化されたshell実行 |
-| rag-pipeline-mcp | 8010 | HTTP | subprocess | 4 | RAG検索パイプライン |
+| file-write-mcp | 8007 | HTTP | subprocess | 4 | Local File Writing |
+| file-delete-mcp | 8008 | HTTP | subprocess | 2 | Local File Deletion |
+| shell-mcp | 8009 | HTTP | subprocess | 1 | Sandboxed Shell Execution |
+| rag-pipeline-mcp | 8010 | HTTP | subprocess | 4 | RAG Search Pipeline |
 | cicd-mcp | 8012 | HTTP | subprocess | 4 | GitHub Actions CI/CD |
-| mdq-mcp | 8013 | HTTP | subprocess | 7 | Markdownコンテキスト圧縮 |
-| git-mcp | 8014 | HTTP | subprocess | 10 | ローカルgit操作 |
+| mdq-mcp | 8013 | HTTP | subprocess | 7 | Markdown Context Compression |
+| git-mcp | 8014 | HTTP | subprocess | 10 | Local Git Operations |
 
 ---
 
 ## Transport Mechanisms
 
-### HTTP transport（大半のサーバ）
+### HTTP transport (Most servers)
 
 ``` text
 Agent ToolExecutor
-  → POST http://127.0.0.1:{port}/v1/call_tool
-  → {"name": "tool_name", "args": {...}}
-  ← {"result": "...", "is_error": false}
+  $\rightarrow$ POST http://127.0.0.1:{port}/v1/call_tool
+  $\rightarrow$ {"name": "tool_name", "args": {...}}
+  $\leftarrow$ {"result": "...", "is_error": false}
 ```
 
-サーバはloopback上でsubprocessとして動作する。
+Servers run as subprocesses on loopback.
 
 ### Transport Selection Guide
 
-> **本番環境のデフォルト: 常にHTTPを使用する（`transport = "http"`。agent管理下のHTTPサーバ（agentがuvicornを起動する場合）は `startup_mode = "subprocess"`、既存のHTTPサーバ（agentは接続のみ）は `startup_mode = "persistent"`）。**
-> HTTPはヘルスチェック、並行リクエスト、リモート監視をサポートする。
+> **Production Default: Always use HTTP (`transport = "http"`). For HTTP servers managed by the agent (when the agent starts uvicorn), use `startup_mode = "subprocess"`; for existing HTTP servers (where the agent only connects), use `startup_mode = "persistent"`.**
+> HTTP supports health checks, concurrent requests, and remote monitoring.
 
 ---
 
 ## Startup Modes
 
-| `startup_mode` | `transport` | 動作 |
+| `startup_mode` | `transport` | Behavior |
 |---|---|---|
-| `none` | N/A | 無効化モード — subprocessの起動もライフサイクル動作も行わない |
-| `persistent` | `http` | 外部で管理されるサーバ；agentは既存のHTTPエンドポイントに接続する |
-| `subprocess` | `http` | agentが起動時にuvicorn subprocessを開始し、`/health` をポーリングする |
+| `none` | N/A | Disabled mode — no subprocess startup or lifecycle operations |
+| `persistent` | `http` | Externally managed server; agent connects to an existing HTTP endpoint |
+| `subprocess` | `http` | Agent starts a uvicorn subprocess at startup and polls `/health` |
 
-**デフォルト値:** configで `startup_mode` を省略すると `"none"` になる — サーバを利用可能にするには `"persistent"` または `"subprocess"` を明示的に指定する必要がある。
+**Default Value:** If `startup_mode` is omitted in config, it defaults to `"none"`. To enable a server, you must explicitly specify `"persistent"` or `"subprocess"`.
 
 ---
 
 ## Major Components
 
-| コンポーネント | ファイル | 責務 |
+| Component | File | Responsibility |
 |---|---|---|
-| `MCPServer` | `scripts/mcp_servers/server.py` | 基底クラス: HTTP起動、`/v1/call_tool`、`/v1/tools`、`/health` |
-| `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | 全サーバ共通のPydanticモデル |
-| `ToolExecutor` | `shared/tool_executor.py` | ルーティング、TTLキャッシュ、並行実行、ヘルスレジストリ |
-| `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key の解決（`RuntimeToolRegistry.resolve()` のみを参照） |
-| `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **唯一のルーティング権威**。McpToolDiscoveryService によりライブ `/v1/tools` discoveryで構築される |
-実行時のルーティング権威は `RuntimeToolRegistry` である。`config/agent.toml` の `tool_names` フィールドはルーティングの入力ではない（観測・ドリフト検証専用）。詳細は `docs/04_mcp_06_03` を参照。
-| `ToolRegistry` | `shared/tool_registry.py` | tool定義と所有権に関するドリフト検出用のシードデータ（`tool_constants.py` のfrozensetからインポート時に構築。ルーティングには使われない） |
-| `McpServerConfig` | `shared/mcp_config.py` | サーバごとのtransport設定 |
-| `McpServerHealthRegistry` | `shared/mcp_health.py` | サーバごとのHEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN状態（`shared/mcp_config.py` は再エクスポートのみ） |
-| `HttpTransport` | `shared/http_transport.py` | MCPサーバへのHTTP POST |
+| `MCPServer` | `scripts/mcp_servers/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
+| `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | Common Pydantic models for all servers |
+| `ToolExecutor` | `shared/tool_executor.py` | Routing, TTL caching, concurrent execution, health registry |
+| `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name $\rightarrow$ server_key (references only `RuntimeToolRegistry.resolve()`) |
+| `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
+The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `docs/04_mcp_06_03` for details. |
+| `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
+| `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
+| `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (only re-exports `shared/mcp_config.py`) |
+| `HttpTransport` | `shared/http_transport.py` | HTTP POST to MCP servers |
 
 ---
 
-## server、protocol、sharedの関係
+## Relationship between server, protocol, and shared
 
 ``` text
 agent/factory.py
-  → builds ToolExecutor (shared/tool_executor.py)
-       → uses ToolRouteResolver (shared/route_resolver.py)
-       → uses HttpTransport (shared/http_transport.py)
-       → uses McpServerConfig (shared/mcp_config.py)
-       → uses McpServerHealthRegistry (shared/mcp_health.py)
+  $\rightarrow$ builds ToolExecutor (shared/tool_executor.py)
+       $\rightarrow$ uses ToolRouteResolver (shared/route_resolver.py)
+       $\rightarrow$ uses HttpTransport (shared/http_transport.py)
+       $\rightarrow$ uses McpServerConfig (shared/mcp_config.py)
+       $\rightarrow$ uses McpServerHealthRegistry (shared/mcp_health.py)
 
 MCP server processes (mcp_servers/<name>/server.py)
-   → inherit MCPServer (scripts/mcp_servers/server.py)
-   → use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
-  → implement dispatch(name, args) → DispatchResult
+   $\rightarrow$ inherit MCPServer (scripts/mcp_servers/server.py)
+   $\rightarrow$ use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
+  $\rightarrow$ implement dispatch(name, args) $\rightarrow$ DispatchResult
 ```
 
 ---
 
 ## Major Constraints
 
-| 制約 | 値 | 出典 |
+| Constraint | Value | Source |
 |---|---|---|
-| 最大レスポンスサイズ | 512 KB（`MCP_MAX_RESPONSE_BYTES = 524288`） | `scripts/mcp_servers/server.py` |
-
-| 認証ヘッダ | `Authorization: Bearer <token>`（`auth_token` 設定時） | `scripts/mcp_servers/server.py` |
-| ヘルス状態の閾値 | 既定 `failure_threshold=3`回連続失敗 → UNAVAILABLE | `shared/mcp_health.py`（`McpServerHealthRegistry`） |
+| Max response size | 512 KB (`MCP_MAX_RESPONSE_SIZE = 524288`) | `scripts/mcp_servers/server.py` |
+| Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
+| Health threshold | Default: 3 consecutive failures $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 
 ---
 
-### 実装上の補足
+## Implementation Notes
 
-- `McpServerHealthRegistry` の状態遷移は単純な3値ではなく、`HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN` の5値。UNAVAILABLEになったサーバは既定30秒（`half_open_cooldown_sec`）経過後、`is_unavailable()` 呼び出し時に自動的に`HALF_OPEN`（1回だけ疎通を許可する試行状態）へ遷移する簡易サーキットブレーカーとして動作する（Explicit in code, `shared/mcp_health.py`）。
-- `record_degraded()` は現在の状態が`UNAVAILABLE`/`HALF_OPEN`の場合は上書きしない（サーキットブレーカーとトライアル窓を壊さないため）（Explicit in code）。
+- State transitions in `McpServerHealthRegistry` are not simple ternary values, but five: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. A server that becomes `UNAVAILABLE` automatically transitions to `HALF_OPEN` (a trial state allowing one request) after 30 seconds (`half_open_cooldown_sec`) upon calling `is_unavailable()`, acting as a simple circuit breaker (Explicit in code, `shared/mcp_health.py`).
+- `record_degraded()` does not overwrite the current state if it is `UNAVAILABLE` or `HALF_OPEN` (to avoid breaking the circuit breaker and trial window) (Explicit in code).
 
 ---
 
 ## Related Chapters
 
-| トピック | ファイル |
+| Topic | File |
 |---|---|
-| プロトコル詳細、HTTP形式 | [04_mcp_02_01_endpoints-and-transport.md](04_mcp_02_01_endpoints-and-transport.md) |
-| audit log | [04_mcp_02_03_audit-logging-and-errors.md](04_mcp_02_03_audit-logging-and-errors.md) |
-| ルーティング、ライフサイクル、ToolExecutor | [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) |
-| サーバ別仕様 | [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) |
-| セキュリティおよびセーフティモデル | [04_mcp_05_01_access-control-and-allowlists.md](04_mcp_05_01_access-control-and-allowlists.md) |
-| 設定と運用 | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
-| 既知の不具合と不整合 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
+| Protocol details, HTTP format | [04_mcp_02_01_endpoints-and-transport.md](04_mcp_02_01_endpoints-and-transport.md) |
+| Audit log | [04_mcp_02_03_audit-logging-and-errors.md](04_mcp_02_03_audit-logging-and-errors.md) |
+| Routing, Lifecycle, ToolExecutor | [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md) |
+| Per-server specification | [04_mcp_04_01_web-search-file-read-github.md](04_mcp_04_01_web-search-file-read-github.md) |
+| Security and Safety model | [04_mcp_05_01_access-control-and-allowlists.md](04_mcp_05_01_access-control-and-allowlists.md) |
+| Configuration and Operations | [04_mcp_06_02_configuration-file-inventory.md](04_mcp_06_02_configuration-file-inventory.md) |
+| Known issues and inconsistencies | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) |
 
-## Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_02_01_endpoints-and-transport.md`
-- `04_mcp_02_02_startup-modes-and-health.md`
-- `04_mcp_03_01_dispatch-and-routing.md`
+---
 
 ## Keywords
 

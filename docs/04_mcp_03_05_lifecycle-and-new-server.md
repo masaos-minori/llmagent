@@ -1,106 +1,33 @@
----
-title: "Process Introspection and Adding a New MCP Server"
-category: mcp
-tags:
-  - mcp
-  - lifecycle
-  - new-server-setup
-related:
-  - 04_mcp_00_document-guide.md
-  - 04_mcp_03_01_dispatch-and-routing.md
-  - 04_mcp_03_02_tool-registry.md
-  - 04_mcp_03_03_transport-and-health.md
-  - 04_mcp_03_03_transport-and-health.md
-  - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
----
+# Process Introspection and Adding a New MCP Server
 
-# プロセスの内部確認と新しい MCP サーバーの追加
+## Process Introspection
 
-## プロセスの内部確認
+`HttpServerLifecycleManager` provides read-only snapshots of managed subprocesses for diagnostic purposes (e.g., via the `/mcp status` command or `mcp_status.py`).
 
-`HttpServerLifecycleManager` は診断用途（例: `/mcp status` コマンド、`mcp_status.py`）のために、
-管理下の subprocess の読み取り専用スナップショットを公開する。
+- `get_process_snapshot(server_key) -> dict | None` — Returns `{pid, pgid, running, last_exit_code}` for a known `server_key`. Returns `None` if unknown. `pgid` is retrieved from `_http_pgids` (set via `os.getpgid()` during `start()`, using H-8 process group shutdown).
+- `get_process_info(server_key) -> ProcessInfoSnapshot | None` — A typed dataclass containing the same fields as above, plus `managed` and `stderr_log`.
+- `list_processes() -> list[ProcessInfoSnapshot]` — A snapshot of all currently managed subprocess servers.
 
-- `get_process_snapshot(server_key) -> dict | None` — 既知の `server_key` に対して
-  `{pid, pgid, running, last_exit_code}` を返す。未知の場合は `None`。`pgid` は `_http_pgids`
-  から取得される（`start()` 時に `os.getpgid()` によって設定される、H-8 プロセスグループシャットダウン）。
-- `get_process_info(server_key) -> ProcessInfoSnapshot | None` — 同じフィールドに加えて
-  `managed` と `stderr_log` を含む型付き dataclass。
-- `list_processes() -> list[ProcessInfoSnapshot]` — 現在管理されている全 subprocess サーバーの
-  スナップショット。
+These methods only perform `proc.poll()` or read cached states; they do not terminate or restart processes.
 
-これらのメソッドは `proc.poll()` やキャッシュ状態の読み取りのみを行う; プロセスの終了や
-再起動は一切行わない。
-
-`_ServerLifecycleRouter`（`factory.py` 内のファサード）はこれら3つ全てを
-`HttpServerLifecycleManager` への薄い委譲として公開しているため、`McpStatusService` などの
-呼び出し元は `_http_mgr` の内部に直接アクセスすることなく、
-`getattr(lifecycle, "get_process_snapshot", None)` のダックタイピングでアクセスできる。
+`_ServerLifecycleRouter` (a facade in `factory.py`) exposes these three methods as thin delegations to `HttpServerLifecycleManager`. This allows callers like `McpStatusService` to access them via duck typing (`getattr(lifecycle, "get_process_snapshot", None)`) without directly accessing the internals of `_http_mgr`.
 
 ---
 
-## 新しい MCP サーバーの追加
+## Adding a New MCP Server
 
 ### Adding a new tool
 
-### 新しいツールを安全に追加する方法
+#### How to safely add a new tool
 
-新しいツールを追加する際は、上記の [Adding a new tool](#adding-a-new-tool) セクションにある
-標準的な7ステップの手順に従うこと。
+When adding a new tool, follow the standard 7-step procedure outlined in the [Adding a new tool](#adding-a-new-tool) section above.
 
-要点:
-1. **`shared/tool_constants.py` の frozenset にツール名を追加する** [必須] — 内部レジストリ登録関数がインポート時にこれらの frozenset を読み込み、ルーティングレジストリを自動的に構築する。レジストリの手動編集は不要。
-2. **`GET /v1/tools` エンドポイントを追加する** [推奨] — `validate_routing_against_live()` による起動時ドリフト検証を可能にする; ルーティングには影響しない。
-3. **サーバー設定に `tool_names` を追加する** [任意] — ドリフト検証のヒントのみ; ルーティングには不要。
-4. **`config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する** [ツールを LLM に見せる場合は必須]
-5. **`config/agent.toml` に `tool_safety_tiers` エントリを追加する** [必須 — 全てのツールは安全性ティアを宣言しなければならない]
-
-```toml
-[mcp_servers.my_server]
-transport = "http"
-url = "http://127.0.0.1:8015"
-tool_names = ["my_tool_a", "my_tool_b"]
-```
-
-### ルーティング優先度の要約
-
-| 層 | 役割 | ルーティングに使用するか |
-|---|---|---|
-| `RuntimeToolRegistry`（`shared/runtime_tool_registry.py`; McpToolDiscoveryService によりライブ `/v1/tools` discovery で構築） | **唯一のルーティング権威** | Yes |
-| `ToolRegistry`（`tool_constants.py` の frozenset からインポート時に自動構築） | **ドリフト検出用の入力**（ルーティングには使われない） | No |
-| ライブの `/v1/tools` discovery | **RuntimeToolRegistry のソース**; 起動時に McpToolDiscoveryService によって取得され RuntimeToolRegistry に投入される | (RuntimeToolRegistry 経由で使用) |
-
-**重要なルール:**
-- **新しいツールは常に `tool_constants.py` の frozenset を経由して登録しなければならない**。`ToolRegistry` はインポート時に自動構築される(ドリフト検出用)。実行時のルーティングは `RuntimeToolRegistry` が起動時のライブ `/v1/tools` discovery から構築する。未知のツールは `ValueError` で即時失敗する。
-- **ライブ discovery はルーティングの入力そのものである**(`RuntimeToolRegistry` を構築するソース)が、`ToolRegistry` に対しては上書きではなくドリフトとしてフラグが立てられる。
-- **config の `tool_names` はルーティングの入力ではない** — あくまでドリフト検出用の検証ヒントである。
-
-### 新規サーバー/ツール登録チェックリスト
-
-| 対象物 | 必須か | 備考 |
-|---|---|---|
-| `shared/tool_constants.py` — frozenset にツールを追加 | **必須** | レジストリはインポート時に frozenset を読み込む |
-| `config/agent.toml` の `[[tool_definitions]]` — LLM スキーマを追加 | **必須**（ツールを LLM に見せる場合） | OpenAI function-calling 形式; LLM がツールを呼び出すために必要 |
-| `config/agent.toml` — `tool_safety_tiers` エントリを追加 | **必須** | 全てのツールは安全性ティアを宣言しなければならない |
-| `config/<key>_mcp_server.toml` — サーバー設定ファイル | **必須** | サーバーアプリ設定(サーバー固有の値のみ)。`[mcp_servers.<key>]` トランスポートセクションは別ファイルの `config/agent.toml` 側に追加する |
-| `deploy/deploy.sh` — インストール/コピーステップを追加 | **必須**（新規サーバーの場合） | デプロイに新規サーバーを含める必要がある |
-| `routing.md` の更新 | **必須** | ドキュメントガイドは新規サーバーを参照する必要がある |
-
-### 手動での作業手順
-
-1. `scripts/mcp_servers/<name>/server.py` で `MCPServer` をサブクラス化し、`dispatch()` をオーバーライドする
-2. `server_key` フィールドを含むツール定義を返す `GET /v1/tools` エンドポイントを追加する
-3. `shared/tool_constants.py` の frozenset にツール名を追加する（このサーバーが所有）
-4. `config/agent.toml` の `[[tool_definitions]]` に LLM スキーマを追加する（OpenAI function-calling 形式）
-5. 各ツールについて `config/agent.toml` に `tool_safety_tiers` エントリを追加する
-6. サーバーアプリ設定を含む `config/<key>_mcp_server.toml` を作成し、`config/agent.toml` に `[mcp_servers.<key>]` トランスポートセクションを追加する
-7. `deploy/deploy.sh` のコピーリストに新しいファイルを追加する
-8. `deploy/setup_services.sh` に起動ステップを追加する
-
-### Tool_names の設定（ドリフト検出専用）
-
-ツールレジストリは `tool_constants.py` の frozenset からインポート時に自動構築される。
-ドリフト検出のため、`config/agent.toml` の `[mcp_servers.<key>]` サーバー設定に任意で `tool_names` を追加できる。
+Key points:
+1. **Add the tool name to the frozenset in `shared/tool_constants.py` [REQUIRED]** — The internal registry functions read these frozensets upon import to automatically build the routing registry. Manual editing of the registry is unnecessary.
+2. **Add a `GET /v1/tools` endpoint [RECOMMENDED]** — Enables drift validation against `validate_routing_against_live()` at startup; does not affect routing.
+3. **Add `tool_names` to the server configuration [OPTIONAL]** — Only serves as a hint for drift validation; not required for routing.
+4. **Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` [REQUIRED if you want the tool visible to the LLM]**
+5. **Add an entry to `tool_safety_tiers` in `config/agent.toml` [REQUIRED — all tools must declare their safety tier]**
 
 ```toml
 [mcp_servers.my_server]
@@ -109,15 +36,59 @@ url = "http://127.0.0.1:8015"
 tool_names = ["my_tool_a", "my_tool_b"]
 ```
 
-`tool_names` が省略されている、または不完全であっても、レジストリは引き続き正しくルーティングする
-（優先度2）が、起動時のドリフト検証で警告が出力される。
+### Summary of Routing Precedence
+
+| Layer | Role | Used for Routing? |
+|---|---|---|
+| `RuntimeToolRegistry` (built via live `/v1/tools` discovery by `McpToolDiscoveryService` using `shared/runtime_tool_registry.py`) | **Sole Authority for Routing** | Yes |
+| `ToolRegistry` (automatically built on import from frozensets in `tool_constants.py`) | **Input for Drift Detection** (not used for routing) | No |
+| Live `/v1/tools` discovery | **Source for RuntimeToolRegistry**; fetched by `McpToolDiscoveryService` at startup and injected into `RuntimeToolRegistry` | (Used via RuntimeToolRegistry) |
+
+**Important Rules:**
+- **New tools MUST always be registered via the `tool_constants.py` frozenset.** `ToolRegistry` is built automatically on import (for drift detection). Runtime routing is handled by `RuntimeToolRegistry`, which is built from live `/v1/tools` discovery at startup. Unknown tools will cause an immediate `ValueError`.
+- **Live discovery IS the routing input** (it is the source used to construct `RuntimeToolRegistry`), but for `ToolRegistry`, it acts as a drift flag rather than an overwrite.
+- **The `tool_names` in config is NOT a routing input** — it is strictly a verification hint for drift detection.
+
+### New Server/Tool Registration Checklist
+
+| Item | Required? | Notes |
+|---|---|---|
+| `shared/tool_constants.py` — Add tool to frozenset | **Required** | Registry reads frozenset on import |
+| `config/agent.toml` — Add to `[[tool_definitions]]` | **Required** (if tool is to be visible to LLM) | OpenAI function-calling format; required for LLM to call the tool |
+| `config/agent.toml` — Add `tool_safety_tiers` entry | **Required** | All tools must declare a safety tier |
+| `config/<key>_mcp_server.toml` — Server config file | **Required** (for new servers) | Server application settings (server-specific values only). The `[mcp_servers.<key>]` transport section belongs in `config/agent.toml`. |
+| `deploy/deploy.sh` — Add installation/copy step | **Required** (for new servers) | The deployment must include the new server |
+| Update `routing.md` | **Required** | Documentation guide must reference the new server |
+
+### Manual Procedure
+
+1. Subclass `MCPServer` in `scripts/mcp_servers/<name>/server.py` and override `dispatch()`.
+2. Add a `GET /v1/tools` endpoint that returns tool definitions including the `server_key` field.
+3. Add the tool name to the frozenset in `shared/tool_constants.py` (owned by this server).
+4. Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` (OpenAI function-calling format).
+5. Add a `tool_safety_tiers` entry for each tool in `config/agent.toml`.
+6. Create `config/<key>_mcp_server.toml` containing server app settings, and add the `[mcp_servers.<key>]` transport section to `config/agent.toml`.
+7. Add the new file to the copy list in `deploy/deploy.sh`.
+8. Add a startup step to `deploy/setup_services.sh`.
+
+### Setting `tool_names` (Drift Detection Only)
+
+The tool registry is automatically built on import from the `tool_constants.py` frozenset. For drift detection, you can optionally add `tool_names` to the `[mcp_servers.<key>]` server configuration in `config/agent.toml`.
+
+```toml
+[mcp_servers.my_server]
+transport = "http"
+url = "http://127.0.0.1:8015"
+tool_names = ["my_tool_a", "my_tool_b"]
+```
+
+Even if `tool_names` is omitted or incomplete, the registry will continue to route correctly (Priority 2), but a warning will be issued during startup drift validation.
 
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`
 - `04_mcp_03_01_dispatch-and-routing.md`
 - `04_mcp_03_02_tool-registry.md`
-- `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 

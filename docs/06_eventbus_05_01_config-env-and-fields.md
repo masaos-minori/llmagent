@@ -18,31 +18,31 @@ source:
 
 # Event Bus: Configuration Fields and Environment Variables
 
-## 設定
+## Configuration
 
-TOMLファイルから読み込まれる（デフォルト: `/opt/llm/config/eventbus.toml`）。
+Loaded from a TOML file (default: `/opt/llm/config/eventbus.toml`).
 
-### 環境変数
+### Environment Variables
 
-- `EVENTBUS_CONFIG_PATH` — TOMLファイルパス
-- `EVENTBUS_SCHEMA_PATH` — イベントエンベロープJSON Schemaパス
+- `EVENTBUS_CONFIG_PATH` — Path to the TOML file
+- `EVENTBUS_SCHEMA_PATH` — Path to the event envelope JSON Schema
 
-### 設定フィールド
+### Configuration Fields
 
-- `port` — HTTPリスンポート（1024～65535外は起動失敗）
-- `db_path` — SQLite DBパス
-- `storage_dir` — JSONLアーカイブディレクトリ
-- `offsets_dir` — コンシューマーオフセットディレクトリ
-- `deadletter_dir` — DLQディレクトリ
-- `max_retry` — DLQ昇格前再試行閾値（1未満で起動失敗）
-- `host` — リスンアドレス（デフォルト: `127.0.0.1`）
-- `allow_public_bind` — パブリックバインド許可（デフォルト: false）
+- `port` — HTTP listening port (startup fails if outside 1024–65535)
+- `db_path` — SQLite DB path
+- `storage_dir` — JSONL archive directory
+- `offsets_dir` — Consumer offset directory
+- `deadletter_dir` — DLQ directory
+- `max_retry` — Retry threshold before DLQ promotion (startup fails if < 1)
+- `host` — Listening address (default: `127.0.0.1`)
+- `allow_public_bind` — Allow public binding (default: false)
 
-`port` / `max_retry` の検証は `EventBusConfig.__post_init__()` で行う。
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`.
 
-### 廃止済みキー
+### Deprecated Keys
 
-`poll_interval_ms` / `offset_checkpoint_interval` が設定ファイルに残っていると起動失敗。
+Startup fails if `poll_interval_ms` or `offset_checkpoint_interval` remain in the configuration file.
 
 ## Related Documents
 

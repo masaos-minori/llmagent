@@ -1,115 +1,98 @@
----
-title: "Agent State and Persistence - History Compression"
-category: agent
-tags:
-  - agent
-  - state
-  - persistence
-  - history-compression
-  - data-classification
-related:
-  - 05_agent_00_document-guide.md
-  - 05_agent_04_01_state-and-persistence-state-model.md
-  - 05_agent_04_03_state-and-persistence-platform-databases.md
-source:
-  - 05_agent_04_01_state-and-persistence-state-model.md
----
+# Agent State and Persistence - History Compression
 
-# エージェントの状態と永続化
-
-- ランタイムアーキテクチャ → [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
-- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- データレイヤー (スキーマ) → [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
+Turn flow $\rightarrow$ [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md)
+Turn flow $\rightarrow$ [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+Data layer (schema) $\rightarrow$ [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md)
 
 ## Purpose
 
-履歴圧縮の仕組みについて文書化する。圧縮のトリガー、選択ポリシー、失敗時のフォールバック、永続化モデルを記述する。
+Document the history compression mechanism, including triggers, selection policies, fallback procedures for failures, and the persistence model.
 
 ## Design Intent
 
-### 圧縮のトリガー
+### Compression Triggers
 
-以下のいずれかに該当する場合、各ターンでトリガーされる：
+Triggered during each turn if either of the following conditions is met:
 
-- `len(history_chars) > context_char_limit`（デフォルト8000）
-- `token_count > context_token_limit`（0より大きい場合）
+- `len(history_chars) > context_char_limit` (default 8000)
+- `token_count > context_token_limit` (if greater than 0)
 
-### 圧縮対象の選択
+### Selection of Targets for Compression
 
-`HistorySelectionPolicy.select_turns_to_compress()`は以下によりターンを選択する：
+`HistorySelectionPolicy.select_turns_to_compress()` selects turns based on the following:
 
-1. **重要度スコアリング** — ピン留め → 明示的な重要度 → キーワードベース
-2. **カテゴリ分類**：
-   - `temporary`（toolロール）— 最も削除優先度が高い
-   - `temporary_reasoning`（tool_calls付きassistant）— 次点の優先度
-   - `factual`（system）— 保持される
-   - `history`（user/assistantのテキスト）— 通常優先度
-3. **保護** — 直近の`history_protect_turns`（デフォルト2）件のuser+assistantペアは対象外
+1. **Importance Scoring** — Pinned items $\rightarrow$ Explicit importance $\rightarrow$ Keyword-based
+2. **Category Classification**:
+   - `temporary` (`tool` role) — Highest priority for deletion
+   - `temporary_reasoning` (`assistant` with tool calls) — Second highest priority
+   - `factual` (`system`) — Retained
+   - `history` (`user`/`assistant` text) — Normal priority
+3. **Protection** — The most recent `history_protect_turns` (default 2) user+assistant pairs are excluded from compression.
 
-### 圧縮結果
+### Compression Results
 
-- 選択された古いターン → 1件のLLM要約メッセージに置換される
-- `CompressResult.compressed_count` = 置換されたメッセージ数
-- `CompressResult.protected_count` = スキップされた（保護された）メッセージ数
-- `stat_compress_count`がインクリメントされる
+- Selected old turns $\rightarrow$ Replaced with a single LLM summary message
+- `CompressResult.compressed_count` = Number of messages replaced
+- `CompressResult.protected_count` = Number of messages skipped (protected)
+- `stat_compress_count` is incremented
 
-### 失敗時のフォールバック判断
+### Fallback Decision on Failure
 
-`HistoryManager.compress()`が要約用LLM呼び出しに失敗すると`HistoryCompressionError`が送出されるが、内部で捕捉されWARNINGログの上`None`が返る。その後の分岐：
+If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCompressionError` is raised but caught internally, returning `None` and logging a WARNING. Subsequent branching:
 
-- **文字数上限を超えたままの場合** → フォールバック切り捨てにフォールスルーし、要約なしで低重要度メッセージから機械的に削除する。
-- **文字数上限を超えていない場合** → 履歴を変更せずno-opで返す（`CompressResult(compressed_count=0, ...)`）。
+- **If character limit is still exceeded** $\rightarrow$ Falls through to fallback truncation, performing mechanical deletion of low-importance messages without summarization.
+- **If character limit is no longer exceeded** $\rightarrow$ Returns as a no-op without modifying history (`CompressResult(compressed_count=0, ...)`).
 
-フォールバック切り捨ては`HistorySelectionPolicy.classify_importance()`昇順（重要度が低いものから）でメッセージをソートし、`system`ロールと直近`protect_turns`ペアを除外した候補から、文字数上限を下回るまで1件ずつ削除する。全件削除しても上限を下回れない場合はWARNINGログを出すのみで処理を継続する。この経路は`CompressResult.is_fallback=True`および`HistoryManager.stat_fallback_truncate_count`のインcrementを伴う。
+Fallback truncation sorts messages by `HistorySelectionPolicy.classify_importance()` in ascending order (lowest importance first) and deletes them one by one from candidates that exclude the `system` role and the most recent `protect_turns` pairs until the character limit is met. If the limit cannot be reached even after deleting all messages, it continues processing while issuing a WARNING log. This path sets `CompressResult.is_fallback=True` and increments `HistoryManager.stat_fallback_truncate_count`.
 
-### 圧縮の永続化モデル
+### Compression Persistence Model
 
-各履歴圧縮（自動または`/compact`）の後、圧縮されたスナップショットは`AgentSession.replace_messages()`経由で`session.sqlite`に書き戻される。これにより`/session load`が意味的に一貫した状態を復元できる。
+After each history compression (automatic or via `/compact`), the compressed snapshot is written back to `session.sqlite` via `AgentSession.replace_messages()`. This ensures that `/session load` restores a semantically consistent state.
 
-主な挙動：
+Key behaviors:
 
-- 圧縮された`[Conversation summary]`のsystemメッセージは`role=system`の行として永続化される
-- フォールバックの切り詰め（要約なしの破棄）もDBの一貫性を保つため永続化をトリガーする
-- メモリ上の`ctx.conv.history`は現在のセッションの正となるソースであり続ける; DB永続化はリロード時のためのバックアップである
-- `/history`と`/export`は引き続き`ctx.conv.history`に対して動作する; 変更不要
-- `stat_turns`カウンタと他のメモリ上の統計はリロード時にリセットされる（既存の挙動）
+- The summarized `[Conversation summary]` system message is persisted as a row with `role=system`.
+- Fallback truncation (discarding without summarization) also triggers persistence to maintain database consistency.
+- The in-memory `ctx.conv.history` remains the source of truth for the current session; database persistence serves as a backup for reloads.
+- `/history` and `/export` continue to operate against `ctx.conv.history`; no changes required.
+- `stat_turns` counter and other in-memory statistics are reset upon reload (existing behavior).
 
 ## Responsibility Boundary
 
-### トークンカウント
+### Token Counting
 
-優先順位：(1) LLMの`usage.input_tokens`（正確）、(2) `/tokenize`エンドポイント（正確）、(3) `chars // 4`のフォールバック。
+Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (accurate), (3) Fallback to `chars // 4`.
 
-### データ分類
+### Data Classification
 
 | Data type | Scope | Storage | When persisted | Cleared by |
 |---|---|---|---|---|
-| `ctx.conv.history` | セッション | メモリ上 | メッセージごと（非同期、LLM呼び出し前） | `/clear`またはセッション終了時 |
-| `ctx.conv.*`フラグ | セッション | メモリ上 | —（永続化されない） | セッション再起動時 |
-| `ctx.turn.current_turn_id` | ターン | メモリ上 | —（永続化されない） | 各ターン終了時 |
-| `ctx.stats.*` | セッション | メモリ上 | —（`/stats`経由で報告） | `/clear` |
-| `sessions`テーブル | 永続 | SQLite | セッション作成時; タイトルは最初のターンで非同期生成 | `/session delete` |
-| `messages`テーブル | 永続 | SQLite | `AgentSession.save()`呼び出しごと | `/session delete`または`/undo` |
-| メモリJSONL / `memories`テーブル | 永続 | JSONL + SQLite | メモリ抽出時（非同期） | `/memory delete`または`/memory prune` |
+| `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call) | `/clear` or end of session |
+| `ctx.conv.*` flags | Session | In-memory | — (not persisted) | Session restart |
+| `ctx.turn.current_turn_id` | Turn | In-memory | — (not persisted) | End of each turn |
+| `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` |
+| `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn | `/session delete` |
+| `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` |
+| Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` |
 
 ## Key Constraints
 
-### 保護ペアの確保
+### Ensuring Protected Pairs
 
-直近の`history_protect_turns`件のuser+assistantペアは常に保護される。
+The most recent `history_protect_turns` user+assistant pairs are always protected.
 
-### 文字数上限の強制
+### Enforcing Character Limits
 
-フォールバック切り捨てでも文字数上限は厳密に守られる。
+Even during fallback truncation, character limits are strictly enforced.
 
 ## Operational Notes
 
-- `/compact`コマンドは`char_limit`を一時的に`1`、`token_limit`を`0`に差し替えて`compress()`を呼び出す実装になっている。上限を無視する専用のパスを持たず、既存の`compress()`ロジックを「必ず上限超過とみなす」状態にして再利用している。
-- `stat_compress_count`と`stat_fallback_truncate_count`は`HistoryManager`インスタンス自身が保持するカウンタであり、`ctx.stats`配下のフィールドではない。表示系コマンドがこれらを参照する場合は`ctx.services.hist_mgr`経由でアクセスする必要がある。
+- The `/compact` command is implemented by temporarily setting `char_limit` to `1` and `token_limit` to `0` when calling `compress()`. It does not have a dedicated path for ignoring limits; instead, it reuses existing `compress()` logic by forcing an "over-limit" state.
+- `stat_compress_count` and `stat_fallback_truncate_count` are counters maintained by the `HistoryManager` instance itself, not fields under `ctx.stats`. Display commands must access them via `ctx.services.hist_mgr`.
 
 ## Known Limitations
 
-- 圧縮されたセッションのリロード後、`/undo`は圧縮済みのDB行に対して動作する。元のメッセージが要約メッセージに置き換えられているため、ユーザーが期待するよりも少ないターン数しか取り消せない場合がある。
+- After reloading a session that has been compressed, `/undo` operates on the compressed DB rows. Since original messages were replaced by a summary message, fewer turns may be undoable than the user expects.
 
 ## Related Docs
 

@@ -19,38 +19,39 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG インジェクションパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+# RAG Ingestion Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
 ## 4.8 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
 
-`ETagManager` — 既存ドキュメントのETag/Last-Modifiedの更新を管理する。古さガードを提供する: new_fetched_at が stored fetched_at より古い場合、入力データは古いものと判断され、既存のDBの値が保持される。2つの更新モードがある。
-- 鮮度モード: 鮮度が確認できた場合にETag/Last-Modifiedを上書きする（fetched_atにはCOALESCEを使用）
-- Null埋めモード: NULLのみを埋める；既存の値は上書きしない（etagとlast_modifiedの両方にCOALESCEを使用）
+`ETagManager` manages updates for existing document ETags and Last-Modified timestamps. It provides freshness guards: if `new_fetched_at` is older than the stored `fetched_at`, the input data is considered stale and the existing DB values are preserved. There are two update modes:
+- **Freshness Mode:** Overwrites ETag/Last-Modified when freshness is confirmed (uses `COALESCE` for `fetched_at`).
+- **Null Fill Mode:** Fills only `NULL` values; does not overwrite existing values (uses `COALESCE` for both `etag` and `last_modified`).
 
-**公開メソッド**
+**Public Methods**
 
-| メソッド | シグネチャ | 説明 |
+| Method | Signature | Description |
 |---|---|---|
-| `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | 既存ドキュメントのETag/Last-Modifiedを更新する；etagとlast_modifiedの両方がNoneの場合は早期リターンする |
+| `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | Updates the ETag/Last-Modified of an existing document; returns early if both `etag` and `last_modified` are `None`. |
 
-**境界条件:**
-- `ETagManager` 自身は `__init__` で受け取った `doc_id` に対してのみSQLを発行する。呼び出し元が正しい `doc_id` を渡す責務を負う。**解決済み(NC-003)**: `document_manager.py`の`_update_etag()`は`doc_id: int`引数を受け取り`ETagManager(self._db, doc_id)`へ渡すよう修正済みで、`handle_existing_document()`が`existing_doc_id`を経路全体に渡すため、既存ドキュメント再取得時のETag更新は意図通り機能する。
+**Boundary Conditions:**
+- `ETagManager` itself issues SQL only for the `doc_id` received in its `__init__`. The caller is responsible for passing the correct `doc_id`. **Resolved (NC-003)**: `document_manager.py`'s `_update_etag()` has been fixed to accept a `doc_id: int` argument and pass it to `ETagManager(self._db, doc_id)`, and since `handle_existing_document()` passes `existing_doc_id` through the entire path, ETag updates during existing document re-fetching function as intended.
 
-## 4.9 設定（`config/ingester.toml`）
+## 4.9 Configuration (`config/ingester.toml`)
 
-| パラメータ | デフォルト | 説明 |
+| Parameter | Default | Description |
 |---|---|---|
-| `embed_url` | `http://127.0.0.1:8081/embedding` | 埋め込みAPIのエンドポイントURL |
-| `embed_retry` | 3 | 埋め込みAPI失敗時のリトライ上限（指数バックオフ） |
-| `embed_workers` | 4 | ThreadPoolExecutorによる最大並行埋め込みスレッド数 |
-| `embedding_dims` | 384 | 想定される埋め込みベクトルの次元数；APIレスポンスと照合して検証される |
+| `embed_url` | `http://127.0.0.1:8081/embedding` | Endpoint URL for the embedding API |
+| `embed_retry` | 3 | Maximum retries on embedding API failure (exponential backoff) |
+| `embed_workers` | 4 | Maximum number of concurrent embedding threads via `ThreadPoolExecutor` |
+| `embedding_dims` | 384 | Expected dimensions of the embedding vector; verified against API response |
 
-[03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md) を参照。
+See [03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md).
 
 ---
 

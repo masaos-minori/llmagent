@@ -18,15 +18,15 @@ source:
 
 # Event Bus: Validation Status
 
-## 検証状況
+## Validation Status
 
-CIパイプラインで以下の品質ゲートが実行されている：
+The following quality gates are executed in the CI pipeline:
 
-- リントチェック
-- 型チェック
-- テストレグレッション
+- Lint checks
+- Type checks
+- Test regressions
 
-DLQループ関連の欠陥が過去に発生しているため、ヘルス/DLQ関連テストの回帰カバレッジは特に重要である。
+Since defects related to the DLQ loop have occurred in the past, regression coverage for health and DLQ-related tests is particularly critical.
 
 ## Related Documents
 

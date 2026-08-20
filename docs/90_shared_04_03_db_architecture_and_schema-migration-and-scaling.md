@@ -18,10 +18,10 @@ source:
 
 # DB Architecture and Schema
 
-- 概要 → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
-## 8. スキーマ生成とマイグレーション方針
+## 8. Schema Generation and Migration Policy
 
 ```python
 # Initialize all schemas (rag + session + workflow + eventbus)
@@ -29,126 +29,111 @@ from db.create_schema import create_schema
 create_schema()
 ```
 
-- すべてのDDLは`IF NOT EXISTS`を使用する — べき等であり、何度実行しても安全
-- **rag.sqlite/session.sqlite/eventbus.sqliteは互換マイグレーションに非対応。** これらのスキーマの変更にはDBの再作成が必要: アーカイブ → 削除 → `create_schema()`による再作成。完全な手順は[90_shared_05 §11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)を参照。workflow.sqlite（§8a）とmdq.sqlite（§8c）はそれぞれ異なる方式のマイグレーション/自動スキーマ更新機構を持つ — 詳細は各節を参照。
-- `embedding_dims`は実行時にconfigから動的に置換される（デフォルト384）
+- All DDL uses `IF NOT EXISTS` — idempotent and safe to run multiple times.
+- **`rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 §11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (§8a) and `mdq.sqlite` (§8c) each have different migration/automatic schema update mechanisms — see respective sections for details.
+- `embedding_dims` is dynamically replaced from config at runtime (default 384).
 
-### 8a. workflow.sqlite限定の増分マイグレーション (Explicit in code)
+### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
 
-上記の「rag/session/eventbusは互換マイグレーションに非対応」という原則は、この3つのDBに限定したものである。`workflow.sqlite`はその対象外であり、`db/schema_sql.py`が専用の増分マイグレーション機構を実装している。
+The principle that "rag/session/eventbus do not support backward-compatible migrations" applies only to those three databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
 
-- `db/schema_sql.py`が`list[tuple[str, str]]`形式のマイグレーションリスト（ID + SQL文ペア）を保持し、`apply_workflow_migrations()`で順次適用する
-- `sqlite3.OperationalError`のうち`"duplicate column name"`を含むものだけを握り潰し（既に適用済みとみなす）、他は再送出する
-- `create_workflow_schema()`はベーステーブル作成後、マイグレーション適用→バージョン記録を行う
-- 新規DBではベーススキーマに既にカラムが含まれるためマイグレーションはno-op。既存DBに対してのみ増分カラム追加として機能する
+- `db/schema_sql.py` maintains a migration list in `list[tuple[str, str]]` format (ID + SQL statement pairs) and applies them sequentially using `apply_workflow_migrations()`.
+- It catches `sqlite3.OperationalError` containing `"duplicate column name"` (treating it as already applied) while re-raising others.
+- `create_workflow_schema()` creates base tables, then applies migrations, and finally records the version.
+- For new databases, migrations are no-ops since base schemas already contain the required columns. They function as incremental column additions for existing databases.
 
-rag.sqlite/session.sqlite/eventbus.sqliteにはこの種の増分マイグレーション機構は存在しない。
+Incremental migration mechanisms like this do not exist for `rag.sqlite`, `session.sqlite`, or `eventbus.sqlite`.
 
-### 8b. RAG整合性検証 (Explicit in code)
+### 8b. RAG Consistency Verification (Explicit in code)
 
-`db/rag_consistency.py::check_rag_consistency()`は`chunks`/`chunks_fts`/`chunks_vec`の行数を比較し、`RagConsistencyReport`（`db/models.py`）を返す読み取り専用検証関数である。整合条件と不整合メッセージ生成ロジックの詳細はコード参照。
+`db/rag_consistency.py::check_rag_consistency()` is a read-only verification function that compares row counts of `chunks`, `chunks_fts`, and `chunks_vec`, returning a `RagConsistencyReport` (`db/models.py`). See code for details on consistency conditions and error message generation logic.
 
-### 8c. mdq.sqlite限定の自動レガシースキーマ検出 (Explicit in code)
+### 8c. Automatic Legacy Schema Detection for `mdq.sqlite` Only (Explicit in code)
 
-`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()`は、MDQサービス起動時に自動実行される、rag/session/eventbusともworkflowとも異なる第三のスキーマ更新パターンである。
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` is a third pattern of schema update, distinct from rag/session/eventbus and workflow, which runs automatically upon MDQ service startup.
 
-- **トリガー:** MDQサービス起動ごとに毎回呼び出される（明示的なマイグレーションコマンドは不要）
-- **検出:** `PRAGMA table_info(chunks)`で旧スキーマかどうかを判定
-- **アクション:** 旧スキーマ検出時、`chunks`/`chunks_fts`テーブルおよび関連トリガーを無条件に`DROP`し、現行スキーマで再作成
-- **対比:** 8aのworkflow.sqliteのようなバージョン管理カラムや明示的なALTER TABLEマイグレーションリストは存在しない — 起動時に毎回スキーマ形状を検査し、古ければ黙って作り直すだけの機構である
-- **データ損失に関する注意:** 旧スキーマ検出時の`DROP`は無条件であり、既存データは再作成後に失われる
+- **Trigger:** Called every time the MDQ service starts (no explicit migration command required).
+- **Detection:** Determines if the schema is legacy using `PRAGMA table_info(chunks)`.
+- **Action:** If a legacy schema is detected, it unconditionally `DROP`s the `chunks`/`chunks_fts` tables and related triggers, then recreates them with the current schema.
+- **Comparison:** Unlike 8a's `workflow.sqlite`, there are no version control columns or explicit `ALTER TABLE` migration lists — it simply inspects the schema shape at startup and rebuilds it silently if it is outdated.
+- **Data Loss Warning:** The `DROP` during legacy schema detection is unconditional; existing data is lost after recreation.
 
-rag.sqlite/session.sqlite/eventbus.sqliteの`chunks_vec`/`memories_vec`（`db/schema_sql.py`）はMDQのスキーマ/ハイブリッド検索クリーンアップ作業とは無関係であり、影響を受けない。
-
----
-
-## 9. 制約一覧
-
-SQLite 3.35+ required; sqlite-vec path /opt/llm/sqlite-vec/vec0.so (agent.toml::sqlite_vec_so); WAL mode on all connections (PRAGMA journal_mode=WAL); busy_timeout 30,000 ms default (agent.toml::sqlite_busy_timeout_ms); embedding dimension 384 default (agent.toml::embedding_dims); float format float32 little-endian BLOB; single-node only (no distributed/replica support); agent.toml included in ConfigLoader().load_all() at index 0 (see 90_shared_03 §2a).
+The `chunks_vec`/`memories_vec` (`db/schema_sql.py`) for `rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` are unrelated to the MDQ schema/hybrid search cleanup and are unaffected.
 
 ---
 
-## 9a. AIリファレンスガイド
+## 9. Constraints List
 
-rag.sqlite schema location: this doc §5; session.sqlite schema location: this doc §6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see §4); embedding dimension set via agent.toml::embedding_dims (default 384); schema initializer: create_schema() — idempotent DDL-only initialization, not migration; DB triggers documented: chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6).
+SQLite 3.35+ required; sqlite-vec path `/opt/llm/sqlite-vec/vec0.so` (`agent.toml::sqlite_vec_so`); WAL mode enabled on all connections (`PRAGMA journal_mode=WAL`); default `busy_timeout` 30,000 ms (`agent.toml::sqlite_busy_timeout_ms`); default embedding dimension 384 (`agent.toml::embedding_dims`); float format: float32 little-endian BLOB; single-node only (no distributed/replica support); `agent.toml` included in `ConfigLoader().load_all()` at index 0 (see 90_shared_03 §2a).
 
 ---
 
-## 10. 正典（Source of Truth）
+## 9a. AI Reference Guide
 
-DDL source: db/schema_sql.py; schema initialization entry point: db/create_schema.py::create_schema(); deploy initialization entry point: deploy/init_db.sh; DB connection helper: db/helper.py::SQLiteHelper; DB files: rag.sqlite, session.sqlite, workflow.sqlite, eventbus.sqlite; Event Bus schema (DDL only): scripts/eventbus/schema.sql; mdq.sqlite schema/auto-update source: scripts/mcp_servers/mdq/db_schema.py::create_production_tables() (see §8c); deleted entry point: db/workflow_schema.py — removed in plan 54.
+rag.sqlite schema location: this doc §5; session.sqlite schema location: this doc §6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see §4); embedding dimension set via `agent.toml::embedding_dims` (default 384); schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (§5), `memories_fts` auto-sync triggers (§6).
 
-**注記:** Event Busランタイム（publisher/subscriber/dispatcher/DLQワーカー）は本クリーンアップの対象外である。今後のEvent Bus書き込み処理はISO-8601 UTC Zサフィックス形式のタイムスタンプを使用しなければならない。
+---
 
-## 11. スケーリング限界とマイグレーションの兆候
+## 10. Source of Truth
 
-現行のRAGアーキテクチャはシングルノードSQLiteを使用している。これはチーム規模の
-デプロイで、コーパスサイズが中程度かつ同時書き込みが頻発しない場合に適している。
-以下の兆候は、再評価が必要となりうるタイミングを示す。
+DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see §8c); deleted entry point: `db/workflow_schema.py` — removed in plan 54.
 
-### コーパスサイズ
+**Note:** The Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is outside the scope of this cleanup. Future Event Bus write operations must use ISO-8601 UTC Z-suffix timestamps.
 
-- **`chunks`テーブルが約50万行を超える場合:** `chunks_vec`におけるKNNスキャン時間はコーパス
-  サイズに対して線形に増加する。この規模になったら`/rag search`のレイテンシの監視を開始すること。
-  *(要確認: 実際の閾値はハードウェアと埋め込み次元数に依存する。)*
-- **DBファイルサイズが約10GBを超える場合:** VACUUM時間、バックアップ所要時間、WALチェックポイント
-  のレイテンシがいずれも増加し、`/db vacuum`が秒単位ではなく分単位の時間を要する場合がある。
-  *(要確認。)*
+## 11. Scaling Limits and Migration Indicators
 
-### 書き込み同時実行性
+The current RAG architecture uses single-node SQLite. This is suitable for team-scale deployments where corpus size is moderate and concurrent writes are infrequent.
+The following indicators suggest a need for re-evaluation.
 
-- 同一の`rag.sqlite`に対して複数の`RagIngester`プロセスが同時に書き込むと、WALレイヤーで
-  シリアライズされる。取り込みスループットがボトルネックとなる場合、SQLiteの書き込み
-  シリアライズが制約要因となりうる。
-- **兆候:** WALファイルがチェックポイントによる縮小よりも速く増大する。`/db health`で監視すること。
+### Corpus Size
 
-### FTS5検索レイテンシ
+- **When `chunks` table exceeds ~500,000 rows:** KNN scan time in `chunks_vec` increases linearly with corpus size. Start monitoring `/rag search` latency at this scale. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
+- **When DB file size exceeds ~10GB:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` may take minutes instead of seconds. *(Note: To be verified.)*
 
-- **兆候:** `/rag search`が一貫して500msを超える。FTS5のBM25はドキュメント数に応じて
-  スケールするため、非常に大きなコーパスでは検索速度が低下する場合がある。
-  *(要確認。)*
+### Write Concurrency
 
-### 運用上の複雑性に関する兆候
+- When multiple `RagIngester` processes write to the same `rag.sqlite`, they are serialized at the WAL layer. If ingestion throughput becomes a bottleneck, SQLite write serialization may become a constraint.
+- **Indicator:** WAL files grow faster than checkpointing can shrink them. Monitor via `/db health`.
 
-- ファイルサイズの増大に伴い、バックアップとポイントインタイムリカバリが複雑化する
-- 複数環境で同一DBファイルを共有することは非対応（SQLiteは単一ファイル方式のため）
-- 規模が拡大するにつれ`/session rag-consistency`の問題の修復が難しくなる
+### FTS5 Search Latency
 
-### マイグレーション兆候チェックリスト
+- **Indicator:** `/rag search` consistently takes over 500ms. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora. *(Note: To be verified.)*
 
-以下のうち2つ以上に該当する場合、アーキテクチャの見直しを検討すること:
+### Operational Complexity Indicators
 
-- [ ] p95でのKNN検索レイテンシが1秒を超える
-- [ ] DBファイルサイズが20GBを超える
-- [ ] WALチェックポイントが一貫して30秒を超える
-- [ ] 取り込みキューの深さが一貫して未処理チャンクファイル1万件を超える
-- [ ] 複数のチームまたはプロセスが同時書き込みアクセスを必要とする
+- Backups and point-in-time recovery become more complex as file sizes increase.
+- Sharing the same DB file across multiple environments is not supported (SQLite is a single-file system).
+- Resolving issues with `/session rag-consistency` becomes harder as scale increases.
 
-通常運用でこれらの兆候を監視するには`/db health`と`/session rag-consistency`を使用すること。
+### Migration Indicator Checklist
 
-### 限界が近づいた際に評価すべき事項
+Consider architectural review if two or more apply:
 
-- **ベクトル検索:** 専用のベクトルデータベース（近似最近傍探索、分散インデックス）は、
-  ベクトル数が100万を超える規模で`sqlite-vec`を上回る性能を発揮する
-- **全文検索:** 転置インデックス型の検索サービスは、より低いレイテンシで大規模コーパスを扱える
-- **ハイブリッドストア:** リレーショナルDB + ベクトル拡張（例: `pgvector`互換）は、SQLセマンティクス
-  を維持しながら書き込み同時実行性のスケーリングを可能にする
+- [ ] p95 KNN search latency exceeds 1 second
+- [ ] DB file size exceeds 20GB
+- [ ] WAL checkpoints consistently exceed 30 seconds
+- [ ] Ingestion queue depth consistently exceeds 10,000 unprocessed chunk files
+- [ ] Multiple teams or processes require simultaneous write access
 
-> **注記:** 上記の数値閾値はすべて計画上の見積もりであり、ベンチマークによって保証されたものではない。
-> 実際の限界はハードウェア、埋め込み次元数、クエリパターン、コーパスの特性に依存する。
-> いずれの閾値も確定的なものとして扱う前に、個別のデプロイ環境で検証すること。
+Monitor these indicators during normal operation using `/db health` and `/session rag-consistency`.
 
-## 12. スキーマ変更チェックリスト
+### Considerations when limits are approached
 
-スキーマを変更するタスクでは、以下すべてに回答すること:
+- **Vector Search:** Dedicated vector databases (Approximate Nearest Neighbor search, distributed indexing) outperform `sqlite-vec` at scales exceeding 1 million vectors.
+- **Full-Text Search:** Full-text search services offer lower latency for large corpora.
+- **Hybrid Store:** Relational DB + Vector extensions (e.g., `pgvector` compatible) allow scaling write concurrency while maintaining SQL semantics.
 
-- [ ] どのDBが影響を受けるか？（rag/session/workflow/eventbus/mdq）
-- [ ] どのスキーマソースファイルが影響を受けるか？
-- [ ] 新規インストール専用のDDL変更か？
-- [ ] 既存DBに対するマイグレーションが必要か？
-- [ ] マイグレーションを提供しない場合、DBの再作成が必要か？
-- [ ] データ損失の可能性はあるか？
-- [ ] スキーマの挙動を反映するようテストは更新されているか？
-- [ ] RAG、session、workflow、eventbus、MDQのいずれに影響するか？
+> **Note:** The numerical thresholds above are estimates and not guaranteed by benchmarking. Actual limits depend on hardware, embedding dimensions, query patterns, and corpus characteristics. Always verify in individual deployment environments before treating any threshold as definitive.
 
+## 12. Schema Change Checklist
 
+Before performing a schema change task, answer all of the following:
+
+- [ ] Which DB is affected? (rag/session/workflow/eventbus/mdq)
+- [ ] Which schema source files are affected?
+- [ ] Is this a DDL change exclusive to new installations?
+- [ ] Is a migration required for existing databases?
+- [ ] If no migration is provided, is database recreation required?
+- [ ] Is there a possibility of data loss?
+- [ ] Are tests updated to reflect the schema behavior?
+- [ ] Which component is affected: RAG, session, workflow, eventbus, or MDQ?

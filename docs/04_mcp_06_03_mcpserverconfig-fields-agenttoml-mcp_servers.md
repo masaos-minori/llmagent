@@ -5,7 +5,6 @@ tags:
   - mcp
   - configuration
 related:
-  - 04_mcp_00_document-guide.md
   - 04_mcp_06_02_configuration-file-inventory.md
 source:
   - 04_mcp_06_02_configuration-file-inventory.md
@@ -13,49 +12,44 @@ source:
 
 # McpServerConfig Fields (agent.toml `[mcp_servers.*]`)
 
-**所有権:** このファイルに記載のフィールドは `config/agent.toml` のみで定義される。
-各MCPサーバーのアプリケーション設定は対応する `*_mcp_server.toml` に記述する。
+**Ownership:** The fields described in this file are defined only in `config/agent.toml`.
+Each MCP server's application settings are described in its corresponding `*_mcp_server.toml`.
 
 ## Agent-side MCP fields (agent.toml `[mcp_servers.*]`)
 
-agent.toml で設定可能なフィールドは以下の13個であり、加えて自動導出される `key` フィールドが存在する(後述):
+There are 13 configurable fields in `agent.toml`, plus an automatically derived `key` field (described below):
 
-| フィールド | 型 | デフォルト | 説明 |
+| Field | Type | Default | Description |
 |---|---|---|---|
-| `transport` | `TransportType` | 必須 | `TransportType.HTTP`（`"http"`）；TOMLの文字列値はconfig loaderによって変換される（実行時ではない） |
-| `url` | `str` | 必須 | HTTPサーバのベースURL |
+| `transport` | `TransportType` | Required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader (not at runtime) |
+| `url` | `str` | Required | Base URL of the HTTP server |
 | `startup_mode` | `str` | `"none"` | `"none"` / `"persistent"` / `"subprocess"` |
-| `call_timeout_sec` | `float` | `60.0` | 1回のツール呼び出しあたりのタイムアウト秒数；`0`はタイムアウトなしを意味する |
-| `startup_timeout_sec` | `int` | `30` | subprocess起動時のヘルスポーリングのタイムアウト秒数 |
-| `tool_names` | `list[str]` | `[]` | ルーティングには使用されないドリフト検証用メタデータ(後述) |
-| `auth_token` | `str` | `""` | `ToolExecutor` が送信するBearerトークン |
-| `role` | `str` | `""` | 人間可読なラベル(後述) |
-| `cmd` | `list[str]` | `[]` | `startup_mode=subprocess` 用の起動コマンド；subprocessモード使用時は空であってはならない |
-| `env` | `dict[str, str]` | `{}` | subprocess用の追加環境変数；`LD_PRELOAD`/`LD_LIBRARY_PATH`/`PYTHONPATH` はdenylistで拒否される |
-| `startup_stagger_delay_sec` | `float` | `0.0` | 連続するサーバー起動間のずらし時間(秒) |
-| `max_stderr_log_size_mb` | `float` | `100.0` | ローテーション前のstderrログ最大サイズ(MB) |
-| `max_stderr_log_files` | `int` | `3` | 保持するローテーション済みstderrログファイル数 |
+| `call_timeout_sec` | `float` | `60.0` | Timeout in seconds per tool call; `0` means no timeout |
+| `startup_timeout_sec` | `int` | `30` | Health polling timeout during subprocess startup |
+| `tool_names` | `list[str]` | `[]` | Metadata for drift validation, not used for routing (described below) |
+| `auth_token` | `str` | `""` | Bearer token sent by `ToolExecutor` |
+| `role` | `str` | `""` | Human-readable label (described below) |
+| `cmd` | `list[str]` | `[]` | Startup command for `startup_mode=subprocess`; must not be empty when using subprocess mode |
+| `env` | `dict[str, str]` | `{}` | Additional environment variables for subprocess; `LD_PRELOAD`/`LD_LIBRARY_PATH`/`PYTHONPATH` are rejected via denylist |
+| `startup_stagger_delay_sec` | `float` | `0.0` | Delay between consecutive server startups (seconds) |
+| `max_stderr_log_size_mb` | `float` | `100.0` | Maximum stderr log size before rotation (MB) |
+| `max_stderr_log_files` | `int` | `3` | Number of rotated stderr log files to retain |
 
-**`tool_names` について:** ルーティング判断には使用されない。ドリフト検証用のメタデータであり(`docs/04_mcp_03_01_dispatch-and-routing.md` を参照)、`scripts/shared/tool_routing_validation.py` の `validate_tool_names_match()` が突合に用いる。状態は3通り: フィールド省略時(デフォルトの`[]`)、明示的な空リスト`[]`、値を持つリスト。いずれの場合も検証は `if not cfg.tool_names: continue` によりスキップされる。
+**About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/04_mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. There are three states: field omitted (default `[]`), explicit empty list `[]`, or a list with values. In all cases, validation is skipped via `if not cfg.tool_names: continue`.
 
-**`role` について:** 運用者向けの人間可読なラベルであり、`/mcp status` コマンド出力の `ROLE` 列に表示される。ルーティングやディスパッチのロジックからは一切参照されない(表示専用)。
+**About `role`:** A human-readable label for operators, displayed in the `ROLE` column of `/mcp status` output. It is for display only and is never referenced by routing or dispatch logic.
 
-**廃止に関する注記(2026-07-17):** `healthcheck_mode`フィールドと`HealthcheckMode` enumは削除された。HTTPが唯一サポートされるtransportであり、`healthcheck_mode`は設定値の有無・内容に関わらず常に`_derive_healthcheck_mode()`によって`HealthcheckMode.HTTP`（`"http"`）に導出されていた — フィールド自体、バリデーション分岐、および`config_reload.py`の`_MCP_SERVER_FIELDS`エントリはすべて実装されたことのない第2のヘルスチェック方式のための不要な配線だった。第2のtransport/healthcheck方式を実装する際に再度検討する。
+**Note on Deprecation (2026-07-17):** The `healthcheck_mode` field and `HealthcheckMode` enum were removed. Since HTTP is the only supported transport, `healthcheck_mode` was always derived as `HealthcheckMode.HTTP` (`"http"`) via `_derive_healthcheck_mode()`, regardless of whether the setting was present or what its content was — the field itself, the validation branch, and the `_MCP_SERVER_FIELDS` entry in `config_reload.py` were all unnecessary wiring for a second health check method that was never implemented. We will reconsider this when implementing a second transport/health check method.
 
-**`key` フィールドについて:** `McpServerConfig` には上記に加えて `key: str = ""` フィールドが存在するが、TOMLで直接指定する設定項目ではない。`_build_single_server()` が `[mcp_servers.<key>]` のセクション名から自動的に設定する内部識別子であり、エラーメッセージのプレフィックス（例: `McpServerConfig['github']: ...`）に用いられる。`compare=False, repr=False` が指定されており、`McpServerConfig` 同士の等価比較（`/reload` の差分検出等）には影響しない (Explicit in code)。
+**About the `key` field:** In addition to the above, `McpServerConfig` has a `key: str = ""` field, but this is not a setting specified directly in TOML. It is an internal identifier automatically set by `_build_single_server()` from the section name in `[mcp_servers.<key>]`, used as a prefix in error messages (e.g., `McpServerConfig['github']: ...`). `compare=False, repr=False` is specified, so it does not affect equality comparison between `McpServerConfig` instances (e.g., for detecting diffs during `/reload`) (Explicit in code).
 
-**`startup_mode="none"`:** このサーバはsubprocessとして起動されず、起動時のヘルスチェックも行われない。
-このサーバへルーティングされるすべてのtool callは、ネットワークへのアクセスを試みる前に
-`ToolExecutor` の startup_mode チェック処理によって即座に `"disabled (startup_mode=none)"` エラーで拒否される。
-これはconfigで `startup_mode` を省略した場合のデフォルトである —
-サーバを利用可能にするには `"persistent"` または `"subprocess"` を明示的に指定する必要がある。
+**`startup_mode="none"`:** This server is not started as a subprocess, and no health check is performed at startup. All tool calls routed to this server are immediately rejected with a `"disabled (startup_mode=none)"` error by the `ToolExecutor` startup mode check before attempting network access. This is the default if `startup_mode` is omitted in the config — to make the server available, you must explicitly specify `"persistent"` or `"subprocess"`.
 
-**検証ルール:**
-- `transport="http"` → `url` は空でなく、有効なHTTP/HTTPS URLでなければならない
-- `startup_mode="subprocess"` → `cmd` は空であってはならない
+**Validation Rules:**
+- `transport="http"` → `url` must not be empty and must be a valid HTTP/HTTPS URL.
+- `startup_mode="subprocess"` → `cmd` must not be empty.
 
 ---
-
 
 ## Related Documents
 
@@ -66,4 +60,4 @@ agent.toml で設定可能なフィールドは以下の13個であり、加え�
 configuration
 McpServerConfig
 key
-idle_timeout_sec (廃止/未実装)
+idle_timeout_sec (deprecated/unimplemented)

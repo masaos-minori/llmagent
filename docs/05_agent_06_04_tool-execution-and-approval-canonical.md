@@ -7,98 +7,102 @@ tags:
   - adr-001
 related:
   - 05_agent_00_document-guide.md
+  - 05_agent_06_01_tool-execution-and-approval-execution.md
+  - 05_agent_06_02_tool-execution-and-approval-approval.md
+  - 05_agent_06_03_tool-execution-and-approval-concurrency-safety.md
+
 source:
   - 05_agent_06_04_tool-execution-and-approval-canonical.md
 ---
 
-# エージェントのツール実行と承認
+# Agent Tool Execution and Approval
 
-- ターンフロー → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
-- MCPルーティング → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
+- Turn Flow → [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)
+- MCP Routing → [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md)
 
 ## Purpose
 
-正準承認モデル（ADR-001）と部分完了の永続化について文書化する。
+Documents the Canonical Approval Model (ADR-001) and the persistence of partial completion.
 
 ## Design Intent
 
-### 正準承認モデル（ADR-001）
+### Canonical Approval Model (ADR-001)
 
 **Date:** 2026-06-26
 **Status:** Accepted
 
-#### コンテキスト
+#### Context
 
-エージェントには2つの承認レイヤーが存在する: ツールレベルとワークフローレベル。これらは競合せず共存する必要がある。
+There are two approval layers in the agent: tool-level and workflow-level. They must coexist without conflict.
 
-**用語の明確化:**
-- **自動実行 (Automatic Execution)**: 人間の承認を必要としない操作（計画フェーズ、検証フェーズ、ツールレベルの低リスク操作）
-- **事前実行承認 (Pre-execution Approval)**: ツール実行前に発動するツールレベルの承認ゲート（リアルタイムなリスク評価）
-- **事後実行承認 (Post-execution Approval)**: executeステージ完了後に発動するワークフローレベルの承認ゲート（バッチ的な結果確認）
+**Terminology Clarification:**
+- **Automatic Execution**: Operations that do not require human approval (planning phase, verification phase, low-risk tool operations).
+- **Pre-execution Approval**: A tool-level approval gate triggered before tool execution (real-time risk assessment).
+- **Post-execution Approval**: A workflow-level approval gate triggered after the `execute` stage is complete (batch result verification).
 
-#### 決定
+#### Decision
 
-両レイヤーとも正準 (canonical) である; 境界と責務は排他的ではなく明示的なものとする。
+Both layers are canonical; boundaries and responsibilities are explicit rather than mutually exclusive.
 
-#### 境界表
+#### Boundary Table
 
-| Axis | Pre-execution Approval (ツールレベル) | Post-execution Approval (ワークフローレベル) |
+| Axis | Pre-execution Approval (tool-level) | Post-execution Approval (workflow-level) |
 |------|---------------------------------------|---------------------------------------------|
 | Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
-| Granularity | ツール呼び出しごと | タスクごと (execute→verify間) |
-| State | 一時的 (メモリ上) | DB永続化 (`approvals`) |
-| Resolution | 標準入力による対話 | `/approve` / `/reject` |
-| Currently active | 常に有効 | 無効 (デフォルトのワークフロー定義では `require_approval=false`) |
+| Granularity | Per tool call | Per task (between `execute` $\rightarrow$ `verify`) |
+| State | Ephemeral (in memory) | Persistent in DB (`approvals`) |
+| Resolution | Interactive via stdin | `/approve` / `/reject` |
+| Currently active | Always active | Inactive (default workflow definitions have `require_approval=false`) |
 | Risk classification | `approval_risk_rules` per tool | `require_approval` flag on workflow definition |
 
-**Design judgment**: 「単一の正準な承認オブジェクト」という要件は、各レイヤーの境界と責務を明確に定義することを意味する。いずれかのレイヤーを排除することを意味するものではない。両レイヤーは異なる問題を解決する:
+**Design judgment**: The requirement for a "single canonical approval object" means clearly defining the boundaries and responsibilities of each layer. It does not mean excluding one of the layers. Both layers solve different problems:
 
-- 事前実行承認: ツールごとのリアルタイムなリスクゲート (実行前)
-- 事後実行承認: executeステージ全体の結果に対する人間による承認 (実行後)
-- 自動実行: 人間の承認を必要としない操作（計画フェーズ、検証フェーズ、低リスクツール呼び出し）
+- Pre-execution Approval: Real-time risk gate per tool (before execution)
+- Post-execution Approval: Human approval for the entire results of the `execute` stage (after execution)
+- Automatic Execution: Operations that do not require human approval (planning phase, verification phase, low-risk tool calls)
 
-#### 共存ルール
+#### Coexistence Rules
 
-`require_approval=True`の場合:
+When `require_approval=True`:
 
-1. executeステージ中: 事前実行承認（ツールレベル）がツール呼び出しごとに発動する (MEDIUM/HIGHリスクのツールのみ)
-2. executeステージ後: 事後実行承認（ワークフローレベル）がワークフローを一時停止する; ユーザーが`/approve`または`/reject`を実行
-3. 両者は独立して発動する。これは意図的なものであり、両者は異なる粒度で動作する。
-4. 自動実行（計画フェーズ、検証フェーズ、低リスクツール呼び出し）は人間の承認を必要としない。
+1. During the `execute` stage: Pre-execution approval (tool-level) triggers for every tool call (only for MEDIUM/HIGH risk tools)
+2. After the `execute` stage: Post-execution approval (workflow-level) pauses the workflow; user executes `/approve` or `/reject`
+3. Both trigger independently. This is intentional, as they operate at different granularities.
+4. Automatic execution (planning phase, verification phase, low-risk tool calls) does not require human approval.
 
-### 部分完了の永続化
+### Persistence of Partial Completion
 
-一部のステップが完了した後にワークフローが失敗した場合、ワークフローエンジンは`StateStore.update_task_status()`経由で最終的なタスクステータスを記録する:
+If a workflow fails after some steps are completed, the workflow engine records the final task status via `StateStore.update_task_status()`:
 
-- `"failed"` — ワークフローステップが未処理の例外を発生させた
-- `"halted"` — `WorkflowHaltError`によりワークフローが明示的に停止された
+- `"failed"` — Workflow step raised an unhandled exception
+- `"halted"` — Workflow was explicitly stopped by `WorkflowHaltError`
 
-**Design judgment**: 完了したステップは個別には永続化されない。部分完了は自動的には再開**されない** — ユーザーはリクエストを再発行するか、`/reject`を使って承認待ちのゲートを却下する必要がある。
+**Design judgment**: Completed steps are not persisted individually. Partial completion is **not** automatically resumed — the user must either resubmit the request or use `/reject` to dismiss pending gates.
 
 ## Responsibility Boundary
 
-- **正典**: `agent/tool_approval.py` (ツールレベル), `agent/workflow/workflow_engine.py` (ワークフローレベル)
-- **ワークフロー承認DB**: `workflow.sqlite`
+- **Canonical Source**: `agent/tool_approval.py` (tool-level), `agent/workflow/workflow_engine.py` (workflow-level)
+- **Workflow Approval DB**: `workflow.sqlite`
 
 ## Key Constraints
 
-- 両承認レイヤーは正準であり排他的でない
-- 事前実行承認（ツールレベル）は常に有効
-- 事後実行承認（ワークフローレベル）はデフォルトで発火しない
-- 部分完了は自動再開されない
-- 自動実行（計画/検証フェーズ、低リスクツール）は人間の承認を必要としない
+- Both approval layers are canonical and not mutually exclusive
+- Pre-execution approval (tool-level) is always active
+- Post-execution approval (workflow-level) does not fire by default
+- Partial completion is not automatically resumed
+- Automatic execution (planning/verification phases, low-risk tools) does not require human approval
 
 ## Operational Notes
 
-- 自動実行（計画フェーズ、検証フェーズ、低リスクツール呼び出し）は人間の承認を必要としない
-- 事前実行承認（ツールレベル）は`ApprovalConfig.approval_risk_rules`でリスク分類を設定
-- 事後実行承認（ワークフローレベル）は`WorkflowDef.require_approval`フラグで有効化
+- Automatic execution (planning phase, verification phase, low-risk tool calls) does not require human approval
+- Pre-execution approval (tool-level) configures risk classification via `ApprovalConfig.approval_risk_rules`
+- Post-execution approval (workflow-level) is enabled via the `WorkflowDef.require_approval` flag
 
 ## Known Limitations
 
-- 事後実行承認（ワークフローレベル）はデフォルトで無効 — 明示的な構成変更が必要
-- 事前実行承認（ツールレベル）は`approval_risk_rules`で個別に設定可能だが、未設定ツールは"MEDIUM"リスクとして承認が必要
-- 部分完了は自動的には再開されない — ユーザーの手動介入が必要
+- Post-execution approval (workflow-level) is disabled by default — requires explicit configuration change
+- Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but unset tools require approval as "MEDIUM" risk
+- Partial completion is not automatically resumed — manual user intervention is required
 
 ## Related Docs
 

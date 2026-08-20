@@ -22,27 +22,25 @@ source:
 
 ## scripts/eventbus/app.py
 
-アプリ状態とCLIエントリポイント。詳細はコード参照。
+Application state and CLI entry point. See code for details.
 
 ## scripts/eventbus/config.py
 
-`EventBusConfig` クラスと設定読み込み関数。詳細はコード参照。
+`EventBusConfig` class and configuration loading functions. See code for details.
 
 ## scripts/eventbus/db.py
 
-DB接続とスキーマ初期化。詳細はコード参照。
+DB connection and schema initialization. See code for details.
 
 ## scripts/eventbus/dlq.py
 
-DLQ操作関数群。詳細はコード参照。
+DLQ operation functions. See code for details.
 
 ## scripts/eventbus/route_helpers.py
 
-ルート共通ヘルパー。詳細はコード参照。
+Common route helpers. See code for details.
 
 ### Related Documents
 
 - `06_eventbus_06_02_reference-api-route-handlers.md`
 - `06_eventbus_06_03_reference-api-broker-and-offsets.md`
-
-

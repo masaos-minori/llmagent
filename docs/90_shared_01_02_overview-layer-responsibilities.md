@@ -19,50 +19,46 @@ source:
 
 - Document guide → [90_shared_00_document-guide.md](90_shared_00_document-guide.md)
 
-## 4. レイヤー構造全体
+## 4. Overall Layer Structure
 
 ``` text
 External Libraries
         ↑
-   shared/          ← 最下層。他の全レイヤーがこれに依存する
+   shared/          ← Bottom layer. All other layers depend on this.
         ↑
-       db/           ← shared/ のみに依存
+       db/           ← Depends only on shared/
         ↑
-  rag/ | mcp_servers/   ← db/ と shared/ に依存
+  rag/ | mcp_servers/   ← Depend on db/ and shared/
         ↑
-    agent/           ← 全レイヤーに依存
+      agent/           ← Depends on all layers
 ```
 
-インポート方向は `.importlinter` で強制される。違反すると `lint-imports` が失敗する。
+Import direction is enforced by `.importlinter`. Violations cause `lint-imports` to fail.
 
 ---
 
-## 5. `shared/` の責務
+## 5. Responsibilities of `shared/`
 
-最下層レイヤー。他の全レイヤーがこれに依存する。
+Bottom layer. All other layers depend on it.
 
-**所有権**: shared owns configuration types, DTOs, logging infrastructure, caching, client abstractions (LLM/MCP), token measurement, format utilities, OTel tracing, constants, streaming protocol.
+**Ownership:** `shared` owns configuration types, DTOs, logging infrastructure, caching, client abstractions (LLM/MCP), token measurement, format utilities, OTel tracing, constants, streaming protocol.
 
-**`shared/` に属さないもの**:
-- スキーマ定義、クエリ実行、DB接続管理 → `db/`
-- ツール呼び出しのビジネスロジック → `agent/`
-- RAGパイプライン制御 → `rag/`
-
----
-
-## 6. `db/` の責務
-
-`db/` は `shared/` のみに依存する。
-
-**所有権**: db owns schema management, migration, store protocols, backend implementations, recovery.
-
-**`db/` に属さないもの**:
-- 共通型定義 → `shared/`
-- ツール実行ロジック → `shared/tool_executor.py`
-- LLM通信 → `shared/llm_client.py`
+**NOT in `shared/`:**
+- Schema definitions, query execution, DB connection management → `db/`
+- Business logic for tool calls → `agent/`
+- RAG pipeline control → `rag/`
 
 ---
 
+## 6. Responsibilities of `db/`
 
+`db/` depends only on `shared/`.
 
+**Ownership:** `db` owns schema management, migration, store protocols, backend implementations, recovery.
 
+**NOT in `db/`:**
+- Common type definitions → `shared/`
+- Tool execution logic → `shared/tool_executor.py`
+- LLM communication → `shared/llm_client.py`
+
+---

@@ -1,23 +1,23 @@
-
-title: "MCP Health Reasons and Scheduling (Part 1)"
+---
+title: "MCP Health Reasons and Scheduling"
 category: mcp
 tags:
   - mcp
   - health-reasons
+  - scheduling
 related:
   - 04_mcp_00_document-guide.md
   - 04_mcp_06_02_configuration-file-inventory.md
   - 04_mcp_06_12_watchdog-configuration-monitoring.md
 source:
   - 04_mcp_06_13_watchdog-health-reasons-scheduling.md
-
+---
 
 # MCP Health Reasons and Scheduling
 
+## Health Reasons Priority
 
-## ヘルス理由の優先順位
-
-`/health`経由でHTTP MCPサーバーをプローブすると、LIFECYCLEのアクションと表示用の理由の両方を決定する構造化フィールドが返される。
+When probing an HTTP MCP server via `/health`, structured fields are returned that determine both LIFECYCLE actions and display reasons.
 
 ```python
 # From McpProbeResult model
@@ -26,25 +26,25 @@ operator_action_required: bool  # True only if health endpoint sets this flag
 health_reason: str              # Derived priority: operator_action > restart_recommended
 ```
 
-`health_reason`導出の優先順位:
+Priority for deriving `health_reason`:
 
-| 条件 | 結果 |
+| Condition | Result |
 |-----------|--------|
-| `operator_action_required=true` かつ reachable+HTTP_OK | `"operator_action_required"` |
-| `restart_recommended=true` かつ reachable+HTTP_OK | `"restart_recommended"` |
-| サーバーが到達不能/失敗中 | ボディが提供する理由文字列(`details.reason`、なければ`message`にフォールバック) |
-| それ以外のすべてのケース | 空文字列 |
+| `operator_action_required=true` AND reachable+HTTP_OK | `"operator_action_required"` |
+| `restart_recommended=true` AND reachable+HTTP_OK | `"restart_recommended"` |
+| Server unreachable/failed | String from body (`details.reason`, fallback to `message`) |
+| All other cases | Empty string |
 
-`restart_recommended`フィールドには、異なるセマンティクスを持つ2つの発生源がある。
+The `restart_recommended` field has two different sources with distinct semantics:
 
-1. **`/health`エンドポイントから**: サーバー自身によるプロアクティブな推奨を示す
-2. **LifecycleProtocol.ensure_ready()から**: `lifecycle_state == FAILED`のときに設定される — トランスポート層の障害に基づくリアクティブな検出を示す
+1. **From the `/health` endpoint**: Indicates proactive recommendation from the server itself.
+2. **From `LifecycleProtocol.ensure_ready()`**: Set when `lifecycle_state == FAILED` — indicates reactive detection based on transport layer failures.
 
-両者は表示レベルでは同等に扱われる。
+Both are treated equally at the display level.
 
-### プローブチェーン全体でのボディ理由の追跡
+### Body Reason Tracking Across Probe Chain
 
-HTTP MCPサーバーの`/health`をプローブする際、bodyフィールドは次のように伝播する。
+When probing an HTTP MCP server's `/health`, the `body` field propagates as follows:
 
 ```python
 # Step 1: Probe returns raw body
@@ -63,80 +63,11 @@ registry.record_failure(server_key)
 # Refer to docs/04_mcp_06_12_watchdog-configuration-monitoring.md for details.
 ```
 
-#### degraded の理由一覧
-現在、`record_degraded()` が呼び出されないため、`get_degraded_reason()` は常に `None` を返します。
+#### List of Degraded Reasons
 
-- すべての degraded 理由は、`record_success()` によってクリアされる。
+Currently, since `record_degraded()` is not called, `get_degraded_reason()` always returns `None`.
 
----
-
-### Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_06_02_configuration-file-inventory.md`
-- `04_mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
-
-### Keywords
-
-health-reasons
-scheduling
-
-# MCP Health Reasons and Scheduling
-
-
-## ヘルス理由の優先順位
-
-`/health`経由でHTTP MCPサーバーをプローブすると、LIFECYCLEのアクションと表示用の理由の両方を決定する構造化フィールドが返される。
-
-```python
-# From McpProbeResult model
-restart_recommended: bool       # True if health endpoint says so OR lifecycle_state == FAILED
-operator_action_required: bool  # True only if health endpoint sets this flag
-health_reason: str              # Derived priority: operator_action > restart_recommended
-```
-
-`health_reason`導出の優先順位:
-
-| 条件 | 結果 |
-|-----------|--------|
-| `operator_action_required=true` かつ reachable+HTTP_OK | `"operator_action_required"` |
-| `restart_recommended=true` かつ reachable+HTTP_OK | `"restart_recommended"` |
-| サーバーが到達不能/失敗中 | ボディが提供する理由文字列(`details.reason`、なければ`message`にフォールバック) |
-| それ以外のすべてのケース | 空文字列 |
-
-`restart_recommended`フィールドには、異なるセマンティクスを持つ2つの発生源がある。
-
-1. **`/health`エンドポイントから**: サーバー自身によるプロアクティブな推奨を示す
-2. **LifecycleProtocol.ensure_ready()から**: `lifecycle_state == FAILED`のときに設定される — トランスポート層の障害に基づくリアクティブな検出を示す
-
-両者は表示レベルでは同等に扱われる。
-
-### プローブチェーン全体でのボディ理由の追跡
-
-HTTP MCPサーバーの`/health`をプローブする際、bodyフィールドは次のように伝播する。
-
-```python
-# Step 1: Probe returns raw body
-probe_result.body["reason"] or probe_result.body["message"]
-
-# Step 2: Resolved to endpoint string  
-_resolve_endpoint() returns tuple including body_reason
-
-# Step 3: HealthRegistry receives it via record_failure(server_key)
-# Note: record_failure() does not take a 'reason' argument.
-# Although record_degraded(server_key, reason=None) exists, it is currently dead code.
-registry.record_failure(server_key)
-
-# Step 4: Current Status
-# Because record_degraded() is not used, get_degraded_reason() always returns None.
-# Refer to docs/04_mcp_06_12_watchdog-configuration-monitoring.md for details.
-```
-
-#### degraded の理由一覧
-現在、`record_degraded()` が呼び出されないため、`get_degraded_reason()` は常に `None` を返します。
-
-- すべての degraded 理由は、`record_success()` によってクリアされる。
+- All degraded reasons are cleared by `record_success()`.
 
 ---
 
@@ -152,79 +83,78 @@ registry.record_failure(server_key)
 health-reasons
 scheduling
 
+---
 
+## Difference Between Tool Errors and Transport Errors
 
-# MCP Health Reasons and Scheduling
+In an MCP server, errors are divided into two categories:
 
+1. **Transport Error**: Failures in communication itself, such as network issues, timeouts, or server unreachability.
+2. **Tool Error**: The server is reachable, but a specific tool execution failed (e.g., invalid arguments, upstream API error).
 
-## ツールエラーとトランスポートエラーの区別
+Transport errors affect the MCP server's health state (`McpServerHealthRegistry`). Tool errors do not — the server is operating normally, but a specific tool call failed.
 
-MCPサーバーにおいて、エラーは以下の2つのカテゴリに分けられる。
+#### Error Counter Tracking
 
-1. **トランスポートエラー**: ネットワーク障害、タイムアウト、サーバー到達不能など、通信そのものの失敗。
-2. **ツールエラー**: サーバーには到達可能だが、特定のツール実行が失敗したもの（例: 不正な引数、上流APIのエラー）。
+`ToolTransportInvoker` maintains both tool error counts (`stat_tool_errors`) and transport error counts (`stat_transport_errors`) in memory per server key. Since `ToolExecutor` inherits from this class, it carries over both counters but does not maintain its own separate ones.
 
-トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗したことを示す。
+**Note:** Currently, there are no automatic warning logs or threshold checks based on these counters.
 
-#### エラーカウンタの追跡
-`ToolTransportInvoker` は、サーバーキーごとのツールエラー数(`stat_tool_errors`)とトランスポートエラー数(`stat_transport_errors`)を両方ともメモリ内でカウントする。`ToolExecutor` はこのクラスを継承するため両カウンタを引き継ぐが、独自に別のカウンタを持つわけではない。
+**Note (Confusion Prevention):** A similarly named `stat_tool_errors` (`AgentContext.stats.stat_tool_errors`, `scripts/agent/context.py`) exists in the agent session statistics, but this is distinct from the `ToolTransportInvoker` counter described here; it is used for aggregate display at the agent layer, such as in `/stats`.
 
-**注意**: 現在の実装では、これらのカウンタに基づく自動的な警告ログやしきい値判定は存在しない。
+#### Audit Log Detail Verification
 
-**注意（混同防止）**: エージェントのセッション統計側にも同名の `stat_tool_errors` (`AgentContext.stats.stat_tool_errors`, `scripts/agent/context.py`) が別途存在するが、これは本節が説明する `ToolTransportInvoker` 側のカウンタとは別物であり、`/stats` などエージェント層の集計表示に使われる。
-
-#### 監査ログによる詳細確認
-ツールの実行結果に関する詳細は、構造化されたJSON形式の監査ログ (`audit_logger`) に出力される。各ログエントリは `ToolExecEvent` として構成され、以下のようなフィールドを含む。
+Details regarding tool execution results are outputted in a structured JSON format audit log (`audit_logger`). Each log entry is composed as a `ToolExecEvent` and includes the following fields:
 
 - `"event"`: `"tool_exec"`
-- `"error_type"`: `"tool"`, `"transport"`, または `""` (成功時)
+- `"error_type"`: `"tool"`, `"transport"`, or `""` (on success)
 
-これらのログを調査するには、`jq` や `grep` を使用してJSONフィールドを検索するのが適切である。
+These logs can be investigated using `jq` or `grep` to search JSON fields.
 
 ```bash
-# jqを使用した特定のエラータイプの抽出例
+# Example of extracting specific error types using jq
 cat agent.log | jq 'select(.error_type == "tool")'
 
-# grepを使用したJSON文字列の直接検索例
+# Example of direct JSON string search using grep
 grep '"error_type":"tool"' agent.log
 ```
 
 ---
 
-### ツールのスケジューリングと直列化
+### Tool Scheduling and Serialization
 
-エージェントはリソーススコープでグループ化してツール呼び出しを実行する(`serial_tool_calls=False`のときに常時有効なDAGスケジューリング)。`use_tool_dag`という設定フィールドはコードベース上に存在しない(Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)。`serial_tool_calls=True`に設定すると、レガシーな標準実行モード(副作用のあるツールが1つでもあれば逐次実行、なければ並列実行)に切り替わる。ほとんどのツールは並列実行されるが、
-特定の条件下ではラウンド内で直列実行が強制される。
+An agent executes tool calls grouped by resource scope (always active DAG scheduling when `serial_tool_calls=False`). While `use_tool_dag` is not present in the codebase (Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)), setting `serial_tool_calls=True` switches to the legacy standard execution mode (sequential if any side-effecting tool is present, otherwise parallel). Most tools are executed in parallel, but
 
-| 条件 | トリガー | ログ上の理由 |
+serialization is forced within a round under certain conditions:
+
+| Condition | Trigger | Log Reason |
 |-----------|---------|------------|
-| ツールが`requires_serial=True`を持つ | このフラグを持つ任意のツール | `requires_serial` |
-| 複数のtool呼び出しの`resource_scopes`が重複する（うち少なくとも1件はwrite） | 完全一致、またはファイルシステムスコープの祖先/子孫関係で重複する2つ以上のツール呼び出し | `resource_scope_conflict` |
-| `resource_scopes`が空のwriteツール | スコープメタデータを持たない任意のwriteツール | `is_write_overlap` |
-| ラウンド内の副作用ツール(標準実行パス) | 任意の副作用ツール | "Side-effect tool detected"としてログ記録 |
+| Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
+| Overlapping `resource_scopes` (at least one write) | Two or more tool calls with matching or hierarchical filesystem scopes | `resource_scope_conflict` |
+| Empty `resource_scopes` for a write tool | Any write tool without scope metadata | `is_write_overlap` |
+| Side-effect tool in a round (standard path) | Any side-effecting tool | "Side-effect tool detected" |
 
-直列化は意図的な安全策である — 並行書き込みによる共有リソースの破損を防ぐ。
-これは設定エラーを示すものではない。
+Serialization is an intentional safety measure — to prevent corruption of shared resources due to concurrent writes. This is not an indication of a configuration error.
 
-#### 直列化ログエントリの読み方
+#### Reading Serialization Log Entries
 
-各直列化イベントは次の形式でログに記録される。
+Each serialization event is logged in the following format:
 
 ``` text
 INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
      — <N> tools serialized in this round
 ```
 
-例:
+Example:
 
 ``` text
 INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
      — 2 tools serialized in this round
 ```
 
-#### /mcp statusにおける直列化統計
+#### Serialization Statistics via `/mcp status`
 
-`/mcp status`を実行すると、セッションの累積統計を確認できる。
+Running `/mcp status` allows you to view cumulative session statistics.
 
 ``` text
 --- Tool Scheduling ---
@@ -232,16 +162,11 @@ INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
   Tools affected by serialization:   12
 ```
 
-これらのカウンタはエージェント再起動時にリセットされる。ツール呼び出し総数に対して
-直列化回数が多い場合、`resource_scope_kind`/`resource_scope_keys`アノテーションの追加や
-`requires_serial=False`への見直しの候補になり得る — ただし、どのツールがそれを
-引き起こしているかを分析した上で判断すること。
+These counters are reset upon agent restart. If the number of serialization events is high relative to total tool calls, it may be a candidate for adding `resource_scope_kind`/`resource_scope_keys` annotations or reviewing `requires_serial=False` — however, this should only be decided after analyzing which tools are causing them.
 
-#### 最適化を行う前に
+#### Before Optimization
 
-直列化ログのデータを確認せずに`requires_serial`や`resource_scope_kind`/`resource_scope_keys`の値を
-変更してはならない。観測可能性(observability)レイヤーは、安全な判断を下すために
-必要なデータを提供する。
+Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` values without reviewing the serialization log data. The observability layer provides the necessary data for safe decision-making.
 
 ---
 
@@ -256,107 +181,3 @@ INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
 
 health-reasons
 scheduling
-
-# MCP Health Reasons and Scheduling
-
-
-## ツールエラーとトランスポートエラーの区別
-
-MCPサーバーにおいて、エラーは以下の2つのカテゴリに分けられる。
-
-1. **トランスポートエラー**: ネットワーク障害、タイムアウト、サーバー到達不能など、通信そのものの失敗。
-2. **ツールエラー**: サーバーには到達可能だが、特定のツール実行が失敗したもの（例: 不正な引数、上流APIのエラー）。
-
-トランスポートエラーはMCPサーバーのヘルス状態(`McpServerHealthRegistry`)に影響する。ツールエラーはそうではない — サーバーは正常に動作しているが、特定のツール呼び出しが失敗したことを示す。
-
-#### エラーカウンタの追跡
-`ToolTransportInvoker` は、サーバーキーごとのツールエラー数(`stat_tool_errors`)とトランスポートエラー数(`stat_transport_errors`)を両方ともメモリ内でカウントする。`ToolExecutor` はこのクラスを継承するため両カウンタを引き継ぐが、独自に別のカウンタを持つわけではない。
-
-**注意**: 現在の実装では、これらのカウンタに基づく自動的な警告ログやしきい値判定は存在しない。
-
-**注意（混同防止）**: エージェントのセッション統計側にも同名の `stat_tool_errors` (`AgentContext.stats.stat_tool_errors`, `scripts/agent/context.py`) が別途存在するが、これは本節が説明する `ToolTransportInvoker` 側のカウンタとは別物であり、`/stats` などエージェント層の集計表示に使われる。
-
-#### 監査ログによる詳細確認
-ツールの実行結果に関する詳細は、構造化されたJSON形式の監査ログ (`audit_logger`) に出力される。各ログエントリは `ToolExecEvent` として構成され、以下のようなフィールドを含む。
-
-- `"event"`: `"tool_exec"`
-- `"error_type"`: `"tool"`, `"transport"`, または `""` (成功時)
-
-これらのログを調査するには、`jq` や `grep` を使用してJSONフィールドを検索するのが適切である。
-
-```bash
-# jqを使用した特定のエラータイプの抽出例
-cat agent.log | jq 'select(.error_type == "tool")'
-
-# grepを使用したJSON文字列の直接検索例
-grep '"error_type":"tool"' agent.log
-```
-
----
-
-### ツールのスケジューリングと直列化
-
-エージェントはリソーススコープでグループ化してツール呼び出しを実行する(`serial_tool_calls=False`のときに常時有効なDAGスケジューリング)。`use_tool_dag`という設定フィールドはコードベース上に存在しない(Explicit in code — [05_agent_08_03](05_agent_08_03_configuration-tools-memory.md#toolconfig-cfgtool)参照)。`serial_tool_calls=True`に設定すると、レガシーな標準実行モード(副作用のあるツールが1つでもあれば逐次実行、なければ並列実行)に切り替わる。ほとんどのツールは並列実行されるが、
-特定の条件下ではラウンド内で直列実行が強制される。
-
-| 条件 | トリガー | ログ上の理由 |
-|-----------|---------|------------|
-| ツールが`requires_serial=True`を持つ | このフラグを持つ任意のツール | `requires_serial` |
-| 複数のtool呼び出しの`resource_scopes`が重複する（うち少なくとも1件はwrite） | 完全一致、またはファイルシステムスコープの祖先/子孫関係で重複する2つ以上のツール呼び出し | `resource_scope_conflict` |
-| `resource_scopes`が空のwriteツール | スコープメタデータを持たない任意のwriteツール | `is_write_overlap` |
-| ラウンド内の副作用ツール(標準実行パス) | 任意の副作用ツール | "Side-effect tool detected"としてログ記録 |
-
-直列化は意図的な安全策である — 並行書き込みによる共有リソースの破損を防ぐ。
-これは設定エラーを示すものではない。
-
-#### 直列化ログエントリの読み方
-
-各直列化イベントは次の形式でログに記録される。
-
-``` text
-INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
-     — <N> tools serialized in this round
-```
-
-例:
-
-``` text
-INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
-     — 2 tools serialized in this round
-```
-
-#### /mcp statusにおける直列化統計
-
-`/mcp status`を実行すると、セッションの累積統計を確認できる。
-
-``` text
---- Tool Scheduling ---
-  Serialization events this session: 5
-  Tools affected by serialization:   12
-```
-
-これらのカウンタはエージェント再起動時にリセットされる。ツール呼び出し総数に対して
-直列化回数が多い場合、`resource_scope_kind`/`resource_scope_keys`アノテーションの追加や
-`requires_serial=False`への見直しの候補になり得る — ただし、どのツールがそれを
-引き起こしているかを分析した上で判断すること。
-
-#### 最適化を行う前に
-
-直列化ログのデータを確認せずに`requires_serial`や`resource_scope_kind`/`resource_scope_keys`の値を
-変更してはならない。観測可能性(observability)レイヤーは、安全な判断を下すために
-必要なデータを提供する。
-
----
-
-### Related Documents
-
-- `04_mcp_00_document-guide.md`
-- `04_mcp_06_02_configuration-file-inventory.md`
-- `04_mcp_06_13_watchdog-health-reasons-scheduling.md`
-- `04_mcp_06_12_watchdog-configuration-monitoring.md`
-
-### Keywords
-
-health-reasons
-scheduling
-

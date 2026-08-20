@@ -1,5 +1,5 @@
-
-title: "RAG Query Pipeline - Helpers and Cache (Part 1)"
+---
+title: "RAG Query Pipeline - Helpers and Cache"
 category: rag
 tags:
   - semantic-cache
@@ -11,34 +11,36 @@ related:
   - 03_rag_01_system_overview.md
   - 03_rag_03_01_query_pipeline-overview.md
   - 03_rag_03_03_query_pipeline-context-and-diagnostics.md
-  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
+  - 03_rag_03_04_query_pipeline-search-stages.md
+  - 03_rag_03_05_query_pipeline-augment-stages.md
   - 03_rag_04_05_dto-types.md
   - 03_rag_05_1-configuration-reference.md
+  - 03_rag_03_06_query_pipeline-helpers-and-cache.md
 source:
   - 03_rag_03_06_query_pipeline-helpers-and-cache.md
+---
 
+# RAG Query Pipeline
 
-# RAG クエリパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
 ## 6. SemanticCache (`scripts/rag/cache.py`)
 
-`SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
+`SemanticCache` implements the `CacheService` protocol (also defined in `rag/cache.py`). This protocol declares only `lookup()` and `put()`; where substitutability is important, callers should type against `CacheService` rather than `SemanticCache` directly.
 
 ```python
-from rag.cache import SemanticCache  # defined in SemanticCache クラス; imported by rag.pipeline
+from rag.cache import SemanticCache  # defined in SemanticCache class; imported by rag.pipeline
 
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
 
-"`SemanticCache` は `CacheService` プロトコルを実装しており、`lookup()` および `put()` メソッドを提供します。また、FIFO方式による `prune()` による追い出し（eviction）、`size` プロパティ、およびアトミックにすべてのエントリをクリアして `generation` カウンタをインクリメントする `invalidate()` メソッドを備えています。詳細なシグネチャについては `scripts/rag/cache.py` を参照してください。"
+"`SemanticCache` implements the `CacheService` protocol and provides `lookup()` and `put()` methods. It also features `prune()` using a FIFO policy for eviction, a `size` property, and an `invalidate()` method that atomically clears all entries and increments the `generation` counter. See `scripts/rag/cache.py` for detailed signatures."
 
-**テストで確認されている挙動（`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`）:** `invalidate()` 呼び出しにより `generation` が1増加し、既存エントリは即座に全て `lookup()` でヒットしなくなる（`size == 0` になる）。
+**Behavior verified in tests (`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`):** Calling `invalidate()` increments `generation` by 1, and all existing entries immediately stop hitting on `lookup()` (`size == 0`).
 
 ### RagPipeline.invalidate_cache()
 
@@ -46,13 +48,13 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 RagPipeline.invalidate_cache(self) -> None
 ```
 
-`self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
+Delegates to `self.semantic_cache.invalidate()`. Called only when the MCP `rag_pipeline` service's `fmt_delete_document()` succeeds.
 
-**実装意図:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
+**Implementation Intent:** To discard the cache known to this pipeline instance after corpus-changing operations (e.g., MCP `rag_delete_document`), ensuring subsequent queries do not return context for deleted documents. `SemanticCache.invalidate()` is implemented thread-safely using `threading.RLock` (see `scripts/rag/cache.py`).
 
-### CLI インジェスト後のキャッシュ鮮度
+### Cache Freshness After CLI Ingestion
 
-MCP `rag_delete_document` は呼び出し元のMCPプロセス内の `RagPipeline.semantic_cache` を `invalidate_cache()` 経由で無効化する — これは**1つのプロセス内のみ**をクリアする。CLIインジェスト（`uv run python -m rag.ingestion.ingester`）は**別のプロセス**で実行され、MCPサービスのメモリ内キャッシュにはアクセスできない。**CLIインジェスト後に即座のクエリ鮮度を必要とする場合は、rag-pipeline-mcpサービス（またはエージェントプロセス、サブプロセスモードのMCPサーバーを再起動する）を再起動する必要がある** — これはオペレーショナルな手順であり、CLIインジェストが自動で行うものではない。再起動がない場合、インジェスト前に作成されたキャッシュエントリは、キャッシュ自体のEviction/TTL（[cache configuration]参照）が自然に期限切れになるまでの制限付きウィンドウの間、古いコンテキストを返す可能性がある。
+The MCP `rag_delete_document` invalidates the `RagPipeline.semantic_cache` within the caller's MCP process via `invalidate_cache()` — this clears the cache **within a single process only**. CLI ingestion (`uv run python -m rag.ingestion.ingester`) runs in a **separate process** and cannot access the memory cache of the MCP service. **If immediate query freshness is required after CLI ingestion, you must restart the rag-pipeline-mcp service (or the agent process, or the MCP server in subprocess mode)** — this is an operational procedure and is not performed automatically by CLI ingestion. Without a restart, cached entries created before ingestion may return stale context for a limited window until they naturally expire through the cache's own Eviction/TTL ([see cache configuration]).
 
 ---
 
@@ -76,122 +78,68 @@ rag-scorer
 rag-llm
 rag
 
-# RAG クエリパイプライン
+---
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+# RAG Query Pipeline Implementation Details
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+- Type Definitions → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
 
 ---
 
-## 6a. SemanticCache (`scripts/rag/cache.py`)
-
-`SemanticCache` は（`rag/cache.py` にも定義されている）`CacheService` プロトコルを実装する。このプロトコルは `lookup()` と `put()` のみを宣言する — 代替可能性が重要な箇所では、呼び出し元は `SemanticCache` を直接ではなく `CacheService` として型付けすべきである。
-
-```python
-from rag.cache import SemanticCache  # defined in SemanticCache クラス; imported by rag.pipeline
-
-cache = SemanticCache(max_size=100, threshold=0.92)
-```
-
-"`SemanticCache` は `CacheService` プロトコルを実装しており、`lookup()` および `put()` メソッドを提供します。また、FIFO方式による `prune()` による追い出し（eviction）、`size` プロパティ、およびアトミックにすべてのエントリをクリアして `generation` カウンタをインクリメントする `invalidate()` メソッドを備えています。詳細なシグネチャについては `scripts/rag/cache.py` を参照してください。"
-
-**テストで確認されている挙動（`tests/test_rag_quality_regression.py::test_semantic_cache_generation_invalidation`）:** `invalidate()` 呼び出しにより `generation` が1増加し、既存エントリは即座に全て `lookup()` でヒットしなくなる（`size == 0` になる）。
-
-### RagPipeline.invalidate_cache()
-
-```python
-RagPipeline.invalidate_cache(self) -> None
-```
-
-`self.semantic_cache.invalidate()` に委譲する。MCP `rag_pipeline` サービスの `fmt_delete_document()` が成功時のみ呼び出す。
-
-**実装意図:** コーパス変更操作（例: MCP `rag_delete_document`）後にこのパイプラインインスタンスが認識しているキャッシュを破棄し、以降のクエリが削除済みドキュメントのコンテキストを返さないようにするため。`SemanticCache.invalidate()` は内部で `threading.RLock` を使用しスレッドセーフに実装されている（`scripts/rag/cache.py`）。
-
-### CLI インジェスト後のキャッシュ鮮度
-
-MCP `rag_delete_document` は呼び出し元のMCPプロセス内の `RagPipeline.semantic_cache` を `invalidate_cache()` 経由で無効化する — これは**1つのプロセス内のみ**をクリアする。CLIインジェスト（`uv run python -m rag.ingestion.ingester`）は**別のプロセス**で実行され、MCPサービスのメモリ内キャッシュにはアクセスできない。**CLIインジェスト後に即座のクエリ鮮度を必要とする場合は、rag-pipeline-mcpサービス（またはエージェントプロセス、サブプロセスモードのMCPサーバーを再起動する）を再起動する必要がある** — これはオペレーショナルな手順であり、CLIインジェストが自動で行うものではない。再起動がない場合、インジェスト前に作成されたキャッシュエントリは、キャッシュ自体のEviction/TTL（[cache configuration]参照）が自然に期限切れになるまでの制限付きウィンドウの間、古いコンテキストを返す可能性がある。
-
----
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
-- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_04_query_pipeline-search-stages.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-
-## Keywords
-
-semantic-cache
-rag-repository
-rag-scorer
-rag-llm
-rag
-
-
-
-# RAG クエリパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
-
----
-
-## 7. ヘルパークラス
+## 7a. Helper Classes
 
 ### 7.1 RagRepository (`scripts/rag/repository.py`)
 
-全てのSQLを管理する。可観測性のため、呼び出しごとに query / fts_query / top_k / elapsed_ms をログに記録する。詳細な実装とシグネチャについては scripts/rag/repository.py を参照してください。
+Manages all SQL. For observability, logs `query` / `fts_query` / `top_k` / `elapsed_ms` for every call. See `scripts/rag/repository.py` for detailed implementation and signatures.
 
-**日本語FTS5のトークン化:**
+**Japanese FTS5 Tokenization:**
 
-FTS5クエリのトークン数上限は 20 であり、日本語トークンとしては Sudachi の品詞カテゴリ（`{"名詞", "動詞", "形容詞"}`）が使用されます。詳細は `scripts/rag/repository.py` を参照してください。
-**Sudachiの遅延ロード:**
+The FTS5 query token limit is 20, and Japanese tokens use Sudachi part-of-speech categories (`{"Noun", "Verb", "Adjective"}`). See `scripts/rag/repository.py` for details.
 
-Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。`tokenize_pos_filter(text, keep_pos)` は `part_of_speech()[0]` が `keep_pos` に含まれるトークンについて `normalized_form()` を返し、トークナイズ失敗時は `RuntimeError` を発生させる。詳細は `scripts/rag/repository.py` を参照してください。
+**Sudachi Lazy Loading:**
 
-**公開メソッド:**
+Sudachi is loaded upon first use. Dictionary: `core`, SplitMode: `C`. `tokenize_pos_filter(text, keep_pos)` returns `normalized_form()` for tokens whose `part_of_speech()[0]` is in `keep_pos`; raises `RuntimeError` if tokenization fails. See `scripts/rag/repository.py` for details.
 
-詳細は `scripts/rag/repository.py` を参照してください。
+**Public Methods:**
 
-- `vector_search`: `sqlite-vec` による KNN 実装。
-- `fts_search`: FTS5 による BM25 実装。FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）。
+See `scripts/rag/repository.py` for details.
 
-**モジュールレベルの単独ラッパー:**
-- `vector_search(embedding, top_k, db)` → `RagRepository(db).vector_search()` に委譲する
-- `fts_search(query, top_k, db)` → `RagRepository(db).fts_search()` に委譲する
-- `fetch_full_document(chunk_id, db, window=None)` → 同一ドキュメントのチャンクを`chunk_index`昇順で取得する；`window=N` → ±N
-- `deduplicate_chunks(hits, max_per_doc)` → 同一URLのヒット数を制限する；入力は降順にソートされている必要がある
-- `cosine_sim(a, b) -> float` → コサイン類似度；ゼロベクトルの場合は `0.0` を返す
+- `vector_search`: KNN implementation via `sqlite-vec`.
+- `fts_search`: BM25 implementation via FTS5. Raises `sqlite3.OperationalError` on FTS syntax errors (handled by caller).
+- `fetch_full_document(chunk_id, db, window=None)` $\rightarrow$ Fetches chunks for the same document in ascending order of `chunk_index`; `window=N` $\rightarrow$ $\pm N$.
+- `deduplicate_chunks(hits, max_per_doc)` $\rightarrow$ Limits hits per unique URL; input must be sorted in descending order.
+- `cosine_sim(a, b) -> float` $\rightarrow$ Cosine similarity; returns `0.0` for zero vectors.
+
+**Module-level Standalone Wrappers:**
+- `vector_search(embedding, top_k, db)` $\rightarrow$ Delegates to `RagRepository(db).vector_search()`
+- `fts_search(query, top_k, db)` $\rightarrow$ Delegates to `RagRepository(db).fts_search()`
+- `fetch_full_document(chunk_id, db, window=None)` $\rightarrow$ Fetches chunks for the same document in ascending order of `chunk_index`; `window=N` $\rightarrow$ $\pm N$
+- `deduplicate_chunks(hits, max_per_doc)` $\rightarrow$ Limits hits per unique URL; input must be sorted in descending order.
+- `cosine_sim(a, b) -> float` $\rightarrow$ Cosine similarity; returns `0.0` for zero vectors.
 
 ### 7.2 RagScorer (`scripts/rag/repository.py`)
 
-`rrf_merge`（静的メソッド）により、複数の検索結果リストを RRF（Reciprocal Rank Fusion）を用いてマージします。詳細は `scripts/rag/repository.py` を参照してください。
+Merges multiple search result lists using RRF (Reciprocal Rank Fusion) via `rrf_merge` (static method). See `scripts/rag/repository.py` for details.
 
 ### 7.3 RagLLM (`scripts/rag/llm_client.py`)
 
-実装は以下にある。
+Implementation is located below:
 
-- `scripts/rag/llm_client.py` — `RagLLM` クラス、`get_embedding()`、`summarize_tool_result()`
-- `scripts/rag/llm_prompts.py` — プロンプトテンプレート、`RagExpansionError`、`RagRerankError`、`MqeParseError`
+- `scripts/rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
+- `scripts/rag/llm_prompts.py` — Prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
 
 ```python
 from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8080/v1/chat/completions")
 ```
 
-**訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py` に1箇所のみ存在する。
+**Correction (Explicit in code):** Duplicate `logger = logging.getLogger(__name__)` has been resolved. It now exists only once in `scripts/rag/llm_client.py`.
 
-`RagLLM` は、MQE によるクエリ展開 (`expand_queries`)、クロスエンコーダによる再ランキング (`cross_encoder_rerank`)、ツール出力の要約 (`summarize_tool_result`)、およびコンテキストのリファイニング (`refine_context`) を提供します。詳細なシグネチャについては `scripts/rag/llm_client.py` を参照してください。
+`RagLLM` provides MQE query expansion (`expand_queries`), Cross-Encoder reranking (`cross_encoder_rerank`), tool output summarization (`summarize_tool_result`), and context refining (`refine_context`). See `scripts/rag/llm_client.py` for detailed signatures.
 
-また、`get_embedding` や `summarize_tool_result` といったモジュールレベルの関数も提供されています。これらについても `scripts/rag/llm_client.py` を参照してください。
+Also provided are module-level functions like `get_embedding` and `summarize_tool_result`. See `scripts/rag/llm_client.py` for these as well.
 
 ### 7.4 PipelineRunResult (`scripts/rag/types.py`)
 
@@ -206,127 +154,7 @@ class PipelineRunResult:
     diagnostics: SearchDiagnostics
 ```
 
-`RagPipeline.run()` が返す。
+Returned by `RagPipeline.run()`.
 
-**混同注意:** 名前が同じ `result_source` でも型が異なる2つのフィールドが存在する。
-- `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `dataclasses.replace()` で更新する
-
----
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
-- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_04_query_pipeline-search-stages.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-
-## Keywords
-
-semantic-cache
-rag-repository
-rag-scorer
-rag-llm
-rag
-
-# RAG クエリパイプライン
-
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
-- 型定義 → [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
-
----
-
-## 7a. ヘルパークラス
-
-### 7.1 RagRepository (`scripts/rag/repository.py`)
-
-全てのSQLを管理する。可観測性のため、呼び出しごとに query / fts_query / top_k / elapsed_ms をログに記録する。詳細な実装とシグネチャについては scripts/rag/repository.py を参照してください。
-
-**日本語FTS5のトークン化:**
-
-FTS5クエリのトークン数上限は 20 であり、日本語トークンとしては Sudachi の品詞カテゴリ（`{"名詞", "動詞", "形容詞"}`）が使用されます。詳細は `scripts/rag/repository.py` を参照してください。
-**Sudachiの遅延ロード:**
-
-Sudachiは初回使用時にロードされる。辞書: `core`、SplitMode: `C`。`tokenize_pos_filter(text, keep_pos)` は `part_of_speech()[0]` が `keep_pos` に含まれるトークンについて `normalized_form()` を返し、トークナイズ失敗時は `RuntimeError` を発生させる。詳細は `scripts/rag/repository.py` を参照してください。
-
-**公開メソッド:**
-
-詳細は `scripts/rag/repository.py` を参照してください。
-
-- `vector_search`: `sqlite-vec` による KNN 実装。
-- `fts_search`: FTS5 による BM25 実装。FTS構文エラー時は `sqlite3.OperationalError` を発生させる（呼び出し元が処理する）。
-
-**モジュールレベルの単独ラッパー:**
-- `vector_search(embedding, top_k, db)` → `RagRepository(db).vector_search()` に委譲する
-- `fts_search(query, top_k, db)` → `RagRepository(db).fts_search()` に委譲する
-- `fetch_full_document(chunk_id, db, window=None)` → 同一ドキュメントのチャンクを`chunk_index`昇順で取得する；`window=N` → ±N
-- `deduplicate_chunks(hits, max_per_doc)` → 同一URLのヒット数を制限する；入力は降順にソートされている必要がある
-- `cosine_sim(a, b) -> float` → コサイン類似度；ゼロベクトルの場合は `0.0` を返す
-
-### 7.2 RagScorer (`scripts/rag/repository.py`)
-
-`rrf_merge`（静的メソッド）により、複数の検索結果リストを RRF（Reciprocal Rank Fusion）を用いてマージします。詳細は `scripts/rag/repository.py` を参照してください。
-
-### 7.3 RagLLM (`scripts/rag/llm_client.py`)
-
-実装は以下にある。
-
-- `scripts/rag/llm_client.py` — `RagLLM` クラス、`get_embedding()`、`summarize_tool_result()`
-- `scripts/rag/llm_prompts.py` — プロンプトテンプレート、`RagExpansionError`、`RagRerankError`、`MqeParseError`
-
-```python
-from rag.llm_client import RagLLM
-llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8080/v1/chat/completions")
-```
-
-**訂正（Explicit in code）:** `logger = logging.getLogger(__name__)` の重複は解消済みである。現在は `scripts/rag/llm_client.py` に1箇所のみ存在する。
-
-`RagLLM` は、MQE によるクエリ展開 (`expand_queries`)、クロスエンコーダによる再ランキング (`cross_encoder_rerank`)、ツール出力の要約 (`summarize_tool_result`)、およびコンテキストのリファイニング (`refine_context`) を提供します。詳細なシグネチャについては `scripts/rag/llm_client.py` を参照してください。
-
-また、`get_embedding` や `summarize_tool_result` といったモジュールレベルの関数も提供されています。これらについても `scripts/rag/llm_client.py` を参照してください。
-
-### 7.4 PipelineRunResult (`scripts/rag/types.py`)
-
-```python
-@dataclass
-class PipelineRunResult:
-    queries: list[str]
-    search_results: list[list[RawHit]]
-    merged: list[RagHit]
-    reranked: list[RagHit]
-    stage_results: list[StageResult]
-    diagnostics: SearchDiagnostics
-```
-
-`RagPipeline.run()` が返す。
-
-**混同注意:** 名前が同じ `result_source` でも型が異なる2つのフィールドが存在する。
-- `SearchDiagnostics.result_source: ResultSource`（`rag/models_result.py`）— `ResultSource.LOCAL`（既定）/ `REMOTE` / `FALLBACK` を取り、HTTP augment実行時に `dataclasses.replace()` で更新する
-
----
-
-## Related Documents
-
-- `03_rag_00_document-guide.md`
-- `03_rag_01_system_overview.md`
-- `03_rag_03_01_query_pipeline-overview.md`
-- `03_rag_03_03_query_pipeline-context-and-diagnostics.md`
-- `03_rag_03_04_query_pipeline-search-stages.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
-- `03_rag_04_05_dto-types.md`
-- `03_rag_05_1-configuration-reference.md`
-- `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-
-## Keywords
-
-semantic-cache
-rag-repository
-rag-scorer
-rag-llm
-rag
-
+**Note on confusion:** There are two fields with the same name but different types.
+- `SearchDiagnostics.result_source: ResultSource` (`rag/models_result.py`) — Takes `ResultSource.LOCAL` (default), `REMOTE`, or `FALLBACK`; updated via `dataclasses.replace()` during HTTP augment execution.

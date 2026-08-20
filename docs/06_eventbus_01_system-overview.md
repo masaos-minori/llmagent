@@ -20,42 +20,40 @@ source:
 
 # Event Bus: System Overview
 
-## 目的
+## Purpose
 
-Event Bus は LLM エージェントシステム向けの内部 publish/subscribe 基盤を提供する。プロデューサーは JSON イベントを publish し、コンシューマーは SSE 経由でトピックを subscribe し、過去のイベントを replay する。
+The Event Bus provides an internal publish/subscribe infrastructure for LLM agent systems. Producers publish JSON events, and consumers subscribe to topics via SSE and can replay past events.
 
-> **注記:** Event Bus HTTP API はスタンドアロンサービスとして完全に実装され、稼働している。
-> Agent ランタイムとの統合（Agent からのイベント publish、SSE 経由での Agent トピックの subscribe）は
-> 意図的に見送られており、まだ実装されていない。本ドキュメントは Event Bus を独立したコンポーネントとして
-> 記述するものであり、Agent 側のイベント生成/消費については将来のリリースで文書化する予定である。
+> **Note:** The Event Bus HTTP API is fully implemented as a standalone service and is operational.
+> Integration with the Agent runtime (publishing events from Agents, subscribing to Agent topics via SSE) has been intentionally deferred and is not yet implemented. This documentation describes the Event Bus as an independent component; event generation/consumption on the Agent side will be documented in future releases.
 
-## アーキテクチャ
+## Architecture
 
-Event Bus はライブイベント配信のためにインメモリの pub/sub ブローカー（`EventBroker`）を使用する。各サブスクライバーは専用の `asyncio.Queue` を持ち、ブローカーはトピックフィルタに基づいてイベントを該当するサブスクライバーに fan-out する。
+The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event delivery. Each subscriber has its own dedicated `asyncio.Queue`, and the broker fans out events to relevant subscribers based on topic filters.
 
-- **ライブ配信**: `EventBroker` は asyncio Queue を介したトピック単位の fan-out を提供する
-- **リプレイ**: 過去のイベントは `/replay` と `/subscribe` エンドポイントを通じて SQLite から再生される
-- **永続化**: すべてのイベントは SQLite に保存され、DLQ イベントは JSONL ファイルとして書き出される
-- **オフセット管理**: コンシューマのリカバリ用にファイルベースでオフセットを永続化する
+- **Live Delivery**: `EventBroker` provides topic-based fan-out via `asyncio.Queue`.
+- **Replay**: Past events are replayed from SQLite through the `/replay` and `/subscribe` endpoints.
+- **Persistence**: All events are stored in SQLite, and DLQ events are written as JSONL files.
+- **Offset Management**: Offsets are persisted using files to facilitate consumer recovery.
 
-## セキュリティモデル
+## Security Model
 
-Event Bus API には **認証も ACL も存在しない**。
+There is **no authentication or ACL** for the Event Bus API.
 
-- **設計上の前提**: 内部ネットワーク/信頼済みホスト上でのシングルノード運用を想定
-- **アクセス制御**: ネットワーク境界（ファイアウォール、Docker ネットワーク）で実施
-- **公開しないこと**: Event Bus はインターネットから直接到達可能にしてはならない
-- **起動時のガード**: TOML 設定で `allow_public_bind=true` を設定しない限り、公開/ワイルドカードアドレス（0.0.0.0、::）へのバインドは設定検証で拒否される。認証なしで公開アドレスにバインドされた場合は WARNING ログが出力される。
+- **Design Assumption**: Intended for single-node operation on internal networks/trusted hosts.
+- **Access Control**: Should be enforced at the network boundary (firewall, Docker network).
+- **Exposure Warning**: The Event Bus must NOT be directly accessible from the internet.
+- **Startup Guard**: Binding to public/wildcard addresses (0.0.0.0, ::) is rejected by configuration validation unless `allow_public_bind=true` is set in the TOML config. If bound to a public address without authentication, a WARNING is logged.
 
-## 今後の統合
+## Future Integration
 
-以下の Agent 側統合は現時点で意図的に未実装である。
+The following Agent-side integrations are intentionally unimplemented at this time:
 
-- **Agent によるイベント publish**: Agent 側のイベントプロデューサーは実装されていない。Event Bus HTTP API は任意の HTTP クライアントからの publish をサポートしており、Agent 固有のプロデューサーは将来のリリースで追加される予定。
-- **Agent の SSE subscribe**: `/subscribe` の SSE を介してイベントを消費する Agent 側サブスクライバーは存在しない。Agent 側のコンシューマーは将来のリリースで追加される予定。
-- **Agent のイベントトピック**: 現時点で Agent が定義したトピックは存在しない。Agent のライフサイクルイベントに関するトピック命名規則は、Agent 統合の実装時に定義される。
+- **Event publishing by Agents**: No event producer exists on the Agent side. While the Event Bus HTTP API supports publishing from any HTTP client, an Agent-specific producer is planned for a future release.
+- **SSE subscription by Agents**: There is no Agent-side subscriber consuming events via `/subscribe` SSE. Agent-side consumers are planned for a future release.
+- **Agent event topics**: No topics defined by the Agent exist at this time. Topic naming conventions for Agent lifecycle events will be defined when Agent integration is implemented.
 
-これらの項目は `docs/06_eventbus_90_inconsistencies_and_known_issues.md` にも保留事項（Deferred Items）として文書化されている。
+These items are also documented as Deferred Items in `docs/06_eventbus_90_inconsistencies_and_known_issues.md`.
 
 ## Related Documents
 

@@ -17,65 +17,66 @@ source:
   - 03_rag_02_01_ingestion_pipeline-overview.md
 ---
 
-# RAG インジェクションパイプライン
 
-- システム概要 → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
-- 設定 → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
+# RAG Ingestion Pipeline
+
+- System Overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
+- Configuration → [03_rag_05_1-configuration-reference.md](03_rag_05_1-configuration-reference.md)
 
 ---
 
-## 1. 実行ガイド
+## 1. Execution Guide
 
-### 前提条件
+### Prerequisites
 
 ```bash
 curl -s http://127.0.0.1:8081/health
 ```
 
-### ステップ1: クロール
+### Step 1: Crawling
 
 ```bash
-# crawler.tomlの全URLクロール
+# Crawl all URLs from crawler.toml
 uv run python scripts/rag/ingestion/crawler.py
 
-# 単一URLクロール
+# Crawl a single URL
 uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/" --lang en
 ```
 
-- `--lang`: `auto`で言語自動判定、`en`/`ja`で指定
-- `--targets-file PATH`: TOMLファイルから対象URLを読み込み
+- `--lang`: `auto` for automatic language detection, or specify `en`/`ja`.
+- `--targets-file PATH`: Load target URLs from a TOML file.
 
-### ステップ2: チャンク分割
+### Step 2: Chunk Splitting
 
 ```bash
-# 未処理ファイル一括分割
+# Batch split unprocessed files
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
-# 既存チャンクの再生成
+# Regenerate existing chunks
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
-### ステップ3: 埋め込みと格納
+### Step 3: Embedding and Storage
 
 ```bash
-# 埋め込みとDB保存
+# Embed and save to DB
 uv run python scripts/rag/ingestion/ingester.py
 
-# 強制再登録
+# Force re-registration
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-### ファイルのライフサイクル
+### File Lifecycle
 
-| パス | 作成元 | 内容 |
+| Path | Created By | Content |
 |---|---|---|
-| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, タイトル, 言語, コンテンツ, コードブロック |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | チャンク情報, ストラテジ |
-| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | チャンク→登録済み |
+| `{rag_src_dir}/{timestamp}-{slug}.json` | crawler.py | URL, Title, Language, Content, Code Blocks |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered |
 
-> JSONファイルは `orjson.loads()` でパース。確認用: `python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"`
+> JSON files are parsed using `orjson.loads()`. For verification: `python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"`
 
-本番設定: `rag_src_dir = "/opt/llm/rag-src"`。デフォルト値 `rag-src` は設定が存在しない場合にのみ使用される。
+Production setting: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only if no configuration is provided.
 
 ---
 

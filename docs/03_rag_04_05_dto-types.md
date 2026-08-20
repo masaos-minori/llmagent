@@ -12,36 +12,35 @@ source:
   - 03_rag_04_05_dto-types.md
 ---
 
+
 # 6.3 types.py (`scripts/rag/types.py`)
 
-**RagQuery** — 省略可能なコンテキスト付きのクエリ。
+**RagQuery** — A query with optional context.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `query` | `str` | (required) | クエリ文字列 |
-| `context` | `str` | `""` | 省略可能なコンテキスト |
+| `query` | `str` | (required) | Query string |
+| `context` | `str` | `""` | Optional context |
 
-**PipelineRunResult** — パイプライン実行結果。
+**PipelineRunResult** — Pipeline execution result.
 
 | Field | Type | Description |
 |---|---|---|
-| `queries` | `list[str]` | MQEで展開されたクエリ群 |
-| `search_results` | `list[list[RawHit]]` | クエリごとの検索結果 |
-| `merged` | `list[RagHit]` | RRFで統合されたヒット結果 |
-| `reranked` | `list[RagHit]` | リランク後のヒット結果 |
-| `stage_results` | `list[StageResult]` | 各ステージの実行結果 |
-| `diagnostics` | `SearchDiagnostics` | 検索診断情報 |
+| `queries` | `list[str]` | Set of queries expanded by MQE |
+| `search_results` | `list[list[RawHit]]` | Search results per query |
+| `merged` | `list[RagHit]` | Hit results integrated by RRF |
+| `reranked` | `list[RagHit]` | Hit results after reranking |
+| `stage_results` | `list[StageResult]` | Execution results for each stage |
+| `diagnostics` | `SearchDiagnostics` | Search diagnostic information |
 
-## 実装上の補足
+## Implementation Notes
 
-- 「remote/local/fallback」の結果取得元を保持しているのは
-  `rag/models_result.py` の `SearchDiagnostics.result_source`
-  (`ResultSource` enum) であり、`RagPipeline.augment()` の内部でHTTPモードの成否に応じて設定される。
+- The origin of the result ("remote/local/fallback") is maintained in `rag/models_result.py` within `SearchDiagnostics.result_source` (`ResultSource` enum), which is set inside `RagPipeline.augment()` depending on the success or failure of the HTTP mode.
   [Explicit in code]
 
 ## Related Documents
 
-- [03_rag_04_05_dto-types.md](03_rag_04_01_dto-models_data.md)
+- [03_rag_04_05_dto-types.md](03_rag_04_05_dto-types.md)
 - [03_rag_04_04_dto-models_config.md](03_rag_04_04_dto-models_config.md)
 
 ## Keywords

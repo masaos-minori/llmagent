@@ -10,81 +10,74 @@ source:
   - 05_agent_08_01_configuration-loading-agent-config.md
 ---
 
-# エージェント設定
+# Agent Configuration
 
-- 運用 → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
+- Operations → [05_agent_10_01_operations-and-observability-startup-and-health.md](05_agent_10_01_operations-and-observability-startup-and-health.md)
 
 ## Purpose
 
-ツール設定とメモリ設定の構造と制約について文書化する。
+Documents the structure and constraints of tool and memory configurations.
 
 ## Design Intent
 
-### ツール設定
+### Tool Configuration
 
-#### 安全性
+#### Safety
 
-- `tool_definitions_strict`: スキーマ不一致 → 起動時にRuntimeError（production推奨）
-- `routing_drift_strict`: ルーティングドリフトを検出 → RuntimeError（起動中止）（production推奨）
-- `plan_blocked_tools`: プランモードで自動ブロックされるツール
-- `masked_fields`: コンソール表示でマスクする引数キー
+- `tool_definitions_strict`: Schema mismatch → `RuntimeError` at startup (recommended for production).
+- `routing_drift_strict`: Detects routing drift → `RuntimeError` (aborts startup, recommended for production).
+- `plan_blocked_tools`: Tools that are automatically blocked in plan mode.
+- `masked_fields`: Argument keys to be masked in console output.
 
-#### 実行制御
+#### Execution Control
 
-- `serial_tool_calls`: ツール実行の逐次化
-- `max_tool_turns`: メッセージごとの最大ツール呼び出しターン数
-- `tool_cycle_detect_window`: 循環検出ウィンドウ（ラウンド数）
-- `tool_error_max_consecutive`: 連続全エラーラウンド数（ループ終了条件）
-- `tool_error_retry_max`: エラーとなった(name,args)のリトライ上限
+- `serial_tool_calls`: Serializes tool execution.
+- `max_tool_turns`: Maximum number of tool call turns per message.
+- `tool_cycle_detect_window`: Cycle detection window (number of rounds).
+- `tool_error_max_consecutive`: Number of consecutive error rounds (termination condition for loops).
+- `tool_error_retry_max`: Retry limit for a failed `(name, args)` pair.
 
-#### コンテキスト肥大防止
+#### Context Bloat Prevention
 
-- `tool_result_max_llm_chars`: LLMコンテキストに追加されるツール実行結果の最大文字数
-- `tool_results_turn_max_chars`: 1ターン中にLLMコンテキストへ追加されるツール実行結果の累積最大文字数
+- `tool_result_max_llm_chars`: Maximum characters from tool execution results added to LLM context.
+- `tool_results_turn_max_chars`: Cumulative maximum characters from tool execution results added to LLM context within one turn.
 
-#### キャッシュ
+#### Caching
 
-- `tool_cache_ttl`: ツール実行結果キャッシュのTTL（秒）
-- `tool_cache_max_size`: LRUキャッシュサイズ
+- `tool_cache_ttl`: TTL for tool execution result cache (seconds).
+- `tool_cache_max_size`: LRU cache size.
 
-#### 並列実行
+#### Parallel Execution
 
-- `tool_concurrency_limits`: サーバーキー → 最大並行呼び出し数
+- `tool_concurrency_limits`: Server key → Maximum number of concurrent calls.
 
-#### resource_scope_kind/resource_scope_keys 規約（`build_execution_groups()`が常時使用するDAGスケジューラ全体で有効。`serial_tool_calls=True`時は`force_serial`によりコンフリクトグラフ自体はバイパスされる）
+`resource_scope_kind`/`resource_scope_keys` convention (used throughout the DAG scheduler by `build_execution_groups()`. When `serial_tool_calls=True`, the conflict graph itself is bypassed via `force_serial`).
 
-スコープは `config/agent.toml` のデフォルトではなく、各MCPサーバーが `/v1/tools` で宣言する
-`resource_scope_kind`/`resource_scope_keys`（スキーマ2.0契約、必須フィールド）と、実際の呼び出し
-引数から呼び出し単位で解決される（`shared/resource_scope.py::resolve_resource_scopes()`）。解決結果
-は `ToolSpec.resource_scopes`（kind接頭辞付き文字列のタプル、例: `"filesystem:/a/b.txt"`）として
-`agent/tool_scheduler.py::build_execution_groups()` に渡され、call_id 単位でコンフリクトグラフに
-よりグループ化される（ツール名単位ではない）。
+Scopes are not defined by default in `config/agent.toml`; they are declared by each MCP server via `/v1/tools`. The `resource_scope_kind`/`resource_scope_keys` (Schema 2.0 contract, mandatory fields) and actual invocation arguments are resolved per call using `shared/resource_scope.py::resolve_resource_scopes()`. The resolution result is passed to `agent/tool_scheduler.py::build_execution_groups()` as `ToolSpec.resource_scopes` (a tuple of strings with `kind` prefix, e.g., `"filesystem:/a/b.txt"`) and grouped into conflict graphs on a per-call-id basis rather than per-tool-name basis.
 
-| Tool type | `resource_scope_kind`（宣言） | `requires_serial` | Scheduling bucket |
+| Tool type | `resource_scope_kind` (declaration) | `requires_serial` | Scheduling bucket |
 |---|---|---|---|
-| file WRITE_TOOLS / DELETE_TOOLS（`path`引数、`move_file`は`source`/`destination`） | `"filesystem"` | `False` | resource-scope conflict group（重複する呼び出し同士がコンフリクトグラフの連結成分としてまとめられる）→ concurrent batch |
-| git write tools（`git_add`/`git_commit`等、`repo_path`引数） | `"git_repo"` | `False` | resource-scope conflict group |
-| github write tools（`owner`/`repo`引数） | `"github_repo"` | `False` | resource-scope conflict group |
-| cicd `trigger_workflow`（`repo`/`workflow`/`ref`引数） | `"cicd_workflow"` | `False` | resource-scope conflict group |
-| mdq `index_paths`/`refresh_index`、rag `rag_delete_document` | `"mdq_store"` / `"rag_store"`（固定） | `True` | serial_barrier（`requires_serial`がスコープより優先） |
-| `shell_run` | `"process"`（スコープキーなし） | `True` | serial_barrier |
-| Read / その他 unscoped | `""` | `False` | `parallel` → concurrent batch |
+| file WRITE_TOOLS / DELETE_TOOLS (`path` arg; `move_file` uses `source`/`destination`) | `"filesystem"` | `False` | resource-scope conflict group (conflicting calls are grouped into a connected component in the conflict graph) → concurrent batch |
+| git write tools (`git_add`/`git_commit`, etc.; `repo_path` arg) | `"git_repo"` | `False` | resource-scope conflict group |
+| github write tools (`owner`/`repo` args) | `"github_repo"` | `False` | resource-scope conflict group |
+| cicd `trigger_workflow` (`repo`/`workflow`/`ref` args) | `"cicd_workflow"` | `False` | resource-scope conflict group |
+| mdq `index_paths`/`refresh_index`, rag `rag_delete_document` | `"mdq_store"` / `"rag_store"` (fixed) | `True` | serial_barrier (`requires_serial` takes precedence over scope) |
+| `shell_run` | `"process"` (no scope key) | `True` | serial_barrier |
+| Read / other unscoped | `""` | `False` | `parallel` → concurrent batch |
 
-`resource_scope_kind`は宣言済みだが呼び出し引数から実際のスコープ値が解決できない write ツール
-は、フェイルクローズドなフォールバックとして `("global:write",)` を返す（ツール名フォールバックや
-空タプルにはならない）。
+Write tools where the `resource_scope_kind` is declared but the actual scope value cannot be resolved from invocation arguments return `("global:write",)` as a fail-closed fallback (it does NOT fall back to tool name or empty tuple).
 
-#### その他のフィールド
+#### Other Fields
 
-- `tool_definitions`: `[[tool_definitions]]`由来のLLM向けツールスキーマ一覧
-- `system_prompts`: システムプロンプトプリセットのdict
-- `allowed_tools`: セッションのツールホワイトリスト（空 = すべて許可）
+- `tool_definitions`: List of LLM tool schemas derived from `[[tool_definitions]]`.
+- `system_prompts`: Dictionary of system prompt presets.
+- `allowed_tools`: Session tool whitelist (empty = all allowed).
 
-### メモリ設定
+### Memory Configuration
 
-#### 有効化モード
+#### Activation Modes
 
-`use_memory_layer`, `memory_embed_enabled`, 埋め込みサーキットの状態の組み合わせにより決定される:
+Determined by the combination of `use_memory_layer`, `memory_embed_enabled`, and the state of the embedding circuit:
 
 | `use_memory_layer` | `memory_embed_enabled` | Circuit | Mode |
 |---|---|---|---|
@@ -93,54 +86,54 @@ source:
 | `true` | `true` | open | `degraded` |
 | `true` | `true` | closed | `hybrid` |
 
-#### 注入パラメータ
+#### Injection Parameters
 
-- `memory_max_inject_semantic`: セッション開始時に注入されるセマンティックエントリ数
-- `memory_max_inject_episodic`: ユーザープロンプトごとに注入されるエピソードエントリ数
-- `memory_min_importance`: 注入に必要な最小重要度スコア
+- `memory_max_inject_semantic`: Number of semantic entries injected at session start.
+- `memory_max_inject_episodic`: Number of episodic entries injected per user prompt.
+- `memory_min_importance`: Minimum importance score required for injection.
 
-#### 埋め込み関連
+#### Embedding Related
 
-- `memory_embed_enabled`: メモリ検索のための埋め込み+KNNを有効化
-- `memory_embed_dim`: 埋め込み次元数（vec0スキーマと一致する必要がある）
-- `memory_embed_timeout_sec`: 埋め込みHTTP呼び出しのタイムアウト
-- `memory_local_only`: 起動時にloopback以外の`embed_url`を拒否
+- `memory_embed_enabled`: Enables embedding + KNN for memory search.
+- `memory_embed_dim`: Embedding dimension (must match vec0 schema).
+- `memory_embed_timeout_sec`: Timeout for embedding HTTP calls.
+- `memory_local_only`: Rejects non-loopback `embed_url` at startup.
 
-#### 検索・フィルタリング
+#### Search & Filtering
 
-- `memory_fts_limit`: 再スコアリング前のFTS5候補数上限
-- `memory_rrf_k`: RRF融合定数
-- `memory_recency_days`: 直近性ブーストのウィンドウ（日数）
-- `memory_retention_days`: 保持期間（日数）
+- `memory_fts_limit`: Upper limit of FTS5 candidates before re-ranking.
+- `memory_rrf_k`: RRF fusion constant.
+- `memory_recency_days`: Window for recency boost (days).
+- `memory_retention_days`: Retention period (days).
 
-#### 重複排除
+#### Deduplication
 
-- `memory_dedup_threshold`: 重複排除リンク検出のL2距離
+- `memory_dedup_threshold`: L2 distance for deduplication link detection.
 
-#### コンテンツ制限
+#### Content Limits
 
-- `memory_max_content_chars`: メモリエントリごとに保存する最大コンテンツ文字数
+- `memory_max_content_chars`: Maximum characters stored per memory entry.
 
 ## Responsibility Boundary
 
-- **正典**: `config/agent.toml`のTool/Memoryセクション
-- **バリデーション**: `agent/services/config_validators.py`
-- **データクラス**: `agent/config_dataclasses.py`の`ToolConfig` / `MemoryConfig`
+- **Canonical Source**: `Tool`/`Memory` sections in `config/agent.toml`.
+- **Validation**: `agent/services/config_validators.py`.
+- **Dataclasses**: `ToolConfig` / `MemoryConfig` in `agent/config_dataclasses.py`.
 
 ## Key Constraints
 
-- `tool_definitions_strict=True`の場合、到達可能なサーバーでのスキーマ不一致は起動中止
-- `routing_drift_strict=True`の場合、ルーティングドリフトは起動中止
-- `allowed_tools=[]`（空）は「すべて許可」を意味する — 意図しない動作を防ぐため明示的に確認が必要
-- `memory_embed_enabled=True` → `rag.embed_url`は非空である必要がある（Part 2参照）
+- If `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure.
+- If `routing_drift_strict=True`, routing drift causes startup failure.
+- `allowed_tools=[]` (empty) means "all allowed" — explicit confirmation is required to prevent unintended behavior.
+- `memory_embed_enabled=True` → `rag.embed_url` must not be empty (see Part 2).
 
 ## Operational Notes
 
-- 不明
+- Unknown
 
 ## Known Limitations
 
-- 不明
+- Unknown
 
 ## Related Docs
 

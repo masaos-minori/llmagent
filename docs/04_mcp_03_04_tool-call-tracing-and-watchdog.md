@@ -15,13 +15,11 @@ related:
   - 04_mcp_06_12_watchdog-configuration-monitoring.md
 ---
 
-# トランスポートエラー追跡とライフサイクルフロー
+# Transport Error Tracing and Lifecycle Flow
 
-> **注記:** 本ドキュメントのファイル名には歴史的経緯により `watchdog` の語が残っているが、
-> MCP watchdog(自動ヘルスポーリング・自動再起動ループ)は2026-07-16に削除された。
-> 詳細は [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md) を参照。
+> **Note:** Due to historical reasons, the filename contains the word `watchdog`, but the MCP watchdog (automatic health polling / automatic restart loop) was removed on 2026-07-16. For details, see [04_mcp_06_12_watchdog-configuration-monitoring.md](04_mcp_06_12_watchdog-configuration-monitoring.md).
 
-## 失敗パスの例（トランスポートエラー）
+## Example Failure Path (Transport Error)
 
 ``` text
 1-2. Same as above.
@@ -41,7 +39,7 @@ related:
     audit log (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"","is_error":true,"error_type":"transport","ts":...}
     Note: mcp_request_id="" because no response was received.
 
-7. Next real tool call to "file_read" (内部ディスパッチ):
+7. Next real tool call to "file_read" (internal dispatch):
    ensure_ready() attempts recovery (subprocess mode only), then dispatch proceeds.
    → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
    → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
@@ -51,27 +49,26 @@ related:
 
 ---
 
-### 追跡におけるツールエラーとトランスポートエラーの違い
+### Difference between Tool Errors and Transport Errors in Tracing
 
-| フィールド | ツールエラー | トランスポートエラー |
+| Field | Tool Error | Transport Error |
 |---|---|---|
 | `is_error` | `True` | `True` |
 | `error_type` | `"tool"` | `"transport"` |
-| `mcp_request_id` | 設定される（サーバーが応答した） | `""`（レスポンスを受信していない） |
-| `HealthRegistry` | `record_success()`（サーバーが応答した） | `record_failure()`（サーバーに到達不可） |
-| `stat_tool_errors` | インクリメントされる | 変化なし |
-| `stat_transport_errors` | 変化なし | インクリメントされる |
+| `mcp_request_id` | Set (server responded) | `""` (no response received) |
+| `HealthRegistry` | `record_success()` (server responded) | `record_failure()` (unable to reach server) |
+| `stat_tool_errors` | Incremented | No change |
+| `stat_transport_errors` | No change | Incremented |
 
-ツールエラーとは、サーバーがリクエストを処理したがエラーを返したことを意味する。
-トランスポートエラーとは、エージェントがサーバーからのレスポンスを一度も受信しなかったことを意味する。
+A tool error means the server processed the request but returned an error. A transport error means the agent never received a response from the server.
 
-運用上の追跡手順については [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing) を参照。
+For operational tracing procedures, see [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_08_end-to-end-tool-call-tracing.md#end-to-end-tool-call-tracing).
 
 ---
 
-## ライフサイクルフロー
+## Lifecycle Flow
 
-ツール定義の起動時バリデーション動作については `04_mcp_06` §Startup Validation Behavior を参照。
+For behavior regarding tool definition startup validation, see `04_mcp_06` §Startup Validation Behavior.
 
 ``` text
 AgentREPL.run()
@@ -80,26 +77,24 @@ AgentREPL.run()
             stderr → /opt/llm/logs/scripts/mcp_servers/{server_key}.stderr.log (append mode)
        → startup_mode="persistent" (http): no lifecycle action needed
        → startup_mode="none": no subprocess spawn, no health check — server is disabled
-   → [REPL loop]
-   → tool call → ToolExecutor raw execute
+    → [REPL loop]
+    → tool call → ToolExecutor raw execute
          → startup_mode="none" rejects immediately
               with a "disabled" tool error, before health check or transport
              → ensure_ready(server_key):
                   if _shutting_down: return immediately (shutdown guard)
                   if subprocess-mode and not running: start() [auto-restart on demand]
-   → finally: lifecycle.shutdown_all()
-                  sets _shutting_down=True (blocks further start/restart calls)
-                + close stderr log file handles
-                + AsyncClient.close()
+    → finally: lifecycle.shutdown_all()
+             sets _shutting_down=True (blocks further start/restart calls)
+           + close stderr log file handles
+           + AsyncClient.close()
 ```
 
-`_ServerLifecycleRouter._shutting_down` は `ensure_ready()`, `start_http_subprocess()`,
-`restart()`, `shutdown_idle()` を保護する: `shutdown_all()` が呼び出された後は、これらのメソッドは
-ログ行を出力して即座にリターンし、`HttpServerLifecycleManager` への委譲は行わない。
+`_ServerLifecycleRouter._shutting_down` protects `ensure_ready()`, `start_http_subprocess()`, `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, these methods return immediately after logging a line, without delegating to `HttpServerLifecycleManager`.
 
-### 実装上の補足(二重 SIGINT ガード)
+### Implementation Note (Double SIGINT Guard)
 
-`HttpServerLifecycleManager.shutdown_all()`(`agent/http_lifecycle.py`)は、クリーンアップ実行中にシグナルハンドラを一時的に `_absorb_sigint_during_shutdown()` に差し替え、後続の SIGINT を WARNING ログのみで吸収する(メインスレッド以外で呼ばれた場合は `signal.signal()` が `ValueError` を送出するため、ガードなしで続行する)。ユーザーが Ctrl-C を connectionを待っている間に2回押してループを中断し、残存サブプロセスが孤児化することを防ぐ意図。クリーンアップ完了後に元のハンドラへ復元する。(Explicit in code)
+`HttpServerLifecycleManager.shutdown_all()` (`agent/http_lifecycle.py`) temporarily swaps the signal handler to `_absorb_sigint_during_shutdown()` during cleanup, absorbing subsequent SIGINTs as WARNING logs (since calling `signal.signal()` from outside the main thread would raise a `ValueError`, it continues without guards). This is intended to prevent orphan subprocesses if a user presses Ctrl-C twice while waiting for connections to close. The original handler is restored once cleanup is complete. (Explicit in code)
 
 ## Related Documents
 

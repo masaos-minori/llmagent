@@ -18,80 +18,80 @@ source:
   - 05_agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
-# エージェントの運用と可観測性
+# Agent Operations and Observability
 
-- 設定 → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
+- Configuration → [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md)
 
-## 目的
+## Purpose
 
-エージェントの起動手順、運用確認、ヘルスチェック、シャットダウン時のリソースクリーンアップを文書化する。
+Documents the agent startup procedure, operational verification, health checks, and resource cleanup during shutdown.
 
-## 設計意図
+## Design Intent
 
-起動プロセスは3つのフェーズに分かれる: サーバースタート、ヘルスチェック、承認状態の復元。いずれかのフェーズで例外が発生するとロールバックが発火し、起動済みサブプロセスを確実に終了する。
+The startup process is divided into three phases: server start, health check, and restoration of approval states. If an exception occurs in any phase, a rollback is triggered to ensure all started subprocesses are reliably terminated.
 
-`StartupOrchestrator` は起動シーケンス全体を一元管理する。起動失敗時は `shutdown_all()` を通じて全リソースをクローズし、元の例外を再送出する。ロールバック自体が失敗しても元の例外は保持される（ログのみ記録）。
+`StartupOrchestrator` centrally manages the entire startup sequence. If startup fails, it closes all resources via `shutdown_all()` and re-raises the original exception. Even if the rollback itself fails, the original exception is preserved (only a log is recorded).
 
-SIGTERM/SIGINT は起動シーケンス中にも有効に発火する。`asyncio.wait(FIRST_COMPLETED)` で遅延タイマーと競走させ、シャットダウンイベントが先に発火すれば遅延を待たずに中断する。
+SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asyncio.wait(FIRST_COMPLETED)`, these signals compete with delayed timers; if a shutdown event fires first, the delay is interrupted immediately.
 
-## 責務境界
+## Responsibility Boundary
 
-- **対象**: エージェントプロセスの起動〜シャットダウンまでのライフサイクル
-- **対象外**: MCPサーバーの実装、RAGパイプラインの詳細、LLMエンドポイントの内部動作
-- **所有者**: `agent/startup.py` (`StartupOrchestrator`)、`agent/repl.py` (`AgentREPL`)
+- **Scope**: The lifecycle from agent process startup to shutdown.
+- **Out of Scope**: Implementation of MCP servers, RAG pipeline details, internal workings of LLM endpoints.
+- **Owners**: `agent/startup.py` (`StartupOrchestrator`), `agent/repl.py` (`AgentREPL`).
 
-## 主要な制約
+## Key Constraints
 
-- ワークフロー定義ファイルは起動時に必ずロードされる。欠落または不正がある場合は起動に失敗させる。Direct execution fallback は提供しない。
-- 本番モードではヘルスプローブの到達不能は起動失敗（FATAL）として扱う。ローカルモードでは警告のみで継続する。
-- 埋め込み次元の不一致は起動失敗として扱う。これはベクトル検索のデータ破損を防ぐため。
-- セッション起動時の rolling upgrade では、古いプロセスのシャットダウン前に新しいプロセスの起動を検証し、問題があれば古いプロセスを維持する。
+- Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. No direct execution fallback is provided.
+- In production mode, unreachable health probes are treated as startup failure (FATAL). In local mode, they only issue a warning and continue.
+- Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
+- During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
 
-## 運用上の注意
+## Operational Notes
 
-### 起動時検証の重大度マッピング
+### Severity Mapping for Startup Verification
 
-| 重大度 | 意味 | 挙動 |
+| Severity | Meaning | Behavior |
 |---|---|---|
-| FATAL | 起動できない条件 | 全チェック完了後に `RuntimeError` を送出し、起動を中断する |
-| WARNING | チェックを実行したが問題を検出した | 起動を継続するが、オペレーターが確認すべき状態 |
-| SKIPPED | チェック自体を実行できなかった | 起動を継続する。環境依存のチェックが利用不可の場合に発生する |
-| OK | チェックを正常に実行した | 正常状態を示す（ただし security_audit の OK は「問題なし」ではなく「チェック完了」を意味する） |
+| FATAL | Condition preventing startup | Throws `RuntimeError` after all checks complete, aborting startup |
+| WARNING | Check performed but problem detected | Continues startup, but requires operator attention |
+| SKIPPED | Check could not be performed | Continues startup. Occurs when environment-dependent checks are unavailable |
+| OK | Check performed successfully | Indicates normal state (Note: `security_audit` OK means "check completed", not necessarily "no problems found") |
 
-**重要な注意点:**
-- `routing_drift_live` と `routing_safety_tiers` は正常時に何のoutcomeも記録されない（silence means healthy）。
-- `tool_definitions` は strict モードでも FATAL にはならない — 常に WARNING にダウングレードされる。
-- `mcp_tool_discovery` の失敗は本番/ローカル問わず FATAL として扱う。ツールディスカバリに失敗するとセッション全体のツール呼び出しが不可能になるため。
+**Important Notes:**
+- `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
+- `tool_definitions` do not cause FATAL errors even in strict mode — they are always downgraded to WARNING.
+- Failure in `mcp_tool_discovery` is treated as FATAL regardless of whether it is production or local mode. Since tool discovery failure makes all session tool calls impossible, it is critical.
 
-### 保留中の事後実行承認状態の復元
+### Restoration of Pending Post-Execution Approvals
 
-エージェント起動時に前回のセッションで解決されなかった事後実行承認が存在する場合、`StateStore.find_latest_pending_approval()` を通じて `workflow.sqlite` から復元する。この復元は同時に1件のみ追跡され、全セッションを通じた最新のレコードが適用される。
+If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
 
-既存の `pending_approval_task_id` が設定されている状態で復元値を設定する場合、WARNING レベルでログを出力するが、値は上書きされる（処理は中断しない）。
+If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted, but the value is overwritten (the process does not abort).
 
-### シャットダウン時のリソースクリーンアップ
+### Resource Cleanup on Shutdown
 
-`finally` ブロックで以下の順序でリソースをクローズする:
+Resources are closed in the following order within a `finally` block:
 
-1. WALチェックポイント（PASSIVE→TRUNCATEフォールバック）
-2. WALバックアップ（パス検証付き）
+1. WAL checkpoint (with PASSIVE $\rightarrow$ TRUNCATE fallback)
+2. WAL backup (with path validation)
 3. `lifecycle.shutdown_all()`
 4. `http.aclose()`
 
-各ステップは独立してガードされており、一方が失敗しても他のステップは実行される。WALバックアップは `allowed_root` 範囲内のパスのみ許可し、シンボリックリンクを解決してから検証する。
+Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
 
-### 起動シーケンス中のSIGINT/SIGTERM中断
+### SIGINT/SIGTERM Interruption During Startup
 
-起動シーケンス中にSIGINT/SIGTERMを受信した場合、`ShutdownInterrupted` が送出され、ロールバックが発火する。HTTPサブプロセスのヘルスポーリングループもシャットダウンイベントで即時中断する。
+If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
 
-## 既知の制限 / 未解決事項
+## Known Limitations / Unresolved Issues
 
-- `startup.py` の一部分岐はテストで確認済みだが、本番環境での実際の動作は限定的にしか検証されていない。
-- WALチェックポイントのタイムアウト値（デフォルト30秒）は実環境での負荷に応じて調整が必要になる可能性がある。
-- ロールバック失敗時の情報はコンソール画面に表示されず、ログファイルのみで確認できる。
+- Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
+- The WAL checkpoint timeout (default 30 seconds) may need adjustment based on real-world load.
+- Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
 
-## 関連資料
+## Related Docs
 
-- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) — session_diagnostics の役割
-- [05_agent_09_02_data-layer-access-patterns.md](05_agent_09_02_data-layer-access-patterns.md) — DBアクセスパターン
-- [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md) — 設定ファイル
+- [05_agent_09_01_data-layer-session-db.md](05_agent_09_01_data-layer-session-db.md) — Role of `session_diagnostics`
+- [05_agent_09_02_data-layer-access-patterns.md](05_agent_09_02_data-layer-access-patterns.md) — DB access patterns
+- [05_agent_08_04_configuration-mcp-approval-obs.md](05_agent_08_04_configuration-mcp-approval-obs.md) — Configuration files

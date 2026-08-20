@@ -1,32 +1,16 @@
+# Agent Runtime Architecture (Part 1)
 
-title: "Agent Runtime Architecture (Part 1)"
-category: agent
-tags:
-  - agent
-  - runtime
-  - architecture
-  - lifecycle
-related:
-  - 05_agent_00_document-guide.md
-source:
-  - 05_agent_02_runtime-architecture.md
-
-
-# Agent Runtime Architecture
-
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-主要なランタイムコンポーネント、それらの依存関係、および責務境界を記述し、
-エンジニアやAIがどの振る舞いがどこに実装されているかを特定できるようにする。
+Describes the primary runtime components, their dependencies, and responsibility boundaries, enabling engineers and AI to identify where specific behaviors are implemented.
 
-> **本章の対象範囲:** ランタイムの振る舞い、モジュールグラフ、データフロー、コンポーネントのライフサイクル。
-> 関数シグネチャ、パラメータ型、戻り値については → [05_agent_13 §Reference API](05_agent_13_reference-api.md)を参照。
+> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values $\rightarrow$ see [05_agent_13 §Reference API](05_agent_13_reference-api.md).
 
 ## Responsibility Boundary
 
-### コンポーネント依存関係
+### Component Dependencies
 
 ``` text
 AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
@@ -41,34 +25,26 @@ AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output onl
         └─ LLMTurnRunner             — SSE stream + inner tool-call loop
 ```
 
-### 責務境界の補足
+### Responsibility Boundary Supplement
 
-- `AgentContext`は共有される可変状態とコンポーネント参照のハブ。`factory.build_agent_context()`が
-  すべてのサービスを注入する。
-- `Orchestrator`は1回のユーザーターンをエンドツーエンドで処理し、LLMストリーミングとツールループを
-  `LLMTurnRunner`に委譲する。
-- `AppServices.lifecycle`の実行時実装は`agent/factory.py`内に定義されており、HTTPサブプロセスの
-  起動・終了は`agent/http_lifecycle.py`に委譲される。
+- `AgentContext` is the hub for shared mutable state and component references. `factory.build_agent_context()` injects all services.
+- `Orchestrator` handles end-to-end processing of a single user turn, delegating LLM streaming and the tool loop to `LLMTurnRunner`.
+- The runtime implementation of `AppServices.lifecycle` is defined in `agent/factory.py`; starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
 
 ## Key Constraints
 
-- `Orchestrator.__init__()`は`WorkflowLoader().load()`でワークフロー定義を読み込み、失敗時は
-  `RuntimeError`を送出する（起動が止まる）。
-- MCPサブプロセス起動後に例外が発生した場合、起動済みのMCPサブプロセスはロールバックされる。
-- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する。
+- `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
+- If an exception occurs after starting an MCP subprocess, the started MCP subprocesses are rolled back.
+- Side-effect detection: if `write`/`delete`/`shell_run` is included, parallel tool calls are serialized.
 
 ## Operational Notes
 
-- `AgentContext.diagnostics`は上図に含まれていなかった属性で、`Orchestrator.__init__()`実行後に
-  設定される。
-- `handle_turn()`はワークフローエンジン経由でplan/execute/verifyステージを実行する。
-  `ctx.workflow.approval_pending`がTrueの間、およびバックグラウンドタスクが一時停止中の間は
-  新規ターンを拒否する。（詳細は[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+- `AgentContext.diagnostics` is an attribute not shown in the diagram above, which is set after `Orchestrator.__init__()` execution.
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Known Limitations
 
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。（詳細は
-  [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Related Docs
 
@@ -82,235 +58,148 @@ runtime
 architecture
 lifecycle
 
-# Agent Runtime Architecture
+# Agent Runtime Architecture (Part 2)
 
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
-
-## Purpose
-
-主要なランタイムコンポーネント、それらの依存関係、および責務境界を記述し、
-エンジニアやAIがどの振る舞いがどこに実装されているかを特定できるようにする。
-
-> **本章の対象範囲:** ランタイムの振る舞い、モジュールグラフ、データフロー、コンポーネントのライフサイクル。
-> 関数シグネチャ、パラメータ型、戻り値については → [05_agent_13 §Reference API](05_agent_13_reference-api.md)を参照。
-
-## Responsibility Boundary
-
-### コンポーネント依存関係
-
-``` text
-AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
-   ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
-   ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
-   │    ├─ LLMClient            — SSE streaming, retry
-   │    ├─ ToolExecutor         — MCP routing, TTL cache
-   │    ├─ HistoryManager       — char counting, LLM compression
-   │    └─ ServerLifecycleRouter — HTTP subprocess lifecycle
-   ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
-   └─ Orchestrator (agent/orchestrator.py) — turn-level facade
-        └─ LLMTurnRunner             — SSE stream + inner tool-call loop
-```
-
-### 責務境界の補足
-
-- `AgentContext`は共有される可変状態とコンポーネント参照のハブ。`factory.build_agent_context()`が
-  すべてのサービスを注入する。
-- `Orchestrator`は1回のユーザーターンをエンドツーエンドで処理し、LLMストリーミングとツールループを
-  `LLMTurnRunner`に委譲する。
-- `AppServices.lifecycle`の実行時実装は`agent/factory.py`内に定義されており、HTTPサブプロセスの
-  起動・終了は`agent/http_lifecycle.py`に委譲される。
-
-## Key Constraints
-
-- `Orchestrator.__init__()`は`WorkflowLoader().load()`でワークフロー定義を読み込み、失敗時は
-  `RuntimeError`を送出する（起動が止まる）。
-- MCPサブプロセス起動後に例外が発生した場合、起動済みのMCPサブプロセスはロールバックされる。
-- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する。
-
-## Operational Notes
-
-- `AgentContext.diagnostics`は上図に含まれていなかった属性で、`Orchestrator.__init__()`実行後に
-  設定される。
-- `handle_turn()`はワークフローエンジン経由でplan/execute/verifyステージを実行する。
-  `ctx.workflow.approval_pending`がTrueの間、およびバックグラウンドタスクが一時停止中の間は
-  新規ターンを拒否する。（詳細は[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
-
-## Known Limitations
-
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。（詳細は
-  [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
-
-## Related Docs
-
-- `05_agent_00_document-guide.md`
-- `05_agent_02_runtime-architecture.md`
-
-## Keywords
-
-agent
-runtime
-architecture
-lifecycle
-
-
-
-# Agent Runtime Architecture
-
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
+- System Overview $\rightarrow$ [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
 
 ## Purpose
 
-ランタイムの拡張ポイント、ライフサイクルフェーズ、シャットダウンポリシーを記述し、
-コンポーネントの動作期間と相互依存関係を明確にする。
+Describes runtime extension points, lifecycle phases, and shutdown policies, clarifying component operation duration and interdependencies.
 
 ## Design Intent
 
-AgentREPLはUIループ、コマンドディスパッチ、出力表示のみを担当し、ビジネスロジックを持たない。
-すべての起動シーケンスを`StartupOrchestrator`に委譲することで、REPLが純粋な入力/出力層として機能する。
+`AgentREPL` is responsible only for the UI loop, command dispatching, and output display, containing no business logic. By delegating all startup sequences to `StartupOrchestrator`, the REPL functions purely as an I/O layer.
 
-`StartupOrchestrator`をAgentREPLから分離した理由: 起動時の複雑さ（サービスチェック、MCPサーバー起動、承認待ち復旧）を
-REPLの責任範囲から切り離し、REPLがUI関心事のみ持つようにするため。
+Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup, approval recovery) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
 
 ## Responsibility Boundary
 
-### コンポーネントの責務
+### Component Responsibilities
 
 #### AgentREPL (`agent/repl.py`)
 
-- 入力/ディスパッチループを管理する: 行を読み取る → コマンドまたはLLMターンへ
-- グレースフルシャットダウンを管理する
-- ビジネスロジックを持たない。UIループ、コマンドディスパッチ、出力表示のみを含む
+- Manages the input/dispatch loop: reads lines $\rightarrow$ commands or LLM turns.
+- Manages graceful shutdown.
+- Contains no business logic. Responsible only for UI loop, command dispatch, and output display.
 
 #### StartupOrchestrator (`agent/startup.py`)
 
-- `AgentREPL`から抽出された起動オーケストレーション処理をすべて内包する
-- `(ctx, view)`で構築される。`run()`は`(CommandRegistry, Orchestrator)`を返す
-- 起動時の複雑さを分離し、`AgentREPL`がUI関心事のみを持つようにする
+- Encapsulates all startup orchestration processes extracted from `AgentREPL`.
+- Constructed with `(ctx, view)`. `run()` returns `(CommandRegistry, Orchestrator)`.
+- Decouples startup complexity so that `AgentREPL` remains focused on UI concerns.
 
 #### Orchestrator (`agent/orchestrator.py`)
 
-- 1回のユーザーターンをエンドツーエンドで処理する
-- メモリ注入 → ユーザーメッセージ追加 → 履歴圧縮 → LLMターンの流れを管理する
-- LLMストリーミングとツールループを`LLMTurnRunner`に委譲する
-- 監査ログイベント(`turn_start`、`turn_end`)を発行する
+- Handles end-to-end processing of a single user turn.
+- Manages the flow: memory injection $\rightarrow$ user message addition $\rightarrow$ history compression $\rightarrow$ LLM turn.
+- Delegates LLM streaming and the tool loop to `LLMTurnRunner`.
+- Issues audit log events (`turn_start`, `turn_end`).
 
 #### AgentContext (`agent/context.py`)
 
-共有される可変状態とコンポーネント参照のハブである。`factory.build_agent_context()`が
-すべてのサービスを注入する。
+The hub for shared mutable state and component references. All services are injected via `factory.build_agent_context()`.
 
 | Sub-structure | Scope | Key contents |
 |---|---|---|
-| `ctx.conv` | セッション | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
-| `ctx.turn` | ターンごと | `current_turn_id` (UUID4、ターン間ではNone) |
-| `ctx.stats` | 累積 | `stat_turns`、`stat_tool_calls`、`stat_latency`、トークン数 |
-| `ctx.workflow` | セッション | `WorkflowState`: `active`、`current_task_id`、`workflow_id`、`approval_pending` (一時的) |
-| `ctx.cfg` | ホットリロード | `AgentConfig` (7つのサブ設定) |
-| `ctx.session` | セッション | `AgentSession` (SQLite) |
-| `ctx.services` | 注入される | すべてのサービスインスタンス (LLMClient、ToolExecutorなど) |
+| `ctx.conv` | Session | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
+| `ctx.turn` | Per-turn | `current_turn_id` (UUID4, None between turns) |
+| `ctx.stats` | Cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
+| `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
+| `ctx.cfg` | Hot-reload | `AgentConfig` (7 sub-configs) |
+| `ctx.session` | Session | `AgentSession` (SQLite) |
+| `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |
 
 #### LLMClient (`shared/llm_client.py`)
 
-- リクエストペイロードを構築する(messages + tool_defs + temperature + max_tokens)
-- SSEストリーミング(インクリメンタルUTF-8、ハートビート追跡)
-- リトライ可能なエラー発生時に再接続する
-- 部分的な補完の検出と報告
+- Constructs request payloads (messages + tool_defs + temperature + max_tokens).
+- SSE streaming (incremental UTF-8, heartbeat tracking).
+- Reconnects upon recoverable errors.
+- Detects and reports partial completions.
 
 #### ToolExecutor (`shared/tool_executor.py`)
 
-- TTLキャッシュチェック → MCPルーティング
-- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する
-- ツール名 → サーバーキーを解決する
-- サーバーごとのヘルス状態を追跡する
+- TTL cache check $\rightarrow$ MCP routing.
+- Side-effect detection: serializes parallel tool calls if `write`/`delete`/`shell_run` is included.
+- Resolves tool name $\rightarrow$ server key.
+- Tracks health status per server.
 
 #### HistoryManager (`agent/history.py`)
 
-- 会話履歴のサイズ(文字数またはトークン数)をカウントする
-- 閾値を超えるとLLMベースの要約をトリガーする
-- 圧縮対象のターンを選択する(重要度スコアリング + カテゴリ)
-- 直近の`history_protect_turns`ターンペアは圧縮対象から保護する
+- Counts conversation history size (character count or token count).
+- Triggers LLM-based summarization when thresholds are exceeded.
+- Selects turns for compression (importance scoring + category).
+- Protects the most recent `history_protect_turns` pair from being compressed.
 
 #### CommandRegistry (`agent/commands/registry.py`)
 
-組み込みコマンドをディスパッチする。
+Dispatches built-in commands.
 
 #### CLIView (`agent/cli_view.py`)
 
-- 表示層のみを担当し、ビジネスロジックを持たない
-- テスト容易性のために`Writer`と`Reader`のプロトコルを提供する
-- `Orchestrator`、`HistoryManager`、`LLMClient`にコールバックを注入する
+- Responsible only for the presentation layer, containing no business logic.
+- Provides `Writer` and `Reader` protocols for testability.
+- Receives callbacks from `Orchestrator`, `HistoryManager`, and `LLMClient`.
 
 #### LifecycleState (`agent/lifecycle.py`)
 
-ライフサイクルマネージャー間で共有されるトランスポート状態のenum:
+An enum representing transport state shared among lifecycle managers:
 
 | Value | Description |
 |---|---|
-| `STARTING` | サーバー起動中 |
-| `RUNNING` | サーバーは稼働中 |
-| `STOPPED` | サーバーは停止済み |
-| `FAILED` | サーバーでエラーが発生 |
-| `UNKNOWN` | 初期/不明な状態 |
+| `STARTING` | Server is starting |
+| `RUNNING` | Server is running |
+| `STOPPED` | Server is stopped |
+| `FAILED` | An error occurred in the server |
+| `UNKNOWN` | Initial/unknown state |
 
-有効な遷移: `STOPPED → STARTING/FAILED`、`STARTING → RUNNING/FAILED/STOPPED`、`RUNNING → STOPPED/FAILED/STARTING`、`FAILED → STARTING/STOPPED`、`UNKNOWN → any`。
+Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
 
 #### AgentSession (`agent/session.py`)
 
-- `sessions`、`messages`テーブルのCRUD
-- RAGドキュメントの削除/一覧取得(`/db`コマンドから委譲される)
-- セッション復元用にメッセージリストを返す
+- CRUD for `sessions` and `messages` tables.
+- Deletion/listing of RAG documents (delegated from `/db` command).
+- Returns message lists for session restoration.
 
 #### Memory Services (`agent/memory/`)
 
-`use_memory_layer=True`で有効化されるオプションのサブシステムである。
-`ctx.services.memory`経由でアクセスする。
+An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.services.memory`.
 
 | Sub-service | Role |
 |---|---|
-| `injection` | セッション開始時および各ターンで関連するメモリを注入する |
-| `ingestion` | セッション終了時にメモリを抽出・永続化する |
-| `store` | メモリエントリ用のJSONL + SQLiteストア |
-| `retriever` | FTS5とオプションのKNN検索 |
+| `injection` | Injects relevant memories at session start and each turn. |
+| `ingestion` | Extracts and persists memories at session end. |
+| `store` | JSONL + SQLite store for memory entries. |
+| `retriever` | FTS5 and optional KNN search. |
 
 ## Key Constraints
 
-### シャットダウン
+### Shutdown
 
-グレースフルシャットダウンはフラグベースの制御で行う。`SIGTERM`受信時に`shutdown_requested`フラグを立て、
-次のターン完了後にループを終了する。進行中のターンには最大10秒の猶予があり、超過するとタイムアウトする。
+Graceful shutdown is controlled via flags. Upon receiving `SIGTERM`, the `shutdown_requested` flag is set, and the loop terminates after the next turn completion. There is a maximum 10-second grace period before timeout.
 
-このアプローチを選んだ理由: システムExitへの直接変換ではなく、進行中のワークフローの整合性を保つため。
-ハンドラはブロッキングせず、ターン完了後のチェックに終了処理を委ねる。
+This approach was chosen to ensure the integrity of ongoing workflows rather than performing a direct system exit. Handlers do not block, instead deferring termination to the post-turn check.
 
-リソースクローズはWALチェックポイント実行後に行い、両方の呼び出しは独立して保護される。
-一方が失敗しても他方をブロックしない。
+Resource closing occurs after WAL checkpointing, and both calls are independent and protected. One failing does not block the other.
 
-### 起動検証パイプライン
+### Startup Validation Pipeline
 
-サービスチェックは`StartupValidationResult`に結果を蓄積し、FATALが1件でもあれば起動を中断する。
-MCPサブプロセス起動後に例外が発生した場合、起動済みのMCPサブプロセスはロールバックされる。
+Service checks accumulate results in `StartupValidationResult`, and startup is aborted if even one `FATAL` error occurs. MCP subprocesses are rolled back if an exception occurs after they have been started.
 
-### ライフサイクル実装の所在
+### Lifecycle Implementation Location
 
-`LifecycleManagerProtocol`が`ensure_ready`/`shutdown_all`/`restart`/
-`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot`を定義する
-構造的サブタイピング用プロトコルである。本番実装は`agent/factory.py`内にあり、HTTPサブプロセスの
-起動・ヘルスポーリング・再起動・終了は`agent/http_lifecycle.py`に
-委譲される。
-`ensure_ready`/`start_http_subprocess`/`restart`は、シャットダウン開始後は
-すべて無視されるガードを持つ。
+`LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is in `agent/factory.py`, where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
+
+`ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
 
 ## Operational Notes
 
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。
-- `handle_turn()`はワークフローエンジン経由でplan/execute/verifyステージを実行する。
-  `ctx.workflow.approval_pending`がTrueの間、およびバックグラウンドタスクが一時停止中の間は
-  新規ターンを拒否する。（詳細は[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
+  While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Known Limitations
 
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。（詳細は
-  [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
+- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Related Docs
 
@@ -323,174 +212,3 @@ agent
 runtime
 architecture
 lifecycle
-
-# Agent Runtime Architecture
-
-- システム概要 → [05_agent_01_system-overview.md](05_agent_01_system-overview.md)
-
-## Purpose
-
-ランタイムの拡張ポイント、ライフサイクルフェーズ、シャットダウンポリシーを記述し、
-コンポーネントの動作期間と相互依存関係を明確にする。
-
-## Design Intent
-
-AgentREPLはUIループ、コマンドディスパッチ、出力表示のみを担当し、ビジネスロジックを持たない。
-すべての起動シーケンスを`StartupOrchestrator`に委譲することで、REPLが純粋な入力/出力層として機能する。
-
-`StartupOrchestrator`をAgentREPLから分離した理由: 起動時の複雑さ（サービスチェック、MCPサーバー起動、承認待ち復旧）を
-REPLの責任範囲から切り離し、REPLがUI関心事のみ持つようにするため。
-
-## Responsibility Boundary
-
-### コンポーネントの責務
-
-#### AgentREPL (`agent/repl.py`)
-
-- 入力/ディスパッチループを管理する: 行を読み取る → コマンドまたはLLMターンへ
-- グレースフルシャットダウンを管理する
-- ビジネスロジックを持たない。UIループ、コマンドディスパッチ、出力表示のみを含む
-
-#### StartupOrchestrator (`agent/startup.py`)
-
-- `AgentREPL`から抽出された起動オーケストレーション処理をすべて内包する
-- `(ctx, view)`で構築される。`run()`は`(CommandRegistry, Orchestrator)`を返す
-- 起動時の複雑さを分離し、`AgentREPL`がUI関心事のみを持つようにする
-
-#### Orchestrator (`agent/orchestrator.py`)
-
-- 1回のユーザーターンをエンドツーエンドで処理する
-- メモリ注入 → ユーザーメッセージ追加 → 履歴圧縮 → LLMターンの流れを管理する
-- LLMストリーミングとツールループを`LLMTurnRunner`に委譲する
-- 監査ログイベント(`turn_start`、`turn_end`)を発行する
-
-#### AgentContext (`agent/context.py`)
-
-共有される可変状態とコンポーネント参照のハブである。`factory.build_agent_context()`が
-すべてのサービスを注入する。
-
-| Sub-structure | Scope | Key contents |
-|---|---|---|
-| `ctx.conv` | セッション | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
-| `ctx.turn` | ターンごと | `current_turn_id` (UUID4、ターン間ではNone) |
-| `ctx.stats` | 累積 | `stat_turns`、`stat_tool_calls`、`stat_latency`、トークン数 |
-| `ctx.workflow` | セッション | `WorkflowState`: `active`、`current_task_id`、`workflow_id`、`approval_pending` (一時的) |
-| `ctx.cfg` | ホットリロード | `AgentConfig` (7つのサブ設定) |
-| `ctx.session` | セッション | `AgentSession` (SQLite) |
-| `ctx.services` | 注入される | すべてのサービスインスタンス (LLMClient、ToolExecutorなど) |
-
-#### LLMClient (`shared/llm_client.py`)
-
-- リクエストペイロードを構築する(messages + tool_defs + temperature + max_tokens)
-- SSEストリーミング(インクリメンタルUTF-8、ハートビート追跡)
-- リトライ可能なエラー発生時に再接続する
-- 部分的な補完の検出と報告
-
-#### ToolExecutor (`shared/tool_executor.py`)
-
-- TTLキャッシュチェック → MCPルーティング
-- 副作用検出: write/delete/shell_runが含まれる場合、並列ツール呼び出しを直列化する
-- ツール名 → サーバーキーを解決する
-- サーバーごとのヘルス状態を追跡する
-
-#### HistoryManager (`agent/history.py`)
-
-- 会話履歴のサイズ(文字数またはトークン数)をカウントする
-- 閾値を超えるとLLMベースの要約をトリガーする
-- 圧縮対象のターンを選択する(重要度スコアリング + カテゴリ)
-- 直近の`history_protect_turns`ターンペアは圧縮対象から保護する
-
-#### CommandRegistry (`agent/commands/registry.py`)
-
-組み込みコマンドをディスパッチする。
-
-#### CLIView (`agent/cli_view.py`)
-
-- 表示層のみを担当し、ビジネスロジックを持たない
-- テスト容易性のために`Writer`と`Reader`のプロトコルを提供する
-- `Orchestrator`、`HistoryManager`、`LLMClient`にコールバックを注入する
-
-#### LifecycleState (`agent/lifecycle.py`)
-
-ライフサイクルマネージャー間で共有されるトランスポート状態のenum:
-
-| Value | Description |
-|---|---|
-| `STARTING` | サーバー起動中 |
-| `RUNNING` | サーバーは稼働中 |
-| `STOPPED` | サーバーは停止済み |
-| `FAILED` | サーバーでエラーが発生 |
-| `UNKNOWN` | 初期/不明な状態 |
-
-有効な遷移: `STOPPED → STARTING/FAILED`、`STARTING → RUNNING/FAILED/STOPPED`、`RUNNING → STOPPED/FAILED/STARTING`、`FAILED → STARTING/STOPPED`、`UNKNOWN → any`。
-
-#### AgentSession (`agent/session.py`)
-
-- `sessions`、`messages`テーブルのCRUD
-- RAGドキュメントの削除/一覧取得(`/db`コマンドから委譲される)
-- セッション復元用にメッセージリストを返す
-
-#### Memory Services (`agent/memory/`)
-
-`use_memory_layer=True`で有効化されるオプションのサブシステムである。
-`ctx.services.memory`経由でアクセスする。
-
-| Sub-service | Role |
-|---|---|
-| `injection` | セッション開始時および各ターンで関連するメモリを注入する |
-| `ingestion` | セッション終了時にメモリを抽出・永続化する |
-| `store` | メモリエントリ用のJSONL + SQLiteストア |
-| `retriever` | FTS5とオプションのKNN検索 |
-
-## Key Constraints
-
-### シャットダウン
-
-グレースフルシャットダウンはフラグベースの制御で行う。`SIGTERM`受信時に`shutdown_requested`フラグを立て、
-次のターン完了後にループを終了する。進行中のターンには最大10秒の猶予があり、超過するとタイムアウトする。
-
-このアプローチを選んだ理由: システムExitへの直接変換ではなく、進行中のワークフローの整合性を保つため。
-ハンドラはブロッキングせず、ターン完了後のチェックに終了処理を委ねる。
-
-リソースクローズはWALチェックポイント実行後に行い、両方の呼び出しは独立して保護される。
-一方が失敗しても他方をブロックしない。
-
-### 起動検証パイプライン
-
-サービスチェックは`StartupValidationResult`に結果を蓄積し、FATALが1件でもあれば起動を中断する。
-MCPサブプロセス起動後に例外が発生した場合、起動済みのMCPサブプロセスはロールバックされる。
-
-### ライフサイクル実装の所在
-
-`LifecycleManagerProtocol`が`ensure_ready`/`shutdown_all`/`restart`/
-`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot`を定義する
-構造的サブタイピング用プロトコルである。本番実装は`agent/factory.py`内にあり、HTTPサブプロセスの
-起動・ヘルスポーリング・再起動・終了は`agent/http_lifecycle.py`に
-委譲される。
-`ensure_ready`/`start_http_subprocess`/`restart`は、シャットダウン開始後は
-すべて無視されるガードを持つ。
-
-## Operational Notes
-
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。
-- `handle_turn()`はワークフローエンジン経由でplan/execute/verifyステージを実行する。
-  `ctx.workflow.approval_pending`がTrueの間、およびバックグラウンドタスクが一時停止中の間は
-  新規ターンを拒否する。（詳細は[05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
-
-## Known Limitations
-
-- バックグラウンドタスクの失敗閾値到達時通知と一時停止機構はオプトイン（既定無効）。（詳細は
-  [05_agent_03_01_turn-processing-flow-overview.md](05_agent_03_01_turn-processing-flow-overview.md)参照）
-
-## Related Docs
-
-- `05_agent_00_document-guide.md`
-- `05_agent_02_runtime-architecture.md`
-
-## Keywords
-
-agent
-runtime
-architecture
-lifecycle
-
