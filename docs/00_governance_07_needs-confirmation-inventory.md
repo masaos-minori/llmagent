@@ -57,6 +57,10 @@ To extract "Needs confirmation" items from source documents:
 
 ## Inventory Items
 
+No active (open/investigating/deferred) items as of 2026-08-20 — all 17 originally tracked items have been resolved; see Archived (Resolved) Items below.
+
+## Archived (Resolved) Items
+
 ### NC-001
 
 - **Source File**: `05_agent_05_llm-and-streaming.md`

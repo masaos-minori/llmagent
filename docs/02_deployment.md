@@ -42,6 +42,8 @@ uv sync --dev --system-certs
 
 モデルファイルは `/opt/llm/models/` に配置します。ファイル名は、各サービスの構成（`model-path` 等）で使用される名称と一致させる必要があります。
 
+> **Canonical source** — このテーブルがモデルファイル名の正典です。`docs/01_overview-files-01-build.md` と `docs/03_rag_05_1-configuration-reference.md` はここを参照します。
+
 | モデル | ファイル名 |
 |---|---|
 | multilingual-e5-small (埋め込み) | multilingual-e5-small-Q8_0.gguf |

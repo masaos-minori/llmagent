@@ -116,6 +116,8 @@ MCP設定、承認設定、観測設定の構造と制約について文書化�
 - `05_agent_08_02_configuration-llm-rag.md`
 - `05_agent_08_03_configuration-tools-memory.md`
 - `05_agent_09_01_data-layer-session-db.md`
+- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
+- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
 
 ## Keywords
 

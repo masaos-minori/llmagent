@@ -22,6 +22,16 @@ agent 層（`agent/`、`shared/`）における既知の不具合、仕様の矛
 - 「コード差分メモ」「ファイルX行Yで確認」のような機械的なマッピングは削除する（コードから機械的に導出可能な情報はソースを指すだけで十分）
 - 運用判断は絶対に落とさない。不明な場合は保持して人間レビュー対象としてマークする
 
+## 5-Tier Scheme Exception Rationale
+
+This document retains its 5-tier classification scheme (Design Decision / Implementation Bug / Documentation Gap / Needs Confirmation / Operational Observation) as an intentional, documented area-specific exception to the common 17-field Known Issues template (`00_governance_04_known-issues-template.md`).
+
+**Rationale:** The 5-tier scheme serves a distinct classification purpose not directly expressible by the common template's Status/Type fields. Specifically, it separates "confirmed design decision" (意図的な設計判断) from "active defect" (実装上の不具合) at a granularity that the common template's Status (open/resolved/deferred) and Type (implementation-bug/documentation-gap/design-gap/operational-gap) fields do not directly express. The common template conflates "this is a known and accepted design choice" with "this is an acknowledged bug awaiting fix," whereas the Agent document's domain-specific workflow benefits from keeping these semantically distinct.
+
+**Current state:** This document currently has zero open entries to migrate (all historical items resolved or reclassified). The 5-tier scheme adds zero maintenance overhead in its current state.
+
+**Future consideration:** If the common template evolves to include a "Design Decision" type or equivalent discriminator, re-evaluation of this exception may be warranted. Until then, the 5-tier scheme remains the canonical classification for Agent-known-issues.
+
 ## Responsibility Boundary
 
 - このファイルが所有するもの: agent 層の既知の不整合カタログ（5段階分類付き）

@@ -32,4 +32,4 @@ jobs:
       - name: Run RAG docs consistency checks
         run: |
           set -euo pipefail
-          python tools/check_rag_docs_consistency.py
+          python tools/check_docs_consistency.py --domain rag

@@ -65,7 +65,7 @@ crawler / chunk_splitter / ingester / rag-pipeline-mcpはそれぞれ独立し�
 | `sqlite_timeout` | `30` | SQLite接続タイムアウト (秒) |
 | `sqlite_busy_timeout_ms` | `30000` | SQLite busyタイムアウト (ミリ秒) |
 | `embed_url` | `http://127.0.0.1:8081/embedding` | 埋め込みAPIのエンドポイント |
-| `embedding_dims` | `384` | float32埋め込みベクトルの次元数 (モデルと一致必須: all-MiniLM-L6-v2 = 384) |
+| `embedding_dims` | `384` | float32埋め込みベクトルの次元数 (モデルと一致必須: 正典モデル名は [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得) 参照) |
 | `embed_retry` | `3` | 埋め込みAPIの再試行上限 (指数バックオフ) |
 | `embed_workers` | `4` | 並列埋め込み用の`ThreadPoolExecutor`スレッド数 |
 

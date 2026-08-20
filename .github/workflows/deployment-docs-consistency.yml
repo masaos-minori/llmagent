@@ -36,4 +36,4 @@ jobs:
       - name: Run Deployment docs consistency checks
         run: |
           set -euo pipefail
-          python tools/check_deployment_docs_consistency.py
+          python tools/check_docs_consistency.py --domain deployment

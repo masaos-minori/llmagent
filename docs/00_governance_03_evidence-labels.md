@@ -90,20 +90,91 @@ When uncertain which label applies:
 - Record the ambiguity in the label's Notes field.
 - Flag for periodic review rather than immediate correction.
 
-## Non-Goals
+## Standard Evidence Block
 
-- Defining how to implement evidence labeling in tooling
-- Specifying label transition workflows between states
-- Requiring all statements to carry an evidence label
+When documenting implementation evidence, use the following standardized block format to ensure consistency and traceability across all documentation.
 
-## Related Governance Documents
+### Fields
+- **Evidence label** — One of the seven labels defined above
+- **Source module or document** — File path or document title where the claim originates
+- **Symbol or section** — Specific function, class, section, or line number referenced
+- **Test identifier** — Test file/method that verifies the claim (if applicable)
+- **Verification date** — Date when the evidence was last confirmed
+- **Notes** — Additional context, caveats, or related references
 
-Cross-cutting documentation rules and policies:
+---
 
-- [Documentation Governance](00_governance_01_documentation-governance.md)
-- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
-- [Known Issues Template](00_governance_04_known-issues-template.md)
-- [Deprecated Items](00_governance_05_deprecated-items.md)
-- [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
-- [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
-- [Terminology Glossary](00_governance_09_terminology-glossary.md)
+### Explicit in code
+**Example:**
+- **Evidence label**: Explicit in code
+- **Source module or document**: `scripts/agent/config_builders.py`
+- **Symbol or section**: `build_agent_config()` function, lines 478-497
+- **Test identifier**: `tests/agent/test_config_builders.py::TestBuildAgentConfig::test_returns_agent_config_instance`
+- **Verification date**: 2026-08-19
+- **Notes**: Directly observable in source code; reload path reuses same builder
+
+---
+
+### Strongly implied by code
+**Example:**
+- **Evidence label**: Strongly implied by code
+- **Source module or document**: `scripts/agent/workflow/workflow_engine.py`
+- **Symbol or section**: `WorkflowEngine.process_tasks()` method
+- **Test identifier**: `tests/agent/test_workflow_engine.py::TestWorkflowEngine::test_sequential_execution`
+- **Verification date**: 2026-08-19
+- **Notes**: Inferred from task queue implementation and sequential processing pattern
+
+---
+
+### Documentation only
+**Example:**
+- **Evidence label**: Documentation only
+- **Source module or document**: `docs/05_agent_08_04_configuration-mcp-approval-obs.md`
+- **Symbol or section**: §診断設定, `retention_days` parameter
+- **Test identifier**: N/A
+- **Verification date**: 2026-08-19
+- **Notes**: Stated in docs but not verified against current code; treat as lower confidence
+
+---
+
+### Needs confirmation
+**Example:**
+- **Evidence label**: Needs confirmation
+- **Source module or document**: `docs/04_mcp_04_05_git.md`
+- **Symbol or section**: Line 89, protected-branch/force-push limits question
+- **Test identifier**: N/A
+- **Verification date**: 2026-08-19
+- **Notes**: Whether absence of extra guards beyond `is_write` for git_checkout/git_pull/git_push is intentional. Registered as NC-018 in needs-confirmation inventory.
+
+---
+
+### Deprecated
+**Example:**
+- **Evidence label**: Deprecated
+- **Source module or document**: `scripts/rag/models_audit.py`
+- **Symbol or section**: `AuditLogRecord` / `ApprovalDecision` classes (removed)
+- **Test identifier**: N/A
+- **Verification date**: 2026-07-29
+- **Notes**: Confirmed zero production callers via full-repo grep; classes removed. See NC-005 resolution.
+
+---
+
+### Verified by test
+**Example:**
+- **Evidence label**: Verified by test
+- **Source module or document**: `scripts/agent/memory/jsonl_store.py`
+- **Symbol or section**: `JsonlMemoryStore.read_all()` method
+- **Test identifier**: `tests/agent/memory/test_jsonl_store.py::TestJsonlMemoryStore::test_read_all_returns_all_entries`
+- **Verification date**: 2026-08-19
+- **Notes**: Test coverage exists and passes for the described behavior
+
+---
+
+### Operationally observed
+**Example:**
+- **Evidence label**: Operationally observed
+- **Source module or document**: `scripts/agent/diagnostic_store.py`
+- **Symbol or section**: `DiagnosticStore.save(encrypt=True)` path
+- **Test identifier**: `tests/agent/test_diagnostic_store.py::TestEncryption::test_save_encrypt_true_with_configured_key`
+- **Verification date**: 2026-08-19
+- **Notes**: Derived from operational metrics and test verification of encryption round-trip

@@ -117,6 +117,7 @@ source:
 
 - [03_rag_04_01_dto-models_data.md](03_rag_04_01_dto-models_data.md)
 - [03_rag_00_document-guide.md](03_rag_00_document-guide.md)
+- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
 
 ## Keywords
 

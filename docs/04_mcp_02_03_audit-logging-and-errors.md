@@ -101,6 +101,7 @@ result = await dispatch_tool(dispatch_table, name, args)
 - `04_mcp_00_document-guide.md`
 - `04_mcp_02_01_endpoints-and-transport.md`
 - `04_mcp_02_02_startup-modes-and-health.md`
+- `00_security_01_architecture-and-trust-boundaries.md` — システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル / 認証認可 / 監査 / ローカルvs本番 / Fail-open/Fail-closed / プロンプトインジェクション責任境界
 
 ## Keywords
 

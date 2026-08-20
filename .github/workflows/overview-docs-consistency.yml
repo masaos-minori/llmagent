@@ -32,4 +32,4 @@ jobs:
       - name: Run Overview docs consistency checks
         run: |
           set -euo pipefail
-          python tools/check_overview_docs_consistency.py
+          python tools/check_docs_consistency.py --domain overview

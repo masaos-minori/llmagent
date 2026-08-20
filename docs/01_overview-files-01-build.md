@@ -28,8 +28,8 @@ related:
 /opt/llm/
 ├─ llama.cpp/                                 # llama.cpp ソース・ビルド成果物
 ├─ models/
-│   ├─ Qwen3.6-Instruct-Q4_K_M.gguf           # チャット/コード生成用 LLM (MQE・再ランク兼用, :8080)
-│   └─ multilingual-E5-small.gguf             # 埋込用 LLM (384 次元, :8081)
+│   ├─ (chat LLM)  # 正典ファイル名は [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得) 参照
+│   └─ (embedding LLM)  # 正典ファイル名は [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得) 参照
 ```
 
 デプロイスクリプト (リポジトリ `deploy/` 配下、`bash deploy/xxx.sh` で実行):

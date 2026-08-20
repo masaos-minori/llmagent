@@ -29,6 +29,19 @@ source:
 **クエリパラメータ**: `event_id`(必須)
 **レスポンス**: 成功時は `{event_id, delivery_failure_count}`。404 はイベント未発見。
 
+### NACK 側状態遷移行
+
+以下は NACK 操作に対する現在のコード挙動です。ACK 側の行（初回 ACK、重複 ACK、NACK 後 ACK 等）は `docs/06_eventbus_02_02_subscribe-ack.md` を参照してください。
+
+| シナリオ | 現在のコード挙動 | HTTP ステータス | レスポンスボディ | 永続化への副作用 |
+|---|---|---|---|---|
+| 初回 NACK | `nack_event` が `delivery_failure_count` を 0→1 に増加（以上） | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` 増加；`>= max_retry` で DLQ 昇格 |
+| 重複 NACK | `nack_event` に冪等性ガードなし；呼び出し毎に `delivery_failure_count` 再増加 | 200 | `{event_id, delivery_failure_count}` | カウンタが増加し続け、後続の重複呼び出しで DLQ 昇格を誘発する可能性 — **実装修正必要** |
+| ACK 後 NACK | `nack_event` に `acked_at` チェックなし | 200 | `{event_id, delivery_failure_count}` | 既に ACK 済みでも NACK が「成功」し `delivery_failure_count` 増加 — **実装修正必要** |
+| 不明なイベント ID (NACK) | `nack_event` が `-1` を返す | 404 | `ERR_EVENT_NOT_FOUND` | なし |
+
+> ACK 側の遷移行（初回 ACK、重複 ACK、NACK 後 ACK、不明なイベント ID ACK、同時 ACK/NACK、コンシューマミスマッチ）については `docs/06_eventbus_02_02_subscribe-ack.md` を参照してください。
+
 ---
 
 ## GET /health

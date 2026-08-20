@@ -130,6 +130,7 @@ source:
 - `05_agent_06_01_tool-execution-and-approval-execution.md`
 - `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md`
 - `05_agent_06_04_tool-execution-and-approval-canonical.md`
+- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (承認-リスクティアマッピング)
 
 ## Keywords
 

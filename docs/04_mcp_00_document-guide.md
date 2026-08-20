@@ -109,6 +109,8 @@ MCPドキュメント群のエントリポイントとして、どの章を開�
 | [04_mcp_06_15_new-mcp-server-addition-checklist.md](04_mcp_06_15_new-mcp-server-addition-checklist.md) | 新規サーバ追加チェックリスト |
 | [04_mcp_06_16_pre-production-fail-open-checklist.md](04_mcp_06_16_pre-production-fail-open-checklist.md) | 本番投入前チェックリスト |
 | [04_mcp_06_17_local-to-production-auth-migration.md](04_mcp_06_17_local-to-production-auth-migration.md) | 認証移行 |
+| [00_security_01_architecture-and-trust-boundaries.md](00_security_01_architecture-and-trust-boundaries.md) | システムセキュリティアーキテクチャ / 信頼境界 / 脅威モデル (canonical cross-cutting source) |
+| [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) | 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング) |
 | [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | スキーマエクスポート |
 | [04_mcp_08_tool_capability_naming_convention.md](04_mcp_08_tool_capability_naming_convention.md) | capability命名規則 |
 | ~~04_mcp_07_mdq_rag_boundary.md~~ | 削除済み |

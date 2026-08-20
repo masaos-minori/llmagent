@@ -232,6 +232,7 @@ workflow_allowlist = [
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `04_mcp_05_04_mdq-rag-boundary.md`
 - `04_mcp_05_05_mdq-enforcement-and-lockdown.md`
+- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
 
 ## Keywords
 

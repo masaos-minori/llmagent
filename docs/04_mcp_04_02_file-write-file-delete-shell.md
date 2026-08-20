@@ -139,6 +139,7 @@ related:
 - `04_mcp_04_03_rag-pipeline-and-cicd.md`
 - `04_mcp_04_04_mdq.md`
 - `04_mcp_04_05_git.md`
+- `00_security_02_high-risk-tool-common-policy.md` — 高リスクMCPツール共通ポリシー (パス/リポ許可リスト, トラバーサル防止, 承認-リスクティアマッピング)
 
 ## Keywords
 

@@ -111,6 +111,9 @@ related:
 | tool_cache.py (_CacheEntry LRU cache) | `05_agent_08_01_configuration-loading-agent-config.md` |
 | TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `04_mcp_03_01_dispatch-and-routing.md` + `04_mcp_06_02_configuration-file-inventory.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `04_mcp_05_01_access-control-and-allowlists.md` |
+|---|---|
+| System security architecture / trust boundaries / threat model | `00_security_01_architecture-and-trust-boundaries.md` |
+| High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `00_security_02_high-risk-tool-common-policy.md` |
 | Any MCP server (catalog only) | `04_mcp_04_01_web-search-file-read-github.md` |
 | mdq-mcp specifics | `04_mcp_04_04_mdq.md` + `04_mcp_90_inconsistencies_and_known_issues.md` |
 | MCP known bugs / inconsistencies | `04_mcp_90_inconsistencies_and_known_issues.md` |
