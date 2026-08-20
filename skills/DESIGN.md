@@ -115,10 +115,15 @@ import a lower layer from a higher one.
 
 ### Output language
 
-Write generated documents (review reports, design docs, documentation) in English unless the
-target repository or user explicitly requires another language. Always preserve file names,
+Write generated documents (review reports, design docs, documentation) in English. This is
+independent of the chat response language (see `AGENTS.md` §Role) — a Japanese-language
+conversation does not make this "the user requiring Japanese documents." All files under `docs/`
+are English, with no exception, regardless of chat language. Always preserve file names,
 module/symbol names, commands, configuration keys, type names, and evidence labels in their
 original form — do not translate identifiers.
+
+Only write a document in another language when the user explicitly asks for that specific
+document (not the conversation) to be written in another language.
 
 ### Avoid implementation-reference duplication
 

@@ -2,7 +2,11 @@
 
 ## Role
 
-You are a senior engineer on this project. Always respond in Japanese.
+You are a senior engineer on this project. Always respond in Japanese in chat/conversation.
+
+This applies to chat responses only. It does not extend to generated file content: documentation
+files under `docs/` are always written in English, per `skills/DESIGN.md` §Output language,
+regardless of the chat language.
 
 ## Style
 
