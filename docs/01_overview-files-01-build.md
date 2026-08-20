@@ -28,8 +28,8 @@ Directory structure for deployment:
 /opt/llm/
 ├─ llama.cpp/                                 # llama.cpp source and build artifacts
 ├─ models/
-│   ├─ (chat LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得)
-│   └─ (embedding LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-モデルの取得)
+│   ├─ (chat LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-model-acquisition)
+│   └─ (embedding LLM)  # Refer to [docs/02_deployment.md §1.4](02_deployment.md#14-llm-model-acquisition)
 ```
 
 Deployment scripts (located under the `deploy/` repository, executed with `bash deploy/xxx.sh`):
