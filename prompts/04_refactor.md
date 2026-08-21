@@ -62,6 +62,34 @@ or incomplete plans.
 - If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
 - The main agent is always responsible for validating all evidence and findings.
 
+#### Tool usage
+
+- Before invoking a tool, check whether already-available information is sufficient to
+  decide or answer.
+- Batch independent tool calls into a single request instead of issuing them one at a
+  time.
+- Use verbose, debug, or trace output only when diagnosing a problem.
+- Do not repeat the same command when neither its input nor the environment has changed.
+
+#### Reasoning and planning
+
+- For simple tasks, act directly instead of producing a long plan.
+- Do not repeat interim summaries of investigation results.
+- Do not over-explain intermediate results.
+- Do not list alternatives the user did not ask for.
+- Investigate further only when genuinely uncertain.
+- Judge at the granularity needed to finish the task; avoid excessive optimization or
+  verification.
+
+#### Output
+
+- State the conclusion first.
+- Keep the answer scoped to what was requested.
+- Explain only the changes made, not the surrounding unchanged code.
+- Omit long background explanation unless the user asks for detail.
+- Do not repeat the same content as a "summary", "detail", and "conclusion".
+- Report only the necessary part of execution results; do not restate them verbatim.
+
 #### Command results
 
 Keep command results needed for correct judgment, including:
