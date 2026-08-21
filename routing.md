@@ -35,6 +35,34 @@ Test scripts live under `tests/` (mirroring `scripts/` structure, e.g. `tests/ag
 
 Scripts in `tools/` for one-off operations on source code or documentation. Not triggered by routing; AI invokes these during investigation or refactoring tasks. See `tools/TOOL_DESCRIPTIONS.md` for details.
 
+### When to run which tool
+
+Run the applicable checker below instead of relying on manual review alone — these scripts already
+encode the project's structural/consistency rules. Run before finishing the task, not only when a
+problem is suspected; several of these gaps (stale claims, unregistered NC markers, drifted
+descriptions) are invisible from reading the changed file alone.
+
+| Situation | Run | Notes |
+|---|---|---|
+| Any `docs/*.md` file was added or edited | `uv run python tools/check_doc_quality.py` | Structural/formatting rules (headings, tables, code fences, Migration Notes placement) |
+| Any `docs/*.md` file was added or edited | `uv run python tools/validate_docs_structure.py [glob ...]` | File size, H1 count, Front Matter, Related Documents/Keywords sections, internal link reachability |
+| Docs touched a specific domain (`agent`\|`mcp`\|`rag`\|`deployment`\|`overview`) | `uv run python tools/check_docs_consistency.py --domain <domain>` | Cross-checks doc claims (ports, config keys, symbol references) against `config/agent.toml` and `scripts/` |
+| A "Needs confirmation" marker was added, resolved, or removed anywhere under `docs/` | `uv run python tools/check_needs_confirmation_inventory.py` | Register new markers in `docs/00_governance_07_needs-confirmation-inventory.md`; remove the inline marker from the source doc once an entry is marked resolved |
+| A file was added to or removed from `tools/` | `uv run python tools/check_tool_descriptions_sync.py` | Update `tools/TOOL_DESCRIPTIONS.md` in the same change — do not leave a tool undocumented or a description referring to a deleted file |
+| Claiming no backward-compat shims remain in `scripts/`, `docs/`, `tests/`, or `tools/` | `uv run python tools/check_no_compat.py` | |
+| A `# noqa` / `# type: ignore` / `# nosec` suppression was added | `uv run python tools/check_suppression_justification.py` | Requires a rule/error code plus an em-dash-separated justification |
+| Need the current MCP port/tool reference table | `uv run python tools/gen_reference_table.py --type mcp` | Add `--dry-run` to preview without writing; omit it to refresh the `<!-- AUTO-GENERATED -->` block in place |
+| Need the current RAG config reference table | `uv run python tools/gen_reference_table.py --type rag` | Same `--dry-run` behavior as above |
+| Need the current DB path/config-key reference table | `uv run python tools/gen_reference_table.py --type deployment` | Same `--dry-run` behavior as above |
+| Need the current MCP server inventory (transport, startup mode, tool names) | `uv run python tools/generate_mcp_inventory.py --format json\|csv` | Reads live `config/agent.toml`, not a doc snapshot |
+| A module-level docstring header path may be stale after a file move | `uv run python tools/fix_scripts_docstring_paths.py --dry-run` | Add `--apply` only after reviewing the dry-run diff |
+| Docstring format needs verification (not repair) after touching `scripts/` | `uv run python tools/check_all_docstrings.py` | Read-only — does not add or fix docstrings |
+| Front Matter is missing or a list field has duplicate entries in `docs/*.md` | `uv run python tools/manage_frontmatter.py add-missing\|dedupe-lists` | |
+| Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` §Output language) | `uv run python tools/detect_japanese.py` | |
+
+Do not write a new one-off script for something this list already covers — extend the existing tool
+instead (see AGENTS.md Global Rule 6 for when a *new* script is warranted).
+
 ## Workflow files
 
 Invoke directly by filename. Not triggered by routing.
