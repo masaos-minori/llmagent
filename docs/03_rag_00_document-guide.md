@@ -15,7 +15,6 @@ related:
   - 03_rag_05_1-configuration-reference.md
   - 03_rag_90_inconsistencies_and_known_issues.md
   - 03_rag_91_design_notes.md
-  - 03_rag_91_design_notes.md
 ---
 
 # RAG Documentation Guide
@@ -132,6 +131,13 @@ Cross-cutting documentation rules and policies:
 - `03_rag_05_1-configuration-reference.md`
 - `03_rag_90_inconsistencies_and_known_issues.md`
 - `03_rag_91_design_notes.md`
+
+## Related ADRs
+
+- [ADR-005](adr/ADR-005-rag-source-derived-index-relationships.md) — RAGの正本と派生インデックスの関係
+- [ADR-008](adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+- [ADR-009](adr/ADR-009-rag-ft5-text-separation.md) — RAGのFTS5検索用テキストとLLM提示用テキスト分離
+- [ADR-010](adr/ADR-010-rag-fallback.md) — RAGの外部実行失敗時のインプロセスフォールバック
 
 ## Keywords
 

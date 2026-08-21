@@ -52,6 +52,11 @@ Cross-cutting documentation rules and policies:
 - [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
 - [Terminology Glossary](00_governance_09_terminology-glossary.md)
 
+## Related ADRs
+
+- [ADR-006](adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBusのSQLite永続化とSSE配信方式
+- [ADR-008](adr/ADR-008-sqlite-4db-separation.md) — SQLiteを4DBへ分離する
+
 ## Related Documents
 
 - `06_eventbus_01_system-overview.md`

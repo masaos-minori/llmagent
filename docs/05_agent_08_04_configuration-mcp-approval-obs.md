@@ -36,7 +36,7 @@ Documents the structure and constraints of MCP, Approval, and Observability conf
 
 #### Process Isolation
 
-Each MCP server is an independent process that only reads its own configuration file.
+Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../adr/ADR-002-config-isolation.md)
 
 ### Approval Configuration
 

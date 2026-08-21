@@ -129,3 +129,20 @@ is_side_effect(tool_name: str) -> bool
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 - `04_mcp_07_tool_schema_export_policy.md`
+- [ADR-003](../adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](../adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+
+## Keywords
+
+mcp
+routing
+ToolRegistry
+tool cache
+ToolResultCache
+ToolSpec
+concurrency limits
+side effect detection
+routing drift
+tool safety tiers
+RuntimeToolRegistry
+McpToolDiscoveryService

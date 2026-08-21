@@ -60,6 +60,10 @@ The value of this document is navigation logic — human-curated guidance on whi
 - [Terminology Glossary](00_governance_09_terminology-glossary.md)
 - [ADR Index](00_governance_11_adr-index.md)
 
+### Related ADRs
+- [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化
+- [ADR-004](adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+
 ### Query Routing Table
 
 | Question | File |

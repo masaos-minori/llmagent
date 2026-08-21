@@ -65,7 +65,7 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operate
 | ingester | `config/ingester.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-Details → [90_shared_03 section 2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#process-isolation-policy-config-isolation)
+Details → [ADR-002](adr/ADR-002-config-isolation.md) / [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 The following table contains representative examples; the exact number and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 

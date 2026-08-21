@@ -205,3 +205,18 @@ Data for drift detection regarding MCP tool definitions and ownership. Not used 
 - `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
+- [ADR-003](../adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](../adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+
+## Keywords
+
+mcp
+routing
+lifecycle
+ToolRouteResolver
+ToolRegistry
+tool dispatch
+routing drift
+stampede protection
+startup_mode gate
+HALF_OPEN trial dispatch

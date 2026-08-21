@@ -22,11 +22,130 @@ This document indexes all Architecture Decision Records (ADRs) in the project. E
 | ADR | Title | Status | Date | Location |
 |-----|-------|--------|------|----------|
 | ADR-001 | Workflow Engine必須化 | Proposed | 2026-08-20 | [adr/ADR-001-workflow-engine-mandatory.md](adr/ADR-001-workflow-engine-mandatory.md) |
-| ADR-002 | Database Corruption Recovery Safety Boundary | Proposed | 2026-08-21 | [adr/ADR-002-database-corruption-recovery-safety-boundary.md](adr/ADR-002-database-corruption-recovery-safety-boundary.md) |
-| ADR-003 | Git MCP Server-Side Write Enforcement | Proposed | 2026-08-21 | [adr/ADR-003-git-mcp-server-side-write-enforcement.md](adr/ADR-003-git-mcp-server-side-write-enforcement.md) |
-| ADR-004 | MCP Tool Availability Model | Proposed | 2026-08-21 | [adr/ADR-004-mcp-tool-availability-model.md](adr/ADR-004-mcp-tool-availability-model.md) |
+| ADR-002 | プロセス単位の設定所有権とConfig Isolation | Accepted | 2026-08-20 | [adr/ADR-002-config-isolation.md](adr/ADR-002-config-isolation.md) |
+| ADR-003 | RuntimeToolRegistryを唯一のルーティング権威とする | Accepted | 2026-08-21 | [adr/ADR-003-runtime-tool-registry-routing-authority.md](adr/ADR-003-runtime-tool-registry-routing-authority.md) |
+| ADR-004 | Environment Profile別障害方針 — Fail-Fast/Fail-Open | Proposed | 2026-08-21 | [adr/ADR-004-environment-profile-fail-fast-fail-open.md](adr/ADR-004-environment-profile-fail-fast-fail-open.md) |
+| ADR-005 | RAGの正本と派生インデックスの関係 | Accepted | 2026-08-21 | [adr/ADR-005-rag-source-derived-index-relationships.md](adr/ADR-005-rag-source-derived-index-relationships.md) |
+| ADR-006 | EventBusのSQLite永続化とSSE配信方式 | Accepted | 2026-08-21 | [adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md](adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) |
+| ADR-007 | HTTP MCP採用とstdio非サポート | Accepted | 2026-08-21 | [adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md](adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) |
+| ADR-008 | SQLiteを4DBへ分離する | Accepted | 2026-08-21 | [adr/ADR-008-sqlite-4db-separation.md](adr/ADR-008-sqlite-4db-separation.md) |
+| ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | 2026-08-21 | [adr/ADR-009-rag-ft5-text-separation.md](adr/ADR-009-rag-ft5-text-separation.md) |
+| ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | 2026-08-21 | [adr/ADR-010-rag-fallback.md](adr/ADR-010-rag-fallback.md) |
 
-**Numbering note:** ADR-001's own body lists aspirational future ADR numbers ("ADR-002: ワークフロー定義ファイルのスキーマ設計", "ADR-003: ワークフロー監視・メトリクス設計") that were never registered in this index. Per the numbering rule below (next available number, incremented from the highest *registered* ADR), ADR-002 through ADR-004 above were assigned to the decisions in this update instead. If the workflow-schema and workflow-monitoring ADRs are written later, they MUST take the next available numbers (ADR-005+), and ADR-001's body should be corrected to drop the stale forward references.
+## Detailed ADR Registry
+
+### ADR-001: Workflow Engine必須化
+
+- **Status**: Proposed
+- **Decision Scope**: system
+- **Owner**: agent-team
+- **Last Updated**: 2026-08-20
+- **Related Areas**: Agent
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-003, ADR-004
+
+### ADR-002: プロセス単位の設定所有権とConfig Isolation
+
+- **Status**: Accepted
+- **Decision Scope**: system
+- **Owner**: platform-team
+- **Last Updated**: 2026-08-20
+- **Related Areas**: Agent, MCP, RAG, EventBus
+- **Supersedes**: —
+- **Related ADRs**: ADR-001, ADR-003, ADR-004, ADR-005, ADR-006, ADR-007, ADR-008, ADR-009, ADR-010
+
+### ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする
+
+- **Status**: Accepted
+- **Decision Scope**: system
+- **Owner**: mcp-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: MCP
+- **Supersedes**: —
+- **Related ADRs**: ADR-001, ADR-002, ADR-004, ADR-007
+
+### ADR-004: Environment Profile別障害方針 — Fail-Fast/Fail-Open
+
+- **Status**: Proposed
+- **Decision Scope**: system
+- **Owner**: platform-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: Agent, MCP, RAG, EventBus, Deployment
+- **Supersedes**: —
+- **Related ADRs**: ADR-001, ADR-002, ADR-003, ADR-007, ADR-010
+
+### ADR-005: RAGの正本と派生インデックスの関係
+
+- **Status**: Accepted
+- **Decision Scope**: rag
+- **Owner**: rag-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: RAG
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-008, ADR-009, ADR-010
+
+### ADR-006: EventBusのSQLite永続化とSSE配信方式
+
+- **Status**: Accepted
+- **Decision Scope**: eventbus
+- **Owner**: eventbus-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: EventBus
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-008
+
+### ADR-007: HTTP MCP採用とstdio非サポート
+
+- **Status**: Accepted
+- **Decision Scope**: mcp
+- **Owner**: mcp-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: MCP
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-003, ADR-004
+
+### ADR-008: SQLiteを4DBへ分離する
+
+- **Status**: Accepted
+- **Decision Scope**: system
+- **Owner**: platform-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: Shared/DB, Agent, RAG, EventBus
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-005, ADR-006, ADR-009, ADR-010
+
+### ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離
+
+- **Status**: Accepted
+- **Decision Scope**: rag
+- **Owner**: rag-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: RAG
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-005, ADR-008
+
+### ADR-010: RAGの外部実行失敗時のインプロセスフォールバック
+
+- **Status**: Accepted
+- **Decision Scope**: rag
+- **Owner**: rag-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: RAG
+- **Supersedes**: —
+- **Related ADRs**: ADR-002, ADR-004, ADR-005, ADR-008
+
+## ADR Dependency Graph
+
+```text
+ADR-001 → ADR-004 → ADR-008
+ADR-002 → ADR-001, ADR-003, ADR-005, ADR-006, ADR-007, ADR-008, ADR-009, ADR-010
+ADR-003 → ADR-004, ADR-007
+ADR-005 → ADR-008, ADR-009, ADR-010
+ADR-006 → ADR-008
+ADR-007 → ADR-004
+ADR-009 → ADR-005
+ADR-010 → ADR-004
+```
 
 ## Creating New ADRs
 

@@ -173,6 +173,9 @@ Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kep
 - `04_mcp_07_tool_schema_export_policy.md`
 - `04_mcp_08_tool_capability_naming_convention.md`
 - `04_mcp_90_inconsistencies_and_known_issues.md`
+- [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
+- [ADR-004](adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+- [ADR-007](adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
 
 ## Keywords
 
