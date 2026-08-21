@@ -52,9 +52,11 @@ Do not perform any of the following as part of this workflow:
 
 - Read shared files in Step 0 only once per session; do not re-read them for later
   cycles.
-- In Step 3, check "already implemented" status by matching `target_file_name` against
-  file names under `implementations/` and `implementations/done/`; do not read the
-  contents of those files.
+- In Step 3, check "already implemented" status by first matching `target_file_name`
+  against file names under `implementations/` and `implementations/done/` as a cheap
+  filter; only when a name matches, read that matched file's content (not the full
+  target source file) to confirm its stated scope actually covers the current item
+  before deciding to skip.
 - In Step 3, delegate the per-item investigation (reading the related source file to
   write Method/Details) to a read-only sub-agent, and read only the relevant sections of
   the target source file (locate them with grep first, then read a limited range) rather
@@ -120,8 +122,12 @@ broader template; do not produce its full 12-section architecture output here.
 For each item in `Implementation steps`:
 
 - `target_file_name` is the name of the file that item implements and tests.
-- Check whether the item has already been implemented: it is considered already implemented if a corresponding file exists under `implementations/` or `implementations/done/`.
-- If already implemented, skip this item.
+- Check whether the item has already been implemented:
+  - First, look for a corresponding file name under `implementations/` or `implementations/done/` (matching `target_file_name`). If none exists, it is not yet implemented.
+  - If a name match is found, read the matched file's content and confirm its `Implementation` / `Target file` scope actually covers the current item (same target file, same goal). Do not decide "already implemented" from the file name alone.
+  - If the content confirms the same scope, treat it as already implemented.
+  - If the content covers a different scope, an outdated goal, or only partially overlaps, treat it as NOT already implemented — proceed to create a new document, and note the discrepancy against the matched file in the progress report.
+- If already implemented (per the content check above), skip this item.
 - If not yet implemented, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document.
   - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
