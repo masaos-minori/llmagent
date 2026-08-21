@@ -31,7 +31,7 @@ Five areas' Known Issues documents to investigate:
 
 ### RAG (`03_rag_90`)
 
-- Entry count: 2 entries (both DESIGN-2 and DESIGN-3 are confirmed design decisions)
+- Entry count: 2 entries (both migrated to ADRs: DESIGN-2→ADR-009, DESIGN-3→ADR-005)
 - Severity classification: None
 - Type classification: Uses "Confirmed Design Decision" type
 - Status classification: None

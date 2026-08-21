@@ -35,7 +35,7 @@ See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py
 1. First, explicitly delete rows from `chunks_vec` (the embedding vectors corresponding to the document's chunks).
 2. Delete the row from `documents` (`ON DELETE CASCADE` handles the cascading deletion of `chunks` rows, which in turn triggers synchronization of `chunks_fts`).
 
-This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see `docs/03_rag_91_design_notes.md` DESIGN-3 for details).
+This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see [ADR-005](../adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 
 ```python
 # Order matters — chunks_vec before documents (CASCADE removes chunks)

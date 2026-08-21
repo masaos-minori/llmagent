@@ -51,12 +51,7 @@ No constructor (inherits from `PipelineStage`).
 - Sanitizes content using `rag.utils.sanitize_document(c.content)` before formatting
 - If `reranked` is empty, returns `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]`
 
-**Content-only Invariance Rule (DESIGN-2):** AugmentStage only formats `content` and never uses `normalized_content`.
-
-- `chunks.content` is the original chunk text and is the **only** text used as LLM context
-- `chunks.normalized_content` is Sudachi-normalized Japanese text used **exclusively** for FTS5 search indexing; it must not appear in the LLM context
-- Replacing `content` with `normalized_content` degrades LLM context quality (Sudachi-normalized text loses original readability)
-- RAG context blocks must always contain the original readable chunk text
+**Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. See [ADR-009](../adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, and tradeoffs.
 
 #### RefineResult dataclass (`scripts/rag/pipeline_refiner.py`)
 
