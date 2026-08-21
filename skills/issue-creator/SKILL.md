@@ -12,9 +12,9 @@ description: |
 
 Create issues only. Do not implement, refactor, or edit project files unless the user explicitly asks for implementation.
 
-Exception to `skills/DESIGN.md` §Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that requirement inside the issue.
+Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that requirement inside the issue.
 
-See `workflow.md` §Phase 9 for markdown-safety rules.
+See `workflow.md` Phase 9 for markdown-safety rules.
 
 ## When to use
 
@@ -69,7 +69,7 @@ rules, markdown safety rules, and the final checklist.
 - Acceptance criteria must be concrete and verifiable.
 - Out-of-scope items must be explicit.
 - Testing expectations must be included when code behavior may change.
-- Documentation-related issues must follow `skills/DESIGN.md` §Avoid implementation-reference duplication.
+- Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication.
 - Do not include secrets, credentials, private tokens, or sensitive data.
 
 ---

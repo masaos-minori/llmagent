@@ -10,7 +10,7 @@
 | Context Compression (HistoryManager) | `/stats` shows `Compress: N > 0`. Agent log: `INFO History compressed: %s messages summarized` | Increase `context_char_limit` or reduce context size. |
 | Max Tool Turns Reached | Agent log: `WARNING Reached max_tool_turns=%s` | Increase `max_tool_turns` in `config/agent.toml`. |
 
-For the formal partial completion model, see [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md).
+For the formal partial completion model, see [05_agent_03 Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md).
 
 **Implementation Notes:**
 - The actual display label for `/stats` is `Partial compl : N` (or `Partial compl : 0` when zero), not exactly `partials > 0`. If there is at least one, it appends `(stored in session_diagnostics)`.

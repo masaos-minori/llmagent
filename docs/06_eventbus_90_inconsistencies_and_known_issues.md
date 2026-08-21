@@ -41,7 +41,7 @@ source:
 - **Related Issues**: EVENTBUS-002 (replay pagination), EVENTBUS-003 (DLQ dual path)
 - **Resolution Target**: No fix planned (operator workaround documented)
 - **Blocking**: No
-- **Evidence**: Explicit in code — write_offset() lacks max() check; docs/06_eventbus_02_02_subscribe-ack.md §Note on monotonicity confirms.
+- **Evidence**: Explicit in code — write_offset() lacks max() check; docs/06_eventbus_02_02_subscribe-ack.md Note on monotonicity confirms.
 
 ### EVENTBUS-002: /replay?format=json Pagination Format
 

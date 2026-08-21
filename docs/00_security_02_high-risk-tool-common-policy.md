@@ -78,10 +78,10 @@ All high-risk tools that access filesystem or remote resources use a fail-closed
 Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 
 - **Shell MCP**: `command_allowlist` in `config/shell_mcp_server.toml` — only listed command prefixes allowed (e.g., `ls`, `cat`, `grep`, `git log`, `git status`)
-- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `04_mcp_04_05_git.md` §Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see §Layered protection model below).
+- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `04_mcp_04_05_git.md` Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
-*Source: `04_mcp_05_01_access-control-and-allowlists.md` §Command Allowlist*
+*Source: `04_mcp_05_01_access-control-and-allowlists.md` Command Allowlist*
 
 ## Argument validation
 
@@ -119,7 +119,7 @@ This generalizes the symlink-traversal prevention language from the mdq docs to 
 
 ## Approval requirements mapped explicitly to risk tiers
 
-The following table reproduces the authoritative approval-to-risk-tier mapping from `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Risk Tier Classification:
+The following table reproduces the authoritative approval-to-risk-tier mapping from `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification:
 
 | Risk Tier | Description | Approval Required | Example Tools |
 |---|---|---|---|
@@ -130,7 +130,7 @@ The following table reproduces the authoritative approval-to-risk-tier mapping f
 
 **Cross-linked with approval-execution flow**: `05_agent_06_01_tool-execution-and-approval-execution.md` and `05_agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` §Risk Tier Classification*
+*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification*
 
 ## Audit fields
 
@@ -169,7 +169,7 @@ The following restrictions apply in production (`security_profile=production`):
 
 **Fail-closed by default** — all high-risk operations default to denial unless explicitly allowed by configuration and approval.
 
-This is cross-linked with `00_security_01_architecture-and-trust-boundaries.md` §Fail-open-vs-fail-closed behavior table.
+This is cross-linked with `00_security_01_architecture-and-trust-boundaries.md` Fail-open-vs-fail-closed behavior table.
 
 The fail-closed posture applies to:
 - Allowlist checks (empty = deny)
@@ -185,7 +185,7 @@ The fail-closed posture applies to:
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
 - **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
-- **Git MCP**: has no protected-branch policy and no technical Force Push block — the `branch`/`remote` arguments to `git_checkout`/`git_pull`/`git_push` are passed through without command-specific validation, which is an open gap, not a deviation covered by an additional restriction (documented in `04_mcp_04_05_git.md` §Command-specific guard status; tracked as a Known Issue).
+- **Git MCP**: has no protected-branch policy and no technical Force Push block — the `branch`/`remote` arguments to `git_checkout`/`git_pull`/`git_push` are passed through without command-specific validation, which is an open gap, not a deviation covered by an additional restriction (documented in `04_mcp_04_05_git.md` Command-specific guard status; tracked as a Known Issue).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `04_mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.

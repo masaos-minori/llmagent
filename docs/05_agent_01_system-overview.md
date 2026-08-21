@@ -91,7 +91,7 @@ MCP servers are called via HTTP POST `/v1/call_tool`.
 
 ### Slash Commands
 
-For the canonical command list, see [05_agent_07 §Slash Command Reference](05_agent_07_01_cli-and-commands-cli-reference.md). The source of truth is `scripts/agent/commands/command_defs_list.py`'s `_COMMANDS`. When adding commands, update both this summary and the full reference table in the canonical command chapter.
+For the canonical command list, see [05_agent_07 Slash Command Reference](05_agent_07_01_cli-and-commands-cli-reference.md). The source of truth is `scripts/agent/commands/command_defs_list.py`'s `_COMMANDS`. When adding commands, update both this summary and the full reference table in the canonical command chapter.
 
 ## Known Limitations
 

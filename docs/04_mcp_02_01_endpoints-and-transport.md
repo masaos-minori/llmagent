@@ -57,7 +57,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 | `server_key` | Log field | Agent router (`ToolRouteResolver`) | Agent dispatch logs, `ToolCallResult` |
 | `tool_name` | Log field | Agent router | Agent logs, server audit log |
 
-> For information on how to trace a single tool call across agent dispatch, transport, and MCP server logs, see [04_mcp_03 §End-to-End Tool Call Tracing](./04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
+> For information on how to trace a single tool call across agent dispatch, transport, and MCP server logs, see [04_mcp_03 End-to-End Tool Call Tracing](./04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
 
 ### Response
 

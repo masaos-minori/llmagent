@@ -22,9 +22,9 @@ Directory structure at deployment target:
 ├─ venv/                              # Python virtual environment
 │   └─ uv.lock                        # Python dependency list (uv managed)
 ├─ db/
-│   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
-│   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 §2
-│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 §7
+│   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 sections 3-6
+│   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 section 2
+│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 section 7
 │   # 3-DB split is designed to avoid SQLite lock contention between data with different write frequencies (RAG: only during ingestion, Session: every turn, Workflow: at each event). Each DB operates in WAL mode. See commits `73bd9bb08` / `fa703f346` for details.
 ├─ scripts/
 │   ├─ db/                                  # DB layer package (see directory for detailed file structure)
@@ -68,9 +68,9 @@ Directory structure at deployment target:
 ├─ venv/                              # Python virtual environment
 │   └─ uv.lock                        # Python dependency list (uv managed)
 ├─ db/
-│   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
-│   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 §2
-│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 §7
+│   ├─ rag.sqlite                     # RAG vector DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 sections 3-6
+│   ├─ session.sqlite                 # Agent sessions + messages — see 90_shared_04 section 2
+│   └─ workflow.sqlite                # Task tracking + event processing — see 90_shared_04 section 7
 │   # 3-DB split is designed to avoid SQLite lock contention between data with different write frequencies (RAG: only during ingestion, Session: every turn, Workflow: at each event). Each DB operates in WAL mode. See commits `73bd9bb08` / `fa703f346` for details.
 ├─ scripts/
 │   ├─ db/                                  # DB layer package (see directory for detailed file structure)

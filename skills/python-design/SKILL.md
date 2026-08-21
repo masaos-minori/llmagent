@@ -12,7 +12,7 @@ description: |
 ## Purpose
 
 Design first — do not modify source code or implement unless the user explicitly requests it
-(see `skills/DESIGN.md` §Analysis-only phase constraint).
+(see `skills/DESIGN.md` Analysis-only phase constraint).
 
 Produce output that is clear and structured, minimal and YAGNI-compliant, type-safe,
 testable, and focused on design decisions, responsibility boundaries, constraints, and
@@ -22,7 +22,7 @@ operational risks — not on exhaustive implementation-reference detail.
 
 ## Documentation Language
 
-See `skills/DESIGN.md` §Output language.
+See `skills/DESIGN.md` Output language.
 
 ---
 
@@ -69,15 +69,15 @@ See `workflow.md` for detailed phase content and the required output template.
 
 ## Core Design Rules (Strictly Enforced for AI)
 
-- **Avoid implementation-reference duplication**: see `skills/DESIGN.md` §Avoid implementation-reference duplication.
-- **Enforce one-way dependency direction**: apply `skills/DESIGN.md` §Import layer contract at the design stage, not during implementation.
-- **Isolate async and sync code**: apply `skills/DESIGN.md` §Pythonic safety constraints (no blocking calls inside `async def` without an explicit executor boundary).
+- **Avoid implementation-reference duplication**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
+- **Enforce one-way dependency direction**: apply `skills/DESIGN.md` Import layer contract at the design stage, not during implementation.
+- **Isolate async and sync code**: apply `skills/DESIGN.md` Pythonic safety constraints (no blocking calls inside `async def` without an explicit executor boundary).
 - **Design for immutability by default**: prefer frozen dataclasses, tuples, and `Mapping` for core domain data unless mutation is justified.
 - **Validate only at system boundaries**: pass trusted, type-safe objects into internal services.
 - **Use abstractions only when justified**: no abstract factories, `Protocol`, or `abc.ABC` without a concrete requirement.
 - **Include failure paths and resource lifecycle explicitly**: a design is incomplete if it only describes the happy path.
 - **Do not write production code blocks**: use pseudocode or minimal typed signatures to illustrate interfaces.
-- **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` §Evidence labels; for new design, mark assumptions and open questions clearly.
+- **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` Evidence labels; for new design, mark assumptions and open questions clearly.
 
 See `workflow.md` for the full rule set, evidence-label usage, and the Python-specific
 design checklist.

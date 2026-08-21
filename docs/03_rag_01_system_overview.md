@@ -35,7 +35,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` (port 8010)
 
 **Not Included:**
-- MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
+- MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [04_mcp_05 MDQ vs RAG Boundary](04_mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
 - Agent REPL — Only calls the pipeline via MCP; does not contain RAG logic.
 - LLM and Embedding Servers — External services running on ports 8080 and 8081.
 

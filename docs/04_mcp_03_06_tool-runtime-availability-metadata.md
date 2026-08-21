@@ -34,10 +34,10 @@ Tool existence, discovery, LLM visibility, routing ownership, static availabilit
 | Statically available | Current configuration/policy permits considering the tool for execution |
 | Dynamically available | The owning server is currently healthy enough to attempt execution (`McpServerHealthRegistry`) |
 | Routable | `RuntimeToolRegistry`/`ToolRouteResolver` can resolve the tool to exactly one owning server |
-| Approved | The current invocation has satisfied its approval requirement (`agent/tool_policy.py`, `tool_approval.py` — a separate subsystem, see §6a) |
+| Approved | The current invocation has satisfied its approval requirement (`agent/tool_policy.py`, `tool_approval.py` — a separate subsystem, see section 6a) |
 | Executable | All of the above, plus argument validation, currently permit this specific call |
 
-These MUST NOT be treated as interchangeable. In particular: a tool can be **LLM-visible yet not dynamically available** (server down), **statically disabled yet dynamically healthy** (config gate), or **known but not owned** (duplicate ownership, §6).
+These MUST NOT be treated as interchangeable. In particular: a tool can be **LLM-visible yet not dynamically available** (server down), **statically disabled yet dynamically healthy** (config gate), or **known but not owned** (duplicate ownership, section 6).
 
 ## 1. `config_dependent` (static)
 
@@ -137,7 +137,7 @@ Disabled tools are tracked for diagnostics (`enabled_for_llm` derived field) but
 - **Static / `RuntimeToolRegistry` (McpToolDiscoveryService.discover_all(), startup-only):** tool ownership, schema, scheduling metadata, and LLM-visibility eligibility (`enabled_for_llm`). A server that fails discovery entirely has all of its tools excluded from the registry via `_is_excluded_server()`. Note: the constructor also accepts a `degraded_servers` set for a softer exclusion tier, but `discover_all()` never populates it — it is a dead parameter today, not a second implemented tier.
 - **Dynamic / `McpServerHealthRegistry` + `ToolExecutor` (continuous, per-call):** server reachability, circuit-breaker state (CLOSED/OPEN/HALF_OPEN), and trial-recovery behavior. This layer does not affect `RuntimeToolRegistry`, LLM visibility, or routing — a tool stays LLM-visible and routable while its owning server is circuit-open; `ToolExecutor.execute()` simply returns an error at call time instead.
 
-A tool can be statically enabled while its server is temporarily down (dynamic-health failure at call time), and a tool can be statically disabled while its server is otherwise healthy (config gate, e.g. `read_only=true`). Discovery snapshots taken at startup MUST NOT be treated as permanent runtime health truth — only restart triggers rediscovery (§Reload vs. restart above).
+A tool can be statically enabled while its server is temporarily down (dynamic-health failure at call time), and a tool can be statically disabled while its server is otherwise healthy (config gate, e.g. `read_only=true`). Discovery snapshots taken at startup MUST NOT be treated as permanent runtime health truth — only restart triggers rediscovery (Reload vs. restart above).
 
 ## 6b. Approval is not a disabled state
 

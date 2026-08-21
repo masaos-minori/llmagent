@@ -4,11 +4,11 @@ To track failed or unexpected MCP tool calls, use the following flow:
 
 ``` text
 1. Was the request delivered to the server?
-   NO  → Transport failure (error_type="transport" in agent-side audit log). See §Error Type Distinction.
+   NO  → Transport failure (error_type="transport" in agent-side audit log). See Error Type Distinction.
    YES → continue
 
 2. Did the tool return an error response (is_error=true)?
-   YES → Tool-level error (error_type="tool" in agent-side audit log). See §Error Type Distinction.
+   YES → Tool-level error (error_type="tool" in agent-side audit log). See Error Type Distinction.
    NO (timeout or silent fail) → continue
 
 3. Has server health status changed?
@@ -20,10 +20,10 @@ To track failed or unexpected MCP tool calls, use the following flow:
           see [04_mcp_06_12_watchdog-configuration-monitoring.md](./04_mcp_06_12_watchdog-configuration-monitoring.md)). Manual recovery required —
           either wait for the next tool call to trigger `ensure_ready()`, or restart the
           server/agent process manually.
-   NO  → Check serialization. See §Serialization in Tool Execution.
+   NO  → Check serialization. See Serialization in Tool Execution.
 ```
 
-For correlation analysis across agent, transport, and server logs, see [04_mcp_03 §End-to-End Tool Call Tracing](./04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
+For correlation analysis across agent, transport, and server logs, see [04_mcp_03 End-to-End Tool Call Tracing](./04_mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
 
 ## Failure mode: LLM sees tool but execution fails
 

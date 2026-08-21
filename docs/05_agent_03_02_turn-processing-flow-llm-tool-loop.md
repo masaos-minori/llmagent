@@ -38,7 +38,7 @@ If a transport error occurs during LLM streaming resulting in a partial completi
 
 ### Adding to History
 
-`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (See [05_agent_04_01_state-and-persistence-state-model.md] §Validated History Modification Methods).
+`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (See [05_agent_04_01_state-and-persistence-state-model.md] Validated History Modification Methods).
 
 ### Final Answer Fallback on Guard Trigger
 

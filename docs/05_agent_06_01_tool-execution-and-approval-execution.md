@@ -79,7 +79,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 ## Responsibility Boundary
 
 - **Source of Truth**: `shared/tool_executor.py`, `agent/tool_scheduler.py`, `agent/tool_preparation.py` (including preparation phase with argument validation/registry resolution)
-- **Routing Authority**: `ToolRouteResolver.resolve()` ([04_mcp §Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md))
+- **Routing Authority**: `ToolRouteResolver.resolve()` ([04_mcp Routing Source of Truth](04_mcp_03_01_dispatch-and-routing.md))
 
 ## Key Constraints
 

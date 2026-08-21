@@ -33,9 +33,9 @@ The Agent layer operates across four SQLite databases (`DbTarget` enum in `db/he
 
 | Database | Purpose | Schema reference |
 |---|---|---|
-| `session.sqlite` | Agent sessions, messages, memory | `90_shared_04` §2 |
-| `rag.sqlite` | RAG documents, chunks, embeddings | `90_shared_04` §3-§6 |
-| `workflow.sqlite` | Task tracking, event processing | `90_shared_04` §7 |
+| `session.sqlite` | Agent sessions, messages, memory | `90_shared_04` section 2 |
+| `rag.sqlite` | RAG documents, chunks, embeddings | `90_shared_04` sections 3-6 |
+| `workflow.sqlite` | Task tracking, event processing | `90_shared_04` section 7 |
 | `eventbus.sqlite` | Event Bus (out of scope for this document) | — |
 
 DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `workflow_db_path`, and `eventbus_db_path` (`db/config.py`). `rag_db_path`/`session_db_path` have no default values (raises `ValueError` if not set), while `workflow_db_path`/`eventbus_db_path` have default paths under `/opt/llm/db/`.

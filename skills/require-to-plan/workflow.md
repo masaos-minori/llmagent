@@ -247,8 +247,8 @@ Record the current diff-cover baseline. The plan must include raising it to ≥ 
 
 ## Step 7: Uncertainty Tracking
 
-For each unknown, add a row to the "Unknowns & Gaps" table defined in `SKILL.md` §Output
-format §4 (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`).
+For each unknown, add a row to the "Unknowns & Gaps" table defined in `SKILL.md` Output
+format section 4 (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`).
 
 Example row: `UNK-01 | Whether sqlite-vec supports concurrent writes from multiple threads |
 No test exists; documentation is sparse | Write a benchmark test with
@@ -261,7 +261,7 @@ A plan with unresolved blocking unknowns is not complete.
 
 ## Step 8: Produce a Concrete Plan
 
-Fill in the exact template from `SKILL.md` §Output format, section by section, using the
+Fill in the exact template from `SKILL.md` Output format, section by section, using the
 evidence gathered above:
 
 | Section | Populate from |
@@ -294,7 +294,7 @@ Before delivering the plan, cross-check against the Step 7-9 gates stated above 
 
 - [ ] goal is one sentence and verifiable
 - [ ] scope has explicit in/out boundaries
-- [ ] assumptions are falsifiable (Step 8 §3)
+- [ ] assumptions are falsifiable (Step 8 section 3)
 - [ ] Step 7 gate met: no blocking unknowns remain unresolved
 - [ ] Step 9 rules followed: claims backed by tool evidence, implementation steps independently revertable, deploy step included if production files change
 - [ ] validation plan has full table with tools and targets
@@ -304,4 +304,4 @@ Before delivering the plan, cross-check against the Step 7-9 gates stated above 
 
 ## Output format
 
-See `SKILL.md` §Output format for the exact Markdown structure to generate.
+See `SKILL.md` Output format for the exact Markdown structure to generate.

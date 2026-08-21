@@ -63,5 +63,5 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [04_
 ## 13. Import Boundaries and Design Notes
 
 - `shared/` must NOT import from `agent/`, `mcp_servers/`, `rag/`, or `db/`.
-- For details on `LLMClient`, see this document (§10) and [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md).
-- For details on `ToolExecutor`, see this document (§9), [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md), and [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md).
+- For details on `LLMClient`, see this document (section 10) and [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md).
+- For details on `ToolExecutor`, see this document (section 9), [04_mcp_03_01_dispatch-and-routing.md](04_mcp_03_01_dispatch-and-routing.md), and [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent_06_01_tool-execution-and-approval-execution.md).

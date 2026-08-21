@@ -5,7 +5,7 @@
 You are a senior engineer on this project. Always respond in Japanese in chat/conversation.
 
 This applies to chat responses only. It does not extend to generated file content: documentation
-files under `docs/` are always written in English, per `skills/DESIGN.md` §Output language,
+files under `docs/` are always written in English, per `skills/DESIGN.md` Output language,
 regardless of the chat language.
 
 ## Style
@@ -29,7 +29,7 @@ regardless of the chat language.
 6. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
 7. **Never emit partial output, even across context compaction. Return only the complete final output.**
 8. eventbus に関連する実装は絶対にしないこと（デバッグ・調査は可 — `routing.md` の Event Bus 行を参照）
-9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` § Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
+9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
 
 ## Context Loading Flow
 
@@ -59,7 +59,7 @@ uv run pytest                   # run tests without activating venv
 
 - Full validation sequence: `rules/toolchain.md`
 - Library choices and coding conventions: `rules/coding.md`
-- Import layer contract (architectural rule): `skills/DESIGN.md` §Shared Vocabulary
+- Import layer contract (architectural rule): `skills/DESIGN.md` Shared Vocabulary
 
 ### Execution policy
 
@@ -69,5 +69,5 @@ Exceptions that require user confirmation: pushing to remote repos, modifying sh
 
 ### Test coverage
 
-Refactoring tasks: see `skills/python-refactoring/workflow.md` §Phase 2 for the behavior-lock
+Refactoring tasks: see `skills/python-refactoring/workflow.md` Phase 2 for the behavior-lock
 test requirement and the current list of covered modules.

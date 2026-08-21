@@ -21,7 +21,7 @@ related:
 
 Specifications for 10 MCP servers per server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
 
-> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [04_mcp_01_system_overview.md §Server Catalog](04_mcp_01_system_overview.md).
+> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [04_mcp_01_system_overview.md Server Catalog](04_mcp_01_system_overview.md).
 
 ---
 

@@ -11,7 +11,7 @@
   - Japanese chunks store whitespace-separated text normalized by Sudachi in `normalized_content`. English/code chunks maintain `normalized_content = NULL`, and FTS5 falls back to `content`.
   - `AugmentStage` must always output `content` and must never output `normalized_content`.
 - **Description:** Japanese chunks maintain two types of text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi-normalized) is indexed into `chunks_fts` by the `chunks_ai` trigger. On the FTS query side, Sudachi morphological filtering is also used to normalize Japanese words. This separation allows the LLM to receive readable original text while BM25 search uses morphologically normalized forms.
-- **Notes for AI reference:** Do not replace `content` with `normalized_content` in the output of the Augment stage. This separation is intentional and finalized. Source: `03_rag_02_01_ingestion_pipeline-overview.md §FTS5/LLM content separation`, `03_rag_03_01_query_pipeline-overview.md §5.5 AugmentStage`.
+- **Notes for AI reference:** Do not replace `content` with `normalized_content` in the output of the Augment stage. This separation is intentional and finalized. Source: `03_rag_02_01_ingestion_pipeline-overview.md FTS5/LLM content separation`, `03_rag_03_01_query_pipeline-overview.md section 5.5 AugmentStage`.
 
 ---
 
@@ -35,7 +35,7 @@
   - `fts_gap`: Number of chunks missing from `chunks_fts` (Fix: `/session rag-rebuild-fts`)
   - `fts_orphan_count`: FTS entries without corresponding chunks (Data loss risk; Fix: `/session rag-rebuild-fts`)
   - `orphan_vec_count`: Vector rows without corresponding chunks (Fix: `ingester.py --force`)
-- **Notes for AI reference:** `sqlite-vec` virtual tables do not support standard foreign key constraints. RAG consistency checks (`/session rag-consistency`) verify synchronization between authoritative `chunks` and derived indexes `chunks_fts` and `chunks_vec`. Source: `03_rag_04_05_dto-types.md §DB Schema`, `03_rag_05_1-configuration-reference.md §RAG index consistency checks`.
+- **Notes for AI reference:** `sqlite-vec` virtual tables do not support standard foreign key constraints. RAG consistency checks (`/session rag-consistency`) verify synchronization between authoritative `chunks` and derived indexes `chunks_fts` and `chunks_vec`. Source: `03_rag_04_05_dto-types.md DB Schema`, `03_rag_05_1-configuration-reference.md RAG index consistency checks`.
 
 ---
 

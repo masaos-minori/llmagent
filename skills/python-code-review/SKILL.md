@@ -10,9 +10,9 @@ description: |
 
 ## Purpose
 
-Review first — do not change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` §Analysis-only phase constraint).
+Review first — do not change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Output language: see `skills/DESIGN.md` §Output language.
+Output language: see `skills/DESIGN.md` Output language.
 
 ## When to use
 
@@ -73,7 +73,7 @@ See `workflow.md` for detailed phase content and tooling.
 Every significant finding must include concrete evidence such as file path; class, function,
 method, route, command, or config key; test name or CI workflow; and observed current behavior.
 
-Use the evidence labels and confidence levels defined in `skills/DESIGN.md` §Shared Vocabulary.
+Use the evidence labels and confidence levels defined in `skills/DESIGN.md` Shared Vocabulary.
 
 ## Severity
 

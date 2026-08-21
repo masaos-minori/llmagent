@@ -109,14 +109,14 @@ analysis, review, or design artifact rather than change code.
 ### Import layer contract (enforced by `.importlinter`)
 
 Layers may only import from themselves and layers below. The canonical layer diagram lives in
-`rules/env.md` §Architecture (includes the current `eventbus` isolation rule and `agent`'s actual
+`rules/env.md` Architecture (includes the current `eventbus` isolation rule and `agent`'s actual
 scope) — do not restate or re-derive the diagram here. Violations fail `lint-imports`. Never
 import a lower layer from a higher one.
 
 ### Output language
 
 Write generated documents (review reports, design docs, documentation) in English. This is
-independent of the chat response language (see `AGENTS.md` §Role) — a Japanese-language
+independent of the chat response language (see `AGENTS.md` Role) — a Japanese-language
 conversation does not make this "the user requiring Japanese documents." All files under `docs/`
 are English, with no exception, regardless of chat language. Always preserve file names,
 module/symbol names, commands, configuration keys, type names, and evidence labels in their

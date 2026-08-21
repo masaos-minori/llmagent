@@ -58,7 +58,7 @@ descriptions) are invisible from reading the changed file alone.
 | A module-level docstring header path may be stale after a file move | `uv run python tools/fix_scripts_docstring_paths.py --dry-run` | Add `--apply` only after reviewing the dry-run diff |
 | Docstring format needs verification (not repair) after touching `scripts/` | `uv run python tools/check_all_docstrings.py` | Read-only — does not add or fix docstrings |
 | Front Matter is missing or a list field has duplicate entries in `docs/*.md` | `uv run python tools/manage_frontmatter.py add-missing\|dedupe-lists` | |
-| Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` §Output language) | `uv run python tools/detect_japanese.py` | |
+| Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` Output language) | `uv run python tools/detect_japanese.py` | |
 
 Do not write a new one-off script for something this list already covers — extend the existing tool
 instead (see AGENTS.md Global Rule 6 for when a *new* script is warranted).
@@ -107,7 +107,7 @@ The full pipeline runs across four top-level directories, in order:
 
 Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 
-Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_index.md` §「タスク別ドキュメント参照」.
+Full task-scope → doc mapping (Domain specs, System overview, Agent, MCP, RAG, DB/Shared, Event Bus): see `docs/00_index.md` 「タスク別ドキュメント参照」.
 
 ## Always load alongside the skill
 

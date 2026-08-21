@@ -51,7 +51,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 |---|---|
 | Which MCP servers exist and what do they do? What are their ports and startup modes? | `04_mcp_01` |
 | `/v1/call_tool`, Bearer authentication, and audit log formats | `04_mcp_02` |
-| Tool routing, ToolExecutor, and adding new servers | `04_mcp_03` (config defaults are in `04_mcp_06` §Major Default Values) |
+| Tool routing, ToolExecutor, and adding new servers | `04_mcp_03` (config defaults are in `04_mcp_06` Major Default Values) |
 | Handling of tool enabled/disabled_reason, config_dependent, and RuntimeToolRegistry | `04_mcp_03_06` |
 | Tools provided by web-search/github/shell/mdq MCPs. MDQ-mcp FTS5 search is production-ready; hybrid search is unimplemented | `04_mcp_04` (mdq-mcp only has FTS5 search implemented) |
 | allowed_dirs/allowed_repos, fail-closed/fail-open, dry_run, risk tiers, MDQ/RAG boundary | `04_mcp_05` |
@@ -152,7 +152,7 @@ Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kep
 
 ## Known Limitations
 
-- The known issues from `04_spec_mcp.md` §13 have all been transferred to `04_mcp_90`.
+- The known issues from `04_spec_mcp.md` section 13 have all been transferred to `04_mcp_90`.
 
 ## Unconfirmed Items
 

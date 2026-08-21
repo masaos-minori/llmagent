@@ -175,8 +175,8 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 - Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-Detailed ETagManager info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-Configuration details $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Detailed ETagManager info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration details $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
 
@@ -251,7 +251,7 @@ Current DB schema definition $\rightarrow$ [RAG schema reference document](03_ra
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 - Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
 
-ETagManager detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
-Configuration detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md §4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+ETagManager detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](03_rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration detailed info $\rightarrow$ [03_rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](03_rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---

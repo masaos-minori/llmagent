@@ -31,7 +31,7 @@ Three comparison functions detect configuration drift.
 | `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
 | `validate_all_routing()` | Combination of both above | Not yet implemented (future support) |
 
-> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [04_mcp_06 Startup Validation Behavior](04_mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
 Drift warnings are displayed during agent startup.
 

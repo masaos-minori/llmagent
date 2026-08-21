@@ -30,7 +30,7 @@ create_schema()
 ```
 
 - All DDL uses `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 §11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (§8a) and `mdq.sqlite` (§8c) each have different migration/automatic schema update mechanisms — see respective sections for details.
+- **`rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 section 11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a) and `mdq.sqlite` (section 8c) each have different migration/automatic schema update mechanisms — see respective sections for details.
 - `embedding_dims` is dynamically replaced from config at runtime (default 384).
 
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
@@ -64,19 +64,19 @@ The `chunks_vec`/`memories_vec` (`db/schema_sql.py`) for `rag.sqlite`, `session.
 
 ## 9. Constraints List
 
-SQLite 3.35+ required; sqlite-vec path `/opt/llm/sqlite-vec/vec0.so` (`agent.toml::sqlite_vec_so`); WAL mode enabled on all connections (`PRAGMA journal_mode=WAL`); default `busy_timeout` 30,000 ms (`agent.toml::sqlite_busy_timeout_ms`); default embedding dimension 384 (`agent.toml::embedding_dims`); float format: float32 little-endian BLOB; single-node only (no distributed/replica support); `agent.toml` included in `ConfigLoader().load_all()` at index 0 (see 90_shared_03 §2a).
+SQLite 3.35+ required; sqlite-vec path `/opt/llm/sqlite-vec/vec0.so` (`agent.toml::sqlite_vec_so`); WAL mode enabled on all connections (`PRAGMA journal_mode=WAL`); default `busy_timeout` 30,000 ms (`agent.toml::sqlite_busy_timeout_ms`); default embedding dimension 384 (`agent.toml::embedding_dims`); float format: float32 little-endian BLOB; single-node only (no distributed/replica support); `agent.toml` included in `ConfigLoader().load_all()` at index 0 (see 90_shared_03 section 2a).
 
 ---
 
 ## 9a. AI Reference Guide
 
-rag.sqlite schema location: this doc §5; session.sqlite schema location: this doc §6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see §4); embedding dimension set via `agent.toml::embedding_dims` (default 384); schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (§5), `memories_fts` auto-sync triggers (§6).
+rag.sqlite schema location: this doc section 5; session.sqlite schema location: this doc section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see section 4); embedding dimension set via `agent.toml::embedding_dims` (default 384); schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (section 5), `memories_fts` auto-sync triggers (section 6).
 
 ---
 
 ## 10. Source of Truth
 
-DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see §8c); deleted entry point: `db/workflow_schema.py` — removed in plan 54.
+DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8c); deleted entry point: `db/workflow_schema.py` — removed in plan 54.
 
 **Note:** The Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is outside the scope of this cleanup. Future Event Bus write operations must use ISO-8601 UTC Z-suffix timestamps.
 

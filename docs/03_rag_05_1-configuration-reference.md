@@ -15,7 +15,7 @@ source:
 
 Crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes, reading only their respective configuration files. There are no shared configuration files. If multiple processes require the same DB path or external service URL, they must specify them individually in their respective configuration files.
 
-→ For details on the Process Separation Policy: [90_shared_03 §2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ For details on the Process Separation Policy: [90_shared_03 section 2a](90_shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## 1.1 `config/crawler.toml`
 
@@ -65,7 +65,7 @@ Used by: `ingester.py` only
 | `sqlite_timeout` | `30` | SQLite connection timeout (seconds) |
 | `sqlite_busy_timeout_ms` | `30000` | SQLite busy timeout (milliseconds) |
 | `embed_url` | `http://127.0.0.1:8081/embedding` | Embedding API endpoint |
-| `embedding_dims` | `384` | float32 embedding vector dimensions (must match model; see [docs/02_deployment.md §1.4](./02_deployment.md#14-llm--How to get models) for canonical model names) |
+| `embedding_dims` | `384` | float32 embedding vector dimensions (must match model; see [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names) |
 | `embed_retry` | `3` | Max embedding API retries (exponential backoff) |
 | `embed_workers` | `4` | Number of threads in `ThreadPoolExecutor` for parallel embedding |
 

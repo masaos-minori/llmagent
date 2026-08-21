@@ -52,7 +52,7 @@ source:
 | max_pages | 500 | 200 |
 | skip_nofollow | False | true |
 
-> For a full list of parameters, see [§1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md).
+> For a full list of parameters, see [section 1.1 Configuration Reference](../03_rag_05_1-configuration-reference.md).
 
 ### 2.1.2 `crawl_file` Behavior
 
@@ -123,7 +123,7 @@ See [docs/03_rag_05_3-logging.md](docs/03_rag_05_3-logging.md) for details.
 
 ### 2.7 Configuration (`config/crawler.toml`)
 
-See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
+See [03_rag_05_1-configuration-reference.md section 1.1](03_rag_05_1-configuration-reference.md).
 
 ---
 

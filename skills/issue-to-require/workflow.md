@@ -56,7 +56,7 @@ Report progress at the start and end of each step.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
 - Save the requirement as `requires/{timestamp}_require.md`.
 
-Use the section structure from `SKILL.md` §Output format, matching the existing
+Use the section structure from `SKILL.md` Output format, matching the existing
 `requires/` convention:
 - Title
 - Priority
@@ -70,7 +70,7 @@ Use the section structure from `SKILL.md` §Output format, matching the existing
 - Tests
 - Traceability
 
-Fill the Traceability section using the structure in `SKILL.md` §Output format, leaving
+Fill the Traceability section using the structure in `SKILL.md` Output format, leaving
 fields that do not apply as `N/A`.
 
 ---

@@ -71,7 +71,7 @@ ast-grep --pattern 'def <symbol>($$$): $$$' --lang python scripts/
 
 #### import-linter — boundary contracts
 
-See `rules/toolchain.md` §3 for the `lint-imports` command.
+See `rules/toolchain.md` section 3 for the `lint-imports` command.
 
 Identify which contracts are affected by the planned refactor.
 If the refactor changes a module boundary, plan the contract update as part of Phase 3.
@@ -108,11 +108,11 @@ If coverage is below 80%: write characterization tests for the uncovered paths b
 #### hypothesis — property-based invariants
 
 For parsers, normalizers, and data transformers in the refactor scope, write property tests
-per `skills/python-test-and-fix/workflow.md` §Step 7 (Contract Validation).
+per `skills/python-test-and-fix/workflow.md` Step 7 (Contract Validation).
 
 #### mutmut — test suite strength
 
-Run mutation testing per `skills/python-test-and-fix/workflow.md` §Step 4 (Mutation Testing)
+Run mutation testing per `skills/python-test-and-fix/workflow.md` Step 4 (Mutation Testing)
 against the refactored path. If surviving mutants > 0: add tests that kill them before
 proceeding to Phase 3.
 
@@ -251,7 +251,7 @@ If a step fails CI:
 
 ## Phase 6: CI Gate
 
-**Gate: pre-commit passes; lint-imports passes; diff-cover ≥ 90% (see `rules/toolchain.md` §7-8)**
+**Gate: pre-commit passes; lint-imports passes; diff-cover ≥ 90% (see `rules/toolchain.md` section 7-8)**
 
 ```bash
 pre-commit run --all-files

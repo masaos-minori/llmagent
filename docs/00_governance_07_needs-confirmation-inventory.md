@@ -51,7 +51,7 @@ To extract "Needs confirmation" items from source documents:
 ### NC-019
 
 - **Source File**: `04_mcp_04_05_git.md`
-- **Section**: §Implementation Notes (also referenced from §Write protection policy)
+- **Section**: Implementation Notes (also referenced from Write protection policy)
 - **Line Number**: ~92
 - **Question**: Is the absence of command-specific guards distinguishing `git_checkout`/`git_pull`/`git_push` from other write tools an intentional design decision (local git assumed to be the caller's own responsibility) or a missing security feature relative to GitHub MCP?
 - **Evidence**: All five write tools share one common guard path (`allowed_repo_paths` + `read_only`) with no per-command validation; confirmed via code reading and a sandboxed reproduction that `branch`/`remote` accept option-injection-shaped values (see MCP-003 in `04_mcp_90_inconsistencies_and_known_issues.md`)
@@ -68,7 +68,7 @@ To extract "Needs confirmation" items from source documents:
 ### NC-020
 
 - **Source File**: `04_mcp_04_05_git.md`
-- **Section**: §Write protection policy → Audit
+- **Section**: Write protection policy → Audit
 - **Line Number**: ~147
 - **Question**: Does the Git MCP audit call site's `target` field actually end up empty for every call, as code reading suggests (it reads `req.args.get("repo", "")` while the tool schema's key is `repo_path`)?
 - **Evidence**: Code inspection only — no live audit log line has been captured to confirm the field is empty in practice
@@ -85,7 +85,7 @@ To extract "Needs confirmation" items from source documents:
 ### NC-021
 
 - **Source File**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`
-- **Section**: §9.3 Integrity-result model (target design)
+- **Section**: 9.3 Integrity-result model (target design)
 - **Line Number**: ~39
 - **Question**: The design document specifies a target structured integrity-result classification (healthy / confirmed corruption / lock contention / permission / invalid format / unknown) that the current implementation does not produce. Is this the classification model the owner intends to implement, or should the target model differ?
 - **Evidence**: `_run_integrity_check()` currently returns only a pass/fail-ish result plus a free-form exception string (`RecoveryResult.detail`); no structured classification exists to confirm or refute against
@@ -106,7 +106,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-001
 
 - **Source File**: `05_agent_05_llm-and-streaming.md`
-- **Section**: §Error Classification
+- **Section**: Error Classification
 - **Line Number**: ~176
 - **Question**: Are `UTF8_PARTIAL_DECODE_ERROR` and `PREMATURE_EOF` distinct error types?
 - **Evidence**: Both appear in error classification without clear distinction
@@ -120,7 +120,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-002
 
 - **Source File**: `03_rag_04_04_dto-models_config.md`
-- **Section**: §ResultSource field definition
+- **Section**: ResultSource field definition
 - **Line Number**: ~92
 - **Question**: Is the unused ResultSource definition intentional for future migration or deletion oversight?
 - **Evidence**: Field exists but has no current usage path in codebase
@@ -134,7 +134,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-003
 
 - **Source File**: `03_rag_02_06_ingestion_pipeline-supporting-components.md`
-- **Section**: §ETagManager behavior
+- **Section**: ETagManager behavior
 - **Line Number**: ~42
 - **Question**: Does ETagManager correctly handle existing document re-fetching?
 - **Evidence**: DocumentManager passes fixed value `0` instead of `existing_doc_id` for ETag updates
@@ -151,7 +151,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-004
 
 - **Source File**: `05_agent_12_04_memory-module-ref-retrieval-and-injection.md`
-- **Section**: §knn_search method
+- **Section**: knn_search method
 - **Line Number**: ~66
 - **Question**: Is the distance metric cosine or L2 — cannot determine from this module alone
 - **Evidence**: Code comment says "Negate distance" but does not specify metric type
@@ -165,7 +165,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-005
 
 - **Source File**: `03_rag_04_03_dto-models_audit.md`
-- **Section**: §DTO purpose analysis
+- **Section**: DTO purpose analysis
 - **Line Number**: ~40
 - **Question**: Are AuditLogRecord/ApprovalDecision dead code or forward-looking definitions?
 - **Evidence**: Zero callers found via repo-wide grep; classes were never imported from `scripts/` or `tests/`
@@ -178,7 +178,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-006
 
 - **Source File**: `03_rag_03_06_query_pipeline-helpers-and-cache.md`
-- **Section**: §result_source field analysis
+- **Section**: result_source field analysis
 - **Line Number**: ~120
 - **Question**: Is result_source field intended for future use or should it be removed?
 - **Evidence**: No code path sets PipelineRunResult.result_source; only SearchDiagnostics uses dataclasses.replace()
@@ -192,7 +192,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-007
 
 - **Source File**: `05_agent_04_03_state-and-persistence-platform-databases.md`
-- **Section**: §Archive memory operation
+- **Section**: Archive memory operation
 - **Line Number**: ~54
 - **Question**: What is the read path for archived memory?
 - **Evidence**: Archive operation exists but read path details unclear
@@ -206,7 +206,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-008
 
 - **Source File**: `05_agent_04_03_state-and-persistence-platform-databases.md`
-- **Section**: §request_approval workflow_id parameter
+- **Section**: request_approval workflow_id parameter
 - **Line Number**: ~109-110
 - **Question**: How is workflow_id used in multi-workflow scenario?
 - **Evidence**: Parameter appears to distinguish multiple workflows but purpose unclear
@@ -223,7 +223,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-009
 
 - **Source File**: `03_rag_04_05_dto-types.md`
-- **Section**: §RagPipelineConfig.run field
+- **Section**: RagPipelineConfig.run field
 - **Line Number**: ~48
 - **Question**: Who explicitly sets the run field?
 - **Evidence**: Field exists but setting mechanism unknown
@@ -237,7 +237,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-010
 
 - **Source File**: `03_rag_05_7-rag-index-consistency-checks.md`
-- **Section**: §gen_rag_reference.py auto-update target
+- **Section**: gen_rag_reference.py auto-update target
 - **Line Number**: ~98
 - **Question**: Should gen_rag_reference.py OPS_DOC constant be updated to split files?
 - **Evidence**: Same issue as NC-010; tool outputs to non-existent file
@@ -255,12 +255,12 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-011
 
 - **Source File**: `03_rag_02_04_ingestion_pipeline-ingester.md`
-- **Section**: §docstring accuracy
+- **Section**: docstring accuracy
 - **Line Number**: ~49
 - **Question**: Is the docstring reference to common.toml::embedding_dims intentional legacy text?
 - **Evidence**: Docstring references non-existent common.toml; actual config comes from ingester.toml
 - **Impact**: Misleading documentation may cause incorrect assumptions
-- **Required Action**: Resolved — confirmed outdated; see docs/03_rag_02_04_ingestion_pipeline-ingester.md §4.4 (~line 51): common.toml does not exist, actual config source is config/ingester.toml.
+- **Required Action**: Resolved — confirmed outdated; see docs/03_rag_02_04_ingestion_pipeline-ingester.md section 4.4 (~line 51): common.toml does not exist, actual config source is config/ingester.toml.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-29
@@ -268,7 +268,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-012
 
 - **Source File**: `05_agent_10_05_operations-and-observability-monitoring.md`
-- **Section**: §DiagnosticStore loop_guard_hint method
+- **Section**: DiagnosticStore loop_guard_hint method
 - **Line Number**: ~92
 - **Question**: Is loop_guard_hint kind name ever generated in practice?
 - **Evidence**: Method defined but no caller found in scripts/agent/ tree
@@ -281,7 +281,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-013
 
 - **Source File**: `05_agent_10_05_operations-and-observability-monitoring.md`
-- **Section**: §DiagnosticStore fetch_by_kind / fetch_all methods
+- **Section**: DiagnosticStore fetch_by_kind / fetch_all methods
 - **Line Number**: ~93
 - **Question**: Are fetch_by_kind/fetch_all methods intended for CLI/API use?
 - **Evidence**: Methods defined but no callers found in scripts/agent/ tree
@@ -294,7 +294,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-014
 
 - **Source File**: `03_rag_05_7-rag-index-consistency-checks.md`
-- **Section**: §gen_rag_reference.py auto-update target
+- **Section**: gen_rag_reference.py auto-update target
 - **Line Number**: ~98
 - **Question**: Should gen_rag_reference.py OPS_DOC constant be updated to split files?
 - **Evidence**: Same issue as NC-010; tool outputs to non-existent file
@@ -311,12 +311,12 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-015
 
 - **Source File**: `05_agent_12_02_memory-gate-data-model-search.md`
-- **Section**: §Threshold/retention functions
+- **Section**: Threshold/retention functions
 - **Line Number**: ~98
 - **Question**: Where are RETENTION_DAYS and duplicate threshold functions used?
 - **Evidence**: Functions referenced but usages unclear
 - **Impact**: Unused functions add complexity; missing usage breaks deduplication
-- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search.md §Implementation Notes.
+- **Required Action**: Resolved — DEDUP_THRESHOLDS actively consumed by `_get_dedup_threshold()` (ingestion.py:178-184) during memory ingestion; RETENTION_DAYS only referenced by `JsonlMemoryStore.read_active()` (jsonl_store.py:91-111) which has zero callers repo-wide — dead code. See docs/05_agent_12_02_memory-gate-data-model-search.md Implementation Notes.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
@@ -324,12 +324,12 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-016
 
 - **Source File**: `90_shared_03_04_runtime_and_execution-caching-and-reference.md`
-- **Section**: §on_usage callback type
+- **Section**: on_usage callback type
 - **Line Number**: ~82
 - **Question**: What is the actual shape of the on_usage callback?
 - **Evidence**: Type declared as object | None; usage context unclear from this module alone
 - **Impact**: Callback signature mismatch could cause runtime errors
-- **Required Action**: Resolved — confirmed `Callable[[int, int], None] | None`, invoked as `on_usage(prompt_tokens, completion_tokens)` from `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()`. See docs/90_shared_03_04_runtime_and_execution-caching-and-reference.md §18.
+- **Required Action**: Resolved — confirmed `Callable[[int, int], None] | None`, invoked as `on_usage(prompt_tokens, completion_tokens)` from `shared.llm_sse_helpers.LlmSseHelpers.parse_usage()`. See docs/90_shared_03_04_runtime_and_execution-caching-and-reference.md section 18.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-07-22
@@ -337,7 +337,7 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-017
 
 - **Source File**: `05_agent_09_01_data-layer-session-db.md`
-- **Section**: §SQLiteSessionStore callers
+- **Section**: SQLiteSessionStore callers
 - **Line Number**: ~115
 - **Question**: Who calls SQLiteSessionStore directly?
 - **Evidence**: AgentSession uses SQLiteHelper directly, bypassing SQLiteSessionStore
@@ -350,12 +350,12 @@ No other active (open/investigating/deferred) items beyond NC-019 through NC-021
 ### NC-018
 
 - **Source File**: `05_agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Section**: §Approval Gate
+- **Section**: Approval Gate
 - **Line Number**: ~97
 - **Question**: What is the production default policy for `WorkflowDef.require_approval`, and does the documented "expire" lifecycle state actually work?
 - **Evidence**: `config/workflows/default.json` ships `require_approval: false` with no per-environment override mechanism; `WorkflowEngine._gate_approval()` did not check `expires_at` prior to this resolution
 - **Impact**: Ambiguous production guidance could leave post-execution approval gates disabled in environments that need them; an approval record could remain "pending" forever past its TTL
-- **Required Action**: Resolved — a per-operation-category approval-requirement table and local-dev exception policy are now documented in `05_agent_03_03_turn-processing-flow-workflow-engine.md` §Approval Gate; `is_expired()` was added to `agent/workflow/approval_ops.py` and `WorkflowEngine._gate_approval()` now re-requests approval when a pending record has expired, tested by `test_expired_pending_approval_is_re_requested`.
+- **Required Action**: Resolved — a per-operation-category approval-requirement table and local-dev exception policy are now documented in `05_agent_03_03_turn-processing-flow-workflow-engine.md` Approval Gate; `is_expired()` was added to `agent/workflow/approval_ops.py` and `WorkflowEngine._gate_approval()` now re-requests approval when a pending record has expired, tested by `test_expired_pending_approval_is_re_requested`.
 - **Status**: resolved
 - **Assigned To**: N/A — resolved
 - **Last Reviewed**: 2026-08-20

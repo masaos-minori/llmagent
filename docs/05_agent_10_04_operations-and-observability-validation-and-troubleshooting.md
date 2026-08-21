@@ -169,7 +169,7 @@ Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
-- **Partial completions:** LLM responses interrupted during streaming are recorded. See [05_agent_03 §Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md) for details.
+- **Partial completions:** LLM responses interrupted during streaming are recorded. See [05_agent_03 Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
 - **Cache hits:** Number of tool result cache hits.
 - **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.

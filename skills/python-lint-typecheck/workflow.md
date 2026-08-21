@@ -19,7 +19,7 @@
 
 ## Step 1: Identify Failure Source
 
-**Fast path** — see `SKILL.md` §Routing (Fast Path Assessment) for the failure-type → step mapping.
+**Fast path** — see `SKILL.md` Routing (Fast Path Assessment) for the failure-type → step mapping.
 
 **Full diagnosis** — if the cause is unknown, run all tools first:
 
@@ -50,7 +50,7 @@ After auto-fix, review the diff. Only accept changes that are correct — do not
 
 #### ast-grep — structural pattern enforcement
 
-See `rules/coding.md` §Constraint checks for the bare-except / print() / json.load checks.
+See `rules/coding.md` Constraint checks for the bare-except / print() / json.load checks.
 Additional pattern specific to this skill:
 
 ```bash
@@ -62,7 +62,7 @@ ast-grep --pattern '$VAR = []' --lang python scripts/
 
 ## Step 3: Architecture Integrity
 
-See `rules/toolchain.md` §3 for the `lint-imports` command.
+See `rules/toolchain.md` section 3 for the `lint-imports` command.
 
 If `lint-imports` reports a violation:
 
@@ -85,7 +85,7 @@ ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.p
 ## Step 4: Suppression Governance
 
 Audit all existing suppressions using the commands and required format defined in
-`rules/coding.md` §Suppression governance. Fix the root cause rather than suppress when feasible.
+`rules/coding.md` Suppression governance. Fix the root cause rather than suppress when feasible.
 
 ---
 
@@ -93,7 +93,7 @@ Audit all existing suppressions using the commands and required format defined i
 
 If a rename or structural change must preserve comments and docstrings, use the LibCST
 transform recipe and post-transform verification commands in
-`skills/python-refactoring/workflow.md` §Phase 3 (Semantic Transformation).
+`skills/python-refactoring/workflow.md` Phase 3 (Semantic Transformation).
 
 ---
 
@@ -162,15 +162,15 @@ For standard application code: mypy + pyright are sufficient. Do not run pyre by
 
 ## Step 7: Static Security Validation
 
-See `rules/toolchain.md` §5 for bandit commands.
+See `rules/toolchain.md` section 5 for bandit commands.
 
-Priority findings — must resolve before merge: see `rules/coding.md` §Bandit priority findings.
+Priority findings — must resolve before merge: see `rules/coding.md` Bandit priority findings.
 
 ---
 
 ## Step 8: Diff Scope Enforcement
 
-See `rules/toolchain.md` §7.
+See `rules/toolchain.md` section 7.
 
 If coverage on changed lines is below 90%:
 

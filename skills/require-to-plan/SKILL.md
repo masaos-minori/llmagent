@@ -57,7 +57,7 @@ Run all steps (1 through 10) sequentially. Do not skip any analysis.
 | 9 | Planning rules | Enforce evidence-based increments. **Always include a deployment/verification step**. |
 | 10 | Completion checklist | Verify all required sections are complete and blocking unknowns are resolved. |
 
-> **IMPORTANT — Tool Availability Guard (For AI):** applies to `pydeps`, `radon`, `semgrep` and any other tool listed above — see `skills/DESIGN.md` §Tool availability guard.
+> **IMPORTANT — Tool Availability Guard (For AI):** applies to `pydeps`, `radon`, `semgrep` and any other tool listed above — see `skills/DESIGN.md` Tool availability guard.
 
 ---
 
@@ -114,7 +114,7 @@ Generate your final response using the exact Markdown structure below. Do not om
 Notes on filling section 5: populate Churn/Bus Factor from Step 4 (Historical Analysis) and
 Blast Radius from Step 3 (Dependency Graphing) — mark `N/A` if that step was skipped (Path A).
 Always state the `deploy.sh` impact explicitly. If documentation must be updated, name the
-target doc via `docs/00_index.md` §Task-specific document reference (or `routing.md` §Docs → task
+target doc via `docs/00_index.md` Task-specific document reference (or `routing.md` Docs → task
 mapping for new modules) — do not hardcode doc filenames here, they change as docs are split.
 
 ## See Also

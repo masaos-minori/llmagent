@@ -30,7 +30,7 @@ Before reading any code, classify the task:
 
 - **Task type**: new feature / bug fix / refactor / integration / cleanup
 - **Target scope**: identify target files and likely call paths
-- **Blast radius**: shared utility or leaf module? (see Phase 2 §pydeps for how to assess this)
+- **Blast radius**: shared utility or leaf module? (see Phase 2 pydeps for how to assess this)
 - **Interface impact**: does this change a public function signature, a config key, or a DB schema?
 
 If requirements are ambiguous, state what is unknown and proceed conservatively.
@@ -84,7 +84,7 @@ git diff HEAD~1 -- scripts/
 
 ## Phase 3: Architecture Boundary Analysis
 
-See `rules/toolchain.md` §3 for the `lint-imports` command.
+See `rules/toolchain.md` section 3 for the `lint-imports` command.
 
 To add a new boundary contract:
 
@@ -138,7 +138,7 @@ Do not introduce a new pattern unless the existing pattern is demonstrably insuf
 
 #### Error handling rules
 
-Applies `skills/DESIGN.md` §Pythonic safety constraints (specific exceptions, no bare
+Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no bare
 `except Exception` without re-raising, fail-fast) to this phase:
 
 - raise specific exceptions with descriptive messages
@@ -161,7 +161,7 @@ Applies `skills/DESIGN.md` §Pythonic safety constraints (specific exceptions, n
 
 If a change within this task must preserve comments, formatting, or docstrings during a
 rename/structural edit, use the LibCST transform recipe in
-`skills/python-refactoring/workflow.md` §Phase 3 (Semantic Transformation).
+`skills/python-refactoring/workflow.md` Phase 3 (Semantic Transformation).
 
 After any LibCST transform: run `ruff format scripts/` and `ruff check scripts/ --fix`.
 
@@ -219,15 +219,15 @@ Do not log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DE
 
 ## Phase 8: Security Validation
 
-See `rules/toolchain.md` §5 for bandit commands.
+See `rules/toolchain.md` section 5 for bandit commands.
 
-Priority findings: see `rules/coding.md` §Bandit priority findings.
+Priority findings: see `rules/coding.md` Bandit priority findings.
 
 ---
 
 ## Phase 9: Validation Orchestration
 
-See `rules/toolchain.md` for the full sequence and `rules/coding.md` §Constraint checks for
+See `rules/toolchain.md` for the full sequence and `rules/coding.md` Constraint checks for
 the `ast-grep` commands.
 
 ---
@@ -236,7 +236,7 @@ the `ast-grep` commands.
 
 #### diff-cover
 
-See `rules/toolchain.md` §7.
+See `rules/toolchain.md` section 7.
 
 #### pytest-benchmark
 

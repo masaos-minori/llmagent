@@ -262,7 +262,7 @@ Text is split by Markdown headings (# through ######). Sections exceeding `md_sn
 
 ### 3.7 Configuration
 
-See [03_rag_05_1-configuration-reference.md §1.1](03_rag_05_1-configuration-reference.md).
+See [03_rag_05_1-configuration-reference.md section 1.1](03_rag_05_1-configuration-reference.md).
 
 ---
 

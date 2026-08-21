@@ -94,7 +94,7 @@ Simple, single code path.
 Restores over transient lock/permission failures unnecessarily; risks discarding recent writes when the "corruption" was actually a temporary condition.
 
 #### Reason for Rejection
-Violates the classification invariant (§Decision Details #1); observed lock-contention behavior in the current implementation already avoids this trap and this ADR codifies keeping it that way.
+Violates the classification invariant (Decision Details #1); observed lock-contention behavior in the current implementation already avoids this trap and this ADR codifies keeping it that way.
 
 ### Alternative B: Leave `workflow`/`eventbus` unrecoverable by policy, permanently
 

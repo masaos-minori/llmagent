@@ -84,7 +84,7 @@ Do:
 Do:
 - identify documentation that now contradicts the changed behavior
 - ground every mismatch claim in the current implementation, not in memory of prior versions
-- avoid implementation-reference duplication: see `skills/DESIGN.md` §Avoid implementation-reference duplication
+- avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication
 
 ---
 
@@ -92,8 +92,8 @@ Do:
 
 For every finding, attach:
 - concrete evidence: file path, class/function/method/route/command/config key, test name, or CI workflow, and the observed current behavior
-- an evidence label and confidence level per `skills/DESIGN.md` §Shared Vocabulary
-- a severity per `SKILL.md` §Severity
+- an evidence label and confidence level per `skills/DESIGN.md` Shared Vocabulary
+- a severity per `SKILL.md` Severity
 
 ---
 

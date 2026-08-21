@@ -5,7 +5,7 @@
 A concise per-module API reference including roles, primary public APIs, callers, callees, relevant configurations, and failure behavior. For full method signatures, refer to the respective chapters linked below.
 
 > **Scope of this chapter:** Function signatures, parameter types, return values, error conditions.
-> For component context, data flow, and runtime behavior → see [05_agent_02 §Runtime Architecture](05_agent_02_runtime-architecture.md).
+> For component context, data flow, and runtime behavior → see [05_agent_02 Runtime Architecture](05_agent_02_runtime-architecture.md).
 
 ## Design Intent
 
@@ -49,7 +49,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 - **Configuration:** Entire `AgentConfig`
 - **On Failure:** Unhandled exceptions propagate to the event loop. `finally` always closes resources.
 
-Full details: [05_agent_02_runtime-architecture.md§AgentREPL](05_agent_02_runtime-architecture.md)
+Full details: [05_agent_02_runtime-architecture.md AgentREPL](05_agent_02_runtime-architecture.md)
 
 ---
 
@@ -114,9 +114,9 @@ Full details: [05_agent_06_01_tool-execution-and-approval-execution.md](05_agent
 - **Configuration:** No direct configuration. The constructor accepts `server_configs` for backward compatibility but does not read them.
 - **On Failure:** If the tool name is not found in the registry, a `ValueError` is raised immediately without fallback.
 
-> **Evidence Classification: Explicit in code (Correction).** Previous versions described a "4-layer cascade (live discovery > ToolRegistry > config `tool_names` > static constants)" and stated that a `KeyError` would occur on failure. However, after `shared/route_resolver.py::ToolRouteResolver.resolve()` was updated to only reference `ToolRegistry` and raise `ValueError` if no match is found, and subsequently migrated to `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`), the logic changed. `ToolRegistry` has been downgraded to seed data for drift detection and is no longer used for routing decisions. Config `tool_names` is merely drift verification metadata and not an input for routing. This change follows the implementation in `04_mcp_03_01_dispatch-and-routing.md` §Reliable source of routing information.
+> **Evidence Classification: Explicit in code (Correction).** Previous versions described a "4-layer cascade (live discovery > ToolRegistry > config `tool_names` > static constants)" and stated that a `KeyError` would occur on failure. However, after `shared/route_resolver.py::ToolRouteResolver.resolve()` was updated to only reference `ToolRegistry` and raise `ValueError` if no match is found, and subsequently migrated to `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`), the logic changed. `ToolRegistry` has been downgraded to seed data for drift detection and is no longer used for routing decisions. Config `tool_names` is merely drift verification metadata and not an input for routing. This change follows the implementation in `04_mcp_03_01_dispatch-and-routing.md` Reliable source of routing information.
 
-Full details: [04_mcp_03_01_dispatch-and-routing.md §Reliable source of routing information](04_mcp_03_01_dispatch-and-routing.md)
+Full details: [04_mcp_03_01_dispatch-and-routing.md Reliable source of routing information](04_mcp_03_01_dispatch-and-routing.md)
 
 ---
 
@@ -170,7 +170,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 > **Evidence Classification: Explicit in code (Correction).** Previous versions stated that callees were `LLMClient`, but summary LLM calls actually perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. Additionally, the description "no compression on failure" was incomplete; if character limits are exceeded, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
 
-Full details: [05_agent_04_01_state-and-persistence-state-model.md§HistoryManager](05_agent_04_01_state-and-persistence-state-model.md)
+Full details: [05_agent_04_01_state-and-persistence-state-model.md HistoryManager](05_agent_04_01_state-and-persistence-state-model.md)
 
 ---
 
@@ -196,7 +196,7 @@ Full details: [05_agent_07_01_cli-and-commands-cli-reference.md](05_agent_07_01_
 - **Configuration:** No direct configuration. Callbacks are wired during construction.
 - **On Failure:** I/O errors propagate to the caller.
 
-Full details: [05_agent_07_01_cli-and-commands-cli-reference.md §CLIView](05_agent_07_01_cli-and-commands-cli-reference.md)
+Full details: [05_agent_07_01_cli-and-commands-cli-reference.md CLIView](05_agent_07_01_cli-and-commands-cli-reference.md)
 
 ---
 

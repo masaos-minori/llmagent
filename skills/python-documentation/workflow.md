@@ -200,14 +200,14 @@ Convert analysis into maintainable documentation.
 - do not hide uncertainty
 - keep changes minimal if docs already exist
 - preserve useful existing context; write design text in English, easy for an AI coding agent to
-  parse (see `skills/DESIGN.md` §Output language)
+  parse (see `skills/DESIGN.md` Output language)
 - avoid full implementation reference tables
 - reference implementation by class/function/method name, never by source-code line number
-  (see `skills/DESIGN.md` §No source-code line numbers)
+  (see `skills/DESIGN.md` No source-code line numbers)
 - describe configuration policy and consequences, not the current concrete value from
-  `config/*.toml` (see `skills/DESIGN.md` §No concrete configuration values)
+  `config/*.toml` (see `skills/DESIGN.md` No concrete configuration values)
 - name items instead of counting them — do not state how many modules/tools/servers/fields/tests
-  something comprises (see `skills/DESIGN.md` §No implementation counts)
+  something comprises (see `skills/DESIGN.md` No implementation counts)
 - keep important invariants explicit
 - separate current behavior from design intent where useful
 - move unresolved uncertainty to Needs Confirmation, and unresolved conflicts to Known Issues
@@ -223,12 +223,12 @@ Normally remove, compress, or replace with source references:
 - constructor parameter tables, public attribute tables
 - TypedDict, dataclass, DTO, and Pydantic model full field listings
 - complete CLI argument tables, complete configuration key tables, and any individual concrete
-  value copied from `config/*.toml` (see `skills/DESIGN.md` §No concrete configuration values)
+  value copied from `config/*.toml` (see `skills/DESIGN.md` No concrete configuration values)
 - JSON examples that simply mirror DTO or schema fields
 - import lists, module-level constant listings
-- source-code line numbers (see `skills/DESIGN.md` §No source-code line numbers)
+- source-code line numbers (see `skills/DESIGN.md` No source-code line numbers)
 - counts of modules, tools, servers, states, fields, tests, or documents
-  (see `skills/DESIGN.md` §No implementation counts)
+  (see `skills/DESIGN.md` No implementation counts)
 
 Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
 invariants, failure behavior (fail-fast/fail-open), security and operational constraints,
@@ -283,7 +283,7 @@ ownership, runtime entrypoints, failure behavior, operational constraints, secur
 behavior, persistence/migration behavior, and documentation/code mismatch corrections. Do not
 add evidence labels to every sentence.
 
-Use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary. When using
+Use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary. When using
 `Needs confirmation`, include the required fields defined by the governance documentation.
 
 Do not invent missing behavior or assume framework patterns without evidence.
@@ -306,7 +306,7 @@ evidence label, open questions, and target document.
   Private names starting with `_` are out of scope unless necessary to explain lifecycle,
   safety, failure behavior, or an invariant — in that case, describe the behavior at
   component level instead of exposing the private API as public.
-- Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
+- Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ---
 

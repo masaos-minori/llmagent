@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-See `SKILL.md` §Prerequisites.
+See `SKILL.md` Prerequisites.
 
 ## Idempotency note
 
@@ -159,4 +159,4 @@ tail -20 /opt/llm/logs/agent.log
 
 ## Step 9: Completion checklist
 
-See `SKILL.md` §Completion checklist.
+See `SKILL.md` Completion checklist.

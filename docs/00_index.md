@@ -48,7 +48,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Agent known issues / inconsistencies | `05_agent_90_inconsistencies_and_known_issues.md` |
 | MCP server spec (overview, design, known issues) | `04_mcp_00_document-guide.md` + `04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `03_rag_00_document-guide.md` + `03_rag_01_system_overview.md` |
-| MDQ vs RAG boundary | `04_mcp_05_01_access-control-and-allowlists.md` §MDQ vs RAG Boundary |
+| MDQ vs RAG boundary | `04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `90_shared_04_01_db_architecture_and_schema-overview-and-config.md` + `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `90_shared_00_document-guide.md` + `90_shared_01_01_overview-purpose-and-scope.md` |
 

@@ -22,7 +22,7 @@ Add, repair, and improve Python tests; reproduce the problem clearly; fix the sm
 - **Do Not Fix Tests by Blindly Changing Expectations**: If a test fails, do not immediately modify the test assertions to match the current broken output. You must verify whether the implementation or the test violates the system contract.
 - **Strictly Forbid Flaky Fix Anti-Patterns**: Never use arbitrary `time.sleep()` to fix timing or race conditions in asynchronous or multi-threaded tests. Use proper synchronization primitives, event-loop waits, or `pytest-asyncio` lifecycles.
 - **Ensure Mock Cleanliness**: Always patch/mock dependencies using context managers or pytest fixtures that guarantee automatic cleanup. Do not leave leakage or side-effects that affect subsequent tests.
-- **No Tool Hallucination**: applies to `mutmut`, `freezegun`, `respx`, `hypothesis`, `pytest-testmon` — see `skills/DESIGN.md` §Tool availability guard (fallback: standard `pytest`/`unittest.mock`).
+- **No Tool Hallucination**: applies to `mutmut`, `freezegun`, `respx`, `hypothesis`, `pytest-testmon` — see `skills/DESIGN.md` Tool availability guard (fallback: standard `pytest`/`unittest.mock`).
 
 ---
 
@@ -86,7 +86,7 @@ Before committing any fix for a broken or failing test, the AI must explicitly d
 
 ## See Also
 See `workflow.md` for detailed phase content, plugin flags, and CLI commands.
-Run tests via `uv run pytest` (see `AGENTS.md` §Development); do not use `~/.local/bin/pytest`.
+Run tests via `uv run pytest` (see `AGENTS.md` Development); do not use `~/.local/bin/pytest`.
 
 ## Composes with
 - `python-implementation` — if Step 12 determines that the fix requires modifying application logic beyond the test suite.

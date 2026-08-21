@@ -136,7 +136,7 @@ http GET http://localhost:8004/health Accept:application/json
 #### sqlite3 CLI
 
 ```bash
-sqlite3 <path/to/rag|session|workflow|eventbus>.sqlite   # see rules/env.md §SQLite schema
+sqlite3 <path/to/rag|session|workflow|eventbus>.sqlite   # see rules/env.md SQLite schema
 # .tables  .schema <table>  PRAGMA integrity_check;  PRAGMA wal_checkpoint;
 ```
 

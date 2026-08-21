@@ -83,7 +83,7 @@ For documentation-related issues, focus on: design intent, responsibility bounda
 constraints, design decisions, operational notes, failure behavior, Known Issues, Needs
 Confirmation items.
 
-Apply `skills/DESIGN.md` §Avoid implementation-reference duplication to what implementers are
+Apply `skills/DESIGN.md` Avoid implementation-reference duplication to what implementers are
 asked to add.
 
 If implementation-derived details are currently present, prefer in this order: remove,
@@ -125,8 +125,8 @@ out-of-scope items.
 
 ### Evidence and assumptions
 
-When the issue is based on code review or investigation, apply `skills/DESIGN.md` §Evidence
-labels and §Confidence levels — do not invent a parallel confirmed/assumption/unknown scheme.
+When the issue is based on code review or investigation, apply `skills/DESIGN.md` Evidence
+labels and Confidence levels — do not invent a parallel confirmed/assumption/unknown scheme.
 
 When the issue is based on a user request only:
 - state assumptions clearly

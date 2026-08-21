@@ -51,11 +51,11 @@ Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a t
 | Question | Answer |
 |---|---|
 | How to load configuration files? | `ConfigLoader().load("filename.toml")` or `load_all()` |
-| Where is the configuration ownership table? | **See [§2a Configuration Ownership]** — Official reference for process isolation policies and per-process config files |
-| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [§2a Configuration Ownership]) |
-| When does `ToolExecutor` use its cache? | Only for `is_error=False` results; uses TTL + LRU. Note: `ToolExecutor` uses its own internal `OrderedDict`-based cache (`_execute_with_cache()`) rather than `shared/tool_cache.py`'s `ToolResultCache` (§15) |
+| Where is the configuration ownership table? | **See [section 2a Configuration Ownership]** — Official reference for process isolation policies and per-process config files |
+| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [section 2a Configuration Ownership]) |
+| When does `ToolExecutor` use its cache? | Only for `is_error=False` results; uses TTL + LRU. Note: `ToolExecutor` uses its own internal `OrderedDict`-based cache (`_execute_with_cache()`) rather than `shared/tool_cache.py`'s `ToolResultCache` (section 15) |
 | Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; verify `.success` and `.failure_reason` (FailureReason enum) |
 | How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
 | How do LLM retries work? | Exponential backoff: `retry_base_delay * (2**attempt)` for 429/503 and connection errors |
 | What is the `ToolExecutor` cache key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
-| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (§17) |
+| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (section 17) |

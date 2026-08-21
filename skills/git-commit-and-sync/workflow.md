@@ -17,7 +17,7 @@
 | `git push` | Push | push to remote after approval |
 | `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
 
-Forbidden commands: see `SKILL.md` § Core rules.
+Forbidden commands: see `SKILL.md` Core rules.
 
 ---
 
@@ -262,4 +262,4 @@ Report:
 - stop conditions triggered, with explanation
 - warnings
 
-Prohibited behavior: see `SKILL.md` § Core rules.
+Prohibited behavior: see `SKILL.md` Core rules.

@@ -171,7 +171,7 @@ The `"remote_empty"` case is NOT a fallback, it is a **SUCCESS**. It means the r
 This classification result can be verified here:
 - `get_diagnostics()["http_result_kind"]`
 
-> **Note**: `get_diagnostics()["http_result_kind"]` (values: `remote_nonempty`/`remote_empty`/`in_process_fallback`) and `SearchDiagnostics.http_result_kind` (`rag.models_result.HttpResultKind` enum, values: `success`/`empty`/`error`/`not_used`) have similar names but are different fields with different vocabularies. See [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) §4.2 for details.
+> **Note**: `get_diagnostics()["http_result_kind"]` (values: `remote_nonempty`/`remote_empty`/`in_process_fallback`) and `SearchDiagnostics.http_result_kind` (`rag.models_result.HttpResultKind` enum, values: `success`/`empty`/`error`/`not_used`) have similar names but are different fields with different vocabularies. See [03_rag_03_03_query_pipeline-context-and-diagnostics.md](03_rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
 > (Evidence classification: Explicit in code — `HttpAugmentResult.__init__` and `RagPipeline._run_http_augment`)
 
 ---

@@ -71,10 +71,10 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
 - Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished
-- Out-of-scope paths: see `skills/DESIGN.md` §Out-of-scope paths.
+- Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ### Pythonic Code Quality & Safety Constraints
-See `skills/DESIGN.md` §Pythonic safety constraints (mutable defaults, exception handling,
+See `skills/DESIGN.md` Pythonic safety constraints (mutable defaults, exception handling,
 typed data, resource management, dynamic execution, async safety) — apply in full.
 
 ### Code Comments
@@ -86,7 +86,7 @@ recovered by reading the code itself. Do not write:
 - task/ticket ID references (e.g. `(UZU-XXXX)`)
 
 ### Production Readiness
-See `skills/DESIGN.md` §Pythonic safety constraints (no placeholders, no debug artifacts) —
+See `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts) —
 apply before moving to Phase 11.
 
 ---

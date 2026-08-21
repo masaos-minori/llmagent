@@ -51,7 +51,7 @@ source:
 | `embed_workers` | 4 | Maximum number of concurrent embedding threads via `ThreadPoolExecutor` |
 | `embedding_dims` | 384 | Expected dimensions of the embedding vector; verified against API response |
 
-See [03_rag_05_1-configuration-reference.md §1.2](03_rag_05_1-configuration-reference.md).
+See [03_rag_05_1-configuration-reference.md section 1.2](03_rag_05_1-configuration-reference.md).
 
 ---
 

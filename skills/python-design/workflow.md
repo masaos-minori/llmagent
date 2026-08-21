@@ -61,7 +61,7 @@ For each module in the design:
 
 Design package layout and interface contracts at responsibility level (externally relevant
 public contracts, caller-visible behavior, input/output type boundaries for major use cases).
-Apply `skills/DESIGN.md` §Avoid implementation-reference duplication — list a file, function,
+Apply `skills/DESIGN.md` Avoid implementation-reference duplication — list a file, function,
 or method only when the boundary itself is a design decision.
 
 Validate with:
@@ -83,7 +83,7 @@ For each entity:
 Use Pydantic `BaseModel` at module boundaries, plain dataclasses internally.
 
 Keep data model design at semantic level: ownership, lifecycle, validation boundaries,
-compatibility constraints, and invariants. Apply `skills/DESIGN.md` §Avoid
+compatibility constraints, and invariants. Apply `skills/DESIGN.md` Avoid
 implementation-reference duplication — avoid exhaustive field listings unless required to
 explain a design decision.
 
@@ -103,7 +103,7 @@ logger = logging.getLogger(__name__)
 logger.error("descriptive_message key=value key2=%s", val)
 ```
 
-Apply `skills/DESIGN.md` §Pythonic safety constraints: design explicit context managers
+Apply `skills/DESIGN.md` Pythonic safety constraints: design explicit context managers
 (`with` / `async with`) for files, sockets, database connections, HTTP clients, and async
 clients.
 
@@ -145,7 +145,7 @@ Check:
 - [ ] no assumption is untested or contradictory
 - [ ] the implementation plan covers all modules and is small enough for independent phases
 - [ ] open questions and implementation-verification items are listed
-- [ ] design complies with `skills/DESIGN.md` §Import layer contract and §Pythonic safety
+- [ ] design complies with `skills/DESIGN.md` Import layer contract and Pythonic safety
       constraints (dependency direction, `Any`/untyped-dict avoidance, sync/async isolation,
       resource lifecycle, retries/error classification)
 
@@ -157,8 +157,8 @@ If a section is not relevant, omit it instead of filling it with generic text.
 
 ### Existing Codebase Design Review
 
-When reviewing or redesigning an existing Python codebase, apply `skills/DESIGN.md` §Evidence
-labels and §Confidence levels to describe current behavior. In addition:
+When reviewing or redesigning an existing Python codebase, apply `skills/DESIGN.md` Evidence
+labels and Confidence levels to describe current behavior. In addition:
 - distinguish implemented behavior from desired design
 - preserve known issues and unresolved documentation/code mismatches
 
@@ -181,7 +181,7 @@ Verification Item.
 - Keep modules small and explicit; avoid monolithic files or dumping unrelated behavior into `utils.py`.
 - Prefer simple functions over classes when state is not required. Use classes for state, lifecycle, dependency injection, polymorphism, or a stable public concept.
 - Include failure paths explicitly — timeouts, disconnected states, partial failures, malformed inputs, invalid configuration, and resource cleanup.
-- Apply `skills/DESIGN.md` §Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees).
+- Apply `skills/DESIGN.md` Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees).
 - Respect project-specific constraints: if a general rule conflicts with an existing project convention, document the exception and explain why it is acceptable.
 - Separate current design from future extensions.
 

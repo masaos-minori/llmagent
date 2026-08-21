@@ -44,7 +44,7 @@ See `workflow.md` for detailed phase content including commands, tools, and fail
 These apply regardless of the refactor type. Do not violate.
 
 ### Code Correctness & Safety
-See `skills/DESIGN.md` §Pythonic safety constraints (exception handling, typed data, no raw
+See `skills/DESIGN.md` Pythonic safety constraints (exception handling, typed data, no raw
 `print`, fail-fast) — apply in full.
 
 ### Refactoring & Python Architecture Standards
@@ -54,7 +54,7 @@ See `skills/DESIGN.md` §Pythonic safety constraints (exception handling, typed 
 - **Favor Modern Python Features**: Where appropriate, refactor redundant conditional logic or rigid class hierarchies into modern constructs like structural pattern matching (`match-case`), structural typing (`Protocol`), or structural configuration.
 
 ### Domain Models & Data Integrity
-Applying `skills/DESIGN.md` §Pythonic safety constraints (no raw `dict[str, Any]` for core
+Applying `skills/DESIGN.md` Pythonic safety constraints (no raw `dict[str, Any]` for core
 domain data) to this codebase:
 - Define dedicated DTOs for audit logs, approval decisions, and execution results
 - Validate all LLM-derived JSON immediately after decoding; fail immediately on schema violation

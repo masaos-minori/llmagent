@@ -20,7 +20,7 @@ Resolve Python code quality issues; fix root causes rather than suppressing warn
 ## Core Quality Rules (Strictly Enforced for AI)
 
 - **Fix the Root Cause, Do Not Ignore**: Resolving a type/lint error by blindly adding `# type: ignore` or `# noqa` is considered a failure. You must attempt to fix the underlying type signature or code structure first.
-- **No Tool Hallucination**: applies to `ast-grep`, `LibCST`, `lint-imports` — see `skills/DESIGN.md` §Tool availability guard.
+- **No Tool Hallucination**: applies to `ast-grep`, `LibCST`, `lint-imports` — see `skills/DESIGN.md` Tool availability guard.
 - **Strict Diff Isolation**: When running automated formatters or fixers (`ruff check --fix`), ensure you only stage and commit changes strictly relevant to the target issue. Do not reformat unrelated codeblocks.
 
 ---
@@ -45,7 +45,7 @@ Before running the full sequence, look at the error log and check if the failure
 |---|---|---|
 | 1 | Identify failure source | Run validation tools or inspect logs to pinpoint which check is failing. |
 | 2 | Repository convention enforcement | Run `ruff format` first (formatting), then `ruff check` (lint). Use `ast-grep` for structural pattern checks if available. |
-| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`) against the layer contract in `skills/DESIGN.md` §Import layer contract; violations must be fixed structurally, not suppressed. Also run `python tools/check_no_compat.py` to detect backward compatibility leftovers in source and docs. |
+| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`) against the layer contract in `skills/DESIGN.md` Import layer contract; violations must be fixed structurally, not suppressed. Also run `python tools/check_no_compat.py` to detect backward compatibility leftovers in source and docs. |
 | 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you must provide a rigorous, comments-based justification directly above the line. |
 | 5 | Semantic refactor safety | Use `LibCST` or structural modifiers when performing comment/formatting-preserving transformations. |
 | 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. |

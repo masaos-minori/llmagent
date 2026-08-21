@@ -21,7 +21,7 @@ This report covers a documentation update addressing three issues: database corr
 
 ## Canonical documents updated
 
-- `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` — expanded §9 Corruption Recovery into a full responsibility/exception/sequence/dry-run/persistence-domain/operational model; corrected a misleading §10 Error Handling sentence.
+- `90_shared_05_04_db_api_and_operations-recovery-and-reference.md` — expanded section 9 Corruption Recovery into a full responsibility/exception/sequence/dry-run/persistence-domain/operational model; corrected a misleading section 10 Error Handling sentence.
 - `04_mcp_04_05_git.md` — added a Write protection policy section covering the layered model, per-command policy for `git_checkout`/`git_pull`/`git_push`, protected-branch authority, approval-level gap, rejection codes, postcondition verification, and audit status.
 - `00_security_02_high-risk-tool-common-policy.md` — added a Layered protection model section (Agent approval / common guard / command-specific guard / postcondition verification / audit); corrected two factually incorrect claims about Git MCP.
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` — corrected the `WRITE_DANGEROUS` row to reflect that `git_checkout`/`git_pull`/`git_push` actually receive `MEDIUM`-tier (`y/N`) approval, not the full-word `yes` prompt the table previously implied for all listed tools.
@@ -81,7 +81,7 @@ All three are `Proposed`. The ADR index also now flags that ADR-001's body reser
 - MCP-005 (Git MCP audit `target` field emptiness) is based on code reading, not a captured live log line — tracked as NC-020 in `00_governance_07_needs-confirmation-inventory.md`.
 - The absence of any corruption-recovery path for `eventbus.sqlite` is a confirmed-by-absence finding (no code found), which is inherently a weaker form of evidence than a positive behavioral test; flagged accordingly in the design document and Known Issue.
 - Whether the Git MCP guard gaps (protected-branch, Force-Push) are an intentional design choice (local git assumed to be the user's own responsibility) or an oversight remains an open owner decision, carried forward from a pre-existing open question in `04_mcp_04_05_git.md` — tracked as NC-019.
-- The DB recovery target design's structured integrity-result classification (§9.3 of `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`) has not been reviewed by the owner — tracked as NC-021.
+- The DB recovery target design's structured integrity-result classification (section 9.3 of `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`) has not been reviewed by the owner — tracked as NC-021.
 
 ## Areas requiring human review
 

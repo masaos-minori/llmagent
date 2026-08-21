@@ -52,7 +52,7 @@ Audit log functions are implemented within each server's dispatch handler.
 
 HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which raises a `TransportError` exception. The transport error handler converts this into `ToolCallResult(output=str(e), is_error=True, error_type="transport")`.
 
-> **Note:** `HttpTransport.call()` does not directly return `is_error=True` for transport failures. Instead, it raises a `TransportError`. The transport error handler catches this and returns `ToolCallResult(error_type="transport")`. See [04_mcp_03 §HttpTransport](./04_mcp_03_03_transport-and-health.md#httptransport).
+> **Note:** `HttpTransport.call()` does not directly return `is_error=True` for transport failures. Instead, it raises a `TransportError`. The transport error handler catches this and returns `ToolCallResult(error_type="transport")`. See [04_mcp_03 HttpTransport](./04_mcp_03_03_transport-and-health.md#httptransport).
 
 ### HealthRegistry Updates
 

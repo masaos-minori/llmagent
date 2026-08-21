@@ -76,7 +76,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Consistency Checklist
 
-When schema/command references change, verify that `05_agent_01_system-overview.md` §Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
+When schema/command references change, verify that `05_agent_01_system-overview.md` Slash Commands and `05_agent_07_cli-and-commands-*.md` match `scripts/agent/commands/registry.py` (CommandDef per documented item, no deleted command references), `05_agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
 
 ### Document Set Chapters
 
