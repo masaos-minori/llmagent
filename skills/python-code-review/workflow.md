@@ -25,7 +25,7 @@ Identify the reviewed unit: PR, diff, patch, or a named set of files.
 Do:
 - determine the diff boundary (`git diff <base>...<head>` or the stated file list)
 - identify the change's stated intent (PR description, commit message, or user request)
-- identify out-of-scope files (generated code, vendored code, `__pycache__`)
+- identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
 
 ---
 
@@ -36,7 +36,7 @@ Do:
 - check state transitions, idempotency, caching invalidation, and data consistency
 - check import direction and circular-import risk introduced by the change
 - check responsibility boundaries and cross-layer access (e.g. domain code reaching into infra directly)
-- check public contracts: typing correctness, `Any` usage, optional-value handling, protocol conformance
+- check public contracts against `skills/DESIGN.md` Pythonic safety constraints (typing correctness, `Any` usage, optional-value handling, protocol conformance)
 - run `ruff check` / `mypy` or `pyright` on touched files to confirm type and lint findings
 
 ---
@@ -52,7 +52,7 @@ Do:
 
 ## Phase 4: Async/Sync Boundaries and Resource Lifecycle
 
-Do:
+Check compliance with `skills/DESIGN.md` Pythonic safety constraints:
 - check for blocking calls inside `async def` without an executor boundary
 - check file, socket, DB connection, HTTP client, subprocess, and async task cleanup (`with` / `async with`)
 - check for resource leaks on early-return and exception paths
@@ -61,7 +61,8 @@ Do:
 
 ## Phase 5: Error Handling, Configuration, and Logging
 
-Do:
+Check compliance with `skills/DESIGN.md` Pythonic safety constraints (exception handling,
+unsafe dynamic execution) in addition to:
 - check exception handling: overly broad `except Exception`, swallowed errors, missing re-raise
 - check retries, timeouts, and fail-fast vs. fail-open behavior
 - check configuration ownership, startup-only vs. runtime-reloadable settings, and safe defaults

@@ -155,13 +155,8 @@ show_missing = true
 skip_covered = false
 
 [project.scripts]
-check-mcp-docs = "tools.check_mcp_docs_consistency:main"
-check-agent-docs = "tools.check_agent_docs_consistency:main"
-check-deployment-docs = "tools.check_deployment_docs_consistency:main"
-check-overview-docs = "tools.check_overview_docs_consistency:main"
 check-needs-confirmation = "tools.check_needs_confirmation_inventory:main"
 check-tool-descriptions = "tools.check_tool_descriptions_sync:main"
-check-rag-docs = "tools.check_rag_docs_consistency:main"
 
 [tool.pyright]
 pythonVersion = "3.13"

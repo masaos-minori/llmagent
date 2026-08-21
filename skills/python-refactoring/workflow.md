@@ -49,17 +49,7 @@ rg "import <module>" scripts/          # direct imports
 
 #### deploy.sh impact
 
-```bash
-grep "<old_module_name>" deploy/deploy.sh   # does a cp line need to change?
-```
-
-Include in the Phase 1 output table:
-
-| File | Change | Blast radius | deploy.sh impact |
-|---|---|---|---|
-| `scripts/<module>.py` | rename | ... | rename cp line |
-| `scripts/<new>.py` | create | ... | add cp line |
-| `scripts/<old>.py` | delete | ... | remove cp line |
+Record this using `skills/DESIGN.md` Change-impact table.
 
 #### ast-grep — structural usages
 

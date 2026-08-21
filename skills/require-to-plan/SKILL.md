@@ -90,9 +90,12 @@ Generate your final response using the exact Markdown structure below. Do not om
 | UNK-01 | | | | |
 
 ## 5. Affected Areas & Tool Evidence
+
+`skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` columns:
+
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
-| | | | | | [existing / add cp line / remove cp line] |
+| | | | | | |
 
 ## 6. Implementation Steps
 1. **Phase 1: Preparation / Refactoring (if needed)**
@@ -113,7 +116,8 @@ Generate your final response using the exact Markdown structure below. Do not om
 
 Notes on filling section 5: populate Churn/Bus Factor from Step 4 (Historical Analysis) and
 Blast Radius from Step 3 (Dependency Graphing) — mark `N/A` if that step was skipped (Path A).
-Always state the `deploy.sh` impact explicitly. If documentation must be updated, name the
+Fill `deploy.sh Impact` per `skills/DESIGN.md` Change-impact table — always state it explicitly.
+If documentation must be updated, name the
 target doc via `docs/00_index.md` Task-specific document reference (or `routing.md` Docs → task
 mapping for new modules) — do not hardcode doc filenames here, they change as docs are split.
 

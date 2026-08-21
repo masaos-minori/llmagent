@@ -71,7 +71,7 @@ Stop immediately if any command fails.
 - Never run history-rewriting or unsafe sync commands: `rebase`, `commit --amend`, `merge`, `merge --abort`, `pull` (without `--ff-only`), `pull --rebase`, `push --force`, `push --force-with-lease`, `push -f`.
 - Run `git pull --ff-only` before every push; if fast-forward is not possible, stop and report the divergence to the user — do not rebase or merge without explicit instruction.
 - Resolve only simple text conflicts; stop at any ambiguity.
-- Push only after explicit user approval.
+- Push only after explicit user approval (this is the git-specific instance of `AGENTS.md` Execution policy's confirmation exception for pushing to remote repos).
 
 ---
 

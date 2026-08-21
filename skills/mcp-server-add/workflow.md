@@ -74,14 +74,12 @@ Confirm:
 
 ## Step 2: Update deploy.sh
 
-`deploy/deploy.sh` uses explicit `cp` entries — new files are NOT automatically picked up.
-Add `cp` lines for each new file:
+`deploy/deploy.sh` rsyncs `scripts/` wholesale (see `rules/env.md` Architecture), so the new
+server's Python files under `scripts/mcp_servers/<name>/` need no `deploy.sh` change. Only
+`config/*.toml` files are copied individually — add a `cp` line for the new server's config:
 
 ```bash
-# In deploy/deploy.sh, add:
-cp scripts/mcp_servers/<name>/server.py  /opt/llm/scripts/mcp_servers/<name>/server.py
-cp scripts/mcp_servers/<name>/service.py /opt/llm/scripts/mcp_servers/<name>/service.py
-cp scripts/mcp_servers/<name>/models.py  /opt/llm/scripts/mcp_servers/<name>/models.py
+# In deploy/deploy.sh, add alongside the other MCP server config cp lines:
 cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
 ```
 

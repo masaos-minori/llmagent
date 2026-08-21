@@ -138,7 +138,7 @@ Stop if:
 - Fast-forward is not possible (diverged history). Report: `Fast-forward pull failed. No push was performed.`
 - Pull exits with an error unrelated to conflicts.
 
-Do not run `git pull`, `git pull --rebase`, `git merge`, or `git rebase`.
+Do not run the commands `SKILL.md` Core rules forbids (`git pull` without `--ff-only`, `git pull --rebase`, `git merge`, `git rebase`).
 
 ---
 

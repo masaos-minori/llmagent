@@ -84,7 +84,7 @@ git diff --staged         # confirm what will be committed
 - `uv run diff-cover coverage.xml --compare-branch=master` ≥ 90% on changed lines
 - `uv run pre-commit run --all-files` passes
 - diff reviewed and staged selectively with `git add <file>`
-- `deploy/deploy.sh` updated if a file under `scripts/` was added or removed
+- `deploy/deploy.sh` updated only if a new `config/*.toml` file was introduced — `scripts/` is rsynced wholesale and needs no `deploy.sh` change on module add/remove (see `rules/env.md` Architecture)
 - `config/agent.toml mcp_servers` updated if a new MCP server was added
 
 ## Environment setup
@@ -108,23 +108,24 @@ uv run pip-audit                                   # dependency vulnerability sc
 uv run python -m compileall -q scripts/
 ```
 
-## MCP documentation consistency
+## Documentation consistency (per domain)
+
+See `routing.md` Tools → "When to run which tool" for the full list of documentation checkers
+and when to run each one. The domain-specific check:
 
 ```bash
-# Run all checks
-uv run check-mcp-docs
+uv run python tools/check_docs_consistency.py --domain mcp
 
 # Skip specific checks
-uv run check-mcp-docs --skip portdrift --skip tooldrift
+uv run python tools/check_docs_consistency.py --domain mcp --skip portdrift --skip tooldrift
 ```
 
-The `check-mcp-docs` entry point is registered in `pyproject.toml`. It verifies:
-- `check_port_drift` (ERROR) — doc-mentioned port next to a `<name>-mcp` token vs. the port
-  assigned in `config/agent.toml`'s `[mcp_servers.*]` sections
-- `check_tool_name_drift` (WARNING) — backtick-quoted tool name on a "Tools:"/"ツール:" line vs.
-  live `"name": "..."` entries in `scripts/mcp_servers/**/*.py` `TOOL_LIST` definitions
-- Generic checks provided via `tools/_docs_consistency_lib.py` (also used by
-  `tools/check_agent_docs_consistency.py` for the links/removed-file/command-drift checks):
-  broken internal Markdown links, removed-legacy-doc-file references, slash-command drift vs.
-  `command_defs_list.py`, `scripts/`-path reference existence, and backtick-quoted
-  function-reference existence
+Also available for `--domain agent|rag|deployment|overview`. It verifies, among other checks
+(`--help` lists all available `--skip` values):
+- `portdrift` — doc-mentioned port next to a `<name>-mcp` token vs. the port assigned in
+  `config/agent.toml`'s `[mcp_servers.*]` sections
+- `tooldrift` — backtick-quoted tool name on a "Tools:"/"ツール:" line vs. live
+  `"name": "..."` entries in `scripts/mcp_servers/**/*.py` `TOOL_LIST` definitions
+- Generic checks provided via `tools/_docs_consistency_lib.py`: broken internal Markdown
+  links, removed-legacy-doc-file references, slash-command drift vs. `command_defs_list.py`,
+  `scripts/`-path reference existence, and backtick-quoted function-reference existence

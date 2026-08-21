@@ -84,27 +84,13 @@ git diff HEAD~1 -- scripts/
 
 ## Phase 3: Architecture Boundary Analysis
 
-See `rules/toolchain.md` section 3 for the `lint-imports` command.
+See `rules/toolchain.md` section 3 for the `lint-imports` command, and `skills/DESIGN.md`
+Import layer contract for the canonical layer diagram (do not re-derive it here).
 
-To add a new boundary contract:
-
-```ini
-[importlinter]
-root_packages =
-    agent
-    shared
-    rag
-    mcp
-    db
-
-[importlinter:contract:commands-no-repl]
-name = CommandRegistry must not import AgentREPL
-type = forbidden
-source_modules =
-    agent.commands
-forbidden_modules =
-    agent.repl
-```
+To add a new forbidden-import contract, add an `[importlinter:contract:<name>]` section to
+the repository's `.importlinter` file, following the existing contracts there as a template.
+Read the current `root_packages` list from `.importlinter` itself rather than assuming it —
+it changes if a top-level package is added or removed.
 
 Run `lint-imports` after every change that touches import statements.
 
@@ -154,7 +140,7 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
 - change only files relevant to the task
 - keep diffs small and intentional
 - avoid opportunistic unrelated cleanup unless explicitly requested
-- when adding/removing a module: update `deploy/deploy.sh` simultaneously
+- when adding/removing a module: `deploy/deploy.sh` does not need a change for this — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line added there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`
 
 #### LibCST — CST-based refactor transforms
@@ -258,27 +244,21 @@ pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ## Phase 11: Production Readiness
 
 ```bash
-grep -c "cp scripts/" deploy/deploy.sh
 rg "<old_module_name>" scripts/
-grep "mcp_servers" config/*_mcp_server.toml
 ```
 
 Checklist (in addition to `rules/toolchain.md`):
-- `config/<key>_mcp_server.toml [mcp_servers.<key>]` created if a new MCP server was added
+- If a new MCP server was added, its `config/<key>_mcp_server.toml` setup follows `skills/mcp-server-add/workflow.md` — do not re-derive that checklist here.
 
 ---
 
 ## Phase 12: Knowledge Compression
 
-- **`CLAUDE.md` Architecture section**: add one-line role description for each new module
-- **`routing.md`**: add task-type → doc mapping entry for new modules
-- **`docs/05_agent_07_cli-and-commands.md`**: update if slash commands changed
-- **`docs/03_rag_02_ingestion_pipeline.md`** or **`docs/03_rag_03_query_pipeline.md`**: update if RAG pipeline modules changed
-- **`docs/04_mcp_04_server_catalog.md`**: update if MCP tools changed
-- **`docs/05_agent_08_configuration.md`**: update if `AgentConfig` fields changed
-- **`deploy/deploy.sh`**: add `cp` lines for new files; remove lines for deleted files
+- **`routing.md`**: add a task-type → doc mapping entry for new modules if none of the existing "Docs → task mapping" entries already cover the area
+- **Affected docs**: look up the correct target document via `routing.md` "Docs → task mapping" (which delegates to `docs/00_index.md`) — do not guess a filename; the doc set has been restructured and old single-file names no longer exist
+- **`deploy/deploy.sh`**: add a `cp` line only if a new `config/*.toml` file was introduced (see Phase 5 File editing rules — module add/remove alone does not require a `deploy.sh` change)
 
-When removing a module: remove from all of the above, delete the file, run `rg` for dangling imports.
+When removing a module: remove its entry from the above, delete the file, run `rg` for dangling imports.
 
 ---
 

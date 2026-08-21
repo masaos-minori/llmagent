@@ -39,11 +39,10 @@ Do not fix any issue until you know which tool found it and why.
 
 #### ruff — format and lint
 
+See `rules/toolchain.md` section 1 for the standard format/lint sequence. To narrow to one file:
+
 ```bash
-ruff format scripts/                  # reformat (line length, quote style)
-ruff check scripts/ --fix             # auto-fix safe violations (imports, unused vars)
-ruff check scripts/                   # remaining issues need manual fix
-ruff check scripts/<file>.py --select E,W,F,I,UP   # narrow to one file
+ruff check scripts/<file>.py --select E,W,F,I,UP
 ```
 
 After auto-fix, review the diff. Only accept changes that are correct — do not trust auto-fix blindly on complex expressions.
@@ -184,21 +183,8 @@ Do not add tests for unrelated lines to inflate coverage — scope tests to the 
 
 ## Step 9: CI Consistency Validation
 
-Run the full pre-commit gate to match CI behavior:
-
-```bash
-pre-commit run --all-files
-```
-
-Or run individual checks directly:
-
-```bash
-ruff format scripts/
-ruff check scripts/ --fix && ruff check scripts/
-PYTHONPATH=scripts mypy scripts/ tests/
-bandit -r scripts/ -c pyproject.toml
-PYTHONPATH=scripts pytest tests/ -q
-```
+Run the standard validation sequence (`rules/toolchain.md`) in full, ending with the pre-commit
+gate (`rules/toolchain.md` section 8) to match CI behavior.
 
 If using tox (requires tox.ini to be configured — not in the default dev workflow):
 
@@ -210,8 +196,8 @@ tox -e lint && tox -e typecheck && tox -e tests
 
 ## Step 10: Minimal Change Principle
 
-- do not reformat files unrelated to the task
-- do not fix unrelated lint issues in the same commit
+Enforces `SKILL.md` Strict Diff Isolation. In addition:
+
 - do not rename symbols while fixing a type error — do them in separate commits
 
 Review the diff before staging:
@@ -238,20 +224,13 @@ After resolving issues, update project knowledge files if anything changed:
 
 ## Completion checklist
 
-- `ruff check scripts/` — 0 errors
-- `PYTHONPATH=scripts mypy scripts/ tests/` — no new errors (pre-existing may remain)
-- `PYTHONPATH=scripts lint-imports` — 0 violations
-- `bandit -r scripts/ -c pyproject.toml` — no HIGH findings unaddressed
-- `diff-cover coverage.xml --compare-branch=master --fail-under=90` — passes
-- `pre-commit run --all-files` — passes
+Satisfy `rules/toolchain.md` "Completion checklist (common to all tasks)" in full. In addition:
+
 - all suppressions have inline justification
-- diff contains only task-relevant changes
 
 ---
 
 ## Prohibited behavior
 
-- do not reformat unrelated files to reduce the diff noise
-- do not fix multiple unrelated issues in the same commit
-
-See also `rules/coding.md` for project-wide prohibitions (suppression governance, commit hygiene).
+See `SKILL.md` Strict Diff Isolation (Step 10 above enforces it) and `rules/coding.md` for
+project-wide prohibitions (suppression governance, commit hygiene).

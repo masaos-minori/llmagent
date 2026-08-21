@@ -17,7 +17,7 @@ regardless of the chat language.
 
 - Base answers only on information available in the given context. Separate facts from assumptions clearly.
 - If anything is ambiguous or unknown, state "不明" and ask for clarification before proceeding.
-- Never run `rm -rf` or other destructive commands without explicit user confirmation.
+- Never run `rm -rf` or other multi-file/recursive destructive commands (e.g. `git clean -fdx`, deleting a directory tree) without explicit user confirmation. Deleting a single file does not require confirmation — see Execution policy below.
 
 ## Global Rules
 
@@ -30,6 +30,7 @@ regardless of the chat language.
 7. **Never emit partial output, even across context compaction. Return only the complete final output.**
 8. eventbus に関連する実装は絶対にしないこと（デバッグ・調査は可 — `routing.md` の Event Bus 行を参照）
 9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
+10. **Creating or editing any file under `docs/` or `skills/` is always a Documentation task per `routing.md`'s Task → skill mapping, even when the request contains no documentation keyword.** Route it there rather than loading `skills/python-documentation/SKILL.md` directly — its Core Documentation Rules (evidence-based wording, no source-code line numbers, no concrete config values, no implementation counts, English design prose) apply to every file in these two directories.
 
 ## Context Loading Flow
 
@@ -63,9 +64,12 @@ uv run pytest                   # run tests without activating venv
 
 ### Execution policy
 
-Run **all local commands** directly without asking for confirmation. This includes destructive local operations such as file deletion, `git reset`, and `git checkout`.
+Run **all local commands** directly without asking for confirmation, including single-target
+destructive operations: deleting one file, `git reset` or `git checkout` against a single path.
 
-Exceptions that require user confirmation: pushing to remote repos, modifying shared infrastructure, sending messages to external services.
+Exceptions that require user confirmation: pushing to remote repos, modifying shared
+infrastructure, sending messages to external services, and multi-file/recursive destructive
+commands per Policy above (`rm -rf`, `git clean -fdx`, deleting a directory tree).
 
 ### Test coverage
 

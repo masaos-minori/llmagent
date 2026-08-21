@@ -14,7 +14,7 @@ description: |
 
 ## Purpose
 
-Turn a raw issue into a formal, evidence-checked requirement document that `require-to-plan` can consume; verify the issue still applies before writing anything.
+Turn a raw issue into a formal, evidence-checked requirement document that `require-to-plan` can consume; verify the issue still applies before writing anything. Document-only — see `skills/DESIGN.md` Analysis-only phase constraint; this skill's only writes are the requirement document in `requires/` and moving the processed issue file to `issues/done/`. It must not modify source code files or `docs/*.md`.
 
 ---
 
@@ -34,7 +34,6 @@ multi-file processing rules.
 
 ## Core Execution Rules (Strictly Enforced)
 
-- **Document-only phase**: this skill creates the requirement document in `requires/` and moves the processed issue file to `issues/done/`. It must not modify source code files or `docs/*.md`.
 - **One file at a time**: see `workflow.md` Multi-file processing.
 - **No Guesswork**: verify factual claims (affected files, whether the described problem still reproduces) against current source before writing the requirement document.
 - **Mandatory move**: see `workflow.md` Step 4.

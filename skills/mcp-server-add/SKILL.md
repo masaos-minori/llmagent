@@ -18,12 +18,13 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 Port/role table (canonical): `docs/04_mcp_01_system_overview.md` Server Catalog.
 Module paths follow the pattern `mcp_servers/<name>/server.py` (e.g. `mcp_servers/web_search/server.py`).
 
-New servers must use port ≥ 8015.
+New servers must use the next free port above every port currently assigned — never hardcode
+a specific number here; derive it at task time (see Prerequisites).
 
 ## Prerequisites
 
 - For Option A (wizard): agent REPL must be running (`ps aux | grep agent.py`)
-- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer (currently ≥ 8015; see server table above)
+- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
 
 ## Phase overview
 
@@ -38,12 +39,12 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 ## Completion checklist
 
 - `scripts/mcp_servers/<name>/server.py` syntax check passes
-- `deploy/deploy.sh` updated with new files
+- `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (the server's Python files need no `deploy.sh` change — `scripts/` is rsynced wholesale)
 - `config/agent.toml` section `[mcp_servers.<name>]` added (verified with `rg`)
 - service running and reachable (verify port health)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation
-- MCP doc consistency check passes: `python tools/check_mcp_docs_consistency.py`
+- MCP doc consistency check passes: `uv run python tools/check_docs_consistency.py --domain mcp` (see `routing.md` Tools → "When to run which tool")
 
 ## Composes with
 
@@ -56,7 +57,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 ## Prohibited behavior
 
 - Do not reuse a port already assigned to an existing server
-- Do not skip the `deploy/deploy.sh` update (new script will not be deployed)
+- Do not skip the `deploy/deploy.sh` `cp` line for the new `config/<name>_mcp_server.toml` (the config file will not be deployed otherwise)
 - Do not skip the `config/agent.toml [mcp_servers.<name>]` section (agent will not route tools to the server)
 - Do not use `json.load()` in the new server module
 

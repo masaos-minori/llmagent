@@ -2,16 +2,10 @@
 
 ## Project lint tools
 
-Run these when modifying `docs/`.
-
-| Tool | Target | When to run |
-|---|---|---|
-| `python tools/check_docs_consistency.py` | `docs/*.md` | After documentation consistency-sensitive changes |
-| `python tools/check_mcp_docs_consistency.py` | `docs/04_mcp_*.md` | After MCP documentation changes |
-| `python tools/gen_rag_reference.py` | RAG reference documentation | Needs confirmation before use; verify the current output target before running |
-
-Note: Do not run `python tools/gen_rag_reference.py` blindly. The configured output target
-may refer to an old split-document path. Verify the current target before use.
+See `routing.md` Tools → "When to run which tool" for the checkers to run when modifying
+`docs/` (documentation consistency, structure validation, Needs-Confirmation registration,
+etc.) — do not hardcode tool names or invocations here; that table is the single source of
+truth and is kept in sync with `tools/`.
 
 ---
 
@@ -51,7 +45,7 @@ Fix the target scope before analysis starts.
 
 ### Do
 - identify repository root and target paths
-- identify exclusions (`.venv`, `__pycache__`, build outputs, generated files, vendor)
+- identify exclusions per `skills/DESIGN.md` Out-of-scope paths (plus any additional generated/vendor files specific to this repository)
 - identify expected deliverables
 - note whether existing docs should be updated or created
 

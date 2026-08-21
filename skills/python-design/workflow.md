@@ -103,9 +103,9 @@ logger = logging.getLogger(__name__)
 logger.error("descriptive_message key=value key2=%s", val)
 ```
 
-Apply `skills/DESIGN.md` Pythonic safety constraints: design explicit context managers
-(`with` / `async with`) for files, sockets, database connections, HTTP clients, and async
-clients.
+Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints
+(context managers for resource management): specify explicit `with`/`async with` boundaries
+for files, sockets, database connections, HTTP clients, and async clients in the design.
 
 ---
 

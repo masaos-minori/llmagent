@@ -21,7 +21,7 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `skills/mcp-server-add/workflow.md` + `rules/env.md` + `docs/04_mcp_03_01_dispatch-and-routing.md` + `docs/04_mcp_06_02_configuration-file-inventory.md` |
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `skills/deploy/workflow.md` + `rules/env.md` + `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` |
 | Event Bus debug / investigation only — **implementation forbidden, see AGENTS.md Global Rule 8** | eventbus, event bus, dlq, sse subscribe, replay | `skills/python-debug-root-cause/SKILL.md` + `skills/python-debug-root-cause/workflow.md` + `rules/env.md` |
-| Documentation / docs | document, doc, write docs, readme, changelog | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
+| Documentation / docs — also matches whenever a file under `docs/` or `skills/` will be created or edited, even with no documentation keyword in the request | document, doc, write docs, readme, changelog, editing `docs/*` or `skills/*` | `skills/python-documentation/SKILL.md` + `skills/python-documentation/workflow.md` |
 | Issue creation / GitHub issue | issue, github issue, create issue, convert findings to issue | `skills/issue-creator/SKILL.md` + `skills/issue-creator/workflow.md` |
 | Git commit / sync | commit, stage, push, pull, git sync, conflict, git workflow | `skills/git-commit-and-sync/SKILL.md` + `skills/git-commit-and-sync/workflow.md` |
 
