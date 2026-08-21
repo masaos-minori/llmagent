@@ -38,16 +38,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### Summary of Routing Precedence
 
-| Layer | Role | Used for Routing? |
-|---|---|---|
-| `RuntimeToolRegistry` (built via live `/v1/tools` discovery by `McpToolDiscoveryService` using `shared/runtime_tool_registry.py`) | **Sole Authority for Routing** | Yes |
-| `ToolRegistry` (automatically built on import from frozensets in `tool_constants.py`) | **Input for Drift Detection** (not used for routing) | No |
-| Live `/v1/tools` discovery | **Source for RuntimeToolRegistry**; fetched by `McpToolDiscoveryService` at startup and injected into `RuntimeToolRegistry` | (Used via RuntimeToolRegistry) |
-
-**Important Rules:**
-- **New tools MUST always be registered via the `tool_constants.py` frozenset.** `ToolRegistry` is built automatically on import (for drift detection). Runtime routing is handled by `RuntimeToolRegistry`, which is built from live `/v1/tools` discovery at startup. Unknown tools will cause an immediate `ValueError`.
-- **Live discovery IS the routing input** (it is the source used to construct `RuntimeToolRegistry`), but for `ToolRegistry`, it acts as a drift flag rather than an overwrite.
-- **The `tool_names` in config is NOT a routing input** — it is strictly a verification hint for drift detection.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ### New Server/Tool Registration Checklist
 

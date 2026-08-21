@@ -86,11 +86,7 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` using `RuntimeToolRegistry`. `ToolRegistry` is NOT used for routing decisions. The resolution procedure is as follows:
-
-1. **RuntimeToolRegistry (Sole Routing Authority):** `shared/runtime_tool_registry.py`'s `RuntimeToolRegistry`. Built via live `/v1/tools` discovery by `McpToolDiscoveryService`. Connected via `Startup.py` through `ToolExecutor.set_runtime_registry()`.
-
-2. **Unknown tools fail immediately:** If a tool name is not found in `RuntimeToolRegistry`, a `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. There is no fallback — all tools must be detected via live discovery.
+Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 | Tool Set | Server Key |
 |---|---|
@@ -105,7 +101,7 @@ Resolves `tool_name → server_key` using `RuntimeToolRegistry`. `ToolRegistry` 
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
 | No Match | `ValueError` |
 
-**Important:** Unknown tools fail immediately with `ValueError`. New tools must be added to the frozenset in `tool_constants.py` (`ToolRegistry` imports this as drift detection data during import). However, routing itself depends solely on live discovery in `RuntimeToolRegistry` — registering in `tool_constants.py`/`ToolRegistry` alone will not make a tool resolvable. For diagnosis guidance, see [MCP Failure Diagnosis](04_mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
+For diagnosis guidance, see [MCP Failure Diagnosis](04_mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
 ```python
 resolver = ToolRouteResolver(server_configs)
@@ -162,41 +158,13 @@ Previously, there were two separate mechanisms: batch-level downgrade ("if any t
 
 ## Reliable Sources for Routing
 
-Routing authority is a single configuration: only `RuntimeToolRegistry`. `ToolRegistry` is NOT used for routing decisions.
-
-| Input | Role | Requirement |
-|---|---|---|
-| `shared/runtime_tool_registry.py` | **Sole Routing Authority** | Built via live `/v1/tools` discovery by `McpToolDiscoveryService` |
-| `shared/tool_registry.py` | **Input for Drift Detection** (NOT used for routing) | Tool→Server reverse lookup; built automatically upon import from `tool_constants.py` frozenset |
-| Live `/v1/tools` discovery | **Source for `RuntimeToolRegistry`** | Obtained via `McpToolDiscoveryService` at startup and fed into `RuntimeToolRegistry` |
-
-**Summary of ownership rules:**
-- To add a tool: Add it to the appropriate frozenset in `tool_constants.py`. `ToolRegistry` is automatically built upon import (for drift detection).
-- `RuntimeToolRegistry` is the sole routing authority, built from live `/v1/tools` discovery.
-- `config`'s `tool_names` is NOT an input for routing; it is metadata for drift verification.
-- Unknown tools fail immediately with `ValueError` — there is no fallback.
-- Examples of TOML configurations with omitted/empty/set `tool_names` can be found in [`docs/04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md`](04_mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md).
-- Duplicate ownership where the same tool name is reported by multiple servers' `/v1/tools` responses is detected by `shared/route_resolver.py::build_discovery_map()` and reported as a `ServiceWarning` by `McpToolDiscoveryService` — this is not a self-check of the registry.
+See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ---
 
 ## Tool Registry (`shared/tool_registry.py`)
 
-Data for drift detection regarding MCP tool definitions and ownership. Not used for routing.
-
-| Source | Type | Description |
-|---|---|---|
-| `shared/runtime_tool_registry.py` | **Sole Routing Authority** | Built via live `/v1/tools` discovery by `McpToolDiscoveryService` |
-| `shared/tool_registry.py` | **Input for Drift Detection** (NOT used for routing) | Tool→Server reverse lookup; built automatically upon import from `tool_constants.py` frozenset |
-| Live `/v1/tools` discovery | **Source for `RuntimeToolRegistry`** | Obtained via `McpToolDiscoveryService` at startup and fed into `RuntimeToolRegistry` |
-
-### Ownership Model
-
-- Each tool belongs to exactly one server (identified by `server_key`).
-- The registry is built automatically upon import from the `tool_constants.py` frozenset.
-- The `*_mcp_server.toml` config's `tool_names` list (within each `[mcp_servers.<key>]` section) is verified against the registry, but is not required as a source of truth.
-- Server `/v1/tools` responses are checked against the registry at startup for drift detection.
-- **Important:** Live discovery does NOT overwrite the registry. If a `/v1/tools` response returns a different `server_key` than the registry for a tool, a drift is flagged by `check_routing_drift_vs_live()` at startup.
+Drift detection only; not used for routing. See [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
 
 ## Related Documents
 

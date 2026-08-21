@@ -8,49 +8,9 @@ To document the partial completion model, workflow engine integration, and state
 
 ## Design Intent
 
-### Mandatory Workflow Execution (ADR-001)
+### Mandatory Workflow Execution
 
-**Date:** 2026-07-23  
-**Status:** Accepted
-
-#### Context
-
-This system executes tasks planned by an LLM. Some tools have side effects, some operations require approval, and tool execution must be observable and recoverable. A direct path from LLM to tools makes auditing and recovery difficult.
-
-#### Decision
-
-Workflow execution is mandatory. Workflow definitions are required artifacts at deployment time. Bypass modes for workflows are not supported. Optional workflow modes are not supported. Fallback to direct execution is not supported.
-
-#### Rationale
-
-- All side-effecting operations must be traceable.
-- Approval states must persist across process boundaries.
-- Retry and idempotency behaviors must be centrally managed.
-- Partial task completion must be inspectable.
-- Recovery requires persisted task and attempt states.
-- Tool execution should not depend solely on the LLM conversation state.
-
-#### Alternatives Considered
-
-| Alternative | Reason for Rejection |
-|---|---|
-| Direct tool execution without workflow | Auditing and recovery become difficult. No persistent state for approval/retry logic. |
-| Optional workflow mode | Inconsistency in behavior between workflow enabled/disabled. Operators cannot predict execution patterns. |
-| Disabling workflow in local mode | Audit trails and approval tracking are still needed in local mode. Environment-specific rules cause confusion. |
-| Fallback execution when workflow definition is missing | Silent degradation hides configuration errors. Startup failure provides immediate feedback. |
-| Ad-hoc per-tool approval without workflow state | Approval state does not persist across process restarts. Cannot track which approval applies to which attempt. |
-
-#### Impact
-
-- Deployment must include workflow definition files.
-- Startup must fail if required workflow artifacts are missing or invalid.
-- Workflow schemas must be initialized before service startup.
-- Operators must treat workflow failures as platform failures.
-- Simple chats and tool-based tasks share the same execution control plane.
-
-#### Non-Goals
-
-This decision does not cover: individual workflow stage definitions, redesigning approval policies, introducing EventBus integration, or changing runtime behavior.
+See [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) for rationale, alternatives, tradeoffs, and invariants.
 
 ### Workflow State Semantics
 
@@ -125,7 +85,7 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 ### Mandatory Workflow Execution
 
-`Orchestrator.handle_turn()` is always executed via `WorkflowEngine`. Workflow definitions are unconditionally loaded at startup; if they are missing or invalid, startup is aborted with a `RuntimeError` before services start. Workflow state is the primary execution model, with conversation history maintained as a subordinate concern.
+`Orchestrator.handle_turn()` is always executed via `WorkflowEngine`. See [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
 ### Workflow Status
 

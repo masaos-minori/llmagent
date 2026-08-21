@@ -62,7 +62,7 @@ Messages with flags are removed during the system prompt synchronization process
 
 **Workflows are Always Required (No Mode Setting)**
 
-`workflow_mode` is not a valid configuration key. `build_agent_config()` does not consume this key, so even if it exists in the configuration file, it is ignored without error or warning. Workflow definitions (deployed as `config/workflows/default.json`, which is a **required workflow deployment artifact**) are always mandatory; if they are missing or invalid, startup is interrupted with a `RuntimeError` before proceeding. There is no fallback to direct execution or any way to disable workflows.
+See [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
 **Enabling Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
@@ -83,12 +83,7 @@ Currently, `config/agent.toml` explicitly specifies `startup_mode = "subprocess"
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-The behavior when an MCP server fails to start with `startup_mode="subprocess"` depends on the `security_profile` (Source: `_start_servers()` in `agent/startup.py`):
-
-- `security_profile = "production"`: Raises a `RuntimeError` and aborts startup (fail-fast).
-- `security_profile = "local"` (Current setting in `config/agent.toml`): Only logs a warning and displays it on screen, continuing REPL startup (fail-open).
-
-Note that this is not a uniform fail-open policy. (Source: Explicit in code)
+See [ADR-004](adr/ADR-004-environment-profile-fail-fast-fail-open.md) for rationale, tradeoffs, and invariants.
 
 ## Related Documents
 

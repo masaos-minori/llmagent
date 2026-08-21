@@ -23,21 +23,7 @@ related:
 
 ## 0. Concept distinctions
 
-Tool existence, discovery, LLM visibility, routing ownership, static availability, dynamic health, approval state, and execution eligibility are different concepts. The word "enabled" alone MUST NOT be used without identifying which of these it refers to.
-
-| Concept | Meaning |
-|---|---|
-| Defined | The tool exists in an MCP server implementation |
-| Discoverable | The tool is returned by the server's `/v1/tools` |
-| Owned | `RuntimeToolRegistry` knows which server owns the tool |
-| LLM-visible | The tool is included in the function definitions given to the LLM (`RuntimeToolRegistry.llm_tool_definitions()`, gated on `enabled_for_llm`) |
-| Statically available | Current configuration/policy permits considering the tool for execution |
-| Dynamically available | The owning server is currently healthy enough to attempt execution (`McpServerHealthRegistry`) |
-| Routable | `RuntimeToolRegistry`/`ToolRouteResolver` can resolve the tool to exactly one owning server |
-| Approved | The current invocation has satisfied its approval requirement (`agent/tool_policy.py`, `tool_approval.py` — a separate subsystem, see section 6a) |
-| Executable | All of the above, plus argument validation, currently permit this specific call |
-
-These MUST NOT be treated as interchangeable. In particular: a tool can be **LLM-visible yet not dynamically available** (server down), **statically disabled yet dynamically healthy** (config gate), or **known but not owned** (duplicate ownership, section 6).
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the distinction between these concepts.
 
 ## 1. `config_dependent` (static)
 
@@ -86,23 +72,11 @@ Always returns every implemented tool; disabled tools are never omitted from the
 
 ## /v1/tools as RuntimeToolRegistry Source
 
-The `/v1/tools` endpoint is **not just an informational endpoint** — it is the primary source used to construct `RuntimeToolRegistry`.
-
-When a client calls `/v1/tools`, the MCP server returns the current state of all tools including their availability metadata. This response is consumed by the agent's runtime to populate `RuntimeToolRegistry`, which determines:
-- Which tools are available for routing
-- Current tool status (enabled/disabled)
-- Tool configuration dependencies
-
-`RuntimeToolRegistry` is populated once at agent startup via `McpToolDiscoveryService.discover_all()`; neither `/reload` nor any live health-check path triggers a rebuild of the registry from a fresh `/v1/tools` fetch.
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
 
 ## Reload vs. restart for RuntimeToolRegistry
 
-- `/reload` (`_ConfigMixin._cmd_reload()`) calls `ConfigReloadService.apply_config_dict()`, which calls `RuntimeToolRegistry.apply_policy()`.
-- `apply_policy()` only updates policy-derived fields (`agent_safety_tier`, `requires_approval`, `enabled_for_llm`) and does not touch `raw_definition`, `disabled_reason`, or `status`.
-- A full agent process restart is required for the registry's discovery-derived state (including `/mcp status`'s `DISABLED_REASON` column) to reflect config changes.
-- Per-server config files (e.g. `allowed_dirs` in `file_read_mcp_server.toml`) require restarting that MCP server process itself, separate from the agent restart above.
-
-`docs/04_mcp_06_17_local-to-production-auth-migration.md`'s [`Difference between /reload and full restart`](04_mcp_06_17_local-to-production-auth-migration.md#difference-between-reload-and-full-restart) deals with restart requirements for `[mcp_servers.*]` connection definitions, which is outside the scope of the broader `RuntimeToolRegistry` availability snapshot requirements discussed in this section.
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that reload does not rediscover tools.
 
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
@@ -126,22 +100,15 @@ Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch 
 
 ## 6. RuntimeToolRegistry (agent-side)
 
-Disabled tools are tracked for diagnostics (`enabled_for_llm` derived field) but never included in the LLM-facing tool list and never dispatchable through the registry's own routing path. Four states: discovered / MCP-server-enabled / agent-policy-enabled / LLM-visible. Reference requirement 17's plan (`plans/20260717-175327_plan.md`) — per the post-review decision, this section describes the disabled-visibility fields/methods as an extension of the adopted 13-field/9-method `RuntimeTool`/`RuntimeToolRegistry` lineage (`implementations/20260717-203121_runtime_tool.py.md`, `implementations/20260717-203200_runtime_tool_registry.py.md`, `implementations/20260718-084710_runtime_tool.py.md`), not as a separate 6-field class.
-
-`RuntimeToolRegistry.diagnostics()` (consumed by `/mcp status`'s `DISABLED_REASON` column, see `cmd_mcp.py`) computes each row's `disabled_reason` by first checking `tool.raw_definition.get("disabled_reason")` — the raw string a server actually sent in its `/v1/tools` entry, if present and non-empty — and only falls back to a `tool.status`-derived value (`""` when `status == "active"`, otherwise the status string) when the raw entry carried no such key. This lets `/mcp status` surface a server's real audit-trail reason once servers adopt the `enabled`/`disabled_reason` schema from section 2, while preserving the pre-existing status-derived value for every tool discovered today, none of which yet sends `disabled_reason` (see section 1's implementation-status callout).
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision about RuntimeToolRegistry as the sole authority.
 
 ## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
 
-`McpToolDiscoveryService` (static, computed once at startup) and `McpServerHealthRegistry`/`ToolExecutor` (dynamic, updated continuously from live call outcomes) own different concerns and MUST NOT be conflated:
-
-- **Static / `RuntimeToolRegistry` (McpToolDiscoveryService.discover_all(), startup-only):** tool ownership, schema, scheduling metadata, and LLM-visibility eligibility (`enabled_for_llm`). A server that fails discovery entirely has all of its tools excluded from the registry via `_is_excluded_server()`. Note: the constructor also accepts a `degraded_servers` set for a softer exclusion tier, but `discover_all()` never populates it — it is a dead parameter today, not a second implemented tier.
-- **Dynamic / `McpServerHealthRegistry` + `ToolExecutor` (continuous, per-call):** server reachability, circuit-breaker state (CLOSED/OPEN/HALF_OPEN), and trial-recovery behavior. This layer does not affect `RuntimeToolRegistry`, LLM visibility, or routing — a tool stays LLM-visible and routable while its owning server is circuit-open; `ToolExecutor.execute()` simply returns an error at call time instead.
-
-A tool can be statically enabled while its server is temporarily down (dynamic-health failure at call time), and a tool can be statically disabled while its server is otherwise healthy (config gate, e.g. `read_only=true`). Discovery snapshots taken at startup MUST NOT be treated as permanent runtime health truth — only restart triggers rediscovery (Reload vs. restart above).
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that static availability and dynamic health are separate subsystems.
 
 ## 6b. Approval is not a disabled state
 
-Approval requirement (`RuntimeTool.requires_approval`) is tracked as a distinct concept from static/dynamic availability, and in the current implementation is tracked so loosely that no code path reads it back (`requires_approval` has write sites in `runtime_tool.py`/`runtime_tool_registry.py` but no read site anywhere in the codebase — Explicit in code, confirmed by repository-wide search). Actual approval-requirement decisions are made by an entirely separate subsystem, `agent/tool_policy.py::classify_risk()` and `agent/tool_approval.py`, operating on a `PreparedToolCall` that has already passed the registry/routing phase. A tool pending approval is not represented as "disabled" anywhere in `RuntimeToolRegistry` — approval-required tools remain LLM-visible and routable; only the approval subsystem gates execution.
+See [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) for the design decision that approval is not a form of disabled availability.
 
 ## Wiring reference
 
