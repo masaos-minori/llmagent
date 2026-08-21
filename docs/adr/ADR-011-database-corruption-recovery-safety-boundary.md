@@ -1,5 +1,5 @@
 ---
-title: "ADR-002: Database Corruption Recovery Safety Boundary"
+title: "ADR-011: Database Corruption Recovery Safety Boundary"
 category: adr
 status: proposed
 date: "2026-08-21"
@@ -15,7 +15,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-002: Database Corruption Recovery Safety Boundary
+# ADR-011: Database Corruption Recovery Safety Boundary
 
 ## Status
 

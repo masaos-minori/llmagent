@@ -60,9 +60,9 @@ This report covers a documentation update addressing three issues: database corr
 
 ## Target behavior documented
 
-- A structured integrity-result classification, a safe (validate → stage → verify → atomic-replace) restoration sequence, and an explicit persistence-domain recovery policy, per ADR-002.
-- Command-specific Git guards (ref/remote validation, protected-branch, Dirty-Worktree, Detached-HEAD, Force-Push rejection) and postcondition verification, per ADR-003.
-- A shared availability vocabulary and a documented static/dynamic/approval separation, per ADR-004.
+- A structured integrity-result classification, a safe (validate → stage → verify → atomic-replace) restoration sequence, and an explicit persistence-domain recovery policy, per ADR-011.
+- Command-specific Git guards (ref/remote validation, protected-branch, Dirty-Worktree, Detached-HEAD, Force-Push rejection) and postcondition verification, per ADR-012.
+- A shared availability vocabulary and a documented static/dynamic/approval separation, per ADR-013.
 
 ## Implementation gaps retained (not closed by this update)
 
@@ -70,11 +70,18 @@ All gaps above remain open as Known Issues; this update did not modify source co
 
 ## ADRs created
 
-- ADR-002: Database Corruption Recovery Safety Boundary
-- ADR-003: Git MCP Server-Side Write Enforcement
-- ADR-004: MCP Tool Availability Model
+- ADR-011: Database Corruption Recovery Safety Boundary
+- ADR-012: Git MCP Server-Side Write Enforcement
+- ADR-013: MCP Tool Availability Model
 
-All three are `Proposed`. The ADR index also now flags that ADR-001's body reserves the ADR-002/ADR-003 numbers for unrelated future topics (workflow-definition schema, workflow monitoring) that were never registered — those topics will need to take the next available numbers if written later.
+All three are `Proposed`. They were originally numbered ADR-002/ADR-003/ADR-004, following the
+ADR index's next-available-number rule at the time. A concurrent update assigned those same
+numbers to unrelated decisions (config isolation, RuntimeToolRegistry routing authority,
+environment-profile fail policy) and reached `origin/master` first, so these three ADRs were
+renumbered to ADR-011/ADR-012/ADR-013 to resolve the conflict. Separately, ADR-001's body still
+reserves the ADR-002/ADR-003 numbers for unrelated future topics of its own (workflow-definition
+schema, workflow monitoring) that were never registered under those numbers either — see the
+follow-up task to correct ADR-001's stale forward references.
 
 ## Missing evidence
 

@@ -31,6 +31,9 @@ This document indexes all Architecture Decision Records (ADRs) in the project. E
 | ADR-008 | SQLiteを4DBへ分離する | Accepted | 2026-08-21 | [adr/ADR-008-sqlite-4db-separation.md](adr/ADR-008-sqlite-4db-separation.md) |
 | ADR-009 | RAGのFTS5検索用テキストとLLM提示用テキスト分離 | Accepted | 2026-08-21 | [adr/ADR-009-rag-ft5-text-separation.md](adr/ADR-009-rag-ft5-text-separation.md) |
 | ADR-010 | RAGの外部実行失敗時のインプロセスフォールバック | Accepted | 2026-08-21 | [adr/ADR-010-rag-fallback.md](adr/ADR-010-rag-fallback.md) |
+| ADR-011 | Database Corruption Recovery Safety Boundary | Proposed | 2026-08-21 | [adr/ADR-011-database-corruption-recovery-safety-boundary.md](adr/ADR-011-database-corruption-recovery-safety-boundary.md) |
+| ADR-012 | Git MCP Server-Side Write Enforcement | Proposed | 2026-08-21 | [adr/ADR-012-git-mcp-server-side-write-enforcement.md](adr/ADR-012-git-mcp-server-side-write-enforcement.md) |
+| ADR-013 | MCP Tool Availability Model | Proposed | 2026-08-21 | [adr/ADR-013-mcp-tool-availability-model.md](adr/ADR-013-mcp-tool-availability-model.md) |
 
 ## Detailed ADR Registry
 
@@ -134,6 +137,36 @@ This document indexes all Architecture Decision Records (ADRs) in the project. E
 - **Supersedes**: —
 - **Related ADRs**: ADR-002, ADR-004, ADR-005, ADR-008
 
+### ADR-011: Database Corruption Recovery Safety Boundary
+
+- **Status**: Proposed
+- **Decision Scope**: shared/db
+- **Owner**: agent-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: Shared/DB
+- **Supersedes**: —
+- **Related ADRs**: —
+
+### ADR-012: Git MCP Server-Side Write Enforcement
+
+- **Status**: Proposed
+- **Decision Scope**: mcp/git
+- **Owner**: agent-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: MCP
+- **Supersedes**: —
+- **Related ADRs**: —
+
+### ADR-013: MCP Tool Availability Model
+
+- **Status**: Proposed
+- **Decision Scope**: mcp, agent
+- **Owner**: agent-team
+- **Last Updated**: 2026-08-21
+- **Related Areas**: MCP, Agent
+- **Supersedes**: —
+- **Related ADRs**: ADR-003 (both establish `RuntimeToolRegistry` as the sole routing/availability authority)
+
 ## ADR Dependency Graph
 
 ```text
@@ -145,6 +178,7 @@ ADR-006 → ADR-008
 ADR-007 → ADR-004
 ADR-009 → ADR-005
 ADR-010 → ADR-004
+ADR-013 → ADR-003
 ```
 
 ## Creating New ADRs

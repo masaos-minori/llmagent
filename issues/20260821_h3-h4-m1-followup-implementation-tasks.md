@@ -1,6 +1,6 @@
 # Follow-up Implementation Tasks: DB Recovery, Git Write Protection, MCP Tool Availability
 
-Generated from the documentation update addressing H-3 (database corruption recovery), H-4 (Git MCP write protection), and M-1 (MCP tool availability metadata). No source code was changed while producing this list; each task below is independently actionable. See `docs/99_documentation_sync_report.md` for the full change report and `docs/adr/ADR-002-*.md`/`ADR-003-*.md`/`ADR-004-*.md` for the design decisions these tasks implement.
+Generated from the documentation update addressing H-3 (database corruption recovery), H-4 (Git MCP write protection), and M-1 (MCP tool availability metadata). No source code was changed while producing this list; each task below is independently actionable. See `docs/99_documentation_sync_report.md` for the full change report and `docs/adr/ADR-011-*.md`/`ADR-012-*.md`/`ADR-013-*.md` for the design decisions these tasks implement.
 
 ---
 
@@ -8,7 +8,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### H-1: Catch and classify `sqlite3.DatabaseError` in `_run_integrity_check()`
 
-- **Reason**: physical page corruption currently raises an uncaught exception instead of being classified and handled by recovery policy (Known Issue SHARED-001, ADR-002 INV-01).
+- **Reason**: physical page corruption currently raises an uncaught exception instead of being classified and handled by recovery policy (Known Issue SHARED-001, ADR-011 INV-01).
 - **Current behavior**: `_run_integrity_check()` catches only `sqlite3.OperationalError`, `ValueError`, `RuntimeError`; `sqlite3.DatabaseError` propagates out of `recover_corruption()`'s public boundary.
 - **Target behavior**: `sqlite3.DatabaseError` is caught, classified as confirmed/likely corruption, and handled through the normal recovery decision path instead of raising.
 - **Affected symbols**: `db/recovery.py::_run_integrity_check()`, `recover_corruption()`.
@@ -17,16 +17,16 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### H-2: Validate backup integrity and make restoration atomic
 
-- **Reason**: an unvalidated or partially-written backup can be restored over the target database, and a mid-copy failure can leave the target partially written (Known Issue SHARED-002, ADR-002 INV-02/INV-03).
+- **Reason**: an unvalidated or partially-written backup can be restored over the target database, and a mid-copy failure can leave the target partially written (Known Issue SHARED-002, ADR-011 INV-02/INV-03).
 - **Current behavior**: `_restore_from_backup()` checks only `Path.exists()` on the backup, then `shutil.copy2()`s it directly onto the live target path with no temporary-file staging or post-restore re-verification.
 - **Target behavior**: the backup is integrity-checked independently before use; restoration copies to a temporary file, verifies it, then atomically replaces the target; the restored database is reopened and re-verified before `success=True` is returned.
 - **Affected symbols**: `db/recovery.py::_restore_from_backup()`.
 - **Required tests**: test that a corrupted backup is rejected rather than restored; test that a simulated mid-copy failure leaves the original target file intact; test that restoration is followed by a passing integrity check before success is reported.
-- **Acceptance criteria**: ADR-002 INV-02/INV-03 hold under test; no restoration path writes directly to the live target path without a preceding validated temporary copy.
+- **Acceptance criteria**: ADR-011 INV-02/INV-03 hold under test; no restoration path writes directly to the live target path without a preceding validated temporary copy.
 
 ### H-3: Define and implement a recovery policy for `workflow.sqlite` and `eventbus.sqlite`
 
-- **Reason**: these two persistence domains have no corruption-recovery path at all today; an operator facing corruption in either has no documented or implemented procedure (Known Issue SHARED-003, ADR-002 Decision Details #6).
+- **Reason**: these two persistence domains have no corruption-recovery path at all today; an operator facing corruption in either has no documented or implemented procedure (Known Issue SHARED-003, ADR-011 Decision Details #6).
 - **Current behavior**: `recover_corruption()` only supports `target='rag'`/`'session'`; `rotate_all_dbs()` excludes `workflow`/`eventbus`; the only observed startup behavior for a broken store in this class is a fatal `RuntimeError`.
 - **Target behavior**: either (a) an explicit, implemented recovery path for these domains, or (b) an explicit, documented decision that they are unrecoverable by design, with a stated manual operator procedure — not silent absence.
 - **Affected symbols**: `db/recovery.py::recover_corruption()`, `db/rotation.py::rotate_all_dbs()`, `agent/startup.py::_recover_pending_approvals()`.
@@ -35,7 +35,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### H-4: Validate `branch`/`remote` in Git MCP write tools; reject option-injection-shaped values
 
-- **Reason**: `branch`/`remote` are forwarded to GitPython unvalidated; a value such as `"--force"` is interpreted as a `git` CLI option, confirmed in a sandboxed reproduction to cause an unwarned forced checkout (discarding uncommitted changes) and a forced push (overwriting a diverged remote branch) — Known Issue MCP-003, ADR-003 INV-01.
+- **Reason**: `branch`/`remote` are forwarded to GitPython unvalidated; a value such as `"--force"` is interpreted as a `git` CLI option, confirmed in a sandboxed reproduction to cause an unwarned forced checkout (discarding uncommitted changes) and a forced push (overwriting a diverged remote branch) — Known Issue MCP-003, ADR-012 INV-01.
 - **Current behavior**: `format_checkout()`/`format_pull()`/`format_push()` pass `branch`/`remote` straight to `repo.git.*()` with no pattern or prefix validation; `tool_validators.py` only checks non-emptiness for `git_push`'s `remote` and nothing for `git_checkout`.
 - **Target behavior**: `branch`/`remote` values are validated against a safe ref/remote-name pattern; values that would be interpreted as CLI options (e.g., leading `-`) are rejected before reaching GitPython.
 - **Affected symbols**: `scripts/mcp_servers/git/format_output.py::format_checkout()`, `format_pull()`, `format_push()`; `scripts/mcp_servers/git/tool_validators.py`.
@@ -44,12 +44,12 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### H-5: Add a protected-branch guard and a technical Force-Push block to Git MCP
 
-- **Reason**: Git MCP has no protected-branch policy and no guard preventing a forced update through the normal `git_push` path, unlike what project documentation previously (incorrectly) claimed — Known Issue MCP-003, ADR-003 Decision Details #3/#4, INV-02/INV-03.
+- **Reason**: Git MCP has no protected-branch policy and no guard preventing a forced update through the normal `git_push` path, unlike what project documentation previously (incorrectly) claimed — Known Issue MCP-003, ADR-012 Decision Details #3/#4, INV-02/INV-03.
 - **Current behavior**: `git_checkout`/`git_push` treat all branches identically; no configuration key equivalent to GitHub MCP's `protected_branches` exists for Git MCP.
 - **Target behavior**: a configured protected-branch list rejects direct `git_checkout`/`git_push` against protected branches unless a separately approved policy allows it; Force Push is rejected by the normal `git_push` path (any future Force-Push capability is a separate, more strongly authorized tool, not a mode of this one).
 - **Affected symbols**: `scripts/mcp_servers/git/git_service.py`, `git_security.py`, `git_models.py::GitConfig`.
 - **Required tests**: test that push/checkout against a configured protected branch is rejected; test that a forced update cannot be achieved through the normal `git_push` path once H-4 above is also fixed.
-- **Acceptance criteria**: ADR-003 INV-02/INV-03 hold under test; `04_mcp_04_05_git.md` §Protected branch authority is updated from "no policy source" to describing the implemented policy.
+- **Acceptance criteria**: ADR-012 INV-02/INV-03 hold under test; `04_mcp_04_05_git.md` §Protected branch authority is updated from "no policy source" to describing the implemented policy.
 
 ---
 
@@ -93,7 +93,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### M-5: Remove or repurpose the unused `degraded_servers` and `RuntimeTool.requires_approval` fields
 
-- **Reason**: `McpToolDiscoveryService`'s `degraded_servers` exclusion tier is never populated, and `RuntimeTool.requires_approval` is written but never read — both are dead capabilities that could mislead future readers into assuming they are active (ADR-004 context).
+- **Reason**: `McpToolDiscoveryService`'s `degraded_servers` exclusion tier is never populated, and `RuntimeTool.requires_approval` is written but never read — both are dead capabilities that could mislead future readers into assuming they are active (ADR-013 context).
 - **Current behavior**: both fields exist and are set/constructed but have no effect on runtime behavior.
 - **Target behavior**: either wire them to real behavior (e.g., a genuine soft-degradation tier distinct from full exclusion; a real approval-required visibility signal) or remove them to avoid implying unimplemented behavior.
 - **Affected symbols**: `shared/runtime_tool.py`, `runtime_tool_registry.py`, `agent/services/mcp_tool_discovery.py`.
@@ -115,7 +115,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 ### L-2: Correct ADR-001's stale forward-referenced ADR numbers
 
-- **Reason**: ADR-001 lists "ADR-002" and "ADR-003" as future workflow-schema/monitoring ADRs; those numbers were assigned to this update's DB-recovery and Git MCP ADRs instead, per the ADR index's next-available-number rule.
+- **Reason**: ADR-001 lists "ADR-011" and "ADR-012" as future workflow-schema/monitoring ADRs; those numbers were assigned to this update's DB-recovery and Git MCP ADRs instead, per the ADR index's next-available-number rule.
 - **Current behavior**: ADR-001 body still references the old, now-conflicting numbers.
 - **Target behavior**: ADR-001 updated to reference the correct future numbers once the workflow-schema/monitoring ADRs are actually written (ADR-005+).
 - **Affected symbols**: `docs/adr/ADR-001-workflow-engine-mandatory.md` §Related Documents.
@@ -126,7 +126,7 @@ Generated from the documentation update addressing H-3 (database corruption reco
 
 - **Reason**: `_restore_from_backup()` preserves the damaged database as a timestamped archive before restoring, but no policy governs how long these archives are kept or when they are cleaned up.
 - **Current behavior**: archives accumulate indefinitely with no rotation.
-- **Target behavior**: an explicit retention policy (time-based or count-based) consistent with the "preserve for diagnostics" intent in ADR-002.
+- **Target behavior**: an explicit retention policy (time-based or count-based) consistent with the "preserve for diagnostics" intent in ADR-011.
 - **Affected symbols**: `db/recovery.py::_restore_from_backup()`, `db/rotation.py`.
 - **Required tests**: test that archives older than the retention policy are cleaned up (once implemented).
 - **Acceptance criteria**: archive accumulation is bounded and documented.

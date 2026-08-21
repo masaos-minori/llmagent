@@ -1,5 +1,5 @@
 ---
-title: "ADR-004: MCP Tool Availability Model"
+title: "ADR-013: MCP Tool Availability Model"
 category: adr
 status: proposed
 date: "2026-08-21"
@@ -16,7 +16,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-004: MCP Tool Availability Model
+# ADR-013: MCP Tool Availability Model
 
 ## Status
 

@@ -1,5 +1,5 @@
 ---
-title: "ADR-003: Git MCP Server-Side Write Enforcement"
+title: "ADR-012: Git MCP Server-Side Write Enforcement"
 category: adr
 status: proposed
 date: "2026-08-21"
@@ -16,7 +16,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-003: Git MCP Server-Side Write Enforcement
+# ADR-012: Git MCP Server-Side Write Enforcement
 
 ## Status
 

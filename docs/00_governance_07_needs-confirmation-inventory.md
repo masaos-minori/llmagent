@@ -56,13 +56,13 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: Is the absence of command-specific guards distinguishing `git_checkout`/`git_pull`/`git_push` from other write tools an intentional design decision (local git assumed to be the caller's own responsibility) or a missing security feature relative to GitHub MCP?
 - **Evidence**: All five write tools share one common guard path (`allowed_repo_paths` + `read_only`) with no per-command validation; confirmed via code reading and a sandboxed reproduction that `branch`/`remote` accept option-injection-shaped values (see MCP-003 in `04_mcp_90_inconsistencies_and_known_issues.md`)
 - **Impact**: If unintentional, this leaves a confirmed exploitable gap (forced checkout/push) unresolved; if intentional, the design intent should be documented rather than left implicit
-- **Required Action**: Decision from the tool owner on whether ADR-003's target guards (protected-branch, ref/remote validation, Force-Push rejection) should be implemented, and if so, on what timeline
+- **Required Action**: Decision from the tool owner on whether ADR-012's target guards (protected-branch, ref/remote validation, Force-Push rejection) should be implemented, and if so, on what timeline
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-08-21
 - **Priority**: High
 - **Related NC**: NC-020
-- **Resolution Target**: Owner decision, then implementation per `docs/adr/ADR-003-git-mcp-server-side-write-enforcement.md`
+- **Resolution Target**: Owner decision, then implementation per `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
 - **Blocking**: No — tracked in parallel with Known Issue MCP-003
 
 ### NC-020
@@ -90,7 +90,7 @@ To extract "Needs confirmation" items from source documents:
 - **Question**: The design document specifies a target structured integrity-result classification (healthy / confirmed corruption / lock contention / permission / invalid format / unknown) that the current implementation does not produce. Is this the classification model the owner intends to implement, or should the target model differ?
 - **Evidence**: `_run_integrity_check()` currently returns only a pass/fail-ish result plus a free-form exception string (`RecoveryResult.detail`); no structured classification exists to confirm or refute against
 - **Impact**: Implementing the wrong classification model would require rework; leaving it unconfirmed risks divergent interpretations across `db/recovery.py` callers
-- **Required Action**: Owner review of the proposed model in ADR-002 before implementation begins
+- **Required Action**: Owner review of the proposed model in ADR-011 before implementation begins
 - **Status**: open
 - **Assigned To**: Unassigned
 - **Last Reviewed**: 2026-08-21
