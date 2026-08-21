@@ -22,6 +22,11 @@ This document indexes all Architecture Decision Records (ADRs) in the project. E
 | ADR | Title | Status | Date | Location |
 |-----|-------|--------|------|----------|
 | ADR-001 | Workflow Engine必須化 | Proposed | 2026-08-20 | [adr/ADR-001-workflow-engine-mandatory.md](adr/ADR-001-workflow-engine-mandatory.md) |
+| ADR-002 | Database Corruption Recovery Safety Boundary | Proposed | 2026-08-21 | [adr/ADR-002-database-corruption-recovery-safety-boundary.md](adr/ADR-002-database-corruption-recovery-safety-boundary.md) |
+| ADR-003 | Git MCP Server-Side Write Enforcement | Proposed | 2026-08-21 | [adr/ADR-003-git-mcp-server-side-write-enforcement.md](adr/ADR-003-git-mcp-server-side-write-enforcement.md) |
+| ADR-004 | MCP Tool Availability Model | Proposed | 2026-08-21 | [adr/ADR-004-mcp-tool-availability-model.md](adr/ADR-004-mcp-tool-availability-model.md) |
+
+**Numbering note:** ADR-001's own body lists aspirational future ADR numbers ("ADR-002: ワークフロー定義ファイルのスキーマ設計", "ADR-003: ワークフロー監視・メトリクス設計") that were never registered in this index. Per the numbering rule below (next available number, incremented from the highest *registered* ADR), ADR-002 through ADR-004 above were assigned to the decisions in this update instead. If the workflow-schema and workflow-monitoring ADRs are written later, they MUST take the next available numbers (ADR-005+), and ADR-001's body should be corrected to drop the stale forward references.
 
 ## Creating New ADRs
 

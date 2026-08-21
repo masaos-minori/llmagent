@@ -19,7 +19,25 @@ related:
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** As of 2026-07-21 `config_dependent` is adopted for `web_search-mcp`'s `browser_fetch` tool (merged from the former standalone browser-mcp server). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `04_mcp_03_01_dispatch-and-routing.md` for details.
+> **Implementation status:** `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `04_mcp_03_01_dispatch-and-routing.md` for details.
+
+## 0. Concept distinctions
+
+Tool existence, discovery, LLM visibility, routing ownership, static availability, dynamic health, approval state, and execution eligibility are different concepts. The word "enabled" alone MUST NOT be used without identifying which of these it refers to.
+
+| Concept | Meaning |
+|---|---|
+| Defined | The tool exists in an MCP server implementation |
+| Discoverable | The tool is returned by the server's `/v1/tools` |
+| Owned | `RuntimeToolRegistry` knows which server owns the tool |
+| LLM-visible | The tool is included in the function definitions given to the LLM (`RuntimeToolRegistry.llm_tool_definitions()`, gated on `enabled_for_llm`) |
+| Statically available | Current configuration/policy permits considering the tool for execution |
+| Dynamically available | The owning server is currently healthy enough to attempt execution (`McpServerHealthRegistry`) |
+| Routable | `RuntimeToolRegistry`/`ToolRouteResolver` can resolve the tool to exactly one owning server |
+| Approved | The current invocation has satisfied its approval requirement (`agent/tool_policy.py`, `tool_approval.py` — a separate subsystem, see §6a) |
+| Executable | All of the above, plus argument validation, currently permit this specific call |
+
+These MUST NOT be treated as interchangeable. In particular: a tool can be **LLM-visible yet not dynamically available** (server down), **statically disabled yet dynamically healthy** (config gate), or **known but not owned** (duplicate ownership, §6).
 
 ## 1. `config_dependent` (static)
 
@@ -39,9 +57,9 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 | `"command_allowlist is empty"` | shell | reserved — not yet implemented (requirement 15 scopes shell/cicd out) |
 | `"workflow_allowlist is empty"` | cicd | reserved — not yet implemented (requirement 15 scopes shell/cicd out) |
 
-**Active example:** The git-mcp server actively uses `disabled_reason` to indicate why tools are disabled. See [git-mcp availability metadata](./04_mcp_04_05_git.md#availability-metadata) for details on its specific precedence rules.
+**Implemented:** `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` each compute `enabled`/`disabled_reason` per tool in their own `/v1/tools` handler. See [git-mcp availability metadata](./04_mcp_04_05_git.md#availability-metadata) for git's specific precedence rules. `web_search` (`browser_fetch`) also implements this — an earlier version of this document and of Known Issue MCP-002 stated web-search lacked it; that was stale and has been corrected here.
 
-**Not yet implemented:** The web-search server does NOT implement `disabled_reason` for `browser_fetch`, despite having `config_dependent=true`. See [web-search availability metadata](./04_mcp_04_01_web-search-file-read-github.md#availability-metadata) for details on its current limitations.
+**Not implemented:** `rag_pipeline`, `cicd`, `mdq`, and `shell` route `TOOL_LIST` straight to `mcp_servers/server.py::build_tools_response()` with no per-tool `enabled`/`disabled_reason` computation — their tool entries carry neither key.
 
 ## 4. `/v1/tools` behavioral rules
 
@@ -112,50 +130,49 @@ Disabled tools are tracked for diagnostics (`enabled_for_llm` derived field) but
 
 `RuntimeToolRegistry.diagnostics()` (consumed by `/mcp status`'s `DISABLED_REASON` column, see `cmd_mcp.py`) computes each row's `disabled_reason` by first checking `tool.raw_definition.get("disabled_reason")` — the raw string a server actually sent in its `/v1/tools` entry, if present and non-empty — and only falls back to a `tool.status`-derived value (`""` when `status == "active"`, otherwise the status string) when the raw entry carried no such key. This lets `/mcp status` surface a server's real audit-trail reason once servers adopt the `enabled`/`disabled_reason` schema from section 2, while preserving the pre-existing status-derived value for every tool discovered today, none of which yet sends `disabled_reason` (see section 1's implementation-status callout).
 
+## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
+
+`McpToolDiscoveryService` (static, computed once at startup) and `McpServerHealthRegistry`/`ToolExecutor` (dynamic, updated continuously from live call outcomes) own different concerns and MUST NOT be conflated:
+
+- **Static / `RuntimeToolRegistry` (McpToolDiscoveryService.discover_all(), startup-only):** tool ownership, schema, scheduling metadata, and LLM-visibility eligibility (`enabled_for_llm`). A server that fails discovery entirely has all of its tools excluded from the registry via `_is_excluded_server()`. Note: the constructor also accepts a `degraded_servers` set for a softer exclusion tier, but `discover_all()` never populates it — it is a dead parameter today, not a second implemented tier.
+- **Dynamic / `McpServerHealthRegistry` + `ToolExecutor` (continuous, per-call):** server reachability, circuit-breaker state (CLOSED/OPEN/HALF_OPEN), and trial-recovery behavior. This layer does not affect `RuntimeToolRegistry`, LLM visibility, or routing — a tool stays LLM-visible and routable while its owning server is circuit-open; `ToolExecutor.execute()` simply returns an error at call time instead.
+
+A tool can be statically enabled while its server is temporarily down (dynamic-health failure at call time), and a tool can be statically disabled while its server is otherwise healthy (config gate, e.g. `read_only=true`). Discovery snapshots taken at startup MUST NOT be treated as permanent runtime health truth — only restart triggers rediscovery (§Reload vs. restart above).
+
+## 6b. Approval is not a disabled state
+
+Approval requirement (`RuntimeTool.requires_approval`) is tracked as a distinct concept from static/dynamic availability, and in the current implementation is tracked so loosely that no code path reads it back (`requires_approval` has write sites in `runtime_tool.py`/`runtime_tool_registry.py` but no read site anywhere in the codebase — Explicit in code, confirmed by repository-wide search). Actual approval-requirement decisions are made by an entirely separate subsystem, `agent/tool_policy.py::classify_risk()` and `agent/tool_approval.py`, operating on a `PreparedToolCall` that has already passed the registry/routing phase. A tool pending approval is not represented as "disabled" anywhere in `RuntimeToolRegistry` — approval-required tools remain LLM-visible and routable; only the approval subsystem gates execution.
+
 ## Wiring reference
 
 For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see also:
 - `docs/04_mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
 - `docs/05_agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
 
-## Future / deferred design options
+## `include_disabled` and `disabled_code`: implemented but unreachable
 
 **Note:** Top-level `capabilities` (on the response body, not per-tool) is also deferred unless verified otherwise. If any MCP server returns top-level `capabilities` in its `/v1/tools` response, this should be updated to reflect current implementation status.
 
-Evaluated per requirement 20 (`requires/done/20260717_20_require.md` once filed) and
-`plans/20260717-181151_plan.md`. Neither option below is implemented; both are deferred design
-decisions with no dependency from the initial RuntimeToolRegistry migration (requirements 14-19).
+Both options below have real parameters in `mcp_servers/server.py::build_tools_response()` — `include_disabled: bool = False` and `disabled_code: str | None = None` — but every route handler across all servers calls `build_tools_response()` (or the servers that skip it entirely) without ever passing these arguments, and none of the `list_tools()` handlers declare a query parameter for either. The parameters exist in code but have no reachable caller; `/v1/tools` therefore always returns every tool unconditionally today, matching Known Issue MCP-001.
 
 - [ ] First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above
-- [ ] `include_disabled` query parameter
+- [ ] Wire `include_disabled` through a query parameter on each server's `list_tools()` handler
+- [ ] Wire `disabled_code` through the same handlers, as a stable machine-readable companion to `disabled_reason` (never replacing it, never present alone)
 
-### 1. `include_disabled` query parameter
+### 1. `include_disabled` query parameter (target)
 
-Proposed: `GET /v1/tools?include_disabled=false` as an opt-in filter on tool discovery.
+`GET /v1/tools?include_disabled=false` as an opt-in filter on tool discovery. Default (no query param, or `include_disabled=true`) SHOULD preserve today's behavior: every tool returned, including disabled ones. Only when a caller explicitly passes `include_disabled=false` SHOULD disabled tools be omitted from the `tools` array.
 
-- Default (no query param, or `include_disabled=true`) preserves today's behavior: every tool is
-  returned, including disabled ones, each carrying `enabled=false` / `disabled_reason` set.
-- Only when a caller explicitly passes `include_disabled=false` are disabled tools omitted from the
-  `tools` array in the response.
-- Status: unimplemented, no immediate action required.
+### 2. `disabled_code` structured field (target)
 
-### 2. `disabled_code` structured field
-
-Proposed: a machine-readable enum companion to the free-text `disabled_reason`, coexisting with
-it (never replacing it, never present alone without `disabled_reason`).
-
-Candidate values, mapped to today's `config_dependent`-gated servers:
+A machine-readable enum companion to the free-text `disabled_reason`, coexisting with it. Candidate values, mapped to today's `config_dependent`-gated servers:
 
 | `disabled_code`             | Server(s)                              |
 |------------------------------|-----------------------------------------|
 | `EMPTY_ALLOWED_DIRS`         | file read / write / delete              |
 | `EMPTY_ALLOWED_REPO_PATHS`   | git (precedence over `READ_ONLY`)       |
 | `READ_ONLY`                  | git write tools                         |
-| `EMPTY_COMMAND_ALLOWLIST`    | shell (reserved; scoped out of req. 15) |
-| `EMPTY_WORKFLOW_ALLOWLIST`   | cicd (reserved; scoped out of req. 15)  |
+| `EMPTY_COMMAND_ALLOWLIST`    | shell (reserved; not yet gated by `enabled` at all) |
+| `EMPTY_WORKFLOW_ALLOWLIST`   | cicd (reserved; not yet gated by `enabled` at all)  |
 
-- `disabled_reason` remains for humans/logs; `disabled_code` is for programmatic dispatch.
-- Status: unimplemented, no immediate action required.
-
-Neither option is implemented. Both are deferred design decisions tracked for future evaluation;
-the initial RuntimeToolRegistry migration (requirements 14-19) does not depend on either.
+`disabled_reason` remains for humans/logs; `disabled_code` is for programmatic dispatch. A `disabled_code` MUST be stable enough for machine handling; `disabled_reason` MAY change for clarity and MUST NOT be used as the programmatic contract.

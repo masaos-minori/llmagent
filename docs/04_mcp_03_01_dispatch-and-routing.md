@@ -53,21 +53,13 @@ LLM returns tool_call
 
 ---
 
-## Two-stage tool resolution
+## Tool resolution and LLM visibility (corrected)
 
-Tools go through two distinct resolution stages before being available for execution:
+A single stage does the real filtering: `RuntimeToolRegistry.llm_tool_definitions()` returns only tools with `enabled_for_llm=True`, and that is the set of function definitions actually sent to the LLM. Disabled tools (per the owning server's `enabled`/`disabled_reason`) are excluded here, before the LLM ever sees them — not at a later "runtime routability" stage.
 
-**Stage 1: LLM Visibility** (`RuntimeToolRegistry.llm_tool_definitions()`)
+`LLMTurnRunner._filter_disabled_tool_definitions()` exists in code but is not a second filtering stage: it builds `visible_names` from the exact same `registry.llm_tool_definitions()` call and then filters against that self-referential set, so it removes nothing beyond what Stage 1 already removed (the function body's own comment notes `visible_names is redundant here`). Treat this as dead-code-shaped, not as an independent routability check — see `04_mcp_03_06_tool-runtime-availability-metadata.md` §6a/§6b for the concepts this area actually needs (static vs. dynamic availability, approval).
 
-- Tools returned here are visible to the LLM as potential tool calls
-- This stage determines what tools the LLM can propose
-- Disabled tools may still appear at this stage depending on configuration
-
-**Stage 2: Runtime Routability** (`LLMTurnRunner._filter_disabled_tool_definitions()`)
-
-- After the LLM proposes a tool call, this stage determines whether the tool can actually be routed to its handler
-- Disabled tools are filtered out at this stage
-- A tool can be LLM-visible but not runtime-routable (e.g., disabled due to config)
+Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which only 4 of 8 server categories implement (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search` — see `04_mcp_03_06_tool-runtime-availability-metadata.md`).
 
 **Critical failure mode:** If `RuntimeToolRegistry` is missing entirely, the LLM sees no tools at all, resulting in "Unknown tool" errors even when tools exist in the system.
 
@@ -213,16 +205,3 @@ Data for drift detection regarding MCP tool definitions and ownership. Not used 
 - `04_mcp_03_03_transport-and-health.md`
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
-
-## Keywords
-
-mcp
-routing
-lifecycle
-ToolRouteResolver
-ToolRegistry
-tool dispatch
-routing drift
-stampede protection
-startup_mode gate
-HALF_OPEN trial dispatch

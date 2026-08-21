@@ -11,12 +11,13 @@ related:
   - 04_mcp_03_03_transport-and-health.md
   - 04_mcp_03_04_tool-call-tracing-and-watchdog.md
   - 04_mcp_03_05_lifecycle-and-new-server.md
+  - 04_mcp_03_06_tool-runtime-availability-metadata.md
   - 04_mcp_07_tool_schema_export_policy.md
 ---
 
 # Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency
 
-The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` is still maintained for two production uses: (a) input data for `McpToolDiscoveryService`'s drift detection, and (b) the fail-safe membership check that `agent/tool_policy.py::classify_operation_type()` (`tool_policy.py:69`) references via `get_all_tool_names()` to determine whether a tool is known at all. `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)).
+The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` is still maintained for two production uses: (a) input data for `McpToolDiscoveryService`'s drift detection, and (b) the fail-safe membership check that `agent/tool_policy.py::classify_operation_type()` references via `get_all_tool_names()` to determine whether a tool is known at all. `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md)).
 
 ## Drift Verification
 
@@ -118,7 +119,7 @@ is_side_effect(tool_name: str) -> bool
 
 `shared/runtime_tool.py` (`RuntimeTool`, `build_runtime_tool()`) and `shared/runtime_tool_registry.py` (`RuntimeToolRegistry`) are additional modules separate from the existing `shared.tool_registry.ToolRegistry` described in this document. `agent/services/mcp_tool_discovery.py`'s `McpToolDiscoveryService` (`async def discover_all() -> DiscoveryResult`) fetches `/v1/tools` live from each HTTP transport MCP server and validates the response shape. In addition to `name`/`description`/`inputSchema`, four fields—`is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`—are **mandatory** under the schema-2.0 contract (with `shared/resource_scope.py::validate_tool_schema_v2()` verifying type, known kinds, and presence of `resource_scope_keys` within `inputSchema.properties`); any individual tool with missing or invalid fields is excluded from the registry (silent default application is not allowed). `status`/`resource_scope` (legacy singular form)/`enabled` are validated only if present. Tools with duplicate names across servers are excluded from the registry and a `FATAL` `StartupCheckOutcome` is returned regardless of `security_profile` (production/local) or `strict` settings (explicitly implemented in `_dedupe_and_build()`). Startup pipelines propagate `FATAL` via `pipeline.add_fatal()`, causing startup to abort.
 
-**[Explicit in code]** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset, and as the fail-safe membership check for `agent/tool_policy.py::classify_operation_type()` (`tool_policy.py:69`) (see the explanation at the beginning of this document).
+**[Explicit in code]** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset, and as the fail-safe membership check for `agent/tool_policy.py::classify_operation_type()` (see the explanation at the beginning of this document).
 
 ## Related Documents
 
@@ -128,18 +129,3 @@ is_side_effect(tool_name: str) -> bool
 - `04_mcp_03_04_tool-call-tracing-and-watchdog.md`
 - `04_mcp_03_05_lifecycle-and-new-server.md`
 - `04_mcp_07_tool_schema_export_policy.md`
-
-## Keywords
-
-mcp
-routing
-ToolRegistry
-tool cache
-ToolResultCache
-ToolSpec
-concurrency limits
-side effect detection
-routing drift
-tool safety tiers
-RuntimeToolRegistry
-McpToolDiscoveryService

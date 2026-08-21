@@ -43,6 +43,22 @@ This document defines a common security policy for high-risk MCP tools that perf
 
 The **mdq** server is included as the reference implementation of traversal prevention patterns, which this policy generalizes to all filesystem-touching high-risk tools.
 
+## Purpose of layered protection
+
+Agent-side approval confirms user intent and presents the expected operation and its risk; it does not by itself guarantee technical safety. Each high-risk MCP server MUST enforce its own technical constraints independently of whether an Agent-side approval step exists or was satisfied. Approval and server-side enforcement are separate concerns that MUST NOT be treated as substitutes for one another.
+
+## Layered protection model
+
+| Layer | Responsibility | Not responsible for |
+|---|---|---|
+| **Agent approval** | Confirm user intent; present the expected operation and risk before dispatch | Enforcing path/repo/branch/ref safety — it MUST NOT be treated as a bypass for server-side validation |
+| **Common per-server guard** | Path/repo authorization, canonical path resolution, read-only enforcement, basic operation classification | Command- or operation-specific preconditions |
+| **Command-specific guard** | Worktree-state validation, branch/remote/ref policy, dangerous-option rejection, operation-specific preconditions | General authorization (owned by the common guard) |
+| **Postcondition verification** | Confirming the resulting state matches intent; detecting unresolved conflicts; preventing partial results from being reported as success | Preventing the operation from starting (that is the guard layers' job) |
+| **Audit** | Recording repository/resource identity, operation type, before/after state, approval correlation, and result — without secrets or full sensitive output | Blocking or allowing the operation |
+
+**Current coverage is uneven across tools.** Every high-risk server implements the common-guard layer (allowlist + read-only/write gating). Command-specific guards, postcondition verification, and rich audit correlation are implemented for some tool categories (e.g., mdq path/symlink checks) but are an open gap for others — see each tool's own document for its current layer coverage, and do not assume a layer is implemented here merely because this policy defines it as a concept.
+
 ## Allowed paths/repos
 
 All high-risk tools that access filesystem or remote resources use a fail-closed allowlist model:
@@ -62,7 +78,7 @@ All high-risk tools that access filesystem or remote resources use a fail-closed
 Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 
 - **Shell MCP**: `command_allowlist` in `config/shell_mcp_server.toml` — only listed command prefixes allowed (e.g., `ls`, `cat`, `grep`, `git log`, `git status`)
-- **Git MCP**: Built-in command allowlist — only safe git subcommands allowed by default; write operations require approval
+- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `04_mcp_04_05_git.md` §Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see §Layered protection model below).
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
 *Source: `04_mcp_05_01_access-control-and-allowlists.md` §Command Allowlist*
@@ -168,8 +184,8 @@ The fail-closed posture applies to:
 
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
-- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`)
-- **Git MCP**: `protected_branches` and `force_push_blocked` are additional restrictions (documented in `04_mcp_04_05_git.md`)
+- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
+- **Git MCP**: has no protected-branch policy and no technical Force Push block — the `branch`/`remote` arguments to `git_checkout`/`git_pull`/`git_push` are passed through without command-specific validation, which is an open gap, not a deviation covered by an additional restriction (documented in `04_mcp_04_05_git.md` §Command-specific guard status; tracked as a Known Issue).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `04_mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.
@@ -189,7 +205,3 @@ Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-comm
 - `05_agent_06_02_tool-execution-and-approval-approval.md`
 - `04_mcp_06_16_pre-production-fail-open-checklist.md`
 - `04_mcp_02_03_audit-logging-and-errors.md`
-
-## Keywords
-
-security, policy, high-risk-tools, path-traversal, approval, audit, symlink-traversal
