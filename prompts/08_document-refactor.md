@@ -8,7 +8,32 @@ Read the source code and the existing design documents, then update the design d
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+incomplete plans, or insufficient validation.
+
+#### Context reading
+
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Document-specific guidance
 
 - When reusing previously collected information across documents (per Step 2), keep a
   short facts cache (extracted API signatures, config keys, behavior notes) rather than
@@ -24,6 +49,7 @@ Read the source code and the existing design documents, then update the design d
 - Read shared files in Step 0 only once per session.
 - In Step 6, aggregate the run summary from the per-file reports' key points; do not
   re-quote full evidence already recorded there.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -38,10 +64,24 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify target design documents
 
-- Objective: synchronize the design documents under `docs/` with the implementation under `script/`. Treat the Python implementation as the single source of truth.
+- Objective: synchronize the design documents under `docs/` with the implementation under `script/`. Treat the Python implementation as the single source of truth for current runtime behavior; approved design documents are authoritative for intended architecture, responsibilities, boundaries, constraints, and operational policies.
 - Work document-by-document. Do not read the entire repository, all documentation files, or all source files at once.
 - If multiple target documents are specified, process them in filename (lexicographic) order.
 - Use a search-first workflow: search → identify → inspect → update.
+
+#### Step 1b: Authority policy
+
+Apply this policy throughout:
+
+- Source code and executable tests are authoritative for current runtime behavior.
+- Approved design documents are authoritative for intended architecture, responsibilities, boundaries, constraints, and operational policies.
+- Record mismatches between code and documentation.
+- Update documentation with behavior confirmed by code.
+- Do not infer design intent from accidental implementation details.
+- Mark uncertain intent as `Needs confirmation`.
+- After synchronization, `docs/*.md` is the canonical reference for documented behavior and approved design intent.
+
+Do not use `code is authoritative` and `docs are the SSOT` without defining their different scopes.
 
 #### Step 2: Read the document and related source code
 
@@ -85,15 +125,17 @@ Structure:
 - Do not remove content unless it is clearly wrong and contradicted by implementation.
 - Keep existing headings where possible. If a section already exists, extend it instead of duplicating it.
 
-Content to add, as short implementation-backed subsections:
-- 実装意図 (Implementation note)
-- 実装上の補足 (Current behavior)
-- 現在の実装挙動 (Intent inferred from code)
-- 境界条件 (Boundary and ownership)
-- 失敗時の意図 (Failure behavior)
-- Operational rationale
-- Why this exists
-- What this component intentionally does NOT do
+Use English headings only:
+- Implementation Intent
+- Current Implemented Behavior
+- Inferred Intent
+- Boundary and Ownership
+- Failure Behavior
+- Operational Rationale
+- Why This Exists
+- Non-Responsibilities
+
+Do not mix Japanese and English headings. Classify inferred intent with an evidence classification.
 
 Content to avoid:
 - generic textbook explanations,
@@ -108,7 +150,19 @@ Format:
 - Add Keywords.
 - Structure content for LLM/RAG/coding-agent consumption.
 - Preserve existing navigation and cross-references.
-- Document file size must stay at or under 8KB. If an update would exceed this, split the content into multiple linked documents instead of exceeding the limit.
+
+File size limit:
+- Maximum size: 8,192 bytes.
+- Encoding: UTF-8.
+- Include YAML front matter in the measurement.
+- Measure the file after writing.
+- Split the document when the limit is exceeded.
+- Add relative links between split documents.
+- Do not remove important content only to meet the limit.
+
+Separate document content from synchronization history:
+- Target documents contain current behavior, design intent, boundaries, constraints, and lasting operational notes.
+- `docs/99_documentation_sync_report.md` contains changes made during the run, mismatches, removed or moved content, evidence classifications, and human review items.
 
 Style:
 - Write in English.

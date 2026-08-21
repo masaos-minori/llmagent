@@ -12,8 +12,16 @@ Read the existing skill files and routing configuration, then restructure them b
 Strictly follow these throughout all steps:
 
 - **routing**: All task-to-skill mappings must go through `routing.md`; never bypass it by loading skills or docs directly.
-- **dependency direction**: Files may only reference layers below them (`shared` → `db` → `rag`/`mcp` → `agent`); no upward references allowed.
-- **minimal loading**: Load only the files required for the current task; never load all docs or all skills by default.
+- **dependency direction**: Apply this direction: `agent -> rag/mcp -> db -> shared`. The arrow means "may depend on or reference".
+  - `agent` may reference `rag`, `mcp`, `db`, and `shared`.
+  - `rag` and `mcp` may reference `db` and `shared`.
+  - `db` may reference `shared`.
+  - `shared` must not reference higher layers.
+  - A lower layer must not reference a higher layer.
+  - `rag` and `mcp` are sibling layers.
+  - `rag` and `mcp` must not reference each other unless an approved rule explicitly allows it.
+  - Do not confuse layer display order with dependency direction.
+- **minimal loading**: See the minimal skill loading process below.
 - **shared normalization**: Rules and conventions shared across multiple skills must be defined once in `skills/DESIGN.md` and referenced, not duplicated.
 
 Context Loader Pattern (the target structure):
@@ -30,7 +38,32 @@ Shared Rules
 Execution
 ```
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+incomplete plans, or insufficient validation.
+
+#### Context reading
+
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Inventory-first approach
 
 - Before reading full file contents, build a compact rule inventory in two stages:
   delegate to sub-agent(s) to extract, per file (or per batch of files), a list of
@@ -47,6 +80,12 @@ Execution
 - In Step 3, report which files changed and where content moved to; do not restate full
   diffs or full before/after file content.
 
+#### Progress reporting
+
+- Keep start/end progress reports to one or two lines; do not restate full document
+  content in progress reports.
+- Include all failures, blocking issues, and important validation results even in concise reports.
+
 ### Tasks
 
 Report progress at the start and end of each step.
@@ -57,7 +96,13 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `AGENTS.md`
 - `skills/DESIGN.md`
-- All files matching `skills/*/SKILL.md`
+
+Do not load every skill file in full at the same time. Use this process:
+1. List all `skills/*/SKILL.md` files.
+2. Extract headings and a compact rule inventory.
+3. Keep only the topic, summary, file path, and line reference in the main context.
+4. Read a full section only when needed to confirm duplication or relocation.
+5. Do not keep all skill file contents in the main context.
 
 #### Step 1: Remove duplicated content
 
@@ -71,6 +116,32 @@ Acceptance criteria:
 #### Step 2: Reorganize files based on the Context Loader Pattern
 
 Perform after Step 1 is complete.
+
+Define the roles of each file type:
+
+##### AGENTS.md
+
+- Contains repository-wide AI execution constraints.
+- Instructs the AI to consult `routing.md`.
+- Does not contain task-to-skill mapping entries.
+
+##### routing.md
+
+- Is the only canonical source for task-to-skill mappings.
+- Contains required source-to-document mappings.
+- Does not duplicate routing definitions in other files.
+
+##### skills/DESIGN.md
+
+- Contains architectural rules shared by multiple skills.
+- Does not contain task-specific procedures.
+
+##### skills/<task>/SKILL.md
+
+- Contains only task-specific procedures, decisions, and checklists.
+- Does not define task-to-skill mappings.
+
+A normative rule must have one canonical definition. A short link or non-normative summary is allowed if it does not redefine the rule.
 
 Apply the following structure:
 - Put task routing rules in `AGENTS.md`.

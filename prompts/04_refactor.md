@@ -37,7 +37,44 @@ skip a step because it seems slow.
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+or incomplete plans.
+
+#### Context reading
+
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Command results
+
+Keep command results needed for correct judgment, including:
+- exit status,
+- final summary,
+- failures,
+- relevant warnings,
+- skipped checks,
+- blocked checks,
+- coverage results when applicable.
+- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
+
+#### Progress reporting
 
 - Delegate Step 3 (preparation/investigation) to a read-only sub-agent. Have it run
   `pydeps`, `rg`, `import-linter`, and `ast-grep`, and return only the resulting impact
@@ -59,6 +96,7 @@ skip a step because it seems slow.
 - Keep progress reports and Step 10 results concise; do not restate full diffs or raw tool
   output. Evidence tables (manifest, inventory, mutation report) must still list every
   required field even when kept concise.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -157,7 +195,19 @@ If any side effect changes, stop and record it as a proposal unless explicitly a
 
 #### Step 7: Validation
 
-Refer to `rules/toolchain.md` for the canonical validation sequence. At minimum:
+##### Required validation
+
+Run repository-defined validation for:
+- formatting
+- linting
+- type checking
+- affected tests
+- public API stability
+- exception behavior
+- side effects
+- import boundaries when imports change
+
+At minimum:
 - Run `mypy`.
 - Cross-check with `pyright`.
 - Run `ruff`.
@@ -206,6 +256,29 @@ In addition, perform and record the following checks:
   Do not introduce a new import from a lower layer to a higher layer unless explicitly
   approved.
 
+##### Conditional validation
+
+Run these tools only when the repository configures and supports them:
+- `mutmut`
+- `diff-cover`
+- `import-linter`
+- `pydeps`
+- `ast-grep`
+- `pyright`
+- `pre-commit`
+- `libcst`
+
+If a conditional tool is unavailable:
+- Report why it was not run.
+- Use a repository-defined alternative when available.
+- Do not report the skipped check as passed.
+- Report `Blocked` only if the missing check is required to prove behavior preservation.
+- Otherwise, continue and record the check as `Not run`.
+
+Do not require interactive Git commands. Use non-interactive `git diff` commands. Do not stage or commit unless the user explicitly requests it. Report suggested commit boundaries in the final report.
+
+If mutation testing is not configured, report `Not run`. Do not invent mutation results.
+
 #### Step 8: Incremental migration
 
 - Stage changes per hunk with `git add -p` (or `lazygit` as an optional alternative).
@@ -253,6 +326,9 @@ Keep diffs minimal. For each file, report:
 - The Step 7 exception behavior freeze result.
 - The Step 7 import boundary evidence, if imports changed.
 - The Step 8 diff classification summary.
+- **Conditional tool status**:
+  - Which conditional tools were not run and why.
+  - Whether any `Blocked` items remain.
 - **Mutation testing evidence**:
   - Mutated paths
   - Number of mutations generated
@@ -291,15 +367,8 @@ Keep diffs minimal. For each file, report:
 - Visible output is unchanged.
 - No new side effects are introduced.
 - No unrelated files are modified.
-- `mypy` passes.
-- `pyright` passes.
-- `ruff` passes.
-- Characterization tests pass.
-- The required test set passes.
-- `import-linter` passes.
-- `pre-commit` passes.
-- `diff-cover` passes.
-- `mutmut` has no unresolved surviving mutations in changed paths.
+- Required validation passes.
+- Conditional validation items are reported with their actual status (`Not run` or `Blocked`).
 - The final report includes behavior preservation evidence.
 - Any behavior-changing ideas are recorded as proposals, not implemented.
 

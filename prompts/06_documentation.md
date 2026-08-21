@@ -20,7 +20,32 @@ Read the source code and the existing design documents, then restructure and upd
 - Write all documentation files (`docs/*.md`) in English.
 - Do not document private methods, private attributes, or private functions (names starting with `_`).
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+incomplete plans, or insufficient validation.
+
+#### Context reading
+
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Documentation-specific guidance
 
 - Process each of agent, mcp, rag, db, and shared as an isolated sub-agent cycle; do not
   load source across all layers into a single context at once. Per the import layer
@@ -40,6 +65,7 @@ Read the source code and the existing design documents, then restructure and upd
   cycles.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -55,6 +81,22 @@ If not already loaded, read the following before starting:
 #### Step 1: Document structure and separation
 
 Split and document the specifications for agent, mcp, rag, db, and shared into separate files.
+
+When applying the required chapter structure:
+
+- Preserve verified existing content.
+- Move or merge content into the required sections.
+- Do not remove content only because its current heading is different.
+- Remove or correct content only when it is duplicated, unsupported, out of scope, or contradicted by evidence.
+- Prefer focused edits over full rewrites.
+- Check that no required information is lost.
+
+If a required section does not apply:
+
+- Keep the heading.
+- Write `N/A`.
+- Add a one-line reason.
+- Do not invent content.
 
 Each file must strictly follow the chapter structure below:
 - Purpose
@@ -73,10 +115,19 @@ Each file must strictly follow the chapter structure below:
 
 #### Step 2: Documentation alignment and quality control
 
-The documentation (`docs/*.md`) serves as the Single Source of Truth (SSOT).
+Apply this policy:
 
-- Code vs. Doc Alignment: If docs and code disagree, update `docs/*.md` to reflect the actual implemented behavior. Code is the authority.
-- Internal Consistency: Review and correct any inconsistent terminology, structural contradictions, or factual errors within `docs/*.md`.
+- Source code and executable tests are authoritative for current runtime behavior.
+- Approved design documents are authoritative for intended architecture, responsibilities, boundaries, constraints, and operational policies.
+- Record mismatches between code and documentation.
+- Update documentation with behavior confirmed by code.
+- Do not infer design intent from accidental implementation details.
+- Mark uncertain intent as `Needs confirmation`.
+- After synchronization, `docs/*.md` is the canonical reference for documented behavior and approved design intent.
+
+Do not use `code is authoritative` and `docs are the SSOT` without defining their different scopes.
+
+Internal Consistency: Review and correct any inconsistent terminology, structural contradictions, or factual errors within `docs/*.md`.
 
 #### Step 3: Classify evidence
 

@@ -45,20 +45,40 @@ Do not perform any of the following as part of this workflow:
 - interleaving multiple target files
 - parallel processing of target-file cycles
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+or incomplete plans.
+
+#### Context reading
 
 - Read shared files in Step 0 only once per session; do not re-read them for later
   cycles.
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Progress reporting
+
 - Delegate Step 2 (verifying claims in the issue against current source) to a read-only
   sub-agent. Have it return a concise confirmation or correction, not full file contents.
-- When multiple target issue files are specified, delegate each Steps 1-4 cycle to an
-  isolated sub-agent call for context hygiene only, so investigation from one file's
-  cycle does not accumulate into the next. This delegation is for context isolation,
-  **not parallel execution**: dispatch and await each sub-agent one at a time, never in
-  parallel, and do not start the next file's cycle until the current file's Steps 1-4
-  (through moving it to `issues/done/` in Step 4) have completed.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -129,10 +149,32 @@ Fill the Traceability section using this structure, leaving fields that do not a
 
 **This step is mandatory. Do not skip it.**
 
-- In `review_mode = manual`, stop after Step 3 and wait for explicit user approval before
-  performing this step. In `review_mode = autonomous`, proceed directly, reporting the
-  requirement document path and a validation summary.
-- Move the issue file to `issues/done/` using git mv or cp + rm.
-- Verify the file exists in `issues/done/` after the move.
-- **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
-- Only after confirming the move succeeded, consider the cycle complete.
+##### Already-resolved issues
+
+If the issue is already resolved, cannot be reproduced, or no longer applies (per Step 2):
+
+1. Do not create a requirement document.
+2. Report the supporting code evidence.
+3. Explain why no requirement document is needed.
+4. Report that the issue is ready to move to `issues/done/`.
+5. Stop and wait for explicit user approval.
+6. After approval, move the issue.
+7. Verify the move.
+8. Report `Closed without requirement generation`.
+
+Do not move the issue before approval.
+
+##### Normal resolution
+
+For issues requiring a new requirement document:
+
+1. Report the generated file, validation result, unresolved items, and source file to be moved.
+2. Stop and wait for explicit user approval.
+3. Do not move the source file before approval.
+4. After approval, resume from the move step.
+5. Move the issue file to `issues/done/` using git mv or cp + rm.
+6. Verify the file exists in `issues/done/` after the move.
+7. **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
+8. Only after confirming the move succeeded, consider the cycle complete.
+
+An unclear user response must not be treated as approval. Before approval, report `Awaiting approval`. Do not start the next target file while approval is pending.

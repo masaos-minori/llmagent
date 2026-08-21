@@ -16,7 +16,44 @@ The output must be practical enough to use directly as:
 - a refactoring / stabilization work plan,
 - a source for GitHub Issue creation.
 
-### Token efficiency
+### Context efficiency
+
+**Accuracy, completeness, and validation always take priority over context reduction.**
+Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
+incomplete plans, or insufficient validation.
+
+#### Context reading
+
+- Read the current target file in full when its complete meaning or structure is required.
+- Read only relevant sections of related files by default.
+- Read a related file in full when excerpts are not enough to understand: behavior,
+  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
+  or document consistency.
+- Do not omit necessary evidence only to save context.
+- Reuse a verified fact only while its source file remains unchanged.
+- Store the source path and evidence location with each cached fact.
+- Recheck cached facts after the related source file changes.
+
+#### Sub-agent use
+
+- Treat sub-agent use as optional.
+- Use sub-agents only for read-only investigation and context isolation.
+- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
+- The main agent is always responsible for validating all evidence and findings.
+
+#### Command results
+
+Keep command results needed for correct judgment, including:
+- exit status,
+- final summary,
+- failures,
+- relevant warnings,
+- skipped checks,
+- blocked checks,
+- coverage results when applicable.
+- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
+
+#### Test-specific guidance
 
 - In Step 2, capture concise output from test/validation commands: use quiet/short-
   traceback modes (e.g. `pytest -q --tb=short`) and read coverage from a summary
@@ -36,6 +73,7 @@ The output must be practical enough to use directly as:
 - Read shared files in Step 0 only once per session.
 - In Step 6, reference findings by their ID from Steps 3-5 rather than re-quoting full
   evidence or source excerpts already recorded there.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -92,6 +130,18 @@ Important:
 - If tests need to be run in a specific order, infer and follow that order.
 - If some tests cannot run because of missing environment/services, record that explicitly.
 
+Do not run tests that may:
+- connect to production,
+- modify real data,
+- create charges,
+- require unverified credentials,
+- require an unverified external service.
+
+If a safe isolated test environment is unavailable:
+- Mark the test as `Blocked` or `Not runnable`.
+- Record the missing environment, service, or credential.
+- Do not report the test as passed.
+
 #### Step 3: Record real execution results
 
 For each executed command, record:
@@ -137,6 +187,12 @@ Find tests that are:
 - missing regression coverage for known bugs
 
 #### Step 6: Produce a concrete work plan
+
+Determine the report destination from existing repository rules.
+
+- If the repository defines a report directory, save the Markdown report there.
+- If no destination is defined, return the report only in the final response.
+- Do not create a new report directory without an existing rule.
 
 Create a Markdown report with:
 1. overall findings,
@@ -252,6 +308,8 @@ Follow these rules strictly:
 - Every proposed test addition or update must be actionable.
 
 ### Optional Extra Output
+
+Generate `## 9. GitHub Issue Drafts` only when the user explicitly requests it.
 
 After the main report, also generate:
 
