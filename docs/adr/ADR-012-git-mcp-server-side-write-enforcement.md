@@ -186,6 +186,8 @@ This ADR moves to Accepted once INV-01 through INV-04 are implemented and covere
 - **Known Issue**: MCP-003 — no protected-branch/Force-Push guard; confirmed option-injection exploit via `branch`/`remote`.
 - **Known Issue**: MCP-004 — approval tier for these tools falls back to `MEDIUM` (`y/N`) rather than the documented `HIGH` (full-word `yes`).
 - **Known Issue**: MCP-005 — audit `target` field likely always empty due to a key-name mismatch.
+- **Known Issue**: GIT-001 — `git_checkout`/`git_pull` do not reject dirty worktree or detached HEAD before write operations.
+- **Known Issue**: GIT-002 — postcondition verification (branch/HEAD confirmation, conflict detection) missing after write operations.
 
 ## Review Triggers
 

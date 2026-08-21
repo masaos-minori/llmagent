@@ -72,3 +72,57 @@ This document was populated on 2026-08-06 based on the audit of requirement `req
 - **Impact**: Potential accumulation of dead code or confusion regarding the intended configuration mechanism.
 - **Recommended Action**: Confirm with design/implementation owner whether these are intentional placeholders for a future validation layer or removable dead code.
 - **Resolution Notes**: N/A
+
+## DESIGN-1: External RAG and local RAG corpus difference not documented
+
+- **Status**: open
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: documentation-gap
+- **Source**: `scripts/rag/`
+- **Owner**: Team
+- **First Found**: 2026-08-22
+- **Target**: `docs/03_rag_01_system-overview.md`
+- **Related**: ADR-010
+- **Summary**: External RAG and local RAG use different corpora (different data sources), but this architectural difference is not documented anywhere. Users cannot determine which corpus is being queried without inspecting the code.
+- **Current Description**: Two separate RAG implementations exist — one for external search and one for local search — each operating on different data stores.
+- **Observed Implementation**: External RAG uses a vector store connected to an external API endpoint; local RAG uses SQLite with sqlite-vec extension storing embeddings derived from ingested documents.
+- **Impact**: Operators may assume both RAG systems query the same knowledge base, leading to incorrect expectations about result consistency.
+- **Recommended Action**: Document the corpus difference in the RAG system overview and add a note to the ADR explaining why two corpora were chosen.
+- **Resolution Notes**: Open — documentation gap identified.
+
+## DESIGN-2: No test guarantees application code never directly operates chunks_fts
+
+- **Status**: open
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: missing-test
+- **Source**: `scripts/rag/`
+- **Owner**: Team
+- **First Found**: 2026-08-22
+- **Target**: `tests/` directory
+- **Related**: ADR-009
+- **Summary**: ADR-009 establishes that application code must never directly operate on the `chunks_fts` table — all FTS operations must go through the FTS wrapper. No test enforces this invariant.
+- **Current Description**: The FTS wrapper provides a controlled interface for full-text search, but there is no test that verifies application code respects this boundary.
+- **Observed Implementation**: Grep for direct SQL references to `chunks_fts` outside the FTS wrapper module shows that some code paths may bypass the wrapper.
+- **Impact**: Without enforcement, new code could inadvertently operate on `chunks_fts` directly, breaking the abstraction boundary established by the ADR.
+- **Recommended Action**: Add a lint rule or test that scans for direct `chunks_fts` references outside the FTS wrapper, or add integration tests that verify all FTS operations go through the wrapper.
+- **Resolution Notes**: Open — test coverage gap identified.
+
+## sqlite-vec FK constraint issue
+
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: architectural-limitation
+- **Source**: `scripts/rag/`
+- **Owner**: Team
+- **First Found**: 2026-08-22
+- **Target**: `docs/adr/ADR-005-rag-source-derived-index-relationships.md`
+- **Related**: ADR-005
+- **Summary**: sqlite-vec does not enforce foreign key constraints on embedding vectors stored in the `chunks_fts` table. This means orphaned vectors can exist even when their source documents are deleted.
+- **Current Description**: When a document is deleted, its embeddings remain in the vector index because sqlite-vec has no FK enforcement mechanism.
+- **Observed Implementation**: Deletion of a document removes rows from the primary table but leaves orphaned entries in the vector index until a manual cleanup step runs.
+- **Impact**: Vector index grows over time with orphaned entries, increasing memory usage and potentially degrading search performance.
+- **Recommended Action**: Accept this limitation and implement periodic cleanup of orphaned vectors, or migrate to a vector store that supports FK constraints.
+- **Resolution Notes**: Open — known architectural limitation, mitigated by deletion ordering.

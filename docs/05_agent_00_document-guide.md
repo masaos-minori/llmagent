@@ -62,7 +62,10 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Related ADRs
 - [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化
+- [ADR-003](adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistryを唯一のルーティング権威とする
 - [ADR-004](adr/ADR-004-environment-profile-fail-fast-fail-open.md) — Environment Profile別障害方針 — Fail-Fast/Fail-Open
+- [ADR-007](adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — HTTP MCP採用とstdio非サポート
+- [ADR-013](adr/ADR-013-mcp-tool-availability-model.md) — MCP Tool Availability Model
 
 ### Query Routing Table
 

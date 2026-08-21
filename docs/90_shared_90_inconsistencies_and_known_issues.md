@@ -43,6 +43,28 @@ Each item follows this format:
 
 ---
 
+### CI-001: EventBus does NOT use ConfigLoader at all
+
+- **ID**: CI-001
+- **Title**: EventBus process reads configuration directly instead of using ConfigLoader
+- **Status**: open
+- **Severity**: High
+- **Area**: Shared
+- **Type**: design-deviation
+- **Source**: `scripts/eventbus/config.py`; `scripts/shared/config_loader.py`
+- **Owner**: Unassigned
+- **First Found**: 2026-08-22
+- **Target**: `02_config_isolation_02_01_config-loader-design.md`
+- **Related**: ADR-002
+- **Summary**: ADR-002 requires that all processes load configuration via ConfigLoader to ensure process-level config isolation. EventBus reads its own TOML configuration directly without going through ConfigLoader, violating this invariant.
+- **Current Description**: EventBus's `config.py` loads TOML files directly using `tomllib.load()` or similar, bypassing ConfigLoader entirely.
+- **Observed Implementation**: `scripts/eventbus/config.py` opens TOML files and parses them independently; `scripts/shared/config_loader.py` is never imported or used by the EventBus module.
+- **Impact**: EventBus operates with a configuration loading path that differs from other processes, potentially leading to inconsistent config handling across the system.
+- **Recommended Action**: Refactor EventBus configuration loading to use ConfigLoader, ensuring consistent config access across all processes.
+- **Resolution Notes**: Open — design deviation confirmed.
+
+---
+
 ### SHARED-003: `workflow.sqlite` and `eventbus.sqlite` have no physical-corruption recovery path
 
 `recover_corruption()` only supports `target='rag'` or `target='session'`; passing any other value produces a mismatched display path while still opening an unintended database file. Neither `workflow.sqlite` (task/approval state) nor `eventbus.sqlite` (event delivery state) has any corruption-recovery or backup-rotation coverage — `rotate_all_dbs()` excludes both, and no other recovery path exists for either file. Status: open / Severity: High / Type: design-gap. Impact: physical corruption of workflow or event-delivery state has no recovery procedure at all; the only observed startup behavior for a broken session/workflow store is a fatal `RuntimeError` that stops the agent. Action: extend `target` validation to reject unsupported values explicitly (fail fast instead of falling back to a mismatched path), and decide and implement a recovery policy for the workflow and event-bus domains before relying on them as recoverable state. Design reference: [90_shared_05_04 section 9.7 Persistence-domain policy](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#97-persistence-domain-policy).

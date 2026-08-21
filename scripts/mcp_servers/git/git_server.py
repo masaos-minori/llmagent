@@ -129,7 +129,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=cast(str, req.args.get("repo", "")),
+        target=cast(str, req.args.get("repo_path", "")),
         outcome=r.outcome,
         server_key="git",
     )

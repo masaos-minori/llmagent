@@ -56,7 +56,7 @@ Do not perform any of the following as part of this workflow:
 
 ### Tasks
 
-Report progress at the start and end of each step.
+Report progress at the start and end of each step. Also record intermediate work status whenever a significant decision or change is made during execution.
 
 If multiple target plan files are specified, treat Steps 1-4 as one complete cycle per
 file: finish every step for the current file (through moving it to `plans/done/` in
@@ -141,6 +141,7 @@ Use this section structure:
 - Rollback considerations
 - Validation plan
 - Out of scope
+- Execution Status
 - Traceability
 
 Keep each added section concise and file-level (a few bullets each); do not expand this
@@ -156,9 +157,55 @@ Fill the Traceability section using the structure from `templates/traceability.m
 - Generated at: {timestamp from Step 3}
 - Related target files: {target_file_name}
 
+#### Execution Status section
+
+Add an Execution Status section with the following subsections and tables:
+
+##### Execution Status
+
+Record the completion status of each work step below. Update the Status column when a step is started or finished.
+
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| — | — | Pending | — | — | |
+
+Status options: Pending / In Progress / Blocked / Completed
+
+##### Blocker Log
+
+Record any blockers encountered during execution.
+
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+##### Work Items Created
+
+Record all work items created during this task.
+
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+Type options: Test / Code Change / Doc Change / Issue
+
+#### Progress recording during Step 3
+
+During Step 3, record your work status after completing each sub-item in `Implementation steps`:
+- Note which target file you are working on
+- Record the current status (In Progress / Blocked / Completed) for each item
+- If blocked, describe the blocker and whether it requires user intervention
+- When moving to a new item, update the Execution Status table in the output document
+
+
 #### Step 4: Move the completed plan file
 
 **This step is mandatory. Do not skip it.**
+
+Before proceeding to Step 4, verify that the Execution Status section in the generated document accurately reflects the actual work performed:
+- All completed items show Completed status
+- Any blocked items have blocker descriptions filled in
+- Work Items Created table includes all artifacts produced
 
 - Report the generated file, validation result, unresolved items, and source file to be moved.
 - Stop and wait for explicit user approval.

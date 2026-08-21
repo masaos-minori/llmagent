@@ -98,6 +98,7 @@ class SearchDiagnostics:
     embed_ok: int = 0
     embed_failed: int = 0
     fts_errors: int = 0
+    degraded: bool = False
     # Remote mode fields (new):
     result_source: ResultSource = ResultSource.LOCAL
     http_result_kind: HttpResultKind = HttpResultKind.NOT_USED

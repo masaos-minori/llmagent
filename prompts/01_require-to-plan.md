@@ -120,6 +120,7 @@ Use the following section structure in the work plan:
 - Implementation steps
 - Validation plan
 - Risks
+- Execution Status
 - Traceability
 
 Fill the Traceability section using the structure from `templates/traceability.md` with these values:
@@ -130,6 +131,37 @@ Fill the Traceability section using the structure from `templates/traceability.m
 - Source implementation procedure: N/A: not applicable in this phase
 - Generated at: {timestamp from Step 5}
 - Related target files: {affected areas from this plan}
+
+#### Execution Status section
+
+Add an Execution Status section with the following subsections and tables:
+
+##### Execution Status
+
+Record the completion status of each work step below. Update the Status column when a step is started or finished.
+
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| — | — | Pending | — | — | |
+
+Status options: Pending / In Progress / Blocked / Completed
+
+##### Blocker Log
+
+Record any blockers encountered during execution.
+
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+##### Work Items Created
+
+Record all work items created during this task.
+
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
 
 #### Step 6: Analyze unknowns
 

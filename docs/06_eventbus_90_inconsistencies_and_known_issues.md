@@ -21,27 +21,26 @@ source:
 
 # Event Bus: Known Inconsistencies and Issues
 
-### EVENTBUS-001: Ack Offset Monotonicity Lack
-
+### EVENTBUS-001: Consumer ID Collision Detection
 - **ID**: EVENTBUS-001
-- **Title**: Ack Offset Monotonicity Lack
+- **Title**: Consumer ID Collision Detection
 - **Status**: open
 - **Severity**: High
-- **Type**: implementation-bug
-- **Component**: eventbus/offsets.py (write_offset)
-- **Description**: write_offset() lacks max(current, new) check. Reconnection can cause duplicate delivery. No server-side fix planned.
-- **Root Cause**: write_offset() lacks monotonicity check (max(current, new)); reconnection can cause duplicate delivery.
-- **Impact**: Consumers may receive duplicate events on reconnection; offset can regress.
-- **Recommended Action**: Add monotonicity check to write_offset(); consider server-side fix if operator demand arises.
-- **Workaround**: Consumer-side dedup using event_id; handle out-of-order delivery.
-- **Status Detail**: Open — no server-side fix planned.
-- **Severity Justification**: High — affects all consumers on reconnection; silent duplicate delivery.
-- **Type Justification**: Implementation bug — missing monotonicity guarantee in offset tracking.
-- **Component Justification**: write_offset() in eventbus/offsets.py is the sole offset writer.
-- **Related Issues**: EVENTBUS-002 (replay pagination), EVENTBUS-003 (DLQ dual path)
-- **Resolution Target**: No fix planned (operator workaround documented)
+- **Type**: feature-request
+- **Component**: eventbus/offsets.py
+- **Description**: Multiple distinct `consumer_id`s may sanitize to the same filename, leading to silent overwriting of offsets.
+- **Root Cause**: Sanitization process (`_sanitize_consumer_id`) is lossy (e.g., `user.1` -> `user_1`).
+- **Impact**: One consumer can inadvertently overwrite another consumer's progress if IDs collide after sanitization.
+- **Recommended Action**: Implement collision detection using mapping files (e.g., `{sanitized_id}.map`).
+- **Workaround**: Ensure unique `consumer_id`s that do not result in identical sanitized strings.
+- **Status Detail**: Open — Implementation in progress.
+- **Severity Justification**: High — affects data integrity and consumer isolation.
+- **Type Justification**: Feature request — required for robust identity management.
+- **Component Justification**: `write_offset()` in `eventbus/offsets.py` is where collision detection must occur.
+- **Related Issues**: EVENTBUS-003 (DLQ dual path), EVENTBUS-008 (Authentication)
+- **Resolution Target**: Next development cycle
 - **Blocking**: No
-- **Evidence**: Explicit in code — write_offset() lacks max() check; docs/06_eventbus_02_02_subscribe-ack.md Note on monotonicity confirms.
+- **Evidence**: Current implementation uses simple replacement which causes collisions for `user.1` vs `user_1`.
 
 ### EVENTBUS-002: /replay?format=json Pagination Format
 

@@ -126,6 +126,30 @@ class McpToolDiscoveryService:
             fetched, server_findings, is_unreachable = await self._fetch_server_tools(
                 key, cfg
             )
+            if is_unreachable:
+                is_prod = (
+                    self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
+                )
+                is_required = (
+                    cfg.required_in_production if is_prod else cfg.required_in_local
+                )
+                new_findings = []
+                for o in server_findings:
+                    new_status = (
+                        StartupCheckStatus.FATAL
+                        if is_required
+                        else StartupCheckStatus.WARNING
+                    )
+                    new_findings.append(
+                        StartupCheckOutcome(
+                            source=o.source,
+                            status=new_status,
+                            message=o.message,
+                            remediation=o.remediation,
+                        )
+                    )
+                server_findings = new_findings
+
             findings.extend(server_findings)
             if is_unreachable:
                 unreachable.append(key)

@@ -28,9 +28,36 @@ regardless of the chat language.
 5. **Do not commit changes without a clear commit message explaining the reason.**
 6. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
 7. **Never emit partial output, even across context compaction. Return only the complete final output.**
-8. eventbus に関連する実装は絶対にしないこと（デバッグ・調査は可 — `routing.md` の Event Bus 行を参照）
-9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
-10. **Creating or editing any file under `docs/` or `skills/` is always a Documentation task per `routing.md`'s Task → skill mapping, even when the request contains no documentation keyword.** Route it there rather than loading `skills/python-documentation/SKILL.md` directly — its Core Documentation Rules (evidence-based wording, no source-code line numbers, no concrete config values, no implementation counts, English design prose) apply to every file in these two directories.
+8. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
+9. **Creating or editing any file under `docs/` or `skills/` is always a Documentation task per `routing.md`'s Task → skill mapping, even when the request contains no documentation keyword.** Route it there rather than loading `skills/python-documentation/SKILL.md` directly — its Core Documentation Rules (evidence-based wording, no source-code line numbers, no concrete config values, no implementation counts, English design prose) apply to every file in these two directories.
+
+## Loop Prevention
+
+### Prohibit Repeating Failed Approaches
+
+Never repeat a failed code modification or approach. After one failure, reassess prerequisites (library versions, dependencies, design philosophy) and take a completely different approach.
+
+### Attempt Limit
+
+Maximum 3 attempts for the same error. After 3 failures, stop executing and report a summary of "what was tried and what failed" to the user — do not continue blindly.
+
+### Hypothesis Before Action (Think Before Act)
+
+Before editing a file or running a command, state in 1–2 sentences: why this is considered a solution and what impact scope is expected.
+
+### Failure Log
+
+Record and update the following whenever an error occurs during iteration:
+
+- Approach attempted
+- Error message received
+- Reason for failure
+
+When proposing a new approach, check against this log to avoid duplication.
+
+### Rollback Directive
+
+If a proposed fix increases errors or fails to resolve the issue, revert the code to its pre-modification state (e.g., `git checkout`) before considering the next approach. Do not accumulate destructive changes.
 
 ## Context Loading Flow
 

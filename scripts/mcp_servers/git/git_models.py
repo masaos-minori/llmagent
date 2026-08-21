@@ -29,6 +29,7 @@ class GitConfig:
     read_only: bool = True
     auth_token: str = ""
     max_log_entries: int = 50
+    protected_branches: list[str] = dataclasses.field(default_factory=list)
     audit_log_path: str = ""
 
     @classmethod
@@ -37,12 +38,18 @@ class GitConfig:
         allowed = get_typed(d, "allowed_repo_paths", list, "a list", default=[])
         read_only = get_typed(d, "read_only", bool, "a boolean", default=True)
         max_log = get_typed(d, "max_log_entries", int, "an integer", default=50)
+        auth_token = get_str(d, "auth_token")
+        audit_log_path = get_str(d, "audit_log_path")
+        protected_branches = get_typed(
+            d, "protected_branches", list, "a list", default=[]
+        )
         return cls(
             allowed_repo_paths=list(allowed),
             read_only=read_only,
-            auth_token=get_str(d, "auth_token"),
+            auth_token=auth_token,
             max_log_entries=max_log,
-            audit_log_path=get_str(d, "audit_log_path"),
+            audit_log_path=audit_log_path,
+            protected_branches=list(protected_branches),
         )
 
     @classmethod

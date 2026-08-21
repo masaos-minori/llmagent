@@ -614,10 +614,10 @@ class TestRecoverCorruption:
         """Integrity fail, valid backup -> restored."""
         from unittest.mock import MagicMock, patch
 
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",)]
         mock_db = MagicMock()
-        mock_db.conn = mock_conn
+        mock_db.execute.return_value = mock_cursor
 
         db_file = tmp_path / "rag.sqlite"
         db_file.write_text("corrupt db")
@@ -643,10 +643,10 @@ class TestRecoverCorruption:
         """OSError during file copy -> error."""
         from unittest.mock import MagicMock, patch
 
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",)]
         mock_db = MagicMock()
-        mock_db.conn = mock_conn
+        mock_db.execute.return_value = mock_cursor
 
         db_file = tmp_path / "rag.sqlite"
         db_file.write_text("corrupt db")

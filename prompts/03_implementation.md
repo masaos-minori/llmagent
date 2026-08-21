@@ -41,7 +41,7 @@ Do not perform any of the following as part of this workflow:
 
 ### Tasks
 
-Report progress at the start and end of each step.
+Report progress at the start and end of each step. Also record intermediate work status whenever a significant decision or change is made during implementation.
 
 This phase edits existing code and `docs/*.md` files rather than producing a standalone
 generated document, so do not insert a `## Traceability` section into those files. Instead,
@@ -112,6 +112,14 @@ Apply the guidance loaded in Step 0 from:
 - Continue to documentation only after required tests pass.
 - Do not run the same full test suite twice without a clear reason.
 
+#### Progress recording during Steps 3-6
+
+During Steps 3-6 (implementation, testing, documentation update, documentation validation), record your work status after completing each sub-task:
+- Note which artifact you are working on (code, test, or documentation)
+- Record the current status (In Progress / Blocked / Completed) for each sub-task
+- If blocked, describe the blocker and whether it requires user intervention
+- When moving to a new sub-task, update the Execution Status table in the final report
+
 #### Step 5: Update documentation
 
 Update `docs/*.md` for every changed file. Apply the guidance loaded in Step 0 from:
@@ -145,11 +153,47 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 **This step is mandatory. Do not skip it.**
 
 - Do not perform this step before Step 5 (documentation update) and Step 6 (documentation
-  validation) are complete.
+   validation) are complete.
+- Before proceeding to Step 7, verify that the Execution Status section in the final report accurately reflects the actual work performed:
+  - All completed items show Completed status
+  - Any blocked items have blocker descriptions filled in
+  - Work Items Created table includes all artifacts produced
 - Move the implementation procedure file to `implementations/done/` using git mv or cp + rm.
 - Verify the file exists in `implementations/done/` after the move.
 - **If you cannot move the file, stop and report the error.**
 
-### Final Report (one-line traceability summary)
+### Final Report
 
-Include in the final report: `Source: {impl_proc_file} | Changed: {files} | Completed: {timestamp}`
+Include the following in the final report:
+
+#### One-line traceability summary
+`Source: {impl_proc_file} | Changed: {files} | Completed: {timestamp}`
+
+#### Execution Status
+
+Record the completion status of each implementation step below. Update the Status column when a step is started or finished.
+
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| — | — | Pending | — | — | |
+
+Status options: Pending / In Progress / Blocked / Completed
+
+#### Blocker Log
+
+Record any blockers encountered during implementation.
+
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+#### Work Items Created
+
+Record all artifacts produced during this implementation.
+
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+Type options: Test / Code Change / Doc Change / Issue
+

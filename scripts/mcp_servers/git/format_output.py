@@ -128,7 +128,8 @@ def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
         new_branch = repo.create_head(req.branch)
         new_branch.checkout()
     else:
-        repo.git.checkout(req.branch)
+        # Use '--' to prevent argument injection if req.branch starts with '-'
+        repo.git.checkout("--", req.branch)
     return f"Switched to branch '{req.branch}'"
 
 
@@ -137,11 +138,11 @@ def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
     if req.dry_run:
         fetch_info = repo.git.fetch("--dry-run", req.remote)
         return (
-            f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to fetch)'}"
+            f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to commit)'}"
         )
     pull_args = [req.remote]
     if req.branch:
-        pull_args.append(req.branch)
+        pull_args.extend(["--", req.branch])
     result = repo.git.pull(*pull_args)
     return result or "Already up to date."
 
@@ -151,5 +152,5 @@ def format_push(repo: git.Repo, req: GitPushRequest) -> str:
     branch = req.branch or repo.active_branch.name
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
-    result = repo.git.push(req.remote, branch)
+    result = repo.git.push(req.remote, "--", branch)
     return result or f"Pushed '{branch}' to '{req.remote}'"

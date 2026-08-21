@@ -423,15 +423,18 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
 
-- **Known Issue**: なし
-- **Type**: N/A
-- **Summary**: 確認済みの差異なし
-- **Impact**: なし
-- **Resolution Target**: なし
+### ADR-004-D8-failure-policy-unused: `failure_policy` defined but never enforced
 
-差異がない場合は「確認済みの差異なし」と記載する。
-
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+- **Known Issue**: ADR-004-D8-failure-policy-unused
+- **Type**: Design Deviation
+- **Summary**: Decision #8 defines three failure policies per MCP server (fail-fast / disable-tool / degraded) but only the binary required/not-required model is implemented
+- **Conflicting Source**: docs/adr/ADR-004-environment-profile-fail-fast-fail-open.md:Decision #8, scripts/shared/mcp_config.py:97, scripts/agent/services/mcp_tool_discovery.py:131-134
+- **Expected Design**: Each MCP server can specify its own failure policy, allowing different handling strategies (immediate abort vs. tool disable vs. degraded operation) when a server becomes unreachable
+- **Observed Implementation**: Only `required_in_production` / `required_in_local` flags are used (binary FATAL/WARNING). The `failure_policy` field exists in McpServerConfig but is never consulted anywhere in the codebase
+- **Impact**: MCP servers cannot express nuanced failure tolerance beyond binary required/not-required; production deployments lose flexibility for non-critical servers
+- **Recommended Action**: Implement failure_policy enforcement in McpToolDiscoveryService._fetch_server_tools(); add integration test verifying each policy produces correct startup behavior
+- **Owner**: TBD
+- **Resolution Target**: Before ADR-004 moves from Proposed to Accepted status
 
 ## Review Triggers
 

@@ -25,6 +25,8 @@ def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
     to the currently committed offset, the write is silently skipped and a
     warning is logged. This prevents duplicate message delivery caused by
     out-of-order acknowledgments.
+
+    Also detects Consumer ID collisions using .map files.
     """
     current = read_offset(offsets_dir, consumer_id)
     if seq <= current:
@@ -33,8 +35,28 @@ def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
     safe_id = _sanitize_consumer_id(consumer_id)
     dir_path = Path(offsets_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Collision Detection
+    map_path = dir_path / f"{safe_id}.map"
+    if map_path.exists():
+        try:
+            stored_id = map_path.read_text().strip()
+            if stored_id and stored_id != consumer_id:
+                logger.error(
+                    "Consumer ID collision detected: %s and %s both map to %s",
+                    consumer_id,
+                    stored_id,
+                    safe_id,
+                )
+                raise ValueError(
+                    f"Consumer ID collision: {consumer_id} conflicts with existing {stored_id}"
+                )
+        except FileNotFoundError:
+            pass
+
     path = dir_path / safe_id
     path.write_text(str(seq))
+    map_path.write_text(consumer_id)
     logger.debug("offset written consumer=%s seq=%d", consumer_id, seq)
 
 

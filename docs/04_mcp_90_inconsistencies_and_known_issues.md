@@ -133,6 +133,50 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 ---
 
+### GIT-001: git_checkout/git_pull do not reject dirty worktree or detached HEAD before write operations
+
+- **ID**: GIT-001
+- **Title**: `git_checkout`/`git_pull` lack Dirty Worktree / Detached HEAD checks before write operations
+- **Status**: open
+- **Severity**: High
+- **Area**: MCP
+- **Type**: design-gap
+- **Source**: `scripts/mcp_servers/git/git_service.py`
+- **Owner**: Unassigned
+- **First Found**: 2026-08-22
+- **Target**: `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
+- **Related**: ADR-012
+- **Summary**: ADR-012 requires that Git MCP tools check for Dirty Worktree and Detached HEAD states before performing write operations. Neither `git_checkout` nor `git_pull` implements these checks.
+- **Current Description**: Both `git_checkout` and `git_pull` proceed with checkout/pull operations regardless of whether the working tree is dirty or the HEAD is detached.
+- **Observed Implementation**: `git_checkout` calls `git reset --hard` unconditionally; `git_pull` calls `git pull` without checking for uncommitted changes first.
+- **Impact**: A caller can silently discard uncommitted changes or create a detached HEAD state during a write operation, violating the safety guarantees ADR-012 specifies.
+- **Recommended Action**: Add Dirty Worktree and Detached HEAD checks to both `git_checkout` and `git_pull`, rejecting the operation if either condition is true unless explicitly overridden.
+- **Resolution Notes**: Open — design gap confirmed.
+
+---
+
+### GIT-002: Postcondition verification missing after write operations
+
+- **ID**: GIT-002
+- **Title**: Git MCP write operations lack postcondition verification
+- **Status**: open
+- **Severity**: High
+- **Area**: MCP
+- **Type**: design-gap
+- **Source**: `scripts/mcp_servers/git/git_service.py`
+- **Owner**: Unassigned
+- **First Found**: 2026-08-22
+- **Target**: `docs/adr/ADR-012-git-mcp-server-side-write-enforcement.md`
+- **Related**: ADR-012
+- **Summary**: ADR-012 requires that Git MCP tools verify postconditions after write operations complete. Neither `git_checkout` nor `git_pull` verifies that the expected state was achieved.
+- **Current Description**: After executing a write operation, neither tool verifies that the working tree, branch, or remote state matches the expected outcome.
+- **Observed Implementation**: `git_checkout` returns success after calling `git checkout` without verifying the branch actually changed; `git_pull` returns success after `git pull` without verifying the remote refs updated.
+- **Impact**: Silent failures where the operation appears successful but did not achieve the expected state — operators would not know the operation failed.
+- **Recommended Action**: Add postcondition checks after each write operation (e.g., verify current branch after checkout, verify remote ref update after pull) and fail the operation if the expected state is not reached.
+- **Resolution Notes**: Open — design gap confirmed.
+
+---
+
 ## Related Documents
 
 - `04_mcp_00_document-guide.md`

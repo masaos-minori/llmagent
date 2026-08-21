@@ -368,17 +368,15 @@ class StartupOrchestrator:
             # Wire RuntimeToolRegistry into ToolExecutor routing resolver.
             if discovery.registry is not None:
                 ctx.services_required.tools.set_runtime_registry(discovery.registry)
-            for outcome in discovery.findings:
-                if outcome.status == StartupCheckStatus.FATAL:
-                    pipeline.add_fatal("mcp_tool_discovery", outcome.message)
-                else:
-                    pipeline.add_warning("mcp_tool_discovery", outcome.message)
-            for key in discovery.unreachable:
-                pipeline.add_warning(
-                    "mcp_tool_discovery", f"{key}: unreachable during discovery"
-                )
+
             if not discovery.findings and not discovery.unreachable:
                 pipeline.add_ok("mcp_tool_discovery")
+            else:
+                for outcome in discovery.findings:
+                    if outcome.status == StartupCheckStatus.FATAL:
+                        pipeline.add_fatal("mcp_tool_discovery", outcome.message)
+                    elif outcome.status == StartupCheckStatus.WARNING:
+                        pipeline.add_warning("mcp_tool_discovery", outcome.message)
         except Exception as exc:  # noqa: BLE001 — a broad catch prevents one failing MCP server discovery from aborting the whole startup sequence
             msg = f"MCP tool discovery failed: {exc}. No MCP tools will be available this session."
             pipeline.add_fatal(

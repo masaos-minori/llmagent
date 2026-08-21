@@ -362,15 +362,18 @@ Verificationが存在しないInvariantは、未検証事項としてIssue登録
 
 ADRと現行実装、設定、テスト、文書に差異がある場合に記載する。
 
-- **Known Issue**: なし
-- **Type**: N/A
-- **Summary**: 確認済みの差異なし
-- **Impact**: なし
-- **Resolution Target**: なし
+### CI-001: EventBus does NOT use ConfigLoader at all
 
-差異がない場合は「確認済みの差異なし」と記載する。
-
-ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
+- **Known Issue**: CI-001
+- **Type**: Design Deviation
+- **Summary**: EventBus uses tomllib directly for config loading, bypassing ConfigLoader.restrict_to() permission checks
+- **Conflicting Source**: docs/adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/broker.py
+- **Expected Design**: All processes MUST load config through ConfigLoader.restrict_to() to enforce process-level config ownership boundaries
+- **Observed Implementation**: EventBus broker.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
+- **Impact**: Config isolation invariant violated for EventBus; could read/write configs belonging to other processes
+- **Recommended Action**: Add ConfigLoader.restrict_to() call in EventBus startup path
+- **Owner**: TBD
+- **Resolution Target**: Before ADR-002 moves from Proposed to Accepted status
 
 ## Review Triggers
 
