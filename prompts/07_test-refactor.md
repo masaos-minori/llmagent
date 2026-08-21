@@ -34,12 +34,7 @@ incomplete plans, or insufficient validation.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -91,13 +86,12 @@ Keep command results needed for correct judgment, including:
   cause; do not paste full tracebacks.
 - Redirect each validation command's output to a file and extract only `FAIL`/`ERROR`
   lines via `grep`, rather than reading the full raw stream.
-- Delegate Step 1 discovery (inspecting README/CI/config files) to a read-only sub-agent;
-  have it return only the identified commands and structure, not full file contents.
-- Delegate Step 4 and Step 5 gap analysis to isolated sub-agent calls split by layer
-  (agent, shared, mcp, rag, db — per the module grouping in `AGENTS.md`'s Test coverage
-  section). Each sub-agent should return only its findings list, not the source it read,
-  so one layer's investigation does not accumulate in the context used for the next
-  layer.
+- Perform Step 1 discovery (inspecting README/CI/config files) sequentially; return only
+  the identified commands and structure, not full file contents.
+- Perform Step 4 and Step 5 gap analysis sequentially by layer (agent, shared, mcp, rag,
+  db — per the module grouping in `AGENTS.md`'s Test coverage section). Return only the
+  findings list for each layer, not the source read, so one layer's investigation does
+  not accumulate in the context used for the next layer.
 - Read shared files in Step 0 only once per session.
 - In Step 6, reference findings by their ID from Steps 3-5 rather than re-quoting full
   evidence or source excerpts already recorded there.

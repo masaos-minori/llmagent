@@ -26,12 +26,7 @@ incomplete plans, or insufficient validation.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -66,10 +61,10 @@ incomplete plans, or insufficient validation.
 - When reusing previously collected information across documents (per Step 2), keep a
   short facts cache (extracted API signatures, config keys, behavior notes) rather than
   retaining full raw file contents; reuse the cache, not the raw text.
-- Delegate each document's Step 2-3 (reading related source and comparing against the
-  doc) to a read-only sub-agent. Pass it the relevant facts cache entries plus the target
-  document, and have it return only the additions to make and any new facts to add to
-  the cache, not the raw source it read.
+- Perform each document's Step 2-3 (reading related source and comparing against the
+  doc) sequentially. Pass the relevant facts cache entries plus the target document, and
+  retain only the additions to make and any new facts to add to the cache, not the raw
+  source read.
 - Locate related callers/callees via `rg`/`grep` first, then read only the relevant
   range, rather than reading full files.
 - In Step 5, cite only the minimal code evidence (the relevant line or signature) needed

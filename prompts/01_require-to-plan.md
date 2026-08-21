@@ -64,12 +64,7 @@ or incomplete plans.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -101,8 +96,6 @@ or incomplete plans.
 
 #### Progress reporting
 
-- Delegate Step 3 (reading related source files) to a read-only sub-agent. Have it return
-  a concise summary of the relevant code, not full file contents, to the main context.
 - Keep start/end progress reports to one or two lines; do not restate the full plan
   content in progress reports.
 - Include all failures, blocking issues, and important validation results even in concise reports.

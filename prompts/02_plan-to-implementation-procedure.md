@@ -66,12 +66,7 @@ or incomplete plans.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -110,11 +105,11 @@ or incomplete plans.
   filter; only when a name matches, read that matched file's content (not the full
   target source file) to confirm its stated scope actually covers the current item
   before deciding to skip.
-- In Step 3, delegate the per-item investigation (reading the related source file to
-  write Method/Details) to a read-only sub-agent, and read only the relevant sections of
-  the target source file (locate them with grep first, then read a limited range) rather
-  than the full file. Have the sub-agent return only what is needed for the procedure
-  document, not full file contents.
+- In Step 3, perform the per-item investigation (reading the related source file to
+  write Method/Details) sequentially; read only the relevant sections of the target
+  source file (locate them with grep first, then read a limited range) rather than
+  the full file. Retain only what is needed for the procedure document, not full
+  file contents.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
 - Include all failures, blocking issues, and important validation results even in concise reports.

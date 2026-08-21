@@ -52,12 +52,7 @@ incomplete plans, or insufficient validation.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence, edits, generated files, and final results.
 
 #### Tool usage
 
@@ -109,9 +104,9 @@ Keep command results needed for correct judgment, including:
   successful-run output.
 - In Step 4, run only the targeted/affected tests during the fix iteration loop; run the
   full test suite once at the end to confirm coverage and pass status.
-- Delegate root-cause investigation (`python-debug-root-cause`) to a read-only sub-agent
-  when it requires reading a broad range of source files; have it return only the
-  diagnosis and fix direction, not full file contents.
+- Perform root-cause investigation (`python-debug-root-cause`) sequentially when it
+  requires reading a broad range of source files; retain only the diagnosis and fix
+  direction, not full file contents.
 - In Step 5, update only the specific `docs/*.md` sections affected by the change (using
   the `routing.md` mapping to locate them) rather than reading and rewriting entire
   documentation files.

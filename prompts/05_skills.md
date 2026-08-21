@@ -56,12 +56,7 @@ incomplete plans, or insufficient validation.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -94,9 +89,9 @@ incomplete plans, or insufficient validation.
 #### Inventory-first approach
 
 - Before reading full file contents, build a compact rule inventory in two stages:
-  delegate to sub-agent(s) to extract, per file (or per batch of files), a list of
-  rules/procedures as topic + one-line summary + file:line reference. Keep only this
-  inventory in the main context, not the raw text of every skill file.
+  extract, per file (or per batch of files), a list of rules/procedures as topic + one-line
+  summary + file:line reference. Keep only this inventory in the main context, not the
+  raw text of every skill file.
 - In Step 1, detect duplication by comparing inventory entries first; only read the full
   text of the specific matching sections (not entire files) to confirm a suspected
   duplicate.

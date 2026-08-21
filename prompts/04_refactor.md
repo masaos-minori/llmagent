@@ -55,12 +55,7 @@ or incomplete plans.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -104,9 +99,9 @@ Keep command results needed for correct judgment, including:
 
 #### Progress reporting
 
-- Delegate Step 3 (preparation/investigation) to a read-only sub-agent. Have it run
-  `pydeps`, `rg`, `import-linter`, and `ast-grep`, and return only the resulting impact
-  scope table to the main context, not the raw tool output.
+- Perform Step 3 (preparation/investigation) sequentially; run `pydeps`, `rg`,
+  `import-linter`, and `ast-grep`, and retain only the resulting impact scope table,
+  not the raw tool output.
 - Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g. via
   `grep` for failures) rather than full successful-run output.
 - Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
@@ -118,9 +113,9 @@ Keep command results needed for correct judgment, including:
   CI gate does not require a full-repo run.
 - Read shared files in Step 0 only once per session; do not re-read them for later
   cycles.
-- When multiple target files are specified, run each Steps 1-10 cycle as an isolated
-  sub-agent call so that tool output and investigation results from one file's cycle do
-  not accumulate in the context used for the next file's cycle.
+- When multiple target files are specified, run each Steps 1-10 cycle sequentially so
+  that tool output and investigation results from one file's cycle do not accumulate in
+  the context used for the next file's cycle.
 - Keep progress reports and Step 10 results concise; do not restate full diffs or raw tool
   output. Evidence tables (manifest, inventory, mutation report) must still list every
   required field even when kept concise.

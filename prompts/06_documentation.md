@@ -38,12 +38,7 @@ incomplete plans, or insufficient validation.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
-#### Sub-agent use
 
-- Treat sub-agent use as optional.
-- Use sub-agents only for read-only investigation and context isolation.
-- If sub-agents are unavailable, perform the same investigation sequentially in the main agent.
-- The main agent is always responsible for validating all evidence and findings.
 
 #### Tool usage
 
@@ -75,13 +70,13 @@ incomplete plans, or insufficient validation.
 
 #### Documentation-specific guidance
 
-- Process each of agent, mcp, rag, db, and shared as an isolated sub-agent cycle; do not
-  load source across all layers into a single context at once. Per the import layer
-  contract, `agent` may rely on the already-produced summaries of other layers instead of
-  re-reading their source.
-- Delegate source investigation for each layer to a read-only sub-agent, and have it
-  return only the facts needed for the chapter structure (Purpose, Scope, Constraints,
-  Functional Requirements, etc.), not full source dumps.
+- Process each of agent, mcp, rag, db, and shared sequentially; do not load source
+  across all layers into a single context at once. Per the import layer contract, `agent`
+  may rely on the already-produced summaries of other layers instead of re-reading their
+  source.
+- Perform source investigation for each layer sequentially, returning only the facts
+  needed for the chapter structure (Purpose, Scope, Constraints, Functional Requirements,
+  etc.), not full source dumps.
 - For "Public Interface Specification", extract only public (non-`_`-prefixed) function
   and method signatures via `grep`/`ast-grep`; do not read full function bodies.
 - In Step 2, check alignment by comparing existing doc statements against the specific

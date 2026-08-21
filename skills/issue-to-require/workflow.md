@@ -20,13 +20,12 @@ file: finish every step for the current file (through moving it to `issues/done/
 Step 4) before starting Step 1 for the next file. Do not batch-read multiple target files
 up front, and do not interleave steps across files.
 
-- Delegate Step 2 (verifying claims in the issue against current source) to a read-only
-  sub-agent. Have it return a concise confirmation or correction, not full file contents.
-- When multiple target issue files are specified, delegate each Steps 1-4 cycle to an
-  isolated sub-agent call for context hygiene only, so investigation from one file's
-  cycle does not accumulate into the next. This delegation is for context isolation,
-  **not parallel execution**: dispatch and await each sub-agent one at a time, never in
-  parallel.
+- Perform Step 2 (verifying claims in the issue against current source) sequentially.
+  Retain only a concise confirmation or correction, not full file contents.
+- When multiple target issue files are specified, process each Steps 1-4 cycle
+  sequentially for context hygiene only, so investigation from one file's cycle does not
+  accumulate into the next. This is for context isolation, not parallel execution: run
+  each cycle one at a time, never in parallel.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
 
