@@ -31,11 +31,11 @@
 | ファイル | 概要 |
 |---|---|
 | `validate_docs_structure.py` | `docs/*.md` の構造規約(ファイルサイズ、H1見出し数、Front Matter、Related Documents/Keywordsセクション、内部 `.md` リンクの到達可能性)を検証する。`uv run python tools/validate_docs_structure.py [glob ...]` |
-| `audit_docs.py` | ドキュメント構造検証・整形補助スクリプト: docs/*.md の構造規約を検証する。 |
 | `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去 |
 | `fix_d205.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
 | `fix_scripts_docstring_paths.py` | `scripts/**/*.py` のモジュールレベルdocstringヘッダーパスをリポジトリルートからの相対パス（scripts/<relpath>形式）に書き換える。--dry-run で変更内容を表示、--apply で実際に適用。 |
 | `check_tool_descriptions_sync.py` | 本ファイル(`TOOL_DESCRIPTIONS.md`)に列挙されたファイル名と実際の`tools/*.py`を突合し、両方向のドリフト(未記載/削除済み参照)を検出する。 |
+| `detect_japanese.py` | `docs/` 配下を再帰的に走査し、ひらがな・カタカナ・漢字(`U+3040`-`U+9FFF`)を含むMarkdownファイルを列挙する。`skills/DESIGN.md` §Output language の英語化ポリシー(`docs/`配下は常に英語)への違反箇所を洗い出す用途。 |
 | `merge_part_files.py` | `docs/` 内の `-partN.md` 形式分割ファイルを統合する。`find_groups()` で単純ペア(2ファイル)と多パートシリーズ(3ファイル以上)の両方を検出し、それぞれ適切なマージ戦略を適用。`update_internal_refs_for_multi()` でマージ後の内部リンクを更新。 |
 | `fix_broken_part_refs.py` | マージ後のドキュメント間で壊れた `-part*.md` 参照を修正する。8つの正規表現パターンでmarkdownリンクURL/テキスト、バッククォート、プレーンテキスト、アンカー、セクション名の各形式に対応。 |
 | `apply_fixes.py` | テスト固有の修正スクリプト: `tests/rag/ingestion/test_rag_ingester.py` の行番号ベースの置換を適用。 |

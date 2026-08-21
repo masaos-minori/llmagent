@@ -5,8 +5,8 @@ import csv
 import json
 import sys
 
-from scripts.agent.config_builders import build_agent_config
-from scripts.shared.mcp_config import TransportType
+from agent.config_builders import build_agent_config
+from shared.mcp_config import TransportType
 
 
 def generate_inventory() -> list[dict]:

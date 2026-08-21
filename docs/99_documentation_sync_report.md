@@ -52,7 +52,7 @@ This report covers a documentation update addressing three issues: database corr
 - Git MCP enforces only repository-path allowlisting and a global `read_only` flag; no command-specific guard exists for `git_checkout`/`git_pull`/`git_push` (new gap identified and reproduced: MCP-003).
 - `branch`/`remote` arguments to Git MCP write tools are unvalidated and were confirmed, in a sandboxed reproduction, to allow forced checkout and forced push via option-injection-shaped values.
 - Git write tools' approval tier resolves to `MEDIUM` (`y/N`), not the `HIGH` full-word prompt the risk-tier table implied (MCP-004).
-- The Git MCP audit call site likely reads a non-existent argument key for the `target` field (MCP-005, flagged Needs Confirmation, not yet verified against a live log line).
+- The Git MCP audit call site likely reads a non-existent argument key for the `target` field (MCP-005; unverified against a live log line, tracked as NC-020).
 - `RuntimeToolRegistry.llm_tool_definitions()` is the actual LLM-visibility filter; the documented second-stage filter is inert.
 - Static availability (config-derived) and dynamic health (circuit breaker) are separate, unintegrated systems; a `degraded_servers` exclusion tier exists in code but is never populated.
 - `RuntimeTool.requires_approval` is written but has no read site anywhere in the codebase; approval is decided by a separate subsystem.
@@ -76,11 +76,12 @@ All gaps above remain open as Known Issues; this update did not modify source co
 
 All three are `Proposed`. The ADR index also now flags that ADR-001's body reserves the ADR-002/ADR-003 numbers for unrelated future topics (workflow-definition schema, workflow monitoring) that were never registered — those topics will need to take the next available numbers if written later.
 
-## Missing evidence / Needs confirmation
+## Missing evidence
 
-- MCP-005 (Git MCP audit `target` field emptiness) is based on code reading, not a captured live log line.
+- MCP-005 (Git MCP audit `target` field emptiness) is based on code reading, not a captured live log line — tracked as NC-020 in `00_governance_07_needs-confirmation-inventory.md`.
 - The absence of any corruption-recovery path for `eventbus.sqlite` is a confirmed-by-absence finding (no code found), which is inherently a weaker form of evidence than a positive behavioral test; flagged accordingly in the design document and Known Issue.
-- Whether the Git MCP guard gaps (protected-branch, Force-Push) are an intentional design choice (local git assumed to be the user's own responsibility) or an oversight remains an open owner decision, carried forward from the pre-existing `[Needs Confirmation]` note in `04_mcp_04_05_git.md`.
+- Whether the Git MCP guard gaps (protected-branch, Force-Push) are an intentional design choice (local git assumed to be the user's own responsibility) or an oversight remains an open owner decision, carried forward from a pre-existing open question in `04_mcp_04_05_git.md` — tracked as NC-019.
+- The DB recovery target design's structured integrity-result classification (§9.3 of `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`) has not been reviewed by the owner — tracked as NC-021.
 
 ## Areas requiring human review
 

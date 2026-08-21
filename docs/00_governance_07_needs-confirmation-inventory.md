@@ -48,7 +48,58 @@ To extract "Needs confirmation" items from source documents:
 
 ## Inventory Items
 
-No active (open/investigating/deferred) items as of 2026-08-20 — all 17 originally tracked items have been resolved; see Archived (Resolved) Items below.
+### NC-019
+
+- **Source File**: `04_mcp_04_05_git.md`
+- **Section**: §Implementation Notes (also referenced from §Write protection policy)
+- **Line Number**: ~92
+- **Question**: Is the absence of command-specific guards distinguishing `git_checkout`/`git_pull`/`git_push` from other write tools an intentional design decision (local git assumed to be the caller's own responsibility) or a missing security feature relative to GitHub MCP?
+- **Evidence**: All five write tools share one common guard path (`allowed_repo_paths` + `read_only`) with no per-command validation; confirmed via code reading and a sandboxed reproduction that `branch`/`remote` accept option-injection-shaped values (see MCP-003 in `04_mcp_90_inconsistencies_and_known_issues.md`)
+- **Impact**: If unintentional, this leaves a confirmed exploitable gap (forced checkout/push) unresolved; if intentional, the design intent should be documented rather than left implicit
+- **Required Action**: Decision from the tool owner on whether ADR-003's target guards (protected-branch, ref/remote validation, Force-Push rejection) should be implemented, and if so, on what timeline
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-08-21
+- **Priority**: High
+- **Related NC**: NC-020
+- **Resolution Target**: Owner decision, then implementation per `docs/adr/ADR-003-git-mcp-server-side-write-enforcement.md`
+- **Blocking**: No — tracked in parallel with Known Issue MCP-003
+
+### NC-020
+
+- **Source File**: `04_mcp_04_05_git.md`
+- **Section**: §Write protection policy → Audit
+- **Line Number**: ~147
+- **Question**: Does the Git MCP audit call site's `target` field actually end up empty for every call, as code reading suggests (it reads `req.args.get("repo", "")` while the tool schema's key is `repo_path`)?
+- **Evidence**: Code inspection only — no live audit log line has been captured to confirm the field is empty in practice
+- **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening the audit trail for a High-Severity write surface (Known Issue MCP-005 in `04_mcp_90_inconsistencies_and_known_issues.md`)
+- **Required Action**: Capture an actual audit log line for a git-mcp call and check whether `target` is empty; fix the key to `repo_path` if confirmed
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-08-21
+- **Priority**: Low
+- **Related NC**: None
+- **Resolution Target**: Next investigation of Git MCP audit logging
+- **Blocking**: No
+
+### NC-021
+
+- **Source File**: `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`
+- **Section**: §9.3 Integrity-result model (target design)
+- **Line Number**: ~39
+- **Question**: The design document specifies a target structured integrity-result classification (healthy / confirmed corruption / lock contention / permission / invalid format / unknown) that the current implementation does not produce. Is this the classification model the owner intends to implement, or should the target model differ?
+- **Evidence**: `_run_integrity_check()` currently returns only a pass/fail-ish result plus a free-form exception string (`RecoveryResult.detail`); no structured classification exists to confirm or refute against
+- **Impact**: Implementing the wrong classification model would require rework; leaving it unconfirmed risks divergent interpretations across `db/recovery.py` callers
+- **Required Action**: Owner review of the proposed model in ADR-002 before implementation begins
+- **Status**: open
+- **Assigned To**: Unassigned
+- **Last Reviewed**: 2026-08-21
+- **Priority**: Medium
+- **Related NC**: None
+- **Resolution Target**: Before implementing Known Issue SHARED-001/SHARED-002 fixes
+- **Blocking**: No
+
+No other active (open/investigating/deferred) items beyond NC-019 through NC-021 above — all 17 previously tracked items have been resolved; see Archived (Resolved) Items below.
 
 ## Archived (Resolved) Items
 
