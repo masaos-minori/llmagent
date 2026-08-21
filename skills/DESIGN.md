@@ -122,6 +122,13 @@ are English, with no exception, regardless of chat language. Always preserve fil
 module/symbol names, commands, configuration keys, type names, and evidence labels in their
 original form — do not translate identifiers.
 
+Write design-document prose so it is easy for an AI coding agent to parse and act on: short,
+explicit sentences; one claim per sentence; explicit subjects (avoid implicit pronouns spanning
+paragraphs); consistent terminology for the same concept throughout a document (do not vary
+wording for the same thing across sections); no rhetorical or figurative language that requires
+inference. Prefer normative terms (MUST / MUST NOT / SHOULD / MAY) for required, prohibited,
+recommended, and optional behavior over descriptive prose.
+
 Only write a document in another language when the user explicitly asks for that specific
 document (not the conversation) to be written in another language.
 
@@ -131,6 +138,35 @@ When writing a design document, review report, or documentation update, do not c
 file lists, method catalogs, DTO/config-key field tables, or long command/JSON examples into the
 document — recommend or write a concise, evidence-grounded summary instead, and point to the
 source for exhaustive detail.
+
+### No source-code line numbers
+
+Do not cite source-code line numbers in design documents (e.g. `recovery.py:120-150`) — they go
+stale on the next edit and carry no meaning outside the current diff. Reference implementation by
+class name, function name, method name, or protocol name instead (e.g. `recover_corruption()`,
+`RuntimeToolRegistry.resolve()`). A file path may be included only when needed to disambiguate a
+symbol name that exists in more than one place.
+
+### No concrete configuration values
+
+Do not copy concrete values from `config/*.toml` (or other configuration files) into design
+documents — paths, hosts, ports, timeouts, retry limits, thresholds, allowlist entries, branch
+names, remote names, cache sizes, or any other current deployed/default value. Describe the
+policy and its consequences instead (what the setting controls, what happens when it is
+empty/unset, what depends on it), and point to the owning configuration file for the current
+operational value. A concrete value is acceptable only inside a worked example that is explicitly
+labeled as illustrative, never as a claim about the current deployed configuration.
+
+### No implementation counts
+
+Do not state how many modules, tools, servers, states, fields, tests, or documents something
+comprises (e.g. "all three production DBs", "6 of 10 servers", "the following 17 fields"). Counts
+drift the moment an item is added or removed, and the design intent rarely depends on the exact
+number. Name the items instead (list them, or reference the enum/collection that defines them) so
+the statement stays correct regardless of how many there are. This does not apply to counts that
+are themselves part of the technical contract (e.g. a retry limit, a schema version number) — those
+are configuration values, not commentary, and are governed by the "No concrete configuration
+values" rule above.
 
 ### Out-of-scope paths
 

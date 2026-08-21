@@ -31,7 +31,9 @@ Do not use this skill for:
 
 ## Documentation Language
 
-See `skills/DESIGN.md` §Output language.
+See `skills/DESIGN.md` §Output language — including the AI-readability requirement (short,
+explicit, single-claim sentences; consistent terminology; normative MUST/MUST NOT/SHOULD/MAY
+terms).
 
 ---
 
@@ -61,6 +63,7 @@ boundaries, and detailed gates.
 - **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` §Shared Vocabulary; do not introduce a parallel label system.
 - **No hallucination**: do not invent missing behavior or assume framework patterns without evidence; mark unclear behavior `Needs confirmation` instead of stating it as fact.
 - **Remove or compress implementation-derived details**: do not copy file lists, full method/field/config-key tables, or JSON examples that mirror schema fields — replace with a concise source reference.
+- **No line numbers, no config values, no counts**: see `skills/DESIGN.md` §No source-code line numbers, §No concrete configuration values, §No implementation counts. Reference implementation by class/function/method name; describe configuration policy, not its current value; name items instead of counting them.
 - **Minimal diff**: fix errors, fill gaps, reduce duplication; do not rewrite or reorganize documents unless the task explicitly asks for it.
 - **Respect boundaries**: do not expand scope, expose secrets, paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
 
