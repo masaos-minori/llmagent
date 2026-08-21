@@ -36,6 +36,12 @@ Read the target plan file, then produce file-level implementation procedure docu
 - Write all output documents (implementations/) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+## Shared Rules
+
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
+- Lifecycle rules: see `rules/workflow-lifecycle.md` (global safety restrictions, target validation, approval handling, archival move, completion criteria).
+- Traceability template: see `templates/traceability.md`.
+
 ## Out of scope
 
 Do not perform any of the following as part of this workflow:
@@ -47,72 +53,6 @@ Do not perform any of the following as part of this workflow:
 - processing files under `__pycache__/`
 - interleaving multiple target files
 - parallel processing of target-file cycles
-
-### Context efficiency
-
-**Accuracy, completeness, and validation always take priority over context reduction.**
-Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
-or incomplete plans.
-
-#### Context reading
-
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Progress reporting
-
-- Read shared files in Step 0 only once per session; do not re-read them for later
-  cycles.
-- In Step 3, check "already implemented" status by first matching `target_file_name`
-  against file names under `implementations/` and `implementations/done/` as a cheap
-  filter; only when a name matches, read that matched file's content (not the full
-  target source file) to confirm its stated scope actually covers the current item
-  before deciding to skip.
-- In Step 3, perform the per-item investigation (reading the related source file to
-  write Method/Details) sequentially; read only the relevant sections of the target
-  source file (locate them with grep first, then read a limited range) rather than
-  the full file. Retain only what is needed for the procedure document, not full
-  file contents.
-- Keep start/end progress reports to one or two lines; do not restate full document
-  content in progress reports.
-- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -131,6 +71,9 @@ If not already loaded, read the following before starting:
 - `rules/toolchain.md`
 - `skills/python-design/SKILL.md`
 - `skills/python-design/workflow.md`
+- `rules/ai-execution.md`
+- `rules/workflow-lifecycle.md`
+- `templates/traceability.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -201,22 +144,17 @@ Use this section structure:
 - Traceability
 
 Keep each added section concise and file-level (a few bullets each); do not expand this
-into a broad architecture document. Use "N/A" for any section that does not apply to the
+into a broad architecture document. Use "N/A: {short reason}" for any section that does not apply to the
 item.
 
-Fill the Traceability section using this structure, leaving fields that do not apply as `N/A`:
-
-```markdown
-## Traceability
-
+Fill the Traceability section using the structure from `templates/traceability.md` with these values:
 - Workflow phase: plan-to-implementation-procedure
-- Source issue: N/A
-- Source requirement: N/A
+- Source issue: N/A: not applicable in this phase
+- Source requirement: N/A: not applicable in this phase
 - Source plan: {path to the source plan file}
-- Source implementation procedure: N/A
+- Source implementation procedure: N/A: not applicable in this phase
 - Generated at: {timestamp from Step 3}
 - Related target files: {target_file_name}
-```
 
 #### Step 4: Move the completed plan file
 
@@ -232,3 +170,8 @@ Fill the Traceability section using this structure, leaving fields that do not a
 - Only after confirming the move succeeded, consider the cycle complete.
 
 An unclear user response must not be treated as approval. Before approval, report `Awaiting approval`. Do not start the next target file while approval is pending.
+
+### Procedure-Specific Guidance
+
+- In Step 3, check "already implemented" status by first matching `target_file_name` against file names under `implementations/` and `implementations/done/` as a cheap filter; only when a name matches, read that matched file's content (not the full target source file) to confirm its stated scope actually covers the current item before deciding to skip.
+- In Step 3, perform the per-item investigation (reading the related source file to write Method/Details) sequentially; read only the relevant sections of the target source file (locate them with grep first, then read a limited range) rather than the full file. Retain only what is needed for the procedure document, not full file contents.

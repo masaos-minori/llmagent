@@ -33,6 +33,12 @@ Read the target issue file, then produce a formal requirement document based on 
 - Write all output documents (`requires/`) in clear and concise English for AI consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+## Shared Rules
+
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
+- Lifecycle rules: see `rules/workflow-lifecycle.md` (global safety restrictions, target validation, approval handling, archival move, completion criteria).
+- Traceability template: see `templates/traceability.md`.
+
 ## Out of scope
 
 Do not perform any of the following as part of this workflow:
@@ -44,62 +50,6 @@ Do not perform any of the following as part of this workflow:
 - processing files under `__pycache__/`
 - interleaving multiple target files
 - parallel processing of target-file cycles
-
-### Context efficiency
-
-**Accuracy, completeness, and validation always take priority over context reduction.**
-Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
-or incomplete plans.
-
-#### Context reading
-
-- Read shared files in Step 0 only once per session; do not re-read them for later
-  cycles.
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Progress reporting
-
-- Keep start/end progress reports to one or two lines; do not restate full document
-  content in progress reports.
-- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -115,6 +65,9 @@ up front, and do not interleave steps across files.
 If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
+- `rules/ai-execution.md`
+- `rules/workflow-lifecycle.md`
+- `templates/traceability.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -152,19 +105,14 @@ Use the following section structure, matching the existing `requires/` conventio
 - Tests
 - Traceability
 
-Fill the Traceability section using this structure, leaving fields that do not apply as `N/A`:
-
-```markdown
-## Traceability
-
+Fill the Traceability section using the structure from `templates/traceability.md` with these values:
 - Workflow phase: issue-to-requirement
 - Source issue: {path to the source issue file}
-- Source requirement: N/A
-- Source plan: N/A
-- Source implementation procedure: N/A
+- Source requirement: N/A: not applicable in this phase
+- Source plan: N/A: not applicable in this phase
+- Source implementation procedure: N/A: not applicable in this phase
 - Generated at: {timestamp from Step 3}
 - Related target files: {target files from the issue}
-```
 
 #### Step 4: Move the completed issue file
 

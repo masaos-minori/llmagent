@@ -22,6 +22,11 @@ Read the target implementation procedure file, then implement the feature accord
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+## Shared Rules
+
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, command results, sequential target processing).
+- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
+
 ## Out of scope
 
 Do not perform any of the following as part of this workflow:
@@ -33,87 +38,6 @@ Do not perform any of the following as part of this workflow:
 - processing files under `__pycache__/`
 - interleaving multiple target files
 - parallel processing of target-file cycles
-
-### Context efficiency
-
-**Accuracy, completeness, and validation always take priority over context reduction.**
-Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
-incomplete plans, or insufficient validation.
-
-#### Context reading
-
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Command results
-
-Keep command results needed for correct judgment, including:
-- exit status,
-- final summary,
-- failures,
-- relevant warnings,
-- skipped checks,
-- blocked checks,
-- coverage results when applicable.
-- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
-
-#### Progress reporting
-
-- Read shared files in Step 0 only once per session; do not re-read them for later
-  cycles.
-- In Step 3, batch fixes across multiple lint/type/security errors before re-running the
-  full validation sequence; do not re-run the entire sequence after every single fix.
-  Capture only error output (e.g. via `--quiet` flags or grep for error lines), not full
-  successful-run output.
-- In Step 4, run only the targeted/affected tests during the fix iteration loop; run the
-  full test suite once at the end to confirm coverage and pass status.
-- Perform root-cause investigation (`python-debug-root-cause`) sequentially when it
-  requires reading a broad range of source files; retain only the diagnosis and fix
-  direction, not full file contents.
-- In Step 5, update only the specific `docs/*.md` sections affected by the change (using
-  the `routing.md` mapping to locate them) rather than reading and rewriting entire
-  documentation files.
-- In Step 6, check only the edited sections/files, not the entire documentation set.
-- Keep start/end progress reports to one or two lines; do not restate full diffs or tool
-  output in progress reports.
-- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -141,6 +65,7 @@ If not already loaded, read the following before starting:
 - `skills/python-test-and-fix/SKILL.md`
 - `skills/python-debug-root-cause/SKILL.md`
 - `skills/python-documentation/SKILL.md`
+- `rules/ai-execution.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -224,3 +149,7 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 - Move the implementation procedure file to `implementations/done/` using git mv or cp + rm.
 - Verify the file exists in `implementations/done/` after the move.
 - **If you cannot move the file, stop and report the error.**
+
+### Final Report (one-line traceability summary)
+
+Include in the final report: `Source: {impl_proc_file} | Changed: {files} | Completed: {timestamp}`

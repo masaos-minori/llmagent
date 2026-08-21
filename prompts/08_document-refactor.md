@@ -8,71 +8,16 @@ Read the source code and the existing design documents, then update the design d
 - Do not touch files under `__pycache__/`.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+## Shared Rules
+
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
+- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
+
 ### Context efficiency
 
 **Accuracy, completeness, and validation always take priority over context reduction.**
 Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
 incomplete plans, or insufficient validation.
-
-#### Context reading
-
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Document-specific guidance
-
-- When reusing previously collected information across documents (per Step 2), keep a
-  short facts cache (extracted API signatures, config keys, behavior notes) rather than
-  retaining full raw file contents; reuse the cache, not the raw text.
-- Perform each document's Step 2-3 (reading related source and comparing against the
-  doc) sequentially. Pass the relevant facts cache entries plus the target document, and
-  retain only the additions to make and any new facts to add to the cache, not the raw
-  source read.
-- Locate related callers/callees via `rg`/`grep` first, then read only the relevant
-  range, rather than reading full files.
-- In Step 5, cite only the minimal code evidence (the relevant line or signature) needed
-  to support a classification, not full function bodies.
-- Read shared files in Step 0 only once per session.
-- In Step 6, aggregate the run summary from the per-file reports' key points; do not
-  re-quote full evidence already recorded there.
-- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -84,6 +29,7 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `skills/python-documentation/SKILL.md`
 - `skills/python-documentation/workflow.md`
+- `rules/ai-execution.md`
 
 #### Step 1: Identify target design documents
 
@@ -212,3 +158,11 @@ Run summary: create or update `docs/99_documentation_sync_report.md` covering th
 - newly documented behavior,
 - Needs Confirmation items,
 - areas requiring human review.
+
+### Document-Specific Guidance
+
+- When reusing previously collected information across documents (per Step 2), keep a short facts cache (extracted API signatures, config keys, behavior notes) rather than retaining full raw file contents; reuse the cache, not the raw text.
+- Perform each document's Step 2-3 (reading related source and comparing against the doc) sequentially. Pass the relevant facts cache entries plus the target document, and retain only the additions to make and any new facts to add to the cache, not the raw source read.
+- Locate related callers/callees via `rg`/`grep` first, then read only the relevant range, rather than reading full files.
+- In Step 5, cite only the minimal code evidence (the relevant line or signature) needed to support a classification, not full function bodies.
+- In Step 6, aggregate the run summary from the per-file reports' key points; do not re-quote full evidence already recorded there.

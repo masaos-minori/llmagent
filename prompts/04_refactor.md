@@ -37,89 +37,10 @@ skip a step because it seems slow.
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 
-### Context efficiency
+## Shared Rules
 
-**Accuracy, completeness, and validation always take priority over context reduction.**
-Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
-or incomplete plans.
-
-#### Context reading
-
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Command results
-
-Keep command results needed for correct judgment, including:
-- exit status,
-- final summary,
-- failures,
-- relevant warnings,
-- skipped checks,
-- blocked checks,
-- coverage results when applicable.
-- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
-
-#### Progress reporting
-
-- Perform Step 3 (preparation/investigation) sequentially; run `pydeps`, `rg`,
-  `import-linter`, and `ast-grep`, and retain only the resulting impact scope table,
-  not the raw tool output.
-- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g. via
-  `grep` for failures) rather than full successful-run output.
-- Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
-  possible, rather than the whole repository.
-- Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
-- In Step 8, run the full mypy/test/ruff check once per logical commit rather than after
-  every single `git add -p` hunk; use a lighter check (e.g. `ruff` only) between hunks.
-- In Step 9, prefer scoping `pre-commit` to the changed files over `--all-files` when the
-  CI gate does not require a full-repo run.
-- Read shared files in Step 0 only once per session; do not re-read them for later
-  cycles.
-- When multiple target files are specified, run each Steps 1-10 cycle sequentially so
-  that tool output and investigation results from one file's cycle do not accumulate in
-  the context used for the next file's cycle.
-- Keep progress reports and Step 10 results concise; do not restate full diffs or raw tool
-  output. Evidence tables (manifest, inventory, mutation report) must still list every
-  required field even when kept concise.
-- Include all failures, blocking issues, and important validation results even in concise reports.
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, command results, sequential target processing).
+- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
 
 ### Tasks
 
@@ -136,6 +57,7 @@ If not already loaded, read the following before starting:
 - `rules/coding.md`
 - `rules/toolchain.md`
 - `skills/python-refactoring/SKILL.md`
+- `rules/ai-execution.md`
 
 #### Step 1: Identify target files
 
@@ -396,6 +318,17 @@ Keep diffs minimal. For each file, report:
 - Any behavior-changing ideas are recorded as proposals, not implemented.
 
 If any item is not satisfied, do not report the task as complete.
+
+### Refactoring-Specific Guidance
+
+- Perform Step 3 (preparation/investigation) sequentially; run `pydeps`, `rg`, `import-linter`, and `ast-grep`, and retain only the resulting impact scope table, not the raw tool output.
+- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g. via `grep` for failures) rather than full successful-run output.
+- Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever possible, rather than the whole repository.
+- Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
+- In Step 8, run the full mypy/test/ruff check once per logical commit rather than after every single `git add -p` hunk; use a lighter check (e.g. `ruff` only) between hunks.
+- In Step 9, prefer scoping `pre-commit` to the changed files over `--all-files` when the CI gate does not require a full-repo run.
+- When multiple target files are specified, run each Steps 1-10 cycle sequentially so that tool output and investigation results from one file's cycle do not accumulate in the context used for the next file's cycle.
+- Keep progress reports and Step 10 results concise; do not restate full diffs or raw tool output. Evidence tables (manifest, inventory, mutation report) must still list every required field even when kept concise.
 
 ### Special Cases
 

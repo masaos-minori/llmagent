@@ -28,15 +28,24 @@ Context Loader Pattern (the target structure):
 
 ```
 Task
- ↓
+  ↓
 Routing
- ↓
+  ↓
 Minimal Skills
- ↓
+  ↓
 Shared Rules
- ↓
+  ↓
 Execution
 ```
+
+### Canonical Ownership Model
+
+- `AGENTS.md`: repository-wide AI execution constraints and an instruction to consult `routing.md`.
+- `routing.md`: the only canonical source for task-to-skill mappings and source-to-document mappings.
+- `skills/DESIGN.md`: shared design and architecture rules.
+- `skills/<task>/SKILL.md`: task-specific procedures and checklists.
+
+Do not place task-to-skill mappings in `AGENTS.md`. Do not duplicate routing definitions in other files.
 
 ### Context efficiency
 
@@ -55,8 +64,6 @@ incomplete plans, or insufficient validation.
 - Reuse a verified fact only while its source file remains unchanged.
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
-
-
 
 #### Tool usage
 
@@ -135,6 +142,10 @@ Acceptance criteria:
 - No rule, guideline, or procedure appears in more than one file.
 - Each piece of content has exactly one canonical location.
 - All references to moved content point to the correct canonical location.
+- `AGENTS.md` contains routing rules only; no task-specific procedures.
+- `skills/DESIGN.md` contains shared design/architectural rules only; no task-specific procedures.
+- Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
+- Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific skill files.
 
 #### Step 2: Reorganize files based on the Context Loader Pattern
 

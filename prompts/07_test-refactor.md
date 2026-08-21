@@ -16,86 +16,16 @@ The output must be practical enough to use directly as:
 - a refactoring / stabilization work plan,
 - a source for GitHub Issue creation.
 
+## Shared Rules
+
+- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, command results, sequential target processing).
+- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
+
 ### Context efficiency
 
 **Accuracy, completeness, and validation always take priority over context reduction.**
 Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
 incomplete plans, or insufficient validation.
-
-#### Context reading
-
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior,
-  dependencies, lifecycle, ownership, side effects, error handling, configuration, tests,
-  or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
-
-
-
-#### Tool usage
-
-- Before invoking a tool, check whether already-available information is sufficient to
-  decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a
-  time.
-- Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
-
-#### Reasoning and planning
-
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
-- Do not list alternatives the user did not ask for.
-- Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or
-  verification.
-
-#### Output
-
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
-- Omit long background explanation unless the user asks for detail.
-- Do not repeat the same content as a "summary", "detail", and "conclusion".
-- Report only the necessary part of execution results; do not restate them verbatim.
-
-#### Command results
-
-Keep command results needed for correct judgment, including:
-- exit status,
-- final summary,
-- failures,
-- relevant warnings,
-- skipped checks,
-- blocked checks,
-- coverage results when applicable.
-- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
-
-#### Test-specific guidance
-
-- In Step 2, capture concise output from test/validation commands: use quiet/short-
-  traceback modes (e.g. `pytest -q --tb=short`) and read coverage from a summary
-  (`coverage.xml` or the summary line) rather than verbose per-line reports. Do not read
-  full output for passing runs.
-- In Step 3, keep stack trace summaries to the minimum lines needed to identify the
-  cause; do not paste full tracebacks.
-- Redirect each validation command's output to a file and extract only `FAIL`/`ERROR`
-  lines via `grep`, rather than reading the full raw stream.
-- Perform Step 1 discovery (inspecting README/CI/config files) sequentially; return only
-  the identified commands and structure, not full file contents.
-- Perform Step 4 and Step 5 gap analysis sequentially by layer (agent, shared, mcp, rag,
-  db — per the module grouping in `AGENTS.md`'s Test coverage section). Return only the
-  findings list for each layer, not the source read, so one layer's investigation does
-  not accumulate in the context used for the next layer.
-- Read shared files in Step 0 only once per session.
-- In Step 6, reference findings by their ID from Steps 3-5 rather than re-quoting full
-  evidence or source excerpts already recorded there.
-- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Tasks
 
@@ -107,6 +37,7 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/toolchain.md`
 - `rules/env.md`
+- `rules/ai-execution.md`
 
 #### Step 1: Discover the test execution model
 
@@ -257,7 +188,7 @@ For each command, record as bullet points:
 - **command**: exact command
 - **purpose**: what it validates
 - **result**: pass / fail / partial / not runnable
-- **notes**: relevant details
+- **notes**: for a passing command, a concise one-line summary; for failed, partial, blocked, skipped, unavailable, or not-runnable commands, retain full relevant details (see Section 3 for failures). Never report an unexecuted check as passed.
 
 # 3. Existing Test Failures
 For each failure:
@@ -328,6 +259,17 @@ Follow these rules strictly:
 - Prefer regression tests for bug-like mismatches.
 - Do not give vague advice such as "increase coverage".
 - Every proposed test addition or update must be actionable.
+
+### Test-Specific Guidance
+
+- In Step 2, capture concise output from test/validation commands: use quiet/short-traceback modes (e.g. `pytest -q --tb=short`) and read coverage from a summary (`coverage.xml` or the summary line) rather than verbose per-line reports. Do not read full output for passing runs.
+- In Step 3, keep stack trace summaries to the minimum lines needed to identify the cause; do not paste full tracebacks.
+- Redirect each validation command's output to a file and extract only `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
+- Perform Step 1 discovery (inspecting README/CI/config files) sequentially; return only the identified commands and structure, not full file contents.
+- Perform Step 4 and Step 5 gap analysis sequentially by layer (agent, shared, mcp, rag, db — per the module grouping in `AGENTS.md`'s Test coverage section). Return only the findings list for each layer, not the source read, so one layer's investigation does not accumulate in the context used for the next layer.
+- Read shared files in Step 0 only once per session.
+- In Step 6, reference findings by their ID from Steps 3-5 rather than re-quoting full evidence or source excerpts already recorded there.
+- Include all failures, blocking issues, and important validation results even in concise reports.
 
 ### Optional Extra Output
 
