@@ -90,7 +90,9 @@ fields that do not apply as `N/A`.
 
 ## Out of Scope
 
-Do not perform any of the following as part of this workflow:
+Do not perform any of the following as part of this workflow. (Source code and `docs/*.md`
+are already out of scope per `skills/DESIGN.md` Analysis-only phase constraint, declared once
+in `SKILL.md` Purpose — not repeated here.)
 - unrelated refactoring
 - broad formatting-only rewrites
 - moving existing documentation files
@@ -98,6 +100,4 @@ Do not perform any of the following as part of this workflow:
 - changing implementation behavior during document-only phases
 - interleaving multiple target files
 - parallel processing of target-file cycles
-- modifying source code files
-- updating documentation (`docs/*.md`)
 - modifying files outside `requires/` and the issue file being moved (`issues/` -> `issues/done/`)

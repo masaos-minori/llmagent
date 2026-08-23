@@ -36,10 +36,10 @@ Use this skill by default for production Python work.
 | 5 | Semantic Safe Modification | smallest change; preserve unrelated behavior; apply modern Python features |
 | 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
 | 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
-| 8 | Security Validation | Check for: `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL injection, unvalidated serialization |
+| 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |
 | 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; run `python tools/check_no_compat.py` to detect backward compatibility leftovers; separate task-caused from pre-existing failures |
 | 10 | Scope Control | diff proportional to task; diff-cover ≥ 90%; benchmark only on hot paths |
-| 11 | Production Readiness | No placeholders (`pass`, `TODO`); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257); no debug leftovers (`print`) |
+| 11 | Production Readiness | Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
 
 See `workflow.md` for detailed phase content including commands and tools.

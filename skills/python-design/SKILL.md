@@ -71,7 +71,7 @@ See `workflow.md` for detailed phase content and the required output template.
 
 - **Avoid implementation-reference duplication**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
 - **Enforce one-way dependency direction**: apply `skills/DESIGN.md` Import layer contract at the design stage, not during implementation.
-- **Isolate async and sync code**: design so the eventual implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints (no blocking calls inside `async def` without an explicit executor boundary) — this skill designs to that constraint, `python-implementation`/`python-refactoring` are the ones it binds directly.
+- **Isolate async and sync code**: design so the eventual implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints (async safety) — this skill designs to that constraint, `python-implementation`/`python-refactoring` are the ones it binds directly.
 - **Design for immutability by default**: prefer frozen dataclasses, tuples, and `Mapping` for core domain data unless mutation is justified.
 - **Validate only at system boundaries**: pass trusted, type-safe objects into internal services.
 - **Use abstractions only when justified**: no abstract factories, `Protocol`, or `abc.ABC` without a concrete requirement.

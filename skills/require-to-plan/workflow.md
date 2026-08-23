@@ -235,11 +235,8 @@ Document any existing findings that the planned change touches.
 
 #### diff-cover baseline
 
-```bash
-coverage run -m pytest tests/
-coverage xml
-diff-cover coverage.xml --compare-branch=master    # current baseline
-```
+See `rules/toolchain.md` section 7 for the diff-cover command sequence — run it without
+`--fail-under` here to just record the current baseline number.
 
 Record the current diff-cover baseline. The plan must include raising it to ≥ 90%.
 

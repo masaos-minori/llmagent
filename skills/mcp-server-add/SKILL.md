@@ -39,7 +39,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 ## Completion checklist
 
 - `scripts/mcp_servers/<name>/server.py` syntax check passes
-- `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (the server's Python files need no `deploy.sh` change — `scripts/` is rsynced wholesale)
+- `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (see `workflow.md` Step 2 for why)
 - `config/agent.toml` section `[mcp_servers.<name>]` added (verified with `rg`)
 - service running and reachable (verify port health)
 - `/mcp` in agent REPL shows the new server as healthy

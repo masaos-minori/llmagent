@@ -104,8 +104,8 @@ logger.error("descriptive_message key=value key2=%s", val)
 ```
 
 Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints
-(context managers for resource management): specify explicit `with`/`async with` boundaries
-for files, sockets, database connections, HTTP clients, and async clients in the design.
+(context managers for resource management): specify the `with`/`async with` boundary for each
+resource the design introduces, before implementation begins.
 
 ---
 
