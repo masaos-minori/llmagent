@@ -120,6 +120,10 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "docs" / "00_governance_05_deprecated-items.md",
     # Doc explicitly stating the absence of a compatibility shim (negation, not a leftover)
     ROOT_DIR / "docs" / "04_mcp_03_06_tool-runtime-availability-metadata.md",
+    # ADR documenting verification of deprecated items (similar purpose to deprecated-items.md)
+    ROOT_DIR / "docs" / "adr_task15_summary.md",
+    # ADR documenting verification of deprecated items
+    ROOT_DIR / "docs" / "adr_verification_matrix.md",
     # Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)
     ROOT_DIR / "tests" / "conftest.py",
     ROOT_DIR / "tests" / "agent" / "services" / "test_mcp_tool_discovery.py",
