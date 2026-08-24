@@ -472,21 +472,11 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ### Specifications
 
 - [EventBus System Overview](06_eventbus_01_system-overview.md) — EventBusアーキテクチャ概要
-- [Publish/Replay Protocol](06_eventbus_02_01_publish-replay.md) — Publish/Replayプロトコル
-- [Subscribe/ACK Protocol](06_eventbus_02_02_subscribe-ack.md) — Subscribe/ACKプロトコル
-- [NACK/Health/DLQ Handling](06_eventbus_02_03_nack-health-dlq.md) — NACK/ヘルス/DLQハンドリング
+- [Event Bus Operations](06_eventbus_02_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQプロトコル
 - [Persistence Schema and Replay](06_eventbus_03_persistence_schema_and_replay.md) — 永続化スキーマとReplay
 - [DLQ Offsets and Delivery Semantics](06_eventbus_04_dlq_offsets_and_delivery_semantics.md) — DLQオフセットと配信セマンティクス
-- [Consumer ID Stability](06_eventbus_05_04_consumer-id-stability.md) — Consumer ID安定性
-- [Delivery Operations](06_eventbus_05_05_delivery-operations.md) — 配信操作
-- [DLQ Operations](06_eventbus_05_06_dlq-operations.md) — DLQ操作
-- [Reference API - Broker and Offsets](06_eventbus_06_03_reference-api-broker-and-offsets.md) — レファレンスAPI
-- [Reference API - Route Handlers](06_eventbus_06_04_reference-api-route-handlers.md) — ルートハンドラ
-- [Reference API - Core Modules](06_eventbus_06_01_reference-api-core-modules.md) — コアモジュール
-- [Config Env and Fields](06_eventbus_06_02_config-env-and-fields.md) — 設定環境とフィールド
-- [Bind Address and Start](06_eventbus_06_05_bind-address-and-start.md) — バインドアドレスと起動
-- [DLQ Background Loop](06_eventbus_05_01_dlq-background-loop.md) — DLQバックグラウンドループ
-- [Health Endpoint Semantics](06_eventbus_05_03_health-endpoint-semantics.md) — ヘルスエンドポイントセマンティクス
+- [Configuration and Operations](06_eventbus_05_configuration-and-operations.md) — 設定・バインドアドレス・ヘルスエンドポイント・Consumer ID・配信・DLQ運用
+- [Reference API](06_eventbus_06_reference-api.md) — コアモジュール・ルートハンドラ・Broker/Offsets
 
 ### Operations
 

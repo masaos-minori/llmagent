@@ -11,9 +11,9 @@ tags:
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
-  - 06_eventbus_05_02_bind-address-and-start.md
+  - 06_eventbus_05_configuration-and-operations.md
 source:
-  - 06_eventbus_05_01_config-env-and-fields.md
+  - 06_eventbus_05_configuration-and-operations.md
 ---
 
 # Event Bus: Validation Status
@@ -30,4 +30,4 @@ Since defects related to the DLQ loop have occurred in the past, regression cove
 
 ## Related Documents
 
-- `06_eventbus_05_02_bind-address-and-start.md`
+- `06_eventbus_05_configuration-and-operations.md`

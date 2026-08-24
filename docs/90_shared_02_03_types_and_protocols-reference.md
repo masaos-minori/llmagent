@@ -1,6 +1,6 @@
 # Shared Types and Protocols - Reference
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 
 ## 9a. `DbConfig` (`db/config.py`)
 

@@ -11,7 +11,7 @@ tags:
   - design concern
 related:
   - 90_shared_00_document-guide.md
-  - 90_shared_01_03_overview-constraints-and-reference.md
+  - 90_shared_01_overview.md
   - 90_shared_02_01_types_and_protocols-core-types.md
   - 90_shared_03_01_runtime_and_execution-config-and-logging.md
 source:

@@ -1,6 +1,6 @@
 # Shared Runtime and Execution Infrastructure
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 
 ## 9. `ToolExecutor` and Surrounding Concepts (`shared/tool_executor.py`)
 

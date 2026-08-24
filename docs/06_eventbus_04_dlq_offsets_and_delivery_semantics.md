@@ -12,8 +12,7 @@ tags:
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_03_nack-health-dlq.md
-  - 06_eventbus_02_04_dlq-background-loop.md
+  - 06_eventbus_02_operations.md
   - 06_eventbus_03_persistence_schema_and_replay.md
 source:
   - index.md
@@ -72,6 +71,5 @@ If different clients use the same `consumer_id`, the last write wins and the off
 
 - `06_eventbus_00_document-guide.md`
 - `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_03_nack-health-dlq.md`
-- `06_eventbus_02_04_dlq-background-loop.md`
+- `06_eventbus_02_operations.md`
 - `06_eventbus_03_persistence_schema_and_replay.md`

@@ -1,6 +1,6 @@
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 5. rag.sqlite Schema
@@ -23,7 +23,7 @@ sqlite-vec virtual table for vector similarity search. Stores float32 little-end
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 5a. rag.sqlite Schema
@@ -47,7 +47,7 @@ sqlite-vec virtual table for vector similarity search. Stores float32 little-end
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 6. session.sqlite Schema
@@ -70,7 +70,7 @@ SQLite DEFAULT timestamps use strftime('%Y-%m-%dT%H:%M:%SZ', 'now') (Z suffix). 
 
 # DB Architecture and Schema
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 - DB API → [90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md](90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md)
 
 ## 6a. session.sqlite Schema

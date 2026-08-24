@@ -12,8 +12,7 @@ tags:
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_02_subscribe-ack.md
-  - 06_eventbus_02_04_dlq-background-loop.md
+  - 06_eventbus_02_operations.md
   - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
 source:
   - index.md
@@ -53,7 +52,7 @@ source:
 - **Description**: Returns `{total, limit, offset, items}`. Documentation must state this explicitly.
 - **Root Cause**: Pagination response format not documented in API reference.
 - **Impact**: Clients may not know to expect paginated response structure.
-- **Recommended Action**: Add pagination format to `docs/06_eventbus_02_01_publish-replay.md` and `docs/06_eventbus_06_01_reference-api-core-modules.md`.
+- **Recommended Action**: Add pagination format to `06_eventbus_02_operations.md` and `06_eventbus_06_reference-api.md`.
 - **Workaround**: Clients can infer from response body.
 - **Status Detail**: Open — documentation update pending.
 - **Severity Justification**: Low — functionality works, only documentation missing.
@@ -75,7 +74,7 @@ source:
 - **Description**: DLQ promotion occurs via two paths: inline nack escalation + background sweep. Both paths must be documented.
 - **Root Cause**: Two independent code paths promote to DLQ (inline in nack handler + background sweep); only one was documented.
 - **Impact**: Operators may not understand all DLQ entry origins.
-- **Recommended Action**: Document both paths in `docs/06_eventbus_02_03_nack-health-dlq.md` and `docs/06_eventbus_02_04_dlq-background-loop.md`.
+- **Recommended Action**: Document both paths in `06_eventbus_02_operations.md`.
 - **Workaround**: None — documentation only.
 - **Status Detail**: Open — documentation update pending.
 - **Severity Justification**: Medium — affects operational understanding of DLQ behavior.
@@ -210,6 +209,5 @@ This section is retained for documentation completeness; no inconsistency exists
 
 - `06_eventbus_00_document-guide.md`
 - `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_02_subscribe-ack.md`
-- `06_eventbus_02_04_dlq-background-loop.md`
+- `06_eventbus_02_operations.md`
 - `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`

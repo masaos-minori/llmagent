@@ -1,22 +1,32 @@
-title: "Deployment Guide (Part 1)"
-category: deployment
+---
+title: "Deployment Guide"
+area: deployment
 tags:
   - deployment
   - environment
   - setup
+  - installation
+  - provisioning
+  - operations
+  - llama-cpp
+  - sqlite-vec
+  - db-initialization
 related:
   - 01_overview.md
-source:
-  - 02_deployment.md
+  - 05_agent_03_03_turn-processing-flow-workflow-engine.md
+  - 90_shared_04_01_db_architecture_and_schema-overview-and-config.md
+---
 
+# Deployment Guide
 
-# Environment Setup & Service Startup
+## 1. Environment Setup
 
-## Embedding: multilingual-E5-small (384 dim)
+### 1.1 OS Provisioning (Gentoo Linux)
 
-### 1.1 Gentoo Linux Package Installation
-
-For OS package installation procedures, please refer to [docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md).
+```bash
+# Required Packages
+emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/sqlite dev-lang/python:3.13 dev-libs/libxml2 dev-libs/libxslt dev-vcs/git
+```
 
 > If the Python `sqlite3` module does not support loadable extensions:
 > ```bash
@@ -36,7 +46,12 @@ Running `uv sync` installs all dependency packages for both runtime and developm
 
 ### 1.3 Building llama.cpp
 
-For build instructions, please refer to [docs/02_deployment-provisioning.md](docs/02_deployment-provisioning.md).
+```bash
+git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
+cd /opt/llm/llama.cpp
+cmake -B build -DGGML_NATIVE=ON -DLLAMA_SERVER=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release -j$(nproc)
+```
 
 ### 1.4 Obtaining LLM Models
 
@@ -85,7 +100,7 @@ The workflow definition is a **required workflow deployment artifact**:
 source `config/workflows/default.json` → deployed to `/opt/llm/config/workflows/default.json`.
 There is no disable, fallback, or workflow-optional mode.
 
-### 2.3 Registering and starting LLM services
+### 2.3 Registering and Starting LLM Services
 
 `deploy/setup_services.sh` initializes the LLM services.
 
@@ -100,7 +115,14 @@ MCP servers (ports 8004-8014) auto-start as agent-managed subprocesses on agent 
 bash deploy/setup_services.sh
 ```
 
-After starting services, verify connectivity to health check endpoints for both embed-llm and agent-llm. See [docs/02_deployment-operations.md](docs/02_deployment-operations.md) for specific command examples.
+After starting services, verify connectivity to the health-check endpoints for both `embed-llm` and `agent-llm`:
+
+```bash
+curl -s http://127.0.0.1:8081/health   # embed-llm
+curl -s http://127.0.0.1:8080/health   # agent-llm
+
+bash deploy/start_agent.sh
+```
 
 ### Implementation Supplement (Startup Method)
 
@@ -116,26 +138,9 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ---
 
-## Related Documents
-
-- `01_overview.md`
-- `02_deployment.md`
-
-## Keywords
-
-deployment
-environment
-setup
-installation
-llama-cpp
-sqlite-vec
-db-initialization
-
-# DB Initialization & Failure Modes
-
 ## 3. DB Initialization
 
-### 3.0 Platform DB overview
+### 3.0 Platform DB Overview
 
 The agent uses four SQLite databases. Three have explicit path keys in
 `agent.toml`; `workflow_db_path` has no literal entry there and falls back to
@@ -185,22 +190,6 @@ For the production `require_approval` category policy (which categories require 
 
 Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](adr/ADR-001-workflow-engine-mandatory.md).
 
-## Related Documents
-
-- `01_overview.md`
-- `02_deployment.md`
-- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
-
-## Keywords
-
-deployment
-environment
-setup
-installation
-llama-cpp
-sqlite-vec
-db-initialization
-
 ### DB Path Reference (auto-generated)
 
 <!-- AUTO-GENERATED: gen_deployment_reference.py db-path-reference -->
@@ -213,3 +202,21 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | Yes |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
 <!-- END AUTO-GENERATED -->
+
+## Related Documents
+
+- `01_overview.md`
+- `05_agent_03_03_turn-processing-flow-workflow-engine.md`
+- `90_shared_04_01_db_architecture_and_schema-overview-and-config.md`
+
+## Keywords
+
+deployment
+environment
+setup
+installation
+provisioning
+operations
+llama-cpp
+sqlite-vec
+db-initialization

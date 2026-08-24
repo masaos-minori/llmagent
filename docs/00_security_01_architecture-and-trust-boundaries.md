@@ -20,11 +20,13 @@ related:
   - 04_mcp_02_03_audit-logging-and-errors.md
   - 04_mcp_06_07_reading-audit-logs.md
   - 05_agent_10_02_operations-and-observability-audit-and-otel.md
-  - 03_rag_03_05_query_pipeline-augment-stages.md
+  - 05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - 03_rag_04_02_dto-models_result.md
-  - 05_failure_modes_and_operational_readiness.md
+  - 03_rag_05_2-execution-guide.md
 source:
   - 00_security_01_architecture-and-trust-boundaries.md
+  - shared/mcp_health.py
+  - agent/startup.py
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -148,7 +150,7 @@ Fail-open vs fail-closed behavior by component:
 | MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
 | Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
 
-*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Summary of Fail-Open vs Fail-Closed, cross-referenced with `05_failure_modes_and_operational_readiness.md`*
+*Source: `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Summary of Fail-Open vs Fail-Closed*
 
 ## Prompt-injection responsibility boundaries
 
@@ -165,6 +167,96 @@ Prompt injection responsibility is distributed across layers:
 
 *Source: `03_rag_03_05_query_pipeline-augment-stages.md` (`sanitize_document()`), `03_rag_04_02_dto-models_result.md` (`was_sanitized`, `patterns_detected`)*
 
+## Failure modes and operational readiness
+
+### Failure mode categories
+
+| Category | Impact | Recovery |
+|---|---|---|
+| MCP server unavailable | Capability unavailable | Automatic retry (subprocess), manual restart (persistent) |
+| MCP server degraded | Capability degraded | Operator intervention required |
+| Workflow schema missing | Agent startup fails | Run `bash deploy/init_db.sh` |
+| Workflow definition invalid | Agent startup fails | Fix JSON per validation error |
+| Embedding service down | RAG degraded to fts-only | Restart embed-llm service |
+| Memory layer circuit open | Memory degraded | Wait for cooldown, then verify |
+| Database corruption | Data loss risk | Restore from backup |
+| Network partition | Multiple capabilities affected | Verify network connectivity |
+
+### MCP failure behavior
+
+| Startup Mode | Health Check | Failure Response | Recovery |
+|---|---|---|---|
+| `none` | None | Server treated as unavailable | Manual configuration change |
+| `persistent` | `/health` endpoint | 503 on degraded, retry loop | Operator restarts external server |
+| `subprocess` | Watchdog polling | Auto-restart (max attempts) | Manual if restart limit reached |
+
+Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError` (aborts startup, no REPL started); `local` logs a warning and continues (REPL starts normally).
+
+*Source: `shared/mcp_health.py`*
+
+### Workflow deployment failures
+
+Full failure-scenario table (missing definition, invalid JSON, checksum mismatch, schema incomplete/version mismatch, stage execution failure) and remediation commands: [Workflow Deployment Runbook](05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
+
+### RAG failure behavior
+
+| Scenario | Degraded State | Recovery |
+|---|---|---|
+| Embedding API down (HTTP 503) | fts-only mode | Restart embed-llm |
+| Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify embedding_dims config |
+| Vector store corruption | RAG unavailable | Restore from backup |
+| FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `rag_consistency.py` |
+| Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `ingester.py --force` |
+| Crawler timeout | URL skipped, WARNING logged | Retry crawler execution |
+
+When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
+
+*Source: [03_rag_05_2-execution-guide.md](03_rag_05_2-execution-guide.md#26-rag-integrity-check)*
+
+### Memory layer failure behavior
+
+| Mode | Condition | Behavior |
+|---|---|---|
+| disabled | `use_memory_layer=false` | No memory operations |
+| fts-only | `embed_client.enabled=False` | FTS search only, no embeddings |
+| degraded | `circuit_open=True` | Circuit breaker open, skip embedding |
+| hybrid | Normal operation | Full embedding + vector search |
+
+Degraded conditions: `circuit_open=True` after more than `failure_threshold` consecutive failures; `half_open_cooldown_sec` elapsed since last UNAVAILABLE state; one request allowed through HALF_OPEN state to test recovery.
+
+### Capability readiness model
+
+| State | Meaning | HTTP Status |
+|---|---|---|
+| healthy | All dependencies operational | 200 |
+| degraded | Some dependencies failing | 503 |
+| unavailable | Critical dependency missing | 503 |
+| unknown | Cannot determine status | N/A |
+
+| Capability | Required Services | Degraded/Unavailable When |
+|---|---|---|
+| Repository Operations | git-mcp (+ optional github-mcp) | git-mcp degraded / unavailable |
+| File Operations | file-mcp | file-mcp degraded / unavailable |
+| Code Search | mdq-mcp | mdq-mcp degraded / unavailable |
+| Web Search | web-search-mcp | web-search-mcp degraded / unavailable |
+| CI/CD | cicd-mcp | cicd-mcp degraded / unavailable |
+| Shell Execution | shell-mcp | shell-mcp degraded / unavailable |
+| Document Retrieval | rag-pipeline-mcp (+ embed-llm) | embed-llm down / rag-pipeline-mcp unavailable |
+| GitHub Operations | github-mcp | github-mcp degraded / unavailable |
+| Memory Search | embed-llm, rag-pipeline-mcp | embed-llm down / both unavailable |
+
+*Source: `agent/startup.py`*
+
+### Operator-facing examples
+
+```
+WARNING [workflow] MCP server 'git-mcp' unavailable after 3 retries.
+Repository operations will be unavailable until the server recovers.
+```
+```
+[FATAL] Session schema missing. Run: bash deploy/init_db.sh to initialize the database.
+```
+
 ## Related Documents
 
 - `00_security_02_high-risk-tool-common-policy.md`
@@ -178,10 +270,10 @@ Prompt injection responsibility is distributed across layers:
 - `04_mcp_02_03_audit-logging-and-errors.md`
 - `04_mcp_06_07_reading-audit-logs.md`
 - `05_agent_10_02_operations-and-observability-audit-and-otel.md`
-- `03_rag_03_05_query_pipeline-augment-stages.md`
+- `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md`
 - `03_rag_04_02_dto-models_result.md`
-- `05_failure_modes_and_operational_readiness.md`
+- `03_rag_05_2-execution-guide.md`
 
 ## Keywords
 
-security, architecture, trust-boundaries, threat-model, auth, audit, prompt-injection
+security, architecture, trust-boundaries, threat-model, auth, audit, prompt-injection, failure-modes, readiness, degradation, operational

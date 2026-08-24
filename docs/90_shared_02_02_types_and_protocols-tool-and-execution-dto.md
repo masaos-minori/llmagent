@@ -1,6 +1,6 @@
 # Shared Types and Protocols - Tool and Execution DTOs (Part 1)
 
-- Overview → [90_shared_01_01_overview-purpose-and-scope.md](90_shared_01_01_overview-purpose-and-scope.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 
 ## 6. `LLMUsage` / `LLMResponse` (`shared/llm_types.py`)
 

@@ -12,7 +12,7 @@ tags:
 related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
-  - 06_eventbus_02_01_publish-replay.md
+  - 06_eventbus_02_operations.md
   - 06_eventbus_04_dlq_offsets_and_delivery_semantics.md
 source:
   - index.md
@@ -75,10 +75,10 @@ This is only emitted when the JSONL append fails after a successful SQLite commi
 
 1. **Counter Metrics**: Add counter metrics to the above WARNING path to visualize the frequency of JSONL append failures.
 2. **Operator Runbook**: Document procedures in a runbook to backfill missing JSONL lines from SQLite, assuming SQLite is the source of truth.
-   - SQLite is the source of truth (`docs/06_eventbus_02_05_failure-behavior-summary.md`).
+   - SQLite is the source of truth (`06_eventbus_02_operations.md`).
    - Identify the missing `seq` range, SELECT the corresponding rows from SQLite, and append them in JSONL format.
 
 - `06_eventbus_00_document-guide.md`
 - `06_eventbus_01_system-overview.md`
-- `06_eventbus_02_01_publish-replay.md`
+- `06_eventbus_02_operations.md`
 - `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`

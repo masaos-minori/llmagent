@@ -39,7 +39,7 @@ Documents the `shared/` layer (common types, configuration, logging, OTel, tool 
 
 | Question | Reference Target |
 |---|---|
-| Usage/import rules for `shared/` | `01_overview` / `01_constraints` |
+| Usage/import rules for `shared/` | `01_overview` |
 | Type definitions, tool constants | `02_core-types` / `02_reference` |
 | ConfigLoader, Logging | `03_config-and-logging` |
 | ToolExecutor, LLMClient | `03_tool-executor` / `03_llm-and-mcp-clients` |

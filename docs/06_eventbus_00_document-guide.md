@@ -59,5 +59,5 @@ Cross-cutting documentation rules and policies:
 - `06_eventbus_01_system-overview.md`
 - `06_eventbus_03_persistence_schema_and_replay.md`
 - `06_eventbus_04_dlq_offsets_and_delivery_semantics.md`
-- `06_eventbus_05_01_config-env-and-fields.md`
-- `06_eventbus_06_01_reference-api-core-modules.md`
+- `06_eventbus_05_configuration-and-operations.md`
+- `06_eventbus_06_reference-api.md`

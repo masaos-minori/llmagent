@@ -54,7 +54,7 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | RAG pipeline spec (overview, design, known issues) | `03_rag_00_document-guide.md` + `03_rag_01_system_overview.md` |
 | MDQ vs RAG boundary | `04_mcp_05_01_access-control-and-allowlists.md` MDQ vs RAG Boundary |
 | DB layer spec (schema, ops, known issues) | `90_shared_04_01_db_architecture_and_schema-overview-and-config.md` + `90_shared_05_01_db_api_and_operations-module-boundaries-and-helper.md` |
-| Shared infra spec (config, logging, types, constants) | `90_shared_00_document-guide.md` + `90_shared_01_01_overview-purpose-and-scope.md` |
+| Shared infra spec (config, logging, types, constants) | `90_shared_00_document-guide.md` + `90_shared_01_overview.md` |
 
 ### Implementation reference
 
@@ -130,11 +130,11 @@ Migrated from `routing.md`. Load only the necessary documents according to the t
 | Task scope | Reference docs |
 |---|---|
 | Event Bus (overview) | `06_eventbus_01_system-overview.md` |
-| Event Bus (HTTP API) | `06_eventbus_02_01_publish-replay.md` |
+| Event Bus (HTTP API) | `06_eventbus_02_operations.md` |
 | Event Bus (persistence) | `06_eventbus_03_persistence_schema_and_replay.md` |
 | Event Bus (DLQ/offsets) | `06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
-| Event Bus (config/ops) | `06_eventbus_05_01_config-env-and-fields.md` |
-| Event Bus (API ref) | `06_eventbus_06_01_reference-api-core-modules.md` |
+| Event Bus (config/ops) | `06_eventbus_05_configuration-and-operations.md` |
+| Event Bus (API ref) | `06_eventbus_06_reference-api.md` |
 | Event Bus (issues) | `06_eventbus_90_inconsistencies_and_known_issues.md` |
 
 ## Related Documents
