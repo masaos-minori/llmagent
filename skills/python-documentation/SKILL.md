@@ -31,9 +31,7 @@ Do not use this skill for:
 
 ## Documentation Language
 
-See `skills/DESIGN.md` Output language — including the AI-readability requirement (short,
-explicit, single-claim sentences; consistent terminology; normative MUST/MUST NOT/SHOULD/MAY
-terms).
+See `skills/DESIGN.md` Output language.
 
 ---
 
@@ -60,10 +58,10 @@ boundaries, and detailed gates.
 ## Core Documentation Rules (Strictly Enforced for AI)
 
 - **Source of truth**: code, configuration, tests, and CI/CD are factual evidence; documentation describes intent, boundaries, constraints, and known issues, not a copy of implementation detail.
-- **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary; do not introduce a parallel label system.
-- **No hallucination**: do not invent missing behavior or assume framework patterns without evidence; mark unclear behavior `Needs confirmation` instead of stating it as fact.
-- **Remove or compress implementation-derived details**: do not copy file lists, full method/field/config-key tables, or JSON examples that mirror schema fields — replace with a concise source reference.
-- **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts. Reference implementation by class/function/method name; describe configuration policy, not its current value; name items instead of counting them.
+- **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
+- **No hallucination**: do not invent missing behavior or assume framework patterns without evidence — see `skills/DESIGN.md` Evidence labels for how to mark unclear behavior.
+- **Remove or compress implementation-derived details**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
+- **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.
 - **Minimal diff**: fix errors, fill gaps, reduce duplication; do not rewrite or reorganize documents unless the task explicitly asks for it.
 - **Respect boundaries**: do not expand scope, expose secrets, paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
 

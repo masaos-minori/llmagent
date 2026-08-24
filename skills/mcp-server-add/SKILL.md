@@ -18,8 +18,8 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 Port/role table (canonical): `docs/04_mcp_01_system_overview.md` Server Catalog.
 Module paths follow the pattern `mcp_servers/<name>/server.py` (e.g. `mcp_servers/web_search/server.py`).
 
-New servers must use the next free port above every port currently assigned — never hardcode
-a specific number here; derive it at task time (see Prerequisites).
+New servers must use the next free port above every port currently assigned — derive it at
+task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
 
 ## Prerequisites
 

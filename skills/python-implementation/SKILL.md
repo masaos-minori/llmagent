@@ -21,7 +21,8 @@ Use this skill by default for production Python work.
 ## When not to use
 
 - documentation-only or configuration-only work with no code change
-- structural refactoring with no behavior change → use `python-refactoring` instead
+- structural refactoring with no behavior change — see `routing.md` Task → skill
+  mapping (Refactor / rename / CST row)
 
 ---
 

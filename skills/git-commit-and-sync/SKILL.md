@@ -67,7 +67,7 @@ Stop immediately if any command fails.
 - Always check status first.
 - Use explicit file paths for `git add` by default; never use `git add .`.
 - `git add -A` only when the user explicitly says "all changes".
-- Never run dangerous commands: `reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`.
+- Never run dangerous commands: `reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`. This skill's own procedure never needs them, so — unlike `AGENTS.md` Policy's confirmation-based exception for multi-file/recursive destructive commands — there is no confirmation path to offer here; treat them as forbidden, not as "ask first".
 - Never run history-rewriting or unsafe sync commands: `rebase`, `commit --amend`, `merge`, `merge --abort`, `pull` (without `--ff-only`), `pull --rebase`, `push --force`, `push --force-with-lease`, `push -f`.
 - Run `git pull --ff-only` before every push; if fast-forward is not possible, stop and report the divergence to the user — do not rebase or merge without explicit instruction.
 - Resolve only simple text conflicts; stop at any ambiguity.

@@ -10,7 +10,8 @@ description: |
 
 ## Purpose
 
-Create issues only. Do not implement, refactor, or edit project files unless the user explicitly asks for implementation.
+Create issues only — see `skills/DESIGN.md` Analysis-only phase constraint. Proceed to
+implementation only when the user explicitly asks for it.
 
 Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that requirement inside the issue.
 

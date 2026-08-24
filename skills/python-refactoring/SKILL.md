@@ -20,7 +20,7 @@ Use this skill only for structural refactoring, including:
 - migrating public APIs while preserving backward compatibility
 - improving internal design and maintainability without changing externally visible behavior
 
-Do not use for: adding features, changing expected behavior, introducing business logic, or fixing bugs by changing outputs. Use `python-implementation` instead.
+Do not use for: adding features, changing expected behavior, introducing business logic, or fixing bugs by changing outputs — see `routing.md` Task → skill mapping (Feature / bug fix / new module row).
 
 ---
 
