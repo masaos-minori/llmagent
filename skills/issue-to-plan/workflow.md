@@ -11,56 +11,49 @@ issue file (issues/)
 
 - Input: `issues/{filename}.md`
 - Output: `plans/{timestamp}_plan.md`
+- Optional outputs: `issues/{timestamp}_unknowns.md`, `issues/{timestamp}_risks.md`
+- Archive destination: `issues/done/`
+- Workflow phase: `issue-to-plan`
 
 No standalone requirement document (`requires/*.md`) is produced. Evidence
 verification and planning happen in one continuous cycle, Steps 1-10 below.
 
+## Allowed file operations
+
+This is a document-only phase. Allowed operations:
+- Create the work plan document in `plans/`.
+- Create unresolved unknown or risk items as issue files in `issues/` when required by
+  Step 6.
+- Move the processed Issue file to `issues/done/` after the required review gate.
+- Do not modify source code files.
+- Do not update documentation (`docs/*.md`) — this phase does not allow it.
+- Do not modify files outside `plans/`, `issues/`, and the Issue file being moved
+  (`issues/` -> `issues/done/`).
+
 ## Toolchain
 
-| Tool | Goal | Role |
-|---|---|---|
-| `grimp` | architecture analysis | Import graph with layering and cycle detection |
-| `pyan3` | architecture analysis | Call graph and module dependency visualization |
-| `import-linter` | architecture analysis | Enforce declared module boundary contracts |
-| `networkx` | architecture analysis | Graph analysis (centrality, paths, cycles) |
-| `pydeps` | dependency graphing | Visual module dependency graph |
-| `universal-ctags` | dependency graphing | Symbol index across the entire codebase |
-| `radon` | validation quality analysis | Cyclomatic complexity and maintainability index |
-| `vulture` | validation quality analysis | Dead code detection |
-| `semgrep` | validation quality analysis | Semantic pattern matching |
-| `bandit` | validation quality analysis | Static security analysis |
-| `pip-audit` | operational dependency inspection | Vulnerability scan of installed packages |
-| `diff-cover` | validation quality analysis | Coverage gate scoped to changed lines |
-| `pytest-testmon` | validation quality analysis | Impact-based test selection |
-| `git-fame` | historical analysis | Per-author contribution breakdown |
-| `git churn` | historical analysis | Change frequency by file |
-| `git bisect` | historical analysis | Binary search for regression commit |
-| `lsof` | operational dependency inspection | Open files and socket connections |
-| `rg` | — | Symbol definitions, call sites, log strings |
-| `fd` | — | File listing by pattern |
-| `ast-grep` | — | Structural code patterns |
+Tools used by both paths: `rg`/`fd`/`ast-grep` (symbol/file search), `radon`/`vulture`/
+`semgrep`/`bandit`/`diff-cover`/`pytest-testmon` (validation quality baseline, Step 5).
+Path B's additional architecture/dependency/historical/operational analysis tools are
+listed in `workflow-path-b.md` — loaded only when Step 3 classifies Path B, not here.
 
 ---
 
 ## Multi-file processing
 
-If multiple target Issue files are specified, treat Steps 1-10 as one complete cycle per
-file: finish every step for the current file (through moving it to `issues/done/` in
-Step 10) before starting Step 1 for the next file. Do not batch-read multiple target
-files up front, and do not interleave steps across files.
+Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
+Steps 1-10, ending with the move to `issues/done/` in Step 10 — which always requires
+explicit user approval first (no autonomous/no-approval variant exists) — before
+starting Step 1 for the next file.
 
+Additional context-hygiene guidance specific to this workflow:
 - Perform Step 2 (verifying claims in the Issue against current source) sequentially.
   Retain only a concise confirmation or correction, not full file contents.
-- When multiple target Issue files are specified, process each Steps 1-10 cycle
-  sequentially for context hygiene only, so investigation from one file's cycle does not
-  accumulate into the next. This is for context isolation, not parallel execution: run
-  each cycle one at a time, never in parallel.
+- Process each Steps 1-10 cycle sequentially so investigation from one file's cycle
+  does not accumulate into the next — this is context isolation, not parallel
+  execution: run each cycle one at a time, never in parallel.
 - Keep start/end progress reports to one or two lines; do not restate full document
   content in progress reports.
-- `review_mode`: in `review_mode = manual` (the default), stop after Step 9 and wait for
-  explicit user approval before Step 10. In `review_mode = autonomous`, proceed directly
-  from Step 9 to Step 10, reporting the Plan path and a validation summary. The default
-  is `manual` unless the invoking context states otherwise.
 
 Report progress at the start and end of each step.
 
@@ -70,8 +63,11 @@ Report progress at the start and end of each step.
 
 Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
-`templates/traceability.md`, `templates/requirement-traceability.md`, `SKILL.md` (this
-skill), and this file.
+`templates/traceability.md`, `templates/requirement-traceability.md`,
+`templates/issue.md`, `templates/plan.md`, `SKILL.md` (this skill), and this file.
+
+Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
+determines Path B.
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -81,17 +77,17 @@ changed shared file.
 
 ## Step 1: Identify Target Issues
 
+Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
+before starting, process sequentially in filename order, load only the current target.
+
+Workflow-specific:
 - The target Issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one
-  path per file. The user may specify one file or a list of multiple files.
+  path per file.
 - If no target file is specified, stop immediately and ask the user to specify one or
   more.
 - If any specified file does not exist, stop immediately and report which file(s) are
-  missing. Do not start processing any file until all specified paths are confirmed to
-  exist.
-- If multiple target files are specified, process them in filename (lexicographic)
-  order.
+  missing.
 - Do not read files under `issues/done/`.
-- Do not preload later Issues.
 
 ---
 
@@ -100,9 +96,11 @@ changed shared file.
 - Read the current Issue file in full.
 - Verify any factual claims against current source (affected files, whether the
   described problem still reproduces).
-- Extract: title, priority, target files, background, problem, reason for change,
-  implementation intent, implementation instructions, acceptance criteria, tests,
-  constraints, dependencies, and unresolved questions.
+- Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
+  with `skills/issue-creator`): title, priority, target files, background, problem,
+  reason for change, implementation intent, implementation instructions, constraints,
+  acceptance criteria, tests, dependencies, and unresolved questions. Treat an
+  explicit `N/A` field as `Explicit in issue`, not as missing information.
 - Classify each extracted item as one of: `Explicit in issue`, `Confirmed by repository
   evidence`, `Derived from confirmed evidence`, `Needs confirmation`. Do not invent
   missing requirements.
@@ -173,57 +171,13 @@ mapping completeness, only analysis depth (Steps 3 and 5).
 Using the Path A/B classification from Step 3:
 
 - **Path A**: skip architecture analysis, dependency graphing, historical analysis, and
-  operational dependency inspection (below). Still establish the validation quality
-  baseline (radon/vulture/semgrep/bandit/diff-cover, lightweight or full as installed) —
-  this baseline is not part of what Path A skips, matching this skill's Path A
-  definition in `SKILL.md`.
-- **Path B**: perform all of the following before creating the Plan.
-
-**Lightweight alternatives are always available; heavy tools only if installed — see
-`skills/DESIGN.md` Tool availability guard.**
-
-#### Architecture analysis
-
-```bash
-rg "^from|^import" scripts/<module>.py | sort -u
-lint-imports
-cat .importlinter
-```
-
-`grimp` / `pyan3` / `networkx` for deeper import-graph, call-graph, and centrality
-analysis if installed — see the Toolchain table above for tool roles; invocation
-syntax is unchanged from prior usage of these tools.
-
-#### Dependency graphing
-
-```bash
-rg "from <module> import" scripts/
-rg "def <function>" scripts/
-ast-grep --pattern '<Class>($$$)' --lang python scripts/
-```
-
-Build a concrete list: "these N files will require changes." `pydeps` /
-`universal-ctags` if installed.
-
-#### Historical analysis
-
-```bash
-git log --oneline --diff-filter=M -- scripts/ | awk '{print $NF}' | sort | uniq -c | sort -rn | head -20
-```
-
-High-churn files are riskier to touch. `git bisect` for regression localization if the
-Issue describes a known regression. `git-fame` for bus-factor if installed (>70% single
-author = flag as high bus factor).
-
-#### Operational dependency inspection
-
-```bash
-lsof -p <PID> | grep -E 'REG|IPv4|IPv6'
-lsof -i :<PORT>
-```
-
-Before planning a change to MCP servers or the DB: confirm no process holds locks.
-`pip-audit` before planning any dependency upgrade.
+  operational dependency inspection. Still establish the validation quality baseline
+  (radon/vulture/semgrep/bandit/diff-cover, lightweight or full as installed) — this
+  baseline is not part of what Path A skips, matching this skill's Path A definition in
+  `SKILL.md`.
+- **Path B**: load `workflow-path-b.md` now and perform all four of its analyses
+  (architecture, dependency graphing, historical, operational dependency inspection)
+  before creating the Plan.
 
 #### Validation quality analysis (baseline — run regardless of Path A/B)
 
@@ -252,8 +206,9 @@ raising it to ≥ 90%.
 - Always include a deploy step if `scripts/`/`config/` changes; always include an MCP
   service map update if a new server is added.
 - Do not include speculative steps — only steps required by the stated goal.
-- The Plan must be detailed enough for `prompts/02_plan-to-implementation-procedure.md`
-  to produce file-level implementation procedures. Do not implement anything.
+- The Plan must be detailed enough for the next pipeline phase (per Workflow position
+  above) to produce file-level implementation procedures from it. Do not implement
+  anything.
 
 ---
 
@@ -266,9 +221,19 @@ raising it to ≥ 90%.
 - Record non-blocking Unknowns in the Plan's Unknowns table
   (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`); when
   necessary, also file `issues/{timestamp}_unknowns.md` (GitHub Issue Markdown format,
-  one issue per section). Never overwrite an existing file.
+  one issue per section).
 - Analyze every Risk and add a mitigation (Risk + likelihood + mitigation). When
   necessary, file `issues/{timestamp}_risks.md` the same way.
+- Reuse the same base timestamp generated in Step 5 (`date +%Y%m%d-%H%M%S`) for both
+  files — do not generate a new timestamp. This keeps the Plan, Unknowns file, and Risks
+  file correlated to the same workflow cycle.
+- If either path already exists, apply the same lowest-available zero-padded sequence
+  rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
+  ...). Never overwrite an existing file.
+- Each generated Unknown or Risk issue must include a Traceability section (per
+  `templates/traceability.md`) with Source issue set to the current cycle's Issue path
+  and Source plan set to the Plan file generated in Step 5 — this carries
+  Issue-to-Plan traceability forward into any follow-up issue this workflow produces.
 
 ---
 
@@ -320,9 +285,8 @@ traceability result; Requirement Traceability completeness result (with a breakd
 how many Requirements fall under each Step 2 evidence classification); unresolved
 items; and the Issue pending move.
 
-Set state to `Awaiting approval` and stop (per `review_mode`, see Multi-file processing
-above). Do not move the Issue in the same response. An unclear user response must not be
-treated as approval.
+Set state to `Awaiting approval` and stop. Do not move the Issue in the same response.
+An unclear user response must not be treated as approval.
 
 ---
 
@@ -330,8 +294,7 @@ treated as approval.
 
 **This step is mandatory. Do not skip it.**
 
-- Move the Issue only after explicit user approval (or immediately in
-  `review_mode = autonomous`).
+- Move the Issue only after explicit user approval.
 - Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. Do not use `mv`,
   `cp` + `rm`, file-copy APIs, or any fallback move method.
 - Before running `git mv`, verify: state is `Awaiting approval`; approval applies to the
@@ -348,7 +311,8 @@ treated as approval.
 
 Do not perform any of the following as part of this workflow. (Source code and
 `docs/*.md` are already out of scope per `skills/DESIGN.md` Analysis-only phase
-constraint, declared once in `SKILL.md` Purpose — not repeated here.)
+constraint, declared once in `SKILL.md` Purpose — not repeated here. File-scope
+restrictions are declared once above in Allowed file operations — not repeated here.)
 - unrelated refactoring
 - broad formatting-only rewrites
 - moving existing documentation files
@@ -357,8 +321,6 @@ constraint, declared once in `SKILL.md` Purpose — not repeated here.)
 - processing files under `__pycache__/`
 - interleaving multiple target files
 - parallel processing of target-file cycles
-- modifying files outside `plans/`, `issues/`, and the Issue file being moved
-  (`issues/` -> `issues/done/`)
 
 ## Output format
 

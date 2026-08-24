@@ -24,7 +24,6 @@ Read the target implementation procedure file, then implement the feature accord
 ## Shared Rules
 
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, command results, sequential target processing).
-- Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
 
 ## Out of scope
 
@@ -47,11 +46,9 @@ generated document, so do not insert a `## Traceability` section into those file
 include a one-line traceability summary in the final report for the cycle: source
 implementation procedure file, changed files, and timestamp of completion.
 
-If multiple target implementation procedure files are specified, treat Steps 1-7 as one complete cycle per
-file: finish every step for the current file (through updating documentation in Step 5,
-validating it in Step 6, and moving it to `implementations/done/` in Step 7) before
-starting Step 1 for the next file. Do not batch-read multiple target files up front, and
-do not interleave steps across files.
+Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
+Steps 1-7, ending with the move to `implementations/done/` in Step 7 (after the Step 5
+documentation update and Step 6 validation) before starting Step 1 for the next file.
 
 #### Step 0: Load required files
 
@@ -62,9 +59,15 @@ If not already loaded, read the following before starting:
 - `skills/python-implementation/SKILL.md`
 - `skills/python-lint-typecheck/SKILL.md`
 - `skills/python-test-and-fix/SKILL.md`
-- `skills/python-debug-root-cause/SKILL.md`
-- `skills/python-documentation/SKILL.md`
 - `rules/ai-execution.md`
+- `templates/implementation-procedure.md`
+- `templates/execution-status.md`
+
+Do not load these two eagerly — load each only at the step that actually needs it:
+- `skills/python-debug-root-cause/SKILL.md` — load at Step 4, only if a failure's cause
+  is not immediately obvious.
+- `skills/python-documentation/SKILL.md` — load at Step 5, only if at least one changed
+  file has a `routing.md` mapping.
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
@@ -72,18 +75,21 @@ changed shared file.
 
 #### Step 1: Identify the target implementation procedure file(s)
 
-- The target implementation procedure file(s) are provided by the user (e.g. `implementations/{filename}.md`), one path per file. The user may specify one file or a list of multiple files.
-- If multiple target files are specified, process them in filename (lexicographic) order.
+Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
+before starting, process sequentially, load only the current target.
+
+Workflow-specific:
+- The target implementation procedure file(s) are provided by the user (e.g. `implementations/{filename}.md`), one path per file.
 - If no target file is specified, stop immediately and ask the user to specify one or more.
-- If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
-- **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
+- If any specified file does not exist, stop immediately and report which file(s) are missing.
 - Do not read files under `implementations/done/`.
 
 #### Step 2: Read the current implementation procedure file
 
 **Read ONLY the current file. Never read multiple target files simultaneously.**
 
-- Read the current implementation procedure file in full.
+- Read the current implementation procedure file in full. It follows
+  `templates/implementation-procedure.md`'s structure.
 - Identify the target feature and all source files to modify.
 - Extract this document's own Traceability section — `Source issue`, `Source plan`,
   and `Related target files` — for reuse in this cycle's Final Report (see Final
@@ -104,9 +110,9 @@ After implementing:
 
 #### Step 4: Test the feature
 
-Apply the guidance loaded in Step 0 from:
-- `skills/python-test-and-fix/SKILL.md`
-- `skills/python-debug-root-cause/SKILL.md`
+Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0). If a
+failure's cause is not immediately obvious, load `skills/python-debug-root-cause/SKILL.md`
+now and apply it.
 
 - Run targeted tests during implementation.
 - Fix all related failures.
@@ -127,8 +133,8 @@ During Steps 3-6 (implementation, testing, documentation update, documentation v
 
 Update `docs/*.md` only for changed files that have a matching entry in `routing.md`'s
 "Docs → task mapping" table — do not update documentation for a changed file that has
-no mapping there. Apply the guidance loaded in Step 0 from:
-- `skills/python-documentation/SKILL.md`
+no mapping there. If at least one changed file has a mapping, load
+`skills/python-documentation/SKILL.md` now (per Step 0) and apply its guidance.
 
 Determine which sections to update by looking up each changed file in `routing.md`'s
 "Docs → task mapping" table and editing only the matched section(s).
@@ -161,13 +167,8 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 
 **This step is mandatory. Do not skip it.**
 
-This workflow does not require a separate human-approval gate before this move. Unlike
-`01_issue-to-plan.md` and `02_plan-to-implementation-procedure.md`, whose Approval
-Handling is scoped to document-generation phases only (`rules/workflow-lifecycle.md`
-line 3: "Applies to document-generation workflows: issue-to-plan,
-plan-to-impl-procedure"), this workflow performs actual code changes and its gate is
-the validation results themselves — Steps 3, 4, and 6 passing. Proceed directly to the
-move once the checks below pass, without stopping to ask the user for approval.
+This workflow's move to `implementations/done/` does not require human approval —
+proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approval.
 
 - Do not perform this step before Step 5 (documentation update) and Step 6 (documentation
    validation) are complete.
@@ -192,7 +193,9 @@ carried forward, not re-derived.
 
 #### Execution Status
 
-Record the completion status of each implementation step below. Update the Status column when a step is started or finished.
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`. Default rows for this workflow's Steps 1-7 (update
+the Status column as each step starts and finishes):
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
@@ -203,8 +206,6 @@ Record the completion status of each implementation step below. Update the Statu
 | 5 | Update documentation per routing.md mapping | Pending | — | — | |
 | 6 | Validate documentation updates | Pending | — | — | |
 | 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
-
-Status options: Pending / In Progress / Blocked / Completed
 
 #### Blocker Log
 
@@ -221,6 +222,4 @@ Record all artifacts produced during this implementation.
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-
-Type options: Test / Code Change / Doc Change / Issue
 

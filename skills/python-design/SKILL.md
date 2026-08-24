@@ -92,6 +92,10 @@ design checklist.
 ## Called by
 
 - `issue-to-plan` — during planning phase when design decisions or architecture analysis are required
+- `plan-to-implementation-procedure` — narrow usage only: draws a few relevant bullets
+  for its "Design decisions" / "Alternatives considered" / "Compatibility
+  considerations" / "Security considerations" / "Rollback considerations" fields, not
+  a full invocation of this skill's 12-section output
 
 ---
 

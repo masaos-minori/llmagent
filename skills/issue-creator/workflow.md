@@ -11,7 +11,8 @@ Identify:
 - whether the source already provides evidence (code review, investigation) or is request-only
 
 If requirements are incomplete, mark assumptions and open questions instead of inventing
-missing requirements.
+missing requirements — record them in the issue's `Unresolved Questions` section
+(per `templates/issue.md`), not only in this phase's internal reasoning.
 
 ---
 
@@ -37,7 +38,13 @@ Decide whether to split work into multiple issues or group it into one.
 
 ---
 
-## Phase 3: Draft Reason for Change and Implementation Intent
+## Phase 3: Draft Background, Problem, Reason for Change, and Implementation Intent
+
+**Background** — why this requirement exists: prior context, history, related decisions.
+Use `N/A: covered by Summary` when `Summary` already says everything relevant.
+
+**Problem** — the concrete problem being solved, stated separately from the general
+`Summary`. Use `N/A: {short reason}` for proposals that are not problem-driven.
 
 **Reason for Change** — explain why the change is needed. Include relevant context: current
 problem, maintenance risk, operational risk, correctness risk, documentation/code mismatch,
@@ -56,7 +63,14 @@ repository. Use `Unknown` if the exact file is not confirmed.
 
 **Required Changes** — list concrete changes as small, actionable bullets.
 
+**Constraints** — technical or domain constraints and limitations that bound the
+solution space (compatibility, performance, security, operational). Use
+`N/A: {short reason}` if none apply.
+
 **Out of Scope** — list what must not be changed in this issue.
+
+**Dependencies** — other issues, plans, or external work this issue depends on, or
+that depend on it. Use `N/A: none` if there are none.
 
 ---
 
@@ -147,9 +161,12 @@ When the issue is based on a user request only:
 
 Before finalizing issues, verify:
 - [ ] each issue is actionable
-- [ ] Reason for Change and Implementation Intent meet Phase 3
+- [ ] Background, Problem, Reason for Change, and Implementation Intent meet Phase 3
+  (or are explicitly `N/A` with a reason)
 - [ ] Acceptance Criteria and Testing Expectations meet Phase 5
-- [ ] Out of Scope items are explicit, per Phase 4
+- [ ] Constraints, Out of Scope, and Dependencies are explicit (or `N/A`), per Phase 4
+- [ ] Unresolved Questions reflects every open assumption from Phase 1 (or is `N/A: none`)
 - [ ] grouping follows Phase 2 criteria
 - [ ] Markdown safety follows Phase 9
 - [ ] no secrets or sensitive data are included (see `SKILL.md` Core Principles)
+- [ ] the issue follows `templates/issue.md`'s field order and names exactly

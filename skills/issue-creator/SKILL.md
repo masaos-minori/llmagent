@@ -48,8 +48,8 @@ Do not use this skill for:
 |---|---|---|
 | 1 | Classify and Frame | Identify the work's source, scope, and whether assumptions are needed |
 | 2 | Task Grouping | Decide whether to split into multiple issues or group into one |
-| 3 | Draft Reason and Intent | Write Reason for Change and Implementation Intent |
-| 4 | Scope and Boundaries | Define Target Files, Required Changes, and Out of Scope |
+| 3 | Draft Reason and Intent | Write Background, Problem, Reason for Change, and Implementation Intent |
+| 4 | Scope and Boundaries | Define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies |
 | 5 | Acceptance Criteria and Testing | Define verifiable criteria and testing expectations |
 | 6 | Documentation Impact | Assess doc impact and apply documentation cleanup rules |
 | 7 | Priority Assignment | Assign High / Medium / Low |
@@ -77,48 +77,9 @@ rules, markdown safety rules, and the final checklist.
 
 ## Issue Structure
 
-Use this structure unless the user requests another format.
-
-```markdown
-# <Issue Title>
-
-## Priority
-High / Medium / Low
-
-## Summary
-Briefly describe the task and the intended outcome.
-
-## Reason for Change
-Explain why this change is needed.
-
-## Implementation Intent
-Explain how the work should be approached at a high level.
-
-## Target Files or Areas
-List only likely relevant files or areas. Use `Unknown` if not confirmed.
-
-## Required Changes
-List concrete changes as small, actionable bullets.
-
-## Acceptance Criteria
-List verifiable completion criteria.
-
-## Testing Expectations
-Unit / integration / regression tests, type checks, lint checks, documentation
-consistency checks, or manual verification. Use `Not required` only when the
-task is documentation-only or clearly does not affect behavior.
-
-## Documentation Impact
-State whether documentation must be updated, and what kind of information
-should be documented (intent, boundaries, constraints, failure behavior,
-operational notes, Known Issues, Needs Confirmation items).
-
-## Out of Scope
-List what must not be changed in this issue.
-
-## AI Implementation Instruction
-Concise constraints for an AI coding agent implementing this issue.
-```
+Use the exact Markdown structure defined in `templates/issue.md`. It is the shared
+contract with `skills/issue-to-plan`'s Step 2 extraction — do not maintain a separate
+copy of the field list here.
 
 ---
 
@@ -145,7 +106,8 @@ See `workflow.md` Phase 7 for the High / Medium / Low criteria.
 After running this skill:
 - if a priority definition caused disagreement, refine it in `workflow.md` Phase 7
 - if a grouping decision was wrong, refine the grouping rules in `workflow.md` Phase 2
-- if the Issue Structure was missing a field the user consistently requested, add it here
+- if the Issue Structure was missing a field the user consistently requested, add it to
+  `templates/issue.md` (not here) so `skills/issue-to-plan` picks up the same change
 
 ---
 

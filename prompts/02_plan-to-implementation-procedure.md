@@ -2,29 +2,13 @@ You are a senior software architect and implementation writer.
 
 ## Workflow position
 
-```text
-issue file (issues/)
-  -> work plan document (plans/)
-  -> file-level implementation procedure document (implementations/)   <- this workflow
-  -> implementation, tests, and documentation updates
-```
-
-- Input: `plans/{filename}_plan.md`
-- Output: `implementations/{timestamp}_{target_file_slug}.md`, where
-  `target_file_slug` is `target_file_path` with `/` replaced by `_`
-
-This phase produces the **implementation procedure**, not an architecture design document.
-There is no separate design phase in this pipeline.
+See `skills/plan-to-implementation-procedure/workflow.md` Workflow position for the
+pipeline diagram, input/output paths, archive destination, and workflow phase name.
 
 ## Allowed file operations
 
-This is a document-only phase. Allowed operations:
-
-- Create implementation procedure documents in `implementations/`.
-- Move the processed plan file to `plans/done/` after the required review gate.
-- Do not modify source code files.
-- Do not update documentation (`docs/*.md`) — this phase does not allow it.
-- Do not modify files outside `implementations/` and the plan file being moved.
+See `skills/plan-to-implementation-procedure/workflow.md` Allowed file operations for
+the full scope of what this document-only phase may create, move, or must not touch.
 
 Read the target plan file, then produce file-level implementation procedure documents based on the rules below.
 
@@ -41,27 +25,17 @@ Read the target plan file, then produce file-level implementation procedure docu
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
 - Lifecycle rules: see `rules/workflow-lifecycle.md` (global safety restrictions, target validation, approval handling, archival move, completion criteria).
 - Traceability template: see `templates/traceability.md`.
+- Procedure (Steps 0-4, toolchain, multi-file processing): see
+  `skills/plan-to-implementation-procedure/SKILL.md` +
+  `skills/plan-to-implementation-procedure/workflow.md`.
 
 ## Out of scope
 
-Do not perform any of the following as part of this workflow:
-- unrelated refactoring
-- broad formatting-only rewrites
-- moving existing documentation files
-- changing workflow directory structure
-- changing implementation behavior during document-only phases
-- processing files under `__pycache__/`
-- interleaving multiple target files
-- parallel processing of target-file cycles
+See `skills/plan-to-implementation-procedure/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Report progress at the start and end of each step. Also record intermediate work status whenever a significant decision or change is made during execution.
-
-If multiple target plan files are specified, treat Steps 1-4 as one complete cycle per
-file: finish every step for the current file (through moving it to `plans/done/` in
-Step 4) before starting Step 1 for the next file. Do not batch-read multiple target files
-up front, and do not interleave steps across files.
+Report progress at the start and end of each step. Also record intermediate work status whenever a significant decision or change is made during execution. Multi-file processing: see `skills/plan-to-implementation-procedure/workflow.md` Multi-file processing.
 
 #### Step 0: Load required files
 
@@ -69,199 +43,40 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `rules/coding.md`
 - `rules/toolchain.md`
-- `skills/python-design/SKILL.md`
-- `skills/python-design/workflow.md`
 - `rules/ai-execution.md`
 - `rules/workflow-lifecycle.md`
 - `templates/traceability.md`
+- `skills/plan-to-implementation-procedure/SKILL.md`
+- `skills/plan-to-implementation-procedure/workflow.md`
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
 changed shared file.
 
+If a required file is missing, unreadable, or contradictory, stop and report `Blocked`.
+Do not infer missing instructions.
+
 #### Step 1: Identify the target plan file(s)
 
-- The target plan file(s) are provided by the user (e.g. `plans/{filename}_plan.md`), one path per file. The user may specify one file or a list of multiple files.
-- If multiple target files are specified, process them in filename (lexicographic) order.
-- If no target file is specified, stop immediately and ask the user to specify one or more.
-- If any specified file does not exist, stop immediately and report which file(s) are missing. Do not start processing any file until all specified paths are confirmed to exist.
-- **Do NOT read all target files upfront.** You will read each file individually when its turn comes in Step 2.
-- Do not read files under `plans/done/`.
+Follow `skills/plan-to-implementation-procedure/workflow.md` Step 1 in full.
 
 #### Step 2: Read the target plan file
 
-**Read ONLY the current file. Never read multiple target files simultaneously.**
-
-- Read the target plan file in full.
-- Identify the target feature and the related source files to modify.
-- Extract this plan's own Traceability section, specifically its `Source issue` value,
-  for reuse in this cycle's generated documents (Step 3). The Plan already carries this
-  value forward from the Issue that produced it — do not re-derive it from scratch.
-- If the plan is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
-- **After finishing all Steps 1-4 for this file, load the NEXT target file.** Do not preload or batch-read other files.
+Follow `skills/plan-to-implementation-procedure/workflow.md` Step 2 in full, including
+extracting the Plan's own `Source issue` value for reuse in Step 3.
 
 #### Step 3: Create implementation procedure documents
 
-For the "Design decisions" / "Alternatives considered" / "Compatibility considerations" /
-"Security considerations" / "Rollback considerations" fields below, apply
-`skills/python-design/SKILL.md` + `skills/python-design/workflow.md` (loaded in Step 0)
-for how to reason about them — but draw only the few relevant bullets from that skill's
-broader template; do not produce its full 12-section architecture output here.
-
-For each item in `Implementation steps`:
-
-- `target_file_path` is the repository-relative path of the file that item implements
-  and tests (e.g. `scripts/agent/foo.py`). `target_file_name` is its base name only.
-  Use `target_file_path` for traceability matching and output naming — `target_file_name`
-  alone is ambiguous when the same base name exists under multiple directories.
-- Check whether the item has already been implemented:
-  - An item may be skipped only when an existing document contains both:
-    - `Source plan` equal to the current repository-relative plan path.
-    - `Related target files` equal to the current repository-relative target path.
-  - Use `target_file_path`, not only `target_file_name`.
-  - Look for a corresponding file under `implementations/` or `implementations/done/` whose traceability matches both conditions above.
-  - If no matching document is found, the item is not yet implemented.
-  - If a matching document is found, confirm the scope covers the current item.
-  - If the content confirms the same scope, treat it as already implemented.
-  - If the content covers a different scope, an outdated goal, or only partially overlaps, treat it as NOT already implemented — proceed to create a new document, and note the discrepancy against the matched file in the progress report.
-- If already implemented (per the content check above), skip this item.
-- If traceability is missing or ambiguous, do not skip the item. Report `Needs confirmation`.
-- If not yet implemented, create the document only (do not implement anything):
-  - Create a file-level implementation and test procedure document.
-  - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Save the document as `implementations/{timestamp}_{target_file_slug}.md`, where
-    `target_file_slug` is `target_file_path` with `/` replaced by `_`. This keeps the
-    filename unique even when two target files share the same base name in different
-    directories.
-  - If the resulting path already exists, use the lowest available zero-padded
-    sequence — `implementations/{timestamp}_01_{target_file_slug}.md`,
-    `implementations/{timestamp}_02_{target_file_slug}.md` — and never overwrite an
-    existing file.
-
-Use this section structure:
-- Goal
-- Scope
-- Assumptions
-- Design decisions
-- Alternatives considered
-- Implementation
-  - Target file
-  - Procedure
-  - Method
-  - Details
-- Compatibility considerations
-- Security considerations
-- Rollback considerations
-- Validation plan
-- Out of scope
-- Execution Status
-- Traceability
-
-Keep each added section concise and file-level (a few bullets each); do not expand this
-into a broad architecture document. Use "N/A: {short reason}" for any section that does not apply to the
-item.
-
-Fill the Traceability section using the structure from `templates/traceability.md` with these values:
-- Workflow phase: plan-to-implementation-procedure
-- Source issue: the `Source issue` value extracted from the current target plan file's
-  own Traceability section in Step 2. Set to N/A only if the Plan's own Traceability
-  section genuinely has no Source issue (e.g. it legitimately records N/A itself) —
-  never default to N/A when the Plan carries a concrete value.
-- Source requirement: N/A: no standalone requirement document is generated
-- Source plan: the exact repository-relative path of the current target plan file
-  identified in Step 1/2 (e.g. `plans/{filename}_plan.md`)
-- Source implementation procedure: N/A: this document is the generated implementation procedure
-- Generated at: {timestamp from Step 3}
-- Related target files: {target_file_path}
-
-#### Execution Status section
-
-Add an Execution Status section with the following subsections and tables:
-
-##### Execution Status
-
-Pre-populate this table when the document is first created in Step 3 with the actual
-work steps this item requires — do not leave a single placeholder row. At minimum,
-include one row per concrete step below, split further if the item's Method/Details
-call for multiple distinct sub-steps:
-
-| Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
-
-Update the Status column as each step starts and finishes.
-
-Status options: Pending / In Progress / Blocked / Completed
-
-##### Blocker Log
-
-Record any blockers encountered during execution.
-
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
-| — | — | — | — |
-
-##### Work Items Created
-
-Record all work items created during this task.
-
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
-
-Type options: Test / Code Change / Doc Change / Issue
-
-#### Progress recording during Step 3
-
-During Step 3, record your work status after completing each sub-item in `Implementation steps`:
-- Note which target file you are working on
-- Record the current status (In Progress / Blocked / Completed) for each item
-- If blocked, describe the blocker and whether it requires user intervention
-- When moving to a new item, update the Execution Status table in the output document
-
+Follow `skills/plan-to-implementation-procedure/workflow.md` Step 3 in full: generate
+each document per `templates/implementation-procedure.md`, apply the already-implemented
+check keyed on `target_file_path`, and use the collision-safe `target_file_slug` naming
+with zero-padded sequencing.
 
 #### Step 4: Move the completed plan file
 
 **This step is mandatory. Do not skip it.**
 
-Before proceeding to Step 4, verify that the Execution Status section in the generated document accurately reflects the actual work performed:
-- All completed items show Completed status
-- Any blocked items have blocker descriptions filled in
-- Work Items Created table includes all artifacts produced
-
-- Report the generated file, validation result, unresolved items, and source file to be moved.
-- Stop and wait for explicit user approval.
-- Do not move the source file before approval.
-
-Before running the move, verify all of the following:
-- current state is `Awaiting approval`
-- approval explicitly applies to the current Plan file
-- every `Implementation steps` item in the Plan has been accounted for (already
-  implemented, newly created this cycle, or explicitly reported as `Needs confirmation`)
-- each document created or confirmed this cycle has an Execution Status section that
-  accurately reflects the actual work performed (per the check above)
-- the source Plan file exists
-- the destination `plans/done/{filename}` does not exist
-- `plans/done/` exists
-
-- After approval, resume from the move step.
-- Move the plan file to `plans/done/` using git mv or cp + rm.
-
-After the move, verify all of the following:
-- the file exists at `plans/done/{filename}`
-- the file no longer exists at its original `plans/` path
-- the move is recorded by the tool used (a Git rename/staged move for `git mv`, or an
-  equivalent confirmation for `cp + rm`)
-
-- **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
-- Only after confirming the move succeeded, consider the cycle complete.
-
-An unclear user response must not be treated as approval. Before approval, report `Awaiting approval`. Do not start the next target file while approval is pending.
-
-### Procedure-Specific Guidance
-
-- In Step 3, check "already implemented" status by first matching `target_file_slug` against file names under `implementations/` and `implementations/done/` as a cheap filter; only when a name matches, read that matched file's content (not the full target source file) to confirm its stated scope actually covers the current item before deciding to skip.
-- In Step 3, perform the per-item investigation (reading the related source file to write Method/Details) sequentially; read only the relevant sections of the target source file (locate them with grep first, then read a limited range) rather than the full file. Retain only what is needed for the procedure document, not full file contents.
+Follow `skills/plan-to-implementation-procedure/workflow.md` Step 4 in full: verify the
+Execution Status section reflects actual work, obtain explicit user approval, then
+`git mv` (or `cp` + `rm`) to `plans/done/` with its pre- and post-move verification
+checklist.

@@ -45,8 +45,9 @@ code files or `docs/*.md`.
 | 9 | Validate and await approval | Report and stop — do not move the Issue in the same response. |
 | 10 | Move the Issue after approval | `git mv` only, after explicit approval; no fallback. |
 
-See `workflow.md` for the detailed per-step procedure, toolchain, and multi-file
-processing rules.
+See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
+See `workflow-path-b.md` for the Path B-only toolchain and analysis procedure (load it
+only when Step 3 determines Path B).
 
 ---
 
@@ -76,13 +77,14 @@ baseline in Step 5 → Steps 6-10 run unconditionally.
 - [ ] Modifies or adds a database schema
 
 **Execution Path:**
-Perform Step 3's full inspection, then Step 5's full analysis (architecture, dependency
-graphing, historical analysis, operational dependency inspection, validation quality
-analysis). Do not skip any analysis.
+Load `workflow-path-b.md` now (do not load it eagerly in Step 0 — only once Path B is
+determined here) and perform its full analysis (architecture, dependency graphing,
+historical analysis, operational dependency inspection), then `workflow.md` Step 5's
+validation quality analysis. Do not skip any analysis.
 
 > **IMPORTANT — Tool Availability Guard (For AI):** applies to `pydeps`, `radon`,
-> `semgrep` and any other tool used in `workflow.md` — see `skills/DESIGN.md` Tool
-> availability guard.
+> `semgrep` and any other tool used in `workflow.md` / `workflow-path-b.md` — see
+> `skills/DESIGN.md` Tool availability guard.
 
 ---
 
@@ -108,120 +110,12 @@ analysis). Do not skip any analysis.
 
 ## Output format
 
-Generate `plans/{timestamp}_plan.md` using this exact Markdown structure. Do not omit
-any sections.
-
-```markdown
-## Goal
-- [Clear statement of what the program will achieve and what problem it solves]
-
-## Priority
-High / Medium / Low
-
-## Scope
-- **In-Scope**: [List of explicit items to be implemented]
-- **Out-of-Scope**: [List of items explicitly excluded from this task]
-
-## Background
-[Why this requirement exists]
-
-## Problem
-[The concrete problem being solved]
-
-## Reason for change
-[Why this change is needed now]
-
-## Implementation intent
-[High-level approach, without prescribing exact code]
-
-## Requirements
-- `REQ-001`: [...]
-- `REQ-002`: [...]
-
-## Acceptance criteria
-[Verifiable completion criteria, each referencing a Requirement ID]
-
-## Tests
-[Testing expectations, each referencing a Requirement ID]
-
-## Assumptions
-- [List any technical or domain assumptions made during analysis]
-
-## Unknowns
-| ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
-|---|---|---|---|---|
-| UNK-01 | | | | |
-
-## Affected areas
-`skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
-columns:
-
-| File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
-|---|---|---|---|---|---|
-| | | | | | |
-
-## Design
-[Architecture/design decisions, grounded in Step 5 analysis]
-
-## Implementation steps
-1. **Phase 1: Preparation / Refactoring (if needed)**
-   - [ ] Step description (Requirement ID)
-2. **Phase 2: Core Logic Implementation**
-   - [ ] Step description (Requirement ID)
-3. **Phase 3: Deployment & Verification**
-   - [ ] Step description (Mandatory: include deployment validation/scripts check)
-
-## Validation plan
-| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
-|---|---|---|---|
-| | | | |
-
-## Risks
-- **Risk**: [Description] → **Mitigation**: [Description]
-
-## Execution Status
-
-### Execution Status
-| Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
-
-### Blocker Log
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
-| — | — | — | — |
-
-### Work Items Created
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
-
-## Traceability
-- **Workflow phase**: issue-to-plan
-- **Source issue**: {path}
-- **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: N/A: this document is the generated plan
-- **Source implementation procedure**: N/A: not applicable in this phase
-- **Generated at**: {timestamp}
-- **Related target files**: {paths}
-
-### Requirement Traceability
-See `templates/requirement-traceability.md` for the canonical column format.
-```
-
-Notes on filling "Affected areas": populate Churn/Bus Factor from Step 5's historical
-analysis and Blast Radius from Step 5's dependency graphing — mark `N/A` if Path A
-skipped that analysis. Fill `deploy.sh Impact` per `skills/DESIGN.md` Change-impact
-table — always state it explicitly. If documentation must be updated, name the target
-doc via `docs/00_index.md` Task-specific document reference (or `routing.md` Docs → task
-mapping for new modules) — do not hardcode doc filenames here, they change as docs are
-split.
+Generate `plans/{timestamp}_plan.md` using the exact Markdown structure defined in
+`templates/plan.md`. Do not omit any section.
 
 ## See Also
 See `workflow.md` for detailed phase content, commands, and the toolchain reference.
 See `rules/env.md` for service ports, DB schema, and module decomposition.
-See `prompts/01_issue-to-plan.md` for how this skill is invoked as part of the
-document-workflow pipeline.
 
 ## Plan output
 
@@ -230,7 +124,8 @@ Save the generated plan to `plans/YYYYMMDD-HHMMSS_plan.md` (e.g.
 scope changes, and reference it when starting implementation with `python-implementation`.
 
 ## Composes with
-- `python-implementation` — execute after the plan is approved by the user
+- `plan-to-implementation-procedure` — the next pipeline phase once the plan is approved; converts it into file-level implementation procedure documents
+- `python-implementation` — executes the resulting implementation procedure documents
 - `python-refactoring` — if the plan involves structural module changes
 - `mcp-server-add` — if the plan includes adding a new MCP server
 
@@ -238,6 +133,8 @@ scope changes, and reference it when starting implementation with `python-implem
 
 After running this skill, if a tool was not installed or a step produced no useful
 evidence: update `workflow.md` with the lightweight alternative and the "if installed"
-guard. If the requirement-equivalent section structure was missing a field the user
-consistently requested, or a Step needed clarification, update `workflow.md`
-accordingly.
+guard. If the Plan output structure was missing a field the user consistently
+requested, add it to `templates/plan.md` (not here). If an Issue input field was
+consistently missing or ambiguous, add it to `templates/issue.md` (shared with
+`skills/issue-creator`), not to this skill's own files. If a Step needed
+clarification, update `workflow.md` accordingly.
