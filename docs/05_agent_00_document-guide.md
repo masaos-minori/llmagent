@@ -44,8 +44,8 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Known Limitations
 
-- [NC-001](00_governance_07_needs-confirmation-inventory.md#nc-001): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
-- [NC-004](00_governance_07_needs-confirmation-inventory.md#nc-004): Distance measurement cosine/L2 determination impossibility
+- [NC-001](00_governance_14_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
+- [NC-004](00_governance_14_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
 
 ## Related Docs
 
@@ -53,11 +53,10 @@ The value of this document is navigation logic — human-curated guidance on whi
 - [Documentation Governance](00_governance_01_documentation-governance.md)
 - [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
 - [Evidence Labels](00_governance_03_evidence-labels.md)
-- [Known Issues Template](00_governance_04_known-issues-template.md)
-- [Deprecated Items](00_governance_05_deprecated-items.md)
-- [AI Reading Metadata](00_governance_06_ai-reading-metadata.md)
-- [Needs Confirmation Inventory](00_governance_07_needs-confirmation-inventory.md)
-- [Terminology Glossary](00_governance_09_terminology-glossary.md)
+- [Known Issues Template](00_governance_14_issue-and-uncertainty-management.md)
+- [Deprecated Items](00_governance_14_issue-and-uncertainty-management.md)
+- [AI Reading Metadata](00_governance_13_documentation-metadata.md)
+- [Terminology Glossary](00_governance_13_documentation-metadata.md)
 - [ADR Index](00_governance_11_adr-index.md)
 
 ### Related ADRs

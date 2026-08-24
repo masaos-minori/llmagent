@@ -82,7 +82,7 @@ source:
   [Explicit in code] — Based on grep results, there are no references to this file except for its own definition.
 - The actual runtime configuration contract used by `RagPipeline` is the `RagConfig` (Protocol) in `shared/types.py`, whose docstring states: "The `rag.models_config.*` files are DTOs for the ingestion TOML format."
   However, as mentioned above, ingestion scripts currently use direct dictionary access and there is no confirmed connection with the dataclasses in this file.
-- [Resolved: NC-002] — The `ResultSource` mentioned in this file has already been deprecated; the current `ResultSource` is actually used as `SearchDiagnostics.result_source` in `scripts/rag/models_result.py`.
+- The `ResultSource` mentioned in this file has already been deprecated; the current `ResultSource` is actually used as `SearchDiagnostics.result_source` in `scripts/rag/models_result.py`.
 
 ## Related Documents
 

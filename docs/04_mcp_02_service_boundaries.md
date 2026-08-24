@@ -179,7 +179,7 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 
 ## Unconfirmed Items
 
-- [NC-004](00_governance_07_needs-confirmation-inventory.md#nc-004): Cross-server tool coordination protocol
+- [NC-004](00_governance_14_issue-and-uncertainty-management.md): Cross-server tool coordination protocol
 
 ## Related Documents
 

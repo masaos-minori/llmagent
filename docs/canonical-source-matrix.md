@@ -26,7 +26,7 @@ This matrix defines which artifact is authoritative for each decision target, wh
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
 | API Contract | API Schema or official Contract | Integration Test | Known Issues |
 | Operational Procedures | Operations / Runbook | Operational Validation | Known Issues |
-| Deprecated Items | `docs/00_governance_05_deprecated-items.md` (redirect) | Code Search | Deprecated Items |
+| Deprecated Items | `docs/00_governance_14_issue-and-uncertainty-management.md` | Code Search | Deprecated Items |
 | Unconfirmed Items | `docs/00_governance_14_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
 
 ## Notes

@@ -40,7 +40,7 @@ source:
 | `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | Updates the ETag/Last-Modified of an existing document; returns early if both `etag` and `last_modified` are `None`. |
 
 **Boundary Conditions:**
-- `ETagManager` itself issues SQL only for the `doc_id` received in its `__init__`. The caller is responsible for passing the correct `doc_id`. **Resolved (NC-003)**: `document_manager.py`'s `_update_etag()` has been fixed to accept a `doc_id: int` argument and pass it to `ETagManager(self._db, doc_id)`, and since `handle_existing_document()` passes `existing_doc_id` through the entire path, ETag updates during existing document re-fetching function as intended.
+- `ETagManager` itself issues SQL only for the `doc_id` received in its `__init__`. The caller is responsible for passing the correct `doc_id`. `document_manager.py`'s `_update_etag()` accepts a `doc_id: int` argument and passes it to `ETagManager(self._db, doc_id)`, and since `handle_existing_document()` passes `existing_doc_id` through the entire path, ETag updates during existing document re-fetching function as intended.
 
 ## 4.9 Configuration (`config/ingester.toml`)
 

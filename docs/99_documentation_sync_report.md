@@ -85,7 +85,7 @@ follow-up task to correct ADR-001's stale forward references.
 
 ## Missing evidence
 
-- MCP-005 (Git MCP audit `target` field emptiness) is based on code reading, not a captured live log line — tracked as NC-020 in `00_governance_07_needs-confirmation-inventory.md`.
+- MCP-005 (Git MCP audit `target` field emptiness) is based on code reading, not a captured live log line — tracked as NC-020 in `00_governance_14_issue-and-uncertainty-management.md`.
 - The absence of any corruption-recovery path for `eventbus.sqlite` is a confirmed-by-absence finding (no code found), which is inherently a weaker form of evidence than a positive behavioral test; flagged accordingly in the design document and Known Issue.
 - Whether the Git MCP guard gaps (protected-branch, Force-Push) are an intentional design choice (local git assumed to be the user's own responsibility) or an oversight remains an open owner decision, carried forward from a pre-existing open question in `04_mcp_04_05_git.md` — tracked as NC-019.
 - The DB recovery target design's structured integrity-result classification (section 9.3 of `90_shared_05_04_db_api_and_operations-recovery-and-reference.md`) has not been reviewed by the owner — tracked as NC-021.

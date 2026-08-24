@@ -83,7 +83,7 @@ python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip
 Verifies the NC inventory stays in sync with `docs/*.md`.
 
 **Checks:**
-- "Needs confirmation" mentions in docs are registered in the centralized inventory (`00_governance_07_needs-confirmation-inventory.md`)
+- "Needs confirmation" mentions in docs are registered in the centralized inventory (`00_governance_14_issue-and-uncertainty-management.md`)
 - Resolved NC items do not leave markers in source documents
 - Field count declarations match actual list item counts
 

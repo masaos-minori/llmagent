@@ -140,7 +140,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 ⑥ Audit Logging           `agent/tool_audit.py` — Records `classify_operation_type()` result as `operation_type`
 ```
 
-**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership), ④ is batch execution parallel/serial control, and ⑤ is approval risk assessment and audit classification; all three refer to the `shared/tool_constants.py` frozenset, but missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` previously only referenced `WRITE_TOOLS`/`DELETE_TOOLS`/GitHub sets, misclassifying tools in `MDQ_WRITE_TOOLS, RAG_WRITE_TOOLS, CICD_WRITE_TOOLS, GIT_WRITE_TOOLS (e.g., `index_paths`, `refresh_index`, `rag_delete_document`, `trigger_workflow`, `git_add`, etc.) as `read`. (This has been fixed). `tests/test_tool_policy_comprehensive.py` and `tests/test_tool_approval_risk.py` verify this classification regression.
+**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership), ④ is batch execution parallel/serial control, and ⑤ is approval risk assessment and audit classification; all three refer to the `shared/tool_constants.py` frozenset, but missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` references `WRITE_TOOLS`/`DELETE_TOOLS`/GitHub sets plus `MDQ_WRITE_TOOLS, RAG_WRITE_TOOLS, CICD_WRITE_TOOLS, GIT_WRITE_TOOLS` (e.g., `index_paths`, `refresh_index`, `rag_delete_document`, `trigger_workflow`, `git_add`, etc.). `tests/test_tool_policy_comprehensive.py` and `tests/test_tool_approval_risk.py` verify this classification.
 
 ### Serialization mechanism integrated into a single scheduler
 
