@@ -44,20 +44,16 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Known Limitations
 
-- [NC-001](00_governance_14_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
-- [NC-004](00_governance_14_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
+- [NC-001](00_governance_03_issue-and-uncertainty-management.md): UTF8_PARTIAL_DECODE_ERROR and PREMATURE_EOF distinction
+- [NC-004](00_governance_03_issue-and-uncertainty-management.md): Distance measurement cosine/L2 determination impossibility
 
 ## Related Docs
 
 ### Governance
-- [Documentation Governance](00_governance_01_documentation-governance.md)
-- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
-- [Evidence Labels](00_governance_03_evidence-labels.md)
-- [Known Issues Template](00_governance_14_issue-and-uncertainty-management.md)
-- [Deprecated Items](00_governance_14_issue-and-uncertainty-management.md)
-- [AI Reading Metadata](00_governance_13_documentation-metadata.md)
-- [Terminology Glossary](00_governance_13_documentation-metadata.md)
-- [ADR Index](00_governance_11_adr-index.md)
+- [Documentation Policy](00_governance_01_documentation-policy.md)
+- [Documentation Metadata](00_governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](00_governance_04_documentation-checks.md)
 
 ### Related ADRs
 - [ADR-001](adr/ADR-001-workflow-engine-mandatory.md) — Workflow Engine必須化

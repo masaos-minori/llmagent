@@ -126,7 +126,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Related**: MCP-003
 - **Summary**: The audit call site passes `req.args.get("repo", "")` as the audit `target`, but Git MCP's input schema uses the key `repo_path`, not `repo`.
 - **Current Description**: Read from code, this means the audit `target` field for every git-mcp call is likely always the empty-string default.
-- **Observed Implementation**: Not yet confirmed by capturing a live audit log line — tracked as NC-020 in `00_governance_14_issue-and-uncertainty-management.md` rather than a fully verified bug.
+- **Observed Implementation**: Not yet confirmed by capturing a live audit log line — tracked as NC-020 in `00_governance_03_issue-and-uncertainty-management.md` rather than a fully verified bug.
 - **Impact**: If confirmed, Git MCP audit entries carry no repository identity, weakening the audit trail for a High-Severity write surface (see MCP-003).
 - **Recommended Action**: Confirm by inspecting an actual audit log line for a git-mcp call; if `target` is empty, fix the key to `repo_path`.
 - **Resolution Notes**: Open, pending confirmation.

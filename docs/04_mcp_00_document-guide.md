@@ -121,13 +121,10 @@ Provides guidance on determining which chapters to open as the entry point for t
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Governance](00_governance_01_documentation-governance.md)
-- [Canonical Source Rule](00_governance_02_canonical-source-rule.md)
-- [Evidence Labels](00_governance_03_evidence-labels.md)
-- [Known Issues Template](00_governance_14_issue-and-uncertainty-management.md)
-- [Deprecated Items](00_governance_14_issue-and-uncertainty-management.md)
-- [AI Reading Metadata](00_governance_13_documentation-metadata.md)
-- [Terminology Glossary](00_governance_13_documentation-metadata.md)
+- [Documentation Policy](00_governance_01_documentation-policy.md)
+- [Documentation Metadata](00_governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](00_governance_04_documentation-checks.md)
 
 ## Migration Notes
 
@@ -156,9 +153,9 @@ Old MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were kep
 
 ## Unconfirmed Items
 
-- [NC-002](00_governance_14_issue-and-uncertainty-management.md): Reason for unused ResultSource field
-- [NC-005](00_governance_14_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
-- [NC-006](00_governance_14_issue-and-uncertainty-management.md): Future usability of result_source field
+- [NC-002](00_governance_03_issue-and-uncertainty-management.md): Reason for unused ResultSource field
+- [NC-005](00_governance_03_issue-and-uncertainty-management.md): Dead code detection for AuditLogRecord/ApprovalDecision (resolved)
+- [NC-006](00_governance_03_issue-and-uncertainty-management.md): Future usability of result_source field
 
 *Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 

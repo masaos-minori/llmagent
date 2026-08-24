@@ -172,7 +172,7 @@ High-risk tools require explicit approval before execution. The approval flow fo
 
 ## Unconfirmed Items
 
-- [NC-003](00_governance_14_issue-and-uncertainty-management.md): Tool capability naming convention enforcement
+- [NC-003](00_governance_03_issue-and-uncertainty-management.md): Tool capability naming convention enforcement
 
 ## Related Documents
 
