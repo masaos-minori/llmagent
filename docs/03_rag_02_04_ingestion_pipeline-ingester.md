@@ -1,6 +1,6 @@
 ---
 title: "RagIngester Detail (Part 1)"
-category: rag
+area: rag
 tags:
   - ingester
   - embedding

@@ -1,6 +1,6 @@
 ---
 title: "Agent Operations and Observability - Workflow Observability"
-category: agent
+area: agent
 tags:
   - agent
   - operations

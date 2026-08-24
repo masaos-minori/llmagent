@@ -1,6 +1,6 @@
 ---
 title: "Tool Call Dispatch Flow and Routing Resolution"
-category: mcp
+area: mcp
 tags:
   - mcp
   - routing

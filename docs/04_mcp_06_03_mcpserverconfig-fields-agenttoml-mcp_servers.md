@@ -1,6 +1,6 @@
 ---
 title: "McpServerConfig Fields (agent.toml `[mcp_servers.*]`)"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

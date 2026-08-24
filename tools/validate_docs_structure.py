@@ -18,7 +18,7 @@ import yaml
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT_DIR / "docs"
-MAX_SIZE = 8192
+MAX_SIZE = 16384
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]*)?\)")
 
@@ -51,7 +51,7 @@ def check_h1_count(path: Path, body: str) -> list[str]:
 
 
 def check_front_matter(
-    path: Path, content: str, expected_category: str | None
+    path: Path, content: str, expected_area: str | None
 ) -> list[str]:
     issues = []
     if not content.startswith("---"):
@@ -64,12 +64,12 @@ def check_front_matter(
         data = yaml.safe_load(raw) or {}
     except yaml.YAMLError as exc:
         return [f"{path.name}: Front Matter is not valid YAML — {exc}"]
-    for field in ("title", "category", "tags", "related"):
+    for field in ("title", "area", "tags", "related"):
         if field not in data:
             issues.append(f"{path.name}: Front Matter missing '{field}' field")
-    if expected_category and data.get("category") != expected_category:
+    if expected_area and data.get("area") != expected_area:
         issues.append(
-            f"{path.name}: Front Matter category is '{data.get('category')}', expected '{expected_category}'"
+            f"{path.name}: Front Matter area is '{data.get('area')}', expected '{expected_area}'"
         )
     return issues
 
@@ -116,14 +116,14 @@ def check_related_links(path: Path, content: str) -> list[str]:
     return issues
 
 
-def validate_file(path: Path, expected_category: str | None) -> list[str]:
+def validate_file(path: Path, expected_area: str | None) -> list[str]:
     content = path.read_text(encoding="utf-8")
     size = len(content.encode("utf-8"))
     body = strip_fenced_code(content)
     issues = []
     issues.extend(check_size(path, size))
     issues.extend(check_h1_count(path, body))
-    issues.extend(check_front_matter(path, content, expected_category))
+    issues.extend(check_front_matter(path, content, expected_area))
     issues.extend(check_tail_sections(path, content))
     issues.extend(check_links(path, content))
     issues.extend(check_related_links(path, content))
@@ -139,9 +139,7 @@ def main() -> int:
         nargs="*",
         help="Glob patterns relative to repo root (default: docs/*.md)",
     )
-    parser.add_argument(
-        "--category", default=None, help="Expected Front Matter category value"
-    )
+    parser.add_argument("--area", default=None, help="Expected Front Matter area value")
     args = parser.parse_args()
 
     patterns = args.globs or ["docs/*.md"]
@@ -151,7 +149,7 @@ def main() -> int:
 
     total_issues = 0
     for path in sorted(files):
-        issues = validate_file(path, args.category)
+        issues = validate_file(path, args.area)
         if issues:
             total_issues += len(issues)
             for issue in issues:

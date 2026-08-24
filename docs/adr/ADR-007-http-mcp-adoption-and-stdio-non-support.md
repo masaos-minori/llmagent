@@ -1,13 +1,6 @@
 ---
 title: "ADR-007: HTTP MCP採用とstdio非サポート"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - mcp-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - mcp
 related:

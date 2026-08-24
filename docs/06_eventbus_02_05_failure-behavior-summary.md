@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Failure Behavior Summary"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - error-handling

@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: DLQ Background Loop"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - dlq
@@ -10,7 +10,7 @@ tags:
   - optimistic-lock
   - orphan-promotion
   - requeue
-12: related:
+related:
   - 06_eventbus_00_document-guide.md
   - 06_eventbus_01_system-overview.md
   - 06_eventbus_02_03_nack-health-dlq.md

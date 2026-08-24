@@ -1,13 +1,6 @@
 ---
 title: "ADR-005: RAGの正本と派生インデックスの関係"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - rag-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - rag
 related:

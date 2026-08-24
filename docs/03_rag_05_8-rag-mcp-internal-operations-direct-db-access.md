@@ -1,6 +1,6 @@
 ---
 title: "RAG MCP Internal Operations (Direct DB Access)"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - CommandRegistry"
-category: agent
+area: agent
 tags:
   - agent
   - cli

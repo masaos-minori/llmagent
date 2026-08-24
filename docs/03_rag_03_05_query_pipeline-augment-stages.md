@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline - Augment Stages"
-category: rag
+area: rag
 tags:
   - rerank-stage
   - augment-stage

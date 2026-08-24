@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Hot-Reload Scope"
-category: agent
+area: agent
 tags:
   - agent
   - cli

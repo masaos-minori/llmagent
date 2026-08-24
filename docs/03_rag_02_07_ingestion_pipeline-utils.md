@@ -1,6 +1,6 @@
 ---
 title: "Ingestion Pipeline Utilities"
-category: rag
+area: rag
 tags:
   - crawler-utils
   - chunk-english-mixin

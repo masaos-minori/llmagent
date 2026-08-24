@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Migration Notes"
-category: agent
+area: agent
 tags:
   - agent
   - cli

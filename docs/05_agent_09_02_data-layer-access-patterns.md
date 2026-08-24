@@ -1,6 +1,6 @@
 ---
 title: "Agent Data Layer - Access Patterns"
-category: agent
+area: agent
 tags:
   - agent
   - data-layer

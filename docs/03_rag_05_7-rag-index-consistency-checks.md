@@ -1,6 +1,6 @@
 ---
 title: "RAG index consistency checks"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

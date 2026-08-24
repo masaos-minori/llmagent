@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: System Overview"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - system-overview

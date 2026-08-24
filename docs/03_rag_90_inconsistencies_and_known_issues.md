@@ -11,7 +11,7 @@ This document was populated on 2026-08-06 based on the audit of requirement `req
 
 **Source format:** Ad hoc bullet fields (entries used informal bullet lists with fields like "Description", "Impact", "Resolution", but lacked standardized field set)
 
-**Destination format:** Common Known Issues Template (17 fields per `00_governance_04_known-issues-template.md`)
+**Destination format:** Common Known Issues Template (17 fields per `00_governance_14_issue-and-uncertainty-management.md`)
 
 **Field-by-field confirmation for RAG-003 and RAG-004:**
 

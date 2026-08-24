@@ -1,6 +1,6 @@
 ---
 title: "Memory Layer - Module Reference: Ops and Scoring"
-category: agent
+area: agent
 tags:
   - agent
   - memory

@@ -1,6 +1,6 @@
 ---
 title: "Agent State and Persistence - Platform Databases"
-category: agent
+area: agent
 tags:
   - agent
   - state

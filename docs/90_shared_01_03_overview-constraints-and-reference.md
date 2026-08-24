@@ -1,6 +1,6 @@
 ---
 title: "Shared and DB Layer Overview - Constraints and Reference"
-category: shared
+area: shared
 tags:
   - shared
   - db

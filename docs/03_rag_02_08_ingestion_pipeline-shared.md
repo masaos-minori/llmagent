@@ -1,6 +1,6 @@
 ---
 title: "Chunk Japanese Mixin, Pipeline Utils, and FTS5 Notes"
-category: rag
+area: rag
 tags:
   - chunk-japanese
   - pipeline-utils

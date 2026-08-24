@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline - Tests"
-category: rag
+area: rag
 tags:
   - rag-tests
   - quality-regression

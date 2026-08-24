@@ -1,6 +1,6 @@
 ---
 title: "Agent Configuration - LLMConfig and RAGConfig"
-category: agent
+area: agent
 tags:
   - agent
   - configuration

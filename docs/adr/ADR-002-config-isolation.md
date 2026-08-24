@@ -1,13 +1,6 @@
 ---
 title: "ADR-002: プロセス単位の設定所有権とConfig Isolation"
-category: adr
-status: accepted
-date: "2026-08-20"
-last_updated: "2026-08-20"
-owners:
-  - agent-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - system
 related:

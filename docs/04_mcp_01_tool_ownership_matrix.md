@@ -1,6 +1,6 @@
 ---
 title: "MCP Tool Ownership Matrix"
-category: mcp
+area: mcp
 tags:
   - mcp
   - tools

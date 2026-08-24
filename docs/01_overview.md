@@ -1,6 +1,6 @@
 ---
 title: "System Overview Index"
-category: overview
+area: overview
 tags:
   - system-overview
   - architecture

@@ -1,6 +1,6 @@
 ---
 title: "Agent Tool Execution and Approval - Execution"
-category: agent
+area: agent
 tags:
   - agent
   - tool-execution

@@ -1,6 +1,6 @@
 ---
 title: "Shared/DB Inconsistencies and Known Issues"
-category: shared
+area: shared
 tags:
   - shared
   - db
@@ -113,7 +113,7 @@ ADR-005 states that chunks_vec must be deleted before documents. This has been v
 
 ### CI-012: ADR-006 INV-01 — EventBus offset monotonicity (verified but needs test coverage)
 
-ADR-006 states that EventBus offsets must be monotonically increasing. This has been verified via code inspection (`seq > current` enforcement confirmed in offsets.py line 32), but there is NO automated test covering this invariant. Status: open / Severity: Medium / Type: missing test coverage. Impact: Without test coverage, regression of this invariant cannot be caught automatically. Action: Add unit test for offset monotonicity enforcement. Design reference: [ADR-006 INV-01](adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md).
+ADR-006 states that EventBus offsets must be monotonically increasing. This has been verified via code inspection (`seq > current` enforcement confirmed in `write_offset()` function, `scripts/eventbus/offsets.py`), but there is NO automated test covering this invariant. Status: open / Severity: Medium / Type: missing test coverage. Impact: Without test coverage, regression of this invariant cannot be caught automatically. Action: Add unit test for offset monotonicity enforcement. Design reference: [ADR-006 INV-01](adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md).
 
 ### CI-013: ADR-007 INV-01 — stdio transport prohibition (verified but needs test coverage)
 

@@ -1,6 +1,6 @@
 ---
 title: "RAG System Overview (Part 1)"
-category: rag
+area: rag
 tags:
   - rag
   - system

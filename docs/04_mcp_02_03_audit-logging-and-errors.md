@@ -1,6 +1,6 @@
 ---
 title: "MCP Audit Log Format and Common Error Handling"
-category: mcp
+area: mcp
 tags:
   - mcp
   - audit

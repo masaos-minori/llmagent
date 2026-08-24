@@ -1,6 +1,6 @@
 ---
 title: "MCP Documentation Guide"
-category: mcp
+area: mcp
 tags:
   - mcp
   - documentation

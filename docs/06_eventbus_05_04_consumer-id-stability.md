@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Consumer ID Stability"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - consumer-id

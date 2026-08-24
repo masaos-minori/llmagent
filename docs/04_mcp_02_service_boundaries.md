@@ -1,6 +1,6 @@
 ---
 title: "MCP Service Boundaries"
-category: mcp
+area: mcp
 tags:
   - mcp
   - service-boundaries

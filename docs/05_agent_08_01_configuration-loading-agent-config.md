@@ -1,6 +1,6 @@
 ---
 title: "Agent Configuration - Loading and AgentConfig Structure (Part 1)"
-category: agent
+area: agent
 tags:
   - agent
   - configuration

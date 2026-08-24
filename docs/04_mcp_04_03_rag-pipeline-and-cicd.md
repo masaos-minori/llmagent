@@ -1,6 +1,6 @@
 ---
 title: "MCP Server Catalog: rag-pipeline-mcp / cicd-mcp"
-category: mcp
+area: mcp
 tags:
   - mcp
   - server-catalog

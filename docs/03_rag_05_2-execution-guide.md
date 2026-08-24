@@ -1,6 +1,6 @@
 ---
 title: "2. Execution Guide"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

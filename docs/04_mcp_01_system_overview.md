@@ -1,6 +1,6 @@
 ---
 title: "MCP System Overview"
-category: mcp
+area: mcp
 tags:
   - mcp
   - system

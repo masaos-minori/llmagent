@@ -1,6 +1,6 @@
 ---
 title: "6.2 models_result.py (`scripts/rag/models_result.py`)"
-category: rag
+area: rag
 tags:
   - rag
   - dto

@@ -1,6 +1,6 @@
 ---
 title: "Pipeline Architecture"
-category: overview
+area: overview
 tags:
   - pipeline-architecture
   - ingestion-pipeline

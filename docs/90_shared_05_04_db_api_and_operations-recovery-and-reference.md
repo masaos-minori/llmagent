@@ -1,6 +1,6 @@
 ---
 title: "DB API and Operations - Recovery and Reference"
-category: shared
+area: shared
 tags:
   - shared
   - db

@@ -1,6 +1,6 @@
 ---
 title: "RAG Ingestion Pipeline - Supporting Components"
-category: rag
+area: rag
 tags:
   - etag-manager
   - ingestion-configuration

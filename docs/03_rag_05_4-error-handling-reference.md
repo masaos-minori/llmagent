@@ -1,6 +1,6 @@
 ---
 title: "4. Error Handling Reference"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

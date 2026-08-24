@@ -1,6 +1,6 @@
 ---
 title: "Feature Architecture"
-category: overview
+area: overview
 tags:
   - feature-architecture
   - implemented-features

@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Known Inconsistencies and Issues"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - known-issues

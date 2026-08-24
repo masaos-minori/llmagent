@@ -1,6 +1,6 @@
 ---
 title: "Agent Operations and Observability - Startup and Health"
-category: agent
+area: agent
 tags:
   - agent
   - operations

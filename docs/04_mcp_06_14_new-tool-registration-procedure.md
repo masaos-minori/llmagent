@@ -1,6 +1,6 @@
 ---
 title: "New Tool Registration Procedure"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

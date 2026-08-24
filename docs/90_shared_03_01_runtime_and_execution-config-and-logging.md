@@ -1,6 +1,6 @@
 ---
 title: "Shared Runtime and Execution - Config and Logging"
-category: shared
+area: shared
 tags:
   - shared
   - runtime

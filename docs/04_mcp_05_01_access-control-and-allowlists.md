@@ -1,6 +1,6 @@
 ---
 title: "MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists"
-category: mcp
+area: mcp
 tags:
   - mcp
   - security

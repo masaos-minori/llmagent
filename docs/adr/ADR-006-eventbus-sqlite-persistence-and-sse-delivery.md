@@ -1,13 +1,6 @@
 ---
 title: "ADR-006: EventBusのSQLite永続化とSSE配信方式"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - eventbus-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - eventbus
 related:

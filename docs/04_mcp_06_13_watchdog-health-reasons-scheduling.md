@@ -1,6 +1,6 @@
 ---
 title: "MCP Health Reasons and Scheduling"
-category: mcp
+area: mcp
 tags:
   - mcp
   - health-reasons

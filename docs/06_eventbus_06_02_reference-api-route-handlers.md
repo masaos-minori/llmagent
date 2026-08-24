@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Reference API — Route Handlers"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - api-reference

@@ -1,6 +1,6 @@
 ---
 title: "Shared and DB Layer Overview - Purpose and Scope"
-category: shared
+area: shared
 tags:
   - shared
   - overview

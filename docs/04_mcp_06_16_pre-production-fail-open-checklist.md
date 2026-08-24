@@ -1,6 +1,6 @@
 ---
 title: "Pre-Production Fail-Open Checklist"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

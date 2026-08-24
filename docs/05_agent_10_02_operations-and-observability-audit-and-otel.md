@@ -1,6 +1,6 @@
 ---
 title: "Agent Operations and Observability - Audit Log and OTel"
-category: agent
+area: agent
 tags:
   - agent
   - operations

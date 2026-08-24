@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: DLQ, Offsets, and Delivery Semantics"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - dlq

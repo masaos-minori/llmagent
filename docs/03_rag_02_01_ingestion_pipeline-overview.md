@@ -1,6 +1,6 @@
 ---
 title: "Ingestion Pipeline Overview and Execution"
-category: rag
+area: rag
 tags:
   - ingestion-pipeline
   - execution-guide

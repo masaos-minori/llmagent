@@ -1,6 +1,6 @@
 ---
 title: "Agent Inconsistencies and Known Issues"
-category: agent
+area: agent
 tags:
   - agent
   - inconsistencies
@@ -24,7 +24,7 @@ Records known bugs, specification contradictions, documentation inconsistencies,
 
 ## 5-Tier Scheme Exception Rationale
 
-This document retains its 5-tier classification scheme (Design Decision / Implementation Bug / Documentation Gap / Needs Confirmation / Operational Observation) as an intentional, documented area-specific exception to the common 17-field Known Issues template (`00_governance_04_known-issues-template.md`).
+This document retains its 5-tier classification scheme (Design Decision / Implementation Bug / Documentation Gap / Needs Confirmation / Operational Observation) as an intentional, documented area-specific exception to the common 17-field Known Issues template (`00_governance_14_issue-and-uncertainty-management.md`).
 
 **Rationale:** The 5-tier scheme serves a distinct classification purpose not directly expressible by the common template's Status/Type fields. Specifically, it separates "confirmed design decision" (intentional design decision) from "active defect" (implementation bug) at a granularity that the common template's Status (open/resolved/deferred) and Type (implementation-bug/documentation-gap/design-gap/operational-gap) fields do not directly express. The common template conflates "this is a known and accepted design choice" with "this is an acknowledged bug awaiting fix," whereas the Agent document's domain-specific workflow benefits from keeping these semantically distinct.
 

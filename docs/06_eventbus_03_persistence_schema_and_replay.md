@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Persistence, Schema, and Replay"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - sqlite
@@ -65,7 +65,7 @@ tail -1 /path/to/events.jsonl | jq '.seq'
 If they do not match, there is missing data in the JSONL.
 
 ### Existing Detection Signals
-`publish_route.py` (line 59) emits the following WARNING log when a JSONL append fails:
+`publish()` function in `scripts/eventbus/publish_route.py` emits the following WARNING log when a JSONL append fails:
 ```
 logger.warning("eventbus: JSONL append failed (event still committed): %s", exc)
 ```

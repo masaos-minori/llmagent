@@ -1,6 +1,6 @@
 ---
 title: "Tool Runtime Availability Metadata: config_dependent, enabled, disabled_reason"
-category: mcp
+area: mcp
 tags:
   - mcp
   - routing

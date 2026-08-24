@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline - Helpers and Cache"
-category: rag
+area: rag
 tags:
   - semantic-cache
   - rag-repository

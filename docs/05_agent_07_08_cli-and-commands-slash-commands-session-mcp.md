@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Slash Commands: Session, MCP, Config/Stats"
-category: agent
+area: agent
 tags:
   - agent
   - cli

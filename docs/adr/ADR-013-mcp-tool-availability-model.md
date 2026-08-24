@@ -1,13 +1,6 @@
 ---
 title: "ADR-013: MCP Tool Availability Model"
-category: adr
-status: proposed
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - agent-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - mcp
   - agent

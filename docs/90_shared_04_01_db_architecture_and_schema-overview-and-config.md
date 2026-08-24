@@ -1,6 +1,6 @@
 ---
 title: "DB Architecture and Schema - Overview and Config"
-category: shared
+area: shared
 tags:
   - shared
   - db

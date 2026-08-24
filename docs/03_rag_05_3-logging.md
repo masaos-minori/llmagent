@@ -1,6 +1,6 @@
 ---
 title: "3. Logging"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

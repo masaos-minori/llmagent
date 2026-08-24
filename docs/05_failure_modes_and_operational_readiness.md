@@ -1,6 +1,6 @@
 ---
 title: "Failure Modes and Operational Readiness"
-category: operations
+area: operations
 tags:
   - failure-modes
   - readiness

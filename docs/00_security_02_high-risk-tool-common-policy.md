@@ -1,6 +1,6 @@
 ---
 title: "High-Risk MCP Tool Common Policy"
-category: security
+area: security
 tags:
   - security
   - policy
@@ -193,8 +193,8 @@ Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-comm
 ## Related Documents
 
 - `00_security_01_architecture-and-trust-boundaries.md`
-- `00_governance_01_documentation-governance.md`
-- `00_governance_02_canonical-source-rule.md`
+- `00_governance_12_documentation-policy.md`
+- `00_governance_12_documentation-policy.md`
 - `04_mcp_05_01_access-control-and-allowlists.md`
 - `04_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 - `05_agent_06_01_tool-execution-and-approval-execution.md`

@@ -1,6 +1,6 @@
 ---
 title: "Agent Configuration - ToolConfig and MemoryConfig"
-category: agent
+area: agent
 tags:
   - agent
   - configuration

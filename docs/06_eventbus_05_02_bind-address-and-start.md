@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Bind Address and Start Command"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - bind-address

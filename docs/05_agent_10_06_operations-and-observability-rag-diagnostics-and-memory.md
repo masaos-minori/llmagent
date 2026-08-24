@@ -1,6 +1,6 @@
 ---
 title: "Agent Operations and Observability - RAG Diagnostics and Memory"
-category: agent
+area: agent
 tags:
   - agent
   - operations

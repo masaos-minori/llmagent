@@ -1,6 +1,6 @@
 ---
 title: "WebCrawler Detail (Part 1)"
-category: rag
+area: rag
 tags:
   - web-crawler
   - bfs-crawl

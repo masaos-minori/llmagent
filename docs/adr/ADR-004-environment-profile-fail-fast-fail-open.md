@@ -1,13 +1,6 @@
 ---
 title: "ADR-004: Environment Profile別障害方針 — Fail-Fast/Fail-Open"
-category: adr
-status: proposed
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - agent-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - system
 related:
@@ -428,7 +421,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: ADR-004-D8-failure-policy-unused
 - **Type**: Design Deviation
 - **Summary**: Decision #8 defines three failure policies per MCP server (fail-fast / disable-tool / degraded) but only the binary required/not-required model is implemented
-- **Conflicting Source**: docs/adr/ADR-004-environment-profile-fail-fast-fail-open.md:Decision #8, scripts/shared/mcp_config.py:97, scripts/agent/services/mcp_tool_discovery.py:131-134
+- **Conflicting Source**: docs/adr/ADR-004-environment-profile-fail-fast-fail-open.md:Decision #8, `McpServerConfig.required_in_local`フィールド（`scripts/shared/mcp_config.py`）, `McpToolDiscoveryService`のセキュリティプロファイル判定（`scripts/agent/services/mcp_tool_discovery.py`）
 - **Expected Design**: Each MCP server can specify its own failure policy, allowing different handling strategies (immediate abort vs. tool disable vs. degraded operation) when a server becomes unreachable
 - **Observed Implementation**: Only `required_in_production` / `required_in_local` flags are used (binary FATAL/WARNING). The `failure_policy` field exists in McpServerConfig but is never consulted anywhere in the codebase
 - **Impact**: MCP servers cannot express nuanced failure tolerance beyond binary required/not-required; production deployments lose flexibility for non-critical servers

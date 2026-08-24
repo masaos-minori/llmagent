@@ -1,13 +1,6 @@
 ---
 title: "ADR-010: RAGの外部実行失敗時のインプロセスフォールバック"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - rag-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - rag
 related:

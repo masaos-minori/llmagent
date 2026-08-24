@@ -1,13 +1,6 @@
 ---
 title: "ADR-003: RuntimeToolRegistryを唯一のルーティング権威とする"
-category: adr
-status: accepted
-date: "2026-08-20"
-last_updated: "2026-08-20"
-owners:
-  - mcp-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - system
 related:

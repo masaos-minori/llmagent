@@ -1,6 +1,6 @@
 ---
 title: "6.3 types.py (`scripts/rag/types.py`)"
-category: rag
+area: rag
 tags:
   - rag
   - dto

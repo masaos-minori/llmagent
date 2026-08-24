@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Slash Commands: Memory, MDQ, Other"
-category: agent
+area: agent
 tags:
   - agent
   - cli

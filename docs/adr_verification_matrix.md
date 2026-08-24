@@ -144,7 +144,7 @@ These invariants MUST have automated verification (Unit Test, Integration Test, 
 | Blocking / Non-Blocking | Deployment Blocking |
 | Issue if Unverified | Production continues operating despite known issues |
 
-**Verification Status**: Verified via code inspection (production_mode = ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION confirmed in startup.py:336). **Needs test coverage**.
+**Verification Status**: Verified via code inspection (production_mode = ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION confirmed in `StartupOrchestrator._check_services()` method, `scripts/agent/startup.py`). **Needs test coverage**.
 
 ### INV-011: Local Safety-Related Fail-Closed Behavior
 
@@ -158,7 +158,7 @@ These invariants MUST have automated verification (Unit Test, Integration Test, 
 | Blocking / Non-Blocking | Deployment Blocking |
 | Issue if Unverified | Unsafe operations allowed in local mode |
 
-**Verification Status**: Verified via code inspection (check_readiness() returns warnings-only in non-production mode, repl_health.py:115-133). **Needs test coverage**.
+**Verification Status**: Verified via code inspection (check_readiness() returns warnings-only in non-production mode, `scripts/agent/repl_health.py`). **Needs test coverage**.
 
 ### INV-012: EventBus Offset Monotonicity
 
@@ -172,7 +172,7 @@ These invariants MUST have automated verification (Unit Test, Integration Test, 
 | Blocking / Non-Blocking | Merge Blocking |
 | Issue if Unverified | Event delivery order violations cause data loss |
 
-**Verification Status**: Verified via code inspection (`seq > current` enforcement confirmed in offsets.py line 32). **Needs test coverage** (see CI-011).
+**Verification Status**: Verified via code inspection (`seq > current` enforcement confirmed in `write_offset()` function, `scripts/eventbus/offsets.py`). **Needs test coverage** (see CI-011).
 
 ### INV-013: No Success Response Before Event Persistence
 

@@ -1,6 +1,6 @@
 ---
 title: "DB Architecture and Schema - Migration and Scaling"
-category: shared
+area: shared
 tags:
   - shared
   - db

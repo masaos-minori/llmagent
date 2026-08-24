@@ -1,6 +1,6 @@
 ---
 title: "Agent Configuration - MCPConfig, ApprovalConfig, ObservabilityConfig"
-category: agent
+area: agent
 tags:
   - agent
   - configuration

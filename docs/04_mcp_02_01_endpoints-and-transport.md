@@ -1,6 +1,6 @@
 ---
 title: "MCP Endpoints and HTTP Transport"
-category: mcp
+area: mcp
 tags:
   - mcp
   - protocol

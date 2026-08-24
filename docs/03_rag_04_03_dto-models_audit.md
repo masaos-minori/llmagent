@@ -1,6 +1,6 @@
 ---
 title: "6.4 models_audit.py (`scripts/rag/models_audit.py`)"
-category: rag
+area: rag
 tags:
   - rag
   - dto

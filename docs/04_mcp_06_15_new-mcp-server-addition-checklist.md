@@ -1,6 +1,6 @@
 ---
 title: "New MCP Server Addition Checklist"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

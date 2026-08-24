@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Slash Commands: Workflow, Debug/Audit, Compact/Export"
-category: agent
+area: agent
 tags:
   - agent
   - cli

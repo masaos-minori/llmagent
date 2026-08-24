@@ -1,13 +1,6 @@
 ---
 title: "ADR-009: RAGのFTS5検索用テキストとLLM提示用テキスト分離"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - rag-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - rag
 related:

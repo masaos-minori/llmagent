@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline - RagPipeline Class Detail"
-category: rag
+area: rag
 tags:
   - rag-pipeline-class
   - http-mode

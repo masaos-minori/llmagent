@@ -1,6 +1,6 @@
 ---
 title: "1. Configuration Reference"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline"
-category: rag
+area: rag
 tags:
   - pipeline-overview
   - pipeline-stage

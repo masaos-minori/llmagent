@@ -1,6 +1,6 @@
 ---
 title: "Transport Error Tracing and Lifecycle Flow"
-category: mcp
+area: mcp
 tags:
   - mcp
   - tracing

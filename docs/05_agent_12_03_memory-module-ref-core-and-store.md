@@ -1,6 +1,6 @@
 ---
 title: "Memory Layer - Module Reference: Core and Store"
-category: agent
+area: agent
 tags:
   - agent
   - memory

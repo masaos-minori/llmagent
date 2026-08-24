@@ -1,6 +1,6 @@
 ---
 title: "Miscellaneous File Structure"
-category: overview
+area: overview
 tags:
   - eventbus
   - logs

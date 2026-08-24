@@ -27,7 +27,7 @@ DOCS_DIR = ROOT_DIR / "docs"
 
 LIST_FIELDS = ("tags", "related", "source")
 
-CATEGORY_PREFIX_MAP: dict[str, str] = {
+AREA_PREFIX_MAP: dict[str, str] = {
     "00_index": "overview",
     "00_governance": "governance",
     "01_spec": "overview",
@@ -44,7 +44,7 @@ CATEGORY_PREFIX_MAP: dict[str, str] = {
     "91_eventbus": "eventbus",
 }
 
-DEFAULT_TAGS: dict[str, list[str]] = {
+DEFAULT_AREAS: dict[str, list[str]] = {
     "agent": ["agent"],
     "deployment": ["deployment"],
     "eventbus": ["eventbus"],
@@ -72,15 +72,15 @@ GOVERNANCE_TITLES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-def extract_category_from_filename(filename: str) -> str | None:
+def extract_area_from_filename(filename: str) -> str | None:
     if filename in GOVERNANCE_TITLES:
         return "governance"
     base = filename.rsplit(".", 1)[0]
     parts = base.split("_")
     for i in range(len(parts), 0, -1):
         prefix = "_".join(parts[:i])
-        if prefix in CATEGORY_PREFIX_MAP:
-            return CATEGORY_PREFIX_MAP[prefix]
+        if prefix in AREA_PREFIX_MAP:
+            return AREA_PREFIX_MAP[prefix]
     if parts[0].isdigit():
         num = parts[0]
         if num == "00":
@@ -114,17 +114,17 @@ def extract_tags_from_filename(filename: str) -> list[str]:
 def build_frontmatter(
     filename: str,
     title: str | None = None,
-    category: str | None = None,
+    area: str | None = None,
     tags: list[str] | None = None,
 ) -> str:
-    if category is None:
-        category = extract_category_from_filename(filename) or "overview"
+    if area is None:
+        area = extract_area_from_filename(filename) or "overview"
     if tags is None:
-        tags = DEFAULT_TAGS.get(category, [])
+        tags = DEFAULT_AREAS.get(area, [])
         if not tags:
             tags = extract_tags_from_filename(filename)
     if not tags:
-        tags = [category]
+        tags = [area]
     if not title:
         if filename in GOVERNANCE_TITLES:
             title = GOVERNANCE_TITLES[filename]
@@ -135,16 +135,16 @@ def build_frontmatter(
     fm_lines = [
         "---",
         f'title: "{title}"',
-        f"category: {category}",
+        f"area: {area}",
         "tags:",
     ]
     for tag in tags:
         fm_lines.append(f"  - {tag}")
-    if category == "governance":
+    if area == "governance":
         fm_lines.append("related:")
         fm_lines.append("  - 00_index.md")
         fm_lines.append("  - 01_overview.md")
-    elif category == "overview":
+    elif area == "overview":
         fm_lines.append("related:")
         fm_lines.append("  - 00_index.md")
     else:
@@ -215,8 +215,8 @@ def cmd_add_missing(argv: list[str] | None = None) -> int:
         has_title = any(
             line.strip().startswith("title:") for line in fm_content.split("\n")
         )
-        has_category = any(
-            line.strip().startswith("category:") for line in fm_content.split("\n")
+        has_area = any(
+            line.strip().startswith("area:") for line in fm_content.split("\n")
         )
         has_tags = any(
             line.strip().startswith("tags:") for line in fm_content.split("\n")
@@ -227,8 +227,8 @@ def cmd_add_missing(argv: list[str] | None = None) -> int:
         missing_fields = []
         if not has_title:
             missing_fields.append("title")
-        if not has_category:
-            missing_fields.append("category")
+        if not has_area:
+            missing_fields.append("area")
         if not has_tags:
             missing_fields.append("tags")
         if not has_related:

@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Reference API — Core Modules"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - api-reference

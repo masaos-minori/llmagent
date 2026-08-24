@@ -1,6 +1,6 @@
 ---
 title: "RAG Files File Structure"
-category: overview
+area: overview
 tags:
   - rag
   - rag-src

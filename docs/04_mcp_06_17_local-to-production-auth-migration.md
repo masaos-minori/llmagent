@@ -1,6 +1,6 @@
 ---
 title: "Local to Production Auth Migration"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

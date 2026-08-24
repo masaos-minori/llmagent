@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - REPL Input/Output Model"
-category: agent
+area: agent
 tags:
   - agent
   - cli

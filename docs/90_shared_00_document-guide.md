@@ -1,6 +1,6 @@
 ---
 title: "Shared/DB Documentation Guide"
-category: shared
+area: shared
 tags:
   - shared
   - db

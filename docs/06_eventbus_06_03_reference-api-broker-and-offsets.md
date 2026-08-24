@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Reference API — Broker and Offsets"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - api-reference

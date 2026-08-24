@@ -1,6 +1,6 @@
 ---
 title: "Agent Data Layer - Session DB"
-category: agent
+area: agent
 tags:
   - agent
   - data-layer

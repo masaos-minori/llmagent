@@ -16,7 +16,7 @@ This report documents the findings from auditing the documentation system agains
 
 ### Resolved Items (Already archived)
 
-All 17 previously tracked NC items have been resolved. See `00_governance_07_needs-confirmation-inventory.md` Archived (Resolved) Items section.
+All 17 previously tracked NC items have been resolved. See `00_governance_14_issue-and-uncertainty-management.md` Archived (Resolved) Items section.
 
 ## Obsolete Designs Audited
 
@@ -25,19 +25,19 @@ All 17 previously tracked NC items have been resolved. See `00_governance_07_nee
 | Field | Value |
 |---|---|
 | Classification | Removed |
-| Locations Found | `02_deployment.md:86`, `00_governance_05_deprecated-items.md:34` |
+| Locations Found | `02_deployment.md:86 (deprecated: use section-based references)`, `00_governance_05_deprecated-items.md:34 (deprecated: use section-based references)` |
 | Action Taken | Already marked as Deprecated in deprecated-items.md |
 | New Status Marker | Superseded |
 | Replacement Reference | ADR-001 |
 
-**Verification**: The item is already properly classified as "Superseded" in `00_governance_05_deprecated-items.md`. The reference in `02_deployment.md:86` ("There is no disable, fallback, or workflow-optional mode") correctly states the current behavior.
+**Verification**: The item is already properly classified as "Superseded" in `00_governance_14_issue-and-uncertainty-management.md`. The reference in `02_deployment.md:86 (deprecated: use section-based references)` ("There is no disable, fallback, or workflow-optional mode") correctly states the current behavior.
 
 ### 2. Workflow Disablement Configuration
 
 | Field | Value |
 |---|---|
 | Classification | Deprecated |
-| Locations Found | `05_agent_06_04_tool-execution-and-approval-canonical.md:103`, `04_mcp_90_inconsistencies_and_known_issues.md:64`, `04_mcp_04_03_rag-pipeline-and-cicd.md:84`, `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md:26` |
+| Locations Found | `05_agent_06_04_tool-execution-and-approval-canonical.md:103 (deprecated: use section-based references)`, `04_mcp_90_inconsistencies_and_known_issues.md:64 (deprecated: use section-based references)`, `04_mcp_04_03_rag-pipeline-and-cicd.md:84 (deprecated: use section-based references)`, `05_agent_10_04_operations-and-observability-validation-and-troubleshooting.md:26 (deprecated: use section-based references)` |
 | Action Taken | Noted — requires update |
 | New Status Marker | Reserved for future use |
 | Replacement Reference | N/A (future feature) |
@@ -49,43 +49,43 @@ All 17 previously tracked NC items have been resolved. See `00_governance_07_nee
 | Field | Value |
 |---|---|
 | Classification | Removed |
-| Locations Found | `05_agent_03_01_turn-processing-flow-overview.md:11`, `05_agent_03_01_turn-processing-flow-overview.md:69`, `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md:64`, `04_mcp_03_02_tool-registry.md:105` |
+| Locations Found | `05_agent_03_01_turn-processing-flow-overview.md:11 (deprecated: use section-based references)`, `05_agent_03_01_turn-processing-flow-overview.md:69 (deprecated: use section-based references)`, `05_agent_06_03_tool-execution-and-approval-concurrency-safety.md:64 (deprecated: use section-based references)`, `04_mcp_03_02_tool-registry.md:105 (deprecated: use section-based references)` |
 | Action Taken | Already noted as deprecated in multiple places |
 | New Status Marker | Deprecated |
 | Replacement Reference | ADR-001 |
 
-**Verification**: Multiple locations correctly state that direct execution fallback has been removed. The reference in `04_mcp_03_02_tool-registry.md:105` confirms the side-effects heuristic approach is no longer used. This is correct.
+**Verification**: Multiple locations correctly state that direct execution fallback has been removed. The reference in `04_mcp_03_02_tool-registry.md:105 (deprecated: use section-based references)` confirms the side-effects heuristic approach is no longer used. This is correct.
 
 ### 4. stdio Transport
 
 | Field | Value |
 |---|---|
 | Classification | Removed |
-| Locations Found | `01_overview-arch-01-process.md:53` |
+| Locations Found | `01_overview-arch-01-process.md:53 (deprecated: use section-based references)` |
 | Action Taken | Already noted as removed |
 | New Status Marker | Removed |
 | Replacement Reference | ADR-007 |
 
-**Verification**: The reference in `01_overview-arch-01-process.md:53` correctly states "stdio transport has been removed". This is accurate.
+**Verification**: The reference in `01_overview-arch-01-process.md:53 (deprecated: use section-based references)` correctly states "stdio transport has been removed". This is accurate.
 
 ### 5. Static ToolRegistry as Routing Authority
 
 | Field | Value |
 |---|---|
 | Classification | Removed |
-| Locations Found | `04_mcp_01_system_overview.md:122`, `04_mcp_03_01_dispatch-and-routing.md:89`, `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md:21`, `05_agent_13_reference-api.md:117` |
+| Locations Found | `04_mcp_01_system_overview.md:122 (deprecated: use section-based references)`, `04_mcp_03_01_dispatch-and-routing.md:89 (deprecated: use section-based references)`, `90_shared_03_03_runtime_and_execution-llm-and-mcp-clients.md:21 (deprecated: use section-based references)`, `05_agent_13_reference-api.md:117 (deprecated: use section-based references)` |
 | Action Taken | Already noted as downgraded |
 | New Status Marker | Downgraded to seed data |
 | Replacement Reference | ADR-003 |
 
-**Verification**: Multiple locations correctly state that ToolRegistry has been downgraded to seed data for drift validation. The reference API document (`05_agent_13_reference-api.md:117`) includes an explicit correction noting the logic changed after migration to RuntimeToolRegistry. This is accurate.
+**Verification**: Multiple locations correctly state that ToolRegistry has been downgraded to seed data for drift validation. The reference API document (`05_agent_13_reference-api.md:117 (deprecated: use section-based references)`) includes an explicit correction noting the logic changed after migration to RuntimeToolRegistry. This is accurate.
 
 ### 6. Shared Config File Assumption
 
 | Field | Value |
 |---|---|
 | Classification | Removed |
-| Locations Found | `90_shared_00_document-guide.md:86`, `01_overview-arch-01-process.md:58`, `03_rag_05_1-configuration-reference.md:16`, `90_shared_03_01_runtime_and_execution-config-and-logging.md:39`, `04_mcp_06_02_configuration-file-inventory.md:18` |
+| Locations Found | `90_shared_00_document-guide.md:86 (deprecated: use section-based references)`, `01_overview-arch-01-process.md:58 (deprecated: use section-based references)`, `03_rag_05_1-configuration-reference.md:16 (deprecated: use section-based references)`, `90_shared_03_01_runtime_and_execution-config-and-logging.md:39 (deprecated: use section-based references)`, `04_mcp_06_02_configuration-file-inventory.md:18 (deprecated: use section-based references)` |
 | Action Taken | Already documented as process isolation policy |
 | New Status Marker | Prohibited |
 | Replacement Reference | ADR-002 |
@@ -97,7 +97,7 @@ All 17 previously tracked NC items have been resolved. See `00_governance_07_nee
 | Field | Value |
 |---|---|
 | Classification | Merged into ADRs |
-| Locations Found | `03_rag_91_design_notes.md:7-11`, `adr/ADR-005-rag-source-derived-index-relationships.md:37,337,463`, `adr/ADR-009-rag-ft5-text-separation.md:37,344,385,471` |
+| Locations Found | `03_rag_91_design_notes.md:7-11`, `adr/ADR-005-rag-source-derived-index-relationships.md:37,337,463 (deprecated: use section-based references)`, `adr/ADR-009-rag-ft5-text-separation.md:37,344,385,471 (deprecated: use section-based references)` |
 | Action Taken | DESIGN-2 merged into ADR-009, DESIGN-3 merged into ADR-005 |
 | New Status Marker | Superseded |
 | Replacement Reference | ADR-005, ADR-009 |
@@ -126,7 +126,7 @@ All 17 previously tracked NC items have been resolved. See `00_governance_07_nee
 | New Status Marker | N/A |
 | Replacement Reference | ADR-006 |
 
-**Verification**: No unresolved offset monotonicity notes found. The invariant is verified via code inspection (seq > current enforcement in offsets.py line 32).
+**Verification**: No unresolved offset monotonicity notes found. The invariant is verified via code inspection (seq > current enforcement in `write_offset()` function, `scripts/eventbus/offsets.py`).
 
 ### 10. RAG Remote Fallback Target Errors Unresolved Notes
 

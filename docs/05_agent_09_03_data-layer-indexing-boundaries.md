@@ -1,6 +1,6 @@
 ---
 title: "Agent Data Layer - Indexing and Boundaries"
-category: agent
+area: agent
 tags:
   - agent
   - data-layer

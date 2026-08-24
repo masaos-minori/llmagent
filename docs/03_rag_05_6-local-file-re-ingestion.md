@@ -1,6 +1,6 @@
 ---
 title: "6. Local file re-ingestion"
-category: rag
+area: rag
 tags:
   - rag
   - configuration

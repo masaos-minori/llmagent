@@ -1,6 +1,6 @@
 ---
 title: "MCP Server Catalog: web-search-mcp / file-read-mcp / github-mcp"
-category: mcp
+area: mcp
 tags:
   - mcp
   - server-catalog

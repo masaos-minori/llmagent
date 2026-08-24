@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Publish and Replay Endpoints"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - http-api

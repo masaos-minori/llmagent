@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Delivery Operations"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - delivery

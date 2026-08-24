@@ -1,13 +1,6 @@
 ---
 title: "ADR-008: SQLiteを4DBへ分離する"
-category: adr
-status: accepted
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - platform-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - system
 related:

@@ -1,6 +1,6 @@
 ---
 title: "Agent System Overview"
-category: agent
+area: agent
 tags:
   - agent
   - system

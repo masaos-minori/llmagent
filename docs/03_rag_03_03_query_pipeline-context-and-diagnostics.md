@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline Context and Diagnostics"
-category: rag
+area: rag
 tags:
   - pipeline-context
   - search-diagnostics

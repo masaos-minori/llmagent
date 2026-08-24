@@ -1,6 +1,6 @@
 ---
 title: "Documentation Sync Report: DB Recovery, Git Write Protection, MCP Tool Availability"
-category: governance
+area: governance
 tags:
   - governance
   - change-report
@@ -12,7 +12,7 @@ related:
   - 04_mcp_04_05_git.md
   - 00_security_02_high-risk-tool-common-policy.md
   - 04_mcp_03_06_tool-runtime-availability-metadata.md
-  - 00_governance_11_adr-index.md
+  - 00_governance_12_documentation-policy.md
 ---
 
 # Documentation Sync Report: DB Recovery, Git Write Protection, MCP Tool Availability
@@ -29,7 +29,7 @@ This report covers a documentation update addressing three issues: database corr
 - `04_mcp_03_01_dispatch-and-routing.md` — corrected the "Two-stage tool resolution" section, which described a second filtering stage that (on inspection) is a self-referential no-op; replaced it with an accurate description of where filtering actually happens and where the routing-layer gap is.
 - `04_mcp_03_02_tool-registry.md` — added a cross-reference to the availability-metadata document.
 - `90_shared_90_inconsistencies_and_known_issues.md`, `04_mcp_90_inconsistencies_and_known_issues.md` — Known Issues updated (see below).
-- `00_governance_11_adr-index.md` — registered the new ADRs and flagged a numbering conflict with ADR-001's aspirational forward references.
+- `00_governance_12_documentation-policy.md` — registered the new ADRs and flagged a numbering conflict with ADR-001's aspirational forward references.
 
 ## Decisions consolidated
 

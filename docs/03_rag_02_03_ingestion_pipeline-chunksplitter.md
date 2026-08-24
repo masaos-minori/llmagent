@@ -1,6 +1,6 @@
 ---
 title: "ChunkSplitter Detail (Part 1)"
-category: rag
+area: rag
 tags:
   - chunk-splitter
   - chunking-strategies

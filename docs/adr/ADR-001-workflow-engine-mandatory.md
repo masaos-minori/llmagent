@@ -1,13 +1,6 @@
 ---
 title: "ADR-001: Workflow Engine必須化"
-category: adr
-status: proposed
-date: "2026-08-20"
-last_updated: "2026-08-20"
-owners:
-  - agent-team
-reviewers:
-  - architecture-reviewer
+area: adr
 decision_scope:
   - system
 related:
@@ -394,9 +387,9 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: WF-001
 - **Type**: Missing Documentation
 - **Summary**: INV-01とINV-05は同一の不変条件を記述している
-- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:243, docs/adr/ADR-001-workflow-engine-mandatory.md:247
+- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:243, docs/adr/ADR-001-workflow-engine-mandatory.md:247 (deprecated: use section-based references)
 - **Expected Design**: INV-01: 「ワークフロー定義ファイルが欠落している場合、Agentの起動を中止する。」INV-05: 「ワークフロー定義ファイルの欠落または検証失敗時は起動を中止する。」
-- **Observed Implementation**: 両方ともstartup.py:314-320およびorchestrator.py:178-183の同一の起動前検証を参照している
+- **Observed Implementation**: 両方とも`StartupOrchestrator._check_workflow_definition()`（`scripts/agent/startup.py`）および`Orchestrator.__init__()`のワークフロー読み込み処理（`scripts/agent/orchestrator.py`）の同一の起動前検証を参照している
 - **Impact**: ドキュメントの曖昧さ；開発者がINV-01とINV-05が異なる障害モードをカバーしていると誤解する可能性がある
 - **Recommended Action**: INV-01とINV-05を1つに統合するか、区別を明確にする（例：INV-01はファイル欠落、INV-05は検証失敗）
 - **Owner**: TBD
@@ -407,7 +400,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: WF-002
 - **Type**: Missing Test
 - **Summary**: INV-03（実行成功と検証成功の区別）の明示的テストが存在しない
-- **Conflicting Source**: scripts/agent/workflow/workflow_engine.py:130-158
+- **Conflicting Source**: `WorkflowEngine.run()` メソッド（`scripts/agent/workflow/workflow_engine.py`）
 - **Expected Design**: INV-03: 「実行成功と検証成功は区別され、それぞれ独立して検証される」
 - **Observed Implementation**: run()メソッドはplan→execute→[approval gate]→verifyを順序通り実行するが、実行成功≠検証成功を検証するテストケースが存在しない
 - **Impact**: 回帰により実行と検証の結果が混同される可能性
@@ -420,7 +413,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: WF-003
 - **Type**: Design Deviation
 - **Summary**: シンプルQ&Aワークフローを軽量な単一ステージWorkflowで処理する設計意図が実現されていない
-- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:155-157, config/workflows/default.json
+- **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:155-157, config/workflows/default.json (deprecated: use section-based references)
 - **Expected Design**: Decision #5: 「シンプルなQ&Aワークフローは軽量な単一ステージWorkflowで処理する」
 - **Observed Implementation**: config/workflows/default.jsonのみ存在し、plan/execute/verifyの3ステージ構成。WorkflowEngine.run()は全4つのコールバック（plan_fn, execute_fn, verify_fn）を要求する
 - **Impact**: シンプルQ&Aシナリオが不要なplan/verifyオーバーヘッドを経由する必要がある

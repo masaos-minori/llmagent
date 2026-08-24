@@ -1,6 +1,6 @@
 ---
 title: "Shared Utilities Detail"
-category: rag
+area: rag
 tags:
   - shared-utilities
   - unicode-normalization

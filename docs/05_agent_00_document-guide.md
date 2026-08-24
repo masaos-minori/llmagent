@@ -1,6 +1,6 @@
 ---
 title: "Agent Documentation Guide"
-category: agent
+area: agent
 tags:
   - agent
   - documentation

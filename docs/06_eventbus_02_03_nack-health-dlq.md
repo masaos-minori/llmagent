@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Nack, Health, and DLQ Endpoints"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - http-api

@@ -1,6 +1,6 @@
 ---
 title: "5. Constraints Reference"
-category: rag
+area: rag
 tags:
   - rag
   - configuration
@@ -26,7 +26,7 @@ source:
 
 **Evidence:**
 - CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
-- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Previous versions stated "`config/agent.toml:43`", "max 6 hops", and "max 500 pages", but in the current `config/agent.toml`, `embedding_dims` is on line 17, and actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`. Since line numbers and values change easily with config updates, references have been updated to be section-based.
+- Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults. Previous versions stated "`config/agent.toml:43`", "max 6 hops", and "max 500 pages", but in the current `config/agent.toml`, `embedding_dims` is on line 17, and actual `config/crawler.toml` values are `max_depth=3` and `max_pages=200`. Line number references are deprecated; use section-based references instead.
 
 ---
 

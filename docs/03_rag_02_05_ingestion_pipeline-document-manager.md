@@ -1,6 +1,6 @@
 ---
 title: "DocumentManager Detail"
-category: rag
+area: rag
 tags:
   - document-manager
   - rag

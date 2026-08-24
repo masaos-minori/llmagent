@@ -1,6 +1,6 @@
 ---
 title: "Configuration File Structure"
-category: overview
+area: overview
 tags:
   - configuration
   - toml

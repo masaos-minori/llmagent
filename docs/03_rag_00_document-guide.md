@@ -1,6 +1,6 @@
 ---
 title: "RAG Documentation Guide"
-category: rag
+area: rag
 tags:
   - rag
   - documentation

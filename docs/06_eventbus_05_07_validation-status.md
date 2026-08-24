@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Validation Status"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - ci

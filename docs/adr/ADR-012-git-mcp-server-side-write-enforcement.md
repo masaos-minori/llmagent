@@ -1,14 +1,6 @@
 ---
 title: "ADR-012: Git MCP Server-Side Write Enforcement"
-category: adr
-status: proposed
-date: "2026-08-21"
-last_updated: "2026-08-21"
-owners:
-  - agent-team
-reviewers:
-  - architecture-reviewer
-  - security-reviewer
+area: adr
 decision_scope:
   - mcp/git
 related: []

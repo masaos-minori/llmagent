@@ -1,6 +1,6 @@
 ---
 title: "Process Architecture"
-category: overview
+area: overview
 tags:
   - process-architecture
   - system-overview

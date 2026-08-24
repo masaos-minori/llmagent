@@ -1,6 +1,6 @@
 ---
 title: "6.5 models_config.py (`scripts/rag/models_config.py`)"
-category: rag
+area: rag
 tags:
   - rag
   - dto

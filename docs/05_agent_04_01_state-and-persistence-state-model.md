@@ -1,6 +1,6 @@
 ---
 title: "Agent State and Persistence - State Model (Part 1)"
-category: agent
+area: agent
 tags:
   - agent
   - state

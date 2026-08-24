@@ -1,6 +1,6 @@
 ---
 title: "RAG Query Pipeline - Search Stages"
-category: rag
+area: rag
 tags:
   - mqe-stage
   - search-stage

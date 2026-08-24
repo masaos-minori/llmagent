@@ -1,6 +1,6 @@
 ---
 title: "MCP Security and Safety Model: MDQ vs RAG Boundary"
-category: mcp
+area: mcp
 tags:
   - mcp
   - security

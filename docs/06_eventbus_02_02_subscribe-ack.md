@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Subscribe and Ack Endpoints"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - http-api
@@ -69,7 +69,7 @@ The following table summarizes the current code behavior for ACK and NACK operat
 
 ### `since_seq`/Offset Precedence Rules
 
-The exact logic in `subscribe_route.py` at L32-34 is as follows:
+The exact logic in `subscribe()` function in `scripts/eventbus/subscribe_route.py` is as follows:
 
 ```
 start_seq = since_seq

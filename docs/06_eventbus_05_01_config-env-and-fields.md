@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Configuration Fields and Environment Variables"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - configuration

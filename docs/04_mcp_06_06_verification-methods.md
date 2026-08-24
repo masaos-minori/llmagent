@@ -1,6 +1,6 @@
 ---
 title: "Verification Methods"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

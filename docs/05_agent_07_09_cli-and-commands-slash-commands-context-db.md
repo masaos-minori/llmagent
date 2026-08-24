@@ -1,6 +1,6 @@
 ---
 title: "Agent CLI and Commands - Slash Commands: Context, Plan"
-category: agent
+area: agent
 tags:
   - agent
   - cli

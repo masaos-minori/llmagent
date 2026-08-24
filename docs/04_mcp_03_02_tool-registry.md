@@ -1,6 +1,6 @@
 ---
 title: "Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency"
-category: mcp
+area: mcp
 tags:
   - mcp
   - routing

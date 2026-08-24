@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: DLQ Operations"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - dlq

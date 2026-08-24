@@ -1,6 +1,6 @@
 ---
 title: "Reading Audit Logs"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

@@ -1,6 +1,6 @@
 ---
 title: "Event Bus: Health Endpoint Semantics"
-category: eventbus
+area: eventbus
 tags:
   - event-bus
   - health-check

@@ -1,6 +1,6 @@
 ---
 title: "Configuration File Inventory"
-category: mcp
+area: mcp
 tags:
   - mcp
   - configuration

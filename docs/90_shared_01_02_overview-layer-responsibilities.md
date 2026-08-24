@@ -1,6 +1,6 @@
 ---
 title: "Shared and DB Layer Overview - Layer Responsibilities"
-category: shared
+area: shared
 tags:
   - shared
   - db
