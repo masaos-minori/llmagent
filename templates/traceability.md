@@ -4,7 +4,7 @@ Use this structure in all applicable workflow output documents. Leave fields tha
 
 ## Traceability
 
-- **Workflow phase**: {phase name, e.g., issue-to-requirement}
+- **Workflow phase**: {phase name, e.g., issue-to-plan}
 - **Source issue**: {path to source issue file or N/A}
 - **Source requirement**: {path to source requirement file or N/A}
 - **Source plan**: {path to source plan file or N/A}
@@ -16,9 +16,8 @@ Use this structure in all applicable workflow output documents. Leave fields tha
 
 | Workflow | Phase | Source Issue | Source Requirement | Source Plan | Source Impl Procedure | Related Target Files |
 |----------|-------|--------------|-------------------|-------------|----------------------|---------------------|
-| 00_issue-to-require | issue-to-requirement | {input issue path} | N/A | N/A | N/A | {target files from issue} |
-| 01_require-to-plan | requirement-to-plan | N/A | {input requirement path} | N/A | N/A | {affected areas from plan} |
-| 02_plan-to-impl-proc | plan-to-implementation-procedure | N/A | N/A | {input plan path} | N/A | {target_file_name} |
+| 01_issue-to-plan | issue-to-plan | {input issue path} | N/A: no standalone requirement document is generated | N/A: this document is the generated plan | N/A | {target files from issue} |
+| 02_plan-to-impl-proc | plan-to-implementation-procedure | N/A | N/A: no standalone requirement document is generated | {input plan path} | N/A | {target_file_name} |
 | 03_implementation | implementation | N/A | N/A | N/A | {input impl proc path} | {changed files} |
 
 ## Notes
@@ -26,3 +25,6 @@ Use this structure in all applicable workflow output documents. Leave fields tha
 - Do not add Traceability sections to source code or existing documentation files where the original workflow prohibits them.
 - For 03_implementation, include a one-line traceability summary in the final report instead of a full section.
 - Use `N/A: {short reason}` for non-applicable fields (e.g., `N/A: not a document-generation phase`).
+- For requirement-level (not workflow-phase-level) traceability — one row per
+  Requirement ID rather than one block per document — see
+  `templates/requirement-traceability.md`.

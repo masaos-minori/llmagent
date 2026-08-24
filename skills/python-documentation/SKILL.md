@@ -73,12 +73,12 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 ## Composes with
 
-- `require-to-plan` — document existing architecture during planning phase
+- `issue-to-plan` — document existing architecture during planning phase
 - `python-implementation` — document new modules or changed interfaces after implementation
 
 ## Called by
 
-- `require-to-plan` — when a plan needs documentation analysis of an existing codebase
+- `issue-to-plan` — when a plan needs documentation analysis of an existing codebase
 - `python-implementation` — when Phase 12 requires documentation updates
 
 ---

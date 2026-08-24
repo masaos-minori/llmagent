@@ -72,7 +72,7 @@ domain data) to this codebase:
 
 ### This skill may be triggered by
 - `python-debug-root-cause`
-- `require-to-plan`
+- `issue-to-plan`
 
 ---
 

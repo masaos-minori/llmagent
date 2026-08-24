@@ -15,8 +15,7 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Test / pytest / flaky | test, pytest, flaky, coverage, assertion, regression | `skills/python-test-and-fix/SKILL.md` + `skills/python-test-and-fix/workflow.md` |
 | Refactor / rename / CST | refactor, rename, restructure, split, move, import cycle | `skills/python-refactoring/SKILL.md` + `skills/python-refactoring/workflow.md` |
 | Code review / PR review | review, code review, PR review, findings | `skills/python-code-review/SKILL.md` + `skills/python-code-review/workflow.md` |
-| Issue -> requirement | issue, raw issue, issue-to-require | `skills/issue-to-require/SKILL.md` + `skills/issue-to-require/workflow.md` |
-| Plan / design / ticket | plan, design, analyze, assess, spec, ticket | `skills/require-to-plan/SKILL.md` + `skills/require-to-plan/workflow.md` |
+| Issue -> plan | issue, raw issue, plan, design, analyze, assess, spec, ticket | `skills/issue-to-plan/SKILL.md` + `skills/issue-to-plan/workflow.md` |
 | Architecture / module design | architecture, module, interface, data model, component | `skills/python-design/SKILL.md` + `skills/python-design/workflow.md` |
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `skills/mcp-server-add/workflow.md` + `rules/env.md` + `docs/04_mcp_03_01_dispatch-and-routing.md` + `docs/04_mcp_06_02_configuration-file-inventory.md` |
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `skills/deploy/workflow.md` + `rules/env.md` + `docs/05_agent_10_01_operations-and-observability-startup-and-health.md` |
@@ -69,8 +68,7 @@ Invoke directly by filename. Not triggered by routing.
 
 | Workflow | File |
 |---|---|
-| Issue → requirement (raw issue → formal require doc) | `prompts/00_issue-to-require.md` |
-| Plan (requirement → work plan) | `prompts/01_require-to-plan.md` |
+| Issue → plan (raw issue → work plan, no standalone requirement doc) | `prompts/01_issue-to-plan.md` |
 | Implementation procedure (work plan → file-level implementation procedure docs) | `prompts/02_plan-to-implementation-procedure.md` |
 | Implementation (implementation procedure doc → code, tests, docs) | `prompts/03_implementation.md` |
 | Refactor (direct refactor execution on named source files) | `prompts/04_refactor.md` |
@@ -79,26 +77,25 @@ Invoke directly by filename. Not triggered by routing.
 | Test suite review (run tests, find coverage/validation gaps, produce improvement plan) | `prompts/07_test-refactor.md` |
 | Design docs refactor (add implementation intent to design docs, supported by code) | `prompts/08_document-refactor.md` |
 
-The full pipeline: issue file → requirement document → work plan document → file-level
-implementation procedure document → implementation, tests, and documentation updates.
-There is no separate "design" phase — `prompts/02_plan-to-implementation-procedure.md` produces the
-implementation procedure, not an architecture design document.
+The full pipeline: issue file → work plan document → file-level implementation
+procedure document → implementation, tests, and documentation updates. There is no
+standalone requirement-document stage, and no separate "design" phase —
+`prompts/02_plan-to-implementation-procedure.md` produces the implementation
+procedure, not an architecture design document.
 `prompts/04`–`08` are auxiliary maintenance workflows outside this pipeline — invoked directly
 by filename when the situation applies (ad-hoc refactor, skill/doc reorganization, test audit),
-not staged through `issues/` -> `requires/` -> `plans/` -> `implementations/`.
+not staged through `issues/` -> `plans/` -> `implementations/`.
 
 ## Document workflow directories
 
-The full pipeline runs across four top-level directories, in order:
-`issues/` -> `requires/` -> `plans/` -> `implementations/` -> code.
+The full pipeline runs across three top-level directories, in order:
+`issues/` -> `plans/` -> `implementations/` -> code.
 
 | Directory | Contents |
 |---|---|
-| `issues/` | Raw, unformatted issues — the pipeline entry point. Populated manually (code review findings, proposals, audit results), and automatically by `prompts/01_require-to-plan.md` Steps 5-6 (unresolved unknowns and risks, filed as issues). Consumed by `prompts/00_issue-to-require.md`. |
-| `issues/done/` | Issue files consumed by `prompts/00_issue-to-require.md` — either converted into a requirement doc, or found already resolved/no longer applicable. |
-| `requires/` | Formal requirement docs ready for `prompts/01_require-to-plan.md`, in the `Title/Priority/Target files/...` template. |
-| `requires/done/` | Requirement docs consumed by `prompts/01_require-to-plan.md`. |
-| `plans/` | Work plan docs produced by `prompts/01_require-to-plan.md`, ready for `prompts/02_plan-to-implementation-procedure.md`. |
+| `issues/` | Raw, unformatted issues — the pipeline entry point. Populated manually (code review findings, proposals, audit results), and automatically by `prompts/01_issue-to-plan.md` Step 6 (unresolved unknowns and risks, filed as issues). Consumed by `prompts/01_issue-to-plan.md`. |
+| `issues/done/` | Issue files consumed by `prompts/01_issue-to-plan.md` — either converted into a work plan, or found already resolved/no longer applicable. |
+| `plans/` | Work plan docs produced by `prompts/01_issue-to-plan.md`, ready for `prompts/02_plan-to-implementation-procedure.md`. |
 | `plans/done/` | Plan docs consumed by `prompts/02_plan-to-implementation-procedure.md`. |
 | `implementations/` | File-level implementation procedure docs produced by `prompts/02_plan-to-implementation-procedure.md`, ready for `prompts/03_implementation.md`. |
 | `implementations/done/` | Implementation procedure docs consumed by `prompts/03_implementation.md`. |

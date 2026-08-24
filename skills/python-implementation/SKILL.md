@@ -96,7 +96,7 @@ apply before moving to Phase 11.
 - `python-lint-typecheck` — Phase 9 reveals lint/type errors not caused by the task
 - `python-test-and-fix` — Phase 9 reveals test failures not caused by the task
 - `deploy` — after Phase 11 if `scripts/` or `config/` changed
-- `require-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
+- `issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
 
 ---
 

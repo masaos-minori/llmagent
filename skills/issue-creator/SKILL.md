@@ -129,8 +129,7 @@ See `workflow.md` Phase 7 for the High / Medium / Low criteria.
 
 ## Composes with
 
-- `require-to-plan` — issues produced here may seed a plan, or a plan's steps may be converted into issues
-- `issue-to-require` — issues produced here may be converted into a formal requirement document
+- `issue-to-plan` — issues produced here may seed a plan directly, or a plan's steps may be converted into issues
 - `python-code-review` — review findings are converted into issues via this skill
 
 ## Called by

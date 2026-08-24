@@ -1,6 +1,6 @@
-# Workflow Lifecycle Rules (Shared: 00-02)
+# Workflow Lifecycle Rules (Shared: issue-to-plan, plan-to-impl-procedure)
 
-Applies to document-generation workflows: issue-to-require, require-to-plan, plan-to-impl-procedure.
+Applies to document-generation workflows: issue-to-plan, plan-to-impl-procedure.
 
 ## Global Safety Restrictions
 
@@ -14,9 +14,9 @@ Do not perform any of the following:
 ## Workflow Phase Definition
 
 Each workflow file must explicitly define:
-- **workflow phase** name (e.g., issue-to-requirement)
+- **workflow phase** name (e.g., issue-to-plan)
 - **input path** pattern (e.g., `issues/{filename}.md`)
-- **output path** pattern (e.g., `requires/{timestamp}_require.md`)
+- **output path** pattern (e.g., `plans/{timestamp}_plan.md`)
 - **archive path** pattern (e.g., `issues/done/`)
 - **allowed file operations** (what may be created/moved/modified)
 
@@ -27,7 +27,7 @@ Each workflow file must explicitly define:
 - If no target file specified, stop and ask the user to specify one or more.
 - If any specified file does not exist, stop immediately and report which file(s) are missing.
 - Do not start processing any file until all specified paths are confirmed to exist.
-- Do not read files under the archive directory (e.g., `issues/done/`, `requires/done/`, `plans/done/`).
+- Do not read files under the archive directory (e.g., `issues/done/`, `plans/done/`, `implementations/done/`).
 
 ## Sequential Processing
 
@@ -62,7 +62,11 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
 
 ## Archival Move
 
-- After approval, move the source file to the archive directory using `git mv` or `cp + rm`.
+- `issue-to-plan`: after approval, move the source file to the archive directory using
+  `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any other fallback. If
+  `git mv` fails, report `Blocked` — do not fall back to another method.
+- `plan-to-impl-procedure`: after approval, move the source file to the archive
+  directory using `git mv` or `cp + rm`.
 - Verify the file exists in the archive directory after the move.
 - **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
 - Only after confirming the move succeeded, consider the cycle complete.

@@ -143,7 +143,7 @@ State whether to proceed, fix first, or investigate further.
 
 ## Called by
 
-- `require-to-plan` — when a plan needs a review of existing code before scoping changes
+- `issue-to-plan` — when a plan needs a review of existing code before scoping changes
 
 ---
 

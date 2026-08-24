@@ -95,8 +95,8 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 ### Analysis-only phase constraint
 
 Applies to any skill whose core procedure is read-only by design (currently `python-design`,
-`python-code-review`, `python-debug-root-cause`, `issue-to-require`) — i.e. skills whose
-purpose is to produce an analysis, review, design, or requirement artifact rather than change
+`python-code-review`, `python-debug-root-cause`, `issue-to-plan`) — i.e. skills whose
+purpose is to produce an analysis, review, design, or plan artifact rather than change
 code.
 
 - Do not modify source code, tests, or other production files while executing the skill's
@@ -136,8 +136,8 @@ document (not the conversation) to be written in another language.
 ### Change-impact table
 
 Use this common schema whenever a skill needs to document per-file blast radius before making
-or planning a change (currently used by `python-refactoring` Phase 1 and `require-to-plan`
-Output format section 5):
+or planning a change (currently used by `python-refactoring` Phase 1 and `issue-to-plan`
+Output format "Affected areas" section):
 
 | File | Change | Blast Radius | deploy.sh Impact |
 |---|---|---|---|
@@ -148,7 +148,7 @@ module create/rename/delete needs no `deploy.sh` change; only a `config/*.toml` 
 needs a `cp` line added or removed there. Valid values: `not applicable (rsynced)`, `add cp
 line`, `remove cp line`.
 
-A skill MAY append columns to this schema (e.g. `require-to-plan` adds `Churn (30d)` and `Bus
+A skill MAY append columns to this schema (e.g. `issue-to-plan` adds `Churn (30d)` and `Bus
 Factor`) but MUST NOT redefine the meaning of the four base columns above, and MUST NOT
 restate this schema inline — reference this section instead.
 
@@ -229,8 +229,7 @@ Applies to any skill that writes or transforms production Python code
 | `python-test-and-fix` | `skills/python-test-and-fix/` | pytest test writing, flaky test detection, fix validation |
 | `python-refactoring` | `skills/python-refactoring/` | Structural refactoring without behavior change |
 | `python-code-review` | `skills/python-code-review/` | Evidence-based review of existing Python code, PRs, and diffs |
-| `issue-to-require` | `skills/issue-to-require/` | Convert raw issues into formal requirement documents |
-| `require-to-plan` | `skills/require-to-plan/` | Convert requirement documents into implementation plans |
+| `issue-to-plan` | `skills/issue-to-plan/` | Convert raw issues directly into implementation plans |
 | `python-design` | `skills/python-design/` | Architecture and module interface design |
 | `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
 | `issue-creator` | `skills/issue-creator/` | Convert requests, findings, or plans into actionable GitHub Issues |
