@@ -117,7 +117,7 @@ Complete Front Matter block showing both existing and new fields:
 title: Agent Reorganization
 area: agent
 tags: [architecture, reorganization]
-related: [00_governance_01_documentation-governance.md]
+related: [00_governance_01_documentation-policy.md]
 keywords: [agent, architecture, structure]
 scope: agent
 audience: developer
@@ -257,9 +257,9 @@ Criteria for deciding whether to include implementation details in design docume
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_12_documentation-policy.md)
-- [Issue and Uncertainty Management](00_governance_14_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_15_documentation-checks.md)
+- [Documentation Policy](00_governance_01_documentation-policy.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](00_governance_04_documentation-checks.md)
 
 ## Keywords
 

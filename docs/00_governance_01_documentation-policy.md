@@ -34,7 +34,7 @@ When conflicts arise between documentation and code/config, the following preced
 |------|-------------|---------|-------|
 | 1 | Code | `scripts/eventbus/publisher.py` | Authoritative for runtime behavior |
 | 2 | Tests | `tests/eventbus/test_publisher.py` | Authoritative for expected behavior |
-| 3 | ADRs | `docs/adrs/ADR-001.md` | Authoritative for architectural decisions |
+| 3 | ADRs | `docs/adr/ADR-001-workflow-engine-mandatory.md` | Authoritative for architectural decisions |
 | 4 | Specifications | `docs/specification.md` | Authoritative for functional requirements |
 | 5 | Configuration | `config/system.toml` | Authoritative for operational parameters |
 | 6 | Documentation | `docs/architecture.md` | Authoritative for conceptual understanding |
@@ -101,8 +101,10 @@ When conflicts arise between documentation and code/config, the following preced
 ### Governance
 | Document | Authority | Status |
 |----------|-----------|--------|
-| docs/00_governance_01_documentation-governance.md | Primary | Active |
-| docs/00_governance_02_canonical-source-rule.md | Primary | Active |
+| docs/00_governance_01_documentation-policy.md | Primary | Active |
+| docs/00_governance_02_documentation-metadata.md | Primary | Active |
+| docs/00_governance_03_issue-and-uncertainty-management.md | Primary | Active |
+| docs/00_governance_04_documentation-checks.md | Primary | Active |
 
 ## Conflict Resolution Rule
 
@@ -250,60 +252,16 @@ Governance documents form their own reference graph within the documentation set
 
 ## RACI Model
 
-### Overview
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| Architect | @architect | @lead | @dev-team | @stakeholders |
-| Developer | @developer | @architect | @reviewer | @team |
-| Reviewer | @reviewer | @architect | @developer | @team |
+Each area follows the same role pattern; substitute `<area-lead>` with that area's
+lead role (Overview: `@architect`; Deployment: `@devops`; RAG: `@data-eng`; MCP:
+`@mcp-dev`; Agent: `@agent-dev`; EventBus: `@eventbus-dev`; Shared/DB: `@db-admin`;
+Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-areas`).
 
-### Deployment
 | Role | Responsible | Accountable | Consulted | Informed |
 |------|-------------|-------------|-----------|----------|
-| DevOps | @devops | @lead | @architect | @team |
-| Developer | @developer | @devops | @reviewer | @team |
-| Reviewer | @reviewer | @devops | @developer | @team |
-
-### RAG
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| Data Engineer | @data-eng | @lead | @architect | @team |
-| Developer | @developer | @data-eng | @reviewer | @team |
-| Reviewer | @reviewer | @data-eng | @developer | @team |
-
-### MCP
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| MCP Developer | @mcp-dev | @lead | @architect | @team |
-| Developer | @developer | @mcp-dev | @reviewer | @team |
-| Reviewer | @reviewer | @mcp-dev | @developer | @team |
-
-### Agent
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| Agent Developer | @agent-dev | @lead | @architect | @team |
-| Developer | @developer | @agent-dev | @reviewer | @team |
-| Reviewer | @reviewer | @agent-dev | @developer | @team |
-
-### EventBus
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| EventBus Developer | @eventbus-dev | @lead | @architect | @team |
-| Developer | @developer | @eventbus-dev | @reviewer | @team |
-| Reviewer | @reviewer | @eventbus-dev | @developer | @team |
-
-### Shared/DB
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| DB Admin | @db-admin | @lead | @architect | @team |
-| Developer | @developer | @db-admin | @reviewer | @team |
-| Reviewer | @reviewer | @db-admin | @developer | @team |
-
-### Governance
-| Role | Responsible | Accountable | Consulted | Informed |
-|------|-------------|-------------|-----------|----------|
-| Governance Lead | @governance-lead | @executive | @all-areas | @team |
-| Reviewer | @reviewer | @governance-lead | @all-areas | @team |
+| `<area-lead>` | `<area-lead>` | @lead | @dev-team / @architect | @team / @stakeholders |
+| Developer | @developer | `<area-lead>` | @reviewer | @team |
+| Reviewer | @reviewer | `<area-lead>` | @developer | @team |
 
 ## Area Dependency Graph
 
@@ -330,6 +288,18 @@ Permitted dependency directions:
 - Items cannot be removed without documenting what replaced them
 - "Needs confirmation" items must be reviewed quarterly
 
+## Migration History
+
+The governance set was consolidated from 11 area-specific documents into this
+4-document set, reviewing each old document's meaning, references, and tooling
+impact rather than deleting mechanically.
+
+| Consolidated into | Former documents |
+|---|---|
+| Documentation Policy (this document) | Documentation Governance, Canonical Source Rule, Evidence Labels, Governance Framework, ADR Index |
+| Issue and Uncertainty Management | Known Issues Template, Deprecated Items, Needs Confirmation Inventory, Known Issues Migration Plan |
+| Documentation Metadata | AI Reading Metadata, Terminology Glossary |
+
 ## Non-Goals
 
 This document does not cover:
@@ -346,11 +316,10 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Metadata](00_governance_13_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_14_issue-and-uncertainty-management.md)
-- [Documentation Checks](00_governance_15_documentation-checks.md)
+- [Documentation Metadata](00_governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
+- [Documentation Checks](00_governance_04_documentation-checks.md)
 - [Canonical Source Matrix](canonical-source-matrix.md)
-- [Governance Verification Matrix](governance-verification-matrix.md)
 
 ## Keywords
 

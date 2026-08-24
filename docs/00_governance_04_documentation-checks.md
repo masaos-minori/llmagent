@@ -83,7 +83,7 @@ python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip
 Verifies the NC inventory stays in sync with `docs/*.md`.
 
 **Checks:**
-- "Needs confirmation" mentions in docs are registered in the centralized inventory (`00_governance_14_issue-and-uncertainty-management.md`)
+- "Needs confirmation" mentions in docs are registered in the centralized inventory (`00_governance_03_issue-and-uncertainty-management.md`)
 - Resolved NC items do not leave markers in source documents
 - Field count declarations match actual list item counts
 
@@ -138,7 +138,7 @@ uv run python tools/validate_docs_structure.py docs/05_agent_*.md --category age
 
 ### 9. Canonical Source Verification
 
-When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `00_governance_12_documentation-policy.md`:
+When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `00_governance_01_documentation-policy.md`:
 
 1. Code is the ultimate authority for behavioral claims
 2. The most recently reviewed document is authoritative among conflicting documents
@@ -263,6 +263,52 @@ When referencing other documents:
 - ADR: `[ADR-001](adr/ADR-001-workflow-engine-mandatory.md)`
 - Internal anchor: `[Section](05_agent_01_system-overview.md#workflow-engine)`
 
+## Governance Verification Matrix
+
+Maps governance rules to their enforcement methods, distinguishing auto-validated
+rules from Manual Review rules. Tracks whether each rule currently has an inspection
+tool and identifies follow-up work needed.
+
+Canonical document codes: **Pol** = `00_governance_01_documentation-policy.md`, **Meta**
+= `00_governance_02_documentation-metadata.md`, **Iss** =
+`00_governance_03_issue-and-uncertainty-management.md`, **Chk** = this document.
+
+| Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
+|---------|------|-----|--------|--------------|--------|------|--------|-----------|
+| GV-001 | Required Front Matter | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-002 | Valid Document Status | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-003 | Unique ADR ID | Pol | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-004 | Successor references for superseded ADRs | Pol | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-005 | Existence of Related Documents | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-006 | Self-reference prohibition | Meta | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-008 | Known Issue required fields | Iss | Auto | `check_doc_quality.py` | PR | Blocking | Existing | None |
+| GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-010 | Deprecated name residual presence in current Specifications | Iss | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-013 | References to non-existent canonical documents | Pol | Auto | `check_doc_quality.py` | PR | Warning | Existing | None |
+| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Missing | Register Known Issue |
+| GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-017 | Resolved Issues/Needs Confirmations moved to Archive | Iss | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Missing | Register Known Issue |
+| GV-020 | Old Governance documents not used as current canonical sources | Pol | Manual | Human review | Post-migration | Warning | Missing | Register Known Issue |
+
+### Follow-up Work Needed
+
+Rules marked "Missing" above need new inspection tools or processes:
+
+1. **GV-011, GV-012**: Implement cross-document canonical source conflict detection
+2. **GV-014**: Add ADR-vs-code contradiction detection to CI
+3. **GV-015**: Separate dependency graph analysis by type
+4. **GV-016**: Audit auto-check implementations against documentation claims
+5. **GV-017**: Implement archive migration for resolved NC items
+6. **GV-018**: Add glossary term classification validation
+7. **GV-019**: Add metadata field usage policy enforcement
+8. **GV-020**: Post-migration verification that old governance docs are not referenced as canonical
+
 ## Change Impact Assessment
 
 To determine which documents are affected by a change:
@@ -316,9 +362,9 @@ This document does not cover:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_12_documentation-policy.md)
-- [Documentation Metadata](00_governance_13_documentation-metadata.md)
-- [Issue and Uncertainty Management](00_governance_14_issue-and-uncertainty-management.md)
+- [Documentation Policy](00_governance_01_documentation-policy.md)
+- [Documentation Metadata](00_governance_02_documentation-metadata.md)
+- [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
 
 ## Keywords
 
@@ -330,3 +376,4 @@ quality assurance
 consistency
 ADR compliance
 evidence validation
+verification matrix

@@ -288,9 +288,9 @@ Topics explicitly excluded from this document:
 
 Cross-cutting documentation rules and policies:
 
-- [Documentation Policy](00_governance_12_documentation-policy.md)
-- [Documentation Metadata](00_governance_13_documentation-metadata.md)
-- [Documentation Checks](00_governance_15_documentation-checks.md)
+- [Documentation Policy](00_governance_01_documentation-policy.md)
+- [Documentation Metadata](00_governance_02_documentation-metadata.md)
+- [Documentation Checks](00_governance_04_documentation-checks.md)
 
 ## Keywords
 
