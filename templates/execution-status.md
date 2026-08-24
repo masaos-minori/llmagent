@@ -36,3 +36,7 @@ Type options: Test / Code Change / Doc Change / Issue
 - Resolved column in Blocker Log: use `N/A: {short reason}` when a blocker does not
   apply to a resolution date (e.g. a structural non-issue), rather than leaving it
   blank.
+- Started/Completed (Execution Status) and Resolution Date (Blocker Log) record actual
+  work execution/completion times. Use the same timestamp format as Traceability's
+  "Generated at" (`templates/traceability.md`): determine it by running
+  `date +%Y%m%d-%H%M%S`.

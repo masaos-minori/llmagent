@@ -185,7 +185,7 @@ proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approv
 Include the following in the final report:
 
 #### One-line traceability summary
-`Source: {impl_proc_file} | Issue: {source_issue} | Plan: {source_plan} | Target: {related_target_files} | Changed: {files} | Completed: {timestamp}`
+`Source: {impl_proc_file} | Issue: {source_issue} | Plan: {source_plan} | Target: {related_target_files} | Changed: {files} | Completed: {timestamp from date +%Y%m%d-%H%M%S}`
 
 `{source_issue}`, `{source_plan}`, and `{related_target_files}` are the values
 extracted from the implementation procedure's own Traceability section in Step 2 —
