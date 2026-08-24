@@ -11,12 +11,11 @@ Project documentation top-level navigation hub. It lists all top-level categorie
 - [Agent](05_agent_00_document-guide.md) — Agent REPL system and operation
 - [Event Bus](06_eventbus_00_document-guide.md) — Event Bus infrastructure
 - [Shared/DB](90_shared_00_document-guide.md) — Shared infrastructure and database layer
-- [ADR Index](00_governance_01_documentation-policy.md#adr-index) — Architecture Decision Record index (methodology; see canonical-source-matrix.md for decision target mapping)
-- [Documentation Policy](00_governance_01_documentation-policy.md) — Canonical source precedence, conflict resolution, ADR conventions
+- [Documentation Policy](00_governance_01_documentation-policy.md) — Canonical source precedence (including decision target → canonical source mapping), conflict resolution, ADR conventions
 - [Documentation Metadata](00_governance_02_documentation-metadata.md) — Metadata conventions, terminology glossary, link rules
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md) — Known Issues templates, Needs Confirmation inventory
 - [Documentation Checks](00_governance_04_documentation-checks.md) — Automated and manual validation checks, governance verification matrix
-- [Canonical Source Matrix](canonical-source-matrix.md) — Decision target → canonical source mapping
+- [ADR Index](adr-index.md) — ADR list, dependency graph, invariant verification matrix
 - [Known Issues](#known-issues) — Known inconsistencies per category
 
 ## Recommended Reading Order

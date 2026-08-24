@@ -41,18 +41,26 @@ When conflicts arise between documentation and code/config, the following preced
 
 ### Decision Target Canonical Source Matrix
 
+Defines which artifact is authoritative for each decision target, so Code is not
+treated as the top canonical source for every kind of decision.
+
 | Decision Target | Canonical | Auxiliary Evidence | Discrepancy Registration Target |
 |-----------------|-----------|--------------------|----------------------------------|
-| Adopted Architecture Decision | ADR | Code, Test, Operational Observation | Known Issues |
-| Requirements, External Behavior | Specification | Acceptance Test | Known Issues |
-| Current Runtime Behavior | Code | Runtime Log, Test | Known Issues |
-| Expected Behavior | Specification, Test | ADR | Known Issues |
-| Effective Value in Production | Deployed Configuration | Startup Diagnostics | Configuration Drift |
+| Adopted Architecture Decision | `docs/adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
+| Requirements, External Behavior | `docs/{area}_*_specification.md` | Acceptance Test | Known Issues |
+| Current Runtime Behavior | Source under `scripts/`, `implementations/` | Runtime Log, Test | Known Issues |
+| Expected Behavior | `tests/` + Specification | ADR | Known Issues |
+| Effective Value in Production | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |
 | DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
 | API Contract | API Schema or official Contract | Integration Test | Known Issues |
 | Operational Procedures | Operations / Runbook | Operational Validation | Known Issues |
-| Deprecated Items | Deprecated Items | Code Search | Deprecated Items |
-| Unconfirmed Items | Needs Confirmation | Investigation Evidence | Needs Confirmation |
+| Deprecated Items | `00_governance_03_issue-and-uncertainty-management.md` | Code Search | Deprecated Items |
+| Unconfirmed Items | `00_governance_03_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
+
+**Code is canonical for current behavior, NOT for adopted design.** When code
+contradicts an ADR, the ADR represents the intended architecture and the discrepancy
+must be registered as a Known Issue. Each area's document-guide identifies the
+canonical source within that area — this matrix provides cross-cutting guidance only.
 
 ## Area Canonical Maps
 
@@ -193,27 +201,8 @@ Duplicate notes shared across all ADRs:
 - "該当しない場合は「対象外」と記載する" (If not applicable, write "Not applicable")
 - "ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する" (Do not unconditionally align ADR text to current implementation; manage discrepancies via Known Issues)
 
-## ADR Dependency Graph
-
-```text
-ADR-001 → ADR-004 → ADR-008
-ADR-002 → ADR-001, ADR-003, ADR-005, ADR-006, ADR-007, ADR-008, ADR-009, ADR-010
-ADR-003 → ADR-004, ADR-007
-ADR-005 → ADR-008, ADR-009, ADR-010
-ADR-006 → ADR-008
-ADR-007 → ADR-004
-ADR-009 → ADR-005
-ADR-010 → ADR-004
-ADR-013 → ADR-003
-```
-
-### Circular Dependencies Detected
-
-CDR-1: ADR-005 ↔ ADR-009 (bidirectional)
-CDR-2: ADR-003 ↔ ADR-007 (bidirectional)
-CDR-3: ADR-013 → ADR-003 → ADR-004 (transitive circular path)
-
-These violate the governance framework's prohibition on circular dependencies. Resolve by restructuring related ADRs or documenting as known exceptions.
+The ADR list, dependency graph, and invariant verification matrix are maintained in
+`adr-index.md`, not here.
 
 ## Software Dependency Graph vs Documentation Reference Graph Separation
 
@@ -296,9 +285,10 @@ impact rather than deleting mechanically.
 
 | Consolidated into | Former documents |
 |---|---|
-| Documentation Policy (this document) | Documentation Governance, Canonical Source Rule, Evidence Labels, Governance Framework, ADR Index |
+| Documentation Policy (this document) | Documentation Governance, Canonical Source Rule, Evidence Labels, Governance Framework |
 | Issue and Uncertainty Management | Known Issues Template, Deprecated Items, Needs Confirmation Inventory, Known Issues Migration Plan |
 | Documentation Metadata | AI Reading Metadata, Terminology Glossary |
+| `adr-index.md` (separate document, not part of the 4-document governance set) | ADR Index, `canonical-source-matrix.md`'s ADR-specific entries, `adr_verification_matrix.md` |
 
 ## Non-Goals
 
@@ -319,7 +309,7 @@ Cross-cutting documentation rules and policies:
 - [Documentation Metadata](00_governance_02_documentation-metadata.md)
 - [Issue and Uncertainty Management](00_governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](00_governance_04_documentation-checks.md)
-- [Canonical Source Matrix](canonical-source-matrix.md)
+- [ADR Index](adr-index.md)
 
 ## Keywords
 
