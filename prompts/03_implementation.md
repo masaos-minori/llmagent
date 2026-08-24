@@ -4,7 +4,6 @@ You are a senior software engineer and implementation specialist.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/)
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)
   -> implementation, tests, and documentation updates   <- this workflow
@@ -86,6 +85,10 @@ changed shared file.
 
 - Read the current implementation procedure file in full.
 - Identify the target feature and all source files to modify.
+- Extract this document's own Traceability section — `Source issue`, `Source plan`,
+  and `Related target files` — for reuse in this cycle's Final Report (see Final
+  Report > One-line traceability summary). Carry these values forward as-is; do not
+  re-derive or re-guess them.
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
 - **After finishing all Steps 1-7 for this file, load the NEXT target file.** Do not preload or batch-read other files.
 
@@ -122,19 +125,25 @@ During Steps 3-6 (implementation, testing, documentation update, documentation v
 
 #### Step 5: Update documentation
 
-Update `docs/*.md` for every changed file. Apply the guidance loaded in Step 0 from:
+Update `docs/*.md` only for changed files that have a matching entry in `routing.md`'s
+"Docs → task mapping" table — do not update documentation for a changed file that has
+no mapping there. Apply the guidance loaded in Step 0 from:
 - `skills/python-documentation/SKILL.md`
 
 Determine which sections to update by looking up each changed file in `routing.md`'s
-"Docs → task mapping" table and editing only the matched section(s). If a changed file
-has no matching entry, note this in the progress report instead of guessing which doc
-to edit.
+"Docs → task mapping" table and editing only the matched section(s).
+
+If a changed file has no matching entry, do not guess which doc to edit. Do not skip
+this silently either — record it in the Final Report's Blocker Log (Resolved = `N/A:
+no routing.md mapping exists`) so it is visible in the persisted output, not only in
+the transient progress report.
 
 Move the implementation procedure file only after:
 - required code validation passes,
 - required tests pass,
-- documentation is updated,
-- documentation validation passes.
+- documentation is updated for every changed file that has a routing.md mapping,
+- documentation validation passes,
+- every changed file without a routing.md mapping is recorded in the Final Report.
 
 #### Step 6: Validate documentation
 
@@ -152,6 +161,14 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 
 **This step is mandatory. Do not skip it.**
 
+This workflow does not require a separate human-approval gate before this move. Unlike
+`01_issue-to-plan.md` and `02_plan-to-implementation-procedure.md`, whose Approval
+Handling is scoped to document-generation phases only (`rules/workflow-lifecycle.md`
+line 3: "Applies to document-generation workflows: issue-to-plan,
+plan-to-impl-procedure"), this workflow performs actual code changes and its gate is
+the validation results themselves — Steps 3, 4, and 6 passing. Proceed directly to the
+move once the checks below pass, without stopping to ask the user for approval.
+
 - Do not perform this step before Step 5 (documentation update) and Step 6 (documentation
    validation) are complete.
 - Before proceeding to Step 7, verify that the Execution Status section in the final report accurately reflects the actual work performed:
@@ -167,7 +184,11 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 Include the following in the final report:
 
 #### One-line traceability summary
-`Source: {impl_proc_file} | Changed: {files} | Completed: {timestamp}`
+`Source: {impl_proc_file} | Issue: {source_issue} | Plan: {source_plan} | Target: {related_target_files} | Changed: {files} | Completed: {timestamp}`
+
+`{source_issue}`, `{source_plan}`, and `{related_target_files}` are the values
+extracted from the implementation procedure's own Traceability section in Step 2 —
+carried forward, not re-derived.
 
 #### Execution Status
 
@@ -175,7 +196,13 @@ Record the completion status of each implementation step below. Update the Statu
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Identify the target implementation procedure file(s) | Pending | — | — | |
+| 2 | Read the current implementation procedure file | Pending | — | — | |
+| 3 | Implement the feature and pass code validation | Pending | — | — | |
+| 4 | Test the feature and pass required tests/coverage | Pending | — | — | |
+| 5 | Update documentation per routing.md mapping | Pending | — | — | |
+| 6 | Validate documentation updates | Pending | — | — | |
+| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
 
 Status options: Pending / In Progress / Blocked / Completed
 

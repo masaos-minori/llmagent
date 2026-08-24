@@ -240,8 +240,24 @@ Analyze every Risk and add a mitigation. When necessary, create:
 
     issues/{timestamp}_risks.md
 
-Use GitHub Issue Markdown format with one issue per section. Never overwrite an
-existing file.
+Reuse the same base timestamp generated in Step 5 (`date +%Y%m%d-%H%M%S`) for both
+files — do not generate a new timestamp. This keeps the Plan, Unknowns file, and Risks
+file correlated to the same workflow cycle.
+
+If either path already exists, apply the same lowest-available zero-padded sequence
+rule as Step 5. Never overwrite an existing file:
+
+    issues/{timestamp}_01_unknowns.md
+    issues/{timestamp}_02_unknowns.md
+
+    issues/{timestamp}_01_risks.md
+    issues/{timestamp}_02_risks.md
+
+Use GitHub Issue Markdown format with one issue per section. Each generated Unknown or
+Risk issue must include a Traceability section (per `templates/traceability.md`) with
+Source issue set to the current cycle's Issue path and Source plan set to the Plan file
+generated in Step 5. This carries Issue-to-Plan traceability forward into any follow-up
+issue this workflow produces.
 
 #### Step 7: Add Traceability
 

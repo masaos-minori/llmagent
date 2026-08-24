@@ -4,14 +4,14 @@ You are a senior software architect and implementation writer.
 
 ```text
 issue file (issues/)
-  -> requirement document (requires/)
   -> work plan document (plans/)
   -> file-level implementation procedure document (implementations/)   <- this workflow
   -> implementation, tests, and documentation updates
 ```
 
 - Input: `plans/{filename}_plan.md`
-- Output: `implementations/{timestamp}_{target_file_name}.md`
+- Output: `implementations/{timestamp}_{target_file_slug}.md`, where
+  `target_file_slug` is `target_file_path` with `/` replaced by `_`
 
 This phase produces the **implementation procedure**, not an architecture design document.
 There is no separate design phase in this pipeline.
@@ -94,6 +94,9 @@ changed shared file.
 
 - Read the target plan file in full.
 - Identify the target feature and the related source files to modify.
+- Extract this plan's own Traceability section, specifically its `Source issue` value,
+  for reuse in this cycle's generated documents (Step 3). The Plan already carries this
+  value forward from the Issue that produced it — do not re-derive it from scratch.
 - If the plan is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
 - **After finishing all Steps 1-4 for this file, load the NEXT target file.** Do not preload or batch-read other files.
 
@@ -107,7 +110,10 @@ broader template; do not produce its full 12-section architecture output here.
 
 For each item in `Implementation steps`:
 
-- `target_file_name` is the name of the file that item implements and tests.
+- `target_file_path` is the repository-relative path of the file that item implements
+  and tests (e.g. `scripts/agent/foo.py`). `target_file_name` is its base name only.
+  Use `target_file_path` for traceability matching and output naming — `target_file_name`
+  alone is ambiguous when the same base name exists under multiple directories.
 - Check whether the item has already been implemented:
   - An item may be skipped only when an existing document contains both:
     - `Source plan` equal to the current repository-relative plan path.
@@ -123,7 +129,14 @@ For each item in `Implementation steps`:
 - If not yet implemented, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document.
   - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Save the document as `implementations/{timestamp}_{target_file_name}.md`.
+  - Save the document as `implementations/{timestamp}_{target_file_slug}.md`, where
+    `target_file_slug` is `target_file_path` with `/` replaced by `_`. This keeps the
+    filename unique even when two target files share the same base name in different
+    directories.
+  - If the resulting path already exists, use the lowest available zero-padded
+    sequence — `implementations/{timestamp}_01_{target_file_slug}.md`,
+    `implementations/{timestamp}_02_{target_file_slug}.md` — and never overwrite an
+    existing file.
 
 Use this section structure:
 - Goal
@@ -150,12 +163,16 @@ item.
 
 Fill the Traceability section using the structure from `templates/traceability.md` with these values:
 - Workflow phase: plan-to-implementation-procedure
-- Source issue: N/A: not applicable in this phase
-- Source requirement: N/A: not applicable in this phase
-- Source plan: {path to the source plan file}
-- Source implementation procedure: N/A: not applicable in this phase
+- Source issue: the `Source issue` value extracted from the current target plan file's
+  own Traceability section in Step 2. Set to N/A only if the Plan's own Traceability
+  section genuinely has no Source issue (e.g. it legitimately records N/A itself) —
+  never default to N/A when the Plan carries a concrete value.
+- Source requirement: N/A: no standalone requirement document is generated
+- Source plan: the exact repository-relative path of the current target plan file
+  identified in Step 1/2 (e.g. `plans/{filename}_plan.md`)
+- Source implementation procedure: N/A: this document is the generated implementation procedure
 - Generated at: {timestamp from Step 3}
-- Related target files: {target_file_name}
+- Related target files: {target_file_path}
 
 #### Execution Status section
 
@@ -163,11 +180,19 @@ Add an Execution Status section with the following subsections and tables:
 
 ##### Execution Status
 
-Record the completion status of each work step below. Update the Status column when a step is started or finished.
+Pre-populate this table when the document is first created in Step 3 with the actual
+work steps this item requires — do not leave a single placeholder row. At minimum,
+include one row per concrete step below, split further if the item's Method/Details
+call for multiple distinct sub-steps:
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+
+Update the Status column as each step starts and finishes.
 
 Status options: Pending / In Progress / Blocked / Completed
 
@@ -210,9 +235,27 @@ Before proceeding to Step 4, verify that the Execution Status section in the gen
 - Report the generated file, validation result, unresolved items, and source file to be moved.
 - Stop and wait for explicit user approval.
 - Do not move the source file before approval.
+
+Before running the move, verify all of the following:
+- current state is `Awaiting approval`
+- approval explicitly applies to the current Plan file
+- every `Implementation steps` item in the Plan has been accounted for (already
+  implemented, newly created this cycle, or explicitly reported as `Needs confirmation`)
+- each document created or confirmed this cycle has an Execution Status section that
+  accurately reflects the actual work performed (per the check above)
+- the source Plan file exists
+- the destination `plans/done/{filename}` does not exist
+- `plans/done/` exists
+
 - After approval, resume from the move step.
 - Move the plan file to `plans/done/` using git mv or cp + rm.
-- Verify the file exists in `plans/done/` after the move.
+
+After the move, verify all of the following:
+- the file exists at `plans/done/{filename}`
+- the file no longer exists at its original `plans/` path
+- the move is recorded by the tool used (a Git rename/staged move for `git mv`, or an
+  equivalent confirmation for `cp + rm`)
+
 - **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
 - Only after confirming the move succeeded, consider the cycle complete.
 
@@ -220,5 +263,5 @@ An unclear user response must not be treated as approval. Before approval, repor
 
 ### Procedure-Specific Guidance
 
-- In Step 3, check "already implemented" status by first matching `target_file_name` against file names under `implementations/` and `implementations/done/` as a cheap filter; only when a name matches, read that matched file's content (not the full target source file) to confirm its stated scope actually covers the current item before deciding to skip.
+- In Step 3, check "already implemented" status by first matching `target_file_slug` against file names under `implementations/` and `implementations/done/` as a cheap filter; only when a name matches, read that matched file's content (not the full target source file) to confirm its stated scope actually covers the current item before deciding to skip.
 - In Step 3, perform the per-item investigation (reading the related source file to write Method/Details) sequentially; read only the relevant sections of the target source file (locate them with grep first, then read a limited range) rather than the full file. Retain only what is needed for the procedure document, not full file contents.

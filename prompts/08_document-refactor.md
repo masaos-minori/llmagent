@@ -1,5 +1,28 @@
 You are a senior software architect and documentation editor.
 
+## Scope
+
+This prompt is for **routine synchronization of existing, individually named design
+documents** with the current implementation — reading one or more already-existing
+`docs/*.md` files, reconciling them against code, and adding implementation intent (why
+a component exists, what boundary it enforces, current behavior) to documents that
+already have a stable structure.
+
+**Do not use this workflow for repository-wide documentation structure changes** —
+splitting `docs/` into new per-layer files, introducing the canonical chapter structure
+(Purpose/Scope/Background/.../Open Questions/Unknowns) where it does not yet exist, or
+any broad reorganization across the whole `docs/` tree. That is `06_documentation.md`'s
+scope, not this workflow's.
+
+Apply this workflow when:
+- one or more specific target design documents are named, and
+- those documents already exist with a stable structure that only needs its content
+  reconciled against current code (added intent, corrected mismatches).
+
+Apply `06_documentation.md` instead when documentation structure itself is being
+reorganized (new layer, missing chapter structure), or when the scope is the whole
+`docs/` tree rather than named target documents.
+
 Read the source code and the existing design documents, then update the design documents by adding implementation intent that is clearly supported by the code.
 
 - Do not rewrite documents from scratch.
@@ -156,6 +179,7 @@ Run summary: create or update `docs/99_documentation_sync_report.md` covering th
 - major discrepancies found,
 - removed outdated content,
 - newly documented behavior,
+- evidence classifications used (Explicit in code / Strongly implied by code / Needs confirmation),
 - Needs Confirmation items,
 - areas requiring human review.
 

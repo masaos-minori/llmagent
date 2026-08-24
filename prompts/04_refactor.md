@@ -78,28 +78,60 @@ Before making any edit to the target file, report the following in Markdown:
 - Behavior preservation strategy
 - Expected files to change
 - Expected validation commands
+- Path classification (A or B) — see "Path classification" below
 
 If `Expected behavior change` is anything other than `none`, stop. Do not implement it.
 Record it under `Proposals not implemented` (Step 10 format) instead, and do not proceed to
 Step 3 for this idea. Only continue transforming the parts of the file that involve no
 behavior change.
 
+##### Path classification
+
+Classify the refactoring as Path A or Path B before Step 3. This gates how much tooling
+depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7 themselves, nor reduce
+Step 7's Required validation, nor skip the Completion gate.
+
+**[Path A] Minor change** — must satisfy ALL:
+- Affects a single target file
+- No import boundary changes (no new cross-layer imports)
+- `Expected behavior change: none` (per the declaration above)
+- Not referenced in `deploy.sh`
+
+**[Path B] Higher-impact change** — satisfies ANY:
+- Affects more than one file
+- Changes an import boundary or module layer
+- Referenced in `deploy.sh`
+- Touches shared/extracted logic used by more than one caller
+
+Record the Path A/B decision and its rationale in Step 10's report.
+
 #### Step 3: Preparation
 
-- Use `pydeps` to inspect the import graph.
-- Use `rg` to find symbol usages.
-- Use `import-linter` to verify module boundaries.
-- Use `ast-grep` for structural usage search.
-- Check whether the target files are referenced in `deploy.sh`.
-- Record the impact scope in a table.
+Depth depends on the Path classification above.
+
+- Use `rg` to find symbol usages (always run, not conditional).
+- Check whether the target files are referenced in `deploy.sh` (always run).
+- **Path A**: skip `pydeps`, `import-linter`, and `ast-grep`; record `N/A: Path A` for
+  each in the impact scope table.
+- **Path B**: run `pydeps` to inspect the import graph, `import-linter` to verify module
+  boundaries, and `ast-grep` for structural usage search — each subject to the
+  Conditional tool handling defined in Step 7 (report why unavailable, use an
+  alternative if one exists, never report a skipped check as passed).
+- Record the impact scope in a table, marking any tool skipped for either reason
+  (Path A or unavailability) as `N/A` or `Not run` respectively — never omit the row.
 
 #### Step 4: Behavior lock
 
 - Record baseline coverage with `pytest-cov`.
 - If coverage is below 80%, add characterization tests.
   - Note: 80% is a judgment threshold specific to this procedure, not a project-wide standard.
-- Run `mutmut`.
-- Ensure there are no surviving mutations in the refactored paths.
+- **Path A**: skip `mutmut`; record `Not run: Path A` in the manifest and rely on the
+  characterization tests and coverage above.
+- **Path B**: run `mutmut` when the repository configures and supports it (per the
+  Conditional tool handling in Step 7). When run, ensure there are no surviving
+  mutations in the refactored paths, or that every surviving mutation is documented as
+  equivalent (Step 10 format). When unavailable, report `Not run` — never treat
+  mutation coverage as satisfied in that case.
 - Produce a behavior lock manifest covering:
   - Public functions/classes covered
   - Important branches covered
@@ -226,8 +258,9 @@ If mutation testing is not configured, report `Not run`. Do not invent mutation 
 
 #### Step 8: Incremental migration
 
-- Stage changes per hunk with `git add -p` (or `lazygit` as an optional alternative).
-- Classify every staged hunk as one of:
+- By default, do not stage or commit anything. Classify changes directly from
+  non-interactive `git diff` output, hunk by hunk, without invoking `git add`.
+- Classify every hunk as one of:
   - rename only
   - extraction only
   - simplification
@@ -240,15 +273,22 @@ If mutation testing is not configured, report `Not run`. Do not invent mutation 
   - metadata update
 
   Any hunk that does not fit these categories must be explained explicitly.
-- Run tests, `ruff`, and `mypy` at each step.
-- Ensure every logical unit of staged changes is rollback-safe on its own.
-- Do not run `git commit` unless the user has explicitly instructed committing.
-  - By default: organize the staged changes into logical diff groups and report the
-    suggested commit boundaries in Step 10. Leave the changes staged/uncommitted.
-  - If committing is explicitly allowed: create one rollback-safe commit per logical unit,
-    ensure each commit passes the Step 10 completion gate before it is committed, and avoid
-    interactive commands (e.g. `git rebase -i`) unless the environment explicitly supports
-    them.
+- Run tests, `ruff`, and `mypy` once per logical group identified via `git diff` (see
+  Refactoring-Specific Guidance for scoping) — do not require staging hunks
+  individually to run these checks.
+- Ensure every logical group identified via `git diff` is rollback-safe on its own (it
+  could be committed or reverted independently without breaking the others).
+- Staging and committing are both opt-in, never default:
+  - If the user has not requested staging or committing: leave the working tree
+    unstaged, organize the logical diff groups above, and report the suggested commit
+    boundaries in Step 10.
+  - If the user explicitly requests staging: `git add -p` (interactive) or `lazygit`
+    may be used to stage per-hunk at that point — this is an opt-in action, not a
+    required step of this workflow.
+  - If the user explicitly requests committing: create one rollback-safe commit per
+    logical unit, ensure each commit passes the Step 10 completion gate before it is
+    committed, and avoid interactive commands (e.g. `git rebase -i`) unless the
+    environment explicitly supports them.
 
 #### Step 9: CI gate
 
@@ -264,6 +304,7 @@ Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
 Keep diffs minimal. For each file, report:
 
 - The Step 2 refactoring intent declaration.
+- The Path A/B classification decided in Step 2 and its rationale.
 - What changed and why.
 - The Step 4 behavior lock manifest.
 - The Step 5/7 side-effect inventory and confirmation that it is unchanged.
@@ -321,11 +362,11 @@ If any item is not satisfied, do not report the task as complete.
 
 ### Refactoring-Specific Guidance
 
-- Perform Step 3 (preparation/investigation) sequentially; run `pydeps`, `rg`, `import-linter`, and `ast-grep`, and retain only the resulting impact scope table, not the raw tool output.
+- Perform Step 3 (preparation/investigation) sequentially; run `rg` always, and `pydeps`/`import-linter`/`ast-grep` only when Path B applies (see Step 3's Path A/B depth rule), retaining only the resulting impact scope table, not the raw tool output.
 - Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g. via `grep` for failures) rather than full successful-run output.
 - Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever possible, rather than the whole repository.
 - Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
-- In Step 8, run the full mypy/test/ruff check once per logical commit rather than after every single `git add -p` hunk; use a lighter check (e.g. `ruff` only) between hunks.
+- In Step 8, run the full mypy/test/ruff check once per logical diff group identified via `git diff` rather than after every single hunk; use a lighter check (e.g. `ruff` only) when inspecting individual hunks.
 - In Step 9, prefer scoping `pre-commit` to the changed files over `--all-files` when the CI gate does not require a full-repo run.
 - When multiple target files are specified, run each Steps 1-10 cycle sequentially so that tool output and investigation results from one file's cycle do not accumulate in the context used for the next file's cycle.
 - Keep progress reports and Step 10 results concise; do not restate full diffs or raw tool output. Evidence tables (manifest, inventory, mutation report) must still list every required field even when kept concise.

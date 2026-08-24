@@ -83,6 +83,28 @@ Important:
 - If tests need to be run in a specific order, infer and follow that order.
 - If some tests cannot run because of missing environment/services, record that explicitly.
 
+##### When starting local test infrastructure is allowed
+
+You may start local, ephemeral test infrastructure (a container, a local SQLite/Postgres
+instance, a cloud-service emulator) only when all of the following hold:
+- it is already defined by repository configuration or tooling (e.g. a
+  `docker-compose.test.yml`, an existing `testcontainers`/emulator fixture, a
+  documented local setup command) — do not invent new infrastructure the repository
+  does not already define;
+- it is isolated from production (no production hostnames, credentials, or shared
+  state);
+- it can be torn down after the run without leaving persistent state behind;
+- starting it requires no production credential and no unverified external service.
+
+##### No test-only configuration changes
+
+Do not change configuration, environment variables, feature flags, or other runtime
+settings solely to make a test runnable. If a test cannot run without such a change,
+do not make the change — record the test as `Blocked` or `Not runnable` (see Result
+Classification) and report the specific missing environment requirement instead.
+
+##### Prohibited test execution
+
 Do not run tests that may:
 - connect to production,
 - modify real data,
@@ -90,17 +112,38 @@ Do not run tests that may:
 - require unverified credentials,
 - require an unverified external service.
 
-If a safe isolated test environment is unavailable:
-- Mark the test as `Blocked` or `Not runnable`.
+If a safe isolated test environment is unavailable, or starting one would require a
+prohibited configuration change:
+- Mark the test as `Blocked` or `Not runnable` (see Result Classification).
 - Record the missing environment, service, or credential.
 - Do not report the test as passed.
+
+### Result Classification
+
+Classify every executed or attempted command using exactly one of these five results —
+used consistently in Step 3 and in the Required Output Format Section 2:
+
+- **Pass** — ran to completion with no failures.
+- **Fail** — ran to completion with one or more failures.
+- **Partial** — ran, but some sub-cases were skipped, xfail, or otherwise incomplete;
+  state exactly what was skipped and why.
+- **Not runnable** — cannot run in this environment as designed (e.g. requires a
+  production-only resource with no safe local/emulated equivalent). A structural
+  limitation, not a fixable blocker.
+- **Blocked** — could run in principle, but a specific missing or unavailable
+  environment, service, or credential currently prevents it. Record exactly what is
+  missing.
+
+Never report `Not runnable` or `Blocked` as `Pass`. An unexecuted or partially executed
+check has no result other than one of the five above — do not infer `Pass` from a
+similar command's success, from the absence of an error, or from partial output.
 
 #### Step 3: Record real execution results
 
 For each executed command, record:
 - exact command,
 - purpose,
-- success / failure / partial / blocked,
+- result (Pass / Fail / Partial / Not runnable / Blocked — see Result Classification),
 - failing test names,
 - failure type,
 - stack trace summary,
@@ -187,8 +230,8 @@ Produce the following sections exactly:
 For each command, record as bullet points:
 - **command**: exact command
 - **purpose**: what it validates
-- **result**: pass / fail / partial / not runnable
-- **notes**: for a passing command, a concise one-line summary; for failed, partial, blocked, skipped, unavailable, or not-runnable commands, retain full relevant details (see Section 3 for failures). Never report an unexecuted check as passed.
+- **result**: Pass / Fail / Partial / Not runnable / Blocked (see Result Classification)
+- **notes**: for a passing command, a concise one-line summary; for Fail, Partial, Blocked, or Not runnable commands, retain full relevant details (see Section 3 for failures). Never report an unexecuted or blocked check as Pass.
 
 # 3. Existing Test Failures
 For each failure:
