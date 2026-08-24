@@ -138,11 +138,25 @@ Do not load every skill file in full at the same time. Use this process:
 
 Remove duplicated content across `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md`.
 
+When a duplicate is found, decide its destination by content type using the table
+below, then replace every other occurrence with a short cross-reference to that
+destination — never leave the rule's text repeated in more than one place:
+
+| Content type | Canonical destination | Reference form left behind elsewhere |
+|---|---|---|
+| Task-to-skill or source-to-document mapping | `routing.md` | An instruction to consult `routing.md`; no mapping entries anywhere else |
+| Shared design/architecture rule used by 2+ skills | `skills/DESIGN.md` | `see skills/DESIGN.md {section name}` |
+| Task-specific procedure or checklist | The owning `skills/<task>/SKILL.md` (or its `workflow.md`) | `see skills/<task>/SKILL.md {section name}` |
+| Repository-wide AI execution constraint (not task-specific, not a mapping) | `AGENTS.md` | Referenced by name from skills that need it |
+
 Acceptance criteria:
 - No rule, guideline, or procedure appears in more than one file.
 - Each piece of content has exactly one canonical location.
-- All references to moved content point to the correct canonical location.
-- `AGENTS.md` contains routing rules only; no task-specific procedures.
+- All references to moved content point to the correct canonical location, using the
+  reference form in the table above.
+- `AGENTS.md` contains repository-wide execution constraints and the instruction to
+  consult `routing.md` only — no task-specific procedures and no task-to-skill mapping
+  entries.
 - `skills/DESIGN.md` contains shared design/architectural rules only; no task-specific procedures.
 - Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
 - Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific skill files.
@@ -178,7 +192,10 @@ Define the roles of each file type:
 A normative rule must have one canonical definition. A short link or non-normative summary is allowed if it does not redefine the rule.
 
 Apply the following structure:
-- Put task routing rules in `AGENTS.md`.
+- Put only an instruction to consult `routing.md` in `AGENTS.md` — the task-to-skill
+  mapping table itself lives only in `routing.md` (per Canonical Ownership Model
+  above). Do not add mapping entries, or a second copy of the mapping table, to
+  `AGENTS.md`.
 - Put shared design and architectural rules in `skills/DESIGN.md`.
 - Put only task-specific procedures and checklists in `skills/**/*.md`.
 - Ensure that shared rules are defined only once and referenced from the appropriate files.
@@ -186,7 +203,9 @@ Apply the following structure:
 - Preserve clear dependency direction between files and rules.
 
 Acceptance criteria:
-- `AGENTS.md` contains routing rules only; no task-specific procedures.
+- `AGENTS.md` contains repository-wide execution constraints and the instruction to
+  consult `routing.md` only — no task-specific procedures and no task-to-skill mapping
+  entries.
 - `skills/DESIGN.md` contains shared design/architectural rules only; no task-specific procedures.
 - Each `skills/<task>/SKILL.md` contains only procedures specific to that task.
 - Default context load (`AGENTS.md` + `routing.md`) does not pull in task-specific skill files.
