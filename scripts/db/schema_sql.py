@@ -29,7 +29,7 @@ _RAG_SCHEMA_TEMPLATE: str = """
         url                TEXT    NOT NULL UNIQUE,
         title              TEXT,
         lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-        fetched_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        fetched_at         TEXT    NOT NULL,
         etag               TEXT,
         last_modified      TEXT,
         chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
@@ -82,6 +82,14 @@ _RAG_SCHEMA_TEMPLATE: str = """
     END;
 """
 
+# session.sqlite uses recreate-only DDL (CREATE TABLE IF NOT EXISTS), unlike
+# workflow.sqlite's incremental _WORKFLOW_MIGRATIONS / apply_workflow_migrations.
+# Unlike rag.sqlite, session.sqlite's data (conversation history, semantic/episodic
+# memory) is not trivially re-derivable from an external source. This gap is a
+# known, accepted risk (cross-reference issues/done/20260819-183436_risks.md);
+# the migration-mechanism-vs-recreate decision is deliberately deferred to the
+# next concrete session.sqlite schema-change proposal, which must address data
+# preservation rather than silently defaulting to a lossy recreate.
 _SESSION_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS sessions (
         session_id INTEGER PRIMARY KEY AUTOINCREMENT,

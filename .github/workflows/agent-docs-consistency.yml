@@ -5,12 +5,12 @@ on:
     paths:
       - "docs/05_agent_*.md"
       - "docs/90_shared_04_*.md"
-      - "tools/check_agent_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
   pull_request:
     paths:
       - "docs/05_agent_*.md"
       - "docs/90_shared_04_*.md"
-      - "tools/check_agent_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -32,4 +32,4 @@ jobs:
       - name: Run Agent docs consistency checks
         run: |
           set -euo pipefail
-          python tools/check_agent_docs_consistency.py
+          python tools/check_docs_consistency.py --domain agent

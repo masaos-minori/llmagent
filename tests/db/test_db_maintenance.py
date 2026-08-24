@@ -254,8 +254,8 @@ class TestRagDbMaintenanceService:
                 url TEXT NOT NULL UNIQUE,
                 title TEXT,
                 lang TEXT NOT NULL DEFAULT 'ja',
-                fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
-                chunking_strategy TEXT NOT NULL DEFAULT 'text'
+                fetched_at TEXT NOT NULL,
+                chunking_strategy TEXT NOT NULL
             );
             CREATE TABLE chunks (
                 chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -299,7 +299,9 @@ class TestRagDbMaintenanceService:
         self._make_rag_schema(db_file)
 
         conn = _s.connect(str(db_file))
-        conn.execute("INSERT INTO documents(url, lang) VALUES('http://test', 'ja')")
+        conn.execute(
+            "INSERT INTO documents(url, lang, fetched_at, chunking_strategy) VALUES('http://test', 'ja', '2026-01-01T00:00:00Z', 'text')"
+        )
         # Japanese chunk: normalized_content differs from content
         conn.execute(
             "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content) VALUES(1, 0, '東京', 'とうきょう')"
@@ -541,7 +543,7 @@ class TestRecoverCorruption:
 
         assert result.success is False
         assert result.dry_run is True
-        assert "integrity check failed" in result.detail
+        assert "Integrity failure" in result.detail
 
     def test_vacuum_path(self) -> None:
         """Integrity ok, not dry_run -> vacuum."""
@@ -680,7 +682,7 @@ class TestRecoverCorruption:
         with patch("db.recovery.SQLiteHelper", return_value=mock_helper):
             result = recover_corruption()
         assert result.success is False
-        assert result.action == "error"
+        assert result.action == "no_backup"
 
 
 # ── MaintenanceMode ────────────────────────────────────────────────────────────

@@ -28,8 +28,10 @@ import httpx
 import orjson
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
+from rag.exceptions import ChunkFormatError
 from rag.ingestion.document_manager import DocumentManager
-from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
+from rag.ingestion.pipeline_utils import read_chunk_json
+from rag.models_data import ChunkDocument
 from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
 from shared.json_utils import parse_http_json
@@ -54,6 +56,7 @@ class IngestionFailureReason(StrEnum):
     EMBEDDING_FAILED = "embedding_failed"
     STORAGE_FAILED = "storage_failed"
     UNEXPECTED_FAILURE = "unexpected_failure"
+    GROUP_VALIDATION_FAILED = "group_validation_failed"
 
 
 @dataclass(frozen=True)
@@ -200,21 +203,67 @@ class RagIngester:
             return self._skip_result(url)
 
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
-        first_data = self._read_chunk_json(chunk_files[0])
-        if first_data is None:
+        try:
+            first_data = self._read_chunk_json(chunk_files[0])
+        except ChunkFormatError:
             return IngestUrlResult(
                 url=url, n_success=0, n_failed=len(chunk_files), skipped=False
             )
 
-        if not self._validate_artifact(first_data, "chunk"):
-            return self._validation_failure_result(url, chunk_files)
+        first_fields = (
+            first_data.url,
+            first_data.title,
+            first_data.lang,
+            first_data.fetched_at,
+            first_data.etag,
+            first_data.last_modified,
+            first_data.source_file,
+            first_data.chunking_strategy,
+            first_data.chunk_type,
+        )
+        chunk_indices: set[int] = set()
+        for cp in chunk_files:
+            try:
+                cd = self._read_chunk_json(cp)
+            except ChunkFormatError:
+                return IngestUrlResult(
+                    url=url, n_success=0, n_failed=len(chunk_files), skipped=False
+                )
+            cf = (
+                cd.url,
+                cd.title,
+                cd.lang,
+                cd.fetched_at,
+                cd.etag,
+                cd.last_modified,
+                cd.source_file,
+                cd.chunking_strategy,
+                cd.chunk_type,
+            )
+            if cf != first_fields:
+                return IngestUrlResult(
+                    url=url,
+                    n_success=0,
+                    n_failed=len(chunk_files),
+                    skipped=False,
+                    failure_reason=IngestionFailureReason.GROUP_VALIDATION_FAILED,
+                )
+            chunk_indices.add(cd.chunk_index)
+        expected = set(range(len(chunk_files)))
+        if chunk_indices != expected:
+            return IngestUrlResult(
+                url=url,
+                n_success=0,
+                n_failed=len(chunk_files),
+                skipped=False,
+                failure_reason=IngestionFailureReason.GROUP_VALIDATION_FAILED,
+            )
 
-        title = first_data.get("title", "")
-        lang = first_data.get("lang", "en")
-        etag = first_data.get("etag")
-        last_modified = first_data.get("last_modified")
-        fetched_at = first_data.get("fetched_at")
-        chunking_strategy = first_data.get("chunking_strategy", "text")
+        title = first_data.title
+        lang = first_data.lang
+        etag = first_data.etag
+        last_modified = first_data.last_modified
+        chunking_strategy = first_data.chunking_strategy
 
         doc_id, skip, replace = self._get_or_create_document(
             doc_mgr,
@@ -223,10 +272,10 @@ class RagIngester:
             title,
             lang,
             force,
-            etag,
-            last_modified,
-            chunking_strategy,
-            fetched_at,
+            etag=etag,
+            last_modified=last_modified,
+            chunking_strategy=chunking_strategy,
+            fetched_at=first_data.fetched_at,
         )
         if skip:
             logger.info("already registered, skipping", extra={"url": url})
@@ -251,10 +300,10 @@ class RagIngester:
                 replace,
                 title,
                 lang,
-                etag,
-                last_modified,
-                chunking_strategy,
-                fetched_at,
+                etag=etag,
+                last_modified=last_modified,
+                chunking_strategy=chunking_strategy,
+                fetched_at=first_data.fetched_at,
             )
             self._route_chunk_files(prepared_paths, failed_paths)
         else:
@@ -354,56 +403,17 @@ class RagIngester:
             extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
         )
 
-    @staticmethod
-    def _normalize_chunk_index(doc_id: int, path_name: str, idx_raw: int | str) -> int:
-        """Convert chunk_index to int, falling back to 0 on failure."""
-        try:
-            return int(idx_raw)
-        except (ValueError, TypeError):
-            logger.warning(
-                "Invalid chunk_index in %s: %s, using 0",
-                path_name,
-                idx_raw,
-                extra={
-                    "doc_id": doc_id,
-                    "source_type": "file",
-                    "stage_name": "ingester",
-                },
-            )
-            return 0
-
     # ── Document helpers ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def _validate_artifact(
-        payload: ChunkJsonRaw,
-        expected_type: str,
-        strict: bool = True,
-    ) -> bool:
-        """Validate artifact_type field; missing artifact_type is always rejected.
-
-        When strict=False, schema_version and created_by are optional.
-        When strict=True, all three fields are required.
-
-        Returns True when validation passes, False when it fails.
-        """
-        if strict:
-            for required in ("schema_version", "artifact_type", "created_by"):
-                if required not in payload:
-                    return False
-        else:
-            if "artifact_type" not in payload:
-                return False
-        actual = payload.get("artifact_type")
-        if actual != expected_type:
-            return False
-        return True
 
     @staticmethod
     def _log_ingest_failure(doc_id: int, path: Path, e: Exception) -> None:
         """Log a chunk ingestion failure."""
-        chunk_data = _read_chunk_json_raw(path)
-        chunk_url = chunk_data.get("url", "") if chunk_data else ""
+        chunk_url = ""
+        try:
+            chunk_data = read_chunk_json(path)
+            chunk_url = chunk_data.url or ""
+        except ChunkFormatError:
+            pass
         logger.error(
             "Failed to ingest %s: %s",
             path,
@@ -428,10 +438,11 @@ class RagIngester:
         title: str,
         lang: str,
         force: bool,
+        *,
         etag: str | None = None,
         last_modified: str | None = None,
         chunking_strategy: str = "text",
-        fetched_at: str | None = None,
+        fetched_at: str,
     ) -> tuple[int | None, bool, bool]:
         """Register a URL in documents and return its doc_id and whether replacement is needed.
         Returns (None, True) if already registered and skip=True.
@@ -471,24 +482,16 @@ class RagIngester:
         etag: str | None,
         last_modified: str | None,
         chunking_strategy: str,
-        fetched_at: str | None,
+        fetched_at: str,
     ) -> sqlite3.Cursor:
         """Insert a document row and return the cursor."""
-        if fetched_at is not None:
-            cursor: sqlite3.Cursor = db.execute(
-                "INSERT INTO documents"
-                " (url, title, lang, etag, last_modified, chunking_strategy, fetched_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (url, title, lang, etag, last_modified, chunking_strategy, fetched_at),
-            )
-            return cursor
-        cursor2: sqlite3.Cursor = db.execute(
+        cursor: sqlite3.Cursor = db.execute(
             "INSERT INTO documents"
-            " (url, title, lang, etag, last_modified, chunking_strategy)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (url, title, lang, etag, last_modified, chunking_strategy),
+            " (url, title, lang, etag, last_modified, chunking_strategy, fetched_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (url, title, lang, etag, last_modified, chunking_strategy, fetched_at),
         )
-        return cursor2
+        return cursor
 
     def _insert_chunk(
         self,
@@ -524,63 +527,56 @@ class RagIngester:
             return 0
         inserted = 0
         for pc in prepared_chunks:
-            try:
-                cur = db.execute(
-                    "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        pc.doc_id,
-                        pc.chunk_index,
-                        pc.content,
-                        pc.normalized_content or None,
-                        pc.chunk_type,
-                        pc.source_file,
-                    ),
-                )
-                chunk_id = cur.lastrowid
-                db.execute(
-                    "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
-                    (chunk_id, pc.embedding_blob),
-                )
-                inserted += 1
-            except sqlite3.IntegrityError:
-                pass
+            cur = db.execute(
+                "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    pc.doc_id,
+                    pc.chunk_index,
+                    pc.content,
+                    pc.normalized_content or None,
+                    pc.chunk_type,
+                    pc.source_file,
+                ),
+            )
+            chunk_id = cur.lastrowid
+            db.execute(
+                "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+                (chunk_id, pc.embedding_blob),
+            )
+            inserted += 1
         return inserted
 
     # ── Bulk file processing ──────────────────────────────────────────────────
 
-    def _read_chunk_json(self, path: Path) -> ChunkJsonRaw | None:
-        """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
-        return _read_chunk_json_raw(path)
+    def _read_chunk_json(self, path: Path) -> ChunkDocument:
+        """Read and validate a chunk JSON file; returns ChunkDocument.
+
+        Raises ChunkFormatError on any validation failure.
+        """
+        return read_chunk_json(path)
 
     def _embed_and_store(
         self, doc_id: int, path: Path
     ) -> PreparedChunk | IngestionFailureReason:
         """Embed one chunk without DB access; returns a PreparedChunk ready for atomic insertion or a failure reason."""
-        data = self._read_chunk_json(path)
-        if data is None:
+        try:
+            data = self._read_chunk_json(path)
+        except ChunkFormatError:
             return IngestionFailureReason.PARSE_FAILED
-        if not self._validate_artifact(data, "chunk"):
-            logger.warning(
-                "artifact validation failed for %s",
-                path.name,
-                extra={"source_type": "file", "stage_name": "ingester"},
-            )
-            return IngestionFailureReason.VALIDATION_FAILED
-        content: str = data.get("content", "")
-        nc_raw = data.get("normalized_content")
+        content: str = data.content
+        nc_raw = data.normalized_content
         normalized_content: str | None = (
             nc_raw if isinstance(nc_raw, str) and nc_raw else None
         )
-        idx_raw = data.get("chunk_index", 0)
-        idx = self._normalize_chunk_index(doc_id, path.name, idx_raw)
-        chunk_type: str = data.get("chunk_type", "") or ""
-        source_file: str = data.get("source_file", "") or ""
+        idx = data.chunk_index
+        chunk_type: str = data.chunk_type or ""
+        source_file: str = data.source_file or ""
         # Embed original content; E5 understands raw Japanese.
         # normalized_content is for FTS only and not used for embedding.
         embedding = self._get_embedding(content)
         if embedding is None:
-            chunk_url = data.get("url", "")
+            chunk_url = data.url
             logger.warning(
                 "embedding failed for %s: %r",
                 path.name,
@@ -657,10 +653,11 @@ class RagIngester:
         replace: bool,
         title: str,
         lang: str,
+        *,
         etag: str | None,
         last_modified: str | None,
         chunking_strategy: str,
-        fetched_at: str | None,
+        fetched_at: str,
     ) -> None:
         """Atomically commit all database changes for a URL inside BEGIN IMMEDIATE transaction."""
         with db.begin_immediate():
@@ -695,10 +692,11 @@ class RagIngester:
         """Group chunk files by URL read from their JSON 'url' field."""
         url_groups: dict[str, list[Path]] = defaultdict(list)
         for path in chunk_files:
-            data = self._read_chunk_json(path)
-            if data is None:
+            try:
+                data = self._read_chunk_json(path)
+            except ChunkFormatError:
                 continue
-            url: str = data.get("url", "")
+            url: str = data.url or ""
             if not url:
                 logger.warning(
                     "url field missing: %s",
@@ -730,7 +728,13 @@ class RagIngester:
         for url, paths in url_groups.items():
             try:
                 results.append(self.ingest_url_group(doc_mgr, db, url, paths, force))
-            except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
+            except (
+                OSError,
+                RuntimeError,
+                ValueError,
+                sqlite3.OperationalError,
+                sqlite3.IntegrityError,
+            ):
                 logger.exception("ingest_url_group failed: %s", url)
                 results.append(
                     IngestUrlResult(
@@ -751,8 +755,12 @@ class RagIngester:
             try:
                 shutil.move(str(path), str(dest))
             except OSError as e:
-                chunk_data = self._read_chunk_json(path)
-                chunk_url = chunk_data.get("url", "") if chunk_data else ""
+                chunk_url = ""
+                try:
+                    chunk_data = self._read_chunk_json(path)
+                    chunk_url = chunk_data.url or ""
+                except ChunkFormatError:
+                    pass
                 logger.error(
                     "move failed %s → %s: %s",
                     path,
@@ -780,8 +788,12 @@ class RagIngester:
             try:
                 shutil.move(str(path), str(dest))
             except OSError as e:
-                chunk_data = self._read_chunk_json(path)
-                chunk_url = chunk_data.get("url", "") if chunk_data else ""
+                chunk_url = ""
+                try:
+                    chunk_data = self._read_chunk_json(path)
+                    chunk_url = chunk_data.url or ""
+                except ChunkFormatError:
+                    pass
                 logger.error(
                     "move failed %s → %s: %s",
                     path,
@@ -825,8 +837,9 @@ class RagIngester:
 
     def _write_error_metadata(self, path: Path, failure_reason: str) -> dict | None:
         """Write .error.json metadata for a failed chunk."""
-        chunk_data = self._read_chunk_json(path)
-        if chunk_data is None:
+        try:
+            chunk_data = self._read_chunk_json(path)
+        except ChunkFormatError:
             return None
 
         metadata = {
@@ -836,15 +849,15 @@ class RagIngester:
             "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
-        url = chunk_data.get("url", "")
+        url = chunk_data.url or ""
         if url:
             metadata["url"] = url
 
-        chunk_index_raw = chunk_data.get("chunk_index", "")
+        chunk_index_raw = chunk_data.chunk_index
         if chunk_index_raw is not None:
             metadata["chunk_index"] = str(chunk_index_raw)
 
-        source_file = chunk_data.get("source_file", "")
+        source_file = chunk_data.source_file or ""
         if source_file:
             metadata["source_file"] = source_file
 

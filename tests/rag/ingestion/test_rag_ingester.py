@@ -30,6 +30,7 @@ def _make_chunk_json(
     chunk_index: int = 0,
     etag: str | None = None,
     last_modified: str | None = None,
+    fetched_at: str = "2024-01-01T00:00:00Z",
     chunk_type: str = "",
     source_file: str = "",
 ) -> dict:
@@ -47,6 +48,7 @@ def _make_chunk_json(
         "chunk_index": chunk_index,
         "etag": etag,
         "last_modified": last_modified,
+        "fetched_at": fetched_at,
         "chunk_type": chunk_type,
         "source_file": source_file,
         "code_blocks": [],

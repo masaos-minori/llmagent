@@ -88,19 +88,22 @@ class SQLiteDocumentStore:
         lang: str,
         etag: str | None,
         last_modified: str | None,
+        fetched_at: str,
+        chunking_strategy: str,
     ) -> int:
         """Insert or update a document and return its doc_id."""
         cur = self._db.execute(
-            "INSERT INTO documents (url, title, lang, etag, last_modified)"
-            " VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO documents (url, title, lang, etag, last_modified, fetched_at, chunking_strategy)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT(url) DO UPDATE SET"
             "  title = excluded.title,"
             "  lang = excluded.lang,"
             "  etag = excluded.etag,"
             "  last_modified = excluded.last_modified,"
-            "  fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
+            "  fetched_at = excluded.fetched_at,"
+            "  chunking_strategy = excluded.chunking_strategy"
             " RETURNING doc_id",
-            (url, title, lang, etag, last_modified),
+            (url, title, lang, etag, last_modified, fetched_at, chunking_strategy),
         )
         row = cur.fetchone()
         if row is None:
@@ -146,15 +149,15 @@ class SQLiteDocumentStore:
         doc_id: int,
         index: int,
         content: str,
+        chunk_type: str,
+        source_file: str,
         normalized: str | None = None,
-        chunk_type: str = "",
-        source_file: str = "",
     ) -> int:
         """Insert a chunk and return its auto-generated ID."""
         cur = self._db.execute(
-            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
+            "INSERT INTO chunks (doc_id, chunk_index, content, chunk_type, source_file, normalized_content)"
             " VALUES (?, ?, ?, ?, ?, ?)",
-            (doc_id, index, content, normalized, chunk_type, source_file),
+            (doc_id, index, content, chunk_type, source_file, normalized),
         )
         if cur.lastrowid is None:
             raise RuntimeError("chunk_insert: INSERT did not produce a lastrowid")

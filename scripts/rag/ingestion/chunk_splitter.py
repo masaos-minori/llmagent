@@ -15,7 +15,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 import argparse
 import re
 from pathlib import Path
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 import orjson
 from rag.exceptions import ChunkFormatError
@@ -23,10 +23,9 @@ from rag.ingestion.chunk_english import ChunkEnglishMixin
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_utils import merge_text_items
 from rag.ingestion.pipeline_utils import (
-    ChunkJsonRaw,
     collect_source_files,
     is_already_processed,
-    read_json_file,
+    read_crawl_json,
 )
 from rag.models_data import ChunkDocument
 from shared.config_loader import ConfigLoader
@@ -40,34 +39,6 @@ MARKDOWN_HEADING_RE = r"^#{1,6}"
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
 
 
-class CrawlFilePayload(TypedDict):
-    """Typed dict for crawl output JSON files."""
-
-    url: str
-    title: str
-    lang: str
-    content: str
-    code_blocks: list[str]
-    etag: NotRequired[str | None]
-    last_modified: NotRequired[str | None]
-
-
-class ChunkOutputPayload(TypedDict):
-    """Typed dict for chunk output JSON files."""
-
-    schema_version: str
-    artifact_type: str
-    created_by: str
-    url: str
-    title: str
-    lang: str
-    source_file: str
-    chunk_index: int
-    chunk_type: str
-    content: str
-    normalized_content: NotRequired[str | None]
-
-
 class ChunkMetadata(TypedDict, total=False):
     """Typed dict for document-level metadata shared across chunk files.
 
@@ -78,6 +49,7 @@ class ChunkMetadata(TypedDict, total=False):
     url: str
     title: str
     lang: str
+    fetched_at: str
     etag: str | None
     last_modified: str | None
     source_file: str
@@ -162,22 +134,20 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
-    def _is_markdown_source(self, data: ChunkDocument | ChunkJsonRaw) -> bool:
+    def _is_markdown_source(self, data: ChunkDocument) -> bool:
         """Return True when the source should use heading-based snippet chunking.
 
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
         Non-.md files use heuristic detection only when md_index_enable is set.
         """
-        url = data.url if isinstance(data, ChunkDocument) else data.get("url", "")
+        url = data.url
         if not isinstance(url, str):
             return False
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
         if not self._md_index_enable:
             return False
-        content = (
-            data.content if isinstance(data, ChunkDocument) else data.get("content", "")
-        )
+        content = data.content
         if not isinstance(content, str):
             return False
         return (
@@ -223,7 +193,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _read_source_data(self, src_path: Path) -> ChunkDocument | None:
         """Read and parse a JSON crawl file; returns ChunkDocument or None on failure."""
         try:
-            return read_json_file(src_path)
+            return read_crawl_json(src_path)
         except (FileNotFoundError, ChunkFormatError) as e:
             logger.error("skip %s: %s", src_path.name, e)
             return None
@@ -294,6 +264,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             "url": data.url,
             "title": data.title,
             "lang": data.lang,
+            "fetched_at": data.fetched_at,
             "etag": data.etag,
             "last_modified": data.last_modified,
             "source_file": src_path.name,

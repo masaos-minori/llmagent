@@ -23,27 +23,22 @@ class `TestIsMarkdownSource`, six test methods, no `fetched_at` anywhere).
 
 ## Assumptions
 
-- This test cannot pass until `chunk_splitter.py`'s own implementation lands:
-  `ChunkMetadata` (currently `url`, `title`, `lang`, `etag`, `last_modified`,
-  `source_file`, `chunking_strategy`) gains `fetched_at: str`, and
-  `_extract_chunk_metadata()` copies `data.fetched_at` into it. Confirmed by reading
-  the current `chunk_splitter.py`: neither `ChunkMetadata` nor
-  `_extract_chunk_metadata()`'s return dict includes `fetched_at` today.
-- `ChunkDocument` (in `scripts/rag/models_data.py`) will require a mandatory
-  `fetched_at: str` constructor argument once its own implementation document lands;
-  this test's fixture construction must supply it.
+- `ChunkMetadata` (in `scripts/rag/ingestion/chunk_splitter.py`) **already** contains
+  `fetched_at: str` (line 52).
+- `_extract_chunk_metadata()` **already** copies `data.fetched_at` into the returned
+  dict (line 267).
+- `ChunkDocument` (in `scripts/rag/models_data.py`) **already** requires a mandatory
+  `fetched_at: str` constructor argument (line 43).
 - `_build_chunk_payload()` spreads `**metadata` into every chunk's output dict
-  (confirmed by reading the method), so once `fetched_at` is in `ChunkMetadata`, it
-  reaches every written `.json` file automatically — no per-chunk-type special case.
+  (confirmed by reading the method), so `fetched_at` reaches every written `.json`
+  file automatically — no per-chunk-type special case.
 - The existing `_make_splitter()` helper (`object.__new__` bypassing `__init__`) sets
   only `_md_index_enable`; it is insufficient for a test that performs real file I/O
   through `_write_chunk_files()`/`process_file()`, since those paths also touch
   `_chunk_dir`, `_min_chunk`, `_max_chunk`, `_chunk_overlap`, `_en_stopwords`,
-  `_ja_stop_pos`, `_sd_tkn`, and `_split_c`. The new test must either extend a
-  splitter-construction helper to set these, or construct `ChunkSplitter(config=...)`
-  with a `tmp_path`-backed config dict — verify at implementation time which idiom
-  sibling tests in `tests/rag/ingestion/` already use for real chunking I/O, and reuse
-  it rather than inventing a third pattern.
+  `_ja_stop_pos`, `_sd_tkn`, and `_split_c`. Sibling tests in
+  `tests/rag/ingestion/test_rag_ingester.py` use `tmp_path` + config-dict construction
+  of `RagIngester` — reuse that idiom for `ChunkSplitter` as well.
 
 ## Design decisions
 
@@ -77,10 +72,9 @@ class `TestIsMarkdownSource`, six test methods, no `fetched_at` anywhere).
 `tests/rag/ingestion/test_chunk_splitter.py`
 
 ### Procedure
-1. Confirm `chunk_splitter.py`'s and `models_data.py`'s own implementation documents
-   (this plan's Phase 1/Phase 2 steps) have landed — `ChunkMetadata` includes
-   `fetched_at: str`, `_extract_chunk_metadata()` copies it, and `ChunkDocument`
-   requires it. Do not write this test's fixtures ahead of that change landing.
+1. Dependencies confirmed: `ChunkMetadata.fetched_at` (chunk_splitter.py:52),
+   `_extract_chunk_metadata()` copy (chunk_splitter.py:267), and
+   `ChunkDocument.fetched_at` (models_data.py:43) are already present.
 2. Add a new test class (e.g. `TestFetchedAtPropagation`) below the existing
    `TestIsMarkdownSource` class.
 3. Build a real, file-I/O-capable `ChunkSplitter` instance (see Assumptions) rooted at
@@ -115,10 +109,8 @@ class `TestIsMarkdownSource`, six test methods, no `fetched_at` anywhere).
 
 - Purely additive: does not modify or remove `TestIsMarkdownSource`'s six existing
   test methods, which remain valid because `_is_markdown_source()` is untouched.
-- Must fail (not error with `AttributeError`/`TypeError`) before the corresponding
-  `chunk_splitter.py`/`models_data.py` changes land, and pass once `fetched_at`
-  propagation is implemented — this is the intended sequencing across Phase 2
-  (propagation) and Phase 5 (test migration) of the source plan.
+- Can be written immediately — all three dependencies (`ChunkMetadata.fetched_at`,
+  `_extract_chunk_metadata()` copy, `ChunkDocument.fetched_at`) are already in place.
 
 ## Security considerations
 
@@ -155,7 +147,11 @@ surface or production code path is added.
 ##### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Adversarial validation of assumptions | Complete | — | — | Assumption error found: fetched_at already present in ChunkMetadata and _extract_chunk_metadata() |
+| 2 | Update procedure document | Complete | — | — | Corrected Assumptions and Procedure sections |
+| 3 | Add TestFetchedAtPropagation class | Complete | — | — | 6 test methods added |
+| 4 | Fix test payloads for chunking rules | Complete | — | — | Replaced empty content/code_blocks payloads; used multi-sentence long text for >=2 chunks |
+| 5 | Toolchain validation | Complete | — | — | ruff format/check OK, mypy OK, pytest 12/12 passed |
 
 ##### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -176,3 +172,27 @@ surface or production code path is added.
 - Source implementation procedure: N/A: not applicable in this phase
 - Generated at: 20260823-200056
 - Related target files: tests/rag/ingestion/test_chunk_splitter.py
+
+## Completion
+
+### Validation results
+
+- **ruff format**: applied (1 file reformatted)
+- **ruff check**: fixed by --fix (2 errors resolved: import sorting, unused pytest)
+- **myPy**: no issues found
+- **pytest**: 12/12 passed (TestIsMarkdownSource: 6/6, TestFetchedAtPropagation: 6/6)
+
+### Tests added
+
+- `test_long_text_splits_into_multiple_chunks_with_matching_fetched_at` — verifies >=2 chunks from long single-paragraph content (>500 chars), each carries identical fetched_at
+- `test_text_plus_code_block_both_have_matching_fetched_at` — verifies both content-derived and code-block-derived chunks carry matching fetched_at
+- `test_long_single_paragraph_has_fetched_at` — verifies single chunk from long content has fetched_at
+- `test_md_heading_splits_have_matching_fetched_at` — verifies markdown heading-split chunks carry matching fetched_at
+- `test_different_fetched_at_values_are_preserved_per_file` — verifies two crawl records with different fetched_at values produce separate chunk sets with correct per-file values
+- `test_code_only_chunk_has_fetched_at` — verifies code-only payload produces a chunk with fetched_at
+
+### Key findings during adversarial validation
+
+1. **Assumption error corrected**: Procedure originally claimed zero fetched_at references in chunk_splitter.py. Found fetched_at in ChunkMetadata (line 52) and _extract_chunk_metadata() return dict (line 267). Dependencies confirmed present — no additional changes needed.
+2. **Payload design constraint discovered**: Crawl JSON payloads must have either non-empty content OR non-empty code_blocks (per read_crawl_json cross-field validation). Empty content + empty code_blocks raises ChunkFormatError.
+3. **English chunker behavior**: Single-paragraph content stays within max_chunk=500 threshold → 1 chunk. Need >500 chars for >=2 chunks. Stopword removal discards short paragraphs below min_chunk=40.

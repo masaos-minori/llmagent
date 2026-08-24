@@ -45,7 +45,7 @@ This module defines the following constants. See source code for details. Note t
 |---|---|
 | `CrawlFilePayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
 | `ChunkOutputPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
-| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). All fields including url, title, lang, etag, last_modified, source_file, and chunking_strategy are optional. |
+| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
 
 > Evidence: Explicit in code — `CrawlFilePayload` and `ChunkOutputPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within the same file (actual input/output is handled via `ChunkJsonRaw` (`pipeline_utils.py`) or `dict[str, object]`).
 
@@ -120,7 +120,7 @@ This module defines the following constants. See source code for details. Note t
 |---|---|
 | `CrawlFilePayload` | Typed dictionary for crawl output JSON files (url, title, lang, content, code_blocks are required; etag, last_modified are optional via NotRequired) |
 | `ChunkOutputPayload` | Typed dictionary for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content are required; normalized_content is optional via NotRequired) |
-| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). All fields including url, title, lang, etag, last_modified, source_file, and chunking_strategy are optional. |
+| `ChunkMetadata` | Optional metadata dictionary to be expanded with ** in the output payload (total=False). Fields: url, title, lang, fetched_at (str, mandatory), etag, last_modified, source_file, chunking_strategy. |
 
 > Evidence: Explicit in code — `CrawlFilePayload` and `ChunkOutputPayload` are declared as types in `chunk_splitter.py`, but they are not used as type annotations in the actual implementation within the same file (actual input/output is handled via `ChunkJsonRaw` (`pipeline_utils.py`) or `dict[str, object]`).
 

@@ -113,6 +113,37 @@ def _make_chunk_json(
     }
 
 
+def _make_chunk_output_json(
+    url: str = "http://example.com/page",
+    title: str = "Test Page",
+    lang: str = "en",
+    content: str = "Hello world",
+    chunk_index: int = 0,
+    chunking_strategy: str = "text",
+    normalized_content: str | None = None,
+    chunk_type: str = "text",
+    source_file: str = "",
+    fetched_at: str = "2024-01-01T00:00:00Z",
+) -> dict:
+    """Create a chunk JSON payload matching the chunk output format."""
+    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    return {
+        "url": url,
+        "title": title,
+        "lang": lang,
+        "content": content,
+        "code_blocks": [],
+        "etag": f"etag-{content_hash[:8]}",
+        "last_modified": "2024-01-01T00:00:00",
+        "fetched_at": fetched_at,
+        "chunk_index": chunk_index,
+        "chunking_strategy": chunking_strategy,
+        "normalized_content": normalized_content,
+        "chunk_type": chunk_type,
+        "source_file": source_file,
+    }
+
+
 # ── Crawler → ChunkSplitter → RagIngester `.json` lifecycle ───────────────────
 
 
@@ -180,7 +211,7 @@ class TestJsonLifecycle:
         chunk_dir.mkdir(exist_ok=True)
 
         # Move chunk JSON to the chunk directory where RagIngester expects it
-        chunk_data = _make_chunk_json(
+        chunk_data = _make_chunk_output_json(
             url="http://example.com/page",
             title="Test Page",
             lang="en",
@@ -223,7 +254,7 @@ class TestJsonLifecycle:
         chunk_dir = tmp_path / "chunk"
         chunk_dir.mkdir(exist_ok=True)
 
-        chunk_data = _make_chunk_json(
+        chunk_data = _make_chunk_output_json(
             url="http://example.com/page",
             title="Test Page",
             lang="en",
@@ -316,7 +347,7 @@ class TestReingest:
         chunk_dir = tmp_path / "chunk"
         chunk_dir.mkdir(exist_ok=True)
 
-        chunk_data = _make_chunk_json(
+        chunk_data = _make_chunk_output_json(
             url=local_file.as_uri(),
             title="Local File",
             lang="en",
@@ -379,7 +410,7 @@ class TestReingest:
         chunk_dir.mkdir(exist_ok=True)
 
         # First ingest
-        chunk_data1 = _make_chunk_json(
+        chunk_data1 = _make_chunk_output_json(
             url=local_file.as_uri(),
             title="Local File",
             lang="en",
@@ -414,7 +445,7 @@ class TestReingest:
 
         # Second ingest with different content (different SHA-256)
         # Note: ingest_all() moves processed files to registered/, so we recreate the file
-        chunk_data2 = _make_chunk_json(
+        chunk_data2 = _make_chunk_output_json(
             url=local_file.as_uri(),
             title="Local File",
             lang="en",
@@ -449,7 +480,7 @@ class TestReingest:
         chunk_dir.mkdir(exist_ok=True)
 
         # First ingest with original etag
-        chunk_data1 = _make_chunk_json(
+        chunk_data1 = _make_chunk_output_json(
             url=local_file.as_uri(),
             title="Local File",
             lang="en",

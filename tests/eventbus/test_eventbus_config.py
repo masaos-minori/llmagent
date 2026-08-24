@@ -7,8 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from scripts.eventbus.config import EventBusConfig, load_config
+from eventbus.config import EventBusConfig, load_config
 
 
 def test_invalid_port_too_low() -> None:

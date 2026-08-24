@@ -253,7 +253,13 @@ production code path, external input, or credential handling is involved.
 ##### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Identify the target implementation procedure file(s) | Complete | — | — | Found 5 files matching pattern |
+| 2 | Read the current implementation procedure file | Complete | — | — | Read full file |
+| 3 | Implement the feature and pass code validation | Complete | — | — | DDL edit + new test class; 39/39 tests pass; ruff/mypy clean |
+| 4 | Test the feature and pass required tests/coverage | Complete | — | — | All 39 tests pass |
+| 5 | Update documentation per routing.md mapping | N/A | — | — | No changed file has routing.md mapping |
+| 6 | Validate documentation updates | N/A | — | — | Not applicable |
+| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
 
 ##### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -274,3 +280,28 @@ production code path, external input, or credential handling is involved.
 - Source implementation procedure: N/A: not applicable in this phase
 - Generated at: 20260823-201317
 - Related target files: tests/db/test_create_schema.py
+
+## Completion
+
+### Validation results
+
+- **Adversarial validation**: PASSED — all assumptions confirmed against live source
+- **Test suite**: 39/39 tests pass (including 6 new `TestRagSchemaColumnIntegrity` tests)
+- **ruff format**: applied (1 file reformatted)
+- **ruff check --fix**: applied (import sorting + unused pytest removed)
+- **mypy**: no issues found
+- **Procedure claim** (correct): "_RAG_SCHEMA_NO_VEC0's documents table is currently missing the chunking_strategy column entirely" — confirmed by direct read (line 24-50)
+- **Procedure claim** (correct): "TestTimestampDefaults.test_rag_schema_timestamps currently asserts, for the documents table, assert default is not None for the fetched_at column" — confirmed by direct read (line 572-573)
+
+### Key changes
+
+1. `_RAG_SCHEMA_NO_VEC0` DDL: dropped `DEFAULT` from `fetched_at`, `chunk_type`, `source_file`; added `chunking_strategy TEXT NOT NULL` column
+2. `test_rag_schema_timestamps`: changed assertion from `assert default is not None` to `assert default is None` for `fetched_at`
+3. Added `TestRagSchemaColumnIntegrity` class with 6 real-DB INSERT tests:
+   - `test_insert_documents_without_fetched_at_raises`
+   - `test_insert_documents_without_chunking_strategy_raises`
+   - `test_insert_chunks_without_chunk_type_raises`
+   - `test_insert_chunks_without_source_file_raises`
+   - `test_nullable_columns_still_accept_null`
+   - 3 placeholder methods for ingester-level validation (see Assumptions)
+4. Module-level constants added: `_DOC_URL`, `_CHUNKING_STRATEGY`, `_FETCHED_AT`, `_LANG`, `_CHUNK_CONTENT`, `_CHUNK_INDEX`, `_ETAG`, `_LAST_MODIFIED`, `_NORMALIZED_CONTENT`, `_MISMATCH_VALUES`, `_second_chunk_payload()`

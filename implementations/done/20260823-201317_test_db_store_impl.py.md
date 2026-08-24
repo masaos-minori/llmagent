@@ -252,7 +252,13 @@ literal string constants; no external input, no new trust boundary.
 ##### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Identify the target implementation procedure file(s) | Complete | — | — | Found 5 files matching pattern |
+| 2 | Read the current implementation procedure file | Complete | — | — | Read full file |
+| 3 | Implement the feature and pass code validation | Complete | — | — | Added constants + ON CONFLICT test; replaced inline "text" with _CHUNKING_STRATEGY |
+| 4 | Test the feature and pass required tests/coverage | Complete | — | — | All 36 tests pass (14 DocumentStore + 22 other stores) |
+| 5 | Update documentation per routing.md mapping | N/A | — | — | No changed file has routing.md mapping |
+| 6 | Validate documentation updates | N/A | — | — | Not applicable |
+| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
 
 ##### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -264,7 +270,30 @@ literal string constants; no external input, no new trust boundary.
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
 
-## Traceability
+## Completion
+
+### Validation results
+
+- **Adversarial validation**: PASSED — confirmed `_DOCUMENT_SCHEMA` already had `chunking_strategy TEXT NOT NULL` from File2's implementation; confirmed all 13 call sites already supplied `chunking_strategy` as positional argument; confirmed `ON CONFLICT ... DO UPDATE SET chunking_strategy = excluded.chunking_strategy` clause exists in production `store_impl.py` (verified by direct read at line ~180-200); confirmed no `except sqlite3.IntegrityError` suppression in `doc_upsert()`'s conflict branch
+- **Test suite**: 36/36 tests pass (14 DocumentStore + 22 other stores)
+- **ruff format**: applied
+- **ruff check --fix**: applied (import sorting)
+- **mypy**: no issues found
+
+### Key changes
+
+1. **Module-level constants** (new): Added `_CHUNKING_STRATEGY = "text"` and `_CHUNKING_STRATEGY_UPDATED = "semantic"` near top of file, alongside existing `_FETCHED_AT`-style constants from the 095054 predecessor's document. This provides one canonical literal per concept, one place to change it.
+
+2. **Replaced inline `"text"` literals with `_CHUNKING_STRATEGY` constant** (refactoring): Replaced all 12 remaining inline `"text"` values in `doc_upsert()` call sites with `_CHUNKING_STRATEGY` for consistency with the new constant approach. The 095054 predecessor's document already introduced `_FETCHED_AT`-style constants; this brings the same pattern to `chunking_strategy`.
+
+3. **New test: `test_doc_upsert_conflict_updates_chunking_strategy_to_supplied_value`** (new): Calls `doc_upsert()` twice for the same URL — first with `chunking_strategy=_CHUNKING_STRATEGY`, then with `chunking_strategy=_CHUNKING_STRATEGY_UPDATED` — and asserts via direct `SELECT chunking_strategy FROM documents WHERE url = ?` against `store._db` that the second value overwrites the first. Proves the `ON CONFLICT ... DO UPDATE SET chunking_strategy = excluded.chunking_strategy` clause works correctly.
+
+### Adversarial findings vs. procedure claims
+
+- **Procedure claim** ("13 doc_upsert() call sites"): CORRECT — confirmed by grep at implementation time; all 13 call sites were verified to supply `chunking_strategy` as a positional argument.
+- **Procedure claim** ("_DOCUMENT_SCHEMA currently missing chunking_strategy column"): INCORRECT — the column was already present from File2's implementation (`chunking_strategy TEXT NOT NULL` on line 30). The procedure should have been verified against the actual schema before asserting this behavior.
+- **Procedure claim** ("test_chunk_insert_defaults_to_empty_strings disposition: remove/replace"): PARTIALLY CORRECT — the test still exists under its post-094150 renamed name `test_chunk_insert_requires_chunk_type_and_source_file`; adding `chunking_strategy=_CHUNKING_STRATEGY` to its `doc_upsert()` call was done as part of the blanket replacement.
+- **Procedure claim** ("DocumentRow already exposes whatever fields doc_get()/doc_list() select"): UNVERIFIED — could not confirm this without reading `store_impl.py`'s `_row_to_document()` function; the new test uses a direct `SELECT` fallback rather than relying on `DocumentRow`'s projection.
 - Workflow phase: plan-to-implementation-procedure
 - Source issue: N/A: not applicable in this phase
 - Source requirement: N/A: not applicable in this phase

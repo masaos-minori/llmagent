@@ -167,6 +167,7 @@ class TestGetOrCreateDocumentFreshness:
             force=False,
             etag=sha,
             last_modified="2024-01-02",
+            fetched_at="2024-01-01T00:00:00Z",
         )
         assert result == (None, True, False)
 
@@ -189,6 +190,7 @@ class TestGetOrCreateDocumentFreshness:
             force=False,
             etag="new_sha",
             last_modified="2024-01-02",
+            fetched_at="2024-01-01T00:00:00Z",
         )
 
     def test_force_true_skips_freshness_check(self, tmp_path: Path) -> None:
@@ -211,6 +213,7 @@ class TestGetOrCreateDocumentFreshness:
             force=True,
             etag=sha,
             last_modified="2024-01-01",
+            fetched_at="2024-01-01T00:00:00Z",
         )
 
     def test_non_file_url_uses_etag_update_path(self, tmp_path: Path) -> None:
@@ -232,6 +235,7 @@ class TestGetOrCreateDocumentFreshness:
             force=False,
             etag="new_etag",
             last_modified="2024-01-02",
+            fetched_at="2024-01-01T00:00:00Z",
         )
         assert result == (None, True, False)
         mock_doc_mgr.handle_existing_document.assert_called_once()

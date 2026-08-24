@@ -17,7 +17,6 @@ import sqlite3
 from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
-from typing import NotRequired, TypedDict
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -34,27 +33,12 @@ from rag.ingestion.crawler_utils import (
     same_origin,
     url_to_slug,
 )
+from rag.ingestion.pipeline_utils import CrawlJsonPayload
 from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log")
-
-
-class CrawlPayload(TypedDict):
-    """Typed dict for crawl output JSON files."""
-
-    schema_version: str
-    artifact_type: str
-    created_by: str
-    url: str
-    title: str
-    lang: str
-    fetched_at: str
-    content: str
-    code_blocks: list[str]
-    etag: NotRequired[str | None]
-    last_modified: NotRequired[str | None]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -112,6 +96,11 @@ class WebCrawler:
         resolved_lang: str = (
             self._resolve_lang(content, "auto") if lang == "auto" else lang
         )
+        if resolved_lang not in _SUPPORTED_LANGS:
+            logger.warning(
+                "lang=%r not supported, skipping local file: %s", resolved_lang, path
+            )
+            return 0
         url = f"file://{path.resolve()}"
         # Compute mtime and SHA-256 for freshness detection in ingester
         stat = path.stat()
@@ -119,14 +108,10 @@ class WebCrawler:
         sha256 = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
         # Python files are stored as code blocks so the code chunker applies.
         is_python = path.suffix == ".py"
-        payload: CrawlPayload = {
-            "schema_version": "1",
-            "artifact_type": "crawl",
-            "created_by": "crawler",
+        payload: CrawlJsonPayload = {
             "url": url,
             "title": path.name,
             "lang": resolved_lang,
-            "fetched_at": datetime.now().isoformat(timespec="seconds"),
             "content": "" if is_python else content,
             "code_blocks": [content] if is_python else [],
             "etag": sha256,
@@ -323,23 +308,26 @@ class WebCrawler:
         last_modified: str | None = None,
     ) -> Path:
         """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json."""
+        if lang not in _SUPPORTED_LANGS:
+            logger.warning("lang=%r not supported, skipping save: %s", lang, url)
+            return self._make_crawl_filepath(url)
+        if not isinstance(code_blocks, list):
+            logger.warning("code_blocks is not a list, skipping save: %s", url)
+            return self._make_crawl_filepath(url)
+        if not content and not code_blocks:
+            logger.warning("empty content without code blocks, skipping save: %s", url)
+            return self._make_crawl_filepath(url)
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         path = self._make_crawl_filepath(url)
-        payload: CrawlPayload = {
-            "schema_version": "1",
-            "artifact_type": "crawl",
-            "created_by": "crawler",
+        payload: CrawlJsonPayload = {
             "url": url,
             "title": title,
             "lang": lang,
-            "fetched_at": datetime.now().isoformat(timespec="seconds"),
             "content": content,
             "code_blocks": code_blocks,
+            "etag": etag,
+            "last_modified": last_modified,
         }
-        if etag is not None:
-            payload["etag"] = etag
-        if last_modified is not None:
-            payload["last_modified"] = last_modified
         path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
         logger.info(
             "saved",

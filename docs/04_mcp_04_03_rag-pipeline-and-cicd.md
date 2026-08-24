@@ -67,6 +67,8 @@ related:
 
 ## cicd-mcp (Port 8012)
 
+See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing cicd-mcp as a high-risk tool.
+
 **Purpose:** GitHub Actions workflow management.
 **Startup Mode:** persistent (HTTP)
 **Configuration:** `config/cicd_mcp_server.toml`

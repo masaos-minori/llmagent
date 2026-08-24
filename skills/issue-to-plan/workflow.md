@@ -65,6 +65,8 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
 `templates/traceability.md`, `templates/requirement-traceability.md`,
 `templates/issue.md`, `templates/plan.md`, `SKILL.md` (this skill), and this file.
+Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
+determines Path B.
 
 Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
 determines Path B.
@@ -76,9 +78,17 @@ shared files across cycles in this session.
 
 ## Step 1: Identify Target Issues
 
-Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and Current-Target
-Loading in full. This workflow's target files: `issues/{filename}.md`; archive
-directory: `issues/done/`.
+Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
+before starting, process sequentially in filename order, load only the current target.
+
+Workflow-specific:
+- The target Issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one
+  path per file.
+- If no target file is specified, stop immediately and ask the user to specify one or
+  more.
+- If any specified file does not exist, stop immediately and report which file(s) are
+  missing.
+- Do not read files under `issues/done/`.
 
 ---
 
@@ -270,12 +280,14 @@ has a full table; risks are stated with mitigations.
 
 ## Step 9: Validate and Await Approval
 
-Apply `rules/workflow-lifecycle.md` Approval Handling for the reporting structure and
-stop condition. This workflow's report additionally includes: generated Plan path;
-generated Unknown/Risk files; number of Requirements; the Path A/B classification and
-its rationale; information-completeness result; traceability result; Requirement
-Traceability completeness result (with a breakdown of how many Requirements fall under
-each Step 2 evidence classification); unresolved items; and the Issue pending move.
+Report: generated Plan path; generated Unknown/Risk files; number of Requirements; the
+Path A/B classification and its rationale; information-completeness result;
+traceability result; Requirement Traceability completeness result (with a breakdown of
+how many Requirements fall under each Step 2 evidence classification); unresolved
+items; and the Issue pending move.
+
+Set state to `Awaiting approval` and stop. Do not move the Issue in the same response.
+An unclear user response must not be treated as approval.
 
 ---
 
@@ -283,19 +295,33 @@ each Step 2 evidence classification); unresolved items; and the Issue pending mo
 
 **This step is mandatory. Do not skip it.**
 
-Apply `rules/workflow-lifecycle.md` Archival Move (`issue-to-plan` row: `git mv` only,
-no fallback) and Completion Criteria in full. This workflow's move:
-`git mv issues/{filename}.md issues/done/{filename}.md`.
+- Move the Issue only after explicit user approval.
+- Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. Do not use `mv`,
+  `cp` + `rm`, file-copy APIs, or any fallback move method.
+- Before running `git mv`, verify: state is `Awaiting approval`; approval applies to the
+  current Issue; information completeness is `Pass`; all required validations are
+  `Pass`; source exists; destination does not exist; `issues/done/` exists.
+- After running `git mv`, verify: destination exists; source no longer exists; Git
+  records the change as a rename or staged move.
+- If `git mv` fails, do not use a fallback. Report `Blocked`.
+- Report `Completed` only after successful verification.
 
 ---
 
 ## Out of Scope
 
-See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
-(Source code and `docs/*.md` are already out of scope per `skills/DESIGN.md`
-Analysis-only phase constraint, declared once in `SKILL.md` Purpose — not repeated
-here. File-scope restrictions are declared once above in Allowed file operations — not
-repeated here.)
+Do not perform any of the following as part of this workflow. (Source code and
+`docs/*.md` are already out of scope per `skills/DESIGN.md` Analysis-only phase
+constraint, declared once in `SKILL.md` Purpose — not repeated here. File-scope
+restrictions are declared once above in Allowed file operations — not repeated here.)
+- unrelated refactoring
+- broad formatting-only rewrites
+- moving existing documentation files
+- changing workflow directory structure
+- changing implementation behavior during document-only phases
+- processing files under `__pycache__/`
+- interleaving multiple target files
+- parallel processing of target-file cycles
 
 ## Output format
 

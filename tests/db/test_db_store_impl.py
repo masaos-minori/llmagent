@@ -16,17 +16,23 @@ from db.store_impl import (
     SQLiteVectorStore,
 )
 
+# ── Constants ───────────────────────────────────────────────────────────────
+
+_CHUNKING_STRATEGY = "text"
+_CHUNKING_STRATEGY_UPDATED = "semantic"
+
 # ── In-memory DB helper ───────────────────────────────────────────────────────
 
 _DOCUMENT_SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
-    doc_id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    url          TEXT NOT NULL UNIQUE,
-    title        TEXT,
-    lang         TEXT NOT NULL,
-    etag         TEXT,
+    doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    url           TEXT NOT NULL UNIQUE,
+    title         TEXT,
+    lang          TEXT NOT NULL,
+    etag          TEXT,
     last_modified TEXT,
-    fetched_at   TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    fetched_at    TEXT NOT NULL,
+    chunking_strategy TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS chunks (
      chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,8 +40,8 @@ CREATE TABLE IF NOT EXISTS chunks (
      chunk_index        INTEGER,
      content            TEXT NOT NULL,
      normalized_content TEXT,
-     chunk_type         TEXT NOT NULL DEFAULT 'text',
-     source_file        TEXT NOT NULL DEFAULT ''
+     chunk_type         TEXT NOT NULL,
+     source_file        TEXT NOT NULL
  );
 """
 
@@ -96,13 +102,29 @@ class TestSQLiteDocumentStore:
 
     def test_doc_upsert_new_url_returns_positive_id(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        doc_id = store.doc_upsert("http://example.com", "Title", "en", None, None)
+        doc_id = store.doc_upsert(
+            "http://example.com",
+            "Title",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         assert isinstance(doc_id, int)
         assert doc_id >= 1
 
     def test_doc_upsert_and_get_roundtrip(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://example.com", "My Title", "ja", "etag1", None)
+        store.doc_upsert(
+            "http://example.com",
+            "My Title",
+            "ja",
+            "etag1",
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         result = store.doc_get("http://example.com")
         assert result is not None
         assert result.url == "http://example.com"
@@ -112,9 +134,17 @@ class TestSQLiteDocumentStore:
 
     def test_doc_get_returns_lang_as_str(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://example.com", "My Title", "en", "etag1", None)
+        store.doc_upsert(
+            "http://example.com",
+            "My Title",
+            "en",
+            "etag1",
+            None,
+            "2024-01-01T00:00:00Z",
+            "text",
+        )
         result = store.doc_get("http://example.com")
-        assert isinstance(result.lang, str)
+        assert isinstance(result.lang, str)  # type: ignore[union-attr]
 
     def test_chunk_count_starts_at_zero(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
@@ -122,17 +152,35 @@ class TestSQLiteDocumentStore:
 
     def test_chunk_insert_increments_count(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
-        store.chunk_insert(doc_id, 0, "first chunk content", None)
+        doc_id = store.doc_upsert(
+            "http://example.com",
+            None,
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        store.chunk_insert(doc_id, 0, "first chunk content", "", "")
         assert store.chunk_count() == 1
-        store.chunk_insert(doc_id, 1, "second chunk content", "normalized")
+        store.chunk_insert(
+            doc_id, 1, "second chunk content", "", "", normalized="normalized"
+        )
         assert store.chunk_count() == 2
 
     def test_chunk_insert_stores_chunk_type_and_source_file(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
+        doc_id = store.doc_upsert(
+            "http://example.com",
+            None,
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         chunk_id = store.chunk_insert(
-            doc_id, 0, "content", None, chunk_type="code", source_file="foo.py"
+            doc_id, 0, "content", "code", "foo.py", normalized=None
         )
         row = store._db.execute(
             "SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)
@@ -141,20 +189,31 @@ class TestSQLiteDocumentStore:
         assert row[0] == "code"
         assert row[1] == "foo.py"
 
-    def test_chunk_insert_defaults_to_empty_strings(self) -> None:
+    def test_chunk_insert_requires_chunk_type_and_source_file(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
-        chunk_id = store.chunk_insert(doc_id, 0, "content")
-        row = store._db.execute(
-            "SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)
-        ).fetchone()
-        assert row is not None
-        assert row[0] == ""
-        assert row[1] == ""
+        doc_id = store.doc_upsert(
+            "http://example.com",
+            None,
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        with pytest.raises(TypeError):
+            store.chunk_insert(doc_id, 0, "content")  # type: ignore[call-arg]
 
     def test_doc_delete_removes_document_and_returns_true(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://example.com", "Title", "en", None, None)
+        store.doc_upsert(
+            "http://example.com",
+            "Title",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            "text",
+        )
         deleted = store.doc_delete("http://example.com")
         assert deleted is True
         assert store.doc_get("http://example.com") is None
@@ -166,8 +225,24 @@ class TestSQLiteDocumentStore:
 
     def test_doc_list_returns_inserted_documents(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://a.com", "A", "en", None, None)
-        store.doc_upsert("http://b.com", "B", "ja", None, None)
+        store.doc_upsert(
+            "http://a.com",
+            "A",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        store.doc_upsert(
+            "http://b.com",
+            "B",
+            "ja",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         rows = store.doc_list(lang=None, limit=10)
         assert len(rows) == 2
         urls = {r.url for r in rows}
@@ -176,18 +251,85 @@ class TestSQLiteDocumentStore:
 
     def test_doc_list_filtered_by_lang(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://a.com", "A", "en", None, None)
-        store.doc_upsert("http://b.com", "B", "ja", None, None)
+        store.doc_upsert(
+            "http://a.com",
+            "A",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        store.doc_upsert(
+            "http://b.com",
+            "B",
+            "ja",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         rows = store.doc_list(lang="ja", limit=10)
         assert len(rows) == 1
         assert rows[0].url == "http://b.com"
 
     def test_doc_list_returns_lang_as_str(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
-        store.doc_upsert("http://a.com", "A", "en", None, None)
-        store.doc_upsert("http://b.com", "B", "ja", None, None)
+        store.doc_upsert(
+            "http://a.com",
+            "A",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        store.doc_upsert(
+            "http://b.com",
+            "B",
+            "ja",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
         rows = store.doc_list(lang=None, limit=10)
         assert all(isinstance(r.lang, str) for r in rows)
+
+    def test_doc_upsert_conflict_updates_chunking_strategy_to_supplied_value(
+        self,
+    ) -> None:
+        store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
+        store.doc_upsert(
+            "http://example.com",
+            "Title",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY,
+        )
+        row = store._db.execute(
+            "SELECT chunking_strategy FROM documents WHERE url = ?",
+            ("http://example.com",),
+        ).fetchone()
+        assert row is not None
+        assert row[0] == _CHUNKING_STRATEGY
+        store.doc_upsert(
+            "http://example.com",
+            "Updated Title",
+            "en",
+            None,
+            None,
+            "2024-01-01T00:00:00Z",
+            _CHUNKING_STRATEGY_UPDATED,
+        )
+        row = store._db.execute(
+            "SELECT chunking_strategy FROM documents WHERE url = ?",
+            ("http://example.com",),
+        ).fetchone()
+        assert row is not None
+        assert row[0] == _CHUNKING_STRATEGY_UPDATED
 
 
 # ── SQLiteSessionStore ────────────────────────────────────────────────────────

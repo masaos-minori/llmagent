@@ -155,6 +155,8 @@ show_missing = true
 skip_covered = false
 
 [project.scripts]
+check-mcp-docs = "tools.check_docs_consistency:main_mcp"
+check-agent-docs = "tools.check_docs_consistency:main_agent"
 check-needs-confirmation = "tools.check_needs_confirmation_inventory:main"
 check-tool-descriptions = "tools.check_tool_descriptions_sync:main"
 

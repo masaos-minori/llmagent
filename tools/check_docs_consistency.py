@@ -754,5 +754,15 @@ def main(argv: list[str] | None = None) -> int:
     return report_and_exit(all_issues)
 
 
+def main_mcp(argv: list[str] | None = None) -> int:
+    """Console-script entry point for MCP domain docs consistency check."""
+    return main(["--domain", "mcp"] + (argv or []))
+
+
+def main_agent(argv: list[str] | None = None) -> int:
+    """Console-script entry point for Agent domain docs consistency check."""
+    return main(["--domain", "agent"] + (argv or []))
+
+
 if __name__ == "__main__":
     sys.exit(main())

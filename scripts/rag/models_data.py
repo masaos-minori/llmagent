@@ -36,14 +36,29 @@ class ChunkDocument:
     title: str
     lang: str
     content: str
+    chunking_strategy: str
+    chunk_index: int
+    source_file: str
+    chunk_type: str
+    fetched_at: str
     code_blocks: list[str] = field(default_factory=list)
     etag: str | None = None
     last_modified: str | None = None
-    chunking_strategy: str = "text"
     normalized_content: str | None = None
-    chunk_index: int = 0
-    source_file: str = ""
-    chunk_type: str = ""
+
+
+@dataclass(frozen=True)
+class CrawlDocument:
+    """Raw document ready for crawling during ingestion."""
+
+    url: str
+    title: str
+    lang: str
+    fetched_at: str | None
+    content: str
+    code_blocks: list[str] = field(default_factory=list)
+    etag: str | None = None
+    last_modified: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,15 +71,6 @@ class ChunkRecord:
     lang: str
     content: str
     embedding: list[float] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class RegisteredDocument:
-    """Metadata for a document registered during ingestion."""
-
-    url: str
-    lang: str
-    chunk_count: int
 
 
 @dataclass(frozen=True)

@@ -20,6 +20,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import orjson
+import pytest
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.ingester import IngestionFailureReason, PreparedChunk, RagIngester
 
@@ -88,8 +89,14 @@ class _FakeSQLiteHelper:
         self._conn.execute("BEGIN IMMEDIATE")
         try:
             yield
-        finally:
             self._conn.commit()
+        except Exception:
+            try:
+                self._conn.rollback()
+            except sqlite3.OperationalError:
+                pass
+            raise
+        finally:
             self._in_transaction = False
 
     def commit(self) -> None:
@@ -112,12 +119,13 @@ class _ChunkSpec:
     content: str = "本文"
     normalized_content: str | None = "normalized"
     chunk_index: int = 0
-    chunking_strategy: str = "heading"
-    schema_version: str = "1"
-    artifact_type: str = "chunk"
-    created_by: str = "chunk_splitter"
     etag: str | None = None
     last_modified: str | None = None
+    code_blocks: list[str] = dataclasses.field(default_factory=list)
+    source_file: str = "chunk.json"
+    chunk_type: str = "chunk"
+    chunking_strategy: str = "text"
+    fetched_at: str = "2024-01-01T00:00:00Z"
 
 
 _DEFAULT_CHUNK = _ChunkSpec()
@@ -266,16 +274,15 @@ class TestEmbedAndStore:
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
-    def test_read_chunk_json_returns_none_fails_immediately(
-        self, tmp_path: Path
-    ) -> None:
+    def test_invalid_chunk_file_fails_immediately(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.json")
+        path = tmp_path / "chunk" / "c.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("not valid json")
         ingester = _make_ingester(tmp_path)
 
         with (
-            patch.object(ingester, "_read_chunk_json", return_value=None),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             result = ingester._embed_and_store(doc_id, path)
@@ -302,7 +309,7 @@ class TestEmbedAndStore:
 
         assert result == IngestionFailureReason.PARSE_FAILED
 
-    def test_invalid_chunk_index_falls_back_to_zero(self, tmp_path: Path) -> None:
+    def test_invalid_chunk_index_fails_immediately(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
@@ -310,7 +317,6 @@ class TestEmbedAndStore:
             "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0),
         )
-        # Overwrite with invalid chunk_index string
         data = orjson.loads(path.read_bytes())
         data["chunk_index"] = "invalid_str"
         path.write_bytes(orjson.dumps(data))
@@ -322,8 +328,9 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert isinstance(result, PreparedChunk)
-        assert result.chunk_index == 0
+        assert result == IngestionFailureReason.PARSE_FAILED
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 0
 
     def test_retry_success(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -438,7 +445,6 @@ class TestIngestUrlGroup:
         path = _write_chunk(
             tmp_path / "chunk",
             "c.json",
-            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="heading"),
         )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -453,7 +459,7 @@ class TestIngestUrlGroup:
             )
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
-        assert row is not None and row[0] == "heading"
+        assert row is not None and row[0] == "text"
 
     def test_inserts_chunks_with_correct_indices(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
@@ -551,9 +557,7 @@ class TestIngestUrlGroup:
         path = _write_chunk(
             chunk_dir,
             "c.json",
-            dataclasses.replace(
-                _DEFAULT_CHUNK, chunking_strategy="text", content="old"
-            ),
+            dataclasses.replace(_DEFAULT_CHUNK, content="old"),
         )
 
         with (
@@ -573,9 +577,7 @@ class TestIngestUrlGroup:
         path2 = _write_chunk(
             chunk_dir,
             "c_new.json",
-            dataclasses.replace(
-                _DEFAULT_CHUNK, chunking_strategy="heading", content="new"
-            ),
+            dataclasses.replace(_DEFAULT_CHUNK, content="new"),
         )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -590,18 +592,17 @@ class TestIngestUrlGroup:
             )
 
         doc_row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
-        assert doc_row is not None and doc_row[0] == "heading"
+        assert doc_row is not None and doc_row[0] == "text"
         content_rows = conn.execute("SELECT content FROM chunks").fetchall()
         assert len(content_rows) == 1
         assert content_rows[0][0] == "new"
 
-    def test_force_preserves_new_chunking_strategy(self, tmp_path: Path) -> None:
+    def test_force_replaces_old_chunks(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
         _write_chunk(
             chunk_dir,
             "c.json",
-            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="text"),
         )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -618,7 +619,6 @@ class TestIngestUrlGroup:
         _write_chunk(
             chunk_dir,
             "c2.json",
-            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="markdown"),
         )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -633,7 +633,9 @@ class TestIngestUrlGroup:
             )
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
-        assert row is not None and row[0] == "markdown"
+        assert row is not None and row[0] == "text"
+        content_rows = conn.execute("SELECT content FROM chunks").fetchall()
+        assert len(content_rows) == 1
 
     def test_ingest_url_group_embed_failed_count(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
@@ -668,46 +670,6 @@ class TestIngestUrlGroup:
 
 
 # ── Artifact validation (strict vs lenient) ───────────────────────────────────
-
-
-class TestValidateArtifact:
-    BASE_PAYLOAD = {
-        "artifact_type": "chunk",
-        "schema_version": "1",
-        "created_by": "chunk_splitter",
-    }
-
-    def test_lenient_missing_schema_version_passes(self) -> None:
-        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "schema_version"}
-        assert RagIngester._validate_artifact(payload, "chunk", strict=False) is True
-
-    def test_lenient_missing_created_by_passes(self) -> None:
-        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "created_by"}
-        assert RagIngester._validate_artifact(payload, "chunk", strict=False) is True
-
-    def test_lenient_wrong_artifact_type_rejects(self) -> None:
-        assert (
-            RagIngester._validate_artifact(self.BASE_PAYLOAD, "image", strict=False)
-            is False
-        )
-
-    def test_strict_missing_schema_version_rejects(self) -> None:
-        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "schema_version"}
-        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
-
-    def test_strict_missing_artifact_type_rejects(self) -> None:
-        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "artifact_type"}
-        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
-
-    def test_strict_missing_created_by_rejects(self) -> None:
-        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "created_by"}
-        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
-
-    def test_strict_all_fields_correct_type_passes(self) -> None:
-        assert (
-            RagIngester._validate_artifact(self.BASE_PAYLOAD, "chunk", strict=True)
-            is True
-        )
 
 
 class TestPartialFailureHandling:
@@ -786,9 +748,15 @@ class TestPartialFailureHandling:
         path_ok = _write_chunk(
             chunk_dir,
             "c_ok.json",
-            dataclasses.replace(_DEFAULT_CHUNK, content="ok_marker_本文"),
+            dataclasses.replace(
+                _DEFAULT_CHUNK, content="ok_marker_本文", chunk_index=0
+            ),
         )
-        path_fail = _write_chunk(chunk_dir, "c_fail.json")
+        path_fail = _write_chunk(
+            chunk_dir,
+            "c_fail.json",
+            dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1),
+        )
 
         ingester = _make_ingester(tmp_path)
 
@@ -828,8 +796,12 @@ class TestPartialFailureHandling:
         url = "https://example.com/doc"
         chunk_dir = tmp_path / "chunk"
 
-        path1 = _write_chunk(chunk_dir, "c1.json")
-        path2 = _write_chunk(chunk_dir, "c2.json")
+        path1 = _write_chunk(
+            chunk_dir, "c1.json", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0)
+        )
+        path2 = _write_chunk(
+            chunk_dir, "c2.json", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1)
+        )
 
         ingester = _make_ingester(tmp_path)
 
@@ -884,3 +856,170 @@ class TestPartialFailureHandling:
         assert result.n_embed_failed == 1
         assert not path.exists()
         assert (chunk_dir.parent / "retry" / "c.json").exists()
+
+
+class TestGroupValidation:
+    """Tests for URL-group validation: mismatched fields, duplicate/non-contiguous chunk_index."""
+
+    def _setup(
+        self, tmp_path: Path
+    ) -> tuple[sqlite3.Connection, _FakeSQLiteHelper, RagIngester]:
+        conn, fake_db = _make_db()
+        ingester = _make_ingester(tmp_path)
+        return conn, fake_db, ingester
+
+    @pytest.mark.parametrize(
+        "field,mismatched_value",
+        [
+            ("url", "https://other.example.com/doc"),
+            ("title", "Different Title"),
+            ("lang", "en"),
+            ("fetched_at", "2025-01-01T00:00:00Z"),
+            ("etag", '"different-etag"'),
+            ("last_modified", "2025-01-01T00:00:00Z"),
+            ("source_file", "other.json"),
+            ("chunking_strategy", "semantic"),
+            ("chunk_type", "paragraph"),
+        ],
+    )
+    def test_mismatched_field_rejects_group(
+        self, field: str, mismatched_value: str, tmp_path: Path
+    ) -> None:
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        path0 = _write_chunk(chunk_dir, "c0.json")
+        spec = dataclasses.replace(
+            _DEFAULT_CHUNK, **{field: mismatched_value}, chunk_index=1
+        )
+        path1 = _write_chunk(chunk_dir, "c1.json", spec)
+        mock_post = MagicMock()
+        with (
+            patch.object(ingester._client, "post", side_effect=mock_post),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path0, path1],
+                force=False,
+            )
+        assert result.n_success == 0
+        assert result.n_failed == 2
+        assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+        # Files stay at original location (validation rejects before any move)
+        assert path0.exists()
+        assert path1.exists()
+        mock_post.assert_not_called()
+
+    def test_duplicate_chunk_index_rejects_group(self, tmp_path: Path) -> None:
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        path0 = _write_chunk(chunk_dir, "c0.json")
+        spec = dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0, content="second")
+        path1 = _write_chunk(chunk_dir, "c1.json", spec)
+        mock_post = MagicMock()
+        with (
+            patch.object(ingester._client, "post", side_effect=mock_post),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path0, path1],
+                force=False,
+            )
+        assert result.n_success == 0
+        assert result.n_failed == 2
+        assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+        assert path0.exists()
+        assert path1.exists()
+        mock_post.assert_not_called()
+
+    def test_non_contiguous_chunk_index_rejects_group(self, tmp_path: Path) -> None:
+        conn, fake_db, ingester = self._setup(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        path0 = _write_chunk(chunk_dir, "c0.json")
+        spec = dataclasses.replace(_DEFAULT_CHUNK, chunk_index=2, content="third")
+        path1 = _write_chunk(chunk_dir, "c1.json", spec)
+        mock_post = MagicMock()
+        with (
+            patch.object(ingester._client, "post", side_effect=mock_post),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path0, path1],
+                force=False,
+            )
+        assert result.n_success == 0
+        assert result.n_failed == 2
+        assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+        assert path0.exists()
+        assert path1.exists()
+        mock_post.assert_not_called()
+
+
+class TestIntegrityErrorPropagation:
+    """Tests for IntegrityError propagation from _insert_chunks_batch."""
+
+    def _setup(
+        self, tmp_path: Path
+    ) -> tuple[sqlite3.Connection, _FakeSQLiteHelper, RagIngester]:
+        conn, fake_db = _make_db()
+        ingester = _make_ingester(tmp_path)
+        return conn, fake_db, ingester
+
+    def test_insert_chunks_batch_propagates_integrity_error(
+        self, tmp_path: Path
+    ) -> None:
+        conn, fake_db, ingester = self._setup(tmp_path)
+        prepared = PreparedChunk(
+            doc_id=999999,
+            chunk_index=0,
+            content="text",
+            normalized_content=None,
+            chunk_type="chunk",
+            source_file="",
+            embedding_blob=b"\x00\x01",
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            with fake_db.begin_immediate():
+                ingester._insert_chunks_batch(fake_db, [prepared])
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+
+    def test_integrity_error_routes_to_failed_via_ingest_url_group(
+        self, tmp_path: Path
+    ) -> None:
+        conn, fake_db, ingester = self._setup(tmp_path)
+        # Insert a document with matching URL so ingest_url_group proceeds past doc lookup
+        conn.execute(
+            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
+            ("https://example.com/doc", "Doc", "ja", "text"),
+        )
+        conn.commit()
+        chunk_dir = tmp_path / "chunk"
+        path = _write_chunk(chunk_dir, "c.json")
+        ingester._insert_chunks_batch = MagicMock(
+            side_effect=sqlite3.IntegrityError("foreign key violation")
+        )
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            with pytest.raises(sqlite3.IntegrityError):
+                ingester.ingest_url_group(
+                    DocumentManager(fake_db),
+                    fake_db,
+                    "https://example.com/doc",
+                    [path],
+                    force=True,
+                )
+        # After rollback via begin_immediate fix, no partial rows remain
+        assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0

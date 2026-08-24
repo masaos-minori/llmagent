@@ -88,6 +88,8 @@ class DocumentStore(Protocol):
         lang: str,
         etag: str | None,
         last_modified: str | None,
+        fetched_at: str,
+        chunking_strategy: str,
     ) -> int:
         """Insert or update a document record; return doc_id."""
         ...
@@ -109,9 +111,9 @@ class DocumentStore(Protocol):
         doc_id: int,
         index: int,
         content: str,
+        chunk_type: str,
+        source_file: str,
         normalized: str | None = None,
-        chunk_type: str = "",
-        source_file: str = "",
     ) -> int:
         """Insert one chunk row; return the new chunk_id.
 
@@ -119,9 +121,9 @@ class DocumentStore(Protocol):
             doc_id: FK to the parent document row.
             index: Zero-based position of this chunk within the document.
             content: Raw chunk text.
+            chunk_type: Content type label (e.g. "text", "code").
+            source_file: Path to the originating source file.
             normalized: Pre-normalized text for FTS and vector indexing, or None.
-            chunk_type: Content type label (e.g. "text", "code"). Defaults to "".
-            source_file: Path to the originating source file. Defaults to "".
 
         Returns:
             The rowid of the newly inserted chunk row.

@@ -142,6 +142,8 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ## github-mcp (Port 8006)
 
+See also: [00_security_02_high-risk-tool-common-policy.md](00_security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
+
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
 **Startup Mode:** persistent (HTTP)
 **Configuration:** `config/github_mcp_server.toml`
