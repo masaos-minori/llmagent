@@ -10,6 +10,10 @@ Do not perform any of the following:
 - perform unrelated refactoring
 - perform broad formatting-only rewrites
 - process target-file cycles in parallel
+- interleave steps across target-file cycles
+- move existing documentation files
+- change the workflow directory structure
+- change implementation behavior during document-only phases
 
 ## Workflow Phase Definition
 
@@ -67,7 +71,22 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
   `git mv` fails, report `Blocked` — do not fall back to another method.
 - `plan-to-impl-procedure`: after approval, move the source file to the archive
   directory using `git mv` or `cp + rm`.
-- Verify the file exists in the archive directory after the move.
+
+Before running the move, verify all of the following:
+- current state is `Awaiting approval`
+- approval explicitly applies to the current target file
+- information completeness is `Pass`
+- all other required validations from earlier steps are `Pass`
+- source file exists
+- destination path does not exist
+- the archive directory exists
+
+After running the move, verify all of the following:
+- destination exists
+- source no longer exists
+- the move is recorded by the tool used (a Git rename/staged move for `git mv`, or an
+  equivalent confirmation for `cp + rm`)
+
 - **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
 - Only after confirming the move succeeded, consider the cycle complete.
 

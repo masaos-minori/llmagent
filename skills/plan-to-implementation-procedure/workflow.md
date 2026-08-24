@@ -29,15 +29,7 @@ This is a document-only phase. Allowed operations:
 
 ## Out of Scope
 
-Do not perform any of the following as part of this workflow:
-- unrelated refactoring
-- broad formatting-only rewrites
-- moving existing documentation files
-- changing workflow directory structure
-- changing implementation behavior during document-only phases
-- processing files under `__pycache__/`
-- interleaving multiple target files
-- parallel processing of target-file cycles
+See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
 
 ## Multi-file processing
 
@@ -58,25 +50,16 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/workflow-lifecycle.md`, `templates/traceability.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`, `SKILL.md` (this skill), and this file.
 
-Before reusing previously loaded shared files from an earlier cycle in this session,
-check their modified time or checksum. If any shared file changed, reload only the
-changed shared file.
+Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
+shared files across cycles in this session.
 
 ---
 
 ## Step 1: Identify the Target Plan File(s)
 
-Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
-before starting, process sequentially in filename order, load only the current target.
-
-Workflow-specific:
-- The target plan file(s) are provided by the user (e.g. `plans/{filename}_plan.md`),
-  one path per file.
-- If no target file is specified, stop immediately and ask the user to specify one or
-  more.
-- If any specified file does not exist, stop immediately and report which file(s) are
-  missing.
-- Do not read files under `plans/done/`.
+Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and Current-Target
+Loading in full. This workflow's target files: `plans/{filename}_plan.md`; archive
+directory: `plans/done/`.
 
 ---
 
@@ -161,38 +144,15 @@ accurately reflects the actual work performed:
 - Any blocked items have blocker descriptions filled in
 - Work Items Created table includes all artifacts produced
 
-- Report the generated file, validation result, unresolved items, and source file to be
-  moved.
-- Stop and wait for explicit user approval.
-- Do not move the source file before approval.
+Apply `rules/workflow-lifecycle.md` Approval Handling, Archival Move
+(`plan-to-impl-procedure` row: `git mv` or `cp + rm`), and Completion Criteria in full.
+This workflow's move: `plans/{filename}_plan.md` to `plans/done/{filename}_plan.md`.
 
-Before running the move, verify all of the following:
-- current state is `Awaiting approval`
-- approval explicitly applies to the current Plan file
-- every `Implementation steps` item in the Plan has been accounted for (already
-  implemented, newly created this cycle, or explicitly reported as `Needs
-  confirmation`)
-- each document created or confirmed this cycle has an Execution Status section that
-  accurately reflects the actual work performed (per the check above)
-- the source Plan file exists
-- the destination `plans/done/{filename}` does not exist
-- `plans/done/` exists
-
-- After approval, resume from the move step.
-- Move the plan file to `plans/done/` using git mv or cp + rm.
-
-After the move, verify all of the following:
-- the file exists at `plans/done/{filename}`
-- the file no longer exists at its original `plans/` path
-- the move is recorded by the tool used (a Git rename/staged move for `git mv`, or an
-  equivalent confirmation for `cp + rm`)
-
-- **If you cannot move the file, stop and report the error.** Do not proceed without
-  completing this step.
-- Only after confirming the move succeeded, consider the cycle complete.
-
-An unclear user response must not be treated as approval. Before approval, report
-`Awaiting approval`. Do not start the next target file while approval is pending.
+Before running the move, additionally verify: every `Implementation steps` item in the
+Plan has been accounted for (already implemented, newly created this cycle, or
+explicitly reported as `Needs confirmation`); each document created or confirmed this
+cycle has an Execution Status section that accurately reflects the actual work
+performed (per the check above).
 
 ---
 

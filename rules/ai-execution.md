@@ -68,3 +68,11 @@ Keep command results needed for correct judgment, including:
 - Complete its full workflow cycle and required gates before loading the next target.
 - Do not batch-read multiple target files upfront.
 - Do not interleave steps across files.
+
+## Global Safety Restrictions (Base)
+
+- Do not modify files outside the scope allowed by the active workflow.
+- Do not process files under `__pycache__/`.
+- Do not perform unrelated refactoring.
+- Do not perform broad formatting-only rewrites.
+- Do not process target-file cycles in parallel.
