@@ -10,8 +10,11 @@ issue file (issues/)
 ```
 
 - Input: `plans/{filename}_plan.md`
-- Output: `implementations/{timestamp}_{target_file_slug}.md`, where
-  `target_file_slug` is `target_file_path` with `/` replaced by `_`
+- Output: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where
+  `target_file_slug` is `target_file_path` with `/` replaced by `_`, `timestamp` is
+  shared across every document generated in one Step 3 pass, and `seq` is the item's
+  1-indexed, zero-padded position within the plan's `Implementation steps` list —
+  sorting filenames reproduces the implementation order.
 - Archive destination: `plans/done/`
 - Workflow phase: `plan-to-implementation-procedure`
 
@@ -88,13 +91,23 @@ on filling sections for how to apply `skills/python-design/SKILL.md` +
 the few relevant bullets from that skill's broader 12-section template; do not produce
 its full architecture output here.
 
-For each item in `Implementation steps`:
+Before iterating, determine one shared timestamp for this Step 3 pass: run
+`date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
+this pass. Do not re-run `date` per item — the creation order must be recoverable from
+`seq` below, not from timestamp drift between items.
+
+For each item in `Implementation steps`, in the order they appear in that list:
 
 - `target_file_path` is the repository-relative path of the file that item implements
   and tests (e.g. `scripts/agent/foo.py`). `target_file_name` is its base name only.
   Use `target_file_path` for traceability matching and output naming —
   `target_file_name` alone is ambiguous when the same base name exists under multiple
   directories.
+- `seq` is this item's 1-indexed position within the plan's `Implementation steps`
+  list, zero-padded to 2 digits (`01`, `02`, ...). It is fixed by the item's position
+  in the Plan, not by generation order or by how many items were skipped as already
+  implemented — so re-running an interrupted cycle assigns the same `seq` to the same
+  item every time.
 - Check whether the item has already been implemented:
   - An item may be skipped only when an existing document contains both:
     - `Source plan` equal to the current repository-relative plan path.
@@ -113,15 +126,16 @@ For each item in `Implementation steps`:
   `Needs confirmation`.
 - If not yet implemented, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document.
-  - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`
-  - Save the document as `implementations/{timestamp}_{target_file_slug}.md`, where
+  - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`,
+    using this pass's shared `timestamp` and this item's `seq`, where
     `target_file_slug` is `target_file_path` with `/` replaced by `_`. This keeps the
     filename unique even when two target files share the same base name in different
-    directories.
-  - If the resulting path already exists, use the lowest available zero-padded
-    sequence — `implementations/{timestamp}_01_{target_file_slug}.md`,
-    `implementations/{timestamp}_02_{target_file_slug}.md` — and never overwrite an
-    existing file.
+    directories, and sorting the generated filenames lexicographically reproduces the
+    plan's implementation order.
+  - If the resulting path already exists, this can only mean an interrupted cycle is
+    being resumed and the already-implemented check above did not treat it as
+    covering this item (e.g. stale or partial-scope content) — never overwrite it.
+    Stop and report `Needs confirmation` for this item instead.
 
 ### Progress recording during Step 3
 

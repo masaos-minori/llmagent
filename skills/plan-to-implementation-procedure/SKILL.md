@@ -5,8 +5,9 @@ description: |
   into file-level implementation procedure documents (`implementations/*.md`), one
   document per target file. Covers: matching plan items against already-generated
   implementation procedures to avoid duplicate work, applying narrow design-reasoning
-  guidance from `python-design` to a small set of fields, generating a collision-safe
-  output filename, and moving the processed plan to `plans/done/` after approval.
+  guidance from `python-design` to a small set of fields, generating a sortable,
+  collision-safe output filename, and moving the processed plan to `plans/done/`
+  after approval.
   Use when the task is to break an approved plan into concrete, file-level
   implementation and test procedures — not to design architecture, and not to
   implement anything.
@@ -45,9 +46,14 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   existing document under `implementations/` or `implementations/done/` has both a
   matching `Source plan` and a matching `Related target files` (by `target_file_path`,
   not `target_file_name`) — see `workflow.md` Step 3.
-- **Collision-safe naming**: output filenames use `target_file_slug`
-  (`target_file_path` with `/` replaced by `_`), not `target_file_name`, so two target
-  files with the same base name in different directories never collide.
+- **Sortable, collision-safe naming**: output filenames are
+  `{timestamp}_{seq}_{target_file_slug}.md`. `target_file_slug` is `target_file_path`
+  with `/` replaced by `_` (not `target_file_name`), so two target files with the same
+  base name in different directories never collide. `timestamp` is captured once and
+  shared across every document generated in one Step 3 pass; `seq` is the item's
+  1-indexed, zero-padded position within the plan's `Implementation steps` list.
+  Sorting the generated filenames lexicographically therefore reproduces the plan's
+  implementation order — see `workflow.md` Step 3.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
 - **Mandatory move**: see `workflow.md` Step 4. Do not skip it.
 - **No approval-gate confusion**: this skill's move to `plans/done/` DOES require
@@ -60,8 +66,11 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 ## Output format
 
-Generate `implementations/{timestamp}_{target_file_slug}.md` using the exact Markdown
-structure defined in `templates/implementation-procedure.md`. Do not omit any section.
+Generate `implementations/{timestamp}_{seq}_{target_file_slug}.md` using the exact
+Markdown structure defined in `templates/implementation-procedure.md`. Do not omit any
+section. `seq` is the item's 1-indexed, zero-padded position within the plan's
+`Implementation steps` list, so sorting filenames reproduces the implementation order
+— see `workflow.md` Step 3.
 
 ---
 

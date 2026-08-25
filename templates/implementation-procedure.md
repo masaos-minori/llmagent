@@ -1,9 +1,12 @@
 # Implementation Procedure Output Template (Canonical)
 
 Use this exact Markdown structure when generating
-`implementations/{timestamp}_{target_file_slug}.md` in the
+`implementations/{timestamp}_{seq}_{target_file_slug}.md` in the
 `plan-to-implementation-procedure` workflow (see
-`skills/plan-to-implementation-procedure/workflow.md` Step 3). Do not omit any section.
+`skills/plan-to-implementation-procedure/workflow.md` Step 3). `seq` is the item's
+1-indexed, zero-padded position within the plan's `Implementation steps` list, so that
+sorting the generated filenames lexicographically reproduces the plan's
+implementation order. Do not omit any section.
 
 Keep each section concise and file-level (a few bullets each) — this is not a broad
 architecture document. Use `N/A: {short reason}` for any section that does not apply
