@@ -206,7 +206,10 @@ class MdqService:
             where_clause = " AND ".join(where_clauses)
 
             rows = conn.execute(
-                f"SELECT c.chunk_id, c.heading, c.heading_level, c.heading_path, c.start_line, c.end_line FROM chunks c WHERE {where_clause} ORDER BY c.heading_level, c.ordinal",
+                f"SELECT c.chunk_id, c.heading, c.heading_level,"
+                f" c.heading_path, c.start_line, c.end_line"
+                f" FROM chunks c WHERE {where_clause}"
+                f" ORDER BY c.heading_level, c.ordinal",  # nosec B608 — where_clauses fragments from fixed constants; values bound via params
                 params,
             ).fetchall()
 
@@ -337,7 +340,7 @@ class MdqService:
                 "SELECT COUNT(*) as cnt FROM chunks_fts"
             ).fetchone()["cnt"]
             stale_count = conn.execute(
-                f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"
+                f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"  # nosec B608 — STALE_SQL_CONDITION is a fixed string constant
             ).fetchone()["cnt"]
             rows = conn.execute("SELECT key, value FROM index_state").fetchall()
             index_metadata = dict((row["key"], row["value"]) for row in rows)

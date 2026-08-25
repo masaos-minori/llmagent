@@ -430,3 +430,99 @@ class TestFetchedAtPropagation:
         for cf in page_b_files:
             data = orjson.loads(cf.read_bytes())
             assert data["fetched_at"] == "2026-03-01T00:00:00Z"
+
+
+def _make_crawl_json(
+    lang: str,
+    content: str,
+    url: str = "http://example.com/page",
+    title: str = "Test Page",
+) -> dict:
+    return {
+        "url": url,
+        "title": title,
+        "lang": lang,
+        "fetched_at": "2024-01-01T00:00:00",
+        "content": content,
+        "code_blocks": [],
+        "schema_version": "1",
+        "artifact_type": "chunk",
+        "created_by": "chunk_splitter",
+        "etag": "etag-test",
+        "last_modified": "2024-01-01T00:00:00",
+    }
+
+
+class TestProcessFileEndToEnd:
+    def test_process_file_end_to_end_english(self, tmp_path: Path) -> None:
+        import json
+
+        content = "Hello world from the test page. " * 50
+        data = _make_crawl_json(lang="en", content=content)
+        src = tmp_path / "en-page.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunker = ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 10,
+                "max_chunk": 1000,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+
+        result = chunker.process_file(src, force=True)
+        assert result >= 1
+
+        outputs = sorted(chunk_dir.glob(f"{src.stem}-*.json"))
+        assert len(outputs) == result
+        reassembled = ""
+        for i, out_path in enumerate(outputs):
+            payload = json.loads(out_path.read_text(encoding="utf-8"))
+            assert payload["lang"] == "en"
+            assert payload["source_file"] == src.name
+            assert payload["chunk_index"] == i
+            assert payload["content"]
+            reassembled += payload["content"]
+        assert "Hello world" in reassembled
+
+    def test_process_file_end_to_end_japanese(self, tmp_path: Path) -> None:
+        import json
+
+        content = "日本語のテストページです。これはテスト用の文章です。" * 50
+        data = _make_crawl_json(lang="ja", content=content)
+        src = tmp_path / "ja-page.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunker = ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 10,
+                "max_chunk": 1000,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+        chunker._result = []
+        chunker._orig_buf = ""
+        chunker._norm_buf = ""
+
+        result = chunker.process_file(src, force=True)
+        assert result >= 1
+
+        outputs = sorted(chunk_dir.glob(f"{src.stem}-*.json"))
+        assert len(outputs) == result
+        reassembled = ""
+        for i, out_path in enumerate(outputs):
+            payload = json.loads(out_path.read_text(encoding="utf-8"))
+            assert payload["lang"] == "ja"
+            assert payload["source_file"] == src.name
+            assert payload["chunk_index"] == i
+            assert payload["content"]
+            reassembled += payload["content"]
+        assert "日本語" in reassembled

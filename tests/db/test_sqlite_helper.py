@@ -5,6 +5,7 @@ Unit tests for db/helper.py: SQLiteHelper connection management and transactions
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 from db.helper import SQLiteHelper
@@ -251,3 +252,23 @@ class TestSQLiteHelperMissingDbPathMessage:
             helper._db_path = ""
             with pytest.raises(ValueError, match="agent.toml"):
                 helper._connect()
+
+
+class TestReuseConnection:
+    def test_reuse_connection_skips_reconnect(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        helper = SQLiteHelper(db_path=str(tmp_path / "test.sqlite"))
+        with patch.object(helper, "_connect", wraps=helper._connect) as spy:
+            helper.open(reuse_connection=True)
+            first_conn = helper.conn
+            helper.open(reuse_connection=True)
+            assert helper.conn is first_conn
+            assert spy.call_count == 1
+
+    def test_reuse_connection_skips_close_on_exit(self, tmp_path: Path) -> None:
+        helper = SQLiteHelper(db_path=str(tmp_path / "test.sqlite"))
+        with helper.open(reuse_connection=True):
+            pass
+        assert helper.conn is not None
+        helper.conn.execute("SELECT 1")

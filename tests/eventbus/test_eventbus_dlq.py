@@ -263,3 +263,27 @@ def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
     """Requeue should return 404 for unknown events."""
     r = client.post("/dlq/nonexistent-event-id/requeue")
     assert r.status_code == 404, f"Expected 404, got {r.status_code}: {r.text}"
+
+
+def test_atomic_write_failure_leaves_db_row_unchanged(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eventbus import dlq
+    from eventbus.db import open_db
+
+    ev = _event()
+    client.post("/publish", json=ev)
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(dlq, "_atomic_write", _raise)
+
+    with pytest.raises(OSError):
+        dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
+
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["dlq_at"] is None

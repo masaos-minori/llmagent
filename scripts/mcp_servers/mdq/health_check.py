@@ -32,7 +32,7 @@ def _check_stale_documents(conn: sqlite3.Connection) -> int | None:
     """Check for documents with mtime_ns > indexed_at."""
     try:
         result = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"
+            f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"  # nosec B608 — STALE_SQL_CONDITION is a fixed string constant
         ).fetchone()
         return result["cnt"] if result is not None else 0
     except sqlite3.OperationalError:

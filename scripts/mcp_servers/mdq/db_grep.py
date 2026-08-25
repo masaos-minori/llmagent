@@ -67,7 +67,8 @@ def _fetch_chunk_rows(
 ) -> list[sqlite3.Row]:
     """Fetch chunk rows eligible for grep matching, filtered by `where_clause`."""
     return conn.execute(
-        f"SELECT chunk_id, source_path, heading_path, heading, content, start_line FROM chunks {where_clause}",
+        f"SELECT chunk_id, source_path, heading_path, heading,"
+        f" content, start_line FROM chunks {where_clause}",  # nosec B608 — WHERE clause built from fixed column names; values bound via params
         params,
     ).fetchall()
 

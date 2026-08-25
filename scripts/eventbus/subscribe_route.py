@@ -49,7 +49,7 @@ async def subscribe(
                     return list(
                         db.execute(
                             f"SELECT seq, event_id, topic, payload, producer, published_at"
-                            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
+                            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",  # nosec B608 — all values bound via ? placeholders
                             (start_seq, *topic),
                         ).fetchall()
                     )

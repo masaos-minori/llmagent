@@ -66,11 +66,13 @@ def _make_ctx(
     servers: dict[str, object],
     http: AsyncMock,
     security_profile: SecurityProfile = SecurityProfile.LOCAL,
+    tool_definitions_strict: bool = False,
 ) -> MagicMock:
     """Build a minimal mocked AgentContext (mirrors tests/test_repl_health.py's style)."""
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = servers
     ctx.cfg.mcp.security_profile = security_profile
+    ctx.cfg.tool.tool_definitions_strict = tool_definitions_strict
     ctx.services_required.http = http
     return ctx
 
@@ -567,7 +569,7 @@ class TestDiscoverAllUnreachableServers:
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 1
-        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.FATAL for f in mcp_findings)
         assert result.registry.all_tools() == []
 
     @pytest.mark.asyncio
@@ -584,7 +586,7 @@ class TestDiscoverAllUnreachableServers:
         assert result.unreachable == ["srv"]
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 1
-        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.FATAL for f in mcp_findings)
 
     @pytest.mark.asyncio
     async def test_non_dict_top_level_body_marks_server_unreachable(self) -> None:
