@@ -161,6 +161,8 @@ Check the sections edited in Step 5:
 - Code fences remain balanced.
 - Front matter is preserved if present.
 
+Validation criteria: Run `python -m pytest` or equivalent test command. All tests must pass before proceeding. If tests fail, fix them before continuing.
+
 If validation surfaces an issue, fix it before proceeding to Step 7.
 
 #### Step 7: Move the completed implementation procedure file
@@ -179,6 +181,10 @@ proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approv
 - Move the implementation procedure file to `implementations/done/` using git mv or cp + rm.
 - Verify the file exists in `implementations/done/` after the move.
 - **If you cannot move the file, stop and report the error.**
+
+### Rollback on failure
+
+If implementation breaks existing functionality, revert changes immediately and report `Blocked: {description}`. Do not proceed until the issue is resolved.
 
 ### Final Report
 

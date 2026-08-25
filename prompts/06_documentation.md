@@ -75,19 +75,14 @@ If a required section does not apply:
 - Do not invent content.
 
 Each file must strictly follow the chapter structure below:
-- Purpose
-- Scope
-- Background
-- Assumptions
-- Constraints
-- Functional Requirements
-- Input / Output
-- Processing Flow
-- Data Specification
-- Public Interface Specification (public API only; do not document private methods, private attributes, or private functions)
-- Error Handling
-- Validation Plan
-- Open Questions / Unknowns
+- Purpose — why this layer exists
+- Scope — what it covers / does not cover
+- Background — context and rationale
+- Design Decisions — key choices and trade-offs
+- Alternatives Considered — options evaluated
+- Open Questions — unresolved items
+- Unknowns — things not yet determined
+- References — links to related documents
 
 #### Step 2: Documentation alignment and quality control
 

@@ -18,6 +18,7 @@ skip a step because it seems slow.
 - If a change may alter behavior, do not implement it — record it as a proposal instead (see
   Step 10, `Proposal Format`).
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
+- Do not refactor code unless explicitly instructed via a target file or issue. This workflow is reactive, not proactive.
 
 ### Refactoring Rules
 

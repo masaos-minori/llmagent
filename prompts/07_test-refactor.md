@@ -51,12 +51,11 @@ Inspect the repository and identify:
 - lint / typecheck / import-lint / schema-check commands
 - unit / integration / e2e / smoke test structure
 
-Inspect files such as:
-- README / docs
-- pyproject.toml / package.json / Makefile / justfile / tox.ini / noxfile / setup.cfg
-- CI workflow files
-- test config files
-- scripts used in CI or validation
+Inspection commands:
+- `find . -name "test_*.py" -o -name "*_test.py"` — discover test files
+- `grep -r "def test_" --include="*.py"` — discover test functions
+- `cat pyproject.toml | grep -A5 "\[tool.pytest\]"` — check pytest configuration
+- `python -m pytest --collect-only` — dry-run test collection
 
 If multiple test entrypoints exist, identify all of them.
 
@@ -198,6 +197,31 @@ Create a Markdown report with:
 5. inconsistent or outdated tests,
 6. a prioritized implementation work plan,
 7. explicit instructions for new or updated test cases.
+
+##### Execution-ready plan format
+
+Format the final plan as follows:
+
+```markdown
+## Test Improvement Plan
+
+### Priority 1 (Critical)
+| Item | Description | Effort | Depends On |
+|------|-------------|--------|------------|
+| T1   | ...         | Low    | —          |
+
+### Priority 2 (Important)
+| Item | Description | Effort | Depends On |
+|------|-------------|--------|------------|
+| T2   | ...         | Medium | T1         |
+
+### Priority 3 (Nice to Have)
+| Item | Description | Effort | Depends On |
+|------|-------------|--------|------------|
+| T3   | ...         | High   | T2         |
+```
+
+Effort estimates: Low (<4h), Medium (4-16h), High (>16h)
 
 ### Finding Categories
 

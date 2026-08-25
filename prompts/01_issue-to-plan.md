@@ -82,6 +82,8 @@ classification (`Explicit in issue` / `Confirmed by repository evidence` / `Deri
 from confirmed evidence` / `Needs confirmation`) and the already-resolved/too-vague
 early-exit handling.
 
+Evidence gap handling: If required evidence cannot be found during Step 2, report `Evidence Gap: {specific item}` and stop — do not proceed to planning without complete evidence.
+
 #### Step 3: Inspect related files
 
 Follow `skills/issue-to-plan/workflow.md` Step 3 in full: classify the Issue as Path A
@@ -129,6 +131,8 @@ Follow `skills/issue-to-plan/workflow.md` Step 9 in full. Set the state to `Awai
 approval` and stop. Do not move the Issue in the same response. An unclear user
 response must not be treated as approval. Do not start the next target file while
 approval is pending.
+
+**MANDATORY: After completing Step 9, you MUST wait for explicit user approval** (look for phrases like "approved", "go ahead", "proceed"). Never assume approval from silence or vague responses.
 
 #### Step 10: Move the completed Issue file
 

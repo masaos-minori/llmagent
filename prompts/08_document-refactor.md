@@ -25,6 +25,16 @@ reorganized (new layer, missing chapter structure), or when the scope is the who
 
 Read the source code and the existing design documents, then update the design documents by adding implementation intent that is clearly supported by the code.
 
+**What counts as "stable structure":**
+- Document already contains Purpose/Scope/Background/Design Decisions/etc. sections
+- Document is maintained by a team/process (not ad-hoc)
+- Document has been reviewed at least once against code
+
+**What counts as "unstable structure" (use 06_documentation.md instead):**
+- Document is a single large file covering multiple concerns
+- Document lacks consistent section headers
+- Document is being created for the first time
+
 - Do not rewrite documents from scratch.
 - Do not invent new architecture.
 - Do not modify source code files — this workflow targets `docs/*.md` only.
@@ -109,6 +119,11 @@ When documenting intent, focus on:
 - why storage/config/schema separation exists,
 - why failure is handled as warning vs hard failure,
 - what is intentional vs incidental.
+
+Implementation intent examples:
+- Instead of "This module handles data storage," write "This module enforces that all writes go through ETagManager before persistence, preventing stale-state corruption."
+- Instead of "The API accepts JSON," write "The API validates request bodies against schemas in `schemas/`; invalid requests return HTTP 400 with error details."
+- Instead of "Tests verify correctness," write "Tests verify that `ChunkSplitter.split()` produces chunks <= 512 tokens and preserves word boundaries."
 
 #### Step 4: Update the document
 

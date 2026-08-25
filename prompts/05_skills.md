@@ -21,7 +21,7 @@ Strictly follow these throughout all steps:
   - `rag` and `mcp` are sibling layers.
   - `rag` and `mcp` must not reference each other unless an approved rule explicitly allows it.
   - Do not confuse layer display order with dependency direction.
-- **minimal loading**: See the minimal skill loading process below.
+- **minimal loading**: Load only the minimum skill files required for the current task. Do not load entire skill directories unless specifically needed. Prefer loading individual rule files over entire skill workflows.
 - **shared normalization**: Rules and conventions shared across multiple skills must be defined once in `skills/DESIGN.md` and referenced, not duplicated.
 
 Context Loader Pattern (the target structure):
@@ -40,7 +40,7 @@ Execution
 
 ### Canonical Ownership Model
 
-- `AGENTS.md`: repository-wide AI execution constraints and an instruction to consult `routing.md`.
+- `AGENTS.md`: repository-wide AI execution constraints and an instruction to consult `routing.md`. Must be loaded first by any AI agent. Contains global safety restrictions and execution rules.
 - `routing.md`: the only canonical source for task-to-skill mappings and source-to-document mappings.
 - `skills/DESIGN.md`: shared design and architecture rules.
 - `skills/<task>/SKILL.md`: task-specific procedures and checklists.

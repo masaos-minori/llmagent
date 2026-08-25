@@ -31,7 +31,15 @@ Read the target plan file, then produce file-level implementation procedure docu
 
 ## Out of scope
 
-See `skills/plan-to-implementation-procedure/workflow.md` Out of Scope for the full list.
+Do not perform any of the following as part of this workflow:
+- unrelated refactoring
+- broad formatting-only rewrites
+- moving existing documentation files
+- changing workflow directory structure
+- changing implementation behavior during document-only phases
+- processing files under `__pycache__/`
+- interleaving multiple target files
+- parallel processing of target-file cycles
 
 ### Tasks
 
@@ -71,6 +79,11 @@ Follow `skills/plan-to-implementation-procedure/workflow.md` Step 3 in full: gen
 each document per `templates/implementation-procedure.md`, apply the already-implemented
 check keyed on `target_file_path`, and use the collision-safe `target_file_slug` naming
 with zero-padded sequencing.
+
+Output filename format: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where:
+- `{timestamp}` is generated once per pass using `date +%Y%m%d-%H%M%S`
+- `{seq}` is the 1-indexed position within the plan's `Implementation steps` list, zero-padded to 2 digits (e.g., `01`, `02`)
+- `{target_file_slug}` is `target_file_path` with `/` replaced by `_`
 
 #### Step 4: Move the completed plan file
 
