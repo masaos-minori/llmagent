@@ -13,6 +13,7 @@ Make `manage_frontmatter.py add-missing` safe by default: no-flag invocation mus
 
 - The intended default behavior is dry-run/report-only (not write), based on the presence of the `--dry-run` flag declaration and the fact that the `--fix` flag was added but never wired up — suggesting the original design intent was dry-run-first.
 - The existing `--fix` flag name is acceptable as the write-enabling flag; if ambiguous, stop and ask rather than guessing.
+- **Uncertainty**: The issue itself states "If the intended default behavior (dry-run vs. fix) is ambiguous, stop and ask rather than guessing." This assumption is not confirmed by evidence — it is an inference from the existence of an unconnected `--fix` flag.
 
 ## Design decisions
 

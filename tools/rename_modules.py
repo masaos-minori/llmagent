@@ -5,7 +5,7 @@ import pathlib
 import re
 import sys
 
-BASE = pathlib.Path("/home/sugimoto/llmagent")
+BASE = pathlib.Path(__file__).resolve().parent.parent
 
 # Old -> new mappings for absolute module paths per server
 SERVER_MODULE_RENAMES = {
@@ -380,44 +380,11 @@ def update_patch_targets(content: str) -> tuple[str, bool]:
     return content, changed
 
 
-def process_file(filepath: pathlib.Path) -> None:
-    """Process a single Python file."""
-    if not filepath.suffix == ".py":
-        return
-
-    try:
-        content = filepath.read_text(encoding="utf-8")
-    except OSError as e:
-        print(f"  SKIP {filepath}: {e}", file=sys.stderr)
-        return
-
-    original = content
-    server = get_server(filepath)
-
-    if server is None or server not in SERVER_MODULE_RENAMES:
-        print(f"  OK    {filepath}")
-        return
-
-    # Update docstring paths first
-    content, ds_changed = update_docstring_path(content, server)
-
-    # Then update imports
-    content, imp_changed = update_imports(content, server)
-
-    if content != original:
-        filepath.write_text(content, encoding="utf-8")
-        changes = []
-        if ds_changed:
-            changes.append("docstring")
-        if imp_changed:
-            changes.append("imports")
-        rel = filepath.relative_to(BASE)
-        print(f"  UPDATED {rel} ({', '.join(changes)})")
-    else:
-        print(f"  OK    {filepath}")
-
-
 def main() -> None:
+    if not BASE.is_dir():
+        print(f"ERROR: repository root not found: {BASE}", file=sys.stderr)
+        sys.exit(1)
+
     dirs_to_process = [
         BASE / "scripts",
         BASE / "tests",
@@ -432,7 +399,8 @@ def main() -> None:
 
     for d in dirs_to_process:
         if not d.exists():
-            continue
+            print(f"ERROR: expected directory not found: {d}", file=sys.stderr)
+            sys.exit(1)
 
         py_files = sorted(d.rglob("*.py"))
         for f in py_files:

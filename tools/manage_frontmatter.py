@@ -10,7 +10,8 @@ Subcommands:
   dedupe-lists  Remove duplicate entries from list fields (tags/related/source)
 
 Usage:
-    python tools/manage_frontmatter.py add-missing [--dry-run] [--fix]
+    python tools/manage_frontmatter.py add-missing [--dry-run]   # report-only (safe default)
+    python tools/manage_frontmatter.py add-missing --fix         # perform actual writes
     python tools/manage_frontmatter.py dedupe-lists
 """
 
@@ -153,15 +154,24 @@ def build_frontmatter(
     return "\n".join(fm_lines) + "\n"
 
 
-def cmd_add_missing(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Add missing YAML Front Matter to docs/*.md"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print changes without modifying files"
-    )
-    parser.add_argument("--fix", action="store_true", help="Actually modify files")
-    args = parser.parse_args(argv)
+def cmd_add_missing(argv: list[str] | argparse.Namespace | None = None) -> int:
+    if isinstance(argv, argparse.Namespace):
+        args = argv
+    else:
+        parser = argparse.ArgumentParser(
+            description="Add missing YAML Front Matter to docs/*.md"
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Print changes without modifying files",
+        )
+        parser.add_argument(
+            "--fix",
+            action="store_true",
+            help="Actually modify files (default: dry-run)",
+        )
+        args = parser.parse_args(argv)
 
     if not DOCS_DIR.is_dir():
         print(f"ERROR: docs directory not found: {DOCS_DIR}", file=sys.stderr)
@@ -195,15 +205,15 @@ def cmd_add_missing(argv: list[str] | None = None) -> int:
                             p.replace("-", " ") for p in desc_parts
                         ).title()
             fm = build_frontmatter(filename, title=title)
-            if args.dry_run:
-                print(f"[DRY-RUN] Would add front matter to {md_file.name}:")
-                print(f"  Title: {title or '(generated from filename)'}")
-                print(f"  Block:\n{fm}")
-            else:
+            if args.fix:
                 new_content = fm + content
                 md_file.write_text(new_content, encoding="utf-8")
                 print(f"Added front matter to {md_file.name}")
                 modified = True
+            else:
+                print(f"[DRY-RUN] Would add front matter to {md_file.name}:")
+                print(f"  Title: {title or '(generated from filename)'}")
+                print(f"  Block:\n{fm}")
             continue
 
         end = content.find("\n---", 3)
