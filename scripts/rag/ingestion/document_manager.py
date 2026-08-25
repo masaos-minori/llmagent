@@ -101,36 +101,6 @@ class DocumentManager:
         self._update_etag(existing_doc_id, etag, last_modified, fetched_at)
         return existing_doc_id, False, True
 
-    def _handle_existing_file(
-        self,
-        url: str,
-        existing_doc_id: int,
-        etag: str | None,
-        last_modified: str | None,
-    ) -> bool:
-        """Handle an existing file:// document; return True when unchanged."""
-        stored = self._db.execute(
-            "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
-            (existing_doc_id,),
-        ).fetchone()
-        if stored is None:
-            return False
-        if self._is_file_unchanged(
-            stored["etag"], stored["last_modified"], etag, last_modified
-        ):
-            logger.info(
-                "file:// unchanged (sha256 match): %s",
-                url,
-                extra={"stage_name": "ingester"},
-            )
-            return True
-        logger.info(
-            "file:// changed — auto re-ingesting: %s",
-            url,
-            extra={"stage_name": "ingester"},
-        )
-        return False
-
     def _update_etag(
         self,
         doc_id: int,

@@ -122,19 +122,22 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Re-verify Assumptions precondition | Completed | 20260825-141500 | 20260825-141500 | Constructor signature matches dependency plan: `warn_on_missing`, `strict_mode`, `runtime_registry` |
+| 2 | Read merged route_resolver.py | Completed | 20260825-141500 | 20260825-141500 | Confirmed `_log_routing_coverage` removed, new params only |
+| 3 | Delete backward-compat lines | Completed | 20260825-141500 | 20260825-141500 | Removed lines about `server_configs`, `discovery_map`, `known_tools` |
+| 4 | Confirm no remaining compat references | Completed | 20260825-141500 | 20260825-141500 | `rg` returns zero hits for "accepted for backward compat" |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Blocking precondition not met (legacy params still in constructor) | Yes | 20260825-141500 |
 
 ##### Work Items Created
 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| impl/doc-edit | 3 | Documentation edit (remove backward-compat lines) | Completed | AI | 20260825 |
 
 ## Traceability
 

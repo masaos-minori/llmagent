@@ -171,6 +171,32 @@ class TestGetOrCreateDocumentFreshness:
         )
         assert result == (None, True, False)
 
+    def test_changed_sha256_triggers_reingest_via_real_document_manager(
+        self, tmp_path: Path
+    ) -> None:
+        old_sha = "old_sha"
+        new_sha = "new_sha"
+        url = "file:///tmp/test.txt"
+        db, _doc_id = _make_fake_db(url, old_sha, "2024-01-01")
+        ingester = _make_ingester(tmp_path)
+        ingester.close()
+
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
+        result = ingester._get_or_create_document(
+            doc_mgr,
+            db,
+            url,
+            "test.txt",
+            "en",
+            force=False,
+            etag=new_sha,
+            last_modified="2024-01-02",
+            fetched_at="2024-01-01T00:00:00Z",
+        )
+        _, skip, replace = result
+        assert skip is False
+        assert replace is True
+
     def test_changed_sha256_triggers_reingest(self, tmp_path: Path) -> None:
         from unittest.mock import MagicMock
 

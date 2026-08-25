@@ -65,7 +65,7 @@ def _make_fake_sqlite_helper(conn: sqlite3.Connection) -> MagicMock:
     """Create a fake SQLiteHelper that returns the given connection.
 
     Uses row_factory so fetchone() returns dict-like objects with column names as keys.
-    This is needed because _handle_existing_file accesses stored["etag"], stored["last_modified"].
+    This is needed because handle_existing_document accesses stored["etag"], stored["last_modified"].
     """
     conn.row_factory = sqlite3.Row
     mock_sh = MagicMock()

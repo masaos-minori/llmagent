@@ -29,7 +29,7 @@ arguments (`--skip`, `--docs-dir`) when invoked as a console-script entry point.
 - `sys` is already imported at module level in this file — confirmed by direct read
   (`import sys` near the top of the file) — so the corrected wrapper implementation
   needs no new import.
-- **Bug found in the source requirement's own proposed wrapper code, corrected here**:
+- **Bug in the source requirement's own proposed wrapper code, NOT yet corrected**:
   the requirement suggested `return main((argv or []) + ["--domain", "mcp"])`. When
   installed as a `[project.scripts]` console-script entry point, setuptools' generated
   wrapper script calls the target function with no arguments (`main_mcp()`), so `argv`
@@ -37,7 +37,8 @@ arguments (`--skip`, `--docs-dir`) when invoked as a console-script entry point.
   discarding whatever the user actually typed after `check-mcp-docs` on the command
   line (e.g. `check-mcp-docs --skip portdrift` would run with `--skip` dropped). The
   actual CLI arguments live in `sys.argv[1:]`, which the requirement's proposed code
-  never reads.
+  never reads. Verified during this review: the current file still contains the buggy
+  `(argv or [])` pattern at lines 759 and 764; this procedure implements the correction.
 
 ## Design decisions
 

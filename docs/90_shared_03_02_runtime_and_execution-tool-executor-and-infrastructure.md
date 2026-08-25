@@ -26,13 +26,10 @@ Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`
 
 ### `ToolRouteResolver` (`shared/route_resolver.py`)
 
-Resolves `tool_name` $\rightarrow$ `server_key` using `RuntimeToolRegistry` as sole authority; raises `ValueError` for unresolved names. `server_configs` is accepted for backward compatibility but remains unused; `discovery_map` is diagnostic-only; `known_tools` is not passed in production.
+Resolves `tool_name` $\rightarrow$ `server_key` using `RuntimeToolRegistry` as sole authority; raises `ValueError` for unresolved names.
 
 **Current behavior:**
-- `server_configs` is a constructor parameter only for backward compatibility — it is never read or stored.
 - `runtime_registry` takes priority in `resolve()` when set.
-- `discovery_map` is a diagnostic-only feature not called from anywhere in production.
-- No production calls pass `known_tools`; startup coverage logging is effectively dead code.
 
 ### Validation functions (`shared/tool_routing_validation.py`)
 

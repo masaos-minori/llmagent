@@ -756,12 +756,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def main_mcp(argv: list[str] | None = None) -> int:
     """Console-script entry point for MCP domain docs consistency check."""
-    return main(["--domain", "mcp"] + (argv or []))
+    return main((argv if argv is not None else sys.argv[1:]) + ["--domain", "mcp"])
 
 
 def main_agent(argv: list[str] | None = None) -> int:
     """Console-script entry point for Agent domain docs consistency check."""
-    return main(["--domain", "agent"] + (argv or []))
+    return main((argv if argv is not None else sys.argv[1:]) + ["--domain", "agent"])
 
 
 if __name__ == "__main__":
