@@ -37,6 +37,8 @@ to the item.
 
 ## Validation plan
 
+## Completion criteria
+
 ## Out of scope
 
 ## Execution Status
@@ -61,6 +63,7 @@ to the item.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: {the Requirement ID(s) from the Plan's Implementation steps item this document implements, e.g. `REQ-003`}
 - **Source issue**: {inherited from the target plan file's own Traceability section}
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: {exact repository-relative path of the target plan file}
@@ -84,6 +87,12 @@ to the item.
 - "Source issue" must carry forward the value from the target plan's own Traceability
   section — set to N/A only if the Plan's own Traceability section genuinely records
   N/A itself; never default to N/A when the Plan carries a concrete value.
+- "Requirement ID" and any reference to the Plan elsewhere in this document (Goal,
+  Scope) must cite the Requirement by ID plus a short (one-clause) purpose — do not
+  paste the Plan's full Requirement description text.
+- "Completion criteria" states the specific, checkable conditions under which this
+  file-level change is done — distinct from "Validation plan" (how to verify), this is
+  what verifying confirms.
 - "Related target files" uses `target_file_path` (the repository-relative path), not
   `target_file_name` (its base name) — this is also what the "already implemented"
   check matches against.

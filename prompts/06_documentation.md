@@ -8,7 +8,7 @@ structure (Step 1) and reconciling it against code as a discrete, broad pass.
 
 **Do not use this workflow for routine code-to-documentation synchronization** (updating
 `docs/*.md` after an ordinary code change). That case is handled inline by
-`03_implementation.md` Step 5, gated on a `routing.md` mapping. Use this workflow only
+`03_implementation.md` Step 5, gated on a `docs/00_index.md` task-scope mapping. Use this workflow only
 when documentation structure itself needs reorganizing (new layer, missing chapter
 structure, or a periodic broad audit) — not each time source code changes.
 

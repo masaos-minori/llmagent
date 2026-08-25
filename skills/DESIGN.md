@@ -231,6 +231,7 @@ Applies to any skill that writes or transforms production Python code
 | `python-code-review` | `skills/python-code-review/` | Evidence-based review of existing Python code, PRs, and diffs |
 | `issue-to-plan` | `skills/issue-to-plan/` | Convert raw issues directly into implementation plans |
 | `plan-to-implementation-procedure` | `skills/plan-to-implementation-procedure/` | Convert an approved plan into file-level implementation procedure documents |
+| `code-implementation` | `skills/code-implementation/` | Execute an approved implementation procedure into code, tests, and documentation |
 | `python-design` | `skills/python-design/` | Architecture and module interface design |
 | `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
 | `issue-creator` | `skills/issue-creator/` | Convert requests, findings, or plans into actionable GitHub Issues |

@@ -98,6 +98,7 @@ apply before moving to Phase 11.
 - `python-test-and-fix` — Phase 9 reveals test failures not caused by the task
 - `deploy` — after Phase 11 if `scripts/` or `config/` changed
 - `issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
+- `code-implementation` — calls this skill in its Step 3 (Implement the feature) when executing an approved implementation procedure from `implementations/*.md`; verify scope against that procedure document, not just the Plan, before Phase 5
 
 ---
 

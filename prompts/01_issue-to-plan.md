@@ -16,22 +16,23 @@ what this document-only phase may create, move, or must not touch.
 
 Read the target Issue file, then create a concrete work plan based on the rules below.
 
-- **CRITICAL: Process target files ONE AT A TIME.** Complete Steps 1-10 for the current
-  file before starting the next file. Never interleave steps across files.
 - **MANDATORY: After completing Step 9, you MUST wait for explicit user approval, then
   move the Issue file to `issues/done/` in Step 10.** Skipping this step is a failure
   condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
-- Do not touch files under `__pycache__/`.
 - Write all output documents (`plans/`, `issues/`) in clear and concise English for AI
   consumption.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
 
+Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
+referenced files.
+
 ## Shared Rules
 
-- Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning,
-  output, progress reporting, sequential target processing).
+- Execution rules: see `rules/ai-execution.md` (context reading, instruction
+  precedence, tool usage, reasoning, output, progress reporting, command results,
+  sequential target processing).
 - Lifecycle rules: see `rules/workflow-lifecycle.md` (global safety restrictions, target
   validation, approval handling, archival move, completion criteria).
 - Traceability templates: see `templates/traceability.md` and
@@ -46,30 +47,15 @@ See `skills/issue-to-plan/workflow.md` Out of Scope for the full list.
 
 ### Tasks
 
-Report progress at the start and end of each step. Multi-file processing (sequential
-cycles, context hygiene): see `skills/issue-to-plan/workflow.md` Multi-file processing.
+Multi-file processing (progress-report cadence, sequential cycles, context hygiene):
+see `skills/issue-to-plan/workflow.md` Multi-file processing.
 
 #### Step 0: Load required files
 
-If not already loaded, read the following before starting:
-- `routing.md`
-- `rules/coding.md`
-- `rules/toolchain.md`
-- `rules/ai-execution.md`
-- `rules/workflow-lifecycle.md`
-- `templates/traceability.md`
-- `templates/requirement-traceability.md`
-- `templates/issue.md`
-- `templates/plan.md`
-- `skills/issue-to-plan/SKILL.md`
-- `skills/issue-to-plan/workflow.md`
+Follow `skills/issue-to-plan/workflow.md` Step 0 in full.
 
-Before reusing previously loaded shared files from an earlier cycle in this session,
-check their modified time or checksum. If any shared file changed, reload only the
-changed shared file.
-
-If a required file is missing, unreadable, or contradictory, stop and report `Blocked`.
-Do not infer missing instructions.
+If a required file is missing, unreadable, or contradictory (see Instruction
+Precedence above), stop and report `Blocked`. Do not infer missing instructions.
 
 #### Step 1: Identify the target Issue file(s)
 
@@ -82,7 +68,10 @@ classification (`Explicit in issue` / `Confirmed by repository evidence` / `Deri
 from confirmed evidence` / `Needs confirmation`) and the already-resolved/too-vague
 early-exit handling.
 
-Evidence gap handling: If required evidence cannot be found during Step 2, report `Evidence Gap: {specific item}` and stop — do not proceed to planning without complete evidence.
+Evidence gap handling: If required evidence cannot be found during Step 2, classify the
+gap as Blocking or Non-blocking. Stop and report `Evidence Gap: {specific item}` only if
+the gap is Blocking (a reliable Plan cannot be produced without it). Record a
+Non-blocking gap as `Needs confirmation` (see Step 6) and continue to Step 3.
 
 #### Step 3: Inspect related files
 
@@ -127,12 +116,12 @@ information is unmapped or untraceable.
 
 #### Step 9: Validate and await approval
 
-Follow `skills/issue-to-plan/workflow.md` Step 9 in full. Set the state to `Awaiting
-approval` and stop. Do not move the Issue in the same response. An unclear user
-response must not be treated as approval. Do not start the next target file while
-approval is pending.
+Follow `skills/issue-to-plan/workflow.md` Step 9 in full (applies
+`rules/workflow-lifecycle.md` Approval Handling). Do not start the next target file
+while approval is pending.
 
-**MANDATORY: After completing Step 9, you MUST wait for explicit user approval** (look for phrases like "approved", "go ahead", "proceed"). Never assume approval from silence or vague responses.
+**MANDATORY: After completing Step 9, you MUST wait for explicit user approval before
+proceeding to Step 10.**
 
 #### Step 10: Move the completed Issue file
 

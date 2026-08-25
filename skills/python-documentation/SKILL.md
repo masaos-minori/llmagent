@@ -78,6 +78,8 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 - `issue-to-plan` — when a plan needs documentation analysis of an existing codebase
 - `python-implementation` — when Phase 12 requires documentation updates
+- `code-implementation` — Step 5, only when a changed file has a matching
+  `docs/00_index.md` task-scope row
 
 ---
 

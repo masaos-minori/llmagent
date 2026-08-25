@@ -52,10 +52,17 @@ Additional context-hygiene guidance specific to this workflow:
 - Process each Steps 1-10 cycle sequentially so investigation from one file's cycle
   does not accumulate into the next — this is context isolation, not parallel
   execution: run each cycle one at a time, never in parallel.
-- Keep start/end progress reports to one or two lines; do not restate full document
-  content in progress reports.
+- Do not summarize shared rules or template content in chat — reference them by file
+  name instead.
 
-Report progress at the start and end of each step.
+Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
+cadence.
+
+### Progress recording during Steps 3-6
+
+Report an interim update only when a sub-investigation's outcome is Blocking (see
+Step 6), contradicts the Issue's claim, or surfaces an item with no suitable Plan
+destination (Step 4) — do not report for a routine, expected verification step.
 
 ---
 
@@ -137,6 +144,10 @@ Assessment) section, **before** inspecting.
 Read only relevant sections unless the full file is required for an accurate
 conclusion. Record the Path A/B decision for reuse in Step 5.
 
+Track files inspected only for evidence separately from files planned for
+modification. Only modification-target files belong in the Plan's Affected areas table
+(Step 5) — cite evidence-only files by path in Problem/Design prose instead.
+
 ---
 
 ## Step 4: Map Issue Information to Plan Information
@@ -155,6 +166,7 @@ Create an explicit mapping before writing the Plan:
 | Implementation instructions | Requirements, Implementation steps |
 | Acceptance criteria | Acceptance criteria, Validation plan |
 | Tests | Tests, Validation plan |
+| Documentation Impact | Documentation Impact |
 | Constraints | Scope, Assumptions, Risks |
 | Unresolved questions | Unknowns |
 | Repository evidence (Step 2/3) | Design, Risks, Validation plan |
@@ -164,6 +176,10 @@ No requirement information may remain unmapped. If information has no suitable
 destination, add an appropriate Plan section instead of discarding it. This mapping step
 runs identically for Path A and Path B — task-size classification does not reduce
 mapping completeness, only analysis depth (Steps 3 and 5).
+
+A Step 2 item classified `Needs confirmation` must not be written into the Plan's
+Assumptions section as if verified — route it to Unknowns (Step 6) instead. Assumptions
+are for judgment calls made during analysis, not for unverified Issue claims.
 
 ---
 
@@ -220,11 +236,19 @@ raising it to ≥ 90%.
 - Resolve Unknowns only when supported by repository evidence.
 - If a blocking ambiguity remains (`BLOCKING: True`), stop and request clarification.
 - Record non-blocking Unknowns in the Plan's Unknowns table
-  (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`); when
-  necessary, also file `issues/{timestamp}_unknowns.md` (GitHub Issue Markdown format,
-  one issue per section).
-- Analyze every Risk and add a mitigation (Risk + likelihood + mitigation). When
-  necessary, file `issues/{timestamp}_risks.md` the same way.
+  (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`). Only
+  create `issues/{timestamp}_unknowns.md` (GitHub Issue Markdown format, one issue per
+  section) when at least one Unknown is `BLOCKING: True` or otherwise requires
+  standalone tracking beyond the Plan's inline table.
+- Analyze every Risk and add a mitigation (Risk + likelihood + mitigation). Only file
+  `issues/{timestamp}_risks.md` the same way when at least one Risk lacks a complete
+  mitigation and needs separate follow-up.
+- Do not create either file with placeholder or empty content — if the Plan's inline
+  table fully captures every Unknown/Risk, do not also file a separate issue for it.
+- When an Unknown/Risk issue file (or the Requirement Traceability table in Step 7)
+  references a Requirement, cite its Requirement ID (e.g. `REQ-003`) — do not re-quote
+  the Requirement's full description text. The ID is the canonical join key back to the
+  Plan.
 - Reuse the same base timestamp generated in Step 5 (`date +%Y%m%d-%H%M%S`) for both
   files — do not generate a new timestamp. This keeps the Plan, Unknowns file, and Risks
   file correlated to the same workflow cycle.
@@ -258,8 +282,8 @@ raising it to ≥ 90%.
 
 Verify the Plan preserves: title/priority, target files, background, problem, reason for
 change, implementation intent, implementation instructions, acceptance criteria, tests,
-constraints/out-of-scope items, dependencies, assumptions, unknowns, risks/mitigations,
-and Source Issue traceability.
+documentation impact, constraints/out-of-scope items, dependencies, assumptions,
+unknowns, risks/mitigations, and Source Issue traceability.
 
 Verify the Requirement Traceability subsection has one row per Requirement ID with all
 columns filled, including a Status entry from Step 2.
@@ -280,14 +304,15 @@ has a full table; risks are stated with mitigations.
 
 ## Step 9: Validate and Await Approval
 
-Report: generated Plan path; generated Unknown/Risk files; number of Requirements; the
-Path A/B classification and its rationale; information-completeness result;
-traceability result; Requirement Traceability completeness result (with a breakdown of
-how many Requirements fall under each Step 2 evidence classification); unresolved
-items; and the Issue pending move.
+Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
+Requirements; the Path A/B classification (one word — the rationale is already recorded
+in the Plan's Design section, do not restate it here); information-completeness result;
+traceability result; unresolved items count; and the Issue pending move. Do not restate
+the Requirement Traceability evidence-classification breakdown in chat — it is already
+recorded in the Plan's Requirement Traceability table.
 
-Set state to `Awaiting approval` and stop. Do not move the Issue in the same response.
-An unclear user response must not be treated as approval.
+Apply `rules/workflow-lifecycle.md` Approval Handling: set state to `Awaiting
+approval` and stop; do not move the Issue in the same response.
 
 ---
 

@@ -18,7 +18,7 @@ Use this structure in all applicable workflow output documents. Leave fields tha
 |----------|-------|--------------|-------------------|-------------|----------------------|---------------------|
 | 01_issue-to-plan | issue-to-plan | {input issue path} | N/A: no standalone requirement document is generated | N/A: this document is the generated plan | N/A | {target files from issue} |
 | 02_plan-to-impl-proc | plan-to-implementation-procedure | N/A | N/A: no standalone requirement document is generated | {input plan path} | N/A | {target_file_name} |
-| 03_implementation | implementation | N/A | N/A | N/A | {input impl proc path} | {changed files} |
+| 03_implementation | code-implementation | N/A | N/A | N/A | {input impl proc path} | {changed files} |
 
 ## Notes
 

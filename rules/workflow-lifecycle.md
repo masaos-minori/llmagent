@@ -61,7 +61,13 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
   - `Pending move: {source file to be moved}`
 - Stop and wait for explicit user approval.
 - Do not move the source file before approval.
+- Recognize explicit approval via phrases such as "approved", "go ahead", "proceed" —
+  do not require an exact keyword match, but do not infer approval from silence or a
+  vague response.
 - An unclear user response must not be treated as approval.
+- An approval given for a different task, plan, or workflow cycle must not be treated
+  as approval for this move — confirm the approval explicitly refers to the current
+  target file.
 - Do not start the next target file while approval is pending.
 
 ## Archival Move
@@ -70,7 +76,9 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
   `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any other fallback. If
   `git mv` fails, report `Blocked` — do not fall back to another method.
 - `plan-to-impl-procedure`: after approval, move the source file to the archive
-  directory using `git mv` or `cp + rm`.
+  directory using `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any
+  other fallback. If `git mv` fails, report `Blocked` — do not fall back to another
+  method.
 
 Before running the move, verify all of the following:
 - current state is `Awaiting approval`
@@ -84,8 +92,7 @@ Before running the move, verify all of the following:
 After running the move, verify all of the following:
 - destination exists
 - source no longer exists
-- the move is recorded by the tool used (a Git rename/staged move for `git mv`, or an
-  equivalent confirmation for `cp + rm`)
+- the move is recorded as a Git rename or staged move
 
 - **If you cannot move the file, stop and report the error.** Do not proceed without completing this step.
 - Only after confirming the move succeeded, consider the cycle complete.

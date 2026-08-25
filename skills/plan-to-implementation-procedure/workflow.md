@@ -40,8 +40,12 @@ Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle co
 Steps 1-4, ending with the move to `plans/done/` in Step 4, before starting Step 1 for
 the next file.
 
-Report progress at the start and end of each step. Also record intermediate work
-status whenever a significant decision or change is made during execution.
+Do not summarize shared rules or template content in chat — reference them by file
+name instead.
+
+Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
+cadence, using this line format:
+`Step {N} | {state} | Plan: {path} | Generated: {files or None} | Blockers: {items or None}`
 
 ---
 
@@ -91,6 +95,18 @@ on filling sections for how to apply `skills/python-design/SKILL.md` +
 the few relevant bullets from that skill's broader 12-section template; do not produce
 its full architecture output here.
 
+Treat the Plan's descriptions of current source-code behavior as the Plan author's
+claims, not confirmed present-tense fact — the Plan may have gone stale since
+approval. Before writing Procedure/Method/Details for an item, verify via `rg`/Read
+that the target file, symbol, call path, and test currently exist and behave as the
+Plan describes. Investigate in this order: the target file itself, its direct
+dependencies (immediate imports/importers), then related tests — expand beyond this
+order only when evidence remains insufficient.
+
+Files read only to confirm current behavior or dependencies are not automatically
+additional target files — list a file under Target file only if the Plan's
+Implementation steps designates it as a file to modify.
+
 Before iterating, determine one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
 this pass. Do not re-run `date` per item — the creation order must be recoverable from
@@ -108,43 +124,66 @@ For each item in `Implementation steps`, in the order they appear in that list:
   in the Plan, not by generation order or by how many items were skipped as already
   implemented — so re-running an interrupted cycle assigns the same `seq` to the same
   item every time.
-- Check whether the item has already been implemented:
-  - An item may be skipped only when an existing document contains both:
-    - `Source plan` equal to the current repository-relative plan path.
-    - `Related target files` equal to the current repository-relative target path.
-  - Use `target_file_path`, not only `target_file_name`.
-  - Look for a corresponding file under `implementations/` or `implementations/done/`
-    whose traceability matches both conditions above.
-  - If no matching document is found, the item is not yet implemented.
-  - If a matching document is found, confirm the scope covers the current item.
-  - If the content confirms the same scope, treat it as already implemented.
-  - If the content covers a different scope, an outdated goal, or only partially
-    overlaps, treat it as NOT already implemented — proceed to create a new document,
-    and note the discrepancy against the matched file in the progress report.
-- If already implemented (per the content check above), skip this item.
+- If the same `target_file_path` appears in multiple `Implementation steps` items with
+  no intervening dependency on a different target file's completion, merge them into a
+  single document (using the first item's `seq`) instead of one document per item. If
+  an intervening dependency exists, keep them separate to preserve implementation
+  order.
+- Classify the item's implementation state:
+  - `Already implemented`: an existing document under `implementations/` or
+    `implementations/done/` has both `Source plan` equal to the current
+    repository-relative plan path and `Related target files` equal to the current
+    repository-relative target path (matched via `target_file_path`, not only
+    `target_file_name`), AND — confirmed against current source, not just the matched
+    document's text — its stated scope covers the current item's full scope. The
+    target source file merely existing is not sufficient evidence; read the matched
+    document's content and confirm.
+  - `Partially implemented`: a matching document exists, but its scope is outdated,
+    narrower than, or only overlaps the current item.
+  - `Not implemented`: no matching document exists, or none of the above applies.
+- If `Already implemented`, skip this item.
+- If `Partially implemented`, create a document scoped to only the not-yet-implemented
+  remainder — reference the matched existing document for the already-covered portion
+  instead of repeating it, and note the discrepancy in the progress report.
 - If traceability is missing or ambiguous, do not skip the item. Report
   `Needs confirmation`.
-- If not yet implemented, create the document only (do not implement anything):
+- If `Not implemented`, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document.
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`,
     using this pass's shared `timestamp` and this item's `seq`, where
-    `target_file_slug` is `target_file_path` with `/` replaced by `_`. This keeps the
-    filename unique even when two target files share the same base name in different
-    directories, and sorting the generated filenames lexicographically reproduces the
-    plan's implementation order.
+    `target_file_slug` is `target_file_path` with `/` replaced by `_`, and any
+    character that is not alphanumeric, `_`, `-`, or `.` also replaced by `_`. This
+    keeps the filename unique and valid even when two target files share the same base
+    name in different directories, and sorting the generated filenames
+    lexicographically reproduces the plan's implementation order.
   - If the resulting path already exists, this can only mean an interrupted cycle is
-    being resumed and the already-implemented check above did not treat it as
-    covering this item (e.g. stale or partial-scope content) — never overwrite it.
-    Stop and report `Needs confirmation` for this item instead.
+    being resumed and the classification above did not treat it as covering this item
+    (e.g. stale or partial-scope content) — never overwrite it. Stop and report
+    `Needs confirmation` for this item instead.
+- Classify each evidence gap encountered while investigating an item as Blocking or
+  Non-blocking:
+  - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
+    and report `Blocked: {specific item}`.
+  - Non-blocking: a procedure can still be written with a noted caveat. Report
+    `Needs confirmation` and proceed — do not skip the item.
+- If investigation reveals a change is necessary that the Plan's `Implementation
+  steps` does not describe, do not add it to the generated document. Report it as
+  `Plan Gap: {description}` — the scope decision belongs to a Plan revision, not this
+  workflow.
+- Reference the source Requirement by ID and a short (one-clause) purpose in the
+  generated document (see `templates/implementation-procedure.md`) — do not paste the
+  Plan's full Requirement description text.
 
 ### Progress recording during Step 3
 
-During Step 3, record your work status after completing each sub-item in
-`Implementation steps`:
+Report an interim update only when an item's outcome is Blocked, Partially
+implemented, fails verification, or produces a Plan Gap — do not report for an item
+that completes as Already implemented or Not implemented→newly created without
+incident:
 - Note which target file you are working on
 - Record the current status (In Progress / Blocked / Completed) for each item
 - If blocked, describe the blocker and whether it requires user intervention
-- When moving to a new item, update the Execution Status table in the output document
+- Update the Execution Status table in the output document
 
 ---
 
@@ -152,21 +191,31 @@ During Step 3, record your work status after completing each sub-item in
 
 **This step is mandatory. Do not skip it.**
 
-Before proceeding, verify that the Execution Status section in the generated document
-accurately reflects the actual work performed:
-- All completed items show Completed status
-- Any blocked items have blocker descriptions filled in
-- Work Items Created table includes all artifacts produced
+Execute only through Step 3 on the initial run. After Step 3 completes, report
+`Awaiting approval` (per `rules/workflow-lifecycle.md` Approval Handling) and stop —
+do not proceed to Step 4 in the same response. Resume at Step 4 only after explicit
+user approval that applies to the current target plan; an approval given for a
+different task, plan, or workflow cycle does not count (see `rules/workflow-lifecycle.md`
+Approval Handling).
 
-Apply `rules/workflow-lifecycle.md` Approval Handling, Archival Move
-(`plan-to-impl-procedure` row: `git mv` or `cp + rm`), and Completion Criteria in full.
-This workflow's move: `plans/{filename}_plan.md` to `plans/done/{filename}_plan.md`.
+Before proceeding, verify that:
+- every `Implementation steps` item in the Plan has been accounted for (`Already
+  implemented`, `Partially implemented`, newly created this cycle, or explicitly
+  reported as `Needs confirmation` / `Blocked` / `Plan Gap`);
+- the Execution Status section in each document created or confirmed this cycle
+  accurately reflects the actual work performed (all completed items show Completed
+  status, any blocked items have blocker descriptions filled in, Work Items Created
+  includes all artifacts produced).
 
-Before running the move, additionally verify: every `Implementation steps` item in the
-Plan has been accounted for (already implemented, newly created this cycle, or
-explicitly reported as `Needs confirmation`); each document created or confirmed this
-cycle has an Execution Status section that accurately reflects the actual work
-performed (per the check above).
+This workflow MAY update the Plan's own `## Execution Status` section (in
+`plans/{filename}_plan.md`) via Edit before the move: mark an `Implementation steps`
+item `In Progress` once its procedure document is generated, or `Completed` if matched
+as `Already implemented`. This is separate from each generated document's own
+Execution Status section.
+
+Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
+Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to
+`plans/done/{filename}_plan.md`, using `git mv` only.
 
 ---
 

@@ -11,6 +11,17 @@
 - Store the source path and evidence location with each cached fact.
 - Recheck cached facts after the related source file changes.
 
+## Instruction Precedence
+
+When instructions conflict across referenced files, the more specific file wins: a
+workflow's own prompt file > its `workflow.md` > its `SKILL.md` > `rules/*.md` (shared
+baseline, overridden only where a more specific file explicitly says so) >
+`templates/*.md` (structural format only).
+
+Treat two instructions as contradictory only when they cannot both be satisfied
+simultaneously — apply the precedence above first; stop and report `Blocked` only if
+no precedence resolution is possible.
+
 ## Tool Usage
 
 - Before invoking a tool, check whether already-available information is sufficient to decide or answer.
@@ -50,6 +61,11 @@ Keep command results needed for correct judgment, including:
 
 ## Progress Reporting (Base)
 
+- Report progress once per step, in one line, after the step completes. Omit the
+  report entirely when the step completed exactly as expected with no notable outcome
+  (a change made, a decision taken, a failure, or a blocker) — a workflow's own
+  "Progress recording" section, if it has one, defines the workflow-specific trigger
+  conditions for interim, within-step updates.
 - Keep start/end progress reports to one or two lines; do not restate full document content in progress reports.
 - Include all failures, blocking issues, and important validation results even in concise reports.
 - For a workflow cycle's final report, use this structure where appropriate:

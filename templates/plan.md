@@ -37,6 +37,13 @@ High / Medium / Low
 ## Tests
 [Testing expectations, each referencing a Requirement ID]
 
+## Documentation Impact
+[State whether `docs/*.md` must be updated for this Plan, and which Requirement(s)
+drive it. Name the target doc via `docs/00_index.md`'s "Document References by Task"
+table (or `routing.md` Docs → task mapping for new modules) — do not hardcode doc
+filenames here, they change as docs are split. Use `N/A: {short reason}` if no doc
+requires updating.]
+
 ## Assumptions
 - [List any technical or domain assumptions made during analysis]
 
@@ -111,7 +118,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 Populate Churn/Bus Factor from the workflow's Step 5 historical analysis and Blast
 Radius from Step 5's dependency graphing — mark `N/A` if Path A skipped that analysis.
 Fill `deploy.sh Impact` per `skills/DESIGN.md` Change-impact table — always state it
-explicitly. If documentation must be updated, name the target doc via
-`docs/00_index.md` Task-specific document reference (or `routing.md` Docs → task
-mapping for new modules) — do not hardcode doc filenames here, they change as docs are
-split.
+explicitly. Naming the target doc for a required documentation update belongs in the
+"Documentation Impact" section above, not here.

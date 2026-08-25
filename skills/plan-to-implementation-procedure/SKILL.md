@@ -33,7 +33,7 @@ plan file to `plans/done/`. It must not modify source code files or `docs/*.md`.
 | 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}_plan.md` path exists before starting any processing. |
 | 2 | Read the target plan file | Read the plan in full and extract its own `Source issue` value for reuse downstream. |
 | 3 | Create implementation procedure documents | For each `Implementation steps` item, check whether it is already implemented; if not, generate a new document per `templates/implementation-procedure.md`. |
-| 4 | Move the completed plan file | `git mv` or `cp` + `rm`, after explicit approval; verify pre- and post-conditions. |
+| 4 | Move the completed plan file | `git mv` only, after explicit approval; verify pre- and post-conditions. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
 
@@ -48,8 +48,10 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   not `target_file_name`) — see `workflow.md` Step 3.
 - **Sortable, collision-safe naming**: output filenames are
   `{timestamp}_{seq}_{target_file_slug}.md`. `target_file_slug` is `target_file_path`
-  with `/` replaced by `_` (not `target_file_name`), so two target files with the same
-  base name in different directories never collide. `timestamp` is captured once and
+  (not `target_file_name`) with `/` replaced by `_`, and any character that is not
+  alphanumeric, `_`, `-`, or `.` also replaced by `_` — so two target files with the
+  same base name in different directories never collide, and the result stays a valid
+  filename across filesystems and shells. `timestamp` is captured once and
   shared across every document generated in one Step 3 pass; `seq` is the item's
   1-indexed, zero-padded position within the plan's `Implementation steps` list.
   Sorting the generated filenames lexicographically therefore reproduces the plan's
