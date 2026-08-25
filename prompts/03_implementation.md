@@ -14,7 +14,6 @@ issue file (issues/)
 
 Read the target implementation procedure file, then implement the feature according to the rules and skills below.
 
-- **CRITICAL: Process target files ONE AT A TIME.** Complete Steps 1-7 for the current file before starting the next file. Never interleave steps across files.
 - **MANDATORY: After completing Step 6 (documentation updated and validated), you MUST move the implementation procedure file to `implementations/done/` in Step 7.** Skipping this step is a failure condition. Do not move the file to `implementations/done/` before documentation is updated and validated.
 - Do not modify files outside the scope specified in the plan.
 - Do not edit documentation before Step 5.
@@ -27,19 +26,18 @@ Read the target implementation procedure file, then implement the feature accord
 
 ## Out of scope
 
-Do not perform any of the following as part of this workflow:
-- unrelated refactoring
-- broad formatting-only rewrites
+Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
+workflow, do not perform any of the following:
 - moving existing documentation files
 - changing workflow directory structure
 - changing implementation behavior during document-only phases
-- processing files under `__pycache__/`
-- interleaving multiple target files
-- parallel processing of target-file cycles
 
 ### Tasks
 
-Report progress at the start and end of each step. Also record intermediate work status whenever a significant decision or change is made during implementation.
+Report progress only when a step produces a notable outcome (a change made, a decision
+taken, a failure, or a blocker) — do not emit a report for a step that proceeds as
+expected. Also record intermediate work status whenever a significant decision or change
+is made during implementation.
 
 This phase edits existing code and `docs/*.md` files rather than producing a standalone
 generated document, so do not insert a `## Traceability` section into those files. Instead,
@@ -67,16 +65,13 @@ Do not load these two eagerly — load each only at the step that actually needs
 - `skills/python-debug-root-cause/SKILL.md` — load at Step 4, only if a failure's cause
   is not immediately obvious.
 - `skills/python-documentation/SKILL.md` — load at Step 5, only if at least one changed
-  file has a `routing.md` mapping.
+  file has a matching `docs/00_index.md` task-scope row.
 
 Before reusing previously loaded shared files from an earlier cycle in this session,
 check their modified time or checksum. If any shared file changed, reload only the
 changed shared file.
 
 #### Step 1: Identify the target implementation procedure file(s)
-
-Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
-before starting, process sequentially, load only the current target.
 
 Workflow-specific:
 - The target implementation procedure file(s) are provided by the user (e.g. `implementations/{filename}.md`), one path per file.
@@ -86,8 +81,6 @@ Workflow-specific:
 
 #### Step 2: Read the current implementation procedure file
 
-**Read ONLY the current file. Never read multiple target files simultaneously.**
-
 - Read the current implementation procedure file in full. It follows
   `templates/implementation-procedure.md`'s structure.
 - Identify the target feature and all source files to modify.
@@ -96,7 +89,6 @@ Workflow-specific:
   Report > One-line traceability summary). Carry these values forward as-is; do not
   re-derive or re-guess them.
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask for clarification before proceeding.
-- **After finishing all Steps 1-7 for this file, load the NEXT target file.** Do not preload or batch-read other files.
 
 #### Step 3: Implement the feature
 
@@ -114,54 +106,70 @@ Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0)
 failure's cause is not immediately obvious, load `skills/python-debug-root-cause/SKILL.md`
 now and apply it.
 
+- Determine the targeted test scope via `pytest --testmon tests/` (impact-based
+  selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
+  otherwise fall back to tests under the same module path as each changed file, plus
+  any test found via `rg` to import a changed symbol.
 - Run targeted tests during implementation.
 - Fix all related failures.
-- Run the repository-defined full test suite once after targeted tests pass.
+- Run the repository-defined full test suite exactly once, after targeted tests pass —
+  this is the only full-suite run for this cycle; Step 6 must not run tests again.
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
-- Do not run the same full test suite twice without a clear reason.
 
 #### Progress recording during Steps 3-6
 
-During Steps 3-6 (implementation, testing, documentation update, documentation validation), record your work status after completing each sub-task:
+During Steps 3-6 (implementation, testing, documentation update, documentation validation),
+record your work status when a sub-task's outcome differs from what was expected, or when
+moving between artifact types (code → test → doc):
 - Note which artifact you are working on (code, test, or documentation)
 - Record the current status (In Progress / Blocked / Completed) for each sub-task
 - If blocked, describe the blocker and whether it requires user intervention
-- When moving to a new sub-task, update the Execution Status table in the final report
+- Update the implementation procedure file's own `## Execution Status` section (via Edit)
+  to reflect the current step's Status/Started/Completed — this is the persisted record
+  if the session is interrupted before Step 7's move. Also update the Execution Status
+  table in the final report.
 
 #### Step 5: Update documentation
 
-Update `docs/*.md` only for changed files that have a matching entry in `routing.md`'s
-"Docs → task mapping" table — do not update documentation for a changed file that has
-no mapping there. If at least one changed file has a mapping, load
+Update `docs/*.md` only for changed files that fall under a Task scope row in
+`docs/00_index.md`'s "Document References by Task" table (see `routing.md` Docs → task
+mapping for the pointer) — do not update documentation for a changed file that falls
+under no such row. If at least one changed file has a matching row, load
 `skills/python-documentation/SKILL.md` now (per Step 0) and apply its guidance.
 
-Determine which sections to update by looking up each changed file in `routing.md`'s
-"Docs → task mapping" table and editing only the matched section(s).
+Determine which sections to update by matching each changed file against a Task scope
+row's file/module list in `docs/00_index.md`'s "Document References by Task" table, and
+editing only the matched row's Reference docs.
 
-If a changed file has no matching entry, do not guess which doc to edit. Do not skip
-this silently either — record it in the Final Report's Blocker Log (Resolved = `N/A:
-no routing.md mapping exists`) so it is visible in the persisted output, not only in
-the transient progress report.
+If a changed file matches no row, this is a normal, non-blocking outcome — do not guess
+which doc to edit, and do not record it as a blocker. Record it in the Execution Status
+table's Notes for Step 5 (e.g. `N/A: no docs/00_index.md task-scope mapping for {file}`)
+so it is visible in the persisted output, not only in the transient progress report.
+
+If no changed file has a matching row, skip Step 6's content checks entirely (see
+Step 6) and mark Step 5 Completed with the same Notes.
 
 Move the implementation procedure file only after:
 - required code validation passes,
 - required tests pass,
-- documentation is updated for every changed file that has a routing.md mapping,
-- documentation validation passes,
-- every changed file without a routing.md mapping is recorded in the Final Report.
+- documentation is updated for every changed file with a matching Task scope row,
+- documentation validation passes (or was skipped per Step 6, when no row matched),
+- every changed file without a matching row is recorded in the Execution Status Notes.
 
 #### Step 6: Validate documentation
 
-Check the sections edited in Step 5:
+If Step 5 made no edits (no changed file matched a Task scope row), skip this step's
+content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
+changes to validate`.
+
+Otherwise, check the sections edited in Step 5:
 - Markdown structure is not broken.
 - Edited relative links are valid where practical.
-- Edited docs match the mapping in `routing.md`.
+- Edited docs match the matched Task scope row in `docs/00_index.md`.
 - No unrelated documentation files were rewritten.
 - Code fences remain balanced.
 - Front matter is preserved if present.
-
-Validation criteria: Run `python -m pytest` or equivalent test command. All tests must pass before proceeding. If tests fail, fix them before continuing.
 
 If validation surfaces an issue, fix it before proceeding to Step 7.
 
@@ -174,13 +182,17 @@ proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approv
 
 - Do not perform this step before Step 5 (documentation update) and Step 6 (documentation
    validation) are complete.
-- Before proceeding to Step 7, verify that the Execution Status section in the final report accurately reflects the actual work performed:
-  - All completed items show Completed status
-  - Any blocked items have blocker descriptions filled in
-  - Work Items Created table includes all artifacts produced
-- Move the implementation procedure file to `implementations/done/` using git mv or cp + rm.
+- Before proceeding to Step 7, verify that:
+  - the implementation procedure file's own `## Execution Status` section shows
+    Completed for every step its template requires,
+  - the Execution Status section in the final report accurately reflects the actual work
+    performed (all completed items show Completed status, any blocked items have blocker
+    descriptions filled in, Work Items Created includes all artifacts produced).
+- Move the implementation procedure file to `implementations/done/` using `git mv` only.
+  Do not use `mv`, `cp` + `rm`, or any other fallback.
 - Verify the file exists in `implementations/done/` after the move.
-- **If you cannot move the file, stop and report the error.**
+- **If `git mv` fails, stop and report `Blocked: git mv failed — {reason}`. Do not fall
+  back to another method.**
 
 ### Rollback on failure
 
@@ -201,7 +213,9 @@ carried forward, not re-derived.
 
 Table structure, status/type vocabulary, and general guidance: see
 `templates/execution-status.md`. Default rows for this workflow's Steps 1-7 (update
-the Status column as each step starts and finishes):
+the Status column as each step starts and finishes). Leave Notes empty for a step that
+completed as expected — only fill it in for a deviation (e.g. a skipped step, a
+no-mapping outcome, a blocker reference):
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
@@ -209,23 +223,23 @@ the Status column as each step starts and finishes):
 | 2 | Read the current implementation procedure file | Pending | — | — | |
 | 3 | Implement the feature and pass code validation | Pending | — | — | |
 | 4 | Test the feature and pass required tests/coverage | Pending | — | — | |
-| 5 | Update documentation per routing.md mapping | Pending | — | — | |
+| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Pending | — | — | |
 | 6 | Validate documentation updates | Pending | — | — | |
 | 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
 
 #### Blocker Log
 
-Record any blockers encountered during implementation.
+If no blocker was encountered, report `Blockers: None` as a single line — do not render
+an empty table. Otherwise, use:
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
 
 #### Work Items Created
 
-Record all artifacts produced during this implementation.
+If no artifact beyond the planned code/test/doc changes was produced, report `Work items
+created: None` as a single line — do not render an empty table. Otherwise, use:
 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
 
