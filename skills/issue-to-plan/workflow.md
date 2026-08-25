@@ -210,6 +210,8 @@ raising it to ≥ 90%.
 
 #### Generate the Plan
 
+- Write the entire Plan in English (see `SKILL.md` Core Execution Rules) — every
+  section's body text, not only headings, regardless of the chat language.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
@@ -231,6 +233,8 @@ raising it to ≥ 90%.
 
 ## Step 6: Analyze Unknowns and Risks
 
+- Write any generated `issues/{timestamp}_unknowns.md` / `issues/{timestamp}_risks.md`
+  file in English (see `SKILL.md` Core Execution Rules), same as the Plan.
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Resolve Unknowns only when supported by repository evidence.

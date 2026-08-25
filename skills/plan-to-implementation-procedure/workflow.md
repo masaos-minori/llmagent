@@ -88,6 +88,9 @@ directory: `plans/done/`.
 
 ## Step 3: Create Implementation Procedure Documents
 
+Write the entire document in English (see `SKILL.md` Core Execution Rules) — every
+section's body text, not only headings, regardless of the chat language.
+
 Generate each document using the exact structure defined in
 `templates/implementation-procedure.md` (loaded in Step 0). See that template's Notes
 on filling sections for how to apply `skills/python-design/SKILL.md` +

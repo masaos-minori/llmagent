@@ -2,7 +2,8 @@
 
 Use this exact Markdown structure when generating `plans/{timestamp}_plan.md` in the
 `issue-to-plan` workflow (see `skills/issue-to-plan/workflow.md` Step 5). Do not omit
-any section.
+any section. Write every section's body text in English, regardless of the chat
+language (see `skills/issue-to-plan/SKILL.md` Core Execution Rules).
 
 ```markdown
 ## Goal

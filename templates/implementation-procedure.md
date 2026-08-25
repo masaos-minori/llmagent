@@ -6,7 +6,9 @@ Use this exact Markdown structure when generating
 `skills/plan-to-implementation-procedure/workflow.md` Step 3). `seq` is the item's
 1-indexed, zero-padded position within the plan's `Implementation steps` list, so that
 sorting the generated filenames lexicographically reproduces the plan's
-implementation order. Do not omit any section.
+implementation order. Do not omit any section. Write every section's body text in
+English, regardless of the chat language (see
+`skills/plan-to-implementation-procedure/SKILL.md` Core Execution Rules).
 
 Keep each section concise and file-level (a few bullets each) — this is not a broad
 architecture document. Use `N/A: {short reason}` for any section that does not apply

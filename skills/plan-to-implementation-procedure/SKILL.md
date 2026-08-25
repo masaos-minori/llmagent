@@ -63,6 +63,9 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   scoped to document-generation workflows, which this is (unlike the subsequent
   code-implementation phase, whose move is gated by validation results instead).
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
+- Exception to `skills/DESIGN.md` Output language: write the generated implementation
+  procedure documents in clear and concise English (this skill's output feeds
+  directly into `python-implementation` / `code-implementation` for AI consumption).
 
 ---
 
