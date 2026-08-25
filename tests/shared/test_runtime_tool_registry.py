@@ -123,7 +123,7 @@ class TestRuntimeToolRegistry:
         with pytest.raises(KeyError):
             reg.tool_spec_for_call(call_id="call-1", name="nope", args={})
 
-    def test_apply_policy_updates_tier_and_approval_and_llm_visibility(self) -> None:
+    def test_apply_policy_updates_tier_and_llm_visibility(self) -> None:
         tool = build_runtime_tool(
             name="shell_run", server_key="s", enabled_for_llm=True
         )
@@ -131,7 +131,6 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={"shell_run": "ADMIN"}, allowed_tools=["shell_run"])
         updated = reg.get("shell_run")
         assert updated.agent_safety_tier == "ADMIN"
-        assert updated.requires_approval is True
         assert updated.enabled_for_llm is True
 
     def test_apply_policy_disables_tools_not_in_allowed_list(self) -> None:
@@ -150,7 +149,7 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={}, allowed_tools=())
         assert reg.get("search_web").enabled_for_llm is True
 
-    def test_apply_policy_read_only_tier_does_not_require_approval(self) -> None:
+    def test_apply_policy_updates_tier_to_read_only(self) -> None:
         tool = build_runtime_tool(
             name="read_file", server_key="s", enabled_for_llm=True
         )
@@ -158,7 +157,6 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={"read_file": "READ_ONLY"})
         updated = reg.get("read_file")
         assert updated.agent_safety_tier == "READ_ONLY"
-        assert updated.requires_approval is False
 
     def test_apply_policy_keeps_current_tier_when_absent_from_tier_map(self) -> None:
         tool = build_runtime_tool(
@@ -215,34 +213,6 @@ class TestRuntimeToolRegistry:
         assert reg.resolve("tool_b") == "healthy_server"
         assert len(reg.all_tools()) == 1
         assert reg.all_tools()[0].name == "tool_b"
-
-    def test_degraded_servers_excludes_tools_from_degraded_server(self) -> None:
-        tool_a = build_runtime_tool(name="tool_a", server_key="degraded_server")
-        tool_b = build_runtime_tool(name="tool_b", server_key="healthy_server")
-        reg = RuntimeToolRegistry(
-            tools={"tool_a": tool_a, "tool_b": tool_b},
-            degraded_servers=frozenset(["degraded_server"]),
-        )
-        assert reg.resolve("tool_a") is None
-        assert reg.resolve("tool_b") == "healthy_server"
-        assert len(reg.all_tools()) == 1
-        assert reg.all_tools()[0].name == "tool_b"
-
-    def test_both_unavailable_and_degraded_servers_filter_correctly(self) -> None:
-        tool_a = build_runtime_tool(name="tool_a", server_key="unavailable")
-        tool_b = build_runtime_tool(name="tool_b", server_key="degraded")
-        tool_c = build_runtime_tool(name="tool_c", server_key="healthy")
-        reg = RuntimeToolRegistry(
-            tools={"tool_a": tool_a, "tool_b": tool_b, "tool_c": tool_c},
-            unavailable_servers=frozenset(["unavailable"]),
-            degraded_servers=frozenset(["degraded"]),
-        )
-        assert reg.resolve("tool_a") is None
-        assert reg.resolve("tool_b") is None
-        assert reg.resolve("tool_c") == "healthy"
-        assert len(reg.all_tools()) == 1
-        assert reg.unavailable_servers == frozenset(["unavailable"])
-        assert reg.degraded_servers == frozenset(["degraded"])
 
     def test_llm_tool_definitions_excludes_tools_from_unavailable_servers(self) -> None:
         tool_a = build_runtime_tool(

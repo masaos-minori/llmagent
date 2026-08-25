@@ -42,7 +42,7 @@ from mcp_servers.dispatch import (
     dispatch_tool,
 )
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
     _FastAPIApp,
@@ -55,6 +55,16 @@ logger = logging.getLogger(__name__)
 
 _cfg = CicdConfig.load()
 _service: CiCdService = build_service(_cfg)
+
+
+def _cicd_tool_availability(cfg: CicdConfig, tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single cicd tool by name."""
+    if not cfg.repo_allowlist:
+        return False, "repo_allowlist is empty"
+    if tool_name == "trigger_workflow" and not cfg.workflow_allowlist:
+        return False, "workflow_allowlist is empty"
+    return True, ""
+
 
 app = FastAPI(
     title="cicd-mcp",
@@ -82,14 +92,29 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """List available CI/CD tools with schema_version and server_key="cicd"."""
-    return build_tools_response(TOOL_LIST, "cicd")
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason}
+        for t in TOOL_LIST
+        for enabled, reason in [_cicd_tool_availability(_cfg, t["name"])]
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "cicd",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Dispatch an MCP tool call through the CI/CD service with audit logging."""
+    enabled, reason = _cicd_tool_availability(_cfg, req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
     t0 = time.perf_counter()
     session_id, request_id = extract_request_context(request)
     r = await _dispatch_cicd_tool(req.name, req.args)

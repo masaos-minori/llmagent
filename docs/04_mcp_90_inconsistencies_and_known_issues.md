@@ -27,7 +27,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-001
 - **Title**: `include_disabled` filter and `disabled_code` structured code exist as dead parameters with no reachable caller
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: MCP
 - **Type**: implementation-bug
@@ -41,7 +41,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: `include_disabled: bool = False` and `disabled_code: str | None = None` are real parameters on `build_tools_response()`, but every call site omits them, and no `list_tools()` route declares a matching FastAPI query parameter.
 - **Impact**: Cannot filter out disabled tools or dispatch on a machine-readable disabled category via the API today.
 - **Recommended Action**: Wire a query parameter through each server's `list_tools()` handler to the existing `build_tools_response()` parameters; no new filtering logic is required, only call-site wiring.
-- **Resolution Notes**: Open — not deferred by design; the gap is wiring, not missing capability.
+- **Resolution Notes**: All 10 MCP servers' `list_tools()` handlers now accept `include_disabled`/`disabled_code` and pass them through to `build_tools_response()` — `git`, `github`, `web_search`, `file_read`, `file_write`, `file_delete` were wired directly (or switched from a hand-built response dict to `build_tools_response()`); `rag_pipeline`, `cicd`, `mdq`, `shell` picked it up as part of their MCP-002 fix (Verified by test, `tests/mcp_servers/git/test_tools_endpoint.py`).
 
 ---
 
@@ -49,7 +49,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-002
 - **Title**: Tool runtime availability metadata (`config_dependent`/`enabled`/`disabled_reason`) is implemented for most servers; `web_search` is now included, correcting a stale prior version of this issue
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Low
 - **Area**: MCP
 - **Type**: implementation-bug
@@ -63,7 +63,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: `RuntimeToolRegistry` is live-detected by `McpToolDiscoveryService` and connected via `ToolExecutor.set_runtime_registry()`; the 4 gap servers' tools default to `enabled_for_llm=True` (no `enabled` key in their `/v1/tools` entries).
 - **Impact**: `rag_pipeline`/`cicd`/`mdq`/`shell` tools cannot be statically disabled or surfaced as disabled via this mechanism, even where a config-derived reason (e.g., empty `workflow_allowlist`/`command_allowlist`) would apply.
 - **Recommended Action**: Implement per-tool `enabled`/`disabled_reason` computation for the 4 remaining servers, following the pattern already used by `git`/`file_*`/`github`/`web_search`.
-- **Resolution Notes**: Corrected scope; not yet resolved.
+- **Resolution Notes**: All 4 servers now compute `enabled`/`disabled_reason`: `_rag_pipeline_tool_availability()` (gated on `embed_url`, per-tool), `_cicd_tool_availability()` (gated on `repo_allowlist`/`workflow_allowlist`, per-tool), `_mdq_tool_availability()` (gated on `allowed_dirs`, whole-service), `_shell_tool_availability()` (gated on `command_allowlist`, whole-service) — each follows the `git`/`file_*`/`github`/`web_search` pattern (Verified by test).
 
 ---
 
@@ -93,7 +93,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 - **ID**: MCP-004
 - **Title**: Git write tools fall back to `y/N` approval instead of the full-word `yes` prompt their risk tier implies
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: MCP
 - **Type**: document-code-mismatch
@@ -107,7 +107,7 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **Observed Implementation**: `_TIER_TO_RISK["WRITE_DANGEROUS"] = RiskLevel.MEDIUM`; no `approval_risk_rules` entry for `git_checkout`/`git_pull`/`git_push` raises this to `HIGH`.
 - **Impact**: Operators relying on the documented table to judge how much friction a Force-Push-capable operation requires will overestimate the approval friction actually presented.
 - **Recommended Action**: Either add `"high"` overrides for these three tools in `approval_risk_rules`, or correct the table to reflect the current `MEDIUM` behavior — a decision from the policy owner is needed on which is the intended target.
-- **Resolution Notes**: Documentation corrected to describe current behavior; underlying policy decision still open.
+- **Resolution Notes**: Policy owner decided to raise these three tools to the full-word-`yes` tier. `config/agent.toml::approval_risk_rules` now sets `git_checkout`/`git_pull`/`git_push = "high"`, matching the `04_mcp_05_03` table's documented intent (Verified by test, `tests/agent/test_tool_policy_comprehensive.py`). `04_mcp_05_03`'s "currently includes git_checkout, git_pull, and git_push" caveat is now stale and should be removed the next time that document is touched.
 
 ---
 

@@ -38,7 +38,7 @@ Available endpoints:
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -53,10 +53,9 @@ from mcp_servers.github.github_service_dispatch import GitHubService
 from mcp_servers.github.github_service_init import _GITHUB_TOKEN, build_service
 from mcp_servers.github.github_tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
-    MCP_TOOL_SCHEMA_VERSION,
     ToolArgs,
     build_tools_response,
     extract_request_context,
@@ -142,16 +141,20 @@ async def _dispatch_github_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     enabled, reason = _github_tool_availability("")
-    return {
-        "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [
-            {**t, "server_key": "github", "enabled": enabled, "disabled_reason": reason}
-            for t in TOOL_LIST
-        ],
-    }
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason} for t in TOOL_LIST
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "github",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

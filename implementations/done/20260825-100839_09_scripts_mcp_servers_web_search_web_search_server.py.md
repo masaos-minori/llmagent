@@ -58,20 +58,21 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-131200 | 20260825-131500 | Matches docs 04-08's pattern; `build_tools_response` import predates this change |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-131500 | 20260825-132000 | Added 2 new REQ-005 cases; fixed `test_tools_endpoint_lists_both_tools_under_web_search_server_key` (same "vacuous/failing on empty filtered list" issue as docs 07/08 — `browser_allowed_domains` is empty in this test environment) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-132000 | 20260825-132300 | ruff/mypy/lint-imports/bandit clean; `web_search_server.py` is in the coverage `omit` list; 151/156 tests pass in `tests/mcp_servers/web_search/` — the 5 failures (2 in `test_web_search_server.py`, 3 in `test_web_search_audit.py`) confirmed pre-existing via `git stash`, unrelated to `/v1/tools` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | Same MCP-001 batching decision as doc 03 — see that document's Blocker Log |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001 update deferred — see doc 03 Blocker Log | N/A: intentionally deferred | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/web_search/web_search_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/web_search/test_web_search_server.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

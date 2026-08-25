@@ -23,7 +23,6 @@ class TestRagToolsInRegistry:
                     resource_scope_kind="",
                     resource_scope_keys=(),
                     agent_safety_tier="READ_ONLY",
-                    requires_approval=False,
                     enabled_for_llm=True,
                     capabilities=(),
                 )
@@ -66,7 +65,6 @@ class TestRagToolsInRegistry:
                     resource_scope_kind="",
                     resource_scope_keys=(),
                     agent_safety_tier="READ_ONLY",
-                    requires_approval=False,
                     enabled_for_llm=True,
                     capabilities=(),
                 )

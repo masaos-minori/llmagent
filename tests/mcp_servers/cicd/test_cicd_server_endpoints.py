@@ -25,6 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.cicd import cicd_server
+from mcp_servers.cicd.cicd_models import CicdConfig
 
 
 class _FakeService:
@@ -50,7 +51,14 @@ def client() -> TestClient:
 
 
 class TestToolsListEndpoint:
-    def test_lists_cicd_tools_with_server_key(self, client: TestClient) -> None:
+    def test_lists_cicd_tools_with_server_key(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(repo_allowlist=["acme/widgets"], workflow_allowlist=["ci.yml"]),
+        )
         resp = client.get("/v1/tools")
         assert resp.status_code == 200
         body = resp.json()
@@ -59,11 +67,87 @@ class TestToolsListEndpoint:
         assert "trigger_workflow" in names
         assert names["trigger_workflow"]["server_key"] == "cicd"
 
+    def test_empty_repo_allowlist_disables_all_tools(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            cicd_server, "_cfg", CicdConfig(repo_allowlist=[], workflow_allowlist=[])
+        )
+        resp = client.get("/v1/tools?include_disabled=true")
+        names = {t["name"]: t for t in resp.json()["tools"]}
+        for name in (
+            "trigger_workflow",
+            "get_workflow_runs",
+            "get_workflow_status",
+            "get_workflow_logs",
+        ):
+            assert names[name]["enabled"] is False
+            assert names[name]["disabled_reason"] == "repo_allowlist is empty"
+
+    def test_empty_workflow_allowlist_disables_only_trigger(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(repo_allowlist=["acme/widgets"], workflow_allowlist=[]),
+        )
+        resp = client.get("/v1/tools?include_disabled=true")
+        names = {t["name"]: t for t in resp.json()["tools"]}
+        assert names["trigger_workflow"]["enabled"] is False
+        assert (
+            names["trigger_workflow"]["disabled_reason"]
+            == "workflow_allowlist is empty"
+        )
+        assert names["get_workflow_runs"]["enabled"] is True
+        assert names["get_workflow_status"]["enabled"] is True
+        assert names["get_workflow_logs"]["enabled"] is True
+
+    def test_include_disabled_false_omits_disabled_tool(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            cicd_server, "_cfg", CicdConfig(repo_allowlist=[], workflow_allowlist=[])
+        )
+        resp = client.get("/v1/tools?include_disabled=false")
+        assert resp.json()["tools"] == []
+
+
+class TestCallToolDisabledGate:
+    def test_disabled_tool_returns_error_without_dispatch(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            cicd_server, "_cfg", CicdConfig(repo_allowlist=[], workflow_allowlist=[])
+        )
+        handler = AsyncMock(return_value="run triggered")
+        fake_service._dispatch_table["trigger_workflow"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "trigger_workflow", "args": {"repo": "a/b"}},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["is_error"] is True
+        assert "repo_allowlist is empty" in body["result"]
+        handler.assert_not_awaited()
+
 
 class TestCallToolEndpoint:
     def test_dispatches_known_tool_and_audit_logs(
-        self, client: TestClient, fake_service: _FakeService
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(repo_allowlist=["acme/widgets"], workflow_allowlist=["ci.yml"]),
+        )
         handler = AsyncMock(return_value="run triggered")
         fake_service._dispatch_table["trigger_workflow"] = handler
         resp = client.post(
@@ -80,8 +164,16 @@ class TestCallToolEndpoint:
         handler.assert_awaited_once_with({"repo": "acme/widgets", "workflow": "ci.yml"})
 
     def test_unknown_tool_returns_error_result(
-        self, client: TestClient, fake_service: _FakeService
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(repo_allowlist=["acme/widgets"], workflow_allowlist=["ci.yml"]),
+        )
         resp = client.post("/v1/call_tool", json={"name": "not_a_tool", "args": {}})
         assert resp.status_code == 200
         body = resp.json()

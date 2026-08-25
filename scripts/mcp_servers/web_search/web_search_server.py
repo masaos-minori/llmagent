@@ -20,10 +20,9 @@ from fastapi.responses import JSONResponse
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
-    MCP_TOOL_SCHEMA_VERSION,
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
@@ -50,7 +49,9 @@ logger = logging.getLogger(__name__)
 _cfg: WebSearchConfig = WebSearchConfig.load()
 
 
-def _web_search_tool_availability(cfg: WebSearchConfig, tool_name: str) -> tuple[bool, str]:
+def _web_search_tool_availability(
+    cfg: WebSearchConfig, tool_name: str
+) -> tuple[bool, str]:
     """Return (enabled, disabled_reason) for a single web-search tool by name."""
     if tool_name == "browser_fetch" and not cfg.browser_allowed_domains:
         return False, "browser_allowed_domains is empty"
@@ -179,16 +180,21 @@ def _build_audit_target_and_detail(
 # Tool listing endpoint (for client-side definition validation)
 # ──────────────────────────────────────────────────────────────────────────────
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
-    return {
-        "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [
-            {**t, "server_key": "web_search", "enabled": enabled, "disabled_reason": reason}
-            for t in TOOL_LIST
-            for enabled, reason in [_web_search_tool_availability(_cfg, t["name"])]
-        ],
-    }
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason}
+        for t in TOOL_LIST
+        for enabled, reason in [_web_search_tool_availability(_cfg, t["name"])]
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "web_search",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

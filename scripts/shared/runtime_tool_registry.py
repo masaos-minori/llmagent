@@ -38,10 +38,8 @@ class RuntimeToolRegistry:
         self,
         tools: dict[str, RuntimeTool] | None = None,
         unavailable_servers: frozenset[str] | None = None,
-        degraded_servers: frozenset[str] | None = None,
     ) -> None:
         self._unavailable_servers = unavailable_servers or frozenset()
-        self._degraded_servers = degraded_servers or frozenset()
         self._tools: dict[str, RuntimeTool] = {}
         if tools:
             for name, tool in tools.items():
@@ -52,23 +50,14 @@ class RuntimeToolRegistry:
     def _is_excluded_server(self, server_key: str) -> bool:
         """Return whether tools from `server_key` should be excluded.
 
-        A server is excluded if it is unavailable, or degraded (conservative
-        default: exclude degraded server tools too).
+        A server is excluded if it is unavailable.
         """
-        return (
-            server_key in self._unavailable_servers
-            or server_key in self._degraded_servers
-        )
+        return server_key in self._unavailable_servers
 
     @property
     def unavailable_servers(self) -> frozenset[str]:
         """Return the set of server keys excluded due to being unavailable."""
         return self._unavailable_servers
-
-    @property
-    def degraded_servers(self) -> frozenset[str]:
-        """Return the set of server keys excluded due to being degraded."""
-        return self._degraded_servers
 
     def resolve(self, tool_name: str) -> str | None:
         """Return the `server_key` that owns `tool_name`, or `None` if unknown.
@@ -163,20 +152,13 @@ class RuntimeToolRegistry:
         tool names; an empty sequence means all tools remain allowed (mirrors
         `agent.config_dataclasses.ToolConfig.allowed_tools`'s own documented
         convention).
-
-        The `requires_approval`/`enabled_for_llm` re-derivation rule below is
-        a reasonable default (dangerous/admin tiers require approval) but is
-        explicitly provisional — a later requirement's `/reload` consumer may
-        refine it.
         """
         for name, tool in list(self._tools.items()):
             tier = tier_map.get(name, tool.agent_safety_tier)
             enabled = (not allowed_tools) or (name in allowed_tools)
-            requires_approval = tier in ("WRITE_DANGEROUS", "ADMIN")
             self._tools[name] = dataclasses.replace(
                 tool,
                 agent_safety_tier=tier,
-                requires_approval=requires_approval,
                 enabled_for_llm=enabled and tool.enabled_for_llm,
             )
 

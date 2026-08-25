@@ -537,7 +537,6 @@ def _make_executor(
             resource_scope_kind="",
             resource_scope_keys=(),
             agent_safety_tier="READ_ONLY",
-            requires_approval=False,
             enabled_for_llm=True,
             capabilities=(),
         )

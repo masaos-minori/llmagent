@@ -227,11 +227,19 @@ class TestFinalizeAnswer:
         assert result == ""
 
 
-class TestFilterDisabledToolDefinitions:
-    def test_registry_not_none_returns_from_registry(
+class TestStreamLlmToolDefs:
+    """REQ-008: _filter_disabled_tool_definitions() (a confirmed self-referential
+    no-op second-stage filter) was removed; _stream_llm() now inlines the one part
+    of it that was actually live — the registry-is-None fallback to
+    ctx.cfg.tool.tool_definitions. These cases assert on the tool_defs argument
+    _stream_llm() passes to llm.stream(), rather than calling the removed method
+    directly."""
+
+    @pytest.mark.asyncio
+    async def test_registry_not_none_returns_from_registry(
         self, runner: LLMTurnRunner
     ) -> None:
-        """When registry exists, _filter_disabled_tool_definitions uses registry.llm_tool_definitions()."""
+        """When registry exists, _stream_llm uses registry.llm_tool_definitions()."""
         mock_registry = MagicMock()
         mock_registry.llm_tool_definitions.return_value = [
             {"name": "tool_a", "description": "desc_a", "parameters": {}},
@@ -239,18 +247,20 @@ class TestFilterDisabledToolDefinitions:
         ]
         runner._ctx.services_required.runtime_tools = mock_registry
 
-        result = runner._filter_disabled_tool_definitions()
+        await runner._stream_llm("http://llm", 0)
 
-        assert len(result) == 2
-        assert result[0]["name"] == "tool_a"
-        assert result[1]["name"] == "tool_b"
+        tool_defs = runner._ctx.services_required.llm.stream.call_args.args[2]
+        assert len(tool_defs) == 2
+        assert tool_defs[0]["name"] == "tool_a"
+        assert tool_defs[1]["name"] == "tool_b"
         mock_registry.llm_tool_definitions.assert_called_once()
 
-    def test_registry_not_none_includes_live_registered_tool_absent_from_static_config(
+    @pytest.mark.asyncio
+    async def test_registry_not_none_includes_live_registered_tool_absent_from_static_config(
         self, runner: LLMTurnRunner
     ) -> None:
-        """Regression: tool present in RuntimeToolRegistry but absent from ctx.cfg.tool.tool_definitions
-        is still offered to the LLM once this fix is applied."""
+        """Regression: tool present in RuntimeToolRegistry but absent from
+        ctx.cfg.tool.tool_definitions is still offered to the LLM."""
         mock_registry = MagicMock()
         live_tool_def = {
             "name": "live_tool",
@@ -262,39 +272,45 @@ class TestFilterDisabledToolDefinitions:
         # Explicitly ensure the static config does NOT contain the live tool
         runner._ctx.cfg.tool.tool_definitions = []
 
-        result = runner._filter_disabled_tool_definitions()
+        await runner._stream_llm("http://llm", 0)
 
-        assert len(result) == 1
-        assert result[0]["name"] == "live_tool"
+        tool_defs = runner._ctx.services_required.llm.stream.call_args.args[2]
+        assert len(tool_defs) == 1
+        assert tool_defs[0]["name"] == "live_tool"
 
-    def test_registry_is_none_falls_back_to_static_config(
+    @pytest.mark.asyncio
+    async def test_registry_is_none_falls_back_to_static_config(
         self, runner: LLMTurnRunner
     ) -> None:
-        """When registry is None, _filter_disabled_tool_definitions falls back to ctx.cfg.tool.tool_definitions."""
+        """When registry is None, _stream_llm falls back to ctx.cfg.tool.tool_definitions."""
         runner._ctx.services_required.runtime_tools = None
         static_tools = [{"name": "static_tool", "function": {"name": "static_tool"}}]
         runner._ctx.cfg.tool.tool_definitions = static_tools
 
-        result = runner._filter_disabled_tool_definitions()
+        await runner._stream_llm("http://llm", 0)
 
-        assert len(result) == 1
-        assert result[0]["name"] == "static_tool"
+        tool_defs = runner._ctx.services_required.llm.stream.call_args.args[2]
+        assert len(tool_defs) == 1
+        assert tool_defs[0]["name"] == "static_tool"
 
-    def test_registry_not_none_correct_shape(self, runner: LLMTurnRunner) -> None:
-        """_filter_disabled_tool_definitions returns dicts with name/description/parameters keys."""
+    @pytest.mark.asyncio
+    async def test_registry_not_none_correct_shape(self, runner: LLMTurnRunner) -> None:
+        """tool_defs entries carry name/description/parameters keys, unmodified
+        from registry.llm_tool_definitions()'s own shape."""
         mock_registry = MagicMock()
         mock_registry.llm_tool_definitions.return_value = [
             {"name": "t1", "description": "d1", "parameters": {"type": "object"}},
         ]
         runner._ctx.services_required.runtime_tools = mock_registry
 
-        result = runner._filter_disabled_tool_definitions()
+        await runner._stream_llm("http://llm", 0)
 
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert "name" in result[0]
-        assert "description" in result[0]
-        assert "parameters" in result[0]
+        tool_defs = runner._ctx.services_required.llm.stream.call_args.args[2]
+        assert isinstance(tool_defs, list)
+        assert len(tool_defs) == 1
+        assert "name" in tool_defs[0]
+        assert "description" in tool_defs[0]
+        assert "parameters" in tool_defs[0]
 
 
 class TestHandleLlmError:

@@ -30,7 +30,6 @@ class TestRuntimeTool:
             resource_scope_kind="filesystem",
             resource_scope_keys=("path",),
             agent_safety_tier="WRITE_DANGEROUS",
-            requires_approval=True,
             enabled_for_llm=True,
         )
         assert tool.name == "delete_file"
@@ -45,13 +44,11 @@ class TestRuntimeTool:
         assert tool.resource_scope_kind == "filesystem"
         assert tool.resource_scope_keys == ("path",)
         assert tool.agent_safety_tier == "WRITE_DANGEROUS"
-        assert tool.requires_approval is True
         assert tool.enabled_for_llm is True
 
     def test_safe_defaults_when_unannotated(self) -> None:
         tool = build_runtime_tool(name="unknown_tool", server_key="srv")
         assert tool.agent_safety_tier == "WRITE_DANGEROUS"
-        assert tool.requires_approval is True
         assert tool.enabled_for_llm is False
         # requires_serial defaults to True because is_write was also unannotated
         assert tool.requires_serial is True

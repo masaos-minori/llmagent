@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from shared.tool_constants import MDQ_TOOLS
 
 
@@ -191,12 +192,18 @@ class TestMdqV1ToolsEndpoint:
         assert "tools" in body
 
     def test_v1_tools_names_match_mdq_tools(self) -> None:
-        """Tool names in GET /v1/tools must match MDQ_TOOLS."""
+        """Tool names in GET /v1/tools must match MDQ_TOOLS.
+
+        include_disabled=true: this test environment's mdq_mcp_server.toml has an
+        empty allowed_dirs, which now disables all tools (REQ-004); this assertion
+        is about tool-name completeness, not enabled/disabled filtering, so it must
+        see the full list regardless of that config-driven state.
+        """
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
-        response = client.get("/v1/tools")
+        response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         tool_names = {t["name"] for t in response.json()["tools"]}
         assert tool_names == MDQ_TOOLS, (
@@ -209,9 +216,61 @@ class TestMdqV1ToolsEndpoint:
         from mcp_servers.mdq.mdq_server import app
 
         client = TestClient(app)
-        response = client.get("/v1/tools")
+        response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         for tool in response.json()["tools"]:
             assert tool.get("server_key") == "mdq", (
                 f"Tool '{tool['name']}' missing server_key='mdq'"
             )
+
+    def test_empty_allowed_dirs_disables_all_tools(self) -> None:
+        """All tools report enabled=False when allowed_dirs is empty (REQ-004)."""
+        from fastapi.testclient import TestClient
+        from mcp_servers.mdq.mdq_server import app
+
+        client = TestClient(app)
+        response = client.get("/v1/tools?include_disabled=true")
+        assert response.status_code == 200
+        for tool in response.json()["tools"]:
+            assert tool["enabled"] is False
+            assert tool["disabled_reason"] == "allowed_dirs is empty"
+
+    def test_non_empty_allowed_dirs_enables_all_tools(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """All tools report enabled=True when allowed_dirs is populated (REQ-004)."""
+        from fastapi.testclient import TestClient
+        from mcp_servers.mdq import mdq_server
+
+        monkeypatch.setattr(mdq_server._service, "_allowed_dirs", ["/opt/llm/docs"])
+        client = TestClient(mdq_server.app)
+        response = client.get("/v1/tools")
+        assert response.status_code == 200
+        tools = response.json()["tools"]
+        assert len(tools) == len(MDQ_TOOLS)
+        for tool in tools:
+            assert tool["enabled"] is True
+            assert tool["disabled_reason"] == ""
+
+    def test_include_disabled_false_omits_all_when_disabled(self) -> None:
+        """include_disabled=false (the default) omits every tool when disabled (REQ-005)."""
+        from fastapi.testclient import TestClient
+        from mcp_servers.mdq.mdq_server import app
+
+        client = TestClient(app)
+        response = client.get("/v1/tools?include_disabled=false")
+        assert response.status_code == 200
+        assert response.json()["tools"] == []
+
+    def test_disabled_code_matches_all_tools_when_disabled(self) -> None:
+        """disabled_code filters to the matching tools (REQ-005)."""
+        from fastapi.testclient import TestClient
+        from mcp_servers.mdq.mdq_server import app
+
+        client = TestClient(app)
+        response = client.get(
+            "/v1/tools?include_disabled=true&disabled_code=allowed_dirs+is+empty"
+        )
+        assert response.status_code == 200
+        tool_names = {t["name"] for t in response.json()["tools"]}
+        assert tool_names == MDQ_TOOLS

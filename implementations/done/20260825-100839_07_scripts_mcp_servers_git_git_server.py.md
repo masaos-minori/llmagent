@@ -46,8 +46,21 @@
   value already used, so this has no side effect.
 
 ## Compatibility considerations
-- The new parameters have defaults, so an existing `GET /v1/tools` call with no
-  parameters is unaffected.
+- **Adversarial verification correction**: the original claim here ("an existing
+  `GET /v1/tools` call with no parameters is unaffected") is only true when at
+  least one tool is enabled. Before this change, `list_tools()` always returned
+  every tool regardless of `enabled` state (no filtering existed at all). After
+  switching to `build_tools_response()`, the new `include_disabled` parameter
+  defaults to `False`, which *does* filter — so a caller with all tools disabled
+  (e.g. empty `allowed_repo_paths`) now gets an empty `tools` list by default,
+  where it previously got the full list annotated `enabled=False`. This is the
+  intended REQ-005 behavior (disabled tools omitted by default), but it is a
+  real behavior change for that specific caller shape, not a no-op. Confirmed by
+  `tests/mcp_servers/git/test_tools_endpoint.py`'s existing
+  `test_git_tools_all_disabled_when_allowed_repo_paths_empty`/
+  `test_git_write_tools_disabled_when_read_only`, which needed `include_disabled=true`
+  added to keep exercising the disabled-state assertions they were written for
+  (otherwise they pass vacuously against an empty list).
 
 ## Security considerations
 - `disabled_code` is only used for string-equality filtering inside the existing
@@ -75,10 +88,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-124500 | 20260825-124800 | Also switched from the hand-built `{"schema_version": ..., "tools": [...]}` dict to `build_tools_response()`, and added `cast("list[McpTool]", ...)` |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-124800 | 20260825-125300 | Added 2 new REQ-005 cases; discovered and fixed 2 existing tests (`test_git_tools_all_disabled_when_allowed_repo_paths_empty`, `test_git_write_tools_disabled_when_read_only`) that would otherwise pass vacuously against an empty filtered list — see Compatibility considerations correction above |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-125300 | 20260825-125600 | ruff/mypy/lint-imports/bandit clean; diff-cover 100%; 90/94 pass in `tests/mcp_servers/git/` — the 4 failures (`test_format_output.py`) confirmed pre-existing via `git stash`, unrelated to `/v1/tools` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No routing.md-mapped doc describes git_server.py's `/v1/tools` filtering behavior specifically |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,7 +101,8 @@
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/git/git_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/git/test_tools_endpoint.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

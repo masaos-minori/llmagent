@@ -45,7 +45,7 @@ from mcp_servers.mdq.mdq_models import (
 )
 from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.mdq_tools import TOOL_LIST
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
     ToolArgs,
@@ -64,6 +64,13 @@ app = FastAPI(
 )
 
 _service: MdqService = MdqService()
+
+
+def _mdq_tool_availability(allowed_dirs: list[str], tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single mdq tool by name."""
+    if not allowed_dirs:
+        return False, "allowed_dirs is empty"
+    return True, ""
 
 
 def _mdq_error_handler(
@@ -313,9 +320,20 @@ def _build_call_tool_audit_detail(
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """Return the MCP tool list with schema_version and server_key appended."""
-    return build_tools_response(TOOL_LIST, "mdq")
+    enabled, reason = _mdq_tool_availability(_service.allowed_dirs, "")
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason} for t in TOOL_LIST
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "mdq",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)

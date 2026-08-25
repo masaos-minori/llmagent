@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 from mcp_servers.shell import server as shell_server
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
+    ShellConfig,
     ShellRunResponse,
     ShellValidationError,
 )
@@ -92,7 +93,12 @@ class TestShellRunEndpoint:
 
 
 class TestToolsListEndpoint:
-    def test_lists_shell_run_with_server_key(self, client: TestClient) -> None:
+    def test_lists_shell_run_with_server_key(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            shell_server, "_cfg", ShellConfig(command_allowlist=["echo"])
+        )
         resp = client.get("/v1/tools")
         assert resp.status_code == 200
         body = resp.json()
@@ -101,11 +107,54 @@ class TestToolsListEndpoint:
         assert "shell_run" in names
         assert names["shell_run"]["server_key"] == "shell"
 
+    def test_empty_command_allowlist_disables_shell_run(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(shell_server, "_cfg", ShellConfig(command_allowlist=[]))
+        resp = client.get("/v1/tools?include_disabled=true")
+        names = {t["name"]: t for t in resp.json()["tools"]}
+        assert names["shell_run"]["enabled"] is False
+        assert names["shell_run"]["disabled_reason"] == "command_allowlist is empty"
+
+    def test_include_disabled_false_omits_shell_run_when_disabled(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(shell_server, "_cfg", ShellConfig(command_allowlist=[]))
+        resp = client.get("/v1/tools?include_disabled=false")
+        assert resp.json()["tools"] == []
+
+
+class TestCallToolDisabledGate:
+    def test_disabled_tool_returns_error_without_dispatch(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(shell_server, "_cfg", ShellConfig(command_allowlist=[]))
+        handler = AsyncMock(return_value="ok: 0")
+        fake_service._dispatch_table["shell_run"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "shell_run", "args": {"command": "echo hi"}},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["is_error"] is True
+        assert "command_allowlist is empty" in body["result"]
+        handler.assert_not_awaited()
+
 
 class TestCallToolEndpoint:
     def test_dispatches_known_tool_and_audit_logs(
-        self, client: TestClient, fake_service: _FakeService
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.setattr(
+            shell_server, "_cfg", ShellConfig(command_allowlist=["echo"])
+        )
         handler = AsyncMock(return_value="ok: 0")
         fake_service._dispatch_table["shell_run"] = handler
         resp = client.post(
@@ -119,8 +168,14 @@ class TestCallToolEndpoint:
         handler.assert_awaited_once_with({"command": "echo hi"})
 
     def test_unknown_tool_returns_error_result(
-        self, client: TestClient, fake_service: _FakeService
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.setattr(
+            shell_server, "_cfg", ShellConfig(command_allowlist=["echo"])
+        )
         resp = client.post("/v1/call_tool", json={"name": "not_a_tool", "args": {}})
         assert resp.status_code == 200
         body = resp.json()

@@ -28,7 +28,7 @@ from shared.formatters import fmt_kvlog
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
     ToolArgs,
@@ -37,6 +37,7 @@ from mcp_servers.server import (
 )
 from mcp_servers.shell.shell_models import (
     ShellAuthorizationError,
+    ShellConfig,
     ShellRunRequest,
     ShellRunResponse,
     ShellValidationError,
@@ -47,7 +48,16 @@ from mcp_servers.shell.shell_tools import TOOL_LIST
 
 logger = logging.getLogger(__name__)
 
+_cfg: ShellConfig = ShellConfig.load()
 _service: ShellService = build_service(load_shell_policy())
+
+
+def _shell_tool_availability(cfg: ShellConfig, tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single shell tool by name."""
+    if not cfg.command_allowlist:
+        return False, "command_allowlist is empty"
+    return True, ""
+
 
 app = FastAPI(
     title="shell-mcp",
@@ -119,14 +129,29 @@ async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """List available shell tools with schema_version and server_key="shell"."""
-    return build_tools_response(TOOL_LIST, "shell")
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason}
+        for t in TOOL_LIST
+        for enabled, reason in [_shell_tool_availability(_cfg, t["name"])]
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "shell",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Dispatch an MCP tool call through the shell service with audit logging."""
+    enabled, reason = _shell_tool_availability(_cfg, req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
     session_id, request_id = extract_request_context(request)
     r = await _dispatch_shell_tool(req.name, req.args)
     _audit_log(

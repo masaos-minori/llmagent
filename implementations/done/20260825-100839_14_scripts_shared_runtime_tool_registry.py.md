@@ -107,20 +107,23 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on UNK-02 sign-off; must land in the same change as `scripts/shared/runtime_tool.py` and `scripts/agent/startup.py` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-144000 | 20260825-144500 | UNK-02 sign-off obtained: remove (the Plan's default option). Landed together with `scripts/shared/runtime_tool.py` and `scripts/agent/startup.py` in one pass |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-144500 | 20260825-145500 | Removed `test_degraded_servers_excludes_tools_from_degraded_server` and `test_both_unavailable_and_degraded_servers_filter_correctly`; rewrote 2 `apply_policy` tests to drop `requires_approval` assertions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-145500 | 20260825-150000 | ruff/mypy/lint-imports clean across all 3 coupled files; 216 tests pass across all affected files (`test_runtime_tool.py`, `test_runtime_tool_registry.py`, and 6 caller test files needing the `requires_approval=` kwarg removed); `tests/agent/services/test_mcp_tool_discovery.py` confirmed unaffected (70/72, 2 pre-existing failures) |
+| 4 | Update documentation | Completed | 20260825-150000 | 20260825-150300 | Updated CI-003 in `docs/90_shared_90_inconsistencies_and_known_issues.md` (routing.md-mapped) to reflect `requires_approval` removal and flag ADR-013 as stale |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | UNK-02 (Plan `plans/20260825-095817_plan.md`): maintainer sign-off needed on wiring vs. removing `degraded_servers`/`requires_approval` | No | — |
+| 1 | UNK-02 (Plan `plans/20260825-095817_plan.md`): maintainer sign-off needed on wiring vs. removing `degraded_servers`/`requires_approval` | Yes — remove | 20260825-144000 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/shared/runtime_tool_registry.py` change | 1 | Code Change | Completed | — | — |
+| `tests/shared/test_runtime_tool_registry.py` update | 2 | Test | Completed | — | — |
+| 6 caller test files' `requires_approval=` kwarg removal | 2 | Test | Completed | — | — |
+| `docs/90_shared_90_inconsistencies_and_known_issues.md` CI-003 update | 4 | Doc Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

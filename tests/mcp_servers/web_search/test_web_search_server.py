@@ -88,9 +88,13 @@ class TestBrowserFetchErrorClassification:
 
 class TestBrowserFetchToolsEndpoint:
     def test_tools_endpoint_lists_both_tools_under_web_search_server_key(self) -> None:
+        """include_disabled=true: this test environment has an empty
+        browser_allowed_domains, so REQ-005's default filtering would otherwise
+        omit browser_fetch and this assertion would fail on a real gap instead
+        of exercising the intended server_key/listing behavior."""
         client = TestClient(web_search_server.app)
 
-        resp = client.get("/v1/tools")
+        resp = client.get("/v1/tools?include_disabled=true")
 
         assert resp.status_code == 200
         tools = {t["name"]: t for t in resp.json()["tools"]}
@@ -98,6 +102,23 @@ class TestBrowserFetchToolsEndpoint:
         assert "browser_fetch" in tools
         assert tools["search_web"]["server_key"] == "web_search"
         assert tools["browser_fetch"]["server_key"] == "web_search"
+
+    def test_include_disabled_false_omits_browser_fetch_when_domains_empty(
+        self,
+    ) -> None:
+        client = TestClient(web_search_server.app)
+        resp = client.get("/v1/tools?include_disabled=false")
+        names = {t["name"] for t in resp.json()["tools"]}
+        assert "browser_fetch" not in names
+        assert "search_web" in names
+
+    def test_disabled_code_matches_browser_fetch_when_domains_empty(self) -> None:
+        client = TestClient(web_search_server.app)
+        resp = client.get(
+            "/v1/tools?include_disabled=true&disabled_code=browser_allowed_domains+is+empty"
+        )
+        names = {t["name"] for t in resp.json()["tools"]}
+        assert names == {"browser_fetch"}
 
 
 class TestBrowserFetchDispatchSuccess:

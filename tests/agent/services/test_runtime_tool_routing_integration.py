@@ -81,7 +81,6 @@ def _make_runtime_registry(
         resource_scope_kind="",
         resource_scope_keys=(),
         agent_safety_tier="READ_ONLY",
-        requires_approval=False,
         enabled_for_llm=True,
         capabilities=("web_fetch",),
     )
@@ -96,7 +95,6 @@ def _make_runtime_registry(
             resource_scope_kind="",
             resource_scope_keys=(),
             agent_safety_tier="READ_ONLY",
-            requires_approval=False,
             enabled_for_llm=True,
             capabilities=(),
         )
@@ -173,7 +171,6 @@ class TestRuntimeRegistryPriorityInResolve:
             resource_scope_kind="",
             resource_scope_keys=(),
             agent_safety_tier="READ_ONLY",
-            requires_approval=False,
             enabled_for_llm=True,
             capabilities=(),
         )
@@ -186,7 +183,6 @@ class TestRuntimeRegistryPriorityInResolve:
             resource_scope_kind="",
             resource_scope_keys=(),
             agent_safety_tier="WRITE_DANGEROUS",
-            requires_approval=True,
             enabled_for_llm=True,
             capabilities=(),
         )

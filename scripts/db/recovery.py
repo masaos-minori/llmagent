@@ -88,7 +88,10 @@ def _vacuum_db(target: str = "rag") -> RecoveryResult:
 
 
 def _restore_from_backup(
-    db_path: Path, backup_path: str | Path | None, dry_run: bool = False
+    db_path: Path,
+    backup_path: str | Path | None,
+    target: str = "rag",
+    dry_run: bool = False,
 ) -> RecoveryResult:
     """Restore DB from backup; returns RecoveryResult."""
     if backup_path is None:
@@ -111,7 +114,7 @@ def _restore_from_backup(
         )
 
     # 1. Verify backup integrity
-    integrity_condition, integrity_error = _run_integrity_check(backup, target="rag")
+    integrity_condition, integrity_error = _run_integrity_check(backup, target)
     if integrity_condition != DbCondition.HEALTHY:
         err = integrity_error or f"backup integrity check failed: {integrity_condition}"
         logger.error("Backup is also corrupt: %s", err)
@@ -132,6 +135,21 @@ def _restore_from_backup(
         # 3. Atomic restore: copy backup to temp, then rename
         shutil.copy2(backup, temp_restore)
         os.replace(temp_restore, db_path)
+
+        # 4. Re-verify the restored database before reporting success
+        post_condition, post_detail = _run_integrity_check(db_path, target)
+        if post_condition != DbCondition.HEALTHY:
+            detail = (
+                post_detail
+                or f"post-restore integrity check failed: {post_condition.value}"
+            )
+            logger.error("Post-restore integrity check failed: %s", detail)
+            return RecoveryResult(
+                success=False,
+                action="restore_verify_failed",
+                detail=detail,
+                dry_run=dry_run,
+            )
 
         logger.info("DB restored from backup: %s", backup)
         return RecoveryResult(
@@ -160,10 +178,22 @@ def recover_corruption(
       "vacuum_failed" — integrity ok but VACUUM raised
       "restored"      — integrity failed; DB restored from backup_path
       "no_backup"     — integrity failed; no usable backup_path
+      "restore_verify_failed" — restored from backup, but post-restore integrity
+                                 check failed
+      "unsupported_target"    — target is not one of "rag"/"session"/"workflow"/
+                                 "eventbus"
       "error"         — could not open DB or OS-level failure
     """
     db_cfg = build_db_config()
-    db_path = Path(db_cfg.rag_db_path if target == "rag" else db_cfg.session_db_path)
+    target_db_path = getattr(db_cfg, f"{target}_db_path", None)
+    if target_db_path is None:
+        return RecoveryResult(
+            success=False,
+            action="unsupported_target",
+            detail=f"unsupported target: {target!r}",
+            dry_run=dry_run,
+        )
+    db_path = Path(target_db_path)
 
     condition, detail = _run_integrity_check(db_path, target)
     if condition == DbCondition.HEALTHY:
@@ -203,4 +233,4 @@ def recover_corruption(
         )
 
     # For rag and session, we attempt restoration
-    return _restore_from_backup(db_path, backup_path, dry_run=dry_run)
+    return _restore_from_backup(db_path, backup_path, target=target, dry_run=dry_run)

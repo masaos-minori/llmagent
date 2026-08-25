@@ -102,20 +102,22 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-113000 | 20260825-113500 | Added `cast("list[McpTool]", annotated)` at the `build_tools_response()` call site — `McpTool` TypedDict has no `enabled`/`disabled_reason` fields but the function reads them at runtime via `.get()`; this mismatch will recur for every server in this REQ-004/REQ-005 batch |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-113500 | 20260825-114000 | Added 4 new cases to `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-114000 | 20260825-114300 | ruff/mypy/lint-imports/bandit clean; `rag_pipeline_server.py` is in `pyproject.toml`'s coverage `omit` list (FastAPI entry point, not unit-coverage-tracked) so diff-cover does not apply to it; 15/15 tests in the file pass, 78/78 in the directory |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001/MCP-002 both name this file as part of a multi-server gap (MCP-002: 4 servers; MCP-001: 10 servers). Updating the entry now would only be accurate for 1/4 or 1/10 servers and require re-editing on every subsequent document in this batch. Deferred to the last document that closes each issue (MCP-002 at doc 06/shell, MCP-001 at doc 12/delete_server) — tracked in Blocker Log below so it isn't silently dropped. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-002 update deferred until all 4 REQ-004 servers (rag_pipeline, cicd, mdq, shell) are done | N/A: intentionally deferred, see doc for `shell_server.py` (seq 06) | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001 update deferred until all 10 REQ-005 servers are done | N/A: intentionally deferred, see doc for `delete_server.py` (seq 12) | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

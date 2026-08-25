@@ -91,20 +91,20 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked on UNK-02 sign-off; must land in the same change as `scripts/shared/runtime_tool_registry.py`. This target file was not in the Plan's original Related target files list — discovered during investigation. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-144000 | 20260825-144500 | UNK-02 sign-off obtained: remove. Landed in the same pass as docs 14/15; also discovered via `mypy` (not just manual inspection) that this file was the only production reader of `runtime_tools.degraded_servers` |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-150400 | 20260825-150500 | No existing test referenced "Excluded tools (degraded)" (confirmed by grep), so no test update was required; `mypy` catching the now-invalid attribute access served as the primary regression guard here |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-150500 | 20260825-150700 | ruff/mypy/lint-imports/bandit clean (bandit's B404 subprocess-import notice confirmed pre-existing, unrelated line); `tests/agent/test_startup.py` 65/71 pass — the 6 failures confirmed pre-existing via `git stash` (unrelated `_setup_prompt()`/mock-await issue) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No routing.md-mapped doc describes `startup.py`'s readiness-log rendering specifically |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | UNK-02 (Plan `plans/20260825-095817_plan.md`): maintainer sign-off needed on wiring vs. removing `degraded_servers`/`requires_approval` | No | — |
+| 1 | UNK-02 (Plan `plans/20260825-095817_plan.md`): maintainer sign-off needed on wiring vs. removing `degraded_servers`/`requires_approval` | Yes — remove | 20260825-144000 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/agent/startup.py` change | 1 | Code Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

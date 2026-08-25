@@ -21,7 +21,7 @@ Provided endpoints:
 """
 
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -61,9 +61,9 @@ from mcp_servers.file.read_service import ReadFileService, build_service
 from mcp_servers.file.read_tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
-    MCP_TOOL_SCHEMA_VERSION,
     MCPServer,
     ToolArgs,
+    build_tools_response,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
@@ -261,13 +261,18 @@ def _annotate_tool(
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """Return the MCP tool list with schema_version and server_key appended."""
     enabled, disabled_reason = availability_flags(_cfg.allowed_dirs)
-    return {
-        "schema_version": MCP_TOOL_SCHEMA_VERSION,
-        "tools": [_annotate_tool(t, enabled, disabled_reason) for t in TOOL_LIST],
-    }
+    annotated = [_annotate_tool(t, enabled, disabled_reason) for t in TOOL_LIST]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "file_read",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)

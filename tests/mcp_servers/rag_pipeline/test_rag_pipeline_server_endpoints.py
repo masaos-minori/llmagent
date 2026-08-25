@@ -29,6 +29,7 @@ from fastapi.testclient import TestClient
 from mcp_servers.rag_pipeline import rag_pipeline_server as server
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagDebugResponse,
+    RagPipelineConfig,
     RagPipelineServiceError,
     RagRunResponse,
 )
@@ -172,6 +173,61 @@ class TestToolsListEndpoint:
         names = {t["name"]: t for t in body["tools"]}
         assert "rag_run_pipeline" in names
         assert names["rag_run_pipeline"]["server_key"] == "rag_pipeline"
+
+    def test_embed_url_unset_disables_pipeline_tools_only(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(server, "_cfg", RagPipelineConfig(embed_url=""))
+        resp = client.get("/v1/tools?include_disabled=true")
+        assert resp.status_code == 200
+        names = {t["name"]: t for t in resp.json()["tools"]}
+        assert names["rag_run_pipeline"]["enabled"] is False
+        assert (
+            names["rag_run_pipeline"]["disabled_reason"]
+            == "embed_url is not configured"
+        )
+        assert names["rag_debug_pipeline"]["enabled"] is False
+        assert names["rag_list_documents"]["enabled"] is True
+        assert names["rag_delete_document"]["enabled"] is True
+
+    def test_include_disabled_false_omits_disabled_tool(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(server, "_cfg", RagPipelineConfig(embed_url=""))
+        resp = client.get("/v1/tools?include_disabled=false")
+        names = {t["name"] for t in resp.json()["tools"]}
+        assert "rag_run_pipeline" not in names
+        assert "rag_list_documents" in names
+
+    def test_disabled_code_filters_to_matching_tools(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(server, "_cfg", RagPipelineConfig(embed_url=""))
+        resp = client.get(
+            "/v1/tools?include_disabled=true&disabled_code=embed_url+is+not+configured"
+        )
+        names = {t["name"] for t in resp.json()["tools"]}
+        assert names == {"rag_run_pipeline", "rag_debug_pipeline"}
+
+
+class TestCallToolDisabledGate:
+    def test_disabled_tool_returns_error_without_dispatch(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(server, "_cfg", RagPipelineConfig(embed_url=""))
+        handler = AsyncMock(return_value="ok result")
+        fake_service._dispatch_table["rag_run_pipeline"] = handler
+        resp = client.post(
+            "/v1/call_tool", json={"name": "rag_run_pipeline", "args": {}}
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["is_error"] is True
+        assert "embed_url is not configured" in body["result"]
+        handler.assert_not_awaited()
 
 
 class TestCallToolEndpoint:

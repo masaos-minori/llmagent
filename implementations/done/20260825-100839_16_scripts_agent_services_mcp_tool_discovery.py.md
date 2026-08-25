@@ -71,8 +71,8 @@ N/A: no code change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no change is needed (per Implementation > Details) | Pending | — | — | Investigation complete; no code change required |
-| 2 | Run regression tests per Validation plan | Pending | — | — | |
+| 1 | Confirm no change is needed (per Implementation > Details) | Completed | 20260825-144000 | 20260825-144000 | Confirmed: zero changes required, consistent with this document's original finding |
+| 2 | Run regression tests per Validation plan | Completed | 20260825-150300 | 20260825-150400 | 70/72 pass — 2 failures (`TestDiscoverAllUnreachableServers::test_invalid_json_body_marks_server_unreachable`, `test_non_200_status_marks_server_unreachable`) confirmed pre-existing via `git stash`, unrelated to REQ-007 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

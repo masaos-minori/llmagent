@@ -88,10 +88,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-122500 | 20260825-122900 | Added module-level `_cfg: ShellConfig = ShellConfig.load()` (did not exist before); matches doc04/05's `cast("list[McpTool]", ...)` pattern |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-122900 | 20260825-123500 | Added 4 new cases; fixed 3 existing tests (`test_lists_shell_run_with_server_key`, `test_dispatches_known_tool_and_audit_logs`, `test_unknown_tool_returns_error_result`) that implicitly depended on the real, empty `_cfg.command_allowlist` — same root cause as docs 04/05 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-123500 | 20260825-123900 | ruff/mypy/lint-imports/bandit clean; `shell_server.py` is in the coverage `omit` list (confirmed: diff-cover reports "No lines with coverage information"); 66/66 tests pass in `tests/mcp_servers/shell/` |
+| 4 | Update documentation — MCP-002 fully resolved | Completed | 20260825-123900 | 20260825-124100 | This is the last of the 4 REQ-004 servers (rag_pipeline, cicd, mdq, shell) — updated `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-002 to `Status: resolved` with a resolution note naming all 4 servers' availability functions |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -101,7 +101,9 @@
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/shell/shell_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/shell/test_shell_server_endpoints.py` cases | 2 | Test | Completed | — | — |
+| `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-002 resolution | 4 | Doc Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

@@ -192,6 +192,25 @@ class TestClassifyOperationType:
         for name in ("git_add", "git_commit", "git_checkout", "git_pull", "git_push"):
             assert classify_operation_type(name) == "write"
 
+    def test_git_checkout_pull_push_resolve_to_high_risk(self) -> None:
+        """REQ-006: approval_risk_rules overrides raise these three tools to "high"
+        (full-word "yes" confirmation), above the WRITE_DANGEROUS tier's "medium"
+        default (config/agent.toml::approval_risk_rules)."""
+        cfg = _cfg(
+            tool_safety_tiers={
+                "git_checkout": "WRITE_DANGEROUS",
+                "git_pull": "WRITE_DANGEROUS",
+                "git_push": "WRITE_DANGEROUS",
+            },
+            approval_risk_rules={
+                "git_checkout": "high",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+        )
+        for name in ("git_checkout", "git_pull", "git_push"):
+            assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
+
     def test_delete_tools(self) -> None:
         assert classify_operation_type("delete_file") == "delete"
         assert classify_operation_type("delete_directory") == "delete"

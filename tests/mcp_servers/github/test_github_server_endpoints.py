@@ -57,13 +57,34 @@ def client() -> TestClient:
 
 class TestToolsListEndpoint:
     def test_lists_github_tools_with_server_key(self, client: TestClient) -> None:
-        resp = client.get("/v1/tools")
+        """include_disabled=true: this test environment has no GITHUB_TOKEN set,
+        so REQ-005's default filtering would otherwise omit every tool and this
+        assertion would pass vacuously against an empty list."""
+        resp = client.get("/v1/tools?include_disabled=true")
         assert resp.status_code == 200
         body = resp.json()
         assert "schema_version" in body
         names = {t["name"]: t for t in body["tools"]}
         assert "github_search_repositories" in names
         assert names["github_search_repositories"]["server_key"] == "github"
+
+    def test_include_disabled_false_omits_tools_without_token(
+        self, client: TestClient
+    ) -> None:
+        resp = client.get("/v1/tools?include_disabled=false")
+        assert resp.status_code == 200
+        assert resp.json()["tools"] == []
+
+    def test_disabled_code_matches_all_tools_without_token(
+        self, client: TestClient
+    ) -> None:
+        resp = client.get(
+            "/v1/tools?include_disabled=true&disabled_code=GITHUB_TOKEN+is+not+set"
+        )
+        tools = resp.json()["tools"]
+        assert tools
+        for tool in tools:
+            assert tool["disabled_reason"] == "GITHUB_TOKEN is not set"
 
 
 class TestCallToolEndpoint:

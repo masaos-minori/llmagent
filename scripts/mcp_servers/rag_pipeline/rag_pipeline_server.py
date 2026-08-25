@@ -23,7 +23,7 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -31,9 +31,10 @@ from shared.formatters import fmt_kvlog
 
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
-from mcp_servers.models import CallToolRequest, CallToolResponse
+from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagDebugResponse,
+    RagPipelineConfig,
     RagPipelineServiceError,
     RagRunRequest,
     RagRunResponse,
@@ -46,6 +47,20 @@ from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
 from mcp_servers.server import MCPServer, ToolArgs, build_tools_response
 
 logger = logging.getLogger(__name__)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object (module-level singleton)
+# ──────────────────────────────────────────────────────────────────────────────
+_cfg: RagPipelineConfig = RagPipelineConfig.load()
+
+
+def _rag_pipeline_tool_availability(
+    cfg: RagPipelineConfig, tool_name: str
+) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for a single rag-pipeline tool by name."""
+    if tool_name in ("rag_run_pipeline", "rag_debug_pipeline") and not cfg.embed_url:
+        return False, "embed_url is not configured"
+    return True, ""
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -166,9 +181,21 @@ async def rag_invalidate_cache() -> JSONResponse:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools(
+    include_disabled: bool = False, disabled_code: str | None = None
+) -> dict[str, Any]:
     """List available RAG tools with server_key="rag_pipeline"."""
-    return build_tools_response(TOOL_LIST, "rag_pipeline")
+    annotated = [
+        {**t, "enabled": enabled, "disabled_reason": reason}
+        for t in TOOL_LIST
+        for enabled, reason in [_rag_pipeline_tool_availability(_cfg, t["name"])]
+    ]
+    return build_tools_response(
+        cast("list[McpTool]", annotated),
+        "rag_pipeline",
+        include_disabled=include_disabled,
+        disabled_code=disabled_code,
+    )
 
 
 async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
@@ -179,6 +206,9 @@ async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     """Dispatch an MCP tool call through the RAG pipeline service."""
+    enabled, reason = _rag_pipeline_tool_availability(_cfg, req.name)
+    if not enabled:
+        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
     r = await _dispatch_rag_tool(req.name, req.args)
     return _to_call_tool_response(r)
 

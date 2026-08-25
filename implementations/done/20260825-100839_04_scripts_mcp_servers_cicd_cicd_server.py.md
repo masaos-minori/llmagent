@@ -92,20 +92,21 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-114500 | 20260825-115000 | Adversarially checked the audit log's `req.args.get("repo", "")` (looked like the same schema-key-mismatch shape as Git MCP's M-4) — confirmed CI/CD's actual schema key IS `"repo"`, so no bug there; also added `cast("list[McpTool]", annotated)` per the recurring McpTool/build_tools_response mismatch noted in doc03 |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-115000 | 20260825-115600 | Added 5 new cases; discovered and fixed 3 existing tests (`test_lists_cicd_tools_with_server_key`, `test_dispatches_known_tool_and_audit_logs`, `test_unknown_tool_returns_error_result`) that implicitly depended on the real, empty `_cfg.repo_allowlist` from the test environment's `cicd_mcp_server.toml` — with the new gate, they now need an explicit non-empty `_cfg` to exercise the behavior they were actually meant to test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-115600 | 20260825-120000 | ruff/mypy/lint-imports clean; bandit's 1 finding (B105 on `"not_set"` in `health()`) confirmed pre-existing via `git show HEAD` — unrelated to this change; diff-cover 100%; 174/174 tests pass in `tests/mcp_servers/cicd/` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | Same MCP-001/MCP-002 batching decision as doc 03 (rag_pipeline) — see that document's Blocker Log |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001/MCP-002 update deferred — see doc 03 (rag_pipeline) Blocker Log for the batching rationale | N/A: intentionally deferred | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/cicd/cicd_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/cicd/test_cicd_server_endpoints.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

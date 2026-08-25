@@ -98,8 +98,8 @@
   scope here).
 
 ## Out of scope
-- Editing `docs/04_mcp_03_01_dispatch-and-routing.md` or
-  `docs/adr/ADR-013-mcp-tool-availability-model.md` (flagged as follow-ups only).
+- Editing `docs/adr/ADR-013-mcp-tool-availability-model.md` (no direct mention of
+  this function found; not a doc consistency gap requiring this cycle's action).
 - Revisiting whether `ctx.services_required.runtime_tools` can ever legitimately be
   `None` — out of scope for REQ-008.
 
@@ -108,10 +108,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Existing 4 direct-call tests require rewriting, not a no-op pass-through — see Implementation > Details |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc corrections tracked as follow-ups, not in this document's scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-150800 | 20260825-151100 | Implemented as designed: no-op removed, live None-fallback inlined at the `_stream_llm()` call site |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-151100 | 20260825-151700 | Rewrote the 4 direct-call tests to assert on `_stream_llm()`'s resulting `tool_defs` argument instead of calling the removed method — as anticipated in this document's own Implementation > Details |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-151700 | 20260825-152000 | ruff/mypy/lint-imports/bandit clean; diff-cover 100%; 26/26 tests pass |
+| 4 | Update documentation | Completed | 20260825-152000 | 20260825-152200 | **Deviated from this document's original "Out of scope" note**: `docs/04_mcp_03_01_dispatch-and-routing.md` line ~60 directly named `_filter_disabled_tool_definitions()` as a known no-op — since the function no longer exists, leaving that description in place would itself become a stale-doc gap the moment this cycle closed. Updated it to describe the current single-stage filtering (routing.md-mapped via the "MCP server implementation" task scope). `docs/adr/ADR-013-mcp-tool-availability-model.md` was checked and found to have no direct mention of this function, so it was left untouched. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -121,7 +121,9 @@
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/agent/llm_turn_runner.py` change | 1 | Code Change | Completed | — | — |
+| `tests/agent/test_llm_turn_runner.py` rewrite | 2 | Test | Completed | — | — |
+| `docs/04_mcp_03_01_dispatch-and-routing.md` update | 4 | Doc Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

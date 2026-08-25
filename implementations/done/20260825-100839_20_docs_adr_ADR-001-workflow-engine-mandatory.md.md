@@ -95,9 +95,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the documentation correction described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Apply the documentation correction described in Implementation > Procedure/Method/Details | Completed | 20260825-153300 | 20260825-153700 | Re-verified ADR-002/ADR-003's current titles/status in `docs/adr-index.md` before editing (adversarial re-check); set front-matter `related: []` and rewrote the two `### Related ADRs` lines without ADR numbers |
 | 2 | N/A: documentation-only, no test suite applies | N/A | — | — | N/A: REQ-009 is verified by doc-consistency tooling and manual review, per the Plan's Tests section |
-| 3 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 3 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Completed | 20260825-153700 | 20260825-153800 | No new findings introduced; `validate_docs_structure.py` findings dropped from 7 to 6 (this fix resolved the pre-existing "front matter references missing file 'ADR-002'" error as a side effect — confirmed via `git stash`) |
 | 4 | N/A: no further documentation depends on this correction beyond what Validation plan covers | N/A | — | — | |
 
 ### Blocker Log
@@ -108,7 +108,7 @@
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `docs/adr/ADR-001-workflow-engine-mandatory.md` correction | 1 | Doc Change | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

@@ -173,9 +173,19 @@ def test_read_tools_schema_matches_hand_written() -> None:
     ids=[f"{m.split('.')[-2]}" for m, _, _ in _MCP_SERVERS],
 )
 def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
-    """GET /v1/tools must return all expected tool names."""
+    """GET /v1/tools must return all expected tool names.
+
+    include_disabled=true: shell/cicd/mdq now compute per-tool enabled/disabled_reason
+    (REQ-004) and /v1/tools filters disabled tools out by default (REQ-005). This
+    test's own dev/test config for these three servers has empty allowlists
+    (command_allowlist/repo_allowlist/allowed_dirs), so without this parameter every
+    tool would be hidden and this tool-name-completeness assertion would fail on a
+    config gap rather than exercising what it's meant to check.
+    """
     port, expected_tools = mcp_server
-    resp = httpx.get(f"http://127.0.0.1:{port}/v1/tools", timeout=5.0)
+    resp = httpx.get(
+        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true", timeout=5.0
+    )
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
     data = resp.json()
     assert "tools" in data, f"/v1/tools response missing 'tools' key: {data}"
@@ -194,9 +204,15 @@ def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     ids=[f"{m.split('.')[-2]}" for m, _, _ in _MCP_SERVERS],
 )
 def test_v1_tools_each_has_name_and_description(mcp_server: Any) -> None:
-    """Each tool entry in /v1/tools must have non-empty name and description."""
+    """Each tool entry in /v1/tools must have non-empty name and description.
+
+    include_disabled=true: see test_v1_tools_returns_expected_tools for why this is
+    required post-REQ-005 for shell/cicd/mdq's empty-allowlist test/dev config.
+    """
     port, _expected_tools = mcp_server
-    resp = httpx.get(f"http://127.0.0.1:{port}/v1/tools", timeout=5.0)
+    resp = httpx.get(
+        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true", timeout=5.0
+    )
     assert resp.status_code == 200
     data = resp.json()
     for tool in data.get("tools", []):

@@ -555,7 +555,6 @@ class StartupOrchestrator:
         if degraded_keys:
             lines.append(f"  Degraded servers: {', '.join(degraded_keys)}")
         unavailable_servers: frozenset[str] = frozenset()
-        degraded_servers: frozenset[str] = frozenset()
         runtime_tools = (
             self._ctx.services_required.runtime_tools
             if self._ctx.services_required
@@ -563,14 +562,9 @@ class StartupOrchestrator:
         )
         if runtime_tools is not None:
             unavailable_servers = runtime_tools.unavailable_servers
-            degraded_servers = runtime_tools.degraded_servers
         if unavailable_servers:
             lines.append(
                 f"  Excluded tools (unavailable): {', '.join(sorted(unavailable_servers))}"
-            )
-        if degraded_servers:
-            lines.append(
-                f"  Excluded tools (degraded): {', '.join(sorted(degraded_servers))}"
             )
         self._view.write_warning("\n".join(lines))
         logger.info("Readiness summary: %s", "; ".join(lines))

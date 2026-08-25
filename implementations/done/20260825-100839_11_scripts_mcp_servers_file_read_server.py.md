@@ -59,20 +59,21 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-135300 | 20260825-135600 | Matches docs 04-10's pattern |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-135600 | 20260825-140200 | Added a new `_FILE_SERVERS_REQ_005` subset list in `test_tools_endpoint.py` plus 2 new parametrized tests (`include_disabled=false` omission, `disabled_code` filtering) covering `read_server.py`+`write_server.py` — deliberately excludes `delete_server.py` until doc 12 lands, to avoid failing against a handler that doesn't accept those query params yet |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-140200 | 20260825-140500 | ruff/mypy/lint-imports/bandit clean; `read_server.py` is in the coverage `omit` list; 292/294 pass (16/16 in `test_tools_endpoint.py`) — the 2 failures confirmed pre-existing |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | Same MCP-001 batching decision as doc 03 — see that document's Blocker Log |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001 update deferred — see doc 03 Blocker Log | N/A: intentionally deferred | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/file/read_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/git/test_tools_endpoint.py` new cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

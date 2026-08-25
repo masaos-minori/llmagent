@@ -89,20 +89,21 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-120500 | 20260825-120900 | Matches doc04's `cast("list[McpTool]", ...)` pattern |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-120900 | 20260825-121500 | Added 4 new cases; fixed `test_v1_tools_names_match_mdq_tools` (existing test relied on the real, empty `_service.allowed_dirs` and now needs `include_disabled=true` to see the full tool-name list, same root cause as doc04's cicd fixes) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-121500 | 20260825-122000 | ruff/mypy/lint-imports/bandit clean; diff-cover 100%; 340/340 tests pass in `tests/mcp_servers/mdq/` (PYTHONPATH=. needed for 2 unrelated pre-existing `from scripts.mcp_servers...` import files, not part of this change) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | Same MCP-001/MCP-002 batching decision as doc 03/04 — see doc 03 Blocker Log |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001/MCP-002 update deferred — see doc 03 (rag_pipeline) Blocker Log | N/A: intentionally deferred | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/mdq/mdq_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/mdq/test_mdq_routing.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

@@ -67,20 +67,21 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-125800 | 20260825-130100 | Matches docs 04-07's `cast("list[McpTool]", ...)` pattern; `build_tools_response` import predates this change |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-130100 | 20260825-130600 | Added 2 new REQ-005 cases; fixed `test_lists_github_tools_with_server_key` (same "vacuous pass on empty filtered list" issue as doc07) — added `include_disabled=true` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-130600 | 20260825-130900 | ruff/mypy/lint-imports clean; bandit's `not_set` B105 confirmed pre-existing (unchanged `health()` code); `github_server.py` is in the coverage `omit` list (confirmed via diff-cover: "No lines with coverage information"); 253/257 tests pass — the 4 failures confirmed pre-existing via `git stash` (this test environment has no `GITHUB_TOKEN` set, an existing gap unrelated to REQ-005) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Deferred | — | — | Same MCP-001 batching decision as doc 03 — see that document's Blocker Log |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | `docs/04_mcp_90_inconsistencies_and_known_issues.md` MCP-001 update deferred — see doc 03 Blocker Log | N/A: intentionally deferred | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/mcp_servers/github/github_server.py` change | 1 | Code Change | Completed | — | — |
+| `tests/mcp_servers/github/test_github_server_endpoints.py` cases | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

@@ -14,6 +14,8 @@ sqlite_wal_checkpoint_mode = "TRUNCATE"
 sqlite_retention_max_sessions = 100
 sqlite_retention_max_age_days = 30
 sqlite_archive_dir = "/opt/llm/db/archive"
+sqlite_corrupt_archive_max_files = 10
+sqlite_corrupt_archive_max_age_days = 30
 eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
@@ -196,6 +198,9 @@ github_create_pull_request = "medium"
 github_update_pull_request = "medium"
 github_create_issue = "medium"
 github_add_issue_comment = "medium"
+git_checkout = "high"
+git_pull = "high"
+git_push = "high"
 
 [approval_resource_keys]
 path_keys = [

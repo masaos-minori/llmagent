@@ -15,9 +15,11 @@ Public API (import from db.* submodules directly for clarity):
 from db.config import DbConfig, build_db_config
 from db.helper import SQLiteHelper
 from db.maintenance import (
+    CorruptArchiveRetentionConfig,
     RetentionConfig,
     checkpoint_wal,
     prune_old_memories,
+    purge_corrupt_archives,
     purge_old_sessions,
     vacuum_db,
 )
@@ -56,6 +58,7 @@ from db.store_protocols import (
 )
 
 __all__ = [
+    "CorruptArchiveRetentionConfig",
     "DbConfig",
     "DbHealthMetrics",
     "DocumentRow",
@@ -83,6 +86,7 @@ __all__ = [
     "get_embedding_dims",
     "is_consistent",
     "prune_old_memories",
+    "purge_corrupt_archives",
     "purge_old_sessions",
     "recover_corruption",
     "rotate_all_dbs",

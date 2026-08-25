@@ -2,7 +2,9 @@
 Unit tests for db_maintenance: purge_old_sessions, rotate_*_db, checkpoint_wal, vacuum_db.
 """
 
+import os
 import sqlite3
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -10,11 +12,13 @@ import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.maintenance import (
+    CorruptArchiveRetentionConfig,
     MaintenanceMode,
     MaintenanceResult,
     RetentionConfig,
     checkpoint_wal,
     prune_old_memories,
+    purge_corrupt_archives,
     purge_old_sessions,
     vacuum_db,
 )
@@ -617,7 +621,8 @@ class TestRecoverCorruption:
         from unittest.mock import MagicMock, patch
 
         mock_cursor = MagicMock()
-        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",)]
+        # DB check (corrupt), backup check (ok), post-restore re-verification (ok)
+        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",), ("ok",)]
         mock_db = MagicMock()
         mock_db.execute.return_value = mock_cursor
 
@@ -683,6 +688,171 @@ class TestRecoverCorruption:
             result = recover_corruption()
         assert result.success is False
         assert result.action == "no_backup"
+
+    def test_unsupported_target_returns_error(self) -> None:
+        """target outside rag/session/workflow/eventbus -> unsupported_target, no DB access."""
+        from unittest.mock import patch
+
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
+            result = recover_corruption(target="bogus")
+
+        assert result.success is False
+        assert result.action == "unsupported_target"
+        mock_helper_cls.assert_not_called()
+
+    def test_restore_verify_failed(self, tmp_path: Path) -> None:
+        """Restore succeeds but post-restore integrity check fails -> restore_verify_failed."""
+        from unittest.mock import MagicMock, patch
+
+        mock_cursor = MagicMock()
+        # DB check (corrupt), backup check (ok), post-restore check (corrupt)
+        mock_cursor.fetchone.side_effect = [("corrupt",), ("ok",), ("corrupt",)]
+        mock_db = MagicMock()
+        mock_db.execute.return_value = mock_cursor
+
+        db_file = tmp_path / "rag.sqlite"
+        db_file.write_text("corrupt db")
+        backup_file = tmp_path / "backup.sqlite"
+        backup_file.write_text("backup content")
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(backup_path=str(backup_file))
+
+        assert result.success is False
+        assert result.action == "restore_verify_failed"
+
+
+# ── purge_corrupt_archives ──────────────────────────────────────────────────────
+
+
+class TestPurgeCorruptArchives:
+    @pytest.fixture(autouse=True)
+    def _patch_build_db_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Patch build_db_config so purge_corrupt_archives does not need real config."""
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+    def _make_archive(
+        self, tmp_path: Path, stem: str, suffix_ts: str, age_days: float = 0
+    ) -> Path:
+        path = tmp_path / f"{stem}_corrupt_{suffix_ts}.sqlite"
+        path.write_text("archived corrupt db")
+        if age_days:
+            mtime = time.time() - age_days * 86400
+            os.utime(path, (mtime, mtime))
+        return path
+
+    def test_no_deletions_when_within_limits(self, tmp_path: Path) -> None:
+        self._make_archive(tmp_path, "rag", "1")
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=10, max_age_days=0)
+        )
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 0
+        assert result.data["count_deleted"] == 0
+
+    def test_age_based_deletion(self, tmp_path: Path) -> None:
+        old = self._make_archive(tmp_path, "rag", "1", age_days=100)
+        new = self._make_archive(tmp_path, "rag", "2", age_days=1)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=100, max_age_days=30)
+        )
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 1
+        assert result.data["count_deleted"] == 0
+        assert not old.exists()
+        assert new.exists()
+
+    def test_age_zero_skips_age_check(self, tmp_path: Path) -> None:
+        old = self._make_archive(tmp_path, "rag", "1", age_days=1000)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=100, max_age_days=0)
+        )
+        assert result.data is not None
+        assert result.data["age_deleted"] == 0
+        assert old.exists()
+
+    def test_count_based_deletion(self, tmp_path: Path) -> None:
+        # 3 rag archives, keep only 2 most recent by mtime
+        self._make_archive(tmp_path, "rag", "1", age_days=3)
+        self._make_archive(tmp_path, "rag", "2", age_days=2)
+        self._make_archive(tmp_path, "rag", "3", age_days=1)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+        )
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 1
+        remaining = list(tmp_path.glob("rag_corrupt_*.sqlite"))
+        assert len(remaining) == 2
+
+    def test_boundary_at_max_files(self, tmp_path: Path) -> None:
+        self._make_archive(tmp_path, "rag", "1", age_days=2)
+        self._make_archive(tmp_path, "rag", "2", age_days=1)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+        )
+        assert result.data is not None
+        assert result.data["count_deleted"] == 0
+
+    def test_retention_applied_independently_per_database(self, tmp_path: Path) -> None:
+        """A count limit hit by rag archives must not delete session archives."""
+        self._make_archive(tmp_path, "rag", "1", age_days=3)
+        self._make_archive(tmp_path, "rag", "2", age_days=2)
+        self._make_archive(tmp_path, "rag", "3", age_days=1)
+        session_archive = self._make_archive(tmp_path, "session", "1", age_days=1)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+        )
+        assert result.data is not None
+        assert result.data["count_deleted"] == 1
+        assert session_archive.exists()
+
+    def test_best_effort_returns_partial_result_on_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._make_archive(tmp_path, "rag", "1", age_days=100)
+
+        def _raise(*args: object, **kwargs: object) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(Path, "unlink", _raise)
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=100, max_age_days=30),
+            mode=MaintenanceMode.BEST_EFFORT,
+        )
+        assert result.success is False
+        assert result.action == "purge_corrupt_archives_failed"
+        assert result.detail is not None
+        assert "disk full" in result.detail
+
+    def test_strict_raises_on_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._make_archive(tmp_path, "rag", "1", age_days=100)
+
+        def _raise(*args: object, **kwargs: object) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(Path, "unlink", _raise)
+        with pytest.raises(OSError, match="disk full"):
+            purge_corrupt_archives(
+                CorruptArchiveRetentionConfig(max_files=100, max_age_days=30),
+                mode=MaintenanceMode.STRICT,
+            )
 
 
 # ── MaintenanceMode ────────────────────────────────────────────────────────────

@@ -3,8 +3,7 @@ title: "ADR-001: Workflow Engine必須化"
 area: adr
 decision_scope:
   - system
-related:
-  - ADR-002
+related: []
 supersedes: []
 superseded_by: null
 ---
@@ -461,8 +460,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 
 ### Related ADRs
 
-- ADR-002: ワークフロー定義ファイルのスキーマ設計（提案中）
-- ADR-003: ワークフロー監視・メトリクス設計（提案中）
+- ワークフロー定義ファイルのスキーマ設計、ワークフロー監視・メトリクス設計は本文書作成時点でADR番号未割当（ADR-002/ADR-003は別決定「プロセス単位の設定所有権とConfig Isolation」「RuntimeToolRegistryを唯一のルーティング権威とする」に割当済み・Accepted — `docs/adr-index.md`参照）。起票時に`docs/adr-index.md`の採番規則に従い新規採番する。
 
 ### Specifications
 

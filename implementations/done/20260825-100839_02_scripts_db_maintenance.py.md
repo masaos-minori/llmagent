@@ -83,16 +83,25 @@ import/`__all__`, and two new keys in `config/agent.toml`)
 
 ### Method
 - `CorruptArchiveRetentionConfig.from_config()`: `cfg.get("sqlite_corrupt_archive_max_files", 10)` / `cfg.get("sqlite_corrupt_archive_max_age_days", 30)`.
-- `_delete_corrupt_archives_by_age(paths, max_age_days)`: `max_age_days <= 0` disables
-  age-based deletion (matching `RetentionConfig`'s existing convention); otherwise
-  delete files whose `time.time() - path.stat().st_mtime` exceeds the threshold,
-  logging the count.
-- `_delete_corrupt_archives_beyond_limit(paths, max_files)`: sort by mtime descending,
-  delete anything beyond `max_files`, logging the count.
-- `purge_corrupt_archives()`: resolve `{rag_db_path, session_db_path}` parent
-  directories (de-duplicated if identical) via `build_db_config()`, glob
-  `f"{stem}_corrupt_*{suffix}"` per stem, apply both helpers, sum `age_deleted`/
-  `count_deleted`, and return `MaintenanceResult(success=True, action="purge_corrupt_archives", mode=mode, data={...})`; delegate `OSError` to
+- **Adversarial verification note**: the original design (globbing once and passing
+  the same in-memory path list to both age-based and count-based helpers) would let
+  the count-based step operate on a stale list — either double-deleting a path the
+  age-based step already removed, or miscounting `max_files` against files that no
+  longer exist. `purge_old_sessions()` avoids this by having
+  `_delete_sessions_beyond_limit()` re-query the DB fresh (reflecting the prior
+  `DELETE`). The filesystem equivalent is for each helper to `glob()` fresh itself,
+  not receive a pre-globbed list — revised below.
+- `_delete_corrupt_archives_by_age(archive_dir: Path, pattern: str, max_age_days: int) -> int`: `max_age_days <= 0` disables age-based deletion (matching
+  `RetentionConfig`'s existing convention); otherwise glob fresh and delete files
+  whose `time.time() - path.stat().st_mtime` exceeds the threshold, logging the
+  count.
+- `_delete_corrupt_archives_beyond_limit(archive_dir: Path, pattern: str, max_files: int) -> int`: glob fresh (reflecting any deletions the age-based step already made),
+  sort by mtime descending, delete anything beyond `max_files`, logging the count.
+- `purge_corrupt_archives()`: for each of `db_cfg.rag_db_path`/`db_cfg.session_db_path`
+  (from `build_db_config()`), compute `archive_dir = db_path.parent` and
+  `pattern = f"{db_path.stem}_corrupt_*{db_path.suffix}"`, call both helpers in
+  order (age-based, then count-based) and sum their results across both databases,
+  and return `MaintenanceResult(success=True, action="purge_corrupt_archives", mode=mode, data={...})`; delegate `OSError` to
   `_handle_maintenance_error(e, "purge_corrupt_archives", mode, extra_data={...})`.
 
 ### Details
@@ -158,10 +167,10 @@ import/`__all__`, and two new keys in `config/agent.toml`)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required by this item |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20260825-110500 | 20260825-111200 | Adversarial verification found the originally-planned single-glob-reused-by-both-helpers design was stale-list-prone; revised to per-helper fresh `glob()`, matching `purge_old_sessions()`'s fresh-requery pattern |
+| 2 | Add or update tests per Validation plan | Completed | 20260825-111200 | 20260825-111700 | Added `TestPurgeCorruptArchives` (8 cases) to `tests/db/test_db_maintenance.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20260825-111700 | 20260825-112200 | ruff/mypy/lint-imports/bandit clean; diff-cover 95% (2 uncovered lines are `.from_config()`'s config-loading branch, consistent with `RetentionConfig.from_config()` also being untested); targeted suite: 2 pre-existing failures only (unchanged from doc01) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20260825-112200 | 20260825-112300 | No update needed: neither `90_shared_90_inconsistencies_and_known_issues.md` nor `90_shared_05_01_...md` (the two routing.md-mapped DB/Shared docs) has an existing entry for corrupt-archive retention to correct — this is new capability, not a documented gap being closed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -171,7 +180,10 @@ import/`__all__`, and two new keys in `config/agent.toml`)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `scripts/db/maintenance.py` change | 1 | Code Change | Completed | — | — |
+| `scripts/db/__init__.py` export update | 1 | Code Change | Completed | — | — |
+| `config/agent.toml` new keys | 1 | Code Change | Completed | — | — |
+| `tests/db/test_db_maintenance.py::TestPurgeCorruptArchives` | 2 | Test | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

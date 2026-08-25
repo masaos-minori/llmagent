@@ -204,24 +204,6 @@ class LLMTurnRunner:
         await ctx.conv.append_message(message)
         return message.get("content") or ""
 
-    def _filter_disabled_tool_definitions(self) -> list[dict[str, Any]]:
-        """Return LLM-facing tool definitions from the registry, excluding disabled tools."""
-        ctx = self._ctx
-        registry = ctx.services_required.runtime_tools
-        if registry is None:
-            return ctx.cfg.tool.tool_definitions
-        all_defs = registry.llm_tool_definitions()
-        visible_names = {td["name"] for td in all_defs}
-        # NOTE: visible_names is redundant here — every entry from
-        # llm_tool_definitions() already has its name in visible_names.
-        # Kept for explicitness and future extensibility if a custom base
-        # list is ever accepted.
-        result: list[dict[str, Any]] = []
-        for td in all_defs:
-            if td["name"] in visible_names:
-                result.append(td)
-        return result
-
     async def _stream_llm_final_answer(self) -> Any:
         """Call LLM with empty tool_defs to get a final answer."""
         ctx = self._ctx
@@ -276,8 +258,14 @@ class LLMTurnRunner:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
         logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
+        registry = ctx.services_required.runtime_tools
+        tool_defs = (
+            registry.llm_tool_definitions()
+            if registry is not None
+            else ctx.cfg.tool.tool_definitions
+        )
         return await ctx.services_required.llm.stream(
             llm_url,
             ctx.conv.history,
-            self._filter_disabled_tool_definitions(),
+            tool_defs,
         )

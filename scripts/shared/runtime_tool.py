@@ -46,7 +46,6 @@ class RuntimeTool:
         resource_scope_keys: Argument-dict keys whose values feed the resolved scope
                             string(s); empty tuple if none.
         agent_safety_tier: Safety tier used for approval-risk classification.
-        requires_approval: True when the tool requires explicit user approval before execution.
         enabled_for_llm:   True when the tool is exposed to the LLM's tool-calling surface.
         capabilities:      Capability strings declared by the MCP server (empty tuple if absent).
         allow_extra_fields: True when unexpected/unschemad argument fields should be
@@ -65,7 +64,6 @@ class RuntimeTool:
     resource_scope_kind: str
     resource_scope_keys: tuple[str, ...]
     agent_safety_tier: AgentSafetyTier
-    requires_approval: bool
     enabled_for_llm: bool
     capabilities: tuple[str, ...]
     allow_extra_fields: bool = False
@@ -84,7 +82,6 @@ def build_runtime_tool(
     resource_scope_kind: str = "",
     resource_scope_keys: tuple[str, ...] | None = None,
     agent_safety_tier: AgentSafetyTier | None = None,
-    requires_approval: bool | None = None,
     enabled_for_llm: bool | None = None,
     capabilities: tuple[str, ...] | None = None,
     allow_extra_fields: bool | None = None,
@@ -97,7 +94,6 @@ def build_runtime_tool(
           supplied (unannotated write status is treated as unsafe to parallelize),
           otherwise `False`.
         - `agent_safety_tier` defaults to `"WRITE_DANGEROUS"` (most conservative tier).
-        - `requires_approval` defaults to `True`.
         - `enabled_for_llm` defaults to `False`.
         - `capabilities` defaults to an empty tuple when not explicitly supplied.
         - `resource_scope_keys` defaults to an empty tuple when not explicitly supplied.
@@ -114,7 +110,6 @@ def build_runtime_tool(
     resolved_agent_safety_tier = (
         agent_safety_tier if agent_safety_tier is not None else "WRITE_DANGEROUS"
     )
-    resolved_requires_approval = _or_default(requires_approval, True)
     resolved_enabled_for_llm = _or_default(enabled_for_llm, False)
     resolved_capabilities = _or_default(capabilities, ())
     resolved_resource_scope_keys = _or_default(resource_scope_keys, ())
@@ -133,7 +128,6 @@ def build_runtime_tool(
         resource_scope_kind=resource_scope_kind,
         resource_scope_keys=resolved_resource_scope_keys,
         agent_safety_tier=resolved_agent_safety_tier,
-        requires_approval=resolved_requires_approval,
         enabled_for_llm=resolved_enabled_for_llm,
         capabilities=resolved_capabilities,
         allow_extra_fields=resolved_allow_extra_fields,
