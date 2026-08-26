@@ -563,9 +563,15 @@ class StartupOrchestrator:
         if runtime_tools is not None:
             unavailable_servers = runtime_tools.unavailable_servers
         if unavailable_servers:
-            lines.append(
-                f"  Excluded tools (unavailable): {', '.join(sorted(unavailable_servers))}"
-            )
+            parts = []
+            for key in sorted(unavailable_servers):
+                cfg_entry = self._ctx.cfg.mcp.mcp_servers.get(key)
+                policy = getattr(cfg_entry, "failure_policy", None)
+                if policy is not None:
+                    parts.append(f"{key} ({policy})")
+                else:
+                    parts.append(key)
+            lines.append(f"  Excluded tools (unavailable): {', '.join(parts)}")
         self._view.write_warning("\n".join(lines))
         logger.info("Readiness summary: %s", "; ".join(lines))
 

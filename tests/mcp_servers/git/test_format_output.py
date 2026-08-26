@@ -297,6 +297,8 @@ class TestFormatCheckout:
 
     def test_create_branch_checks_out_new_head(self) -> None:
         repo = MagicMock()
+        repo.active_branch.name = "new-feat"
+        repo.head.is_detached = False
         new_branch = MagicMock()
         repo.create_head.return_value = new_branch
         req = GitCheckoutRequest(
@@ -309,12 +311,34 @@ class TestFormatCheckout:
 
     def test_existing_branch_uses_git_checkout(self) -> None:
         repo = MagicMock()
+        repo.active_branch.name = "main"
+        repo.head.is_detached = False
         req = GitCheckoutRequest(
             repo_path=REPO_PATH, branch="main", create=False, dry_run=False
         )
         result = format_checkout(repo, req)
-        repo.git.checkout.assert_called_once_with("main")
+        repo.git.checkout.assert_called_once_with("--", "main")
         assert result == "Switched to branch 'main'"
+
+    def test_detached_head_denied_by_default(self) -> None:
+        repo = MagicMock()
+        repo.active_branch.name = "<detached HEAD>"
+        repo.head.is_detached = True
+        req = GitCheckoutRequest(
+            repo_path=REPO_PATH, branch="develop", create=False, dry_run=False
+        )
+        with pytest.raises(GitServiceError, match="checkout postcondition failed"):
+            format_checkout(repo, req)
+
+    def test_detached_head_allowed_when_flag_set(self) -> None:
+        repo = MagicMock()
+        repo.active_branch.name = "develop"
+        repo.head.is_detached = True
+        req = GitCheckoutRequest(
+            repo_path=REPO_PATH, branch="develop", create=False, dry_run=False
+        )
+        result = format_checkout(repo, req, allow_detached_head=True)
+        assert result == "Switched to branch 'develop'"
 
 
 # ── format_pull ────────────────────────────────────────────────────────────────
@@ -328,7 +352,7 @@ class TestFormatPull:
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
         )
         result = format_pull(repo, req)
-        assert result == "[DRY RUN] fetch --dry-run result:\n(nothing to fetch)"
+        assert result == "[DRY RUN] fetch --dry-run result:\n(nothing to commit)"
         repo.git.fetch.assert_called_once_with("--dry-run", "origin")
 
     def test_dry_run_with_fetch_output(self) -> None:
@@ -342,6 +366,7 @@ class TestFormatPull:
 
     def test_real_pull_without_branch(self) -> None:
         repo = MagicMock()
+        repo.index.unmerged_blobs.return_value = []
         repo.git.pull.return_value = "pull output"
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
@@ -352,21 +377,76 @@ class TestFormatPull:
 
     def test_real_pull_with_branch(self) -> None:
         repo = MagicMock()
+        repo.index.unmerged_blobs.return_value = []
         repo.git.pull.return_value = "pull output"
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="develop", dry_run=False
         )
         format_pull(repo, req)
-        repo.git.pull.assert_called_once_with("origin", "develop")
+        repo.git.pull.assert_called_once_with("origin", "--", "develop")
 
     def test_empty_pull_result_reports_up_to_date(self) -> None:
         repo = MagicMock()
+        repo.index.unmerged_blobs.return_value = []
         repo.git.pull.return_value = ""
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
         result = format_pull(repo, req)
         assert result == "Already up to date."
+
+
+class TestFormatPostconditionFailures:
+    def test_checkout_postcondition_failure_wrong_branch(self) -> None:
+        repo = MagicMock()
+        repo.active_branch.name = "other-branch"
+        repo.head.is_detached = False
+        req = GitCheckoutRequest(
+            repo_path=REPO_PATH, branch="main", create=False, dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError,
+            match=r"checkout postcondition failed.*expected branch 'main'.*got 'other-branch'",
+        ):
+            format_checkout(repo, req)
+
+    def test_checkout_postcondition_failure_detached_head(self) -> None:
+        repo = MagicMock()
+        repo.active_branch.name = "main"
+        repo.head.is_detached = True
+        req = GitCheckoutRequest(
+            repo_path=REPO_PATH, branch="main", create=False, dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError,
+            match=r"checkout postcondition failed.*expected branch 'main'.*detached HEAD",
+        ):
+            format_checkout(repo, req)
+
+    def test_pull_postcondition_failure_unresolved_conflicts(self) -> None:
+        repo = MagicMock()
+        repo.index.unmerged_blobs.return_value = ["conflicted_file.py"]
+        repo.git.pull.return_value = "pull output"
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError,
+            match=r"pull postcondition failed: unresolved merge conflicts remain",
+        ):
+            format_pull(repo, req)
+
+    def test_push_postcondition_failure_rejection_marker_in_output(self) -> None:
+        repo = MagicMock()
+        repo.git.push.return_value = "! [rejected] main -> main (non-fast-forward)"
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        with pytest.raises(
+            GitServiceError,
+            match=r"push postcondition failed: rejection marker detected in output",
+        ):
+            format_push(repo, req)
 
 
 # ── format_push ────────────────────────────────────────────────────────────────
@@ -397,7 +477,7 @@ class TestFormatPush:
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
         result = format_push(repo, req)
-        repo.git.push.assert_called_once_with("origin", "main")
+        repo.git.push.assert_called_once_with("origin", "--", "main")
         assert result == "push output"
 
     def test_empty_push_result_reports_default_message(self) -> None:

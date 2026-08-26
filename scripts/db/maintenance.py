@@ -13,7 +13,7 @@ Typical maintenance schedule:
   Weekly                : vacuum_db(db)
   Weekly                : purge_old_sessions(db, cfg)
   Weekly                : purge_corrupt_archives()
-  Before schema change  : rotate_all_dbs()  # archives rag, session, and workflow
+  Before schema change  : rotate_all_dbs()  # archives rag, session, workflow, and eventbus
   On startup warning    : recover_corruption()
 """
 

@@ -116,19 +116,21 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Precondition not met |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Gated on code merge |
+| 3 | Run the validation sequence (rules/toolchain.md) | Skipped | — | — | Gated on code merge |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Documentation-only; gated |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| Assumption | Code still accepts input_schema alias and resource_scope optional field (scripts/agent/services/mcp_tool_discovery.py:275, 357). Procedure assumption conflicts with actual code behavior. | No | 2026-08-25 |
 
 ##### Work Items Created
 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
 
 ## Traceability
 

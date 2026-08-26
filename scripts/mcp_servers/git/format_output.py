@@ -115,7 +115,9 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
     return f"Committed: {commit.hexsha[:8]} {req.message!r}"
 
 
-def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
+def format_checkout(
+    repo: git.Repo, req: GitCheckoutRequest, *, allow_detached_head: bool = False
+) -> str:
     """Format output for switching branches."""
     if req.dry_run:
         action = (
@@ -130,6 +132,13 @@ def format_checkout(repo: git.Repo, req: GitCheckoutRequest) -> str:
     else:
         # Use '--' to prevent argument injection if req.branch starts with '-'
         repo.git.checkout("--", req.branch)
+    if repo.active_branch.name != req.branch or (
+        not allow_detached_head and repo.head.is_detached
+    ):
+        raise GitServiceError(
+            f"checkout postcondition failed: expected branch {req.branch!r}, "
+            f"got {'<detached HEAD>' if repo.head.is_detached else repo.active_branch.name!r}"
+        )
     return f"Switched to branch '{req.branch}'"
 
 
@@ -144,6 +153,10 @@ def format_pull(repo: git.Repo, req: GitPullRequest) -> str:
     if req.branch:
         pull_args.extend(["--", req.branch])
     result = repo.git.pull(*pull_args)
+    if repo.index.unmerged_blobs():
+        raise GitServiceError(
+            "pull postcondition failed: unresolved merge conflicts remain"
+        )
     return result or "Already up to date."
 
 
@@ -153,4 +166,9 @@ def format_push(repo: git.Repo, req: GitPushRequest) -> str:
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
     result = repo.git.push(req.remote, "--", branch)
+    _rejection_markers = ("[rejected]", "non-fast-forward", "failed to push")
+    if result and any(m in result for m in _rejection_markers):
+        raise GitServiceError(
+            f"push postcondition failed: rejection marker detected in output: {result!r}"
+        )
     return result or f"Pushed '{branch}' to '{req.remote}'"

@@ -1549,3 +1549,34 @@ class TestStartupMemoryFailures:
         warn_msg = str(view.write_warning.call_args[0][0])
         assert "Memory injection failed" in warn_msg
         assert exception_msg in warn_msg
+
+    @pytest.mark.asyncio
+    async def test_excluded_tools_log_includes_failure_policy(self) -> None:
+        srv1_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9999",
+            failure_policy="disable-tool",
+        )
+        srv2_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9998",
+            failure_policy="degraded",
+        )
+        ctx = MagicMock()
+        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        ctx.cfg.mcp.mcp_servers = {"srv1": srv1_cfg, "srv2": srv2_cfg}
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.lifecycle = AsyncMock()
+        view = MagicMock()
+        view.write_warning = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+        runtime_tools_mock = MagicMock()
+        runtime_tools_mock.unavailable_servers = frozenset({"srv1", "srv2"})
+        ctx.services_required.runtime_tools = runtime_tools_mock
+        pipeline = MagicMock()
+        pipeline.outcomes = []
+        startup._report_readiness(pipeline)
+        warn_call = str(view.write_warning.call_args[0][0])
+        assert "Excluded tools (unavailable)" in warn_call
+        assert "srv1 (disable-tool)" in warn_call
+        assert "srv2 (degraded)" in warn_call

@@ -58,3 +58,7 @@ class LifecycleManagerProtocol(Protocol):
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
         ...
+
+    def cleanup_server_resources(self, server_key: str) -> str:
+        """Clean up resources for a removed MCP server. Returns stderr or empty string."""
+        ...

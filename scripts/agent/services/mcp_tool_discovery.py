@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 from shared.mcp_config import (
+    FailurePolicy,
     McpServerConfig,
     SecurityProfile,
     TransportType,
@@ -137,7 +138,10 @@ class McpToolDiscoveryService:
                 for o in server_findings:
                     new_status = (
                         StartupCheckStatus.FATAL
-                        if is_required
+                        if (
+                            is_required
+                            and cfg.failure_policy == FailurePolicy.FAIL_FAST
+                        )
                         else StartupCheckStatus.WARNING
                     )
                     new_findings.append(

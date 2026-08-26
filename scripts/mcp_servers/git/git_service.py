@@ -80,10 +80,15 @@ class GitService(GitSecurityGuards):
         read_only: bool = True,
         max_log_entries: int = 50,
         protected_branches: list[str] | None = None,
+        allow_detached_head: bool = False,
     ) -> None:
         """Initialize with security guards and configuration parameters."""
         GitSecurityGuards.__init__(
-            self, allowed_repo_paths, read_only, protected_branches or []
+            self,
+            allowed_repo_paths,
+            read_only,
+            protected_branches or [],
+            allow_detached_head,
         )
         self._max_log_entries = max_log_entries
 
@@ -237,9 +242,20 @@ class GitService(GitSecurityGuards):
         ok, err = self._validate_protected(req.branch)
         if not ok:
             return err
-        return await self._run_tool(
-            "git_checkout", req.repo_path, lambda repo: format_checkout(repo, req)
-        )
+
+        def _checkout_op(repo: git.Repo) -> str:
+            if not req.dry_run:
+                ok, err = self._check_dirty_worktree(repo)
+                if not ok:
+                    return err
+                ok, err = self._check_detached_head(repo)
+                if not ok:
+                    return err
+            return format_checkout(
+                repo, req, allow_detached_head=self._allow_detached_head
+            )
+
+        return await self._run_tool("git_checkout", req.repo_path, _checkout_op)
 
     async def git_pull(self, args: ToolArgs) -> str:
         """Fetch and merge changes from a remote repository."""
@@ -258,9 +274,18 @@ class GitService(GitSecurityGuards):
         ok, err = self._validate_ref(req.remote)
         if not ok:
             return err
-        return await self._run_tool(
-            "git_pull", req.repo_path, lambda repo: format_pull(repo, req)
-        )
+
+        def _pull_op(repo: git.Repo) -> str:
+            if not req.dry_run:
+                ok, err = self._check_dirty_worktree(repo)
+                if not ok:
+                    return err
+                ok, err = self._check_detached_head(repo)
+                if not ok:
+                    return err
+            return format_pull(repo, req)
+
+        return await self._run_tool("git_pull", req.repo_path, _pull_op)
 
     async def git_push(self, args: ToolArgs) -> str:
         """Push local commits to a remote repository."""
@@ -308,6 +333,7 @@ def build_service(cfg: GitConfig) -> GitService:
     read_only = bool(cfg.read_only)
     max_log = int(cfg.max_log_entries)
     protected_branches = list(cfg.protected_branches)
+    allow_detached_head = bool(cfg.allow_detached_head)
     if read_only:
         logger.info("git-mcp: read_only=true — write tools are disabled")
     if not allowed:
@@ -317,4 +343,5 @@ def build_service(cfg: GitConfig) -> GitService:
         read_only=read_only,
         max_log_entries=max_log,
         protected_branches=protected_branches,
+        allow_detached_head=allow_detached_head,
     )

@@ -24,12 +24,27 @@ if TYPE_CHECKING:
 LLM_TEMPERATURE_MAX = 2.0
 
 
+def _require_non_negative(name: str, value: float) -> None:
+    """Require value >= 0."""
+    if value < 0:
+        raise ValueError(f"{name} must be >= 0, got {value}")
+
+
+def _require_at_least(name: str, value: float, minimum: float) -> None:
+    """Require value >= minimum."""
+    if value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}, got {value}")
+
+
+def _require_positive(name: str, value: float) -> None:
+    """Require value > 0."""
+    if value <= 0:
+        raise ValueError(f"{name} must be > 0, got {value}")
+
+
 def validate_llm_context_char_limit(cfg: LLMConfig) -> None:
     """Validate that context_char_limit is non-negative."""
-    if cfg.context_char_limit < 0:
-        raise ValueError(
-            f"context_char_limit must be >= 0, got {cfg.context_char_limit}"
-        )
+    _require_non_negative("context_char_limit", cfg.context_char_limit)
 
 
 def validate_llm_budget_warn_ratio(cfg: LLMConfig) -> None:
@@ -42,16 +57,12 @@ def validate_llm_budget_warn_ratio(cfg: LLMConfig) -> None:
 
 def validate_llm_max_retries(cfg: LLMConfig) -> None:
     """Validate that llm_max_retries is non-negative."""
-    if cfg.llm_max_retries < 0:
-        raise ValueError(f"llm_max_retries must be >= 0, got {cfg.llm_max_retries}")
+    _require_non_negative("llm_max_retries", cfg.llm_max_retries)
 
 
 def validate_llm_retry_base_delay(cfg: LLMConfig) -> None:
     """Validate that llm_retry_base_delay is positive."""
-    if cfg.llm_retry_base_delay <= 0:
-        raise ValueError(
-            f"llm_retry_base_delay must be > 0, got {cfg.llm_retry_base_delay}"
-        )
+    _require_positive("llm_retry_base_delay", cfg.llm_retry_base_delay)
 
 
 def validate_llm_temperature(cfg: LLMConfig) -> None:
@@ -64,152 +75,102 @@ def validate_llm_temperature(cfg: LLMConfig) -> None:
 
 def validate_llm_max_tokens(cfg: LLMConfig) -> None:
     """Validate that llm_max_tokens is at least 1."""
-    if cfg.llm_max_tokens < 1:
-        raise ValueError(f"llm_max_tokens must be >= 1, got {cfg.llm_max_tokens}")
+    _require_at_least("llm_max_tokens", cfg.llm_max_tokens, 1)
 
 
 def validate_llm_sse_heartbeat_timeout(cfg: LLMConfig) -> None:
     """Validate that sse_heartbeat_timeout is non-negative."""
-    if cfg.sse_heartbeat_timeout < 0:
-        raise ValueError(
-            f"sse_heartbeat_timeout must be >= 0, got {cfg.sse_heartbeat_timeout}"
-        )
+    _require_non_negative("sse_heartbeat_timeout", cfg.sse_heartbeat_timeout)
 
 
 def validate_llm_sse_malformed_retry(cfg: LLMConfig) -> None:
     """Validate that sse_malformed_retry is non-negative."""
-    if cfg.sse_malformed_retry < 0:
-        raise ValueError(
-            f"sse_malformed_retry must be >= 0, got {cfg.sse_malformed_retry}"
-        )
+    _require_non_negative("sse_malformed_retry", cfg.sse_malformed_retry)
 
 
 def validate_llm_sse_reconnect_max(cfg: LLMConfig) -> None:
     """Validate that sse_reconnect_max is non-negative."""
-    if cfg.sse_reconnect_max < 0:
-        raise ValueError(f"sse_reconnect_max must be >= 0, got {cfg.sse_reconnect_max}")
+    _require_non_negative("sse_reconnect_max", cfg.sse_reconnect_max)
 
 
 def validate_rag_refiner_max_tokens(cfg: RAGConfig) -> None:
     """Validate that refiner_max_tokens is at least 1."""
-    if cfg.refiner_max_tokens < 1:
-        raise ValueError(
-            f"refiner_max_tokens must be >= 1, got {cfg.refiner_max_tokens}"
-        )
+    _require_at_least("refiner_max_tokens", cfg.refiner_max_tokens, 1)
 
 
 def validate_rag_refiner_timeout(cfg: RAGConfig) -> None:
     """Validate that refiner_timeout is positive."""
-    if cfg.refiner_timeout <= 0:
-        raise ValueError(f"refiner_timeout must be > 0, got {cfg.refiner_timeout}")
+    _require_positive("refiner_timeout", cfg.refiner_timeout)
 
 
 def validate_rag_refiner_max_chars_per_chunk(cfg: RAGConfig) -> None:
     """Validate that refiner_max_chars_per_chunk is at least 1."""
-    if cfg.refiner_max_chars_per_chunk < 1:
-        raise ValueError(
-            f"refiner_max_chars_per_chunk must be >= 1, got {cfg.refiner_max_chars_per_chunk}"
-        )
+    _require_at_least("refiner_max_chars_per_chunk", cfg.refiner_max_chars_per_chunk, 1)
 
 
 def validate_tool_dedup_max_repeats(cfg: ToolConfig) -> None:
     """Validate that tool_dedup_max_repeats is at least 1."""
-    if cfg.tool_dedup_max_repeats < 1:
-        raise ValueError(
-            f"tool_dedup_max_repeats must be >= 1, got {cfg.tool_dedup_max_repeats}"
-        )
+    _require_at_least("tool_dedup_max_repeats", cfg.tool_dedup_max_repeats, 1)
 
 
 def validate_tool_cycle_detect_window(cfg: ToolConfig) -> None:
     """Validate that tool_cycle_detect_window is non-negative."""
-    if cfg.tool_cycle_detect_window < 0:
-        raise ValueError(
-            f"tool_cycle_detect_window must be >= 0, got {cfg.tool_cycle_detect_window}"
-        )
+    _require_non_negative("tool_cycle_detect_window", cfg.tool_cycle_detect_window)
 
 
 def validate_tool_error_max_consecutive(cfg: ToolConfig) -> None:
     """Validate that tool_error_max_consecutive is non-negative."""
-    if cfg.tool_error_max_consecutive < 0:
-        raise ValueError(
-            f"tool_error_max_consecutive must be >= 0, got {cfg.tool_error_max_consecutive}"
-        )
+    _require_non_negative("tool_error_max_consecutive", cfg.tool_error_max_consecutive)
 
 
 def validate_tool_cache_max_size(cfg: ToolConfig) -> None:
     """Validate that tool_cache_max_size is non-negative."""
-    if cfg.tool_cache_max_size < 0:
-        raise ValueError(
-            f"tool_cache_max_size must be >= 0, got {cfg.tool_cache_max_size}"
-        )
+    _require_non_negative("tool_cache_max_size", cfg.tool_cache_max_size)
 
 
 def validate_tool_error_retry_max(cfg: ToolConfig) -> None:
     """Validate that tool_error_retry_max is non-negative."""
-    if cfg.tool_error_retry_max < 0:
-        raise ValueError(
-            f"tool_error_retry_max must be >= 0, got {cfg.tool_error_retry_max}"
-        )
+    _require_non_negative("tool_error_retry_max", cfg.tool_error_retry_max)
 
 
 def validate_progress_stagnation_window(cfg: ToolConfig) -> None:
     """Validate that progress_stagnation_window is non-negative."""
-    if cfg.progress_stagnation_window < 0:
-        raise ValueError(
-            f"progress_stagnation_window must be >= 0, got {cfg.progress_stagnation_window}"
-        )
+    _require_non_negative("progress_stagnation_window", cfg.progress_stagnation_window)
 
 
 def validate_memory_fts_limit(cfg: MemoryConfig) -> None:
     """Validate that memory_fts_limit is at least 1."""
-    if cfg.memory_fts_limit < 1:
-        raise ValueError(f"memory_fts_limit must be >= 1, got {cfg.memory_fts_limit}")
+    _require_at_least("memory_fts_limit", cfg.memory_fts_limit, 1)
 
 
 def validate_memory_rrf_k(cfg: MemoryConfig) -> None:
     """Validate that memory_rrf_k is at least 1."""
-    if cfg.memory_rrf_k < 1:
-        raise ValueError(f"memory_rrf_k must be >= 1, got {cfg.memory_rrf_k}")
+    _require_at_least("memory_rrf_k", cfg.memory_rrf_k, 1)
 
 
 def validate_memory_recency_days(cfg: MemoryConfig) -> None:
     """Validate that memory_recency_days is positive."""
-    if cfg.memory_recency_days <= 0:
-        raise ValueError(
-            f"memory_recency_days must be > 0, got {cfg.memory_recency_days}"
-        )
+    _require_positive("memory_recency_days", cfg.memory_recency_days)
 
 
 def validate_memory_max_inject_semantic(cfg: MemoryConfig) -> None:
     """Validate that memory_max_inject_semantic is non-negative."""
-    if cfg.memory_max_inject_semantic < 0:
-        raise ValueError(
-            f"memory_max_inject_semantic must be >= 0, got {cfg.memory_max_inject_semantic}"
-        )
+    _require_non_negative("memory_max_inject_semantic", cfg.memory_max_inject_semantic)
 
 
 def validate_memory_max_inject_episodic(cfg: MemoryConfig) -> None:
     """Validate that memory_max_inject_episodic is non-negative."""
-    if cfg.memory_max_inject_episodic < 0:
-        raise ValueError(
-            f"memory_max_inject_episodic must be >= 0, got {cfg.memory_max_inject_episodic}"
-        )
+    _require_non_negative("memory_max_inject_episodic", cfg.memory_max_inject_episodic)
 
 
 def validate_memory_embed_timeout_sec(cfg: MemoryConfig) -> None:
     """Validate that memory_embed_timeout_sec is positive."""
-    if cfg.memory_embed_timeout_sec <= 0:
-        raise ValueError(
-            f"memory_embed_timeout_sec must be > 0, got {cfg.memory_embed_timeout_sec}"
-        )
+    _require_positive("memory_embed_timeout_sec", cfg.memory_embed_timeout_sec)
 
 
 def validate_memory_retention_days(cfg: MemoryConfig) -> None:
     """Validate that memory_retention_days is at least 1."""
-    if cfg.memory_retention_days < 1:
-        raise ValueError(
-            f"memory_retention_days must be >= 1, got {cfg.memory_retention_days}"
-        )
+    _require_at_least("memory_retention_days", cfg.memory_retention_days, 1)
 
 
 def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:
@@ -233,3 +194,23 @@ def validate_tool_safety_tiers(cfg: ApprovalConfig) -> None:
             f"tool_safety_tiers: invalid tier values {bad_tiers};"
             " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN"
         )
+
+
+def validate_llm_http_timeout(cfg: LLMConfig) -> None:
+    """Validate that http_timeout is positive."""
+    _require_positive("http_timeout", cfg.http_timeout)
+
+
+def validate_llm_context_token_limit(cfg: LLMConfig) -> None:
+    """Validate that context_token_limit is non-negative."""
+    _require_non_negative("context_token_limit", cfg.context_token_limit)
+
+
+def validate_tool_max_tool_turns(cfg: ToolConfig) -> None:
+    """Validate that max_tool_turns is positive."""
+    _require_positive("max_tool_turns", cfg.max_tool_turns)
+
+
+def validate_tool_result_max_llm_chars(cfg: ToolConfig) -> None:
+    """Validate that tool_result_max_llm_chars is positive."""
+    _require_positive("tool_result_max_llm_chars", cfg.tool_result_max_llm_chars)

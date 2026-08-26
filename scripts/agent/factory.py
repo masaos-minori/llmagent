@@ -249,6 +249,10 @@ class _ServerLifecycleRouter:
             and cfg.startup_mode == StartupMode.SUBPROCESS
         ]
 
+    def cleanup_server_resources(self, server_key: str) -> str:
+        """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
+        return self._http_mgr._cleanup_server_resources(server_key)
+
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
     """Build and return the audit logger."""

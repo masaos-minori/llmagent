@@ -19,6 +19,7 @@ from agent.tool_policy import (
     classify_operation_type,
     classify_risk,
 )
+from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -169,6 +170,28 @@ class TestSpecialCaseRisk:
 
 
 class TestClassifyOperationType:
+    @staticmethod
+    def _registry_with(*tools: str) -> RuntimeToolRegistry:
+        tool_map: dict[str, RuntimeTool] = {}
+        for t in tools:
+            tool_map[t] = RuntimeTool(
+                name=t,
+                server_key="test_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+        return RuntimeToolRegistry(tools=tool_map)
+
     def test_write_tools(self) -> None:
         for name in ("write_file", "edit_file", "create_directory", "move_file"):
             assert classify_operation_type(name) == "write"
@@ -224,9 +247,10 @@ class TestClassifyOperationType:
         assert classify_operation_type("github_merge_pull_request") == "api_write"
 
     def test_read_tools(self) -> None:
-        assert classify_operation_type("list_directory") == "read"
-        assert classify_operation_type("read_text_file") == "read"
-        assert classify_operation_type("search_web") == "read"
+        reg = self._registry_with("list_directory", "read_text_file", "search_web")
+        assert classify_operation_type("list_directory", reg) == "read"
+        assert classify_operation_type("read_text_file", reg) == "read"
+        assert classify_operation_type("search_web", reg) == "read"
 
 
 class TestCheckAllowedRootEdgeCases:

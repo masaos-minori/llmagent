@@ -119,3 +119,37 @@ def test_load_config_succeeds_without_stray_keys(tmp_path: Path) -> None:
     )
     cfg = load_config(toml_path)
     assert cfg.port == 8015
+
+
+def test_load_config_call_sites_pass_get_config_path() -> None:
+    """Both call sites in eventbus/app.py must pass get_config_path()'s return value to load_config()."""
+    import inspect
+
+    import eventbus.app as eb_app
+
+    source = inspect.getsource(eb_app)
+    # Find all occurrences of load_config( — each must be followed by get_config_path()
+    idx = 0
+    count = 0
+    while True:
+        pos = source.find("load_config(", idx)
+        if pos == -1:
+            break
+        count += 1
+        # Extract the argument portion after "load_config("
+        paren_start = pos + len("load_config(")
+        depth = 1
+        i = paren_start
+        while i < len(source) and depth > 0:
+            if source[i] == "(":
+                depth += 1
+            elif source[i] == ")":
+                depth -= 1
+            i += 1
+        arg_text = source[paren_start : i - 1].strip()
+        assert "get_config_path()" in arg_text, (
+            f"Call site {count} does not pass get_config_path(): '{arg_text}'"
+        )
+        idx = i
+
+    assert count >= 2, f"Expected at least 2 load_config() calls, found {count}"

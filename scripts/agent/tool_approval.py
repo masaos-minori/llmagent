@@ -153,7 +153,7 @@ async def check_approval(
         emit_denied(str(preflight_exc))
         return False
 
-    risk = classify_risk(ctx.cfg, tool_name, args)
+    risk = classify_risk(ctx.cfg, tool_name, args, ctx.services_required.runtime_tools)
 
     if risk == RiskLevel.NONE:
         audit_approval(ctx, tool_name, risk, args, ApprovalDecisionType.AUTO)

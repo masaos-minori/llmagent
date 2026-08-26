@@ -466,6 +466,25 @@ class TestRunStageWithRetryGeneralization:
         assert count_attempts(store._db, task.task_id, "verify") == 1
 
     @pytest.mark.asyncio
+    async def test_execute_success_verify_failure_marks_task_failed(
+        self, store
+    ) -> None:
+        """INV-03: execute success then verify failure must leave task status as 'failed', not 'completed'."""
+        wdef = _make_wdef(max_attempts=3, backoff_sec=0)
+        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
+        engine = WorkflowEngine(wdef, store)
+
+        async def failing_verify() -> str | None:
+            raise RuntimeError("verify always fails")
+
+        with pytest.raises(RuntimeError, match="verify always fails"):
+            await engine.run(task, _noop, _noop, failing_verify)
+
+        found = get_task_by_idempotency_key(store._db, "s:1")
+        assert found is not None
+        assert found.status == "failed"
+
+    @pytest.mark.asyncio
     async def test_execute_retry_behavior_unchanged_under_generalized_wrapper(
         self, store
     ) -> None:

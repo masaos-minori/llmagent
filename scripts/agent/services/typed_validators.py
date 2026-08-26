@@ -160,6 +160,78 @@ def _get_dict(
     return v
 
 
+def _get_list_nonempty(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> list[Any] | None:
+    """Validate and extract a non-empty list value from a config dict.
+
+    Returns None if the key is missing or empty; raises ConfigReloadValidationError
+    on type mismatch.
+    """
+    v = d.get(key)
+    if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
+        return None
+    if not isinstance(v, list):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be list, got {type(v).__name__}"
+        )
+    if not v:
+        return None
+    return v
+
+
+def _get_str_nonempty(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> str | None:
+    """Validate and extract a non-empty string value from a config dict.
+
+    Returns None if the key is missing or empty; raises ConfigReloadValidationError
+    on type mismatch.
+    """
+    v = d.get(key)
+    if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
+        return None
+    if not isinstance(v, str):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be str, got {type(v).__name__}"
+        )
+    if not v:
+        return None
+    return v
+
+
+def _get_dict_nonempty(
+    d: dict[str, object], key: str, *, required: bool = False
+) -> dict[str, Any] | None:
+    """Validate and extract a non-empty dict value from a config dict.
+
+    Returns None if the key is missing or empty; raises ConfigReloadValidationError
+    on type mismatch.
+    """
+    v = d.get(key)
+    if v is None:
+        if required:
+            raise ConfigReloadValidationError(
+                f"config key {key!r} is required but missing"
+            )
+        return None
+    if not isinstance(v, dict):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be dict, got {type(v).__name__}"
+        )
+    if not v:
+        return None
+    return v
+
+
 def _apply_int(d: dict[str, object], key: str, setter: Callable[[int], None]) -> None:
     """Apply an integer value via setter if present in config dict."""
     if (v := _get_int(d, key)) is not None:

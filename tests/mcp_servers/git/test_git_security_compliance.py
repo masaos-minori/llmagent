@@ -99,3 +99,154 @@ class TestGitSecurityCompliance:
         result = await svc.git_show(args)
         assert "[DENIED]" in result
         assert "CLI option" in result
+
+    @pytest.fixture
+    def svc_allow_detached(self) -> GitService:
+        return GitService(
+            allowed_repo_paths=["/tmp/repo"],
+            read_only=False,
+            max_log_entries=50,
+            protected_branches=["main"],
+            allow_detached_head=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_dirty_worktree_denied(self, svc: GitService) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = True
+        mock_repo.head.is_detached = False
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "branch": "develop",
+            "create": False,
+            "dry_run": False,
+        }
+        result = await svc.git_checkout(args)
+        assert "[DENIED]" in result
+        assert "dirty worktree" in result
+
+    @pytest.mark.asyncio
+    async def test_git_pull_dirty_worktree_denied(self, svc: GitService) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = True
+        mock_repo.head.is_detached = False
+        mock_repo.index.unmerged_blobs.return_value = []
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "develop",
+            "dry_run": False,
+        }
+        result = await svc.git_pull(args)
+        assert "[DENIED]" in result
+        assert "dirty worktree" in result
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_detached_head_denied(self, svc: GitService) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = False
+        mock_repo.head.is_detached = True
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "branch": "develop",
+            "create": False,
+            "dry_run": False,
+        }
+        result = await svc.git_checkout(args)
+        assert "[DENIED]" in result
+        assert "detached HEAD" in result
+
+    @pytest.mark.asyncio
+    async def test_git_pull_detached_head_denied(self, svc: GitService) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = False
+        mock_repo.head.is_detached = True
+        mock_repo.index.unmerged_blobs.return_value = []
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "develop",
+            "dry_run": False,
+        }
+        result = await svc.git_pull(args)
+        assert "[DENIED]" in result
+        assert "detached HEAD" in result
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_detached_head_allowed(
+        self, svc_allow_detached: GitService
+    ) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = False
+        mock_repo.head.is_detached = True
+        mock_repo.active_branch.name = "develop"
+        svc_allow_detached._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "branch": "develop",
+            "create": False,
+            "dry_run": False,
+        }
+        result = await svc_allow_detached.git_checkout(args)
+        assert "[DRY RUN]" not in result
+        assert "[DENIED]" not in result
+
+    @pytest.mark.asyncio
+    async def test_git_pull_detached_head_allowed(
+        self, svc_allow_detached: GitService
+    ) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = False
+        mock_repo.head.is_detached = True
+        mock_repo.index.unmerged_blobs.return_value = []
+        svc_allow_detached._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "develop",
+            "dry_run": False,
+        }
+        result = await svc_allow_detached.git_pull(args)
+        assert "[DRY RUN]" not in result
+        assert "[DENIED]" not in result
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_dry_run_skips_dirty_and_detached_checks(
+        self, svc: GitService
+    ) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = True
+        mock_repo.head.is_detached = True
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "branch": "develop",
+            "create": False,
+            "dry_run": True,
+        }
+        result = await svc.git_checkout(args)
+        assert "[DRY RUN]" in result
+        assert "[DENIED]" not in result
+
+    @pytest.mark.asyncio
+    async def test_git_pull_dry_run_skips_dirty_and_detached_checks(
+        self, svc: GitService
+    ) -> None:
+        mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = True
+        mock_repo.head.is_detached = True
+        mock_repo.index.unmerged_blobs.return_value = []
+        svc._open_repo = MagicMock(return_value=mock_repo)
+        args = {
+            "repo_path": "/tmp/repo",
+            "remote": "origin",
+            "branch": "develop",
+            "dry_run": True,
+        }
+        result = await svc.git_pull(args)
+        assert "[DRY RUN]" in result
+        assert "[DENIED]" not in result

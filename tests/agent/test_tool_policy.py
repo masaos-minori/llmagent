@@ -19,6 +19,7 @@ from agent.tool_policy import (
     classify_operation_type,
     classify_risk,
 )
+from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -78,6 +79,28 @@ class TestClassifyOperationType:
 
 
 class TestClassifyRisk:
+    @staticmethod
+    def _registry_with(*tools: str) -> RuntimeToolRegistry:
+        tool_map: dict[str, RuntimeTool] = {}
+        for t in tools:
+            tool_map[t] = RuntimeTool(
+                name=t,
+                server_key="test_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+        return RuntimeToolRegistry(tools=tool_map)
+
     def test_force_flag_returns_high(self) -> None:
         cfg = _cfg()
         result = classify_risk(cfg, "write_file", {"force": True})
@@ -105,7 +128,8 @@ class TestClassifyRisk:
 
     def test_base_tier_tool_with_no_path_match_returns_medium(self) -> None:
         cfg = _cfg()
-        result = classify_risk(cfg, "read_text_file", {"path": "/tmp/f"})
+        reg = self._registry_with("read_text_file")
+        result = classify_risk(cfg, "read_text_file", {"path": "/tmp/f"}, reg)
         assert result == "medium"
 
     def test_read_only_tier_returns_none(self) -> None:

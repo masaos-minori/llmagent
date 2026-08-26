@@ -24,7 +24,12 @@ from db.maintenance import (
 )
 from db.models import RecoveryResult
 from db.recovery import recover_corruption
-from db.rotation import rotate_all_dbs, rotate_session_db, rotate_workflow_db
+from db.rotation import (
+    rotate_all_dbs,
+    rotate_eventbus_db,
+    rotate_session_db,
+    rotate_workflow_db,
+)
 from rag.maintenance import RagDbMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8081/embedding"
@@ -51,6 +56,7 @@ def _make_db_cfg(
     rag_name="rag.sqlite",
     session_name="session.sqlite",
     workflow_name="workflow.sqlite",
+    eventbus_name="eventbus.sqlite",
     **kwargs,
 ):
     """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
@@ -60,6 +66,7 @@ def _make_db_cfg(
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / session_name)
     cfg.workflow_db_path = str(tmp_path / workflow_name)
+    cfg.eventbus_db_path = str(tmp_path / eventbus_name)
     cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
     cfg.sqlite_timeout = 30
     cfg.sqlite_busy_timeout_ms = 30000
@@ -966,14 +973,15 @@ class TestRotateWorkflowAndAll:
         rag_file = tmp_path / "rag.sqlite"
         ses_file = tmp_path / "session.sqlite"
         wf_file = tmp_path / "workflow.sqlite"
-        for f in (rag_file, ses_file, wf_file):
+        eb_file = tmp_path / "eventbus.sqlite"
+        for f in (rag_file, ses_file, wf_file, eb_file):
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
-        rag_dest, ses_dest, wf_dest = rotate_all_dbs(archive_dir=archive_dir)
+        rag_dest, ses_dest, wf_dest, eb_dest = rotate_all_dbs(archive_dir=archive_dir)
 
         assert rag_dest.exists()
         assert rag_dest.name.startswith("rag_")
@@ -981,6 +989,8 @@ class TestRotateWorkflowAndAll:
         assert ses_dest.name.startswith("session_")
         assert wf_dest.exists()
         assert wf_dest.name.startswith("workflow_")
+        assert eb_dest.exists()
+        assert eb_dest.name.startswith("eventbus_")
 
     def test_rotate_workflow_db_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1007,3 +1017,32 @@ class TestRotateWorkflowAndAll:
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
             rotate_all_dbs(archive_dir=archive_dir)
+
+    def test_rotate_all_dbs_missing_eventbus_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rag_file = tmp_path / "rag.sqlite"
+        ses_file = tmp_path / "session.sqlite"
+        wf_file = tmp_path / "workflow.sqlite"
+        for f in (rag_file, ses_file, wf_file):
+            self._make_real_sqlite(f)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(FileNotFoundError, match="eventbus.sqlite"):
+            rotate_all_dbs(archive_dir=archive_dir)
+
+    def test_rotate_eventbus_db_happy_path(self, tmp_path: Path) -> None:
+        eb_file = tmp_path / "eventbus.sqlite"
+        self._make_real_sqlite(eb_file)
+        archive_dir = tmp_path / "archive"
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr("db.config.build_db_config", lambda: _make_db_cfg(tmp_path))
+        del monkeypatch
+
+        dest = rotate_eventbus_db(archive_dir=archive_dir)
+
+        assert dest.exists()
+        assert dest.name.startswith("eventbus_")

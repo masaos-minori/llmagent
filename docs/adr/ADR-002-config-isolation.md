@@ -360,12 +360,13 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Known Issue**: CI-001
 - **Type**: Design Deviation
 - **Summary**: EventBus uses tomllib directly for config loading, bypassing ConfigLoader.restrict_to() permission checks
-- **Conflicting Source**: docs/adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/broker.py
+- **Conflicting Source**: docs/adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/config.py (load_config()), scripts/eventbus/app.py
 - **Expected Design**: All processes MUST load config through ConfigLoader.restrict_to() to enforce process-level config ownership boundaries
-- **Observed Implementation**: EventBus broker.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
+- **Observed Implementation**: EventBus config.py loads its own config via tomllib without calling restrict_to(), allowing it to access configs outside its declared scope
 - **Impact**: Config isolation invariant violated for EventBus; could read/write configs belonging to other processes
-- **Recommended Action**: Add ConfigLoader.restrict_to() call in EventBus startup path
+- **Recommended Action**: EventBus cannot import ConfigLoader (.importlinter eventbus-is-isolated contract). Resolved via a local invariant instead: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
 - **Owner**: TBD
+- **Status**: Resolved (2026-08-25)
 - **Resolution Target**: Before ADR-002 moves from Proposed to Accepted status
 
 ## Review Triggers
@@ -438,6 +439,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 ## Change History
 
 - 2026-08-20: Acceptedとして作成
+- 2026-08-25: CI-001 file attribution corrected (broker.py -> config.py/app.py) and marked Resolved after local-implementation fix
 
 Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
 

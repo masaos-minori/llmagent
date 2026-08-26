@@ -45,7 +45,8 @@ longer flags this line. No change to SQL logic.
 1. Locate `_check_stale_documents()`.
 2. Add the nosec annotation to the `f"SELECT COUNT(*) as cnt FROM documents WHERE
    {STALE_SQL_CONDITION}"` line.
-3. Confirm line length ≤ 88 chars after the edit.
+3. Line length note: pyproject.toml sets `line-length = 88` but ignores `E501`;
+   actual line is 143 chars — ruff does not flag it (confirmed via `uv run ruff check`).
 
 ### Method
 
@@ -82,12 +83,12 @@ Remove the added comment line; no other rollback steps required.
 
 ## Validation plan
 
-| Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
-|---|---|---|---|
-| `scripts/mcp_servers/mdq/health_check.py` | Static (security) | `uv run bandit -r scripts/mcp_servers/mdq/ -c pyproject.toml` | No B608 finding at line 35 |
-| `scripts/mcp_servers/mdq/health_check.py` | Static (suppression governance) | `uv run python tools/check_suppression_justification.py scripts/mcp_servers/mdq/health_check.py` | No violations |
-| `scripts/mcp_servers/mdq/health_check.py` | Static (lint) | `uv run ruff check scripts/mcp_servers/mdq/health_check.py` | No new findings |
-| mdq test suite | Regression | `uv run pytest tests/mcp_servers/mdq/ -v` | No new failures (comment-only change) |
+| Target File/Module | Testing Strategy | Tool / Command | Expected Outcome | Actual Outcome |
+|---|---|---|---|---|
+| `scripts/mcp_servers/mdq/health_check.py` | Static (security) | `uv run bandit -r scripts/mcp_servers/mdq/ -c pyproject.toml` | No B608 finding at line 35 | No B608 finding — nosec working |
+| `scripts/mcp_servers/mdq/health_check.py` | Static (suppression governance) | `uv run python tools/check_suppression_justification.py scripts/mcp_servers/mdq/health_check.py` | No violations | All checks passed |
+| `scripts/mcp_servers/mdq/health_check.py` | Static (lint) | `uv run ruff check scripts/mcp_servers/mdq/health_check.py` | No new findings | All checks passed |
+| mdq test suite | Regression | `uv run pytest tests/mcp_servers/mdq/ -v` | No new failures (comment-only change) | Not run — comment-only change |
 
 ## Out of scope
 
@@ -99,10 +100,10 @@ Remove the added comment line; no other rollback steps required.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: comment-only change, no new tests required |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no documentation update in scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | nosec annotation applied on line 35 |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | N/A: comment-only change, no new tests required |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | bandit clean, suppression OK, ruff clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A: no documentation update in scope |
 
 ### Blocker Log
 

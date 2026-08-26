@@ -81,7 +81,7 @@ class RepositoryGateway:
         Read-only tools: direct passthrough.
         Write/delete/API-write tools: policy check → approval → execution → audit.
         """
-        op = classify_operation_type(tool_name)
+        op = classify_operation_type(tool_name, ctx.services_required.runtime_tools)
         if op == OperationType.READ:
             return await self._executor.execute(tool_name, args)
         return await self._gate_write(ctx, tool_name, args, op)

@@ -139,7 +139,10 @@ class TestGitPull:
     async def test_pull_result(self) -> None:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
+        mock_repo.is_dirty.return_value = False
+        mock_repo.head.is_detached = False
         mock_repo.git.pull.return_value = "Already up to date."
+        mock_repo.index.unmerged_blobs.return_value = []
         with patch.object(svc, "_open_repo", return_value=mock_repo):
             result = await svc.git_pull({"repo_path": "/opt/repos/proj"})
         assert result == "Already up to date."

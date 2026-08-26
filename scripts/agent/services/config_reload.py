@@ -11,12 +11,14 @@ Both return ConfigReloadOutcome so callers can display what changed.
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from shared.mcp_config import McpServerConfig
 
+from agent.config_dataclasses import AgentConfig
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.models import ConfigReloadRequest
 
@@ -27,20 +29,15 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 from agent.services.typed_validators import (
-    _apply_bool,
-    _apply_dict_nonempty,
-    _apply_float,
-    _apply_int,
-    _apply_list,
-    _apply_list_nonempty,
-    _apply_str,
-    _apply_str_nonempty,
     _get_bool,
     _get_dict,
+    _get_dict_nonempty,
     _get_float,
     _get_int,
     _get_list,
+    _get_list_nonempty,
     _get_str,
+    _get_str_nonempty,
 )
 
 _MCP_SERVER_FIELDS = (
@@ -83,6 +80,11 @@ class ConfigReloadOutcome:
     reported here — see needs_restart instead."""
     source_files: list[str] = field(default_factory=list)
     startup_only: list[str] = field(default_factory=list)
+    """Fields present in the reload payload and differing from the running
+    value but requiring a restart to take effect. Distinct from `skipped`,
+    which ignores fields for reasons unrelated to restart requirement, and
+    `needs_restart`, which is reserved exclusively for MCP server definition
+    changes."""
 
 
 class ConfigReloadService:
@@ -118,8 +120,12 @@ class ConfigReloadService:
         The command handler only calls this method and renders the result.
         """
         ctx = self._ctx
+        self._validate_request(new_cfg)
         self._apply_rag_tool_params(ctx, new_cfg)
-        self._reload_approval_settings(ctx, new_cfg)
+        self._reload_approval_config(ctx, new_cfg)
+        self._reload_tool_allowlist(ctx, new_cfg)
+        self._reload_memory_runtime(ctx, new_cfg)
+        self._reload_security_profile(ctx, new_cfg)
         if "masked_fields" in new_cfg:
             ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
         result = self._classify_mcp_server_changes(ctx, new_cfg)
@@ -130,14 +136,101 @@ class ConfigReloadService:
                 )
                 lifecycle = ctx.services_required.lifecycle
                 if lifecycle is not None:
-                    getattr(lifecycle, "_cleanup_server_resources")(server_key)
-        self._apply_llm_prompt_params(ctx, new_cfg)
-        self._apply_sse_reload_params(ctx, new_cfg)
+                    lifecycle.cleanup_server_resources(server_key)
         service_result = self._sync_services(new_cfg)
         result.applied.extend(service_result.applied)
         result.skipped.extend(service_result.skipped)
         result.startup_only = self._detect_startup_only(new_cfg)
         return result
+
+    def _validate_request(self, new_cfg: dict[str, Any]) -> None:
+        """Validate request values BEFORE applying any changes.
+
+        Creates fresh dataclass instances from defaults + request values,
+        then runs validators. Raises ConfigReloadValidationError on failure.
+        This ensures validation runs independently of mocked apply_config_dict.
+        """
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+
+        self._collect_request_values(new_cfg, llm_changes, rag_changes, tool_changes)
+
+        if llm_changes:
+            try:
+                new_llm = dataclasses.replace(self._ctx.cfg.llm, **llm_changes)
+                from agent.services.config_validators import (
+                    validate_llm_context_token_limit,
+                    validate_llm_http_timeout,
+                )
+
+                validate_llm_http_timeout(new_llm)
+                validate_llm_context_token_limit(new_llm)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+
+        if rag_changes:
+            try:
+                new_rag = dataclasses.replace(self._ctx.cfg.rag, **rag_changes)
+                from agent.services.config_validators import (
+                    validate_rag_refiner_max_chars_per_chunk,
+                    validate_rag_refiner_max_tokens,
+                    validate_rag_refiner_timeout,
+                )
+
+                validate_rag_refiner_max_tokens(new_rag)
+                validate_rag_refiner_timeout(new_rag)
+                validate_rag_refiner_max_chars_per_chunk(new_rag)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+
+        if tool_changes:
+            try:
+                new_tool = dataclasses.replace(self._ctx.cfg.tool, **tool_changes)
+                from agent.services.config_validators import (
+                    validate_progress_stagnation_window,
+                    validate_tool_cache_max_size,
+                    validate_tool_cycle_detect_window,
+                    validate_tool_dedup_max_repeats,
+                    validate_tool_error_max_consecutive,
+                    validate_tool_error_retry_max,
+                    validate_tool_max_tool_turns,
+                    validate_tool_result_max_llm_chars,
+                )
+
+                validate_tool_dedup_max_repeats(new_tool)
+                validate_tool_cycle_detect_window(new_tool)
+                validate_tool_error_max_consecutive(new_tool)
+                validate_tool_cache_max_size(new_tool)
+                validate_tool_error_retry_max(new_tool)
+                validate_progress_stagnation_window(new_tool)
+                validate_tool_max_tool_turns(new_tool)
+                validate_tool_result_max_llm_chars(new_tool)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+
+    @staticmethod
+    def _collect_request_values(
+        new_cfg: dict[str, Any],
+        llm_changes: dict[str, Any],
+        rag_changes: dict[str, Any],
+        tool_changes: dict[str, Any],
+    ) -> None:
+        """Collect field values from new_cfg into change dicts for validation."""
+        if (v := _get_float(new_cfg, "http_timeout")) is not None:
+            llm_changes["http_timeout"] = v
+        if (v := _get_int(new_cfg, "context_token_limit")) is not None:
+            llm_changes["context_token_limit"] = v
+        if (embed_url := _get_str(new_cfg, "embed_url")) is not None:
+            rag_changes["embed_url"] = embed_url
+        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
+            rag_changes["use_semantic_cache"] = vb
+        if (v := _get_int(new_cfg, "max_tool_turns")) is not None:
+            tool_changes["max_tool_turns"] = v
+        if (
+            tool_result_max_chars := _get_int(new_cfg, "tool_result_max_llm_chars")
+        ) is not None:
+            tool_changes["tool_result_max_llm_chars"] = tool_result_max_chars
 
     @staticmethod
     def _req_to_dict(req: ConfigReloadRequest) -> dict[str, Any]:
@@ -214,96 +307,140 @@ class ConfigReloadService:
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
-    ) -> None:
-        """Apply tool cache, LLM retry, and refiner settings (diff-apply)."""
+    ) -> ConfigReloadOutcome:
+        """Apply LLM/RAG/Tool settings with validation re-execution."""
+        result = ConfigReloadOutcome()
         cfg = ctx.cfg
-        self._apply_llm_context_params(cfg, new_cfg)
-        self._apply_tool_params(cfg, new_cfg)
-        self._apply_rag_params(cfg, new_cfg)
-        self._apply_llm_retry_params(cfg, new_cfg)
+
+        llm_changes: dict[str, Any] = {}
+        rag_changes: dict[str, Any] = {}
+        tool_changes: dict[str, Any] = {}
+
+        self._apply_llm_context_params(cfg, new_cfg, llm_changes)
+        self._apply_tool_params(cfg, new_cfg, tool_changes)
+        self._apply_rag_params(cfg, new_cfg, rag_changes)
+        self._apply_llm_retry_params(cfg, new_cfg, llm_changes)
+        self._apply_llm_prompt_params(
+            ctx, new_cfg, llm_changes, rag_changes, tool_changes
+        )
+        self._apply_sse_reload_params(ctx, new_cfg, llm_changes)
+
+        if llm_changes:
+            try:
+                new_llm = dataclasses.replace(cfg.llm, **llm_changes)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+            # Re-validate after replacement
+            from agent.services.config_validators import (
+                validate_llm_context_char_limit,
+                validate_llm_max_retries,
+                validate_llm_max_tokens,
+                validate_llm_retry_base_delay,
+                validate_llm_sse_heartbeat_timeout,
+                validate_llm_sse_malformed_retry,
+                validate_llm_sse_reconnect_max,
+                validate_llm_temperature,
+            )
+
+            validate_llm_temperature(new_llm)
+            validate_llm_max_tokens(new_llm)
+            validate_llm_context_char_limit(new_llm)
+            validate_llm_max_retries(new_llm)
+            validate_llm_retry_base_delay(new_llm)
+            validate_llm_sse_heartbeat_timeout(new_llm)
+            validate_llm_sse_malformed_retry(new_llm)
+            validate_llm_sse_reconnect_max(new_llm)
+            cfg.llm = new_llm
+
+        if rag_changes:
+            try:
+                new_rag = dataclasses.replace(cfg.rag, **rag_changes)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+            from agent.services.config_validators import (
+                validate_rag_refiner_max_chars_per_chunk,
+                validate_rag_refiner_max_tokens,
+                validate_rag_refiner_timeout,
+            )
+
+            validate_rag_refiner_max_tokens(new_rag)
+            validate_rag_refiner_timeout(new_rag)
+            validate_rag_refiner_max_chars_per_chunk(new_rag)
+            cfg.rag = new_rag
+
+        if tool_changes:
+            try:
+                new_tool = dataclasses.replace(cfg.tool, **tool_changes)
+            except ValueError as e:
+                raise ConfigReloadValidationError(str(e)) from e
+            from agent.services.config_validators import (
+                validate_progress_stagnation_window,
+                validate_tool_cache_max_size,
+                validate_tool_cycle_detect_window,
+                validate_tool_dedup_max_repeats,
+                validate_tool_error_max_consecutive,
+                validate_tool_error_retry_max,
+            )
+
+            validate_tool_dedup_max_repeats(new_tool)
+            validate_tool_cycle_detect_window(new_tool)
+            validate_tool_error_max_consecutive(new_tool)
+            validate_tool_cache_max_size(new_tool)
+            validate_tool_error_retry_max(new_tool)
+            validate_progress_stagnation_window(new_tool)
+            cfg.tool = new_tool
+
+        return result
 
     def _apply_llm_context_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any]
+        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
     ) -> None:
-        """Apply LLM context window settings."""
-        _apply_int(
-            new_cfg,
-            "context_char_limit",
-            lambda v: setattr(cfg.llm, "context_char_limit", v),
-        )
-        _apply_int(
-            new_cfg,
-            "context_compress_turns",
-            lambda v: setattr(cfg.llm, "context_compress_turns", v),
-        )
+        """Collect LLM context window setting changes."""
+        if (v := _get_int(new_cfg, "context_char_limit")) is not None:
+            changes["context_char_limit"] = v
+        if (v := _get_int(new_cfg, "context_compress_turns")) is not None:
+            changes["context_compress_turns"] = v
 
-    def _apply_tool_params(self, cfg: AgentConfig, new_cfg: dict[str, Any]) -> None:
-        """Apply tool execution settings."""
-        _apply_float(
-            new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v)
-        )
-        _apply_bool(
-            new_cfg,
-            "serial_tool_calls",
-            lambda v: setattr(cfg.tool, "serial_tool_calls", v),
-        )
-        _apply_bool(
-            new_cfg,
-            "tool_definitions_strict",
-            lambda v: setattr(cfg.tool, "tool_definitions_strict", v),
-        )
-        _apply_list(
-            new_cfg,
-            "plan_blocked_tools",
-            lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)),
-        )
+    def _apply_tool_params(
+        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
+    ) -> None:
+        """Collect tool execution setting changes."""
+        if (v := _get_float(new_cfg, "tool_cache_ttl")) is not None:
+            changes["tool_cache_ttl"] = v
+        if (vb := _get_bool(new_cfg, "serial_tool_calls")) is not None:
+            changes["serial_tool_calls"] = vb
+        if (vb := _get_bool(new_cfg, "tool_definitions_strict")) is not None:
+            changes["tool_definitions_strict"] = vb
+        if (lst := _get_list(new_cfg, "plan_blocked_tools")) is not None:
+            changes["plan_blocked_tools"] = list(lst)
 
-    def _apply_rag_params(self, cfg: AgentConfig, new_cfg: dict[str, Any]) -> None:
-        """Apply RAG (retrieval-augmented generation) settings."""
-        _apply_bool(
-            new_cfg,
-            "use_semantic_cache",
-            lambda v: setattr(cfg.rag, "use_semantic_cache", v),
-        )
-        _apply_float(
-            new_cfg,
-            "semantic_cache_threshold",
-            lambda v: setattr(cfg.rag, "semantic_cache_threshold", v),
-        )
-        _apply_int(
-            new_cfg,
-            "semantic_cache_max_size",
-            lambda v: setattr(cfg.rag, "semantic_cache_max_size", v),
-        )
-        _apply_bool(
-            new_cfg, "use_refiner", lambda v: setattr(cfg.rag, "use_refiner", v)
-        )
-        _apply_int(
-            new_cfg,
-            "refiner_max_tokens",
-            lambda v: setattr(cfg.rag, "refiner_max_tokens", v),
-        )
-        _apply_float(
-            new_cfg, "refiner_timeout", lambda v: setattr(cfg.rag, "refiner_timeout", v)
-        )
-        _apply_int(
-            new_cfg,
-            "refiner_max_chars_per_chunk",
-            lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v),
-        )
+    def _apply_rag_params(
+        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
+    ) -> None:
+        """Collect RAG setting changes."""
+        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
+            changes["use_semantic_cache"] = vb
+        if (v := _get_float(new_cfg, "semantic_cache_threshold")) is not None:
+            changes["semantic_cache_threshold"] = v
+        if (v := _get_int(new_cfg, "semantic_cache_max_size")) is not None:
+            changes["semantic_cache_max_size"] = v
+        if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
+            changes["use_refiner"] = vb
+        if (v := _get_int(new_cfg, "refiner_max_tokens")) is not None:
+            changes["refiner_max_tokens"] = v
+        if (v := _get_float(new_cfg, "refiner_timeout")) is not None:
+            changes["refiner_timeout"] = v
+        if (v := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
+            changes["refiner_max_chars_per_chunk"] = v
 
     def _apply_llm_retry_params(
-        self, cfg: AgentConfig, new_cfg: dict[str, Any]
+        self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
     ) -> None:
-        """Apply LLM retry settings."""
-        _apply_int(
-            new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v)
-        )
-        _apply_float(
-            new_cfg,
-            "llm_retry_base_delay",
-            lambda v: setattr(cfg.llm, "llm_retry_base_delay", v),
-        )
+        """Collect LLM retry setting changes."""
+        if (max_retries := _get_int(new_cfg, "llm_max_retries")) is not None:
+            changes["llm_max_retries"] = max_retries
+        if (base_delay := _get_float(new_cfg, "llm_retry_base_delay")) is not None:
+            changes["llm_retry_base_delay"] = base_delay
 
     def _classify_mcp_server_changes(
         self,
@@ -340,67 +477,59 @@ class ConfigReloadService:
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
+        llm_changes: dict[str, Any],
+        rag_changes: dict[str, Any],
+        tool_changes: dict[str, Any],
     ) -> None:
-        """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings (diff-apply)."""
-        cfg = ctx.cfg
-        _apply_float(
-            new_cfg, "llm_temperature", lambda v: setattr(cfg.llm, "llm_temperature", v)
-        )
-        _apply_int(
-            new_cfg, "llm_max_tokens", lambda v: setattr(cfg.llm, "llm_max_tokens", v)
-        )
-        _apply_str(new_cfg, "llm_url", lambda v: setattr(cfg.llm, "llm_url", v))
-        _apply_str(
-            new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v)
-        )
-        _apply_str(new_cfg, "embed_url", lambda v: setattr(cfg.rag, "embed_url", v))
-        _apply_float(
-            new_cfg, "http_timeout", lambda v: setattr(cfg.llm, "http_timeout", v)
-        )
-        _apply_int(
-            new_cfg, "max_tool_turns", lambda v: setattr(cfg.tool, "max_tool_turns", v)
-        )
-        _apply_int(
-            new_cfg,
-            "tool_result_max_llm_chars",
-            lambda v: setattr(cfg.tool, "tool_result_max_llm_chars", v),
-        )
-        _apply_list_nonempty(
-            new_cfg,
-            "tool_definitions",
-            lambda v: setattr(cfg.tool, "tool_definitions", list(v)),
-        )
-        _apply_str_nonempty(
-            new_cfg,
-            "system_prompt_tool",
-            lambda v: setattr(cfg.tool, "system_prompt_tool", v),
-        )
-        _apply_dict_nonempty(
-            new_cfg,
-            "system_prompts",
-            lambda v: setattr(cfg.tool, "system_prompts", dict(v)),
-        )
+        """Collect hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
+        if (temperature := _get_float(new_cfg, "llm_temperature")) is not None:
+            llm_changes["llm_temperature"] = temperature
+        if (max_tokens := _get_int(new_cfg, "llm_max_tokens")) is not None:
+            llm_changes["llm_max_tokens"] = max_tokens
+        if (llm_url := _get_str(new_cfg, "llm_url")) is not None:
+            llm_changes["llm_url"] = llm_url
+        if (web_search_url := _get_str(new_cfg, "web_search_url")) is not None:
+            rag_changes["web_search_url"] = web_search_url
+        if (embed_url := _get_str(new_cfg, "embed_url")) is not None:
+            rag_changes["embed_url"] = embed_url
+        if (http_timeout := _get_float(new_cfg, "http_timeout")) is not None:
+            llm_changes["http_timeout"] = http_timeout
+        if (max_tool_turns := _get_int(new_cfg, "max_tool_turns")) is not None:
+            tool_changes["max_tool_turns"] = max_tool_turns
+        if (
+            tool_result_max_chars := _get_int(new_cfg, "tool_result_max_llm_chars")
+        ) is not None:
+            tool_changes["tool_result_max_llm_chars"] = tool_result_max_chars
+        if (lst := _get_list_nonempty(new_cfg, "tool_definitions")) is not None:
+            tool_changes["tool_definitions"] = list(lst)
+        if (
+            prompt_tool := _get_str_nonempty(new_cfg, "system_prompt_tool")
+        ) is not None:
+            tool_changes["system_prompt_tool"] = prompt_tool
+        if (sys_prompts := _get_dict_nonempty(new_cfg, "system_prompts")) is not None:
+            tool_changes["system_prompts"] = dict(sys_prompts)
 
     def _apply_sse_reload_params(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
+        changes: dict[str, Any],
     ) -> None:
-        """Apply SSE stream resilience settings (diff-apply)."""
+        """Collect SSE stream resilience settings."""
         if (vf := _get_float(new_cfg, "sse_heartbeat_timeout")) is not None:
-            ctx.cfg.llm.sse_heartbeat_timeout = vf
+            changes["sse_heartbeat_timeout"] = vf
         if (vi := _get_int(new_cfg, "sse_malformed_retry")) is not None:
-            ctx.cfg.llm.sse_malformed_retry = vi
+            changes["sse_malformed_retry"] = vi
         if (vi := _get_int(new_cfg, "sse_reconnect_max")) is not None:
-            ctx.cfg.llm.sse_reconnect_max = vi
+            changes["sse_reconnect_max"] = vi
         if (
             vb := _get_bool(new_cfg, "llm_stream_retry_on_heartbeat_timeout")
         ) is not None:
-            ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = vb
+            changes["llm_stream_retry_on_heartbeat_timeout"] = vb
         if (
             vb := _get_bool(new_cfg, "llm_stream_retry_on_malformed_chunk")
         ) is not None:
-            ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = vb
+            changes["llm_stream_retry_on_malformed_chunk"] = vb
 
     def _reload_approval_config(
         self,
@@ -427,6 +556,44 @@ class ConfigReloadService:
             approval.allowed_root = v
         if (lst := _get_list(new_cfg, "approval_github_allowed_repos")) is not None:
             approval.approval_github_allowed_repos = list(lst)
+        if (vb := _get_bool(new_cfg, "gitops_push_blocked")) is not None:
+            approval.gitops_push_blocked = vb
+
+    def _reload_tool_allowlist(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> None:
+        """Reload allowed_tools from new_cfg if present."""
+        if (lst := _get_list(new_cfg, "allowed_tools")) is not None:
+            ctx.cfg.tool.allowed_tools = list(lst)
+
+    def _reload_memory_runtime(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> None:
+        """Reload memory runtime fields from new_cfg if present."""
+        if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
+            ctx.cfg.memory.memory_retention_days = v
+        if (vb := _get_bool(new_cfg, "memory_local_only")) is not None:
+            ctx.cfg.memory.memory_local_only = vb
+
+    def _reload_security_profile(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> None:
+        """Reload security profile fields from new_cfg if present."""
+        if (vs := _get_str(new_cfg, "security_profile")) is not None:
+            try:
+                from shared.mcp_config import SecurityProfile
+
+                ctx.cfg.mcp.security_profile = SecurityProfile(vs)
+            except ValueError:
+                pass  # invalid enum value — leave current
+        if (vb := _get_bool(new_cfg, "security_lockdown_enabled")) is not None:
+            ctx.cfg.mcp.security_lockdown_enabled = vb
 
     def _detect_startup_only(
         self,
@@ -442,28 +609,8 @@ class ConfigReloadService:
         v = _get_bool(new_cfg, "routing_drift_strict")
         if v is not None and v != ctx.cfg.tool.routing_drift_strict:
             changed.append("routing_drift_strict")
+
+        v = _get_bool(new_cfg, "memory_embed_enabled")
+        if v is not None and v != ctx.cfg.memory.memory_embed_enabled:
+            changed.append("memory_embed_enabled")
         return changed
-
-    def _reload_approval_settings(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Update approval, tool, and memory config fields when present in new_cfg."""
-        self._reload_approval_config(ctx, new_cfg)
-        if (lst := _get_list(new_cfg, "allowed_tools")) is not None:
-            ctx.cfg.tool.allowed_tools = list(lst)
-        if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
-            ctx.cfg.memory.memory_retention_days = v
-        if (vb := _get_bool(new_cfg, "memory_local_only")) is not None:
-            ctx.cfg.memory.memory_local_only = vb
-        # security.toml fields — hot-reloadable
-        if (vs := _get_str(new_cfg, "security_profile")) is not None:
-            try:
-                from shared.mcp_config import SecurityProfile
-
-                ctx.cfg.mcp.security_profile = SecurityProfile(vs)
-            except ValueError:
-                pass  # invalid enum value — leave current
-        if (vb := _get_bool(new_cfg, "security_lockdown_enabled")) is not None:
-            ctx.cfg.mcp.security_lockdown_enabled = vb

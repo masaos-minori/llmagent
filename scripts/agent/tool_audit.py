@@ -49,7 +49,9 @@ def audit_approval(
         event="tool_approval",
         task_id=ctx.turn.current_turn_id or "",
         tool=tool_name,
-        operation_type=classify_operation_type(tool_name),
+        operation_type=classify_operation_type(
+            tool_name, ctx.services_required.runtime_tools
+        ),
         resource_scope=resource_scope,
         risk=str(risk),
         decision=str(decision),
@@ -180,7 +182,9 @@ def audit_tool_exec(
         event="tool_exec",
         task_id=ctx.turn.current_turn_id or "",
         tool=tool_name,
-        operation_type=classify_operation_type(tool_name),
+        operation_type=classify_operation_type(
+            tool_name, ctx.services_required.runtime_tools
+        ),
         resource_scope=resource_scope,
         mcp_request_id=mcp_request_id,
         is_error=is_error,

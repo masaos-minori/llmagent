@@ -23,12 +23,13 @@ from shared.tool_constants import (
     SHELL_TOOLS,
     WRITE_TOOLS,
 )
-from shared.tool_registry import get_registry
 
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
 
 if TYPE_CHECKING:
+    from shared.runtime_tool_registry import RuntimeToolRegistry
+
     from agent.config_dataclasses import AgentConfig
 
 
@@ -51,12 +52,14 @@ _TIER_TO_RISK: dict[str, RiskLevel] = {
 }
 
 
-def classify_operation_type(tool_name: str) -> OperationType:
+def classify_operation_type(
+    tool_name: str, registry: RuntimeToolRegistry | None = None
+) -> OperationType:
     """Return the operation type for a tool.
 
-    A tool name absent from the tool registry entirely (not just untiered) is
-    genuinely unregistered — fail-safe classifies it UNKNOWN rather than READ,
-    since a made-up or typo'd tool name should not be treated as harmless.
+    When registry is provided, consults RuntimeToolRegistry for the UNKNOWN/READ
+    decision (ADR-003 Decision #8). When registry is None, fails closed to UNKNOWN
+    (ADR-003 Decision #6: no static-registry fallback).
     """
     if tool_name in _ALL_WRITE_TOOLS:
         return OperationType.WRITE
@@ -66,7 +69,11 @@ def classify_operation_type(tool_name: str) -> OperationType:
         return OperationType.EXECUTE
     if tool_name in _GITHUB_MUTATION_TOOLS:
         return OperationType.API_WRITE
-    if tool_name not in get_registry().get_all_tool_names():
+    if registry is None:
+        return OperationType.UNKNOWN
+    try:
+        registry.get(tool_name)
+    except KeyError:
         return OperationType.UNKNOWN
     return OperationType.READ
 
@@ -134,10 +141,18 @@ def _special_case_risk(
     return None
 
 
-def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> RiskLevel:
+def classify_risk(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
+) -> RiskLevel:
     """Return the risk level for a tool call.
 
     Order: explicit rule → tier fallback → special-case → escalation overrides.
+    The registry parameter is threaded through to Priority 3 (operation type
+    classification) so UNKNOWN/READ decisions use RuntimeToolRegistry instead
+    of the static ToolRegistry.
     """
     base: RiskLevel | None = None
     raw_rule = cfg.approval.approval_risk_rules.get(tool_name)
@@ -149,7 +164,7 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> Ris
         base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
     # Priority 3: tool_constants.py classification
     if base is None:
-        if classify_operation_type(tool_name) == OperationType.UNKNOWN:
+        if classify_operation_type(tool_name, registry) == OperationType.UNKNOWN:
             # Fail-safe: a tool name absent from the registry entirely (not just
             # untiered) is treated as maximally risky rather than defaulting to
             # MEDIUM like a real-but-untiered tool would.

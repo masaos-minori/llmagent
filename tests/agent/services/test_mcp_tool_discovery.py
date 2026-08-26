@@ -22,7 +22,12 @@ from agent.shared.health_models import (
     StartupCheckStatus,
 )
 from fastapi.testclient import TestClient
-from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
+from shared.mcp_config import (
+    FailurePolicy,
+    McpServerConfig,
+    SecurityProfile,
+    TransportType,
+)
 from shared.tool_registry import (
     ToolDefinition,
     _reset_registry_for_testing,
@@ -686,6 +691,89 @@ class TestDiscoverAllUnreachableServers:
 
         assert result.unreachable == ["bad_server"]
         assert result.registry.get("grep").server_key == "good_server"
+
+    @pytest.mark.asyncio
+    async def test_unreachable_non_required_server_with_fail_fast_returns_warning(
+        self,
+    ) -> None:
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            required_in_local=False,
+            failure_policy=FailurePolicy.FAIL_FAST,
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = _make_ctx({"srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.unreachable == ["srv"]
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+
+    @pytest.mark.asyncio
+    async def test_unreachable_non_required_server_with_degraded_returns_warning(
+        self,
+    ) -> None:
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            required_in_local=False,
+            failure_policy=FailurePolicy.DEGRADED,
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = _make_ctx({"srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.unreachable == ["srv"]
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+
+    @pytest.mark.asyncio
+    async def test_unreachable_required_server_with_degraded_returns_warning(
+        self,
+    ) -> None:
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            required_in_local=True,
+            failure_policy=FailurePolicy.DEGRADED,
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = _make_ctx({"srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.unreachable == ["srv"]
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert all(f.status != StartupCheckStatus.FATAL for f in mcp_findings)
+        assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
+
+    @pytest.mark.asyncio
+    async def test_unreachable_required_server_with_fail_fast_returns_fatal(
+        self,
+    ) -> None:
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            required_in_local=True,
+            failure_policy=FailurePolicy.FAIL_FAST,
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = _make_ctx({"srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        assert result.unreachable == ["srv"]
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        assert any(f.status == StartupCheckStatus.FATAL for f in mcp_findings)
 
 
 # ── cross-server duplicate tool names ──────────────────────────────────────────

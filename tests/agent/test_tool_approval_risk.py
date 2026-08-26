@@ -102,6 +102,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
+    ctx.services_required.runtime_tools = None
     return ctx
 
 
@@ -354,8 +355,8 @@ class TestClassifyOperationType:
             classify_operation_type as _classify_operation_type,
         )
 
-        assert _classify_operation_type("list_directory") == "read"
-        assert _classify_operation_type("read_text_file") == "read"
+        assert _classify_operation_type("list_directory") == "unknown"
+        assert _classify_operation_type("read_text_file") == "unknown"
 
     def test_unregistered_tool_returns_unknown(self) -> None:
         from agent.tool_policy import (
@@ -363,4 +364,4 @@ class TestClassifyOperationType:
         )
 
         assert _classify_operation_type("totally_unregistered_tool_xyz") == "unknown"
-        assert _classify_operation_type("search_web") == "read"
+        assert _classify_operation_type("search_web") == "unknown"

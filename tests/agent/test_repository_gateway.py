@@ -27,6 +27,9 @@ def _make_ctx():
     return SimpleNamespace(
         cfg=MagicMock(),
         services=SimpleNamespace(gateway=None, tools=AsyncMock()),
+        services_required=SimpleNamespace(
+            gateway=None, tools=AsyncMock(), runtime_tools=None
+        ),
         turn=SimpleNamespace(current_turn_id="turn-1", pending_approval_id=None),
         workflow=workflow,
     )

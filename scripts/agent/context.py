@@ -24,10 +24,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerHealthRegistry
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.types import LLMMessage
@@ -292,6 +294,7 @@ class AgentContext:
     Access sub-structures directly: ctx.conv.*, ctx.turn.*, ctx.stats.*, ctx.workflow.*.
 
     ctx.services is None until factory.build_agent_context() completes.
+    __init__ restricts ConfigLoader to agent.toml before loading cfg.
     """
 
     def __init__(self) -> None:
@@ -300,6 +303,8 @@ class AgentContext:
         self.turn = TurnState()
         self.stats = RuntimeStats()
         self.workflow = WorkflowState()
+        if os.environ.get("AGENT_RESTRICT_CONFIG"):
+            ConfigLoader.restrict_to("agent.toml")
         try:
             self.cfg = build_agent_config()
         except Exception as e:  # noqa: BLE001 — any config-load failure must be wrapped into one RuntimeError with context

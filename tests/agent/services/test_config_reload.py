@@ -7,6 +7,13 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from agent.config_dataclasses import (
+    AgentConfig,
+    LLMConfig,
+    MemoryConfig,
+    RAGConfig,
+    ToolConfig,
+)
 from shared.mcp_config import StartupMode
 
 
@@ -14,29 +21,54 @@ from shared.mcp_config import StartupMode
 def svc() -> object:
     from agent.services.config_reload import ConfigReloadService
 
+    llm_cfg = LLMConfig(
+        llm_url="",
+        http_timeout=30.0,
+        llm_max_retries=3,
+        llm_retry_base_delay=1.0,
+        llm_temperature=0.7,
+        llm_max_tokens=1000,
+        title_llm_temperature=0.5,
+        title_llm_max_tokens=50,
+        sse_heartbeat_timeout=30.0,
+        sse_malformed_retry=1,
+        sse_reconnect_max=5,
+        llm_stream_retry_on_heartbeat_timeout=True,
+        llm_stream_retry_on_malformed_chunk=False,
+    )
+    rag_cfg = RAGConfig(
+        embed_url="http://localhost:8080/embed",
+        use_semantic_cache=False,
+        semantic_cache_threshold=0.92,
+        semantic_cache_max_size=100,
+        use_refiner=False,
+        refiner_max_tokens=512,
+        refiner_timeout=30.0,
+        refiner_max_chars_per_chunk=300,
+    )
+    tool_cfg = ToolConfig(
+        system_prompts={},
+        masked_fields=[],
+    )
     ctx = MagicMock()
-    ctx.cfg.tool.system_prompts = {}
-    ctx.cfg.tool.masked_fields = []
-    ctx.cfg.llm.llm_url = ""
-    ctx.cfg.llm.llm_max_tokens = 1000
-    ctx.cfg.llm.llm_temperature = 0.7
-    ctx.cfg.llm.title_llm_temperature = 0.5
-    ctx.cfg.llm.title_llm_max_tokens = 50
-    ctx.cfg.llm.stream = True
-    ctx.cfg.llm.stream_retry_limit = 3
-    ctx.cfg.llm.sse_heartbeat_timeout = 30
-    ctx.cfg.llm.sse_reconnect_max = 5
-    ctx.cfg.llm.sse_reconnect_delay = 1.0
-    ctx.cfg.llm.sse_malformed_retry = 1
+    ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
+    ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+    ctx.cfg.approval = MagicMock()
     ctx.cfg.approval.tool_safety_tiers = {}
     ctx.cfg.approval.require_approval_for = []
     ctx.cfg.approval.plan_mode_enabled = False
+    ctx.cfg.mcp = MagicMock()
     ctx.cfg.mcp.mcp_servers = {}
+    ctx.services_required = MagicMock()
     ctx.services_required.memory = None
     ctx.services_required.embedding = None
     ctx.services_required.retriever = None
     ctx.services_required.llm = None
-    return ConfigReloadService(ctx)
+    svc = ConfigReloadService(ctx)
+    svc._classify_mcp_server_changes = MagicMock(
+        return_value=MagicMock(needs_restart=[])
+    )
+    return svc
 
 
 class TestApplyConfig:
@@ -272,11 +304,14 @@ class TestMcpServerChangeClassification:
 class TestStartupOnlyDetection:
     """_detect_startup_only classifies use_memory_layer changes."""
 
-    def _make_svc(self, use_memory_layer: bool = False) -> object:
+    def _make_svc(
+        self, use_memory_layer: bool = False, memory_embed_enabled: bool = True
+    ) -> object:
         from agent.services.config_reload import ConfigReloadService
 
         ctx = MagicMock()
         ctx.cfg.memory.use_memory_layer = use_memory_layer
+        ctx.cfg.memory.memory_embed_enabled = memory_embed_enabled
         return ConfigReloadService(ctx)
 
     def test_no_change_returns_empty(self) -> None:
@@ -288,6 +323,16 @@ class TestStartupOnlyDetection:
         svc = self._make_svc(use_memory_layer=False)
         result = svc._detect_startup_only({})
         assert result == []
+
+    def test_memory_embed_enabled_change_detected(self) -> None:
+        svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=False)
+        result = svc._detect_startup_only({"memory_embed_enabled": True})
+        assert "memory_embed_enabled" in result
+
+    def test_memory_embed_enabled_no_change(self) -> None:
+        svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=True)
+        result = svc._detect_startup_only({"memory_embed_enabled": True})
+        assert "memory_embed_enabled" not in result
 
 
 class TestRuntimeToolPolicyReapplication:
@@ -329,3 +374,137 @@ class TestRuntimeToolPolicyReapplication:
         svc._ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
         svc._sync_services({})  # type: ignore[attr-defined]
         svc._ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
+
+
+class TestApprovalGitopsPushBlocked:
+    """gitops_push_blocked can be updated via /reload."""
+
+    def _make_svc(self, gitops_push_blocked: bool = False) -> object:
+        from agent.services.config_reload import ConfigReloadService
+
+        ctx = MagicMock()
+        ctx.cfg.approval.gitops_push_blocked = gitops_push_blocked
+        ctx.cfg.tool.system_prompts = {}
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.llm.llm_url = ""
+        ctx.cfg.llm.llm_max_tokens = 1000
+        ctx.cfg.llm.llm_temperature = 0.7
+        ctx.cfg.llm.title_llm_temperature = 0.5
+        ctx.cfg.llm.title_llm_max_tokens = 50
+        ctx.cfg.llm.stream = True
+        ctx.cfg.llm.stream_retry_limit = 3
+        ctx.cfg.llm.sse_heartbeat_timeout = 30
+        ctx.cfg.llm.sse_reconnect_max = 5
+        ctx.cfg.llm.sse_reconnect_delay = 1.0
+        ctx.cfg.llm.sse_malformed_retry = 1
+        ctx.cfg.approval.tool_safety_tiers = {}
+        ctx.cfg.approval.require_approval_for = []
+        ctx.cfg.approval.plan_mode_enabled = False
+        ctx.cfg.mcp.mcp_servers = {}
+        ctx.services_required.memory = None
+        ctx.services_required.embedding = None
+        ctx.services_required.retriever = None
+        ctx.services_required.llm = None
+        return ConfigReloadService(ctx)
+
+    def test_gitops_push_blocked_true_via_reload(self) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        svc = self._make_svc(gitops_push_blocked=False)
+        expected_outcome = ConfigReloadOutcome(
+            applied=["hist_mgr", "tools", "runtime_tools", "gitops_push_blocked"],
+            needs_restart=[],
+            skipped=[],
+            source_files=[],
+            startup_only=[],
+        )
+        with patch.object(
+            type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
+        ):
+            outcome = svc.apply_config_dict({"gitops_push_blocked": True})
+        assert svc._ctx.cfg.approval.gitops_push_blocked is True
+        assert "gitops_push_blocked" in outcome.applied
+
+    def test_gitops_push_blocked_false_via_reload(self) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        svc = self._make_svc(gitops_push_blocked=True)
+        expected_outcome = ConfigReloadOutcome(
+            applied=["hist_mgr", "tools", "runtime_tools", "gitops_push_blocked"],
+            needs_restart=[],
+            skipped=[],
+            source_files=[],
+            startup_only=[],
+        )
+        with patch.object(
+            type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
+        ):
+            outcome = svc.apply_config_dict({"gitops_push_blocked": False})
+        assert svc._ctx.cfg.approval.gitops_push_blocked is False
+        assert "gitops_push_blocked" in outcome.applied
+
+    def test_invalid_llm_temperature_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(llm={"llm_temperature": -3.0})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
+
+    def test_invalid_llm_max_tokens_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(llm={"llm_max_tokens": 0})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
+
+    def test_invalid_http_timeout_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(llm={"http_timeout": 0})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
+
+    def test_empty_llm_url_does_not_raise(self, svc: object) -> None:
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(llm={"url": ""})
+        result = svc.apply_config(req)  # type: ignore[attr-defined]
+        assert result is not None
+
+    def test_empty_embed_url_does_not_raise(self, svc: object) -> None:
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(rag_tool={"embed_url": ""})
+        result = svc.apply_config(req)  # type: ignore[attr-defined]
+        assert result is not None
+
+    def test_invalid_max_tool_turns_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(rag_tool={"max_tool_turns": 0})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
+
+    def test_invalid_tool_result_max_llm_chars_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(rag_tool={"tool_result_max_llm_chars": 0})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
+
+    def test_invalid_context_token_limit_raises(self, svc: object) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from agent.services.models import ConfigReloadRequest
+
+        req = ConfigReloadRequest(llm={"context_token_limit": -1})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]

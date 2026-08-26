@@ -3,17 +3,14 @@
 
 Tool ownership registry and routing seed data. RuntimeToolRegistry
 (shared/runtime_tool_registry.py) is the sole runtime routing authority, populated from
-live /v1/tools discovery. ToolRegistry serves two verified production roles:
+live /v1/tools discovery. ToolRegistry serves one verified production role:
   (a) drift-detection input for McpToolDiscoveryService
       (validate_routing_against_live()/validate_routing_against_config() in
       shared/tool_routing_validation.py) and config drift checks
       (production_config_validator.py, agent/repl_health.py).
-  (b) fail-safe "is this a known tool at all" membership check consulted by
-      agent.tool_policy.classify_operation_type() (scripts/agent/tool_policy.py:69)
-      via get_all_tool_names(), to distinguish OperationType.READ from
-      OperationType.UNKNOWN on the live risk-classification path.
-Both roles are active and maintained (not abolished) — confirmed by the live wiring in
+This role remains active and maintained (not abolished) — confirmed by the live wiring in
 repl_health.py, mcp_tool_discovery.py, and production_config_validator.py.
+As of 2026-08-25, ToolRegistry is no longer consulted by agent.tool_policy.classify_operation_type() for risk classification — that function now uses RuntimeToolRegistry exclusively (ADR-003 Decision #8); see docs/adr/ADR-003-runtime-tool-registry-routing-authority.md.
 
 Ownership model:
   - This module is the primary registry of all MCP tools.

@@ -236,7 +236,7 @@ RecoverabilityとData Integrityを優先し、プロセス境界を超えた状�
 - INV-02: Workflow Engineを迂回する外部状態変更経路は存在しない。
 - INV-03: 実行成功と検証成功は区別され、それぞれ独立して検証される。
 - INV-04: 承認待ち状態は再起動後に復元される。
-- INV-05: ワークフロー定義ファイルの欠落または検証失敗時は起動を中止する。
+- INV-05: ワークフロー定義ファイルの検証失敗時は起動を中止する。
 - INV-06: 必須DB Schema不整合時は起動を中止する。
 
 ## Exceptions
@@ -393,6 +393,7 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Recommended Action**: INV-01とINV-05を1つに統合するか、区別を明確にする（例：INV-01はファイル欠落、INV-05は検証失敗）
 - **Owner**: TBD
 - **Resolution Target**: Next ADR review cycle
+- **Resolution**: RESOLVED — distinguish, don't merge. INV-05 text changed to "ワークフロー定義ファイルの検証失敗時は起動を中止する。" (removed "欠落"). The Verification section already binds two distinct test scenarios: missing-file → INV-01, malformed/invalid → INV-05. Orchestrator distinguishes `FileNotFoundError` from `WorkflowLoadError` at the catch point even though both collapse to `RuntimeError`. No code change needed; only docstring correction.
 
 ### WF-002: INV-03の明示的テスト不足
 
@@ -414,11 +415,12 @@ ADRと現行実装、設定、テスト、文書に差異がある場合に記�
 - **Summary**: シンプルQ&Aワークフローを軽量な単一ステージWorkflowで処理する設計意図が実現されていない
 - **Conflicting Source**: docs/adr/ADR-001-workflow-engine-mandatory.md:155-157, config/workflows/default.json (deprecated: use section-based references)
 - **Expected Design**: Decision #5: 「シンプルなQ&Aワークフローは軽量な単一ステージWorkflowで処理する」
-- **Observed Implementation**: config/workflows/default.jsonのみ存在し、plan/execute/verifyの3ステージ構成。WorkflowEngine.run()は全4つのコールバック（plan_fn, execute_fn, verify_fn）を要求する
+- **Observed Implementation**: config/workflows/default.jsonのみ存在し、plan/execute/verifyの3ステージ構成。WorkflowEngine.run()は全3つのコールバック（plan_fn, execute_fn, verify_fn）を要求する。_handle_workflow_engine()の調査結果: plan_fn/verify_fnはすべてのターンタイプでno-op相当である
 - **Impact**: シンプルQ&Aシナリオが不要なplan/verifyオーバーヘッドを経由する必要がある
-- **Recommended Action**: WorkflowEngine.run()に条件付きステージ実行を追加するか、ADR-001 Decision #5を更新してこの最適化が見送りであることを反映する
+- **Recommended Action**: 単一ステージ Workflow の実装は見送る。plan/verify のオーバーヘッドは DB ブックキーピングのみであり、実装コストに見合わないと判断
 - **Owner**: TBD
-- **Resolution Target**: Next planning cycle
+- **Status**: Resolved (見送り)
+- **Resolution Target**: 見送り済み（再評価条件: Review Triggers 参照）
 
 ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管理する。
 
@@ -486,6 +488,7 @@ ADR本文を現行実装へ無条件に合わせず、差異はKnown Issueで管
 ## Change History
 
 - 2026-08-20: Proposedとして作成
+- 2026-08-25: WF-003 を「見送り」として確定（plan_fn/verify_fn の実装調査結果を反映）
 
 Accepted後は、Decisionの意味を変更しない軽微な修正だけを記録する。
 

@@ -60,13 +60,22 @@ def rotate_workflow_db(archive_dir: str | Path | None = None) -> Path:
     return _archive_db_file(Path(db_cfg.workflow_db_path), archive_dir)
 
 
-def rotate_all_dbs(archive_dir: str | Path | None = None) -> tuple[Path, Path, Path]:
-    """Archive all three databases (rag, session, workflow); returns (rag_archive_path, session_archive_path, workflow_archive_path)."""
+def rotate_eventbus_db(archive_dir: str | Path | None = None) -> Path:
+    """Archive eventbus.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
+    db_cfg = build_db_config()
+    return _archive_db_file(Path(db_cfg.eventbus_db_path), archive_dir)
+
+
+def rotate_all_dbs(
+    archive_dir: str | Path | None = None,
+) -> tuple[Path, Path, Path, Path]:
+    """Archive all four databases (rag, session, workflow, eventbus); returns (rag_archive_path, session_archive_path, workflow_archive_path, eventbus_archive_path)."""
     db_cfg = build_db_config()
     rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
     ses_dest = rotate_session_db(archive_dir)
     wf_dest = rotate_workflow_db(archive_dir)
-    return rag_dest, ses_dest, wf_dest
+    eb_dest = rotate_eventbus_db(archive_dir)
+    return rag_dest, ses_dest, wf_dest, eb_dest
 
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:

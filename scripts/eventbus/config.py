@@ -70,7 +70,7 @@ _REMOVED_CONFIG_KEYS = ("poll_interval_ms", "offset_checkpoint_interval")
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
-    """Load and validate the EventBus TOML configuration file."""
+    """Load and validate the EventBus TOML configuration file. Callers must always pass get_config_path()'s return value — this function does not itself restrict which path is read; see tests/eventbus/test_eventbus_config.py for the call-site regression test that locks this invariant."""
     p = path or _DEFAULT_CONFIG_PATH
     with p.open("rb") as f:
         data = tomllib.load(f)
