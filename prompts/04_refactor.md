@@ -308,6 +308,13 @@ implemented" format (Title / Reason / Behavior risk / Affected files / Suggested
 follow-up issue / Recommended validation) — the same format this workflow already uses
 for behavior-changing ideas — never applied directly during this Step.
 
+If a listed comparison target has no corresponding file in the repository (e.g. no
+repository-root `README.md` as of this writing), skip that target for the current
+cycle — do not fabricate a comparison, and do not record a Drift Finding for the
+target's mere absence. A missing document is a documentation-completeness question
+outside this subsection's scope (comparing an existing document's claims against the
+implementation), not a drift between the two.
+
 #### Step 4: Behavior lock
 
 - Record baseline coverage with `pytest-cov`.
