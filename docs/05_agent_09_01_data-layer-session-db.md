@@ -71,7 +71,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 - Stores diagnostic events (LLM transfer errors, guard hints, partial completions).
 - Separated from the `messages` table and is NOT referenced by `fetch_messages()`.
 - `save()` unconditionally applies `_filter_sensitive_fields()` before insertion to filter sensitive fields.
-- Can be encrypted with `encrypt=True`, but `fetch()` does not implement decryption.
+- Can be encrypted with `encrypt=True`; `fetch()` decrypts rows using the configured Fernet key, falling back to raw content if decryption fails.
 - `_purge_old_diagnostics()` applies the retention policy (default 30 days).
 
 **Design judgment:** Sensitive field filtering is applied independently of encryption. Filtering remains active even if no encryption key is set.

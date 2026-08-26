@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tools/check_no_compat.py
+"""tools/check_compat_shims.py
 
 CI check for backward compatibility leftovers in active source code and docs:
 - Backward compatibility references
@@ -8,7 +8,7 @@ CI check for backward compatibility leftovers in active source code and docs:
 - Module-level _cfg cache references
 
 Usage:
-    python -m tools.check_no_compat [--allowlist <path>]
+    python -m tools.check_compat_shims [--allowlist <path>]
 """
 
 from __future__ import annotations
@@ -133,9 +133,9 @@ DEFAULT_ALLOWLIST = {
     # CI guard test that references the helper name as a string to assert its absence from production code
     ROOT_DIR / "tests" / "shared" / "test_tool_registry_reset_protection.py",
     # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
-    ROOT_DIR / "tests" / "tools" / "test_check_no_compat.py",
+    ROOT_DIR / "tests" / "tools" / "test_check_compat_shims.py",
     # The checker itself (self-reference for new location)
-    ROOT_DIR / "tools" / "check_no_compat.py",
+    ROOT_DIR / "tools" / "check_compat_shims.py",
     # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
     ROOT_DIR / "tests" / "mcp_servers" / "test_mcp_tool_schema_exports.py",
     # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy

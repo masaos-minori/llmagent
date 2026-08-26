@@ -99,7 +99,7 @@ Each MCP server is an independent process that only reads its own configuration 
 - The keys in tool_safety_tiers must be actual registered tool names — unknown keys are fatal in production
 - `allowed_tools=[]` (empty) means "allow all"
 - `approval_github_allowed_repos=[]` (empty) means "deny all"
-- `/reload cannot change cfg.diagnostics.* (not implemented)`
+- `/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
 
 ## Operational Notes
 
@@ -107,7 +107,7 @@ Unknown
 
 ## Known Limitations
 
-`/reload cannot change cfg.diagnostics.* (not implemented)`
+`/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
 
 ## Related Docs
 

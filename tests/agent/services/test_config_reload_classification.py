@@ -49,3 +49,36 @@ def test_detect_startup_only_empty_dict(svc: ConfigReloadService) -> None:
 def test_detect_startup_only_non_startup_keys_ignored(svc: ConfigReloadService) -> None:
     result = svc._detect_startup_only({"llm_temperature": 0.3, "llm_max_tokens": 8192})
     assert result == []
+
+
+# --- Direct unit tests of _detect_diagnostics_live_fields ---
+
+
+def test_detect_diagnostics_live_fields_empty_dict(svc: ConfigReloadService) -> None:
+    result = svc._detect_diagnostics_live_fields({})
+    assert result == []
+
+
+def test_detect_diagnostics_live_fields_missing_key_returns_empty(
+    svc: ConfigReloadService,
+) -> None:
+    ctx = svc._ctx
+    ctx.cfg.diagnostics = MagicMock(
+        encryption_key="", retention_days=30, sensitive_fields=frozenset()
+    )
+    result = svc._detect_diagnostics_live_fields({"encryption_key": "new_key"})
+    assert result == []
+
+
+def test_detect_diagnostics_live_fields_change_detected(
+    svc: ConfigReloadService,
+) -> None:
+    ctx = svc._ctx
+    diag = MagicMock(
+        encryption_key="old_key", retention_days=30, sensitive_fields=frozenset()
+    )
+    ctx.cfg.diagnostics = diag
+    result = svc._detect_diagnostics_live_fields(
+        {"diagnostics": {"encryption_key": "new_key"}}
+    )
+    assert "diagnostics.encryption_key" in result

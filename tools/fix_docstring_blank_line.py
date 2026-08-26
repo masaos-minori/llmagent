@@ -5,7 +5,7 @@ Merged from fix_d205.py + fix_d205_v2.py. Supports both module-level and
 function/class docstrings, detects SQL string literals to avoid false positives.
 
 Usage:
-    python tools/fix_d205.py [--dir <path>] [--dry-run]
+    python tools/fix_docstring_blank_line.py [--dir <path>] [--dry-run]
 
 Options:
     --dir <path>   Directory to scan (default: scripts/)

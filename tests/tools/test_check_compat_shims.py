@@ -1,5 +1,5 @@
-"""tests/tools/test_check_no_compat.py
-Tests for tools/check_no_compat.py.
+"""tests/tools/test_check_compat_shims.py
+Tests for tools/check_compat_shims.py.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.check_no_compat import (
+from tools.check_compat_shims import (
     COMPAT_PATTERNS,
     ROOT_DIR,
     check_compat_patterns,
@@ -81,7 +81,7 @@ class TestDirectoryPositionalArgument:
     ) -> None:
         (tmp_path / "dirty.py").write_text("# re-export stub for compatibility\n")
         (tmp_path / "clean.py").write_text("# nothing to see here\n")
-        monkeypatch.setattr(sys, "argv", ["check_no_compat", str(tmp_path)])
+        monkeypatch.setattr(sys, "argv", ["check_compat_shims", str(tmp_path)])
 
         exit_code = main()
 
@@ -92,7 +92,7 @@ class TestDirectoryPositionalArgument:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         (tmp_path / "clean.py").write_text("# nothing to see here\n")
-        monkeypatch.setattr(sys, "argv", ["check_no_compat", str(tmp_path)])
+        monkeypatch.setattr(sys, "argv", ["check_compat_shims", str(tmp_path)])
 
         exit_code = main()
 
@@ -108,7 +108,7 @@ class TestDirectoryPositionalArgument:
         relative directory argument that yields a match or allowlist check."""
         (tmp_path / "clean.py").write_text("# nothing to see here\n")
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(sys, "argv", ["check_no_compat", "."])
+        monkeypatch.setattr(sys, "argv", ["check_compat_shims", "."])
 
         exit_code = main()
 

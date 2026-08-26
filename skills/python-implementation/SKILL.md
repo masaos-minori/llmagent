@@ -38,7 +38,7 @@ Use this skill by default for production Python work.
 | 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
 | 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
 | 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |
-| 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; run `python tools/check_no_compat.py` to detect backward compatibility leftovers; separate task-caused from pre-existing failures |
+| 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; run `python tools/check_compat_shims.py` to detect backward compatibility leftovers; separate task-caused from pre-existing failures |
 | 10 | Scope Control | diff proportional to task; diff-cover ≥ 90%; benchmark only on hot paths |
 | 11 | Production Readiness | Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |

@@ -60,7 +60,11 @@ class _ConfigMixin(
             result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
             result.source_files = list(_BASE_CONFIG_FILES)
 
-            if not result.applied and not result.needs_restart:
+            if (
+                not result.applied
+                and not result.needs_restart
+                and not result.always_live
+            ):
                 if result.startup_only:
                     self._out.write(
                         "Config reloaded — startup-only settings cannot apply without restart"
@@ -85,6 +89,10 @@ class _ConfigMixin(
             if result.startup_only:
                 self._write_item_list(
                     result.startup_only, "Startup-only (ignored)", "STARTUP-ONLY"
+                )
+            if result.always_live:
+                self._write_item_list(
+                    result.always_live, "LIVE (always effective)", "LIVE"
                 )
             logger.info(
                 "Config reloaded: applied=%s, needs_restart=%s",

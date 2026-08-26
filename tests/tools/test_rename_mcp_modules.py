@@ -1,5 +1,5 @@
-"""tests/tools/test_rename_modules.py
-Tests for tools/rename_modules.py.
+"""tests/tools/test_rename_mcp_modules.py
+Tests for tools/rename_mcp_modules.py.
 """
 
 from __future__ import annotations
@@ -19,13 +19,13 @@ class TestBaseResolution:
     """BASE must resolve correctly regardless of working directory."""
 
     def test_base_resolves_from_script_location(self) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         assert mod.BASE.is_dir(), f"BASE should point to a directory, got {mod.BASE}"
 
     @pytest.mark.parametrize("subpath", ["scripts", "tests", "tools"])
     def test_base_contains_expected_subdirectories(self, subpath: str) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         assert (mod.BASE / subpath).is_dir(), f"Expected {mod.BASE / subpath} to exist"
 
@@ -39,7 +39,7 @@ class TestFailLoudOnMissingBase:
     """main() must exit non-zero when BASE does not exist."""
 
     def test_exits_nonzero_when_base_missing(self, tmp_path: pathlib.Path) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         fake_base = tmp_path / "nonexistent"
         assert not fake_base.exists()
@@ -57,7 +57,7 @@ class TestFailLoudOnMissingBase:
             mod.BASE = old_base
 
     def test_exits_nonzero_when_subdir_missing(self, tmp_path: pathlib.Path) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         fake_base = tmp_path / "fake_repo"
         fake_base.mkdir(parents=True)
@@ -86,14 +86,14 @@ class TestDeadCodeRemoved:
     """process_file() was dead code and must have been removed."""
 
     def test_process_file_not_in_module_namespace(self) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         assert not hasattr(mod, "process_file"), (
             "process_file() should have been removed"
         )
 
     def test_main_runs_without_process_file(self) -> None:
-        import tools.rename_modules as mod
+        import tools.rename_mcp_modules as mod
 
         try:
             mod.main()

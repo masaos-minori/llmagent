@@ -85,6 +85,10 @@ class ConfigReloadOutcome:
     which ignores fields for reasons unrelated to restart requirement, and
     `needs_restart`, which is reserved exclusively for MCP server definition
     changes."""
+    always_live: list[str] = field(default_factory=list)
+    """Fields that take effect independently of /reload — they are read from
+    disk on every DiagnosticStore save()/fetch() call, so any change to them
+    is immediately effective without a restart or special handling."""
 
 
 class ConfigReloadService:
@@ -141,6 +145,7 @@ class ConfigReloadService:
         result.applied.extend(service_result.applied)
         result.skipped.extend(service_result.skipped)
         result.startup_only = self._detect_startup_only(new_cfg)
+        result.always_live = self._detect_diagnostics_live_fields(new_cfg)
         return result
 
     def _validate_request(self, new_cfg: dict[str, Any]) -> None:
@@ -613,4 +618,30 @@ class ConfigReloadService:
         v = _get_bool(new_cfg, "memory_embed_enabled")
         if v is not None and v != ctx.cfg.memory.memory_embed_enabled:
             changed.append("memory_embed_enabled")
+        return changed
+
+    def _detect_diagnostics_live_fields(
+        self,
+        new_cfg: dict[str, Any],
+    ) -> list[str]:
+        """Return names of diagnostics.* fields that differ between new_cfg and running cfg.
+
+        These fields take effect immediately on every DiagnosticStore save()/fetch()
+        call, independent of /reload — they are config-file-driven, not startup-only.
+        """
+        changed: list[str] = []
+        ctx = self._ctx
+        diag_new = new_cfg.get("diagnostics")
+        if diag_new is None:
+            return changed
+        diag_running = getattr(ctx.cfg, "diagnostics", None)
+        if diag_running is None:
+            return changed
+        for key in ("encryption_key", "retention_days", "sensitive_fields"):
+            v = diag_new.get(key)
+            if v is None:
+                continue
+            current = getattr(diag_running, key, None)
+            if v != current:
+                changed.append(f"diagnostics.{key}")
         return changed

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""scripts/tools/fix_scripts_docstring_paths.py
+"""tools/fix_docstring_paths.py
 
 One-shot normalizer for module-level docstring header paths under scripts/.
 
 For every scripts/**/*.py with a module-level docstring, rewrites the
 self-referencing filename/path on the docstring's first line to the file's
 true path relative to the repo root, in the form `scripts/<relpath>`
-(matching the convention enforced by tools/check_all_docstrings.py's
+(matching the convention enforced by tools/check_docstrings.py's
 `expected_prefix`). Handles headers that are already correct (no-op),
 missing the `scripts/` prefix, missing intermediate folders, using a stale
 basename, using dotted-module notation, or missing entirely with a stray
@@ -19,8 +19,8 @@ docstring containing just `scripts/<relpath>` inserted (after a shebang line,
 if present).
 
 Usage:
-    python tools/fix_scripts_docstring_paths.py --dry-run
-    python tools/fix_scripts_docstring_paths.py --apply
+    python tools/fix_docstring_paths.py --dry-run
+    python tools/fix_docstring_paths.py --apply
 """
 
 from __future__ import annotations

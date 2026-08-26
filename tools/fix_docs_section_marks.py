@@ -20,7 +20,7 @@ Substitution rules, applied in order:
                                                             preceding word character)
 
 Usage:
-    python tools/fix_section_mark.py [--dir docs skills] [--apply]
+    python tools/fix_docs_section_marks.py [--dir docs skills] [--apply]
 
 Options:
     --dir <path> [<path> ...]   Directories to scan (default: docs skills)

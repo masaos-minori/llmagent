@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gen_reference_table.py — Unified reference table generator for all domains.
+"""generate_reference_table.py — Unified reference table generator for all domains.
 
 Consolidated from:
   - tools/gen_rag_reference.py
@@ -11,10 +11,10 @@ hand-maintaining a copy" approach across all domains. Each type generates
 only mechanically derivable columns; human-authored columns stay as-is.
 
 Usage:
-    python tools/gen_reference_table.py --type rag              # print RAG config table
-    python tools/gen_reference_table.py --type mcp               # writes MCP table to docs/
-    python tools/gen_reference_table.py --type deployment        # writes DB path table to docs/
-    python tools/gen_reference_table.py --type rag --dry-run     # dry run
+    python tools/generate_reference_table.py --type rag              # print RAG config table
+    python tools/generate_reference_table.py --type mcp               # writes MCP table to docs/
+    python tools/generate_reference_table.py --type deployment        # writes DB path table to docs/
+    python tools/generate_reference_table.py --type rag --dry-run     # dry run
 """
 
 from __future__ import annotations
@@ -191,8 +191,8 @@ DOMAIN_GUARDS = {
 }
 
 DOMAIN_WELCOME_LINES = {
-    "mcp": "Generated from `config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions. Do not hand-edit between the guard comments; run `python tools/gen_reference_table.py --type mcp` to refresh.",
-    "deployment": "Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/gen_reference_table.py --type deployment` to refresh.",
+    "mcp": "Generated from `config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mcp` to refresh.",
+    "deployment": "Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type deployment` to refresh.",
 }
 
 DOMAIN_HEADING = {
