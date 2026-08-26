@@ -184,7 +184,7 @@ The fail-closed posture applies to:
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
 - **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `04_mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
-- **Git MCP**: has no protected-branch policy and no technical Force Push block — the `branch`/`remote` arguments to `git_checkout`/`git_pull`/`git_push` are passed through without command-specific validation, which is an open gap, not a deviation covered by an additional restriction (documented in `04_mcp_04_05_git.md` Command-specific guard status; tracked as a Known Issue).
+- **Git MCP**: has a protected-branch policy enforced via `GitSecurityGuards._check_protected_branch()` (`scripts/mcp_servers/git/git_security.py:58-60`); however, `protected_branches` is not set in `config/git_mcp_server.toml`, so the mechanism is inactive until configured. The Force-Push block is not applicable because `git_push` exposes no `force` parameter to guard against. Dirty-Worktree/Detached-HEAD gaps remain (tracked as Known Issue `GIT-001`).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `04_mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `00_security_02_high-risk-tool-common-policy.md`" reference.

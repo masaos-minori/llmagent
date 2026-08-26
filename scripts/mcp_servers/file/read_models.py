@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class FileReadConfig:
     """Typed configuration for the File Read MCP server."""
 
-    max_file_size_kb: int = 1000
+    max_read_bytes: int = 1024000
     allowed_dirs: list[str] = dataclasses.field(default_factory=list)
     max_depth: int = 5
     max_files_per_batch: int = 100
@@ -34,10 +34,9 @@ class FileReadConfig:
     def from_dict(cls, d: dict[str, Any]) -> FileReadConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
-            max_file_size_kb=(
-                get_typed(d, "max_read_bytes", int, "an integer", default=1024000)
-            )
-            // 1024,
+            max_read_bytes=get_typed(
+                d, "max_read_bytes", int, "an integer", default=1024000
+            ),
             allowed_dirs=list(get_typed(d, "allowed_dirs", list, "a list", default=[])),
             max_depth=get_typed(d, "max_tree_depth", int, "an integer", default=5),
             max_files_per_batch=get_typed(

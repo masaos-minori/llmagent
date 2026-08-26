@@ -17,9 +17,7 @@ already-existing startup-only nature of `memory_embed_enabled`).
 
 ## Assumptions
 
-- N/A: none beyond what is stated in the Plan. The Plan's own Assumptions section
-  states "N/A: なし" and repository evidence (below) confirms the field, its
-  startup-only invariant, and the absence of any reload path for it.
+- **CORRECTED**: The `memory_embed_enabled` detection block already exists in code. Verified at `config_reload.py:606-608`: `v = _get_bool(new_cfg, "memory_embed_enabled")` → compare → `changed.append("memory_embed_enabled")`. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -229,15 +227,15 @@ def _detect_startup_only(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `memory_embed_enabled` block to `_detect_startup_only()` (REQ-001) | Pending | — | — | |
-| 2 | Add `test_memory_embed_enabled_change_detected` / `test_memory_embed_enabled_no_change_returns_empty` to `TestStartupOnlyDetection` in `tests/agent/services/test_config_reload.py` (AC-01) | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/services/test_config_reload.py tests/agent/services/test_config_reload_classification.py -v`, confirm green incl. pre-existing `use_memory_layer` tests (AC-02, partial) | Pending | — | — | |
-| 4 | Run `uv run mypy scripts/` and `uv run ruff check scripts/agent/services/config_reload.py` | Pending | — | — | |
+| 1 | Add the `memory_embed_enabled` block to `_detect_startup_only()` (REQ-001) | Obsolete | — | — | Already implemented at config_reload.py:606-608 |
+| 2 | Add test cases to TestStartupOnlyDetection | Obsolete | — | — | Prerequisite step already done |
+| 3 | Run validation sequence | Obsolete | — | — | N/A |
+| 4 | Run mypy/ruff checks | Obsolete | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

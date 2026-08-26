@@ -25,7 +25,7 @@ class TestReadModelsImport:
 class TestFileReadConfig:
     def test_from_dict_defaults(self) -> None:
         cfg = FileReadConfig.from_dict({})
-        assert cfg.max_file_size_kb == 1000
+        assert cfg.max_read_bytes == 1024000
         assert cfg.allowed_dirs == []
         assert cfg.max_depth == 5
         assert cfg.max_files_per_batch == 100
@@ -39,15 +39,19 @@ class TestFileReadConfig:
                 "max_search_results": 200,
             },
         )
-        assert cfg.max_file_size_kb == 2048
+        assert cfg.max_read_bytes == 2097152
         assert cfg.allowed_dirs == ["/data", "/tmp"]
         assert cfg.max_depth == 10
         assert cfg.max_files_per_batch == 200
 
+    def test_non_1024_aligned_byte_count_survives(self) -> None:
+        cfg = FileReadConfig.from_dict({"max_read_bytes": 999999})
+        assert cfg.max_read_bytes == 999999
+
     def test_dataclass_fields(self) -> None:
         fields = {f.name for f in dataclasses.fields(FileReadConfig)}
         assert fields == {
-            "max_file_size_kb",
+            "max_read_bytes",
             "allowed_dirs",
             "max_depth",
             "max_files_per_batch",

@@ -1199,12 +1199,12 @@ class TestBuildService:
 
         cfg = FileReadConfig(
             allowed_dirs=[str(tmp_path)],
-            max_file_size_kb=500,
+            max_read_bytes=512000,
             max_depth=4,
             max_files_per_batch=25,
         )
         svc = build_service(cfg)
         assert svc._allowed_dirs == [Path(str(tmp_path))]
-        assert svc.max_read_bytes == 500 * 1024
+        assert svc.max_read_bytes == 512000
         assert svc.max_tree_depth == 4
         assert svc._max_search_results == 25

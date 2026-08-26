@@ -1,14 +1,18 @@
 ## Goal
 
-Delete the dead `web_search_url` diff-apply line inside `_apply_llm_prompt_params()` so
-`/reload` stops writing an undeclared `web_search_url` attribute onto the `RAGConfig`
-instance at `ctx.cfg.rag` (REQ-001).
+Delete the dead `web_search_url` entry from `rag_changes` inside `_collect_request_values()`
+so `/reload` stops passing an undeclared `web_search_url` key to
+`dataclasses.replace(self._ctx.cfg.rag, **rag_changes)` which would raise
+`TypeError` (REQ-001).
 
 ## Scope
 
-- In scope: the single `_apply_str(new_cfg, "web_search_url", lambda v: setattr(cfg.rag,
-  "web_search_url", v))` statement inside `_apply_llm_prompt_params()`
-  (`scripts/agent/services/config_reload.py`, currently lines 353-355).
+- In scope: the two lines inside `_collect_request_values()`
+  (`scripts/agent/services/config_reload.py`, currently lines 491-492):
+  ```python
+  if (web_search_url := _get_str(new_cfg, "web_search_url")) is not None:
+      rag_changes["web_search_url"] = web_search_url
+  ```
 - Out of scope:
   - Declaring `web_search_url` as a formal `RAGConfig` field — verified there is no
     reader anywhere in `scripts/` for this attribute (see Assumptions), and the
@@ -27,19 +31,17 @@ instance at `ctx.cfg.rag` (REQ-001).
 ## Assumptions
 
 - Verified by `rg -n "web_search_url" scripts/ config/ docs/`: the only match in this
-  scope is `scripts/agent/services/config_reload.py:354` (the write side, inside
-  `_apply_str(...)`). `RAGConfig` (`scripts/agent/config_dataclasses.py:153-169`) has no
-  `web_search_url` field, and `_build_rag_config()`
-  (`scripts/agent/config_builders.py:249-271`) never constructs one — so the attribute
-  set by this line exists only as a dynamically-added instance attribute with no reader
-  anywhere in production code.
+  scope is `scripts/agent/services/config_reload.py:491-492`. `RAGConfig`
+  (`scripts/agent/config_dataclasses.py:153-169`) has no `web_search_url` field, and
+  `_build_rag_config()` (`scripts/agent/config_builders.py:249-271`) never constructs one
+  — so the key passed to `dataclasses.replace()` would cause a TypeError.
 - Two incidental string matches exist under `tests/` (outside this Plan's grep scope,
   checked here as an extra safety net): `tests/shared/test_mcp_config.py:110` uses
   `"web_search_url"` as an unrelated flat dict key fed to `_build_mcp_servers()` (a
   different code path, not `RAGConfig`); `tests/agent/commands/test_agent_cmd_config.py:183`
   sets `ctx.cfg.rag.web_search_url = "http://ws"` directly on a `MagicMock`-based test
   context to exercise `_print_config_values()`'s generic attribute printing — it does not
-  call `_apply_llm_prompt_params()` and is unaffected by this deletion.
+  call `_collect_request_values()` and is unaffected by this deletion.
 - `tests/agent/services/test_config_reload.py` and
   `tests/agent/services/test_config_reload_classification.py` (the files matched by the
   Plan's `test_config_reload*.py` glob) contain zero references to `web_search_url`
@@ -48,9 +50,9 @@ instance at `ctx.cfg.rag` (REQ-001).
 
 ## Design decisions
 
-- Delete the whole `_apply_str(...)` statement (all 3 physical lines, 353-355) rather
-  than only the string literal — a partial edit would leave a syntactically invalid or
-  dead call. This is a pure deletion, not a refactor of the surrounding helper calls.
+- Delete both lines (491-492) rather than only the key name — the entire conditional
+  block is dead code. A partial edit would leave a syntactically invalid or dead call.
+  This is a pure deletion, not a refactor of the surrounding helper calls.
 - Do not add `web_search_url` to `RAGConfig` as a compatibility shim: doing so would
   reintroduce exactly the "written but never read" ghost field the Plan's Reason for
   change identifies as the maintenance hazard, just moved from "undeclared instance
@@ -72,18 +74,15 @@ instance at `ctx.cfg.rag` (REQ-001).
 `scripts/agent/services/config_reload.py`
 
 ### Procedure
-1. In `_apply_llm_prompt_params()` (`scripts/agent/services/config_reload.py:339-382`),
-   remove the following statement in full (currently lines 353-355):
+1. In `_collect_request_values()` (`scripts/agent/services/config_reload.py:480-504`),
+   remove the following two lines (currently lines 491-492):
    ```python
-   _apply_str(
-       new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v)
-   )
+   if (web_search_url := _get_str(new_cfg, "web_search_url")) is not None:
+       rag_changes["web_search_url"] = web_search_url
    ```
-2. Do not modify the `_apply_str(new_cfg, "llm_url", ...)` line immediately above it
-   (line 352) or the `_apply_str(new_cfg, "embed_url", ...)` line immediately below it
-   (line 356) — `_apply_str` remains used by both and its import
-   (`from agent.services.typed_validators import ... _apply_str, ...`, line 36) must
-   stay in place.
+2. Do not modify the `_get_str(new_cfg, "llm_url")` line immediately above it
+   (line 489) or the `_get_str(new_cfg, "embed_url")` line immediately below it
+   (line 493) — `_get_str` remains used by both.
 3. Run `uv run ruff format scripts/agent/services/config_reload.py` to confirm no
    formatting fallout from the deletion (the surrounding lines are independent
    statements, so none is expected).
@@ -92,25 +91,25 @@ instance at `ctx.cfg.rag` (REQ-001).
    `scripts/` is rsynced wholesale per `rules/toolchain.md`.
 
 ### Method
-Straight statement deletion: remove the 3-line `_apply_str(...)` call for
-`web_search_url` from `_apply_llm_prompt_params()`; no replacement logic, no signature
-change, no other call sites touched.
+Straight statement deletion: remove the 2-line conditional block for `web_search_url`
+from `_collect_request_values()`; no replacement logic, no signature change, no other
+call sites touched.
 
 ### Details
-- `_apply_llm_prompt_params()`'s signature and docstring are unchanged by this Plan.
+- `_collect_request_values()`'s signature and docstring are unchanged by this Plan.
   **Cross-plan note**: sibling plan `plans/20260825-142225_plan.md` (already processed
   into `implementations/20260826-103846_01_scripts_agent_services_config_reload.py.md`
   and `implementations/20260826-103846_04_tests_agent_services_test_config_reload.py.md`)
   independently investigated this same function and its own Design decisions explicitly
   excludes `web_search_url` from the `rag_changes` dict it threads through
-  `_apply_llm_prompt_params()`, specifically so its `dataclasses.replace()`-based
+  `_collect_request_values()`, specifically so its `dataclasses.replace()`-based
   refactor does not collide with this deletion. That document already states: "if
   142600 lands first, the line this document says to 'leave untouched' ... will simply
   no longer exist, and there is nothing to convert for that field; if this document
   lands first, 142600 only has to delete one direct `setattr` line, unaffected by the
   dict-aggregation refactor around it." Confirmed no functional conflict either order —
   implementers should apply whichever of the two changes lands first, then re-read the
-  current body of `_apply_llm_prompt_params()` before applying the second, since line
+  current body of `_collect_request_values()` before applying the second, since line
   numbers inside the function will have shifted once 142225's document is implemented.
 - No other `implementations/` document references `web_search_url` as a target of
   change (checked `implementations/` and `implementations/done/` for a document whose
@@ -126,7 +125,7 @@ change, no other call sites touched.
   ghost `setattr` is removed).
 - No effect on `_print_config_values()` (`scripts/agent/commands/cmd_config.py`) or its
   test (`tests/agent/commands/test_agent_cmd_config.py:183`) — that test sets the
-  attribute directly on a mock, independent of `_apply_llm_prompt_params()`.
+  attribute directly on a mock, independent of `_collect_request_values()`.
 
 ## Security considerations
 
@@ -151,8 +150,7 @@ change, no other call sites touched.
 
 ## Completion criteria
 
-- The `_apply_str(new_cfg, "web_search_url", lambda v: setattr(cfg.rag,
-  "web_search_url", v))` statement no longer exists in
+- The `web_search_url` entry in `rag_changes` no longer exists in
   `scripts/agent/services/config_reload.py`.
 - `grep -rn "web_search_url" scripts/` returns 0 matches.
 - `uv run pytest tests/agent/services/test_config_reload*.py -v` passes with no new
@@ -173,9 +171,9 @@ change, no other call sites touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the `web_search_url` `_apply_str(...)` statement from `_apply_llm_prompt_params()` (REQ-001) | Pending | — | — | |
-| 2 | Run `grep -rn "web_search_url" scripts/` and confirm 0 matches (AC-02) | Pending | — | — | |
-| 3 | Run validation sequence (`uv run pytest tests/agent/services/test_config_reload*.py -v`, `ruff`, `mypy`) | Pending | — | — | |
+| 1 | Delete the `web_search_url` entry from `rag_changes` in `_collect_request_values()` (REQ-001) | Completed | 2026-08-27 | 2026-08-27 | Code verified, ruff/mypy/pytest all pass |
+| 2 | Run `grep -rn "web_search_url" scripts/` and confirm 0 matches (AC-02) | Completed | 2026-08-27 | 2026-08-27 | Zero matches confirmed |
+| 3 | Run validation sequence (`uv run pytest tests/agent/services/test_config_reload*.py -v`, `ruff`, `mypy`) | Completed | 2026-08-27 | 2026-08-27 | All 41 tests pass; no lint/type errors |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

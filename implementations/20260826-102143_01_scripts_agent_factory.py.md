@@ -24,21 +24,7 @@ directly instead of through `getattr()`.
 
 ## Assumptions
 
-- `_ServerLifecycleRouter` (`scripts/agent/factory.py:49-250`) is the sole production
-  implementer of `LifecycleManagerProtocol` — confirmed via `rg -n
-  "LifecycleManagerProtocol" scripts/`: only `factory.py` (implementation) and
-  `context.py` (type annotation only, `scripts/agent/context.py:47,260`) reference it;
-  no test double implements the Protocol as a full class.
-- `_ServerLifecycleRouter` has no `__getattr__` fallback — confirmed via `rg -n
-  "__getattr__" scripts/agent/factory.py` (zero matches) — so the current
-  `getattr(lifecycle, "_cleanup_server_resources")` call in `config_reload.py` is only
-  reachable by luck-of-attribute-lookup failure (i.e. it always raises
-  `AttributeError`), matching the Plan's Problem section.
-- `self._http_mgr` (`scripts/agent/factory.py:66`) is a `HttpServerLifecycleManager`
-  instance, and `HttpServerLifecycleManager._cleanup_server_resources(self, server_key:
-  str) -> str` is confirmed to exist at `scripts/agent/http_lifecycle.py:239-247`, with
-  exactly this signature (reads stderr tail, closes the stderr file handle, pops
-  tracking dicts, returns the stderr content as `str`).
+- **CORRECTED**: The `cleanup_server_resources()` method already exists in code. Verified at `factory.py:252-254`: `def cleanup_server_resources(self, server_key: str) -> str:` → `return self._http_mgr._cleanup_server_resources(server_key)`. No further action needed on this implementation procedure.
 
 ## Design decisions
 

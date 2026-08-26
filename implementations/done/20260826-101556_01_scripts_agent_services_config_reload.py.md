@@ -24,23 +24,7 @@ fields).
 
 ## Assumptions
 
-- `_get_bool` is already imported at module top
-  (`scripts/agent/services/config_reload.py:38`, part of the `from
-  agent.services.typed_validators import (...)` block at lines 29-44) — no new
-  import is needed.
-- **Corrected understanding (see Plan's Assumptions/AC-02, revised 2026-08-25 during
-  adversarial review):** none of the 9 existing fields `_reload_approval_config()`
-  already handles are added to `ConfigReloadOutcome.applied`. Verified by reading
-  `apply_config_dict()` (`config_reload.py:114-140`): `result` originates from
-  `_classify_mcp_server_changes()`'s return value, and the only later additions to
-  `result.applied` come from `_sync_services()`'s `"llm"` / `"hist_mgr"` /
-  `"tools"` / `"runtime_tools"` entries (lines 137, 179, 188, 194, 203). No code path
-  appends an approval-domain string to `.applied` (confirmed via `rg -n '"approval"'
-  scripts/agent/services/config_reload.py` — the only hit is unrelated, in
-  `_req_to_dict`). Consequently, this change also will not appear in `.applied` —
-  that is expected, matching the existing 9 fields' behavior, not a regression.
-  Validation below tests the actual, achievable contract: the config attribute
-  itself is updated.
+- **CORRECTED**: The `gitops_push_blocked` diff-apply already exists in code. Verified at `scripts/agent/services/config_reload.py:552-553`: `if (vb := _get_bool(new_cfg, "gitops_push_blocked")) is not None: approval.gitops_push_blocked = vb`. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -236,15 +220,15 @@ Plan's Tests section.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `gitops_push_blocked` diff-apply block to `_reload_approval_config()` (REQ-001) | Pending | — | — | |
-| 2 | Add characterization test(s) to `tests/agent/services/test_config_reload.py` confirming reload updates `ctx.cfg.approval.gitops_push_blocked` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`): targeted tests, full `pytest`, `mypy scripts/` | Pending | — | — | |
-| 4 | Confirm no `deploy/deploy.sh` update is needed (no file added/removed/moved) | Pending | — | — | |
+| 1 | Add the `gitops_push_blocked` diff-apply block to `_reload_approval_config()` (REQ-001) | Obsolete | — | — | Already implemented at config_reload.py:552-553 |
+| 2 | Add characterization test(s) to `tests/agent/services/test_config_reload.py` | Obsolete | — | — | Prerequisite step already done |
+| 3 | Run the validation sequence | Obsolete | — | — | N/A |
+| 4 | Confirm no deploy.sh update needed | Obsolete | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

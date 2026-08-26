@@ -199,10 +199,10 @@ rollback is a simple git revert of this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add full-message tests for the 8 zero-coverage functions | Pending | — | — | |
-| 2 | Add full-message tests for the 12 partial-match functions | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/test_config_dataclasses.py -v` | Pending | — | — | |
-| 4 | N/A: no documentation update required for this test-only change | Pending | — | — | |
+| 1 | Add full-message tests for the 8 zero-coverage functions | Completed | — | — | llm_context_char_limit, sse_heartbeat_timeout, tool_error_retry_max, progress_stagnation_window, memory_max_inject_semantic, memory_max_inject_episodic, memory_embed_timeout_sec, memory_retention_days |
+| 2 | Add full-message tests for the 12 partial-match functions | Completed | — | — | llm_max_retries, llm_retry_base_delay, llm_max_tokens, sse_malformed_retry, sse_reconnect_max, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, tool_dedup_max_repeats, tool_cycle_detect_window, tool_error_max_consecutive, tool_cache_max_size |
+| 3 | Run `uv run pytest tests/agent/test_config_dataclasses.py -v` | Completed | — | — | All 58 tests passed |
+| 4 | N/A: no documentation update required for this test-only change | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -20,23 +20,7 @@ the sibling document
 
 ## Assumptions
 
-- The code change in
-  `implementations/20260826-103846_01_scripts_agent_services_config_reload.py.md`
-  lands first (or is implemented together) — these tests exercise the new
-  `dataclasses.replace()`-based rejection path and will fail against the pre-change
-  `setattr`-based code (which silently accepts out-of-range values).
-- The existing `svc()` fixture (`tests/agent/services/test_config_reload.py:13-39`)
-  builds `ctx` as a bare `MagicMock()` with individual scalar attributes stubbed on
-  `ctx.cfg.llm`/`ctx.cfg.tool` (e.g. `ctx.cfg.llm.llm_temperature = 0.7`) — `ctx.cfg.llm`
-  itself is a `MagicMock`, not a real `LLMConfig` instance. `dataclasses.replace()`
-  requires a real dataclass instance (calling it on a `MagicMock` raises `TypeError`,
-  not the `ValueError`/`ConfigReloadValidationError` these tests need to assert), so
-  the new tests need `ctx.cfg.llm`/`ctx.cfg.rag`/`ctx.cfg.tool` set to real
-  `LLMConfig()`/`RAGConfig()`/`ToolConfig()` instances while `ctx` itself stays a
-  `MagicMock`. This exact pattern already exists elsewhere in the test suite —
-  `tests/agent/commands/test_cmd_config_char.py:30`:
-  `ctx.cfg.llm = overrides.get("llm", LLMConfig())` — confirming this is a supported,
-  precedented style, not a new invention.
+- **CORRECTED**: The regression tests for `ConfigReloadValidationError` already exist in the codebase. Verified at `tests/agent/services/test_config_reload.py`: `ConfigReloadValidationError` is raised and asserted in multiple test methods (lines 76-80, 451-455, 459-463, 467-471, 489-493, 497-501, 505-509). No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -156,15 +140,15 @@ assert both the exception behavior and the resulting field values.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add real-instance fixture for llm/tool/rag reload tests | Pending | — | — | |
-| 2 | Add AC-01 rejection test | Pending | — | — | |
-| 3 | Add AC-02/AC-03 acceptance tests | Pending | — | — | |
-| 4 | Run `uv run pytest tests/agent/services/test_config_reload.py -v` and full suite | Pending | — | — | |
+| 1 | Add real-instance fixture for llm/tool/rag reload tests | Obsolete | — | — | Tests already exist in test_config_reload.py |
+| 2 | Add AC-01 rejection test | Obsolete | — | — | Already implemented |
+| 3 | Add AC-02/AC-03 acceptance tests | Obsolete | — | — | Already implemented |
+| 4 | Run validation sequence | Obsolete | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

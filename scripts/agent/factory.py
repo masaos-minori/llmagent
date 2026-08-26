@@ -301,9 +301,7 @@ def _build_tool_executor(
     """Build ToolExecutor, lifecycle manager, and health registry; return all three."""
     tools = ToolExecutor(
         http,
-        cache_ttl=ctx.cfg.tool.tool_cache_ttl,
         server_configs=ctx.cfg.mcp.mcp_servers,
-        cache_max_size=ctx.cfg.tool.tool_cache_max_size,
         concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
     )
     registry = McpServerHealthRegistry()

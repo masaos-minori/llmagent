@@ -25,13 +25,8 @@ removed by the six dependency plans.
 
 - **Blocking precondition, not yet satisfied**: entries cannot be phrased accurately
   until the corresponding removals actually land in code/tests — verified during this
-  review that none of the five formats have been removed yet (`_normalize_chunk_index()`
-  still exists with a fallback in `ingester.py`; `entry.get("inputSchema",
-  entry.get("input_schema"))` still accepts both keys; `resource_scope` singular is
-  still type-checked-if-present; `fetched_at` DEFAULT/`_update_null_fill()` still exist
-  per the earlier plans in this batch). Per this plan's own UNK-02, exact wording must
-  be drafted from the actual removed-behavior diff once it exists, not from this
-  forward-looking description.
+  review that four of the five formats remain: `entry.get("inputSchema",
+  entry.get("input_schema"))` still accepts both keys (scripts/agent/services/mcp_tool_discovery.py:279, :361); `resource_scope` singular is still type-checked-if-present (:301); `fetched_at` DEFAULT/`_update_null_fill()` still exist (scripts/rag/ingestion/etag_manager.py:47, :95); missing-`schema_version` tolerance still exists (scripts/agent/services/mcp_tool_discovery.py:220). Only `_normalize_chunk_index()` was removed. Per this plan's own UNK-02, exact wording must be drafted from the actual removed-behavior diff once it exists, not from this forward-looking description.
 - The existing entries' format — `- **Item** — Removed; replacement/history note` (per
   the two current entries under "Deprecated Document References") — is the pattern new
   entries must follow, confirmed by reading both existing entries in full.
@@ -125,13 +120,13 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| — | — | Blocked | 2026-08-27 | — | 4 of 5 deprecated formats remain in code |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| Phase 1 | 4 of 5 deprecated compatibility formats remain in code: input_schema alias (mcp_tool_discovery.py:279,:361), resource_scope singular type-check (mcp_tool_discovery.py:301), fetched_at _update_null_fill (rag/ingestion/etag_manager.py:47,:95), missing-schema_version tolerance (mcp_tool_discovery.py:220). Only _normalize_chunk_index() was removed. | No | — |
 
 ##### Work Items Created
 
