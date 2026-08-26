@@ -88,7 +88,7 @@ behavior change.
 
 ##### Path classification
 
-Classify the refactoring as Path A or Path B before Step 3. This gates how much tooling
+Classify the refactoring as Path A, Path B, or Path C before Step 3. This gates how much tooling
 depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7 themselves, nor reduce
 Step 7's Required validation, nor skip the Completion gate.
 
@@ -116,7 +116,7 @@ satisfies a Path B criterion (e.g. an import-boundary change that is a byproduct
 relocation, merge, split, ownership transfer, or boundary change is Path C, not Path B); a
 narrower import-direction fix that is not part of such a structural change remains Path B.
 
-Record the Path A/B decision and its rationale in Step 10's report.
+Record the Path A/B/C decision and its rationale in Step 10's report.
 
 ##### Path C: Architectural Refactoring
 
