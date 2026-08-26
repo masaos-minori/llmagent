@@ -6,12 +6,12 @@ Checks are split into two categories:
     Custom rules  — domain-specific pattern checks loaded from config files
 
 Usage:
-    python tools/check_doc_quality.py                          # run all core + custom
-    python tools/check_doc_quality.py --core-only              # only core checks
-    python tools/check_doc_quality.py --custom-only            # only custom rules
-    python tools/check_doc_quality.py --skip broken_headings   # skip specific check
-    python tools/check_doc_quality.py --only stale_patterns    # only specific check
-    python tools/check_doc_quality.py docs/*.md                # check specific files
+    python tools/check_docs_quality.py                          # run all core + custom
+    python tools/check_docs_quality.py --core-only              # only core checks
+    python tools/check_docs_quality.py --custom-only            # only custom rules
+    python tools/check_docs_quality.py --skip broken_headings   # skip specific check
+    python tools/check_docs_quality.py --only stale_patterns    # only specific check
+    python tools/check_docs_quality.py docs/*.md                # check specific files
 """
 
 from __future__ import annotations

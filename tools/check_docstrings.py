@@ -10,7 +10,7 @@ Checks performed:
     - Description after the separator is non-empty and > 3 characters
 
 Usage:
-    python tools/check_all_docstrings.py [--scripts-dir PATH]
+    python tools/check_docstrings.py [--scripts-dir PATH]
 
 Notes:
     - This script only validates existing docstrings; it does NOT add or modify them.

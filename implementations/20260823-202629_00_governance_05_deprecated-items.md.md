@@ -110,8 +110,8 @@ N/A: documentation wording change only.
 
 | Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| docs/00_governance_05_deprecated-items.md | Structural/formatting | `uv run python tools/check_doc_quality.py` | No new formatting violations |
-| docs/00_governance_05_deprecated-items.md | Structural | `uv run python tools/validate_docs_structure.py docs/00_governance_05_deprecated-items.md` | Passes structural checks (headings, front matter, links) |
+| docs/00_governance_05_deprecated-items.md | Structural/formatting | `uv run python tools/check_docs_quality.py` | No new formatting violations |
+| docs/00_governance_05_deprecated-items.md | Structural | `uv run python tools/check_docs_structure.py docs/00_governance_05_deprecated-items.md` | Passes structural checks (headings, front matter, links) |
 | Manual review | Acceptance-bar check | N/A (human/AI review) | Each new entry reads as historical removal, not an available alias or migration path |
 
 ## Out of scope

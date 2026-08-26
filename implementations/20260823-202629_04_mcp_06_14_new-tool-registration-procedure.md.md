@@ -93,7 +93,7 @@ N/A: documentation wording change only.
 | Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
 | docs/04_mcp_06_14_new-tool-registration-procedure.md | Documentation consistency | `uv run check-mcp-docs` | No new drift introduced |
-| docs/04_mcp_06_14_new-tool-registration-procedure.md | Structural/formatting | `uv run python tools/check_doc_quality.py` | No new formatting violations |
+| docs/04_mcp_06_14_new-tool-registration-procedure.md | Structural/formatting | `uv run python tools/check_docs_quality.py` | No new formatting violations |
 | Repo-wide | Regression search | `rg -n "resource_scope\"" docs scripts tests` (singular legacy field, not `resource_scope_kind`/`_keys`) | No remaining reference implying singular `resource_scope` is accepted |
 
 ## Out of scope

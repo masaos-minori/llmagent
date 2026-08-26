@@ -3,8 +3,8 @@
 Related Documents/Keywords sections, and internal .md link reachability.
 
 Usage:
-    uv run python tools/validate_docs_structure.py [glob ...]
-    uv run python tools/validate_docs_structure.py docs/05_agent_*.md --category agent
+    uv run python tools/check_docs_structure.py [glob ...]
+    uv run python tools/check_docs_structure.py docs/05_agent_*.md --category agent
 """
 
 from __future__ import annotations

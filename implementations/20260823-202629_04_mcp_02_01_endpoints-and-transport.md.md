@@ -102,7 +102,7 @@ N/A: documentation wording change only.
 | Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
 | docs/04_mcp_02_01_endpoints-and-transport.md | Documentation consistency | `uv run check-mcp-docs` | No new port/tool-name drift introduced |
-| docs/04_mcp_02_01_endpoints-and-transport.md | Structural/formatting | `uv run python tools/check_doc_quality.py` | No new formatting violations |
+| docs/04_mcp_02_01_endpoints-and-transport.md | Structural/formatting | `uv run python tools/check_docs_quality.py` | No new formatting violations |
 | Repo-wide | Regression search | `rg -n "input_schema" docs scripts tests` | No remaining reference implying `input_schema` is accepted |
 
 ## Out of scope

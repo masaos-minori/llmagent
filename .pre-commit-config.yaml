@@ -23,13 +23,13 @@ repos:
         types: [python]
       - id: docs-consistency
         name: Check document quality
-        entry: python -m tools.check_doc_quality
+        entry: python -m tools.check_docs_quality
         language: system
         pass_filenames: false
         types_or: [markdown]
       - id: no-compat-stubs
         name: Check for compatibility stubs and shims
-        entry: python -m tools.check_no_compat
+        entry: python -m tools.check_compat_shims
         language: system
         pass_filenames: false
         types_or: [python, markdown]

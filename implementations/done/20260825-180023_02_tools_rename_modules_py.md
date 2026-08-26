@@ -1,17 +1,17 @@
-# Implementation Procedure: Fix rename_modules.py hardcoded path and silent-failure behavior
+# Implementation Procedure: Fix rename_mcp_modules.py hardcoded path and silent-failure behavior
 
 ## Goal
 
-Make `rename_modules.py` work correctly across environments by deriving the repository root from the script's own location instead of a hardcoded absolute path, and fail loudly (non-zero exit + clear error message) when required paths do not exist.
+Make `rename_mcp_modules.py` work correctly across environments by deriving the repository root from the script's own location instead of a hardcoded absolute path, and fail loudly (non-zero exit + clear error message) when required paths do not exist.
 
 ## Scope
 
-- **In-Scope**: `tools/rename_modules.py` (module-level `BASE`, `main()`)
+- **In-Scope**: `tools/rename_mcp_modules.py` (module-level `BASE`, `main()`)
 - **Out-of-Scope**: Any actual module rename operation against `scripts/mcp_servers/`, rewriting the import/docstring/patch-target update logic beyond fixing the described base-path and dead-code issues, any other `tools/*.py` script.
 
 ## Assumptions
 
-- Deriving `BASE` from `Path(__file__).resolve().parent.parent` is acceptable — this assumes the script is always invoked as `python tools/rename_modules.py` from within the repository, not installed as a package entry point.
+- Deriving `BASE` from `Path(__file__).resolve().parent.parent` is acceptable — this assumes the script is always invoked as `python tools/rename_mcp_modules.py` from within the repository, not installed as a package entry point.
 - The existing `continue`-based skip inside the loop is intentional for optional directories (e.g., `mutants/` may not exist in all environments). Only `BASE` itself should fail loudly; individual subdirectories can remain optional.
 - The separately-reported dead-code duplication between `process_file()` and `main()` is out of scope unless trivial to fix alongside the base-path change.
 
@@ -23,7 +23,7 @@ Replace `BASE = pathlib.Path("/home/sugimoto/llmagent")` with:
 ```python
 BASE = pathlib.Path(__file__).resolve().parent.parent
 ```
-This matches the pattern used by `tools/manage_frontmatter.py` (line 25: `ROOT_DIR = Path(__file__).resolve().parent.parent`), `tools/check_no_compat.py`, and `tools/gen_reference_table.py`.
+This matches the pattern used by `tools/manage_frontmatter.py` (line 25: `ROOT_DIR = Path(__file__).resolve().parent.parent`), `tools/check_compat_shims.py`, and `tools/generate_reference_table.py`.
 
 ### Fail-loud for missing BASE only
 
@@ -42,7 +42,7 @@ The issue mentions dead-code duplication between `process_file()` and `main()`. 
 
 ### Target file
 
-`tools/rename_modules.py`
+`tools/rename_mcp_modules.py`
 
 ### Procedure
 
@@ -69,15 +69,15 @@ Review and update the script's docstring/usage notes if they reference a specifi
 
 #### Phase 5: Add tests
 
-1. Create `tests/tools/test_rename_modules.py` with temp directory fixture
+1. Create `tests/tools/test_rename_mcp_modules.py` with temp directory fixture
 2. Test: correct root resolution independent of running user's home directory
 3. Test: non-zero exit with clear error when target directory is absent
 
 #### Phase 6: Validation
 
-1. Run `uv run pytest tests/tools/test_rename_modules.py -v`
-2. Run `uv run ruff check tools/rename_modules.py`
-3. Run `uv run mypy tools/rename_modules.py`
+1. Run `uv run pytest tests/tools/test_rename_mcp_modules.py -v`
+2. Run `uv run ruff check tools/rename_mcp_modules.py`
+3. Run `uv run mypy tools/rename_mcp_modules.py`
 
 ### Method
 
@@ -132,10 +132,10 @@ If the fail-loud check breaks workflows, revert by removing the new check. The r
 
 | Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
 |---|---|---|---|
-| `tools/rename_modules.py` | Unit test — root resolution | `uv run pytest tests/tools/test_rename_modules.py::test_root_resolution -v` | Exit 0, BASE resolved correctly |
-| `tools/rename_modules.py` | Unit test — missing path | `uv run pytest tests/tools/test_rename_modules.py::test_missing_path_exits_nonzero -v` | Non-zero exit, error message names missing path |
-| `tools/rename_modules.py` | Lint | `uv run ruff check tools/rename_modules.py` | Clean (no errors) |
-| `tools/rename_modules.py` | Type check | `uv run mypy tools/rename_modules.py` | Clean (no new regressions) |
+| `tools/rename_mcp_modules.py` | Unit test — root resolution | `uv run pytest tests/tools/test_rename_mcp_modules.py::test_root_resolution -v` | Exit 0, BASE resolved correctly |
+| `tools/rename_mcp_modules.py` | Unit test — missing path | `uv run pytest tests/tools/test_rename_mcp_modules.py::test_missing_path_exits_nonzero -v` | Non-zero exit, error message names missing path |
+| `tools/rename_mcp_modules.py` | Lint | `uv run ruff check tools/rename_mcp_modules.py` | Clean (no errors) |
+| `tools/rename_mcp_modules.py` | Type check | `uv run mypy tools/rename_mcp_modules.py` | Clean (no new regressions) |
 
 ## Completion criteria
 
@@ -178,4 +178,4 @@ If the fail-loud check breaks workflows, revert by removing the new check. The r
 - **Source plan**: plans/20260825-175012_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20260825-180023
-- **Related target files**: tools/rename_modules.py
+- **Related target files**: tools/rename_mcp_modules.py
