@@ -135,10 +135,10 @@ surfaced via `/mcp status`, with no automated action taken.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `restart_recommended` description and its Note bullet | Pending | — | — | |
-| 2 | Rewrite `operator_action_required` description | Pending | — | — | |
-| 3 | Re-read full document to confirm no internal contradiction remains | Pending | — | — | |
-| 4 | Run `check_docs_quality.py`, `check_docs_consistency.py --domain mcp`, and the `rg` Watchdog check | Pending | — | — | |
+| 1 | Rewrite `restart_recommended` description and its Note bullet | Completed | — | — | Removed Watchdog-consumer language |
+| 2 | Rewrite `operator_action_required` description | Completed | — | — | Removed Watchdog-consumer language |
+| 3 | Re-read full document to confirm no internal contradiction remains | Completed | — | — | Confirmed lines ~26/~30 consistent with display-only note (line 44) and removal note (line 49) |
+| 4 | Run `check_docs_quality.py`, `check_docs_consistency.py --domain mcp`, and the `rg` Watchdog check | Completed | — | — | Pre-existing errors only; no new findings; no "Watchdog" hits remain |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

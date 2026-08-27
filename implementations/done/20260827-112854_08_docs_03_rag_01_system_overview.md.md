@@ -98,10 +98,10 @@ by this Plan's Requirements).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the "Embedding Dimension" row | Pending | — | — | |
-| 3 | Check the `03_rag_90` cross-reference for related staleness (informational) | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py --domain rag` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 155 |
+| 2 | Rewrite the "Embedding Dimension" row | Completed | — | — | Config-key claim replaced with reference to fixed code constant; source column updated accordingly |
+| 3 | Check the `03_rag_90` cross-reference for related staleness | Completed | — | — | No RAG-003/RAG-004 entries found in that file; no action needed |
+| 4 | Run `check_docs_consistency.py --domain rag` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

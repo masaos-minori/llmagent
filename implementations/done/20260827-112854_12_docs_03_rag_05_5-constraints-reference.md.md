@@ -122,10 +122,10 @@ omit the specific-key illustration entirely if none is clearly stable.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers for both occurrences | Pending | — | — | |
-| 2 | Rewrite the "Embedding dimensions" row | Pending | — | — | |
-| 3 | Rewrite the illustrative example in the crawl-depth note | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py --domain rag` | Pending | — | — | |
+| 1 | Re-confirm line numbers for both occurrences | Completed | — | — | Verified at lines 22 and 29 |
+| 2 | Rewrite the "Embedding dimensions" row | Completed | — | — | Config-key claim removed |
+| 3 | Rewrite the illustrative example in the crawl-depth note | Completed | — | — | Replaced nonexistent `embedding_dims` reference with valid `embed_url` (line 10) |
+| 4 | Run `check_docs_consistency.py --domain rag` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

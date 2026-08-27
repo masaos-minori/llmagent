@@ -113,8 +113,8 @@ instead of the now-corrected "Command-specific guard status" section.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the Git MCP bullet per Implementation > Method/Details | Pending | — | — | |
-| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Replace the Git MCP bullet per Implementation > Method/Details | Completed | — | — | Corrected false claim about protected-branch policy |
+| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Completed | — | — | No new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

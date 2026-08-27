@@ -102,9 +102,9 @@ retyping it, to avoid introducing a typo in the anchor.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the `embedding_dims` row | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py --domain rag` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 68 |
+| 2 | Rewrite the `embedding_dims` row | Completed | — | — | Config-key claim removed; existing cross-reference preserved per procedure |
+| 3 | Run `check_docs_consistency.py --domain rag` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

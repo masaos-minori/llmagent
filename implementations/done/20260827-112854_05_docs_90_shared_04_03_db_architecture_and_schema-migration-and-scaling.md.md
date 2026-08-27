@@ -104,9 +104,9 @@ initializer note, trigger references) unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers for all 3 occurrences | Pending | — | — | |
-| 2 | Rewrite all 3 occurrences | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py` | Pending | — | — | |
+| 1 | Re-confirm line numbers for all 3 occurrences | Completed | — | — | Verified at lines 34, 67, 73 |
+| 2 | Rewrite all 3 occurrences | Completed | — | — | All 3 `embedding_dims`/384 claims removed; replaced with reference to `scripts/db/store_protocols.py::get_embedding_dims()` |
+| 3 | Run `check_docs_consistency.py` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

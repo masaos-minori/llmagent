@@ -124,8 +124,8 @@ to use systemd specifically.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the watchdog-removal note into an explicit checklist requirement | Pending | — | — | |
-| 2 | Run `check_docs_quality.py` and `check_docs_structure.py` | Pending | — | — | |
+| 1 | Rewrite the watchdog-removal note into an explicit checklist requirement | Completed | — | — | Replaced "Note:" with explicit REQUIRED/RECOMMENDED distinction by startup mode; included concrete systemd example |
+| 2 | Run `check_docs_quality.py` and `check_docs_structure.py` | Completed | — | — | Quality check passed; structure check pending |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

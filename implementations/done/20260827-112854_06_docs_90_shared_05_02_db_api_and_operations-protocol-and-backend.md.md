@@ -96,9 +96,9 @@ and `validate_embedding_blob()`'s descriptions) unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the `get_embedding_dims()` parenthetical | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 7 |
+| 2 | Rewrite the `get_embedding_dims()` parenthetical | Completed | — | — | False claim "(reads `agent.toml::embedding_dims`, default 384)" replaced with reference to fixed constant |
+| 3 | Run `check_docs_consistency.py` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

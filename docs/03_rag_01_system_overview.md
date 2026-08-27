@@ -152,7 +152,7 @@ When `use_semantic_cache=True`, if the cosine similarity of the query embedding 
 | Language Detection | CJK ratio ≥ 0.10 → `ja`; otherwise `en`; fallback to hint if < 100 chars | `crawler.py` |
 | Chunk Size | Min 40 chars, Max 500 chars | `config/chunk_splitter.toml` |
 | Chunk Overlap | 50 character sliding window | `config/chunk_splitter.toml` |
-| Embedding Dimension | 384 (production, via `embedding_dims` key in `config/agent.toml`). No dataclass default; defined in config file only. float32 little-endian BLOB | `config/agent.toml` — See `03_rag_90` DOC-03 |
+| Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
 | Crawl Depth | Operational value is 3 (max 3 hops from start URL, `config/crawler.toml`'s `max_depth`). Differs from code fallback; use operational config | `config/crawler.toml` |
 | Max Pages Per Site | Operational value is 200 (max 200 pages per site, `config/crawler.toml`'s `max_pages`). Code fallback is 500; use operational config | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |

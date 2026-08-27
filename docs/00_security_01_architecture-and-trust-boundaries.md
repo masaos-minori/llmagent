@@ -203,7 +203,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 | Scenario | Degraded State | Recovery |
 |---|---|---|
 | Embedding API down (HTTP 503) | fts-only mode | Restart embed-llm |
-| Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify embedding_dims config |
+| Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
 | Vector store corruption | RAG unavailable | Restore from backup |
 | FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `rag_consistency.py` |
 | Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `ingester.py --force` |

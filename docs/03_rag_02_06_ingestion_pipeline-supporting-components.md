@@ -49,7 +49,7 @@ source:
 | `embed_url` | `http://127.0.0.1:8081/embedding` | Endpoint URL for the embedding API |
 | `embed_retry` | 3 | Maximum retries on embedding API failure (exponential backoff) |
 | `embed_workers` | 4 | Maximum number of concurrent embedding threads via `ThreadPoolExecutor` |
-| `embedding_dims` | 384 | Expected dimensions of the embedding vector; verified against API response |
+| Embedding dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`) | Expected dimensions of the embedding vector |
 
 See [03_rag_05_1-configuration-reference.md section 1.2](03_rag_05_1-configuration-reference.md).
 

@@ -134,11 +134,11 @@ already link to this same section, rather than guessing the anchor independently
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Read established cross-reference wording from precedent files | Pending | — | — | |
-| 3 | Replace `agent-llm` row's Model value | Pending | — | — | |
-| 4 | Replace `embed-llm` row's Model/dimension value | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py --domain overview` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | — | Verified at lines 74-75 |
+| 2 | Read established cross-reference wording from precedent files | Completed | — | — | Pattern matched: `See [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names` |
+| 3 | Replace `agent-llm` row's Model value | Completed | — | — | Literal model name replaced with cross-reference |
+| 4 | Replace `embed-llm` row's Model/dimension value | Completed | — | — | Literal model name + "384D" claim replaced; dimension now references fixed constant |
+| 5 | Run `check_docs_consistency.py --domain overview` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

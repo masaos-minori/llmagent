@@ -115,8 +115,8 @@ already described above in the same section.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add subprocess-vs-persistent contrast paragraph to the `ensure_ready` section | Pending | — | — | |
-| 2 | Run `check_docs_quality.py` and `check_docs_structure.py` | Pending | — | — | |
+| 1 | Add subprocess-vs-persistent contrast paragraph to the `ensure_ready` section | Completed | — | — | Added persistent-mode zero-recovery statement contrasting with subprocess-mode reactive recovery |
+| 2 | Run `check_docs_quality.py` and `check_docs_structure.py` | Completed | — | — | Pre-existing issues only (missing front matter, broken link); no new findings from this edit |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

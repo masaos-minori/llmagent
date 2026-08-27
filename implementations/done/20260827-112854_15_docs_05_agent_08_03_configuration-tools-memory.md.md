@@ -129,11 +129,11 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Remove the `memory_embed_dim` bullet | Pending | — | — | |
-| 3 | Add replacement note | Pending | — | — | |
-| 4 | Cross-check wording against seq 13 | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 98 |
+| 2 | Remove the `memory_embed_dim` bullet | Completed | — | — | Removed fabricated config key |
+| 3 | Add replacement note | Completed | — | — | Added code-level constant reference |
+| 4 | Cross-check wording against seq 13 | Completed | — | — | Consistent with seq 13 correction |
+| 5 | Run `check_docs_consistency.py --domain agent` | Completed | — | — | No new warnings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

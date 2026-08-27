@@ -100,9 +100,9 @@ table-specific context.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers for both occurrences | Pending | — | — | |
-| 2 | Rewrite both occurrences | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py` | Pending | — | — | |
+| 1 | Re-confirm line numbers for both occurrences | Completed | — | — | Verified at lines 22 and 45 |
+| 2 | Rewrite both occurrences | Completed | — | — | Both occurrences updated; no config-key claim remains |
+| 3 | Run `check_docs_consistency.py` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

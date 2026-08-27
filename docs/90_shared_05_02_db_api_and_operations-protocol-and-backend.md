@@ -4,7 +4,7 @@
 
 ## 3. `db/store.py` Protocol Groups
 
-All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding helpers: `from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob`; `dims = get_embedding_dims()` (reads `agent.toml::embedding_dims`, default 384); `nbytes = get_embedding_bytes()` (dims * 4 for float32); `validate_embedding_blob(blob)` (raises `TypeError` if not bytes, `ValueError` if wrong size). 
+All protocols are `@runtime_checkable`, so `isinstance()` checks work. Embedding helpers: `from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob`; `dims = get_embedding_dims()` (returns a fixed code-level constant, `scripts/db/store_protocols.py::QWEN3_EMBEDDING_DIMS`, not config-driven); `nbytes = get_embedding_bytes()` (dims * 4 for float32); `validate_embedding_blob(blob)` (raises `TypeError` if not bytes, `ValueError` if wrong size). 
 
 `VectorStore(Protocol)`: `vec_insert(chunk_id:int, embedding:bytes) \rightarrow None`, `vec_search(embedding:bytes, k:int) \rightarrow list[tuple[int,float]]` (returns `(chunk_id, distance)` pairs), `vec_delete(chunk_id:int) \rightarrow None` (no-op if not found), `vec_count() \rightarrow int`. 
 

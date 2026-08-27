@@ -19,7 +19,7 @@ FTS5 virtual table for full-text search on chunk content. Uses COALESCE(new.norm
 
 ### `chunks_vec` (sqlite-vec virtual table)
 
-sqlite-vec virtual table for vector similarity search. Stores float32 little-endian BLOB. chunk_id INTEGER PRIMARY KEY, embedding FLOAT[DIMS] where DIMS replaced at runtime from embedding_dims config (default 384).
+sqlite-vec virtual table for vector similarity search. Stores float32 little-endian BLOB. chunk_id INTEGER PRIMARY KEY, embedding FLOAT[DIMS] where DIMS is `scripts/db/store_protocols.py::get_embedding_dims()`, a fixed code-level constant (not a config key).
 
 # DB Architecture and Schema
 
@@ -42,7 +42,7 @@ FTS5 virtual table for full-text search on chunk content. Uses COALESCE(new.norm
 
 ### `chunks_vec` (sqlite-vec virtual table)
 
-sqlite-vec virtual table for vector similarity search. Stores float32 little-endian BLOB. chunk_id INTEGER PRIMARY KEY, embedding FLOAT[DIMS] where DIMS replaced at runtime from embedding_dims config (default 384).
+sqlite-vec virtual table for vector similarity search. Stores float32 little-endian BLOB. chunk_id INTEGER PRIMARY KEY, embedding FLOAT[DIMS] where DIMS is `scripts/db/store_protocols.py::get_embedding_dims()`, a fixed code-level constant (not a config key).
 
 
 # DB Architecture and Schema

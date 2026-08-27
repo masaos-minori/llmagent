@@ -108,9 +108,9 @@ error) rather than claiming decryption is unimplemented.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite line 74's stale claim | Pending | — | — | |
-| 2 | Rewrite or remove line 97's stale "Known Limitations" bullet | Pending | — | — | |
-| 3 | Run `uv run python tools/check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Rewrite line 74's stale claim | Skipped | — | — | Already correct: "Can be encrypted with `encrypt=True`; `fetch()` decrypts rows using the configured Fernet key, falling back to raw content if decryption fails" |
+| 2 | Rewrite or remove line 97's stale "Known Limitations" bullet | Completed | — | — | Replaced false "not decrypted during `fetch()`" with accurate description of silent decrypt-failure tolerance |
+| 3 | Run `uv run python tools/check_docs_consistency.py --domain agent` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -26,7 +26,7 @@ For the formal partial completion model, see [05_agent_03 Partial-Completion Mod
 | `AttributeError: enable_load_extension` | Python was built without sqlite extension support | Rebuild Python with sqlite support |
 | `no such table: chunks_vec` | Failure to load `sqlite-vec` extension | Verify `ls /opt/llm/sqlite-vec/vec0.so` |
 | FTS search returns 0 results | `chunks_fts` is in an asynchronous state | Run `/session rag-rebuild-fts` |
-| `blob_bytes` ≠ 1536 | Embedding dimension mismatch | Verify if the embedding model outputs 384 dimensions |
+| `blob_bytes` ≠ expected | Embedding dimension mismatch | Verify the BLOB byte count matches `scripts/db/store_protocols.py::get_embedding_dims()` (returns a fixed code constant, not a config value) |
 | Frequent `Sudachi tokenize error` | `sudachidict-core` is not installed | Run `pip install sudachidict-core` |
 | `llama-server` fails to start | Path or permission issue with model files | Check `ls -lh /opt/llm/models/` |
 | Extremely high latency | RAM exhausted due to multiple models loaded | Adjust `--threads` and keep the total $\le$ 4 |

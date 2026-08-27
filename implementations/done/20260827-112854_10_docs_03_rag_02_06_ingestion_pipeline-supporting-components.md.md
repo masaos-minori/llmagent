@@ -96,10 +96,10 @@ claim in the same row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Verify "verified against API response" still accurate | Pending | — | — | |
-| 3 | Rewrite the row | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py --domain rag` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 52 |
+| 2 | Verify "verified against API response" still accurate | Completed | — | — | No such verification exists in current source; removed that clause per procedure |
+| 3 | Rewrite the row | Completed | — | — | Config-key claim removed; API verification clause also removed |
+| 4 | Run `check_docs_consistency.py --domain rag` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

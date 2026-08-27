@@ -67,10 +67,10 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 
 ---
 
-### MCP-003: Git MCP lacks Dirty-Worktree/Detached-HEAD/Force-Push guards, and `branch`/`remote` accept option-injection values
+### MCP-003: Git MCP lacks Dirty-Worktree/Detached-HEAD guards; postcondition verification absent
 
 - **ID**: MCP-003
-- **Title**: `git_checkout`/`git_pull`/`git_push` lack Dirty-Worktree/Detached-HEAD/Force-Push guards; unvalidated `branch`/`remote` values allow forced checkout/push
+- **Title**: `git_checkout`/`git_pull`/`git_push` lack Dirty-Worktree/Detached-HEAD guards; no postcondition verification after operations
 - **Status**: open
 - **Severity**: High
 - **Area**: MCP
@@ -80,12 +80,12 @@ This file catalogs bugs, unimplemented features, contradictions between specific
 - **First Found**: Unconfirmed
 - **Target**: `04_mcp_04_05_git.md`, `00_security_02_high-risk-tool-common-policy.md`
 - **Related**: SHARED-style gap in Git MCP write path; see `04_mcp_04_05_git.md` Write protection policy
-- **Summary**: Git MCP enforces repository-path allowlisting, `read_only`, and protected-branch guards (via `GitConfig.protected_branches`). No guard checks Dirty Worktree, Detached HEAD, or Force Push. `branch`/`remote` are forwarded to GitPython unvalidated.
-- **Current Description**: `git_checkout`/`git_pull`/`git_push` all pass through the same common guard as `git_add`/`git_commit`, with no additional command-specific validation for Dirty-Worktree, Detached-HEAD, or Force-Push. Protected-branch enforcement is implemented but has one gap: an empty `branch` argument skips the check entirely (`_validate_protected()` short-circuits on falsy input).
-- **Observed Implementation**: Reproduced in a sandboxed test environment — passing `branch="--force"` to `git_checkout` discards uncommitted worktree changes without warning, and to `git_push` performs a forced update overwriting a diverged remote branch, because the value is interpreted as a `git` CLI option rather than a ref name.
-- **Impact**: A caller (or a compromised/careless LLM turn) that can invoke `git_checkout`/`git_push` can silently discard local changes or force-overwrite a remote branch, bypassing the protection the tool's schema appears to provide by omitting a `force` field.
-- **Recommended Action**: Validate `branch`/`remote` against a safe-ref pattern (reject values starting with `-`), add explicit Dirty-Worktree/Detached-HEAD/Force-Push checks per `04_mcp_04_05_git.md` git_checkout/git_pull/git_push policy target design.
-- **Resolution Notes**: Open; confirmed exploitable, not merely a documentation gap. Protected-branch enforcement was added (see REQ-006 in `implementations/20260826-190817_01_docs_00_security_02_high-risk-tool-common-policy.md`).
+- **Summary**: Git MCP enforces repository-path allowlisting, `read_only`, and protected-branch guards (via `GitConfig.protected_branches`). No guard checks Dirty Worktree or Detached HEAD. `branch`/`remote` option-injection is rejected by `_is_safe_ref()`/`_validate_ref()`. Force-Push has no guard because `git_push`'s schema exposes no `force` field. Postcondition verification (re-checking resulting branch/HEAD, detecting merge conflicts, re-fetching remote state) is absent.
+- **Current Description**: `git_checkout`/`git_pull`/`git_push` all pass through the same common guard as `git_add`/`git_commit`, with no additional command-specific validation for Dirty-Worktree or Detached-HEAD. Protected-branch enforcement is implemented via `GitSecurityGuards._check_protected_branch()` / `GitService._validate_protected()`. `branch`/`remote` option-injection is rejected by `_is_safe_ref()`/`_validate_ref()` (tested by `test_is_safe_ref` and assertions in `tests/mcp_servers/git/test_git_security_compliance.py`). One gap remains: an empty `branch` argument skips the protected-branch check entirely (`_validate_protected()` short-circuits on falsy input).
+- **Observed Implementation**: None of `format_checkout()`/`format_pull()`/`format_push()` re-check the resulting branch/HEAD, detect unresolved merge conflicts, or re-fetch remote state after a push. Success is inferred solely from the absence of a `GitCommandError`.
+- **Impact**: A caller that can invoke `git_checkout`/`git_push` can silently discard local changes if Dirty-Worktree is not checked, or receive stale success reports if postcondition verification is missing.
+- **Recommended Action**: Add explicit Dirty-Worktree/Detached-HEAD checks per `04_mcp_04_05_git.md` git_checkout/git_pull/git_push policy target design; add postcondition verification after operations. Cross-reference `GIT-001` for Dirty-Worktree/Detached-HEAD and `GIT-002` for postcondition verification.
+- **Resolution Notes**: Narrowed from original scope: protected-branch enforcement and `branch`/`remote` option-injection rejection are implemented (see REQ-006). The remaining Dirty-Worktree/Detached-HEAD gap is tracked as `GIT-001` and the postcondition-verification gap as `GIT-002`.
 
 ---
 

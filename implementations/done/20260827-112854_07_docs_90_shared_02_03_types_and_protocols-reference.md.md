@@ -104,11 +104,11 @@ Delete line 16 entirely from the code block. Change line 19 to:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers | Pending | — | — | |
-| 2 | Cross-check full `DbConfig` code block against `config.py` | Pending | — | — | |
-| 3 | Remove `embedding_dims` line from code block | Pending | — | — | |
-| 4 | Remove `embedding_dims` from validation note | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py` | Pending | — | — | |
+| 1 | Re-confirm line numbers | Completed | — | — | Verified at lines 16 and 19 |
+| 2 | Cross-check full `DbConfig` code block against `config.py` | Completed | — | — | Confirmed no other drift beyond `embedding_dims` |
+| 3 | Remove `embedding_dims` line from code block | Completed | — | — | Fabricated field removed |
+| 4 | Remove `embedding_dims` from validation note | Completed | — | — | Validation note updated accordingly |
+| 5 | Run `check_docs_consistency.py` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

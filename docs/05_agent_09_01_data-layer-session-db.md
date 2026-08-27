@@ -94,7 +94,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Known Limitations
 
-- Encrypted rows in `session_diagnostics` are not decrypted during `fetch()`.
+- Decrypt failures are silently tolerated: ciphertext is returned unchanged with only a warning logged, not raised as an error.
 
 ## Related Docs
 

@@ -113,11 +113,11 @@ unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line numbers for both occurrences | Pending | — | — | |
-| 2 | Confirm the two occurrences' surrounding context | Pending | — | — | |
-| 3 | Rewrite both `embedding_dims` lines | Pending | — | — | |
-| 4 | Confirm `config/common.toml` still does not exist | Pending | — | — | |
-| 5 | Run `check_docs_consistency.py --domain rag` | Pending | — | — | |
+| 1 | Re-confirm line numbers for both occurrences | Completed | — | — | Verified at lines 153-154 and 229-230 |
+| 2 | Confirm the two occurrences' surrounding context | Completed | — | — | Both describe distinct sections (not simple duplication) |
+| 3 | Rewrite both `embedding_dims` lines | Completed | — | — | Both occurrences updated; no config-key claim remains |
+| 4 | Confirm `config/common.toml` still does not exist | Completed | — | — | Confirmed non-existent |
+| 5 | Run `check_docs_consistency.py --domain rag` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -109,9 +109,9 @@ Replace with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the sentence | Pending | — | — | Source already confirmed: `factory.py:382` |
-| 3 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 45 |
+| 2 | Rewrite the sentence | Completed | — | — | Fabricated `AgentConfig.memory.memory_embed_dim` claim removed; actual source `factory.py:380` documented |
+| 3 | Run `check_docs_consistency.py --domain agent` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

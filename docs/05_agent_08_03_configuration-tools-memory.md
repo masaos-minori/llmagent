@@ -95,9 +95,12 @@ Determined by the combination of `use_memory_layer`, `memory_embed_enabled`, and
 #### Embedding Related
 
 - `memory_embed_enabled`: Enables embedding + KNN for memory search.
-- `memory_embed_dim`: Embedding dimension (must match vec0 schema).
 - `memory_embed_timeout_sec`: Timeout for embedding HTTP calls.
 - `memory_local_only`: Rejects non-loopback `embed_url` at startup.
+
+The embedding dimension itself is not a config key — it is a fixed code-level
+constant (`scripts/db/store_protocols.py::get_embedding_dims()`), used
+identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 #### Search & Filtering
 

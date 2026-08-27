@@ -129,8 +129,8 @@ details here, cross-reference by ID.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `MCP-003` per Implementation > Method/Details | Pending | — | — | |
-| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Rewrite `MCP-003` per Implementation > Method/Details | Completed | — | — | Narrowed: removed false exploit claim, added postcondition gap, kept Dirty-Worktree/Detached-HEAD tracking via GIT-001/GIT-002 |
+| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Completed | — | — | Pre-existing errors only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

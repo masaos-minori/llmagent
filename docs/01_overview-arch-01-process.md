@@ -71,8 +71,8 @@ The following table contains representative examples; the exact number and ports
 
 | Service | Port | Model | Role |
 |---|---|---|---|
-| `agent-llm` | 8080 | Qwen3.6-Instruct-Q4_K_M | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
-| `embed-llm` | 8081 | multilingual-E5-small | Text → 384D Vector conversion |
+| `agent-llm` | 8080 | See [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
+| `embed-llm` | 8081 | See [docs/02_deployment.md section 1.4](./02_deployment.md#14-llm--How to get models) for canonical model names | Text → Vector conversion (dimension: `scripts/db/store_protocols.py::get_embedding_dims()`) |
 | `web-search-mcp` | 8004 | — | Web Search MCP Server (DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | File Read MCP Server |
 | `github-mcp` | 8006 | — | GitHub Operation MCP Server |

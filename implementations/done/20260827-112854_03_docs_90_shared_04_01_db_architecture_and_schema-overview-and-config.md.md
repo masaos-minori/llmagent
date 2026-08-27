@@ -119,10 +119,10 @@ does not already make this clear elsewhere in the document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Remove fabricated field/validation mentions | Pending | — | — | |
-| 3 | Add source-of-truth cross-reference | Pending | — | — | |
-| 4 | Run `check_docs_consistency.py` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 43 |
+| 2 | Remove fabricated field/validation mentions | Completed | — | — | Both `embedding_dims` references removed from DbConfig description |
+| 3 | Add source-of-truth cross-reference | Completed | — | — | Added reference to `scripts/db/store_protocols.py::get_embedding_dims()` |
+| 4 | Run `check_docs_consistency.py` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

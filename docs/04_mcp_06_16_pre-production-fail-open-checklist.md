@@ -25,7 +25,7 @@ Before deploying to production, verify the following:
 - [ ] cicd-mcp: `workflow_allowlist` is explicitly configured (Empty = fails to start with `RuntimeError`/`CicdAuthorizationError` due to fail-closed behavior)
 - [ ] `config/agent.toml` has `security_profile = "production"` (Enables strict checks during startup)
 - [ ] Health check thresholds (`startup_timeout_sec`, `McpServerHealthRegistry.failure_threshold`) have been reviewed
-- [ ] Note: The MCP watchdog (automatic health polling + automatic restart loop) was removed on 2026-07-16. Recovery for crashed subprocess-mode MCP servers is limited to retry attempts via `ensure_ready()` during the next tool dispatch or manual restart of the agent process itself. Ensure external process monitoring (e.g., systemd) is set up for liveness monitoring and restarts.
+- [ ] External process supervision with defined restart policy: REQUIRED for persistent-mode MCP servers (no automatic recovery exists at all — see [04_mcp_06_09_mcp-failure-diagnosis.md](04_mcp_06_09_mcp-failure-diagnosis.md)'s `ensure_ready` section); RECOMMENDED as defense-in-depth for subprocess-mode servers (covers the idle-crash window before the next tool call triggers `ensure_ready()`'s reactive recovery). Example: a systemd unit with `Restart=on-failure` and `RestartSec=<N>` — the requirement is the outcome (an explicit restart policy), not a mandate to use systemd specifically.
 - [ ] Audit log path is configured and writable
 - [ ] API keys (`github_token`, `auth_token`) are set via environment variables and not hardcoded in configuration files
 - [ ] `repo_allowlist` in `cicd_mcp_server.toml` is not empty (Empty = reject all repositories)

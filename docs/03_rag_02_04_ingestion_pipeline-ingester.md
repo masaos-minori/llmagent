@@ -150,7 +150,9 @@ Content-Type: application/json
 
 Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-small)
 
-- `embedding_dims`: Specified in `config/ingester.toml` (default 384).
+- Embedding dimension: fixed code-level constant returned by
+  `scripts/db/store_protocols.py::get_embedding_dims()`, not a
+  `config/ingester.toml` key.
 - docstring reference to `common.toml::embedding_dims` is outdated (`common.toml` does not exist).
 
 ### 4.5 Database Updates
@@ -226,7 +228,9 @@ Content-Type: application/json
 
 Response: `{"embedding": [float, ...]}` — 384 dimensions (multilingual-E5-small)
 
-- `embedding_dims`: Specified in `config/ingester.toml` (default 384).
+- Embedding dimension: fixed code-level constant returned by
+  `scripts/db/store_protocols.py::get_embedding_dims()`, not a
+  `config/ingester.toml` key.
 - docstring reference to `common.toml::embedding_dims` is outdated (`common.toml` does not exist).
 
 ### 4.5 Database Updates

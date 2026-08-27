@@ -13,10 +13,9 @@ class DbConfig:
     sqlite_vec_so: str = ""       # empty = vec extension not required
     sqlite_timeout: int = 30
     sqlite_busy_timeout_ms: int = 30000
-    embedding_dims: int = 384
 ```
 
-- Validated in `__post_init__`: parent directory must exist, `timeout`/`embedding_dims` must be $\ge$ 1.
+- Validated in `__post_init__`: parent directory must exist, `timeout` must be $\ge$ 1.
 - Constructed by `build_db_config()`, which reads `agent.toml` via `ConfigLoader().load("agent.toml")`.
 - Used by `SQLiteHelper`, `maintenance.py`, and session factories.
 

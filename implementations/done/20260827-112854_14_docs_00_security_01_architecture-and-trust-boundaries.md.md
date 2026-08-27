@@ -102,9 +102,9 @@ Replace with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the Recovery column | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py` (correct domain) | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 206 |
+| 2 | Rewrite the Recovery column | Completed | — | — | Config-key claim replaced with reference to fixed code constant |
+| 3 | Run `check_docs_consistency.py` (correct domain) | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

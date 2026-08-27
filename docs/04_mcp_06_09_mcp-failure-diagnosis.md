@@ -67,6 +67,8 @@ except Exception:                               # any startup failure
 
 In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path (periodic polling + automatic restart by the old MCP watchdog was removed on 2026-07-16. See [04_mcp_06_12_watchdog-configuration-monitoring.md](./04_mcp_06_12_watchdog-configuration-monitoring.md)).
 
+Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [04_mcp_06_16_pre-production-fail-open-checklist.md](./04_mcp_06_16_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
+
 **Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/factory.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
 
 ---

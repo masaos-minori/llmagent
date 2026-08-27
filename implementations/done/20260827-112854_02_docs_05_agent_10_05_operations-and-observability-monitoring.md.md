@@ -98,9 +98,9 @@ operator or code-formatted condition).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm line number | Pending | — | — | |
-| 2 | Rewrite the `blob_bytes` row | Pending | — | — | |
-| 3 | Run `check_docs_consistency.py --domain agent` | Pending | — | — | |
+| 1 | Re-confirm line number | Completed | — | — | Verified at line 29 |
+| 2 | Rewrite the `blob_bytes` row | Completed | — | — | Hardcoded `1536`/`384` replaced with reference to fixed constant; first-column label adjusted from `≠ 1536` to `≠ expected` |
+| 3 | Run `check_docs_consistency.py --domain agent` | Completed | — | — | Pre-existing warnings only; no new findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
