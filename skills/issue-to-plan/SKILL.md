@@ -42,8 +42,8 @@ code files or `docs/*.md`.
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
 | 8 | Validate information completeness | Confirm no Issue information was dropped and every Requirement ID is traceable. |
-| 9 | Validate and await approval | Report and stop — do not move the Issue in the same response. |
-| 10 | Move the Issue after approval | `git mv` only, after explicit approval; no fallback. |
+| 9 | Final validation | Confirm all Step 8 checks pass; report the outcome. |
+| 10 | Move the Issue | `git mv` only, once Step 9 passes; no human approval required; no fallback. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
 See `workflow-path-b.md` for the Path B-only toolchain and analysis procedure (load it
@@ -100,6 +100,9 @@ validation quality analysis. Do not skip any analysis.
 - **Incrementalism**: Design the implementation steps in small, reviewable increments.
   Each step must leave the codebase in a testable state.
 - **One Issue at a time**: see `workflow.md` Multi-file processing.
+- **No approval gate on the archival move**: this skill's move to `issues/done/`
+  does NOT require human approval — it is gated on Step 9's validation passing
+  instead, per `rules/workflow-lifecycle.md` Validation Reporting.
 - **Mandatory move**: see `workflow.md` Step 10. Do not skip it.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Exception to `skills/DESIGN.md` Output language: write the Plan and any Unknown/Risk

@@ -25,7 +25,12 @@ document. There is no separate design phase in this pipeline.
 
 This is a document-only phase. Allowed operations:
 - Create implementation procedure documents in `implementations/`.
-- Move the processed plan file to `plans/done/` after the required review gate.
+- Move the processed plan file to `plans/done/` once Step 3's validation passes —
+  no human approval is required for this move.
+- Correct the Plan file itself (`plans/{filename}_plan.md`, via Edit) when Step 3's
+  adversarial verification finds an unconfirmed item or an inconsistency — this
+  phase's document-only constraint applies to source code and `docs/*.md`, not to the
+  Plan document under active revision.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
 - Do not modify files outside `implementations/` and the plan file being moved.
@@ -100,11 +105,25 @@ its full architecture output here.
 
 Treat the Plan's descriptions of current source-code behavior as the Plan author's
 claims, not confirmed present-tense fact — the Plan may have gone stale since
-approval. Before writing Procedure/Method/Details for an item, verify via `rg`/Read
-that the target file, symbol, call path, and test currently exist and behave as the
-Plan describes. Investigate in this order: the target file itself, its direct
-dependencies (immediate imports/importers), then related tests — expand beyond this
-order only when evidence remains insufficient.
+approval. Before writing Procedure/Method/Details for an item, perform **adversarial
+verification**: do not merely confirm the Plan's claims — actively look for reasons
+they might be wrong, such as line numbers that have shifted, a symbol already renamed
+or removed, a dependency the Plan did not account for, a Requirement that duplicates
+or contradicts another Plan, or a code path the Plan's Background never checked.
+Verify via `rg`/Read that the target file, symbol, call path, and test currently exist
+and behave as the Plan describes. Investigate in this order: the target file itself,
+its direct dependencies (immediate imports/importers), then related tests — expand
+beyond this order only when evidence remains insufficient.
+
+If adversarial verification finds an unconfirmed item or an inconsistency (a stale
+claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
+superseded Plan, etc.), correct the Plan document itself
+(`plans/{filename}_plan.md`, via Edit) in the same cycle — update whichever sections
+apply (Background, Requirements, Acceptance criteria, Assumptions, Risks, Requirement
+Traceability, Execution Status) rather than silently working around the discrepancy —
+and reflect the corrected understanding in the generated implementation procedure
+document(s). Record what was found and corrected in the progress report; do not report
+an item `Completed` while a Plan-level inconsistency it surfaced remains unresolved.
 
 Files read only to confirm current behavior or dependencies are not automatically
 additional target files — list a file under Target file only if the Plan's
@@ -194,12 +213,10 @@ incident:
 
 **This step is mandatory. Do not skip it.**
 
-Execute only through Step 3 on the initial run. After Step 3 completes, report
-`Awaiting approval` (per `rules/workflow-lifecycle.md` Approval Handling) and stop —
-do not proceed to Step 4 in the same response. Resume at Step 4 only after explicit
-user approval that applies to the current target plan; an approval given for a
-different task, plan, or workflow cycle does not count (see `rules/workflow-lifecycle.md`
-Approval Handling).
+This workflow's move to `plans/done/` does not require human approval, per
+`rules/workflow-lifecycle.md` Validation Reporting — proceed once Step 3
+completes and the checks below pass, without stopping to ask the user for
+approval.
 
 Before proceeding, verify that:
 - every `Implementation steps` item in the Plan has been accounted for (`Already

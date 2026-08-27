@@ -25,9 +25,14 @@ operations below.
   "Document References by Task" row (Step 5).
 - Move the processed implementation procedure file to `implementations/done/` after
   validation passes (Step 7).
+- Correct the implementation procedure file itself (`implementations/{filename}.md`,
+  via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
+  inconsistency, in addition to its `## Execution Status` section.
 - Do not modify files outside the scope specified in the plan/procedure.
-- Do not touch files under `__pycache__/`.
 - Do not edit documentation before Step 5.
+
+(`__pycache__/` is already covered by Out of Scope below's `rules/ai-execution.md`
+Global Safety Restrictions (Base) — not repeated here.)
 
 ## Out of Scope
 
@@ -116,8 +121,21 @@ If a required file is missing, unreadable, or contradictory, apply
 
 ## Step 3: Implement the Feature
 
-Implement the feature according to the implementation procedure. Apply the guidance
-loaded in Step 0 from `skills/python-implementation/SKILL.md` and
+Before implementing, perform **adversarial verification** of the implementation
+procedure's claims about current source: do not assume its Procedure/Method/Details
+are still accurate — actively check via `rg`/Read whether the target file, symbol,
+line numbers, and call path it describes still match current source, and whether any
+assumption or scope boundary it states has since become stale or inconsistent with a
+sibling procedure document or the source Plan.
+
+If this verification finds an unconfirmed item or an inconsistency, correct the
+implementation procedure document itself (`implementations/{filename}.md`, via Edit)
+to reflect the corrected understanding before proceeding, and note the correction in
+the Execution Status table's Notes. Do not silently implement around a stale
+description — implement against the corrected, current-source-verified understanding.
+
+Implement the feature according to the (possibly corrected) implementation procedure.
+Apply the guidance loaded in Step 0 from `skills/python-implementation/SKILL.md` and
 `skills/python-lint-typecheck/SKILL.md`.
 
 After implementing:
@@ -201,8 +219,8 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 
 This workflow's move to `implementations/done/` does not require human approval —
 proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approval.
-`rules/workflow-lifecycle.md` Approval Handling does not apply to this workflow (it is
-scoped to document-generation workflows only).
+`rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`
+only and does not apply to this workflow at all.
 
 - Do not perform this step before Step 5 (documentation update) and Step 6
   (documentation validation) are complete.

@@ -47,8 +47,9 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   `docs/*.md` — see `workflow.md` Allowed file operations for the exact boundary.
 - **No approval gate on the archival move**: this skill's move to
   `implementations/done/` does NOT require human approval — it is gated on validation
-  results (Steps 3, 4, 6 passing) instead. `rules/workflow-lifecycle.md` Approval
-  Handling does not apply here (it is scoped to document-generation workflows only).
+  results (Steps 3, 4, 6 passing) instead. `rules/workflow-lifecycle.md` is scoped to
+  `issue-to-plan`/`plan-to-impl-procedure` only and does not apply to this workflow at
+  all.
 - **Documentation is routed, not guessed**: only update a `docs/*.md` section that
   `docs/00_index.md`'s "Document References by Task" table maps a changed file to — a
   changed file with no matching row is a normal, non-blocking outcome, not a defect to

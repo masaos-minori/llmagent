@@ -24,7 +24,8 @@ This is a document-only phase. Allowed operations:
 - Create the work plan document in `plans/`.
 - Create unresolved unknown or risk items as issue files in `issues/` when required by
   Step 6.
-- Move the processed Issue file to `issues/done/` after the required review gate.
+- Move the processed Issue file to `issues/done/` once Step 9's validation passes —
+  no human approval is required for this move.
 - Do not modify source code files.
 - Do not update documentation (`docs/*.md`) — this phase does not allow it.
 - Do not modify files outside `plans/`, `issues/`, and the Issue file being moved
@@ -42,9 +43,9 @@ listed in `workflow-path-b.md` — loaded only when Step 3 classifies Path B, no
 ## Multi-file processing
 
 Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
-Steps 1-10, ending with the move to `issues/done/` in Step 10 — which always requires
-explicit user approval first (no autonomous/no-approval variant exists) — before
-starting Step 1 for the next file.
+Steps 1-10, ending with the move to `issues/done/` in Step 10 — gated on Step 9's
+validation passing, not on human approval — before starting Step 1 for the next
+file.
 
 Additional context-hygiene guidance specific to this workflow:
 - Perform Step 2 (verifying claims in the Issue against current source) sequentially.
@@ -104,6 +105,14 @@ Workflow-specific:
 - Read the current Issue file in full.
 - Verify any factual claims against current source (affected files, whether the
   described problem still reproduces).
+- **Adversarial verification**: do not stop at confirming the Issue's claims — actively
+  look for evidence that would refute or narrow them: whether the described problem has
+  already been fixed elsewhere, whether the named files/symbols/line numbers still
+  exist as stated, whether a claimed dependency or side effect is missing or
+  overstated, and whether two claims within the same Issue (or against a related
+  `plans/`/`implementations/` document) contradict each other. Treat this as a search
+  for disconfirming evidence, not a second pass to reconfirm what the first pass
+  already found.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
   with `skills/issue-creator`): title, priority, target files, background, problem,
   reason for change, implementation intent, implementation instructions, constraints,
@@ -112,12 +121,18 @@ Workflow-specific:
 - Classify each extracted item as one of: `Explicit in issue`, `Confirmed by repository
   evidence`, `Derived from confirmed evidence`, `Needs confirmation`. Do not invent
   missing requirements.
+- If adversarial verification surfaces an unconfirmed item or an inconsistency between
+  the Issue and current source, do not silently reconcile it — classify it per the
+  rule above (`Needs confirmation` if still unresolved; `Confirmed by repository
+  evidence` / `Derived from confirmed evidence` if resolved by what you found) and
+  write the corrected understanding into the Plan (Step 5), not the Issue's original,
+  possibly stale claim.
 - Any item classified `Needs confirmation` carries forward to Step 6 as an Unknown by
   name — do not re-derive it there. This classification is also the source for the
   Requirement Traceability table's Status column in Step 7.
-- If the Issue is already resolved, cannot be reproduced, or no longer applies: stop,
-  report the supporting evidence, do not create a Plan, and proceed to Step 9/10 to move
-  it to `issues/done/` (same `git mv`-only procedure, no separate path).
+- If the Issue is already resolved, cannot be reproduced, or no longer applies: report
+  the supporting evidence, do not create a Plan, and proceed to Step 9/10 to move it to
+  `issues/done/` (same `git mv`-only procedure, no separate path).
 - If the Issue is too vague to act on (no identifiable target files or problem
   statement), stop and ask the user for clarification before proceeding.
 
@@ -306,7 +321,7 @@ has a full table; risks are stated with mitigations.
 
 ---
 
-## Step 9: Validate and Await Approval
+## Step 9: Final Validation
 
 Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
 Requirements; the Path A/B classification (one word — the rationale is already recorded
@@ -315,21 +330,24 @@ traceability result; unresolved items count; and the Issue pending move. Do not 
 the Requirement Traceability evidence-classification breakdown in chat — it is already
 recorded in the Plan's Requirement Traceability table.
 
-Apply `rules/workflow-lifecycle.md` Approval Handling: set state to `Awaiting
-approval` and stop; do not move the Issue in the same response.
+This skill's move to `issues/done/` does not require human approval, per
+`rules/workflow-lifecycle.md` Validation Reporting. Proceed to Step 10 once
+information completeness (Step 8) is `Pass` and all required validations are
+`Pass`, without stopping to ask the user for approval.
 
 ---
 
-## Step 10: Move the Issue After Approval
+## Step 10: Move the Issue
 
 **This step is mandatory. Do not skip it.**
 
-- Move the Issue only after explicit user approval.
+- Move the Issue once Step 9 confirms information completeness is `Pass` and all
+  required validations are `Pass`.
 - Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. Do not use `mv`,
   `cp` + `rm`, file-copy APIs, or any fallback move method.
-- Before running `git mv`, verify: state is `Awaiting approval`; approval applies to the
-  current Issue; information completeness is `Pass`; all required validations are
-  `Pass`; source exists; destination does not exist; `issues/done/` exists.
+- Before running `git mv`, verify: information completeness is `Pass`; all required
+  validations are `Pass`; source exists; destination does not exist; `issues/done/`
+  exists.
 - After running `git mv`, verify: destination exists; source no longer exists; Git
   records the change as a rename or staged move.
 - If `git mv` fails, do not use a fallback. Report `Blocked`.
@@ -339,18 +357,11 @@ approval` and stop; do not move the Issue in the same response.
 
 ## Out of Scope
 
-Do not perform any of the following as part of this workflow. (Source code and
-`docs/*.md` are already out of scope per `skills/DESIGN.md` Analysis-only phase
-constraint, declared once in `SKILL.md` Purpose — not repeated here. File-scope
-restrictions are declared once above in Allowed file operations — not repeated here.)
-- unrelated refactoring
-- broad formatting-only rewrites
-- moving existing documentation files
-- changing workflow directory structure
-- changing implementation behavior during document-only phases
-- processing files under `__pycache__/`
-- interleaving multiple target files
-- parallel processing of target-file cycles
+See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
+(Source code and `docs/*.md` are already out of scope per `skills/DESIGN.md`
+Analysis-only phase constraint, declared once in `SKILL.md` Purpose — not repeated
+here. File-scope restrictions are declared once above in Allowed file operations —
+not repeated here.)
 
 ## Output format
 

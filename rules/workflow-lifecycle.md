@@ -4,12 +4,8 @@ Applies to document-generation workflows: issue-to-plan, plan-to-impl-procedure.
 
 ## Global Safety Restrictions
 
-Do not perform any of the following:
-- modify files outside the scope allowed by the active workflow
-- process files under `__pycache__/`
-- perform unrelated refactoring
-- perform broad formatting-only rewrites
-- process target-file cycles in parallel
+Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally, for
+document-generation workflows, do not perform any of the following:
 - interleave steps across target-file cycles
 - move existing documentation files
 - change the workflow directory structure
@@ -51,38 +47,32 @@ Apply the base rules from `rules/ai-execution.md` (Sequential Target Processing)
 - Write all output documents in clear and concise English for AI consumption.
 - Use Markdown for all progress reports.
 
-## Approval Handling
+## Validation Reporting
 
 - After generating output and before archival, report using the shared status structure from `rules/ai-execution.md` (Progress Reporting (Base)):
-  - `Status: Awaiting approval`
+  - `Status: Validated` (or `Blocked` / `Needs confirmation`, per the workflow's own Step results)
   - `Output: {generated file path}`
   - `Validation: {result}`
   - `Unresolved items: {items or None}`
   - `Pending move: {source file to be moved}`
-- Stop and wait for explicit user approval.
-- Do not move the source file before approval.
-- Recognize explicit approval via phrases such as "approved", "go ahead", "proceed" —
-  do not require an exact keyword match, but do not infer approval from silence or a
-  vague response.
-- An unclear user response must not be treated as approval.
-- An approval given for a different task, plan, or workflow cycle must not be treated
-  as approval for this move — confirm the approval explicitly refers to the current
-  target file.
-- Do not start the next target file while approval is pending.
+- No human approval gate exists on this move — proceed to the Archival Move once the
+  workflow's own required validations (information completeness, and any other
+  Step-defined checks) report `Pass`, without stopping to ask the user for approval.
+- Do not move the source file before its required validations report `Pass`.
+- Do not start the next target file before the current file's move completes.
 
 ## Archival Move
 
-- `issue-to-plan`: after approval, move the source file to the archive directory using
-  `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any other fallback. If
-  `git mv` fails, report `Blocked` — do not fall back to another method.
-- `plan-to-impl-procedure`: after approval, move the source file to the archive
-  directory using `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any
-  other fallback. If `git mv` fails, report `Blocked` — do not fall back to another
-  method.
+- `issue-to-plan`: once required validations report `Pass`, move the source file to
+  the archive directory using `git mv` only. Do not use `mv`, `cp` + `rm`, file-copy
+  APIs, or any other fallback. If `git mv` fails, report `Blocked` — do not fall back
+  to another method.
+- `plan-to-impl-procedure`: once required validations report `Pass`, move the source
+  file to the archive directory using `git mv` only. Do not use `mv`, `cp` + `rm`,
+  file-copy APIs, or any other fallback. If `git mv` fails, report `Blocked` — do not
+  fall back to another method.
 
 Before running the move, verify all of the following:
-- current state is `Awaiting approval`
-- approval explicitly applies to the current target file
 - information completeness is `Pass`
 - all other required validations from earlier steps are `Pass`
 - source file exists
@@ -101,7 +91,6 @@ After running the move, verify all of the following:
 
 The cycle is complete only when:
 - output document generated and validated
-- explicit user approval received
 - source file moved to archive and verified
 - no unresolved blocking items remain
 

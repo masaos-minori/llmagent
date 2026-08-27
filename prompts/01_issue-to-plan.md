@@ -16,9 +16,9 @@ what this document-only phase may create, move, or must not touch.
 
 Read the target Issue file, then create a concrete work plan based on the rules below.
 
-- **MANDATORY: After completing Step 9, you MUST wait for explicit user approval, then
-  move the Issue file to `issues/done/` in Step 10.** Skipping this step is a failure
-  condition.
+- **MANDATORY: After completing Step 9's validation, move the Issue file to
+  `issues/done/` in Step 10 — no human approval is required for this move.**
+  Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
 - **Write all output documents (`plans/`, `issues/`) in clear and concise English for
@@ -35,7 +35,7 @@ referenced files.
   precedence, tool usage, reasoning, output, progress reporting, command results,
   sequential target processing).
 - Lifecycle rules: see `rules/workflow-lifecycle.md` (global safety restrictions, target
-  validation, approval handling, archival move, completion criteria).
+  validation, validation reporting, archival move, completion criteria).
 - Traceability templates: see `templates/traceability.md` and
   `templates/requirement-traceability.md`.
 - Plan-creation approach (Path A/B classification, architecture/dependency/historical
@@ -115,14 +115,14 @@ Follow `skills/issue-to-plan/workflow.md` Step 8 in full. Report one of `Pass` /
 / `Partial` / `Blocked`; do not report `Pass` or `Completed` if any requirement
 information is unmapped or untraceable.
 
-#### Step 9: Validate and await approval
+#### Step 9: Final validation
 
-Follow `skills/issue-to-plan/workflow.md` Step 9 in full (applies
-`rules/workflow-lifecycle.md` Approval Handling). Do not start the next target file
-while approval is pending.
+Follow `skills/issue-to-plan/workflow.md` Step 9 in full. No human approval gate
+applies to this move (per `rules/workflow-lifecycle.md` Validation Reporting) — do
+not start the next target file before the current file's Step 10 move completes.
 
-**MANDATORY: After completing Step 9, you MUST wait for explicit user approval before
-proceeding to Step 10.**
+**MANDATORY: Proceed to Step 10 once Step 9 confirms information completeness is
+`Pass` and all required validations are `Pass`.**
 
 #### Step 10: Move the completed Issue file
 

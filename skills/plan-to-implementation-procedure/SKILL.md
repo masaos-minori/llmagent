@@ -7,7 +7,7 @@ description: |
   implementation procedures to avoid duplicate work, applying narrow design-reasoning
   guidance from `python-design` to a small set of fields, generating a sortable,
   collision-safe output filename, and moving the processed plan to `plans/done/`
-  after approval.
+  once validated.
   Use when the task is to break an approved plan into concrete, file-level
   implementation and test procedures — not to design architecture, and not to
   implement anything.
@@ -33,7 +33,7 @@ plan file to `plans/done/`. It must not modify source code files or `docs/*.md`.
 | 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}_plan.md` path exists before starting any processing. |
 | 2 | Read the target plan file | Read the plan in full and extract its own `Source issue` value for reuse downstream. |
 | 3 | Create implementation procedure documents | For each `Implementation steps` item, check whether it is already implemented; if not, generate a new document per `templates/implementation-procedure.md`. |
-| 4 | Move the completed plan file | `git mv` only, after explicit approval; verify pre- and post-conditions. |
+| 4 | Move the completed plan file | `git mv` only, once Step 3 passes; no human approval required; verify pre- and post-conditions. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
 
@@ -58,10 +58,9 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   implementation order — see `workflow.md` Step 3.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
 - **Mandatory move**: see `workflow.md` Step 4. Do not skip it.
-- **No approval-gate confusion**: this skill's move to `plans/done/` DOES require
-  explicit user approval — Approval Handling in `rules/workflow-lifecycle.md` is
-  scoped to document-generation workflows, which this is (unlike the subsequent
-  code-implementation phase, whose move is gated by validation results instead).
+- **No approval gate on the archival move**: this skill's move to `plans/done/`
+  does NOT require human approval — it is gated on Step 3's validation passing
+  instead, per `rules/workflow-lifecycle.md` Validation Reporting.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Exception to `skills/DESIGN.md` Output language: write the generated implementation
   procedure documents in clear and concise English (this skill's output feeds
