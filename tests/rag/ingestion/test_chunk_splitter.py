@@ -6,8 +6,10 @@ and fetched_at propagation across all written chunk files.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import orjson
+from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.models_data import ChunkDocument
 
@@ -67,6 +69,115 @@ class TestIsMarkdownSource:
         splitter = _make_splitter(md_index_enable=True)
         doc = _make_chunk_doc("page.html", content="plain text")
         assert splitter._is_markdown_source(doc) is False
+
+
+# ── Helpers for Japanese chunk overlap characterization ───────────────────────
+
+
+def _make_ja_mixin(**kwargs: Any) -> ChunkJapaneseMixin:
+    """Create a ChunkJapaneseMixin with minimal attributes for direct testing."""
+    mixin = object.__new__(ChunkJapaneseMixin)
+    mixin._max_chunk = kwargs.get("_max_chunk", 500)
+    mixin._min_chunk = kwargs.get("_min_chunk", 10)
+    mixin._chunk_overlap = kwargs.get("_chunk_overlap", 10)
+    mixin._ja_stop_pos = frozenset()
+    mixin._sd_tkn = None
+    mixin._split_c = None
+    mixin._orig_buf = ""
+    mixin._norm_buf = ""
+    mixin._result: list[tuple[str, str]] = []
+    return mixin
+
+
+# ── TestJapaneseChunkOverlap ──────────────────────────────────────────────────
+
+# Note: These tests exercise _emit_and_start_new directly without Sudachi,
+# using raw string buffers to make overlap behavior fully deterministic.
+
+
+class TestJapaneseChunkOverlap:
+    """Characterization tests for Japanese chunking with chunk_overlap > 0."""
+
+    def test_emit_with_overlap_carries_tail_into_new_buffer(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=10, _min_chunk=10)
+        mixin._orig_buf = "abcdefghij1234567890"  # 20 chars
+        mixin._norm_buf = "abcdefghij1234567890"
+        mixin._emit_and_start_new("xyz", "xyz")
+        assert len(mixin._result) == 1
+        assert mixin._orig_buf == "1234567890 xyz"
+        assert mixin._norm_buf == "1234567890 xyz"
+
+    def test_emit_without_overlap_starts_fresh(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=0, _min_chunk=10)
+        mixin._orig_buf = "abcdefghij1234567890"
+        mixin._norm_buf = "abcdefghij1234567890"
+        mixin._emit_and_start_new("xyz", "xyz")
+        assert len(mixin._result) == 1
+        assert mixin._orig_buf == "xyz"
+        assert mixin._norm_buf == "xyz"
+
+    def test_emit_short_buffer_below_min_chunk_resets(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=10, _min_chunk=10)
+        mixin._orig_buf = "ab"  # below min_chunk
+        mixin._norm_buf = "ab"
+        # _merge_ja_sentence_pairs would call _reset_buffer here, not _emit_and_start_new
+        # But we test _emit_and_start_new directly: it still emits the short buffer
+        mixin._emit_and_start_new("xyz", "xyz")
+        assert len(mixin._result) == 1
+        # "ab"[-10:] = "ab" (full string since shorter than overlap size)
+        assert mixin._orig_buf == "ab xyz"
+        assert mixin._norm_buf == "ab xyz"
+
+    def test_multiple_emits_preserve_consecutive_overlaps(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=5, _min_chunk=10)
+        # First emit
+        mixin._orig_buf = "aaaaabbbbbccccc"  # 15 chars
+        mixin._norm_buf = "AAAAABBBBBCCCCC"
+        mixin._emit_and_start_new("11111", "11111")
+        assert mixin._orig_buf == "ccccc 11111"
+        assert mixin._norm_buf == "CCCCC 11111"
+        # Second emit
+        mixin._orig_buf = "11111dddddeeeee"  # 15 chars
+        mixin._norm_buf = "11111DDDDDEEEEE"
+        mixin._emit_and_start_new("22222", "22222")
+        assert mixin._orig_buf == "eeeee 22222"
+        assert mixin._norm_buf == "EEEEE 22222"
+
+    def test_empty_buffer_at_emit_start_is_harmless(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=10, _min_chunk=10)
+        mixin._orig_buf = ""
+        mixin._norm_buf = ""
+        mixin._emit_and_start_new("xyz", "xyz")
+        assert len(mixin._result) == 1
+        assert mixin._orig_buf == "xyz"
+        assert mixin._norm_buf == "xyz"
+
+    def test_overlap_equals_buffer_length(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=15, _min_chunk=10)
+        mixin._orig_buf = "aaaaabbbbbccccc"  # exactly 15 chars
+        mixin._norm_buf = "AAAAABBBBBCCCCC"
+        mixin._emit_and_start_new("xyz", "xyz")
+        assert mixin._orig_buf == "aaaaabbbbbccccc xyz"
+        assert mixin._norm_buf == "AAAAABBBBBCCCCC xyz"
+
+    def test_overlap_larger_than_buffer_returns_full_buffer_plus_new(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=100, _min_chunk=10)
+        mixin._orig_buf = "abc"  # shorter than overlap
+        mixin._norm_buf = "ABC"
+        mixin._emit_and_start_new("xyz", "xyz")
+        # prev[-100:] = "abc" (full buffer since shorter than overlap)
+        assert mixin._orig_buf == "abc xyz"
+        assert mixin._norm_buf == "ABC xyz"
+
+    def test_strip_removes_trailing_space_before_sep(self) -> None:
+        mixin = _make_ja_mixin(_chunk_overlap=5, _min_chunk=10)
+        mixin._orig_buf = "aaaaabbbbbccccc"  # ends with 'c'
+        mixin._norm_buf = "AAAAABBBBBCCCCC"
+        mixin._emit_and_start_new("xyz", "xyz")
+        # overlap = "ccccc", sep = " ", next = "xyz" => "ccccc xyz"
+        # strip removes leading space if overlap is empty — but overlap is not empty here
+        assert mixin._orig_buf == "ccccc xyz"
+        assert mixin._norm_buf == "CCCCC xyz"
 
 
 # ── Helpers for fetched_at propagation tests ───────────────────────────────────

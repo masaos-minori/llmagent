@@ -93,8 +93,8 @@ returning only this one line as of 2026-08-27.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change `build_service`'s `max_read_bytes` argument to direct pass-through | Pending | — | — | Depends on seq 02 (`read_models.py`) landing first or together |
-| 2 | Run `uv run pytest tests/mcp_servers/file/test_read_service.py -v` | Pending | — | — | Requires seq 05 test-file item applied first |
+| 1 | Change `build_service`'s `max_read_bytes` argument to direct pass-through | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 199 shows `max_read_bytes=cfg.max_read_bytes,` — no `* 1024` multiplication. REQ-001 completed by `plans/done/20260826-115018_plan.md`. No code changes needed. |
+| 2 | Run `uv run pytest tests/mcp_servers/file/test_read_service.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

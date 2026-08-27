@@ -147,9 +147,9 @@ regression.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_reload_shows_always_live_items` | Pending | — | — | |
-| 2 | Confirm `test_reload_no_changes_shows_message` still passes | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/commands/test_agent_cmd_config.py -v` | Pending | — | — | Requires seq 02 applied first |
+| 1 | Add `test_reload_shows_always_live_items` | Completed | 2026-08-28 | 2026-08-28 | Test passes |
+| 2 | Confirm `test_reload_no_changes_shows_message` still passes | Completed | 2026-08-28 | 2026-08-28 | Also added explicit regression guard |
+| 3 | Run `uv run pytest tests/agent/commands/test_agent_cmd_config.py -v` | Completed | 2026-08-28 | 2026-08-28 | All 11 TestCmdReload tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

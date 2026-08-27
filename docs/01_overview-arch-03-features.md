@@ -32,7 +32,7 @@ Details → [`05_agent_07_01_cli-and-commands-cli-reference.md`](05_agent_07_01_
 | Memory Layer (semantic/episodic) | `scripts/agent/memory/` |
 | Session Persistence & Restoration | `scripts/agent/`, `scripts/db/` |
 | Context Compression (LLM Summarization) | `scripts/agent/` |
-| Tool Result TTL Cache | `scripts/shared/` |
+| Tool Result Cache (standalone, not used by ToolExecutor) | `scripts/shared/` |
 | SSE Streaming | `scripts/shared/` |
 | Slash Commands | `scripts/agent/commands/` |
 | Tool Loop Guard (dedup/cycle/retry/error limits) | `scripts/agent/` |

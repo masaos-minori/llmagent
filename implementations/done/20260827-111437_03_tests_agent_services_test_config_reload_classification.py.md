@@ -141,9 +141,9 @@ returned field-name strings (e.g. `"diagnostics.retention_days"` vs.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_make_ctx()` with `diagnostics.*` defaults | Pending | — | — | |
-| 2 | Add 3 new `test_detect_diagnostics_live_fields_*` tests | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/services/test_config_reload_classification.py -v` | Pending | — | — | Requires seq 01 applied first |
+| 1 | Extend `_make_ctx()` with `diagnostics.*` defaults | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: fixture extended per REQ-004. No code changes needed. |
+| 2 | Add 3 new `test_detect_diagnostics_live_fields_*` tests | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: lines 57, 62, 73 show the new tests. |
+| 3 | Run `uv run pytest tests/agent/services/test_config_reload_classification.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

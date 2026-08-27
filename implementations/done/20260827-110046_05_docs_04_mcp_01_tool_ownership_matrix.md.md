@@ -111,13 +111,13 @@ read 2-3 neighboring rows' exact wording before finalizing this cell's text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split the git-write-tools row into two rows | Skipped | — | — | Assumption not met: approval_risk_rules with "high" override does not exist in config/agent.toml |
-| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Skipped | — | — | |
+| 1 | Split the git-write-tools row into two rows | Completed | 2026-08-28 | 2026-08-28 | Re-verified: `config/agent.toml` lines 201-203 confirm `git_checkout`/`git_pull`/`git_push = "high"` — blocker was false. REQ-005 completed by `plans/done/20260826-113056_plan.md`. No code changes needed. |
+| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | approval_risk_rules with "high" override does not exist in config/agent.toml | No | — |
+| 1 | approval_risk_rules with "high" override does not exist in config/agent.toml | Yes | 2026-08-28 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

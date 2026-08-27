@@ -160,9 +160,9 @@ classmethod below (unaffected by this rename).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename `max_file_size_kb` → `max_read_bytes`, update default | Pending | — | — | |
-| 2 | Remove `// 1024` in `from_dict` | Pending | — | — | |
-| 3 | Run `uv run pytest tests/mcp_servers/file/test_file_read_mcp_models.py -v` | Pending | — | — | Requires seq 04 test-file item applied first |
+| 1 | Rename `max_file_size_kb` → `max_read_bytes`, update default | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 28 shows `max_read_bytes: int = 1024000` — rename complete. REQ-001 completed by `plans/done/20260826-115018_plan.md`. No code changes needed. |
+| 2 | Remove `// 1024` in `from_dict` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: lines 37-38 show `max_read_bytes=get_typed(d, "max_read_bytes", int, "an integer", default=1024000)` — no `// 1024` division. |
+| 3 | Run `uv run pytest tests/mcp_servers/file/test_file_read_mcp_models.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

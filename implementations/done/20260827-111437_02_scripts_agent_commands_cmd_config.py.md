@@ -171,11 +171,11 @@ quote, re-confirm line numbers have not drifted since 2026-08-26.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the message-selection branch for `always_live` | Pending | — | — | |
-| 2 | Exclude `always_live` from "No changes detected." | Pending | — | — | |
-| 3 | Add `_write_item_list()` call for `result.always_live` | Pending | — | — | |
-| 4 | Run `uv run pytest tests/agent/commands/test_cmd_config_char.py -v` | Pending | — | — | Requires seq 04 applied |
-| 5 | Run `radon cc` and confirm no complexity regression | Pending | — | — | |
+| 1 | Extend the message-selection branch for `always_live` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 66 shows `and not result.always_live` — REQ-003 completed by `plans/done/20260826-120102_plan.md`. No code changes needed. |
+| 2 | Exclude `always_live` from "No changes detected." | Completed | 2026-08-28 | 2026-08-28 | Same as above. |
+| 3 | Add `_write_item_list()` call for `result.always_live` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 93-95 shows the render block. |
+| 4 | Run `uv run pytest tests/agent/commands/test_cmd_config_char.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
+| 5 | Run `radon cc` and confirm no complexity regression | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

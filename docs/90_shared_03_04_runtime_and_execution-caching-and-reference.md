@@ -10,7 +10,7 @@ Exponential backoff retry for HTTP POST requests to LLM endpoints. Retries on 42
 
 ## 15. `ToolResultCache` / `CacheEntry` (`shared/tool_cache.py`)
 
-A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cached_at` (float). A standalone utility for tool results. No longer used by `ToolExecutor` after TTL cache removal (see REQ-002). Key format: `{tool_name}:{json_dumps(args)}` using `shared.json_utils.dumps`. `store_if_success()` stores only results where `is_error=False`.
+A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cached_at` (float). A standalone utility for tool results, not used by `ToolExecutor`. Key format: `{tool_name}:{json_dumps(args)}` using `shared.json_utils.dumps`. `store_if_success()` stores only results where `is_error=False`.
 
 ---
 

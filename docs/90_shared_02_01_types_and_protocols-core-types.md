@@ -30,7 +30,7 @@ List of major common types (refer to code for details):
 - Tool frozensets — `shared/tool_constants.py` — Used by `shared/`, `agent/`, `mcp_servers/`.
 - `ToolCallResult` / `TransportErrorInfo` (frozen dataclass) — `shared/transport_dto.py`.
 - `ToolSpec` (frozen dataclass) — `shared/tool_spec.py` — Used by `agent/` (DAG mode).
-- `CacheEntry` (frozen dataclass) — `shared/tool_cache.py` — Used by `shared/` (ToolExecutor cache).
+- `CacheEntry` (frozen dataclass) — `shared/tool_cache.py` — Standalone utility, not currently used anywhere.
 - `ToolDefinition` (frozen dataclass) — `shared/tool_registry.py` — Used by `shared/`, `mcp_servers/`.
 
 ---

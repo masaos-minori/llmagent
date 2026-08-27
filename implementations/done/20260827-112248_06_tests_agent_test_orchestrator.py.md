@@ -144,8 +144,8 @@ because of `_skill_ephemeral`" if a future regression re-broke only the latter.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestClearPreviousTurnEphemeralMessages` class with 2 test methods | Pending | — | — | |
-| 2 | Run `uv run pytest tests/agent/test_orchestrator.py -v` | Pending | — | — | Requires seq 02 applied first |
+| 1 | Add `TestClearPreviousTurnEphemeralMessages` class with 5 test methods | Completed | — | — | All 5 tests pass |
+| 2 | Run `uv run pytest tests/agent/test_orchestrator.py -v` | Completed | — | — | All 5 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

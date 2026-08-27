@@ -105,7 +105,7 @@ is_side_effect(tool_name: str) -> bool
 
 ### Implementation Notes (Current behavior): tool_cache.py and ToolSpec
 
-- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is not used by `ToolExecutor`. `ToolExecutor` uses its own internal cache implementation instead. `ToolResultCache` is not deprecated, but remains a standalone utility for future users who do not require stampede protection. (Explicit in code: `shared/tool_cache.py` module docstring)
+- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is not used by `ToolExecutor` — `ToolExecutor` has no internal cache (removed along with stampede protection); `ToolResultCache` is not deprecated, but remains a standalone utility for future users who do not require stampede protection. (Explicit in code: `shared/tool_cache.py` module docstring)
 - `shared/tool_spec.py`'s `ToolSpec` (frozen dataclass) holds execution metadata for a single approved tool call (`call_id`, `name`, `args`, `resource_scopes` (tuple of strings with kind prefixes), `requires_serial`, `is_write`). `agent/tool_runner.py::_execute_with_dag()` constructs it for every call via `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)` (which internally calls `shared/resource_scope.py::resolve_resource_scopes()` to resolve `resource_scopes`) and passes it to `agent/tool_scheduler.py::build_execution_groups()` as a `dict[str, ToolSpec]` keyed by `call_id`, which is then used for parallel/serial determination as a single `ExecutionPlan` (`batches`/`ScheduledGroup`/`SerializationEvent`). (Explicit in code)
 
 ### `RuntimeToolRegistry` and Live Discovery (Implemented)

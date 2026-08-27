@@ -20,6 +20,16 @@ class TestRagPipelineConfigFromDict:
         cfg = RagPipelineConfig.from_dict({})
         assert cfg == RagPipelineConfig()
 
+    def test_defaults_match_operational_toml(self) -> None:
+        # Source of truth: config/rag_pipeline_mcp_server.toml's operational values.
+        # A future edit to either side without the other must fail this test.
+        cfg = RagPipelineConfig()
+        assert cfg.top_k_search == 20
+        assert cfg.top_k_rerank == 15
+        assert cfg.rag_min_score == 2.0
+        assert cfg.semantic_cache_max_size == 100
+        assert cfg.refiner_max_chars_per_chunk == 300
+
     def test_custom_values_are_mapped(self) -> None:
         raw: dict[str, Any] = {
             "llm_url": "http://llm.example",

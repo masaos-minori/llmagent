@@ -111,11 +111,11 @@ tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `test_from_dict_defaults` | Pending | — | — | |
-| 2 | Update `test_from_dict_custom_values` | Pending | — | — | |
-| 3 | Update `test_dataclass_fields` | Pending | — | — | |
-| 4 | Add `test_from_dict_non_aligned_value_survives_unchanged` | Pending | — | — | |
-| 5 | Run `uv run pytest tests/mcp_servers/file/test_file_read_mcp_models.py -v` | Pending | — | — | Requires seq 02 (`read_models.py`) applied first |
+| 1 | Update `test_from_dict_defaults` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 28 shows `cfg.max_read_bytes == 1024000` — no `max_file_size_kb` reference. REQ-001 completed by `plans/done/20260826-115018_plan.md`. No code changes needed. |
+| 2 | Update `test_from_dict_custom_values` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 42 shows `cfg.max_read_bytes == 2097152` — exact pass-through, no `// 1024`. |
+| 3 | Update `test_dataclass_fields` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 54 shows `"max_read_bytes"` in expected field names. |
+| 4 | Add `test_from_dict_non_aligned_value_survives_unchanged` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: lines 48-49 show the new test with `999999` value. |
+| 5 | Run `uv run pytest tests/mcp_servers/file/test_file_read_mcp_models.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

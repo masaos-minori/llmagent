@@ -133,7 +133,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 ② Runtime Dispatch        `server.py`'s `_DISPATCH_TABLE` or `service.get_dispatch_table()`
 ③ Registry Registration    `shared/tool_constants.py`'s frozenset → `shared/tool_registry.py` (for drift detection); routing relies solely on `RuntimeToolRegistry` in `shared/runtime_tool_registry.py`
 ④ Side-effect Detection     Only execution path `agent/tool_runner.py::_execute_with_dag()` delegates to `agent/tool_scheduler.py::build_execution_groups()` and references `RuntimeToolRegistry`-registered `is_write` (PreparedToolCall.spec) to determine parallel/serial execution (unregistered tools are rejected in the preparation phase via fail-closed)
-                       `shared/tool_executor_helpers.py::is_side_effect()` is now used only for bypassing TTL cache in `shared/tool_executor.py`, which is a completely unrelated mechanism.
+                        `shared/tool_executor_helpers.py::is_side_effect()` is deprecated (no longer used after TTL cache removal).
 ⑤ Risk Classification & Approval `agent/tool_policy.py::classify_operation_type()` / `classify_risk()` — Priority: `approval_risk_rules` → `tool_safety_tiers` → `tool_constants.py` classification
 ⑥ Audit Logging           `agent/tool_audit.py` — Records `classify_operation_type()` result as `operation_type`
 ```

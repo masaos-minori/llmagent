@@ -51,16 +51,16 @@ class RagPipelineConfig:
     rrf_k: int = 60
     use_rerank: bool = True
     use_refiner: bool = False
-    top_k_search: int = 5
-    top_k_rerank: int = 10
+    top_k_search: int = 20
+    top_k_rerank: int = 15
     rag_top_k: int = 5
-    rag_min_score: float = 0.0
+    rag_min_score: float = 2.0
     max_chunks_per_doc: int = 3
-    semantic_cache_max_size: int = 128
+    semantic_cache_max_size: int = 100
     semantic_cache_threshold: float = 0.92
     use_semantic_cache: bool = False
     refiner_max_tokens: int = 512
-    refiner_max_chars_per_chunk: int = 800
+    refiner_max_chars_per_chunk: int = 300
     refiner_timeout: float = 30.0
     rag_auth_token: str = ""
 
@@ -82,16 +82,16 @@ class RagPipelineConfig:
             rrf_k=int(d.get("rrf_k", 60)),
             use_rerank=bool(d.get("use_rerank", True)),
             use_refiner=bool(d.get("use_refiner", False)),
-            top_k_search=int(d.get("top_k_search", 5)),
-            top_k_rerank=int(d.get("top_k_rerank", 10)),
+            top_k_search=int(d.get("top_k_search", 20)),
+            top_k_rerank=int(d.get("top_k_rerank", 15)),
             rag_top_k=int(d.get("rag_top_k", 5)),
-            rag_min_score=float(d.get("rag_min_score", 0.0)),
+            rag_min_score=float(d.get("rag_min_score", 2.0)),
             max_chunks_per_doc=int(d.get("max_chunks_per_doc", 3)),
-            semantic_cache_max_size=int(d.get("semantic_cache_max_size", 128)),
+            semantic_cache_max_size=int(d.get("semantic_cache_max_size", 100)),
             semantic_cache_threshold=float(d.get("semantic_cache_threshold", 0.92)),
             use_semantic_cache=bool(d.get("use_semantic_cache", False)),
             refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
-            refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 800)),
+            refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
             rag_auth_token=str(d.get("rag_auth_token", "")),
         )

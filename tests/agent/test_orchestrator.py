@@ -1485,6 +1485,74 @@ class TestEphemeralMessageLifecycle:
         assert sum(1 for m in second_payload if m.get("_memory_injected")) == 1
 
 
+class TestClearPreviousTurnEphemeralMessages:
+    """Direct unit coverage for Orchestrator._clear_previous_turn_ephemeral_messages()."""
+
+    def test_removes_ephemeral_memory_injected_and_skill_ephemeral_messages(
+        self,
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            {"role": "system", "content": "kept"},
+            {"role": "system", "content": "eph", "_ephemeral": True},
+            {"role": "system", "content": "mem", "_memory_injected": True},
+            {"role": "system", "content": "skill", "_skill_ephemeral": True},
+        ]
+        orch = _make_orchestrator(ctx)
+        orch._clear_previous_turn_ephemeral_messages()
+        assert ctx.conv.history == [{"role": "system", "content": "kept"}]
+
+    def test_skill_ephemeral_only_message_removed_without_other_ephemeral_keys(
+        self,
+    ) -> None:
+        """A message tagged only with _skill_ephemeral (no _ephemeral key) must
+        still be cleared -- this is the specific gap REQ-001 fixes."""
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            {"role": "system", "content": "kept"},
+            {"role": "system", "content": "skill only", "_skill_ephemeral": True},
+        ]
+        orch = _make_orchestrator(ctx)
+        orch._clear_previous_turn_ephemeral_messages()
+        assert ctx.conv.history == [{"role": "system", "content": "kept"}]
+
+    def test_non_ephemeral_messages_preserved(self) -> None:
+        """Non-ephemeral user/assistant/system messages must survive unchanged."""
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi there"},
+        ]
+        orch = _make_orchestrator(ctx)
+        orch._clear_previous_turn_ephemeral_messages()
+        assert len(ctx.conv.history) == 3
+        assert ctx.conv.history[0] == {"role": "system", "content": "You are helpful."}
+        assert ctx.conv.history[1] == {"role": "user", "content": "hello"}
+        assert ctx.conv.history[2] == {"role": "assistant", "content": "hi there"}
+
+    def test_empty_history_is_noop(self) -> None:
+        """An empty conversation history must remain empty after clearing."""
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        orch = _make_orchestrator(ctx)
+        orch._clear_previous_turn_ephemeral_messages()
+        assert ctx.conv.history == []
+
+    def test_mixed_ephemeral_and_non_ephemeral_in_same_message_removed(self) -> None:
+        """A message carrying both an ephemeral key AND a non-ephemeral role
+        value must be removed — ephemeral key takes priority regardless of role."""
+        ctx = _make_ctx()
+        ctx.conv.history = [
+            {"role": "user", "content": "eph-user", "_ephemeral": True},
+            {"role": "assistant", "content": "eph-assist", "_skill_ephemeral": True},
+            {"role": "system", "content": "kept"},
+        ]
+        orch = _make_orchestrator(ctx)
+        orch._clear_previous_turn_ephemeral_messages()
+        assert ctx.conv.history == [{"role": "system", "content": "kept"}]
+
+
 class TestHistoryConstructionRoutedThroughAppendMessage:
     """Regression coverage for plans/20260726-093008_plan.md: the three
     history-construction call sites in orchestrator.py --

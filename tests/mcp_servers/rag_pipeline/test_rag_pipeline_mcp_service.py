@@ -35,15 +35,15 @@ class TestBuildRagCfgAdapter:
         assert ns.use_refiner is False
         assert ns.use_search is True
         assert ns.rag_service_url == ""
-        assert ns.top_k_search == 5
-        assert ns.top_k_rerank == 10
+        assert ns.top_k_search == 20
+        assert ns.top_k_rerank == 15
         assert ns.rag_top_k == 5
-        assert ns.rag_min_score == 0.0
+        assert ns.rag_min_score == 2.0
         assert ns.max_chunks_per_doc == 3
-        assert ns.semantic_cache_max_size == 128
+        assert ns.semantic_cache_max_size == 100
         assert ns.semantic_cache_threshold == 0.92
         assert ns.refiner_max_tokens == 512
-        assert ns.refiner_max_chars_per_chunk == 800
+        assert ns.refiner_max_chars_per_chunk == 300
         assert ns.refiner_timeout == 30.0
 
     def test_overrides_from_cfg(self) -> None:

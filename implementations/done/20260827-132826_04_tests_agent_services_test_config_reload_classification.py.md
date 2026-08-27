@@ -118,9 +118,9 @@ def test_apply_tool_params_still_collects_serial_tool_calls(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_apply_tool_params_ignores_tool_cache_ttl` | Pending | — | — | |
-| 2 | Add `test_apply_tool_params_still_collects_serial_tool_calls` (scope-boundary guard) | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent/services/test_config_reload_classification.py -v` | Pending | — | — | Requires seq 03 applied first |
+| 1 | Add `test_apply_tool_params_ignores_tool_cache_ttl` | Completed | 2026-08-28 | 2026-08-28 | Test passes |
+| 2 | Add `test_apply_tool_params_still_collects_serial_tool_calls` (scope-boundary guard) | Completed | 2026-08-28 | 2026-08-28 | Test passes |
+| 3 | Run `uv run pytest tests/agent/services/test_config_reload_classification.py -v` | Completed | 2026-08-28 | 2026-08-28 | All 7 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

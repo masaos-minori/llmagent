@@ -117,7 +117,7 @@ Servers run as subprocesses on loopback.
 |---|---|---|
 | `MCPServer` | `scripts/mcp_servers/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
 | `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | Common Pydantic models for all servers |
-| `ToolExecutor` | `shared/tool_executor.py` | Routing, TTL caching, concurrent execution, health registry |
+| `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name $\rightarrow$ server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
 The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `docs/04_mcp_06_03` for details. |

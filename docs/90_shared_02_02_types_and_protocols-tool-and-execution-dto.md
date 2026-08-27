@@ -36,7 +36,7 @@ Import: `from shared.tool_spec import ToolSpec`
 
 ## 7b. `CacheEntry` / `ToolResultCache` (`shared/tool_cache.py`)
 
-`CacheEntry` (output, is_error, cached_at) — a standalone utility. No longer used by `ToolExecutor` after TTL cache removal (see REQ-002). (Explicit in code)
+`CacheEntry` (output, is_error, cached_at) — a standalone utility, not used by `ToolExecutor`. (Explicit in code)
 
 ---
 

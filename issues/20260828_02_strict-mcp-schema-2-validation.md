@@ -1,0 +1,115 @@
+# Enforce strict MCP Schema 2.0 validation in tool discovery
+
+## Priority
+High
+
+## Summary
+Enforce strict MCP Schema 2.0 validation at the discovery/response boundary in `mcp_tool_discovery.py`: reject `/v1/tools` responses missing `schema_version`, require canonical `inputSchema` (no `input_schema` fallback), and reject entries carrying the legacy singular `resource_scope` field. Replace acceptance tests with rejection tests.
+
+## Background
+Source issue `issues/20260819_01_issue.md` ("Remove legacy MCP routing and pre-Schema 2.0 compatibility") bundles two independent pieces of work:
+
+1. Removing unused `server_configs`/`discovery_map`/`known_tools` constructor arguments and the `_log_routing_coverage()` diagnostic path from `ToolRouteResolver`/`ToolExecutor`.
+2. Enforcing strict MCP Schema 2.0 validation at the discovery/response boundary (`schema_version` requirement, `inputSchema`-only, `resource_scope_kind`/`resource_scope_keys`-only).
+
+**Item 1 is already fully covered by `requires/done/20260818-223204_require.md`** ("Remove legacy backward-compatibility arguments and unreachable diagnostic path from ToolRouteResolver"). As of this writing that requirement has already progressed past this pipeline stage: it was moved to `requires/done/` and turned into `plans/20260819-181912_plan.md`. That document already specifies the exact `route_resolver.py`/`tool_executor.py` changes, acceptance criteria, and test list for the `ToolRouteResolver` constructor cleanup. **This document intentionally does not repeat that scope** — implementing it here would duplicate work already planned. This document covers only item 2.
+
+Verified directly against current source (`scripts/agent/services/mcp_tool_discovery.py`, `scripts/mcp_servers/server.py`):
+
+- `scripts/agent/services/mcp_tool_discovery.py:251` (`_validate_and_normalize_entry`) and `:333` (`_dedupe_and_build`) both compute `entry.get("inputSchema", entry.get("input_schema"))` — the legacy snake_case `input_schema` field is accepted as a fallback wherever `inputSchema` is absent.
+- `scripts/agent/services/mcp_tool_discovery.py:271-280`'s optional-field type-check loop includes `("resource_scope", str)` — a legacy singular `resource_scope` field is type-checked (and thus tolerated) even though it is never read into `build_runtime_tool()`. Only `resource_scope_kind`/`resource_scope_keys` (both required by `_REQUIRED_SCHEMA_V2_FIELDS`, line 73-78) are actually consumed.
+- `scripts/agent/services/mcp_tool_discovery.py:191-197` (`_fetch_server_tools`) reads `body.get("schema_version")` and only logs it at debug level — a response missing `schema_version`, or carrying an unsupported value, is never rejected.
+- `tests/agent/services/test_mcp_tool_discovery.py:970-995` (`test_missing_schema_version_tolerated`) and `:844-903` (`test_resource_scope_type_checked_when_present_synthetic`) currently assert *acceptance* of these legacy/absent forms — the opposite of the target behavior.
+
+Important naming fact discovered during verification: the envelope-level version constant `MCP_TOOL_SCHEMA_VERSION` (independently defined as `"1.0"` in `scripts/mcp_servers/server.py:39` and duplicated the same way in `scripts/mcp_servers/file/read_server.py:64`, `scripts/mcp_servers/file/write_server.py:51`, `scripts/mcp_servers/file/delete_server.py:45`, and `scripts/mcp_servers/git/git_server.py:40`) is currently `"1.0"`, not `"2.0"`. The issue's phrase "MCP Schema 2.0" refers to the *per-tool field set* (`TOOL_SCHEMA_V2_FIELDS` / `_REQUIRED_SCHEMA_V2_FIELDS`: `is_write`, `requires_serial`, `resource_scope_kind`, `resource_scope_keys`), not to the envelope `schema_version` string value. No shared constant for the envelope version currently exists in `scripts/shared/` — each server module defines its own copy, all equal to `"1.0"`. Implementers must validate the client against the value the servers actually emit (`"1.0"`) rather than a literal `"2.0"` string, or discovery will reject every real server response. This is stated here as a verified fact so the implementation plan does not introduce a mismatched literal.
+
+Also verified: `scripts/mcp_servers/server.py`'s `build_tools_response()` (lines 224-261) already unconditionally emits `"schema_version": MCP_TOOL_SCHEMA_VERSION` and already requires every tool dict to declare `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys` before it reaches `TOOL_LIST`; it does not emit a legacy singular `resource_scope` or `input_schema` field. The server-side response builders therefore need no behavior change for this requirement — the legacy-acceptance logic to remove lives entirely on the client (discovery) side in `mcp_tool_discovery.py`. They are listed under Target files as reference/verification only.
+
+## Problem
+`mcp_tool_discovery.py` is more permissive than the documented MCP Schema 2.0 contract:
+
+- It accepts tool entries using the legacy `input_schema` key when `inputSchema` is absent, instead of requiring the canonical camelCase key.
+- It accepts (type-checks but tolerates) a legacy singular `resource_scope` field that has no effect on the built `RuntimeTool`, instead of rejecting entries that still carry it.
+- It never rejects a `/v1/tools` response that omits `schema_version` or carries an unsupported value — the field is read only for a debug log line.
+
+This makes the effective client-side protocol looser than the documented protocol, which can mask server-side schema regressions (e.g. a server emitting stale `input_schema`-only tool definitions would silently work instead of surfacing a discovery-time failure).
+
+## Reason for Change
+MCP Schema 2.0 is the current contract. Every production MCP server in this repository (`scripts/mcp_servers/server.py` and the per-tool-family servers under `scripts/mcp_servers/`) already emits canonical Schema 2.0 responses (`inputSchema`, `resource_scope_kind`/`resource_scope_keys`, and a `schema_version` envelope field) — no production server depends on the legacy forms. Continuing to tolerate the legacy/absent forms on the client only weakens detection of a genuine server-side regression; it provides no compatibility benefit today and should be removed per this issue's "direct removal, no aliases/fallbacks/compat flags" intent.
+
+## Implementation Intent
+`mcp_tool_discovery.py` must validate every `/v1/tools` response strictly against MCP Schema 2.0 at the boundary, rejecting (as a WARNING-level per-entry or per-server finding, consistent with the module's existing "log and continue" pattern — see `_fetch_server_tools`'s docstring) any response or entry that:
+
+- omits the top-level `schema_version` field, or carries a value other than the currently supported version (the value the servers emit, i.e. matching `MCP_TOOL_SCHEMA_VERSION`);
+- uses `input_schema` instead of, or in addition to relying on, the canonical `inputSchema` field (only `inputSchema` is accepted going forward — no fallback lookup);
+- carries a legacy singular `resource_scope` field (only `resource_scope_kind` and `resource_scope_keys` are accepted).
+
+This is a direct removal of the compatibility branches, per the issue: no aliasing, no deprecation warnings, no migration/fallback logic. A response/entry that fails validation produces a rejection finding through the same `StartupCheckOutcome` mechanism already used for other malformed-entry cases in this module, and the entry/server is excluded from the resulting `RuntimeToolRegistry` exactly as other invalid entries already are.
+
+## Target Files or Areas
+- `scripts/agent/services/mcp_tool_discovery.py` (primary — all changes land here)
+- `tests/agent/services/test_mcp_tool_discovery.py`
+- Reference only, verified already compliant, no behavior change expected:
+  - `scripts/mcp_servers/server.py`
+  - `scripts/mcp_servers/file/read_server.py`
+  - `scripts/mcp_servers/file/write_server.py`
+  - `scripts/mcp_servers/file/delete_server.py`
+  - `scripts/mcp_servers/git/git_server.py`
+
+## Required Changes
+- **In `scripts/agent/services/mcp_tool_discovery.py`**:
+  - In `_fetch_server_tools` (around line 191-197): Require `schema_version` to be present and equal to the currently supported version. If missing or mismatched, treat the whole server response as invalid via the existing `_warning_fetch_result(...)` path (same treatment as the existing non-200 / invalid-JSON / malformed-shape cases in this method), producing a WARNING finding and marking the server unreachable/excluded — do not silently continue with the debug-log-only behavior.
+  - Introduce a single named constant (or import an existing one if the implementer chooses to add a shared constant module) for "the currently supported schema version" so the accepted value is not a bare literal scattered across the validation logic. Do not hardcode a `"2.0"` literal — the value must match what `MCP_TOOL_SCHEMA_VERSION` currently is on the server side (`"1.0"` as verified in Background) or the discovery client will reject every real server. Whether to centralize this constant into a new `scripts/shared/` module shared with the server modules, or simply mirror the value with a local constant plus a comment pointing at `scripts/mcp_servers/server.py:MCP_TOOL_SCHEMA_VERSION`, is left to the implementer's judgment during planning — either satisfies this requirement, but the value must not drift from what production servers actually emit.
+  - In `_validate_and_normalize_entry` (around line 251): Change `entry.get("inputSchema", entry.get("input_schema"))` to read only `entry.get("inputSchema")` (or `entry["inputSchema"]` after existence-checking, consistent with the surrounding validation style). Do not fall back to `input_schema`.
+  - In the same method's optional-field type-check loop (around lines 271-280): Remove the `("resource_scope", str)` tuple entry. A `resource_scope` key present on an entry going forward is simply not type-checked or read (it already was not consumed); if the intent is to hard-reject entries that still carry the legacy key at all (rather than just stop tolerating it), add an explicit rejection when `"resource_scope" in entry` — decide this based on the acceptance criteria below (rejection tests must exist either way).
+  - In `_dedupe_and_build` (around line 333): Change the same `entry.get("inputSchema", entry.get("input_schema"))` expression to `entry.get("inputSchema")` for consistency with `_validate_and_normalize_entry` (entries reaching this method have already passed validation, so this is a same-key-only lookup, no new rejection path here).
+  - Update docstrings/comments in this file that describe the current fallback/tolerant behavior (e.g., the `_fetch_server_tools` docstring's framing of `schema_version` handling) to reflect the new strict-rejection behavior.
+- **In `tests/agent/services/test_mcp_tool_discovery.py`**:
+  - Replace `test_missing_schema_version_tolerated` (lines 970-995) with a rejection test (e.g. `test_missing_schema_version_rejected`) asserting the server/response is excluded and a WARNING finding is produced when `schema_version` is absent.
+  - Add a companion test asserting rejection when `schema_version` is present but set to an unsupported value (e.g. `"0.9"` or `"2.0"` if that is not the currently supported value).
+  - Replace `test_resource_scope_type_checked_when_present_synthetic` (lines 844-903) with a rejection test asserting that an entry carrying the legacy singular `resource_scope` field is rejected (or at minimum no longer accepted as valid) rather than passed through.
+  - Add a test asserting that an entry using `input_schema` (snake_case) without `inputSchema` is rejected as invalid (currently no test exercises this fallback in isolation — this is new coverage, not a replacement).
+  - Audit remaining fixtures/tests in this file for any other place that constructs a legacy `input_schema`-only or `resource_scope`-only entry expecting success, and update them to expect rejection.
+- Search the full repository (not just the files above) for any other consumer of `mcp_tool_discovery`'s output or any other test fixture that builds `/v1/tools`-shaped payloads with the legacy fields, to confirm no other call site depends on the removed tolerance:
+
+```bash
+rg -n "input_schema|resource_scope\"|schema_version" tests scripts
+```
+
+## Constraints
+- Must not introduce new compatibility branches (no aliases, no deprecation warnings, no migration/fallback logic).
+- The currently supported `schema_version` value is `"1.0"` (verified in Background), NOT `"2.0"`. Using `"2.0"` as the accepted value would cause discovery to reject every real server response.
+- Rejection findings must use the existing `StartupCheckOutcome` mechanism already used for other malformed-entry cases in this module.
+- All production MCP servers in this repo already emit canonical Schema 2.0 responses — no server-side changes required.
+
+## Acceptance Criteria
+- `/v1/tools` responses missing `schema_version` are rejected (server excluded from the resulting `RuntimeToolRegistry`, with a WARNING finding), not merely logged.
+- `/v1/tools` responses whose `schema_version` does not match the currently supported version are rejected the same way.
+- Valid MCP Schema 2.0 responses (current production server output, `schema_version` matching `MCP_TOOL_SCHEMA_VERSION`, canonical `inputSchema`/`resource_scope_kind`/`resource_scope_keys`) still populate the runtime registry exactly as before — no regression for the compliant path.
+- Tool entries that provide only `input_schema` (no `inputSchema`) are rejected; no code path in `mcp_tool_discovery.py` performs an `inputSchema`-or-`input_schema` fallback lookup any more.
+- Tool entries carrying the legacy singular `resource_scope` field no longer silently pass through as if compatible; the module's tests explicitly assert rejection (or non-consumption) of this field rather than tolerance.
+- `test_missing_schema_version_tolerated` and `test_resource_scope_type_checked_when_present_synthetic` (or their replacements) no longer assert acceptance of the legacy/absent forms.
+- No remaining reference in `scripts/agent/services/mcp_tool_discovery.py` to `entry.get("input_schema")` as a fallback target.
+- All affected tests pass.
+
+## Testing Expectations
+Run `uv run pytest tests/agent/services/test_mcp_tool_discovery.py` after the change to confirm the updated/added rejection tests pass and no previously-passing compliant-path test regresses. Run the full suite (`uv run pytest`) to confirm no other test (e.g. integration tests that build synthetic `/v1/tools` fixtures) depends on the removed tolerance. Add/update tests per Implementation instructions step 2: schema_version missing, schema_version unsupported value, `input_schema`-only entry, legacy singular `resource_scope` entry — each must assert rejection, not acceptance.
+
+## Documentation Impact
+- Update docstrings/comments in `scripts/agent/services/mcp_tool_discovery.py` that describe the current fallback/tolerant behavior (e.g., the `_fetch_server_tools` docstring's framing of `schema_version` handling) to reflect the new strict-rejection behavior.
+- Document the decision about whether to centralize the `schema_version` constant into a shared module vs. mirroring the value locally with a comment.
+
+## Out of Scope
+- Removing unused `server_configs`/`discovery_map`/`known_tools` constructor arguments from `ToolRouteResolver`/`ToolExecutor` (covered by `requires/done/20260818-223204_require.md`).
+- Any changes to server-side MCP response builders under `scripts/mcp_servers/`.
+- Changing the envelope-level `MCP_TOOL_SCHEMA_VERSION` constant value itself (that is a separate concern — this issue validates against whatever value the servers currently emit).
+
+## Dependencies
+- `requires/done/20260818-223204_require.md` ("Remove legacy backward-compatibility arguments and unreachable diagnostic path from ToolRouteResolver") — covers Item 1 of the source issue (constructor cleanup), which is out of scope for this document.
+
+## Unresolved Questions
+- Should entries carrying the legacy singular `resource_scope` field be hard-rejected (explicit rejection) or simply ignored (not consumed)? Both approaches satisfy the acceptance criterion that they "no longer silently pass through as if compatible," but the approach affects whether a new rejection finding is emitted. This should be decided during implementation.
+- Should the currently-supported `schema_version` constant be centralized into a new `scripts/shared/` module shared between server and discovery modules, or mirrored locally? Either satisfies this requirement, but the choice affects future maintenance burden.
+
+## AI Implementation Instruction
+Enforce strict MCP Schema 2.0 validation: require `schema_version` present and matching `"1.0"`, accept only `inputSchema` (reject `input_schema`-only entries), reject entries carrying legacy `resource_scope` field. Replace acceptance tests with rejection tests. Do not introduce new compatibility branches. Use the existing `StartupCheckOutcome` mechanism for rejections.

@@ -82,3 +82,22 @@ def test_detect_diagnostics_live_fields_change_detected(
         {"diagnostics": {"encryption_key": "new_key"}}
     )
     assert "diagnostics.encryption_key" in result
+
+
+# --- Regression tests for tool_cache_ttl removal (REQ-003) ---
+
+
+def test_apply_tool_params_ignores_tool_cache_ttl(
+    svc: ConfigReloadService, ctx: MagicMock
+) -> None:
+    changes: dict[str, object] = {}
+    svc._apply_tool_params(ctx.cfg, {"tool_cache_ttl": 999.0}, changes)
+    assert "tool_cache_ttl" not in changes
+
+
+def test_apply_tool_params_still_collects_serial_tool_calls(
+    svc: ConfigReloadService, ctx: MagicMock
+) -> None:
+    changes: dict[str, object] = {}
+    svc._apply_tool_params(ctx.cfg, {"serial_tool_calls": True}, changes)
+    assert changes["serial_tool_calls"] is True

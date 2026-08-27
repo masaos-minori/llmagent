@@ -169,7 +169,8 @@ Treating `scripts/shared/` as the source of truth. Below is a loosely grouped li
 ### Design Intent and Operational Specifications
 
 #### Control via Caching and Health Checks
-`tool_cache.py`'s `ToolResultCache` reduces redundant upstream calls using TTL-based caching, but carries the risk of result staleness. Additionally, health checks using `mcp_health.py` enable dispatch control based on server status (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN). Note that `ToolResultCache` is a standalone utility and is not currently integrated into the internal cache of `ToolExecutor`.
+
+`tool_cache.py`'s `ToolResultCache` is a standalone LRU+TTL cache utility, not currently used anywhere in the codebase. Health checks using `mcp_health.py` enable dispatch control based on server status (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN).
 
 #### Behavior of Drift Validation
 The behavior of routing drift detection is as follows:

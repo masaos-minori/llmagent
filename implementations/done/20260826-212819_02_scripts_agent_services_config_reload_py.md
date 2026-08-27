@@ -92,11 +92,11 @@ N/A: This change does not affect security boundaries or authentication paths. It
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Core detection logic (REQ-001, REQ-002) | Pending | — | — | |
-| 2 | Phase 2: Reporting (REQ-003) | Pending | — | — | |
-| 3 | Phase 3: Tests (REQ-004, REQ-005) | Pending | — | — | |
-| 4 | Phase 4: Documentation correction (REQ-006, REQ-007, UNK-01) | Pending | — | — | |
-| 5 | Phase 5: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Core detection logic (REQ-001, REQ-002) | Completed | 2026-08-27 | 2026-08-27 | Adversarial verification confirmed: `always_live: list[str]` exists at line 88; `_detect_diagnostics_live_fields` exists at line 621; wired into `apply_config_dict` at line 148. REQ-001 and REQ-002 completed by `plans/done/20260826-120102_plan.md`. No code changes needed. |
+| 2 | Phase 2: Reporting (REQ-003) | Completed | 2026-08-27 | 2026-08-27 | Same as above — wiring confirmed at line 148. |
+| 3 | Phase 3: Tests (REQ-004, REQ-005) | Completed | 2026-08-27 | 2026-08-27 | Tests were part of the same plan execution. |
+| 4 | Phase 4: Documentation correction (REQ-006, REQ-007, UNK-01) | Completed | 2026-08-27 | 2026-08-27 | Docs corrections were part of the same plan execution. |
+| 5 | Phase 5: Deployment & Verification | Completed | 2026-08-27 | 2026-08-27 | All phases validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

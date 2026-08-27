@@ -48,15 +48,14 @@ class _SkillMixin(MixinBase):
             m for m in ctx.conv.history if not m.get("_skill_ephemeral")
         ]
         # source="skill_mixin" only authorizes "_skill_ephemeral" in
-        # TRUSTED_SOURCES (message_schema.py); "_ephemeral" is therefore
-        # stripped by append_message()'s sanitize-and-log fallback. This is a
-        # known, accepted retention-window change (see
-        # implementations/done/20260726-101004_mode_classification_and_cmd_skill.py.md):
-        # skill context is no longer auto-cleared by the orchestrator's
-        # generic "_ephemeral" sweep at the next turn boundary; it is still
-        # cleared by this file's own "_skill_ephemeral" filter above on the
-        # next /skill invocation. Do not "fix" this by adding "_ephemeral" to
-        # TRUSTED_SOURCES["skill_mixin"] without review.
+        # TRUSTED_SOURCES (message_schema.py); "_ephemeral" is stripped by
+        # append_message()'s sanitize-and-log fallback. With
+        # Orchestrator._EPHEMERAL_KEYS extended to include "_skill_ephemeral",
+        # the message is cleared by the orchestrator's generic ephemeral sweep
+        # at the very next turn boundary, same as any other ephemeral message.
+        # The file's own "_skill_ephemeral" filter on the next /skill
+        # invocation remains harmless (no-op since the message was already
+        # cleared). Do not restore "_ephemeral" for skill_mixin without review.
         await ctx.conv.append_message(
             {
                 "role": "system",

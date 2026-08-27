@@ -120,7 +120,9 @@ class Orchestrator:
     direct I/O dependency.
     """
 
-    _EPHEMERAL_KEYS: frozenset[str] = frozenset({"_ephemeral", "_memory_injected"})
+    _EPHEMERAL_KEYS: frozenset[str] = frozenset(
+        {"_ephemeral", "_memory_injected", "_skill_ephemeral"}
+    )
 
     def __init__(
         self,

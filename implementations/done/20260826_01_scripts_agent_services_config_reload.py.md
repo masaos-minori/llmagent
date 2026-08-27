@@ -54,10 +54,10 @@ Code modification and testing.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | — |
-| 2 | Add or update tests per Validation plan | Pending | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-08-27 | 2026-08-27 | Adversarial verification confirmed: `rg cache_ttl scripts/agent/services/config_reload.py` returns no matches; `rg tools\.apply_config scripts/agent/services/config_reload.py` returns no matches. REQ-001 and REQ-002 were independently completed by `plans/done/20260826-120000_plan.md` (ToolExecutor cache removal). No code changes needed. |
+| 2 | Add or update tests per Validation plan | Completed | 2026-08-27 | 2026-08-27 | No new tests required — existing tests pass without cache_ttl wiring. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-08-27 | 2026-08-27 | Validated below. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-08-27 | 2026-08-27 | N/A: no docs/00_index.md task-scope mapping for config_reload.py. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

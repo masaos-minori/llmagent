@@ -181,10 +181,10 @@ Call-site addition (line ~143):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `always_live` field to `ConfigReloadOutcome` | Pending | — | — | |
-| 2 | Add `_detect_diagnostics_live_fields()` method | Pending | — | — | |
-| 3 | Wire detector into `apply_config_dict()` | Pending | — | — | |
-| 4 | Run `uv run pytest tests/agent/services/test_config_reload.py -v` | Pending | — | — | |
+| 1 | Add `always_live` field to `ConfigReloadOutcome` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 88 shows `always_live: list[str] = field(default_factory=list)` — REQ-001 completed by `plans/done/20260826-120102_plan.md`. No code changes needed. |
+| 2 | Add `_detect_diagnostics_live_fields()` method | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 621 shows the method definition. |
+| 3 | Wire detector into `apply_config_dict()` | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: line 148 shows the wiring. |
+| 4 | Run `uv run pytest tests/agent/services/test_config_reload.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

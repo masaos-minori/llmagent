@@ -126,8 +126,8 @@ and is unaffected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `test_build_service_with_allowed_dirs`'s construction and assertion | Pending | — | — | |
-| 2 | Run `uv run pytest tests/mcp_servers/file/test_read_service.py -v` | Pending | — | — | Requires seq 02/03 applied first |
+| 1 | Update `test_build_service_with_allowed_dirs`'s construction and assertion | Completed | 2026-08-28 | 2026-08-28 | Adversarial verification confirmed: lines 1202-1208 show `max_read_bytes=512000` and `assert svc.max_read_bytes == 512000` — no `max_file_size_kb` or `* 1024`. REQ-001 completed by `plans/done/20260826-115018_plan.md`. No code changes needed. |
+| 2 | Run `uv run pytest tests/mcp_servers/file/test_read_service.py -v` | Completed | 2026-08-28 | 2026-08-28 | Validated below. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

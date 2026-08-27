@@ -575,6 +575,53 @@ class TestCmdReload:
         out = capsys.readouterr().out
         assert "No changes detected." in out
 
+    def test_reload_shows_always_live_items(self, capsys: Any) -> None:
+        """Characterization test for the always_live item-listing branch."""
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(
+            applied=[], needs_restart=[], always_live=["diagnostics.retention_days"]
+        )
+        with (
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "LIVE (always effective): [1 items]" in out
+        assert "  [LIVE] - diagnostics.retention_days" in out
+
+    def test_reload_no_changes_with_empty_always_live_shows_message(
+        self, capsys: Any
+    ) -> None:
+        """Confirm 'No changes detected.' when always_live=[] and nothing else changed."""
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(applied=[], needs_restart=[], always_live=[])
+        with (
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "No changes detected." in out
+
 
 # ── _print_memory_settings ──────────────────────────────────────────────────────
 

@@ -53,10 +53,3 @@ DEDUP_THRESHOLDS: dict[str, float] = {
     "FAILURE": 0.90,
     "CONVERSATION": 0.85,
 }
-
-RETENTION_DAYS: dict[str, int | None] = {
-    "RULE": None,
-    "DECISION": None,
-    "FAILURE": 180,
-    "CONVERSATION": 90,
-}

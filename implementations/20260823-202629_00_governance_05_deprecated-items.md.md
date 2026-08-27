@@ -120,13 +120,13 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Blocked | 2026-08-27 | — | 4 of 5 deprecated formats remain in code |
+| — | — | Blocked | 2026-08-27 | — | 2 of 5 deprecated formats remain in code |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Phase 1 | 4 of 5 deprecated compatibility formats remain in code: input_schema alias (mcp_tool_discovery.py:279,:361), resource_scope singular type-check (mcp_tool_discovery.py:301), fetched_at _update_null_fill (rag/ingestion/etag_manager.py:47,:95), missing-schema_version tolerance (mcp_tool_discovery.py:220). Only _normalize_chunk_index() was removed. | No | — |
+| Phase 1 | 2 of 5 deprecated compatibility formats remain in code: fetched_at _update_null_fill (rag/ingestion/etag_manager.py:47,:95), missing-schema_version tolerance (mcp_tool_discovery.py:220). input_schema alias, resource_scope singular type-check, and chunk_index coercion were already removed by prior plans. | No | — |
 
 ##### Work Items Created
 
