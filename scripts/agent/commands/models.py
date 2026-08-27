@@ -36,7 +36,6 @@ class StatsViewModel:
     llm_heartbeat_timeouts: int
     llm_partial_completions: int
     llm_parse_errors: int
-    cache_hits: int
     compress_count: int
     fallback_truncate_count: int
     memory_consistency_failures: int
