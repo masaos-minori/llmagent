@@ -55,6 +55,9 @@ from agent.services.config_validators import (
     validate_llm_temperature as _v_llm_temp,
 )
 from agent.services.config_validators import (
+    validate_memory_embed_timeout_sec as _v_mem_met,
+)
+from agent.services.config_validators import (
     validate_memory_fts_limit as _v_mem_fts,
 )
 from agent.services.config_validators import (
@@ -62,9 +65,6 @@ from agent.services.config_validators import (
 )
 from agent.services.config_validators import (
     validate_memory_max_inject_semantic as _v_mem_mis,
-)
-from agent.services.config_validators import (
-    validate_memory_embed_timeout_sec as _v_mem_met,
 )
 from agent.services.config_validators import (
     validate_memory_recency_days as _v_mem_rec,
@@ -86,9 +86,6 @@ from agent.services.config_validators import (
 )
 from agent.services.config_validators import (
     validate_rag_refiner_timeout as _v_rag_rt,
-)
-from agent.services.config_validators import (
-    validate_tool_cache_max_size as _v_tool_cms,
 )
 from agent.services.config_validators import (
     validate_tool_cycle_detect_window as _v_tool_cdw,
@@ -171,11 +168,8 @@ class RAGConfig:
 
 @dataclass
 class ToolConfig:
-    """Tool execution, caching, approval policy, and prompt settings."""
+    """Tool execution, approval policy, and prompt settings."""
 
-    tool_cache_ttl: float = 300.0
-    # LRU eviction when exceeded; 0 = unlimited
-    tool_cache_max_size: int = 200
     # Forces build_execution_groups() to emit one sequential phase per call (in
     # original order, reason "forced_serial") instead of its normal phase-building/
     # conflict-graph logic. No longer selects between two execution engines — both
@@ -232,7 +226,6 @@ class ToolConfig:
         _v_tool_dm(self)
         _v_tool_cdw(self)
         _v_tool_emc(self)
-        _v_tool_cms(self)
         _v_tool_erm(self)
         _v_tool_psw(self)
 

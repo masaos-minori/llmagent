@@ -45,7 +45,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(
             f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs",
         )
-        self._out.write(f"  tool_cache_ttl      : {ctx.cfg.tool.tool_cache_ttl}s")
         self._out.write(f"  llm_max_retries     : {ctx.cfg.llm.llm_max_retries}")
         self._out.write(f"  llm_retry_base_delay: {ctx.cfg.llm.llm_retry_base_delay}s")
         self._out.write(f"  llm_temperature     : {ctx.cfg.llm.llm_temperature}")

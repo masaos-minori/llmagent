@@ -199,7 +199,6 @@ class ConfigReloadService:
                 new_tool = dataclasses.replace(self._ctx.cfg.tool, **tool_changes)
                 from agent.services.config_validators import (
                     validate_progress_stagnation_window,
-                    validate_tool_cache_max_size,
                     validate_tool_cycle_detect_window,
                     validate_tool_dedup_max_repeats,
                     validate_tool_error_max_consecutive,
@@ -211,7 +210,6 @@ class ConfigReloadService:
                 validate_tool_dedup_max_repeats(new_tool)
                 validate_tool_cycle_detect_window(new_tool)
                 validate_tool_error_max_consecutive(new_tool)
-                validate_tool_cache_max_size(new_tool)
                 validate_tool_error_retry_max(new_tool)
                 validate_progress_stagnation_window(new_tool)
                 validate_tool_max_tool_turns(new_tool)
@@ -384,7 +382,6 @@ class ConfigReloadService:
                 raise ConfigReloadValidationError(str(e)) from e
             from agent.services.config_validators import (
                 validate_progress_stagnation_window,
-                validate_tool_cache_max_size,
                 validate_tool_cycle_detect_window,
                 validate_tool_dedup_max_repeats,
                 validate_tool_error_max_consecutive,
@@ -394,7 +391,6 @@ class ConfigReloadService:
             validate_tool_dedup_max_repeats(new_tool)
             validate_tool_cycle_detect_window(new_tool)
             validate_tool_error_max_consecutive(new_tool)
-            validate_tool_cache_max_size(new_tool)
             validate_tool_error_retry_max(new_tool)
             validate_progress_stagnation_window(new_tool)
             cfg.tool = new_tool

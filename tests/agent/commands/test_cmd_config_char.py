@@ -135,7 +135,6 @@ class TestPrintConfigValues:
             "  http_timeout        : 30.0s",
             "  context_char_limit  : 8000",
             "  context_compress    : 4 turn pairs",
-            "  tool_cache_ttl      : 300.0s",
             "  llm_temperature     : 0.2",
             "SSE stream settings:",
             "  sse_heartbeat_timeout              : 30.0s",

@@ -123,11 +123,6 @@ def validate_tool_error_max_consecutive(cfg: ToolConfig) -> None:
     _require_non_negative("tool_error_max_consecutive", cfg.tool_error_max_consecutive)
 
 
-def validate_tool_cache_max_size(cfg: ToolConfig) -> None:
-    """Validate that tool_cache_max_size is non-negative."""
-    _require_non_negative("tool_cache_max_size", cfg.tool_cache_max_size)
-
-
 def validate_tool_error_retry_max(cfg: ToolConfig) -> None:
     """Validate that tool_error_retry_max is non-negative."""
     _require_non_negative("tool_error_retry_max", cfg.tool_error_retry_max)

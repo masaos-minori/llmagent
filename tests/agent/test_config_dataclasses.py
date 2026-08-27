@@ -190,12 +190,6 @@ class TestToolConfigValidation:
         ):
             ToolConfig(tool_error_max_consecutive=-1)
 
-    def test_tool_cache_max_size_full_message(self) -> None:
-        with pytest.raises(
-            ValueError, match=re.escape("tool_cache_max_size must be >= 0, got -1")
-        ):
-            ToolConfig(tool_cache_max_size=-1)
-
     def test_tool_error_retry_max_negative_raises(self) -> None:
         with pytest.raises(
             ValueError, match=re.escape("tool_error_retry_max must be >= 0, got -1")

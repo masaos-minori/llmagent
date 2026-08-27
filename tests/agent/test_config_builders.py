@@ -146,8 +146,6 @@ class TestBuildRAGConfig:
 
 
 _TOOL_DEFAULTS = {
-    "tool_cache_ttl": 300,
-    "tool_cache_max_size": 200,
     "serial_tool_calls": False,
     "tool_definitions_strict": False,
     "routing_drift_strict": False,
@@ -185,8 +183,6 @@ class TestBuildToolConfig:
 
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides = {
-            "tool_cache_ttl": 9.0,
-            "tool_cache_max_size": 9,
             "serial_tool_calls": True,
             "tool_definitions_strict": True,
             "routing_drift_strict": True,

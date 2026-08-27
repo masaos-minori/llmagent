@@ -204,7 +204,9 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     llm_max_tokens = _get_int_or_default(cfg, "llm_max_tokens", 1024)
     title_llm_temperature = _get_float_or_default(cfg, "title_llm_temperature", 0.1)
     title_llm_max_tokens = _get_int_or_default(cfg, "title_llm_max_tokens", 20)
-    llm_compress_temperature = _get_float_or_default(cfg, "llm_compress_temperature", 0.3)
+    llm_compress_temperature = _get_float_or_default(
+        cfg, "llm_compress_temperature", 0.3
+    )
     llm_compress_max_tokens = _get_int_or_default(cfg, "llm_compress_max_tokens", 300)
     sse_heartbeat_timeout = _get_float_or_default(cfg, "sse_heartbeat_timeout", 30.0)
     sse_malformed_retry = _get_int_or_default(cfg, "sse_malformed_retry", 2)
@@ -274,8 +276,6 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
 
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
     """Build ToolConfig from a raw config dict and system prompt template."""
-    tool_cache_ttl = _get_float_or_default(cfg, "tool_cache_ttl", 300)
-    tool_cache_max_size = _get_int_or_default(cfg, "tool_cache_max_size", 200)
     serial_tool_calls = _get_bool_or_default(cfg, "serial_tool_calls", False)
     tool_definitions_strict = _get_bool_or_default(
         cfg, "tool_definitions_strict", False
@@ -305,8 +305,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
     )
     allowed_tools = _get_list_or_default(cfg, "allowed_tools", [])
     return ToolConfig(
-        tool_cache_ttl=tool_cache_ttl,
-        tool_cache_max_size=tool_cache_max_size,
         serial_tool_calls=serial_tool_calls,
         tool_definitions_strict=tool_definitions_strict,
         routing_drift_strict=routing_drift_strict,
