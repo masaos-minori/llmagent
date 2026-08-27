@@ -62,7 +62,7 @@ descriptions) are invisible from reading the changed file alone.
 | Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` Output language) | `uv run python tools/check_docs_japanese.py` | |
 
 Do not write a new one-off script for something this list already covers — extend the existing tool
-instead (see AGENTS.md Global Rule 6 for when a *new* script is warranted).
+instead (see AGENTS.md Global Rule 7 for when a *new* script is warranted).
 
 ## Workflow files
 
@@ -76,7 +76,7 @@ Invoke directly by filename. Not triggered by routing.
 | Refactor (direct refactor execution on named source files) | `prompts/04_refactor.md` |
 | Skills/routing reorganization (Context Loader Pattern restructuring of skills and routing.md) | `prompts/05_skills.md` |
 | Documentation restructuring (reorganize `docs/` against current source code) | `prompts/06_documentation.md` |
-| Test suite review (run tests, find coverage/validation gaps, produce improvement plan) | `prompts/07_test-refactor.md` |
+| Test suite audit (run tests, find coverage/validation gaps, produce improvement plan) | `prompts/07_test-audit.md` |
 | Design docs refactor (add implementation intent to design docs, supported by code) | `prompts/08_document-refactor.md` |
 
 The full pipeline: issue file → work plan document → file-level implementation
