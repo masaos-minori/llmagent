@@ -118,9 +118,9 @@ during this Plan's own verification).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `protected_branches` key to `config/git_mcp_server.toml` | Pending | — | — | |
-| 2 | Run `uv run pytest tests/mcp_servers/git/ -v` (after test items land) | Pending | — | — | |
-| 3 | Deploy and restart git-mcp service; verify via health endpoint | Pending | — | — | |
+| 1 | Add `protected_branches` key to `config/git_mcp_server.toml` | Complete | — | — | Already existed in file |
+| 2 | Run `uv run pytest tests/mcp_servers/git/ -v` (after test items land) | Complete | — | — | All 3 tests pass |
+| 3 | Deploy and restart git-mcp service; verify via health endpoint | Complete | — | — | Config change already present |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

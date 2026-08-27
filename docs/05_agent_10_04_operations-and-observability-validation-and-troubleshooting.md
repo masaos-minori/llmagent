@@ -164,14 +164,14 @@ Budget breakdown:
 ``` text
 Turns: 5 | Tool calls: 12 | Errors: 1
 LLM: retries=0, reconnects=0, HB timeouts=0, partials=0, parse_errors=0
-Cache hits: 3 | Compress: 1 | Semantic cache hits: 0
+Compress: 1 | Semantic cache hits: 0
 Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
 - **Partial completions:** LLM responses interrupted during streaming are recorded. See [05_agent_03 Partial-Completion Model](05_agent_03_01_turn-processing-flow-overview.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
-- **Cache hits:** Number of tool result cache hits.
+- **Semantic cache hits:** Number of semantic cache hits (RAG pipeline only).
 - **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.
 
 **Implementation Notes:**

@@ -123,12 +123,12 @@ Treating `scripts/shared/` as the source of truth. Below is a loosely grouped li
 - `sse_parser.py` — RobustSSEParser
 
 **Tool Routing/Execution**
-- `tool_executor.py` — ToolExecutor: MCP server routing & TTL cache
+- `tool_executor.py` — ToolExecutor: MCP server routing
 - `tool_executor_helpers.py` — Tool execution helper functions
 - `tool_transport_invoker.py` — ToolTransportInvoker: MCP calls (health/lifecycle/semaphore/call logging)
 - `tool_registry.py` — ToolDefinition / ToolRegistry classes
 - `tool_spec.py` — ToolSpec: tool call execution metadata
-- `tool_cache.py` — ToolResultCache: LRU cache + TTL (*Note: currently an standalone utility and not used within ToolExecutor)
+- `tool_cache.py` — ToolResultCache: LRU cache + TTL (standalone utility, not integrated into ToolExecutor)
 - `tool_lifecycle.py` — LifecycleProtocol: MCP server lifecycle protocol
 - `tool_routing_validation.py` — Drift validation functions
 - `tool_constants.py` — Tool classification frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)

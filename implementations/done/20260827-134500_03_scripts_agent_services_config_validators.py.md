@@ -13,12 +13,13 @@ Remove the now-orphaned `validate_tool_cache_max_size()` function, per
 ## Assumptions
 
 - `REQ-001` (`config_dataclasses.py`) lands in the same commit — this function's
-  sole caller (`_v_tool_cms` in `ToolConfig.__post_init__`) is removed by
+  caller (`_v_tool_cms` in `ToolConfig.__post_init__`) is removed by
   `REQ-001`; without `REQ-001`, removing this function would leave a dangling
   import (`NameError`/`ImportError` at module load).
-- No other module imports `validate_tool_cache_max_size` — confirmed via `rg -n
-  "validate_tool_cache_max_size" scripts/` showing only this definition and the
-  `config_dataclasses.py` import site targeted by `REQ-001`.
+- `config_reload.py` also calls `validate_tool_cache_max_size` at two locations
+  (lines 214, 397); these must be removed alongside the function definition.
+  Without `REQ-001`, removing this function would leave dangling references
+  in both `config_dataclasses.py` and `config_reload.py`.
 
 ## Design decisions
 
@@ -42,6 +43,12 @@ Remove the now-orphaned `validate_tool_cache_max_size()` function, per
    docstring and body).
 3. Confirm no blank-line or spacing anomaly is introduced between the preceding
    and following function definitions.
+4. Remove `validate_tool_cache_max_size` from the import block at
+   `scripts/agent/services/config_reload.py:200-209` and delete the call at
+   line 214.
+5. Remove `validate_tool_cache_max_size` from the import block at
+   `scripts/agent/services/config_reload.py:385-392` and delete the call at
+   line 397.
 
 ### Method
 Direct text edit (Edit tool) — remove one function.
@@ -88,13 +95,14 @@ existing spacing convention between functions.)
 
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `scripts/agent/services/config_validators.py` | Static | `rg -n "validate_tool_cache_max_size" scripts/agent/services/config_validators.py scripts/agent/config_dataclasses.py` | No matches |
+| `scripts/agent/services/config_validators.py` | Static | `rg -n "validate_tool_cache_max_size" scripts/agent/services/config_validators.py scripts/agent/config_dataclasses.py scripts/agent/services/config_reload.py` | No matches |
 | `tests/agent/` | Regression | `uv run pytest tests/agent/ -k "config_validators" -v` | No new failures |
 
 ## Completion criteria
 
 - `rg -n "validate_tool_cache_max_size" scripts/agent/services/config_validators.py
-  scripts/agent/config_dataclasses.py` returns no matches.
+  scripts/agent/config_dataclasses.py scripts/agent/services/config_reload.py`
+  returns no matches.
 
 ## Out of scope
 
@@ -107,14 +115,17 @@ existing spacing convention between functions.)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-confirm current line number | Pending | — | — | |
-| 2 | Delete `validate_tool_cache_max_size` | Pending | — | — | |
-| 3 | Confirm spacing correctness | Pending | — | — | Coordinate with REQ-001/REQ-002 commits |
+| 1 | Re-confirm current line number | Completed | — | — | Lines confirmed at 126-128 |
+| 2 | Delete `validate_tool_cache_max_size` | Completed | — | — | Function removed from config_validators.py |
+| 3 | Confirm spacing correctness | Completed | — | — | One blank line preserved before next function |
+| 4 | Remove import + call from config_reload.py:200-214 | Completed | — | — | Stale assumption found during adversarial verification |
+| 5 | Remove import + call from config_reload.py:385-397 | Completed | — | — | Stale assumption found during adversarial verification |
+| 6 | Remove dangling reference from config_dataclasses.py | Completed | — | — | Unblocked by REQ-001 assumption; import and call removed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 6 | pytest fails: `ImportError: cannot import name 'validate_tool_cache_max_size'` — `config_dataclasses.py` still references deleted function | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

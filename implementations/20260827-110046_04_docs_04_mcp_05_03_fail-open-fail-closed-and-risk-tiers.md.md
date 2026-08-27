@@ -96,13 +96,13 @@ accurate and must be kept.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the stale clause from the `WRITE_DANGEROUS` row | Pending | — | — | |
-| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Remove the stale clause from the `WRITE_DANGEROUS` row | Skipped | — | — | Assumption not met: approval_risk_rules with "high" override does not exist in config/agent.toml |
+| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Skipped | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | approval_risk_rules with "high" override does not exist in config/agent.toml | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

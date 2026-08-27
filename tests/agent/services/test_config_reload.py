@@ -194,17 +194,14 @@ class TestApplyConfig:
     ) -> None:
         svc, ctx = svc_with_ctx
         ctx.cfg.llm.llm_temperature = 0.2
-        ctx.cfg.tool.tool_cache_ttl = 60.0
         ctx.cfg.rag.use_semantic_cache = False
         svc.apply_config_dict(
             {
                 "llm_temperature": 0.5,
-                "tool_cache_ttl": 120.0,
                 "use_semantic_cache": True,
             }
         )
         assert ctx.cfg.llm.llm_temperature == 0.5
-        assert ctx.cfg.tool.tool_cache_ttl == 120.0
         assert ctx.cfg.rag.use_semantic_cache is True
 
 

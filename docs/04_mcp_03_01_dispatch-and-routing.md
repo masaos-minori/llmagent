@@ -31,9 +31,7 @@ The agent sets the `server_key` and `tool_name` in the dispatch log context. The
 LLM returns tool_call
    → ToolRouteResolver.resolve(tool_name) → server_key
    → ToolExecutor.execute(tool_name, args)
-        1. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
-           (cache miss: aggregates concurrent execution of the same key with an inflight future — stampede protection)
-        2. MCP server dispatch (internal dispatch)
+         1. MCP server dispatch (internal dispatch)
              → startup_mode==none gate → immediate error ("disabled (startup_mode=none)")
              → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
                (if HALF_OPEN, allow as a trial dispatch)
@@ -46,7 +44,7 @@ LLM returns tool_call
 
 ### Implementation Notes (Current behavior)
 
-- On cache miss, concurrent calls to the same `cache_key` (`tool_name:json(args)`) share an `asyncio.Future`, ensuring the actual processing is executed only once (stampede protection). If the caller raises an exception, that exception is propagated to all waiting callers. (Explicit in code)
+- Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
 - Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
 - If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow one trial dispatch (circuit breaker half-open attempt). (Explicit in code)
 - `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, but it does not include the `startup_mode` gate. (Explicit in code)
@@ -152,7 +150,7 @@ Previously, there were two separate mechanisms: batch-level downgrade ("if any t
 | Overlapping `resource_scopes` (where at least one is `is_write=True`; unscoped writes use synthetic `"global:write"` scope) | Grouped as connected components in the conflict graph and serialized within the group |
 | `ctx.cfg.tool.serial_tool_calls=True` → `force_serial=True` (batch-level input) | Bypasses all the above and forces individual serial phases for each call in order |
 
-`shared/tool_executor_helpers.py::is_side_effect()` no longer participates in this decision — it is now used only for bypassing the TTL cache in `shared/tool_executor.py`, which is a completely unrelated mechanism.
+`shared/tool_executor_helpers.py::is_side_effect()` is deprecated (no longer used after TTL cache removal).
 
 ---
 
@@ -185,6 +183,5 @@ ToolRouteResolver
 ToolRegistry
 tool dispatch
 routing drift
-stampede protection
 startup_mode gate
 HALF_OPEN trial dispatch

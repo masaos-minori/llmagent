@@ -44,7 +44,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 | `Orchestrator` | Memory injection → compression → LLM → tool loop |
 | `AgentContext` | Session-scoped DI hub |
 | `LLMClient` | SSE streaming, retry |
-| `ToolExecutor` | MCP routing, TTL cache |
+| `ToolExecutor` | MCP routing |
 | `HistoryManager` | Character counting, LLM-based compression |
 | `CommandRegistry` | All `/cmd` dispatch |
 | `CLIView` | readline, progress display, multiline input |
@@ -60,7 +60,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 | History compression threshold | `context_char_limit` (default 8000 chars) |
 | HTTP timeout | `http_timeout` (default 30.0 sec) |
 | LLM retry limit | `llm_max_retries` (default 3) |
-| Tool result cache TTL | `tool_cache_ttl` (default 300 sec) |
+| Tool result cache TTL | Removed (see REQ-002) |
 
 ## Operational Notes
 

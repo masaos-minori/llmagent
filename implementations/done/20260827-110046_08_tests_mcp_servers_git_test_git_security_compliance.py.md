@@ -140,13 +140,13 @@ calling convention.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `svc_from_shipped_config` fixture and parametrized rejection test | Pending | — | — | Depends on `config/git_mcp_server.toml`'s `protected_branches` key landing first |
-| 2 | Run `uv run pytest tests/mcp_servers/git/test_git_security_compliance.py -v` | Pending | — | — | |
+| 1 | Add `svc_from_shipped_config` fixture and parametrized rejection test | Complete | — | — | All 3 parametrized cases pass |
+| 2 | Run `uv run pytest tests/mcp_servers/git/test_git_security_compliance.py -v` | Complete | — | — | Passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | This test's assertion is only valid after `config/git_mcp_server.toml` sets `protected_branches`; implement the config item first or in the same commit | No | — |
+| — | This test's assertion is only valid after `config/git_mcp_server.toml` sets `protected_branches`; implement the config item first or in the same commit | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

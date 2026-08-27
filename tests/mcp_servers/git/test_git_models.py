@@ -74,6 +74,12 @@ class TestGitConfigDefaults:
         assert cfg.audit_log_path == ""
 
 
+class TestGitConfigLoad:
+    def test_load_reads_protected_branches_from_shipped_config(self) -> None:
+        cfg = GitConfig.load()
+        assert cfg.protected_branches == ["main", "master", "release"]
+
+
 class TestGitServiceError:
     def test_is_a_runtime_error(self) -> None:
         err = GitServiceError("boom")

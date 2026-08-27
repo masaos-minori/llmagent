@@ -111,13 +111,13 @@ read 2-3 neighboring rows' exact wording before finalizing this cell's text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Split the git-write-tools row into two rows | Pending | — | — | |
-| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Split the git-write-tools row into two rows | Skipped | — | — | Assumption not met: approval_risk_rules with "high" override does not exist in config/agent.toml |
+| 2 | Run `uv run python tools/check_docs_consistency.py --domain mcp` | Skipped | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | approval_risk_rules with "high" override does not exist in config/agent.toml | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

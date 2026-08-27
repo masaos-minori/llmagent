@@ -12,6 +12,7 @@ issue file (issues/)
 - Input: `implementations/{filename}.md`
 - Output: code changes, tests, and `docs/*.md` updates; the input file moved to `implementations/done/`
 - Archive destination: `implementations/done/`
+- Superceded archive destination: `implementations/superseded/`
 - Workflow phase: `code-implementation`
 
 Unlike the two upstream phases, this is not a document-only phase — see Allowed file
@@ -96,6 +97,11 @@ If a required file is missing, unreadable, or contradictory, apply
 - If any specified file does not exist, stop immediately and report which file(s) are
   missing.
 - Do not read files under `implementations/done/`.
+- **All-steps-completed check**: after reading the file, inspect its `## Execution Status`
+  table. If every step row shows `Completed` (no `Pending`, `Blocked`, or other status),
+  the procedure is fully executed — do not re-execute it. Move it to
+  `implementations/done/` using `git mv` (same rules as Step 7). Report
+  `Moved to done: {filename} — all steps Completed, no further action needed`.
 
 ## Step 2: Read the Current Implementation Procedure File
 

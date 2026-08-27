@@ -4,8 +4,8 @@
 |---|---|---|---|
 | Max response bytes | 512 KB | — | Hardcoded in `scripts/mcp_servers/server.py` (`MCP_MAX_RESPONSE_BYTES`) |
 | `call_timeout_sec` | 60.0s | — | `McpServerConfig.call_timeout_sec` (`shared/mcp_config.py`) |
-| Tool cache TTL | 300s | — | `config/agent.toml::tool_cache_ttl` (Default for `ToolConfig.tool_cache_ttl` is also the same) |
-| Tool cache max size | 200 entries | — | `config/agent.toml::tool_cache_max_size` (Default for `ToolConfig.tool_cache_max_size` is also the same) |
+| Tool cache TTL | 300s | — | REMOVED (see REQ-002) |
+| Tool cache max size | 200 entries | — | REMOVED (see REQ-002) |
 | Health registry threshold | 3 failures | — | Hardcoded in `shared/mcp_health.py` (`McpServerHealthRegistry.__init__`'s `failure_threshold` argument); `shared/mcp_config.py` only re-exports said class (Explicit in code) |
 | `startup_timeout_sec` | 30s | — | `McpServerConfig.startup_timeout_sec` (`shared/mcp_config.py`) |
 | GitHub `default_per_page` | 10 (module constant `DEFAULT_PER_PAGE`, `models_config.py`) | — | Hardcoded. `config/github_mcp_server.toml::default_per_page` was removed on 2026-07-13 (unused dead setting. Details: [04_mcp_04_01](04_mcp_04_01_web-search-file-read-github.md)) |

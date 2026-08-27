@@ -44,8 +44,7 @@ Documents the structure and constraints of tool and memory configurations.
 
 #### Caching
 
-- `tool_cache_ttl`: TTL for tool execution result cache (seconds).
-- `tool_cache_max_size`: LRU cache size.
+Removed (see REQ-002).
 
 #### Parallel Execution
 

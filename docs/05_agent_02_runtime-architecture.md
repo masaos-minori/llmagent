@@ -17,7 +17,7 @@ AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output onl
    ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
    ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
    │    ├─ LLMClient            — SSE streaming, retry
-   │    ├─ ToolExecutor         — MCP routing, TTL cache
+    │    ├─ ToolExecutor         — MCP routing
    │    ├─ HistoryManager       — char counting, LLM compression
    │    └─ ServerLifecycleRouter — HTTP subprocess lifecycle
    ├─ CLIView (agent/cli_view.py)    — readline, progress display, multiline input
@@ -118,7 +118,7 @@ The hub for shared mutable state and component references. All services are inje
 
 #### ToolExecutor (`shared/tool_executor.py`)
 
-- TTL cache check $\rightarrow$ MCP routing.
+- MCP routing.
 - Side-effect detection: serializes parallel tool calls if `write`/`delete`/`shell_run` is included.
 - Resolves tool name $\rightarrow$ server key.
 - Tracks health status per server.

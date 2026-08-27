@@ -114,13 +114,13 @@ pass once the REQ-006 config item lands.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_load_reads_protected_branches_from_shipped_config` | Pending | — | — | Depends on `config/git_mcp_server.toml`'s `protected_branches` key landing first |
-| 2 | Run `uv run pytest tests/mcp_servers/git/test_git_models.py -v` | Pending | — | — | |
+| 1 | Add `test_load_reads_protected_branches_from_shipped_config` | Complete | — | — | Test passes |
+| 2 | Run `uv run pytest tests/mcp_servers/git/test_git_models.py -v` | Complete | — | — | Passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | This test's assertion is only valid after `config/git_mcp_server.toml` sets `protected_branches`; implement the config item first or in the same commit | No | — |
+| — | This test's assertion is only valid after `config/git_mcp_server.toml` sets `protected_branches`; implement the config item first or in the same commit | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

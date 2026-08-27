@@ -77,7 +77,7 @@ Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
 |---|---|---|
 | `READ_ONLY` | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` | Automatic approval |
 | `WRITE_SAFE` | `write_file`, `edit_file`, `git_add`, `git_commit` | `y/N` prompt |
-| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | Requires `yes` (full word) input **for tools with an explicit `"high"` override in `approval_risk_rules`** (e.g. `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`). Tools without such an override fall back to the `WRITE_DANGEROUS`→`RiskLevel.MEDIUM` tier mapping and get the `y/N` single-character prompt instead — this currently includes `trigger_workflow` (Explicit in code: `agent/tool_policy.py::_TIER_TO_RISK`, `config/agent.toml::approval_risk_rules`). See `04_mcp_04_05_git.md` Approval level for the Git-specific gap. |
+| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | Requires `yes` (full word) input **for tools with an explicit `"high"` override in `approval_risk_rules`** (e.g. `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`). Tools without such an override fall back to the `WRITE_DANGEROUS`→`RiskLevel.MEDIUM` tier mapping and get the `y/N` single-character prompt instead — this currently includes `trigger_workflow` (Explicit in code: `agent/tool_policy.py::_TIER_TO_RISK`, `config/agent.toml::approval_risk_rules`). |
 | `ADMIN` | (Custom; unconfigured by default) | Requires `yes` input |
 
 Tools not listed in `tool_safety_tiers` are treated as `WRITE_DANGEROUS` by default (fail-safe).

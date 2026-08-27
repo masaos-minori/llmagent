@@ -94,7 +94,7 @@ Full details: [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.m
 
 ## ToolExecutor (`shared/tool_executor.py`)
 
-- **Role:** MCP tool routing with TTL cache, side-effect classification, and concurrency limits.
+- **Role:** MCP tool routing, side-effect classification, and concurrency limits.
 - **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
 - **Caller:** `LLMTurnRunner` (via `execute_all_tool_calls`)
 - **Callee:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`

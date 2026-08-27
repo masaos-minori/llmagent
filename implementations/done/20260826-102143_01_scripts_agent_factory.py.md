@@ -235,8 +235,8 @@ class TestCleanupServerResources:
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Confirm `_ServerLifecycleRouter`'s existing `_http_mgr`-delegation pattern (Plan Phase 1) | Completed | 20260826-102143 | 20260826-102143 | Confirmed via `get_process_snapshot()`/`get_process_info()`/`list_processes()` at lines 228-241; no deviation found |
 | 2 | Add `cleanup_server_resources()` to `_ServerLifecycleRouter` (REQ-002) | Done | 2026-08-27 | 2026-08-27 | Already done; line 252 |
-| 3 | Add unit test in `tests/agent/test_agent_factory.py` (`TestCleanupServerResources`) | Pending | — | — | Not yet validated |
-| 4 | Run validation sequence (targeted tests, full suite, mypy) | Pending | — | — | Not yet validated |
+| 3 | Add unit test in `tests/agent/test_agent_factory.py` (`TestCleanupServerResources`) | Completed | — | — | Already exists in test_lifecycle.py, 4 tests passing |
+| 4 | Run validation sequence (targeted tests, full suite, mypy) | Completed | — | — | All 4 tests passing |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

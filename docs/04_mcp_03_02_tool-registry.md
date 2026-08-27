@@ -68,9 +68,7 @@ mismatches = validate_all_routing(server_configs, live_tool_lists)  # → dict[s
 ```python
 executor = ToolExecutor(
     http=httpx.AsyncClient(...),
-    cache_ttl=300.0,
     server_configs=server_configs,
-    cache_max_size=200,
     concurrency_limits={"file_write": 1},
     lifecycle=lifecycle_router,
 )
@@ -80,12 +78,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 
 ### Cache Behavior
 
-- Only results with `is_error=False` are cached.
-- Cache key: `"tool_name:args_json"` (plain string; not MD5).
-- Entries expire after `cache_ttl` seconds.
-- If `cache_max_size > 0`, entries are removed via LRU (0 = unlimited).
-- On cache hit: `request_id=""` (no live request is made).
-- Statistics: `stat_cache_hits: int`
+Removed (see REQ-002).
 
 ### Concurrency Limits
 
@@ -102,7 +95,7 @@ _SIDE_EFFECT_TOOLS = (
 is_side_effect(tool_name: str) -> bool
 ```
 
-`is_side_effect()`/`_SIDE_EFFECT_TOOLS` (`shared/tool_executor_helpers.py`) is currently used only for bypassing the TTL cache in `shared/tool_executor.py`. Batch execution parallel/serial determination is delegated to `agent/tool_runner.py::_execute_with_dag()` via `agent/tool_scheduler.py::build_execution_groups()`, which references `PreparedToolCall.spec.is_write` (resolved via `RuntimeToolRegistry` in `agent/tool_preparation.py::prepare_tool_calls()` before the approval phase) to determine parallel/serial execution (unregistered tools or calls without a connection to `RuntimeToolRegistry` are rejected in the preparation phase via fail-closed, so they never reach scheduling or execution ("fallback to treating everything as having side effects" has been deprecated). `serial_tool_calls` is not a branch to another execution engine, but is passed to the scheduler as `force_serial` input to `build_execution_groups()`; if `True`, it bypasses phase construction/conflict graph construction and forces individual serial phases for each call in order.
+`is_side_effect()`/`_SIDE_EFFECT_TOOLS` (`shared/tool_executor_helpers.py`) is deprecated (no longer used after TTL cache removal). Batch execution parallel/serial determination is delegated to `agent/tool_runner.py::_execute_with_dag()` via `agent/tool_scheduler.py::build_execution_groups()`, which references `PreparedToolCall.spec.is_write` (resolved via `RuntimeToolRegistry` in `agent/tool_preparation.py::prepare_tool_calls()` before the approval phase) to determine parallel/serial execution (unregistered tools or calls without a connection to `RuntimeToolRegistry` are rejected in the preparation phase via fail-closed, so they never reach scheduling or execution ("fallback to treating everything as having side effects" has been deprecated). `serial_tool_calls` is not a branch to another execution engine, but is passed to the scheduler as `force_serial` input to `build_execution_groups()`; if `True`, it bypasses phase construction/conflict graph construction and forces individual serial phases for each call in order.
 
 ### Safety Tier Verification
 
@@ -112,7 +105,7 @@ is_side_effect(tool_name: str) -> bool
 
 ### Implementation Notes (Current behavior): tool_cache.py and ToolSpec
 
-- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is currently not used by `ToolExecutor`. `ToolExecutor` uses its own `OrderedDict`-based cache (see "Cache Behavior" section above), which is tightly coupled with stampede protection (inflight future sharing); it is used instead. `ToolResultCache` is not deprecated, but remains a standalone utility for future users who do not require stampede protection. (Explicit in code: `shared/tool_cache.py` module docstring)
+- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is not used by `ToolExecutor`. `ToolExecutor` uses its own internal cache implementation instead. `ToolResultCache` is not deprecated, but remains a standalone utility for future users who do not require stampede protection. (Explicit in code: `shared/tool_cache.py` module docstring)
 - `shared/tool_spec.py`'s `ToolSpec` (frozen dataclass) holds execution metadata for a single approved tool call (`call_id`, `name`, `args`, `resource_scopes` (tuple of strings with kind prefixes), `requires_serial`, `is_write`). `agent/tool_runner.py::_execute_with_dag()` constructs it for every call via `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)` (which internally calls `shared/resource_scope.py::resolve_resource_scopes()` to resolve `resource_scopes`) and passes it to `agent/tool_scheduler.py::build_execution_groups()` as a `dict[str, ToolSpec]` keyed by `call_id`, which is then used for parallel/serial determination as a single `ExecutionPlan` (`batches`/`ScheduledGroup`/`SerializationEvent`). (Explicit in code)
 
 ### `RuntimeToolRegistry` and Live Discovery (Implemented)
@@ -137,8 +130,6 @@ is_side_effect(tool_name: str) -> bool
 mcp
 routing
 ToolRegistry
-tool cache
-ToolResultCache
 ToolSpec
 concurrency limits
 side effect detection

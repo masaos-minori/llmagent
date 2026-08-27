@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from mcp_servers.git.git_models import GitConfig
 from mcp_servers.git.git_service import GitService
 
 
@@ -109,6 +110,32 @@ class TestGitSecurityCompliance:
             protected_branches=["main"],
             allow_detached_head=True,
         )
+
+    @pytest.fixture
+    def svc_from_shipped_config(self) -> GitService:
+        cfg = GitConfig.load()
+        return GitService(
+            allowed_repo_paths=["/tmp/repo"],
+            read_only=False,
+            max_log_entries=50,
+            protected_branches=cfg.protected_branches,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("branch", ["main", "master", "release"])
+    async def test_write_tools_reject_shipped_protected_branches(
+        self, svc_from_shipped_config: GitService, branch: str
+    ) -> None:
+        svc_from_shipped_config._open_repo = MagicMock(return_value=MagicMock())
+        args = {
+            "repo_path": "/tmp/repo",
+            "branch": branch,
+            "create": False,
+            "dry_run": False,
+        }
+        result = await svc_from_shipped_config.git_checkout(args)
+        assert "[DENIED]" in result
+        assert "protected branch" in result
 
     @pytest.mark.asyncio
     async def test_git_checkout_dirty_worktree_denied(self, svc: GitService) -> None:

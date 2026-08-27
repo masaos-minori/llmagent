@@ -410,8 +410,6 @@ class ConfigReloadService:
         self, cfg: AgentConfig, new_cfg: dict[str, Any], changes: dict[str, Any]
     ) -> None:
         """Collect tool execution setting changes."""
-        if (v := _get_float(new_cfg, "tool_cache_ttl")) is not None:
-            changes["tool_cache_ttl"] = v
         if (vb := _get_bool(new_cfg, "serial_tool_calls")) is not None:
             changes["serial_tool_calls"] = vb
         if (vb := _get_bool(new_cfg, "tool_definitions_strict")) is not None:
