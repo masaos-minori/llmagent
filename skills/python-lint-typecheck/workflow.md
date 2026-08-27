@@ -92,7 +92,7 @@ Audit all existing suppressions using the commands and required format defined i
 
 If a rename or structural change must preserve comments and docstrings, use the LibCST
 transform recipe and post-transform verification commands in
-`skills/python-refactoring/workflow.md` Phase 3 (Semantic Transformation).
+`skills/python-refactoring/workflow.md` Step 6 (Transformation).
 
 ---
 

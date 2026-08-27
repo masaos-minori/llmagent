@@ -136,8 +136,8 @@ document (not the conversation) to be written in another language.
 ### Change-impact table
 
 Use this common schema whenever a skill needs to document per-file blast radius before making
-or planning a change (currently used by `python-refactoring` Phase 1 and `issue-to-plan`
-Output format "Affected areas" section):
+or planning a change (currently used by `python-refactoring` Step 3 (Preparation) and
+`issue-to-plan` Output format "Affected areas" section):
 
 | File | Change | Blast Radius | deploy.sh Impact |
 |---|---|---|---|

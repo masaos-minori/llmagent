@@ -1,303 +1,354 @@
 # Python Refactoring — Detailed Workflow
 
-## Toolchain
+This workflow intentionally prioritizes safety, evidence, and correctness over speed.
+Do not skip a step because it seems slow.
 
-| Tool | Phase | Role |
-|---|---|---|
-| `pydeps` | Dependency Mapping | Visualize import graph; surface cycles and blast radius |
-| `import-linter` | Dependency Mapping / CI Gate | Enforce and verify module boundary contracts |
-| `rg` | Dependency Mapping | Symbol usages, log strings, config keys |
-| `ast-grep` | Dependency Mapping / Semantic Validation | Structural search and post-transform call-site verification |
-| `pytest` | Behavior Lock / CI Gate | Run and lock existing behavior |
-| `pytest-cov` | Behavior Lock | Coverage baseline before touching code |
-| `hypothesis` | Behavior Lock | Property-based tests for parsers/validators |
-| `mutmut` | Behavior Lock | Validate test suite strength before trusting it |
-| `diff-cover` | Behavior Lock / CI Gate | Coverage scoped to changed lines |
-| `libcst` | Semantic Transformation | CST-preserving transforms: rename, signature change |
-| `bowler` | Semantic Transformation | Query-based bulk refactoring with dry-run |
-| `mypy` | Semantic Validation | Primary type checker after structural changes |
-| `pyright` | Semantic Validation | Cross-validation type checker |
-| `ruff` | Semantic Validation | Format normalization and lint after transforms |
-| `git` | Incremental Migration | Atomic commits per step; bisect-safe history |
-| `lazygit` | Incremental Migration | Hunk-level staging, stash management |
-| `pre-commit` | CI Gate | Final gate: ruff + mypy before each commit |
+## Workflow position
 
----
+This is a standalone, reactive workflow — it is not a phase of the
+issue → plan → implementation-procedure → code pipeline. It is invoked directly on
+named source files (`prompts/04_refactor.md`), or composed into another skill's
+follow-up work (see `SKILL.md` Composes with / Called by).
 
-## Phase 1: Dependency Mapping
+- Input: target source file path(s), passed as arguments.
+- Output: refactored source files, plus the Step 10 report (`report-template.md`); no
+  standalone generated document.
+- Workflow phase: `python-refactoring`
 
-**Gate: blast radius documented; no unknown affected modules**
+## Allowed file operations
 
-#### pydeps — import graph
+- Modify only the target file(s) — do not modify files outside the scope of the target
+  files.
+- Do not change external behavior, public APIs, or visible output.
+- Do not edit documentation unless explicitly instructed (see `path-c.md` ADR
+  Requirement for the one scoped exception: Step 10 always drafts ADR content inline in
+  the report; only writing it under `docs/adr/` requires explicit instruction).
 
-```bash
-PYTHONPATH=scripts pydeps <module> --no-output --show-deps
-PYTHONPATH=scripts pydeps agent.repl --no-output --show-deps --max-bacon=3
-PYTHONPATH=scripts pydeps rag.utils --no-output --show-deps
-```
+(`__pycache__/` is already covered by Out of Scope below's `rules/ai-execution.md`
+Global Safety Restrictions (Base) — not repeated here.)
 
-Document every module that imports the target symbol. This is the blast radius.
+## Out of Scope
 
-#### rg — symbol usages
+Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
+workflow, do not perform any of the following:
+- refactoring code that was not explicitly instructed via a target file or issue — this
+  workflow is reactive, not proactive
+- implementing a behavior change discovered mid-refactor (record it as a proposal
+  instead — see Step 2)
+- moving existing documentation files
+- changing workflow directory structure
 
-```bash
-rg "def <symbol>" scripts/             # definition sites
-rg "<symbol>" scripts/                 # all usages (including imports)
-rg "from <module> import" scripts/     # all importers of the module
-rg "import <module>" scripts/          # direct imports
-```
+## Multi-file processing
 
-#### deploy.sh impact
+Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
+Steps 1-10 for one target file before starting Step 1 for the next file.
 
-Record this using `skills/DESIGN.md` Change-impact table.
+The one-file-at-a-time rule is the default for Path A and Path B, and for ordering
+independent Path C target files that do not belong to the same atomic migration group.
+An approved Path C atomic migration group is the one exception — see `path-c.md`
+Architectural Refactoring Requirements for how a group is processed as a single logical
+unit instead.
 
-#### ast-grep — structural usages
-
-```bash
-ast-grep --pattern '$OBJ.<method>($$$)' --lang python scripts/
-ast-grep --pattern 'class $NAME(<ParentClass>): $$$' --lang python scripts/
-ast-grep --pattern 'def <symbol>($$$): $$$' --lang python scripts/
-```
-
-#### import-linter — boundary contracts
-
-See `rules/toolchain.md` section 3 for the `lint-imports` command.
-
-Identify which contracts are affected by the planned refactor.
-If the refactor changes a module boundary, plan the contract update as part of Phase 3.
-
-**Phase 1 output**: a table of affected files, symbols, and contract changes required.
+Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
+cadence.
 
 ---
 
-## Phase 2: Behavior Lock
+## Step 0: Load Required Instructions
 
-**Gate: coverage ≥ 80%; 0 surviving mutants on refactored paths; diff-cover baseline recorded**
+If not already loaded, read the following before starting:
+- `routing.md`
+- `rules/coding.md`
+- `rules/toolchain.md`
+- `rules/ai-execution.md`
+- `SKILL.md` (this skill)
+- this file
+- `discovery.md`
+- `validation.md`
+- `report-template.md`
 
-### Modules with existing test coverage
-
-Unit tests exist for these modules. Refactoring that touches them must first acquire behavior-lock tests (using the `python-test-and-fix` skill).
-
-- **agent/**: cmd_config, cmd_mcp, cmd_tooling (via `test_agent_rag.py`), session, tool_policy, tool_audit, tool_approval, tool_runner, tool_result_formatter, tool_loop_guard, llm_turn_runner, factory, cli_view, history, memory (layer, store, extract, retriever, jsonl_store, embedding_client, ingestion, injection), orchestrator, lifecycle, http_lifecycle, stdio_lifecycle
-- **shared/**: llm_client, token_counter, mcp_config, config_loader, otel_tracer, route_resolver, tool_executor (routing paths)
-- **mcp/**: file (delete_service, write_service, read_server models), github/service, git/service, shell/service, rag_pipeline/service, cicd/service, server (base class)
-- **rag/**: utils, pipeline, repository (FTS5 via `test_fts_japanese.py`)
-- **db/**: helper, maintenance, tool_results
-
-#### pytest-cov — coverage baseline
-
-```bash
-PYTHONPATH=scripts coverage run -m pytest tests/
-coverage report --include="scripts/<path/to/module>.py"   # use full nested path, e.g. scripts/agent/repl.py
-coverage xml
-diff-cover coverage.xml --compare-branch=master   # record baseline
-```
-
-If coverage is below 80%: write characterization tests for the uncovered paths before proceeding.
-
-#### hypothesis — property-based invariants
-
-For parsers, normalizers, and data transformers in the refactor scope, write property tests
-per `skills/python-test-and-fix/workflow.md` Step 7 (Contract Validation).
-
-#### mutmut — test suite strength
-
-Run mutation testing per `skills/python-test-and-fix/workflow.md` Step 4 (Mutation Testing)
-against the refactored path. If surviving mutants > 0: add tests that kill them before
-proceeding to Phase 3.
+Do not load these three eagerly — Step 2 loads only the one matching the Path
+classification decided there:
+- `path-a.md`
+- `path-b.md`
+- `path-c.md`
 
 ---
 
-## Phase 3: Semantic Transformation
+## Step 1: Identify Target Files
 
-**Gate: ruff clean; transformed files parse; no old symbol names remain**
-
-#### LibCST — symbol renaming
-
-```python
-import libcst as cst
-import pathlib
-
-class RenameClass(cst.CSTTransformer):
-    def leave_Name(
-        self, original_node: cst.Name, updated_node: cst.Name
-    ) -> cst.Name:
-        if updated_node.value == "OldName":
-            return updated_node.with_changes(value="NewName")
-        return updated_node
-
-for path in pathlib.Path("scripts").glob("*.py"):
-    source = path.read_text()
-    tree = cst.parse_module(source)
-    new_tree = tree.visit(RenameClass())
-    if new_tree.code != source:
-        path.write_text(new_tree.code)
-```
-
-#### bowler — query-based bulk refactoring
-
-```bash
-# dry run first — always
-bowler rename_func old_func_name new_func_name --write --dry-run
-# apply
-bowler rename_func old_func_name new_func_name --write
-```
-
-After any transform:
-
-```bash
-python3 -m compileall -q scripts/        # syntax check
-ruff format scripts/
-ruff check scripts/ --fix
-```
-
-Verify no old symbol names remain:
-
-```bash
-rg "OldName" scripts/
-ast-grep --pattern 'OldName' --lang python scripts/
-```
+- The target files are passed as arguments, e.g. a list of file paths. The user may
+  specify one file or a list of multiple files.
+- If no arguments are given, stop and ask which files to refactor.
+- If any specified file does not exist, stop immediately and report which file(s) are
+  missing. Do not start processing any file until all specified paths are confirmed to
+  exist.
+- Refactor strictly one file at a time, in the order given (see Multi-file processing
+  above for the atomic-migration-group exception). Do not read or inspect files that
+  will be processed in a later cycle.
 
 ---
 
-## Phase 4: Semantic Validation
+## Step 2: Refactoring Intent Declaration
 
-**Gate: mypy error count unchanged; pyright clean; characterization tests pass**
+Before making any edit to the target file, report the following in Markdown:
 
-#### mypy — primary type check
+- Target file
+- Refactoring goal
+- Responsibility being improved
+- Expected behavior change
+- Public API impact
+- Behavior preservation strategy
+- Expected files to change
+- Expected validation commands
+- Path classification (A, B, or C) — see `SKILL.md` Routing
 
-```bash
-mypy scripts/ --show-error-codes
-```
+If `Expected behavior change` is anything other than `none`, stop. Do not implement it.
+Record it under `report-template.md`'s `Proposals not implemented` format instead, and
+do not proceed to Step 3 for this idea. Only continue transforming the parts of the
+file that involve no behavior change.
 
-Record the error count **before** the refactor (Phase 2) and compare after.
-The error count must not increase. New errors introduced by the refactor must be fixed.
+Classify the refactoring as Path A, Path B, or Path C now, per `SKILL.md` Routing, then
+load the one matching file (`path-a.md`, `path-b.md`, or `path-c.md`). This gates how
+much tooling depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7 themselves,
+nor reduce Step 7's Required validation (`validation.md`), nor skip the Completion gate
+(`report-template.md`).
 
-#### pyright — cross-validation
+Record the Path A/B/C decision and its rationale in Step 10's report.
 
-```bash
-pyright scripts/
-```
-
-#### ruff — final lint
-
-```bash
-ruff check scripts/
-ruff format --check scripts/
-```
-
-#### characterization tests
-
-```bash
-pytest tests/ -v
-pytest tests/test_<module>.py -v
-```
-
-All tests that existed in Phase 2 must still pass. No new failures are acceptable.
+Load `discovery.md` now (unconditionally) — its Discovery Vocabulary defines the six
+states (Finding / Candidate / Proposal / Approved Change / Blocked / Not Applicable)
+used from this point through Step 10 to record what is observed without expanding the
+approved change scope.
 
 ---
 
-## Phase 5: Incremental Migration
+## Step 3: Preparation
 
-**Gate: every commit passes pytest + ruff + mypy; no broken intermediate state**
+Depth depends on the Path classification from Step 2 — see `path-a.md` or `path-b.md`
+(Path C applies at least Path B's depth per `path-c.md`) for the exact tool list.
 
-#### One commit per logical step
+Record the impact scope in a table, marking any tool skipped for either reason (Path A
+or unavailability) as `N/A` or `Not run` respectively — never omit the row.
 
-Each commit must be independently revertable. Never bundle a rename with a behavior change.
-
-Preferred commit order:
-
-1. add new symbol (new function/class) alongside old one
-2. migrate call sites one module at a time
-3. remove old symbol after all call sites are migrated
-4. update import-linter contracts
-5. update deploy.sh if a module was added, removed, or renamed
-
-#### lazygit — hunk-level staging
-
-```bash
-lazygit   # stage individual hunks; discard unrelated changes
-```
-
-Use lazygit to stage only the lines belonging to the current step.
-
-#### verify each step
-
-```bash
-pytest tests/ -x -q
-ruff check scripts/
-mypy scripts/
-```
-
-#### Failure recovery
-
-If a step fails CI:
-1. Do NOT use `--no-verify` to bypass
-2. `git revert HEAD` to undo the broken commit cleanly
-3. Diagnose: `ruff check scripts/` + `mypy scripts/` + `pytest tests/ -x`
-4. Fix the root cause and create a new commit
+In addition, regardless of Path, perform `discovery.md`'s Technical Debt Discovery,
+Responsibility Analysis, and Documentation Drift Detection while reading the target
+file.
 
 ---
 
-## Phase 6: CI Gate
+## Step 4: Behavior Lock
 
-**Gate: pre-commit passes; lint-imports passes; diff-cover ≥ 90% (see `rules/toolchain.md` section 7-8)**
+- Record baseline coverage with `pytest-cov`.
+- If coverage is below 80%, add characterization tests.
+  - Note: 80% is a judgment threshold specific to this procedure, not a project-wide
+    standard.
+- Mutation-testing depth depends on the Path classification — see `path-a.md` or
+  `path-b.md` (Path C applies at least Path B's depth per `path-c.md`).
+- Produce a behavior lock manifest covering:
+  - Public functions/classes covered
+  - Important branches covered
+  - Error paths covered
+  - Boundary conditions covered
+  - Visible output covered
+  - Side effects covered
+  - Existing tests used
+  - Characterization tests added
+  - Known uncovered behavior
+- Do not proceed to Step 6 (Transformation) if important behavior is uncovered and no
+  characterization test or explicit exception is recorded for it in `Known uncovered
+  behavior`.
 
-```bash
-pre-commit run --all-files
-lint-imports
-```
-
-If `pre-commit` fails: fix the specific hook that failed, do not use `--no-verify`.
-
-Final review:
-
-```bash
-git log --oneline -10
-git diff master...HEAD -- scripts/
-rg "OldName\|old_func\|OldClass" scripts/   # confirm no old symbols remain
-```
-
----
-
-## Special cases
-
-### Refactoring tool_executor.py or route_resolver.py
-
-If the refactor touches `shared/tool_executor.py` or MCP routing logic in `shared/route_resolver.py`:
-- check if `ToolRouteResolver` prefix mappings or `tool_names` config keys change: `rg "ToolRouteResolver\|tool_names" scripts/shared/`
-- check if tool classification sets change in `shared/tool_constants.py`: `rg "WRITE_TOOLS\|READ_TOOLS\|DELETE_TOOLS" scripts/shared/tool_constants.py`
-- update the config (`config/agent.toml [mcp_servers.<name>] tool_names`) if server keys change
-- verify with `/mcp` in the agent REPL after deployment
-- add this check to the Phase 1 blast radius table
-
-### Refactoring that creates or removes a module
-
-When a module is added or removed, compose with the `deploy` skill:
-- add or remove the `cp` line in `deploy/deploy.sh`
-- update `routing.md` if the module maps to a doc reference
-- update `CLAUDE.md` Architecture section
+Path C additionally requires `path-c.md`'s Architecture Baseline before any Path C
+transformation begins (Step 6).
 
 ---
 
-## Completion checklist
+## Step 5: Side-Effect Inventory
 
-Cross-check against each Phase's gate stated above — do not re-derive them, just confirm:
-
-- Phase 1 gate met: blast radius documented
-- Phase 2 gate met: characterization tests written, coverage ≥ 80%, 0 surviving mutants (kill all mutants on directly changed paths for files > 300 lines)
-- Phase 3 gate met: ruff clean, no old symbol names remain
-- Phase 4 gate met: mypy error count not increased
-- Phase 5 gate met: every commit bisect-safe (passes pytest + ruff + mypy independently)
-- Phase 6 gate met: lint-imports passes (or contracts updated), diff-cover ≥ 90%, pre-commit passes
+Follow `validation.md` Side-Effect Inventory (Step 5 baseline) in full before
+transformation. If any side effect changes during transformation, stop and record it
+as a proposal unless explicitly approved.
 
 ---
 
-## Prohibited behavior
+## Step 6: Transformation
 
-- do not refactor and add features in the same commit
-- do not use regex for symbol renaming — use LibCST or bowler
-- do not proceed to Phase 3 with surviving mutants on the refactored path
-- do not bundle multiple rename steps into a single commit
+### Deletion-First Evaluation
 
-See also `rules/coding.md` for project-wide prohibitions (commit hygiene, suppression governance).
+Applies only when the planned transformation would introduce a new class, protocol,
+adapter, facade, manager, service, or registry — not for every Step 6 transformation. A
+pure rename, an extraction into an existing module, or a type-annotation change does not
+require this evaluation. This evaluation and its justification requirement apply
+identically to Path A, Path B, and Path C — unlike Steps 3/4's Path-gated tooling-depth
+rules (`path-a.md`/`path-b.md`/`path-c.md`), this is not Path-gated, because the
+underlying design question (does this change need a new abstraction) is independent of
+blast radius.
+
+Before introducing a new class, protocol, adapter, facade, manager, service, or
+registry, evaluate the following seven steps in order and stop at the first step that
+resolves the change — the first step that applies settles the question; do not
+separately justify skipping the later steps once an earlier one applies:
+
+1. Can the responsibility be removed?
+2. Can the state or side effect be removed?
+3. Can duplicate paths be consolidated?
+4. Can the code be simplified?
+5. Can responsibility move to an existing boundary?
+6. Can logic be extracted?
+7. Is a new abstraction required?
+
+If step 7 is reached, the new abstraction requires a justification with exactly these
+seven fields, recorded in the Step 10 report (see `path-c.md` ADR Requirement for when
+the new abstraction also requires an ADR):
+- The problem being solved
+- Why removal or simplification is insufficient
+- Ownership
+- Lifecycle
+- Dependency direction
+- Callers
+- Test boundary
+
+A new abstraction with an incomplete justification must not be transformed in this
+Step — record it as a Proposal (`discovery.md` Discovery Vocabulary) instead,
+consistent with Step 2's existing "if behavior change is anything other than none,
+stop, record as proposal" pattern.
+
+### Transforming
+
+- Use `libcst` for symbol-level refactoring when needed. When a change must preserve
+  comments, formatting, or docstrings during a rename/structural edit, use a
+  CST-preserving transform rather than regex-based text replacement, e.g.:
+
+  ```python
+  import libcst as cst
+  import pathlib
+
+  class RenameClass(cst.CSTTransformer):
+      def leave_Name(
+          self, original_node: cst.Name, updated_node: cst.Name
+      ) -> cst.Name:
+          if updated_node.value == "OldName":
+              return updated_node.with_changes(value="NewName")
+          return updated_node
+
+  for path in pathlib.Path("scripts").glob("*.py"):
+      source = path.read_text()
+      tree = cst.parse_module(source)
+      new_tree = tree.visit(RenameClass())
+      if new_tree.code != source:
+          path.write_text(new_tree.code)
+  ```
+
+- Run `ruff format` and `ruff check --fix` after each transformation.
+- Ensure no legacy symbol names remain — verify with `rg "OldName" <scope>`.
+
+---
+
+## Step 7: Validation
+
+Follow `validation.md` Required Validation and Conditional Validation in full. Path C
+additionally requires `path-c.md`'s Architecture Comparison Validation in the same
+pass.
+
+---
+
+## Step 8: Incremental Migration
+
+- By default, do not stage or commit anything. Classify changes directly from
+  non-interactive `git diff` output, hunk by hunk, without invoking `git add`.
+- Classify every hunk as one of:
+  - rename only
+  - extraction only
+  - simplification
+  - type annotation
+  - guard clause
+  - test characterization
+  - validation fix
+  - import cleanup
+  - formatting
+  - metadata update
+
+  Any hunk that does not fit these categories must be explained explicitly.
+- Run tests, `ruff`, and `mypy` once per logical group identified via `git diff` (see
+  Refactoring-Specific Guidance for scoping) — do not require staging hunks
+  individually to run these checks.
+- Ensure every logical group identified via `git diff` is rollback-safe on its own (it
+  could be committed or reverted independently without breaking the others).
+- Staging and committing are both opt-in, never default:
+  - If the user has not requested staging or committing: leave the working tree
+    unstaged, organize the logical diff groups above, and report the suggested commit
+    boundaries in Step 10.
+  - If the user explicitly requests staging: `git add -p` (interactive) or `lazygit`
+    may be used to stage per-hunk at that point — this is an opt-in action, not a
+    required step of this workflow.
+  - If the user explicitly requests committing: create one rollback-safe commit per
+    logical unit, ensure each commit passes the Step 10 completion gate
+    (`report-template.md`) before it is committed, and avoid interactive commands
+    (e.g. `git rebase -i`) unless the environment explicitly supports them.
+
+---
+
+## Step 9: CI Gate
+
+Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
+- Run `pre-commit run --all-files`.
+- Run `lint-imports`.
+- Run `diff-cover`.
+- Review changes with `git log` and `git diff`.
+- Ensure no legacy symbol names remain.
+
+---
+
+## Step 10: Report Results
+
+Follow `report-template.md` in full: the report structure for each file (or approved
+atomic migration group), and the Completion Gate that decides whether the cycle may be
+reported complete. Path C additionally requires `path-c.md`'s ADR Requirement and Path
+C Completion Requirements.
+
+---
+
+## Refactoring-Specific Guidance
+
+- Perform Step 3 (preparation/investigation) sequentially; run `rg` always, and
+  `pydeps`/`import-linter`/`ast-grep` only when Path B or C applies (see `path-a.md`/
+  `path-b.md`), retaining only the resulting impact scope table, not the raw tool
+  output.
+- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g.
+  via `grep` for failures) rather than full successful-run output.
+- Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
+  possible, rather than the whole repository.
+- Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
+- In Step 8, run the full mypy/test/ruff check once per logical diff group identified
+  via `git diff` rather than after every single hunk; use a lighter check (e.g. `ruff`
+  only) when inspecting individual hunks.
+- In Step 9, prefer scoping `pre-commit` to the changed files over `--all-files` when
+  the CI gate does not require a full-repo run.
+- When multiple target files are specified, run each Steps 1-10 cycle sequentially so
+  that tool output and investigation results from one file's cycle do not accumulate in
+  the context used for the next file's cycle.
+- Keep progress reports and Step 10 results concise; do not restate full diffs or raw
+  tool output. Evidence tables (manifest, inventory, mutation report) must still list
+  every required field even when kept concise.
+
+---
+
+## Special Cases
+
+- If refactoring `tool_executor.py` or `route_resolver.py`, perform extra verification
+  for MCP routing: `rg "ToolRouteResolver|tool_names" scripts/shared/` — check if
+  `ToolRouteResolver` prefix mappings or `tool_names` config keys change (this is the
+  exact command `path-c.md` Architecture Baseline's "Routing or registration" field
+  reuses).
+- If required, update `config/agent.toml`.
+- If modules are added or removed, update:
+  - `deploy.sh`
+  - `routing.md`
+  - `AGENTS.md`
+
+## Output format
+
+See `report-template.md` for the exact final-report structure — this phase does not
+generate a single Markdown document with a fixed structure; its output is code changes
+plus the Step 10 report.

@@ -47,7 +47,7 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 
 - `mcp-server-add` — run this skill's Phase 2–3 after the mcp-server-add workflow completes
 - `python-implementation` — run after Phase 11 (Production Readiness) if scripts changed
-- `python-refactoring` — run after Phase 6 (CI Gate) if scripts/ files changed or removed
+- `python-refactoring` — run after Step 9 (CI gate) if scripts/ files changed or removed
 
 ## Scope notes
 
