@@ -71,6 +71,60 @@ def svc() -> object:
     return svc
 
 
+@pytest.fixture()
+def svc_with_ctx() -> tuple[object, MagicMock]:
+    from agent.services.config_reload import ConfigReloadService
+
+    llm_cfg = LLMConfig(
+        llm_url="",
+        http_timeout=30.0,
+        llm_max_retries=3,
+        llm_retry_base_delay=1.0,
+        llm_temperature=0.7,
+        llm_max_tokens=1000,
+        title_llm_temperature=0.5,
+        title_llm_max_tokens=50,
+        sse_heartbeat_timeout=30.0,
+        sse_malformed_retry=1,
+        sse_reconnect_max=5,
+        llm_stream_retry_on_heartbeat_timeout=True,
+        llm_stream_retry_on_malformed_chunk=False,
+    )
+    rag_cfg = RAGConfig(
+        embed_url="http://localhost:8080/embed",
+        use_semantic_cache=False,
+        semantic_cache_threshold=0.92,
+        semantic_cache_max_size=100,
+        use_refiner=False,
+        refiner_max_tokens=512,
+        refiner_timeout=30.0,
+        refiner_max_chars_per_chunk=300,
+    )
+    tool_cfg = ToolConfig(
+        system_prompts={},
+        masked_fields=[],
+    )
+    ctx = MagicMock()
+    ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
+    ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+    ctx.cfg.approval = MagicMock()
+    ctx.cfg.approval.tool_safety_tiers = {}
+    ctx.cfg.approval.require_approval_for = []
+    ctx.cfg.approval.plan_mode_enabled = False
+    ctx.cfg.mcp = MagicMock()
+    ctx.cfg.mcp.mcp_servers = {}
+    ctx.services_required = MagicMock()
+    ctx.services_required.memory = None
+    ctx.services_required.embedding = None
+    ctx.services_required.retriever = None
+    ctx.services_required.llm = None
+    svc = ConfigReloadService(ctx)
+    svc._classify_mcp_server_changes = MagicMock(
+        return_value=MagicMock(needs_restart=[])
+    )
+    return svc, ctx
+
+
 class TestApplyConfig:
     def test_invalid_masked_fields_type_raises(self, svc: object) -> None:
         from agent.services.exceptions import ConfigReloadValidationError
@@ -115,6 +169,43 @@ class TestApplyConfig:
         assert "masked_fields" in d
         assert "mcp_servers" not in d
         assert "approval" not in d
+
+    def test_out_of_range_llm_temperature_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        svc, ctx = svc_with_ctx
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        ctx.cfg.llm.llm_temperature = 0.2
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict({"llm_temperature": 5.0})
+        assert ctx.cfg.llm.llm_temperature == 0.2
+
+    def test_valid_llm_temperature_applied(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        svc, ctx = svc_with_ctx
+        ctx.cfg.llm.llm_temperature = 0.2
+        svc.apply_config_dict({"llm_temperature": 0.5})
+        assert ctx.cfg.llm.llm_temperature == 0.5
+
+    def test_multi_field_reload_applies_all(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        svc, ctx = svc_with_ctx
+        ctx.cfg.llm.llm_temperature = 0.2
+        ctx.cfg.tool.tool_cache_ttl = 60.0
+        ctx.cfg.rag.use_semantic_cache = False
+        svc.apply_config_dict(
+            {
+                "llm_temperature": 0.5,
+                "tool_cache_ttl": 120.0,
+                "use_semantic_cache": True,
+            }
+        )
+        assert ctx.cfg.llm.llm_temperature == 0.5
+        assert ctx.cfg.tool.tool_cache_ttl == 120.0
+        assert ctx.cfg.rag.use_semantic_cache is True
 
 
 class TestDiffMcpServerConfig:

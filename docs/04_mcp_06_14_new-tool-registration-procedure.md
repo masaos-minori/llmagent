@@ -37,7 +37,6 @@ missing any of them, or failing validation, is rejected and excluded from the bu
 #### Optional fields
 
 - `status`: Tool status (e.g., "available", "degraded")
-- `resource_scope`: legacy singular scope field; type-checked only if present, not required
 - `enabled`: Whether the tool is enabled for LLM use
 - `capabilities`: Tool capabilities object
 - `server_key`: Identifier for the MCP server providing the tool

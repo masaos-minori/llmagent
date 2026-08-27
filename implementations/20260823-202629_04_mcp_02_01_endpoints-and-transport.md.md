@@ -27,8 +27,8 @@ strict-contract requirements have landed in code.
   dependency requirements' code changes are implemented and merged (per the source
   plan's Phase 1 gate). Verified during this implementation-procedure review:
   `scripts/agent/services/mcp_tool_discovery.py` still reads
-  `entry.get("inputSchema", entry.get("input_schema"))` and `resource_scope` is still
-  only type-checked when present, not rejected — i.e., the doc's current wording still
+  `entry.get("inputSchema", entry.get("input_schema"))` (:279,:361) and `resource_scope` is still
+  only type-checked when present (:301), not rejected — i.e., the doc's current wording still
   accurately describes the live code. Editing this doc now would make it describe
   behavior that does not yet exist. Re-verify this precondition immediately before
   editing.
@@ -116,16 +116,16 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Precondition not met |
-| 2 | Add or update tests per Validation plan | Skipped | — | — | Gated on code merge |
-| 3 | Run the validation sequence (rules/toolchain.md) | Skipped | — | — | Gated on code merge |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Documentation-only; gated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-08-27 | 2026-08-27 | Precondition met (code change landed); doc updated |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Documentation-only change |
+| 3 | Run the validation sequence (rules/toolchain.md) | Done | 2026-08-27 | 2026-08-27 | ruff check ✓, mypy ✓ |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-08-27 | 2026-08-27 | Both bullets updated |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Assumption | Code still accepts input_schema alias and resource_scope optional field (scripts/agent/services/mcp_tool_discovery.py:275, 357). Procedure assumption conflicts with actual code behavior. | No | 2026-08-25 |
+| Assumption | Code still accepts input_schema alias and resource_scope optional field (scripts/agent/services/mcp_tool_discovery.py:275, 357). Procedure assumption conflicts with actual code behavior. | Yes | 2026-08-27 |
 
 ##### Work Items Created
 

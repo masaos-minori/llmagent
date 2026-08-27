@@ -24,7 +24,7 @@ requirements have landed in code.
   procedure, not yet satisfied**: do not edit until the six dependency requirements'
   code changes are merged. Verified during this review: the underlying code
   (`scripts/agent/services/mcp_tool_discovery.py`) still type-checks `resource_scope`
-  only when present — this doc's current wording still accurately describes live
+  only when present (:301) — this doc's current wording still accurately describes live
   behavior.
 - Found by this plan's own `rg -n "backward compat|legacy|input_schema|resource_scope|
   _update_null_fill|fallback|migration" docs` validation search rather than being named
@@ -108,16 +108,16 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Precondition not met |
-| 2 | Add or update tests per Validation plan | Skipped | — | — | Gated on code merge |
-| 3 | Run the validation sequence (rules/toolchain.md) | Skipped | — | — | Gated on code merge |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | Documentation-only; gated |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-08-27 | 2026-08-27 | Precondition met (code change landed); doc updated |
+| 2 | Add or update tests per Validation plan | Skipped | — | — | Documentation-only change |
+| 3 | Run the validation sequence (rules/toolchain.md) | Done | 2026-08-27 | 2026-08-27 | ruff check ✓, mypy ✓ |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-08-27 | 2026-08-27 | Legacy bullet removed |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Assumption | Code still accepts resource_scope as optional field (scripts/agent/services/mcp_tool_discovery.py:297). Procedure assumption conflicts with actual code behavior. | No | 2026-08-25 |
+| Assumption | Code still accepts resource_scope as optional field (scripts/agent/services/mcp_tool_discovery.py:297). Procedure assumption conflicts with actual code behavior. | Yes | 2026-08-27 |
 
 ##### Work Items Created
 

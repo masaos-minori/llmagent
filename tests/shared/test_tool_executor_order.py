@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import time
-from collections import OrderedDict
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from shared.http_transport import TransportError
 from shared.mcp_health import McpServerHealthState
-from shared.tool_cache import CacheEntry
 from shared.tool_executor import ToolExecutor
 from shared.transport_dto import ToolCallResult
 
@@ -35,14 +32,9 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
     executor._lifecycle = mock_lifecycle
     executor._health_registry = mock_health
     executor._transports = {"srv1": mock_transport}
-    executor._cache = OrderedDict()
-    executor._cache_ttl = 300.0
-    executor._cache_max_size = 0
-    executor._inflight = {}
     executor._semaphores = None
     executor._concurrency_limits = {}
     executor._server_configs = {}
-    executor.stat_cache_hits = 0
     executor.stat_tool_errors = {}
     executor.stat_transport_errors = {}
 
@@ -52,37 +44,6 @@ def _make_executor() -> tuple[ToolExecutor, dict[str, MagicMock]]:
         "health": mock_health,
         "transport": mock_transport,
     }
-
-
-# --- cache hit bypasses route/health/lifecycle/transport ---
-
-
-@pytest.mark.asyncio
-async def test_cache_hit_bypasses_raw_execute():
-    executor, mocks = _make_executor()
-    executor._cache["tool_a:{}"] = CacheEntry(
-        output="cached", is_error=False, cached_at=time.time()
-    )
-
-    mocks["resolver"].resolve.side_effect = ValueError("should not be called")
-
-    result = await executor.execute("tool_a", {})
-    assert result.output == "cached"
-    mocks["resolver"].resolve.assert_not_called()
-
-
-# --- record_success NOT called on cache hit ---
-
-
-@pytest.mark.asyncio
-async def test_cache_hit_no_health_update():
-    executor, mocks = _make_executor()
-    executor._cache["tool_a:{}"] = CacheEntry(
-        output="cached", is_error=False, cached_at=time.time()
-    )
-
-    await executor.execute("tool_a", {})
-    mocks["health"].record_success.assert_not_called()
 
 
 # --- unknown tool raises ValueError before health check ---

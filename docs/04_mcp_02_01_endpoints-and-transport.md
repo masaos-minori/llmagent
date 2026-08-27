@@ -99,7 +99,7 @@ These fields are currently supported by the discovery service:
 
 - `name` — per-tool identifier
 - `description` — per-tool description
-- `inputSchema` — per-tool schema (or `input_schema`)
+- `inputSchema` — per-tool schema (required; `input_schema` is not accepted)
 - `status` — per-tool status
 - `server_key` — server key injected by `build_tools_response()`
 - `enabled` — maps to RuntimeTool.enabled_for_llm (server-specific; not all servers return this)
@@ -107,7 +107,6 @@ These fields are currently supported by the discovery service:
 - `is_write` — whether the tool performs writes (schema-2.0, **required** — a missing/invalid value rejects the tool entry, see [04_mcp_03_02_tool-registry.md](./04_mcp_03_02_tool-registry.md))
 - `requires_serial` — whether the tool requires serial execution (schema-2.0, **required**)
 - `resource_scope_kind` / `resource_scope_keys` — declared scope kind (e.g. `"filesystem"`, `"git_repo"`) and the argument keys whose values feed the resolved per-call scope (schema-2.0, **required**); resolved into `ToolSpec.resource_scopes` at call time by `shared/resource_scope.py::resolve_resource_scopes()`
-- `resource_scope` — legacy singular scope field; type-checked only if present, not required
 - `capabilities` — optional capability flags (per-tool)
 - `config_dependent` — whether the tool depends on configuration state
 

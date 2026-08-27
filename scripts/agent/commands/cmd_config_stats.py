@@ -81,7 +81,6 @@ class _ConfigStatsMixin(MixinBase):
             llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
             llm_partial_completions=_int_safe(ctx.stats, "stat_partial_completions", 0),
             llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
-            cache_hits=_safe(ctx.services_required.tools, "stat_cache_hits", 0),
             compress_count=_safe(
                 ctx.services_required.hist_mgr, "stat_compress_count", 0
             ),
@@ -127,7 +126,6 @@ class _ConfigStatsMixin(MixinBase):
         else:
             self._out.write("  Partial compl : 0")
         self._out.write(f"  Parse errors  : {stats.llm_parse_errors}")
-        self._out.write(f"  Cache hits    : {stats.cache_hits}")
         self._out.write(f"  Compress      : {stats.compress_count}")
         self._out.write(f"  Fallback trunc: {stats.fallback_truncate_count}")
         if stats.memory_consistency_failures:

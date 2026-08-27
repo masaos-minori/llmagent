@@ -175,19 +175,24 @@ class ConfigReloadService:
                 raise ConfigReloadValidationError(str(e)) from e
 
         if rag_changes:
-            try:
-                new_rag = dataclasses.replace(self._ctx.cfg.rag, **rag_changes)
-                from agent.services.config_validators import (
-                    validate_rag_refiner_max_chars_per_chunk,
-                    validate_rag_refiner_max_tokens,
-                    validate_rag_refiner_timeout,
-                )
+            # Remove undeclared fields that cannot go through dataclasses.replace()
+            rag_changes = {
+                k: v for k, v in rag_changes.items() if k != "web_search_url"
+            }
+            if rag_changes:
+                try:
+                    new_rag = dataclasses.replace(self._ctx.cfg.rag, **rag_changes)
+                    from agent.services.config_validators import (
+                        validate_rag_refiner_max_chars_per_chunk,
+                        validate_rag_refiner_max_tokens,
+                        validate_rag_refiner_timeout,
+                    )
 
-                validate_rag_refiner_max_tokens(new_rag)
-                validate_rag_refiner_timeout(new_rag)
-                validate_rag_refiner_max_chars_per_chunk(new_rag)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
+                    validate_rag_refiner_max_tokens(new_rag)
+                    validate_rag_refiner_timeout(new_rag)
+                    validate_rag_refiner_max_chars_per_chunk(new_rag)
+                except ValueError as e:
+                    raise ConfigReloadValidationError(str(e)) from e
 
         if tool_changes:
             try:
@@ -285,12 +290,6 @@ class ConfigReloadService:
             )
             result.applied.append("hist_mgr")
 
-        if ctx.services_required.tools is not None:
-            ctx.services_required.tools.apply_config(
-                cache_ttl=ctx.cfg.tool.tool_cache_ttl
-            )
-            result.applied.append("tools")
-
         if ctx.services_required.runtime_tools is not None:
             ctx.services_required.runtime_tools.apply_policy(
                 tier_map=cast(
@@ -358,20 +357,25 @@ class ConfigReloadService:
             cfg.llm = new_llm
 
         if rag_changes:
-            try:
-                new_rag = dataclasses.replace(cfg.rag, **rag_changes)
-            except ValueError as e:
-                raise ConfigReloadValidationError(str(e)) from e
-            from agent.services.config_validators import (
-                validate_rag_refiner_max_chars_per_chunk,
-                validate_rag_refiner_max_tokens,
-                validate_rag_refiner_timeout,
-            )
+            # Remove undeclared fields that cannot go through dataclasses.replace()
+            rag_changes = {
+                k: v for k, v in rag_changes.items() if k != "web_search_url"
+            }
+            if rag_changes:
+                try:
+                    new_rag = dataclasses.replace(cfg.rag, **rag_changes)
+                except ValueError as e:
+                    raise ConfigReloadValidationError(str(e)) from e
+                from agent.services.config_validators import (
+                    validate_rag_refiner_max_chars_per_chunk,
+                    validate_rag_refiner_max_tokens,
+                    validate_rag_refiner_timeout,
+                )
 
-            validate_rag_refiner_max_tokens(new_rag)
-            validate_rag_refiner_timeout(new_rag)
-            validate_rag_refiner_max_chars_per_chunk(new_rag)
-            cfg.rag = new_rag
+                validate_rag_refiner_max_tokens(new_rag)
+                validate_rag_refiner_timeout(new_rag)
+                validate_rag_refiner_max_chars_per_chunk(new_rag)
+                cfg.rag = new_rag
 
         if tool_changes:
             try:

@@ -280,14 +280,14 @@ def _apply_rag_tool_params(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preparation / Refactoring | Blocked | — | — | Precondition: ToolExecutor cache deletion unimplemented (UNK-01) |
-| 2 | Core Logic Implementation | Blocked | — | — | Awaiting prerequisite |
-| 3 | Deployment & Verification | Blocked | — | — | Awaiting prerequisite |
+| 1 | Preparation / Refactoring | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
+| 2 | Core Logic Implementation | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
+| 3 | Deployment & Verification | Done | 2026-08-27 | 2026-08-27 | Superseded — `web_search_url` written to `rag_changes` via sibling plan; added filter before `dataclasses.replace()` at lines 177-193 and 363-380 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Phase 1 | tool_cache_ttl reference still present in _apply_tool_params() and tools.apply_config(cache_ttl=...) still present in _sync_services() — completion criteria not met | No | — |
+| Phase 1 | tool_cache_ttl reference still present in _apply_tool_params() and tools.apply_config(cache_ttl=...) still present in _sync_services() — completion criteria not met | No | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

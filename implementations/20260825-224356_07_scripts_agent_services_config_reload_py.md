@@ -13,7 +13,7 @@ Remove the `config_reload.py` wiring to `ToolExecutor`'s TTL cache (`tool_cache_
 
 ## Assumptions
 
-- All three Requirements depend on the separate `ToolExecutor` cache deletion landing first. Do NOT implement until confirmed.
+- Prerequisite verified: `rg "apply_config\(\*, cache_ttl" scripts/shared/tool_executor.py` returns NO matches; `rg "_cache_ttl\|_cache\|stat_cache_hits\|_execute_with_cache" scripts/shared/tool_executor.py` returns NO matches — ToolExecutor cache has been deleted from code. However, `tool_cache_ttl` remains in `config_reload.py:402-403`, `config_dataclasses.py:176`, `config_builders.py:277,308`, `cmd_config_display.py:48`. Full removal requires updating all five locations simultaneously.
 
 ## Design decisions
 
@@ -160,14 +160,14 @@ Before implementing any step:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preparation / Refactoring | Blocked | — | — | Prerequisite: ToolExecutor cache deletion unimplemented (UNK-01) |
+| 1 | Preparation / Refactoring | Blocked | — | — | Prerequisite: ToolExecutor cache deletion unimplemented (UNK-01); 8 tool_cache_ttl refs remain |
 | 2 | Core Logic Implementation | Blocked | — | — | Awaiting prerequisite |
 | 3 | Deployment & Verification | Blocked | — | — | Awaiting prerequisite |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Phase 1 | No issue/plan exists proposing ToolExecutor cache deletion itself | No | — |
+| Phase 1 | No issue/plan exists proposing ToolExecutor cache deletion itself; tool_cache_ttl still referenced in 8 locations | No | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -223,6 +223,11 @@ class McpToolDiscoveryService:
                 key,
                 schema_version,
             )
+        elif schema_version is None:
+            logger.warning(
+                "mcp_tool_discovery: server_key=%s missing schema_version in /v1/tools response",
+                key,
+            )
 
         tools = body.get("tools")
         if not isinstance(tools, list):
@@ -249,8 +254,7 @@ class McpToolDiscoveryService:
         """Validate one raw /v1/tools entry.
 
         Rules: entry is a dict; `name` is a non-empty string; `description`
-        is present and is a str (empty string allowed); `inputSchema` or
-        `input_schema` is a dict; `is_write`, `requires_serial`,
+        is present and is a str (empty string allowed); `inputSchema` is a dict; `is_write`, `requires_serial`,
         `resource_scope_kind`, `resource_scope_keys` are REQUIRED — a missing
         field, or one that fails `validate_tool_schema_v2()`'s schema-2.0
         contract (type/known-kind/scope-key-vs-inputSchema.properties
@@ -276,7 +280,7 @@ class McpToolDiscoveryService:
                 f"{server_key}: tool {name!r} has invalid description {description!r}"
             )
 
-        input_schema = entry.get("inputSchema", entry.get("input_schema"))
+        input_schema = entry.get("inputSchema")
         if not isinstance(input_schema, dict):
             return _warning_entry(
                 f"{server_key}: tool {name!r} has invalid inputSchema {input_schema!r}"
@@ -298,7 +302,6 @@ class McpToolDiscoveryService:
 
         for field_name, expected_type in (
             ("status", str),
-            ("resource_scope", str),
             ("enabled", bool),
         ):
             if field_name in entry and not isinstance(entry[field_name], expected_type):
@@ -358,7 +361,7 @@ class McpToolDiscoveryService:
                 server_key=server_key,
                 server_url=server_url,
                 description=str(entry.get("description", "")),
-                input_schema=entry.get("inputSchema", entry.get("input_schema")),  # type: ignore[arg-type]
+                input_schema=entry.get("inputSchema"),  # type: ignore[arg-type]
                 raw_definition=entry,
                 status=str(entry.get("status", "active")),
                 is_write=entry["is_write"],  # type: ignore[arg-type]
