@@ -75,7 +75,6 @@ Invoke directly by filename. Not triggered by routing.
 | Implementation (implementation procedure doc → code, tests, docs) | `prompts/03_implementation.md` |
 | Refactor (direct refactor execution on named source files) | `prompts/04_refactor.md` |
 | Skills/routing reorganization (Context Loader Pattern restructuring of skills and routing.md) | `prompts/05_skills.md` |
-| Documentation restructuring (reorganize `docs/` against current source code) | `prompts/06_documentation.md` |
 | Test suite audit (run tests, find coverage/validation gaps, produce improvement plan) | `prompts/07_test-audit.md` |
 | Design docs refactor (add implementation intent to design docs, supported by code) | `prompts/08_document-refactor.md` |
 

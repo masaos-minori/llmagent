@@ -11,17 +11,18 @@ already have a stable structure.
 **Do not use this workflow for repository-wide documentation structure changes** —
 splitting `docs/` into new per-layer files, introducing the canonical chapter structure
 (Purpose/Scope/Background/.../Open Questions/Unknowns) where it does not yet exist, or
-any broad reorganization across the whole `docs/` tree. That is `06_documentation.md`'s
-scope, not this workflow's.
+any broad reorganization across the whole `docs/` tree. That kind of broad restructuring
+is out of scope for this workflow; if it is needed, report it as separate work rather
+than performing it here.
 
 Apply this workflow when:
 - one or more specific target design documents are named, and
 - those documents already exist with a stable structure that only needs its content
   reconciled against current code (added intent, corrected mismatches).
 
-Apply `06_documentation.md` instead when documentation structure itself is being
-reorganized (new layer, missing chapter structure), or when the scope is the whole
-`docs/` tree rather than named target documents.
+Do not use this workflow when documentation structure itself needs reorganizing (new
+layer, missing chapter structure), or when the scope is the whole `docs/` tree rather
+than named target documents.
 
 Read the source code and the existing design documents, then update the design documents by adding implementation intent that is clearly supported by the code.
 
@@ -30,7 +31,7 @@ Read the source code and the existing design documents, then update the design d
 - Document is maintained by a team/process (not ad-hoc)
 - Document has been reviewed at least once against code
 
-**What counts as "unstable structure" (use 06_documentation.md instead):**
+**What counts as "unstable structure" (out of scope for this workflow):**
 - Document is a single large file covering multiple concerns
 - Document lacks consistent section headers
 - Document is being created for the first time
@@ -46,17 +47,69 @@ Read the source code and the existing design documents, then update the design d
 - Execution rules: see `rules/ai-execution.md` (context reading, tool usage, reasoning, output, progress reporting, sequential target processing).
 - Global safety restrictions: see `rules/ai-execution.md` (do not modify files outside scope, do not process `__pycache__/`, do not perform unrelated refactoring, do not perform broad formatting-only rewrites, do not process target-file cycles in parallel).
 
+## Repository Tool Usage
+
+- Before using an ad-hoc command, check whether an existing tool under `tools/` already covers the need.
+- Do not run every tool under `tools/` indiscriminately — select only the tools relevant to the target document.
+- Do not infer a tool's function from its name alone — check its README, help output, usage examples, comments, and related rules.
+- Before running a tool, confirm its input, output, side effects, what it modifies, external connections, and whether it requires credentials.
+- Do not run tools that modify source code, tests, or out-of-scope documents.
+- Do not run tools that access production environments, real data, credentials, or unverified external services.
+- When a repository-provided tool fits the need, prefer it over ad-hoc scripts or general-purpose commands.
+- Before using a tool's output as evidence, cross-check it against the relevant location in the target source or document.
+- A tool's existence alone does not make using it mandatory — run it only when it is relevant, safe, and within its supported scope.
+- When multiple related tools exist, choose the one that inspects the narrowest relevant scope.
+- Do not let tool usage expand the approved document-update scope or source-investigation scope.
+- Do not fix a tool's own defects as part of this workflow, even if discovered during use.
+- If a tool needs to be fixed, report it as separate work instead of fixing it here.
+
+### Tool Result Classification
+
+Classify every tool run (Tool Inventory Status in Step 0, validation results in Step 5) using:
+
+- **Pass** — execution completed and the result was confirmed.
+- **Fail** — execution completed but a problem was detected.
+- **Partial** — only part of the scope could be verified.
+- **Not available** — no applicable tool exists.
+- **Blocked** — the tool exists, but its safety or run conditions could not be confirmed.
+
+Do not treat a check that was not run, only partially run, failed, or blocked as Pass.
+If a required validation is Fail or Blocked, do not report the synchronization work as
+complete.
+
 ### Context efficiency
 
 **Accuracy, completeness, and validation always take priority over context reduction.**
 Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
 incomplete plans, or insufficient validation.
 
+- Do not read the entire source of everything under `tools/` at once.
+- First narrow candidate tools using file names, headings, help output, and READMEs.
+- Read only the range needed to confirm a candidate tool's behavior.
+- Save large tool output to a temporary file and extract only the needed parts (summary, warning, error lines).
+- Do not store a tool's full raw output in the facts cache.
+- Keep only confirmed paths, public symbols, config keys, behavior notes, and evidence locations in the facts cache.
+- If different tools produce conflicting results, do not automatically adopt one — record it as `Needs confirmation`.
+
 ### Tasks
 
 Report progress at the start and end of each step.
 
-#### Step 0: Load required files
+#### Step 0: Discover tools and load required files
+
+- Discovery: list the files directly under `tools/` and in subdirectories relevant to the target document. If `tools/` does not exist, record it as `Not available` instead of stopping with an error.
+- Build a compact Tool Inventory for each relevant tool candidate, with:
+  - Path
+  - Purpose
+  - Usage source (README / help output / usage example / comment / related rule)
+  - Input
+  - Output
+  - Whether it modifies files
+  - External dependencies
+  - Relevance to the target document
+  - Planned use
+  - Status (Pass / Fail / Partial / Not available / Blocked)
+- Do not run a tool whose purpose or safety cannot be confirmed; record it as `Blocked` instead.
 
 If not already loaded, read the following before starting:
 - `routing.md`
@@ -95,6 +148,14 @@ For each target design document:
   - config files, if behavior depends on configuration,
   - tests, if they clarify intent.
 - Read only the files directly relevant to the current document. Reuse previously collected information instead of re-reading files.
+- Prefer an existing tool over ad-hoc commands when identifying related source, public symbols, config, and tests:
+  - Use a tool that maps documents to source, if one exists.
+  - Use a tool that extracts public symbols or their direct callers/callees, if one exists.
+  - Use a tool that extracts config keys or environment variables, if one exists.
+  - Use a tool that identifies tests related to the document, if one exists.
+  - If no such tool exists, fall back to repository-defined commands, `rg`, `grep`, or other read-only commands.
+  - When falling back, record the command used and why an existing tool could not be used.
+  - Do not keep a tool's full raw output — extract only the relevant paths, symbols, signatures, config keys, and evidence locations.
 
 #### Step 3: Compare documentation with implementation
 
@@ -158,15 +219,6 @@ Format:
 - Structure content for LLM/RAG/coding-agent consumption.
 - Preserve existing navigation and cross-references.
 
-File size limit:
-- Maximum size: 8,192 bytes.
-- Encoding: UTF-8.
-- Include YAML front matter in the measurement.
-- Measure the file after writing.
-- Split the document when the limit is exceeded.
-- Add relative links between split documents.
-- Do not remove important content only to meet the limit.
-
 Separate document content from synchronization history:
 - Target documents contain current behavior, design intent, boundaries, constraints, and lasting operational notes.
 - `docs/99_documentation_sync_report.md` contains changes made during the run, mismatches, removed or moved content, evidence classifications, and human review items.
@@ -175,14 +227,37 @@ Style:
 - Write in English.
 - Use concise, professional Markdown. Do not bloat the documents.
 
-#### Step 5: Classify evidence
+#### Step 5: Validate the updated document
+
+- Treat this as an independent step, run after the document update (Step 4).
+- If a document-validation tool exists under `tools/`, run it against the updated document.
+- Within what the available tools support, validate:
+  - Markdown syntax
+  - Heading structure
+  - YAML front matter
+  - Relative links
+  - Cross-document references
+  - File paths
+  - Heading anchors
+  - Keywords
+  - UTF-8 encoding
+  - Duplicate sections
+  - Mentions of private symbols
+  - Changes to out-of-scope files
+- For each validation, record the exact command run, the target file, its purpose, and the result (see Tool Result Classification).
+- Even when a tool run exits successfully, re-check whether the expected artifact or validation result was actually produced.
+- Do not treat empty stdout alone as success.
+- Do not report a document that failed validation as Complete.
+- Do not modify source code or out-of-scope documents in order to make validation pass.
+
+#### Step 6: Classify evidence
 
 For every meaningful addition:
 - Identify the code evidence.
 - Classify it as: Explicit in code / Strongly implied by code / Needs confirmation.
 - If something is only implied, phrase it carefully. Do not present uncertain intent as confirmed fact.
 
-#### Step 6: Report results
+#### Step 7: Report results
 
 Per-file report, for each updated file:
 - what was added or changed,
@@ -203,5 +278,5 @@ Run summary: create or update `docs/99_documentation_sync_report.md` covering th
 - When reusing previously collected information across documents (per Step 2), keep a short facts cache (extracted API signatures, config keys, behavior notes) rather than retaining full raw file contents; reuse the cache, not the raw text.
 - Perform each document's Step 2-3 (reading related source and comparing against the doc) sequentially. Pass the relevant facts cache entries plus the target document, and retain only the additions to make and any new facts to add to the cache, not the raw source read.
 - Locate related callers/callees via `rg`/`grep` first, then read only the relevant range, rather than reading full files.
-- In Step 5, cite only the minimal code evidence (the relevant line or signature) needed to support a classification, not full function bodies.
-- In Step 6, aggregate the run summary from the per-file reports' key points; do not re-quote full evidence already recorded there.
+- In Step 6, cite only the minimal code evidence (the relevant line or signature) needed to support a classification, not full function bodies.
+- In Step 7, aggregate the run summary from the per-file reports' key points; do not re-quote full evidence already recorded there.
