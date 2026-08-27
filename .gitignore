@@ -227,3 +227,6 @@ __marimo__/
 .streamlit/secrets.toml
 .aider*
 node_modules/
+
+# Mutation testing snapshot tree (cosmic-ray/mutmut style working copy)
+mutants/

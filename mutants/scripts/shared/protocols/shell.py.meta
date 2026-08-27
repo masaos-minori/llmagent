@@ -1,9 +1,0 @@
-{
-    "exit_code_by_key": {
-        "scripts.shared.protocols.shell.x__check_min__mutmut_1": null,
-        "scripts.shared.protocols.shell.x__check_min__mutmut_2": null
-    },
-    "type_check_error_by_key": {},
-    "durations_by_key": {},
-    "estimated_durations_by_key": {}
-}
