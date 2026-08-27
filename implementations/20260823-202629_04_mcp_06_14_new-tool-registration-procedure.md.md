@@ -24,7 +24,7 @@ requirements have landed in code.
   procedure, not yet satisfied**: do not edit until the six dependency requirements'
   code changes are merged. Verified during this review: the underlying code
   (`scripts/agent/services/mcp_tool_discovery.py`) still type-checks `resource_scope`
-  only when present — this doc's current wording still accurately describes live
+  only when present (:301) — this doc's current wording still accurately describes live
   behavior.
 - Found by this plan's own `rg -n "backward compat|legacy|input_schema|resource_scope|
   _update_null_fill|fallback|migration" docs` validation search rather than being named

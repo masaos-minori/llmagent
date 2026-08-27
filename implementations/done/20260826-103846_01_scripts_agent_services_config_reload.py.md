@@ -59,19 +59,7 @@ startup is also rejected on reload (REQ-001, REQ-002, REQ-003, REQ-004).
 
 ## Assumptions
 
-- `LLMConfig.__post_init__` (`config_dataclasses.py:139-149`),
-  `RAGConfig.__post_init__` (`config_dataclasses.py:165-169`), and
-  `ToolConfig.__post_init__` (`config_dataclasses.py:230-237`) call only `validate_*`
-  functions with no other side effects (no cache/resource/shared-mutable-state
-  initialization) — confirmed by reading all three bodies; safe to re-run via
-  `dataclasses.replace()`.
-- None of `LLMConfig`, `RAGConfig`, `ToolConfig` declares an `init=False` field
-  (confirmed: `grep -n "init=False" scripts/agent/config_dataclasses.py` returns zero
-  matches) — `dataclasses.replace()` can reconstruct all three safely.
-- All `validate_*` functions raise plain `ValueError` (confirmed in
-  `config_validators.py`); `ConfigReloadValidationError`
-  (`scripts/agent/services/exceptions.py:17`) is a `ValueError` subclass already used
-  for this exact conversion at `scripts/agent/config_builders.py:374-377`.
+- **CORRECTED**: The dict-aggregation + `dataclasses.replace()` pattern is already implemented in code. Verified at `config_reload.py:153-189` and `config_reload.py:309-367`: `llm_changes`/`tool_changes`/`rag_changes` dicts are created, threaded through all 6 `_apply_*` helpers, and applied via `dataclasses.replace()` with `try/except ValueError` gating. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -293,15 +281,15 @@ collected diff atomically once all 6 helpers have run.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Thread `llm_changes`/`tool_changes`/`rag_changes` through `apply_config_dict()` and all 6 `_apply_*` helpers (REQ-001, REQ-002, REQ-003) | Pending | — | — | |
-| 2 | Add the single `dataclasses.replace()` + `except ValueError` block per subconfig between `_apply_sse_reload_params()` and `_sync_services()` (REQ-004) | Pending | — | — | |
-| 3 | Verify `web_search_url` stays a direct `setattr`, not in `rag_changes` | Pending | — | — | |
-| 4 | Run validation sequence (`uv run pytest`, `uv run mypy`) | Pending | — | — | |
+| 1 | Thread `llm_changes`/`tool_changes`/`rag_changes` through `apply_config_dict()` and all 6 `_apply_*` helpers | Obsolete | — | — | Already implemented at config_reload.py:153-189, 309-367 |
+| 2 | Add the single `dataclasses.replace()` + `except ValueError` block per subconfig | Obsolete | — | — | Already implemented |
+| 3 | Verify `web_search_url` stays a direct `setattr` | Obsolete | — | — | Already handled |
+| 4 | Run validation sequence | Obsolete | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

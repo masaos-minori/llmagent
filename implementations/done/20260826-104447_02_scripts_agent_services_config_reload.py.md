@@ -21,10 +21,7 @@ and `needs_restart`).
 
 ## Assumptions
 
-- N/A: none. The current absence of a docstring on `startup_only` and the presence
-  of one on `skipped` were both verified directly in
-  `scripts/agent/services/config_reload.py:74-85` (read in full) before writing
-  this document — this is not carried forward from the Plan's prose unverified.
+- **CORRECTED**: The docstring on `ConfigReloadOutcome.startup_only` already exists. Verified at `config_reload.py:83-87`: `"""Fields present in the reload payload and differing from the running value but requiring a restart to take effect. Distinct from \`skipped\`, which ignores fields for reasons unrelated to restart requirement, and \`needs_restart\`, which is reserved exclusively for MCP server definition changes."""`. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -186,15 +183,15 @@ and `needs_restart`, per the Plan's REQ-001 and AC-01.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the docstring to `ConfigReloadOutcome.startup_only` per Details above (REQ-001) | Pending | — | — | |
-| 2 | Manual review: confirm docstring detail matches `skipped`'s (AC-01) | Pending | — | — | |
-| 3 | Run `ruff format`/`ruff check`/`mypy` on the target file | Pending | — | — | |
-| 4 | Run targeted `pytest` (config_reload / cmd_config tests) to confirm no regressions | Pending | — | — | |
+| 1 | Add the docstring to `ConfigReloadOutcome.startup_only` per Details above (REQ-001) | Obsolete | — | — | Already implemented at config_reload.py:83-87 |
+| 2 | Manual review: confirm docstring detail matches `skipped`'s (AC-01) | Obsolete | — | — | Prerequisite step already done |
+| 3 | Run `ruff format`/`ruff check`/`mypy` on the target file | Obsolete | — | — | Prerequisite step already done |
+| 4 | Run targeted `pytest` to confirm no regressions | Obsolete | — | — | Prerequisite step already done |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

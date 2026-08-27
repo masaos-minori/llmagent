@@ -5,6 +5,8 @@ LLMConfig, RAGConfig, ToolConfig, ApprovalConfig, AgentConfig.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from agent.config_dataclasses import (
     AgentConfig,
@@ -67,6 +69,48 @@ class TestLLMConfigValidation:
         cfg = LLMConfig(llm_temperature=2.0)
         assert cfg.llm_temperature == 2.0
 
+    def test_llm_context_char_limit_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("context_char_limit must be >= 0, got -1")
+        ):
+            LLMConfig(context_char_limit=-1)
+
+    def test_sse_heartbeat_timeout_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("sse_heartbeat_timeout must be >= 0, got -1")
+        ):
+            LLMConfig(sse_heartbeat_timeout=-1)
+
+    def test_llm_max_retries_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("llm_max_retries must be >= 0, got -1")
+        ):
+            LLMConfig(llm_max_retries=-1)
+
+    def test_llm_retry_base_delay_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("llm_retry_base_delay must be > 0, got 0.0")
+        ):
+            LLMConfig(llm_retry_base_delay=0.0)
+
+    def test_llm_max_tokens_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("llm_max_tokens must be >= 1, got 0")
+        ):
+            LLMConfig(llm_max_tokens=0)
+
+    def test_sse_malformed_retry_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("sse_malformed_retry must be >= 0, got -1")
+        ):
+            LLMConfig(sse_malformed_retry=-1)
+
+    def test_sse_reconnect_max_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("sse_reconnect_max must be >= 0, got -1")
+        ):
+            LLMConfig(sse_reconnect_max=-1)
+
     def test_llm_max_tokens_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="llm_max_tokens"):
             LLMConfig(llm_max_tokens=0)
@@ -100,11 +144,22 @@ class TestRAGConfigValidation:
             RAGConfig(refiner_timeout=0.0)
 
     def test_refiner_max_tokens_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="refiner_max_tokens"):
+        with pytest.raises(
+            ValueError, match=re.escape("refiner_max_tokens must be >= 1, got 0")
+        ):
             RAGConfig(refiner_max_tokens=0)
 
-    def test_refiner_max_chars_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="refiner_max_chars_per_chunk"):
+    def test_refiner_timeout_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("refiner_timeout must be > 0, got 0.0")
+        ):
+            RAGConfig(refiner_timeout=0.0)
+
+    def test_refiner_max_chars_per_chunk_full_message(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("refiner_max_chars_per_chunk must be >= 1, got 0"),
+        ):
             RAGConfig(refiner_max_chars_per_chunk=0)
 
 
@@ -117,20 +172,42 @@ class TestToolConfigValidation:
         assert cfg.tool_dedup_max_repeats == 3
 
     def test_tool_dedup_max_repeats_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="tool_dedup_max_repeats"):
+        with pytest.raises(
+            ValueError, match=re.escape("tool_dedup_max_repeats must be >= 1, got 0")
+        ):
             ToolConfig(tool_dedup_max_repeats=0)
 
-    def test_tool_cycle_detect_window_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="tool_cycle_detect_window"):
+    def test_tool_cycle_detect_window_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("tool_cycle_detect_window must be >= 0, got -1")
+        ):
             ToolConfig(tool_cycle_detect_window=-1)
 
-    def test_tool_error_max_consecutive_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="tool_error_max_consecutive"):
+    def test_tool_error_max_consecutive_full_message(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("tool_error_max_consecutive must be >= 0, got -1"),
+        ):
             ToolConfig(tool_error_max_consecutive=-1)
 
-    def test_tool_cache_max_size_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="tool_cache_max_size"):
+    def test_tool_cache_max_size_full_message(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("tool_cache_max_size must be >= 0, got -1")
+        ):
             ToolConfig(tool_cache_max_size=-1)
+
+    def test_tool_error_retry_max_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("tool_error_retry_max must be >= 0, got -1")
+        ):
+            ToolConfig(tool_error_retry_max=-1)
+
+    def test_progress_stagnation_window_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("progress_stagnation_window must be >= 0, got -1"),
+        ):
+            ToolConfig(progress_stagnation_window=-1)
 
 
 # ── ApprovalConfig ────────────────────────────────────────────────────────────
@@ -265,5 +342,33 @@ class TestMemoryConfigValidation:
             MemoryConfig(memory_recency_days=0.0)
 
     def test_recency_days_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="memory_recency_days must be > 0"):
+        with pytest.raises(
+            ValueError, match=re.escape("memory_recency_days must be > 0, got -1.0")
+        ):
             MemoryConfig(memory_recency_days=-1.0)
+
+    def test_memory_max_inject_semantic_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("memory_max_inject_semantic must be >= 0, got -1"),
+        ):
+            MemoryConfig(memory_max_inject_semantic=-1)
+
+    def test_memory_max_inject_episodic_negative_raises(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("memory_max_inject_episodic must be >= 0, got -1"),
+        ):
+            MemoryConfig(memory_max_inject_episodic=-1)
+
+    def test_memory_embed_timeout_sec_zero_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("memory_embed_timeout_sec must be > 0, got 0.0")
+        ):
+            MemoryConfig(memory_embed_timeout_sec=0.0)
+
+    def test_memory_retention_days_zero_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("memory_retention_days must be >= 1, got 0")
+        ):
+            MemoryConfig(memory_retention_days=0)

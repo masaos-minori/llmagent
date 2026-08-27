@@ -280,12 +280,6 @@ class ConfigReloadService:
             )
             result.applied.append("hist_mgr")
 
-        if ctx.services_required.tools is not None:
-            ctx.services_required.tools.apply_config(
-                cache_ttl=ctx.cfg.tool.tool_cache_ttl
-            )
-            result.applied.append("tools")
-
         if ctx.services_required.runtime_tools is not None:
             ctx.services_required.runtime_tools.apply_policy(
                 tier_map=cast(

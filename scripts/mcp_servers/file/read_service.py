@@ -196,7 +196,7 @@ def build_service(cfg: FileReadConfig) -> ReadFileService:
         logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
     return ReadFileService(
         allowed_dirs=allowed_dirs,
-        max_read_bytes=cfg.max_file_size_kb * 1024,
+        max_read_bytes=cfg.max_read_bytes,
         max_tree_depth=cfg.max_depth,
         max_search_results=cfg.max_files_per_batch,
     )

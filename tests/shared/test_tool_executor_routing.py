@@ -5,7 +5,6 @@ set_lifecycle(), transport-dispatch paths, and auth header injection.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -68,7 +67,6 @@ def _make_executor(
     http = MagicMock(spec=httpx.AsyncClient)
     ex = ToolExecutor(
         http,
-        cache_ttl=60.0,
         server_configs=resolved_configs,
         concurrency_limits=concurrency_limits,
     )
@@ -159,7 +157,7 @@ class TestRawExecuteWithLifecycle:
     async def test_ensure_ready_called_before_transport(self) -> None:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg("http://127.0.0.1:8000")}
-        ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
+        ex = ToolExecutor(http, server_configs=configs)
         ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
 
         call_order: list[str] = []
@@ -192,7 +190,7 @@ class TestRawExecuteWithLifecycle:
     async def test_no_lifecycle_skips_ensure_ready(self) -> None:
         http = MagicMock(spec=httpx.AsyncClient)
         configs = {"file_read": _http_cfg()}
-        ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
+        ex = ToolExecutor(http, server_configs=configs)
         ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
         assert ex._lifecycle is None
 
@@ -332,68 +330,6 @@ class TestHttpTransportErrors:
             await transport.call("my_tool", {})
 
 
-class TestToolExecutorExecute:
-    @pytest.mark.asyncio
-    async def test_cache_hit_returns_empty_x_request_id(self) -> None:
-        ex = _make_executor()
-        mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(
-            return_value=ToolCallResult(
-                output="cached result",
-                is_error=False,
-                request_id="req-1",
-                server_key="",
-            )
-        )
-        ex._transports["file_read"] = mock_transport
-
-        await ex.execute("read_text_file", {"path": "f"})
-        res = await ex.execute("read_text_file", {"path": "f"})
-        result, is_err, x_req = res.output, res.is_error, res.request_id
-        assert result == "cached result"
-        assert not is_err
-        assert x_req == ""
-        assert ex.stat_cache_hits == 1
-
-    @pytest.mark.asyncio
-    async def test_expired_cache_entry_is_re_executed(self) -> None:
-        http = MagicMock(spec=httpx.AsyncClient)
-        ex = ToolExecutor(
-            http,
-            cache_ttl=0.0,
-            server_configs={"file_read": _http_cfg()},
-        )
-        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
-        mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(
-            return_value=ToolCallResult(
-                output="result", is_error=False, request_id="req-1", server_key=""
-            )
-        )
-        ex._transports["file_read"] = mock_transport
-
-        await ex.execute("read_text_file", {"path": "f"})
-        res = await ex.execute("read_text_file", {"path": "f"})
-        result, _is_err, _x_req = res.output, res.is_error, res.request_id
-        assert result == "result"
-        assert mock_transport.call.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_execute_propagates_x_request_id_on_cache_miss(self) -> None:
-        ex = _make_executor()
-        mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(
-            return_value=ToolCallResult(
-                output="ok", is_error=False, request_id="req-xyz", server_key=""
-            )
-        )
-        ex._transports["file_read"] = mock_transport
-
-        res = await ex.execute("read_text_file", {"path": "f"})
-        x_req = res.request_id
-        assert x_req == "req-xyz"
-
-
 class TestSetSessionId:
     @pytest.mark.asyncio
     async def test_session_id_injected_into_http_transport_header(self) -> None:
@@ -406,7 +342,7 @@ class TestSetSessionId:
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
+        ex = ToolExecutor(mock_http, server_configs={"srv": cfg})
         ex.set_session_id("sess-abc")
 
         # Trigger a call so headers are captured
@@ -421,7 +357,7 @@ class TestSetSessionId:
         """Empty session_id must not add X-Session-Id header."""
         cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
         mock_http = MagicMock(spec=httpx.AsyncClient)
-        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
+        ex = ToolExecutor(mock_http, server_configs={"srv": cfg})
         ex.set_session_id("")
 
         transport = ex._transports["srv"]
@@ -430,50 +366,6 @@ class TestSetSessionId:
 
 
 # ── apply_config ──────────────────────────────────────────────────────────────
-
-
-class TestToolExecutorApplyConfig:
-    def _make_executor(self) -> ToolExecutor:
-        from unittest.mock import AsyncMock
-
-        import httpx
-        from shared.mcp_config import McpServerConfig, TransportType
-        from shared.tool_executor import ToolExecutor
-
-        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:8005")
-        return ToolExecutor(
-            http=AsyncMock(spec=httpx.AsyncClient),
-            cache_ttl=300.0,
-            server_configs={"file_read": cfg},
-        )
-
-    def test_apply_config_cache_ttl(self) -> None:
-        ex = self._make_executor()
-        ex.apply_config(cache_ttl=600.0)
-        assert ex._cache_ttl == 600.0
-
-    def test_apply_config_none_is_no_op(self) -> None:
-        ex = self._make_executor()
-        ex.apply_config()
-        assert ex._cache_ttl == 300.0
-
-    def test_apply_config_does_not_recreate_transports_or_resolver(self) -> None:
-        ex = self._make_executor()
-        transports_before = ex._transports
-        transport_before = ex._transports["file_read"]
-        server_configs_before = ex._server_configs
-        resolver_before = ex._resolver
-
-        ex.apply_config(cache_ttl=600.0)
-
-        assert ex._cache_ttl == 600.0
-        assert ex._transports is transports_before
-        assert ex._transports["file_read"] is transport_before
-        assert ex._server_configs is server_configs_before
-        assert ex._resolver is resolver_before
-
-
-# ── McpServerHealthRegistry ───────────────────────────────────────────────────
 
 
 class TestMcpServerHealthRegistry:
@@ -906,40 +798,3 @@ class TestToolExecutorHealthTransitions:
         assert res.is_error
         # Tool-level error should NOT increment failure count — record_success() is called
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
-
-
-class TestCacheKeyFormat:
-    def test_cache_key_is_plain_string_not_md5(self) -> None:
-        """Cache key must use plain string format, not MD5 hex digest."""
-        from shared.tool_executor import _json_dumps
-
-        args: dict[str, Any] = {"path": "/tmp/f.txt"}
-        key = f"read_text_file:{_json_dumps(args)}"
-        assert key.startswith("read_text_file:")
-        assert not re.fullmatch(r"[0-9a-f]{32}", key)
-
-    def test_cache_key_identical_args_produce_identical_key(self) -> None:
-        """Same tool + same args must always produce the same cache key."""
-        from shared.tool_executor import _json_dumps
-
-        args: dict[str, Any] = {"path": "/tmp/f.txt", "mode": "r"}
-        key1 = f"read_text_file:{_json_dumps(args)}"
-        key2 = f"read_text_file:{_json_dumps(args)}"
-        assert key1 == key2
-
-    def test_cache_key_different_tool_produces_different_key(self) -> None:
-        """Different tool names must produce different cache keys for same args."""
-        from shared.tool_executor import _json_dumps
-
-        args: dict[str, Any] = {"path": "/tmp/f.txt"}
-        key1 = f"read_text_file:{_json_dumps(args)}"
-        key2 = f"write_file:{_json_dumps(args)}"
-        assert key1 != key2
-
-    def test_cache_key_different_args_produce_different_key(self) -> None:
-        """Different args must produce different cache keys for same tool."""
-        from shared.tool_executor import _json_dumps
-
-        key1 = f"read_text_file:{_json_dumps({'path': '/tmp/a.txt'})}"
-        key2 = f"read_text_file:{_json_dumps({'path': '/tmp/b.txt'})}"
-        assert key1 != key2

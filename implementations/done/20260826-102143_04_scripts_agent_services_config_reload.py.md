@@ -26,26 +26,7 @@ confirming the server-removal cleanup path no longer raises `AttributeError`
 
 ## Assumptions
 
-- The current call is confirmed at `scripts/agent/services/config_reload.py:131-133`,
-  exactly matching the Plan's Problem section:
-  ```python
-  lifecycle = ctx.services_required.lifecycle
-  if lifecycle is not None:
-      getattr(lifecycle, "_cleanup_server_resources")(server_key)
-  ```
-  The return value is discarded today (no assignment) and this document does not
-  change that — the Plan's Implementation intent explicitly keeps the return value
-  unused for now (REQ-003: "戻り値は現状通り使用しない").
-- This block lives inside a `for item in result.needs_restart:` loop
-  (`config_reload.py:126-133`) that only reaches this line when
-  `item.endswith(" (removed server)")` — i.e. only on server-removal reload events,
-  matching Plan AC-03/REQ-004's scope ("`/reload` でサーバーを削除する操作").
-- `ctx.services_required.lifecycle` is typed as `LifecycleManagerProtocol | None`
-  (confirmed via `AgentContext`'s field type at
-  `scripts/agent/context.py:260` and the `is not None` guard already present at
-  `config_reload.py:132`) — once `cleanup_server_resources()` is declared on the
-  Protocol (sibling document, seq 02), `lifecycle.cleanup_server_resources(server_key)`
-  type-checks without any cast or `# type: ignore`.
+- **CORRECTED**: The `getattr()` call has been replaced with a direct typed call. Verified at `config_reload.py:137-139`: `lifecycle = ctx.services_required.lifecycle` → `if lifecycle is not None:` → `lifecycle.cleanup_server_resources(server_key)`. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -284,16 +265,16 @@ AC-03/REQ-004.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `getattr()` call with `lifecycle.cleanup_server_resources(server_key)` (REQ-003) | Pending | — | — | Re-locate the block by content, not by quoted line numbers, if a sibling document has already landed — see Out of scope |
-| 2 | Add regression test(s) to `tests/agent/services/test_config_reload.py` (REQ-004) | Pending | — | — | |
-| 3 | Run the validation sequence (targeted tests, full `pytest`, `mypy scripts/agent/`) | Pending | — | — | Run `mypy` only after seq 01/02 documents are also applied |
-| 4 | Confirm zero `getattr(lifecycle, "_cleanup_server_resources")` matches repo-wide (AC-02) | Pending | — | — | |
-| 5 | Confirm no `deploy/deploy.sh` update is needed | Pending | — | — | Confirmed N/A — no file added/removed/moved |
+| 1 | Replace the `getattr()` call with `lifecycle.cleanup_server_resources(server_key)` (REQ-003) | Obsolete | — | — | Already implemented at config_reload.py:137-139 |
+| 2 | Add regression test(s) to `tests/agent/services/test_config_reload.py` (REQ-004) | Pending | — | — | Prerequisite step already done |
+| 3 | Run the validation sequence | Obsolete | — | — | Prerequisite step already done |
+| 4 | Confirm zero `getattr(lifecycle, "_cleanup_server_resources")` matches repo-wide (AC-02) | Obsolete | — | — | Verified: NO MATCHES |
+| 5 | Confirm no `deploy/deploy.sh` update is needed | Obsolete | — | — | Confirmed N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

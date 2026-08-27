@@ -28,7 +28,8 @@ source:
 | get_workflow_runs, get_workflow_status, get_workflow_logs | cicd-mcp (port 8012) | CICD_READ_TOOLS | LOW | No | verify |
 | search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs | mdq-mcp (port 8013) | MDQ_TOOLS | LOW (READ) / MEDIUM (WRITE) | No (READ) / Yes (index_paths, refresh_index) | plan, verify |
 | git_status, git_log, git_diff, git_branch, git_show | git-mcp (port 8014) | GIT_READ_TOOLS | LOW | No | plan, verify |
-| git_add, git_commit, git_checkout, git_pull, git_push | git-mcp (port 8014) | GIT_WRITE_TOOLS | MEDIUM | Yes | execute |
+| git_add, git_commit | git-mcp (port 8014) | GIT_WRITE_TOOLS | MEDIUM | Yes | execute |
+| git_checkout, git_pull, git_push | git-mcp (port 8014) | GIT_WRITE_TOOLS | HIGH | Yes (requires `yes` full-word confirmation via `"high"` override) | execute |
 | shell_run | shell-mcp (port 8009) | SHELL_TOOLS | MEDIUM | Yes | execute |
 | search_web, browser_fetch | web-search-mcp (port 8004) | WEB_SEARCH_TOOLS | LOW | No | plan |
 | github_search_repositories, github_list_branches, github_list_commits, github_get_commit, github_search_code, github_get_file_contents, github_list_issues, github_get_issue, github_search_issues, github_list_pull_requests, github_get_pull_request, github_search_pull_requests | github-mcp (port 8006) | GITHUB_READ_TOOLS | LOW | No | plan, verify |

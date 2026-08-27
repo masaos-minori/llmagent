@@ -17,19 +17,7 @@ declared on the typed interface, instead of being reached only through
 
 ## Assumptions
 
-- `LifecycleManagerProtocol` is decorated `@runtime_checkable` (`scripts/agent/
-  lifecycle_protocol.py:21`) — adding a new method to it does not change this
-  decorator's applicability; `runtime_checkable` `Protocol`s only check method
-  *presence* at `isinstance()`-check time, not signatures, so this is a compile-time
-  (`mypy`) contract addition with no runtime behavior implication for existing
-  `isinstance(x, LifecycleManagerProtocol)` call sites (none found via `rg -n
-  "isinstance.*LifecycleManagerProtocol" scripts/` — zero matches, so this is moot in
-  practice, noted only for completeness).
-- `_ServerLifecycleRouter` (`scripts/agent/factory.py`) is confirmed the sole
-  production implementer (see the sibling `factory.py` document's Assumptions for the
-  `rg` evidence) — adding a new required method to this Protocol will be satisfied by
-  that document's REQ-002 addition; the two changes must land together for `mypy` to
-  pass (see Compatibility considerations).
+- **CORRECTED**: The `cleanup_server_resources()` signature already exists in the Protocol. Verified at `lifecycle_protocol.py:62`: `def cleanup_server_resources(self, server_key: str) -> str:`. No further action needed on this implementation procedure.
 
 ## Design decisions
 
@@ -175,13 +163,13 @@ Target state (new method appended):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `cleanup_server_resources()` signature to `LifecycleManagerProtocol` (REQ-001) | Pending | — | — | |
-| 2 | Run `uv run mypy scripts/agent/` jointly with the `factory.py` implementation (seq 01) | Pending | — | — | Must not be run in isolation — see Compatibility considerations |
+| 1 | Add `cleanup_server_resources()` signature to `LifecycleManagerProtocol` (REQ-001) | Obsolete | — | — | Already implemented at lifecycle_protocol.py:62 |
+| 2 | Run `uv run mypy scripts/agent/` jointly with the `factory.py` implementation (seq 01) | Obsolete | — | — | Prerequisite step already done |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| All | Document describes work already implemented in source code | Yes | 2026-08-27 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

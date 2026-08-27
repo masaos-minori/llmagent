@@ -27,8 +27,8 @@ strict-contract requirements have landed in code.
   dependency requirements' code changes are implemented and merged (per the source
   plan's Phase 1 gate). Verified during this implementation-procedure review:
   `scripts/agent/services/mcp_tool_discovery.py` still reads
-  `entry.get("inputSchema", entry.get("input_schema"))` and `resource_scope` is still
-  only type-checked when present, not rejected — i.e., the doc's current wording still
+  `entry.get("inputSchema", entry.get("input_schema"))` (:279,:361) and `resource_scope` is still
+  only type-checked when present (:301), not rejected — i.e., the doc's current wording still
   accurately describes the live code. Editing this doc now would make it describe
   behavior that does not yet exist. Re-verify this precondition immediately before
   editing.
