@@ -1,3 +1,15 @@
+**SUPERSEDED (2026-08-27)**: The source plan (`plans/20260825-142646_plan.md`) has
+been marked Superseded — its requirements were folded into
+`plans/20260827-121312_plan.md`'s `REQ-001`/`REQ-003`. This document's prerequisite
+(`ToolExecutor` cache deletion) is now confirmed complete
+(`plans/done/20260826-120000_plan.md`), and its content is superseded by the
+refreshed, re-verified implementation procedures generated from
+`plans/20260827-121312_plan.md`:
+`implementations/20260827-134500_01_scripts_agent_config_dataclasses.py.md`,
+`implementations/20260827-134500_02_scripts_agent_config_builders.py.md`,
+`implementations/20260827-134500_03_scripts_agent_services_config_validators.py.md`.
+Do not execute this document; it is retained only for history.
+
 ## Goal
 
 Remove the dead validator `validate_tool_cache_max_size` (`_v_tool_cms`) and its wiring after `ToolExecutor` cache deletion eliminates the `tool_cache_max_size` field from `ToolConfig`.
@@ -184,9 +196,9 @@ Before implementing any step:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Preparation / Refactoring | Blocked | — | — | Prerequisite: ToolExecutor cache deletion unimplemented (UNK-01); 8 tool_cache_ttl refs remain |
-| 2 | Core Logic Implementation | Blocked | — | — | Awaiting prerequisite |
-| 3 | Deployment & Verification | Blocked | — | — | Awaiting prerequisite |
+| 1 | Preparation / Refactoring | Superseded | — | — | Superseded 2026-08-27 by docs generated from `plans/20260827-121312_plan.md` |
+| 2 | Core Logic Implementation | Superseded | — | — | See replacement docs listed at top of file |
+| 3 | Deployment & Verification | Superseded | — | — | See replacement docs listed at top of file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

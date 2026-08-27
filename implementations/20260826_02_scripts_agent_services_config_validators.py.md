@@ -1,5 +1,10 @@
 # Implementation Procedure Output Template (Canonical)
 
+**SUPERSEDED (2026-08-27)**: source plan `plans/20260825-142646_plan.md` marked
+Superseded; replaced by
+`implementations/20260827-134500_03_scripts_agent_services_config_validators.py.md`
+(generated from `plans/20260827-121312_plan.md`'s `REQ-003`). Do not execute.
+
 ## Goal
 Remove dead validator `validate_tool_cache_max_size` once `ToolExecutor` cache is removed.
 
@@ -51,10 +56,10 @@ Code modification and verification.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | — |
-| 2 | Add or update tests per Validation plan | Pending | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Superseded | — | — | See replacement doc listed at top of file |
+| 2 | Add or update tests per Validation plan | Superseded | — | — | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Superseded | — | — | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Superseded | — | — | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
