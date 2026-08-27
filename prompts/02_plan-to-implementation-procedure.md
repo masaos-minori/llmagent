@@ -8,13 +8,14 @@ pipeline diagram, input/output paths, archive destination, and workflow phase na
 ## Allowed file operations
 
 See `skills/plan-to-implementation-procedure/workflow.md` Allowed file operations for
-the full scope of what this document-only phase may create, move, or must not touch.
+this document-only phase's allowed and forbidden file operations.
 
-Read the target plan file, then produce file-level implementation procedure documents based on the rules below.
+Read the target plan file, then produce file-level implementation procedure documents
+per the rules below.
 
-- After completing Step 3's validation, the plan file MUST be moved to `plans/done/`
-  in Step 4 — no human approval is required for this move. Skipping this step is a
-  failure condition.
+- The plan file MUST be moved to `plans/done/` in Step 4 once Step 3 validation
+  passes — no human approval is required for this move (see Step 4). Skipping this
+  step is a failure condition.
 - Do not implement anything — this workflow creates documents only.
 - Do not modify source files.
 - **Write all output documents (implementations/) in clear and concise English for AI
@@ -75,6 +76,5 @@ Follow `skills/plan-to-implementation-procedure/workflow.md` Step 3 in full.
 #### Step 4: Move the completed plan file
 
 This step MUST NOT be skipped. It MUST run once Step 3 completes and its validation
-checks pass — no human approval is required for this move.
-
-Follow `skills/plan-to-implementation-procedure/workflow.md` Step 4 in full.
+checks pass — no human approval is required for this move. Follow
+`skills/plan-to-implementation-procedure/workflow.md` Step 4 in full.

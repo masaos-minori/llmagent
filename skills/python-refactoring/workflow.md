@@ -24,9 +24,6 @@ follow-up work (see `SKILL.md` Composes with / Called by).
   Requirement for the one scoped exception: Step 10 MUST draft ADR content inline in
   the report; only writing it under `docs/adr/` requires explicit instruction).
 
-(`__pycache__/` is already covered by Out of Scope below's `rules/ai-execution.md`
-Global Safety Restrictions (Base) — not repeated here.)
-
 ## Out of Scope
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
@@ -67,11 +64,8 @@ If not already loaded, read the following before starting:
 - `validation.md`
 - `report-template.md`
 
-Do not load these three eagerly — Step 2 loads only the one matching the Path
-classification decided there:
-- `path-a.md`
-- `path-b.md`
-- `path-c.md`
+Do not eagerly load `path-a.md` / `path-b.md` / `path-c.md` — Step 2 loads only the
+one matching the Path classification decided there.
 
 ---
 
@@ -349,6 +343,5 @@ C Completion Requirements.
 
 ## Output format
 
-See `report-template.md` for the exact final-report structure — this phase does not
-generate a single Markdown document with a fixed structure; its output is code changes
-plus the Step 10 report.
+See `report-template.md` for the exact final-report structure — output is code
+changes plus the Step 10 report, not a single generated document.

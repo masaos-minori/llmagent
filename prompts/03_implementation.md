@@ -7,17 +7,17 @@ diagram, input/output paths, archive destination, and workflow phase name.
 
 ## Allowed file operations
 
-See `skills/code-implementation/workflow.md` Allowed file operations for the full
-scope of what this phase may create, modify, or move — unlike the two upstream
-pipeline phases, this phase legitimately modifies source code and `docs/*.md`.
+See `skills/code-implementation/workflow.md` Allowed file operations for this
+phase's allowed create/modify/move operations — unlike the two upstream pipeline
+phases, this phase legitimately modifies source code and `docs/*.md`.
 
-Read the target implementation procedure file, then implement the feature according
-to the rules and skills below.
+Read the target implementation procedure file, then implement the feature per the
+rules and skills below.
 
-- After completing Step 6 (documentation updated and validated), the implementation
-  procedure file MUST be moved to `implementations/done/` in Step 7. Skipping this
-  step is a failure condition. The file MUST NOT be moved to `implementations/done/`
-  before documentation is updated and validated.
+- The implementation procedure file MUST be moved to `implementations/done/` in
+  Step 7, after Step 6 (documentation updated and validated) — see Step 7. Skipping
+  this step is a failure condition. It MUST NOT be moved before documentation is
+  updated and validated.
 - Do not modify files outside the scope specified in the plan.
 - Do not edit documentation before Step 5.
 - Use Markdown for all progress reports. Be concrete and implementation-oriented.
@@ -81,9 +81,8 @@ Follow `skills/code-implementation/workflow.md` Step 6 in full.
 
 #### Step 7: Move the completed implementation procedure file
 
-This step MUST NOT be skipped.
-
-Follow `skills/code-implementation/workflow.md` Step 7 in full.
+This step MUST NOT be skipped. Follow `skills/code-implementation/workflow.md`
+Step 7 in full.
 
 ### Rollback on failure
 

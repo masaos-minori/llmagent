@@ -97,8 +97,6 @@ pre-implementation approval checklist, Architecture Baseline (Step 4 addendum),
 Architecture Comparison Validation (Step 7 addendum), mandatory ADR, and Path C
 Completion Requirements (Step 10 addendum) it defines.
 
-Record the Path A/B/C decision and its rationale in Step 10's report.
-
 ---
 
 ## Core Execution Rules
@@ -141,9 +139,8 @@ Record the Path A/B/C decision and its rationale in Step 10's report.
 ## Output format
 
 This phase does not produce a single generated document — its output is refactored
-source code plus a structured chat report. See `report-template.md` for the exact
-report structure and the Completion Gate that decides whether the cycle may be
-reported complete.
+source code plus a structured chat report (report structure and Completion Gate: see
+`report-template.md` under See Also below).
 
 ---
 

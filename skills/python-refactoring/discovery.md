@@ -15,11 +15,10 @@ observed without expanding the approved change scope:
   Discovery below). Requires a populated `evidence` field.
 - **Candidate**: a Finding assessed as potentially actionable, not yet evaluated for
   approval.
-- **Proposal**: a behavior-changing idea surfaced during work on the target file. This is
-  the same concept as the existing "Proposals not implemented" format, and MUST use it —
-  that format is defined
-  in `report-template.md` (Title / Reason / Behavior risk / Affected files / Suggested
-  follow-up issue / Recommended validation) — this section does not define a second
+- **Proposal**: a behavior-changing idea surfaced during work on the target file — the
+  same concept as, and MUST use, the existing "Proposals not implemented" format
+  (`report-template.md`: Title / Reason / Behavior risk / Affected files / Suggested
+  follow-up issue / Recommended validation). This section does not define a second
   Proposal format.
 - **Approved Change**: a change explicitly authorized for this refactoring cycle; only an
   Approved Change may be transformed in `workflow.md` Step 6.
@@ -100,8 +99,8 @@ While investigating the target file (Steps 2-10), compare relevant implementatio
 details against these seven document sources: `routing.md`, `AGENTS.md`, README,
 design documents, coding and toolchain rules, configuration specifications, deployment
 definitions. For "design documents," use `docs/00_index.md`'s "Document References by
-Task" table to locate the documents actually governing the target file's behavior,
-rather than scanning all of `docs/*.md`.
+Task" table to locate the documents governing the target file's behavior, rather than
+scanning all of `docs/*.md`.
 
 Record each discovered discrepancy as a Drift Finding with exactly six fields — a
 Drift Finding with any field unpopulated MUST NOT be recorded:

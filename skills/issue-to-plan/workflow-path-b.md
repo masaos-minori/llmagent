@@ -25,8 +25,8 @@ Tools used by both paths (`rg`, `fd`, `ast-grep`, `radon`, `vulture`, `semgrep`,
 `bandit`, `diff-cover`, `pytest-testmon`) are not repeated here — see `workflow.md`
 Step 3 and Step 5's Validation quality analysis baseline.
 
-**Lightweight alternatives are always available; heavy tools only if installed — see
-`skills/DESIGN.md` Tool availability guard.**
+Lightweight alternatives are always available; heavy tools only if installed — see
+`skills/DESIGN.md` Tool availability guard.
 
 ---
 

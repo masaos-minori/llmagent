@@ -27,7 +27,7 @@ This is a document-only phase. Allowed operations:
 - Move the processed Issue file to `issues/done/` once Step 9's validation passes —
   no human approval is required for this move.
 - Do not modify source code files.
-- Do not update documentation (`docs/*.md`) — this phase does not allow it.
+- Do not update documentation (`docs/*.md`).
 - Do not modify files outside `plans/`, `issues/`, and the Issue file being moved
   (`issues/` -> `issues/done/`).
 
@@ -50,9 +50,8 @@ file.
 Additional context-hygiene guidance specific to this workflow:
 - Perform Step 2 (verifying claims in the Issue against current source) sequentially.
   Retain only a concise confirmation or correction, not full file contents.
-- Process each Steps 1-10 cycle sequentially so investigation from one file's cycle
-  does not accumulate into the next — this is context isolation, not parallel
-  execution: cycles MUST run one at a time; they MUST NOT run in parallel.
+- Process each Steps 1-10 cycle sequentially — investigation MUST NOT carry from one
+  file's cycle into the next; cycles MUST run one at a time, not in parallel.
 - Do not summarize shared rules or template content in chat — reference them by file
   name instead.
 
@@ -76,9 +75,6 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
 determines Path B.
 
-Do not load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
-determines Path B.
-
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
 shared files across cycles in this session.
 
@@ -90,17 +86,9 @@ If a required file is missing, unreadable, or contradictory, apply
 
 ## Step 1: Identify Target Issues
 
-Apply `rules/ai-execution.md` Sequential Target Processing (Base) — validate all paths
-before starting, process sequentially in filename order, load only the current target.
-
-Workflow-specific:
-- The target Issue file(s) are provided by the user (e.g. `issues/{filename}.md`), one
-  path per file.
-- If no target file is specified, stop immediately and ask the user to specify one or
-  more.
-- If any specified file does not exist, stop immediately and report which file(s) are
-  missing.
-- Do not read files under `issues/done/`.
+Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and `rules/ai-execution.md`
+Sequential Target Processing (Base). Workflow-specific: input path `issues/{filename}.md`;
+archive directory `issues/done/`.
 
 ---
 
@@ -115,8 +103,7 @@ Workflow-specific:
   exist as stated, whether a claimed dependency or side effect is missing or
   overstated, and whether two claims within the same Issue (or against a related
   `plans/`/`implementations/` document) contradict each other. Treat this as a search
-  for disconfirming evidence, not a second pass to reconfirm what the first pass
-  already found.
+  for disconfirming evidence, not reconfirmation of prior findings.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
   with `skills/issue-creator`): title, priority, target files, background, problem,
   reason for change, implementation intent, implementation instructions, constraints,
@@ -125,12 +112,11 @@ Workflow-specific:
 - Classify each extracted item as one of: `Explicit in issue`, `Confirmed by repository
   evidence`, `Derived from confirmed evidence`, `Needs confirmation`. Do not invent
   missing requirements.
-- If adversarial verification surfaces an unconfirmed item or an inconsistency between
+- If adversarial verification surfaces an unconfirmed item or inconsistency between
   the Issue and current source, do not silently reconcile it — classify it per the
-  rule above (`Needs confirmation` if still unresolved; `Confirmed by repository
-  evidence` / `Derived from confirmed evidence` if resolved by what you found) and
-  write the corrected understanding into the Plan (Step 5), not the Issue's original,
-  possibly stale claim.
+  rule above (`Needs confirmation` if unresolved; `Confirmed by repository evidence` /
+  `Derived from confirmed evidence` if resolved) and write the corrected understanding
+  into the Plan (Step 5), not the Issue's original, possibly stale claim.
 - Any item classified `Needs confirmation` carries forward to Step 6 as an Unknown by
   name — do not re-derive it there. This classification is also the source for the
   Requirement Traceability table's Status column in Step 7.
@@ -209,8 +195,7 @@ Using the Path A/B classification from Step 3:
 - **Path A**: skip architecture analysis, dependency graphing, historical analysis, and
   operational dependency inspection. Still establish the validation quality baseline
   (radon/vulture/semgrep/bandit/diff-cover, lightweight or full as installed) — this
-  baseline is not part of what Path A skips, matching this skill's Path A definition in
-  `SKILL.md`.
+  baseline is not skipped (see `SKILL.md` Path A).
 - **Path B**: load `workflow-path-b.md` now and perform all four of its analyses
   (architecture, dependency graphing, historical, operational dependency inspection)
   before creating the Plan.
@@ -268,20 +253,17 @@ raising it to ≥ 90%.
   mitigation and needs separate follow-up.
 - Do not create either file with placeholder or empty content — if the Plan's inline
   table fully captures every Unknown/Risk, do not also file a separate issue for it.
-- When an Unknown/Risk issue file (or the Requirement Traceability table in Step 7)
-  references a Requirement, cite its Requirement ID (e.g. `REQ-003`) — do not re-quote
-  the Requirement's full description text. The ID is the canonical join key back to the
-  Plan.
-- Reuse the same base timestamp generated in Step 5 (`date +%Y%m%d-%H%M%S`) for both
-  files — do not generate a new timestamp. This keeps the Plan, Unknowns file, and Risks
-  file correlated to the same workflow cycle.
+- When an Unknown/Risk issue file (or the Step 7 Requirement Traceability table)
+  references a Requirement, cite its ID (e.g. `REQ-003`) — do not re-quote the full
+  description text.
+- Reuse the base timestamp from Step 5 (`date +%Y%m%d-%H%M%S`) for both files — do not
+  regenerate.
 - If either path already exists, apply the same lowest-available zero-padded sequence
   rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
   ...). An existing file MUST NOT be overwritten.
 - Each generated Unknown or Risk issue must include a Traceability section (per
-  `templates/traceability.md`) with Source issue set to the current cycle's Issue path
-  and Source plan set to the Plan file generated in Step 5 — this carries
-  Issue-to-Plan traceability forward into any follow-up issue this workflow produces.
+  `templates/traceability.md`): Source issue = current Issue path; Source plan = the
+  Step 5 Plan file.
 
 ---
 
@@ -328,33 +310,28 @@ has a full table; risks are stated with mitigations.
 ## Step 9: Final Validation
 
 Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
-Requirements; the Path A/B classification (one word — the rationale is already recorded
-in the Plan's Design section, do not restate it here); information-completeness result;
-traceability result; unresolved items count; and the Issue pending move. Do not restate
-the Requirement Traceability evidence-classification breakdown in chat — it is already
-recorded in the Plan's Requirement Traceability table.
+Requirements; Path A/B classification (one word; rationale is in the Plan's Design
+section, do not restate); information-completeness result; traceability result;
+unresolved items count; and the Issue pending move. Do not restate the Requirement
+Traceability evidence-classification breakdown — it is already in the Plan's
+Requirement Traceability table.
 
-This skill's move to `issues/done/` does not require human approval, per
-`rules/workflow-lifecycle.md` Validation Reporting. Proceed to Step 10 once
-information completeness (Step 8) is `Pass` and all required validations are
-`Pass`, without stopping to ask the user for approval.
+No human approval is required for the move to `issues/done/`, per
+`rules/workflow-lifecycle.md` Validation Reporting — proceed to Step 10 once Step 8 is
+`Pass` and all required validations are `Pass`.
 
 ---
 
 ## Step 10: Move the Issue
 
-This step MUST NOT be skipped.
+This step MUST NOT be skipped. Apply `rules/workflow-lifecycle.md` Archival Move
+(issue-to-plan section) — same before/after verification checklist and `Blocked`-on-
+failure rule.
 
 - Move the Issue once Step 9 confirms information completeness is `Pass` and all
   required validations are `Pass`.
-- Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. Do not use `mv`,
-  `cp` + `rm`, file-copy APIs, or any fallback move method.
-- Before running `git mv`, verify: information completeness is `Pass`; all required
-  validations are `Pass`; source exists; destination does not exist; `issues/done/`
-  exists.
-- After running `git mv`, verify: destination exists; source no longer exists; Git
-  records the change as a rename or staged move.
-- If `git mv` fails, do not use a fallback. Report `Blocked`.
+- Use only: `git mv issues/{filename}.md issues/done/{filename}.md`. No `mv`,
+  `cp` + `rm`, file-copy APIs, or other fallback.
 - Report `Completed` only after successful verification.
 
 ---
@@ -362,10 +339,9 @@ This step MUST NOT be skipped.
 ## Out of Scope
 
 See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
-(Source code and `docs/*.md` are already out of scope per `skills/DESIGN.md`
-Analysis-only phase constraint, declared once in `SKILL.md` Purpose — not repeated
-here. File-scope restrictions are declared once above in Allowed file operations —
-not repeated here.)
+(Source code / `docs/*.md` scope: `skills/DESIGN.md` Analysis-only phase constraint,
+declared in `SKILL.md` Purpose. File-scope restrictions: declared above in Allowed
+file operations. Not repeated here.)
 
 ## Output format
 

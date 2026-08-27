@@ -8,14 +8,14 @@ description: |
 
 ## When to use
 
-Use this skill only for documenting an existing Python repository from actual code, configuration files, tests, and CI/CD.
+Use this skill only for documenting an existing Python repository from actual code, configuration, tests, and CI/CD.
 
 Use it when the task is to:
-- review existing documentation against implementation,
-- update design or operational documentation from verified behavior,
+- review docs against implementation,
+- update design/operational docs from verified behavior,
 - document public interfaces and runtime behavior,
-- correct documentation/code mismatches,
-- reduce stale implementation-derived details in documentation.
+- correct doc/code mismatches,
+- reduce stale implementation-derived detail in docs.
 
 ## When not to use
 
@@ -25,7 +25,7 @@ Do not use this skill for:
 - new code or architecture design,
 - marketing or end-user content,
 - documentation not verified from implementation,
-- rewriting documentation without reading the existing document first.
+- rewriting docs without reading the existing document first.
 
 ---
 
@@ -50,8 +50,7 @@ See `skills/DESIGN.md` Output language.
 | 9 | Consistency Review | Remove contradictions across docs and code |
 | 10 | Final Report | Return results in a strict final format |
 
-See `workflow.md` for per-phase tool guidance, the project lint tools, evidence rules,
-boundaries, and detailed gates.
+See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, boundaries, and gates.
 
 ---
 
@@ -85,9 +84,7 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 ## Final Rule
 
-You are not writing plausible documentation.
-
-You are producing traceable, maintainable documentation from real Python code, configuration,
-tests, and CI/CD evidence.
+You are not writing plausible documentation — you are producing traceable, maintainable
+documentation from real Python code, configuration, tests, and CI/CD evidence.
 
 When in doubt, prioritize: correctness, evidence, traceability, maintainability, readability.

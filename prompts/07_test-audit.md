@@ -1,6 +1,6 @@
 You are a senior software test architect, QA reviewer, and implementation planner.
 
-Audit this repository's test suite based on the rules below.
+Audit this repository's test suite per the rules below.
 
 ## Shared Rules
 

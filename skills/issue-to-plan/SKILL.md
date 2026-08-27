@@ -82,9 +82,9 @@ determined here) and perform its full analysis (architecture, dependency graphin
 historical analysis, operational dependency inspection), then `workflow.md` Step 5's
 validation quality analysis. Do not skip any analysis.
 
-> **IMPORTANT — Tool Availability Guard (For AI):** applies to `pydeps`, `radon`,
-> `semgrep` and any other tool used in `workflow.md` / `workflow-path-b.md` — see
-> `skills/DESIGN.md` Tool availability guard.
+> Tool Availability Guard: applies to `pydeps`, `radon`, `semgrep`, and any other tool
+> used in `workflow.md` / `workflow-path-b.md` — see `skills/DESIGN.md` Tool
+> availability guard.
 
 ---
 
@@ -113,20 +113,16 @@ validation quality analysis. Do not skip any analysis.
 
 ## Output format
 
-Generate `plans/{timestamp}_plan.md` using the exact Markdown structure defined in
-`templates/plan.md`. Do not omit any section.
+Generate `plans/{timestamp}_plan.md` (e.g. `plans/20260702-120000_plan.md`) using the
+exact Markdown structure defined in `templates/plan.md`. Do not omit any section. The
+plan file is the working document: update it as scope changes. Do not implement
+directly from it — the next pipeline phase is `plan-to-implementation-procedure`,
+which converts it into file-level implementation procedure documents for
+`code-implementation` to execute (see Composes with below).
 
 ## See Also
 See `workflow.md` for detailed phase content, commands, and the toolchain reference.
 See `rules/env.md` for service ports, DB schema, and module decomposition.
-
-## Plan output
-
-Save the generated plan to `plans/YYYYMMDD-HHMMSS_plan.md` (e.g.
-`plans/20260702-120000_plan.md`). The plan file is the working document: update it as
-scope changes. Do not implement directly from it — the next pipeline phase is
-`plan-to-implementation-procedure`, which converts it into file-level implementation
-procedure documents for `code-implementation` to execute (see Composes with below).
 
 ## Composes with
 - `plan-to-implementation-procedure` — the next pipeline phase once the plan is approved; converts it into file-level implementation procedure documents

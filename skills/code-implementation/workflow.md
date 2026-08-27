@@ -31,9 +31,6 @@ operations below.
 - Do not modify files outside the scope specified in the plan/procedure.
 - Do not edit documentation before Step 5.
 
-(`__pycache__/` is already covered by Out of Scope below's `rules/ai-execution.md`
-Global Safety Restrictions (Base) — not repeated here.)
-
 ## Out of Scope
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base). Additionally for this
@@ -53,17 +50,15 @@ cadence.
 
 ### Progress recording during Steps 3-6
 
-Record your work status when a sub-task's outcome differs from what was expected, or
-when moving between artifact types (code → test → doc):
-- Note which artifact you are working on (code, test, or documentation)
-- Record the current status (In Progress / Blocked / Completed) for each sub-task
+Record status when a sub-task's outcome differs from expected, or when moving between
+artifact types (code → test → doc):
+- Note the current artifact (code, test, or documentation)
+- Record status (In Progress / Blocked / Completed) per sub-task
 - If blocked, describe the blocker and whether it requires user intervention
 - Update the implementation procedure file's own `## Execution Status` section (via
-  Edit) to reflect the current step's Status/Started/Completed — this is the
-  persisted record if the session is interrupted before Step 7's move. Also update the
-  Execution Status table in the final report.
-
----
+  Edit) with the current step's Status/Started/Completed — the persisted record if
+  the session is interrupted before Step 7's move. Also update the final report's
+  Execution Status table.
 
 ## Step 0: Load Required Instructions
 
@@ -85,14 +80,12 @@ Do not load these two eagerly — load each only at the step that actually needs
 - `skills/python-documentation/SKILL.md` — load at Step 5, only if at least one
   changed file has a matching `docs/00_index.md` task-scope row.
 
-Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously
-loaded shared files across cycles in this session.
+Apply `rules/ai-execution.md` Context Reading for reuse of previously loaded shared
+files across cycles in this session.
 
 If a required file is missing, unreadable, or contradictory, apply
 `rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
 `Blocked`. Do not infer missing instructions.
-
----
 
 ## Step 1: Identify the Target Implementation Procedure File(s)
 
@@ -103,8 +96,6 @@ If a required file is missing, unreadable, or contradictory, apply
 - If any specified file does not exist, stop immediately and report which file(s) are
   missing.
 - Do not read files under `implementations/done/`.
-
----
 
 ## Step 2: Read the Current Implementation Procedure File
 
@@ -117,25 +108,23 @@ If a required file is missing, unreadable, or contradictory, apply
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask
   for clarification before proceeding.
 
----
-
 ## Step 3: Implement the Feature
 
-Before implementing, perform **adversarial verification** of the implementation
-procedure's claims about current source: do not assume its Procedure/Method/Details
-are still accurate — actively check via `rg`/Read whether the target file, symbol,
-line numbers, and call path it describes still match current source, and whether any
-assumption or scope boundary it states has since become stale or inconsistent with a
-sibling procedure document or the source Plan.
+Before implementing, perform **adversarial verification** of the procedure's claims
+about current source: do not assume its Procedure/Method/Details are still
+accurate — check via `rg`/Read whether the target file, symbol, line numbers, and
+call path it describes still match current source, and whether any stated assumption
+or scope boundary is stale or inconsistent with a sibling procedure document or the
+source Plan.
 
-If this verification finds an unconfirmed item or an inconsistency, correct the
+If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
 to reflect the corrected understanding before proceeding, and note the correction in
-the Execution Status table's Notes. Do not silently implement around a stale
-description — implement against the corrected, current-source-verified understanding.
+the Execution Status table's Notes. Do not implement around a stale description —
+implement against the corrected, source-verified understanding.
 
-Implement the feature according to the (possibly corrected) implementation procedure.
-Apply the guidance loaded in Step 0 from `skills/python-implementation/SKILL.md` and
+Implement the feature per the (possibly corrected) procedure, applying the guidance
+loaded in Step 0 from `skills/python-implementation/SKILL.md` and
 `skills/python-lint-typecheck/SKILL.md`.
 
 After implementing:
@@ -143,39 +132,30 @@ After implementing:
   architecture/import-boundary checks, security checks.
 - Fix all errors before proceeding to Step 4.
 
----
-
 ## Step 4: Test the Feature
 
 Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0). If a
-failure's cause is not immediately obvious, load
-`skills/python-debug-root-cause/SKILL.md` now and apply it.
+failure's cause is not immediately obvious, load and apply
+`skills/python-debug-root-cause/SKILL.md` now.
 
 - Determine the targeted test scope via `pytest --testmon tests/` (impact-based
   selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
-  otherwise fall back to tests under the same module path as each changed file, plus
-  any test found via `rg` to import a changed symbol.
-- Run targeted tests during implementation.
-- Fix all related failures.
+  otherwise use tests under the same module path as each changed file, plus any test
+  found via `rg` to import a changed symbol.
+- Run targeted tests during implementation; fix all related failures.
 - Run the repository-defined full test suite exactly once, after targeted tests
-  pass — this is the only full-suite run for this cycle; Step 6 MUST NOT run tests
-  again.
+  pass — the only full-suite run for this cycle; Step 6 MUST NOT run tests again.
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
 
----
-
 ## Step 5: Update Documentation
 
-Update `docs/*.md` only for changed files that fall under a Task scope row in
+Update `docs/*.md` only for changed files under a Task scope row in
 `docs/00_index.md`'s "Document References by Task" table (see `routing.md` Docs → task
-mapping for the pointer) — do not update documentation for a changed file that falls
-under no such row. If at least one changed file has a matching row, load
+mapping for the pointer) — not for a changed file under no such row. Match each
+changed file against the table's file/module list and edit only the matched row's
+Reference docs. If at least one changed file has a matching row, load
 `skills/python-documentation/SKILL.md` now (per Step 0) and apply its guidance.
-
-Determine which sections to update by matching each changed file against a Task scope
-row's file/module list in `docs/00_index.md`'s "Document References by Task" table,
-and editing only the matched row's Reference docs.
 
 If a changed file matches no row, this is a normal, non-blocking outcome — do not
 guess which doc to edit, and do not record it as a blocker. Record it in the Execution
@@ -187,13 +167,10 @@ If no changed file has a matching row, skip Step 6's content checks entirely (se
 Step 6) and mark Step 5 Completed with the same Notes.
 
 Move the implementation procedure file only after:
-- required code validation passes,
-- required tests pass,
+- required code validation and tests pass,
 - documentation is updated for every changed file with a matching Task scope row,
 - documentation validation passes (or was skipped per Step 6, when no row matched),
 - every changed file without a matching row is recorded in the Execution Status Notes.
-
----
 
 ## Step 6: Validate Documentation
 
@@ -211,8 +188,6 @@ Otherwise, check the sections edited in Step 5:
 
 If validation surfaces an issue, fix it before proceeding to Step 7.
 
----
-
 ## Step 7: Move the Completed Implementation Procedure File
 
 This step MUST NOT be skipped.
@@ -227,24 +202,19 @@ only and does not apply to this workflow at all.
 - Before proceeding, verify that:
   - the implementation procedure file's own `## Execution Status` section shows
     Completed for every step its template requires,
-  - the Execution Status section in the final report accurately reflects the actual
-    work performed (all completed items show Completed status, any blocked items have
-    blocker descriptions filled in, Work Items Created includes all artifacts
-    produced).
+  - the final report's Execution Status section accurately reflects the actual work
+    performed (completed items show Completed status, blocked items have blocker
+    descriptions filled in, Work Items Created includes all artifacts produced).
 - Move the implementation procedure file to `implementations/done/` using `git mv`
   only. Do not use `mv`, `cp` + `rm`, or any other fallback.
 - Verify the file exists in `implementations/done/` after the move.
 - **If `git mv` fails, stop and report `Blocked: git mv failed — {reason}`. Do not
   fall back to another method.**
 
----
-
 ## Rollback on Failure
 
 If implementation breaks existing functionality, revert changes immediately and
 report `Blocked: {description}`. Do not proceed until the issue is resolved.
-
----
 
 ## Final Report
 
@@ -282,18 +252,14 @@ no-mapping outcome, a blocker reference):
 ### Blocker Log
 
 If no blocker was encountered, report `Blockers: None` as a single line — do not
-render an empty table. Otherwise, use:
-
-| Step | Blocker Description | Resolved | Resolution Date |
-|------|---------------------|----------|-----------------|
+render an empty table. Otherwise, use the Blocker Log table structure from
+`templates/execution-status.md`.
 
 ### Work Items Created
 
 If no artifact beyond the planned code/test/doc changes was produced, report `Work
-items created: None` as a single line — do not render an empty table. Otherwise, use:
-
-| Item ID | Related Step | Type | Status | Owner | Due Date |
-|---------|--------------|------|--------|-------|----------|
+items created: None` as a single line — do not render an empty table. Otherwise, use
+the Work Items Created table structure from `templates/execution-status.md`.
 
 ## Output format
 

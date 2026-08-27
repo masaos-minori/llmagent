@@ -4,25 +4,20 @@ You are a senior software architect and documentation editor.
 
 This prompt is for **routine synchronization of existing, individually named design
 documents** with the current implementation — reading one or more already-existing
-`docs/*.md` files, reconciling them against code, and adding implementation intent (why
-a component exists, what boundary it enforces, current behavior) to documents that
-already have a stable structure.
+`docs/*.md` files, reconciling them against code, and adding implementation intent
+(why a component exists, what boundary it enforces, current behavior).
+
+Apply this workflow when one or more specific target design documents are named and
+already exist with a stable structure that only needs its content reconciled against
+current code (added intent, corrected mismatches).
 
 **Do not use this workflow for repository-wide documentation structure changes** —
 splitting `docs/` into new per-layer files, introducing the canonical chapter structure
-(Purpose/Scope/Background/.../Open Questions/Unknowns) where it does not yet exist, or
-any broad reorganization across the whole `docs/` tree. That kind of broad restructuring
-is out of scope for this workflow; if it is needed, report it as separate work rather
+(Purpose/Scope/Background/.../Open Questions/Unknowns) where it does not yet exist,
+any broad reorganization across the whole `docs/` tree, or work scoped to the whole
+`docs/` tree rather than named target documents. That kind of broad restructuring is
+out of scope for this workflow; if it is needed, report it as separate work rather
 than performing it here.
-
-Apply this workflow when:
-- one or more specific target design documents are named, and
-- those documents already exist with a stable structure that only needs its content
-  reconciled against current code (added intent, corrected mismatches).
-
-Do not use this workflow when documentation structure itself needs reorganizing (new
-layer, missing chapter structure), or when the scope is the whole `docs/` tree rather
-than named target documents.
 
 Read the source code and the existing design documents, then update the design documents by adding implementation intent that is clearly supported by the code.
 
@@ -104,7 +99,7 @@ If not already loaded, read the following before starting:
 
 #### Step 1: Identify target design documents
 
-- Objective: synchronize the design documents under `docs/` with the implementation under `script/`. Treat the Python implementation as the single source of truth for current runtime behavior; approved design documents are authoritative for intended architecture, responsibilities, boundaries, constraints, and operational policies.
+- Objective: synchronize the design documents under `docs/` with the implementation under `script/`, per the Authority policy below (Step 1b).
 - Work document-by-document. Do not read the entire repository, all documentation files, or all source files at once.
 - If multiple target documents are specified, process them in filename (lexicographic) order.
 - Use a search-first workflow: search → identify → inspect → update.
@@ -166,10 +161,9 @@ When documenting intent, focus on:
 - why failure is handled as warning vs hard failure,
 - what is intentional vs incidental.
 
-Implementation intent examples:
-- Instead of "This module handles data storage," write "This module enforces that all writes go through ETagManager before persistence, preventing stale-state corruption."
-- Instead of "The API accepts JSON," write "The API validates request bodies against schemas in `schemas/`; invalid requests return HTTP 400 with error details."
-- Instead of "Tests verify correctness," write "Tests verify that `ChunkSplitter.split()` produces chunks <= 512 tokens and preserves word boundaries."
+Implementation intent example: instead of "This module handles data storage," write
+"This module enforces that all writes go through ETagManager before persistence,
+preventing stale-state corruption."
 
 #### Step 4: Update the document
 

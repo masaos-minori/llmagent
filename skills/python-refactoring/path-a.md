@@ -1,9 +1,8 @@
 # Python Refactoring — Path A (Minor Change)
 
 Load this file only after `workflow.md` Step 2 classifies the current change as Path A
-(see `SKILL.md` Routing for the full classification criteria). Path A does not skip
-Steps 3, 4, or 7 themselves, nor reduce Step 7's Required validation
-(`validation.md`), nor skip the Completion gate (`report-template.md`).
+(see `SKILL.md` Routing for classification criteria; see `workflow.md` Step 2 for what
+Path gating does and does not skip).
 
 ---
 
@@ -16,7 +15,7 @@ Steps 3, 4, or 7 themselves, nor reduce Step 7's Required validation
   impact scope table.
 
 `discovery.md`'s Technical Debt Discovery, Responsibility Analysis, and Documentation
-Drift Detection all still apply — they are not Path-gated.
+Drift Detection still apply (not Path-gated; see `workflow.md` Step 3).
 
 ---
 

@@ -11,13 +11,13 @@ separate phase.
 
 ## Allowed file operations
 
-See `skills/issue-to-plan/workflow.md` Allowed file operations for the full scope of
-what this document-only phase may create, move, or must not touch.
+See `skills/issue-to-plan/workflow.md` Allowed file operations for this document-only
+phase's allowed and forbidden file operations.
 
-Read the target Issue file, then create a concrete work plan based on the rules below.
+Read the target Issue file, then create a concrete work plan per the rules below.
 
-- After completing Step 9's validation, the Issue file MUST be moved to
-  `issues/done/` in Step 10 — no human approval is required for this move.
+- After Step 9 validation passes, the Issue file MUST be moved to `issues/done/`
+  in Step 10 — no human approval is required for this move (see Step 9 and Step 10).
   Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
@@ -76,10 +76,10 @@ classification (`Explicit in issue` / `Confirmed by repository evidence` / `Deri
 from confirmed evidence` / `Needs confirmation`) and the already-resolved/too-vague
 early-exit handling.
 
-Evidence gap handling: If required evidence cannot be found during Step 2, classify the
-gap as Blocking or Non-blocking. Stop and report `Evidence Gap: {specific item}` only if
-the gap is Blocking (a reliable Plan cannot be produced without it). Record a
-Non-blocking gap as `Needs confirmation` (see Step 6) and continue to Step 3.
+Evidence gap handling: classify a Step 2 evidence gap as Blocking or Non-blocking. If
+Blocking (no reliable Plan possible without it), stop and report `Evidence Gap:
+{specific item}`. Record a Non-blocking gap as `Needs confirmation` (see Step 6) and
+continue to Step 3.
 
 #### Step 3: Inspect related files
 
@@ -133,9 +133,8 @@ Proceeding to Step 10 is required once Step 9 confirms information completeness 
 
 #### Step 10: Move the completed Issue file
 
-This step MUST NOT be skipped.
-
-Follow `skills/issue-to-plan/workflow.md` Step 10 in full: `git mv
+This step MUST NOT be skipped. Follow `skills/issue-to-plan/workflow.md` Step 10 in
+full: `git mv
 issues/{filename}.md issues/done/{filename}.md` only, with its pre- and post-move
 verification checklist. Do not use `mv`, `cp` + `rm`, file-copy APIs, or any fallback
 move method. Report `Completed` only after successful verification.

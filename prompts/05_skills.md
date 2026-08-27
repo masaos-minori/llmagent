@@ -20,8 +20,8 @@ Read the existing skill files and routing configuration, then restructure them b
 
 **Out of scope** (MUST NOT be read for content, MUST NOT be edited by this workflow):
 - `scripts/`, `tests/` — source code
-- `docs/*.md` — product documentation (owned by the `python-documentation` skill, a
-  different workflow)
+- `docs/*.md` — product documentation (owned by `python-documentation`, a different
+  workflow)
 - `templates/*.md` — structural format definitions only; not a source of normative
   rule text to deduplicate
 - `issues/`, `plans/`, `implementations/`, and their `done/` subdirectories —
@@ -66,11 +66,11 @@ Execution
 
 ### Canonical Ownership Model
 
-- `AGENTS.md`: repository-wide AI execution constraints that every task needs, and an
-  instruction to consult `routing.md`. Must be loaded first by any AI agent. Contains
-  global safety restrictions and execution rules.
-- `routing.md`: the only canonical source for task-to-skill mappings and
-  source-to-document mappings.
+- `AGENTS.md`: repository-wide AI execution constraints every task needs, plus the
+  instruction to consult `routing.md`. Loaded first by any AI agent; contains global
+  safety restrictions and execution rules.
+- `routing.md`: the only canonical source for task-to-skill and source-to-document
+  mappings.
 - `skills/DESIGN.md`: shared design and architecture rules used by 2+ skills.
 - `rules/*.md`: shared AI-execution or workflow-lifecycle rules used by 2+ workflows
   but not universal enough for every task to need them (e.g. `rules/ai-execution.md`,
@@ -84,8 +84,8 @@ Do not place task-to-skill mappings in `AGENTS.md`. Do not duplicate routing def
 
 #### The `AGENTS.md` vs. `rules/*.md` boundary test
 
-This boundary has been ambiguous in practice. Apply this test, in order, whenever a
-candidate rule could plausibly belong to either:
+Apply this test, in order, whenever a candidate rule could plausibly belong to
+either:
 
 1. **Universality check**: would this rule apply to every task this repository
    executes, regardless of which skill (or no skill) handles it? If yes → `AGENTS.md`.
@@ -125,11 +125,10 @@ section — a single section commonly mixes both:
 
 A short, one-sentence descriptive gloss attached to a canonical reference (e.g. "see
 `rules/coding.md` Prohibited behavior — this is why we stage files individually here")
-is allowed and does not need deduplicating. A descriptive paragraph that quietly
-reintroduces the full original constraint in different words does need deduplicating.
-Use this normative/descriptive split as the first filter (skip non-normative text
-entirely), then test the remaining normative text with the Deduplication Rules'
-scope/requirements/conditions/exceptions/effects equivalence test below.
+does not need deduplicating. A descriptive paragraph that quietly reintroduces the
+full original constraint in different words does. Use this normative/descriptive
+split as the first filter, then test remaining normative text with the Deduplication
+Rules' scope/requirements/conditions/exceptions/effects equivalence test below.
 
 ### Deduplication Rules
 

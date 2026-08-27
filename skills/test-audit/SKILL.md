@@ -143,8 +143,7 @@ See `report-template.md` for the final report structure and content rules.
 
 ## Improvement feedback
 
-After running this skill, if a Step needed clarification, a safety classification
-produced a false positive/negative, or an evidence rule was insufficient to reach a
-confident classification, update `workflow.md`/`safety.md`/`evidence.md` accordingly.
-If the report was missing a field the user consistently requested, add it to
-`report-template.md`.
+If a Step needed clarification, a safety classification produced a false
+positive/negative, or an evidence rule was insufficient, update
+`workflow.md`/`safety.md`/`evidence.md` accordingly. If the report was missing a
+field the user consistently requested, add it to `report-template.md`.

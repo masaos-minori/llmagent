@@ -2,113 +2,94 @@
 
 ## Context Reading
 
-- Read shared files in Step 0 only once per session; do not re-read them for later cycles.
-- Read the current target file in full when its complete meaning or structure is required.
-- Read only relevant sections of related files by default.
-- Read a related file in full when excerpts are not enough to understand: behavior, dependencies, lifecycle, ownership, side effects, error handling, configuration, tests, or document consistency.
-- Do not omit necessary evidence only to save context.
-- Reuse a verified fact only while its source file remains unchanged.
-- Store the source path and evidence location with each cached fact.
-- Recheck cached facts after the related source file changes.
+- Read shared files once per session in Step 0; do not re-read them for later cycles.
+- Read the current target file in full when its complete meaning or structure is needed.
+- Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, lifecycle, ownership, side effects, error handling, configuration, tests, or document consistency.
+- Do not omit necessary evidence to save context.
+- Reuse a verified fact only while its source file is unchanged. Store the source path and evidence location with each cached fact, and recheck it after the source changes.
 
 ## Instruction Precedence
 
-Applies whenever two or more instructions relevant to the current task conflict —
-whether both are file-based (see the layer order below) or one is a live instruction
-from the current conversation.
-
-Treat two instructions as contradictory only when they cannot both be satisfied
-simultaneously.
+Applies when two or more instructions conflict, whether file-based (layer order
+below) or a live instruction from the current conversation. Treat instructions as
+contradictory only when they cannot both be satisfied simultaneously.
 
 ### Precedence order
 
-When instructions conflict, the narrower/more specific layer wins, in this order
-(highest precedence first):
+Narrower/more specific layer wins, highest first:
 
 1. current user instructions (explicit instructions given in the active conversation)
-2. entry-point prompts (a workflow's own `prompts/*.md` file)
+2. entry-point prompts (`prompts/*.md`)
 3. workflow procedures (`workflow.md`)
 4. skill-specific rules (`SKILL.md`)
-5. shared execution and lifecycle rules (`rules/*.md`) — shared baseline, overridden
-   only where a higher layer explicitly says so
+5. shared execution and lifecycle rules (`rules/*.md`) — baseline, overridden only
+   where a higher layer explicitly says so
 6. routing rules (`routing.md`)
 7. repository-wide instructions (`AGENTS.md`)
 
-`templates/*.md` files define structural format only — they are never a source of
-normative precedence and are not ranked in this order.
+`templates/*.md` define structural format only and are never ranked here.
 
 ### Safety restrictions are not overridden by narrower layers
 
-A narrower layer's instruction is preserved only when it does not violate a
-higher-priority safety restriction (e.g. `AGENTS.md` Policy's destructive-command
-rules). Safety restrictions apply regardless of where they are declared in the layer
-order above — a narrower layer cannot relax one.
+A narrower instruction is preserved only when it does not violate a higher-priority
+safety restriction (e.g. `AGENTS.md` Policy's destructive-command rules), regardless
+of layer order.
 
 ### Explicit exceptions
 
-A narrower layer MAY declare an exception to a broader layer's rule only when the
-exception is stated explicitly, in that narrower file, and references the specific
-rule it overrides (by file path and stable heading or Rule ID). An exception MUST NOT
-be inferred from silence, omission, or absence of a restatement.
+A narrower layer MAY declare an exception to a broader rule only by stating it
+explicitly, in that file, and referencing the overridden rule (file path + stable
+heading or Rule ID). An exception MUST NOT be inferred from silence or omission.
 
 ### Resolving and reporting contradictions
 
-When a contradiction is found:
-
-1. Identify both conflicting instructions by file path and stable heading or Rule ID
-   (or, for a live instruction, describe it directly).
+1. Identify both instructions by file path and stable heading or Rule ID (or describe
+   a live instruction directly).
 2. Apply the precedence order above.
-3. Preserve the narrower instruction only when it is an allowed specialization (see
-   Explicit exceptions) and does not violate a higher-priority safety restriction.
+3. Preserve the narrower instruction only as an allowed specialization that does not
+   violate a higher-priority safety restriction.
 4. An undocumented exception MUST NOT be inferred.
-5. If the precedence order does not resolve the contradiction (e.g. both instructions
-   sit at the same layer, or the repository's own rules are internally contradictory),
-   processing MUST stop and report `Blocked`.
-6. The exact conflicting instructions and the decision needed MUST be stated.
+5. If precedence does not resolve the conflict (same layer, or internally
+   contradictory repository rules), stop and report `Blocked`.
+6. State the exact conflicting instructions and the decision needed.
 7. Conflicting requirements MUST NOT be silently merged into a compromise.
 
 ## Tool Usage
 
-- Before invoking a tool, check whether already-available information is sufficient to decide or answer.
-- Batch independent tool calls into a single request instead of issuing them one at a time.
+- Before invoking a tool, check whether already-available information is sufficient.
+- Batch independent tool calls into one request instead of issuing them one at a time.
 - Use verbose, debug, or trace output only when diagnosing a problem.
-- Do not repeat the same command when neither its input nor the environment has changed.
+- Do not repeat a command when neither its input nor the environment has changed.
 
 ## Reasoning and Planning
 
-- For simple tasks, act directly instead of producing a long plan.
-- Do not repeat interim summaries of investigation results.
-- Do not over-explain intermediate results.
+- Act directly on simple tasks instead of producing a long plan.
+- Do not repeat interim summaries or over-explain intermediate results.
 - Do not list alternatives the user did not ask for.
 - Investigate further only when genuinely uncertain.
-- Judge at the granularity needed to finish the task; avoid excessive optimization or verification.
+- Judge at the granularity needed to finish the task; avoid excessive optimization or
+  verification.
 
 ## Output
 
-- State the conclusion first.
-- Keep the answer scoped to what was requested.
-- Explain only the changes made, not the surrounding unchanged code.
+- State the conclusion first; keep the answer scoped to what was requested.
+- Explain only the changes made, not surrounding unchanged code.
 - Omit long background explanation unless the user asks for detail.
 - Do not repeat the same content as a "summary", "detail", and "conclusion".
 - Report only the necessary part of execution results; do not restate them verbatim.
 
 ## Command Results
 
-Keep command results needed for correct judgment, including:
-- exit status,
-- final summary,
-- failures,
-- relevant warnings,
-- skipped checks,
-- blocked checks,
-- coverage results when applicable.
-- Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
+Keep command results needed for correct judgment: exit status, final summary,
+failures, relevant warnings, skipped checks, blocked checks, and coverage results
+when applicable. Do not report skipped, blocked, unavailable, or unexecuted checks as
+passed.
 
 ## Repository Tool Usage
 
-Applies whenever a workflow needs a one-off operation on source code or documentation
-(discovery, validation, transformation, reporting) that could be done with an ad hoc
-script or a generic command.
+Applies whenever a workflow needs a one-off operation on source code or
+documentation (discovery, validation, transformation, reporting) that could be done
+with an ad hoc script or a generic command.
 
 1. Before creating an ad hoc script or using an equivalent generic command, `tools/`
    MUST be inspected for a tool that already covers the need.
@@ -118,18 +99,17 @@ script or a generic command.
    help output, usage documentation, source comments, an existing repository
    invocation, or a referenced repository rule. Behavior MUST NOT be inferred from a
    filename alone.
-4. Before executing a tool, its purpose, accepted inputs, produced outputs, whether it
-   modifies files and the modification scope, network access, external-service
-   dependencies, credential requirements, possible cost, and cleanup requirements MUST
-   be determined.
+4. Before executing a tool, its purpose, accepted inputs, produced outputs,
+   modification scope, network access, external-service dependencies, credential
+   requirements, possible cost, and cleanup requirements MUST be determined.
 5. A relevant, documented, repository-provided tool SHOULD be preferred over an
-   equivalent ad hoc script or generic command; the narrowest tool sufficient for the
-   task SHOULD be selected.
+   equivalent ad hoc script or generic command; the narrowest sufficient tool SHOULD
+   be selected.
 6. A repository tool MUST NOT be modified as part of another workflow unless tool
    modification is explicitly in scope for the current task.
-7. A tool MUST NOT be used if it may: connect to production; modify real data; expose
-   or require unverified credentials; create charges; access an unverified external
-   service; modify files outside the approved scope.
+7. A tool MUST NOT be used if it may: connect to production; modify real data;
+   expose or require unverified credentials; create charges; access an unverified
+   external service; modify files outside the approved scope.
 8. Tool output MUST be verified before relying on it as evidence. Empty standard
    output alone MUST NOT be treated as proof of success — expected output files,
    summaries, exit results, or repository changes MUST be independently verified.
@@ -137,29 +117,32 @@ script or a generic command.
    available, and MUST be recorded as a fallback with the reason.
 10. Each tool run MUST be recorded: exact command; purpose; target; result; relevant
     output summary; fallback and reason, when applicable.
-11. Every tool run MUST be classified using this canonical command-result vocabulary:
-    `Pass` (execution completed and the result was confirmed) / `Fail` (execution
-    completed but a problem was detected) / `Partial` (only part of the scope could
-    be verified) / `Not available` (no applicable tool exists) / `Blocked` (the tool
-    exists, but its safety or run conditions could not be confirmed).
+11. Every tool run MUST be classified using this canonical command-result
+    vocabulary: `Pass` (execution completed and the result was confirmed) / `Fail`
+    (execution completed but a problem was detected) / `Partial` (only part of the
+    scope could be verified) / `Not available` (no applicable tool exists) /
+    `Blocked` (the tool exists, but its safety or run conditions could not be
+    confirmed).
 12. Unavailable, unexecuted, partial, blocked, or failed tool execution MUST NOT be
     reported as successful.
 
 If `tools/` does not exist, the workflow MUST continue only when a safe,
-repository-approved fallback exists, and the absence MUST be recorded accurately. If a
-relevant tool exists but its behavior or safety cannot be established, it MUST NOT be
-executed — report `Blocked: repository tool behavior or safety could not be
+repository-approved fallback exists, and the absence MUST be recorded accurately. If
+a relevant tool exists but its behavior or safety cannot be established, it MUST NOT
+be executed — report `Blocked: repository tool behavior or safety could not be
 verified`.
 
 ## Progress Reporting (Base)
 
 - Report progress once per step, in one line, after the step completes. Omit the
-  report entirely when the step completed exactly as expected with no notable outcome
-  (a change made, a decision taken, a failure, or a blocker) — a workflow's own
-  "Progress recording" section, if it has one, defines the workflow-specific trigger
+  report when the step completed exactly as expected with no notable outcome (a
+  change made, a decision taken, a failure, or a blocker) — a workflow's own
+  "Progress recording" section, if it has one, defines workflow-specific trigger
   conditions for interim, within-step updates.
-- Keep start/end progress reports to one or two lines; do not restate full document content in progress reports.
-- Include all failures, blocking issues, and important validation results even in concise reports.
+- Keep start/end progress reports to one or two lines; do not restate full document
+  content.
+- Include all failures, blocking issues, and important validation results even in
+  concise reports.
 - For a workflow cycle's final report, use this structure where appropriate:
   - `Status: Completed | Awaiting approval | Blocked`
   - `Output: {path or N/A}`
@@ -171,11 +154,12 @@ verified`.
 ## Sequential Target Processing (Base)
 
 - Validate all specified target paths before starting.
-- Process targets sequentially in the required order.
-- Load only the current target file.
-- Complete its full workflow cycle and required gates before loading the next target.
-- Do not batch-read multiple target files upfront.
-- Do not interleave steps across files.
+- Process targets sequentially in the required order. Load only the current target
+  file.
+- Complete its full workflow cycle and required gates before loading the next
+  target.
+- Do not batch-read multiple target files upfront, and do not interleave steps
+  across files.
 
 ## Global Safety Restrictions (Base)
 

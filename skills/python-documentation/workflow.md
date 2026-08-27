@@ -3,8 +3,7 @@
 ## Project lint tools
 
 See `routing.md` Tools → "When to run which tool" for the checkers to run when modifying
-`docs/` (documentation consistency, structure validation, Needs-Confirmation registration,
-etc.) — do not hardcode tool names or invocations here; that table is the single source of
+`docs/` — do not hardcode tool names or invocations here; that table is the single source of
 truth and is kept in sync with `tools/`.
 
 ---
@@ -45,7 +44,7 @@ Fix the target scope before analysis starts.
 
 ### Do
 - identify repository root and target paths
-- identify exclusions per `skills/DESIGN.md` Out-of-scope paths (plus any additional generated/vendor files specific to this repository)
+- identify exclusions per `skills/DESIGN.md` Out-of-scope paths (plus repo-specific generated/vendor files)
 - identify expected deliverables
 - note whether existing docs should be updated or created
 
@@ -188,36 +187,28 @@ Document how the code is verified and delivered.
 Convert analysis into maintainable documentation.
 
 ### Rules
-- use evidence-based wording
-- keep docs concise and maintainable
-- avoid duplication
-- do not hide uncertainty
-- keep changes minimal if docs already exist
-- preserve useful existing context; write design text in English, easy for an AI coding agent to
-  parse (see `skills/DESIGN.md` Output language)
-- avoid full implementation reference tables
-- reference implementation by class/function/method name, never by source-code line number
-  (see `skills/DESIGN.md` No source-code line numbers)
-- describe configuration policy and consequences, not the current concrete value from
-  `config/*.toml` (see `skills/DESIGN.md` No concrete configuration values)
-- name items instead of counting them — do not state how many modules/tools/servers/fields/tests
-  something comprises (see `skills/DESIGN.md` No implementation counts)
-- keep important invariants explicit
-- separate current behavior from design intent where useful
-- move unresolved uncertainty to Needs Confirmation, and unresolved conflicts to Known Issues
+- use evidence-based wording; keep docs concise and maintainable; avoid duplication
+- do not hide uncertainty; keep changes minimal if docs already exist
+- preserve useful existing context; write in English (see `skills/DESIGN.md` Output language)
+- avoid implementation-reference duplication — no source-code line numbers, no concrete
+  config values, no implementation counts (see `skills/DESIGN.md` Avoid implementation-reference
+  duplication, No source-code line numbers, No concrete configuration values, No implementation
+  counts; detailed remove/keep list below)
+- keep important invariants explicit; separate current behavior from design intent where useful
+- move unresolved uncertainty to Needs Confirmation, unresolved conflicts to Known Issues
 - keep changes small and reviewable
 
 ### Remove or compress implementation-derived details
 
-Documentation SHOULD NOT copy details that can be mechanically confirmed from source code,
-command help, configuration files, or generated schemas.
+Documentation SHOULD NOT copy details mechanically confirmable from source code, command help,
+configuration, or generated schemas.
 
 Normally remove, compress, or replace with source references:
 - complete file lists, complete public method lists, full function signatures
 - constructor parameter tables, public attribute tables
 - TypedDict, dataclass, DTO, and Pydantic model full field listings
-- complete CLI argument tables, complete configuration key tables, and any individual concrete
-  value copied from `config/*.toml` (see `skills/DESIGN.md` No concrete configuration values)
+- complete CLI argument tables, complete configuration key tables, and concrete config values
+  (see `skills/DESIGN.md` No concrete configuration values)
 - JSON examples that simply mirror DTO or schema fields
 - import lists, module-level constant listings
 - source-code line numbers (see `skills/DESIGN.md` No source-code line numbers)
@@ -229,8 +220,7 @@ invariants, failure behavior (fail-fast/fail-open), security and operational con
 data consistency rules, Known Issues, Needs Confirmation items, deprecated behavior relevant
 to migration/compatibility, behavior verified by tests, operationally observed behavior.
 
-When removing implementation-derived content, replace it with a concise source reference.
-Example:
+Replace removed content with a concise source reference, e.g.:
 
 - Full configuration keys and default values are documented in the implementation's config definitions and actual config files.
 - This design document covers only config ownership, change impact, restart requirements, failure behavior, and operational notes.
@@ -261,7 +251,7 @@ Remove contradictions across docs and code.
 
 ## Evidence and Source of Truth
 
-Code, configuration files, tests, and CI/CD are factual evidence for implemented behavior.
+Code, configuration, tests, and CI/CD are factual evidence for implemented behavior.
 Documentation SHOULD describe design intent, responsibility boundaries, architectural
 constraints, operational notes, failure behavior, confirmed behavior, known issues, and
 unresolved questions.

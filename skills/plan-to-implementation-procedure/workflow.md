@@ -11,15 +11,16 @@ issue file (issues/)
 
 - Input: `plans/{filename}_plan.md`
 - Output: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where
-  `target_file_slug` is `target_file_path` with `/` replaced by `_`, `timestamp` is
-  shared across every document generated in one Step 3 pass, and `seq` is the item's
-  1-indexed, zero-padded position within the plan's `Implementation steps` list —
-  sorting filenames reproduces the implementation order.
+  `target_file_slug` is `target_file_path` with `/` and any non-alphanumeric/`_`/`-`/
+  `.` character replaced by `_`, `timestamp` is shared across every document
+  generated in one Step 3 pass, and `seq` is the item's 1-indexed, zero-padded
+  position within the plan's `Implementation steps` list — sorting filenames
+  reproduces the implementation order.
 - Archive destination: `plans/done/`
 - Workflow phase: `plan-to-implementation-procedure`
 
 This phase produces the **implementation procedure**, not an architecture design
-document. There is no separate design phase in this pipeline.
+document — there is no separate design phase in this pipeline.
 
 ## Allowed file operations
 
@@ -62,8 +63,8 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/workflow-lifecycle.md`, `templates/traceability.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`, `SKILL.md` (this skill), and this file.
 
-Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
-shared files across cycles in this session.
+Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of shared files
+across cycles.
 
 If a required file is missing, unreadable, or contradictory, apply
 `rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
@@ -86,9 +87,9 @@ simultaneously.
 
 - Read the target plan file in full. It follows `templates/plan.md`'s structure.
 - Identify the target feature and the related source files to modify.
-- Extract this plan's own Traceability section, specifically its `Source issue` value,
-  for reuse in this cycle's generated documents (Step 3). The Plan already carries this
-  value forward from the Issue that produced it — do not re-derive it from scratch.
+- Extract this plan's Traceability section's `Source issue` value for reuse in this
+  cycle's generated documents (Step 3) — the Plan already carries it forward from the
+  Issue that produced it; do not re-derive it from scratch.
 - If the plan is ambiguous or the scope is unclear, stop and ask for clarification
   before proceeding.
 - **After finishing all Steps 1-4 for this file, load the NEXT target file.** Do not
@@ -108,54 +109,52 @@ on filling sections for how to apply `skills/python-design/SKILL.md` +
 the few relevant bullets from that skill's broader 12-section template; do not produce
 its full architecture output here.
 
-Treat the Plan's descriptions of current source-code behavior as the Plan author's
-claims, not confirmed present-tense fact — the Plan may have gone stale since
-approval. Before writing Procedure/Method/Details for an item, perform **adversarial
-verification**: do not merely confirm the Plan's claims — actively look for reasons
-they might be wrong, such as line numbers that have shifted, a symbol already renamed
-or removed, a dependency the Plan did not account for, a Requirement that duplicates
-or contradicts another Plan, or a code path the Plan's Background never checked.
-Verify via `rg`/Read that the target file, symbol, call path, and test currently exist
-and behave as the Plan describes. Investigate in this order: the target file itself,
-its direct dependencies (immediate imports/importers), then related tests — expand
-beyond this order only when evidence remains insufficient.
+Treat the Plan's descriptions of current source-code behavior as claims, not
+confirmed present-tense fact — it may have gone stale since approval. Before writing
+Procedure/Method/Details for an item, perform **adversarial verification**: don't
+merely confirm the Plan's claims — look for reasons they might be wrong (shifted line
+numbers, an already renamed/removed symbol, a dependency the Plan did not account
+for, a Requirement duplicating/contradicting another Plan, or a code path the Plan's
+Background never checked). Verify via `rg`/Read that the target file, symbol, call
+path, and test currently exist and behave as described. Investigate in this order:
+the target file itself, its direct dependencies (immediate imports/importers), then
+related tests — expand beyond this order only when evidence remains insufficient.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
-superseded Plan, etc.), correct the Plan document itself
-(`plans/{filename}_plan.md`, via Edit) in the same cycle — update whichever sections
-apply (Background, Requirements, Acceptance criteria, Assumptions, Risks, Requirement
-Traceability, Execution Status) rather than silently working around the discrepancy —
-and reflect the corrected understanding in the generated implementation procedure
-document(s). Record what was found and corrected in the progress report; do not report
-an item `Completed` while a Plan-level inconsistency it surfaced remains unresolved.
+superseded Plan, etc.), correct the Plan document itself (`plans/{filename}_plan.md`,
+via Edit) in the same cycle — update whichever sections apply (Background,
+Requirements, Acceptance criteria, Assumptions, Risks, Requirement Traceability,
+Execution Status) rather than silently working around the discrepancy — and reflect
+the corrected understanding in the generated document(s). Record what was found and
+corrected in the progress report; do not report an item `Completed` while a
+Plan-level inconsistency it surfaced remains unresolved.
 
 Files read only to confirm current behavior or dependencies are not automatically
 additional target files — list a file under Target file only if the Plan's
 Implementation steps designates it as a file to modify.
 
-Before iterating, determine one shared timestamp for this Step 3 pass: run
+Before iterating, set one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
-this pass. Do not re-run `date` per item — the creation order must be recoverable from
+this pass. Do not re-run `date` per item — creation order must be recoverable from
 `seq` below, not from timestamp drift between items.
 
 For each item in `Implementation steps`, in the order they appear in that list:
 
 - `target_file_path` is the repository-relative path of the file that item implements
-  and tests (e.g. `scripts/agent/foo.py`). `target_file_name` is its base name only.
+  and tests (e.g. `scripts/agent/foo.py`); `target_file_name` is its base name only.
   Use `target_file_path` for traceability matching and output naming —
   `target_file_name` alone is ambiguous when the same base name exists under multiple
   directories.
 - `seq` is this item's 1-indexed position within the plan's `Implementation steps`
-  list, zero-padded to 2 digits (`01`, `02`, ...). It is fixed by the item's position
-  in the Plan, not by generation order or by how many items were skipped as already
-  implemented — so re-running an interrupted cycle assigns the same `seq` to the same
+  list, zero-padded to 2 digits (`01`, `02`, ...) — fixed by the item's position in
+  the Plan, not by generation order or how many items were skipped as already
+  implemented, so re-running an interrupted cycle assigns the same `seq` to the same
   item every time.
 - If the same `target_file_path` appears in multiple `Implementation steps` items with
   no intervening dependency on a different target file's completion, merge them into a
-  single document (using the first item's `seq`) instead of one document per item. If
-  an intervening dependency exists, keep them separate to preserve implementation
-  order.
+  single document (using the first item's `seq`) instead of one per item. If an
+  intervening dependency exists, keep them separate to preserve implementation order.
 - Classify the item's implementation state:
   - `Already implemented`: an existing document under `implementations/` or
     `implementations/done/` has both `Source plan` equal to the current
@@ -176,13 +175,9 @@ For each item in `Implementation steps`, in the order they appear in that list:
   `Needs confirmation`.
 - If `Not implemented`, create the document only (do not implement anything):
   - Create a file-level implementation and test procedure document.
-  - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`,
-    using this pass's shared `timestamp` and this item's `seq`, where
-    `target_file_slug` is `target_file_path` with `/` replaced by `_`, and any
-    character that is not alphanumeric, `_`, `-`, or `.` also replaced by `_`. This
-    keeps the filename unique and valid even when two target files share the same base
-    name in different directories, and sorting the generated filenames
-    lexicographically reproduces the plan's implementation order.
+  - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
+    (naming per Workflow position above), using this pass's shared `timestamp` and
+    this item's `seq`.
   - If the resulting path already exists, this can only mean an interrupted cycle is
     being resumed and the classification above did not treat it as covering this item
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and

@@ -64,9 +64,9 @@ Find tests that are:
 - missing regression coverage for known bugs
 
 Perform this analysis sequentially by layer (agent, shared, mcp, rag, db — per the
-module grouping in `AGENTS.md`'s Test coverage section). Return only the findings list
-for each layer, not the source read, so one layer's investigation does not accumulate
-in the context used for the next layer.
+module grouping in `AGENTS.md`'s Test coverage section). Return only each layer's
+findings list, not the source read, so one layer's investigation does not accumulate
+into the next.
 
 Output: the raw missing/weak and inconsistent/outdated findings, ready for
 `evidence.md`'s Step 6 (Consolidate findings) to assign Finding IDs and categories.

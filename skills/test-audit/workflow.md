@@ -172,14 +172,23 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 
 ## Test-Specific Guidance
 
-- In Step 3, capture concise output from test/validation commands: use quiet/short-traceback modes (e.g. `pytest -q --tb=short`) and read coverage from a summary (`coverage.xml` or the summary line) rather than verbose per-line reports. Do not read full output for passing runs.
-- In Step 4, keep stack trace summaries to the minimum lines needed to identify the cause; do not paste full tracebacks.
-- Redirect each validation command's output to a file and extract only `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
-- Perform Step 1 discovery (inspecting README/CI/config files) sequentially; return only the identified commands and structure, not full file contents.
-- Perform Step 5 gap analysis sequentially by layer, per `discovery.md` Gap Analysis. Return only the findings list for each layer, not the source read, so one layer's investigation does not accumulate in the context used for the next layer.
+- In Step 3, use quiet/short-traceback modes (e.g. `pytest -q --tb=short`) and read
+  coverage from a summary (`coverage.xml` or the summary line) rather than verbose
+  per-line reports. Do not read full output for passing runs.
+- In Step 4, keep stack trace summaries to the minimum lines needed to identify the
+  cause; do not paste full tracebacks.
+- Redirect each validation command's output to a file and extract only
+  `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
+- Perform Step 1 discovery sequentially; return only the identified commands and
+  structure, not full file contents.
+- Perform Step 5 gap analysis sequentially by layer (`discovery.md` Gap Analysis).
+  Return only each layer's findings, not the source read, so one layer's
+  investigation does not accumulate into the next.
 - Read shared files in Step 0 only once per session.
-- In Step 6 and Step 7, reference findings by their Finding ID rather than re-quoting full evidence or source excerpts already recorded in Step 3/4/5.
-- Include all failures, blocking issues, and important validation results even in concise reports.
+- In Steps 6-7, reference findings by Finding ID rather than re-quoting evidence or
+  source excerpts already recorded in Step 3/4/5.
+- Include all failures, blocking issues, and important validation results even in
+  concise reports.
 
 ## Output format
 
