@@ -18,26 +18,26 @@ Read the existing skill files and routing configuration, then restructure them b
 - `prompts/*.md` — entry-point prompts; audit them for restated content the same as
   any skill file
 
-**Out of scope** (never read for content, never edited by this workflow):
+**Out of scope** (MUST NOT be read for content, MUST NOT be edited by this workflow):
 - `scripts/`, `tests/` — source code
 - `docs/*.md` — product documentation (owned by the `python-documentation` skill, a
   different workflow)
 - `templates/*.md` — structural format definitions only; not a source of normative
   rule text to deduplicate
 - `issues/`, `plans/`, `implementations/`, and their `done/` subdirectories —
-  pipeline documents, frozen once archived; never edit an already-`done/` file
+  pipeline documents, frozen once archived; an already-`done/` file MUST NOT be edited
 - `.claude/commands/*.md` — check and update only when a Relocation Plan item (Step
   2) explicitly names one as citing content that moved (e.g. a renamed section
-  heading); never treat them as a primary duplication-scan target
+  heading); MUST NOT be treated as a primary duplication-scan target
 
 If a task instruction elsewhere in the session conflicts with this Scope, apply
 `rules/ai-execution.md` Instruction Precedence before proceeding.
 
 ### Architectural Principles
 
-Strictly follow these throughout all steps:
+These MUST be followed throughout all steps:
 
-- **routing**: All task-to-skill mappings must go through `routing.md`; never bypass it by loading skills or docs directly.
+- **routing**: All task-to-skill mappings MUST go through `routing.md`; it MUST NOT be bypassed by loading skills or docs directly.
 - **dependency direction**: Apply this direction: `agent -> rag/mcp -> db -> shared`. The arrow means "may depend on or reference".
   - `agent` may reference `rag`, `mcp`, `db`, and `shared`.
   - `rag` and `mcp` may reference `db` and `shared`.
@@ -146,7 +146,8 @@ scope/requirements/conditions/exceptions/effects equivalence test below.
 
 Decide a duplicate's canonical destination by content type, then replace every other
 occurrence with a short cross-reference to that destination (see Canonical
-References) — never leave the rule's normative text repeated in more than one place:
+References) — the rule's normative text MUST NOT be left repeated in more than one
+place:
 
 | Content type | Canonical destination |
 |---|---|
@@ -259,12 +260,12 @@ concrete, repeatable checks — do not report Step 4 `Pass` without running both
 - Build the reference graph: for every file in Scope, list every other in-scope file it
   references for canonical content (a `See <file>, section "<heading>"` citation, or an
   "Apply `<file>` `<section>`" instruction).
-- The graph must respect the precedence order from `rules/ai-execution.md` Instruction
-  Precedence: a workflow's own prompt file → its `workflow.md` → its `SKILL.md` →
-  `rules/*.md` → `AGENTS.md`/`skills/DESIGN.md` (shared baselines) → `templates/*.md`.
-  Flag as an `Ownership violation` (not a duplicate) any reference that points from a
-  lower-precedence file to a higher-precedence one for content the lower-precedence
-  file is itself supposed to canonically own.
+- The graph must respect the precedence order defined in `rules/ai-execution.md`,
+  section "Instruction Precedence" — treat `skills/DESIGN.md` as ranked alongside
+  `rules/*.md` in that order (both are shared-rules layers). Flag as an `Ownership
+  violation` (not a duplicate) any reference that points from a lower-precedence file
+  to a higher-precedence one for content the lower-precedence file is itself supposed
+  to canonically own.
 - The graph must contain no cycle (file A references file B for content whose
   definition itself references back to file A). Flag any cycle found as a `Circular
   reference` and report it — do not attempt to silently break it during Step 4; fixing
@@ -301,7 +302,7 @@ inventory).
 
 ### Context Efficiency
 
-**Accuracy, completeness, and validation always take priority over context reduction.**
+Accuracy, completeness, and validation MUST take priority over context reduction.
 Do not reduce context when doing so may cause missing evidence, incorrect
 conclusions, incomplete plans, or insufficient validation.
 
@@ -322,6 +323,13 @@ addition, specific to this workflow:
   destinations, deferred items, the two Context Loader Pattern Validation
   measurements (default load sizes, circular-reference result), and validation
   results. Do not reproduce full file contents or full diffs.
+
+### Repository Tool Usage
+
+Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
+inspect repository tools relevant to: normative-rule inventory; duplicate detection;
+canonical-reference validation; reference-graph and cycle detection; default
+context-load measurement.
 
 ### Tasks
 

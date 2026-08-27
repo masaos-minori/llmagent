@@ -22,21 +22,21 @@ A Path C change requires all of the following before implementation begins:
 4. Migration strategy
 5. Rollback strategy
 6. Documentation impact
-7. ADR requirement — an ADR must exist or be referenced before implementation; this
+7. ADR requirement — an ADR MUST exist or be referenced before implementation; this
    requirement does not define the ADR template or process itself (see ADR Requirement
    below)
 
 An unapproved Path C idea is a Proposal only, per the Proposal state defined in
 `discovery.md` Discovery Vocabulary (added per
-`implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it must not
+`implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it MUST NOT
 be transformed in `workflow.md` Step 6 until it becomes an Approved Change per that same
 section's rule that only an Approved Change may be transformed in Step 6, with all seven
 items above satisfied and explicit approval given.
 
-**Atomic migration group**: the explicit, enumerated set of files whose changes must be
+**Atomic migration group**: the explicit, enumerated set of files whose changes MUST be
 applied and validated together, because no proper subset of them can independently pass
 Step 7 validation while the remaining members are unchanged (e.g. relocating a module and
-updating every one of its callers). Group membership must be declared and included in the
+updating every one of its callers). Group membership MUST be declared and included in the
 approval above (item 2, affected-file scope) before `workflow.md` Step 3 begins for any
 member of the group.
 
@@ -46,8 +46,8 @@ atomic migration group. For an approved atomic migration group, the rule applies
 group as a single logical unit rather than to each member file individually — one Path
 classification, one Step 3-7 preparation/validation/gating pass, and one Completion gate
 (`report-template.md`) cover the whole group — while member files are still read and
-transformed one at a time in a fixed, declared order and never in parallel (`workflow.md`
-Step 6 Transformation and the Global Safety Restriction against parallel target-file
+transformed one at a time in a fixed, declared order; they MUST NOT be transformed in
+parallel (`workflow.md` Step 6 Transformation and the Global Safety Restriction against parallel target-file
 processing still apply within the group).
 
 Silent expansion of an approved atomic migration group is prohibited. If executing the
@@ -106,9 +106,9 @@ Baseline field is missing or its capture is incomplete.
 
 ## Architecture Comparison Validation (Step 7 addendum)
 
-Applies only when the change is classified Path C. These eight items are mandatory
-checks for Path C — not optional the way `validation.md` Conditional Validation is;
-only their evidence availability, not their requiredness, may be `Not run`/`Blocked`.
+Applies only when the change is classified Path C. These eight items MUST be checked
+for Path C — they are not optional the way `validation.md` Conditional Validation is;
+only their evidence availability, not their requiredness, MAY be `Not run`/`Blocked`.
 
 For each item, re-run the same capture method recorded in Architecture Baseline above
 after `workflow.md` Step 6 Transformation, and compare the result against the baseline
@@ -142,10 +142,10 @@ required to prove behavior preservation, and otherwise record it as `Not run`.
 
 ## ADR Requirement (Step 10 addendum)
 
-An ADR is mandatory when the change is classified Path C. An ADR is optional, but
-permitted, for Path B when the change records an important trade-off — a judgment call
-made by the AI executing this workflow when choosing to write one; no further gating
-criteria are defined here.
+An ADR MUST be produced when the change is classified Path C. An ADR MAY be produced
+for Path B when the change records an important trade-off — a judgment call made by
+the AI executing this workflow when choosing to write one; no further gating criteria
+are defined here.
 
 ADR content produced by this Requirement follows the repository's existing convention —
 `adr-template.md`'s section structure, standardized by
@@ -156,13 +156,13 @@ Verification, Migration, Implementation Notes, Known Deviations, Review Triggers
 Approval, Related Documents, Change History, Completion Checklist), plus the `Status`
 field governed by that same document's "ADR Status Definitions"
 (`Proposed`/`Accepted`/`Rejected`/`Deprecated`/`Superseded`) — not a separate,
-purpose-built field list. This never invents a new storage convention, location, or
+purpose-built field list. This MUST NOT invent a new storage convention, location, or
 template; any suggested field with no direct equivalent in the existing convention is
 folded into its nearest existing section rather than added as a new top-level header.
 
 `workflow.md`'s existing Allowed file operations rule ("Do not edit documentation
 unless explicitly instructed") governs where this ADR content is written: Step 10
-always produces the ADR content, in the reconciled shape above, inline in the report as
+MUST produce the ADR content, in the reconciled shape above, inline in the report as
 a draft. Creating the file under `docs/adr/ADR-{next-number}-{slug}.md` and registering
 it in `docs/adr-index.md`'s existing "ADR List" table and dependency graph happens only
 when the user explicitly instructs a documentation update — this Requirement does not

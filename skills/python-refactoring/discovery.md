@@ -16,7 +16,8 @@ observed without expanding the approved change scope:
 - **Candidate**: a Finding assessed as potentially actionable, not yet evaluated for
   approval.
 - **Proposal**: a behavior-changing idea surfaced during work on the target file. This is
-  the same concept as, and must use, the existing "Proposals not implemented" format defined
+  the same concept as the existing "Proposals not implemented" format, and MUST use it —
+  that format is defined
   in `report-template.md` (Title / Reason / Behavior risk / Affected files / Suggested
   follow-up issue / Recommended validation) — this section does not define a second
   Proposal format.
@@ -30,14 +31,14 @@ observed without expanding the approved change scope:
 Discovery (Finding, Candidate, Proposal) does not authorize implementation — only an
 Approved Change may be transformed in `workflow.md` Step 6. This does not weaken or
 replace `workflow.md` Step 2's rule that any `Expected behavior change` other than `none`
-must stop work and be recorded under `Proposals not implemented`; that rule continues to
+MUST stop work and be recorded under `Proposals not implemented`; that rule continues to
 apply unchanged.
 
 An unapproved Path C idea is a Proposal only, per the Proposal state defined above (added
-per `implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it must not
+per `implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it MUST NOT
 be transformed in Step 6 until it becomes an Approved Change per this same section's rule
 that only an Approved Change may be transformed in Step 6 — see `path-c.md` for the full
-approval checklist a Path C idea must satisfy before it becomes an Approved Change.
+approval checklist a Path C idea MUST satisfy before it becomes an Approved Change.
 
 ---
 
@@ -55,13 +56,13 @@ observations in these six categories only:
 - Responsibility concentration
 - Testability concerns
 
-Every Finding must record all six fields:
+Every Finding MUST record all six fields:
 - **ID**: a short unique identifier for this Finding within the cycle
 - **Category**: one of the six categories above
 - **Severity**: `Critical` / `High` / `Medium` / `Low` / `Informational`, per
   `skills/python-code-review/SKILL.md` Severity
 - **Evidence**: a concrete repository location — file path and line range, or a command and
-  its output. A Finding with no populated evidence field must not be recorded.
+  its output. A Finding with no populated evidence field MUST NOT be recorded.
 - **Impact**: the concrete consequence if left unaddressed
 - **Recommendation**: what a future Approved Change could do about it — recording the
   recommendation does not authorize acting on it now
@@ -103,7 +104,7 @@ Task" table to locate the documents actually governing the target file's behavio
 rather than scanning all of `docs/*.md`.
 
 Record each discovered discrepancy as a Drift Finding with exactly six fields — a
-Drift Finding with any field unpopulated must not be recorded:
+Drift Finding with any field unpopulated MUST NOT be recorded:
 - **Document**: the document source compared against (one of the seven above)
 - **Implementation evidence**: a concrete repository location — file path and line
   range, or a command and its output
@@ -130,7 +131,7 @@ states are additions to, not replacements for, the five-category system:
 - **Ambiguous Source of Truth**: evidence confirms a discrepancy but does not indicate
   which of the document or the implementation is authoritative.
 
-A Drift Finding classified `Ambiguous Source of Truth` must NOT be auto-resolved via
+A Drift Finding classified `Ambiguous Source of Truth` MUST NOT be auto-resolved via
 `rules/coding.md`'s "ambiguous cases default to Implementation fix required" rule —
 that default is calibrated for authoring a single `docs/*.md` note about an
 already-known gap, not for a drift-detection process spanning a wider, more
@@ -148,7 +149,7 @@ rules, configuration specifications, or deployment definitions. Any suggested
 documentation change is recorded using the existing `report-template.md` "Proposals not
 implemented" format (Title / Reason / Behavior risk / Affected files / Suggested
 follow-up issue / Recommended validation) — the same format this workflow already uses
-for behavior-changing ideas — never applied directly during Step 3.
+for behavior-changing ideas. It MUST NOT be applied directly during Step 3.
 
 If a listed comparison target has no corresponding file in the repository (e.g. no
 repository-root `README.md` as of this writing), skip that target for the current

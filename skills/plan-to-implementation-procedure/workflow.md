@@ -65,6 +65,10 @@ Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
 shared files across cycles in this session.
 
+If a required file is missing, unreadable, or contradictory, apply
+`rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
+`Blocked`. Do not infer missing instructions.
+
 ---
 
 ## Step 1: Identify the Target Plan File(s)
@@ -77,7 +81,8 @@ directory: `plans/done/`.
 
 ## Step 2: Read the Target Plan File
 
-**Read ONLY the current file. Never read multiple target files simultaneously.**
+Only the current file MUST be read; multiple target files MUST NOT be read
+simultaneously.
 
 - Read the target plan file in full. It follows `templates/plan.md`'s structure.
 - Identify the target feature and the related source files to modify.
@@ -180,8 +185,8 @@ For each item in `Implementation steps`, in the order they appear in that list:
     lexicographically reproduces the plan's implementation order.
   - If the resulting path already exists, this can only mean an interrupted cycle is
     being resumed and the classification above did not treat it as covering this item
-    (e.g. stale or partial-scope content) — never overwrite it. Stop and report
-    `Needs confirmation` for this item instead.
+    (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
+    report `Needs confirmation` for this item instead.
 - Classify each evidence gap encountered while investigating an item as Blocking or
   Non-blocking:
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
@@ -211,7 +216,7 @@ incident:
 
 ## Step 4: Move the Completed Plan File
 
-**This step is mandatory. Do not skip it.**
+This step MUST NOT be skipped.
 
 This workflow's move to `plans/done/` does not require human approval, per
 `rules/workflow-lifecycle.md` Validation Reporting — proceed once Step 3

@@ -55,15 +55,15 @@ boundaries, and detailed gates.
 
 ---
 
-## Core Documentation Rules (Strictly Enforced for AI)
+## Core Documentation Rules
 
 - **Source of truth**: code, configuration, tests, and CI/CD are factual evidence; documentation describes intent, boundaries, constraints, and known issues, not a copy of implementation detail.
 - **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
-- **No hallucination**: do not invent missing behavior or assume framework patterns without evidence — see `skills/DESIGN.md` Evidence labels for how to mark unclear behavior.
+- **No hallucination**: missing behavior or framework patterns MUST NOT be invented without evidence — see `skills/DESIGN.md` Evidence labels for how to mark unclear behavior.
 - **Remove or compress implementation-derived details**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
 - **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.
-- **Minimal diff**: fix errors, fill gaps, reduce duplication; do not rewrite or reorganize documents unless the task explicitly asks for it.
-- **Respect boundaries**: do not expand scope, expose secrets, paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
+- **Minimal diff**: fix errors, fill gaps, reduce duplication; documents MUST NOT be rewritten or reorganized unless the task explicitly asks for it.
+- **Respect boundaries**: MUST NOT expand scope, expose secrets, paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified, or document private members as public API.
 
 See `workflow.md` for the full rule set and evidence-tracking fields.
 

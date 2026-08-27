@@ -88,22 +88,22 @@ validation quality analysis. Do not skip any analysis.
 
 ---
 
-## Core Execution Rules (Strictly Enforced)
+## Core Execution Rules
 
 - **No Guesswork**: Verify the Issue's factual claims (affected files, whether the
   described problem still reproduces) against current source before writing anything.
-  Every file listed in "Affected Areas" must be verified to exist via environment
+  Every file listed in "Affected Areas" MUST be verified to exist via environment
   tools — do not guess filenames or directory structures.
 - **Isolate Unknowns**: If you lack context or code access to answer a question, mark it
   as `BLOCKING: True` in Step 6 and ask the user for clarification before generating the
   final implementation steps.
 - **Incrementalism**: Design the implementation steps in small, reviewable increments.
-  Each step must leave the codebase in a testable state.
+  Each step MUST leave the codebase in a testable state.
 - **One Issue at a time**: see `workflow.md` Multi-file processing.
 - **No approval gate on the archival move**: this skill's move to `issues/done/`
-  does NOT require human approval — it is gated on Step 9's validation passing
+  does not require human approval — it is gated on Step 9's validation passing
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.
-- **Mandatory move**: see `workflow.md` Step 10. Do not skip it.
+- **Move is required**: see `workflow.md` Step 10. The move MUST NOT be skipped.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Exception to `skills/DESIGN.md` Output language: write the Plan and any Unknown/Risk
   issue files in clear and concise English (this skill's output feeds directly into

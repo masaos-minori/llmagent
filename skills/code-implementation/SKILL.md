@@ -40,13 +40,13 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 ---
 
-## Core Execution Rules (Strictly Enforced)
+## Core Execution Rules
 
 - **Code and docs are in scope**: unlike `issue-to-plan` and
   `plan-to-implementation-procedure`, this phase legitimately modifies source code and
   `docs/*.md` — see `workflow.md` Allowed file operations for the exact boundary.
 - **No approval gate on the archival move**: this skill's move to
-  `implementations/done/` does NOT require human approval — it is gated on validation
+  `implementations/done/` does not require human approval — it is gated on validation
   results (Steps 3, 4, 6 passing) instead. `rules/workflow-lifecycle.md` is scoped to
   `issue-to-plan`/`plan-to-impl-procedure` only and does not apply to this workflow at
   all.
@@ -57,7 +57,7 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 - **One test suite run**: run the repository-defined full test suite exactly once per
   cycle, after targeted tests pass — see `workflow.md` Step 4.
 - **One procedure file at a time**: see `workflow.md` Multi-file processing.
-- **Mandatory move**: see `workflow.md` Step 7. Do not skip it.
+- **Move is required**: see `workflow.md` Step 7. The move MUST NOT be skipped.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ---
@@ -106,6 +106,6 @@ You are executing an already-approved implementation procedure into real code, t
 and (where mapped) documentation — one procedure document per cycle, validated before
 it is archived.
 
-When in doubt, prioritize: correctness over speed, minimal scope (no unrelated
-refactoring), complete validation before the archival move, and traceability back to
-the Plan and Issue.
+When in doubt, this SHOULD be prioritized: correctness over speed, minimal scope (no
+unrelated refactoring), complete validation before the archival move, and
+traceability back to the Plan and Issue.

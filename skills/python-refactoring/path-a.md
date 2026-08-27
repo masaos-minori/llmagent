@@ -9,9 +9,9 @@ Steps 3, 4, or 7 themselves, nor reduce Step 7's Required validation
 
 ## Step 3 depth: Preparation
 
-- Use `rg` to find symbol usages (always run, not conditional — see `workflow.md`
-  Step 3).
-- Check whether the target files are referenced in `deploy.sh` (always run).
+- Use `rg` to find symbol usages (MUST run every time, not conditional — see
+  `workflow.md` Step 3).
+- Check whether the target files are referenced in `deploy.sh` (MUST run every time).
 - Skip `pydeps`, `import-linter`, and `ast-grep`; record `N/A: Path A` for each in the
   impact scope table.
 

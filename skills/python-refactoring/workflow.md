@@ -1,7 +1,7 @@
 # Python Refactoring — Detailed Workflow
 
 This workflow intentionally prioritizes safety, evidence, and correctness over speed.
-Do not skip a step because it seems slow.
+A step MUST NOT be skipped because it seems slow.
 
 ## Workflow position
 
@@ -21,7 +21,7 @@ follow-up work (see `SKILL.md` Composes with / Called by).
   files.
 - Do not change external behavior, public APIs, or visible output.
 - Do not edit documentation unless explicitly instructed (see `path-c.md` ADR
-  Requirement for the one scoped exception: Step 10 always drafts ADR content inline in
+  Requirement for the one scoped exception: Step 10 MUST draft ADR content inline in
   the report; only writing it under `docs/adr/` requires explicit instruction).
 
 (`__pycache__/` is already covered by Out of Scope below's `rules/ai-execution.md`
@@ -83,9 +83,9 @@ classification decided there:
 - If any specified file does not exist, stop immediately and report which file(s) are
   missing. Do not start processing any file until all specified paths are confirmed to
   exist.
-- Refactor strictly one file at a time, in the order given (see Multi-file processing
-  above for the atomic-migration-group exception). Do not read or inspect files that
-  will be processed in a later cycle.
+- Files MUST be refactored one at a time, in the order given (see Multi-file
+  processing above for the atomic-migration-group exception). Do not read or inspect
+  files that will be processed in a later cycle.
 
 ---
 
@@ -129,7 +129,7 @@ Depth depends on the Path classification from Step 2 — see `path-a.md` or `pat
 (Path C applies at least Path B's depth per `path-c.md`) for the exact tool list.
 
 Record the impact scope in a table, marking any tool skipped for either reason (Path A
-or unavailability) as `N/A` or `Not run` respectively — never omit the row.
+or unavailability) as `N/A` or `Not run` respectively — the row MUST NOT be omitted.
 
 In addition, regardless of Path, perform `discovery.md`'s Technical Debt Discovery,
 Responsibility Analysis, and Documentation Drift Detection while reading the target
@@ -209,14 +209,14 @@ the new abstraction also requires an ADR):
 - Callers
 - Test boundary
 
-A new abstraction with an incomplete justification must not be transformed in this
+A new abstraction with an incomplete justification MUST NOT be transformed in this
 Step — record it as a Proposal (`discovery.md` Discovery Vocabulary) instead,
 consistent with Step 2's existing "if behavior change is anything other than none,
 stop, record as proposal" pattern.
 
 ### Transforming
 
-- Use `libcst` for symbol-level refactoring when needed. When a change must preserve
+- Use `libcst` for symbol-level refactoring when needed. When a change MUST preserve
   comments, formatting, or docstrings during a rename/structural edit, use a
   CST-preserving transform rather than regex-based text replacement, e.g.:
 
@@ -269,7 +269,7 @@ pass.
   - formatting
   - metadata update
 
-  Any hunk that does not fit these categories must be explained explicitly.
+  Any hunk that does not fit these categories MUST be explained explicitly.
 - Run tests, `ruff`, and `mypy` once per logical group identified via `git diff` (see
   Refactoring-Specific Guidance for scoping) — do not require staging hunks
   individually to run these checks.
@@ -311,8 +311,8 @@ C Completion Requirements.
 
 ## Refactoring-Specific Guidance
 
-- Perform Step 3 (preparation/investigation) sequentially; run `rg` always, and
-  `pydeps`/`import-linter`/`ast-grep` only when Path B or C applies (see `path-a.md`/
+- Perform Step 3 (preparation/investigation) sequentially; `rg` MUST run every time,
+  and `pydeps`/`import-linter`/`ast-grep` only when Path B or C applies (see `path-a.md`/
   `path-b.md`), retaining only the resulting impact scope table, not the raw tool
   output.
 - Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g.
@@ -323,13 +323,13 @@ C Completion Requirements.
 - In Step 8, run the full mypy/test/ruff check once per logical diff group identified
   via `git diff` rather than after every single hunk; use a lighter check (e.g. `ruff`
   only) when inspecting individual hunks.
-- In Step 9, prefer scoping `pre-commit` to the changed files over `--all-files` when
+- In Step 9, `pre-commit` SHOULD be scoped to the changed files over `--all-files` when
   the CI gate does not require a full-repo run.
 - When multiple target files are specified, run each Steps 1-10 cycle sequentially so
   that tool output and investigation results from one file's cycle do not accumulate in
   the context used for the next file's cycle.
 - Keep progress reports and Step 10 results concise; do not restate full diffs or raw
-  tool output. Evidence tables (manifest, inventory, mutation report) must still list
+  tool output. Evidence tables (manifest, inventory, mutation report) MUST still list
   every required field even when kept concise.
 
 ---

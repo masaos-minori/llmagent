@@ -158,7 +158,7 @@ failure's cause is not immediately obvious, load
 - Run targeted tests during implementation.
 - Fix all related failures.
 - Run the repository-defined full test suite exactly once, after targeted tests
-  pass — this is the only full-suite run for this cycle; Step 6 must not run tests
+  pass — this is the only full-suite run for this cycle; Step 6 MUST NOT run tests
   again.
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
@@ -215,7 +215,7 @@ If validation surfaces an issue, fix it before proceeding to Step 7.
 
 ## Step 7: Move the Completed Implementation Procedure File
 
-**This step is mandatory. Do not skip it.**
+This step MUST NOT be skipped.
 
 This workflow's move to `implementations/done/` does not require human approval —
 proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approval.

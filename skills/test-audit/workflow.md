@@ -159,16 +159,16 @@ the user explicitly requests it.
 
 ## Important Rules
 
-Follow these rules strictly, in addition to `evidence.md`'s classification procedures:
+These rules MUST be followed, in addition to `evidence.md`'s classification procedures:
 - Do not silently ignore skipped or blocked tests.
 - If CI and local commands differ, report that explicitly.
-- Prefer repository-defined commands over invented commands.
+- Repository-defined commands SHOULD be preferred over invented commands.
 - If a service dependency is missing, explain exactly what blocked execution.
 - For missing tests, tie each proposal to concrete code paths or documented behavior,
   and to a Finding ID.
-- Prefer regression tests for bug-like mismatches.
+- Regression tests SHOULD be preferred for bug-like mismatches.
 - Do not give vague advice such as "increase coverage".
-- Every proposed test addition or update must be actionable and traceable to a Task ID.
+- Every proposed test addition or update MUST be actionable and traceable to a Task ID.
 
 ## Test-Specific Guidance
 

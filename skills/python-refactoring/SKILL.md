@@ -24,8 +24,9 @@ Refactor existing Python source files without changing external behavior: lock c
 behavior with tests, classify the change's blast radius (Path A/B/C), transform with
 AST-safe tools, validate that behavior/API/side effects are unchanged, then report the
 evidence. This workflow intentionally prioritizes safety, evidence, and correctness
-over speed — do not skip a step because it seems slow. This is a reactive workflow: do
-not refactor code unless explicitly instructed via a target file or issue.
+over speed — a step MUST NOT be skipped because it seems slow. This is a reactive
+workflow: code MUST NOT be refactored unless explicitly instructed via a target file
+or issue.
 
 ---
 
@@ -100,7 +101,7 @@ Record the Path A/B/C decision and its rationale in Step 10's report.
 
 ---
 
-## Core Execution Rules (Strictly Enforced)
+## Core Execution Rules
 
 ### Core rules
 - Change only one feature or one responsibility at a time.
@@ -131,8 +132,8 @@ Record the Path A/B/C decision and its rationale in Step 10's report.
 ### Process rules
 - **One file at a time**: see `workflow.md` Multi-file processing (atomic migration
   groups are the one exception, per `path-c.md`).
-- **Mandatory reporting**: see `report-template.md`. Do not report a cycle complete
-  while its Completion Gate has an unsatisfied item.
+- **Reporting is required**: see `report-template.md`. A cycle MUST NOT be reported
+  complete while its Completion Gate has an unsatisfied item.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ---

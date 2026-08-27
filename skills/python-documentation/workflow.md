@@ -22,10 +22,10 @@ truth and is kept in sync with `tools/`.
 | `WebFetch` | 3 Runtime, 6 Config | fetch external library or framework docs (only when necessary) |
 
 ### Tool selection rules
-- Prefer `Bash (grep/find)` + `Read` for targeted lookups before spawning `Agent (Explore)`.
+- `Bash (grep/find)` + `Read` SHOULD be preferred for targeted lookups before spawning `Agent (Explore)`.
 - Spawn `Agent (Explore)` only when the search spans many directories or requires 3+ queries.
 - Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
-- `WebFetch` is a last resort; most behavior should be confirmable from the local codebase.
+- `WebFetch` is a last resort; most behavior SHOULD be confirmable from the local codebase.
 
 ---
 
@@ -34,7 +34,7 @@ truth and is kept in sync with `tools/`.
 - Evidence before summary
 - Inventory before interpretation
 - Keep unknowns visible
-- Prefer minimal edits over full rewrites
+- Minimal edits SHOULD be preferred over full rewrites
 - Separate facts from assumptions
 
 ---
@@ -209,7 +209,7 @@ Convert analysis into maintainable documentation.
 
 ### Remove or compress implementation-derived details
 
-Documentation should not copy details that can be mechanically confirmed from source code,
+Documentation SHOULD NOT copy details that can be mechanically confirmed from source code,
 command help, configuration files, or generated schemas.
 
 Normally remove, compress, or replace with source references:
@@ -262,7 +262,7 @@ Remove contradictions across docs and code.
 ## Evidence and Source of Truth
 
 Code, configuration files, tests, and CI/CD are factual evidence for implemented behavior.
-Documentation should describe design intent, responsibility boundaries, architectural
+Documentation SHOULD describe design intent, responsibility boundaries, architectural
 constraints, operational notes, failure behavior, confirmed behavior, known issues, and
 unresolved questions.
 
@@ -272,7 +272,7 @@ When code and documentation conflict:
 - mark the item `Needs confirmation` if the implementation may be incomplete, buggy, provisional, or ambiguous
 - do not silently replace documented design intent with possibly buggy behavior
 
-Important behavioral claims must be traceable to evidence: public behavior, configuration
+Important behavioral claims MUST be traceable to evidence: public behavior, configuration
 ownership, runtime entrypoints, failure behavior, operational constraints, security-sensitive
 behavior, persistence/migration behavior, and documentation/code mismatch corrections. Do not
 add evidence labels to every sentence.

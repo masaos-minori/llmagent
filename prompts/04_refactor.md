@@ -4,7 +4,7 @@ Read the target source files passed as arguments, then refactor them based on th
 rules below.
 
 This workflow intentionally prioritizes safety, evidence, and correctness over speed.
-Do not skip a step because it seems slow.
+A step MUST NOT be skipped because it seems slow.
 
 ## Allowed file operations
 
@@ -35,6 +35,13 @@ of what this workflow may create, move, or must not touch.
 
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.
+
+## Repository Tool Usage
+
+Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
+inspect repository tools relevant to: symbol and usage discovery; dependency
+analysis; AST-safe transformation; behavior-lock validation; public-API comparison;
+side-effect and import-boundary validation.
 
 ## Out of scope
 

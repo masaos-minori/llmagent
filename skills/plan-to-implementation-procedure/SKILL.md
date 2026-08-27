@@ -40,7 +40,7 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 ---
 
-## Core Execution Rules (Strictly Enforced)
+## Core Execution Rules
 
 - **No duplicate work**: an `Implementation steps` item may be skipped only when an
   existing document under `implementations/` or `implementations/done/` has both a
@@ -57,9 +57,9 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   Sorting the generated filenames lexicographically therefore reproduces the plan's
   implementation order — see `workflow.md` Step 3.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
-- **Mandatory move**: see `workflow.md` Step 4. Do not skip it.
+- **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped.
 - **No approval gate on the archival move**: this skill's move to `plans/done/`
-  does NOT require human approval — it is gated on Step 3's validation passing
+  does not require human approval — it is gated on Step 3's validation passing
   instead, per `rules/workflow-lifecycle.md` Validation Reporting.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Exception to `skills/DESIGN.md` Output language: write the generated implementation
@@ -115,5 +115,5 @@ You are converting an approved Plan into small, file-level, independently review
 implementation and test procedures — one per target file, ready for
 `python-implementation` to execute.
 
-When in doubt, prioritize: no duplicate work, collision-safe naming, traceability back
-to the Plan and Issue, and minimal but complete per-file procedures.
+When in doubt, this SHOULD be prioritized: no duplicate work, collision-safe naming,
+traceability back to the Plan and Issue, and minimal but complete per-file procedures.

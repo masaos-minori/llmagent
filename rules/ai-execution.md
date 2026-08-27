@@ -13,14 +13,59 @@
 
 ## Instruction Precedence
 
-When instructions conflict across referenced files, the more specific file wins: a
-workflow's own prompt file > its `workflow.md` > its `SKILL.md` > `rules/*.md` (shared
-baseline, overridden only where a more specific file explicitly says so) >
-`templates/*.md` (structural format only).
+Applies whenever two or more instructions relevant to the current task conflict —
+whether both are file-based (see the layer order below) or one is a live instruction
+from the current conversation.
 
 Treat two instructions as contradictory only when they cannot both be satisfied
-simultaneously — apply the precedence above first; stop and report `Blocked` only if
-no precedence resolution is possible.
+simultaneously.
+
+### Precedence order
+
+When instructions conflict, the narrower/more specific layer wins, in this order
+(highest precedence first):
+
+1. current user instructions (explicit instructions given in the active conversation)
+2. entry-point prompts (a workflow's own `prompts/*.md` file)
+3. workflow procedures (`workflow.md`)
+4. skill-specific rules (`SKILL.md`)
+5. shared execution and lifecycle rules (`rules/*.md`) — shared baseline, overridden
+   only where a higher layer explicitly says so
+6. routing rules (`routing.md`)
+7. repository-wide instructions (`AGENTS.md`)
+
+`templates/*.md` files define structural format only — they are never a source of
+normative precedence and are not ranked in this order.
+
+### Safety restrictions are not overridden by narrower layers
+
+A narrower layer's instruction is preserved only when it does not violate a
+higher-priority safety restriction (e.g. `AGENTS.md` Policy's destructive-command
+rules). Safety restrictions apply regardless of where they are declared in the layer
+order above — a narrower layer cannot relax one.
+
+### Explicit exceptions
+
+A narrower layer MAY declare an exception to a broader layer's rule only when the
+exception is stated explicitly, in that narrower file, and references the specific
+rule it overrides (by file path and stable heading or Rule ID). An exception MUST NOT
+be inferred from silence, omission, or absence of a restatement.
+
+### Resolving and reporting contradictions
+
+When a contradiction is found:
+
+1. Identify both conflicting instructions by file path and stable heading or Rule ID
+   (or, for a live instruction, describe it directly).
+2. Apply the precedence order above.
+3. Preserve the narrower instruction only when it is an allowed specialization (see
+   Explicit exceptions) and does not violate a higher-priority safety restriction.
+4. An undocumented exception MUST NOT be inferred.
+5. If the precedence order does not resolve the contradiction (e.g. both instructions
+   sit at the same layer, or the repository's own rules are internally contradictory),
+   processing MUST stop and report `Blocked`.
+6. The exact conflicting instructions and the decision needed MUST be stated.
+7. Conflicting requirements MUST NOT be silently merged into a compromise.
 
 ## Tool Usage
 
@@ -58,6 +103,53 @@ Keep command results needed for correct judgment, including:
 - blocked checks,
 - coverage results when applicable.
 - Do not report skipped, blocked, unavailable, or unexecuted checks as passed.
+
+## Repository Tool Usage
+
+Applies whenever a workflow needs a one-off operation on source code or documentation
+(discovery, validation, transformation, reporting) that could be done with an ad hoc
+script or a generic command.
+
+1. Before creating an ad hoc script or using an equivalent generic command, `tools/`
+   MUST be inspected for a tool that already covers the need.
+2. Only tools relevant to the active workflow and its approved scope MAY be
+   considered — every tool under `tools/` MUST NOT be run indiscriminately.
+3. A tool's behavior MUST be determined from at least one reliable source: README,
+   help output, usage documentation, source comments, an existing repository
+   invocation, or a referenced repository rule. Behavior MUST NOT be inferred from a
+   filename alone.
+4. Before executing a tool, its purpose, accepted inputs, produced outputs, whether it
+   modifies files and the modification scope, network access, external-service
+   dependencies, credential requirements, possible cost, and cleanup requirements MUST
+   be determined.
+5. A relevant, documented, repository-provided tool SHOULD be preferred over an
+   equivalent ad hoc script or generic command; the narrowest tool sufficient for the
+   task SHOULD be selected.
+6. A repository tool MUST NOT be modified as part of another workflow unless tool
+   modification is explicitly in scope for the current task.
+7. A tool MUST NOT be used if it may: connect to production; modify real data; expose
+   or require unverified credentials; create charges; access an unverified external
+   service; modify files outside the approved scope.
+8. Tool output MUST be verified before relying on it as evidence. Empty standard
+   output alone MUST NOT be treated as proof of success — expected output files,
+   summaries, exit results, or repository changes MUST be independently verified.
+9. A minimal permitted fallback MAY be used only when no suitable repository tool is
+   available, and MUST be recorded as a fallback with the reason.
+10. Each tool run MUST be recorded: exact command; purpose; target; result; relevant
+    output summary; fallback and reason, when applicable.
+11. Every tool run MUST be classified using this canonical command-result vocabulary:
+    `Pass` (execution completed and the result was confirmed) / `Fail` (execution
+    completed but a problem was detected) / `Partial` (only part of the scope could
+    be verified) / `Not available` (no applicable tool exists) / `Blocked` (the tool
+    exists, but its safety or run conditions could not be confirmed).
+12. Unavailable, unexecuted, partial, blocked, or failed tool execution MUST NOT be
+    reported as successful.
+
+If `tools/` does not exist, the workflow MUST continue only when a safe,
+repository-approved fallback exists, and the absence MUST be recorded accurately. If a
+relevant tool exists but its behavior or safety cannot be established, it MUST NOT be
+executed — report `Blocked: repository tool behavior or safety could not be
+verified`.
 
 ## Progress Reporting (Base)
 

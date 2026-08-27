@@ -22,9 +22,9 @@ used consistently in Steps 2-4 and in `report-template.md`'s Report Template Sec
   environment, service, or credential currently prevents it. Record exactly what is
   missing.
 
-Never report `Not runnable` or `Blocked` as `Pass`. An unexecuted or partially executed
-check has no result other than one of the five above — do not infer `Pass` from a
-similar command's success, from the absence of an error, or from partial output.
+`Not runnable` or `Blocked` MUST NOT be reported as `Pass`. An unexecuted or partially
+executed check has no result other than one of the five above — do not infer `Pass`
+from a similar command's success, from the absence of an error, or from partial output.
 
 ---
 
@@ -37,8 +37,8 @@ Step 3.
 ### Deterministic vs. flaky
 
 - Re-run the failing test in isolation at least 3 times, or use the repository's own
-  flaky-detection tooling if one is configured (e.g. `pytest-rerunfailures`) — prefer
-  the repository-defined tool over a manual loop when one exists.
+  flaky-detection tooling if one is configured (e.g. `pytest-rerunfailures`) — the
+  repository-defined tool SHOULD be preferred over a manual loop when one exists.
 - All runs fail identically (same assertion/exception) → `Deterministic`.
 - Results vary across runs → `Flaky`; record the observed ratio (e.g. "failed 2/3
   runs") as evidence.

@@ -12,9 +12,9 @@ the full scope of what this document-only phase may create, move, or must not to
 
 Read the target plan file, then produce file-level implementation procedure documents based on the rules below.
 
-- **MANDATORY: After completing Step 3's validation, you MUST move the plan file to
-  `plans/done/` in Step 4 — no human approval is required for this move.** Skipping
-  this step is a failure condition.
+- After completing Step 3's validation, the plan file MUST be moved to `plans/done/`
+  in Step 4 — no human approval is required for this move. Skipping this step is a
+  failure condition.
 - Do not implement anything — this workflow creates documents only.
 - Do not modify source files.
 - **Write all output documents (implementations/) in clear and concise English for AI
@@ -35,6 +35,12 @@ referenced files.
 - Procedure (Steps 0-4, toolchain, multi-file processing): see
   `skills/plan-to-implementation-procedure/SKILL.md` +
   `skills/plan-to-implementation-procedure/workflow.md`.
+
+## Repository Tool Usage
+
+Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
+inspect repository tools relevant to: Plan validation; traceability validation;
+affected-file discovery; implementation-procedure validation.
 
 ## Out of scope
 
@@ -68,7 +74,7 @@ Follow `skills/plan-to-implementation-procedure/workflow.md` Step 3 in full.
 
 #### Step 4: Move the completed plan file
 
-**This step is mandatory. Do not skip it. Execute it once Step 3 completes and its
-validation checks pass** — no human approval is required for this move.
+This step MUST NOT be skipped. It MUST run once Step 3 completes and its validation
+checks pass — no human approval is required for this move.
 
 Follow `skills/plan-to-implementation-procedure/workflow.md` Step 4 in full.

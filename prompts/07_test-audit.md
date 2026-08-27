@@ -25,6 +25,15 @@ Audit this repository's test suite based on the rules below.
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.
 
+## Repository Tool Usage
+
+Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
+inspect repository tools relevant to: test-entry-point discovery; safety evaluation;
+test execution; coverage extraction; validation-result collection.
+
+Tool discovery does not authorize test execution. Test commands must still pass the
+test-audit safety gate (`skills/test-audit/safety.md`) before execution.
+
 ## Out of scope
 
 See `skills/test-audit/workflow.md` Out of Scope for the full list.

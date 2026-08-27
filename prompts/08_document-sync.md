@@ -49,29 +49,14 @@ Read the source code and the existing design documents, then update the design d
 
 ## Repository Tool Usage
 
-- Before using an ad-hoc command, check whether an existing tool under `tools/` already covers the need.
-- Do not run every tool under `tools/` indiscriminately — select only the tools relevant to the target document.
-- Do not infer a tool's function from its name alone — check its README, help output, usage examples, comments, and related rules.
-- Before running a tool, confirm its input, output, side effects, what it modifies, external connections, and whether it requires credentials.
-- Do not run tools that modify source code, tests, or out-of-scope documents.
-- Do not run tools that access production environments, real data, credentials, or unverified external services.
-- When a repository-provided tool fits the need, prefer it over ad-hoc scripts or general-purpose commands.
-- Before using a tool's output as evidence, cross-check it against the relevant location in the target source or document.
-- A tool's existence alone does not make using it mandatory — run it only when it is relevant, safe, and within its supported scope.
-- When multiple related tools exist, choose the one that inspects the narrowest relevant scope.
-- Do not let tool usage expand the approved document-update scope or source-investigation scope.
-- Do not fix a tool's own defects as part of this workflow, even if discovered during use.
-- If a tool needs to be fixed, report it as separate work instead of fixing it here.
+Apply `rules/ai-execution.md`, section "Repository Tool Usage" — including its
+canonical command-result vocabulary (`Pass` / `Fail` / `Partial` / `Not available` /
+`Blocked`), used for the Tool Inventory Status in Step 0 and the validation results in
+Step 5.
 
-### Tool Result Classification
-
-Classify every tool run (Tool Inventory Status in Step 0, validation results in Step 5) using:
-
-- **Pass** — execution completed and the result was confirmed.
-- **Fail** — execution completed but a problem was detected.
-- **Partial** — only part of the scope could be verified.
-- **Not available** — no applicable tool exists.
-- **Blocked** — the tool exists, but its safety or run conditions could not be confirmed.
+For this workflow, inspect repository tools relevant to: document-to-source mapping;
+public-symbol discovery; configuration and test discovery; evidence extraction;
+Markdown, link, metadata, encoding, and size validation.
 
 Do not treat a check that was not run, only partially run, failed, or blocked as Pass.
 If a required validation is Fail or Blocked, do not report the synchronization work as
@@ -79,7 +64,7 @@ complete.
 
 ### Context efficiency
 
-**Accuracy, completeness, and validation always take priority over context reduction.**
+Accuracy, completeness, and validation MUST take priority over context reduction.
 Do not reduce context when doing so may cause missing evidence, incorrect conclusions,
 incomplete plans, or insufficient validation.
 

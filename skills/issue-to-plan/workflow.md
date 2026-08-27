@@ -52,7 +52,7 @@ Additional context-hygiene guidance specific to this workflow:
   Retain only a concise confirmation or correction, not full file contents.
 - Process each Steps 1-10 cycle sequentially so investigation from one file's cycle
   does not accumulate into the next — this is context isolation, not parallel
-  execution: run each cycle one at a time, never in parallel.
+  execution: cycles MUST run one at a time; they MUST NOT run in parallel.
 - Do not summarize shared rules or template content in chat — reference them by file
   name instead.
 
@@ -81,6 +81,10 @@ determines Path B.
 
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
 shared files across cycles in this session.
+
+If a required file is missing, unreadable, or contradictory, apply
+`rules/ai-execution.md` Instruction Precedence; if unresolvable, stop and report
+`Blocked`. Do not infer missing instructions.
 
 ---
 
@@ -230,15 +234,15 @@ raising it to ≥ 90%.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
 - Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
   available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
-  `plans/{timestamp}_02_plan.md`, ...). Never overwrite an existing file.
+  `plans/{timestamp}_02_plan.md`, ...). An existing file MUST NOT be overwritten.
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step must reference its related Requirement ID.
 - Every claim must be backed by evidence gathered above (or, for Path A, by Step 3's
   direct verification).
 - Implementation steps must be small enough to be independently revertable.
-- Always include a deploy step if `scripts/`/`config/` changes; always include an MCP
-  service map update if a new server is added.
+- A deploy step MUST be included if `scripts/`/`config/` changes; an MCP service map
+  update MUST be included if a new server is added.
 - Do not include speculative steps — only steps required by the stated goal.
 - The Plan must be detailed enough for the next pipeline phase (per Workflow position
   above) to produce file-level implementation procedures from it. Do not implement
@@ -273,7 +277,7 @@ raising it to ≥ 90%.
   file correlated to the same workflow cycle.
 - If either path already exists, apply the same lowest-available zero-padded sequence
   rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
-  ...). Never overwrite an existing file.
+  ...). An existing file MUST NOT be overwritten.
 - Each generated Unknown or Risk issue must include a Traceability section (per
   `templates/traceability.md`) with Source issue set to the current cycle's Issue path
   and Source plan set to the Plan file generated in Step 5 — this carries
@@ -339,7 +343,7 @@ information completeness (Step 8) is `Pass` and all required validations are
 
 ## Step 10: Move the Issue
 
-**This step is mandatory. Do not skip it.**
+This step MUST NOT be skipped.
 
 - Move the Issue once Step 9 confirms information completeness is `Pass` and all
   required validations are `Pass`.

@@ -64,7 +64,7 @@ do not re-derive or re-analyze here.
   areas.
 - **# 2**: one entry per Step 3 command. For `Pass`, a concise one-line summary; for
   `Fail`/`Partial`/`Blocked`/`Not runnable`, retain the full relevant detail carried
-  from Step 3/4. Never report an unexecuted or blocked check as `Pass`.
+  from Step 3/4. An unexecuted or blocked check MUST NOT be reported as `Pass`.
 - **# 3**: one entry per Step 6 Finding whose category is an execution-failure type
   (sourced from Step 4).
 - **# 4**: one entry per Step 6 Finding whose category is a gap/inconsistency type

@@ -16,8 +16,8 @@ what this document-only phase may create, move, or must not touch.
 
 Read the target Issue file, then create a concrete work plan based on the rules below.
 
-- **MANDATORY: After completing Step 9's validation, move the Issue file to
-  `issues/done/` in Step 10 — no human approval is required for this move.**
+- After completing Step 9's validation, the Issue file MUST be moved to
+  `issues/done/` in Step 10 — no human approval is required for this move.
   Skipping this step is a failure condition.
 - Do not implement anything — this workflow creates plan documents only.
 - Do not modify source files.
@@ -41,6 +41,13 @@ referenced files.
 - Plan-creation approach (Path A/B classification, architecture/dependency/historical
   analysis, uncertainty tracking): see `skills/issue-to-plan/SKILL.md` +
   `skills/issue-to-plan/workflow.md`.
+
+## Repository Tool Usage
+
+Apply `rules/ai-execution.md`, section "Repository Tool Usage". For this workflow,
+inspect repository tools relevant to: repository evidence discovery; dependency
+analysis; history inspection; requirement and traceability validation; Plan
+validation.
 
 ## Out of scope
 
@@ -121,12 +128,12 @@ Follow `skills/issue-to-plan/workflow.md` Step 9 in full. No human approval gate
 applies to this move (per `rules/workflow-lifecycle.md` Validation Reporting) — do
 not start the next target file before the current file's Step 10 move completes.
 
-**MANDATORY: Proceed to Step 10 once Step 9 confirms information completeness is
-`Pass` and all required validations are `Pass`.**
+Proceeding to Step 10 is required once Step 9 confirms information completeness is
+`Pass` and all required validations are `Pass`.
 
 #### Step 10: Move the completed Issue file
 
-**This step is mandatory. Do not skip it.**
+This step MUST NOT be skipped.
 
 Follow `skills/issue-to-plan/workflow.md` Step 10 in full: `git mv
 issues/{filename}.md issues/done/{filename}.md` only, with its pre- and post-move

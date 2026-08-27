@@ -89,18 +89,18 @@ other, and do not introduce a third.
 - **Effort** — how much work the task takes: `Low` (<4h) / `Medium` (4-16h) / `High`
   (>16h).
 
-Never write "High priority" or "Low priority" — that phrasing conflates the two axes.
-Every Task record (Step 7) and the Report Template's Task List must show both fields
-separately, never one standing in for the other.
+Priority and Effort MUST NOT be written as "High priority" or "Low priority" — that
+phrasing conflates the two axes. Every Task record (Step 7) and the Report Template's
+Task List MUST show both fields separately; neither MAY stand in for the other.
 
 ---
 
-## Core Execution Rules (Strictly Enforced)
+## Core Execution Rules
 
-- Do NOT stop after the first failure within the Full-Suite Execution Scope (`safety.md`).
-- Do NOT assume test coverage from file names alone.
-- Do NOT edit production code unless explicitly requested.
-- Do NOT stop at high-level commentary — run the tests and produce a concrete,
+- MUST NOT stop after the first failure within the Full-Suite Execution Scope (`safety.md`).
+- MUST NOT assume test coverage from file names alone.
+- MUST NOT edit production code unless explicitly requested.
+- MUST NOT stop at high-level commentary — run the tests and produce a concrete,
   execution-ready plan.
 - **No unrelated changes**: see `AGENTS.md` Global Rule 5.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.

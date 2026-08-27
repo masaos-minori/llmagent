@@ -22,7 +22,7 @@ Before transformation, list current side effects in the target file:
 - Time-dependent behavior
 - Randomness
 
-This inventory is the baseline that the Required Validation section below must reconfirm
+This inventory is the baseline that the Required Validation section below MUST reconfirm
 as unchanged after transformation (`workflow.md` Step 7). If any side effect changes,
 stop and record it as a proposal unless explicitly approved.
 
