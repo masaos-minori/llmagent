@@ -124,11 +124,13 @@ See `rules/env.md` for service ports, DB schema, and module decomposition.
 
 Save the generated plan to `plans/YYYYMMDD-HHMMSS_plan.md` (e.g.
 `plans/20260702-120000_plan.md`). The plan file is the working document: update it as
-scope changes, and reference it when starting implementation with `python-implementation`.
+scope changes. Do not implement directly from it — the next pipeline phase is
+`plan-to-implementation-procedure`, which converts it into file-level implementation
+procedure documents for `code-implementation` to execute (see Composes with below).
 
 ## Composes with
 - `plan-to-implementation-procedure` — the next pipeline phase once the plan is approved; converts it into file-level implementation procedure documents
-- `python-implementation` — executes the resulting implementation procedure documents
+- `code-implementation` — executes the resulting implementation procedure documents, applying `python-implementation`'s guidance
 - `python-refactoring` — if the plan involves structural module changes
 - `mcp-server-add` — if the plan includes adding a new MCP server
 
