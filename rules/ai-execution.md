@@ -87,8 +87,9 @@ Keep command results needed for correct judgment, including:
 
 ## Global Safety Restrictions (Base)
 
+Scope discipline (no unrelated refactoring/cleanup/reformatting) is universal — see
+`AGENTS.md` Global Rules. `__pycache__/` and other always-out-of-scope paths: see
+`skills/DESIGN.md` Out-of-scope paths. In addition, specific to target-file-cycle
+workflows:
 - Do not modify files outside the scope allowed by the active workflow.
-- Do not process files under `__pycache__/`.
-- Do not perform unrelated refactoring.
-- Do not perform broad formatting-only rewrites.
 - Do not process target-file cycles in parallel.

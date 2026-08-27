@@ -137,9 +137,9 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
 
 #### File editing rules
 
-- change only files relevant to the task
+- change only files relevant to the task (see `AGENTS.md` Global Rule 5 for the
+  unrelated-cleanup prohibition)
 - keep diffs small and intentional
-- avoid opportunistic unrelated cleanup unless explicitly requested
 - when adding/removing a module: `deploy/deploy.sh` does not need a change for this — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line added there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`
 
@@ -147,7 +147,7 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
 
 If a change within this task must preserve comments, formatting, or docstrings during a
 rename/structural edit, use the LibCST transform recipe in
-`skills/python-refactoring/workflow.md` Phase 3 (Semantic Transformation).
+`skills/python-refactoring/workflow.md` Step 6 (Transformation).
 
 After any LibCST transform: run `ruff format scripts/` and `ruff check scripts/ --fix`.
 
@@ -279,7 +279,7 @@ When removing a module: remove its entry from the above, delete the file, run `r
 
 ## Prohibited behavior
 
-- do not rewrite large unrelated sections without request
+(Unrelated-change prohibition: see `AGENTS.md` Global Rule 5 — not repeated here.)
 - do not introduce speculative architecture
 - do not invent requirements that are not present
 - do not change public APIs silently

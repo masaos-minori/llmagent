@@ -119,7 +119,8 @@ Then verify:
 git status --short
 ```
 
-Stop if commit fails. Do not bypass Git hooks (`--no-verify`).
+Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
+`--no-verify` prohibition — not repeated here).
 
 ---
 

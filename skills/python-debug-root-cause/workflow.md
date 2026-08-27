@@ -346,9 +346,9 @@ rg "cache_key\|stat_cache_hits"
 ## Phase 8: Minimal Fix
 
 - write or adjust a failing test that captures the defect **before** changing code
-- apply the smallest effective code change
+- apply the smallest effective code change (see `AGENTS.md` Global Rule 5 for the
+  broader unrelated-refactoring/scope-expansion prohibition)
 - explain why the fix addresses the root cause (not just the symptom)
-- do not refactor, clean up, or expand scope in the same change
 
 Delegate to composed skills when appropriate:
 - test writing and fix validation → `python-test-and-fix` skill (Steps 6, 12)

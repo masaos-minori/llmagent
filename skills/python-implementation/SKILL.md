@@ -67,8 +67,8 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Prefer existing repository patterns over new local inventions
 - Prefer typed, explicit, maintainable code
 - Prefer small, reviewable diffs
-- Do not widen scope without clear necessity
-- Do not change unrelated behavior
+- Do not widen scope without clear necessity (see `AGENTS.md` Global Rule 5 for the
+  broader unrelated-change prohibition)
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
 - Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished

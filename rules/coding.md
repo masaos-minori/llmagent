@@ -158,7 +158,9 @@ code that the discrepancy it describes no longer applies.
 ## Prohibited behavior (all tasks)
 
 - do not write comments or log messages in Japanese
-- do not use `git add -A` or `git add .` — stage files individually
+- do not use `git add -A` or `git add .` — stage files individually. Exception:
+  `skills/git-commit-and-sync` may use `git add -A` only when the user explicitly
+  requests staging all changes (see that skill's Core rules).
 - do not commit with `--no-verify`
 - do not add `# noqa` / `# type: ignore` / `# nosec` without an inline explanation
 - do not add global ignores to `pyproject.toml` without justification

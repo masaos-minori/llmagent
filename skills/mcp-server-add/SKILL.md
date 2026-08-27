@@ -57,11 +57,13 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 ## Prohibited behavior
 
 - Do not reuse a port already assigned to an existing server
-- Do not skip the `deploy/deploy.sh` `cp` line for the new `config/<name>_mcp_server.toml` (the config file will not be deployed otherwise)
-- Do not skip the `config/agent.toml [mcp_servers.<name>]` section (agent will not route tools to the server)
-- Do not use `json.load()` in the new server module
+- Do not use `json.load()` in the new server module (a specific instance of
+  `rules/coding.md`'s general `config_loader.py`-only `json.load()` rule — see
+  Constraint checks)
 
-See also `rules/coding.md` for project-wide coding prohibitions.
+See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
+rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml
+[mcp_servers.<name>]` section requirements — not repeated here.
 
 ## Improvement feedback
 

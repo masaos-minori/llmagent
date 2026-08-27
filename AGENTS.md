@@ -25,11 +25,12 @@ regardless of the chat language.
 2. **Always read `routing.md` immediately after this file.** It maps task types to the skills and docs to load.
 3. **Do NOT load all `docs/*.md`.** Only load what `routing.md` specifies for the task at hand.
 4. **Do not generate code, documentation, or anything else speculatively.** Stop and ask when anything is unclear.
-5. **Do not commit changes without a clear commit message explaining the reason.**
-6. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
-7. **Never emit partial output, even across context compaction. Return only the complete final output.**
-8. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
-9. **A file create/edit under `docs/` or `skills/` always routes through the Documentation row of `routing.md`'s Task → skill mapping** (see that row for the exact matching condition). The rules that apply to output in those directories are defined once in `skills/DESIGN.md` Shared Vocabulary (evidence labels, no source-code line numbers, no concrete config values, no implementation counts, output language) — do not restate them here.
+5. **Do not perform unrelated refactoring, cleanup, or broad formatting-only rewrites unless the user explicitly requests it.** Change only what the current task requires. This is the one canonical statement of this constraint — skill files must reference it, not restate it.
+6. **Do not commit changes without a clear commit message explaining the reason.**
+7. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
+8. **Never emit partial output, even across context compaction. Return only the complete final output.**
+9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
+10. **A file create/edit under `docs/` or `skills/` always routes through the Documentation row of `routing.md`'s Task → skill mapping** (see that row for the exact matching condition). The rules that apply to output in those directories are defined once in `skills/DESIGN.md` Shared Vocabulary (evidence labels, no source-code line numbers, no concrete config values, no implementation counts, output language) — do not restate them here.
 
 ## Loop Prevention
 
@@ -100,5 +101,6 @@ commands per Policy above (`rm -rf`, `git clean -fdx`, deleting a directory tree
 
 ### Test coverage
 
-Refactoring tasks: see `skills/python-refactoring/workflow.md` Phase 2 for the behavior-lock
-test requirement and the current list of covered modules.
+Refactoring tasks: see `skills/python-refactoring/workflow.md` Step 4 for the
+behavior-lock test requirement (coverage baseline, characterization tests, and
+Path-gated mutation testing).

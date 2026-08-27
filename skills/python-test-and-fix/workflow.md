@@ -307,8 +307,8 @@ Do not change both the test and the implementation in the same commit.
 
 Smallest effective change rules:
 
-- change only the lines that are incorrect
-- do not refactor the surrounding code in the same commit
+- change only the lines that are incorrect (see `AGENTS.md` Global Rule 5 for the
+  broader unrelated-refactoring prohibition)
 - add or adjust exactly one test per bug
 - if the fix requires a larger structural change, use the python-refactoring skill
 
