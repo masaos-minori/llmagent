@@ -28,7 +28,6 @@ from shared.mcp_config import (
     SecurityProfile,
     TransportType,
 )
-from shared.runtime_tool import RuntimeTool
 from shared.tool_registry import (
     ToolDefinition,
     _reset_registry_for_testing,
@@ -94,6 +93,7 @@ class TestDiscoverAllHappyPath:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "grep",
@@ -104,7 +104,7 @@ class TestDiscoverAllHappyPath:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -133,6 +133,7 @@ class TestDiscoverAllHappyPath:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "write_file",
@@ -143,7 +144,7 @@ class TestDiscoverAllHappyPath:
                             "resource_scope_kind": "process",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -169,6 +170,7 @@ class TestDiscoverAllEnabledForLlm:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "grep",
@@ -179,7 +181,7 @@ class TestDiscoverAllEnabledForLlm:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -196,6 +198,7 @@ class TestDiscoverAllEnabledForLlm:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "read_file",
@@ -207,7 +210,7 @@ class TestDiscoverAllEnabledForLlm:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -224,6 +227,7 @@ class TestDiscoverAllEnabledForLlm:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "delete_file",
@@ -236,7 +240,7 @@ class TestDiscoverAllEnabledForLlm:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -258,7 +262,13 @@ class TestDiscoverAllMalformedEntries:
     async def test_missing_name_produces_warning_and_is_excluded(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
-            _resp(200, {"tools": [{"description": "d", "inputSchema": {}}]})
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [{"description": "d", "inputSchema": {}}],
+                },
+            )
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
@@ -275,7 +285,11 @@ class TestDiscoverAllMalformedEntries:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
             _resp(
-                200, {"tools": [{"name": "   ", "description": "d", "inputSchema": {}}]}
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [{"name": "   ", "description": "d", "inputSchema": {}}],
+                },
             )
         )
         ctx = _make_ctx({"srv": _server()}, http)
@@ -291,7 +305,13 @@ class TestDiscoverAllMalformedEntries:
     async def test_missing_description_produces_warning_and_is_excluded(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
-            _resp(200, {"tools": [{"name": "grep", "inputSchema": {}}]})
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [{"name": "grep", "inputSchema": {}}],
+                },
+            )
         )
         ctx = _make_ctx({"srv": _server()}, http)
 
@@ -309,9 +329,10 @@ class TestDiscoverAllMalformedEntries:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {"name": "grep", "description": "d", "inputSchema": "nope"}
-                    ]
+                    ],
                 },
             )
         )
@@ -327,7 +348,9 @@ class TestDiscoverAllMalformedEntries:
     @pytest.mark.asyncio
     async def test_non_dict_entry_itself_produces_warning_and_is_excluded(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = _async_result(_resp(200, {"tools": ["not-a-dict"]}))
+        http.get = _async_result(
+            _resp(200, {"schema_version": "1.0", "tools": ["not-a-dict"]})
+        )
         ctx = _make_ctx({"srv": _server()}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
@@ -344,6 +367,7 @@ class TestDiscoverAllMalformedEntries:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {"description": "no name", "inputSchema": {}},
                         {
@@ -355,7 +379,7 @@ class TestDiscoverAllMalformedEntries:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         },
-                    ]
+                    ],
                 },
             )
         )
@@ -382,6 +406,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "move_file",
@@ -398,7 +423,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "resource_scope_kind": "filesystem",
                             "resource_scope_keys": ["source", "destination"],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -419,6 +444,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "incomplete_tool",
@@ -428,7 +454,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -448,6 +474,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "incomplete_tool",
@@ -457,7 +484,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -477,6 +504,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "incomplete_tool",
@@ -486,7 +514,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "requires_serial": False,
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -506,6 +534,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "incomplete_tool",
@@ -515,7 +544,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "requires_serial": False,
                             "resource_scope_kind": "",
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -535,6 +564,7 @@ class TestDiscoverAllSchemaV2Contract:
             _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "bad_scope_tool",
@@ -548,7 +578,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "resource_scope_kind": "filesystem",
                             "resource_scope_keys": ["path", "missing_arg"],
                         }
-                    ]
+                    ],
                 },
             )
         )
@@ -621,7 +651,9 @@ class TestDiscoverAllUnreachableServers:
     @pytest.mark.asyncio
     async def test_tools_field_not_a_list_marks_server_unreachable(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = _async_result(_resp(200, {"tools": "not-a-list"}))
+        http.get = _async_result(
+            _resp(200, {"schema_version": "1.0", "tools": "not-a-list"})
+        )
         ctx = _make_ctx({"srv": _server()}, http)
 
         result = await McpToolDiscoveryService(ctx).discover_all()
@@ -665,6 +697,7 @@ class TestDiscoverAllUnreachableServers:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "grep",
@@ -675,7 +708,7 @@ class TestDiscoverAllUnreachableServers:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -788,6 +821,7 @@ class TestDiscoverAllDuplicates:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "grep",
@@ -798,7 +832,7 @@ class TestDiscoverAllDuplicates:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -936,13 +970,14 @@ class TestToolsEndpointToolShape:
 
 
 @pytest.mark.asyncio
-async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
-    """resource_scope is no longer a valid field; entries containing it should pass."""
+async def test_legacy_resource_scope_rejected() -> None:
+    """resource_scope is no longer a valid field; entries containing it must be rejected."""
     http = AsyncMock(spec=httpx.AsyncClient)
     http.get = _async_result(
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "test_tool",
@@ -954,7 +989,7 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -962,61 +997,10 @@ async def test_resource_scope_field_ignored_after_removal_synthetic() -> None:
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 
-    assert result.registry.all_tools() == [
-        RuntimeTool(
-            name="test_tool",
-            server_key="srv",
-            server_url="http://127.0.0.1:9000",
-            description="desc",
-            input_schema={"type": "object", "properties": {}},
-            raw_definition={
-                "name": "test_tool",
-                "description": "desc",
-                "inputSchema": {"type": "object", "properties": {}},
-                "resource_scope": 123,
-                "is_write": False,
-                "requires_serial": False,
-                "resource_scope_kind": "",
-                "resource_scope_keys": [],
-            },
-            status="active",
-            is_write=False,
-            requires_serial=False,
-            resource_scope_kind="",
-            resource_scope_keys=(),
-            agent_safety_tier="WRITE_DANGEROUS",
-            enabled_for_llm=True,
-            capabilities=(),
-            allow_extra_fields=False,
-        ),
-    ]
-
-    http2 = AsyncMock(spec=httpx.AsyncClient)
-    http2.get = _async_result(
-        _resp(
-            200,
-            {
-                "tools": [
-                    {
-                        "name": "test_tool_ok",
-                        "description": "desc",
-                        "inputSchema": {"type": "object", "properties": {}},
-                        "resource_scope": "filesystem",
-                        "is_write": False,
-                        "requires_serial": False,
-                        "resource_scope_kind": "",
-                        "resource_scope_keys": [],
-                    }
-                ]
-            },
-        )
-    )
-    ctx2 = _make_ctx({"srv": _server()}, http2)
-
-    result2 = await McpToolDiscoveryService(ctx2).discover_all()
-
-    assert result2.registry.get("test_tool_ok") is not None
-    assert not any("resource_scope" in f.message for f in result2.findings)
+    assert result.registry.all_tools() == []
+    assert len(result.findings) == 1
+    assert result.findings[0].status == StartupCheckStatus.WARNING
+    assert "resource_scope" in result.findings[0].message
 
 
 @pytest.mark.asyncio
@@ -1026,6 +1010,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "test_tool",
@@ -1037,7 +1022,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -1059,6 +1044,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "test_tool_ok",
@@ -1070,7 +1056,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -1083,7 +1069,7 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
 
 
 @pytest.mark.asyncio
-async def test_missing_schema_version_tolerated() -> None:
+async def test_missing_schema_version_rejected() -> None:
     http = AsyncMock(spec=httpx.AsyncClient)
     http.get = _async_result(
         _resp(
@@ -1107,8 +1093,81 @@ async def test_missing_schema_version_tolerated() -> None:
 
     result = await McpToolDiscoveryService(ctx).discover_all()
 
-    assert result.registry.get("legacy_tool") is not None
-    assert not any("schema_version" in f.message for f in result.findings)
+    assert result.registry.all_tools() == []
+    mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+    missing_sv = [f for f in mcp_findings if "schema_version" in f.message]
+    assert len(missing_sv) >= 1
+    assert missing_sv[0].status in (
+        StartupCheckStatus.WARNING,
+        StartupCheckStatus.FATAL,
+    )
+
+
+@pytest.mark.asyncio
+async def test_unsupported_schema_version_rejected() -> None:
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.get = _async_result(
+        _resp(
+            200,
+            {
+                "schema_version": "9.9",
+                "tools": [
+                    {
+                        "name": "future_tool",
+                        "description": "future",
+                        "inputSchema": {"type": "object", "properties": {}},
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
+                    }
+                ],
+            },
+        )
+    )
+    ctx = _make_ctx({"future_srv": _server()}, http)
+
+    result = await McpToolDiscoveryService(ctx).discover_all()
+
+    assert result.registry.all_tools() == []
+    mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+    bad_sv = [f for f in mcp_findings if "schema_version" in f.message]
+    assert len(bad_sv) >= 1
+    assert bad_sv[0].status in (StartupCheckStatus.WARNING, StartupCheckStatus.FATAL)
+
+
+@pytest.mark.asyncio
+async def test_input_schema_only_rejected() -> None:
+    """input_schema (snake_case) is not accepted; only inputSchema (camelCase) is valid."""
+    http = AsyncMock(spec=httpx.AsyncClient)
+    http.get = _async_result(
+        _resp(
+            200,
+            {
+                "schema_version": "1.0",
+                "tools": [
+                    {
+                        "name": "bad_tool",
+                        "description": "desc",
+                        "input_schema": {"type": "object", "properties": {}},
+                        "is_write": False,
+                        "requires_serial": False,
+                        "resource_scope_kind": "",
+                        "resource_scope_keys": [],
+                    }
+                ],
+            },
+        )
+    )
+    ctx = _make_ctx({"srv": _server()}, http)
+
+    result = await McpToolDiscoveryService(ctx).discover_all()
+
+    assert result.registry.all_tools() == []
+    mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+    bad_input = [f for f in mcp_findings if "inputSchema" in f.message]
+    assert len(bad_input) >= 1
+    assert bad_input[0].status in (StartupCheckStatus.WARNING, StartupCheckStatus.FATAL)
 
 
 @pytest.mark.asyncio
@@ -1118,6 +1177,7 @@ async def test_missing_capabilities_tolerated() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "read_file",
@@ -1128,7 +1188,7 @@ async def test_missing_capabilities_tolerated() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -1149,6 +1209,7 @@ async def test_capabilities_present_and_valid_normalizes_to_tuple() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "delete_file",
@@ -1160,7 +1221,7 @@ async def test_capabilities_present_and_valid_normalizes_to_tuple() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -1180,6 +1241,7 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
         _resp(
             200,
             {
+                "schema_version": "1.0",
                 "tools": [
                     {
                         "name": "bad_tool",
@@ -1191,7 +1253,7 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
                         "resource_scope_kind": "",
                         "resource_scope_keys": [],
                     }
-                ]
+                ],
             },
         )
     )
@@ -1218,6 +1280,7 @@ class TestDriftDetection:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "tool_a",
@@ -1228,7 +1291,7 @@ class TestDriftDetection:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -1261,6 +1324,7 @@ class TestDriftDetection:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "tool_a",
@@ -1271,7 +1335,7 @@ class TestDriftDetection:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -1301,6 +1365,7 @@ class TestDriftDetection:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "tool_a",
@@ -1311,7 +1376,7 @@ class TestDriftDetection:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -1355,6 +1420,7 @@ class TestDriftDetection:
                     return _resp(
                         200,
                         {
+                            "schema_version": "1.0",
                             "tools": [
                                 {
                                     "name": "tool_a",
@@ -1365,12 +1431,13 @@ class TestDriftDetection:
                                     "resource_scope_kind": "",
                                     "resource_scope_keys": [],
                                 }
-                            ]
+                            ],
                         },
                     )
                 return _resp(
                     200,
                     {
+                        "schema_version": "1.0",
                         "tools": [
                             {
                                 "name": "tool_b",
@@ -1381,7 +1448,7 @@ class TestDriftDetection:
                                 "resource_scope_kind": "",
                                 "resource_scope_keys": [],
                             }
-                        ]
+                        ],
                     },
                 )
 
@@ -1422,6 +1489,7 @@ class TestDriftDetection:
                     return _resp(
                         200,
                         {
+                            "schema_version": "1.0",
                             "tools": [
                                 {
                                     "name": "tool_a",
@@ -1432,12 +1500,13 @@ class TestDriftDetection:
                                     "resource_scope_kind": "",
                                     "resource_scope_keys": [],
                                 }
-                            ]
+                            ],
                         },
                     )
                 return _resp(
                     200,
                     {
+                        "schema_version": "1.0",
                         "tools": [
                             {
                                 "name": "tool_a",
@@ -1448,7 +1517,7 @@ class TestDriftDetection:
                                 "resource_scope_kind": "",
                                 "resource_scope_keys": [],
                             }
-                        ]
+                        ],
                     },
                 )
 
@@ -1504,6 +1573,7 @@ class TestUnifiedSeverity:
             return _resp(
                 200,
                 {
+                    "schema_version": "1.0",
                     "tools": [
                         {
                             "name": "dup_tool",
@@ -1514,7 +1584,7 @@ class TestUnifiedSeverity:
                             "resource_scope_kind": "",
                             "resource_scope_keys": [],
                         }
-                    ]
+                    ],
                 },
             )
 
@@ -1573,7 +1643,10 @@ class TestUnifiedSeverity:
         async def _get(url: str, timeout: float = 5.0) -> MagicMock:
             return _resp(
                 200,
-                {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+                {
+                    "schema_version": "1.0",
+                    "tools": [{"name": "grep", "description": "d", "inputSchema": {}}],
+                },
             )
 
         http.get = AsyncMock(side_effect=_get)
@@ -1617,7 +1690,10 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
     async def _get(url: str, timeout: float = 5.0) -> MagicMock:
         return _resp(
             200,
-            {"tools": [{"name": "grep", "description": "d", "inputSchema": {}}]},
+            {
+                "schema_version": "1.0",
+                "tools": [{"name": "grep", "description": "d", "inputSchema": {}}],
+            },
         )
 
     http.get = AsyncMock(side_effect=_get)

@@ -64,7 +64,7 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
 - Both paths follow the same order to prevent orphaned vector records (see [ADR-005](../adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
-- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). If `fetched_at` is missing (old format without freshness info), semantic "embedding only" is used: `COALESCE(etag, ?)`. This sets the value only if currently NULL and never overwrites non-NULL values, preventing old chunk files from overwriting more recent data.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps.
 - **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
 - **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 
@@ -129,7 +129,7 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
 - Both paths follow the same order to prevent orphaned vector records (see [ADR-005](../adr/ADR-005-rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, processing is skipped. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
-- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). If `fetched_at` is missing (old format without freshness info), semantic "embedding only" is used: `COALESCE(etag, ?)`. This sets the value only if currently NULL and never overwrites non-NULL values. This prevents old chunk files from overwriting more recent data.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps.
 - **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
 - **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
 

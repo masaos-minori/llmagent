@@ -29,26 +29,35 @@ from db.create_schema import create_schema
 create_schema()
 ```
 
-- All DDL uses `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 section 11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a) and `mdq.sqlite` (section 8c) each have different migration/automatic schema update mechanisms — see respective sections for details.
+- For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [90_shared_05 section 11](90_shared_05_04_db_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
 
-The principle that "rag/session/eventbus do not support backward-compatible migrations" applies only to those three databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
+The principle that "rag/session do not support backward-compatible migrations" applies only to those two databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
 
 - `db/schema_sql.py` maintains a migration list in `list[tuple[str, str]]` format (ID + SQL statement pairs) and applies them sequentially using `apply_workflow_migrations()`.
 - It catches `sqlite3.OperationalError` containing `"duplicate column name"` (treating it as already applied) while re-raising others.
 - `create_workflow_schema()` creates base tables, then applies migrations, and finally records the version.
 - For new databases, migrations are no-ops since base schemas already contain the required columns. They function as incremental column additions for existing databases.
 
-Incremental migration mechanisms like this do not exist for `rag.sqlite`, `session.sqlite`, or `eventbus.sqlite`.
+Incremental migration mechanisms like this do not exist for `rag.sqlite` or `session.sqlite`.
 
-### 8b. RAG Consistency Verification (Explicit in code)
+### 8b. Incremental Migration for `eventbus.sqlite` (Explicit in code)
+
+`scripts/eventbus/db.py::_migrate()` performs incremental, additive schema evolution on `eventbus.sqlite` at every EventBus service startup. It is called from `open_db()` when the `events` table already exists (see `_init_schema()` line 67–70).
+
+- **Additive columns:** `delivery_failure_count` and `dlq_requeue_count` (both `INTEGER NOT NULL DEFAULT 0`) are added via `ALTER TABLE events ADD COLUMN`; duplicate-column errors are caught and ignored.
+- **Column removal:** `retry_count` is dropped via `ALTER TABLE events DROP COLUMN retry_count`; "no such column" errors are caught and ignored (already dropped or never existed).
+- **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
+- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `eventbus/db.py::open_db()` live-service startup (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+
+### 8c. RAG Consistency Verification (Explicit in code)
 
 `db/rag_consistency.py::check_rag_consistency()` is a read-only verification function that compares row counts of `chunks`, `chunks_fts`, and `chunks_vec`, returning a `RagConsistencyReport` (`db/models.py`). See code for details on consistency conditions and error message generation logic.
 
-### 8c. Automatic Legacy Schema Detection for `mdq.sqlite` Only (Explicit in code)
+### 8d. Automatic Legacy Schema Detection for `mdq.sqlite` Only (Explicit in code)
 
 `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` is a third pattern of schema update, distinct from rag/session/eventbus and workflow, which runs automatically upon MDQ service startup.
 

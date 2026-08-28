@@ -102,7 +102,8 @@ Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](a
 For diagnosis guidance, see [MCP Failure Diagnosis](04_mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
 ```python
-resolver = ToolRouteResolver(server_configs)
+resolver = ToolRouteResolver()
+resolver.set_runtime_registry(registry)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
 

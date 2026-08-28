@@ -14,7 +14,7 @@ import argparse
 import asyncio
 import hashlib
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -104,7 +104,9 @@ class WebCrawler:
         url = f"file://{path.resolve()}"
         # Compute mtime and SHA-256 for freshness detection in ingester
         stat = path.stat()
-        mtime_iso = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+        mtime_utc = datetime.fromtimestamp(stat.st_mtime, tz=UTC).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         sha256 = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
         # Python files are stored as code blocks so the code chunker applies.
         is_python = path.suffix == ".py"
@@ -112,10 +114,11 @@ class WebCrawler:
             "url": url,
             "title": path.name,
             "lang": resolved_lang,
+            "fetched_at": mtime_utc,
             "content": "" if is_python else content,
             "code_blocks": [content] if is_python else [],
             "etag": sha256,
-            "last_modified": mtime_iso,
+            "last_modified": mtime_utc,
         }
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         out = self._make_crawl_filepath(url)
@@ -306,6 +309,7 @@ class WebCrawler:
         code_blocks: list[str],
         etag: str | None = None,
         last_modified: str | None = None,
+        fetched_at: str | None = None,
     ) -> Path:
         """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json."""
         if lang not in _SUPPORTED_LANGS:
@@ -323,6 +327,8 @@ class WebCrawler:
             "url": url,
             "title": title,
             "lang": lang,
+            "fetched_at": fetched_at
+            or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "content": content,
             "code_blocks": code_blocks,
             "etag": etag,
@@ -428,6 +434,7 @@ class WebCrawler:
                 logger.debug("lang=%r not supported: %s", resolved_lang, url)
                 return
 
+            fetched_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             self._save_crawl_file(
                 url,
                 title,
@@ -436,6 +443,7 @@ class WebCrawler:
                 code_blocks,
                 etag,
                 last_modified,
+                fetched_at,
             )
             self._enqueue_links(html, url, start_url, depth, queue)
 

@@ -6,7 +6,7 @@ Resource-scope resolution and schema-2.0 contract validation.
 `resolve_resource_scopes()` turns a `RuntimeTool`'s declared
 `resource_scope_kind`/`resource_scope_keys` plus a call's actual arguments into a tuple of
 kind-prefixed scope strings. `_scopes_conflict()` is the overlap predicate consumed later
-by `scripts/agent/tool_scheduler.py`'s conflict-graph grouping (not wired up yet).
+by `scripts/agent/tool_scheduler.py`'s conflict-graph grouping.
 `validate_tool_schema_v2()` validates a raw MCP tool-list entry against the schema-2.0
 contract.
 

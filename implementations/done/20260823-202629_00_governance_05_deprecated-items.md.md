@@ -120,13 +120,17 @@ N/A: documentation wording change only.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Blocked | 2026-08-27 | — | 2 of 5 deprecated formats remain in code |
+| Phase 1 | Re-verify precondition (all five removals landed) | Completed | — | — | All 5 deprecated formats confirmed removed from code |
+| Phase 2 | Draft entries from actual removed-behavior diff | Completed | — | — | Entries drafted based on verified code state |
+| Phase 3 | Decide section placement | Completed | — | — | New "Deprecated Compatibility Formats" subsection created |
+| Phase 4 | Add five entries following existing format | Completed | — | — | All 5 entries added, format matches established pattern |
+| Phase 5 | Apply acceptance-bar review | Completed | — | — | Each entry reads as historical removal, not available alias or migration path |
 
 ##### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| Phase 1 | 2 of 5 deprecated compatibility formats remain in code: fetched_at _update_null_fill (rag/ingestion/etag_manager.py:47,:95), missing-schema_version tolerance (mcp_tool_discovery.py:220). input_schema alias, resource_scope singular type-check, and chunk_index coercion were already removed by prior plans. | No | — |
+| Phase 1 | 2 of 5 deprecated compatibility formats remain in code: fetched_at _update_null_fill (rag/ingestion/etag_manager.py:47,:95), missing-schema_version tolerance (mcp_tool_discovery.py:220). input_schema alias, resource_scope singular type-check, and chunk_index coercion were already removed by prior plans. | Yes | 2026-08-28 |
 
 ##### Work Items Created
 

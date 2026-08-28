@@ -24,13 +24,15 @@ class ETagManager:
         self,
         etag: str | None,
         last_modified: str | None,
-        new_fetched_at: str | None = None,
+        new_fetched_at: str,
     ) -> None:
         """Refresh ETag/Last-Modified for an existing document.
 
         Guards against stale overwrites: if new_fetched_at < stored fetched_at,
         the incoming data is older and the existing DB values are kept.
         """
+        if not new_fetched_at:
+            raise ValueError("new_fetched_at must be a non-empty string")
         if etag is None and last_modified is None:
             return
         if self._is_stale_update(new_fetched_at):
@@ -41,15 +43,12 @@ class ETagManager:
                 extra={"stage_name": "ingester"},
             )
             return
-        if new_fetched_at is not None:
-            self._update_with_freshness(etag, last_modified, new_fetched_at)
-        else:
-            self._update_null_fill(etag, last_modified)
+        self._update_with_freshness(etag, last_modified, new_fetched_at)
         self._log_updated()
 
-    def _is_stale_update(self, new_fetched_at: str | None) -> bool:
+    def _is_stale_update(self, new_fetched_at: str) -> bool:
         """Return True when the incoming data is older than stored fetched_at."""
-        if new_fetched_at is None:
+        if not new_fetched_at:
             return False
 
         # Parse incoming timestamp
@@ -58,8 +57,7 @@ class ETagManager:
             if new_dt.tzinfo is None:
                 new_dt = new_dt.replace(tzinfo=UTC)
         except ValueError:
-            logger.error(f"Invalid timestamp format: {new_fetched_at}")
-            return False  # Treat invalid timestamps as non-stale
+            raise ValueError(f"Invalid incoming timestamp: {new_fetched_at}")
 
         # Fetch stored timestamp
         rows = self._db.fetchall(
@@ -75,8 +73,7 @@ class ETagManager:
             if stored_dt.tzinfo is None:
                 stored_dt = stored_dt.replace(tzinfo=UTC)
         except ValueError:
-            logger.error(f"Invalid timestamp format: {stored_fetched_at}")
-            return False  # Treat invalid timestamps as non-stale
+            raise ValueError(f"Invalid stored timestamp: {stored_fetched_at}")
 
         return new_dt < stored_dt
 
@@ -88,16 +85,8 @@ class ETagManager:
     ) -> None:
         """Overwrite ETag/Last-Modified when freshness is proven."""
         self._db.execute(
-            "UPDATE documents SET etag = ?, last_modified = ?, fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
+            "UPDATE documents SET etag = ?, last_modified = ?, fetched_at = ? WHERE doc_id = ?",
             (etag, last_modified, fetched_at, self._doc_id),
-        )
-
-    def _update_null_fill(self, etag: str | None, last_modified: str | None) -> None:
-        """Fill NULL only; never overwrite existing values."""
-        self._db.execute(
-            "UPDATE documents SET etag = COALESCE(etag, ?), last_modified = COALESCE(last_modified, ?)"
-            " WHERE doc_id = ?",
-            (etag, last_modified, self._doc_id),
         )
 
     def _log_updated(self) -> None:

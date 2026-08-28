@@ -69,6 +69,11 @@ _SOURCE = "mcp_tool_discovery"
 # the owning server's key and base URL: (server_key, server_url, entry).
 _RawEntry = tuple[str, str, dict[str, object]]
 
+# Accepted MCP Schema version — mirrors scripts/mcp_servers/server.py:MCP_TOOL_SCHEMA_VERSION.
+# Must stay in sync with production server constants; using a local constant avoids hard-coding
+# the literal across multiple call sites and makes it obvious when drift occurs.
+ACCEPTED_SCHEMA_VERSION = "1.0"
+
 # Schema-2.0 fields every discovered tool entry MUST declare. A missing field is a hard
 # rejection (per-tool WARNING/FATAL finding), not silently defaulted by build_runtime_tool().
 _REQUIRED_SCHEMA_V2_FIELDS = (
@@ -217,17 +222,16 @@ class McpToolDiscoveryService:
             )
 
         schema_version = body.get("schema_version")
-        if schema_version is not None:
-            logger.debug(
-                "mcp_tool_discovery: server_key=%s schema_version=%s",
-                key,
-                schema_version,
+        if schema_version is None or schema_version != ACCEPTED_SCHEMA_VERSION:
+            return _warning_fetch_result(
+                f"{key}: /v1/tools response missing or invalid schema_version "
+                f"(expected {ACCEPTED_SCHEMA_VERSION!r}, got {schema_version!r})"
             )
-        elif schema_version is None:
-            logger.warning(
-                "mcp_tool_discovery: server_key=%s missing schema_version in /v1/tools response",
-                key,
-            )
+        logger.debug(
+            "mcp_tool_discovery: server_key=%s schema_version=%s",
+            key,
+            schema_version,
+        )
 
         tools = body.get("tools")
         if not isinstance(tools, list):
@@ -259,9 +263,10 @@ class McpToolDiscoveryService:
         field, or one that fails `validate_tool_schema_v2()`'s schema-2.0
         contract (type/known-kind/scope-key-vs-inputSchema.properties
         checks), rejects the entry with a per-tool finding; it is never
-        silently defaulted. Optional `status`/`resource_scope` (legacy
-        singular)/`enabled`/`capabilities` remain type-checked only if
-        present. Schema errors are per-tool WARNING findings, not FATAL.
+        silently defaulted. Optional `status`/`enabled`/`capabilities` remain
+        type-checked only if present. Legacy singular `resource_scope` is
+        rejected unconditionally. Schema errors are per-tool WARNING findings,
+        not FATAL.
         """
         if not isinstance(entry, dict):
             return _warning_entry(
@@ -291,6 +296,14 @@ class McpToolDiscoveryService:
             return _warning_entry(
                 f"{server_key}: tool {name!r} missing required schema-2.0 field(s): "
                 f"{', '.join(missing_fields)}"
+            )
+
+        # Reject legacy singular `resource_scope` field — direct removal, no
+        # aliases/fallbacks/compat flags.
+        if "resource_scope" in entry:
+            return _warning_entry(
+                f"{server_key}: tool {name!r} carries legacy singular "
+                "`resource_scope`; use `resource_scope_kind` + `resource_scope_keys`"
             )
 
         schema_errors = validate_tool_schema_v2(entry)

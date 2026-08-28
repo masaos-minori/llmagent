@@ -52,7 +52,7 @@ class DocumentManager:
         force: bool,
         etag: str | None,
         last_modified: str | None,
-        fetched_at: str | None,
+        fetched_at: str,
         is_file_url: Callable[[str], bool],
     ) -> tuple[int, bool, bool]:
         """Handle an existing document case.
@@ -106,7 +106,7 @@ class DocumentManager:
         doc_id: int,
         etag: str | None,
         last_modified: str | None,
-        new_fetched_at: str | None = None,
+        new_fetched_at: str,
     ) -> None:
         """Refresh ETag/Last-Modified for an existing document (skip-case)."""
         ETagManager(self._db, doc_id).update(etag, last_modified, new_fetched_at)

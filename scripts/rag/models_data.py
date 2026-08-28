@@ -54,7 +54,7 @@ class CrawlDocument:
     url: str
     title: str
     lang: str
-    fetched_at: str | None
+    fetched_at: str
     content: str
     code_blocks: list[str] = field(default_factory=list)
     etag: str | None = None

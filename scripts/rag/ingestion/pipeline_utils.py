@@ -30,6 +30,7 @@ class CrawlJsonPayload(TypedDict):
     code_blocks: list[str]
     etag: str | None
     last_modified: str | None
+    fetched_at: str
 
 
 class ChunkJsonPayload(TypedDict):
@@ -242,7 +243,7 @@ class ChunkJsonRaw(TypedDict):
     code_blocks: NotRequired[list[str]]
     etag: NotRequired[str | None]
     last_modified: NotRequired[str | None]
-    fetched_at: NotRequired[str | None]
+    fetched_at: str
     chunking_strategy: NotRequired[str]
     normalized_content: NotRequired[str | None]
     chunk_index: NotRequired[int]

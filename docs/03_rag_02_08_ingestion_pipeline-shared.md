@@ -53,7 +53,7 @@ source:
 
 | TypedDict | Purpose |
 |---|---|
-| `ChunkJsonRaw` | Raw chunk JSON payload fields; Required: `url`, `content`; Optional: `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`, `chunking_strategy`, `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `artifact_type`, `schema_version`, `created_by` |
+| `ChunkJsonRaw` | Raw chunk JSON payload fields; Required: `url`, `content`, `fetched_at`; Optional: `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `chunking_strategy`, `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `artifact_type`, `schema_version`, `created_by` |
 
 **Public Functions**
 

@@ -4,12 +4,15 @@ Unit tests for ETagManager.update() stale-guard logic.
 
 from __future__ import annotations
 
+import unittest
 from unittest.mock import MagicMock, patch
 
+from rag.ingestion.etag_manager import ETagManager
 
-def _make_etag_mgr(stored_fetched_at: str | None, doc_id: int = 42) -> object:
-    from rag.ingestion.etag_manager import ETagManager
 
+def _make_etag_mgr(
+    stored_fetched_at: str | None, doc_id: int = 42
+) -> tuple[ETagManager, MagicMock]:
     db = MagicMock()
     db.fetchall.return_value = (
         [(stored_fetched_at,)] if stored_fetched_at is not None else []
@@ -17,7 +20,7 @@ def _make_etag_mgr(stored_fetched_at: str | None, doc_id: int = 42) -> object:
     return ETagManager(db, doc_id), db
 
 
-class TestUpdateEtagGuard:
+class TestUpdateEtagGuard(unittest.TestCase):
     def test_newer_incoming_updates_etag(self) -> None:
         etag_mgr, db = _make_etag_mgr("2026-06-01T10:00:00")
 
@@ -47,37 +50,22 @@ class TestUpdateEtagGuard:
         logged_msg = mock_logger.info.call_args[0][0]
         assert "stale" in logged_msg
 
-    def test_missing_fetched_at_uses_coalesce_fill_only(self) -> None:
+    def test_empty_fetched_at_raises_value_error(self) -> None:
         etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
 
-        etag_mgr.update("etag-x", "Mon, 01 Jun 2026", None)
+        with self.assertRaises(ValueError):
+            etag_mgr.update("etag-x", "Mon, 01 Jun 2026", "")
+
+    def test_newer_fetched_at_allows_direct_assignment(self) -> None:
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
+
+        etag_mgr.update("etag-new", "Mon, 02 Jun 2026", "2026-06-11T10:00:00")
 
         db.execute.assert_called_once()
-        # Transaction ownership moved to caller; no internal commit
         db.commit.assert_not_called()
-        db.fetchall.assert_not_called()
         sql = db.execute.call_args[0][0]
-        assert "COALESCE(etag, ?)" in sql
-        assert "COALESCE(last_modified, ?)" in sql
-
-    def test_missing_fetched_at_does_not_overwrite_existing_etag(self) -> None:
-        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
-
-        etag_mgr.update("etag-stale", "Mon, 01 Jun 2026", None)
-
-        sql = db.execute.call_args[0][0]
-        assert "COALESCE(etag, ?)" in sql, (
-            "Must use fill-only SQL when new_fetched_at is None"
-        )
-
-    def test_missing_fetched_at_fills_null_etag(self) -> None:
-        etag_mgr, db = _make_etag_mgr(None)
-
-        etag_mgr.update("etag-first", "Mon, 01 Jun 2026", None)
-
-        db.execute.assert_called_once()
-        sql = db.execute.call_args[0][0]
-        assert "COALESCE(etag, ?)" in sql
+        assert "COALESCE" not in sql
+        assert "fetched_at = ?" in sql
 
     def test_both_none_returns_early_no_db_query(self) -> None:
         from rag.ingestion.etag_manager import ETagManager
@@ -104,11 +92,9 @@ class TestUpdateEtagGuard:
         logged_msg = mock_logger.info.call_args[0][0]
         assert "stale" in logged_msg
 
-    def test_invalid_timestamp_treated_as_non_stale(self) -> None:
-        """Invalid timestamps should be treated as non-stale (conservative fallback)."""
+    def test_invalid_timestamp_raises_value_error(self) -> None:
+        """Invalid timestamps should raise ValueError (fail-closed)."""
         etag_mgr, db = _make_etag_mgr("not-a-date")
 
-        etag_mgr.update("etag-invalid", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
-
-        db.execute.assert_called_once()
-        db.commit.assert_not_called()
+        with self.assertRaises(ValueError):
+            etag_mgr.update("etag-invalid", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
