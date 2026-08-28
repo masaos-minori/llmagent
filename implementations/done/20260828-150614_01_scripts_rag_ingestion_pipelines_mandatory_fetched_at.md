@@ -208,7 +208,7 @@ Direct edits to source files following the phased approach above. Each phase mod
 | Phase 5 | Core Logic — Update store protocol and implementation | Completed | — | — | Verified no changes needed |
 | Phase 6 | Schema cleanup | Completed | — | — | Already has `TEXT NOT NULL`, no DEFAULT clause |
 | Phase 7 | Test and fixture updates | Completed | — | — | Tests updated for fail-closed behavior |
-| Phase 8 | Verification | Pending | — | — | Awaiting lint/typecheck |
+| Phase 8 | Verification | Completed | — | — | Zero matches on `_update_null_fill`, `COALESCE(?, fetched_at)`, `new_fetched_at.*None`; 487 RAG tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
