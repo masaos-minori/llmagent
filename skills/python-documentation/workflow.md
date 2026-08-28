@@ -61,14 +61,27 @@ Build a repository map before writing anything.
 
 ### Do
 - list major directories and Python packages
-- inspect `pyproject.toml`, `setup.cfg`, `setup.py`, `requirements*`
+- inspect `pyproject.toml`, applicable lockfiles (e.g. `uv.lock`), legacy packaging files
+  (`setup.py`, `setup.cfg`), and `requirements*` files only when present
+- inspect CI/CD, Dockerfiles, build scripts, and contributor instructions for the
+  dependency-management commands they actually use
 - identify test directories, CI/CD files, Docker files, migration files
 - determine whether the repo is an app, service, library, worker, or monorepo
+- determine, from the evidence above:
+  - the authoritative direct dependency declaration
+  - the resolved dependency source
+  - generated or exported dependency files
+  - development, test, and production dependency boundaries
+  - the package manager used by each operational environment (development, CI/CD, containers,
+    production)
+  - the commands used to update, validate, install, or synchronize dependencies
 
 ### Output
 - repository inventory
 - major file list
 - packaging/runtime summary
+- dependency-management summary: authoritative declaration source, resolved dependency source,
+  generated exports (if any), and per-environment package manager and commands
 
 ### Read in order
 
@@ -91,6 +104,10 @@ Do not write documentation before reading the existing target document.
 - [ ] package structure is understood
 - [ ] packaging files are identified
 - [ ] major runtime files are identified
+- [ ] the authoritative direct dependency declaration and the resolved dependency source are
+      identified
+- [ ] the package manager and dependency-management commands used by each operational
+      environment are identified
 
 ---
 
@@ -104,12 +121,18 @@ Find how the system is installed, started, and tested.
 - identify entrypoints (`__main__.py`, `main.py`, `app.py`, `manage.py`, console scripts)
 - identify API / CLI / worker / scheduler execution paths
 - inspect Docker and CI for actual run/test commands
+- verify the actual dependency installation or synchronization path used by development, CI/CD,
+  containers, and production; for uv-managed repositories this means inspecting actual uses of
+  commands such as `uv sync`, `uv run`, `uv lock`, and lockfile validation options — do not add
+  these commands to project documentation unless they are verified in the repository
 
 ### Gate
 - [ ] install path is known
 - [ ] minimum startup path is known
 - [ ] test path is known
 - [ ] external runtime dependencies are visible
+- [ ] a traceable dependency synchronization path is known for each operational environment
+- [ ] lockfile validation behavior is known, when a lockfile is used
 
 ---
 
@@ -157,11 +180,19 @@ Document how behavior is controlled at runtime.
 - inspect `.env`, config classes, settings loaders
 - identify DB / cache / broker / external service config
 - identify logging, retry, timeout, migrations, startup hooks
+- identify dependency groups and optional dependencies, and how development-only dependencies
+  are excluded from production
+- identify lockfile ownership and update procedures, and dependency upgrade/validation procedures
+- determine whether pip-compatible files (e.g. a generated `requirements.txt`) are generated for
+  external systems, and whether such exports are committed to the repository or created during
+  build or deployment
 
 ### Gate
 - [ ] important config is listed
 - [ ] secrets are not exposed
 - [ ] runtime dependencies are documented
+- [ ] dependency-group boundaries, lockfile ownership, and export generation are documented
+      (ownership, constraints, and change impact — not complete package lists)
 
 ---
 
@@ -174,11 +205,19 @@ Document how the code is verified and delivered.
 - inspect lint / format / typecheck setup
 - inspect CI/CD and pre-commit
 - identify build, publish, release, or image creation paths
+- verify consistency checks between dependency declarations and lockfiles
+- verify clean-environment dependency synchronization
+- verify CI/CD dependency installation commands
+- verify vulnerability and license scanning support for the repository's actual dependency format
+- if any of the above cannot be confirmed, record the gap as an open question or `Known Issue`;
+  do not invent a workflow
 
 ### Gate
 - [ ] test strategy is documented
 - [ ] CI/CD is documented
 - [ ] quality tools are documented
+- [ ] dependency consistency checks, clean-environment sync, and dependency-related scanning are
+      documented or recorded as open questions
 
 ---
 
@@ -214,11 +253,20 @@ Normally remove, compress, or replace with source references:
 - source-code line numbers (see `skills/DESIGN.md` No source-code line numbers)
 - counts of modules, tools, servers, states, fields, tests, or documents
   (see `skills/DESIGN.md` No implementation counts)
+- complete direct dependency lists, complete transitive dependency lists, exact lockfile
+  contents, dependency-tree output, dependency counts, and generated `requirements.txt`
+  contents
+- exact resolved dependency versions, unless needed to explain a verified compatibility
+  constraint, migration issue, or operational problem
 
 Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
 invariants, failure behavior (fail-fast/fail-open), security and operational constraints,
 data consistency rules, Known Issues, Needs Confirmation items, deprecated behavior relevant
-to migration/compatibility, behavior verified by tests, operationally observed behavior.
+to migration/compatibility, behavior verified by tests, operationally observed behavior,
+the dependency source-of-truth decision, dependency ownership, supported Python-version
+constraints when operationally relevant, dependency-group boundaries, lockfile update and
+validation policy, compatibility constraints, external export requirements, known dependency
+conflicts, and unresolved differences between environments.
 
 Replace removed content with a concise source reference, e.g.:
 
@@ -242,10 +290,24 @@ Remove contradictions across docs and code.
 - inferred content is labeled
 - no secrets are included
 - no unsupported claims remain
+- direct dependency declarations and lockfiles are consistent with each other
+- documented installation commands match CI/CD and container definitions
+- generated dependency exports are not described as authoritative sources
+- development-only dependencies are not described as production requirements
+- lockfile entries are not described as direct application dependencies without supporting
+  evidence
+
+When dependency files and operational commands conflict:
+- document the currently verified behavior
+- preserve documented design intent separately
+- record unresolved conflicts as `Known Issues`
+- use `Needs Confirmation` when authority or intended behavior cannot be verified
 
 ### Gate
 - [ ] major inconsistencies are removed
 - [ ] docs are traceable back to code
+- [ ] dependency declarations, lockfiles, and documented commands are consistent, or conflicts
+      are recorded as `Known Issues` / `Needs Confirmation`
 
 ---
 
@@ -272,6 +334,19 @@ Use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary. When us
 
 Do not invent missing behavior or assume framework patterns without evidence.
 
+### Dependency evidence categories
+
+- **Declared dependency evidence**: project metadata such as `pyproject.toml`.
+- **Resolved dependency evidence**: lockfiles such as `uv.lock`.
+- **Installed-environment evidence**: verified environment inspection or clean-environment
+  synchronization.
+- **Operational evidence**: CI/CD, containers, deployment definitions, and build scripts.
+- **Compatibility export evidence**: generated files such as `requirements.txt`.
+
+No single dependency file proves all dependency-management claims; a claim about actual
+operational behavior (e.g. "CI/CD installs dependencies with X") requires operational evidence,
+not only declared or resolved dependency evidence.
+
 ### Evidence tracking during analysis
 
 During analysis, track for each meaningful item: path, kind, why it matters, confirmed facts,
@@ -290,6 +365,14 @@ evidence label, open questions, and target document.
   Private names starting with `_` are out of scope unless necessary to explain lifecycle,
   safety, failure behavior, or an invariant — in that case, describe the behavior at
   component level instead of exposing the private API as public.
+- Do not require `requirements.txt` when another verified dependency-management workflow is
+  used.
+- Do not edit generated dependency exports (e.g. a generated `requirements.txt`) directly.
+- Do not regenerate lockfiles during documentation-only work.
+- Only modify a lockfile when dependency maintenance is explicitly in scope.
+- Do not classify a dependency as unused only because a static import search finds no reference.
+- Do not infer direct usage or production inclusion from lockfile membership alone.
+- Do not change dependency declarations merely to simplify documentation.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ---

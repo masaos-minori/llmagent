@@ -68,6 +68,36 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 ---
 
+## Dependency Management
+
+This skill MUST stay package-manager-neutral. For any Python dependency-management system
+encountered, the skill MUST:
+
+- identify the authoritative source of direct dependency declarations (e.g. `pyproject.toml`)
+- identify the lockfile or other source of resolved dependencies (e.g. `uv.lock`)
+- determine whether `requirements.txt` is authoritative, manually maintained, generated, or unused
+- never assume `requirements.txt` exists or is required
+- never treat a lockfile as design documentation
+- avoid copying complete dependency lists, exact resolved versions, or dependency counts into
+  documentation
+- verify the actual dependency workflow from CI/CD, container definitions, build scripts, and
+  contributor instructions
+
+### Example: uv-managed repositories
+
+Treat the following as repository-specific evidence to verify, not as a package-manager rule to
+assume for other repositories:
+
+- `pyproject.toml` is the likely direct dependency declaration source
+- `uv.lock` is the likely resolved dependency record
+- verify this relationship from the repository before documenting it
+- do not conclude that CI/CD or production uses uv only because `uv.lock` exists
+
+See `workflow.md` Evidence and Source of Truth, and Boundaries, for the full dependency-evidence
+rule set.
+
+---
+
 ## Composes with
 
 - `issue-to-plan` — document existing architecture during planning phase
